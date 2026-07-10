@@ -10,14 +10,18 @@ from an immutable PDF into an anchored annotation, connect it to manuscript
 text, ask a local model for a grounded revision, review the candidate, and
 export portable source.
 
-The first slice is a deterministic `demo` workspace intended for local
-development and product learning. It is not an authenticated hosted product.
+The compatible `demo` workspace remains the root experience, while additional
+UUID workspaces are discovered through the local-owner catalog. The current
+surface remains intended for local development and product learning; it is not
+yet an authenticated hosted product.
 
 ### Architecture
 
 - **Application shell:** `src/views/home.ts` renders the accessible workspace;
   `src/client/app.ts` provides typed browser behavior bundled into
   `.generated/app.txt`.
+- **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
+  workspace resources while each `DocumentRoom` retains isolated coordination.
 - **Document semantics:** `src/domain/markdown.ts` parses and validates the
   initial standard-Markdown subset plus headings, citations, references,
   aliases, and anchors from the scientific-writing syntax.
@@ -43,6 +47,8 @@ development and product learning. It is not an authenticated hosted product.
 
 ### API Contracts
 
+- `GET /api/workspaces` returns the current owner's workspace summaries.
+- `POST /api/workspaces` creates and registers an isolated workspace.
 - `GET /api/workspaces/demo` returns the complete workspace representation.
 - `GET /api/workspaces/demo/socket` upgrades to the collaborative Yjs channel.
 - `POST /api/workspaces/demo/pdfs` streams one PDF of at most 25 MB to R2.

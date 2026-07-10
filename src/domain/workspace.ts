@@ -1,4 +1,5 @@
 export const demoWorkspaceId = "demo";
+export const localOwnerId = "local";
 
 export const defaultSource = `## Evidence becomes prose {#sec-evidence}
 
@@ -18,6 +19,14 @@ export const defaultBibliography = `@article{merton1942,
 `;
 
 export type CandidateStatus = "pending" | "accepted" | "rejected";
+
+export interface WorkspaceSummary {
+  id: string;
+  title: string;
+  href: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface PdfResource {
   id: string;
@@ -93,6 +102,10 @@ export interface CreateAnnotationInput {
   rects: PdfSelectionRect[];
 }
 
+export interface CreateWorkspaceInput {
+  title: string;
+}
+
 export interface CreatePassageLinkInput {
   annotationId: string;
   start: number;
@@ -123,6 +136,25 @@ export function isCreateAnnotationInput(value: unknown): value is CreateAnnotati
     Array.isArray(value.rects) &&
     value.rects.length <= 64 &&
     value.rects.every(isPdfSelectionRect)
+  );
+}
+
+export function isCreateWorkspaceInput(value: unknown): value is CreateWorkspaceInput {
+  return isRecord(value) && isStringWithin(value.title, 120, true);
+}
+
+export function isWorkspaceSummaries(value: unknown): value is WorkspaceSummary[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        isRecord(item) &&
+        isNonEmptyString(item.id) &&
+        isNonEmptyString(item.title) &&
+        isNonEmptyString(item.href) &&
+        isNonEmptyString(item.createdAt) &&
+        isNonEmptyString(item.updatedAt),
+    )
   );
 }
 

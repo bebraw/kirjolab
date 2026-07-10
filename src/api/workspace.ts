@@ -1,8 +1,9 @@
 import {
-  demoWorkspaceId,
   isCreateAnnotationInput,
   isCreateCandidateInput,
   isCreatePassageLinkInput,
+  isCreateWorkspaceInput,
+  localOwnerId,
   type PdfResource,
 } from "../domain/workspace";
 
@@ -10,20 +11,27 @@ const maximumPdfBytes = 25 * 1024 * 1024;
 
 export async function handleWorkspaceApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const prefix = `/api/workspaces/${demoWorkspaceId}`;
-  if (!url.pathname.startsWith(prefix)) return jsonError("Workspace not found", 404);
+  if (url.pathname === "/api/workspaces") return await handleWorkspaceCatalog(request, env);
+  const match = /^\/api\/workspaces\/([a-z0-9-]{1,64})(\/.*)?$/iu.exec(url.pathname);
+  const workspaceId = match?.[1];
+  if (!workspaceId) return jsonError("Workspace not found", 404);
+  const prefix = `/api/workspaces/${workspaceId}`;
   const suffix = url.pathname.slice(prefix.length) || "/";
-  const room = env.DOCUMENT_ROOMS.getByName(demoWorkspaceId);
+  const catalog = env.WORKSPACE_CATALOGS.getByName(localOwnerId);
+  if (!(await catalog.getWorkspace(workspaceId))) return jsonError("Workspace not found", 404);
+  const room = env.DOCUMENT_ROOMS.getByName(workspaceId);
 
   try {
-    if (suffix === "/" && request.method === "GET") return Response.json(await room.getSnapshot(demoWorkspaceId));
+    if (suffix === "/" && request.method === "GET") return Response.json(await room.getSnapshot(workspaceId));
     if (suffix === "/socket" && request.method === "GET") return await room.fetch(request);
-    if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, env, room);
-    if (suffix.startsWith("/pdfs/") && request.method === "GET") return await downloadPdf(suffix.slice("/pdfs/".length), env);
+    if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, workspaceId, env, room);
+    if (suffix.startsWith("/pdfs/") && request.method === "GET") {
+      return await downloadPdf(workspaceId, suffix.slice("/pdfs/".length), env);
+    }
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
     if (suffix === "/links" && request.method === "POST") return await createPassageLink(request, room);
     if (suffix === "/candidates" && request.method === "POST") return await createCandidate(request, room);
-    if (suffix.startsWith("/candidates/") && request.method === "POST") return await updateCandidate(suffix, room);
+    if (suffix.startsWith("/candidates/") && request.method === "POST") return await updateCandidate(workspaceId, suffix, room);
     if (suffix === "/export/document.md" && request.method === "GET") {
       const portable = await room.getPortableDocument();
       return portableResponse(portable.source, "text/markdown; charset=utf-8", "kirjolab-document.md");
@@ -40,8 +48,21 @@ export async function handleWorkspaceApi(request: Request, env: Env): Promise<Re
   }
 }
 
+async function handleWorkspaceCatalog(request: Request, env: Env): Promise<Response> {
+  const catalog = env.WORKSPACE_CATALOGS.getByName(localOwnerId);
+  if (request.method === "GET") return Response.json(await catalog.listWorkspaces());
+  if (request.method !== "POST") return jsonError("Route not found", 404);
+  const body: unknown = await request.json();
+  if (!isCreateWorkspaceInput(body)) return jsonError("Invalid workspace", 400);
+  const id = crypto.randomUUID();
+  const room = env.DOCUMENT_ROOMS.getByName(id);
+  await room.initializeWorkspace(body.title.trim());
+  return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
+}
+
 async function uploadPdf(
   request: Request,
+  workspaceId: string,
   env: Env,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
 ): Promise<Response> {
@@ -52,7 +73,7 @@ async function uploadPdf(
   if (size > maximumPdfBytes) return jsonError("PDF exceeds the 25 MB vertical-slice limit", 413);
 
   const id = crypto.randomUUID();
-  const objectKey = `${demoWorkspaceId}/${id}.pdf`;
+  const objectKey = `${workspaceId}/${id}.pdf`;
   const name = safeFilename(request.headers.get("x-file-name") ?? "paper.pdf");
   const fixedLengthBody = new FixedLengthStream(size);
   const upload = env.PAPERS.put(objectKey, fixedLengthBody.readable, { httpMetadata: { contentType: "application/pdf" } });
@@ -77,9 +98,9 @@ async function uploadPdf(
   return Response.json(pdf, { status: 201 });
 }
 
-async function downloadPdf(pdfId: string, env: Env): Promise<Response> {
+async function downloadPdf(workspaceId: string, pdfId: string, env: Env): Promise<Response> {
   if (!/^[0-9a-f-]{36}$/iu.test(pdfId)) return jsonError("PDF not found", 404);
-  const object = await env.PAPERS.get(`${demoWorkspaceId}/${pdfId}.pdf`);
+  const object = await env.PAPERS.get(`${workspaceId}/${pdfId}.pdf`);
   if (!object) return jsonError("PDF not found", 404);
   const headers = new Headers();
   object.writeHttpMetadata(headers);
@@ -117,13 +138,14 @@ async function createCandidate(
 }
 
 async function updateCandidate(
+  workspaceId: string,
   suffix: string,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
 ): Promise<Response> {
   const match = /^\/candidates\/([0-9a-f-]{36})\/(apply|reject)$/iu.exec(suffix);
   if (!match?.[1] || !match[2]) return jsonError("Candidate route not found", 404);
   if (match[2] === "reject") return Response.json(await room.rejectCandidate(match[1]));
-  const result = await room.applyCandidate(match[1]);
+  const result = await room.applyCandidate(workspaceId, match[1]);
   return result.ok ? Response.json(result.snapshot) : jsonError(result.error, 409);
 }
 

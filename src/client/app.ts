@@ -2,20 +2,31 @@ import * as Y from "yjs";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
 import {
   isWorkspaceSnapshot,
+  isWorkspaceSummaries,
   type AnnotationResource,
   type ModelCandidate,
   type PassageLink,
   type PdfResource,
   type PdfSelectionRect,
   type WorkspaceSnapshot,
+  type WorkspaceSummary,
 } from "../domain/workspace";
 import { buildGroundedPrompt, calculateTextSplice, extractCompletion } from "./operations";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 
-const apiBase = "/api/workspaces/demo";
+const workspaceId = readWorkspaceId();
+const catalogBase = "/api/workspaces";
+const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
 
 interface Elements {
+  workspaceTitle: HTMLElement;
+  workspaceSwitcher: HTMLSelectElement;
+  newWorkspace: HTMLButtonElement;
+  newWorkspaceDialog: HTMLDialogElement;
+  newWorkspaceForm: HTMLFormElement;
+  newWorkspaceTitle: HTMLInputElement;
+  cancelNewWorkspace: HTMLButtonElement;
   source: HTMLTextAreaElement;
   bibliography: HTMLTextAreaElement;
   preview: HTMLElement;
@@ -90,11 +101,19 @@ class WorkspaceApp {
   async start(): Promise<void> {
     this.#bindUi();
     this.#setEditorsEnabled(false);
+    await this.#refreshCatalog();
     await this.#refreshSnapshot();
     this.#connect();
   }
 
   #bindUi(): void {
+    this.#elements.workspaceSwitcher.addEventListener("change", () => {
+      const selected = this.#elements.workspaceSwitcher.value;
+      if (selected && selected !== workspaceId) location.assign(`/workspaces/${encodeURIComponent(selected)}`);
+    });
+    this.#elements.newWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.showModal());
+    this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
+    this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
     bindYText(this.#elements.source, this.#source, this.#document);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#source.observe(() => this.#renderPreview());
@@ -115,12 +134,39 @@ class WorkspaceApp {
     const value: unknown = await response.json();
     if (!isWorkspaceSnapshot(value)) throw new Error("Workspace returned an invalid snapshot");
     this.#snapshot = value;
+    this.#elements.workspaceTitle.textContent = value.title;
     this.#revision = value.revision;
     this.#elements.source.value = value.source;
     this.#elements.bibliography.value = value.bibliography;
     this.#renderPreview(value.source, value.bibliography);
     this.#renderResources();
     this.#updateRevision();
+  }
+
+  async #refreshCatalog(): Promise<void> {
+    const response = await fetch(catalogBase);
+    if (!response.ok) throw new Error("Could not load workspace navigation");
+    const value: unknown = await response.json();
+    if (!isWorkspaceSummaries(value)) throw new Error("Workspace catalog returned invalid data");
+    this.#renderWorkspaceCatalog(value);
+  }
+
+  #renderWorkspaceCatalog(workspaces: WorkspaceSummary[]): void {
+    this.#elements.workspaceSwitcher.replaceChildren();
+    for (const workspace of workspaces) {
+      const option = new Option(workspace.title, workspace.id, workspace.id === workspaceId, workspace.id === workspaceId);
+      this.#elements.workspaceSwitcher.append(option);
+    }
+  }
+
+  async #createWorkspace(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const response = await jsonFetch(catalogBase, { title: this.#elements.newWorkspaceTitle.value });
+    await expectOk(response);
+    const workspace: unknown = await response.json();
+    const created: unknown = [workspace];
+    if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Workspace catalog returned invalid data");
+    location.assign(created[0].href);
   }
 
   #connect(): void {
@@ -492,6 +538,13 @@ function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y
 
 function collectElements(): Elements {
   return {
+    workspaceTitle: requiredElement("workspace-title", HTMLElement),
+    workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
+    newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
+    newWorkspaceDialog: requiredElement("new-workspace-dialog", HTMLDialogElement),
+    newWorkspaceForm: requiredElement("new-workspace-form", HTMLFormElement),
+    newWorkspaceTitle: requiredElement("new-workspace-title", HTMLInputElement),
+    cancelNewWorkspace: requiredElement("cancel-new-workspace", HTMLButtonElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
     preview: requiredElement("preview", HTMLElement),
@@ -586,6 +639,12 @@ function formatBytes(value: number): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readWorkspaceId(): string {
+  const value = document.body.dataset.workspaceId;
+  if (!value || !/^[a-z0-9-]{1,64}$/iu.test(value)) throw new Error("Invalid workspace identity");
+  return value;
 }
 
 function toArrayBuffer(value: Uint8Array): ArrayBuffer {

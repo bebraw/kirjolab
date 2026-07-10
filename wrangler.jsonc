@@ -9,9 +9,15 @@
     "watch_dir": "src",
   },
   "durable_objects": {
-    "bindings": [{ "name": "DOCUMENT_ROOMS", "class_name": "DocumentRoom" }],
+    "bindings": [
+      { "name": "DOCUMENT_ROOMS", "class_name": "DocumentRoom" },
+      { "name": "WORKSPACE_CATALOGS", "class_name": "WorkspaceCatalog" },
+    ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DocumentRoom"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["DocumentRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["WorkspaceCatalog"] },
+  ],
   "r2_buckets": [{ "binding": "PAPERS", "bucket_name": "kirjolab-papers" }],
   "observability": {
     "enabled": true,

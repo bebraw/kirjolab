@@ -17,6 +17,15 @@ describe("worker", () => {
     expect(body).toContain("Fast preview");
   });
 
+  it("renders a stable workspace resource", async () => {
+    const response = await handleRequest(new Request("http://example.com/workspaces/abc-123"));
+
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(body).toContain('data-workspace-id="abc-123"');
+    expect(body).toContain("/api/workspaces/abc-123/export/document.md");
+  });
+
   it("returns a JSON health response", async () => {
     const response = await handleRequest(new Request("http://example.com/api/health"));
 
@@ -25,7 +34,7 @@ describe("worker", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       name: "kirjolab",
-      routes: ["/", "/api/workspaces/demo", "/api/health"],
+      routes: ["/", "/workspaces/:id", "/api/workspaces", "/api/workspaces/demo", "/api/health"],
     });
   });
 

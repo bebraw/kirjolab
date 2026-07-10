@@ -1,6 +1,7 @@
 import { escapeHtml } from "./shared";
 
-export function renderHomePage(routes: Array<{ path: string; purpose: string }>): string {
+export function renderHomePage(routes: Array<{ path: string; purpose: string }>, workspaceId = "demo"): string {
+  const escapedWorkspaceId = escapeHtml(workspaceId);
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -11,21 +12,24 @@ export function renderHomePage(routes: Array<{ path: string; purpose: string }>)
     <link rel="stylesheet" href="/styles.css">
     <script type="module" src="/app.js"></script>
   </head>
-  <body class="min-h-screen bg-app-canvas text-app-text antialiased">
+  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-workspace-id="${escapedWorkspaceId}">
     <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur">
       <div class="flex min-h-16 items-center justify-between gap-4 px-4 lg:px-6">
-        <div class="flex min-w-0 items-baseline gap-4">
+        <div class="flex min-w-0 items-center gap-3">
           <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
           <span class="hidden h-4 w-px bg-app-line sm:block"></span>
-          <p class="truncate text-sm text-app-text-soft" id="workspace-title">Evidence becomes prose</p>
+          <label class="sr-only" for="workspace-switcher">Current workspace</label>
+          <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading workspace…</option></select>
+          <button class="button-icon shrink-0" id="new-workspace" type="button" title="Create workspace" aria-label="Create workspace">＋</button>
+          <p class="hidden truncate text-sm text-app-text-soft xl:block" id="workspace-title">Evidence becomes prose</p>
         </div>
         <div class="flex items-center gap-3">
           <div class="flex items-center gap-2 text-xs text-app-text-soft" aria-live="polite">
             <span class="h-2 w-2 rounded-full bg-app-warn" id="connection-dot"></span>
             <span id="connection-status">Connecting</span>
           </div>
-          <a class="button-secondary hidden sm:inline-flex" href="/api/workspaces/demo/export/bibliography.bib">Export .bib</a>
-          <a class="button-primary" href="/api/workspaces/demo/export/document.md">Export .md</a>
+          <a class="button-secondary hidden sm:inline-flex" href="/api/workspaces/${escapedWorkspaceId}/export/bibliography.bib">Export .bib</a>
+          <a class="button-primary" href="/api/workspaces/${escapedWorkspaceId}/export/document.md">Export .md</a>
         </div>
       </div>
     </header>
@@ -169,6 +173,20 @@ export function renderHomePage(routes: Array<{ path: string; purpose: string }>)
           </div>
         </div>
       </div>
+    </dialog>
+
+    <dialog class="new-workspace-dialog" id="new-workspace-dialog">
+      <form class="p-5" id="new-workspace-form">
+        <p class="eyebrow">New workspace</p>
+        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Start another line of inquiry</h2>
+        <label class="field-label mt-5">Workspace title
+          <input class="field" id="new-workspace-title" type="text" maxlength="120" required autofocus placeholder="Working title">
+        </label>
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="button-secondary" id="cancel-new-workspace" type="button">Cancel</button>
+          <button class="button-primary" type="submit">Create workspace</button>
+        </div>
+      </form>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

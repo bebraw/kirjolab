@@ -95,6 +95,24 @@
       transform 140ms ease;
   }
 
+  .workspace-switcher {
+    max-width: min(18rem, 32vw);
+    min-height: 2.1rem;
+    border: 1px solid transparent;
+    border-radius: 0.2rem;
+    background: transparent;
+    padding: 0.35rem 1.6rem 0.35rem 0.45rem;
+    color: var(--color-app-text);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .workspace-switcher:hover {
+    border-color: var(--color-app-line);
+    background: rgb(255 255 255 / 0.28);
+  }
+
   .button-primary {
     min-height: 2.35rem;
     padding: 0.55rem 0.85rem;
@@ -303,6 +321,18 @@
     border: 1px solid var(--color-app-line);
     background: var(--color-app-paper);
     box-shadow: 0 2rem 6rem rgb(18 27 24 / 0.28);
+  }
+
+  .new-workspace-dialog {
+    width: min(28rem, calc(100vw - 2rem));
+    padding: 0;
+    border: 1px solid var(--color-app-line);
+    background: var(--color-app-paper);
+    box-shadow: 0 2rem 6rem rgb(18 27 24 / 0.28);
+  }
+
+  .new-workspace-dialog::backdrop {
+    background: rgb(18 27 24 / 0.62);
   }
 
   .paper-dialog::backdrop {

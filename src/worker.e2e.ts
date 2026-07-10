@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { isWorkspaceSnapshot } from "./domain/workspace";
+import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf } from "./test-support/pdf-fixture";
 
 test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
@@ -37,6 +37,33 @@ test("converges source edits across two writers", async ({ page, context }) => {
   await collaborator.locator("#source-editor").fill(expandedSource);
   await expect(page.locator("#source-editor")).toHaveValue(expandedSource);
   await collaborator.close();
+});
+
+test("creates and navigates isolated workspaces", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create workspace" }).click();
+  await page.locator("#new-workspace-title").fill("Independent inquiry");
+  await page.locator("#new-workspace-dialog").getByRole("button", { name: "Create workspace" }).click();
+  await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
+
+  const workspaceId = new URL(page.url()).pathname.split("/").at(-1);
+  if (!workspaceId) throw new Error("Expected a workspace id");
+  await expect(page.locator("#workspace-switcher")).toHaveValue(workspaceId);
+  await expect(page.locator("#workspace-title")).toHaveText("Independent inquiry");
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+
+  const isolatedSource = "## Independent evidence {#independent}\n\nThis belongs to one workspace.\n";
+  await page.locator("#source-editor").fill(isolatedSource);
+  await expect(page.locator("#preview")).toContainText("This belongs to one workspace.");
+
+  const catalogResponse = await page.request.get("/api/workspaces");
+  const catalog: unknown = await catalogResponse.json();
+  expect(isWorkspaceSummaries(catalog)).toBe(true);
+  expect(isWorkspaceSummaries(catalog) ? catalog.some((workspace) => workspace.id === workspaceId) : false).toBe(true);
+
+  await page.goto("/");
+  await expect(page.locator("#workspace-switcher")).toHaveValue("demo");
+  await expect(page.locator("#source-editor")).not.toHaveValue(isolatedSource);
 });
 
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {
@@ -175,7 +202,7 @@ test("serves stable health and browser assets", async ({ request }) => {
   await expect(response.json()).resolves.toEqual({
     ok: true,
     name: "kirjolab",
-    routes: ["/", "/api/workspaces/demo", "/api/health"],
+    routes: ["/", "/workspaces/:id", "/api/workspaces", "/api/workspaces/demo", "/api/health"],
   });
 
   const [styles, client] = await Promise.all([request.get("/styles.css"), request.get("/app.js")]);

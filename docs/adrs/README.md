@@ -74,6 +74,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-038](./implemented/ADR-038-store-pdf-annotations-separately.md)                  | Implemented | Preserve PDFs and store annotations separately with geometric and textual selectors.           |
 | [ADR-040](./implemented/ADR-040-use-durable-objects-and-r2-for-vertical-slice.md)     | Implemented | Use Yjs and per-document Durable Objects for collaboration, with R2 for immutable PDFs.        |
 | [ADR-041](./implemented/ADR-041-render-pdfs-with-pdfjs.md)                            | Implemented | Render one selectable PDF page with PDF.js and store normalized external highlight geometry.   |
+| [ADR-042](./implemented/ADR-042-use-per-owner-workspace-catalogs.md)                  | Implemented | Discover isolated document rooms through a separate SQLite catalog per owner identity.         |
 
 ## Creating A New ADR
 

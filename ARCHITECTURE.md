@@ -22,6 +22,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat portable Markdown and BibTeX as the canonical authored artifacts.
 - Treat parsed syntax, previews, Yjs updates, indexes, and model candidates as supporting representations.
 - Coordinate each collaborative document through its own SQLite-backed Durable Object.
+- Discover workspaces through a separate SQLite-backed catalog per owner identity; never use one catalog as the collaboration atom for all documents.
+- Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
 - Materialize every accepted collaborative update into readable Markdown and bibliography text.
 - Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
 - Combine PDF page/geometry identity with exact quote, prefix, and suffix selectors; never require mutation of the imported PDF.

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isCreateAnnotationInput, isCreateCandidateInput, isCreatePassageLinkInput, isWorkspaceSnapshot } from "./workspace";
+import {
+  isCreateAnnotationInput,
+  isCreateCandidateInput,
+  isCreatePassageLinkInput,
+  isCreateWorkspaceInput,
+  isWorkspaceSnapshot,
+  isWorkspaceSummaries,
+} from "./workspace";
 
 describe("workspace input guards", () => {
   it("accepts complete resource inputs", () => {
@@ -15,6 +22,10 @@ describe("workspace input guards", () => {
       }),
     ).toBe(true);
     expect(isCreatePassageLinkInput({ annotationId: "a", start: 0, end: 4, excerpt: "text" })).toBe(true);
+    expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
+    expect(
+      isWorkspaceSummaries([{ id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now" }]),
+    ).toBe(true);
     expect(
       isCreateCandidateInput({ provider: "local", model: "qwen", sourceRevision: 0, sourceIds: ["a"], proposedSource: "## Revised" }),
     ).toBe(true);
@@ -37,6 +48,20 @@ describe("workspace input guards", () => {
     expect(isCreateAnnotationInput(null)).toBe(false);
     expect(isCreateAnnotationInput({ pdfId: "", page: 0, quote: "", prefix: 1, suffix: "", comment: "", rects: [] })).toBe(false);
     expect(isCreatePassageLinkInput({ annotationId: "a", start: -1, end: 0, excerpt: "" })).toBe(false);
+    expect(isCreateWorkspaceInput({ title: "" })).toBe(false);
+    expect(isCreateWorkspaceInput({ title: "x".repeat(121) })).toBe(false);
+    expect(isCreateWorkspaceInput(null)).toBe(false);
+    expect(isWorkspaceSummaries(null)).toBe(false);
+    const validSummary = {
+      id: "workspace",
+      title: "Study",
+      href: "/workspaces/workspace",
+      createdAt: "created",
+      updatedAt: "updated",
+    };
+    for (const change of [{ id: "" }, { title: "" }, { href: "" }, { createdAt: "" }, { updatedAt: "" }]) {
+      expect(isWorkspaceSummaries([{ ...validSummary, ...change }]), JSON.stringify(change)).toBe(false);
+    }
     expect(isCreateCandidateInput({ provider: "", model: "", sourceRevision: -1, sourceIds: [1], proposedSource: "" })).toBe(false);
     expect(isWorkspaceSnapshot({ id: "demo" })).toBe(false);
   });

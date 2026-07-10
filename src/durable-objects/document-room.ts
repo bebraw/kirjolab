@@ -125,6 +125,12 @@ export class DocumentRoom extends DurableObject<Env> {
     };
   }
 
+  initializeWorkspace(title: string): void {
+    const workspace = this.#workspaceRow();
+    if (workspace.revision !== 0 || workspace.title !== "Evidence becomes prose") return;
+    this.ctx.storage.sql.exec("UPDATE workspace SET title = ? WHERE id = 1", title);
+  }
+
   registerPdf(pdf: PdfResource): PdfResource {
     this.ctx.storage.sql.exec(
       "INSERT INTO pdfs (id, name, content_type, size, object_key, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -208,7 +214,7 @@ export class DocumentRoom extends DurableObject<Env> {
     return candidate;
   }
 
-  applyCandidate(candidateId: string): ApplyCandidateResult {
+  applyCandidate(workspaceId: string, candidateId: string): ApplyCandidateResult {
     const candidate = this.#candidate(candidateId);
     const workspace = this.#workspaceRow();
     if (candidate.status !== "pending") return { ok: false, error: "Candidate is no longer pending" };
@@ -223,7 +229,7 @@ export class DocumentRoom extends DurableObject<Env> {
     const revision = this.#persistDocument();
     this.#broadcast(Y.encodeStateAsUpdate(this.#document));
     this.#broadcast(JSON.stringify({ type: "revision", revision }));
-    return { ok: true, snapshot: this.getSnapshot("demo") };
+    return { ok: true, snapshot: this.getSnapshot(workspaceId) };
   }
 
   rejectCandidate(candidateId: string): ModelCandidate {

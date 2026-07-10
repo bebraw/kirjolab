@@ -13,6 +13,7 @@ Local development in this repo targets macOS. Other platforms may need script an
 - Product and architectural direction: `VISION.md`
 - Implemented scholarly-workspace contract: `specs/scholarly-workspace/spec.md`
 - Implemented PDF evidence-capture contract: `specs/pdf-evidence-capture/spec.md`
+- Implemented workspace catalog contract: `specs/workspace-catalog/spec.md`
 - Development setup and local CI: `docs/development.md`
 - Architecture decisions: `docs/adrs/README.md`
 - Feature and architecture specs: `specs/README.md`
@@ -74,6 +75,7 @@ For cross-repo agent work, tell the agent:
 ## Current Vertical Slice
 
 - Collaborative Markdown and BibTeX editing through Yjs WebSockets.
+- Multiple isolated workspaces with stable URLs and local-owner navigation.
 - Fast semantic preview and validation for the initial scientific-writing syntax.
 - Streamed PDF import, selectable single-page rendering, resilient highlights, and bidirectional manuscript links.
 - Browser-direct local-model requests with persisted candidate review/apply.

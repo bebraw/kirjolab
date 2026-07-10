@@ -2,11 +2,12 @@ import { createHealthResponse } from "./api/health";
 import { handleWorkspaceApi } from "./api/workspace";
 import { exampleRoutes } from "./app-routes";
 import { DocumentRoom } from "./durable-objects/document-room";
+import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
 import { renderHomePage } from "./views/home";
 import { renderNotFoundPage } from "./views/not-found";
 import { cssResponse, htmlResponse, scriptResponse } from "./views/shared";
 
-export { DocumentRoom };
+export { DocumentRoom, WorkspaceCatalog };
 
 export default {
   async fetch(request: Request, env?: Env): Promise<Response> {
@@ -30,14 +31,19 @@ export async function handleRequest(request: Request, env?: Env): Promise<Respon
   }
 
   if (url.pathname === "/") {
-    return htmlResponse(renderHomePage(exampleRoutes));
+    return htmlResponse(renderHomePage(exampleRoutes, "demo"));
+  }
+
+  const workspacePage = /^\/workspaces\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
+  if (workspacePage?.[1]) {
+    return htmlResponse(renderHomePage(exampleRoutes, workspacePage[1]));
   }
 
   if (url.pathname === "/api/health") {
     return createHealthResponse(exampleRoutes.map((route) => route.path));
   }
 
-  if (url.pathname.startsWith("/api/workspaces/")) {
+  if (url.pathname === "/api/workspaces" || url.pathname.startsWith("/api/workspaces/")) {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await handleWorkspaceApi(request, env);
   }
