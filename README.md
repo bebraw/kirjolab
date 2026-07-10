@@ -10,6 +10,7 @@ Local development in this repo targets macOS. Other platforms may need script an
 
 ## Documentation
 
+- Product and architectural direction: `VISION.md`
 - Development setup and local CI: `docs/development.md`
 - Architecture decisions: `docs/adrs/README.md`
 - Feature and architecture specs: `specs/README.md`

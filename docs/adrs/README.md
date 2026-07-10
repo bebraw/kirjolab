@@ -21,9 +21,14 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                       | Status   | Summary                            |
-| ----------------------------------------- | -------- | ---------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
+| ADR                                                                        | Status   | Summary                                                                                   |
+| -------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md)                                  | Proposed | Template for drafting future ADRs.                                                        |
+| [ADR-035](./proposed/ADR-035-keep-markdown-canonical.md)                   | Proposed | Keep portable Markdown canonical and derive semantic, preview, and index representations. |
+| [ADR-036](./proposed/ADR-036-model-scholarly-work-as-hypermedia.md)        | Proposed | Model writing and working-memory entities as stable, typed hypermedia resources.          |
+| [ADR-037](./proposed/ADR-037-synchronize-text-and-materialize-markdown.md) | Proposed | Synchronize collaborative text while materializing clean, recoverable Markdown.           |
+| [ADR-038](./proposed/ADR-038-store-pdf-annotations-separately.md)          | Proposed | Preserve PDFs and store annotations separately with geometric and textual selectors.      |
+| [ADR-039](./proposed/ADR-039-require-reviewable-model-operations.md)       | Proposed | Route local-capable model work through provenance-aware candidate review and apply.       |
 
 ## Accepted ADRs
 
