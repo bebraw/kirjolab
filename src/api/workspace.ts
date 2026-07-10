@@ -8,6 +8,7 @@ import {
   localOwnerId,
   type PdfResource,
 } from "../domain/workspace";
+import { buildWorkspaceKnowledgeGraph, searchWorkspaceKnowledge } from "../domain/knowledge";
 import { fetchCrossrefWork } from "../integrations/crossref";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 
@@ -33,6 +34,13 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
 
   try {
     if (suffix === "/" && request.method === "GET") return Response.json(await room.getSnapshot(workspaceId));
+    if (suffix === "/search" && request.method === "GET") {
+      const query = url.searchParams.get("q")?.slice(0, 200) ?? "";
+      return Response.json(searchWorkspaceKnowledge(await room.getSnapshot(workspaceId), query));
+    }
+    if (suffix === "/graph" && request.method === "GET") {
+      return Response.json(buildWorkspaceKnowledgeGraph(await room.getSnapshot(workspaceId)));
+    }
     if (suffix === "/socket" && request.method === "GET") return await room.fetch(request);
     if (suffix === "/members" && request.method === "GET") return Response.json(await access.listMembers(identity.email));
     if (suffix === "/members" && request.method === "POST") {

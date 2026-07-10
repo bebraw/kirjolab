@@ -1,4 +1,12 @@
 import * as Y from "yjs";
+import {
+  buildWorkspaceKnowledgeGraph,
+  isKnowledgeSearchResults,
+  isWorkspaceKnowledgeGraph,
+  type KnowledgeGraphNode,
+  type KnowledgeSearchResult,
+  type WorkspaceKnowledgeGraph,
+} from "../domain/knowledge";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
 import {
   isWorkspaceSnapshot,
@@ -48,10 +56,15 @@ interface Elements {
   pdfUpload: HTMLInputElement;
   pdfList: HTMLElement;
   bibliographyUpload: HTMLInputElement;
+  knowledgeSearchForm: HTMLFormElement;
+  knowledgeSearchInput: HTMLInputElement;
+  knowledgeSearchResults: HTMLElement;
   publicationCount: HTMLElement;
   publicationList: HTMLElement;
   annotationCount: HTMLElement;
   annotationList: HTMLElement;
+  connectionCount: HTMLElement;
+  knowledgeConnectionList: HTMLElement;
   annotationForm: HTMLFormElement;
   annotationPdf: HTMLSelectElement;
   annotationPage: HTMLInputElement;
@@ -138,6 +151,7 @@ class WorkspaceApp {
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
     this.#elements.bibliographyUpload.addEventListener("change", () => void this.#importBibliography());
+    this.#elements.knowledgeSearchForm.addEventListener("submit", (event) => void this.#searchKnowledge(event));
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
     this.#elements.openPaper.addEventListener("click", () => void this.#showPaper());
     this.#elements.closePaper.addEventListener("click", () => this.#elements.paperDialog.close());
@@ -156,6 +170,7 @@ class WorkspaceApp {
     this.#elements.bibliography.value = value.bibliography;
     this.#renderPreview(value.source, value.bibliography);
     this.#renderResources();
+    await this.#refreshKnowledgeGraph();
     this.#updateRevision();
   }
 
@@ -275,6 +290,7 @@ class WorkspaceApp {
       });
       this.#elements.diagnostics.append(item);
     }
+    if (this.#snapshot) this.#renderKnowledgeGraph(buildWorkspaceKnowledgeGraph({ ...this.#snapshot, source, bibliography }));
   }
 
   #renderResources(): void {
@@ -321,6 +337,7 @@ class WorkspaceApp {
     for (const publication of publications) {
       const card = document.createElement("article");
       card.className = "resource-card";
+      card.dataset.publicationResourceId = publication.id;
       card.append(resourceLabel(`${publication.type} · ${publication.metadataSource}`), resourceTitle(publication.title));
       const details = document.createElement("p");
       details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
@@ -423,6 +440,122 @@ class WorkspaceApp {
         card.append(actions);
       }
       this.#elements.candidateList.append(card);
+    }
+  }
+
+  async #searchKnowledge(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const query = this.#elements.knowledgeSearchInput.value.trim();
+    if (!query) {
+      this.#elements.knowledgeSearchResults.replaceChildren();
+      this.#elements.knowledgeSearchResults.classList.add("hidden");
+      return;
+    }
+    try {
+      const response = await fetch(`${apiBase}/search?q=${encodeURIComponent(query)}`, { credentials: "same-origin" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isKnowledgeSearchResults(value)) throw new Error("Workspace search returned invalid data");
+      this.#renderKnowledgeSearchResults(value);
+    } catch (error) {
+      this.#elements.knowledgeSearchResults.classList.remove("hidden");
+      this.#elements.knowledgeSearchResults.replaceChildren(emptyState(error instanceof Error ? error.message : "Workspace search failed"));
+    }
+  }
+
+  #renderKnowledgeSearchResults(results: KnowledgeSearchResult[]): void {
+    this.#elements.knowledgeSearchResults.replaceChildren();
+    this.#elements.knowledgeSearchResults.classList.remove("hidden");
+    if (results.length === 0) {
+      this.#elements.knowledgeSearchResults.append(emptyState("No matching workspace resources."));
+      return;
+    }
+    for (const result of results) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "resource-card block w-full text-left";
+      button.append(resourceLabel(result.kind), resourceTitle(result.title));
+      if (result.excerpt) {
+        const excerpt = document.createElement("span");
+        excerpt.className = "mt-2 block font-sans text-xs leading-5 text-app-text-soft";
+        excerpt.textContent = result.excerpt;
+        button.append(excerpt);
+      }
+      button.addEventListener("click", () => this.#focusKnowledgeResource(result.resourceId));
+      this.#elements.knowledgeSearchResults.append(button);
+    }
+  }
+
+  async #refreshKnowledgeGraph(): Promise<void> {
+    const response = await fetch(`${apiBase}/graph`, { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWorkspaceKnowledgeGraph(value)) throw new Error("Workspace connections returned invalid data");
+    this.#renderKnowledgeGraph(value);
+  }
+
+  #renderKnowledgeGraph(graph: WorkspaceKnowledgeGraph): void {
+    this.#elements.connectionCount.textContent = String(graph.edges.length);
+    this.#elements.knowledgeConnectionList.replaceChildren();
+    if (graph.edges.length === 0) {
+      this.#elements.knowledgeConnectionList.append(emptyState("Citations and evidence links appear here as typed connections."));
+      return;
+    }
+    const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
+    for (const edge of graph.edges) {
+      const from = nodes.get(edge.from);
+      const to = nodes.get(edge.to);
+      if (!from || !to) continue;
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      card.append(resourceLabel(edge.relation));
+      const path = document.createElement("div");
+      path.className = "mt-2 flex flex-wrap items-center gap-2 font-sans text-xs";
+      path.append(this.#knowledgeLink(from), document.createTextNode("→"), this.#knowledgeLink(to));
+      card.append(path);
+      if (edge.label) {
+        const label = document.createElement("p");
+        label.className = "mt-2 font-sans text-xs text-app-text-soft";
+        label.textContent = edge.label;
+        card.append(label);
+      }
+      this.#elements.knowledgeConnectionList.append(card);
+    }
+  }
+
+  #knowledgeLink(node: KnowledgeGraphNode): HTMLButtonElement {
+    return actionButton(node.label, "font-bold text-app-accent-strong underline decoration-app-border underline-offset-4", () =>
+      this.#focusKnowledgeResource(node.id),
+    );
+  }
+
+  #focusKnowledgeResource(resourceId: string): void {
+    const separator = resourceId.indexOf(":");
+    if (separator < 0) return;
+    const kind = resourceId.slice(0, separator);
+    const id = resourceId.slice(separator + 1);
+    if (kind === "document") {
+      this.#elements.source.focus();
+      this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (kind === "section") {
+      const section = this.#elements.preview.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+      section?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (kind === "annotation") {
+      this.#focusAnnotationCard(id);
+      return;
+    }
+    if (kind === "pdf") {
+      const pdf = this.#snapshot?.pdfs.find((item) => item.id === id);
+      if (pdf) void this.#showPaper(pdf);
+      return;
+    }
+    if (kind === "publication") {
+      const card = document.querySelector<HTMLElement>(`[data-publication-resource-id="${CSS.escape(id)}"]`);
+      card?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }
 
@@ -665,10 +798,15 @@ function collectElements(): Elements {
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
     pdfList: requiredElement("pdf-list", HTMLElement),
     bibliographyUpload: requiredElement("bibliography-upload", HTMLInputElement),
+    knowledgeSearchForm: requiredElement("knowledge-search-form", HTMLFormElement),
+    knowledgeSearchInput: requiredElement("knowledge-search-input", HTMLInputElement),
+    knowledgeSearchResults: requiredElement("knowledge-search-results", HTMLElement),
     publicationCount: requiredElement("publication-count", HTMLElement),
     publicationList: requiredElement("publication-list", HTMLElement),
     annotationCount: requiredElement("annotation-count", HTMLElement),
     annotationList: requiredElement("annotation-list", HTMLElement),
+    connectionCount: requiredElement("connection-count", HTMLElement),
+    knowledgeConnectionList: requiredElement("knowledge-connection-list", HTMLElement),
     annotationForm: requiredElement("annotation-form", HTMLFormElement),
     annotationPdf: requiredElement("annotation-pdf", HTMLSelectElement),
     annotationPage: requiredElement("annotation-page", HTMLInputElement),

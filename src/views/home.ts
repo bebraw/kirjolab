@@ -55,6 +55,12 @@ export function renderHomePage(
           </label>
         </div>
         <p class="mt-3 text-sm leading-6 text-app-text-soft">Import a paper, select evidence in place, then carry its durable anchor into the draft.</p>
+        <form class="mt-4 flex gap-2" id="knowledge-search-form" role="search">
+          <label class="sr-only" for="knowledge-search-input">Search this workspace</label>
+          <input class="field min-w-0" id="knowledge-search-input" type="search" maxlength="200" placeholder="Search this workspace">
+          <button class="button-secondary shrink-0" type="submit">Find</button>
+        </form>
+        <div class="mt-3 hidden space-y-2" id="knowledge-search-results" aria-live="polite"></div>
         <div class="mt-5 space-y-2" id="pdf-list">
           <div class="empty-state">No paper imported yet.</div>
         </div>
@@ -78,6 +84,16 @@ export function renderHomePage(
           </label>
           <div class="mt-3 space-y-3" id="publication-list">
             <div class="empty-state">Imported references appear here as stable publication resources.</div>
+          </div>
+        </section>
+        <section class="mt-6 border-t border-app-line pt-5">
+          <div class="flex items-center justify-between gap-3">
+            <p class="eyebrow">Connections</p>
+            <span class="count-badge" id="connection-count">0</span>
+          </div>
+          <p class="mt-2 text-xs leading-5 text-app-text-soft">Follow typed links through the scholarly record.</p>
+          <div class="mt-3 space-y-2" id="knowledge-connection-list">
+            <div class="empty-state">Citations and evidence links appear here.</div>
           </div>
         </section>
       </aside>

@@ -37,6 +37,9 @@ mode for authenticated hosted collaboration.
 - **Reference library:** BibTeX imports merge into canonical bibliography text
   and materialize stable publication resources. DOI-backed Crossref enrichment
   is an explicit action.
+- **Knowledge navigation:** Bounded workspace search and typed connection
+  representations expose documents, sections, publications, PDFs, and
+  annotations as navigable resources without making an index authoritative.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable PDF bytes under a
   workspace-scoped key. PDF responses stream from R2 and the R2 ETag identifies
   the exact stored artifact.
@@ -56,6 +59,8 @@ mode for authenticated hosted collaboration.
 - `GET /api/workspaces` returns the current owner's workspace summaries.
 - `POST /api/workspaces` creates and registers an isolated workspace.
 - `GET /api/workspaces/demo` returns the complete workspace representation.
+- `GET /api/workspaces/demo/search?q={query}` searches the authorized workspace.
+- `GET /api/workspaces/demo/graph` returns its derived typed-resource projection.
 - `GET /api/workspaces/demo/socket` upgrades to the collaborative Yjs channel.
 - `POST /api/workspaces/demo/pdfs` streams one PDF of at most 25 MB to R2.
 - `GET /api/workspaces/demo/pdfs/{id}` streams an imported PDF.
@@ -96,6 +101,8 @@ mode for authenticated hosted collaboration.
       targets.
 - [x] BibTeX imports materialize stable publication resources independently of
       citation keys.
+- [x] Search results and typed connections navigate across authored and evidence
+      resources.
 - [x] A PDF can be imported, rendered with selectable text, streamed back, and
       annotated without mutation.
 - [x] An annotation can be linked to the exact selected manuscript range.

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf } from "./test-support/pdf-fixture";
 
@@ -228,6 +229,21 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   expect(snapshotAfterLink.ok()).toBe(true);
   const linkedSnapshot: unknown = await snapshotAfterLink.json();
   expect(isWorkspaceSnapshot(linkedSnapshot) ? linkedSnapshot.links.length : 0).toBeGreaterThan(0);
+
+  await page.locator("#knowledge-search-input").fill("Grounding revision");
+  await page.locator("#knowledge-search-form").getByRole("button", { name: "Find" }).click();
+  await expect(page.locator("#knowledge-search-results")).toContainText("Grounding for the revision");
+  await expect(page.locator("#knowledge-connection-list")).toContainText("annotates");
+  await expect(page.locator("#knowledge-connection-list")).toContainText("used-in");
+
+  const searchResponse = await page.request.get("/api/workspaces/demo/search?q=inspectable%20evidence");
+  const searchResults: unknown = await searchResponse.json();
+  expect(searchResponse.ok()).toBe(true);
+  expect(isKnowledgeSearchResults(searchResults)).toBe(true);
+  const graphResponse = await page.request.get("/api/workspaces/demo/graph");
+  const graph: unknown = await graphResponse.json();
+  expect(graphResponse.ok()).toBe(true);
+  expect(isWorkspaceKnowledgeGraph(graph)).toBe(true);
 
   await annotationCard.getByRole("button", { name: "Open evidence" }).click();
   await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();

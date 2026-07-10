@@ -11,6 +11,8 @@ describe("renderHomePage", () => {
     expect(html).toContain("Select, annotate, connect");
     expect(html).toContain("Import BibTeX");
     expect(html).toContain('id="publication-list"');
+    expect(html).toContain('id="knowledge-search-form"');
+    expect(html).toContain('id="knowledge-connection-list"');
     expect(html).toContain('id="paper-text-layer"');
     expect(html).toContain("Propose, inspect, apply");
     expect(html).toContain('src="/app.js"');
