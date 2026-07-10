@@ -40,8 +40,15 @@ export class WorkspaceCatalog extends DurableObject<Env> {
 
   registerWorkspace(id: string, title: string): WorkspaceSummary {
     const now = new Date().toISOString();
-    this.ctx.storage.sql.exec("INSERT INTO workspaces (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)", id, title, now, now);
-    return { id, title, href: `/workspaces/${id}`, createdAt: now, updatedAt: now };
+    this.ctx.storage.sql.exec(
+      `INSERT INTO workspaces (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET title = excluded.title, updated_at = excluded.updated_at`,
+      id,
+      title,
+      now,
+      now,
+    );
+    return summaryFromRow(this.ctx.storage.sql.exec<WorkspaceCatalogRow>("SELECT * FROM workspaces WHERE id = ?", id).one());
   }
 
   getWorkspace(id: string): WorkspaceSummary | null {

@@ -14,6 +14,7 @@ Local development in this repo targets macOS. Other platforms may need script an
 - Implemented scholarly-workspace contract: `specs/scholarly-workspace/spec.md`
 - Implemented PDF evidence-capture contract: `specs/pdf-evidence-capture/spec.md`
 - Implemented workspace catalog contract: `specs/workspace-catalog/spec.md`
+- Implemented workspace access contract: `specs/workspace-access/spec.md`
 - Development setup and local CI: `docs/development.md`
 - Architecture decisions: `docs/adrs/README.md`
 - Feature and architecture specs: `specs/README.md`
@@ -33,7 +34,8 @@ Local development in this repo targets macOS. Other platforms may need script an
 - Start Kirjolab with `npm run dev`, then open `http://127.0.0.1:8787`.
 - `npm run build` generates the Tailwind stylesheet, typed browser bundle, and version-matched PDF.js worker under the ignored `.generated/` directory.
 - Local Wrangler automatically emulates the Durable Object and R2 bindings.
-- Before a production deployment, create the configured bucket with `npx wrangler r2 bucket create kirjolab-papers`. Do not deploy the demo workspace publicly until authentication and workspace authorization exist.
+- Before a production deployment, create the configured bucket with `npx wrangler r2 bucket create kirjolab-papers`.
+- Local `AUTH_MODE=local` is deliberately rejected away from loopback. For hosting, protect the application hostname with Cloudflare Access and configure `AUTH_MODE=access`, `ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com`, and the application's `ACCESS_AUD` value through environment-specific Wrangler configuration or dashboard variables. Keep unprotected direct hostnames disabled.
 
 ## Verification
 
@@ -75,7 +77,8 @@ For cross-repo agent work, tell the agent:
 ## Current Vertical Slice
 
 - Collaborative Markdown and BibTeX editing through Yjs WebSockets.
-- Multiple isolated workspaces with stable URLs and local-owner navigation.
+- Multiple isolated workspaces with stable URLs and identity-scoped navigation.
+- Cloudflare Access JWT verification plus owner/member workspace sharing.
 - Fast semantic preview and validation for the initial scientific-writing syntax.
 - Streamed PDF import, selectable single-page rendering, resilient highlights, and bidirectional manuscript links.
 - Browser-direct local-model requests with persisted candidate review/apply.

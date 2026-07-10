@@ -75,6 +75,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-040](./implemented/ADR-040-use-durable-objects-and-r2-for-vertical-slice.md)     | Implemented | Use Yjs and per-document Durable Objects for collaboration, with R2 for immutable PDFs.        |
 | [ADR-041](./implemented/ADR-041-render-pdfs-with-pdfjs.md)                            | Implemented | Render one selectable PDF page with PDF.js and store normalized external highlight geometry.   |
 | [ADR-042](./implemented/ADR-042-use-per-owner-workspace-catalogs.md)                  | Implemented | Discover isolated document rooms through a separate SQLite catalog per owner identity.         |
+| [ADR-043](./implemented/ADR-043-use-cloudflare-access-and-memberships.md)             | Implemented | Verify Cloudflare Access JWTs and authorize document access through owner/member roles.        |
 
 ## Creating A New ADR
 

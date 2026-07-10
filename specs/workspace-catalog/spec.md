@@ -11,7 +11,8 @@ addressable without collapsing their collaboration state into one process.
 ### Architecture
 
 - `WorkspaceCatalog` is a SQLite-backed Durable Object selected by owner id.
-- Before authentication, the owner id is the explicit `local` placeholder.
+- Catalog selection uses the authenticated identity's opaque email digest. The
+  compatible default local identity retains the `local` placeholder.
 - `DocumentRoom` remains selected by workspace id and owns document-scoped
   coordination and metadata.
 - R2 PDF object keys begin with the workspace id.
@@ -29,7 +30,8 @@ addressable without collapsing their collaboration state into one process.
   its owner catalog.
 - Do not store document source, annotations, or PDFs in the catalog.
 - Do not allow workspace ids into R2 keys without the bounded id grammar.
-- Do not claim owner isolation until authentication replaces `local`.
+- Do not accept a catalog identity that has not passed the authentication
+  boundary.
 
 ## Contract
 

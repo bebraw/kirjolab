@@ -3,11 +3,13 @@ import { handleWorkspaceApi } from "./api/workspace";
 import { exampleRoutes } from "./app-routes";
 import { DocumentRoom } from "./durable-objects/document-room";
 import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
+import { WorkspaceAccess } from "./durable-objects/workspace-access";
+import { authenticateRequest, isSameOriginMutation, type AuthIdentity } from "./security/auth";
 import { renderHomePage } from "./views/home";
 import { renderNotFoundPage } from "./views/not-found";
 import { cssResponse, htmlResponse, scriptResponse } from "./views/shared";
 
-export { DocumentRoom, WorkspaceCatalog };
+export { DocumentRoom, WorkspaceAccess, WorkspaceCatalog };
 
 export default {
   async fetch(request: Request, env?: Env): Promise<Response> {
@@ -30,22 +32,34 @@ export async function handleRequest(request: Request, env?: Env): Promise<Respon
     return scriptResponse(await loadPdfWorkerScript());
   }
 
-  if (url.pathname === "/") {
-    return htmlResponse(renderHomePage(exampleRoutes, "demo"));
-  }
-
-  const workspacePage = /^\/workspaces\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
-  if (workspacePage?.[1]) {
-    return htmlResponse(renderHomePage(exampleRoutes, workspacePage[1]));
-  }
-
   if (url.pathname === "/api/health") {
     return createHealthResponse(exampleRoutes.map((route) => route.path));
   }
 
+  let identity: AuthIdentity = { subject: "test", email: "local@kirjolab.invalid", ownerKey: "local", mode: "local" };
+  if (env) {
+    const authentication = await authenticateRequest(request, env);
+    if (!authentication.ok) return authentication.response;
+    identity = authentication.identity;
+  }
+  if (!isSameOriginMutation(request)) return Response.json({ error: "Cross-origin mutation denied" }, { status: 403 });
+
+  if (url.pathname === "/api/session") {
+    return Response.json({ email: identity.email, mode: identity.mode }, { headers: { "cache-control": "no-store" } });
+  }
+
+  if (url.pathname === "/") {
+    return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email));
+  }
+
+  const workspacePage = /^\/workspaces\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
+  if (workspacePage?.[1]) {
+    return htmlResponse(renderHomePage(exampleRoutes, workspacePage[1], identity.email));
+  }
+
   if (url.pathname === "/api/workspaces" || url.pathname.startsWith("/api/workspaces/")) {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await handleWorkspaceApi(request, env);
+    return await handleWorkspaceApi(request, env, identity);
   }
 
   return htmlResponse(renderNotFoundPage(url.pathname), 404);

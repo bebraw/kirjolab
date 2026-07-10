@@ -3,30 +3,42 @@ import {
   isCreateCandidateInput,
   isCreatePassageLinkInput,
   isCreateWorkspaceInput,
+  isInviteWorkspaceMemberInput,
   localOwnerId,
   type PdfResource,
 } from "../domain/workspace";
+import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 
-export async function handleWorkspaceApi(request: Request, env: Env): Promise<Response> {
+export async function handleWorkspaceApi(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname === "/api/workspaces") return await handleWorkspaceCatalog(request, env);
+  if (url.pathname === "/api/workspaces") return await handleWorkspaceCatalog(request, env, identity);
   const match = /^\/api\/workspaces\/([a-z0-9-]{1,64})(\/.*)?$/iu.exec(url.pathname);
   const workspaceId = match?.[1];
   if (!workspaceId) return jsonError("Workspace not found", 404);
   const prefix = `/api/workspaces/${workspaceId}`;
   const suffix = url.pathname.slice(prefix.length) || "/";
-  const catalog = env.WORKSPACE_CATALOGS.getByName(localOwnerId);
-  if (!(await catalog.getWorkspace(workspaceId))) return jsonError("Workspace not found", 404);
-  const room = env.DOCUMENT_ROOMS.getByName(workspaceId);
+  const catalog = env.WORKSPACE_CATALOGS.getByName(identity.ownerKey);
+  const summary = await catalog.getWorkspace(workspaceId);
+  if (!summary) return jsonError("Workspace not found", 404);
+  const storageKey = workspaceStorageKey(identity, workspaceId);
+  const access = env.WORKSPACE_ACCESS.getByName(storageKey);
+  if (workspaceId === "demo" || identity.mode === "local") await access.initializeOwner(identity.email);
+  const role = await access.getRole(identity.email);
+  if (!role) return jsonError("Workspace access denied", 403);
+  const room = env.DOCUMENT_ROOMS.getByName(storageKey);
 
   try {
     if (suffix === "/" && request.method === "GET") return Response.json(await room.getSnapshot(workspaceId));
     if (suffix === "/socket" && request.method === "GET") return await room.fetch(request);
-    if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, workspaceId, env, room);
+    if (suffix === "/members" && request.method === "GET") return Response.json(await access.listMembers(identity.email));
+    if (suffix === "/members" && request.method === "POST") {
+      return await inviteWorkspaceMember(request, env, identity, workspaceId, summary.title, access);
+    }
+    if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);
     if (suffix.startsWith("/pdfs/") && request.method === "GET") {
-      return await downloadPdf(workspaceId, suffix.slice("/pdfs/".length), env);
+      return await downloadPdf(storageKey, suffix.slice("/pdfs/".length), env);
     }
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
     if (suffix === "/links" && request.method === "POST") return await createPassageLink(request, room);
@@ -43,21 +55,42 @@ export async function handleWorkspaceApi(request: Request, env: Env): Promise<Re
     return jsonError("Route not found", 404);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Workspace operation failed";
-    const status = /stale|pending/iu.test(message) ? 409 : 400;
+    const status = /access denied|only the workspace owner/iu.test(message) ? 403 : /stale|pending/iu.test(message) ? 409 : 400;
     return jsonError(message, status);
   }
 }
 
-async function handleWorkspaceCatalog(request: Request, env: Env): Promise<Response> {
-  const catalog = env.WORKSPACE_CATALOGS.getByName(localOwnerId);
+async function handleWorkspaceCatalog(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
+  const catalog = env.WORKSPACE_CATALOGS.getByName(identity.ownerKey);
   if (request.method === "GET") return Response.json(await catalog.listWorkspaces());
   if (request.method !== "POST") return jsonError("Route not found", 404);
   const body: unknown = await request.json();
   if (!isCreateWorkspaceInput(body)) return jsonError("Invalid workspace", 400);
   const id = crypto.randomUUID();
-  const room = env.DOCUMENT_ROOMS.getByName(id);
+  const storageKey = workspaceStorageKey(identity, id);
+  const access = env.WORKSPACE_ACCESS.getByName(storageKey);
+  await access.initializeOwner(identity.email);
+  const room = env.DOCUMENT_ROOMS.getByName(storageKey);
   await room.initializeWorkspace(body.title.trim());
   return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
+}
+
+async function inviteWorkspaceMember(
+  request: Request,
+  env: Env,
+  identity: AuthIdentity,
+  workspaceId: string,
+  title: string,
+  access: DurableObjectStub<import("../durable-objects/workspace-access").WorkspaceAccess>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isInviteWorkspaceMemberInput(body)) return jsonError("Invalid workspace member", 400);
+  const email = body.email.trim().toLowerCase();
+  const member = await access.addMember(identity.email, email);
+  const memberOwnerKey = await ownerKeyForEmail(email);
+  const memberCatalog = env.WORKSPACE_CATALOGS.getByName(memberOwnerKey);
+  await memberCatalog.registerWorkspace(workspaceId, title);
+  return Response.json(member, { status: 201 });
 }
 
 async function uploadPdf(
@@ -167,4 +200,9 @@ function safeFilename(value: string): string {
   const decoded = decodeURIComponent(value);
   const sanitized = decoded.replaceAll(/[\r\n"/\\]/gu, "-").trim();
   return sanitized.toLowerCase().endsWith(".pdf") ? sanitized : `${sanitized || "paper"}.pdf`;
+}
+
+function workspaceStorageKey(identity: AuthIdentity, workspaceId: string): string {
+  if (workspaceId !== "demo" || identity.ownerKey === localOwnerId) return workspaceId;
+  return `${identity.ownerKey}:demo`;
 }

@@ -22,7 +22,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat portable Markdown and BibTeX as the canonical authored artifacts.
 - Treat parsed syntax, previews, Yjs updates, indexes, and model candidates as supporting representations.
 - Coordinate each collaborative document through its own SQLite-backed Durable Object.
-- Discover workspaces through a separate SQLite-backed catalog per owner identity; never use one catalog as the collaboration atom for all documents.
+- Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
 - Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
 - Materialize every accepted collaborative update into readable Markdown and bibliography text.
 - Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
@@ -32,7 +32,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
 - Let language models create provenance-aware candidates; applying a candidate must remain a separate validated action.
 - Keep local-model network access in the browser or a future local companion so a hosted Worker never assumes it can reach localhost.
-- Treat the current demo workspace as a local vertical slice. Do not deploy it for shared use until authentication and workspace authorization are specified and implemented.
+- Verify Cloudflare Access JWT signatures and claims inside the Worker for hosted identity; never trust caller-supplied identity headers alone.
+- Authorize every workspace data representation, API operation, PDF stream, and WebSocket upgrade through explicit owner/member state.
+- Permit local authentication only on loopback hosts; a deployment left in local mode must fail closed.
 
 ## Tooling Baseline
 

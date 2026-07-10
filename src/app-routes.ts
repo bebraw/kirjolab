@@ -3,5 +3,6 @@ export const exampleRoutes = [
   { path: "/workspaces/:id", purpose: "Stable workspace resource" },
   { path: "/api/workspaces", purpose: "Workspace catalog" },
   { path: "/api/workspaces/demo", purpose: "Portable workspace resource" },
+  { path: "/api/session", purpose: "Authenticated identity" },
   { path: "/api/health", purpose: "JSON health endpoint for tooling and smoke tests" },
 ];

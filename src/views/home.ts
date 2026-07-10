@@ -1,7 +1,12 @@
 import { escapeHtml } from "./shared";
 
-export function renderHomePage(routes: Array<{ path: string; purpose: string }>, workspaceId = "demo"): string {
+export function renderHomePage(
+  routes: Array<{ path: string; purpose: string }>,
+  workspaceId = "demo",
+  identityEmail = "local@kirjolab.invalid",
+): string {
   const escapedWorkspaceId = escapeHtml(workspaceId);
+  const escapedIdentityEmail = escapeHtml(identityEmail);
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -24,10 +29,12 @@ export function renderHomePage(routes: Array<{ path: string; purpose: string }>,
           <p class="hidden truncate text-sm text-app-text-soft xl:block" id="workspace-title">Evidence becomes prose</p>
         </div>
         <div class="flex items-center gap-3">
+          <span class="hidden max-w-44 truncate font-sans text-xs text-app-text-soft 2xl:inline" title="${escapedIdentityEmail}">${escapedIdentityEmail}</span>
           <div class="flex items-center gap-2 text-xs text-app-text-soft" aria-live="polite">
             <span class="h-2 w-2 rounded-full bg-app-warn" id="connection-dot"></span>
             <span id="connection-status">Connecting</span>
           </div>
+          <button class="button-secondary hidden sm:inline-flex" id="share-workspace" type="button">Share</button>
           <a class="button-secondary hidden sm:inline-flex" href="/api/workspaces/${escapedWorkspaceId}/export/bibliography.bib">Export .bib</a>
           <a class="button-primary" href="/api/workspaces/${escapedWorkspaceId}/export/document.md">Export .md</a>
         </div>
@@ -187,6 +194,23 @@ export function renderHomePage(routes: Array<{ path: string; purpose: string }>,
           <button class="button-primary" type="submit">Create workspace</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="new-workspace-dialog" id="share-workspace-dialog">
+      <div class="p-5">
+        <p class="eyebrow">Workspace access</p>
+        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Collaborators</h2>
+        <div class="mt-4 space-y-2" id="workspace-member-list"><div class="empty-state">Loading members…</div></div>
+        <form class="mt-5 border-t border-app-line pt-5" id="invite-member-form">
+          <label class="field-label">Invite by email
+            <input class="field" id="invite-member-email" type="email" maxlength="320" required placeholder="researcher@example.org">
+          </label>
+          <div class="mt-4 flex justify-end gap-2">
+            <button class="button-secondary" id="close-share-workspace" type="button">Close</button>
+            <button class="button-primary" type="submit">Invite collaborator</button>
+          </div>
+        </form>
+      </div>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

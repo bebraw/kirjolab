@@ -18,7 +18,9 @@ describe("renderHomePage", () => {
     expect(html).toContain("Portable workspace resource");
     expect(html).toContain("Stable workspace resource");
     expect(html).toContain("Workspace catalog");
+    expect(html).toContain("Authenticated identity");
     expect(html).toContain("JSON health endpoint for tooling and smoke tests");
     expect(html).not.toContain("Stryker was here!");
+    expect(renderHomePage(exampleRoutes, "workspace", `person\"@example.org`)).toContain("person&quot;@example.org");
   });
 });

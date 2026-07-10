@@ -12,8 +12,8 @@ export portable source.
 
 The compatible `demo` workspace remains the root experience, while additional
 UUID workspaces are discovered through the local-owner catalog. The current
-surface remains intended for local development and product learning; it is not
-yet an authenticated hosted product.
+surface supports loopback local identity and a fail-closed Cloudflare Access
+mode for authenticated hosted collaboration.
 
 ### Architecture
 
@@ -22,6 +22,8 @@ yet an authenticated hosted product.
   `.generated/app.txt`.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
+- **Access control:** Verified Cloudflare Access identities or loopback-local
+  identities resolve explicit owner/member roles before workspace state.
 - **Document semantics:** `src/domain/markdown.ts` parses and validates the
   initial standard-Markdown subset plus headings, citations, references,
   aliases, and anchors from the scientific-writing syntax.
@@ -72,8 +74,8 @@ yet an authenticated hosted product.
 - Do not accept stale model candidates or stale passage ranges.
 - Do not buffer PDF bodies in Worker memory.
 - Do not write annotation data into imported PDFs.
-- Do not deploy the demo workspace publicly without authentication and
-  workspace authorization.
+- Do not deploy with local authentication or without a protected Cloudflare
+  Access hostname and matching JWT configuration.
 - Do not claim full standard Markdown, CSL citation rendering, automatic PDF
   text selection, or multi-workspace management in this slice.
 

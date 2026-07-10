@@ -28,6 +28,14 @@ export interface WorkspaceSummary {
   updatedAt: string;
 }
 
+export type WorkspaceRole = "owner" | "member";
+
+export interface WorkspaceMember {
+  email: string;
+  role: WorkspaceRole;
+  addedAt: string;
+}
+
 export interface PdfResource {
   id: string;
   name: string;
@@ -106,6 +114,10 @@ export interface CreateWorkspaceInput {
   title: string;
 }
 
+export interface InviteWorkspaceMemberInput {
+  email: string;
+}
+
 export interface CreatePassageLinkInput {
   annotationId: string;
   start: number;
@@ -141,6 +153,20 @@ export function isCreateAnnotationInput(value: unknown): value is CreateAnnotati
 
 export function isCreateWorkspaceInput(value: unknown): value is CreateWorkspaceInput {
   return isRecord(value) && isStringWithin(value.title, 120, true);
+}
+
+export function isInviteWorkspaceMemberInput(value: unknown): value is InviteWorkspaceMemberInput {
+  return isRecord(value) && isEmail(value.email);
+}
+
+export function isWorkspaceMembers(value: unknown): value is WorkspaceMember[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        isRecord(item) && isEmail(item.email) && (item.role === "owner" || item.role === "member") && isNonEmptyString(item.addedAt),
+    )
+  );
 }
 
 export function isWorkspaceSummaries(value: unknown): value is WorkspaceSummary[] {
@@ -214,6 +240,10 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isStringWithin(value: unknown, maximumLength: number, required = false): value is string {
   return typeof value === "string" && value.length <= maximumLength && (!required || value.trim().length > 0);
+}
+
+function isEmail(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value);
 }
 
 function isPdfSelectionRect(value: unknown): value is PdfSelectionRect {

@@ -34,8 +34,22 @@ describe("worker", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       name: "kirjolab",
-      routes: ["/", "/workspaces/:id", "/api/workspaces", "/api/workspaces/demo", "/api/health"],
+      routes: ["/", "/workspaces/:id", "/api/workspaces", "/api/workspaces/demo", "/api/session", "/api/health"],
     });
+  });
+
+  it("returns the authenticated session representation", async () => {
+    const response = await handleRequest(new Request("http://example.com/api/session"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ email: "local@kirjolab.invalid", mode: "local" });
+  });
+
+  it("rejects cross-origin mutations before routing", async () => {
+    const response = await handleRequest(new Request("http://example.com/missing", { method: "POST" }));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "Cross-origin mutation denied" });
   });
 
   it("returns a not found page for unknown routes", async () => {

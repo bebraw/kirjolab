@@ -4,7 +4,9 @@ import {
   isCreateCandidateInput,
   isCreatePassageLinkInput,
   isCreateWorkspaceInput,
+  isInviteWorkspaceMemberInput,
   isWorkspaceSnapshot,
+  isWorkspaceMembers,
   isWorkspaceSummaries,
 } from "./workspace";
 
@@ -23,6 +25,8 @@ describe("workspace input guards", () => {
     ).toBe(true);
     expect(isCreatePassageLinkInput({ annotationId: "a", start: 0, end: 4, excerpt: "text" })).toBe(true);
     expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
+    expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
+    expect(isWorkspaceMembers([{ email: "owner@example.org", role: "owner", addedAt: "now" }])).toBe(true);
     expect(
       isWorkspaceSummaries([{ id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now" }]),
     ).toBe(true);
@@ -51,6 +55,16 @@ describe("workspace input guards", () => {
     expect(isCreateWorkspaceInput({ title: "" })).toBe(false);
     expect(isCreateWorkspaceInput({ title: "x".repeat(121) })).toBe(false);
     expect(isCreateWorkspaceInput(null)).toBe(false);
+    expect(isInviteWorkspaceMemberInput({ email: "invalid" })).toBe(false);
+    expect(isInviteWorkspaceMemberInput(null)).toBe(false);
+    expect(isWorkspaceMembers(null)).toBe(false);
+    for (const member of [
+      { email: "", role: "owner", addedAt: "now" },
+      { email: "owner@example.org", role: "admin", addedAt: "now" },
+      { email: "owner@example.org", role: "member", addedAt: "" },
+    ]) {
+      expect(isWorkspaceMembers([member]), JSON.stringify(member)).toBe(false);
+    }
     expect(isWorkspaceSummaries(null)).toBe(false);
     const validSummary = {
       id: "workspace",

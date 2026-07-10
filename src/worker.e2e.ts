@@ -39,7 +39,7 @@ test("converges source edits across two writers", async ({ page, context }) => {
   await collaborator.close();
 });
 
-test("creates and navigates isolated workspaces", async ({ page }) => {
+test("creates, shares, and navigates isolated workspaces", async ({ page, browser }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Create workspace" }).click();
   await page.locator("#new-workspace-title").fill("Independent inquiry");
@@ -55,6 +55,31 @@ test("creates and navigates isolated workspaces", async ({ page }) => {
   const isolatedSource = "## Independent evidence {#independent}\n\nThis belongs to one workspace.\n";
   await page.locator("#source-editor").fill(isolatedSource);
   await expect(page.locator("#preview")).toContainText("This belongs to one workspace.");
+
+  await page.getByRole("button", { name: "Share" }).click();
+  await expect(page.locator("#workspace-member-list")).toContainText("local@kirjolab.invalid");
+  await page.locator("#invite-member-email").fill("collaborator@example.org");
+  await page.getByRole("button", { name: "Invite collaborator" }).click();
+  await expect(page.locator("#workspace-member-list")).toContainText("collaborator@example.org");
+  await page.locator("#close-share-workspace").click();
+
+  const collaboratorContext = await browser.newContext({
+    baseURL: "http://127.0.0.1:8788",
+    extraHTTPHeaders: { "x-kirjolab-local-user": "collaborator@example.org" },
+  });
+  const collaborator = await collaboratorContext.newPage();
+  await collaborator.goto(`/workspaces/${workspaceId}`);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(isolatedSource);
+  await expect(collaborator.locator("#workspace-switcher")).toHaveValue(workspaceId);
+  await collaboratorContext.close();
+
+  const intruderContext = await browser.newContext({
+    baseURL: "http://127.0.0.1:8788",
+    extraHTTPHeaders: { "x-kirjolab-local-user": "intruder@example.org" },
+  });
+  const intruderResponse = await intruderContext.request.get(`/api/workspaces/${workspaceId}`);
+  expect(intruderResponse.status()).toBe(404);
+  await intruderContext.close();
 
   const catalogResponse = await page.request.get("/api/workspaces");
   const catalog: unknown = await catalogResponse.json();
@@ -170,6 +195,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   const currentSnapshot: unknown = await (await page.request.get("/api/workspaces/demo")).json();
   if (!isWorkspaceSnapshot(currentSnapshot)) throw new Error("Expected a workspace snapshot");
   const staleCandidateResponse = await page.request.post("/api/workspaces/demo/candidates", {
+    headers: { origin: "http://127.0.0.1:8788" },
     data: {
       provider: "test",
       model: "stale-model",
@@ -188,7 +214,9 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
       return isWorkspaceSnapshot(value) ? value.revision : -1;
     })
     .toBeGreaterThan(currentSnapshot.revision);
-  const staleApply = await page.request.post(`/api/workspaces/demo/candidates/${staleCandidate.id}/apply`);
+  const staleApply = await page.request.post(`/api/workspaces/demo/candidates/${staleCandidate.id}/apply`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+  });
   expect(staleApply.status()).toBe(409);
 
   const bibliography = await page.request.get("/api/workspaces/demo/export/bibliography.bib");
@@ -202,7 +230,7 @@ test("serves stable health and browser assets", async ({ request }) => {
   await expect(response.json()).resolves.toEqual({
     ok: true,
     name: "kirjolab",
-    routes: ["/", "/workspaces/:id", "/api/workspaces", "/api/workspaces/demo", "/api/health"],
+    routes: ["/", "/workspaces/:id", "/api/workspaces", "/api/workspaces/demo", "/api/session", "/api/health"],
   });
 
   const [styles, client] = await Promise.all([request.get("/styles.css"), request.get("/app.js")]);

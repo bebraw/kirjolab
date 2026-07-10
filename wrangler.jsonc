@@ -4,6 +4,11 @@
   "main": "src/worker.ts",
   "compatibility_date": "2026-06-18",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "AUTH_MODE": "local",
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+  },
   "build": {
     "command": "npm run build",
     "watch_dir": "src",
@@ -12,11 +17,13 @@
     "bindings": [
       { "name": "DOCUMENT_ROOMS", "class_name": "DocumentRoom" },
       { "name": "WORKSPACE_CATALOGS", "class_name": "WorkspaceCatalog" },
+      { "name": "WORKSPACE_ACCESS", "class_name": "WorkspaceAccess" },
     ],
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["DocumentRoom"] },
     { "tag": "v2", "new_sqlite_classes": ["WorkspaceCatalog"] },
+    { "tag": "v3", "new_sqlite_classes": ["WorkspaceAccess"] },
   ],
   "r2_buckets": [{ "binding": "PAPERS", "bucket_name": "kirjolab-papers" }],
   "observability": {

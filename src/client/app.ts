@@ -2,6 +2,7 @@ import * as Y from "yjs";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
 import {
   isWorkspaceSnapshot,
+  isWorkspaceMembers,
   isWorkspaceSummaries,
   type AnnotationResource,
   type ModelCandidate,
@@ -9,6 +10,7 @@ import {
   type PdfResource,
   type PdfSelectionRect,
   type WorkspaceSnapshot,
+  type WorkspaceMember,
   type WorkspaceSummary,
 } from "../domain/workspace";
 import { buildGroundedPrompt, calculateTextSplice, extractCompletion } from "./operations";
@@ -27,6 +29,12 @@ interface Elements {
   newWorkspaceForm: HTMLFormElement;
   newWorkspaceTitle: HTMLInputElement;
   cancelNewWorkspace: HTMLButtonElement;
+  shareWorkspace: HTMLButtonElement;
+  shareWorkspaceDialog: HTMLDialogElement;
+  closeShareWorkspace: HTMLButtonElement;
+  workspaceMemberList: HTMLElement;
+  inviteMemberForm: HTMLFormElement;
+  inviteMemberEmail: HTMLInputElement;
   source: HTMLTextAreaElement;
   bibliography: HTMLTextAreaElement;
   preview: HTMLElement;
@@ -114,6 +122,9 @@ class WorkspaceApp {
     this.#elements.newWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.showModal());
     this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
     this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
+    this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
+    this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
+    this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
     bindYText(this.#elements.source, this.#source, this.#document);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#source.observe(() => this.#renderPreview());
@@ -167,6 +178,41 @@ class WorkspaceApp {
     const created: unknown = [workspace];
     if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Workspace catalog returned invalid data");
     location.assign(created[0].href);
+  }
+
+  async #openSharing(): Promise<void> {
+    this.#elements.shareWorkspaceDialog.showModal();
+    await this.#refreshMembers();
+  }
+
+  async #refreshMembers(): Promise<void> {
+    const response = await fetch(`${apiBase}/members`, { credentials: "same-origin" });
+    await expectOk(response);
+    const members: unknown = await response.json();
+    if (!isWorkspaceMembers(members)) throw new Error("Workspace members returned invalid data");
+    this.#renderMembers(members);
+  }
+
+  #renderMembers(members: WorkspaceMember[]): void {
+    this.#elements.workspaceMemberList.replaceChildren();
+    for (const member of members) {
+      const row = document.createElement("div");
+      row.className = "resource-card flex items-center justify-between gap-3 font-sans text-xs";
+      const email = document.createElement("span");
+      email.className = "truncate";
+      email.textContent = member.email;
+      row.append(email, resourceLabel(member.role));
+      this.#elements.workspaceMemberList.append(row);
+    }
+  }
+
+  async #inviteMember(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const response = await jsonFetch(`${apiBase}/members`, { email: this.#elements.inviteMemberEmail.value });
+    await expectOk(response);
+    this.#elements.inviteMemberEmail.value = "";
+    await this.#refreshMembers();
+    this.#showToast("Collaborator invited to this workspace.");
   }
 
   #connect(): void {
@@ -545,6 +591,12 @@ function collectElements(): Elements {
     newWorkspaceForm: requiredElement("new-workspace-form", HTMLFormElement),
     newWorkspaceTitle: requiredElement("new-workspace-title", HTMLInputElement),
     cancelNewWorkspace: requiredElement("cancel-new-workspace", HTMLButtonElement),
+    shareWorkspace: requiredElement("share-workspace", HTMLButtonElement),
+    shareWorkspaceDialog: requiredElement("share-workspace-dialog", HTMLDialogElement),
+    closeShareWorkspace: requiredElement("close-share-workspace", HTMLButtonElement),
+    workspaceMemberList: requiredElement("workspace-member-list", HTMLElement),
+    inviteMemberForm: requiredElement("invite-member-form", HTMLFormElement),
+    inviteMemberEmail: requiredElement("invite-member-email", HTMLInputElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
     preview: requiredElement("preview", HTMLElement),
@@ -624,7 +676,12 @@ function actionButton(text: string, className: string, action: () => void): HTML
 }
 
 async function jsonFetch(url: string, body: object): Promise<Response> {
-  return await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  return await fetch(url, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 async function expectOk(response: Response): Promise<void> {
