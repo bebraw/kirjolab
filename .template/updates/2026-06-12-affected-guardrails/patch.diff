@@ -1,0 +1,23 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -1,3 +1,4 @@
+   "scripts": {
++    "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
+     "quality:gate:fast": "npm run format:check && npm run typecheck && npm run worker:client-guard && npm run security:audit && npm run test:coverage"
+   }
+diff --git a/.githooks/pre-push b/.githooks/pre-push
+--- a/.githooks/pre-push
++++ b/.githooks/pre-push
+@@ -1,2 +1,2 @@
+ #!/usr/bin/env sh
+-npm run quality:gate:fast
++npm run quality:affected
+diff --git a/scripts/run-affected-guardrails.mjs b/scripts/run-affected-guardrails.mjs
+new file mode 100755
+--- /dev/null
++++ b/scripts/run-affected-guardrails.mjs
+@@ -0,0 +1,3 @@
++#!/usr/bin/env node
++// Copy this script from vibe-template and adapt file classifiers to the
++// target project before wiring it into pre-push.

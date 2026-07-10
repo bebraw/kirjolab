@@ -1,0 +1,5 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "entry": ["src/**/*.e2e.ts"],
+  "ignoreDependencies": ["@stryker-mutator/api"]
+}

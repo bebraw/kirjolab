@@ -1,0 +1,18 @@
+diff --git a/.capabilities/README.md b/.capabilities/README.md
+new file mode 100644
+--- /dev/null
++++ b/.capabilities/README.md
+@@ -0,0 +1,4 @@
++# Capability Kits
++
++Use kits to apply selected vibe-template practices to another project without
++copying the whole starter.
+diff --git a/specs/capability-kits/spec.md b/specs/capability-kits/spec.md
+new file mode 100644
+--- /dev/null
++++ b/specs/capability-kits/spec.md
+@@ -0,0 +1,4 @@
++# Feature: Capability Kits
++
++Capability kits are instructional, reviewable partial-upgrade packages for
++target repos that need one template practice rather than the full template.

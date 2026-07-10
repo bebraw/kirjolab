@@ -1,0 +1,217 @@
+---
+title: Micro-Commits
+description: >-
+  Ultra-granular commit practice for agentic workflows, treating version control
+  as reversible save points.
+tags:
+  - Version Control
+  - Git
+  - Safety
+  - Rollback
+relatedIds:
+  - patterns/the-pbi
+  - patterns/context-gates
+  - concepts/agentic-sdlc
+status: Live
+lastUpdated: 2026-01-13T00:00:00.000Z
+references:
+  - type: website
+    title: My LLM Coding Workflow Going into 2026
+    url: 'https://addyo.substack.com/p/my-llm-coding-workflow-going-into'
+    author: Addy Osmani
+    published: 2026-01-01T00:00:00.000Z
+    accessed: 2026-01-08T00:00:00.000Z
+    annotation: >-
+      Addy Osmani's practical guide emphasizing commits as 'save points in a
+      game', validating the micro-commit approach for LLM workflows.
+---
+> **ASDLC Knowledge Base** | Status: Live | [View Online](https://asdlc.io/practices/micro-commits)
+
+# Micro-Commits
+
+
+## Definition
+
+**Micro-Commits** is the practice of committing code changes at much higher frequency than traditional development workflows. Each discrete task—often a single function, test, or file—receives its own commit.
+
+When working with LLM-generated code, commits become "save points in a game": Checkpoints that enable instant rollback when probabilistic outputs introduce bugs or architectural drift.
+
+## When to Use
+
+**Use this practice when:**
+- Working with LLMs to generate code (preventing "vibe convergence")
+- Refactoring complex logic where regression risk is high
+- Conducting experimental "spikes" that might need total rollback
+- Trying to isolate specific AI changes for audit or debugging
+
+**Skip this practice when:**
+- Making trivial documentation fixes (typos)
+- The work is entirely manual and low-risk
+
+## The Problem: Coarse-Grained Commits in Agentic Workflows
+
+Traditional commit practices optimize for human readability and PR review: "logical units of work" that span multiple files and implement complete features.
+
+This fails in agentic workflows because:
+
+**LLM outputs are probabilistic** — A model might generate correct code for 3 files and introduce subtle bugs in the 4th. Bundling all 4 files into one commit makes rollback destructive.
+
+**Regression to mediocrity** — Without checkpoints, it's difficult to identify where LLM output drifted from the [Spec](../patterns/the-spec.md) contracts.
+
+**Context loss** — Large commits obscure the sequence of decisions. When debugging, you need to know "what changed, when, and why."
+
+**No emergency exit** — If an LLM generates a tangled mess across 10 files, your only option is manual surgery or discarding hours of work.
+
+## The Solution: Commit After Every Task
+
+Make a commit immediately after:
+- Completing a [PBI](../patterns/the-pbi.md) subtask
+- Generating a single function or module
+- Making a file pass linting/compilation
+- Adding one test
+- Any LLM-assisted edit that produces working code
+
+This creates a breadcrumb trail of working states.
+
+## The Practice
+
+### 4.1. Atomic Tasks → Atomic Commits
+
+Break work into small, testable chunks. Each chunk maps to one commit.
+
+**Example PBI:** "Add OAuth login flow"
+
+**Commit sequence:**
+```
+1. feat: add OAuth config schema
+2. feat: implement token exchange endpoint
+3. feat: add session storage for OAuth tokens
+4. test: add OAuth flow integration test
+5. refactor: extract OAuth error handling
+```
+
+This aligns with atomic [PBIs](../patterns/the-pbi.md): small, bounded execution units.
+
+### 4.2. Commit Messages as Execution Log
+
+Commit messages document the sequence of LLM-assisted changes. They serve as:
+- **Context for debugging** — "The bug appeared after commit 7."
+- **Briefing material for AI** — Feed recent commits to an LLM to explain current state.
+- **Audit trail** — Track architectural decisions embedded in code changes.
+
+**Format:**
+```
+type(scope): brief description
+
+- Detail 1
+- Detail 2
+```
+
+**Example:**
+```
+feat(auth): implement OAuth token validation
+
+- Add JWT verification middleware
+- Extract claims from token payload
+- Return 401 on expired tokens
+```
+
+### 4.3. Branches and Worktrees for Isolation
+
+Use branches or git worktrees to isolate LLM experiments:
+
+**Branches** — Separate experimental work from stable code. Merge only after validation.
+
+**Worktrees** — Run parallel LLM sessions on the same repository without context conflicts. Each worktree is an independent working directory.
+
+**Example workflow:**
+```bash
+# Create worktree for LLM experiment
+git worktree add ../project-experiment experiment-oauth
+
+# Work in worktree, commit frequently
+cd ../project-experiment
+# ... LLM generates code ...
+git commit -m "feat: add OAuth callback handler"
+
+# If successful, merge into main
+git checkout main
+git merge experiment-oauth
+
+# If failed, discard worktree
+git worktree remove ../project-experiment
+```
+
+This prevents contaminating the main branch with failed LLM output.
+
+### 4.4. Rollback as First-Class Operation
+
+When LLM output introduces bugs:
+
+**Identify the bad commit** — Review recent history to find where issues appeared.
+
+**Rollback to last known good state:**
+```bash
+# Soft reset (keeps changes as uncommitted)
+git reset --soft HEAD~1
+
+# Hard reset (discards changes entirely)
+git reset --hard HEAD~1
+```
+
+**Selective revert:**
+```bash
+# Revert specific commit without losing subsequent work
+git revert <commit-hash>
+```
+
+This is only safe because micro-commits isolate changes.
+
+#### Claude Code Checkpoints and /rewind
+
+Claude Code's built-in checkpoint system complements micro-commits with session-level rollback. Before each file edit, Claude Code automatically snapshots the code state. The `/rewind` command (or double-tap Esc) opens a menu showing each prompt from the session, with three restore options:
+
+- **Restore code and conversation** — revert both to that point
+- **Restore code only** — revert files while keeping the conversation context
+- **Restore conversation only** — reset Claude's context while keeping code changes
+
+This is especially useful when an LLM takes a wrong architectural turn — you can rewind the conversation context (preventing the model from reinforcing its own mistakes) while selectively keeping or discarding code changes.
+
+> [!WARNING]
+> **Key limitation:** Checkpoints only track edits made through Claude's file editing tools. Changes made via bash commands (`rm`, `mv`, `cp`) are not tracked. This is why micro-commits to Git remain essential — checkpoints are "local undo," Git is "permanent history."
+
+See: [Checkpointing — Claude Code Docs](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview#checkpointing)
+
+### 5. Tidy History for Comprehension
+
+Granular commits create noisy history. Before merging to main, optionally squash related commits into logical units:
+
+```bash
+# Interactive rebase to squash last 5 commits
+git rebase -i HEAD~5
+```
+
+This preserves detailed history during development while creating clean history for long-term maintenance.
+
+**Trade-off:** Squashing removes granular rollback points. Only squash after validation passes [Quality Gates](../patterns/context-gates.md).
+
+## Relationship to The PBI
+
+[PBIs](../patterns/the-pbi.md) define **what to build**. Micro-Commits define **how to track progress**.
+
+**Atomic PBIs** (small, bounded tasks) naturally produce micro-commits. Each PBI generates 1-5 commits depending on complexity.
+
+**Example mapping:**
+- **PBI:** "Implement retry logic with exponential backoff"
+- **Commits:**
+  1. `feat: add retry wrapper function`
+  2. `feat: implement exponential backoff calculation`
+  3. `test: add retry logic unit tests`
+  4. `docs: update retry behavior in spec`
+
+This makes PBI progress traceable and reversible.
+
+See also:
+- [The PBI](../patterns/the-pbi.md) — Atomic execution units that map to commit sequences
+- [Context Gates](../patterns/context-gates.md) — Validation checkpoints that rely on granular commits
+- [Agentic SDLC](../concepts/agentic-sdlc.md) — The cybernetic loop where micro-commits enable rapid iteration

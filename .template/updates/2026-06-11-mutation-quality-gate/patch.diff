@@ -1,0 +1,41 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -1,5 +1,9 @@
+   "scripts": {
+-    "quality:gate": "npm run quality:gate:fast && npm run e2e"
++    "mutation": "stryker run",
++    "quality:gate": "npm run quality:gate:fast && npm run e2e && npm run mutation"
+   },
+   "devDependencies": {
++    "@stryker-mutator/core": "9.6.1",
++    "@stryker-mutator/typescript-checker": "9.6.1",
++    "@stryker-mutator/vitest-runner": "9.6.1"
+   }
+diff --git a/stryker.config.mjs b/stryker.config.mjs
+new file mode 100644
+--- /dev/null
++++ b/stryker.config.mjs
+@@ -0,0 +1,8 @@
++export default {
++  mutate: ["src/**/*.ts", "!src/**/*.test.ts", "!src/**/*.e2e.ts"],
++  testRunner: "vitest",
++  checkers: ["typescript"],
++  reporters: ["progress", "clear-text", "html", "json"],
++  coverageAnalysis: "perTest",
++  thresholds: { high: 90, low: 80, break: 80 },
++};
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -0,0 +1,10 @@
++  quality-mutation:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@<pinned-sha>
++      - name: Set up Node.js
++        uses: actions/setup-node@<pinned-sha>
++      - name: Install dependencies
++        run: npm ci
++      - name: Run mutation quality gate
++        run: npm run mutation

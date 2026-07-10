@@ -1,0 +1,8 @@
+diff --git a/stryker.config.mjs b/stryker.config.mjs
+--- a/stryker.config.mjs
++++ b/stryker.config.mjs
+@@ -1,3 +1,3 @@
+ export default {
+-  concurrency: 2,
++  concurrency: "50%",
+ };

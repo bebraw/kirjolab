@@ -1,0 +1,12 @@
+{
+  "id": "2026-06-14-agent-sync-entrypoint",
+  "title": "Add the agent-facing template sync entrypoint",
+  "status": "implemented",
+  "risk": "low",
+  "adrs": ["docs/adrs/implemented/ADR-032-add-template-update-packs.md"],
+  "touches": [".template/updates/AGENT_SYNC.md", ".template/updates/README.md", "README.md", "specs/template-updates/spec.md"],
+  "checks": [
+    "node -e \"const fs=require('node:fs'); JSON.parse(fs.readFileSync('.template/updates/2026-06-14-agent-sync-entrypoint/update.json','utf8'))\"",
+    "npm run quality:gate"
+  ]
+}

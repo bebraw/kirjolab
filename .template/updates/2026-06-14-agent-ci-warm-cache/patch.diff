@@ -1,0 +1,33 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -1,6 +1,6 @@
+       - name: Install dependencies
+         shell: bash
+-        run: ./scripts/ci-install-dependencies.sh
++        run: npm ci
+ 
+       - name: Run quality gate
+         shell: bash
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+   "scripts": {
+-    "ci:local": "agent-ci run --quiet --jobs 1 --workflow .github/workflows/ci.yml",
++    "ci:local": "agent-ci run --quiet --pause-on-failure --workflow .github/workflows/ci.yml",
+     "ci:local:retry": "agent-ci retry"
+   },
+   "devDependencies": {
+-    "@redwoodjs/agent-ci": "0.13.0"
++    "@redwoodjs/agent-ci": "0.16.2"
+   }
+diff --git a/scripts/ci-install-dependencies.sh b/scripts/ci-install-dependencies.sh
+deleted file mode 100755
+--- a/scripts/ci-install-dependencies.sh
++++ /dev/null
+@@ -1,4 +0,0 @@
+-#!/usr/bin/env bash
+-set -euo pipefail
+-
+-# Remove Agent CI-specific npm install locking.

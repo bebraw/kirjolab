@@ -1,0 +1,15 @@
+node_modules/
+.cache/
+.generated/
+.fallow/
+.npm/
+.pnpm-store/
+.stryker-tmp/
+.wrangler/
+.dev.vars
+.env.agent-ci
+.env
+.env.local
+playwright-report/
+reports/
+test-results/

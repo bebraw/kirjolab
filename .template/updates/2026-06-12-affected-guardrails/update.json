@@ -1,0 +1,9 @@
+{
+  "id": "2026-06-12-affected-guardrails",
+  "title": "Run affected-file guardrails when possible",
+  "status": "implemented",
+  "risk": "medium",
+  "adrs": ["docs/adrs/implemented/ADR-026-run-affected-guardrails-when-possible.md"],
+  "touches": ["package.json", ".githooks/pre-push", "scripts/run-affected-guardrails.mjs", "docs/", "specs/"],
+  "checks": ["npm run quality:affected", "npm run quality:gate"]
+}

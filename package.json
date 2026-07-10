@@ -1,0 +1,62 @@
+{
+  "name": "vibe-template",
+  "private": true,
+  "packageManager": "npm@11.17.0",
+  "engines": {
+    "node": "24.15.0",
+    "npm": ">=11 <12"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "onFail": "error"
+    }
+  },
+  "scripts": {
+    "build:css": "mkdir -p ./.generated && tailwindcss -i ./src/tailwind-input.css -o ./.generated/styles.css --minify",
+    "ci:local": "agent-ci run --quiet --pause-on-failure --workflow .github/workflows/ci.yml",
+    "ci:local:retry": "agent-ci retry",
+    "deploy": "wrangler deploy",
+    "dev": "HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
+    "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:health",
+    "diagnostics:health": "fallow health --score --hotspots --targets --quiet --no-cache",
+    "diagnostics:readability": "fallow audit --max-crap 100 --quiet --no-cache",
+    "e2e": "playwright test --pass-with-no-tests",
+    "e2e:server": "CHOKIDAR_USEPOLLING=1 CHOKIDAR_INTERVAL=200 HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8788 --inspector-ip 127.0.0.1 --inspector-port 9230 --log-level error --show-interactive-dev-session=false",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lighthouse": "node ./scripts/run-lighthouse.mjs",
+    "mutation": "stryker run",
+    "mutation:incremental": "stryker run --incremental",
+    "playwright:install": "playwright install chromium",
+    "prepare": "node ./scripts/setup-git-hooks.mjs",
+    "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
+    "quality:gate": "npm run quality:gate:fast && npm run e2e && npm run mutation:incremental",
+    "quality:gate:fast": "npm run format:check && npm run typecheck && npm run worker:client-guard && npm run security:audit && npm run test:coverage",
+    "security:audit": "npm audit --omit=dev --audit-level high",
+    "test": "vitest run --passWithNoTests",
+    "test:affected": "node ./scripts/run-affected-tests.mjs",
+    "test:coverage": "node ./scripts/run-coverage-gate.mjs",
+    "typecheck": "node ./node_modules/typescript-7/bin/tsc --noEmit",
+    "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "@redwoodjs/agent-ci": "0.16.2",
+    "@stryker-mutator/core": "9.6.1",
+    "@stryker-mutator/typescript-checker": "9.6.1",
+    "@stryker-mutator/vitest-runner": "9.6.1",
+    "@tailwindcss/cli": "4.3.1",
+    "@types/node": "24.13.2",
+    "@vitest/coverage-v8": "4.1.8",
+    "chrome-launcher": "1.2.1",
+    "fallow": "2.97.0",
+    "lighthouse": "13.4.0",
+    "prettier": "3.8.4",
+    "tailwindcss": "4.3.1",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "typescript-7": "npm:typescript@7.0.2",
+    "vitest": "4.1.8",
+    "wrangler": "4.100.0"
+  }
+}

@@ -1,0 +1,6 @@
+# Copy this file to .dev.vars and replace placeholder values before running
+# projects that need local secrets.
+SESSION_SECRET=change-this-to-a-long-random-secret
+# Optional: keep a separate key for encrypted third-party credentials or
+# other sensitive values stored by the app.
+# APP_ENCRYPTION_SECRET=change-this-to-a-different-long-random-secret

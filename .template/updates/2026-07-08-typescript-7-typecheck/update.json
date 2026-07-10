@@ -1,0 +1,9 @@
+{
+  "id": "2026-07-08-typescript-7-typecheck",
+  "title": "Adopt TypeScript 7 type checking",
+  "status": "implemented",
+  "risk": "medium",
+  "adrs": ["docs/adrs/implemented/ADR-034-adopt-typescript-7-typechecking.md"],
+  "touches": ["package.json", "package-lock.json", "docs/development.md"],
+  "checks": ["npm run typecheck", "npm run quality:gate", "npm run ci:local"]
+}

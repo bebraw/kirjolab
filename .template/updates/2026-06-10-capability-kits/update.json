@@ -1,0 +1,9 @@
+{
+  "id": "2026-06-10-capability-kits",
+  "title": "Add capability kits for partial upgrades",
+  "status": "implemented",
+  "risk": "medium",
+  "adrs": ["docs/adrs/implemented/ADR-018-add-capability-kits.md"],
+  "touches": [".capabilities/", "README.md", "ARCHITECTURE.md", "docs/", "specs/"],
+  "checks": ["npm run quality:gate", "npm run ci:local"]
+}

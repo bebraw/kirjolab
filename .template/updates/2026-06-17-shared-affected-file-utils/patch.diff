@@ -1,0 +1,22 @@
+diff --git a/scripts/affected-file-utils.mjs b/scripts/affected-file-utils.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/affected-file-utils.mjs
+@@ -0,0 +1,5 @@
++// Extract shared repository-root, affected-file, normalization, and process
++// helpers from the affected guardrail and affected test scripts.
++// Keep the target project's existing git diff and pre-push semantics when
++// applying this patch manually.
++export {};
+diff --git a/scripts/run-affected-guardrails.mjs b/scripts/run-affected-guardrails.mjs
+--- a/scripts/run-affected-guardrails.mjs
++++ b/scripts/run-affected-guardrails.mjs
+@@
++// Import shared affected-file helpers from ./affected-file-utils.mjs and remove
++// duplicated local git/process helper implementations.
+diff --git a/scripts/run-affected-tests.mjs b/scripts/run-affected-tests.mjs
+--- a/scripts/run-affected-tests.mjs
++++ b/scripts/run-affected-tests.mjs
+@@
++// Import shared affected-file helpers from ./affected-file-utils.mjs and remove
++// duplicated local git/process helper implementations.

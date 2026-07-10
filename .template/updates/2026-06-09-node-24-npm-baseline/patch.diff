@@ -1,0 +1,24 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -1,5 +1,5 @@
+-  "packageManager": "pnpm@10",
++  "packageManager": "npm@11",
+   "engines": {
+-    "node": "22.x",
+-    "npm": "10.x"
++    "node": "24.15.0",
++    "npm": ">=11 <12"
+   }
+diff --git a/.nvmrc b/.nvmrc
+--- a/.nvmrc
++++ b/.nvmrc
+@@ -1 +1 @@
+-v22
++v24.15.0
+diff --git a/package-lock.json b/package-lock.json
+new file mode 100644
+--- /dev/null
++++ b/package-lock.json
+@@ -0,0 +1 @@
++Regenerate this lockfile with npm in the target project.

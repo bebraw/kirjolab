@@ -1,0 +1,43 @@
+{
+  "name": "agent-ci",
+  "description": "Add local GitHub Actions execution through Agent CI.",
+  "dependencies": {
+    "dev": {
+      "@redwoodjs/agent-ci": "0.16.2"
+    }
+  },
+  "scripts": {
+    "ci:local": "agent-ci run --quiet --pause-on-failure --workflow .github/workflows/ci.yml",
+    "ci:local:retry": "agent-ci retry"
+  },
+  "files": [
+    {
+      "source": "files/.env.agent-ci.example",
+      "target": ".env.agent-ci.example",
+      "mode": "copy"
+    },
+    {
+      "source": "files/.codex/skills/agent-ci/SKILL.md",
+      "target": ".codex/skills/agent-ci/SKILL.md",
+      "mode": "copy-or-merge"
+    }
+  ],
+  "optionalSteps": [
+    {
+      "name": "github-actions-workflow",
+      "when": "The target repo has no .github/workflows/*.yml or .github/workflows/*.yaml files.",
+      "prompt": "This repo has no GitHub Actions workflow for Agent CI to run. Do you want me to add a minimal npm CI workflow as part of this upgrade?",
+      "recipe": "recipes/github-actions.md"
+    }
+  ],
+  "docs": [
+    "Document Docker prerequisites and the canonical local CI command.",
+    "Document AGENT_CI_DOCKER_HOST when a non-default Docker socket is needed.",
+    "Record any new target-project verification contract in the target repo's durable docs."
+  ],
+  "verify": ["npm run ci:local"],
+  "notes": [
+    "Use current Agent CI warm-cache serialization instead of forcing --jobs 1 or adding repo-local install locks.",
+    "Keep the target repo's package manager and workflow names unless there is a documented reason to change them."
+  ]
+}

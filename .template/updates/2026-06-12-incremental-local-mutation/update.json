@@ -1,0 +1,9 @@
+{
+  "id": "2026-06-12-incremental-local-mutation",
+  "title": "Use incremental mutation in the local gate",
+  "status": "implemented",
+  "risk": "medium",
+  "adrs": ["docs/adrs/implemented/ADR-028-use-incremental-local-mutation-gate.md"],
+  "touches": ["package.json", ".github/workflows/ci.yml", "docs/", "specs/"],
+  "checks": ["npm run mutation:incremental", "npm run quality:gate", "npm run ci:local"]
+}

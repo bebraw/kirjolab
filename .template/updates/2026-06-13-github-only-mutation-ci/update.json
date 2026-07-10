@@ -1,0 +1,9 @@
+{
+  "id": "2026-06-13-github-only-mutation-ci",
+  "title": "Reserve full mutation CI for GitHub",
+  "status": "implemented",
+  "risk": "low",
+  "adrs": ["docs/adrs/implemented/ADR-030-reserve-full-mutation-ci-for-github.md"],
+  "touches": [".github/workflows/ci.yml", "docs/", "specs/"],
+  "checks": ["npm run quality:gate", "npm run ci:local"]
+}

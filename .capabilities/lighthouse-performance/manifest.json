@@ -1,0 +1,31 @@
+{
+  "name": "lighthouse-performance",
+  "description": "Add local Lighthouse performance reports and a configurable performance budget.",
+  "dependencies": {
+    "dev": {
+      "@playwright/test": "1.59.1",
+      "chrome-launcher": "1.2.1",
+      "lighthouse": "13.1.0"
+    }
+  },
+  "scripts": {
+    "lighthouse": "node ./scripts/run-lighthouse.mjs"
+  },
+  "files": [
+    {
+      "source": "files/scripts/run-lighthouse.mjs",
+      "target": "scripts/run-lighthouse.mjs",
+      "mode": "copy"
+    }
+  ],
+  "docs": [
+    "Document LIGHTHOUSE_URL for the target app.",
+    "Document LIGHTHOUSE_SERVER_COMMAND when the script should start the app.",
+    "Document report output under reports/lighthouse/."
+  ],
+  "verify": ["LIGHTHOUSE_URL=http://127.0.0.1:3000 LIGHTHOUSE_SERVER_COMMAND=\"npm run dev\" npm run lighthouse"],
+  "notes": [
+    "Adapt the URL and server command before running.",
+    "Do not audit authenticated or secret-backed pages unless the target repo explicitly documents that setup."
+  ]
+}

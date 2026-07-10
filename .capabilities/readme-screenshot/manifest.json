@@ -1,0 +1,26 @@
+{
+  "name": "readme-screenshot",
+  "description": "Add local-only Playwright screenshot capture for README images.",
+  "dependencies": {
+    "dev": {
+      "@playwright/test": "1.59.1"
+    }
+  },
+  "scripts": {
+    "screenshot:home": "node ./scripts/run-home-screenshot.mjs"
+  },
+  "files": [
+    {
+      "source": "files/scripts/run-home-screenshot.mjs",
+      "target": "scripts/run-home-screenshot.mjs",
+      "mode": "copy"
+    }
+  ],
+  "docs": [
+    "Document the screenshot output path.",
+    "Document the local command used to refresh the screenshot.",
+    "Keep screenshot refresh local-only unless the target repo makes a separate CI decision."
+  ],
+  "verify": ["npm run screenshot:home"],
+  "notes": ["Adapt default URL, server command, and output path before committing.", "Do not capture secret-backed or user-specific state."]
+}

@@ -1,0 +1,10 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -1,4 +1,5 @@
+   "scripts": {
+     "mutation": "stryker run",
+-    "quality:gate": "npm run quality:gate:fast && npm run e2e && npm run mutation"
++    "mutation:incremental": "stryker run --incremental",
++    "quality:gate": "npm run quality:gate:fast && npm run e2e && npm run mutation:incremental"
+   }

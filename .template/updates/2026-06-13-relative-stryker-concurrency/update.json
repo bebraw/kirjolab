@@ -1,0 +1,9 @@
+{
+  "id": "2026-06-13-relative-stryker-concurrency",
+  "title": "Use relative Stryker worker concurrency",
+  "status": "implemented",
+  "risk": "low",
+  "adrs": ["docs/adrs/implemented/ADR-029-use-relative-stryker-concurrency.md"],
+  "touches": ["stryker.config.mjs", ".capabilities/mutation-testing/", "docs/", "specs/"],
+  "checks": ["npm run mutation:incremental", "npm run quality:gate"]
+}

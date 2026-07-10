@@ -1,0 +1,13 @@
+{
+  "id": "2026-06-09-node-24-npm-baseline",
+  "title": "Adopt the Node 24 and npm baseline",
+  "status": "implemented",
+  "risk": "medium",
+  "adrs": [
+    "docs/adrs/implemented/ADR-011-upgrade-runtime-baseline-to-node-24.md",
+    "docs/adrs/implemented/ADR-013-return-to-npm-for-agent-ci-compatibility.md",
+    "docs/adrs/implemented/ADR-015-relax-npm-version-enforcement.md"
+  ],
+  "touches": ["package.json", "package-lock.json", ".nvmrc", ".npmrc", "docs/", "specs/"],
+  "checks": ["npm install", "npm run quality:gate", "npm run ci:local"]
+}

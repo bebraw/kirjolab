@@ -1,0 +1,17 @@
+# ASDLC Patterns Index
+
+- [Adversarial Code Review](./adversarial-code-review.md)
+- [Agent Constitution](./agent-constitution.md)
+- [Agent Optimization Loop](./agent-optimization-loop.md)
+- [Agentic Double Diamond](./agentic-double-diamond.md)
+- [Constitutional Review](./constitutional-review.md)
+- [Context Gates](./context-gates.md)
+- [Context Map](./context-map.md)
+- [Experience Modeling](./experience-modeling.md)
+- [Model Routing](./model-routing.md)
+- [Product Vision](./product-vision.md)
+- [Ralph Loop](./ralph-loop.md)
+- [Spec Reversing](./spec-reversing.md)
+- [Specs](./the-spec.md)
+- [The ADR](./the-adr.md)
+- [The PBI](./the-pbi.md)

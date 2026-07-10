@@ -1,0 +1,8 @@
+{
+  "id": "2026-06-13-affected-unit-tests",
+  "title": "Add affected unit test runner",
+  "status": "implemented",
+  "risk": "medium",
+  "touches": ["package.json", "scripts/run-affected-tests.mjs", "docs/", "specs/"],
+  "checks": ["npm run test:affected", "npm run quality:gate"]
+}

@@ -1,0 +1,10 @@
+diff --git a/.template/updates/AGENT_SYNC.md b/.template/updates/AGENT_SYNC.md
+new file mode 100644
+--- /dev/null
++++ b/.template/updates/AGENT_SYNC.md
+@@ -0,0 +1,5 @@
++# Sync From vibe-template
++
++When a user asks to look at vibe-template for latest updates, inspect
++`.template/updates/`, recommend relevant unapplied update packs, apply approved
++packs, run checks, and record applied update IDs.

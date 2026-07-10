@@ -1,0 +1,44 @@
+{
+  "name": "typescript-setup",
+  "description": "Add strict no-emit TypeScript checking for npm projects.",
+  "dependencies": {
+    "dev": {
+      "@types/node": "24.12.2",
+      "typescript": "6.0.3"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "files": [
+    {
+      "source": "files/tsconfig.json",
+      "target": "tsconfig.json",
+      "mode": "copy-or-merge"
+    }
+  ],
+  "optionalSteps": [
+    {
+      "name": "css-import-types",
+      "when": "The target repo imports .css files from TypeScript and lacks a stylesheet module declaration.",
+      "prompt": "This repo imports CSS from TypeScript. Do you want me to add a small CSS module declaration as part of the TypeScript setup?",
+      "files": [
+        {
+          "source": "files/src/css.d.ts",
+          "target": "src/css.d.ts",
+          "mode": "copy-or-merge"
+        }
+      ]
+    }
+  ],
+  "docs": [
+    "Document npm run typecheck as the local TypeScript verification command.",
+    "Document any target-project changes to source globs, libraries, module resolution, or ambient declarations."
+  ],
+  "verify": ["npm run typecheck"],
+  "notes": [
+    "Adapt include globs before applying to repos with a different source directory.",
+    "Keep framework-generated TypeScript config intact unless the user approves replacing it.",
+    "Drop DOM or Node library assumptions only when the target runtime does not need them."
+  ]
+}

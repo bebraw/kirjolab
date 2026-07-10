@@ -1,0 +1,16 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@
+-    "typecheck": "tsc --noEmit",
++    "typecheck": "node ./node_modules/typescript-7/bin/tsc --noEmit",
+@@
+-    "typescript": "6.0.3",
++    "typescript": "npm:@typescript/typescript6@6.0.2",
++    "typescript-7": "npm:typescript@7.0.2",
+diff --git a/docs/development.md b/docs/development.md
+--- a/docs/development.md
++++ b/docs/development.md
+@@
+-The TypeScript setup is generic too. `tsconfig.json` covers repo-level `.ts` files and `src/**/*.ts`, and `npm run typecheck` runs `tsc --noEmit`.
++The TypeScript setup is generic too. `tsconfig.json` covers repo-level `.ts` files and `src/**/*.ts`, and `npm run typecheck` runs TypeScript 7. During the TypeScript 7.0 transition, `typescript` is intentionally pinned to the `@typescript/typescript6` compatibility package for tools that import the compiler API, while `typescript-7` provides the compiler used by the typecheck script.

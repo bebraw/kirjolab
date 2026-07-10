@@ -1,0 +1,20 @@
+{
+  "id": "2026-06-17-shared-affected-file-utils",
+  "title": "Extract shared affected-file helper logic",
+  "status": "implemented",
+  "risk": "medium",
+  "adrs": ["docs/adrs/implemented/ADR-026-run-affected-guardrails-when-possible.md"],
+  "touches": [
+    "scripts/affected-file-utils.mjs",
+    "scripts/run-affected-guardrails.mjs",
+    "scripts/run-affected-tests.mjs",
+    "specs/quality-gate/spec.md"
+  ],
+  "checks": [
+    "node --check scripts/affected-file-utils.mjs",
+    "node --check scripts/run-affected-guardrails.mjs",
+    "node --check scripts/run-affected-tests.mjs",
+    "npm run quality:gate",
+    "npm run ci:local"
+  ]
+}

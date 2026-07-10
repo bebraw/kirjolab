@@ -1,0 +1,9 @@
+{
+  "id": "2026-06-11-mutation-quality-gate",
+  "title": "Add Stryker mutation testing to the quality gate",
+  "status": "implemented",
+  "risk": "medium",
+  "adrs": ["docs/adrs/implemented/ADR-022-add-mutation-testing-gate.md"],
+  "touches": ["package.json", "stryker.config.mjs", ".github/workflows/ci.yml", ".capabilities/mutation-testing/", "docs/", "specs/"],
+  "checks": ["npm run mutation", "npm run quality:gate", "npm run ci:local"]
+}

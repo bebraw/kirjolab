@@ -1,0 +1,26 @@
+{
+  "name": "pre-push-quality-gate",
+  "description": "Add a repo-managed pre-push hook that runs npm run quality:gate:fast.",
+  "requires": ["quality-gate"],
+  "scripts": {
+    "prepare": "node ./scripts/setup-git-hooks.mjs"
+  },
+  "files": [
+    {
+      "source": "files/scripts/setup-git-hooks.mjs",
+      "target": "scripts/setup-git-hooks.mjs",
+      "mode": "copy"
+    },
+    {
+      "source": "files/.githooks/pre-push",
+      "target": ".githooks/pre-push",
+      "mode": "copy-or-merge"
+    }
+  ],
+  "docs": [
+    "Document that npm install configures the repo-managed pre-push hook.",
+    "Document that the hook runs npm run quality:gate:fast."
+  ],
+  "verify": ["npm install", "git config --get core.hooksPath", "npm run quality:gate:fast"],
+  "notes": ["Ask before replacing an existing hook manager.", "Keep hook work fast enough that contributors do not bypass it."]
+}
