@@ -12,10 +12,11 @@ connection without reconstructing identity from a citation key or filename.
 
 - `src/domain/knowledge.ts` derives lexical search results and typed graph
   projections from an authorized `WorkspaceSnapshot`.
-- Resource ids use kind-qualified document, section, publication, PDF, and
-  annotation identities. Explicit heading ids are stable section identities;
-  unanchored headings use their current generated slug.
-- The initial relationship vocabulary is `cites`, `annotates`, and `used-in`.
+- Resource ids use kind-qualified document, section, publication, PDF,
+  annotation, and claim identities. Explicit heading ids are stable section
+  identities; unanchored headings use their current generated slug.
+- The implemented relationship vocabulary is `cites`, `annotates`, `used-in`,
+  `supports`, `contradicts`, and `extends`.
 - `GET /api/workspaces/{id}/search?q={query}` returns at most fifty ranked
   resources for at most ten query tokens.
 - `GET /api/workspaces/{id}/graph` returns the current nodes and typed edges.
@@ -36,11 +37,13 @@ connection without reconstructing identity from a citation key or filename.
 
 ### Definition of Done
 
-- [x] Search covers documents, sections, publications, PDFs, and annotations.
+- [x] Search covers documents, sections, publications, PDFs, annotations, and
+      evidence-backed claims.
 - [x] Multi-token results require every bounded query token and use
       deterministic relevance ordering.
 - [x] Citations, PDF annotations, and manuscript passage links become typed
       connections.
+- [x] Claim evidence and manuscript usage become typed, navigable connections.
 - [x] Repeated citations produce one connection per publication.
 - [x] Both search results and connection endpoints navigate to their resource.
 - [x] Search and graph endpoints use the existing workspace access boundary.

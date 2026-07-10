@@ -13,6 +13,9 @@ import {
   isWorkspaceMembers,
   isWorkspaceSummaries,
   type AnnotationResource,
+  type ClaimEvidenceRelation,
+  type ClaimPassageLink,
+  type ClaimResource,
   type ModelCandidate,
   type PassageLink,
   type PdfResource,
@@ -63,6 +66,17 @@ interface Elements {
   publicationList: HTMLElement;
   annotationCount: HTMLElement;
   annotationList: HTMLElement;
+  claimCount: HTMLElement;
+  claimList: HTMLElement;
+  newClaim: HTMLButtonElement;
+  claimDialog: HTMLDialogElement;
+  claimForm: HTMLFormElement;
+  claimDialogTitle: HTMLElement;
+  claimText: HTMLTextAreaElement;
+  claimNote: HTMLTextAreaElement;
+  claimRelation: HTMLSelectElement;
+  claimEvidenceOptions: HTMLElement;
+  cancelClaim: HTMLButtonElement;
   connectionCount: HTMLElement;
   knowledgeConnectionList: HTMLElement;
   annotationForm: HTMLFormElement;
@@ -105,6 +119,7 @@ class WorkspaceApp {
   #toastTimer: number | undefined;
   #pendingRects: PdfSelectionRect[] = [];
   #activePdfId: string | undefined;
+  #editingClaimId: string | undefined;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -153,6 +168,9 @@ class WorkspaceApp {
     this.#elements.bibliographyUpload.addEventListener("change", () => void this.#importBibliography());
     this.#elements.knowledgeSearchForm.addEventListener("submit", (event) => void this.#searchKnowledge(event));
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
+    this.#elements.newClaim.addEventListener("click", () => this.#openClaimDialog());
+    this.#elements.cancelClaim.addEventListener("click", () => this.#elements.claimDialog.close());
+    this.#elements.claimForm.addEventListener("submit", (event) => void this.#saveClaim(event));
     this.#elements.openPaper.addEventListener("click", () => void this.#showPaper());
     this.#elements.closePaper.addEventListener("click", () => this.#elements.paperDialog.close());
     this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
@@ -298,6 +316,7 @@ class WorkspaceApp {
     this.#renderPdfs(this.#snapshot.pdfs);
     this.#renderPublications(this.#snapshot.publications);
     this.#renderAnnotations(this.#snapshot.annotations, this.#snapshot.links);
+    this.#renderClaims(this.#snapshot.claims, this.#snapshot.claimLinks);
     this.#renderCandidates(this.#snapshot.candidates);
     this.#pdfViewer.updateAnnotations(this.#snapshot.annotations);
   }
@@ -402,6 +421,138 @@ class WorkspaceApp {
       card.append(label, actions);
       this.#elements.annotationList.append(card);
     }
+  }
+
+  #renderClaims(claims: ClaimResource[], links: ClaimPassageLink[]): void {
+    if (!this.#snapshot) return;
+    this.#elements.claimCount.textContent = String(claims.length);
+    this.#elements.claimList.replaceChildren();
+    this.#elements.newClaim.disabled = this.#snapshot.annotations.length === 0;
+    if (claims.length === 0) {
+      this.#elements.claimList.append(emptyState("Evidence-backed claims appear here."));
+      return;
+    }
+    const annotations = new Map(this.#snapshot.annotations.map((annotation) => [annotation.id, annotation]));
+    for (const claim of claims) {
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      card.dataset.claimResourceId = claim.id;
+      const evidence = this.#snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id);
+      card.append(resourceLabel(`Claim · ${evidence.length} ${evidence.length === 1 ? "source" : "sources"}`), resourceTitle(claim.text));
+      if (claim.note) {
+        const note = document.createElement("p");
+        note.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
+        note.textContent = claim.note;
+        card.append(note);
+      }
+      if (evidence.length > 0) {
+        const evidenceList = document.createElement("div");
+        evidenceList.className = "mt-3 space-y-1";
+        for (const link of evidence) {
+          const annotation = annotations.get(link.annotationId);
+          if (!annotation) continue;
+          evidenceList.append(
+            actionButton(
+              `${link.relation} · ${annotation.comment || `page ${annotation.page}`}`,
+              "block w-full text-left font-sans text-xs font-bold text-app-accent-strong underline decoration-app-border underline-offset-4",
+              () => this.#focusAnnotationCard(annotation.id),
+            ),
+          );
+        }
+        card.append(evidenceList);
+      }
+      const actions = document.createElement("div");
+      actions.className = "mt-3 grid grid-cols-2 gap-2";
+      actions.append(
+        actionButton("Edit", "button-secondary justify-center", () => this.#openClaimDialog(claim)),
+        actionButton("Delete", "button-secondary justify-center", () => void this.#deleteClaim(claim)),
+        actionButton("Link selected prose", "button-secondary col-span-2 justify-center", () => void this.#linkClaim(claim.id)),
+      );
+      const passage = links.find((link) => link.claimId === claim.id);
+      if (passage) {
+        actions.append(actionButton("Open linked passage", "button-secondary col-span-2 justify-center", () => this.#showPassage(passage)));
+      }
+      card.append(actions);
+      this.#elements.claimList.append(card);
+    }
+  }
+
+  #openClaimDialog(claim?: ClaimResource): void {
+    if (!this.#snapshot || this.#snapshot.annotations.length === 0) {
+      this.#showToast("Create an evidence annotation before adding a claim.");
+      return;
+    }
+    this.#editingClaimId = claim?.id;
+    this.#elements.claimDialogTitle.textContent = claim ? "Edit claim" : "Create claim";
+    this.#elements.claimText.value = claim?.text ?? "";
+    this.#elements.claimNote.value = claim?.note ?? "";
+    const evidence = claim ? this.#snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id) : [];
+    this.#elements.claimRelation.value = evidence[0]?.relation ?? "supports";
+    const selected = new Set(evidence.map((link) => link.annotationId));
+    this.#elements.claimEvidenceOptions.replaceChildren();
+    for (const annotation of this.#snapshot.annotations) {
+      const label = document.createElement("label");
+      label.className = "resource-card flex cursor-pointer items-start gap-2 font-sans text-xs";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = annotation.id;
+      checkbox.checked = selected.has(annotation.id);
+      checkbox.className = "mt-0.5 accent-app-accent";
+      const text = document.createElement("span");
+      text.textContent = annotation.comment || `Page ${annotation.page}: ${annotation.quote}`;
+      label.append(checkbox, text);
+      this.#elements.claimEvidenceOptions.append(label);
+    }
+    this.#elements.claimDialog.showModal();
+    this.#elements.claimText.focus();
+  }
+
+  async #saveClaim(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const annotationIds = Array.from(
+      this.#elements.claimEvidenceOptions.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked'),
+    ).map((checkbox) => checkbox.value);
+    if (annotationIds.length === 0) {
+      this.#showToast("Select at least one source annotation.");
+      return;
+    }
+    const evidence = annotationIds.map((annotationId) => ({
+      annotationId,
+      relation: readClaimEvidenceRelation(this.#elements.claimRelation.value),
+    }));
+    const response = await fetch(this.#editingClaimId ? `${apiBase}/claims/${this.#editingClaimId}` : `${apiBase}/claims`, {
+      method: this.#editingClaimId ? "PUT" : "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: this.#elements.claimText.value, note: this.#elements.claimNote.value, evidence }),
+    });
+    await expectOk(response);
+    this.#elements.claimDialog.close();
+    this.#editingClaimId = undefined;
+    await this.#refreshSnapshot();
+    this.#showToast("Claim and evidence relationships saved.");
+  }
+
+  async #deleteClaim(claim: ClaimResource): Promise<void> {
+    if (!window.confirm("Delete this claim and its links? Source annotations and manuscript text will remain.")) return;
+    const response = await fetch(`${apiBase}/claims/${claim.id}`, { method: "DELETE", credentials: "same-origin" });
+    await expectOk(response);
+    await this.#refreshSnapshot();
+    this.#showToast("Claim removed; source evidence remains intact.");
+  }
+
+  async #linkClaim(claimId: string): Promise<void> {
+    const start = this.#elements.source.selectionStart;
+    const end = this.#elements.source.selectionEnd;
+    const excerpt = this.#elements.source.value.slice(start, end);
+    if (!excerpt.trim()) {
+      this.#showToast("Select manuscript text before linking a claim.");
+      return;
+    }
+    const response = await jsonFetch(`${apiBase}/claim-links`, { claimId, start, end, excerpt });
+    await expectOk(response);
+    await this.#refreshSnapshot();
+    this.#showToast("Claim linked to the selected manuscript passage.");
   }
 
   #renderCandidates(candidates: ModelCandidate[]): void {
@@ -546,6 +697,11 @@ class WorkspaceApp {
     }
     if (kind === "annotation") {
       this.#focusAnnotationCard(id);
+      return;
+    }
+    if (kind === "claim") {
+      const card = document.querySelector<HTMLElement>(`[data-claim-resource-id="${CSS.escape(id)}"]`);
+      card?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     if (kind === "pdf") {
@@ -723,7 +879,7 @@ class WorkspaceApp {
     card?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  #showPassage(link: PassageLink): void {
+  #showPassage(link: Pick<PassageLink, "start" | "end">): void {
     this.#elements.paperDialog.close();
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(link.start, link.end);
@@ -805,6 +961,17 @@ function collectElements(): Elements {
     publicationList: requiredElement("publication-list", HTMLElement),
     annotationCount: requiredElement("annotation-count", HTMLElement),
     annotationList: requiredElement("annotation-list", HTMLElement),
+    claimCount: requiredElement("claim-count", HTMLElement),
+    claimList: requiredElement("claim-list", HTMLElement),
+    newClaim: requiredElement("new-claim", HTMLButtonElement),
+    claimDialog: requiredElement("claim-dialog", HTMLDialogElement),
+    claimForm: requiredElement("claim-form", HTMLFormElement),
+    claimDialogTitle: requiredElement("claim-dialog-title", HTMLElement),
+    claimText: requiredElement("claim-text", HTMLTextAreaElement),
+    claimNote: requiredElement("claim-note", HTMLTextAreaElement),
+    claimRelation: requiredElement("claim-relation", HTMLSelectElement),
+    claimEvidenceOptions: requiredElement("claim-evidence-options", HTMLElement),
+    cancelClaim: requiredElement("cancel-claim", HTMLButtonElement),
     connectionCount: requiredElement("connection-count", HTMLElement),
     knowledgeConnectionList: requiredElement("knowledge-connection-list", HTMLElement),
     annotationForm: requiredElement("annotation-form", HTMLFormElement),
@@ -889,6 +1056,11 @@ async function expectOk(response: Response): Promise<void> {
 
 function formatBytes(value: number): string {
   return value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
+  if (value === "contradicts" || value === "extends") return value;
+  return "supports";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

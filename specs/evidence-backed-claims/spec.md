@@ -51,17 +51,17 @@ must show where a claim enters authored prose.
 
 ### Definition of Done
 
-- [ ] A researcher can create a claim from selected annotations and one evidence
+- [x] A researcher can create a claim from selected annotations and one evidence
       relationship type.
-- [ ] A researcher can edit the proposition, note, and evidence set.
-- [ ] A researcher can delete a claim without deleting its annotations.
-- [ ] A claim can link to an exact selected manuscript passage.
-- [ ] Search returns claims by proposition, note, and connected annotation text.
-- [ ] Connections expose `supports`, `contradicts`, `extends`, and claim
+- [x] A researcher can edit the proposition, note, and evidence set.
+- [x] A researcher can delete a claim without deleting its annotations.
+- [x] A claim can link to an exact selected manuscript passage.
+- [x] Search returns claims by proposition, note, and connected annotation text.
+- [x] Connections expose `supports`, `contradicts`, `extends`, and claim
       `used-in` edges as navigable resource actions.
 - [x] Guards reject missing, duplicate, excessive, or malformed evidence.
 - [x] Durable Object tests prove atomic replacement and cascade behavior.
-- [ ] Browser coverage proves the annotation-to-claim-to-prose workflow.
+- [x] Browser coverage proves the annotation-to-claim-to-prose workflow.
 
 ### Regression Guardrails
 

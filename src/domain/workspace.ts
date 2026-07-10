@@ -342,14 +342,55 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     Array.isArray(value.annotations) &&
     Array.isArray(value.links) &&
     Array.isArray(value.claims) &&
+    value.claims.every(isClaimResource) &&
     Array.isArray(value.claimEvidenceLinks) &&
+    value.claimEvidenceLinks.every(isClaimEvidenceLink) &&
     Array.isArray(value.claimLinks) &&
+    value.claimLinks.every(isClaimPassageLink) &&
     Array.isArray(value.candidates)
   );
 }
 
 function isClaimEvidenceRelation(value: unknown): value is ClaimEvidenceRelation {
   return value === "supports" || value === "contradicts" || value === "extends";
+}
+
+function isClaimResource(value: unknown): value is ClaimResource {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    isStringWithin(value.text, 2_000, true) &&
+    isStringWithin(value.note, 8_000) &&
+    isNonEmptyString(value.createdAt) &&
+    isNonEmptyString(value.updatedAt)
+  );
+}
+
+function isClaimEvidenceLink(value: unknown): value is ClaimEvidenceLink {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.claimId) &&
+    isNonEmptyString(value.annotationId) &&
+    isClaimEvidenceRelation(value.relation) &&
+    isNonEmptyString(value.createdAt)
+  );
+}
+
+function isClaimPassageLink(value: unknown): value is ClaimPassageLink {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.claimId) &&
+    typeof value.start === "number" &&
+    Number.isInteger(value.start) &&
+    value.start >= 0 &&
+    typeof value.end === "number" &&
+    Number.isInteger(value.end) &&
+    value.end > value.start &&
+    isStringWithin(value.excerpt, 50_000, true) &&
+    isNonEmptyString(value.createdAt)
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

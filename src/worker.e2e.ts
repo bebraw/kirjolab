@@ -323,6 +323,34 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   const linkedSnapshot: unknown = await snapshotAfterLink.json();
   expect(isWorkspaceSnapshot(linkedSnapshot) ? linkedSnapshot.links.length : 0).toBeGreaterThan(0);
 
+  await page.getByRole("button", { name: "New claim" }).click();
+  await page.locator("#claim-text").fill("Inspectable evidence strengthens scholarly claims.");
+  await page.locator("#claim-note").fill("Human-authored synthesis");
+  await page.locator('#claim-evidence-options input[type="checkbox"]').first().check();
+  await page.locator("#claim-dialog").getByRole("button", { name: "Save claim" }).click();
+  await expect(page.locator("#claim-list")).toContainText("Inspectable evidence strengthens scholarly claims.");
+  await expect(page.locator("#knowledge-connection-list")).toContainText("supports");
+
+  await page.locator("#claim-list").getByRole("button", { name: "Edit" }).click();
+  await page.locator("#claim-text").fill("Inspectable evidence keeps scholarly claims accountable.");
+  await page.locator("#claim-note").fill("Revised human synthesis");
+  await page.locator("#claim-relation").selectOption("extends");
+  await page.locator("#claim-dialog").getByRole("button", { name: "Save claim" }).click();
+  const claimCard = page.locator("#claim-list article").filter({ hasText: "keeps scholarly claims accountable" }).first();
+  await expect(claimCard).toContainText("extends · Grounding for the revision");
+
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    const start = element.value.indexOf("into cited prose");
+    element.focus();
+    element.setSelectionRange(start, start + "into cited prose".length);
+  });
+  await claimCard.getByRole("button", { name: "Link selected prose" }).click();
+  await expect(claimCard.getByRole("button", { name: "Open linked passage" })).toBeVisible();
+
+  await page.locator("#knowledge-search-input").fill("human synthesis accountable");
+  await page.locator("#knowledge-search-form").getByRole("button", { name: "Find" }).click();
+  await expect(page.locator("#knowledge-search-results")).toContainText("Inspectable evidence keeps scholarly claims accountable.");
+
   await page.locator("#knowledge-search-input").fill("Grounding revision");
   await page.locator("#knowledge-search-form").getByRole("button", { name: "Find" }).click();
   await expect(page.locator("#knowledge-search-results")).toContainText("Grounding for the revision");
@@ -337,6 +365,13 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   const graph: unknown = await graphResponse.json();
   expect(graphResponse.ok()).toBe(true);
   expect(isWorkspaceKnowledgeGraph(graph)).toBe(true);
+
+  await claimCard.getByRole("button", { name: "Open linked passage" }).click();
+  await expect(editor).toBeFocused();
+  page.once("dialog", (dialog) => void dialog.accept());
+  await claimCard.getByRole("button", { name: "Delete" }).click();
+  await expect(page.locator("#claim-count")).toHaveText("0");
+  await expect(page.locator("#annotation-list")).toContainText("Grounding for the revision");
 
   await annotationCard.getByRole("button", { name: "Open evidence" }).click();
   await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();

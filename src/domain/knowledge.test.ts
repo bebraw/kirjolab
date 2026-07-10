@@ -59,15 +59,47 @@ const snapshot: WorkspaceSnapshot = {
       createdAt: "2026-07-10T00:00:00.000Z",
     },
   ],
-  claims: [],
-  claimEvidenceLinks: [],
-  claimLinks: [],
+  claims: [
+    {
+      id: "claim-1",
+      text: "Inspectable evidence supports accountable claims.",
+      note: "Synthesis note",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-10T00:00:00.000Z",
+    },
+  ],
+  claimEvidenceLinks: [
+    {
+      id: "claim-evidence-1",
+      claimId: "claim-1",
+      annotationId: "annotation-1",
+      relation: "supports",
+      createdAt: "2026-07-10T00:00:00.000Z",
+    },
+  ],
+  claimLinks: [
+    {
+      id: "claim-link-1",
+      claimId: "claim-1",
+      start: 0,
+      end: 7,
+      excerpt: "Methods",
+      createdAt: "2026-07-10T00:00:00.000Z",
+    },
+  ],
   candidates: [],
 };
 
 describe("knowledge navigation", () => {
   it("searches stable resources with deterministic relevance", () => {
     expect(searchWorkspaceKnowledge(snapshot, "inspectable")).toEqual([
+      {
+        resourceId: "claim:claim-1",
+        kind: "claim",
+        title: "Inspectable evidence supports accountable claims.",
+        excerpt: "Synthesis note · Grounding note · Evidence remains connected.",
+        score: 8,
+      },
       {
         resourceId: "publication:publication-1",
         kind: "publication",
@@ -83,9 +115,13 @@ describe("knowledge navigation", () => {
         score: 2,
       },
     ]);
-    expect(searchWorkspaceKnowledge(snapshot, "evidence connected")).toMatchObject([
-      { resourceId: "annotation:annotation-1", kind: "annotation", score: 4 },
-    ]);
+    expect(searchWorkspaceKnowledge(snapshot, "evidence connected")).toContainEqual(
+      expect.objectContaining({ resourceId: "annotation:annotation-1", kind: "annotation", score: 4 }),
+    );
+    expect(searchWorkspaceKnowledge(snapshot, "synthesis")).toMatchObject([{ resourceId: "claim:claim-1", kind: "claim" }]);
+    expect(searchWorkspaceKnowledge(snapshot, "grounding connected")).toContainEqual(
+      expect.objectContaining({ resourceId: "claim:claim-1", kind: "claim" }),
+    );
     expect(searchWorkspaceKnowledge(snapshot, "   ")).toEqual([]);
     expect(searchWorkspaceKnowledge(snapshot, "missing")).toEqual([]);
   });
@@ -131,12 +167,11 @@ describe("knowledge navigation", () => {
     );
     expect(results).toMatchObject([{ kind: "annotation", title: "Annotation on page 4" }]);
 
-    expect(
-      searchWorkspaceKnowledge(
-        { ...snapshot, publications: [{ ...snapshot.publications[0]!, authors: ["Doe, Jane", "Researcher, Alex"] }] },
-        "inspectable",
-      )[0]?.excerpt,
-    ).toContain("Doe, Jane; Researcher, Alex");
+    const publication = searchWorkspaceKnowledge(
+      { ...snapshot, publications: [{ ...snapshot.publications[0]!, authors: ["Doe, Jane", "Researcher, Alex"] }] },
+      "inspectable",
+    ).find((result) => result.kind === "publication");
+    expect(publication?.excerpt).toContain("Doe, Jane; Researcher, Alex");
   });
 
   it("derives typed links and deduplicates repeated citations", () => {
@@ -148,6 +183,7 @@ describe("knowledge navigation", () => {
         { id: "publication:publication-1", kind: "publication", label: "Inspectable Science" },
         { id: "pdf:pdf-1", kind: "pdf", label: "methods.pdf" },
         { id: "annotation:annotation-1", kind: "annotation", label: "Grounding note" },
+        { id: "claim:claim-1", kind: "claim", label: "Inspectable evidence supports accountable claims." },
       ],
       edges: [
         {
@@ -156,6 +192,20 @@ describe("knowledge navigation", () => {
           from: "annotation:annotation-1",
           to: "pdf:pdf-1",
           label: "page 4",
+        },
+        {
+          id: "supports:claim-evidence-1",
+          relation: "supports",
+          from: "annotation:annotation-1",
+          to: "claim:claim-1",
+          label: "supports",
+        },
+        {
+          id: "used-in:claim-link-1",
+          relation: "used-in",
+          from: "claim:claim-1",
+          to: "document:workspace",
+          label: "Methods",
         },
         {
           id: "used-in:link-1",

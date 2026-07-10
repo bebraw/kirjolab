@@ -112,6 +112,8 @@ mode for authenticated hosted collaboration.
       citation keys.
 - [x] Search results and typed connections navigate across authored and evidence
       resources.
+- [x] Annotations can be synthesized into editable claims and linked onward to
+      exact manuscript passages.
 - [x] A PDF can be imported, rendered with selectable text, streamed back, and
       annotated without mutation.
 - [x] An annotation can be linked to the exact selected manuscript range.

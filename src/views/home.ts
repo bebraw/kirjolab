@@ -75,6 +75,19 @@ export function renderHomePage(
         </section>
         <section class="mt-6 border-t border-app-line pt-5">
           <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <p class="eyebrow">Claims</p>
+              <span class="count-badge" id="claim-count">0</span>
+            </div>
+            <button class="button-secondary" id="new-claim" type="button">New claim</button>
+          </div>
+          <p class="mt-2 text-xs leading-5 text-app-text-soft">Synthesize annotations into propositions, then connect them to prose.</p>
+          <div class="mt-3 space-y-3" id="claim-list">
+            <div class="empty-state">Evidence-backed claims appear here.</div>
+          </div>
+        </section>
+        <section class="mt-6 border-t border-app-line pt-5">
+          <div class="flex items-center justify-between gap-3">
             <p class="eyebrow">References</p>
             <span class="count-badge" id="publication-count">0</span>
           </div>
@@ -240,6 +253,34 @@ export function renderHomePage(
           </div>
         </form>
       </div>
+    </dialog>
+
+    <dialog class="new-workspace-dialog" id="claim-dialog">
+      <form class="p-5" id="claim-form">
+        <p class="eyebrow">Evidence synthesis</p>
+        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]" id="claim-dialog-title">Create claim</h2>
+        <label class="field-label mt-5">Proposition
+          <textarea class="field min-h-24" id="claim-text" maxlength="2000" required placeholder="State one concise, defensible claim"></textarea>
+        </label>
+        <label class="field-label mt-3">Working note
+          <textarea class="field min-h-20" id="claim-note" maxlength="8000" placeholder="Interpretation, caveats, or next questions"></textarea>
+        </label>
+        <label class="field-label mt-3">Evidence relationship
+          <select class="field" id="claim-relation">
+            <option value="supports">Supports</option>
+            <option value="contradicts">Contradicts</option>
+            <option value="extends">Extends</option>
+          </select>
+        </label>
+        <fieldset class="mt-4">
+          <legend class="field-label">Source annotations</legend>
+          <div class="mt-2 max-h-48 space-y-2 overflow-auto" id="claim-evidence-options"></div>
+        </fieldset>
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="button-secondary" id="cancel-claim" type="button">Cancel</button>
+          <button class="button-primary" type="submit">Save claim</button>
+        </div>
+      </form>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

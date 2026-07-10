@@ -260,5 +260,8 @@ describe("workspace input guards", () => {
     }
     expect(isWorkspaceSnapshot([])).toBe(false);
     expect(isWorkspaceSnapshot("workspace")).toBe(false);
+    expect(isWorkspaceSnapshot({ ...valid, claims: [{ id: "claim" }] })).toBe(false);
+    expect(isWorkspaceSnapshot({ ...valid, claimEvidenceLinks: [{ relation: "unknown" }] })).toBe(false);
+    expect(isWorkspaceSnapshot({ ...valid, claimLinks: [{ start: 2, end: 1 }] })).toBe(false);
   });
 });

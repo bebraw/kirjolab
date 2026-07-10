@@ -1,7 +1,7 @@
 import type { WorkspaceSnapshot } from "./workspace";
 
-export type KnowledgeResourceKind = "document" | "section" | "publication" | "pdf" | "annotation";
-export type ScholarlyRelation = "cites" | "annotates" | "used-in";
+export type KnowledgeResourceKind = "document" | "section" | "publication" | "pdf" | "annotation" | "claim";
+export type ScholarlyRelation = "cites" | "annotates" | "used-in" | "supports" | "contradicts" | "extends";
 
 export interface KnowledgeSearchResult {
   resourceId: string;
@@ -72,6 +72,21 @@ export function searchWorkspaceKnowledge(snapshot: WorkspaceSnapshot, query: str
       title: annotation.comment || `Annotation on page ${annotation.page}`,
       excerpt: excerpt(annotation.quote),
     })),
+    ...snapshot.claims.map((claim) => ({
+      resourceId: claimId(claim.id),
+      kind: "claim" as const,
+      title: claim.text,
+      excerpt: excerpt(
+        [
+          claim.note,
+          ...snapshot.claimEvidenceLinks
+            .filter((link) => link.claimId === claim.id)
+            .map((link) => snapshot.annotations.find((annotation) => annotation.id === link.annotationId))
+            .filter((annotation) => annotation !== undefined)
+            .flatMap((annotation) => [annotation.comment, annotation.quote]),
+        ].join(" · "),
+      ),
+    })),
   ];
 
   return candidates
@@ -100,6 +115,25 @@ export function buildWorkspaceKnowledgeGraph(snapshot: WorkspaceSnapshot): Works
       from: resourceId,
       to: pdfId(annotation.pdfId),
       label: `page ${annotation.page}`,
+    });
+  }
+  for (const claim of snapshot.claims) nodes.push({ id: claimId(claim.id), kind: "claim", label: claim.text });
+  for (const link of snapshot.claimEvidenceLinks) {
+    edges.push({
+      id: `${link.relation}:${link.id}`,
+      relation: link.relation,
+      from: annotationId(link.annotationId),
+      to: claimId(link.claimId),
+      label: link.relation,
+    });
+  }
+  for (const link of snapshot.claimLinks) {
+    edges.push({
+      id: `used-in:${link.id}`,
+      relation: "used-in",
+      from: claimId(link.claimId),
+      to: documentResourceId,
+      label: excerpt(link.excerpt, 100),
     });
   }
   for (const link of snapshot.links) {
@@ -221,6 +255,10 @@ function annotationId(id: string): string {
   return `annotation:${id}`;
 }
 
+function claimId(id: string): string {
+  return `claim:${id}`;
+}
+
 function isSearchResult(value: unknown): value is KnowledgeSearchResult {
   return (
     isRecord(value) &&
@@ -240,7 +278,12 @@ function isGraphEdge(value: unknown): value is KnowledgeGraphEdge {
   return (
     isRecord(value) &&
     isNonEmptyString(value.id) &&
-    (value.relation === "cites" || value.relation === "annotates" || value.relation === "used-in") &&
+    (value.relation === "cites" ||
+      value.relation === "annotates" ||
+      value.relation === "used-in" ||
+      value.relation === "supports" ||
+      value.relation === "contradicts" ||
+      value.relation === "extends") &&
     isNonEmptyString(value.from) &&
     isNonEmptyString(value.to) &&
     typeof value.label === "string"
@@ -248,7 +291,9 @@ function isGraphEdge(value: unknown): value is KnowledgeGraphEdge {
 }
 
 function isKind(value: unknown): value is KnowledgeResourceKind {
-  return value === "document" || value === "section" || value === "publication" || value === "pdf" || value === "annotation";
+  return (
+    value === "document" || value === "section" || value === "publication" || value === "pdf" || value === "annotation" || value === "claim"
+  );
 }
 
 function isNonEmptyString(value: unknown): value is string {

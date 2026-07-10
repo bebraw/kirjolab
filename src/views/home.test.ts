@@ -13,6 +13,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="publication-list"');
     expect(html).toContain('id="knowledge-search-form"');
     expect(html).toContain('id="knowledge-connection-list"');
+    expect(html).toContain('id="claim-list"');
+    expect(html).toContain('id="claim-form"');
     expect(html).toContain('id="paper-text-layer"');
     expect(html).toContain("Propose, inspect, apply");
     expect(html).toContain('src="/app.js"');
