@@ -1,0 +1,9 @@
+{
+  "id": "2026-07-10-playwright-1-61-ci-image",
+  "title": "Align the Playwright 1.61 CI image",
+  "status": "implemented",
+  "risk": "low",
+  "adrs": ["docs/adrs/implemented/ADR-009-split-fast-and-browser-verification.md"],
+  "touches": ["package.json", "package-lock.json", ".github/workflows/ci.yml"],
+  "checks": ["npm run quality:gate", "npm run ci:local"]
+}

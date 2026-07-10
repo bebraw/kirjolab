@@ -34,6 +34,8 @@ copying unrelated starter structure.
   - `2026-06-14-agent-sync-entrypoint`
   - `2026-06-17-advisory-fallow-diagnostics`
   - `2026-06-17-shared-affected-file-utils`
+  - `2026-07-08-typescript-7-typecheck`
+  - `2026-07-10-playwright-1-61-ci-image`
 
 ### Anti-Patterns
 

@@ -1,0 +1,19 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -56,5 +56,5 @@ jobs:
+   quality-browser:
+     runs-on: ubuntu-latest
+     container:
+-      image: mcr.microsoft.com/playwright:v1.60.0-noble
++      image: mcr.microsoft.com/playwright:v1.61.1-noble
+       options: --ipc=host
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -42,4 +42,4 @@
+   },
+   "devDependencies": {
+-    "@playwright/test": "1.60.0",
++    "@playwright/test": "1.61.1",
+     "@redwoodjs/agent-ci": "0.16.2",

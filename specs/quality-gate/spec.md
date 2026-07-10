@@ -32,7 +32,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Affected file helper logic:** `scripts/affected-file-utils.mjs`
 - **Runtime pin source:** `package.json#engines.node`
 - **Package manager hint source:** `package.json#packageManager`
-- **Browser runtime image:** `mcr.microsoft.com/playwright:v1.60.0-noble`
+- **Browser runtime image:** `mcr.microsoft.com/playwright:v1.61.1-noble`
 - **Coverage gate logic:** `scripts/run-coverage-gate.mjs`
 - **Worker client-code guard:** `scripts/assert-no-worker-client-scripts.mjs`
 - **Codebase diagnostics config:** `.fallowrc.json`

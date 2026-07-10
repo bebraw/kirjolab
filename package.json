@@ -12,6 +12,24 @@
       "onFail": "error"
     }
   },
+  "vibeTemplate": {
+    "updates": [
+      "2026-06-09-node-24-npm-baseline",
+      "2026-06-10-capability-kits",
+      "2026-06-11-mutation-quality-gate",
+      "2026-06-12-affected-guardrails",
+      "2026-06-12-incremental-local-mutation",
+      "2026-06-13-affected-unit-tests",
+      "2026-06-13-github-only-mutation-ci",
+      "2026-06-13-relative-stryker-concurrency",
+      "2026-06-14-agent-ci-warm-cache",
+      "2026-06-14-agent-sync-entrypoint",
+      "2026-06-17-advisory-fallow-diagnostics",
+      "2026-06-17-shared-affected-file-utils",
+      "2026-07-08-typescript-7-typecheck",
+      "2026-07-10-playwright-1-61-ci-image"
+    ]
+  },
   "scripts": {
     "build": "npm run build:css && npm run build:client && npm run build:pdf-worker && npm run build:satteri-assets",
     "build:client": "mkdir -p ./.generated && esbuild src/client/app.ts --bundle --format=esm --target=es2022 --outfile=.generated/app.txt",
@@ -45,7 +63,7 @@
     "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.60.0",
+    "@playwright/test": "1.61.1",
     "@redwoodjs/agent-ci": "0.16.2",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/typescript-checker": "9.6.1",
