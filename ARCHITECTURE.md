@@ -21,6 +21,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 
 - Treat portable Markdown and BibTeX as the canonical authored artifacts.
 - Treat parsed syntax, previews, Yjs updates, indexes, and model candidates as supporting representations.
+- Parse standard and scientific-writing Markdown through pinned Satteri plugins; keep its syntax tree and HTML derived.
+- Run the current threaded Satteri WASM binding in the cross-origin-isolated browser, not inside a Cloudflare Worker isolate.
+- Escape authored raw HTML and remove unsafe URL protocols before inserting preview output into the DOM.
 - Coordinate each collaborative document through its own SQLite-backed Durable Object.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
 - Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.

@@ -8,13 +8,21 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Evidence" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
   await expect(page.locator("#source-editor")).toHaveValue(/## Evidence becomes prose/);
   await expect(page.locator("#preview")).toContainText("Merton, 1942");
   await expect(page.locator("#diagnostic-summary")).toHaveText("No syntax errors");
 
   const source = await page.locator("#source-editor").inputValue();
-  await page.locator("#source-editor").fill(`${source.trimEnd()}\n\nA live collaborative note.\n`);
+  await page
+    .locator("#source-editor")
+    .fill(
+      `${source.trimEnd()}\n\nA live collaborative note.[^live]\n\n| State | Result |\n| --- | --- |\n| Shared | **Visible** |\n\n[^live]: Rendered by Satteri.\n`,
+    );
   await expect(page.locator("#preview")).toContainText("A live collaborative note.");
+  await expect(page.locator("#preview table")).toContainText("Visible");
+  await expect(page.locator("#preview .footnotes")).toContainText("Rendered by Satteri");
+  await expect(page.locator("#preview .section-number").first()).toBeVisible();
   await expect(page.locator("#revision-badge")).not.toHaveText("r0");
 
   const exported = await page.request.get("/api/workspaces/demo/export/document.md");
@@ -93,6 +101,7 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
 
 test("imports BibTeX into stable publication resources", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   await page.locator("#bibliography-upload").setInputFiles({
     name: "references.bib",
     mimeType: "application/x-bibtex",
@@ -288,6 +297,16 @@ test("serves stable health and browser assets", async ({ request }) => {
   expect(client.ok(), await client.text()).toBe(true);
   expect(styles.headers()["content-type"]).toContain("text/css");
   expect(client.headers()["content-type"]).toContain("text/javascript");
+
+  const satteriWasm = await request.get("/satteri_napi.wasm32-wasi.wasm");
+  expect(satteriWasm.ok()).toBe(true);
+  expect(satteriWasm.headers()["content-type"]).toContain("application/wasm");
+  expect(satteriWasm.headers()["cross-origin-resource-policy"]).toBe("same-origin");
+
+  const satteriWorker = await request.get("/satteri-wasi-worker.mjs");
+  expect(satteriWorker.ok()).toBe(true);
+  expect(satteriWorker.headers()["content-type"]).toContain("javascript");
+  expect(await satteriWorker.text()).toContain("MessageHandler");
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {

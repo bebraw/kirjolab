@@ -32,6 +32,11 @@ export async function handleRequest(request: Request, env?: Env): Promise<Respon
     return scriptResponse(await loadPdfWorkerScript());
   }
 
+  if (url.pathname === "/satteri_napi.wasm32-wasi.wasm" || url.pathname === "/satteri-wasi-worker.mjs") {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await loadSatteriAsset(request, env);
+  }
+
   if (url.pathname === "/api/health") {
     return createHealthResponse(exampleRoutes.map((route) => route.path));
   }
@@ -99,4 +104,12 @@ async function loadPdfWorkerScript(): Promise<string> {
 
   const script = await import("../.generated/pdf-worker.txt");
   return script.default;
+}
+
+async function loadSatteriAsset(request: Request, env: Env): Promise<Response> {
+  const asset = await env.ASSETS.fetch(request);
+  const headers = new Headers(asset.headers);
+  headers.set("cross-origin-resource-policy", "same-origin");
+  headers.set("cache-control", "public, max-age=31536000, immutable");
+  return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
 }

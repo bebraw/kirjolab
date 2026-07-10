@@ -14,6 +14,11 @@
     "command": "npm run build",
     "watch_dir": "src",
   },
+  "assets": {
+    "directory": "./.generated/assets",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+  },
   "durable_objects": {
     "bindings": [
       { "name": "DOCUMENT_ROOMS", "class_name": "DocumentRoom" },

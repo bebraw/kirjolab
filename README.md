@@ -16,6 +16,7 @@ Local development in this repo targets macOS. Other platforms may need script an
 - Implemented workspace catalog contract: `specs/workspace-catalog/spec.md`
 - Implemented workspace access contract: `specs/workspace-access/spec.md`
 - Implemented reference-library contract: `specs/reference-library/spec.md`
+- Implemented scientific-Markdown contract: `specs/scientific-markdown/spec.md`
 - Development setup and local CI: `docs/development.md`
 - Architecture decisions: `docs/adrs/README.md`
 - Feature and architecture specs: `specs/README.md`
@@ -33,7 +34,7 @@ Local development in this repo targets macOS. Other platforms may need script an
 - The current local slice needs no model key. Local model requests go directly from the browser to the configured OpenAI-compatible endpoint.
 - Use repo-pinned CLI tools through `npx`, including `npx wrangler` for Cloudflare-based experiments.
 - Start Kirjolab with `npm run dev`, then open `http://127.0.0.1:8787`.
-- `npm run build` generates the Tailwind stylesheet, typed browser bundle, and version-matched PDF.js worker under the ignored `.generated/` directory.
+- `npm run build` generates the Tailwind stylesheet, typed browser bundle, version-matched PDF.js worker, and Satteri browser assets under the ignored `.generated/` directory.
 - Local Wrangler automatically emulates the Durable Object and R2 bindings.
 - Before a production deployment, create the configured bucket with `npx wrangler r2 bucket create kirjolab-papers`.
 - Local `AUTH_MODE=local` is deliberately rejected away from loopback. For hosting, protect the application hostname with Cloudflare Access and configure `AUTH_MODE=access`, `ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com`, and the application's `ACCESS_AUD` value through environment-specific Wrangler configuration or dashboard variables. Keep unprotected direct hostnames disabled.
@@ -81,7 +82,7 @@ For cross-repo agent work, tell the agent:
 - Collaborative Markdown and BibTeX editing through Yjs WebSockets.
 - Multiple isolated workspaces with stable URLs and identity-scoped navigation.
 - Cloudflare Access JWT verification plus owner/member workspace sharing.
-- Fast semantic preview and validation for the initial scientific-writing syntax.
+- Satteri-powered standard Markdown, GFM, and scientific-writing preview with semantic validation.
 - Streamed PDF import, selectable single-page rendering, resilient highlights, and bidirectional manuscript links.
 - BibTeX library import with stable publication resources and explicit Crossref DOI enrichment.
 - Browser-direct local-model requests with persisted candidate review/apply.
@@ -92,6 +93,7 @@ For cross-repo agent work, tell the agent:
 - `src/worker.ts` is the Worker entry point and top-level router.
 - `src/durable-objects/` holds document coordination and persistent metadata.
 - `src/domain/` holds portable resource contracts and Markdown semantics.
+- `vendor/satteri-wasm32-wasi/` pins the reviewed browser binding needed for deterministic Satteri previews.
 - `src/api/` holds health and scholarly-workspace routes.
 - `src/client/` holds the typed browser client and local-model operations.
 - `src/views/` holds the server-rendered workspace shell.

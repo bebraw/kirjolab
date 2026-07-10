@@ -24,9 +24,9 @@ mode for authenticated hosted collaboration.
   workspace resources while each `DocumentRoom` retains isolated coordination.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
-- **Document semantics:** `src/domain/markdown.ts` parses and validates the
-  initial standard-Markdown subset plus headings, citations, references,
-  aliases, and anchors from the scientific-writing syntax.
+- **Document semantics:** Satteri parses standard Markdown and GFM while
+  `src/domain/markdown.ts` adds headings, citations, references, aliases,
+  anchors, validation, and preview security from the scientific-writing syntax.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for the
   `demo` document. Browser and server exchange Yjs updates through hibernatable
   WebSockets. Each update materializes Yjs state, Markdown, BibTeX, and a
@@ -83,8 +83,8 @@ mode for authenticated hosted collaboration.
 - Do not write annotation data into imported PDFs.
 - Do not deploy with local authentication or without a protected Cloudflare
   Access hostname and matching JWT configuration.
-- Do not claim full standard Markdown, CSL citation rendering, automatic PDF
-  text selection, or multi-workspace management in this slice.
+- Do not claim CSL-complete bibliography formatting or direct Worker-side
+  Satteri execution in this slice.
 
 ## Contract
 

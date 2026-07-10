@@ -77,6 +77,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-042](./implemented/ADR-042-use-per-owner-workspace-catalogs.md)                  | Implemented | Discover isolated document rooms through a separate SQLite catalog per owner identity.         |
 | [ADR-043](./implemented/ADR-043-use-cloudflare-access-and-memberships.md)             | Implemented | Verify Cloudflare Access JWTs and authorize document access through owner/member roles.        |
 | [ADR-044](./implemented/ADR-044-model-publications-separately-from-bibtex.md)         | Implemented | Keep BibTeX canonical while materializing stable publications and explicit DOI enrichment.     |
+| [ADR-045](./implemented/ADR-045-use-satteri-for-scientific-markdown.md)               | Implemented | Parse scientific Markdown with Satteri in an isolated browser WASM runtime.                    |
 
 ## Creating A New ADR
 

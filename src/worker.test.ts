@@ -11,6 +11,8 @@ describe("worker", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin");
+    expect(response.headers.get("cross-origin-embedder-policy")).toBe("require-corp");
 
     const body = await response.text();
     expect(body).toContain("KIRJOLAB");
@@ -93,6 +95,13 @@ describe("worker", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/javascript");
     await expect(response.text()).resolves.toBe("export {};");
+  });
+
+  it("requires runtime assets for Satteri browser modules", async () => {
+    const response = await handleRequest(new Request("http://example.com/satteri_napi.wasm32-wasi.wasm"));
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
   });
 
   it("rejects workspace API requests without runtime bindings", async () => {

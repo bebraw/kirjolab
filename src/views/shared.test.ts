@@ -8,6 +8,8 @@ describe("htmlResponse", () => {
     expect(response.status).toBe(201);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin");
+    expect(response.headers.get("cross-origin-embedder-policy")).toBe("require-corp");
   });
 });
 

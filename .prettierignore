@@ -7,3 +7,5 @@ node_modules
 playwright-report
 reports
 test-results
+vendor/satteri-wasm32-wasi/satteri_napi.wasi-browser.js
+vendor/satteri-wasm32-wasi/wasi-worker-browser.mjs

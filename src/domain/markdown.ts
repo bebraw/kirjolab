@@ -1,11 +1,12 @@
+import { defineHastPlugin, defineMdastPlugin, markdownToHtml } from "satteri";
+import { parseBibTeX } from "./bibliography";
+
 export interface Diagnostic {
   severity: "error" | "warning";
   message: string;
   from: number;
   to: number;
 }
-
-// Stryker disable Regex: Syntax expressions are exercised through exact rendering and diagnostic cases; token-level regex mutation mostly creates invalid patterns.
 
 interface BibliographyEntry {
   id: string;
@@ -14,14 +15,17 @@ interface BibliographyEntry {
   year: string;
 }
 
-interface RenderContext {
-  bibliography: Map<string, BibliographyEntry>;
-  references: Map<string, ReferenceEntry>;
-}
-
 interface ReferenceEntry {
   title: string;
   slug: string;
+}
+
+interface Citation {
+  ids: string[];
+  mode: string;
+  locator?: string;
+  prefix?: string;
+  suffix?: string;
 }
 
 export interface RenderedDocument {
@@ -29,90 +33,40 @@ export interface RenderedDocument {
   diagnostics: Diagnostic[];
 }
 
-const directivePattern = /:(cite|ref)\[([^\]]*)\](?:\{([^}]*)\})?/gu;
-const attributePattern = /([a-z][a-z-]*)="([^"]*)"/giu;
+// Stryker disable Regex: Satteri owns Markdown parsing; these expressions only locate the small semantic-directive validation surface.
+const directivePattern = /(?<!:):([a-z][a-z-]*)\[([^\]]*)\](?:\{([^}]*)\})?/giu;
+const attributePattern = /([a-z][a-z-]*)=(?:"([^"]*)"|([^\s}]+))/giu;
+const headingPattern = /^(#{2,4})\s+(.+?)(?:\s+\{#([a-zA-Z0-9:_-]+)\})?\s*$/gmu;
+const aliasPattern = /^::alias\[([^\]]*)\]\{([^}]*)\}\s*$/gmu;
+const anchorPattern = /^::anchor\[([^\]]*)\]\{([^}]*)\}\s*$/gmu;
 
 export function renderWorkspaceMarkdown(source: string, bibliographySource: string): RenderedDocument {
+  const normalized = source.replaceAll("\r\n", "\n");
   const bibliography = parseBibliography(bibliographySource);
-  const references = collectReferences(source);
-  const diagnostics = validateDirectives(source, bibliography, references);
-  const context = { bibliography, references } satisfies RenderContext;
-  const lines = source.replaceAll("\r\n", "\n").split("\n");
-  const blocks: string[] = [];
-  let paragraph: string[] = [];
-  let list: string[] = [];
-  let code: string[] | null = null;
+  const references = collectReferences(normalized);
+  const diagnostics = validateSyntax(normalized, bibliography, references);
 
-  const flushParagraph = (): void => {
-    if (paragraph.length === 0) return;
-    blocks.push(`<p>${renderInline(paragraph.join(" "), context)}</p>`);
-    paragraph = [];
-  };
-  const flushList = (): void => {
-    if (list.length === 0) return;
-    blocks.push(`<ul>${list.map((item) => `<li>${renderInline(item, context)}</li>`).join("")}</ul>`);
-    list = [];
-  };
-
-  for (const line of lines) {
-    if (line.startsWith("```")) {
-      flushParagraph();
-      flushList();
-      if (code === null) code = [];
-      else {
-        blocks.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
-        code = null;
-      }
-      continue;
-    }
-    if (code !== null) {
-      code.push(line);
-      continue;
-    }
-
-    const heading = /^(#{2,4})\s+(.+?)(?:\s+\{#([a-zA-Z0-9:_-]+)\})?$/u.exec(line);
-    if (heading) {
-      flushParagraph();
-      flushList();
-      const level = heading[1]?.length ?? 2;
-      const text = heading[2] ?? "";
-      const id = heading[3] ?? slugify(text);
-      blocks.push(`<h${level} id="${escapeHtml(id)}">${renderInline(text, context)}</h${level}>`);
-      continue;
-    }
-
-    const anchor = /^::anchor\[([^\]]+)\]\{([^\}]*)\}$/u.exec(line);
-    if (anchor) {
-      flushParagraph();
-      flushList();
-      const attributes = parseAttributes(anchor[2] ?? "");
-      const id = attributes.get("slug") ?? slugify(attributes.get("target") ?? anchor[1] ?? "anchor");
-      blocks.push(`<span class="semantic-anchor" id="${escapeHtml(id)}" aria-label="${escapeHtml(anchor[1] ?? "anchor")}"></span>`);
-      continue;
-    }
-
-    if (line.startsWith("::alias[")) continue;
-
-    const listItem = /^[-*]\s+(.+)$/u.exec(line);
-    if (listItem) {
-      flushParagraph();
-      list.push(listItem[1] ?? "");
-      continue;
-    }
-
-    if (line.trim().length === 0) {
-      flushParagraph();
-      flushList();
-      continue;
-    }
-    paragraph.push(line.trim());
+  try {
+    const result = markdownToHtml(normalized, {
+      features: { directive: true, frontmatter: true, gfm: true, headingAttributes: true },
+      mdastPlugins: [createSemanticPlugin(bibliography, references)],
+      hastPlugins: [createHeadingPlugin(), createSecurityPlugin()],
+    });
+    return { html: result.html, diagnostics };
+  } catch (error) {
+    return {
+      html: `<pre><code>${escapeHtml(normalized)}</code></pre>`,
+      diagnostics: [
+        ...diagnostics,
+        {
+          severity: "error",
+          message: error instanceof Error ? error.message : "Satteri could not parse this document",
+          from: 0,
+          to: normalized.length,
+        },
+      ],
+    };
   }
-
-  flushParagraph();
-  flushList();
-  if (code !== null) blocks.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
-
-  return { html: blocks.join(""), diagnostics };
 }
 
 export function parseBibliography(source: string): Map<string, BibliographyEntry> {
@@ -131,124 +85,214 @@ export function parseBibliography(source: string): Map<string, BibliographyEntry
 export function slugify(value: string): string {
   return value
     .toLowerCase()
+    .replaceAll("`", "")
     .trim()
     .replaceAll(/[^a-z0-9]+/gu, "-")
     .replaceAll(/^-|-$/gu, "");
 }
 
-function validateDirectives(
+function createSemanticPlugin(bibliography: Map<string, BibliographyEntry>, references: Map<string, ReferenceEntry>) {
+  return defineMdastPlugin({
+    name: "kirjolab-scientific-writing-semantics",
+    html(node) {
+      return { type: "text", value: node.value };
+    },
+    textDirective(node, context) {
+      const content = context.textContent(node).trim();
+      if (node.name === "cite") {
+        const locator = attributeValue(node.attributes?.locator);
+        const prefix = attributeValue(node.attributes?.prefix);
+        const suffix = attributeValue(node.attributes?.suffix);
+        const citation = {
+          ids: splitIds(content),
+          mode: attributeValue(node.attributes?.mode) ?? "parenthetical",
+          ...(locator ? { locator } : {}),
+          ...(prefix ? { prefix } : {}),
+          ...(suffix ? { suffix } : {}),
+        } satisfies Citation;
+        return { type: "html", value: renderCitation(citation, bibliography) };
+      }
+      if (node.name === "ref") {
+        const target = attributeValue(node.attributes?.target) ?? content;
+        const reference = references.get(target);
+        const customText = attributeValue(node.attributes?.text) ?? (node.attributes?.target ? content : undefined);
+        const label = customText || reference?.title || target;
+        return {
+          type: "html",
+          value: `<a class="semantic-reference" href="#${escapeHtml(reference?.slug ?? slugify(target))}">${escapeHtml(label)}</a>`,
+        };
+      }
+      return { type: "text", value: context.textContent(node) };
+    },
+    leafDirective(node, context) {
+      const title = context.textContent(node).trim();
+      if (node.name !== "alias" && node.name !== "anchor") return { type: "text", value: title };
+      if (node.name === "alias") return { type: "html", value: "" };
+      const target = attributeValue(node.attributes?.target) ?? "";
+      const slug = attributeValue(node.attributes?.slug) ?? slugify(target);
+      return { type: "html", value: `<span class="semantic-anchor" id="${escapeHtml(slug)}" aria-label="${escapeHtml(title)}"></span>` };
+    },
+    containerDirective(node, context) {
+      return { type: "text", value: context.textContent(node) };
+    },
+  });
+}
+
+function createSecurityPlugin() {
+  return defineHastPlugin({
+    name: "kirjolab-preview-security",
+    element: [
+      {
+        filter: ["a"],
+        visit(node, context) {
+          const href = typeof node.properties?.href === "string" ? node.properties.href : "";
+          if (href && !isSafeUrl(href, false)) context.setProperty(node, "href", null);
+        },
+      },
+      {
+        filter: ["img"],
+        visit(node, context) {
+          const source = typeof node.properties?.src === "string" ? node.properties.src : "";
+          if (source && !isSafeUrl(source, true)) context.setProperty(node, "src", null);
+        },
+      },
+    ],
+  });
+}
+
+function createHeadingPlugin() {
+  const counters = { h2: 0, h3: 0 };
+  const foundIds: Record<string, number> = {};
+  return defineHastPlugin({
+    name: "kirjolab-scientific-writing-headings",
+    element: [
+      {
+        filter: ["h2", "h3", "h4"],
+        visit(node, context) {
+          const raw = context.textContent(node);
+          if (node.tagName === "h4") {
+            context.replaceNode(node, { type: "element", tagName: "b", properties: {}, children: node.children });
+            return;
+          }
+          const explicitId = typeof node.properties?.id === "string" ? node.properties.id : undefined;
+          const slug = explicitId ?? getUniqueSlug(raw, foundIds);
+          const number = getHeadingNumber(node.tagName, counters);
+          context.setProperty(node, "id", slug);
+          context.prependChild(node, {
+            type: "element",
+            tagName: "span",
+            properties: { class: "section-number" },
+            children: [{ type: "text", value: `${number} ` }],
+          });
+        },
+      },
+    ],
+  });
+}
+
+function collectReferences(source: string): Map<string, ReferenceEntry> {
+  const references = new Map<string, ReferenceEntry>();
+  const headings = [...source.matchAll(headingPattern)];
+  const aliases = [...source.matchAll(aliasPattern)];
+  const counters = { h2: 0, h3: 0 };
+  const foundIds: Record<string, number> = {};
+  for (const heading of headings) {
+    const level = `h${heading[1]?.length ?? 2}`;
+    const raw = heading[2] ?? "";
+    const explicitId = heading[3];
+    const slug = explicitId ?? getUniqueSlug(raw, foundIds);
+    const number = level === "h4" ? "" : getHeadingNumber(level, counters);
+    const title = [number, raw].filter(Boolean).join(" ");
+    if (explicitId && !references.has(explicitId)) references.set(explicitId, { title, slug });
+    for (const alias of aliases) {
+      const attributes = parseAttributes(alias[2] ?? "");
+      const target = attributes.get("target");
+      const aliasSlug = attributes.get("slug");
+      if (target && aliasSlug === slug && !references.has(target)) references.set(target, { title, slug });
+    }
+  }
+  for (const anchor of source.matchAll(anchorPattern)) {
+    const attributes = parseAttributes(anchor[2] ?? "");
+    const target = attributes.get("target");
+    if (target && !references.has(target)) {
+      references.set(target, { title: anchor[1] ?? target, slug: attributes.get("slug") ?? slugify(target) });
+    }
+  }
+  return references;
+}
+
+function validateSyntax(
   source: string,
   bibliography: Map<string, BibliographyEntry>,
   references: Map<string, ReferenceEntry>,
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   for (const match of source.matchAll(directivePattern)) {
-    const kind = match[1];
+    const kind = match[1]?.toLowerCase() ?? "";
     const content = match[2]?.trim() ?? "";
     const attributes = parseAttributes(match[3] ?? "");
-    const from = match.index;
-    const to = from + match[0].length;
     if (kind === "cite") {
       const mode = attributes.get("mode") ?? "parenthetical";
-      if (!new Set(["parenthetical", "textual", "full"]).has(mode)) {
-        diagnostics.push({ severity: "error", message: `Unsupported citation mode: ${mode}`, from, to });
-      }
-      const ids = content
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean);
-      if (ids.length === 0) diagnostics.push({ severity: "error", message: "Citation requires an id", from, to });
-      for (const id of ids) {
-        if (!bibliography.has(id)) diagnostics.push({ severity: "error", message: `Missing citation: ${id}`, from, to });
-      }
-    } else {
+      if (!new Set(["parenthetical", "textual", "full"]).has(mode))
+        diagnostics.push(toDiagnostic(`Unsupported citation mode: ${mode}`, match));
+      const ids = splitIds(content);
+      if (ids.length === 0) diagnostics.push(toDiagnostic("Citation requires an id", match));
+      for (const id of ids) if (!bibliography.has(id)) diagnostics.push(toDiagnostic(`Missing citation: ${id}`, match));
+    } else if (kind === "ref") {
       const target = attributes.get("target") ?? content;
-      if (!target) diagnostics.push({ severity: "error", message: "Reference requires a target", from, to });
-      else if (!references.has(target)) diagnostics.push({ severity: "error", message: `Missing reference: ${target}`, from, to });
+      if (!target) diagnostics.push(toDiagnostic("Reference requires a target", match));
+      else if (!references.has(target)) diagnostics.push(toDiagnostic(`Missing reference: ${target}`, match));
+    } else diagnostics.push(toDiagnostic(`Unsupported text directive: :${kind}`, match));
+  }
+  diagnostics.push(...validateReferenceDeclarations(source));
+  for (const match of source.matchAll(/^#\s+.+$/gmu))
+    diagnostics.push(toDiagnostic("Chapter source must start sections at level two", match));
+  return diagnostics.sort((left, right) => left.from - right.from);
+}
+
+function validateReferenceDeclarations(source: string): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  const declarations: Array<{ target: string; match: RegExpMatchArray }> = [];
+  for (const match of source.matchAll(/^::([a-z][a-z-]*)\[[^\]]*\](?:\{[^}]*\})?\s*$/gimu)) {
+    const kind = match[1]?.toLowerCase() ?? "";
+    if (kind !== "alias" && kind !== "anchor") diagnostics.push(toDiagnostic(`Unsupported leaf directive: ::${kind}`, match));
+  }
+  for (const match of source.matchAll(/^:::([a-z][a-z-]*)\b.*$/gimu)) {
+    diagnostics.push(toDiagnostic(`Unsupported container directive: :::${match[1]?.toLowerCase() ?? ""}`, match));
+  }
+  for (const heading of source.matchAll(/\{#([a-zA-Z0-9:_-]+)\}/gu)) {
+    if (heading[1]) declarations.push({ target: heading[1], match: heading });
+  }
+  for (const match of source.matchAll(/^::(alias|anchor)\[([^\]]*)\]\{([^}]*)\}\s*$/gmu)) {
+    const kind = match[1] ?? "anchor";
+    const title = match[2]?.trim() ?? "";
+    const attributes = parseAttributes(match[3] ?? "");
+    const target = attributes.get("target") ?? "";
+    if (!title) diagnostics.push(toDiagnostic(`${capitalize(kind)} requires a title`, match));
+    if (!target) diagnostics.push(toDiagnostic(`${capitalize(kind)} requires a target`, match));
+    else declarations.push({ target, match });
+    if (kind === "alias" && target) {
+      const slug = attributes.get("slug") ?? "";
+      const hasHeading = [...source.matchAll(headingPattern)].some((heading) => slugify(heading[2] ?? "") === slug);
+      if (!slug || !hasHeading) diagnostics.push(toDiagnostic(`Alias does not match heading slug: ${slug || "(empty)"}`, match));
     }
   }
-
-  const seen = new Map<string, number>();
-  for (const match of source.matchAll(/\{#([a-zA-Z0-9:_-]+)\}/gu)) {
-    const target = match[1];
-    if (!target) continue;
-    const previous = seen.get(target);
-    if (previous !== undefined) {
-      diagnostics.push({
-        severity: "error",
-        message: `Duplicate reference: ${target}`,
-        from: match.index,
-        to: match.index + match[0].length,
-      });
-    } else seen.set(target, match.index);
+  const seen = new Set<string>();
+  for (const declaration of declarations) {
+    if (seen.has(declaration.target)) diagnostics.push(toDiagnostic(`Duplicate reference: ${declaration.target}`, declaration.match));
+    seen.add(declaration.target);
   }
   return diagnostics;
 }
 
-function collectReferences(source: string): Map<string, ReferenceEntry> {
-  const references = new Map<string, ReferenceEntry>();
-  for (const match of source.matchAll(/^(#{2,4})\s+(.+?)\s+\{#([a-zA-Z0-9:_-]+)\}\s*$/gmu)) {
-    const title = match[2];
-    const target = match[3];
-    if (title && target && !references.has(target)) references.set(target, { title, slug: target });
-  }
-  for (const match of source.matchAll(/^::alias\[([^\]]+)\]\{([^\}]*)\}\s*$/gmu)) {
-    const attributes = parseAttributes(match[2] ?? "");
-    const target = attributes.get("target");
-    if (target) references.set(target, { title: match[1] ?? target, slug: attributes.get("slug") ?? slugify(target) });
-  }
-  for (const match of source.matchAll(/^::anchor\[([^\]]+)\]\{([^\}]*)\}\s*$/gmu)) {
-    const attributes = parseAttributes(match[2] ?? "");
-    const target = attributes.get("target");
-    if (target) references.set(target, { title: match[1] ?? target, slug: attributes.get("slug") ?? slugify(target) });
-  }
-  return references;
-}
-
-function renderInline(source: string, context: RenderContext): string {
-  let cursor = 0;
-  const rendered: string[] = [];
-  for (const match of source.matchAll(directivePattern)) {
-    rendered.push(renderBasicInline(source.slice(cursor, match.index)));
-    rendered.push(renderDirective(match, context));
-    cursor = match.index + match[0].length;
-  }
-  rendered.push(renderBasicInline(source.slice(cursor)));
-  return rendered.join("");
-}
-
-function renderDirective(match: RegExpMatchArray, context: RenderContext): string {
-  const kind = match[1];
-  const content = match[2]?.trim() ?? "";
-  const attributes = parseAttributes(match[3] ?? "");
-  if (kind === "ref") {
-    const target = attributes.get("target") ?? content;
-    const reference = context.references.get(target);
-    const label = attributes.get("text") ?? (attributes.has("target") ? content : reference?.title) ?? target;
-    return `<a class="semantic-reference" href="#${escapeHtml(reference?.slug ?? slugify(target))}">${escapeHtml(label)}</a>`;
-  }
-
-  const mode = attributes.get("mode") ?? "parenthetical";
-  const entries = content
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean)
-    .map((id) => context.bibliography.get(id) ?? { id, author: id, title: id, year: "n.d." });
-  const separator = mode === "textual" ? ", " : "; ";
-  const citation = entries.map((entry) => formatCitation(entry, mode)).join(separator);
-  const wrapped = mode === "parenthetical" ? `(${citation})` : citation;
-  const prefix = attributes.get("prefix") ?? "";
-  const locator = attributes.get("locator") ? `, ${attributes.get("locator")}` : "";
-  const suffix = attributes.get("suffix") ?? "";
-  return `<span class="semantic-citation" data-citation="${escapeHtml(content)}">${escapeHtml(`${prefix}${wrapped}${locator}${suffix}`)}</span>`;
-}
-
-function renderBasicInline(source: string): string {
-  return escapeHtml(source)
-    .replaceAll(/`([^`]+)`/gu, "<code>$1</code>")
-    .replaceAll(/\*\*([^*]+)\*\*/gu, "<strong>$1</strong>")
-    .replaceAll(/\*([^*]+)\*/gu, "<em>$1</em>")
-    .replaceAll(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/gu, '<a href="$2" rel="noreferrer">$1</a>');
+function renderCitation(citation: Citation, bibliography: Map<string, BibliographyEntry>): string {
+  const entries = citation.ids.map((id) => bibliography.get(id) ?? { id, author: id, title: id, year: "n.d." });
+  const separator = citation.mode === "textual" ? ", " : "; ";
+  const value = entries.map((entry) => formatCitation(entry, citation.mode)).join(separator);
+  const wrapped = citation.mode === "parenthetical" ? `(${value})` : value;
+  const locator = citation.locator ? `, ${citation.locator}` : "";
+  const rendered = `${citation.prefix ?? ""}${wrapped}${locator}${citation.suffix ?? ""}`;
+  return `<span class="semantic-citation" data-citation="${escapeHtml(citation.ids.join(", "))}">${escapeHtml(rendered)}</span>`;
 }
 
 function formatCitation(entry: BibliographyEntry, mode: string): string {
@@ -258,14 +302,56 @@ function formatCitation(entry: BibliographyEntry, mode: string): string {
   return `${author}, ${entry.year || "n.d."}`;
 }
 
+function getHeadingNumber(type: string, counters: { h2: number; h3: number }): string {
+  if (type === "h2") {
+    counters.h2 += 1;
+    counters.h3 = 0;
+    return String(counters.h2);
+  }
+  counters.h3 += 1;
+  return `${counters.h2}.${counters.h3}`;
+}
+
+function getUniqueSlug(raw: string, foundIds: Record<string, number>): string {
+  const base = slugify(raw);
+  const count = foundIds[base] ?? 0;
+  foundIds[base] = count + 1;
+  return count === 0 ? base : `${base}-${count + 1}`;
+}
+
+function splitIds(value: string): string[] {
+  return value
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
 function parseAttributes(source: string): Map<string, string> {
   const attributes = new Map<string, string>();
   for (const match of source.matchAll(attributePattern)) {
     const name = match[1];
-    const value = match[2];
+    const value = match[2] ?? match[3];
     if (name && value !== undefined) attributes.set(name, value);
   }
   return attributes;
+}
+
+function attributeValue(value: string | null | undefined): string | undefined {
+  return value || undefined;
+}
+
+function toDiagnostic(message: string, match: RegExpMatchArray): Diagnostic {
+  const from = match.index ?? 0;
+  return { severity: "error", message, from, to: from + match[0].length };
+}
+
+function capitalize(value: string): string {
+  return `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
+}
+
+function isSafeUrl(value: string, image: boolean): boolean {
+  if (/^(?:https?:|\/|\.\/|\.\.\/|#)/iu.test(value)) return true;
+  return !image && /^mailto:/iu.test(value);
 }
 
 function escapeHtml(value: string): string {
@@ -273,4 +359,3 @@ function escapeHtml(value: string): string {
 }
 
 // Stryker restore Regex
-import { parseBibTeX } from "./bibliography";

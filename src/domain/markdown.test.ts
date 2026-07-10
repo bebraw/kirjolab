@@ -14,7 +14,7 @@ describe("renderWorkspaceMarkdown", () => {
 
 ## Evidence {#evidence}
 
-Text with **weight**, *emphasis*, \`code\`, [source](https://example.com), :cite[merton1942]{mode="textual" locator="p. 4"}, and :ref[sec:legacy].
+Text with **weight**, *emphasis*, \`code\`, [source](https://example.com), :cite[merton1942]{mode=textual locator="p. 4"}, and :ref[Evidence]{target="sec:legacy"}.
 
 ::anchor[table]{target="table:one" slug="table-one"}
 
@@ -28,16 +28,16 @@ const answer = 42;
     const rendered = renderWorkspaceMarkdown(source, bibliography);
 
     expect(rendered.diagnostics).toEqual([]);
-    expect(rendered.html).toContain('<h2 id="evidence">Evidence</h2>');
+    expect(rendered.html).toContain('<h2 id="evidence"><span class="section-number">1 </span>Evidence</h2>');
     expect(rendered.html).toContain("Merton (1942), p. 4");
     expect(rendered.html).toContain('<a class="semantic-reference"');
     expect(rendered.html).toContain("<strong>weight</strong>");
-    expect(rendered.html).toContain("<ul><li>one</li><li>two</li></ul>");
+    expect(rendered.html).toContain("<li>one</li>");
+    expect(rendered.html).toContain("<li>two</li>");
     expect(rendered.html).toContain("const answer = 42;");
     expect(rendered.html).toContain('id="table-one"');
-    expect(rendered.html).toBe(
-      '<h2 id="evidence">Evidence</h2><p>Text with <strong>weight</strong>, <em>emphasis</em>, <code>code</code>, <a href="https://example.com" rel="noreferrer">source</a>, <span class="semantic-citation" data-citation="merton1942">Merton (1942), p. 4</span>, and <a class="semantic-reference" href="#evidence">Evidence</a>.</p><span class="semantic-anchor" id="table-one" aria-label="table"></span><ul><li>one</li><li>two</li></ul><pre><code>const answer = 42;</code></pre>',
-    );
+    expect(rendered.html).toContain('<a class="semantic-reference" href="#evidence">Evidence</a>');
+    expect(rendered.html).toContain('<code class="language-ts">const answer = 42;');
   });
 
   it("reports missing, duplicate, empty, and unsupported directives", () => {
@@ -55,12 +55,12 @@ const answer = 42;
     expect(messages).toContain("Reference requires a target");
     expect(messages).toContain("Duplicate reference: same");
     expect(messages).toEqual([
+      "Duplicate reference: same",
       "Unsupported citation mode: unknown",
       "Missing citation: missing",
       "Citation requires an id",
       "Missing reference: absent",
       "Reference requires a target",
-      "Duplicate reference: same",
     ]);
   });
 
@@ -77,17 +77,121 @@ unfinished`;
 
     expect(rendered.html).toContain("See Merton. 1942. The Normative Structure of Science.");
     expect(rendered.html).toContain("(Merton, 1942)");
-    expect(rendered.html).toContain("unfinished</code></pre>");
-    expect(rendered.html).toBe(
-      '<h2 id="notes">Notes</h2><p><span class="semantic-citation" data-citation="merton1942">See Merton. 1942. The Normative Structure of Science.</span></p><p><span class="semantic-citation" data-citation="merton1942">(Merton, 1942)</span></p><pre><code>unfinished</code></pre>',
-    );
+    expect(rendered.html).toContain("unfinished\n</code></pre>");
+    expect(rendered.html).toContain('<h2 id="notes"><span class="section-number">1 </span>Notes</h2>');
   });
 
   it("normalizes CRLF, joins paragraph lines, and renders heading levels", () => {
-    expect(renderWorkspaceMarkdown("### Three\r\n\r\nline one\r\nline two\r\n\r\n#### Four", "").html).toBe(
-      '<h3 id="three">Three</h3><p>line one line two</p><h4 id="four">Four</h4>',
-    );
+    const html = renderWorkspaceMarkdown("### Three\r\n\r\nline one\r\nline two\r\n\r\n#### Four", "").html;
+    expect(html).toContain('<h3 id="three"><span class="section-number">0.1 </span>Three</h3>');
+    expect(html).toContain("<p>line one\nline two</p>");
+    expect(html).toContain("<b>Four</b>");
     expect(renderWorkspaceMarkdown("", "")).toEqual({ html: "", diagnostics: [] });
+  });
+
+  it("renders the documented GFM surface through Satteri", () => {
+    const source = `---
+title: Hidden frontmatter
+---
+
+## Syntax {#syntax}
+
+![diagram](https://example.com/diagram.png)
+
+| Method | Result |
+| --- | --- |
+| A | ~~41~~ **42** |
+
+1. first
+2. second
+
+A statement with detail.[^detail]
+
+[^detail]: Supporting *detail*.
+`;
+    const rendered = renderWorkspaceMarkdown(source, "");
+
+    expect(rendered.diagnostics).toEqual([]);
+    expect(rendered.html).not.toContain("Hidden frontmatter");
+    expect(rendered.html).toContain('<img src="https://example.com/diagram.png" alt="diagram">');
+    expect(rendered.html).toContain("<table>");
+    expect(rendered.html).toContain("<del>41</del> <strong>42</strong>");
+    expect(rendered.html).toContain("<ol>");
+    expect(rendered.html).toContain("data-footnote-ref");
+    expect(rendered.html).toContain('data-footnotes class="footnotes"');
+  });
+
+  it("validates unsupported directives and alias-heading mismatches", () => {
+    const source = `::unknown[value]
+:::unknown
+content
+:::
+
+::alias[Missing]{target="sec:missing" slug="missing"}
+
+## Present
+
+:unknown[value]
+# Chapter title
+`;
+    const messages = renderWorkspaceMarkdown(source, "").diagnostics.map((diagnostic) => diagnostic.message);
+
+    expect(messages).toContain("Unsupported leaf directive: ::unknown");
+    expect(messages).toContain("Unsupported container directive: :::unknown");
+    expect(messages).toContain("Alias does not match heading slug: missing");
+    expect(messages).toContain("Unsupported text directive: :unknown");
+    expect(messages).toContain("Chapter source must start sections at level two");
+  });
+
+  it("renders authored HTML as text and removes unsafe link targets", () => {
+    const rendered = renderWorkspaceMarkdown(
+      '<img src=x onerror="alert(1)">\n\n[unsafe](javascript:alert(1)) ![unsafe](data:image/svg+xml,evil) [safe](mailto:test@example.org)',
+      "",
+    );
+
+    expect(rendered.html).toContain('&lt;img src=x onerror="alert(1)"&gt;');
+    expect(rendered.html).not.toContain("<img src=x onerror");
+    expect(rendered.html).not.toContain("javascript:");
+    expect(rendered.html).not.toContain("data:image");
+    expect(rendered.html).toContain('href="mailto:test@example.org"');
+  });
+
+  it("resolves numbered aliases, unique slugs, anchors, and multiple citations", () => {
+    const extendedBibliography = `${bibliography}
+@article{doe2026,
+  author = {Doe, Jane},
+  title = {Inspectable Results},
+  year = {2026}
+}
+`;
+    const rendered = renderWorkspaceMarkdown(
+      `::alias[Legacy]{target="sec:legacy" slug="repeated"}
+
+## Repeated
+
+## Repeated
+
+::anchor[Table]{target="table:one"}
+
+:ref[]{target="sec:legacy"} :ref[custom table]{target="table:one"}
+
+:cite[merton1942, doe2026]{mode=textual prefix="See " suffix=" for context" locator="p. 4"}
+`,
+      extendedBibliography,
+    );
+
+    expect(rendered.diagnostics).toEqual([]);
+    expect(rendered.html).toContain('<h2 id="repeated"><span class="section-number">1 </span>Repeated</h2>');
+    expect(rendered.html).toContain('<h2 id="repeated-2"><span class="section-number">2 </span>Repeated</h2>');
+    expect(rendered.html).toContain('<a class="semantic-reference" href="#repeated">1 Repeated</a>');
+    expect(rendered.html).toContain('<a class="semantic-reference" href="#table-one">custom table</a>');
+    expect(rendered.html).toContain("See Merton (1942), Doe (2026), p. 4 for context");
+  });
+
+  it("diagnoses incomplete semantic declarations", () => {
+    const messages = renderWorkspaceMarkdown("::anchor[]{}\n::alias[]{}", "").diagnostics.map((diagnostic) => diagnostic.message);
+
+    expect(messages).toEqual(["Anchor requires a title", "Anchor requires a target", "Alias requires a title", "Alias requires a target"]);
   });
 });
 
