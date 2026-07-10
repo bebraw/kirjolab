@@ -1,6 +1,6 @@
 # ADR-036: Model Scholarly Work as Typed Hypermedia Resources
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-07-10
 

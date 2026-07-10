@@ -5,7 +5,7 @@ import { ensureGeneratedStylesheet } from "./test-support";
 ensureGeneratedStylesheet();
 
 describe("worker", () => {
-  it("renders the stub home page", async () => {
+  it("renders the Kirjolab workspace", async () => {
     const response = await handleRequest(new Request("http://example.com/"));
 
     expect(response.status).toBe(200);
@@ -13,8 +13,8 @@ describe("worker", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
 
     const body = await response.text();
-    expect(body).toContain("vibe-template Worker");
-    expect(body).toContain("/api/health");
+    expect(body).toContain("KIRJOLAB");
+    expect(body).toContain("Fast preview");
   });
 
   it("returns a JSON health response", async () => {
@@ -24,8 +24,8 @@ describe("worker", () => {
     expect(response.headers.get("content-type")).toContain("application/json");
     await expect(response.json()).resolves.toEqual({
       ok: true,
-      name: "vibe-template-worker",
-      routes: ["/", "/api/health"],
+      name: "kirjolab",
+      routes: ["/", "/api/workspaces/demo", "/api/health"],
     });
   });
 
@@ -54,5 +54,20 @@ describe("worker", () => {
     expect(response.headers.get("content-type")).toContain("text/css");
     expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.text()).resolves.toContain("--color-app-canvas:#f3eee6");
+  });
+
+  it("serves the generated typed client", async () => {
+    const response = await handleRequest(new Request("http://example.com/app.js"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/javascript");
+    await expect(response.text()).resolves.toBe("export {};");
+  });
+
+  it("rejects workspace API requests without runtime bindings", async () => {
+    const response = await handleRequest(new Request("http://example.com/api/workspaces/demo"));
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
   });
 });

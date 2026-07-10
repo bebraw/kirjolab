@@ -1,23 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-app-canvas: #f3eee6;
-  --color-app-surface: rgb(255 252 247 / 0.84);
-  --color-app-text: #201b16;
-  --color-app-text-soft: #665d54;
-  --color-app-accent: #0b6a52;
-  --color-app-accent-strong: #084839;
-  --color-app-accent-ghost: rgb(11 106 82 / 0.08);
-  --color-app-line: rgb(32 27 22 / 0.12);
-
-  --shadow-panel: 0 20px 48px -38px rgb(32 27 22 / 0.24);
+  --color-app-canvas: #e8e5dd;
+  --color-app-paper: #f8f6ef;
+  --color-app-surface: #efede6;
+  --color-app-ink: #121b18;
+  --color-app-text: #202724;
+  --color-app-text-soft: #68706b;
+  --color-app-accent: #0b6b51;
+  --color-app-accent-strong: #064737;
+  --color-app-accent-ghost: rgb(11 107 81 / 0.09);
+  --color-app-warn: #c07b28;
+  --color-app-error: #a33a32;
+  --color-app-line: rgb(18 27 24 / 0.14);
+  --font-sans: "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
 }
 
-/*
-  Tailwind v4 changed the default border color to `currentcolor`.
-  Keep the starter baseline visually stable unless a project opts into
-  explicit border utilities everywhere.
-*/
 @layer base {
   html {
     background: var(--color-app-canvas);
@@ -26,18 +24,308 @@
   body {
     font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
     text-rendering: optimizeLegibility;
-    background: linear-gradient(180deg, #f8f4ee 0%, var(--color-app-canvas) 100%);
+  }
+
+  button,
+  input,
+  textarea,
+  select,
+  summary {
+    font: inherit;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid var(--color-app-accent);
+    outline-offset: 2px;
   }
 
   ::selection {
-    background: rgb(11 110 79 / 0.18);
+    background: rgb(11 107 81 / 0.2);
+  }
+}
+
+@layer components {
+  .workspace-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+  @media (min-width: 64rem) {
+    .workspace-grid {
+      grid-template-columns: 17rem minmax(26rem, 0.95fr) minmax(28rem, 1.05fr);
+      grid-template-rows: minmax(38rem, calc(100vh - 4rem)) auto;
+    }
+
+    .source-rail,
+    .editor-column,
+    .preview-column {
+      min-height: 0;
+      overflow: auto;
+    }
+  }
+
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-app-text-soft);
+  }
+
+  .button-primary,
+  .button-secondary,
+  .button-icon {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 0.25rem;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.025em;
+    transition:
+      background 140ms ease,
+      color 140ms ease,
+      border-color 140ms ease,
+      transform 140ms ease;
+  }
+
+  .button-primary {
+    min-height: 2.35rem;
+    padding: 0.55rem 0.85rem;
+    background: var(--color-app-accent);
+    color: white;
+  }
+
+  .button-primary:hover {
+    background: var(--color-app-accent-strong);
+    transform: translateY(-1px);
+  }
+
+  .button-secondary {
+    min-height: 2.35rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-app-line);
+    background: rgb(255 255 255 / 0.35);
+  }
+
+  .button-secondary:hover:not(:disabled) {
+    border-color: var(--color-app-accent);
+    color: var(--color-app-accent-strong);
+  }
+
+  .button-primary:disabled,
+  .button-secondary:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .button-icon {
+    height: 2.1rem;
+    width: 2.1rem;
+    cursor: pointer;
+    justify-content: center;
+    border: 1px solid var(--color-app-line);
+    font-size: 1rem;
+  }
+
+  .source-editor,
+  .bibliography-editor {
+    display: block;
+    width: 100%;
+    resize: vertical;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-app-ink);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9rem;
+    line-height: 1.85;
+    tab-size: 2;
+  }
+
+  .source-editor {
+    min-height: 34rem;
+    padding: 2rem clamp(1.25rem, 4vw, 3rem);
+  }
+
+  @media (min-width: 64rem) {
+    .source-editor {
+      height: calc(100% - 7rem);
+      min-height: 0;
+      resize: none;
+    }
+  }
+
+  .bibliography-editor {
+    min-height: 12rem;
+    padding: 0.5rem 1rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  .source-editor:focus,
+  .bibliography-editor:focus {
+    outline: none;
+    background: rgb(255 255 255 / 0.28);
+  }
+
+  .preview-scroll {
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.25rem, 5vw, 4.5rem);
+  }
+
+  .prose-preview {
+    max-width: 44rem;
+    margin-inline: auto;
+    color: var(--color-app-text);
+    font-size: 1.05rem;
+    line-height: 1.8;
+  }
+
+  .prose-preview h2 {
+    margin-top: 2.6rem;
+    margin-bottom: 1rem;
+    color: var(--color-app-ink);
+    font-size: clamp(1.9rem, 3vw, 2.7rem);
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    line-height: 1.05;
+  }
+
+  .prose-preview h2:first-child {
+    margin-top: 0;
+  }
+
+  .prose-preview h3 {
+    margin-top: 2rem;
+    font-size: 1.45rem;
+    font-weight: 600;
+  }
+
+  .prose-preview h4 {
+    margin-top: 1.5rem;
+    font-weight: 700;
+  }
+
+  .prose-preview p,
+  .prose-preview ul,
+  .prose-preview pre {
+    margin-top: 1rem;
+  }
+
+  .prose-preview ul {
+    list-style: square;
+    padding-left: 1.4rem;
+  }
+
+  .prose-preview pre {
+    overflow: auto;
+    border-left: 3px solid var(--color-app-accent);
+    background: var(--color-app-surface);
+    padding: 1rem;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 0.78rem;
+  }
+
+  .semantic-citation,
+  .semantic-reference {
+    border-radius: 0.15rem;
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+    text-decoration: none;
+    box-shadow: 0 0 0 2px var(--color-app-accent-ghost);
+  }
+
+  .field-label {
+    display: grid;
+    gap: 0.4rem;
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-app-text-soft);
+  }
+
+  .field {
+    min-height: 2.5rem;
+    width: 100%;
+    border: 1px solid var(--color-app-line);
+    border-radius: 0.2rem;
+    background: var(--color-app-paper);
+    padding: 0.55rem 0.65rem;
+    color: var(--color-app-text);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .count-badge {
+    display: inline-flex;
+    min-width: 1.55rem;
+    height: 1.3rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-app-line);
+    border-radius: 999px;
+    padding-inline: 0.4rem;
+    font-family: var(--font-sans);
+    font-size: 0.62rem;
+    color: var(--color-app-text-soft);
+  }
+
+  .empty-state {
+    border: 1px dashed var(--color-app-line);
+    padding: 0.9rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+
+  .resource-card {
+    border: 1px solid var(--color-app-line);
+    border-radius: 0.2rem;
+    background: rgb(255 255 255 / 0.36);
+    padding: 0.8rem;
+  }
+
+  .paper-dialog {
+    width: min(72rem, calc(100vw - 2rem));
+    height: min(54rem, calc(100vh - 2rem));
+    padding: 0;
+    border: 1px solid var(--color-app-line);
+    background: var(--color-app-paper);
+    box-shadow: 0 2rem 6rem rgb(18 27 24 / 0.28);
+  }
+
+  .paper-dialog::backdrop {
+    background: rgb(18 27 24 / 0.62);
+  }
+
+  .toast {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 50;
+    max-width: min(24rem, calc(100vw - 2rem));
+    transform: translateY(150%);
+    border-radius: 0.2rem;
+    background: var(--color-app-ink);
+    padding: 0.8rem 1rem;
+    color: white;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    transition: transform 180ms ease;
+  }
+
+  .toast[data-visible="true"] {
+    transform: translateY(0);
   }
 }

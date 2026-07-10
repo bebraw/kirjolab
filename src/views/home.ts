@@ -1,69 +1,163 @@
 import { escapeHtml } from "./shared";
 
-const appTitle = "vibe-template Worker";
-const appDescription = "A runnable Cloudflare Worker baseline with a route index, a health probe, and room for real feature work.";
-
 export function renderHomePage(routes: Array<{ path: string; purpose: string }>): string {
-  const routeList = routes
-    .map(
-      (route) =>
-        `<li>
-          <a class="group flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0" href="${escapeHtml(route.path)}">
-            <div>
-              <code class="text-sm font-semibold tracking-[0.02em] text-app-accent-strong">${escapeHtml(route.path)}</code>
-              <p class="mt-2 max-w-2xl leading-7 text-app-text-soft">${escapeHtml(route.purpose)}</p>
-            </div>
-            <span class="pt-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-app-text-soft transition group-hover:text-app-accent">Open</span>
-          </a>
-        </li>`,
-    )
-    .join("");
-
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${escapeHtml(appTitle)}</title>
+    <meta name="color-scheme" content="light">
+    <title>Kirjolab · Evidence becomes prose</title>
     <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
   </head>
   <body class="min-h-screen bg-app-canvas text-app-text antialiased">
-    <main class="mx-auto w-[min(46rem,calc(100vw-2rem))] py-12 sm:py-16">
-      <article class="space-y-10">
-        <section>
-          <p class="mb-4 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-app-accent">Starter Surface</p>
-          <h1 class="max-w-[10ch] text-5xl leading-[0.92] font-semibold tracking-[-0.055em] sm:text-7xl">${escapeHtml(appTitle)}</h1>
-          <p class="mt-5 max-w-2xl text-lg leading-8 text-app-text-soft">${escapeHtml(appDescription)}</p>
+    <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur">
+      <div class="flex min-h-16 items-center justify-between gap-4 px-4 lg:px-6">
+        <div class="flex min-w-0 items-baseline gap-4">
+          <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
+          <span class="hidden h-4 w-px bg-app-line sm:block"></span>
+          <p class="truncate text-sm text-app-text-soft" id="workspace-title">Evidence becomes prose</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 text-xs text-app-text-soft" aria-live="polite">
+            <span class="h-2 w-2 rounded-full bg-app-warn" id="connection-dot"></span>
+            <span id="connection-status">Connecting</span>
+          </div>
+          <a class="button-secondary hidden sm:inline-flex" href="/api/workspaces/demo/export/bibliography.bib">Export .bib</a>
+          <a class="button-primary" href="/api/workspaces/demo/export/document.md">Export .md</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace-grid min-h-[calc(100vh-4rem)]">
+      <aside class="source-rail border-b border-app-line bg-app-paper px-4 py-5 lg:border-r lg:border-b-0 lg:px-5">
+        <div class="flex items-end justify-between gap-3">
+          <div>
+            <p class="eyebrow">Source shelf</p>
+            <h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Evidence</h1>
+          </div>
+          <label class="button-icon" title="Import a PDF">
+            <span aria-hidden="true">＋</span>
+            <span class="sr-only">Import PDF</span>
+            <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf">
+          </label>
+        </div>
+        <p class="mt-3 text-sm leading-6 text-app-text-soft">Import one paper, record a precise passage, then carry it into the draft.</p>
+        <div class="mt-5 space-y-2" id="pdf-list">
+          <div class="empty-state">No paper imported yet.</div>
+        </div>
+        <section class="mt-6 border-t border-app-line pt-5">
+          <div class="flex items-center justify-between gap-3">
+            <p class="eyebrow">Annotations</p>
+            <span class="count-badge" id="annotation-count">0</span>
+          </div>
+          <div class="mt-3 space-y-3" id="annotation-list">
+            <div class="empty-state">Annotations appear here with their source context.</div>
+          </div>
         </section>
-        <section class="rounded-[1.6rem] border border-app-line/90 bg-app-surface/90 p-3 shadow-panel">
-          <a class="group flex items-center justify-between gap-4 rounded-[1.2rem] border border-app-line/80 bg-white/78 px-5 py-4 transition hover:border-app-accent/35 hover:bg-app-accent-ghost focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent/40" href="/api/health">
-            <div>
-              <p class="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-app-text-soft">Primary Check</p>
-              <p class="mt-2 text-xl font-semibold tracking-[-0.03em] text-app-text">/api/health</p>
+      </aside>
+
+      <section class="editor-column min-w-0 border-b border-app-line bg-app-surface lg:border-r lg:border-b-0">
+        <div class="flex h-12 items-center justify-between border-b border-app-line px-4">
+          <div class="flex items-center gap-2">
+            <span class="eyebrow">Manuscript</span>
+            <span class="count-badge" id="revision-badge">r0</span>
+          </div>
+          <p class="text-xs text-app-text-soft" id="save-status">Loading source…</p>
+        </div>
+        <label class="sr-only" for="source-editor">Markdown source</label>
+        <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
+        <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation.</p>
+        <details class="border-t border-app-line bg-app-paper/60">
+          <summary class="cursor-pointer px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.14em] text-app-text-soft">Bibliography source</summary>
+          <label class="sr-only" for="bibliography-editor">BibTeX bibliography</label>
+          <textarea class="bibliography-editor" id="bibliography-editor" spellcheck="false"></textarea>
+        </details>
+      </section>
+
+      <section class="preview-column min-w-0 bg-app-paper">
+        <div class="flex h-12 items-center justify-between border-b border-app-line px-5">
+          <p class="eyebrow">Fast preview</p>
+          <span class="text-xs text-app-text-soft" id="diagnostic-summary">Validating…</span>
+        </div>
+        <div class="preview-scroll">
+          <article class="prose-preview" id="preview" aria-live="polite"></article>
+          <div class="mx-auto mt-8 max-w-[44rem] border-t border-app-line pt-4" id="diagnostics"></div>
+        </div>
+      </section>
+
+      <aside class="workbench border-t border-app-line bg-app-canvas px-4 py-5 lg:col-span-3 lg:px-6">
+        <div class="grid gap-6 xl:grid-cols-[minmax(20rem,0.8fr)_minmax(28rem,1.2fr)]">
+          <section>
+            <div class="flex items-end justify-between gap-3">
+              <div>
+                <p class="eyebrow">PDF annotation</p>
+                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Anchor a passage</h2>
+              </div>
+              <button class="button-secondary" id="open-paper" type="button" disabled>Open paper</button>
             </div>
-            <span class="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-app-accent transition group-hover:text-app-accent-strong">Open JSON</span>
-          </a>
-          <p class="px-2 pt-3 text-sm leading-6 text-app-text-soft">Use the health probe to confirm the Worker is live, then replace this stub with the feature you actually want to ship.</p>
-        </section>
-        <section class="border-y border-app-line/90 py-4">
-          <div class="mb-4 flex items-end justify-between gap-4">
-            <h2 class="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-app-text-soft">Route Index</h2>
-            <p class="text-sm text-app-text-soft">Shipped with the starter</p>
-          </div>
-          <ul class="divide-y divide-app-line/90">${routeList}</ul>
-        </section>
-        <section class="space-y-4">
-          <div class="border-t border-app-line pt-4">
-            <p class="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-app-text-soft">What ships</p>
-            <p class="mt-2 leading-7 text-app-text-soft">Server-rendered HTML, generated Tailwind CSS, and a JSON health endpoint. Enough surface area to run tests immediately without carrying a heavy starter shell.</p>
-          </div>
-          <div class="border-t border-app-line pt-4">
-            <p class="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-app-text-soft">What to replace</p>
-            <p class="mt-2 leading-7 text-app-text-soft">Swap the route index and starter copy for your real feature work, then update the relevant spec and keep the quality gate green.</p>
-          </div>
-        </section>
-      </article>
+            <form class="mt-4 grid gap-3 sm:grid-cols-2" id="annotation-form">
+              <label class="field-label sm:col-span-2">Paper
+                <select class="field" id="annotation-pdf" required><option value="">Import a PDF first</option></select>
+              </label>
+              <label class="field-label">Page
+                <input class="field" id="annotation-page" type="number" min="1" value="1" required>
+              </label>
+              <label class="field-label">Your note
+                <input class="field" id="annotation-comment" type="text" placeholder="Why this matters">
+              </label>
+              <label class="field-label sm:col-span-2">Exact quotation
+                <textarea class="field min-h-24" id="annotation-quote" required placeholder="Paste the selected passage"></textarea>
+              </label>
+              <label class="field-label">Text before
+                <input class="field" id="annotation-prefix" type="text" placeholder="Context before selection">
+              </label>
+              <label class="field-label">Text after
+                <input class="field" id="annotation-suffix" type="text" placeholder="Context after selection">
+              </label>
+              <button class="button-primary justify-center sm:col-span-2" type="submit">Save resilient annotation</button>
+            </form>
+          </section>
+
+          <section class="border-t border-app-line pt-5 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-6">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p class="eyebrow">Local model lab</p>
+                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Propose, inspect, apply</h2>
+              </div>
+              <p class="max-w-md text-xs leading-5 text-app-text-soft">The browser calls your local OpenAI-compatible endpoint. Kirjolab stores only the resulting review candidate and its provenance.</p>
+            </div>
+            <div class="mt-4 grid gap-3 sm:grid-cols-[1fr_0.65fr_auto]">
+              <label class="field-label">Endpoint
+                <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
+              </label>
+              <label class="field-label">Model
+                <input class="field" id="llm-model" type="text" value="local-model">
+              </label>
+              <button class="button-primary self-end justify-center" id="generate-candidate" type="button">Draft revision</button>
+            </div>
+            <p class="mt-3 text-sm text-app-text-soft" id="model-status">Select manuscript text and at least one annotation to ground the request.</p>
+            <div class="mt-4" id="candidate-list">
+              <div class="empty-state">Model candidates remain separate from the manuscript until you apply one.</div>
+            </div>
+          </section>
+        </div>
+      </aside>
     </main>
+
+    <dialog class="paper-dialog" id="paper-dialog">
+      <div class="flex h-full flex-col">
+        <div class="flex items-center justify-between border-b border-app-line px-4 py-3">
+          <p class="font-sans text-sm font-bold" id="paper-title">Paper</p>
+          <button class="button-secondary" id="close-paper" type="button">Close</button>
+        </div>
+        <iframe class="min-h-0 flex-1" id="paper-frame" title="Imported PDF"></iframe>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <footer class="sr-only">${routes.map((route) => `${escapeHtml(route.path)} ${escapeHtml(route.purpose)}`).join(" · ")}</footer>
   </body>
 </html>`;
 }

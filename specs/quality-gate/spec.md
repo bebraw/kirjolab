@@ -87,7 +87,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The browser CI job must use the pinned Playwright container instead of reinstalling Chromium at runtime.
 - The coverage gate must only require unit tests when runtime `src/` code exists.
 - The coverage gate must work in both the normal workspace and local Agent CI's warmed `node_modules` layout.
-- The Worker client-code guard must fail on inline `<script>` tags, inline event-handler attributes, and `javascript:` URLs in Worker/view runtime files.
+- The Worker client-code guard must fail on inline script blocks without a `src`, inline event-handler attributes, and `javascript:` URLs in Worker/view runtime files while allowing external scripts from the typed client build.
 - The affected guardrail path must pass only affected Worker/view runtime files to the Worker client-code guard.
 - The affected guardrail path must run JavaScript syntax checks only for affected JavaScript files.
 - The affected guardrail path must run package audit only when package metadata or lockfiles change.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cssResponse, escapeHtml, htmlResponse } from "./shared";
+import { cssResponse, escapeHtml, htmlResponse, scriptResponse } from "./shared";
 
 describe("htmlResponse", () => {
   it("returns no-store HTML responses", () => {
@@ -17,6 +17,16 @@ describe("cssResponse", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/css; charset=utf-8");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+});
+
+describe("scriptResponse", () => {
+  it("returns no-store JavaScript responses", () => {
+    const response = scriptResponse("export {};");
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 });

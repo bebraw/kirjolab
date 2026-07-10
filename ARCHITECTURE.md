@@ -17,6 +17,19 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep workflow writes explicit. New generated output, local state, cache, archive, or tool-artifact paths should be documented in the same change that introduces them.
 - Do not place executable browser code inline in Worker-rendered HTML. Client behavior should live in typed TypeScript modules before it is served to browsers.
 
+## Kirjolab Product Architecture
+
+- Treat portable Markdown and BibTeX as the canonical authored artifacts.
+- Treat parsed syntax, previews, Yjs updates, indexes, and model candidates as supporting representations.
+- Coordinate each collaborative document through its own SQLite-backed Durable Object.
+- Materialize every accepted collaborative update into readable Markdown and bibliography text.
+- Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
+- Combine PDF page/geometry identity with exact quote, prefix, and suffix selectors; never require mutation of the imported PDF.
+- Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
+- Let language models create provenance-aware candidates; applying a candidate must remain a separate validated action.
+- Keep local-model network access in the browser or a future local companion so a hosted Worker never assumes it can reach localhost.
+- Treat the current demo workspace as a local vertical slice. Do not deploy it for shared use until authentication and workspace authorization are specified and implemented.
+
 ## Tooling Baseline
 
 - Local development and local CI target macOS as the supported host platform baseline.
@@ -26,12 +39,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Formatting, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Fallow codebase diagnostics are advisory readability checks for complexity, duplication, dependency hygiene, and cleanup evidence; they do not replace the baseline quality gate.
 - Affected-file guardrails should scope checks to changed files when the underlying tool supports it and fall back to project-level checks only when needed.
-- The fast quality gate should fail when Worker/view runtime files contain inline `<script>` tags, inline event-handler attributes, or `javascript:` URLs.
+- The fast quality gate should fail when Worker/view runtime files contain inline script blocks without a `src`, inline event-handler attributes, or `javascript:` URLs. External scripts must point to an explicit typed client build.
 - Unit coverage for `src/` code should stay high enough that the coverage gate remains green.
 - Local CI should validate the same baseline checks before non-documentation changes are proposed or merged.
 - Targeted commands are useful while iterating, but `npm run quality:gate` and `npm run ci:local` remain the readiness baseline before proposing or landing non-documentation changes.
 - `npm run diagnostics:codebase` is useful during review and refactoring, but passing or failing it is not a readiness baseline by itself.
 - Documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests.
+- Build typed browser code with esbuild into the existing ignored `.generated/` directory before Wrangler bundles the Worker.
+- Regenerate committed Worker binding types with `npx wrangler types worker-configuration.d.ts` whenever `wrangler.jsonc` bindings change.
 
 ## Capability Kits
 

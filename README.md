@@ -1,8 +1,8 @@
-# vibe-template
+# Kirjolab
 
-`vibe-template` currently ships as a Cloudflare Worker application served with Wrangler, implemented in JavaScript/TypeScript, and centered on server-rendered HTML with a small JSON API stub.
+Kirjolab is a collaborative scholarly workspace that connects meaningful Markdown, publications, PDF annotations, and grounded local-model suggestions. The first vertical slice runs as a Cloudflare Worker with a Yjs-backed Durable Object and R2 PDF storage.
 
-This is a template for my vibecoding projects and it captures what I consider my best practices so I don't have to repeat them for each experiment.
+The current product surface intentionally proves one path: import evidence, annotate it, connect it to manuscript text, review a model-proposed revision, and export portable Markdown and BibTeX.
 
 The repo vendors ASDLC reference material in `.asdlc/` as local guidance instead of recreating it per project. Repo-specific truth lives in `ARCHITECTURE.md`, `specs/`, and `docs/adrs/`: generated code still needs to match those documents, and passing CI alone is not enough.
 
@@ -11,6 +11,7 @@ Local development in this repo targets macOS. Other platforms may need script an
 ## Documentation
 
 - Product and architectural direction: `VISION.md`
+- Implemented scholarly-workspace contract: `specs/scholarly-workspace/spec.md`
 - Development setup and local CI: `docs/development.md`
 - Architecture decisions: `docs/adrs/README.md`
 - Feature and architecture specs: `specs/README.md`
@@ -25,10 +26,12 @@ Local development in this repo targets macOS. Other platforms may need script an
 - `npm install` also configures the repo-managed `pre-push` hook so `git push` runs affected guardrails before code leaves your machine.
 - The exact project Node.js version is pinned in `package.json` and mirrored in `.nvmrc` for `nvm` users, and CI reads the `package.json` value directly.
 - npm is constrained to the supported npm 11 range in `package.json`; local development is expected to use `nvm use`, and CI uses the npm release bundled with the pinned Node setup as long as it satisfies that range.
-- Copy `.dev.vars.example` to `.dev.vars` before running projects that need local secrets.
+- The current local slice needs no model key. Local model requests go directly from the browser to the configured OpenAI-compatible endpoint.
 - Use repo-pinned CLI tools through `npx`, including `npx wrangler` for Cloudflare-based experiments.
-- Start the stub Worker with `npm run dev`, then open `http://127.0.0.1:8787`.
-- Rebuild the generated Tailwind stylesheet manually with `npm run build:css` when needed.
+- Start Kirjolab with `npm run dev`, then open `http://127.0.0.1:8787`.
+- `npm run build` generates the Tailwind stylesheet and typed browser bundle under the ignored `.generated/` directory.
+- Local Wrangler automatically emulates the Durable Object and R2 bindings.
+- Before a production deployment, create the configured bucket with `npx wrangler r2 bucket create kirjolab-papers`. Do not deploy the demo workspace publicly until authentication and workspace authorization exist.
 
 ## Verification
 
@@ -67,21 +70,26 @@ For cross-repo agent work, tell the agent:
 
 > Look at `vibe-template/.template/updates/AGENT_SYNC.md` for latest template updates.
 
-## Starter App
+## Current Vertical Slice
 
-- `GET /` serves a minimal editorial Worker stub with a route index and a primary health-probe link.
-- `GET /styles.css` serves the generated Tailwind stylesheet.
-- `GET /api/health` serves a JSON health response for smoke tests and tooling.
+- Collaborative Markdown and BibTeX editing through Yjs WebSockets.
+- Fast semantic preview and validation for the initial scientific-writing syntax.
+- Streamed PDF import, viewing, resilient annotations, and manuscript links.
+- Browser-direct local-model requests with persisted candidate review/apply.
+- Portable `.md` and `.bib` exports.
 
 ## Source Layout
 
 - `src/worker.ts` is the Worker entry point and top-level router.
-- `src/api/` holds API response modules such as the health endpoint.
-- `src/views/` holds HTML rendering modules for the starter UI.
+- `src/durable-objects/` holds document coordination and persistent metadata.
+- `src/domain/` holds portable resource contracts and Markdown semantics.
+- `src/api/` holds health and scholarly-workspace routes.
+- `src/client/` holds the typed browser client and local-model operations.
+- `src/views/` holds the server-rendered workspace shell.
 - Tests live next to the code they exercise under `src/`.
 
 ## Application Screenshot
 
-![Starter app screenshot](docs/screenshots/home.png)
+![Kirjolab scholarly workspace](docs/screenshots/home.png)
 
 Refresh this asset manually when the starter UI changes materially.

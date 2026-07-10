@@ -1,5 +1,5 @@
 {
-  "name": "vibe-template",
+  "name": "kirjolab",
   "private": true,
   "packageManager": "npm@11.17.0",
   "engines": {
@@ -13,6 +13,8 @@
     }
   },
   "scripts": {
+    "build": "npm run build:css && npm run build:client",
+    "build:client": "mkdir -p ./.generated && esbuild src/client/app.ts --bundle --format=esm --target=es2022 --outfile=.generated/app.txt",
     "build:css": "mkdir -p ./.generated && tailwindcss -i ./src/tailwind-input.css -o ./.generated/styles.css --minify",
     "ci:local": "agent-ci run --quiet --pause-on-failure --workflow .github/workflows/ci.yml",
     "ci:local:retry": "agent-ci retry",
@@ -37,7 +39,7 @@
     "test": "vitest run --passWithNoTests",
     "test:affected": "node ./scripts/run-affected-tests.mjs",
     "test:coverage": "node ./scripts/run-coverage-gate.mjs",
-    "typecheck": "node ./node_modules/typescript-7/bin/tsc --noEmit",
+    "typecheck": "node ./node_modules/typescript-7/bin/tsc --noEmit && node ./node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.client.json",
     "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs"
   },
   "devDependencies": {
@@ -50,6 +52,7 @@
     "@types/node": "24.13.2",
     "@vitest/coverage-v8": "4.1.8",
     "chrome-launcher": "1.2.1",
+    "esbuild": "0.28.1",
     "fallow": "2.97.0",
     "lighthouse": "13.4.0",
     "prettier": "3.8.4",
@@ -58,5 +61,8 @@
     "typescript-7": "npm:typescript@7.0.2",
     "vitest": "4.1.8",
     "wrangler": "4.100.0"
+  },
+  "dependencies": {
+    "yjs": "13.6.31"
   }
 }

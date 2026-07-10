@@ -1,6 +1,6 @@
 # ADR-037: Synchronize Text and Materialize Clean Markdown
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-07-10
 

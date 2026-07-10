@@ -1,31 +1,172 @@
 import { expect, test } from "@playwright/test";
+import { isWorkspaceSnapshot } from "./domain/workspace";
 
-test("renders the worker home page", async ({ page }) => {
+test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { level: 1, name: "vibe-template Worker" })).toBeVisible();
-  await expect(
-    page.getByText("A runnable Cloudflare Worker baseline with a route index, a health probe, and room for real feature work."),
-  ).toBeVisible();
-  await expect(page.getByRole("heading", { level: 2, name: "Route Index" })).toBeVisible();
-  await expect(page.locator('a[href="/api/health"]').first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Evidence" })).toBeVisible();
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  await expect(page.locator("#source-editor")).toHaveValue(/## Evidence becomes prose/);
+  await expect(page.locator("#preview")).toContainText("Merton, 1942");
+  await expect(page.locator("#diagnostic-summary")).toHaveText("No syntax errors");
+
+  const source = await page.locator("#source-editor").inputValue();
+  await page.locator("#source-editor").fill(`${source.trimEnd()}\n\nA live collaborative note.\n`);
+  await expect(page.locator("#preview")).toContainText("A live collaborative note.");
+  await expect(page.locator("#revision-badge")).not.toHaveText("r0");
+
+  const exported = await page.request.get("/api/workspaces/demo/export/document.md");
+  expect(exported.ok()).toBe(true);
+  expect(exported.headers()["content-disposition"]).toContain("kirjolab-document.md");
+  expect(await exported.text()).toContain("A live collaborative note.");
 });
 
-test("serves the health endpoint", async ({ request }) => {
-  const response = await request.get("/api/health");
+test("converges source edits across two writers", async ({ page, context }) => {
+  const collaborator = await context.newPage();
+  await Promise.all([page.goto("/"), collaborator.goto("/")]);
+  await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
+  await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
 
+  const sharedSource = "## Shared evidence {#shared-evidence}\n\nThe first writer contributes a claim.\n";
+  await page.locator("#source-editor").fill(sharedSource);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(sharedSource);
+
+  const expandedSource = `${sharedSource}\nThe second writer connects the evidence.\n`;
+  await collaborator.locator("#source-editor").fill(expandedSource);
+  await expect(page.locator("#source-editor")).toHaveValue(expandedSource);
+  await collaborator.close();
+});
+
+test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {
+  await page.route("http://model.local/v1/chat/completions", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "POST, OPTIONS",
+          "access-control-allow-headers": "content-type",
+        },
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({
+        choices: [
+          {
+            message: {
+              content:
+                "## Evidence becomes prose {#sec-evidence}\n\nGrounded revisions retain a visible path to their evidence :cite[merton1942].\n\n## Return to the source {#sec-source}\n\nThe accepted candidate remains portable Markdown.\n",
+            },
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  await page
+    .locator("#source-editor")
+    .fill(
+      "## Evidence becomes prose {#sec-evidence}\n\nKirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942].\n\n## Return to the source {#sec-source}\n\nThe preview resolves a link back to :ref[sec-evidence].\n",
+    );
+  await expect(page.locator("#revision-badge")).not.toHaveText("r0");
+
+  await page.locator("#pdf-upload").setInputFiles({
+    name: "evidence.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF"),
+  });
+  await expect(page.locator("#pdf-list")).toContainText("evidence.pdf");
+
+  await page.locator("#annotation-page").fill("4");
+  await page.locator("#annotation-comment").fill("Grounding for the revision");
+  await page.locator("#annotation-quote").fill("Knowledge grows through inspectable evidence.");
+  await page.locator("#annotation-prefix").fill("Before the claim");
+  await page.locator("#annotation-suffix").fill("After the claim");
+  await page.getByRole("button", { name: "Save resilient annotation" }).click();
+  await expect(page.locator("#annotation-list")).toContainText("Knowledge grows through inspectable evidence.");
+
+  const annotationCard = page.locator("#annotation-list article").filter({ hasText: "Knowledge grows" }).first();
+  const editor = page.locator("#source-editor");
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    const start = element.value.indexOf("Kirjolab keeps");
+    element.focus();
+    element.setSelectionRange(start, start + "Kirjolab keeps the path".length);
+  });
+  await annotationCard.getByRole("button", { name: "Link selected manuscript text" }).click();
+
+  const snapshotAfterLink = await page.request.get("/api/workspaces/demo");
+  expect(snapshotAfterLink.ok()).toBe(true);
+  const linkedSnapshot: unknown = await snapshotAfterLink.json();
+  expect(isWorkspaceSnapshot(linkedSnapshot) ? linkedSnapshot.links.length : 0).toBeGreaterThan(0);
+
+  await annotationCard.locator('input[type="checkbox"]').check();
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    const start = element.value.indexOf("Kirjolab keeps");
+    element.focus();
+    element.setSelectionRange(start, start + "Kirjolab keeps the path from an annotation to a claim and into cited prose visible".length);
+  });
+  await page.locator("#llm-endpoint").fill("http://model.local/v1/chat/completions");
+  await page.locator("#llm-model").fill("test-local-model");
+  await page.getByRole("button", { name: "Draft revision" }).click();
+
+  await expect(page.locator("#model-status")).toHaveText("Candidate ready. Inspect it before applying.");
+  await expect(page.locator("#candidate-list")).toContainText("test-local-model · pending");
+  await page.getByRole("button", { name: "Apply candidate" }).first().click();
+  await expect(editor).toHaveValue(/Grounded revisions retain a visible path/);
+  await expect(page.locator("#preview")).toContainText("The accepted candidate remains portable Markdown.");
+
+  const currentSnapshot: unknown = await (await page.request.get("/api/workspaces/demo")).json();
+  if (!isWorkspaceSnapshot(currentSnapshot)) throw new Error("Expected a workspace snapshot");
+  const staleCandidateResponse = await page.request.post("/api/workspaces/demo/candidates", {
+    data: {
+      provider: "test",
+      model: "stale-model",
+      sourceRevision: currentSnapshot.revision,
+      sourceIds: [],
+      proposedSource: "## This candidate must not apply\n",
+    },
+  });
+  expect(staleCandidateResponse.ok()).toBe(true);
+  const staleCandidate: unknown = await staleCandidateResponse.json();
+  if (!isRecord(staleCandidate) || typeof staleCandidate.id !== "string") throw new Error("Expected a model candidate");
+  await editor.fill(`${await editor.inputValue()}\nA newer writer edit.\n`);
+  await expect
+    .poll(async () => {
+      const value: unknown = await (await page.request.get("/api/workspaces/demo")).json();
+      return isWorkspaceSnapshot(value) ? value.revision : -1;
+    })
+    .toBeGreaterThan(currentSnapshot.revision);
+  const staleApply = await page.request.post(`/api/workspaces/demo/candidates/${staleCandidate.id}/apply`);
+  expect(staleApply.status()).toBe(409);
+
+  const bibliography = await page.request.get("/api/workspaces/demo/export/bibliography.bib");
+  expect(bibliography.ok()).toBe(true);
+  expect(await bibliography.text()).toContain("@article{merton1942");
+});
+
+test("serves stable health and browser assets", async ({ request }) => {
+  const response = await request.get("/api/health");
   expect(response.ok()).toBe(true);
   await expect(response.json()).resolves.toEqual({
     ok: true,
-    name: "vibe-template-worker",
-    routes: ["/", "/api/health"],
+    name: "kirjolab",
+    routes: ["/", "/api/workspaces/demo", "/api/health"],
   });
+
+  const [styles, client] = await Promise.all([request.get("/styles.css"), request.get("/app.js")]);
+  expect(styles.ok(), await styles.text()).toBe(true);
+  expect(client.ok(), await client.text()).toBe(true);
+  expect(styles.headers()["content-type"]).toContain("text/css");
+  expect(client.headers()["content-type"]).toContain("text/javascript");
 });
 
-test("serves the generated stylesheet", async ({ request }) => {
-  const response = await request.get("/styles.css");
-
-  expect(response.ok()).toBe(true);
-  expect(response.headers()["content-type"]).toContain("text/css");
-  await expect(response.text()).resolves.toContain("--color-app-canvas:#f3eee6");
-});
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}

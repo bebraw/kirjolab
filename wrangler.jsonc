@@ -1,16 +1,27 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "vibe-template-worker",
+  "name": "kirjolab",
   "main": "src/worker.ts",
-  "compatibility_date": "2026-03-28",
+  "compatibility_date": "2026-06-18",
+  "compatibility_flags": ["nodejs_compat"],
   "build": {
-    "command": "npm run build:css",
+    "command": "npm run build",
     "watch_dir": "src",
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "DOCUMENT_ROOMS", "class_name": "DocumentRoom" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DocumentRoom"] }],
+  "r2_buckets": [{ "binding": "PAPERS", "bucket_name": "kirjolab-papers" }],
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 },
   },
   "rules": [
     {
       "type": "Text",
-      "globs": ["**/*.css"],
+      "globs": ["**/*.css", "**/*.txt"],
       "fallthrough": true,
     },
   ],

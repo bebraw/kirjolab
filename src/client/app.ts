@@ -1,0 +1,513 @@
+import * as Y from "yjs";
+import { renderWorkspaceMarkdown } from "../domain/markdown";
+import {
+  isWorkspaceSnapshot,
+  type AnnotationResource,
+  type ModelCandidate,
+  type PdfResource,
+  type WorkspaceSnapshot,
+} from "../domain/workspace";
+import { buildGroundedPrompt, calculateTextSplice, extractCompletion } from "./operations";
+
+const apiBase = "/api/workspaces/demo";
+const remoteOrigin = Symbol("remote");
+
+interface Elements {
+  source: HTMLTextAreaElement;
+  bibliography: HTMLTextAreaElement;
+  preview: HTMLElement;
+  diagnostics: HTMLElement;
+  diagnosticSummary: HTMLElement;
+  connectionDot: HTMLElement;
+  connectionStatus: HTMLElement;
+  saveStatus: HTMLElement;
+  revisionBadge: HTMLElement;
+  pdfUpload: HTMLInputElement;
+  pdfList: HTMLElement;
+  annotationCount: HTMLElement;
+  annotationList: HTMLElement;
+  annotationForm: HTMLFormElement;
+  annotationPdf: HTMLSelectElement;
+  annotationPage: HTMLInputElement;
+  annotationQuote: HTMLTextAreaElement;
+  annotationPrefix: HTMLInputElement;
+  annotationSuffix: HTMLInputElement;
+  annotationComment: HTMLInputElement;
+  openPaper: HTMLButtonElement;
+  paperDialog: HTMLDialogElement;
+  closePaper: HTMLButtonElement;
+  paperFrame: HTMLIFrameElement;
+  paperTitle: HTMLElement;
+  llmEndpoint: HTMLInputElement;
+  llmModel: HTMLInputElement;
+  generateCandidate: HTMLButtonElement;
+  modelStatus: HTMLElement;
+  candidateList: HTMLElement;
+  toast: HTMLElement;
+}
+
+class WorkspaceApp {
+  readonly #elements = collectElements();
+  readonly #document = new Y.Doc();
+  readonly #source = this.#document.getText("source");
+  readonly #bibliography = this.#document.getText("bibliography");
+  #snapshot: WorkspaceSnapshot | null = null;
+  #revision = 0;
+  #socket: WebSocket | null = null;
+  #toastTimer: number | undefined;
+
+  async start(): Promise<void> {
+    this.#bindUi();
+    this.#setEditorsEnabled(false);
+    await this.#refreshSnapshot();
+    this.#connect();
+  }
+
+  #bindUi(): void {
+    bindYText(this.#elements.source, this.#source, this.#document);
+    bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
+    this.#source.observe(() => this.#renderPreview());
+    this.#bibliography.observe(() => this.#renderPreview());
+    this.#document.on("update", (update: Uint8Array, origin: unknown) => {
+      if (origin !== remoteOrigin && this.#socket?.readyState === WebSocket.OPEN) this.#socket.send(toArrayBuffer(update));
+    });
+    this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
+    this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
+    this.#elements.openPaper.addEventListener("click", () => this.#showPaper());
+    this.#elements.closePaper.addEventListener("click", () => this.#elements.paperDialog.close());
+    this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
+  }
+
+  async #refreshSnapshot(): Promise<void> {
+    const response = await fetch(apiBase);
+    if (!response.ok) throw new Error("Could not load the workspace");
+    const value: unknown = await response.json();
+    if (!isWorkspaceSnapshot(value)) throw new Error("Workspace returned an invalid snapshot");
+    this.#snapshot = value;
+    this.#revision = value.revision;
+    this.#elements.source.value = value.source;
+    this.#elements.bibliography.value = value.bibliography;
+    this.#renderPreview(value.source, value.bibliography);
+    this.#renderResources();
+    this.#updateRevision();
+  }
+
+  #connect(): void {
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const socket = new WebSocket(`${protocol}//${location.host}${apiBase}/socket`);
+    socket.binaryType = "arraybuffer";
+    this.#socket = socket;
+    socket.addEventListener("open", () => {
+      this.#setConnection("Live", true);
+      this.#setEditorsEnabled(true);
+      socket.send(toArrayBuffer(Y.encodeStateAsUpdate(this.#document)));
+    });
+    socket.addEventListener("message", (event: MessageEvent<string | ArrayBuffer>) => this.#handleSocketMessage(event.data));
+    socket.addEventListener("close", () => {
+      this.#setConnection("Reconnecting", false);
+      this.#setEditorsEnabled(false);
+      window.setTimeout(() => this.#connect(), 1200);
+    });
+    socket.addEventListener("error", () => socket.close());
+  }
+
+  #handleSocketMessage(message: string | ArrayBuffer): void {
+    if (typeof message !== "string") {
+      Y.applyUpdate(this.#document, new Uint8Array(message), remoteOrigin);
+      this.#elements.saveStatus.textContent = "Materialized to Markdown";
+      return;
+    }
+    const value: unknown = JSON.parse(message);
+    if (!isRecord(value) || typeof value.type !== "string") return;
+    if (value.type === "revision" && typeof value.revision === "number") {
+      this.#revision = value.revision;
+      this.#updateRevision();
+    }
+    if (value.type === "presence" && typeof value.collaborators === "number") {
+      this.#elements.connectionStatus.textContent = `Live · ${value.collaborators} ${value.collaborators === 1 ? "writer" : "writers"}`;
+    }
+  }
+
+  #renderPreview(source = this.#source.toString(), bibliography = this.#bibliography.toString()): void {
+    const rendered = renderWorkspaceMarkdown(source, bibliography);
+    this.#elements.preview.innerHTML = rendered.html;
+    this.#elements.diagnostics.replaceChildren();
+    this.#elements.diagnosticSummary.textContent =
+      rendered.diagnostics.length === 0
+        ? "No syntax errors"
+        : `${rendered.diagnostics.length} ${rendered.diagnostics.length === 1 ? "issue" : "issues"}`;
+    for (const diagnostic of rendered.diagnostics) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "resource-card mb-2 block w-full text-left font-sans text-xs";
+      item.textContent = diagnostic.message;
+      item.addEventListener("click", () => {
+        this.#elements.source.focus();
+        this.#elements.source.setSelectionRange(diagnostic.from, diagnostic.to);
+      });
+      this.#elements.diagnostics.append(item);
+    }
+  }
+
+  #renderResources(): void {
+    if (!this.#snapshot) return;
+    this.#renderPdfs(this.#snapshot.pdfs);
+    this.#renderAnnotations(this.#snapshot.annotations);
+    this.#renderCandidates(this.#snapshot.candidates);
+  }
+
+  #renderPdfs(pdfs: PdfResource[]): void {
+    this.#elements.pdfList.replaceChildren();
+    this.#elements.annotationPdf.replaceChildren();
+    if (pdfs.length === 0) {
+      this.#elements.pdfList.append(emptyState("No paper imported yet."));
+      this.#elements.annotationPdf.append(new Option("Import a PDF first", ""));
+      this.#elements.openPaper.disabled = true;
+      return;
+    }
+    for (const pdf of pdfs) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "resource-card block w-full text-left";
+      button.dataset.pdfId = pdf.id;
+      button.append(resourceLabel("PDF · " + formatBytes(pdf.size)), resourceTitle(pdf.name));
+      button.addEventListener("click", () => {
+        this.#elements.annotationPdf.value = pdf.id;
+        this.#showPaper(pdf);
+      });
+      this.#elements.pdfList.append(button);
+      this.#elements.annotationPdf.append(new Option(pdf.name, pdf.id));
+    }
+    this.#elements.openPaper.disabled = false;
+  }
+
+  #renderAnnotations(annotations: AnnotationResource[]): void {
+    this.#elements.annotationCount.textContent = String(annotations.length);
+    this.#elements.annotationList.replaceChildren();
+    if (annotations.length === 0) {
+      this.#elements.annotationList.append(emptyState("Annotations appear here with their source context."));
+      return;
+    }
+    for (const annotation of annotations) {
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      const label = document.createElement("label");
+      label.className = "flex items-start gap-2";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.annotationId = annotation.id;
+      checkbox.className = "mt-1 accent-app-accent";
+      const content = document.createElement("span");
+      content.className = "min-w-0";
+      content.append(resourceLabel(`Page ${annotation.page}`), resourceTitle(`“${annotation.quote}”`));
+      if (annotation.comment) {
+        const note = document.createElement("span");
+        note.className = "mt-2 block font-sans text-xs text-app-text-soft";
+        note.textContent = annotation.comment;
+        content.append(note);
+      }
+      label.append(checkbox, content);
+      const linkButton = document.createElement("button");
+      linkButton.type = "button";
+      linkButton.className = "button-secondary mt-3 w-full justify-center";
+      linkButton.textContent = "Link selected manuscript text";
+      linkButton.addEventListener("click", () => void this.#linkAnnotation(annotation.id));
+      card.append(label, linkButton);
+      this.#elements.annotationList.append(card);
+    }
+  }
+
+  #renderCandidates(candidates: ModelCandidate[]): void {
+    this.#elements.candidateList.replaceChildren();
+    if (candidates.length === 0) {
+      this.#elements.candidateList.append(emptyState("Model candidates remain separate from the manuscript until you apply one."));
+      return;
+    }
+    for (const candidate of candidates) {
+      const card = document.createElement("article");
+      card.className = "resource-card mb-3";
+      const top = document.createElement("div");
+      top.className = "flex items-center justify-between gap-3";
+      top.append(resourceLabel(`${candidate.model} · ${candidate.status}`));
+      const stamp = document.createElement("span");
+      stamp.className = "font-sans text-[0.65rem] text-app-text-soft";
+      stamp.textContent = `r${candidate.sourceRevision}`;
+      top.append(stamp);
+      const details = document.createElement("details");
+      details.className = "mt-3";
+      const summary = document.createElement("summary");
+      summary.className = "cursor-pointer font-sans text-xs font-bold text-app-accent-strong";
+      summary.textContent = "Inspect proposed Markdown";
+      const proposal = document.createElement("pre");
+      proposal.className = "mt-3 max-h-64 overflow-auto whitespace-pre-wrap bg-app-surface p-3 font-mono text-xs leading-5";
+      proposal.textContent = candidate.proposedSource;
+      details.append(summary, proposal);
+      card.append(top, details);
+      if (candidate.status === "pending") {
+        const actions = document.createElement("div");
+        actions.className = "mt-3 flex gap-2";
+        actions.append(
+          actionButton("Apply candidate", "button-primary", () => void this.#updateCandidate(candidate.id, "apply")),
+          actionButton("Reject", "button-secondary", () => void this.#updateCandidate(candidate.id, "reject")),
+        );
+        card.append(actions);
+      }
+      this.#elements.candidateList.append(card);
+    }
+  }
+
+  async #uploadPdf(): Promise<void> {
+    const file = this.#elements.pdfUpload.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") return this.#showToast("Choose a PDF file.");
+    this.#showToast(`Importing ${file.name}…`);
+    const response = await fetch(`${apiBase}/pdfs`, {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent(file.name) },
+      body: file,
+    });
+    await expectOk(response);
+    this.#elements.pdfUpload.value = "";
+    await this.#refreshSnapshot();
+    this.#showToast("PDF imported without modifying the source file.");
+  }
+
+  async #createAnnotation(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const response = await jsonFetch(`${apiBase}/annotations`, {
+      pdfId: this.#elements.annotationPdf.value,
+      page: this.#elements.annotationPage.valueAsNumber,
+      quote: this.#elements.annotationQuote.value,
+      prefix: this.#elements.annotationPrefix.value,
+      suffix: this.#elements.annotationSuffix.value,
+      comment: this.#elements.annotationComment.value,
+    });
+    await expectOk(response);
+    this.#elements.annotationQuote.value = "";
+    this.#elements.annotationPrefix.value = "";
+    this.#elements.annotationSuffix.value = "";
+    this.#elements.annotationComment.value = "";
+    await this.#refreshSnapshot();
+    this.#showToast("Annotation anchored with geometry and textual context.");
+  }
+
+  async #linkAnnotation(annotationId: string): Promise<void> {
+    const start = this.#elements.source.selectionStart;
+    const end = this.#elements.source.selectionEnd;
+    const excerpt = this.#elements.source.value.slice(start, end);
+    if (!excerpt.trim()) return this.#showToast("Select manuscript text before linking an annotation.");
+    const response = await jsonFetch(`${apiBase}/links`, { annotationId, start, end, excerpt });
+    await expectOk(response);
+    await this.#refreshSnapshot();
+    this.#showToast("Annotation linked to the selected passage.");
+  }
+
+  async #generateCandidate(): Promise<void> {
+    if (!this.#snapshot) return;
+    const selected = this.#elements.source.value.slice(this.#elements.source.selectionStart, this.#elements.source.selectionEnd);
+    const annotationIds = Array.from(document.querySelectorAll<HTMLInputElement>("[data-annotation-id]:checked")).map(
+      (input) => input.dataset.annotationId ?? "",
+    );
+    const annotations = this.#snapshot.annotations.filter((annotation) => annotationIds.includes(annotation.id));
+    if (!selected.trim() || annotations.length === 0) {
+      this.#elements.modelStatus.textContent = "Select manuscript text and at least one annotation first.";
+      return;
+    }
+
+    this.#elements.generateCandidate.disabled = true;
+    this.#elements.modelStatus.textContent = "Asking the local model for a grounded candidate…";
+    try {
+      const endpoint = this.#elements.llmEndpoint.value;
+      const model = this.#elements.llmModel.value;
+      const llmResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          messages: [
+            { role: "system", content: "You are a careful scientific editor. Use only supplied evidence and preserve source syntax." },
+            { role: "user", content: buildGroundedPrompt(this.#elements.source.value, selected, annotations) },
+          ],
+        }),
+      });
+      await expectOk(llmResponse);
+      const result: unknown = await llmResponse.json();
+      const proposedSource = extractCompletion(result);
+      if (!proposedSource) throw new Error("The local model returned no text candidate");
+      const response = await jsonFetch(`${apiBase}/candidates`, {
+        provider: new URL(endpoint).origin,
+        model,
+        sourceRevision: this.#revision,
+        sourceIds: annotationIds,
+        proposedSource,
+      });
+      await expectOk(response);
+      await this.#refreshSnapshot();
+      this.#elements.modelStatus.textContent = "Candidate ready. Inspect it before applying.";
+    } catch (error) {
+      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Local model request failed";
+    } finally {
+      this.#elements.generateCandidate.disabled = false;
+    }
+  }
+
+  async #updateCandidate(candidateId: string, action: "apply" | "reject"): Promise<void> {
+    const response = await fetch(`${apiBase}/candidates/${candidateId}/${action}`, { method: "POST" });
+    await expectOk(response);
+    await this.#refreshSnapshot();
+    this.#showToast(action === "apply" ? "Candidate applied to canonical Markdown." : "Candidate rejected; manuscript unchanged.");
+  }
+
+  #showPaper(pdf?: PdfResource): void {
+    const selectedId = pdf?.id ?? this.#elements.annotationPdf.value;
+    const selected = pdf ?? this.#snapshot?.pdfs.find((item) => item.id === selectedId);
+    if (!selected) return;
+    this.#elements.paperTitle.textContent = selected.name;
+    this.#elements.paperFrame.src = `${apiBase}/pdfs/${selected.id}`;
+    this.#elements.paperDialog.showModal();
+  }
+
+  #setConnection(label: string, connected: boolean): void {
+    this.#elements.connectionStatus.textContent = label;
+    this.#elements.connectionDot.className = `h-2 w-2 rounded-full ${connected ? "bg-app-accent" : "bg-app-warn"}`;
+  }
+
+  #setEditorsEnabled(enabled: boolean): void {
+    this.#elements.source.disabled = !enabled;
+    this.#elements.bibliography.disabled = !enabled;
+  }
+
+  #updateRevision(): void {
+    this.#elements.revisionBadge.textContent = `r${this.#revision}`;
+  }
+
+  #showToast(message: string): void {
+    window.clearTimeout(this.#toastTimer);
+    this.#elements.toast.textContent = message;
+    this.#elements.toast.dataset.visible = "true";
+    this.#toastTimer = window.setTimeout(() => delete this.#elements.toast.dataset.visible, 3200);
+  }
+}
+
+function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y.Doc): void {
+  textarea.addEventListener("input", () => {
+    const splice = calculateTextSplice(text.toString(), textarea.value);
+    if (!splice) return;
+    documentModel.transact(() => {
+      if (splice.deleteCount > 0) text.delete(splice.start, splice.deleteCount);
+      if (splice.insert) text.insert(splice.start, splice.insert);
+    }, textarea);
+  });
+  text.observe((event) => {
+    if (event.transaction.origin === textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    textarea.value = text.toString();
+    textarea.setSelectionRange(Math.min(start, textarea.value.length), Math.min(end, textarea.value.length));
+  });
+}
+
+function collectElements(): Elements {
+  return {
+    source: requiredElement("source-editor", HTMLTextAreaElement),
+    bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
+    preview: requiredElement("preview", HTMLElement),
+    diagnostics: requiredElement("diagnostics", HTMLElement),
+    diagnosticSummary: requiredElement("diagnostic-summary", HTMLElement),
+    connectionDot: requiredElement("connection-dot", HTMLElement),
+    connectionStatus: requiredElement("connection-status", HTMLElement),
+    saveStatus: requiredElement("save-status", HTMLElement),
+    revisionBadge: requiredElement("revision-badge", HTMLElement),
+    pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
+    pdfList: requiredElement("pdf-list", HTMLElement),
+    annotationCount: requiredElement("annotation-count", HTMLElement),
+    annotationList: requiredElement("annotation-list", HTMLElement),
+    annotationForm: requiredElement("annotation-form", HTMLFormElement),
+    annotationPdf: requiredElement("annotation-pdf", HTMLSelectElement),
+    annotationPage: requiredElement("annotation-page", HTMLInputElement),
+    annotationQuote: requiredElement("annotation-quote", HTMLTextAreaElement),
+    annotationPrefix: requiredElement("annotation-prefix", HTMLInputElement),
+    annotationSuffix: requiredElement("annotation-suffix", HTMLInputElement),
+    annotationComment: requiredElement("annotation-comment", HTMLInputElement),
+    openPaper: requiredElement("open-paper", HTMLButtonElement),
+    paperDialog: requiredElement("paper-dialog", HTMLDialogElement),
+    closePaper: requiredElement("close-paper", HTMLButtonElement),
+    paperFrame: requiredElement("paper-frame", HTMLIFrameElement),
+    paperTitle: requiredElement("paper-title", HTMLElement),
+    llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
+    llmModel: requiredElement("llm-model", HTMLInputElement),
+    generateCandidate: requiredElement("generate-candidate", HTMLButtonElement),
+    modelStatus: requiredElement("model-status", HTMLElement),
+    candidateList: requiredElement("candidate-list", HTMLElement),
+    toast: requiredElement("toast", HTMLElement),
+  };
+}
+
+function requiredElement<T extends Element>(id: string, type: { new (): T }): T {
+  const element = document.getElementById(id);
+  if (!(element instanceof type)) throw new Error(`Missing interface element: ${id}`);
+  return element;
+}
+
+function resourceLabel(text: string): HTMLElement {
+  const label = document.createElement("span");
+  label.className = "eyebrow block";
+  label.textContent = text;
+  return label;
+}
+
+function resourceTitle(text: string): HTMLElement {
+  const title = document.createElement("span");
+  title.className = "mt-1 block text-sm leading-5 text-app-text";
+  title.textContent = text;
+  return title;
+}
+
+function emptyState(text: string): HTMLElement {
+  const element = document.createElement("div");
+  element.className = "empty-state";
+  element.textContent = text;
+  return element;
+}
+
+function actionButton(text: string, className: string, action: () => void): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.textContent = text;
+  button.addEventListener("click", action);
+  return button;
+}
+
+async function jsonFetch(url: string, body: object): Promise<Response> {
+  return await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+}
+
+async function expectOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const value: unknown = await response.json().catch(() => null);
+  throw new Error(isRecord(value) && typeof value.error === "string" ? value.error : `Request failed (${response.status})`);
+}
+
+function formatBytes(value: number): string {
+  return value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function toArrayBuffer(value: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(value.byteLength);
+  new Uint8Array(buffer).set(value);
+  return buffer;
+}
+
+if (typeof document !== "undefined") {
+  const app = new WorkspaceApp();
+  void app.start().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : "Kirjolab failed to start";
+    document.body.textContent = message;
+  });
+}

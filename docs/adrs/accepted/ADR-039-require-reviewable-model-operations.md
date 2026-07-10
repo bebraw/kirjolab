@@ -1,6 +1,6 @@
 # ADR-039: Require Reviewable, Provenance-Aware Model Operations
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-07-10
 

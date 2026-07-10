@@ -1,6 +1,6 @@
 # ADR-038: Store PDF Annotations Separately With Resilient Selectors
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-07-10
 

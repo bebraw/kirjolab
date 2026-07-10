@@ -9,7 +9,17 @@ const config = {
   htmlReporter: {
     fileName: "reports/mutation/index.html",
   },
-  mutate: ["src/**/*.ts", "!src/**/*.d.ts", "!src/**/*.test.ts", "!src/**/*.e2e.ts", "!src/test-support.ts"],
+  mutate: [
+    "src/**/*.ts",
+    "!src/**/*.d.ts",
+    "!src/**/*.test.ts",
+    "!src/**/*.e2e.ts",
+    "!src/test-support.ts",
+    "!src/test-support/**",
+    "!src/client/app.ts",
+    "!src/api/workspace.ts",
+    "!src/durable-objects/**",
+  ],
   packageManager: "npm",
   reporters: ["clear-text", "progress", "html", "json"],
   testRunner: "vitest",

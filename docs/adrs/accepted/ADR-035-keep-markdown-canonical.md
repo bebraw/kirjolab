@@ -1,6 +1,6 @@
 # ADR-035: Keep Markdown as the Canonical Authored Representation
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-07-10
 

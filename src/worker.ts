@@ -1,20 +1,28 @@
 import { createHealthResponse } from "./api/health";
+import { handleWorkspaceApi } from "./api/workspace";
 import { exampleRoutes } from "./app-routes";
+import { DocumentRoom } from "./durable-objects/document-room";
 import { renderHomePage } from "./views/home";
 import { renderNotFoundPage } from "./views/not-found";
-import { cssResponse, htmlResponse } from "./views/shared";
+import { cssResponse, htmlResponse, scriptResponse } from "./views/shared";
+
+export { DocumentRoom };
 
 export default {
-  async fetch(request: Request): Promise<Response> {
-    return await handleRequest(request);
+  async fetch(request: Request, env?: Env): Promise<Response> {
+    return await handleRequest(request, env);
   },
-};
+} satisfies ExportedHandler<Env>;
 
-export async function handleRequest(request: Request): Promise<Response> {
+export async function handleRequest(request: Request, env?: Env): Promise<Response> {
   const url = new URL(request.url);
 
   if (url.pathname === "/styles.css") {
     return cssResponse(await loadStylesheet());
+  }
+
+  if (url.pathname === "/app.js") {
+    return scriptResponse(await loadClientScript());
   }
 
   if (url.pathname === "/") {
@@ -25,16 +33,34 @@ export async function handleRequest(request: Request): Promise<Response> {
     return createHealthResponse(exampleRoutes.map((route) => route.path));
   }
 
+  if (url.pathname.startsWith("/api/workspaces/")) {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await handleWorkspaceApi(request, env);
+  }
+
   return htmlResponse(renderNotFoundPage(url.pathname), 404);
 }
 
 async function loadStylesheet(): Promise<string> {
-  // Stryker disable next-line ConditionalExpression,OptionalChaining: Environment probe selects Node fs in tests and bundled CSS in Workers.
-  if (typeof process !== "undefined" && process.release?.name === "node") {
+  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
+  if (typeof WebSocketPair === "undefined") {
     const { readFile } = await import("node:fs/promises");
-    return await readFile(new URL("../.generated/styles.css", import.meta.url), "utf8");
+    const { fileURLToPath } = await import("node:url");
+    return await readFile(fileURLToPath(new URL("../.generated/styles.css", import.meta.url).href), "utf8");
   }
 
   const styles = await import("../.generated/styles.css");
   return styles.default;
+}
+
+async function loadClientScript(): Promise<string> {
+  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
+  if (typeof WebSocketPair === "undefined") {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    return await readFile(fileURLToPath(new URL("../.generated/app.txt", import.meta.url).href), "utf8");
+  }
+
+  const script = await import("../.generated/app.txt");
+  return script.default;
 }
