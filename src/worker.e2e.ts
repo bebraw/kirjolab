@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { isWorkspaceSnapshot } from "./domain/workspace";
+import { createEvidencePdf } from "./test-support/pdf-fixture";
 
 test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page.goto("/");
@@ -80,16 +81,27 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await page.locator("#pdf-upload").setInputFiles({
     name: "evidence.pdf",
     mimeType: "application/pdf",
-    buffer: Buffer.from("%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF"),
+    buffer: createEvidencePdf(),
   });
   await expect(page.locator("#pdf-list")).toContainText("evidence.pdf");
 
-  await page.locator("#annotation-page").fill("4");
+  await page.locator("#pdf-list button[data-pdf-id]").first().click();
+  await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
+  await page.locator("#paper-text-layer").evaluate((layer) => {
+    const span = layer.querySelector("span");
+    if (!span?.firstChild) throw new Error("Expected rendered PDF text");
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+  });
+  await expect(page.locator("#annotation-quote")).toHaveValue("Knowledge grows through inspectable evidence.");
+  await expect(page.locator("#annotation-selection-status")).toContainText("Captured 1 fragment from page 1");
+  await page.getByRole("button", { name: "Close" }).click();
   await page.locator("#annotation-comment").fill("Grounding for the revision");
-  await page.locator("#annotation-quote").fill("Knowledge grows through inspectable evidence.");
-  await page.locator("#annotation-prefix").fill("Before the claim");
-  await page.locator("#annotation-suffix").fill("After the claim");
-  await page.getByRole("button", { name: "Save resilient annotation" }).click();
+  await page.getByRole("button", { name: "Save evidence annotation" }).click();
   await expect(page.locator("#annotation-list")).toContainText("Knowledge grows through inspectable evidence.");
 
   const annotationCard = page.locator("#annotation-list article").filter({ hasText: "Knowledge grows" }).first();
@@ -105,6 +117,12 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   expect(snapshotAfterLink.ok()).toBe(true);
   const linkedSnapshot: unknown = await snapshotAfterLink.json();
   expect(isWorkspaceSnapshot(linkedSnapshot) ? linkedSnapshot.links.length : 0).toBeGreaterThan(0);
+
+  await annotationCard.getByRole("button", { name: "Open evidence" }).click();
+  await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
+  await page.getByRole("button", { name: "Close" }).click();
+  await annotationCard.getByRole("button", { name: "Open linked passage" }).click();
+  await expect(editor).toBeFocused();
 
   await annotationCard.locator('input[type="checkbox"]').check();
   await editor.evaluate((element: HTMLTextAreaElement) => {

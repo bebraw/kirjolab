@@ -5,4 +5,5 @@ export function ensureGeneratedStylesheet(): void {
   mkdirSync(".generated", { recursive: true });
   writeFileSync(join(".generated", "styles.css"), ":root{--color-app-canvas:#f3eee6;}", "utf8");
   writeFileSync(join(".generated", "app.txt"), "export {};", "utf8");
+  writeFileSync(join(".generated", "pdf-worker.txt"), "export {};", "utf8");
 }

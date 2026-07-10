@@ -25,6 +25,10 @@ export async function handleRequest(request: Request, env?: Env): Promise<Respon
     return scriptResponse(await loadClientScript());
   }
 
+  if (url.pathname === "/pdf.worker.js") {
+    return scriptResponse(await loadPdfWorkerScript());
+  }
+
   if (url.pathname === "/") {
     return htmlResponse(renderHomePage(exampleRoutes));
   }
@@ -62,5 +66,17 @@ async function loadClientScript(): Promise<string> {
   }
 
   const script = await import("../.generated/app.txt");
+  return script.default;
+}
+
+async function loadPdfWorkerScript(): Promise<string> {
+  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
+  if (typeof WebSocketPair === "undefined") {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    return await readFile(fileURLToPath(new URL("../.generated/pdf-worker.txt", import.meta.url).href), "utf8");
+  }
+
+  const script = await import("../.generated/pdf-worker.txt");
   return script.default;
 }

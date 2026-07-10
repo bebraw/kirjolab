@@ -8,7 +8,8 @@ describe("renderHomePage", () => {
 
     expect(html).toContain("KIRJOLAB");
     expect(html).toContain("Fast preview");
-    expect(html).toContain("Anchor a passage");
+    expect(html).toContain("Select, annotate, connect");
+    expect(html).toContain('id="paper-text-layer"');
     expect(html).toContain("Propose, inspect, apply");
     expect(html).toContain('src="/app.js"');
     expect(html).toContain('href="/styles.css"');

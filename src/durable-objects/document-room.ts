@@ -28,6 +28,7 @@ interface PdfRow extends Record<string, SqlStorageValue> {
   content_type: string;
   size: number;
   object_key: string;
+  fingerprint: string;
   created_at: string;
 }
 
@@ -39,6 +40,7 @@ interface AnnotationRow extends Record<string, SqlStorageValue> {
   prefix: string;
   suffix: string;
   comment: string;
+  rects_json: string;
   created_at: string;
 }
 
@@ -125,12 +127,13 @@ export class DocumentRoom extends DurableObject<Env> {
 
   registerPdf(pdf: PdfResource): PdfResource {
     this.ctx.storage.sql.exec(
-      "INSERT INTO pdfs (id, name, content_type, size, object_key, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO pdfs (id, name, content_type, size, object_key, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
       pdf.id,
       pdf.name,
       pdf.contentType,
       pdf.size,
       pdf.objectKey,
+      pdf.fingerprint,
       pdf.createdAt,
     );
     return pdf;
@@ -142,7 +145,7 @@ export class DocumentRoom extends DurableObject<Env> {
 
     const annotation: AnnotationResource = { id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() };
     this.ctx.storage.sql.exec(
-      "INSERT INTO annotations (id, pdf_id, page, quote, prefix, suffix, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO annotations (id, pdf_id, page, quote, prefix, suffix, comment, rects_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       annotation.id,
       annotation.pdfId,
       annotation.page,
@@ -150,6 +153,7 @@ export class DocumentRoom extends DurableObject<Env> {
       annotation.prefix,
       annotation.suffix,
       annotation.comment,
+      JSON.stringify(annotation.rects),
       annotation.createdAt,
     );
     return annotation;
@@ -250,6 +254,7 @@ export class DocumentRoom extends DurableObject<Env> {
         content_type TEXT NOT NULL,
         size INTEGER NOT NULL,
         object_key TEXT NOT NULL UNIQUE,
+        fingerprint TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS annotations (
@@ -260,6 +265,7 @@ export class DocumentRoom extends DurableObject<Env> {
         prefix TEXT NOT NULL,
         suffix TEXT NOT NULL,
         comment TEXT NOT NULL,
+        rects_json TEXT NOT NULL DEFAULT '[]',
         created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS passage_links (
@@ -281,6 +287,14 @@ export class DocumentRoom extends DurableObject<Env> {
         created_at TEXT NOT NULL
       );
     `);
+    const pdfColumns = this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(pdfs)").toArray();
+    if (!pdfColumns.some((column) => column.name === "fingerprint")) {
+      this.ctx.storage.sql.exec("ALTER TABLE pdfs ADD COLUMN fingerprint TEXT NOT NULL DEFAULT ''");
+    }
+    const annotationColumns = this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(annotations)").toArray();
+    if (!annotationColumns.some((column) => column.name === "rects_json")) {
+      this.ctx.storage.sql.exec("ALTER TABLE annotations ADD COLUMN rects_json TEXT NOT NULL DEFAULT '[]'");
+    }
   }
 
   #loadDocument(): void {
@@ -331,6 +345,7 @@ export class DocumentRoom extends DurableObject<Env> {
         contentType: "application/pdf",
         size: row.size,
         objectKey: row.object_key,
+        fingerprint: row.fingerprint,
         createdAt: row.created_at,
       }));
   }
@@ -347,6 +362,7 @@ export class DocumentRoom extends DurableObject<Env> {
         prefix: row.prefix,
         suffix: row.suffix,
         comment: row.comment,
+        rects: parseSelectionRects(row.rects_json),
         createdAt: row.created_at,
       }));
   }
@@ -408,6 +424,25 @@ function parseStringArray(value: string): string[] {
   try {
     const parsed: unknown = JSON.parse(value);
     return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseSelectionRects(value: string): AnnotationResource["rects"] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is AnnotationResource["rects"][number] =>
+        typeof item === "object" &&
+        item !== null &&
+        "x" in item &&
+        "y" in item &&
+        "width" in item &&
+        "height" in item &&
+        [item.x, item.y, item.width, item.height].every((coordinate) => typeof coordinate === "number"),
+    );
   } catch {
     return [];
   }

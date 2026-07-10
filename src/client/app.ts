@@ -4,10 +4,13 @@ import {
   isWorkspaceSnapshot,
   type AnnotationResource,
   type ModelCandidate,
+  type PassageLink,
   type PdfResource,
+  type PdfSelectionRect,
   type WorkspaceSnapshot,
 } from "../domain/workspace";
 import { buildGroundedPrompt, calculateTextSplice, extractCompletion } from "./operations";
+import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 
 const apiBase = "/api/workspaces/demo";
 const remoteOrigin = Symbol("remote");
@@ -33,11 +36,19 @@ interface Elements {
   annotationPrefix: HTMLInputElement;
   annotationSuffix: HTMLInputElement;
   annotationComment: HTMLInputElement;
+  annotationSelectionStatus: HTMLElement;
   openPaper: HTMLButtonElement;
   paperDialog: HTMLDialogElement;
   closePaper: HTMLButtonElement;
-  paperFrame: HTMLIFrameElement;
   paperTitle: HTMLElement;
+  paperStatus: HTMLElement;
+  paperCanvas: HTMLCanvasElement;
+  paperPage: HTMLElement;
+  paperTextLayer: HTMLElement;
+  paperHighlights: HTMLElement;
+  paperPageIndicator: HTMLElement;
+  previousPaperPage: HTMLButtonElement;
+  nextPaperPage: HTMLButtonElement;
   llmEndpoint: HTMLInputElement;
   llmModel: HTMLInputElement;
   generateCandidate: HTMLButtonElement;
@@ -48,6 +59,7 @@ interface Elements {
 
 class WorkspaceApp {
   readonly #elements = collectElements();
+  readonly #pdfViewer: PdfEvidenceViewer;
   readonly #document = new Y.Doc();
   readonly #source = this.#document.getText("source");
   readonly #bibliography = this.#document.getText("bibliography");
@@ -55,6 +67,25 @@ class WorkspaceApp {
   #revision = 0;
   #socket: WebSocket | null = null;
   #toastTimer: number | undefined;
+  #pendingRects: PdfSelectionRect[] = [];
+  #activePdfId: string | undefined;
+
+  constructor() {
+    this.#pdfViewer = new PdfEvidenceViewer(
+      {
+        canvas: this.#elements.paperCanvas,
+        page: this.#elements.paperPage,
+        textLayer: this.#elements.paperTextLayer,
+        highlights: this.#elements.paperHighlights,
+        pageIndicator: this.#elements.paperPageIndicator,
+        previousPage: this.#elements.previousPaperPage,
+        nextPage: this.#elements.nextPaperPage,
+        status: this.#elements.paperStatus,
+      },
+      (capture) => this.#capturePdfSelection(capture),
+      (annotationId) => this.#focusAnnotationCard(annotationId),
+    );
+  }
 
   async start(): Promise<void> {
     this.#bindUi();
@@ -73,7 +104,7 @@ class WorkspaceApp {
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
-    this.#elements.openPaper.addEventListener("click", () => this.#showPaper());
+    this.#elements.openPaper.addEventListener("click", () => void this.#showPaper());
     this.#elements.closePaper.addEventListener("click", () => this.#elements.paperDialog.close());
     this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
   }
@@ -152,8 +183,9 @@ class WorkspaceApp {
   #renderResources(): void {
     if (!this.#snapshot) return;
     this.#renderPdfs(this.#snapshot.pdfs);
-    this.#renderAnnotations(this.#snapshot.annotations);
+    this.#renderAnnotations(this.#snapshot.annotations, this.#snapshot.links);
     this.#renderCandidates(this.#snapshot.candidates);
+    this.#pdfViewer.updateAnnotations(this.#snapshot.annotations);
   }
 
   #renderPdfs(pdfs: PdfResource[]): void {
@@ -173,7 +205,7 @@ class WorkspaceApp {
       button.append(resourceLabel("PDF · " + formatBytes(pdf.size)), resourceTitle(pdf.name));
       button.addEventListener("click", () => {
         this.#elements.annotationPdf.value = pdf.id;
-        this.#showPaper(pdf);
+        void this.#showPaper(pdf);
       });
       this.#elements.pdfList.append(button);
       this.#elements.annotationPdf.append(new Option(pdf.name, pdf.id));
@@ -181,7 +213,7 @@ class WorkspaceApp {
     this.#elements.openPaper.disabled = false;
   }
 
-  #renderAnnotations(annotations: AnnotationResource[]): void {
+  #renderAnnotations(annotations: AnnotationResource[], links: PassageLink[]): void {
     this.#elements.annotationCount.textContent = String(annotations.length);
     this.#elements.annotationList.replaceChildren();
     if (annotations.length === 0) {
@@ -191,6 +223,7 @@ class WorkspaceApp {
     for (const annotation of annotations) {
       const card = document.createElement("article");
       card.className = "resource-card";
+      card.dataset.annotationResourceId = annotation.id;
       const label = document.createElement("label");
       label.className = "flex items-start gap-2";
       const checkbox = document.createElement("input");
@@ -212,7 +245,18 @@ class WorkspaceApp {
       linkButton.className = "button-secondary mt-3 w-full justify-center";
       linkButton.textContent = "Link selected manuscript text";
       linkButton.addEventListener("click", () => void this.#linkAnnotation(annotation.id));
-      card.append(label, linkButton);
+      const actions = document.createElement("div");
+      actions.className = "mt-3 grid gap-2";
+      const openEvidence = actionButton("Open evidence", "button-secondary w-full justify-center", () => {
+        const pdf = this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId);
+        if (pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
+      });
+      actions.append(openEvidence, linkButton);
+      const passage = links.find((link) => link.annotationId === annotation.id);
+      if (passage) {
+        actions.append(actionButton("Open linked passage", "button-secondary w-full justify-center", () => this.#showPassage(passage)));
+      }
+      card.append(label, actions);
       this.#elements.annotationList.append(card);
     }
   }
@@ -281,12 +325,15 @@ class WorkspaceApp {
       prefix: this.#elements.annotationPrefix.value,
       suffix: this.#elements.annotationSuffix.value,
       comment: this.#elements.annotationComment.value,
+      rects: this.#pendingRects,
     });
     await expectOk(response);
     this.#elements.annotationQuote.value = "";
     this.#elements.annotationPrefix.value = "";
     this.#elements.annotationSuffix.value = "";
     this.#elements.annotationComment.value = "";
+    this.#pendingRects = [];
+    this.#elements.annotationSelectionStatus.textContent = "Annotation saved. Select another passage in the open paper to continue.";
     await this.#refreshSnapshot();
     this.#showToast("Annotation anchored with geometry and textual context.");
   }
@@ -359,13 +406,48 @@ class WorkspaceApp {
     this.#showToast(action === "apply" ? "Candidate applied to canonical Markdown." : "Candidate rejected; manuscript unchanged.");
   }
 
-  #showPaper(pdf?: PdfResource): void {
+  async #showPaper(pdf?: PdfResource, page = 1, focusAnnotationId?: string): Promise<void> {
     const selectedId = pdf?.id ?? this.#elements.annotationPdf.value;
     const selected = pdf ?? this.#snapshot?.pdfs.find((item) => item.id === selectedId);
     if (!selected) return;
+    this.#activePdfId = selected.id;
+    this.#elements.annotationPdf.value = selected.id;
     this.#elements.paperTitle.textContent = selected.name;
-    this.#elements.paperFrame.src = `${apiBase}/pdfs/${selected.id}`;
     this.#elements.paperDialog.showModal();
+    try {
+      await this.#pdfViewer.open({
+        url: `${apiBase}/pdfs/${selected.id}`,
+        annotations: this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === selected.id) ?? [],
+        page,
+        ...(focusAnnotationId ? { focusAnnotationId } : {}),
+      });
+    } catch (error) {
+      this.#elements.paperStatus.textContent = error instanceof Error ? error.message : "Could not render this PDF";
+    }
+  }
+
+  #capturePdfSelection(capture: PdfSelectionCapture): void {
+    if (this.#activePdfId) this.#elements.annotationPdf.value = this.#activePdfId;
+    this.#elements.annotationPage.value = String(capture.page);
+    this.#elements.annotationQuote.value = capture.quote;
+    this.#elements.annotationPrefix.value = capture.prefix;
+    this.#elements.annotationSuffix.value = capture.suffix;
+    this.#pendingRects = capture.rects;
+    this.#elements.annotationSelectionStatus.textContent = `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "fragment" : "fragments"} from page ${capture.page}. Add a note, then save.`;
+    this.#showToast("Evidence captured. Add your note and save the annotation.");
+  }
+
+  #focusAnnotationCard(annotationId: string): void {
+    const card = document.querySelector<HTMLElement>(`[data-annotation-resource-id="${CSS.escape(annotationId)}"]`);
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  #showPassage(link: PassageLink): void {
+    this.#elements.paperDialog.close();
+    this.#elements.source.focus();
+    this.#elements.source.setSelectionRange(link.start, link.end);
+    this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
+    this.#showToast("Linked manuscript passage selected.");
   }
 
   #setConnection(label: string, connected: boolean): void {
@@ -430,11 +512,19 @@ function collectElements(): Elements {
     annotationPrefix: requiredElement("annotation-prefix", HTMLInputElement),
     annotationSuffix: requiredElement("annotation-suffix", HTMLInputElement),
     annotationComment: requiredElement("annotation-comment", HTMLInputElement),
+    annotationSelectionStatus: requiredElement("annotation-selection-status", HTMLElement),
     openPaper: requiredElement("open-paper", HTMLButtonElement),
     paperDialog: requiredElement("paper-dialog", HTMLDialogElement),
     closePaper: requiredElement("close-paper", HTMLButtonElement),
-    paperFrame: requiredElement("paper-frame", HTMLIFrameElement),
     paperTitle: requiredElement("paper-title", HTMLElement),
+    paperStatus: requiredElement("paper-status", HTMLElement),
+    paperCanvas: requiredElement("paper-canvas", HTMLCanvasElement),
+    paperPage: requiredElement("paper-page", HTMLElement),
+    paperTextLayer: requiredElement("paper-text-layer", HTMLElement),
+    paperHighlights: requiredElement("paper-highlights", HTMLElement),
+    paperPageIndicator: requiredElement("paper-page-indicator", HTMLElement),
+    previousPaperPage: requiredElement("previous-paper-page", HTMLButtonElement),
+    nextPaperPage: requiredElement("next-paper-page", HTMLButtonElement),
     llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
     llmModel: requiredElement("llm-model", HTMLInputElement),
     generateCandidate: requiredElement("generate-candidate", HTMLButtonElement),

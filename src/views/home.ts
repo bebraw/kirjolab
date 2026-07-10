@@ -43,7 +43,7 @@ export function renderHomePage(routes: Array<{ path: string; purpose: string }>)
             <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf">
           </label>
         </div>
-        <p class="mt-3 text-sm leading-6 text-app-text-soft">Import one paper, record a precise passage, then carry it into the draft.</p>
+        <p class="mt-3 text-sm leading-6 text-app-text-soft">Import a paper, select evidence in place, then carry its durable anchor into the draft.</p>
         <div class="mt-5 space-y-2" id="pdf-list">
           <div class="empty-state">No paper imported yet.</div>
         </div>
@@ -92,11 +92,12 @@ export function renderHomePage(routes: Array<{ path: string; purpose: string }>)
           <section>
             <div class="flex items-end justify-between gap-3">
               <div>
-                <p class="eyebrow">PDF annotation</p>
-                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Anchor a passage</h2>
+                <p class="eyebrow">PDF evidence capture</p>
+                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Select, annotate, connect</h2>
               </div>
               <button class="button-secondary" id="open-paper" type="button" disabled>Open paper</button>
             </div>
+            <p class="mt-3 text-sm leading-6 text-app-text-soft" id="annotation-selection-status">Open a paper and select its text. Page, quotation, context, and geometry will be captured here.</p>
             <form class="mt-4 grid gap-3 sm:grid-cols-2" id="annotation-form">
               <label class="field-label sm:col-span-2">Paper
                 <select class="field" id="annotation-pdf" required><option value="">Import a PDF first</option></select>
@@ -116,7 +117,7 @@ export function renderHomePage(routes: Array<{ path: string; purpose: string }>)
               <label class="field-label">Text after
                 <input class="field" id="annotation-suffix" type="text" placeholder="Context after selection">
               </label>
-              <button class="button-primary justify-center sm:col-span-2" type="submit">Save resilient annotation</button>
+              <button class="button-primary justify-center sm:col-span-2" type="submit">Save evidence annotation</button>
             </form>
           </section>
 
@@ -148,11 +149,25 @@ export function renderHomePage(routes: Array<{ path: string; purpose: string }>)
 
     <dialog class="paper-dialog" id="paper-dialog">
       <div class="flex h-full flex-col">
-        <div class="flex items-center justify-between border-b border-app-line px-4 py-3">
-          <p class="font-sans text-sm font-bold" id="paper-title">Paper</p>
-          <button class="button-secondary" id="close-paper" type="button">Close</button>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-app-line px-4 py-3">
+          <div class="min-w-0">
+            <p class="truncate font-sans text-sm font-bold" id="paper-title">Paper</p>
+            <p class="mt-0.5 font-sans text-xs text-app-text-soft" id="paper-status">Loading PDF…</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="button-secondary" id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
+            <span class="min-w-16 text-center font-sans text-xs text-app-text-soft" id="paper-page-indicator">– / –</span>
+            <button class="button-secondary" id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
+            <button class="button-secondary" id="close-paper" type="button">Close</button>
+          </div>
         </div>
-        <iframe class="min-h-0 flex-1" id="paper-frame" title="Imported PDF"></iframe>
+        <div class="pdf-reader min-h-0 flex-1" id="paper-reader">
+          <div class="pdf-page" id="paper-page">
+            <canvas class="block" id="paper-canvas"></canvas>
+            <div class="pdf-highlights" id="paper-highlights"></div>
+            <div class="textLayer" id="paper-text-layer"></div>
+          </div>
+        </div>
       </div>
     </dialog>
 

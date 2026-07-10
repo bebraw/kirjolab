@@ -25,6 +25,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Materialize every accepted collaborative update into readable Markdown and bibliography text.
 - Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
 - Combine PDF page/geometry identity with exact quote, prefix, and suffix selectors; never require mutation of the imported PDF.
+- Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
+- Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
 - Let language models create provenance-aware candidates; applying a candidate must remain a separate validated action.
 - Keep local-model network access in the browser or a future local companion so a hosted Worker never assumes it can reach localhost.

@@ -32,7 +32,6 @@ ADRs are grouped by lifecycle status:
 | [ADR-035](./accepted/ADR-035-keep-markdown-canonical.md)                   | Accepted | Keep portable Markdown canonical and derive semantic, preview, and index representations. |
 | [ADR-036](./accepted/ADR-036-model-scholarly-work-as-hypermedia.md)        | Accepted | Model writing and working-memory entities as stable, typed hypermedia resources.          |
 | [ADR-037](./accepted/ADR-037-synchronize-text-and-materialize-markdown.md) | Accepted | Synchronize collaborative text while materializing clean, recoverable Markdown.           |
-| [ADR-038](./accepted/ADR-038-store-pdf-annotations-separately.md)          | Accepted | Preserve PDFs and store annotations separately with geometric and textual selectors.      |
 | [ADR-039](./accepted/ADR-039-require-reviewable-model-operations.md)       | Accepted | Route local-capable model work through provenance-aware candidate review and apply.       |
 
 ## Implemented ADRs
@@ -72,7 +71,9 @@ ADRs are grouped by lifecycle status:
 | [ADR-031](./implemented/ADR-031-use-agent-ci-warm-cache-serialization.md)             | Implemented | Use Agent CI warm-cache serialization instead of a repo-local install lock.                    |
 | [ADR-032](./implemented/ADR-032-add-template-update-packs.md)                         | Implemented | Add plain-file update packs for syncing reusable template maintenance downstream.              |
 | [ADR-033](./implemented/ADR-033-add-advisory-fallow-diagnostics.md)                   | Implemented | Add advisory Fallow diagnostics for readability, health, duplication, and cleanup evidence.    |
+| [ADR-038](./implemented/ADR-038-store-pdf-annotations-separately.md)                  | Implemented | Preserve PDFs and store annotations separately with geometric and textual selectors.           |
 | [ADR-040](./implemented/ADR-040-use-durable-objects-and-r2-for-vertical-slice.md)     | Implemented | Use Yjs and per-document Durable Objects for collaboration, with R2 for immutable PDFs.        |
+| [ADR-041](./implemented/ADR-041-render-pdfs-with-pdfjs.md)                            | Implemented | Render one selectable PDF page with PDF.js and store normalized external highlight geometry.   |
 
 ## Creating A New ADR
 

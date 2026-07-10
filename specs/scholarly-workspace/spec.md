@@ -25,10 +25,14 @@ development and product learning. It is not an authenticated hosted product.
   `demo` document. Browser and server exchange Yjs updates through hibernatable
   WebSockets. Each update materializes Yjs state, Markdown, BibTeX, and a
   monotonically increasing revision together.
-- **Resource metadata:** The document Durable Object stores PDFs, annotations,
+- **Resource metadata:** The document Durable Object stores PDF artifact fingerprints, annotations,
   passage links, and model candidates alongside the document coordination atom.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable PDF bytes under a
-  workspace-scoped key. PDF responses stream from R2.
+  workspace-scoped key. PDF responses stream from R2 and the R2 ETag identifies
+  the exact stored artifact.
+- **Evidence capture:** PDF.js renders one selectable page. Text selection
+  creates exact quote/context selectors plus normalized page rectangles before
+  the annotation is saved.
 - **Local models:** The browser calls a user-configured OpenAI-compatible local
   endpoint. Kirjolab receives a typed candidate containing provider/model
   identity, source resource ids, source revision, and proposed Markdown.
@@ -75,7 +79,8 @@ development and product learning. It is not an authenticated hosted product.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
-- [x] A PDF can be imported, streamed back, and annotated without mutation.
+- [x] A PDF can be imported, rendered with selectable text, streamed back, and
+      annotated without mutation.
 - [x] An annotation can be linked to the exact selected manuscript range.
 - [x] A local model can return a grounded candidate with inspectable provenance.
 - [x] Candidate application is explicit and rejects stale revisions.
@@ -91,7 +96,7 @@ development and product learning. It is not an authenticated hosted product.
 - PDF uploads must require `application/pdf`, a known positive content length,
   and the 25 MB size limit.
 - Annotation creation must require a known PDF, positive page number, exact
-  quote, and textual context fields.
+  quote, textual context fields, and valid bounded geometry when present.
 - Passage links must match the current source at their supplied offsets.
 - Applying a model candidate must fail after the document revision changes.
 - Browser code must remain external to Worker-rendered HTML and pass both strict
@@ -120,7 +125,7 @@ development and product learning. It is not an authenticated hosted product.
 
 - Given: a PDF is imported
 - When: the researcher records a page, exact quote, surrounding context, and a
-  note, then selects manuscript text
+  note through an in-view text selection, then selects manuscript text
 - Then: Kirjolab stores an external annotation and a typed passage link without
   changing the PDF
 

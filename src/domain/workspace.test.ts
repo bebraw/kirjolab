@@ -3,9 +3,17 @@ import { isCreateAnnotationInput, isCreateCandidateInput, isCreatePassageLinkInp
 
 describe("workspace input guards", () => {
   it("accepts complete resource inputs", () => {
-    expect(isCreateAnnotationInput({ pdfId: "pdf", page: 1, quote: "evidence", prefix: "before", suffix: "after", comment: "note" })).toBe(
-      true,
-    );
+    expect(
+      isCreateAnnotationInput({
+        pdfId: "pdf",
+        page: 1,
+        quote: "evidence",
+        prefix: "before",
+        suffix: "after",
+        comment: "note",
+        rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+      }),
+    ).toBe(true);
     expect(isCreatePassageLinkInput({ annotationId: "a", start: 0, end: 4, excerpt: "text" })).toBe(true);
     expect(
       isCreateCandidateInput({ provider: "local", model: "qwen", sourceRevision: 0, sourceIds: ["a"], proposedSource: "## Revised" }),
@@ -27,14 +35,22 @@ describe("workspace input guards", () => {
 
   it("rejects malformed resource inputs", () => {
     expect(isCreateAnnotationInput(null)).toBe(false);
-    expect(isCreateAnnotationInput({ pdfId: "", page: 0, quote: "", prefix: 1, suffix: "", comment: "" })).toBe(false);
+    expect(isCreateAnnotationInput({ pdfId: "", page: 0, quote: "", prefix: 1, suffix: "", comment: "", rects: [] })).toBe(false);
     expect(isCreatePassageLinkInput({ annotationId: "a", start: -1, end: 0, excerpt: "" })).toBe(false);
     expect(isCreateCandidateInput({ provider: "", model: "", sourceRevision: -1, sourceIds: [1], proposedSource: "" })).toBe(false);
     expect(isWorkspaceSnapshot({ id: "demo" })).toBe(false);
   });
 
   it("enforces every annotation boundary", () => {
-    const valid = { pdfId: "pdf", page: 1, quote: "evidence", prefix: "before", suffix: "after", comment: "note" };
+    const valid = {
+      pdfId: "pdf",
+      page: 1,
+      quote: "evidence",
+      prefix: "before",
+      suffix: "after",
+      comment: "note",
+      rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+    };
     for (const change of [
       { pdfId: "" },
       { pdfId: "x".repeat(129) },
@@ -49,6 +65,15 @@ describe("workspace input guards", () => {
       { suffix: "x".repeat(2_001) },
       { comment: 1 },
       { comment: "x".repeat(4_001) },
+      { rects: null },
+      { rects: Array.from({ length: 65 }, () => ({ x: 0, y: 0, width: 0.1, height: 0.1 })) },
+      { rects: [{ x: -0.1, y: 0, width: 0.1, height: 0.1 }] },
+      { rects: [{ x: 0, y: -0.1, width: 0.1, height: 0.1 }] },
+      { rects: [{ x: 0, y: 0, width: 0, height: 0.1 }] },
+      { rects: [{ x: 0, y: 0, width: 0.1, height: 0 }] },
+      { rects: [{ x: 0.95, y: 0, width: 0.1, height: 0.1 }] },
+      { rects: [{ x: 0, y: 0.95, width: 0.1, height: 0.1 }] },
+      { rects: [{ x: Number.NaN, y: 0, width: 0.1, height: 0.1 }] },
     ]) {
       expect(isCreateAnnotationInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
     }

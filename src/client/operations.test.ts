@@ -17,7 +17,17 @@ describe("calculateTextSplice", () => {
 describe("local model operations", () => {
   it("builds a grounded prompt with annotation provenance", () => {
     const prompt = buildGroundedPrompt("Complete document", "Selected text", [
-      { id: "a", pdfId: "p", page: 4, quote: "Evidence", prefix: "Before", suffix: "After", comment: "Useful", createdAt: "now" },
+      {
+        id: "a",
+        pdfId: "p",
+        page: 4,
+        quote: "Evidence",
+        prefix: "Before",
+        suffix: "After",
+        comment: "Useful",
+        rects: [],
+        createdAt: "now",
+      },
     ]);
 
     expect(prompt).toContain("Selected text");
@@ -25,8 +35,8 @@ describe("local model operations", () => {
     expect(prompt).toContain("Complete document");
     expect(
       buildGroundedPrompt("Document", "Selection", [
-        { id: "a", pdfId: "p", page: 1, quote: "One", prefix: "A", suffix: "B", comment: "C", createdAt: "now" },
-        { id: "b", pdfId: "p", page: 2, quote: "Two", prefix: "D", suffix: "E", comment: "F", createdAt: "now" },
+        { id: "a", pdfId: "p", page: 1, quote: "One", prefix: "A", suffix: "B", comment: "C", rects: [], createdAt: "now" },
+        { id: "b", pdfId: "p", page: 2, quote: "Two", prefix: "D", suffix: "E", comment: "F", rects: [], createdAt: "now" },
       ]),
     ).toContain("Researcher note: C\n\n[Evidence 2, page 2]");
   });

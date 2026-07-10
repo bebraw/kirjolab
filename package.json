@@ -13,9 +13,10 @@
     }
   },
   "scripts": {
-    "build": "npm run build:css && npm run build:client",
+    "build": "npm run build:css && npm run build:client && npm run build:pdf-worker",
     "build:client": "mkdir -p ./.generated && esbuild src/client/app.ts --bundle --format=esm --target=es2022 --outfile=.generated/app.txt",
     "build:css": "mkdir -p ./.generated && tailwindcss -i ./src/tailwind-input.css -o ./.generated/styles.css --minify",
+    "build:pdf-worker": "mkdir -p ./.generated && esbuild node_modules/pdfjs-dist/build/pdf.worker.mjs --bundle --format=esm --target=es2022 --minify --outfile=.generated/pdf-worker.txt",
     "ci:local": "agent-ci run --quiet --pause-on-failure --workflow .github/workflows/ci.yml",
     "ci:local:retry": "agent-ci retry",
     "deploy": "wrangler deploy",
@@ -63,6 +64,7 @@
     "wrangler": "4.100.0"
   },
   "dependencies": {
+    "pdfjs-dist": "6.1.200",
     "yjs": "13.6.31"
   }
 }

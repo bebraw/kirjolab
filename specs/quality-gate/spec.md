@@ -106,7 +106,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - Local Playwright browser installation should go through a pinned repo script instead of ad hoc `npx playwright install ...` usage.
 - Targeted checks may be documented for iteration, but `npm run quality:gate` and `npm run ci:local` remain the readiness baseline for non-documentation changes.
 - Documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests.
-- Mutation testing must exclude colocated tests, end-to-end tests, declarations, and `src/test-support.ts` from mutation.
+- Mutation testing must exclude colocated tests, end-to-end tests, declarations, test support, and browser-runtime orchestration modules covered by Playwright from mutation.
 - Mutation testing must use the Vitest runner's per-test coverage analysis and related-test narrowing rather than an ad hoc minimization wrapper.
 - Mutation testing must set Stryker worker concurrency as a percentage of available parallelism instead of a fixed worker count.
 - GitHub Actions must run the full mutation gate instead of the incremental mutation gate.

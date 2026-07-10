@@ -309,6 +309,85 @@
     background: rgb(18 27 24 / 0.62);
   }
 
+  .pdf-reader {
+    overflow: auto;
+    background: #d8d4ca;
+    padding: clamp(1rem, 3vw, 2rem);
+  }
+
+  .pdf-page {
+    position: relative;
+    margin-inline: auto;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 1.2rem 3rem rgb(18 27 24 / 0.2);
+  }
+
+  .pdf-highlights,
+  .textLayer {
+    position: absolute;
+    inset: 0;
+  }
+
+  .pdf-highlights {
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .pdf-highlight {
+    position: absolute;
+    border: 0;
+    border-radius: 0.12rem;
+    background: rgb(229 188 60 / 0.34);
+    box-shadow: inset 0 -1px rgb(160 111 0 / 0.32);
+    pointer-events: none;
+  }
+
+  .pdf-highlight[data-focused="true"] {
+    background: rgb(11 107 81 / 0.28);
+    box-shadow: inset 0 0 0 1px rgb(11 107 81 / 0.7);
+  }
+
+  .textLayer {
+    --min-font-size: 1;
+    --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+    --min-font-size-inv: calc(1 / var(--min-font-size));
+    z-index: 2;
+    overflow: clip;
+    color: transparent;
+    line-height: 1;
+    text-align: initial;
+    text-size-adjust: none;
+    transform-origin: 0 0;
+  }
+
+  .textLayer :is(span, br) {
+    position: absolute;
+    color: transparent;
+    cursor: text;
+    white-space: pre;
+    transform-origin: 0% 0%;
+    user-select: text;
+  }
+
+  .textLayer > :not(.markedContent),
+  .textLayer .markedContent span:not(.markedContent) {
+    --font-height: 0;
+    --scale-x: 1;
+    --rotate: 0deg;
+    z-index: 1;
+    font-size: calc(var(--text-scale-factor) * var(--font-height));
+    transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+  }
+
+  .textLayer .markedContent {
+    display: contents;
+  }
+
+  .textLayer ::selection {
+    background: rgb(11 107 81 / 0.28);
+  }
+
   .toast {
     position: fixed;
     right: 1rem;

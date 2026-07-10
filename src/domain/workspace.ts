@@ -25,6 +25,7 @@ export interface PdfResource {
   contentType: "application/pdf";
   size: number;
   objectKey: string;
+  fingerprint: string;
   createdAt: string;
 }
 
@@ -36,7 +37,15 @@ export interface AnnotationResource {
   prefix: string;
   suffix: string;
   comment: string;
+  rects: PdfSelectionRect[];
   createdAt: string;
+}
+
+export interface PdfSelectionRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export interface PassageLink {
@@ -81,6 +90,7 @@ export interface CreateAnnotationInput {
   prefix: string;
   suffix: string;
   comment: string;
+  rects: PdfSelectionRect[];
 }
 
 export interface CreatePassageLinkInput {
@@ -109,7 +119,10 @@ export function isCreateAnnotationInput(value: unknown): value is CreateAnnotati
     isStringWithin(value.quote, 20_000, true) &&
     isStringWithin(value.prefix, 2_000) &&
     isStringWithin(value.suffix, 2_000) &&
-    isStringWithin(value.comment, 4_000)
+    isStringWithin(value.comment, 4_000) &&
+    Array.isArray(value.rects) &&
+    value.rects.length <= 64 &&
+    value.rects.every(isPdfSelectionRect)
   );
 }
 
@@ -169,4 +182,22 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isStringWithin(value: unknown, maximumLength: number, required = false): value is string {
   return typeof value === "string" && value.length <= maximumLength && (!required || value.trim().length > 0);
+}
+
+function isPdfSelectionRect(value: unknown): value is PdfSelectionRect {
+  if (!isRecord(value)) return false;
+  const coordinates = [value.x, value.y, value.width, value.height];
+  return (
+    coordinates.every((coordinate) => typeof coordinate === "number" && Number.isFinite(coordinate)) &&
+    typeof value.x === "number" &&
+    typeof value.y === "number" &&
+    typeof value.width === "number" &&
+    typeof value.height === "number" &&
+    value.x >= 0 &&
+    value.y >= 0 &&
+    value.width > 0 &&
+    value.height > 0 &&
+    value.x + value.width <= 1.000_001 &&
+    value.y + value.height <= 1.000_001
+  );
 }

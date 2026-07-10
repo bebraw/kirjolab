@@ -57,7 +57,7 @@ async function uploadPdf(
   const fixedLengthBody = new FixedLengthStream(size);
   const upload = env.PAPERS.put(objectKey, fixedLengthBody.readable, { httpMetadata: { contentType: "application/pdf" } });
   const pipeline = request.body.pipeTo(fixedLengthBody.writable);
-  await Promise.all([upload, pipeline]);
+  const [stored] = await Promise.all([upload, pipeline]);
 
   const pdf: PdfResource = {
     id,
@@ -65,6 +65,7 @@ async function uploadPdf(
     contentType: "application/pdf",
     size,
     objectKey,
+    fingerprint: `r2-etag:${stored.etag.replaceAll('"', "")}`,
     createdAt: new Date().toISOString(),
   };
   try {

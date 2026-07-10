@@ -64,6 +64,14 @@ describe("worker", () => {
     await expect(response.text()).resolves.toBe("export {};");
   });
 
+  it("serves the generated PDF worker", async () => {
+    const response = await handleRequest(new Request("http://example.com/pdf.worker.js"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/javascript");
+    await expect(response.text()).resolves.toBe("export {};");
+  });
+
   it("rejects workspace API requests without runtime bindings", async () => {
     const response = await handleRequest(new Request("http://example.com/api/workspaces/demo"));
 
