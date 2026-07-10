@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   isCreateAnnotationInput,
   isCreateCandidateInput,
+  isCreateClaimPassageLinkInput,
   isCreatePassageLinkInput,
   isCreateWorkspaceInput,
   isInviteWorkspaceMemberInput,
   isImportBibliographyInput,
+  isUpsertClaimInput,
   isWorkspaceSnapshot,
   isWorkspaceMembers,
   isWorkspaceSummaries,
@@ -25,6 +27,14 @@ describe("workspace input guards", () => {
       }),
     ).toBe(true);
     expect(isCreatePassageLinkInput({ annotationId: "a", start: 0, end: 4, excerpt: "text" })).toBe(true);
+    expect(
+      isUpsertClaimInput({
+        text: "Evidence supports inspection.",
+        note: "Working note",
+        evidence: [{ annotationId: "a", relation: "supports" }],
+      }),
+    ).toBe(true);
+    expect(isCreateClaimPassageLinkInput({ claimId: "claim", start: 0, end: 4, excerpt: "text" })).toBe(true);
     expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
     expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
     expect(isImportBibliographyInput({ bibtex: "@article{key, title={Title}}" })).toBe(true);
@@ -46,6 +56,9 @@ describe("workspace input guards", () => {
         publications: [],
         annotations: [],
         links: [],
+        claims: [],
+        claimEvidenceLinks: [],
+        claimLinks: [],
         candidates: [],
       }),
     ).toBe(true);
@@ -55,6 +68,8 @@ describe("workspace input guards", () => {
     expect(isCreateAnnotationInput(null)).toBe(false);
     expect(isCreateAnnotationInput({ pdfId: "", page: 0, quote: "", prefix: 1, suffix: "", comment: "", rects: [] })).toBe(false);
     expect(isCreatePassageLinkInput({ annotationId: "a", start: -1, end: 0, excerpt: "" })).toBe(false);
+    expect(isUpsertClaimInput({ text: "", note: "", evidence: [] })).toBe(false);
+    expect(isCreateClaimPassageLinkInput({ claimId: "", start: -1, end: 0, excerpt: "" })).toBe(false);
     expect(isCreateWorkspaceInput({ title: "" })).toBe(false);
     expect(isCreateWorkspaceInput({ title: "x".repeat(121) })).toBe(false);
     expect(isCreateWorkspaceInput(null)).toBe(false);
@@ -142,6 +157,49 @@ describe("workspace input guards", () => {
     }
   });
 
+  it("enforces every claim boundary", () => {
+    const valid = { text: "A proposition", note: "A note", evidence: [{ annotationId: "annotation", relation: "supports" }] };
+    for (const change of [
+      { text: "" },
+      { text: "x".repeat(2_001) },
+      { note: 1 },
+      { note: "x".repeat(8_001) },
+      { evidence: null },
+      { evidence: [] },
+      { evidence: Array.from({ length: 21 }, (_, index) => ({ annotationId: String(index), relation: "supports" })) },
+      { evidence: [{ annotationId: "", relation: "supports" }] },
+      { evidence: [{ annotationId: "x".repeat(129), relation: "supports" }] },
+      { evidence: [{ annotationId: "annotation", relation: "unknown" }] },
+      {
+        evidence: [
+          { annotationId: "annotation", relation: "supports" },
+          { annotationId: "annotation", relation: "extends" },
+        ],
+      },
+    ]) {
+      expect(isUpsertClaimInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
+    }
+    expect(isUpsertClaimInput(null)).toBe(false);
+  });
+
+  it("enforces every claim-passage boundary", () => {
+    const valid = { claimId: "claim", start: 0, end: 4, excerpt: "text" };
+    for (const change of [
+      { claimId: "" },
+      { claimId: "x".repeat(129) },
+      { start: -1 },
+      { start: 0.5 },
+      { start: "0" },
+      { end: 0 },
+      { end: 4.5 },
+      { end: "4" },
+      { excerpt: "" },
+      { excerpt: "x".repeat(50_001) },
+    ]) {
+      expect(isCreateClaimPassageLinkInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
+    }
+  });
+
   it("enforces every candidate boundary", () => {
     const valid = { provider: "local", model: "model", sourceRevision: 0, sourceIds: ["a"], proposedSource: "source" };
     for (const change of [
@@ -178,6 +236,9 @@ describe("workspace input guards", () => {
       publications: [],
       annotations: [],
       links: [],
+      claims: [],
+      claimEvidenceLinks: [],
+      claimLinks: [],
       candidates: [],
     };
     for (const change of [
@@ -190,6 +251,9 @@ describe("workspace input guards", () => {
       { publications: null },
       { annotations: null },
       { links: null },
+      { claims: null },
+      { claimEvidenceLinks: null },
+      { claimLinks: null },
       { candidates: null },
     ]) {
       expect(isWorkspaceSnapshot({ ...valid, ...change }), JSON.stringify(change)).toBe(false);

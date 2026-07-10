@@ -1,6 +1,6 @@
 # ADR-047: Model Evidence-Backed Claims
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-10
 

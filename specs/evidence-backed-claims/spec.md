@@ -59,8 +59,8 @@ must show where a claim enters authored prose.
 - [ ] Search returns claims by proposition, note, and connected annotation text.
 - [ ] Connections expose `supports`, `contradicts`, `extends`, and claim
       `used-in` edges as navigable resource actions.
-- [ ] Guards reject missing, duplicate, excessive, or malformed evidence.
-- [ ] Durable Object tests prove atomic replacement and cascade behavior.
+- [x] Guards reject missing, duplicate, excessive, or malformed evidence.
+- [x] Durable Object tests prove atomic replacement and cascade behavior.
 - [ ] Browser coverage proves the annotation-to-claim-to-prose workflow.
 
 ### Regression Guardrails

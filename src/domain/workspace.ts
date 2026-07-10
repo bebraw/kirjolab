@@ -19,6 +19,7 @@ export const defaultBibliography = `@article{merton1942,
 `;
 
 export type CandidateStatus = "pending" | "accepted" | "rejected";
+export type ClaimEvidenceRelation = "supports" | "contradicts" | "extends";
 
 export interface WorkspaceSummary {
   id: string;
@@ -90,6 +91,31 @@ export interface PassageLink {
   createdAt: string;
 }
 
+export interface ClaimResource {
+  id: string;
+  text: string;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClaimEvidenceLink {
+  id: string;
+  claimId: string;
+  annotationId: string;
+  relation: ClaimEvidenceRelation;
+  createdAt: string;
+}
+
+export interface ClaimPassageLink {
+  id: string;
+  claimId: string;
+  start: number;
+  end: number;
+  excerpt: string;
+  createdAt: string;
+}
+
 export interface ModelCandidate {
   id: string;
   provider: string;
@@ -112,6 +138,9 @@ export interface WorkspaceSnapshot {
   publications: PublicationResource[];
   annotations: AnnotationResource[];
   links: PassageLink[];
+  claims: ClaimResource[];
+  claimEvidenceLinks: ClaimEvidenceLink[];
+  claimLinks: ClaimPassageLink[];
   candidates: ModelCandidate[];
 }
 
@@ -151,6 +180,24 @@ export interface PublicationEnrichment {
 
 export interface CreatePassageLinkInput {
   annotationId: string;
+  start: number;
+  end: number;
+  excerpt: string;
+}
+
+export interface ClaimEvidenceInput {
+  annotationId: string;
+  relation: ClaimEvidenceRelation;
+}
+
+export interface UpsertClaimInput {
+  text: string;
+  note: string;
+  evidence: ClaimEvidenceInput[];
+}
+
+export interface CreateClaimPassageLinkInput {
+  claimId: string;
   start: number;
   end: number;
   excerpt: string;
@@ -234,6 +281,38 @@ export function isCreatePassageLinkInput(value: unknown): value is CreatePassage
   );
 }
 
+export function isUpsertClaimInput(value: unknown): value is UpsertClaimInput {
+  if (!isRecord(value) || !isStringWithin(value.text, 2_000, true) || !isStringWithin(value.note, 8_000)) return false;
+  if (!Array.isArray(value.evidence) || value.evidence.length === 0 || value.evidence.length > 20) return false;
+  const annotationIds = new Set<string>();
+  for (const evidence of value.evidence) {
+    if (
+      !isRecord(evidence) ||
+      !isStringWithin(evidence.annotationId, 128, true) ||
+      !isClaimEvidenceRelation(evidence.relation) ||
+      annotationIds.has(evidence.annotationId)
+    ) {
+      return false;
+    }
+    annotationIds.add(evidence.annotationId);
+  }
+  return true;
+}
+
+export function isCreateClaimPassageLinkInput(value: unknown): value is CreateClaimPassageLinkInput {
+  if (!isRecord(value)) return false;
+  return (
+    isStringWithin(value.claimId, 128, true) &&
+    Number.isInteger(value.start) &&
+    Number.isInteger(value.end) &&
+    typeof value.start === "number" &&
+    typeof value.end === "number" &&
+    value.start >= 0 &&
+    value.end > value.start &&
+    isStringWithin(value.excerpt, 50_000, true)
+  );
+}
+
 export function isCreateCandidateInput(value: unknown): value is CreateCandidateInput {
   if (!isRecord(value)) return false;
 
@@ -262,8 +341,15 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     Array.isArray(value.publications) &&
     Array.isArray(value.annotations) &&
     Array.isArray(value.links) &&
+    Array.isArray(value.claims) &&
+    Array.isArray(value.claimEvidenceLinks) &&
+    Array.isArray(value.claimLinks) &&
     Array.isArray(value.candidates)
   );
+}
+
+function isClaimEvidenceRelation(value: unknown): value is ClaimEvidenceRelation {
+  return value === "supports" || value === "contradicts" || value === "extends";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

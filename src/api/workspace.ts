@@ -1,10 +1,12 @@
 import {
   isCreateAnnotationInput,
   isCreateCandidateInput,
+  isCreateClaimPassageLinkInput,
   isCreatePassageLinkInput,
   isCreateWorkspaceInput,
   isImportBibliographyInput,
   isInviteWorkspaceMemberInput,
+  isUpsertClaimInput,
   localOwnerId,
   type PdfResource,
 } from "../domain/workspace";
@@ -56,6 +58,11 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await enrichPublication(workspaceId, suffix, env, room);
     }
     if (suffix === "/links" && request.method === "POST") return await createPassageLink(request, room);
+    if (suffix === "/claims" && request.method === "POST") return await createClaim(request, room);
+    if (suffix.startsWith("/claims/") && (request.method === "PUT" || request.method === "DELETE")) {
+      return await mutateClaim(request, suffix, room);
+    }
+    if (suffix === "/claim-links" && request.method === "POST") return await createClaimPassageLink(request, room);
     if (suffix === "/candidates" && request.method === "POST") return await createCandidate(request, room);
     if (suffix.startsWith("/candidates/") && request.method === "POST") return await updateCandidate(workspaceId, suffix, room);
     if (suffix === "/export/document.md" && request.method === "GET") {
@@ -197,6 +204,40 @@ async function createPassageLink(
   const body: unknown = await request.json();
   if (!isCreatePassageLinkInput(body)) return jsonError("Invalid passage link", 400);
   return Response.json(await room.createPassageLink(body), { status: 201 });
+}
+
+async function createClaim(
+  request: Request,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isUpsertClaimInput(body)) return jsonError("Invalid claim", 400);
+  return Response.json(await room.createClaim(body), { status: 201 });
+}
+
+async function mutateClaim(
+  request: Request,
+  suffix: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const match = /^\/claims\/([0-9a-f-]{36})$/iu.exec(suffix);
+  if (!match?.[1]) return jsonError("Claim route not found", 404);
+  if (request.method === "DELETE") {
+    await room.deleteClaim(match[1]);
+    return new Response(null, { status: 204 });
+  }
+  const body: unknown = await request.json();
+  if (!isUpsertClaimInput(body)) return jsonError("Invalid claim", 400);
+  return Response.json(await room.updateClaim(match[1], body));
+}
+
+async function createClaimPassageLink(
+  request: Request,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isCreateClaimPassageLinkInput(body)) return jsonError("Invalid claim passage link", 400);
+  return Response.json(await room.createClaimPassageLink(body), { status: 201 });
 }
 
 async function createCandidate(

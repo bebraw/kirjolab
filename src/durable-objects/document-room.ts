@@ -6,14 +6,21 @@ import {
   defaultSource,
   type ApplyCandidateResult,
   type AnnotationResource,
+  type ClaimEvidenceInput,
+  type ClaimEvidenceLink,
+  type ClaimEvidenceRelation,
+  type ClaimPassageLink,
+  type ClaimResource,
   type CreateAnnotationInput,
   type CreateCandidateInput,
+  type CreateClaimPassageLinkInput,
   type CreatePassageLinkInput,
   type ModelCandidate,
   type PassageLink,
   type PdfResource,
   type PublicationEnrichment,
   type PublicationResource,
+  type UpsertClaimInput,
   type WorkspaceSnapshot,
 } from "../domain/workspace";
 
@@ -83,6 +90,31 @@ interface PublicationRow extends Record<string, SqlStorageValue> {
   updated_at: string;
 }
 
+interface ClaimRow extends Record<string, SqlStorageValue> {
+  id: string;
+  text: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ClaimEvidenceRow extends Record<string, SqlStorageValue> {
+  id: string;
+  claim_id: string;
+  annotation_id: string;
+  relation: string;
+  created_at: string;
+}
+
+interface ClaimLinkRow extends Record<string, SqlStorageValue> {
+  id: string;
+  claim_id: string;
+  start_offset: number;
+  end_offset: number;
+  excerpt: string;
+  created_at: string;
+}
+
 export class DocumentRoom extends DurableObject<Env> {
   readonly #document = new Y.Doc();
 
@@ -141,6 +173,9 @@ export class DocumentRoom extends DurableObject<Env> {
       publications: this.#publications(),
       annotations: this.#annotations(),
       links: this.#links(),
+      claims: this.#claims(),
+      claimEvidenceLinks: this.#claimEvidenceLinks(),
+      claimLinks: this.#claimLinks(),
       candidates: this.#candidates(),
     };
   }
@@ -258,6 +293,72 @@ export class DocumentRoom extends DurableObject<Env> {
     return link;
   }
 
+  createClaim(input: UpsertClaimInput): ClaimResource {
+    this.#assertEvidenceAnnotations(input.evidence);
+    const now = new Date().toISOString();
+    const claim: ClaimResource = {
+      id: crypto.randomUUID(),
+      text: input.text.trim(),
+      note: input.note.trim(),
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO claims (id, text, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        claim.id,
+        claim.text,
+        claim.note,
+        claim.createdAt,
+        claim.updatedAt,
+      );
+      this.#insertClaimEvidence(claim.id, input.evidence, now);
+    });
+    return claim;
+  }
+
+  updateClaim(claimId: string, input: UpsertClaimInput): ClaimResource {
+    const existing = this.#claim(claimId);
+    this.#assertEvidenceAnnotations(input.evidence);
+    const updatedAt = new Date().toISOString();
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "UPDATE claims SET text = ?, note = ?, updated_at = ? WHERE id = ?",
+        input.text.trim(),
+        input.note.trim(),
+        updatedAt,
+        claimId,
+      );
+      this.ctx.storage.sql.exec("DELETE FROM claim_evidence_links WHERE claim_id = ?", claimId);
+      this.#insertClaimEvidence(claimId, input.evidence, updatedAt);
+    });
+    return { ...existing, text: input.text.trim(), note: input.note.trim(), updatedAt };
+  }
+
+  deleteClaim(claimId: string): void {
+    this.#claim(claimId);
+    this.ctx.storage.sql.exec("DELETE FROM claims WHERE id = ?", claimId);
+  }
+
+  createClaimPassageLink(input: CreateClaimPassageLinkInput): ClaimPassageLink {
+    const workspace = this.#workspaceRow();
+    this.#claim(input.claimId);
+    if (input.end > workspace.source.length || workspace.source.slice(input.start, input.end) !== input.excerpt) {
+      throw new Error("Document selection is stale");
+    }
+    const link: ClaimPassageLink = { id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() };
+    this.ctx.storage.sql.exec(
+      "INSERT INTO claim_passage_links (id, claim_id, start_offset, end_offset, excerpt, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      link.id,
+      link.claimId,
+      link.start,
+      link.end,
+      link.excerpt,
+      link.createdAt,
+    );
+    return link;
+  }
+
   createCandidate(input: CreateCandidateInput): ModelCandidate {
     const candidate: ModelCandidate = {
       id: crypto.randomUUID(),
@@ -316,6 +417,7 @@ export class DocumentRoom extends DurableObject<Env> {
 
   #migrate(): void {
     this.ctx.storage.sql.exec(`
+      PRAGMA foreign_keys = ON;
       CREATE TABLE IF NOT EXISTS workspace (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         title TEXT NOT NULL,
@@ -377,7 +479,32 @@ export class DocumentRoom extends DurableObject<Env> {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS claims (
+        id TEXT PRIMARY KEY,
+        text TEXT NOT NULL,
+        note TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS claim_evidence_links (
+        id TEXT PRIMARY KEY,
+        claim_id TEXT NOT NULL REFERENCES claims(id) ON DELETE CASCADE,
+        annotation_id TEXT NOT NULL REFERENCES annotations(id),
+        relation TEXT NOT NULL CHECK (relation IN ('supports', 'contradicts', 'extends')),
+        created_at TEXT NOT NULL,
+        UNIQUE (claim_id, annotation_id)
+      );
+      CREATE TABLE IF NOT EXISTS claim_passage_links (
+        id TEXT PRIMARY KEY,
+        claim_id TEXT NOT NULL REFERENCES claims(id) ON DELETE CASCADE,
+        start_offset INTEGER NOT NULL,
+        end_offset INTEGER NOT NULL,
+        excerpt TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
       CREATE INDEX IF NOT EXISTS publications_doi ON publications(doi) WHERE doi <> '';
+      CREATE INDEX IF NOT EXISTS claim_evidence_annotation ON claim_evidence_links(annotation_id);
+      CREATE INDEX IF NOT EXISTS claim_passage_claim ON claim_passage_links(claim_id);
     `);
     const pdfColumns = this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(pdfs)").toArray();
     if (!pdfColumns.some((column) => column.name === "fingerprint")) {
@@ -541,6 +668,65 @@ export class DocumentRoom extends DurableObject<Env> {
       }));
   }
 
+  #claims(): ClaimResource[] {
+    return this.ctx.storage.sql.exec<ClaimRow>("SELECT * FROM claims ORDER BY updated_at DESC LIMIT 500").toArray().map(claimFromRow);
+  }
+
+  #claimEvidenceLinks(): ClaimEvidenceLink[] {
+    return this.ctx.storage.sql
+      .exec<ClaimEvidenceRow>("SELECT * FROM claim_evidence_links ORDER BY created_at DESC")
+      .toArray()
+      .map((row) => ({
+        id: row.id,
+        claimId: row.claim_id,
+        annotationId: row.annotation_id,
+        relation: claimEvidenceRelation(row.relation),
+        createdAt: row.created_at,
+      }));
+  }
+
+  #claimLinks(): ClaimPassageLink[] {
+    return this.ctx.storage.sql
+      .exec<ClaimLinkRow>("SELECT * FROM claim_passage_links ORDER BY created_at DESC")
+      .toArray()
+      .map((row) => ({
+        id: row.id,
+        claimId: row.claim_id,
+        start: row.start_offset,
+        end: row.end_offset,
+        excerpt: row.excerpt,
+        createdAt: row.created_at,
+      }));
+  }
+
+  #claim(claimId: string): ClaimResource {
+    const row = this.ctx.storage.sql.exec<ClaimRow>("SELECT * FROM claims WHERE id = ?", claimId).toArray()[0];
+    if (!row) throw new Error("Claim not found");
+    return claimFromRow(row);
+  }
+
+  #assertEvidenceAnnotations(evidence: ClaimEvidenceInput[]): void {
+    for (const item of evidence) {
+      const annotation = this.ctx.storage.sql
+        .exec<{ count: number }>("SELECT COUNT(*) AS count FROM annotations WHERE id = ?", item.annotationId)
+        .one();
+      if (annotation.count === 0) throw new Error("Annotation not found");
+    }
+  }
+
+  #insertClaimEvidence(claimId: string, evidence: ClaimEvidenceInput[], createdAt: string): void {
+    for (const item of evidence) {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO claim_evidence_links (id, claim_id, annotation_id, relation, created_at) VALUES (?, ?, ?, ?, ?)",
+        crypto.randomUUID(),
+        claimId,
+        item.annotationId,
+        item.relation,
+        createdAt,
+      );
+    }
+  }
+
   #candidates(): ModelCandidate[] {
     return this.ctx.storage.sql
       .exec<CandidateRow>("SELECT * FROM candidates ORDER BY created_at DESC LIMIT 20")
@@ -578,6 +764,15 @@ function candidateFromRow(row: CandidateRow): ModelCandidate {
     status: row.status === "accepted" || row.status === "rejected" ? row.status : "pending",
     createdAt: row.created_at,
   };
+}
+
+function claimFromRow(row: ClaimRow): ClaimResource {
+  return { id: row.id, text: row.text, note: row.note, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+
+function claimEvidenceRelation(value: string): ClaimEvidenceRelation {
+  if (value === "contradicts" || value === "extends") return value;
+  return "supports";
 }
 
 function publicationValues(entry: BibTeXEntry): Omit<PublicationEnrichment, "doi"> & { doi: string } {

@@ -151,6 +151,99 @@ test("imports BibTeX into stable publication resources", async ({ page }) => {
   expect(updated?.id).toBe(imported?.id);
 });
 
+test("persists and atomically replaces evidence-backed claims", async ({ page }) => {
+  await page.goto("/");
+  const origin = "http://127.0.0.1:8788";
+  const workspaceResponse = await page.request.post("/api/workspaces", {
+    headers: { origin },
+    data: { title: "Claim boundary" },
+  });
+  const workspace: unknown = await workspaceResponse.json();
+  if (!isRecord(workspace) || typeof workspace.id !== "string") throw new Error("Expected a created workspace");
+  const api = `/api/workspaces/${workspace.id}`;
+
+  const pdfResponse = await page.request.post(`${api}/pdfs`, {
+    headers: { origin, "content-type": "application/pdf", "x-file-name": "claim-evidence.pdf" },
+    data: createEvidencePdf(),
+  });
+  const pdf: unknown = await pdfResponse.json();
+  if (!isRecord(pdf) || typeof pdf.id !== "string") throw new Error("Expected an imported PDF");
+
+  const annotationResponse = await page.request.post(`${api}/annotations`, {
+    headers: { origin },
+    data: {
+      pdfId: pdf.id,
+      page: 1,
+      quote: "Knowledge grows through inspectable evidence.",
+      prefix: "",
+      suffix: "",
+      comment: "Claim source",
+      rects: [],
+    },
+  });
+  const annotation: unknown = await annotationResponse.json();
+  if (!isRecord(annotation) || typeof annotation.id !== "string") throw new Error("Expected an annotation");
+
+  const claimResponse = await page.request.post(`${api}/claims`, {
+    headers: { origin },
+    data: {
+      text: "Inspectable evidence strengthens scholarly claims.",
+      note: "Initial synthesis",
+      evidence: [{ annotationId: annotation.id, relation: "supports" }],
+    },
+  });
+  expect(claimResponse.status()).toBe(201);
+  const claim: unknown = await claimResponse.json();
+  if (!isRecord(claim) || typeof claim.id !== "string") throw new Error("Expected a claim");
+
+  const updateResponse = await page.request.put(`${api}/claims/${claim.id}`, {
+    headers: { origin },
+    data: {
+      text: "Inspectable evidence keeps scholarly claims accountable.",
+      note: "Revised synthesis",
+      evidence: [{ annotationId: annotation.id, relation: "extends" }],
+    },
+  });
+  expect(updateResponse.ok()).toBe(true);
+
+  const snapshotResponse = await page.request.get(api);
+  const snapshot: unknown = await snapshotResponse.json();
+  if (!isWorkspaceSnapshot(snapshot)) throw new Error("Expected a claim snapshot");
+  const excerpt = "The preview resolves a link back to";
+  const start = snapshot.source.indexOf(excerpt);
+  const linkResponse = await page.request.post(`${api}/claim-links`, {
+    headers: { origin },
+    data: { claimId: claim.id, start, end: start + excerpt.length, excerpt },
+  });
+  expect(linkResponse.status()).toBe(201);
+
+  const rejectedUpdate = await page.request.put(`${api}/claims/${claim.id}`, {
+    headers: { origin },
+    data: {
+      text: "This update must roll back.",
+      note: "",
+      evidence: [{ annotationId: crypto.randomUUID(), relation: "supports" }],
+    },
+  });
+  expect(rejectedUpdate.status()).toBe(400);
+  const afterRejected: unknown = await (await page.request.get(api)).json();
+  if (!isWorkspaceSnapshot(afterRejected)) throw new Error("Expected an unchanged claim snapshot");
+  expect(afterRejected.claims).toMatchObject([
+    { id: claim.id, text: "Inspectable evidence keeps scholarly claims accountable.", note: "Revised synthesis" },
+  ]);
+  expect(afterRejected.claimEvidenceLinks).toMatchObject([{ claimId: claim.id, annotationId: annotation.id, relation: "extends" }]);
+  expect(afterRejected.claimLinks).toMatchObject([{ claimId: claim.id, excerpt }]);
+
+  const deleteResponse = await page.request.delete(`${api}/claims/${claim.id}`, { headers: { origin } });
+  expect(deleteResponse.status()).toBe(204);
+  const afterDelete: unknown = await (await page.request.get(api)).json();
+  if (!isWorkspaceSnapshot(afterDelete)) throw new Error("Expected a post-delete snapshot");
+  expect(afterDelete.annotations).toHaveLength(1);
+  expect(afterDelete.claims).toEqual([]);
+  expect(afterDelete.claimEvidenceLinks).toEqual([]);
+  expect(afterDelete.claimLinks).toEqual([]);
+});
+
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {
   await page.route("http://model.local/v1/chat/completions", async (route) => {
     if (route.request().method() === "OPTIONS") {
