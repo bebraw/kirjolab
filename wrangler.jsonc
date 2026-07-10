@@ -8,6 +8,7 @@
     "AUTH_MODE": "local",
     "ACCESS_TEAM_DOMAIN": "",
     "ACCESS_AUD": "",
+    "CROSSREF_MAILTO": "",
   },
   "build": {
     "command": "npm run build",

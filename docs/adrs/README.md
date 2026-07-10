@@ -76,6 +76,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-041](./implemented/ADR-041-render-pdfs-with-pdfjs.md)                            | Implemented | Render one selectable PDF page with PDF.js and store normalized external highlight geometry.   |
 | [ADR-042](./implemented/ADR-042-use-per-owner-workspace-catalogs.md)                  | Implemented | Discover isolated document rooms through a separate SQLite catalog per owner identity.         |
 | [ADR-043](./implemented/ADR-043-use-cloudflare-access-and-memberships.md)             | Implemented | Verify Cloudflare Access JWTs and authorize document access through owner/member roles.        |
+| [ADR-044](./implemented/ADR-044-model-publications-separately-from-bibtex.md)         | Implemented | Keep BibTeX canonical while materializing stable publications and explicit DOI enrichment.     |
 
 ## Creating A New ADR
 

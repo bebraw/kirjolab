@@ -9,6 +9,7 @@ import {
   type PassageLink,
   type PdfResource,
   type PdfSelectionRect,
+  type PublicationResource,
   type WorkspaceSnapshot,
   type WorkspaceMember,
   type WorkspaceSummary,
@@ -46,6 +47,9 @@ interface Elements {
   revisionBadge: HTMLElement;
   pdfUpload: HTMLInputElement;
   pdfList: HTMLElement;
+  bibliographyUpload: HTMLInputElement;
+  publicationCount: HTMLElement;
+  publicationList: HTMLElement;
   annotationCount: HTMLElement;
   annotationList: HTMLElement;
   annotationForm: HTMLFormElement;
@@ -133,6 +137,7 @@ class WorkspaceApp {
       if (origin !== remoteOrigin && this.#socket?.readyState === WebSocket.OPEN) this.#socket.send(toArrayBuffer(update));
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
+    this.#elements.bibliographyUpload.addEventListener("change", () => void this.#importBibliography());
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
     this.#elements.openPaper.addEventListener("click", () => void this.#showPaper());
     this.#elements.closePaper.addEventListener("click", () => this.#elements.paperDialog.close());
@@ -275,6 +280,7 @@ class WorkspaceApp {
   #renderResources(): void {
     if (!this.#snapshot) return;
     this.#renderPdfs(this.#snapshot.pdfs);
+    this.#renderPublications(this.#snapshot.publications);
     this.#renderAnnotations(this.#snapshot.annotations, this.#snapshot.links);
     this.#renderCandidates(this.#snapshot.candidates);
     this.#pdfViewer.updateAnnotations(this.#snapshot.annotations);
@@ -303,6 +309,34 @@ class WorkspaceApp {
       this.#elements.annotationPdf.append(new Option(pdf.name, pdf.id));
     }
     this.#elements.openPaper.disabled = false;
+  }
+
+  #renderPublications(publications: PublicationResource[]): void {
+    this.#elements.publicationCount.textContent = String(publications.length);
+    this.#elements.publicationList.replaceChildren();
+    if (publications.length === 0) {
+      this.#elements.publicationList.append(emptyState("Imported references appear here as stable publication resources."));
+      return;
+    }
+    for (const publication of publications) {
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      card.append(resourceLabel(`${publication.type} · ${publication.metadataSource}`), resourceTitle(publication.title));
+      const details = document.createElement("p");
+      details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
+      details.textContent = [publication.authors.join("; "), publication.year, publication.venue].filter(Boolean).join(" · ");
+      card.append(details);
+      if (publication.doi) {
+        const actions = document.createElement("div");
+        actions.className = "mt-3 flex flex-wrap items-center gap-2";
+        actions.append(
+          resourceLabel(`doi:${publication.doi}`),
+          actionButton("Enrich", "button-secondary", () => void this.#enrichPublication(publication.id)),
+        );
+        card.append(actions);
+      }
+      this.#elements.publicationList.append(card);
+    }
   }
 
   #renderAnnotations(annotations: AnnotationResource[], links: PassageLink[]): void {
@@ -406,6 +440,28 @@ class WorkspaceApp {
     this.#elements.pdfUpload.value = "";
     await this.#refreshSnapshot();
     this.#showToast("PDF imported without modifying the source file.");
+  }
+
+  async #importBibliography(): Promise<void> {
+    const file = this.#elements.bibliographyUpload.files?.[0];
+    if (!file) return;
+    this.#showToast(`Importing ${file.name}…`);
+    const response = await jsonFetch(`${apiBase}/bibliography/import`, { bibtex: await file.text() });
+    await expectOk(response);
+    this.#elements.bibliographyUpload.value = "";
+    await this.#refreshSnapshot();
+    this.#showToast("References merged by citation key.");
+  }
+
+  async #enrichPublication(publicationId: string): Promise<void> {
+    this.#showToast("Looking up DOI metadata from Crossref…");
+    const response = await fetch(`${apiBase}/publications/${publicationId}/enrich`, {
+      method: "POST",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    await this.#refreshSnapshot();
+    this.#showToast("Reference enriched from Crossref.");
   }
 
   async #createAnnotation(event: SubmitEvent): Promise<void> {
@@ -608,6 +664,9 @@ function collectElements(): Elements {
     revisionBadge: requiredElement("revision-badge", HTMLElement),
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
     pdfList: requiredElement("pdf-list", HTMLElement),
+    bibliographyUpload: requiredElement("bibliography-upload", HTMLInputElement),
+    publicationCount: requiredElement("publication-count", HTMLElement),
+    publicationList: requiredElement("publication-list", HTMLElement),
     annotationCount: requiredElement("annotation-count", HTMLElement),
     annotationList: requiredElement("annotation-list", HTMLElement),
     annotationForm: requiredElement("annotation-form", HTMLFormElement),

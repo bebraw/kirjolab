@@ -5,6 +5,7 @@ import {
   isCreatePassageLinkInput,
   isCreateWorkspaceInput,
   isInviteWorkspaceMemberInput,
+  isImportBibliographyInput,
   isWorkspaceSnapshot,
   isWorkspaceMembers,
   isWorkspaceSummaries,
@@ -26,6 +27,7 @@ describe("workspace input guards", () => {
     expect(isCreatePassageLinkInput({ annotationId: "a", start: 0, end: 4, excerpt: "text" })).toBe(true);
     expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
     expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
+    expect(isImportBibliographyInput({ bibtex: "@article{key, title={Title}}" })).toBe(true);
     expect(isWorkspaceMembers([{ email: "owner@example.org", role: "owner", addedAt: "now" }])).toBe(true);
     expect(
       isWorkspaceSummaries([{ id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now" }]),
@@ -41,6 +43,7 @@ describe("workspace input guards", () => {
         bibliography: "",
         revision: 0,
         pdfs: [],
+        publications: [],
         annotations: [],
         links: [],
         candidates: [],
@@ -57,6 +60,9 @@ describe("workspace input guards", () => {
     expect(isCreateWorkspaceInput(null)).toBe(false);
     expect(isInviteWorkspaceMemberInput({ email: "invalid" })).toBe(false);
     expect(isInviteWorkspaceMemberInput(null)).toBe(false);
+    expect(isImportBibliographyInput({ bibtex: "" })).toBe(false);
+    expect(isImportBibliographyInput({ bibtex: "x".repeat(2_000_001) })).toBe(false);
+    expect(isImportBibliographyInput(null)).toBe(false);
     expect(isWorkspaceMembers(null)).toBe(false);
     for (const member of [
       { email: "", role: "owner", addedAt: "now" },
@@ -169,6 +175,7 @@ describe("workspace input guards", () => {
       bibliography: "",
       revision: 0,
       pdfs: [],
+      publications: [],
       annotations: [],
       links: [],
       candidates: [],
@@ -180,6 +187,7 @@ describe("workspace input guards", () => {
       { bibliography: null },
       { revision: "0" },
       { pdfs: null },
+      { publications: null },
       { annotations: null },
       { links: null },
       { candidates: null },

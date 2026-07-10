@@ -91,6 +91,56 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await expect(page.locator("#source-editor")).not.toHaveValue(isolatedSource);
 });
 
+test("imports BibTeX into stable publication resources", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#bibliography-upload").setInputFiles({
+    name: "references.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from(`@article{inspectable2026,
+  author = {Doe, Jane and Researcher, Alex},
+  title = {Inspectable Reference Workflows},
+  year = {2026},
+  journal = {Journal of Open Evidence},
+  doi = {https://doi.org/10.5555/inspectable.2026}
+}`),
+  });
+
+  await expect(page.locator("#publication-list")).toContainText("Inspectable Reference Workflows");
+  await expect(page.locator("#publication-list")).toContainText("10.5555/inspectable.2026");
+  await expect(page.locator("#publication-count")).not.toHaveText("0");
+  await expect(page.locator("#bibliography-editor")).toHaveValue(/@article\{inspectable2026,/u);
+
+  const response = await page.request.get("/api/workspaces/demo");
+  const value: unknown = await response.json();
+  expect(response.ok()).toBe(true);
+  const imported = isWorkspaceSnapshot(value)
+    ? value.publications.find((publication) => publication.citationKey === "inspectable2026")
+    : undefined;
+  expect(imported).toMatchObject({
+    title: "Inspectable Reference Workflows",
+    doi: "10.5555/inspectable.2026",
+    metadataSource: "bibtex",
+  });
+
+  await page.locator("#bibliography-upload").setInputFiles({
+    name: "updated-references.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from(`@article{Inspectable2026,
+  author = {Doe, Jane},
+  title = {Updated Reference Workflows},
+  year = {2027},
+  doi = {10.5555/inspectable.2026}
+}`),
+  });
+  await expect(page.locator("#publication-list")).toContainText("Updated Reference Workflows");
+  const updatedResponse = await page.request.get("/api/workspaces/demo");
+  const updatedValue: unknown = await updatedResponse.json();
+  const updated = isWorkspaceSnapshot(updatedValue)
+    ? updatedValue.publications.find((publication) => publication.citationKey === "Inspectable2026")
+    : undefined;
+  expect(updated?.id).toBe(imported?.id);
+});
+
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {
   await page.route("http://model.local/v1/chat/completions", async (route) => {
     if (route.request().method() === "OPTIONS") {

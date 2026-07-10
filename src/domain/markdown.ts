@@ -117,16 +117,12 @@ export function renderWorkspaceMarkdown(source: string, bibliographySource: stri
 
 export function parseBibliography(source: string): Map<string, BibliographyEntry> {
   const entries = new Map<string, BibliographyEntry>();
-  const entryPattern = /@[a-z]+\s*\{\s*([^,\s]+)\s*,([\s\S]*?)(?=\n\s*\}\s*(?:\n|$))/giu;
-  for (const match of source.matchAll(entryPattern)) {
-    const id = match[1];
-    if (!id) continue;
-    const body = match[2] ?? "";
-    entries.set(id, {
-      id,
-      author: readBibField(body, "author"),
-      title: readBibField(body, "title"),
-      year: readBibField(body, "year"),
+  for (const entry of parseBibTeX(source)) {
+    entries.set(entry.citationKey, {
+      id: entry.citationKey,
+      author: entry.fields.author ?? "",
+      title: entry.fields.title ?? "",
+      year: entry.fields.year ?? "",
     });
   }
   return entries;
@@ -262,11 +258,6 @@ function formatCitation(entry: BibliographyEntry, mode: string): string {
   return `${author}, ${entry.year || "n.d."}`;
 }
 
-function readBibField(body: string, field: string): string {
-  const match = new RegExp(`${field}\\s*=\\s*(?:\\{([^}]*)\\}|\"([^\"]*)\")`, "iu").exec(body);
-  return (match?.[1] ?? match?.[2])?.trim() ?? "";
-}
-
 function parseAttributes(source: string): Map<string, string> {
   const attributes = new Map<string, string>();
   for (const match of source.matchAll(attributePattern)) {
@@ -282,3 +273,4 @@ function escapeHtml(value: string): string {
 }
 
 // Stryker restore Regex
+import { parseBibTeX } from "./bibliography";

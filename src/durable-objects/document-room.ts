@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
+import { mergeBibTeX, normalizeDoi, parseBibTeX, serializeBibTeX, type BibTeXEntry } from "../domain/bibliography";
 import {
   defaultBibliography,
   defaultSource,
@@ -11,6 +12,8 @@ import {
   type ModelCandidate,
   type PassageLink,
   type PdfResource,
+  type PublicationEnrichment,
+  type PublicationResource,
   type WorkspaceSnapshot,
 } from "../domain/workspace";
 
@@ -62,6 +65,22 @@ interface CandidateRow extends Record<string, SqlStorageValue> {
   proposed_source: string;
   status: string;
   created_at: string;
+}
+
+interface PublicationRow extends Record<string, SqlStorageValue> {
+  id: string;
+  citation_key: string;
+  entry_type: string;
+  title: string;
+  authors_json: string;
+  publication_year: string;
+  venue: string;
+  doi: string;
+  url: string;
+  abstract: string;
+  metadata_source: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export class DocumentRoom extends DurableObject<Env> {
@@ -119,6 +138,7 @@ export class DocumentRoom extends DurableObject<Env> {
       bibliography: workspace.bibliography,
       revision: workspace.revision,
       pdfs: this.#pdfs(),
+      publications: this.#publications(),
       annotations: this.#annotations(),
       links: this.#links(),
       candidates: this.#candidates(),
@@ -143,6 +163,56 @@ export class DocumentRoom extends DurableObject<Env> {
       pdf.createdAt,
     );
     return pdf;
+  }
+
+  importBibliography(workspaceId: string, bibtex: string): WorkspaceSnapshot {
+    const imported = parseBibTeX(bibtex);
+    if (imported.length === 0) throw new Error("No valid BibTeX entries found");
+    const merged = mergeBibTeX(this.#workspaceRow().bibliography, bibtex);
+    for (const entry of imported) this.#upsertPublication(entry);
+    this.#replaceBibliography(merged.source, "bibliography-import");
+    return this.getSnapshot(workspaceId);
+  }
+
+  getPublication(publicationId: string): PublicationResource {
+    const row = this.ctx.storage.sql.exec<PublicationRow>("SELECT * FROM publications WHERE id = ?", publicationId).toArray()[0];
+    if (!row) throw new Error("Publication not found");
+    return publicationFromRow(row);
+  }
+
+  enrichPublication(workspaceId: string, publicationId: string, metadata: PublicationEnrichment): WorkspaceSnapshot {
+    const publication = this.getPublication(publicationId);
+    if (!publication.doi) throw new Error("Publication has no DOI");
+    const updatedAt = new Date().toISOString();
+    this.ctx.storage.sql.exec(
+      `UPDATE publications SET title = ?, authors_json = ?, publication_year = ?, venue = ?, doi = ?, url = ?, abstract = ?,
+       metadata_source = 'crossref', updated_at = ? WHERE id = ?`,
+      metadata.title,
+      JSON.stringify(metadata.authors),
+      metadata.year,
+      metadata.venue,
+      normalizeDoi(metadata.doi),
+      metadata.url,
+      metadata.abstract,
+      updatedAt,
+      publicationId,
+    );
+    const entries = parseBibTeX(this.#workspaceRow().bibliography);
+    const entry = entries.find((candidate) => candidate.citationKey === publication.citationKey);
+    if (entry) {
+      entry.fields = {
+        ...entry.fields,
+        title: metadata.title,
+        author: metadata.authors.join(" and "),
+        year: metadata.year,
+        journal: metadata.venue,
+        doi: normalizeDoi(metadata.doi),
+        url: metadata.url,
+        ...(metadata.abstract ? { abstract: metadata.abstract } : {}),
+      };
+      this.#replaceBibliography(serializeBibTeX(entries), "crossref-enrichment");
+    }
+    return this.getSnapshot(workspaceId);
   }
 
   createAnnotation(input: CreateAnnotationInput): AnnotationResource {
@@ -292,6 +362,22 @@ export class DocumentRoom extends DurableObject<Env> {
         status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')),
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS publications (
+        id TEXT PRIMARY KEY,
+        citation_key TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        entry_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        authors_json TEXT NOT NULL,
+        publication_year TEXT NOT NULL,
+        venue TEXT NOT NULL,
+        doi TEXT NOT NULL,
+        url TEXT NOT NULL,
+        abstract TEXT NOT NULL,
+        metadata_source TEXT NOT NULL CHECK (metadata_source IN ('bibtex', 'crossref')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS publications_doi ON publications(doi) WHERE doi <> '';
     `);
     const pdfColumns = this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(pdfs)").toArray();
     if (!pdfColumns.some((column) => column.name === "fingerprint")) {
@@ -337,6 +423,67 @@ export class DocumentRoom extends DurableObject<Env> {
     return revision;
   }
 
+  #replaceBibliography(sourceValue: string, origin: string): void {
+    const bibliography = this.#document.getText("bibliography");
+    this.#document.transact(() => {
+      bibliography.delete(0, bibliography.length);
+      bibliography.insert(0, sourceValue);
+    }, origin);
+    const revision = this.#persistDocument();
+    this.#broadcast(Y.encodeStateAsUpdate(this.#document));
+    this.#broadcast(JSON.stringify({ type: "revision", revision }));
+  }
+
+  #upsertPublication(entry: BibTeXEntry): PublicationResource {
+    const doi = normalizeDoi(entry.fields.doi ?? "");
+    const byCitation = this.ctx.storage.sql
+      .exec<PublicationRow>("SELECT * FROM publications WHERE citation_key = ? COLLATE NOCASE", entry.citationKey)
+      .toArray()[0];
+    const byDoi = doi
+      ? this.ctx.storage.sql.exec<PublicationRow>("SELECT * FROM publications WHERE doi = ? LIMIT 1", doi).toArray()[0]
+      : undefined;
+    const existing = byCitation ?? byDoi;
+    const now = new Date().toISOString();
+    const values = publicationValues(entry);
+    if (existing) {
+      this.ctx.storage.sql.exec(
+        `UPDATE publications SET citation_key = ?, entry_type = ?, title = ?, authors_json = ?, publication_year = ?, venue = ?,
+         doi = ?, url = ?, abstract = ?, metadata_source = 'bibtex', updated_at = ? WHERE id = ?`,
+        entry.citationKey,
+        entry.type,
+        values.title,
+        JSON.stringify(values.authors),
+        values.year,
+        values.venue,
+        values.doi,
+        values.url,
+        values.abstract,
+        now,
+        existing.id,
+      );
+      return this.getPublication(existing.id);
+    }
+    const id = crypto.randomUUID();
+    this.ctx.storage.sql.exec(
+      `INSERT INTO publications
+       (id, citation_key, entry_type, title, authors_json, publication_year, venue, doi, url, abstract, metadata_source, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bibtex', ?, ?)`,
+      id,
+      entry.citationKey,
+      entry.type,
+      values.title,
+      JSON.stringify(values.authors),
+      values.year,
+      values.venue,
+      values.doi,
+      values.url,
+      values.abstract,
+      now,
+      now,
+    );
+    return this.getPublication(id);
+  }
+
   #workspaceRow(): WorkspaceRow {
     return this.ctx.storage.sql.exec<WorkspaceRow>("SELECT * FROM workspace WHERE id = 1").one();
   }
@@ -354,6 +501,13 @@ export class DocumentRoom extends DurableObject<Env> {
         fingerprint: row.fingerprint,
         createdAt: row.created_at,
       }));
+  }
+
+  #publications(): PublicationResource[] {
+    return this.ctx.storage.sql
+      .exec<PublicationRow>("SELECT * FROM publications ORDER BY updated_at DESC, citation_key ASC LIMIT 500")
+      .toArray()
+      .map(publicationFromRow);
   }
 
   #annotations(): AnnotationResource[] {
@@ -423,6 +577,39 @@ function candidateFromRow(row: CandidateRow): ModelCandidate {
     proposedSource: row.proposed_source,
     status: row.status === "accepted" || row.status === "rejected" ? row.status : "pending",
     createdAt: row.created_at,
+  };
+}
+
+function publicationValues(entry: BibTeXEntry): Omit<PublicationEnrichment, "doi"> & { doi: string } {
+  return {
+    title: entry.fields.title ?? "Untitled publication",
+    authors: (entry.fields.author ?? "")
+      .split(/\s+and\s+/iu)
+      .map((author) => author.trim())
+      .filter(Boolean),
+    year: entry.fields.year ?? "",
+    venue: entry.fields.journal ?? entry.fields.booktitle ?? entry.fields.publisher ?? "",
+    doi: normalizeDoi(entry.fields.doi ?? ""),
+    url: entry.fields.url ?? "",
+    abstract: entry.fields.abstract ?? "",
+  };
+}
+
+function publicationFromRow(row: PublicationRow): PublicationResource {
+  return {
+    id: row.id,
+    citationKey: row.citation_key,
+    type: row.entry_type,
+    title: row.title,
+    authors: parseStringArray(row.authors_json),
+    year: row.publication_year,
+    venue: row.venue,
+    doi: row.doi,
+    url: row.url,
+    abstract: row.abstract,
+    metadataSource: row.metadata_source === "crossref" ? "crossref" : "bibtex",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 

@@ -32,7 +32,11 @@ mode for authenticated hosted collaboration.
   WebSockets. Each update materializes Yjs state, Markdown, BibTeX, and a
   monotonically increasing revision together.
 - **Resource metadata:** The document Durable Object stores PDF artifact fingerprints, annotations,
-  passage links, and model candidates alongside the document coordination atom.
+  publication projections, passage links, and model candidates alongside the
+  document coordination atom.
+- **Reference library:** BibTeX imports merge into canonical bibliography text
+  and materialize stable publication resources. DOI-backed Crossref enrichment
+  is an explicit action.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable PDF bytes under a
   workspace-scoped key. PDF responses stream from R2 and the R2 ETag identifies
   the exact stored artifact.
@@ -56,6 +60,9 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/pdfs` streams one PDF of at most 25 MB to R2.
 - `GET /api/workspaces/demo/pdfs/{id}` streams an imported PDF.
 - `POST /api/workspaces/demo/annotations` creates a selector-backed annotation.
+- `POST /api/workspaces/demo/bibliography/import` merges valid BibTeX entries.
+- `POST /api/workspaces/demo/publications/{id}/enrich` explicitly enriches a
+  DOI-backed publication through Crossref.
 - `POST /api/workspaces/demo/links` links an annotation to an exact current
   manuscript range.
 - `POST /api/workspaces/demo/candidates` persists a review candidate.
@@ -87,6 +94,8 @@ mode for authenticated hosted collaboration.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
+- [x] BibTeX imports materialize stable publication resources independently of
+      citation keys.
 - [x] A PDF can be imported, rendered with selectable text, streamed back, and
       annotated without mutation.
 - [x] An annotation can be linked to the exact selected manuscript range.

@@ -15,6 +15,7 @@ Local development in this repo targets macOS. Other platforms may need script an
 - Implemented PDF evidence-capture contract: `specs/pdf-evidence-capture/spec.md`
 - Implemented workspace catalog contract: `specs/workspace-catalog/spec.md`
 - Implemented workspace access contract: `specs/workspace-access/spec.md`
+- Implemented reference-library contract: `specs/reference-library/spec.md`
 - Development setup and local CI: `docs/development.md`
 - Architecture decisions: `docs/adrs/README.md`
 - Feature and architecture specs: `specs/README.md`
@@ -36,6 +37,7 @@ Local development in this repo targets macOS. Other platforms may need script an
 - Local Wrangler automatically emulates the Durable Object and R2 bindings.
 - Before a production deployment, create the configured bucket with `npx wrangler r2 bucket create kirjolab-papers`.
 - Local `AUTH_MODE=local` is deliberately rejected away from loopback. For hosting, protect the application hostname with Cloudflare Access and configure `AUTH_MODE=access`, `ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com`, and the application's `ACCESS_AUD` value through environment-specific Wrangler configuration or dashboard variables. Keep unprotected direct hostnames disabled.
+- Set optional `CROSSREF_MAILTO=you@example.org` in deployment configuration to identify metadata enrichment requests to Crossref's polite pool. BibTeX import itself is local and needs no credentials.
 
 ## Verification
 
@@ -81,6 +83,7 @@ For cross-repo agent work, tell the agent:
 - Cloudflare Access JWT verification plus owner/member workspace sharing.
 - Fast semantic preview and validation for the initial scientific-writing syntax.
 - Streamed PDF import, selectable single-page rendering, resilient highlights, and bidirectional manuscript links.
+- BibTeX library import with stable publication resources and explicit Crossref DOI enrichment.
 - Browser-direct local-model requests with persisted candidate review/apply.
 - Portable `.md` and `.bib` exports.
 

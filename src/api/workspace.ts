@@ -3,10 +3,12 @@ import {
   isCreateCandidateInput,
   isCreatePassageLinkInput,
   isCreateWorkspaceInput,
+  isImportBibliographyInput,
   isInviteWorkspaceMemberInput,
   localOwnerId,
   type PdfResource,
 } from "../domain/workspace";
+import { fetchCrossrefWork } from "../integrations/crossref";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
@@ -41,6 +43,10 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await downloadPdf(storageKey, suffix.slice("/pdfs/".length), env);
     }
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
+    if (suffix === "/bibliography/import" && request.method === "POST") return await importBibliography(request, workspaceId, room);
+    if (suffix.startsWith("/publications/") && request.method === "POST") {
+      return await enrichPublication(workspaceId, suffix, env, room);
+    }
     if (suffix === "/links" && request.method === "POST") return await createPassageLink(request, room);
     if (suffix === "/candidates" && request.method === "POST") return await createCandidate(request, room);
     if (suffix.startsWith("/candidates/") && request.method === "POST") return await updateCandidate(workspaceId, suffix, room);
@@ -150,6 +156,30 @@ async function createAnnotation(
   const body: unknown = await request.json();
   if (!isCreateAnnotationInput(body)) return jsonError("Invalid annotation", 400);
   return Response.json(await room.createAnnotation(body), { status: 201 });
+}
+
+async function importBibliography(
+  request: Request,
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isImportBibliographyInput(body)) return jsonError("Invalid BibTeX import", 400);
+  return Response.json(await room.importBibliography(workspaceId, body.bibtex));
+}
+
+async function enrichPublication(
+  workspaceId: string,
+  suffix: string,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const match = /^\/publications\/([0-9a-f-]{36})\/enrich$/iu.exec(suffix);
+  if (!match?.[1]) return jsonError("Publication route not found", 404);
+  const publication = await room.getPublication(match[1]);
+  if (!publication.doi) return jsonError("Publication has no DOI", 400);
+  const metadata = await fetchCrossrefWork(publication.doi, env.CROSSREF_MAILTO);
+  return Response.json(await room.enrichPublication(workspaceId, publication.id, metadata));
 }
 
 async function createPassageLink(

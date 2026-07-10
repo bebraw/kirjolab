@@ -46,6 +46,22 @@ export interface PdfResource {
   createdAt: string;
 }
 
+export interface PublicationResource {
+  id: string;
+  citationKey: string;
+  type: string;
+  title: string;
+  authors: string[];
+  year: string;
+  venue: string;
+  doi: string;
+  url: string;
+  abstract: string;
+  metadataSource: "bibtex" | "crossref";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AnnotationResource {
   id: string;
   pdfId: string;
@@ -93,6 +109,7 @@ export interface WorkspaceSnapshot {
   bibliography: string;
   revision: number;
   pdfs: PdfResource[];
+  publications: PublicationResource[];
   annotations: AnnotationResource[];
   links: PassageLink[];
   candidates: ModelCandidate[];
@@ -116,6 +133,20 @@ export interface CreateWorkspaceInput {
 
 export interface InviteWorkspaceMemberInput {
   email: string;
+}
+
+export interface ImportBibliographyInput {
+  bibtex: string;
+}
+
+export interface PublicationEnrichment {
+  title: string;
+  authors: string[];
+  year: string;
+  venue: string;
+  doi: string;
+  url: string;
+  abstract: string;
 }
 
 export interface CreatePassageLinkInput {
@@ -157,6 +188,10 @@ export function isCreateWorkspaceInput(value: unknown): value is CreateWorkspace
 
 export function isInviteWorkspaceMemberInput(value: unknown): value is InviteWorkspaceMemberInput {
   return isRecord(value) && isEmail(value.email);
+}
+
+export function isImportBibliographyInput(value: unknown): value is ImportBibliographyInput {
+  return isRecord(value) && isStringWithin(value.bibtex, 2_000_000, true);
 }
 
 export function isWorkspaceMembers(value: unknown): value is WorkspaceMember[] {
@@ -224,6 +259,7 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     typeof value.bibliography === "string" &&
     typeof value.revision === "number" &&
     Array.isArray(value.pdfs) &&
+    Array.isArray(value.publications) &&
     Array.isArray(value.annotations) &&
     Array.isArray(value.links) &&
     Array.isArray(value.candidates)

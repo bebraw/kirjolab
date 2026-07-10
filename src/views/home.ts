@@ -67,6 +67,19 @@ export function renderHomePage(
             <div class="empty-state">Annotations appear here with their source context.</div>
           </div>
         </section>
+        <section class="mt-6 border-t border-app-line pt-5">
+          <div class="flex items-center justify-between gap-3">
+            <p class="eyebrow">References</p>
+            <span class="count-badge" id="publication-count">0</span>
+          </div>
+          <label class="button-secondary mt-3 w-full justify-center">
+            Import BibTeX
+            <input class="sr-only" id="bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain">
+          </label>
+          <div class="mt-3 space-y-3" id="publication-list">
+            <div class="empty-state">Imported references appear here as stable publication resources.</div>
+          </div>
+        </section>
       </aside>
 
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface lg:border-r lg:border-b-0">

@@ -30,6 +30,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
 - Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
+- Keep BibTeX as the canonical authored bibliography while materializing imported entries as stable publication resources.
+- Treat citation keys as workspace aliases and normalized DOI values as external identifiers; neither is an internal publication identity.
+- Make external metadata enrichment explicit, source-labeled, and materialized back into canonical BibTeX.
 - Let language models create provenance-aware candidates; applying a candidate must remain a separate validated action.
 - Keep local-model network access in the browser or a future local companion so a hosted Worker never assumes it can reach localhost.
 - Verify Cloudflare Access JWT signatures and claims inside the Worker for hosted identity; never trust caller-supplied identity headers alone.
