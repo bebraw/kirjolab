@@ -7,6 +7,7 @@ import {
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
 import { parseServerCollaborationMessage } from "../domain/collaboration";
+import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
 import {
   isWorkspaceSnapshot,
@@ -16,6 +17,7 @@ import {
   type ClaimEvidenceRelation,
   type ClaimPassageLink,
   type ClaimResource,
+  type ManuscriptAnchorResolution,
   type ModelCandidate,
   type PassageLink,
   type PdfResource,
@@ -201,19 +203,34 @@ class WorkspaceApp {
     if (!response.ok) throw new Error("Could not load the workspace");
     const value: unknown = await response.json();
     if (!isWorkspaceSnapshot(value)) throw new Error("Workspace returned an invalid snapshot");
-    this.#snapshot = value;
-    this.#elements.workspaceTitle.textContent = value.title;
+    const snapshot = this.#socketSynced ? this.#resolveSnapshotAnchors(value) : value;
+    this.#snapshot = snapshot;
+    this.#elements.workspaceTitle.textContent = snapshot.title;
     if (!this.#hasBootstrapSnapshot) {
       this.#hasBootstrapSnapshot = true;
-      this.#revision = value.revision;
-      this.#elements.source.value = value.source;
-      this.#elements.bibliography.value = value.bibliography;
-      this.#renderPreview(value.source, value.bibliography);
+      this.#revision = snapshot.revision;
+      this.#elements.source.value = snapshot.source;
+      this.#elements.bibliography.value = snapshot.bibliography;
+      this.#renderPreview(snapshot.source, snapshot.bibliography);
       this.#updateRevision();
     } else {
       this.#renderPreview();
     }
     this.#renderResources();
+  }
+
+  #resolveSnapshotAnchors(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
+    return {
+      ...snapshot,
+      links: snapshot.links.map((link) => ({
+        ...link,
+        resolution: resolveManuscriptAnchor(this.#document, link.anchor),
+      })),
+      claimLinks: snapshot.claimLinks.map((link) => ({
+        ...link,
+        resolution: resolveManuscriptAnchor(this.#document, link.anchor),
+      })),
+    };
   }
 
   async #refreshCatalog(): Promise<void> {
@@ -401,12 +418,12 @@ class WorkspaceApp {
     this.#updateRevision();
   }
 
-  #hasStableModelBase(): boolean {
+  #hasStableDocumentBase(): boolean {
     return this.#socketSynced && this.#pendingUpdates.size === 0 && !this.#awaitingRemoteRevision;
   }
 
   #updateModelAvailability(): void {
-    const stable = this.#hasStableModelBase();
+    const stable = this.#hasStableDocumentBase();
     this.#elements.generateCandidate.disabled = this.#modelBusy || !stable;
     for (const apply of document.querySelectorAll<HTMLButtonElement>('[data-candidate-action="apply"]')) {
       apply.disabled = !stable;
@@ -432,7 +449,29 @@ class WorkspaceApp {
       });
       this.#elements.diagnostics.append(item);
     }
-    if (this.#snapshot) this.#renderKnowledgeGraph(buildWorkspaceKnowledgeGraph({ ...this.#snapshot, source, bibliography }));
+    if (this.#snapshot) {
+      const links = this.#snapshot.links.map((link) => ({
+        ...link,
+        resolution: resolveManuscriptAnchor(this.#document, link.anchor),
+      }));
+      const claimLinks = this.#snapshot.claimLinks.map((link) => ({
+        ...link,
+        resolution: resolveManuscriptAnchor(this.#document, link.anchor),
+      }));
+      this.#updateAnchorActions([...links, ...claimLinks]);
+      this.#renderKnowledgeGraph(buildWorkspaceKnowledgeGraph({ ...this.#snapshot, source, bibliography, links, claimLinks }));
+    }
+  }
+
+  #updateAnchorActions(links: Array<PassageLink | ClaimPassageLink>): void {
+    for (const link of links) {
+      for (const action of document.querySelectorAll<HTMLButtonElement>(`[data-anchor-link-id="${CSS.escape(link.id)}"]`)) {
+        action.disabled = link.resolution.status !== "resolved";
+        action.dataset.anchorStatus = link.resolution.status;
+        action.dataset.anchorMatch = anchorMatchState(link.resolution);
+        action.textContent = anchorActionLabel(link.resolution);
+      }
+    }
   }
 
   #renderResources(): void {
@@ -540,7 +579,14 @@ class WorkspaceApp {
       actions.append(openEvidence, linkButton);
       const passage = links.find((link) => link.annotationId === annotation.id);
       if (passage) {
-        actions.append(actionButton("Open linked passage", "button-secondary w-full justify-center", () => this.#showPassage(passage)));
+        const openPassage = actionButton(anchorActionLabel(passage.resolution), "button-secondary w-full justify-center", () =>
+          this.#showPassage(passage.anchor),
+        );
+        openPassage.dataset.anchorLinkId = passage.id;
+        openPassage.disabled = passage.resolution.status !== "resolved";
+        openPassage.dataset.anchorStatus = passage.resolution.status;
+        openPassage.dataset.anchorMatch = anchorMatchState(passage.resolution);
+        actions.append(openPassage);
       }
       card.append(label, actions);
       this.#elements.annotationList.append(card);
@@ -594,7 +640,14 @@ class WorkspaceApp {
       );
       const passage = links.find((link) => link.claimId === claim.id);
       if (passage) {
-        actions.append(actionButton("Open linked passage", "button-secondary col-span-2 justify-center", () => this.#showPassage(passage)));
+        const openPassage = actionButton(anchorActionLabel(passage.resolution), "button-secondary col-span-2 justify-center", () =>
+          this.#showPassage(passage.anchor),
+        );
+        openPassage.dataset.anchorLinkId = passage.id;
+        openPassage.disabled = passage.resolution.status !== "resolved";
+        openPassage.dataset.anchorStatus = passage.resolution.status;
+        openPassage.dataset.anchorMatch = anchorMatchState(passage.resolution);
+        actions.append(openPassage);
       }
       card.append(actions);
       this.#elements.claimList.append(card);
@@ -666,6 +719,10 @@ class WorkspaceApp {
   }
 
   async #linkClaim(claimId: string): Promise<void> {
+    if (!this.#hasStableDocumentBase()) {
+      this.#showToast("Wait for the manuscript to finish synchronizing before linking a claim.");
+      return;
+    }
     const start = this.#elements.source.selectionStart;
     const end = this.#elements.source.selectionEnd;
     const excerpt = this.#elements.source.value.slice(start, end);
@@ -673,7 +730,13 @@ class WorkspaceApp {
       this.#showToast("Select manuscript text before linking a claim.");
       return;
     }
-    const response = await jsonFetch(`${apiBase}/claim-links`, { claimId, start, end, excerpt });
+    const response = await jsonFetch(`${apiBase}/claim-links`, {
+      claimId,
+      start,
+      end,
+      excerpt,
+      sourceRevision: this.#revision,
+    });
     await expectOk(response);
     await this.#resourceRefresh.request();
     this.#showToast("Claim linked to the selected manuscript passage.");
@@ -710,7 +773,7 @@ class WorkspaceApp {
         actions.className = "mt-3 flex gap-2";
         const apply = actionButton("Apply candidate", "button-primary", () => void this.#updateCandidate(candidate.id, "apply"));
         apply.dataset.candidateAction = "apply";
-        apply.disabled = !this.#hasStableModelBase();
+        apply.disabled = !this.#hasStableDocumentBase();
         actions.append(
           apply,
           actionButton("Reject", "button-secondary", () => void this.#updateCandidate(candidate.id, "reject")),
@@ -895,18 +958,28 @@ class WorkspaceApp {
   }
 
   async #linkAnnotation(annotationId: string): Promise<void> {
+    if (!this.#hasStableDocumentBase()) {
+      this.#showToast("Wait for the manuscript to finish synchronizing before linking an annotation.");
+      return;
+    }
     const start = this.#elements.source.selectionStart;
     const end = this.#elements.source.selectionEnd;
     const excerpt = this.#elements.source.value.slice(start, end);
     if (!excerpt.trim()) return this.#showToast("Select manuscript text before linking an annotation.");
-    const response = await jsonFetch(`${apiBase}/links`, { annotationId, start, end, excerpt });
+    const response = await jsonFetch(`${apiBase}/links`, {
+      annotationId,
+      start,
+      end,
+      excerpt,
+      sourceRevision: this.#revision,
+    });
     await expectOk(response);
     await this.#resourceRefresh.request();
     this.#showToast("Annotation linked to the selected passage.");
   }
 
   async #generateCandidate(): Promise<void> {
-    if (!this.#snapshot || !this.#hasStableModelBase()) {
+    if (!this.#snapshot || !this.#hasStableDocumentBase()) {
       this.#elements.modelStatus.textContent = "Wait for the manuscript to finish synchronizing before using the model.";
       return;
     }
@@ -974,7 +1047,7 @@ class WorkspaceApp {
   }
 
   async #updateCandidate(candidateId: string, action: "apply" | "reject"): Promise<void> {
-    if (action === "apply" && !this.#hasStableModelBase()) {
+    if (action === "apply" && !this.#hasStableDocumentBase()) {
       this.#showToast("Wait for the manuscript to finish synchronizing before applying a candidate.");
       return;
     }
@@ -1020,12 +1093,19 @@ class WorkspaceApp {
     card?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  #showPassage(link: Pick<PassageLink, "start" | "end">): void {
+  #showPassage(anchor: PassageLink["anchor"]): void {
+    const resolution = resolveManuscriptAnchor(this.#document, anchor);
+    if (resolution.status !== "resolved") {
+      this.#showToast("This manuscript anchor is stale and needs to be linked again.");
+      return;
+    }
     this.#elements.paperDialog.close();
     this.#elements.source.focus();
-    this.#elements.source.setSelectionRange(link.start, link.end);
+    this.#elements.source.setSelectionRange(resolution.start, resolution.end);
     this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
-    this.#showToast("Linked manuscript passage selected.");
+    this.#showToast(
+      resolution.exactMatch ? "Linked manuscript passage selected." : "Changed linked passage selected; review its current text.",
+    );
   }
 
   #setConnection(label: string, connected: boolean): void {
@@ -1180,6 +1260,16 @@ function emptyState(text: string): HTMLElement {
   element.className = "empty-state";
   element.textContent = text;
   return element;
+}
+
+function anchorActionLabel(resolution: ManuscriptAnchorResolution): string {
+  if (resolution.status === "stale") return "Linked passage is stale";
+  return resolution.exactMatch ? "Open linked passage" : "Open changed passage";
+}
+
+function anchorMatchState(resolution: ManuscriptAnchorResolution): "exact" | "changed" | "unavailable" {
+  if (resolution.status === "stale") return "unavailable";
+  return resolution.exactMatch ? "exact" : "changed";
 }
 
 function actionButton(text: string, className: string, action: () => void): HTMLButtonElement {

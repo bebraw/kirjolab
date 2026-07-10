@@ -1,3 +1,12 @@
+import {
+  isManuscriptAnchorResolution,
+  isManuscriptAnchorSelector,
+  type ManuscriptAnchorResolution,
+  type ManuscriptAnchorSelector,
+} from "./manuscript-anchor";
+
+export type { ManuscriptAnchorResolution, ManuscriptAnchorSelector } from "./manuscript-anchor";
+
 export const demoWorkspaceId = "demo";
 export const localOwnerId = "local";
 
@@ -85,9 +94,8 @@ export interface PdfSelectionRect {
 export interface PassageLink {
   id: string;
   annotationId: string;
-  start: number;
-  end: number;
-  excerpt: string;
+  anchor: ManuscriptAnchorSelector;
+  resolution: ManuscriptAnchorResolution;
   createdAt: string;
 }
 
@@ -110,9 +118,8 @@ export interface ClaimEvidenceLink {
 export interface ClaimPassageLink {
   id: string;
   claimId: string;
-  start: number;
-  end: number;
-  excerpt: string;
+  anchor: ManuscriptAnchorSelector;
+  resolution: ManuscriptAnchorResolution;
   createdAt: string;
 }
 
@@ -183,6 +190,7 @@ export interface CreatePassageLinkInput {
   start: number;
   end: number;
   excerpt: string;
+  sourceRevision: number;
 }
 
 export interface ClaimEvidenceInput {
@@ -201,6 +209,7 @@ export interface CreateClaimPassageLinkInput {
   start: number;
   end: number;
   excerpt: string;
+  sourceRevision: number;
 }
 
 export interface CreateCandidateInput {
@@ -277,7 +286,8 @@ export function isCreatePassageLinkInput(value: unknown): value is CreatePassage
     typeof value.end === "number" &&
     value.start >= 0 &&
     value.end > value.start &&
-    isStringWithin(value.excerpt, 50_000, true)
+    isStringWithin(value.excerpt, 50_000, true) &&
+    isNonNegativeInteger(value.sourceRevision)
   );
 }
 
@@ -309,7 +319,8 @@ export function isCreateClaimPassageLinkInput(value: unknown): value is CreateCl
     typeof value.end === "number" &&
     value.start >= 0 &&
     value.end > value.start &&
-    isStringWithin(value.excerpt, 50_000, true)
+    isStringWithin(value.excerpt, 50_000, true) &&
+    isNonNegativeInteger(value.sourceRevision)
   );
 }
 
@@ -341,6 +352,7 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     Array.isArray(value.publications) &&
     Array.isArray(value.annotations) &&
     Array.isArray(value.links) &&
+    value.links.every(isPassageLink) &&
     Array.isArray(value.claims) &&
     value.claims.every(isClaimResource) &&
     Array.isArray(value.claimEvidenceLinks) &&
@@ -382,15 +394,25 @@ function isClaimPassageLink(value: unknown): value is ClaimPassageLink {
     isRecord(value) &&
     isNonEmptyString(value.id) &&
     isNonEmptyString(value.claimId) &&
-    typeof value.start === "number" &&
-    Number.isInteger(value.start) &&
-    value.start >= 0 &&
-    typeof value.end === "number" &&
-    Number.isInteger(value.end) &&
-    value.end > value.start &&
-    isStringWithin(value.excerpt, 50_000, true) &&
+    isManuscriptAnchorSelector(value.anchor) &&
+    isManuscriptAnchorResolution(value.resolution) &&
     isNonEmptyString(value.createdAt)
   );
+}
+
+function isPassageLink(value: unknown): value is PassageLink {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.annotationId) &&
+    isManuscriptAnchorSelector(value.anchor) &&
+    isManuscriptAnchorResolution(value.resolution) &&
+    isNonEmptyString(value.createdAt)
+  );
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

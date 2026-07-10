@@ -15,6 +15,17 @@ import {
 
 describe("workspace input guards", () => {
   it("accepts complete resource inputs", () => {
+    const anchor = {
+      version: 1,
+      relativeStart: "AA",
+      relativeEnd: "AQ",
+      exact: "text",
+      prefix: "",
+      suffix: "",
+      originalRange: { start: 0, end: 4 },
+      anchoredRevision: 0,
+    } as const;
+    const resolution = { status: "resolved", start: 0, end: 4, text: "text", exactMatch: true } as const;
     expect(
       isCreateAnnotationInput({
         pdfId: "pdf",
@@ -26,7 +37,7 @@ describe("workspace input guards", () => {
         rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
       }),
     ).toBe(true);
-    expect(isCreatePassageLinkInput({ annotationId: "a", start: 0, end: 4, excerpt: "text" })).toBe(true);
+    expect(isCreatePassageLinkInput({ annotationId: "a", start: 0, end: 4, excerpt: "text", sourceRevision: 0 })).toBe(true);
     expect(
       isUpsertClaimInput({
         text: "Evidence supports inspection.",
@@ -34,7 +45,7 @@ describe("workspace input guards", () => {
         evidence: [{ annotationId: "a", relation: "supports" }],
       }),
     ).toBe(true);
-    expect(isCreateClaimPassageLinkInput({ claimId: "claim", start: 0, end: 4, excerpt: "text" })).toBe(true);
+    expect(isCreateClaimPassageLinkInput({ claimId: "claim", start: 0, end: 4, excerpt: "text", sourceRevision: 0 })).toBe(true);
     expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
     expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
     expect(isImportBibliographyInput({ bibtex: "@article{key, title={Title}}" })).toBe(true);
@@ -55,10 +66,10 @@ describe("workspace input guards", () => {
         pdfs: [],
         publications: [],
         annotations: [],
-        links: [],
+        links: [{ id: "link", annotationId: "annotation", anchor, resolution, createdAt: "now" }],
         claims: [],
         claimEvidenceLinks: [],
-        claimLinks: [],
+        claimLinks: [{ id: "claim-link", claimId: "claim", anchor, resolution, createdAt: "now" }],
         candidates: [],
       }),
     ).toBe(true);
@@ -140,7 +151,7 @@ describe("workspace input guards", () => {
   });
 
   it("enforces every passage-link boundary", () => {
-    const valid = { annotationId: "annotation", start: 0, end: 4, excerpt: "text" };
+    const valid = { annotationId: "annotation", start: 0, end: 4, excerpt: "text", sourceRevision: 0 };
     for (const change of [
       { annotationId: "" },
       { annotationId: "x".repeat(129) },
@@ -152,6 +163,9 @@ describe("workspace input guards", () => {
       { end: "4" },
       { excerpt: "" },
       { excerpt: "x".repeat(50_001) },
+      { sourceRevision: -1 },
+      { sourceRevision: 0.5 },
+      { sourceRevision: "0" },
     ]) {
       expect(isCreatePassageLinkInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
     }
@@ -183,7 +197,7 @@ describe("workspace input guards", () => {
   });
 
   it("enforces every claim-passage boundary", () => {
-    const valid = { claimId: "claim", start: 0, end: 4, excerpt: "text" };
+    const valid = { claimId: "claim", start: 0, end: 4, excerpt: "text", sourceRevision: 0 };
     for (const change of [
       { claimId: "" },
       { claimId: "x".repeat(129) },
@@ -195,6 +209,9 @@ describe("workspace input guards", () => {
       { end: "4" },
       { excerpt: "" },
       { excerpt: "x".repeat(50_001) },
+      { sourceRevision: -1 },
+      { sourceRevision: 0.5 },
+      { sourceRevision: "0" },
     ]) {
       expect(isCreateClaimPassageLinkInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
     }
@@ -262,6 +279,6 @@ describe("workspace input guards", () => {
     expect(isWorkspaceSnapshot("workspace")).toBe(false);
     expect(isWorkspaceSnapshot({ ...valid, claims: [{ id: "claim" }] })).toBe(false);
     expect(isWorkspaceSnapshot({ ...valid, claimEvidenceLinks: [{ relation: "unknown" }] })).toBe(false);
-    expect(isWorkspaceSnapshot({ ...valid, claimLinks: [{ start: 2, end: 1 }] })).toBe(false);
+    expect(isWorkspaceSnapshot({ ...valid, claimLinks: [{ anchor: null, resolution: null }] })).toBe(false);
   });
 });

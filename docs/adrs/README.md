@@ -83,6 +83,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-047](./implemented/ADR-047-model-evidence-backed-claims.md)                      | Implemented | Store claims and their evidence and manuscript usage as explicit typed resources.                |
 | [ADR-048](./implemented/ADR-048-secure-browser-collaboration-boundary.md)             | Implemented | Sanitize preview output and validate same-origin, binary-only collaboration traffic.             |
 | [ADR-049](./implemented/ADR-049-acknowledge-server-led-yjs-synchronization.md)        | Implemented | Synchronize from server state and acknowledge durable, idempotent Yjs updates.                   |
+| [ADR-050](./implemented/ADR-050-use-durable-manuscript-anchors.md)                    | Implemented | Resolve manuscript links only through versioned Yjs positions with explicit stale state.         |
 
 ## Creating A New ADR
 

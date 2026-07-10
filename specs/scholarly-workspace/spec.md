@@ -53,6 +53,15 @@ mode for authenticated hosted collaboration.
 - **Claims:** Human-authored propositions connect annotations to manuscript
   passages through explicit `supports`, `contradicts`, `extends`, and `used-in`
   relationships.
+- **Manuscript anchors:** New annotation and claim passage links verify the
+  current source revision and exact requested range, then store version 1 Yjs
+  relative positions (start association `0`, end association `-1`), exact
+  quote/context, original offsets, and anchored revision. Public links expose
+  their immutable selector and a derived `resolved` or `stale` resolution
+  rather than top-level current offsets. Version 1 resolves only through its
+  relative positions. A one-time migration derives endpoints for still-valid
+  offset rows; unconvertible legacy rows retain null endpoints and remain
+  explicitly stale under the version 1 selector contract.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable PDF bytes under a
   workspace-scoped key. PDF responses stream from R2 and the R2 ETag identifies
   the exact stored artifact.
@@ -67,6 +76,9 @@ mode for authenticated hosted collaboration.
 - **Mutation boundary:** Candidate creation fails if its immutable base revision
   is already stale. A current pending candidate can be inspected, rejected
   without changing source, or applied only while its revision remains current.
+  Applying a complete proposed manuscript materializes only the differing
+  middle through the smallest common-prefix/suffix `Y.Text` splice so anchors in
+  unchanged prose retain their Yjs identities.
 - **Exports:** Dedicated endpoints return `document.md` and `bibliography.bib`
   with download metadata.
 
@@ -87,14 +99,16 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/bibliography/import` merges valid BibTeX entries.
 - `POST /api/workspaces/demo/publications/{id}/enrich` explicitly enriches a
   DOI-backed publication through Crossref.
-- `POST /api/workspaces/demo/links` links an annotation to an exact current
-  manuscript range.
+- `POST /api/workspaces/demo/links` accepts an annotation id, source revision,
+  requested offsets, and exact current text and returns a selector-backed
+  annotation-passage link.
 - `POST /api/workspaces/demo/claims` creates an evidence-backed claim.
 - `PUT /api/workspaces/demo/claims/{id}` replaces its proposition, note, and
   evidence set.
 - `DELETE /api/workspaces/demo/claims/{id}` removes the claim and its links.
-- `POST /api/workspaces/demo/claim-links` links a claim to an exact current
-  manuscript range.
+- `POST /api/workspaces/demo/claim-links` accepts a claim id, source revision,
+  requested offsets, and exact current text and returns a selector-backed
+  claim-passage link.
 - `POST /api/workspaces/demo/candidates` persists a review candidate.
 - `POST /api/workspaces/demo/candidates/{id}/apply` applies a current pending
   candidate.
@@ -115,6 +129,14 @@ mode for authenticated hosted collaboration.
 - Do not capture a model candidate's source revision after awaiting its provider
   or accept stale candidate creation, stale candidate application, or stale
   passage ranges.
+- Do not expose a derived current manuscript range as durable top-level link
+  offsets or navigate an unresolved anchor.
+- Do not use original offsets, exact quote/context, fuzzy search, or a nearest
+  or first match as runtime navigation fallback when relative positions fail.
+- Do not derive relative endpoints for a legacy offset row unless its range and
+  exact excerpt still match current source during the one-time migration.
+- Do not implement candidate application or another whole-document replacement
+  as delete-all/insert-all on `Y.Text`.
 - Do not buffer PDF bodies in Worker memory.
 - Do not write annotation data into imported PDFs.
 - Do not deploy with local authentication or without a protected Cloudflare
@@ -145,9 +167,19 @@ mode for authenticated hosted collaboration.
 - [x] A PDF can be imported, rendered with selectable text, streamed back, and
       annotated without mutation.
 - [x] An annotation can be linked to the exact selected manuscript range.
+- [x] New annotation and claim passage links follow manuscript edits through
+      versioned Yjs relative positions while preserving exact quote/context
+      provenance.
+- [x] Link representations distinguish immutable selectors from current
+      resolution and expose stale anchors without silent relocation.
+- [x] A one-time migration adds valid relative endpoints to offset-only links
+      and leaves unconvertible legacy links explicitly stale with null
+      endpoints.
 - [x] A local model can return a grounded candidate with inspectable provenance.
 - [x] Candidate creation and application are explicit and reject stale base
       revisions captured before model execution.
+- [x] Applying a whole-document candidate preserves anchors in unchanged prefix
+      and suffix prose through a minimal `Y.Text` splice.
 - [x] Markdown and BibTeX export without private collaboration state.
 - [x] Unit coverage and browser tests exercise the critical workflow.
 
@@ -170,10 +202,27 @@ mode for authenticated hosted collaboration.
   and the 25 MB size limit.
 - Annotation creation must require a known PDF, positive page number, exact
   quote, textual context fields, and valid bounded geometry when present.
-- Passage links must match the current source at their supplied offsets.
+- Creating a passage link must require the current source revision and exact
+  text at a valid non-empty supplied range.
+- New selectors must store version 1 relative endpoints with start association
+  `0` and end association `-1`, exact/prefix/suffix text, original offsets, and
+  anchored revision.
+- Version 1 anchor resolution must use both stored relative positions and return
+  `stale` if they are unavailable, target the wrong source type, or produce an
+  invalid or collapsed range.
+- Exact text, prefix, suffix, and original offsets must remain immutable
+  provenance and must never relocate a link at runtime.
+- Current offsets must appear only in a `resolved` result; public links must not
+  expose mutable current offsets at their top level.
+- Offset-only persisted rows must remain readable as version 1 selectors with
+  null relative endpoints and stale resolution unless a one-time verified
+  migration can derive both endpoints.
 - Model source, selection, revision, and evidence must be captured together
   before provider I/O; creating or applying its candidate must fail after the
   document revision changes.
+- Candidate application and every other whole-document replacement must retain
+  the longest common prefix and non-overlapping common suffix, deleting and
+  inserting only the differing middle in one `Y.Text` transaction.
 - Browser code must remain external to Worker-rendered HTML and pass both strict
   worker and client TypeScript configurations.
 
@@ -220,8 +269,30 @@ mode for authenticated hosted collaboration.
 - Given: a PDF is imported
 - When: the researcher records a page, exact quote, surrounding context, and a
   note through an in-view text selection, then selects manuscript text
-- Then: Kirjolab stores an external annotation and a typed passage link without
-  changing the PDF
+- Then: Kirjolab stores an external annotation and a versioned manuscript
+  selector without changing the PDF
+
+**Scenario: A manuscript link follows collaborative edits**
+
+- Given: a version 1 passage link resolves through its Yjs relative positions
+- When: collaborators insert or delete text around the linked passage
+- Then: the link resolves to the current non-collapsed relative range and
+  reports whether its text still exactly matches the captured quote
+
+**Scenario: A passage cannot be resolved safely**
+
+- Given: either relative position is unavailable or the resolved range is
+  invalid or collapsed
+- When: the workspace represents the passage link
+- Then: the resolution is `stale`, and Kirjolab does not use offsets, quotes,
+  context, or nearest matching to relocate it
+
+**Scenario: Legacy links are migrated conservatively**
+
+- Given: an existing row stores only offsets and an exact excerpt
+- When: the one-time anchor migration checks it against current source
+- Then: a still-valid row receives relative positions, while an unconvertible
+  row exposes null endpoints and an explicitly stale version 1 selector
 
 **Scenario: Local model proposes grounded prose**
 
@@ -243,8 +314,9 @@ mode for authenticated hosted collaboration.
 
 - Given: a pending candidate targets the current document revision
 - When: the researcher inspects and applies it
-- Then: the candidate is accepted, canonical Markdown changes, and all
-  collaborators receive the update
+- Then: the candidate is accepted through a minimal common-prefix/suffix splice,
+  canonical Markdown changes, anchors in unchanged surrounding prose remain
+  resolved, and all collaborators receive the update
 
 **Scenario: Researcher exports portable work**
 

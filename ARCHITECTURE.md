@@ -49,6 +49,22 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coalesced authorized metadata refresh rather than replacing live editor
   state from a workspace snapshot.
 - Treat claims as stable, human-authored propositions; store their evidence and manuscript usage as typed links so editing or deleting a claim never mutates its source annotations or authored prose.
+- Treat manuscript passage links as immutable, versioned selectors rather than
+  permanent current offsets. Verify the source revision and exact range at
+  creation, then capture Yjs relative positions, exact quote/context,
+  original offsets, and the anchored revision.
+- Resolve version 1 manuscript anchors only from valid, non-collapsed Yjs
+  relative positions. Expose `resolved` or `stale` state; exact quote/context
+  and original offsets remain provenance and must never act as runtime
+  navigation fallback.
+- Keep current navigation offsets inside a derived anchor resolution, not as
+  top-level durable link properties. Conservatively backfill a valid legacy
+  offset row once; keep an unconvertible row explicitly stale with null
+  relative endpoints under the version 1 selector contract.
+- Materialize candidate application and every other whole-document replacement
+  as the smallest common-prefix/suffix `Y.Text` splice. Never delete and reinsert
+  unchanged prefix or suffix content, because doing so destroys surviving Yjs
+  anchor identities.
 - Keep BibTeX as the canonical authored bibliography while materializing imported entries as stable publication resources.
 - Treat citation keys as workspace aliases and normalized DOI values as external identifiers; neither is an internal publication identity.
 - Make external metadata enrichment explicit, source-labeled, and materialized back into canonical BibTeX.

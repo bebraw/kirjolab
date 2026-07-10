@@ -133,7 +133,7 @@ export function buildWorkspaceKnowledgeGraph(snapshot: WorkspaceSnapshot): Works
       relation: "used-in",
       from: claimId(link.claimId),
       to: documentResourceId,
-      label: excerpt(link.excerpt, 100),
+      label: excerpt(link.resolution.status === "resolved" ? link.resolution.text : link.anchor.exact, 100),
     });
   }
   for (const link of snapshot.links) {
@@ -142,7 +142,7 @@ export function buildWorkspaceKnowledgeGraph(snapshot: WorkspaceSnapshot): Works
       relation: "used-in",
       from: annotationId(link.annotationId),
       to: documentResourceId,
-      label: excerpt(link.excerpt, 100),
+      label: excerpt(link.resolution.status === "resolved" ? link.resolution.text : link.anchor.exact, 100),
     });
   }
 

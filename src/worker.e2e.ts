@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf } from "./test-support/pdf-fixture";
@@ -136,6 +136,283 @@ test("invalidates shared resources without replacing the collaborative manuscrip
   await expect(page.locator("#source-editor")).toHaveValue(sharedSource);
   await expect(collaborator.locator("#source-editor")).toHaveValue(sharedSource);
   expect((await readWorkspaceSnapshot(page, api)).source).toBe(sharedSource);
+  await collaborator.close();
+});
+
+test("keeps annotation and claim passage anchors attached across remote insertions", async ({ page, context }) => {
+  const origin = "http://127.0.0.1:8788";
+  const workspaceId = await createWorkspace(page, "Durable passage anchors");
+  const api = `/api/workspaces/${workspaceId}`;
+  const pdfResponse = await page.request.post(`${api}/pdfs`, {
+    headers: { origin, "content-type": "application/pdf", "x-file-name": "anchor-evidence.pdf" },
+    data: createEvidencePdf(),
+  });
+  const pdf: unknown = await pdfResponse.json();
+  if (!isRecord(pdf) || typeof pdf.id !== "string") throw new Error("Expected an imported PDF");
+  const annotationResponse = await page.request.post(`${api}/annotations`, {
+    headers: { origin },
+    data: {
+      pdfId: pdf.id,
+      page: 1,
+      quote: "Knowledge grows through inspectable evidence.",
+      prefix: "",
+      suffix: "",
+      comment: "Durable annotation anchor",
+      rects: [],
+    },
+  });
+  const annotation: unknown = await annotationResponse.json();
+  if (!isRecord(annotation) || typeof annotation.id !== "string") throw new Error("Expected an annotation");
+  const claimResponse = await page.request.post(`${api}/claims`, {
+    headers: { origin },
+    data: {
+      text: "Durable anchors keep claims connected to prose.",
+      note: "Durable claim anchor",
+      evidence: [{ annotationId: annotation.id, relation: "supports" }],
+    },
+  });
+  const claim: unknown = await claimResponse.json();
+  if (!isRecord(claim) || typeof claim.id !== "string") throw new Error("Expected a claim");
+
+  const path = `/workspaces/${workspaceId}`;
+  await page.goto(path);
+  const collaborator = await context.newPage();
+  await collaborator.goto(path);
+  await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
+  await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
+
+  const annotationExcerpt = "The annotation passage stays addressable.";
+  const claimExcerpt = "The claim passage stays addressable.";
+  const source = [
+    "## Durable anchors {#durable-anchors}",
+    "",
+    "Context before annotation.",
+    annotationExcerpt,
+    "Context between passages.",
+    claimExcerpt,
+    "",
+  ].join("\n");
+  const editor = page.locator("#source-editor");
+  await editor.fill(source);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(source);
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(source);
+  const anchoredSnapshot = await readWorkspaceSnapshot(page, api);
+  const annotationStart = source.indexOf(annotationExcerpt);
+  const claimStart = source.indexOf(claimExcerpt);
+
+  const annotationLinkResponse = await page.request.post(`${api}/links`, {
+    headers: { origin },
+    data: {
+      annotationId: annotation.id,
+      sourceRevision: anchoredSnapshot.revision,
+      start: annotationStart,
+      end: annotationStart + annotationExcerpt.length,
+      excerpt: annotationExcerpt,
+    },
+  });
+  expect(annotationLinkResponse.status()).toBe(201);
+  const claimLinkResponse = await page.request.post(`${api}/claim-links`, {
+    headers: { origin },
+    data: {
+      claimId: claim.id,
+      sourceRevision: anchoredSnapshot.revision,
+      start: claimStart,
+      end: claimStart + claimExcerpt.length,
+      excerpt: claimExcerpt,
+    },
+  });
+  expect(claimLinkResponse.status()).toBe(201);
+
+  const linkedSnapshot = await readWorkspaceSnapshot(page, api);
+  const annotationLink: unknown = linkedSnapshot.links.find((link) => link.annotationId === annotation.id);
+  const claimLink: unknown = linkedSnapshot.claimLinks.find((link) => link.claimId === claim.id);
+  expectPassageAnchor(annotationLink, {
+    exact: annotationExcerpt,
+    originalRange: { start: annotationStart, end: annotationStart + annotationExcerpt.length },
+    anchoredRevision: anchoredSnapshot.revision,
+  });
+  expectPassageAnchor(claimLink, {
+    exact: claimExcerpt,
+    originalRange: { start: claimStart, end: claimStart + claimExcerpt.length },
+    anchoredRevision: anchoredSnapshot.revision,
+  });
+  expectResolvedPassage(annotationLink, annotationStart, annotationExcerpt);
+  expectResolvedPassage(claimLink, claimStart, claimExcerpt);
+
+  const annotationCard = page.locator("#annotation-list article").filter({ hasText: "Durable annotation anchor" });
+  const claimCard = page.locator("#claim-list article").filter({ hasText: "Durable anchors keep claims connected" });
+  await expect(annotationCard.getByRole("button", { name: "Open linked passage" })).toBeVisible();
+  await expect(claimCard.getByRole("button", { name: "Open linked passage" })).toBeVisible();
+
+  const annotationInsertion = "New context before the annotation.\n";
+  const collaboratorEditor = collaborator.locator("#source-editor");
+  await collaboratorEditor.evaluate(
+    (element: HTMLTextAreaElement, input: { at: number; insertion: string }) => {
+      element.focus();
+      element.setRangeText(input.insertion, input.at, input.at, "end");
+      element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: input.insertion }));
+    },
+    { at: annotationStart, insertion: annotationInsertion },
+  );
+  const afterAnnotationInsertion = `${source.slice(0, annotationStart)}${annotationInsertion}${source.slice(annotationStart)}`;
+  await expect(editor).toHaveValue(afterAnnotationInsertion);
+
+  const claimInsertion = "New context before the claim.\n";
+  const shiftedClaimStart = afterAnnotationInsertion.indexOf(claimExcerpt);
+  await collaboratorEditor.evaluate(
+    (element: HTMLTextAreaElement, input: { at: number; insertion: string }) => {
+      element.focus();
+      element.setRangeText(input.insertion, input.at, input.at, "end");
+      element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: input.insertion }));
+    },
+    { at: shiftedClaimStart, insertion: claimInsertion },
+  );
+  const shiftedSource = `${afterAnnotationInsertion.slice(0, shiftedClaimStart)}${claimInsertion}${afterAnnotationInsertion.slice(shiftedClaimStart)}`;
+  await expect(editor).toHaveValue(shiftedSource);
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(shiftedSource);
+
+  const shiftedSnapshot = await readWorkspaceSnapshot(page, api);
+  const shiftedAnnotationLink: unknown = shiftedSnapshot.links.find((link) => link.annotationId === annotation.id);
+  const shiftedClaimLink: unknown = shiftedSnapshot.claimLinks.find((link) => link.claimId === claim.id);
+  const resolvedAnnotationStart = annotationStart + annotationInsertion.length;
+  const resolvedClaimStart = claimStart + annotationInsertion.length + claimInsertion.length;
+  expectResolvedPassage(shiftedAnnotationLink, resolvedAnnotationStart, annotationExcerpt);
+  expectResolvedPassage(shiftedClaimLink, resolvedClaimStart, claimExcerpt);
+
+  await annotationCard.getByRole("button", { name: "Open linked passage" }).click();
+  await expect(editor).toBeFocused();
+  await expectEditorSelection(editor, resolvedAnnotationStart, annotationExcerpt);
+  await claimCard.getByRole("button", { name: "Open linked passage" }).click();
+  await expect(editor).toBeFocused();
+  await expectEditorSelection(editor, resolvedClaimStart, claimExcerpt);
+
+  const candidatePrefix = "A reviewed candidate adds context.\n";
+  const candidateResponse = await page.request.post(`${api}/candidates`, {
+    headers: { origin },
+    data: {
+      provider: "test",
+      model: "anchor-preserving-model",
+      sourceRevision: shiftedSnapshot.revision,
+      sourceIds: [annotation.id],
+      proposedSource: `${candidatePrefix}${shiftedSource}`,
+    },
+  });
+  expect(candidateResponse.status()).toBe(201);
+  const candidate: unknown = await candidateResponse.json();
+  if (!isRecord(candidate) || typeof candidate.id !== "string") throw new Error("Expected an anchor-preserving candidate");
+  const applyResponse = await page.request.post(`${api}/candidates/${candidate.id}/apply`, { headers: { origin } });
+  expect(applyResponse.ok()).toBe(true);
+  await expect(editor).toHaveValue(`${candidatePrefix}${shiftedSource}`);
+  const candidateSnapshot = await readWorkspaceSnapshot(page, api);
+  expectResolvedPassage(
+    candidateSnapshot.links.find((link) => link.annotationId === annotation.id),
+    resolvedAnnotationStart + candidatePrefix.length,
+    annotationExcerpt,
+  );
+  expectResolvedPassage(
+    candidateSnapshot.claimLinks.find((link) => link.claimId === claim.id),
+    resolvedClaimStart + candidatePrefix.length,
+    claimExcerpt,
+  );
+
+  const candidateAnnotationStart = resolvedAnnotationStart + candidatePrefix.length;
+  const changedAnnotationExcerpt = annotationExcerpt.replace("stays", "moves");
+  const changedWordStart = candidateAnnotationStart + annotationExcerpt.indexOf("stays");
+  await expect(collaboratorEditor).toHaveValue(`${candidatePrefix}${shiftedSource}`);
+  await collaboratorEditor.evaluate(
+    (element: HTMLTextAreaElement, range: { start: number; end: number }) => {
+      element.focus();
+      element.setRangeText("moves", range.start, range.end, "end");
+      element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "moves" }));
+    },
+    { start: changedWordStart, end: changedWordStart + "stays".length },
+  );
+  await expect(editor).toHaveValue(
+    `${candidatePrefix}${shiftedSource.slice(0, resolvedAnnotationStart)}${changedAnnotationExcerpt}${shiftedSource.slice(
+      resolvedAnnotationStart + annotationExcerpt.length,
+    )}`,
+  );
+  const changedAction = annotationCard.getByRole("button", { name: "Open changed passage" });
+  await expect(changedAction).toBeEnabled();
+  await expect(changedAction).toHaveAttribute("data-anchor-match", "changed");
+  const changedSnapshot = await readWorkspaceSnapshot(page, api);
+  expect(readPassageResolution(changedSnapshot.links.find((link) => link.annotationId === annotation.id))).toMatchObject({
+    status: "resolved",
+    start: candidateAnnotationStart,
+    end: candidateAnnotationStart + changedAnnotationExcerpt.length,
+    text: changedAnnotationExcerpt,
+    exactMatch: false,
+  });
+  await changedAction.click();
+  await expectEditorSelection(editor, candidateAnnotationStart, changedAnnotationExcerpt);
+  await collaborator.close();
+});
+
+test("reports a deleted passage anchor as stale instead of guessing", async ({ page, context }) => {
+  const origin = "http://127.0.0.1:8788";
+  const workspaceId = await createWorkspace(page, "Passage anchor failure modes");
+  const api = `/api/workspaces/${workspaceId}`;
+  const pdfResponse = await page.request.post(`${api}/pdfs`, {
+    headers: { origin, "content-type": "application/pdf", "x-file-name": "stale-anchor.pdf" },
+    data: createEvidencePdf(),
+  });
+  const pdf: unknown = await pdfResponse.json();
+  if (!isRecord(pdf) || typeof pdf.id !== "string") throw new Error("Expected an imported PDF");
+  const annotationResponse = await page.request.post(`${api}/annotations`, {
+    headers: { origin },
+    data: {
+      pdfId: pdf.id,
+      page: 1,
+      quote: "Knowledge grows through inspectable evidence.",
+      prefix: "",
+      suffix: "",
+      comment: "Failure-mode anchor",
+      rects: [],
+    },
+  });
+  const annotation: unknown = await annotationResponse.json();
+  if (!isRecord(annotation) || typeof annotation.id !== "string") throw new Error("Expected an annotation");
+
+  const path = `/workspaces/${workspaceId}`;
+  await page.goto(path);
+  const collaborator = await context.newPage();
+  await collaborator.goto(path);
+  await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
+  const excerpt = "This passage has a durable identity.";
+  const source = `## Resolution boundary\n\nBefore.\n${excerpt}\nAfter.\n`;
+  await page.locator("#source-editor").fill(source);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(source);
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(source);
+  const sourceSnapshot = await readWorkspaceSnapshot(page, api);
+  const start = source.indexOf(excerpt);
+  const linkResponse = await page.request.post(`${api}/links`, {
+    headers: { origin },
+    data: {
+      annotationId: annotation.id,
+      sourceRevision: sourceSnapshot.revision,
+      start,
+      end: start + excerpt.length,
+      excerpt,
+    },
+  });
+  expect(linkResponse.status()).toBe(201);
+
+  const staleSource = `${source.slice(0, start)}${source.slice(start + excerpt.length)}`;
+  await collaborator.locator("#source-editor").evaluate(
+    (element: HTMLTextAreaElement, range: { start: number; end: number }) => {
+      element.focus();
+      element.setRangeText("", range.start, range.end, "start");
+      element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentForward" }));
+    },
+    { start, end: start + excerpt.length },
+  );
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(staleSource);
+  const staleSnapshot = await readWorkspaceSnapshot(page, api);
+  const staleLink: unknown = staleSnapshot.links.find((link) => link.annotationId === annotation.id);
+  expect(readPassageResolution(staleLink)).toMatchObject({ status: "stale" });
+  const staleAction = page.locator('#annotation-list [data-anchor-status="stale"]');
+  await expect(staleAction).toHaveText("Linked passage is stale");
+  await expect(staleAction).toBeDisabled();
   await collaborator.close();
 });
 
@@ -345,7 +622,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
   const start = snapshot.source.indexOf(excerpt);
   const linkResponse = await page.request.post(`${api}/claim-links`, {
     headers: { origin },
-    data: { claimId: claim.id, start, end: start + excerpt.length, excerpt },
+    data: { claimId: claim.id, start, end: start + excerpt.length, excerpt, sourceRevision: snapshot.revision },
   });
   expect(linkResponse.status()).toBe(201);
 
@@ -364,7 +641,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
     { id: claim.id, text: "Inspectable evidence keeps scholarly claims accountable.", note: "Revised synthesis" },
   ]);
   expect(afterRejected.claimEvidenceLinks).toMatchObject([{ claimId: claim.id, annotationId: annotation.id, relation: "extends" }]);
-  expect(afterRejected.claimLinks).toMatchObject([{ claimId: claim.id, excerpt }]);
+  expect(afterRejected.claimLinks).toMatchObject([{ claimId: claim.id, anchor: { exact: excerpt } }]);
 
   const deleteResponse = await page.request.delete(`${api}/claims/${claim.id}`, { headers: { origin } });
   expect(deleteResponse.status()).toBe(204);
@@ -711,4 +988,45 @@ async function readWorkspaceSnapshot(page: Page, api: string) {
   const value: unknown = await response.json();
   if (!isWorkspaceSnapshot(value)) throw new Error("Expected a workspace snapshot");
   return value;
+}
+
+interface ExpectedPassageAnchor {
+  exact: string;
+  originalRange: { start: number; end: number };
+  anchoredRevision: number;
+}
+
+function expectPassageAnchor(link: unknown, expected: ExpectedPassageAnchor): void {
+  if (!isRecord(link) || !isRecord(link.anchor)) throw new Error("Expected a passage anchor selector");
+  expect(link.anchor).toMatchObject({ version: 1, ...expected });
+  expect(link.anchor.relativeStart).toMatch(/^[A-Za-z0-9_-]+$/u);
+  expect(link.anchor.relativeEnd).toMatch(/^[A-Za-z0-9_-]+$/u);
+}
+
+function readPassageResolution(link: unknown): Record<string, unknown> {
+  if (!isRecord(link) || !isRecord(link.resolution)) throw new Error("Expected a passage anchor resolution");
+  return link.resolution;
+}
+
+function expectResolvedPassage(link: unknown, start: number, text: string): void {
+  expect(readPassageResolution(link)).toMatchObject({
+    status: "resolved",
+    start,
+    end: start + text.length,
+    text,
+    exactMatch: true,
+  });
+}
+
+async function expectEditorSelection(editor: Locator, start: number, text: string): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        await editor.evaluate((element: HTMLTextAreaElement) => ({
+          start: element.selectionStart,
+          end: element.selectionEnd,
+          text: element.value.slice(element.selectionStart, element.selectionEnd),
+        })),
+    )
+    .toEqual({ start, end: start + text.length, text });
 }

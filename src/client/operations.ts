@@ -1,23 +1,5 @@
 import type { AnnotationResource } from "../domain/workspace";
-
-export interface TextSplice {
-  start: number;
-  deleteCount: number;
-  insert: string;
-}
-
-export function calculateTextSplice(previous: string, next: string): TextSplice | null {
-  if (previous === next) return null;
-  let start = 0;
-  while (start < previous.length && start < next.length && previous[start] === next[start]) start += 1;
-  let previousEnd = previous.length;
-  let nextEnd = next.length;
-  while (previousEnd > start && nextEnd > start && previous[previousEnd - 1] === next[nextEnd - 1]) {
-    previousEnd -= 1;
-    nextEnd -= 1;
-  }
-  return { start, deleteCount: previousEnd - start, insert: next.slice(start, nextEnd) };
-}
+export { calculateTextSplice, type TextSplice } from "../domain/text";
 
 export function buildGroundedPrompt(source: string, selection: string, annotations: AnnotationResource[]): string {
   const evidence = annotations

@@ -3,6 +3,13 @@ import * as Y from "yjs";
 import { mergeBibTeX, normalizeDoi, parseBibTeX, serializeBibTeX, type BibTeXEntry } from "../domain/bibliography";
 import { applyYjsUpdateOnce, encodeServerCollaborationMessage } from "../domain/collaboration";
 import {
+  createManuscriptAnchor,
+  resolveManuscriptAnchor,
+  toManuscriptAnchorSelector,
+  type StoredManuscriptAnchor,
+} from "../domain/manuscript-anchor";
+import { calculateTextSplice } from "../domain/text";
+import {
   defaultBibliography,
   defaultSource,
   type ApplyCandidateResult,
@@ -61,6 +68,12 @@ interface LinkRow extends Record<string, SqlStorageValue> {
   start_offset: number;
   end_offset: number;
   excerpt: string;
+  anchor_version: number;
+  relative_start: ArrayBuffer | null;
+  relative_end: ArrayBuffer | null;
+  quote_prefix: string;
+  quote_suffix: string;
+  anchored_revision: number | null;
   created_at: string;
 }
 
@@ -113,17 +126,24 @@ interface ClaimLinkRow extends Record<string, SqlStorageValue> {
   start_offset: number;
   end_offset: number;
   excerpt: string;
+  anchor_version: number;
+  relative_start: ArrayBuffer | null;
+  relative_end: ArrayBuffer | null;
+  quote_prefix: string;
+  quote_suffix: string;
+  anchored_revision: number | null;
   created_at: string;
 }
 
 export class DocumentRoom extends DurableObject<Env> {
-  readonly #document = new Y.Doc();
+  #document = new Y.Doc();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
       this.#migrate();
       this.#loadDocument();
+      this.#backfillManuscriptAnchors();
     });
   }
 
@@ -292,26 +312,44 @@ export class DocumentRoom extends DurableObject<Env> {
 
   createPassageLink(input: CreatePassageLinkInput): PassageLink {
     const workspace = this.#workspaceRow();
+    const source = this.#document.getText("source").toString();
     const annotation = this.ctx.storage.sql
       .exec<{ count: number }>("SELECT COUNT(*) AS count FROM annotations WHERE id = ?", input.annotationId)
       .one();
     if (annotation.count === 0) throw new Error("Annotation not found");
-    if (input.end > workspace.source.length || workspace.source.slice(input.start, input.end) !== input.excerpt) {
+    if (input.sourceRevision !== workspace.revision) throw new Error("Document selection is stale");
+    if (source !== workspace.source || input.end > source.length || source.slice(input.start, input.end) !== input.excerpt) {
       throw new Error("Document selection is stale");
     }
 
-    const link: PassageLink = { id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() };
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision);
     this.ctx.storage.sql.exec(
-      "INSERT INTO passage_links (id, annotation_id, start_offset, end_offset, excerpt, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-      link.id,
-      link.annotationId,
-      link.start,
-      link.end,
-      link.excerpt,
-      link.createdAt,
+      `INSERT INTO passage_links
+       (id, annotation_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
+        quote_prefix, quote_suffix, anchored_revision, created_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+      id,
+      input.annotationId,
+      input.start,
+      input.end,
+      input.excerpt,
+      anchor.relativeStart,
+      anchor.relativeEnd,
+      anchor.prefix,
+      anchor.suffix,
+      anchor.anchoredRevision,
+      createdAt,
     );
     this.#broadcastResources();
-    return link;
+    return {
+      id,
+      annotationId: input.annotationId,
+      anchor: toManuscriptAnchorSelector(anchor),
+      resolution: resolveManuscriptAnchor(this.#document, anchor),
+      createdAt,
+    };
   }
 
   createClaim(input: UpsertClaimInput): ClaimResource {
@@ -366,22 +404,40 @@ export class DocumentRoom extends DurableObject<Env> {
 
   createClaimPassageLink(input: CreateClaimPassageLinkInput): ClaimPassageLink {
     const workspace = this.#workspaceRow();
+    const source = this.#document.getText("source").toString();
     this.#claim(input.claimId);
-    if (input.end > workspace.source.length || workspace.source.slice(input.start, input.end) !== input.excerpt) {
+    if (input.sourceRevision !== workspace.revision) throw new Error("Document selection is stale");
+    if (source !== workspace.source || input.end > source.length || source.slice(input.start, input.end) !== input.excerpt) {
       throw new Error("Document selection is stale");
     }
-    const link: ClaimPassageLink = { id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() };
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision);
     this.ctx.storage.sql.exec(
-      "INSERT INTO claim_passage_links (id, claim_id, start_offset, end_offset, excerpt, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-      link.id,
-      link.claimId,
-      link.start,
-      link.end,
-      link.excerpt,
-      link.createdAt,
+      `INSERT INTO claim_passage_links
+       (id, claim_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
+        quote_prefix, quote_suffix, anchored_revision, created_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+      id,
+      input.claimId,
+      input.start,
+      input.end,
+      input.excerpt,
+      anchor.relativeStart,
+      anchor.relativeEnd,
+      anchor.prefix,
+      anchor.suffix,
+      anchor.anchoredRevision,
+      createdAt,
     );
     this.#broadcastResources();
-    return link;
+    return {
+      id,
+      claimId: input.claimId,
+      anchor: toManuscriptAnchorSelector(anchor),
+      resolution: resolveManuscriptAnchor(this.#document, anchor),
+      createdAt,
+    };
   }
 
   createCandidate(input: CreateCandidateInput): ModelCandidate {
@@ -421,14 +477,40 @@ export class DocumentRoom extends DurableObject<Env> {
     if (candidate.sourceRevision !== workspace.revision) return { ok: false, error: "Candidate is stale; generate a new revision" };
 
     const source = this.#document.getText("source");
-    this.#document.transact(() => {
-      source.delete(0, source.length);
-      source.insert(0, candidate.proposedSource);
-    }, "candidate");
-    this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
-    const revision = this.#persistDocument();
-    this.#broadcast(Y.encodeStateAsUpdate(this.#document));
-    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision }));
+    const splice = calculateTextSplice(source.toString(), candidate.proposedSource);
+    if (splice) {
+      this.#document.transact(() => {
+        if (splice.deleteCount > 0) source.delete(splice.start, splice.deleteCount);
+        if (splice.insert) source.insert(splice.start, splice.insert);
+      }, "candidate");
+    }
+    let revision: number | undefined;
+    if (splice) {
+      const nextRevision = workspace.revision + 1;
+      revision = nextRevision;
+      try {
+        const state = Y.encodeStateAsUpdate(this.#document);
+        this.ctx.storage.transactionSync(() => {
+          this.ctx.storage.sql.exec(
+            "UPDATE workspace SET y_state = ?, source = ?, bibliography = ?, revision = ? WHERE id = 1",
+            state.buffer,
+            source.toString(),
+            this.#document.getText("bibliography").toString(),
+            nextRevision,
+          );
+          this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
+        });
+      } catch (error) {
+        this.#restoreDocument(workspace.y_state);
+        throw error;
+      }
+    } else {
+      this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
+    }
+    if (revision !== undefined) {
+      this.#broadcast(Y.encodeStateAsUpdate(this.#document));
+      this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision }));
+    }
     this.#broadcastResources();
     return { ok: true, snapshot: this.getSnapshot(workspaceId) };
   }
@@ -483,6 +565,12 @@ export class DocumentRoom extends DurableObject<Env> {
         start_offset INTEGER NOT NULL,
         end_offset INTEGER NOT NULL,
         excerpt TEXT NOT NULL,
+        anchor_version INTEGER NOT NULL DEFAULT 0,
+        relative_start BLOB,
+        relative_end BLOB,
+        quote_prefix TEXT NOT NULL DEFAULT '',
+        quote_suffix TEXT NOT NULL DEFAULT '',
+        anchored_revision INTEGER,
         created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS candidates (
@@ -531,6 +619,12 @@ export class DocumentRoom extends DurableObject<Env> {
         start_offset INTEGER NOT NULL,
         end_offset INTEGER NOT NULL,
         excerpt TEXT NOT NULL,
+        anchor_version INTEGER NOT NULL DEFAULT 0,
+        relative_start BLOB,
+        relative_end BLOB,
+        quote_prefix TEXT NOT NULL DEFAULT '',
+        quote_suffix TEXT NOT NULL DEFAULT '',
+        anchored_revision INTEGER,
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS publications_doi ON publications(doi) WHERE doi <> '';
@@ -544,6 +638,25 @@ export class DocumentRoom extends DurableObject<Env> {
     const annotationColumns = this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(annotations)").toArray();
     if (!annotationColumns.some((column) => column.name === "rects_json")) {
       this.ctx.storage.sql.exec("ALTER TABLE annotations ADD COLUMN rects_json TEXT NOT NULL DEFAULT '[]'");
+    }
+    this.#addAnchorColumns("passage_links");
+    this.#addAnchorColumns("claim_passage_links");
+  }
+
+  #addAnchorColumns(table: "passage_links" | "claim_passage_links"): void {
+    const columns = this.ctx.storage.sql.exec<{ name: string }>(`PRAGMA table_info(${table})`).toArray();
+    const additions = [
+      ["anchor_version", "INTEGER NOT NULL DEFAULT 0"],
+      ["relative_start", "BLOB"],
+      ["relative_end", "BLOB"],
+      ["quote_prefix", "TEXT NOT NULL DEFAULT ''"],
+      ["quote_suffix", "TEXT NOT NULL DEFAULT ''"],
+      ["anchored_revision", "INTEGER"],
+    ] as const;
+    for (const [name, definition] of additions) {
+      if (!columns.some((column) => column.name === name)) {
+        this.ctx.storage.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+      }
     }
   }
 
@@ -565,6 +678,56 @@ export class DocumentRoom extends DurableObject<Env> {
       defaultSource,
       defaultBibliography,
     );
+  }
+
+  #restoreDocument(state: ArrayBuffer): void {
+    this.#document.destroy();
+    this.#document = new Y.Doc();
+    Y.applyUpdate(this.#document, new Uint8Array(state), "storage");
+  }
+
+  #backfillManuscriptAnchors(): void {
+    const workspace = this.#workspaceRow();
+    this.#backfillAnchorTable("passage_links", workspace);
+    this.#backfillAnchorTable("claim_passage_links", workspace);
+  }
+
+  #backfillAnchorTable(table: "passage_links" | "claim_passage_links", workspace: WorkspaceRow): void {
+    const source = this.#document.getText("source").toString();
+    const rows = this.ctx.storage.sql
+      .exec<LinkRow | ClaimLinkRow>(`SELECT * FROM ${table} WHERE anchor_version <> 1 OR anchored_revision IS NULL`)
+      .toArray();
+    for (const row of rows) {
+      const validRange =
+        source === workspace.source &&
+        row.start_offset >= 0 &&
+        row.end_offset > row.start_offset &&
+        row.end_offset <= source.length &&
+        source.slice(row.start_offset, row.end_offset) === row.excerpt;
+      const anchor: StoredManuscriptAnchor = validRange
+        ? createManuscriptAnchor(this.#document, row.start_offset, row.end_offset, workspace.revision)
+        : {
+            version: 1,
+            relativeStart: null,
+            relativeEnd: null,
+            exact: row.excerpt,
+            prefix: "",
+            suffix: "",
+            originalRange: { start: row.start_offset, end: row.end_offset },
+            anchoredRevision: workspace.revision,
+          };
+      this.ctx.storage.sql.exec(
+        `UPDATE ${table}
+         SET anchor_version = 1, relative_start = ?, relative_end = ?, quote_prefix = ?, quote_suffix = ?, anchored_revision = ?
+         WHERE id = ?`,
+        anchor.relativeStart,
+        anchor.relativeEnd,
+        anchor.prefix,
+        anchor.suffix,
+        anchor.anchoredRevision,
+        row.id,
+      );
+    }
   }
 
   #persistDocument(): number {
@@ -690,14 +853,7 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.ctx.storage.sql
       .exec<LinkRow>("SELECT * FROM passage_links ORDER BY created_at DESC")
       .toArray()
-      .map((row) => ({
-        id: row.id,
-        annotationId: row.annotation_id,
-        start: row.start_offset,
-        end: row.end_offset,
-        excerpt: row.excerpt,
-        createdAt: row.created_at,
-      }));
+      .map((row) => passageLinkFromRow(this.#document, row));
   }
 
   #claims(): ClaimResource[] {
@@ -721,14 +877,7 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.ctx.storage.sql
       .exec<ClaimLinkRow>("SELECT * FROM claim_passage_links ORDER BY created_at DESC")
       .toArray()
-      .map((row) => ({
-        id: row.id,
-        claimId: row.claim_id,
-        start: row.start_offset,
-        end: row.end_offset,
-        excerpt: row.excerpt,
-        createdAt: row.created_at,
-      }));
+      .map((row) => claimPassageLinkFromRow(this.#document, row));
   }
 
   #claim(claimId: string): ClaimResource {
@@ -786,6 +935,41 @@ export class DocumentRoom extends DurableObject<Env> {
   #broadcastResources(): void {
     this.#broadcast(encodeServerCollaborationMessage({ type: "resources" }));
   }
+}
+
+function passageLinkFromRow(document: Y.Doc, row: LinkRow): PassageLink {
+  const anchor = manuscriptAnchorFromRow(row);
+  return {
+    id: row.id,
+    annotationId: row.annotation_id,
+    anchor: toManuscriptAnchorSelector(anchor),
+    resolution: resolveManuscriptAnchor(document, anchor),
+    createdAt: row.created_at,
+  };
+}
+
+function claimPassageLinkFromRow(document: Y.Doc, row: ClaimLinkRow): ClaimPassageLink {
+  const anchor = manuscriptAnchorFromRow(row);
+  return {
+    id: row.id,
+    claimId: row.claim_id,
+    anchor: toManuscriptAnchorSelector(anchor),
+    resolution: resolveManuscriptAnchor(document, anchor),
+    createdAt: row.created_at,
+  };
+}
+
+function manuscriptAnchorFromRow(row: LinkRow | ClaimLinkRow): StoredManuscriptAnchor {
+  return {
+    version: 1,
+    relativeStart: row.anchor_version === 1 ? row.relative_start : null,
+    relativeEnd: row.anchor_version === 1 ? row.relative_end : null,
+    exact: row.excerpt,
+    prefix: row.quote_prefix,
+    suffix: row.quote_suffix,
+    originalRange: { start: row.start_offset, end: row.end_offset },
+    anchoredRevision: row.anchored_revision ?? 0,
+  };
 }
 
 function candidateFromRow(row: CandidateRow): ModelCandidate {
