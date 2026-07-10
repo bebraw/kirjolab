@@ -28,18 +28,33 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Coordinate each collaborative document through its own SQLite-backed Durable Object.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
 - Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
-- Materialize every accepted collaborative update into readable Markdown and bibliography text.
+- Establish collaboration through a server-led Yjs handshake: send current
+  binary state before a versioned synchronization control message, and never
+  send speculative browser state on connection open.
+- Retain ordered browser updates until the document room acknowledges durable
+  handling; after reconnect, replay only updates that were not acknowledged.
+- Materialize every causally new collaborative update into readable Markdown
+  and bibliography text, but acknowledge duplicate or replayed Yjs state at the
+  current revision without persistence, rebroadcast, or a revision increase.
+- After synchronization, derive browser editor text from Yjs and its displayed
+  revision from collaboration controls; REST resource refreshes must not write
+  either value.
 - Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
 - Combine PDF page/geometry identity with exact quote, prefix, and suffix selectors; never require mutation of the imported PDF.
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
 - Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
 - Derive bounded workspace search and hypermedia projections from canonical state until scale measurements justify a persisted index; treat visual graph layouts as optional views, not the navigation model.
+- Invalidate browser resource views with a server-owned control message and a
+  coalesced authorized metadata refresh rather than replacing live editor
+  state from a workspace snapshot.
 - Treat claims as stable, human-authored propositions; store their evidence and manuscript usage as typed links so editing or deleting a claim never mutates its source annotations or authored prose.
 - Keep BibTeX as the canonical authored bibliography while materializing imported entries as stable publication resources.
 - Treat citation keys as workspace aliases and normalized DOI values as external identifiers; neither is an internal publication identity.
 - Make external metadata enrichment explicit, source-labeled, and materialized back into canonical BibTeX.
-- Let language models create provenance-aware candidates; applying a candidate must remain a separate validated action.
+- Capture a model operation's source, selection, revision, and evidence as one
+  immutable base before awaiting a provider; reject stale candidate creation
+  and keep application as a separate revision-validated action.
 - Keep local-model network access in the browser or a future local companion so a hosted Worker never assumes it can reach localhost.
 - Verify Cloudflare Access JWT signatures and claims inside the Worker for hosted identity; never trust caller-supplied identity headers alone.
 - Authorize every workspace data representation, API operation, PDF stream, and WebSocket upgrade through explicit owner/member state.

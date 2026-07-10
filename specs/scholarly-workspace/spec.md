@@ -27,13 +27,23 @@ mode for authenticated hosted collaboration.
 - **Document semantics:** Satteri parses standard Markdown and GFM while
   `src/domain/markdown.ts` adds headings, citations, references, aliases,
   anchors, validation, and preview security from the scientific-writing syntax.
-- **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for the
-  `demo` document. Browser and server exchange Yjs updates through hibernatable
-  WebSockets. Each update materializes Yjs state, Markdown, BibTeX, and a
-  monotonically increasing revision together.
-- **Resource metadata:** The document Durable Object stores PDF artifact fingerprints, annotations,
-  publication projections, passage links, and model candidates alongside the
-  document coordination atom.
+- **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each
+  document. On a hibernatable WebSocket connection it sends full binary Yjs
+  state followed by a versioned `sync` control. The browser sends no state on
+  open, retains ordered local updates until a durable `ack`, and replays only
+  unacknowledged updates after reconnect.
+- **Editor ownership:** After `sync`, source and bibliography inputs derive from
+  `Y.Text`; server collaboration controls own the displayed revision. REST
+  workspace refreshes cannot assign those values.
+- **Revision boundary:** Causally new Yjs state materializes Yjs, Markdown, and
+  BibTeX together and advances the revision once. Duplicate or replayed updates
+  receive an `ack` at the current revision without persistence, rebroadcast, or
+  a revision increase.
+- **Resource metadata:** The document Durable Object stores PDF artifact
+  fingerprints, annotations, publication projections, passage links, and model
+  candidates alongside the document coordination atom. Its server-owned
+  `resources` control invalidates a coalesced REST metadata refresh without
+  replacing editor state.
 - **Reference library:** BibTeX imports merge into canonical bibliography text
   and materialize stable publication resources. DOI-backed Crossref enrichment
   is an explicit action.
@@ -49,11 +59,14 @@ mode for authenticated hosted collaboration.
 - **Evidence capture:** PDF.js renders one selectable page. Text selection
   creates exact quote/context selectors plus normalized page rectangles before
   the annotation is saved.
-- **Local models:** The browser calls a user-configured OpenAI-compatible local
-  endpoint. Kirjolab receives a typed candidate containing provider/model
-  identity, source resource ids, source revision, and proposed Markdown.
-- **Mutation boundary:** A pending candidate can be inspected, rejected without
-  changing source, or applied only while its source revision is current.
+- **Local models:** Before awaiting a user-configured OpenAI-compatible local
+  endpoint, the browser captures immutable source, selection, revision, and
+  evidence values. Kirjolab receives a typed candidate containing
+  provider/model identity, source resource ids, that base revision, and
+  proposed Markdown.
+- **Mutation boundary:** Candidate creation fails if its immutable base revision
+  is already stale. A current pending candidate can be inspected, rejected
+  without changing source, or applied only while its revision remains current.
 - **Exports:** Dedicated endpoints return `document.md` and `bibliography.bib`
   with download metadata.
 
@@ -64,7 +77,10 @@ mode for authenticated hosted collaboration.
 - `GET /api/workspaces/demo` returns the complete workspace representation.
 - `GET /api/workspaces/demo/search?q={query}` searches the authorized workspace.
 - `GET /api/workspaces/demo/graph` returns its derived typed-resource projection.
-- `GET /api/workspaces/demo/socket` upgrades to the collaborative Yjs channel.
+- `GET /api/workspaces/demo/socket` upgrades to protocol version one of the
+  collaborative Yjs channel. The server sends binary state before
+  `{"type":"sync","protocol":1,"revision":n}` and durably handles each client
+  binary update before returning `{"type":"ack","revision":n}`.
 - `POST /api/workspaces/demo/pdfs` streams one PDF of at most 25 MB to R2.
 - `GET /api/workspaces/demo/pdfs/{id}` streams an imported PDF.
 - `POST /api/workspaces/demo/annotations` creates a selector-backed annotation.
@@ -91,8 +107,14 @@ mode for authenticated hosted collaboration.
 
 - Do not make Yjs state, rendered HTML, or a candidate the only usable document
   representation.
+- Do not send browser Yjs state speculatively when a socket opens or treat a
+  sent frame as durable before its acknowledgement.
+- Do not let a REST metadata refresh assign source, bibliography, or displayed
+  revision after Yjs synchronization.
 - Do not proxy arbitrary local-model endpoints through the hosted Worker.
-- Do not accept stale model candidates or stale passage ranges.
+- Do not capture a model candidate's source revision after awaiting its provider
+  or accept stale candidate creation, stale candidate application, or stale
+  passage ranges.
 - Do not buffer PDF bodies in Worker memory.
 - Do not write annotation data into imported PDFs.
 - Do not deploy with local authentication or without a protected Cloudflare
@@ -105,6 +127,12 @@ mode for authenticated hosted collaboration.
 ### Definition of Done
 
 - [x] Two browser sessions converge on one collaborative Markdown document.
+- [x] Server state establishes synchronization before the browser sends queued
+      updates, and each client update receives a durable acknowledgement.
+- [x] Reconnect replays only unacknowledged updates; an already integrated
+      replay is acknowledged without advancing the revision.
+- [x] Yjs owns live editor text after synchronization while coalesced resource
+      refreshes update only non-editor workspace state.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
@@ -118,14 +146,24 @@ mode for authenticated hosted collaboration.
       annotated without mutation.
 - [x] An annotation can be linked to the exact selected manuscript range.
 - [x] A local model can return a grounded candidate with inspectable provenance.
-- [x] Candidate application is explicit and rejects stale revisions.
+- [x] Candidate creation and application are explicit and reject stale base
+      revisions captured before model execution.
 - [x] Markdown and BibTeX export without private collaboration state.
 - [x] Unit coverage and browser tests exercise the critical workflow.
 
 ### Regression Guardrails
 
-- Canonical source and bibliography must be materialized after every accepted
-  Yjs update.
+- Binary Yjs state must arrive before the versioned `sync` control on every
+  connection, and the browser must not send queued state before that boundary.
+- Canonical source and bibliography must be materialized after every causally
+  new Yjs update.
+- A client update must remain queued until its `ack`; replaying already
+  integrated state must return the current revision without persistence,
+  rebroadcast, or revision advancement.
+- After synchronization, `Y.Text` and server controls must remain the only
+  browser writers for editor text and displayed revision respectively.
+- Resource invalidation refreshes must be coalesced and must never write editor
+  text or collaboration revision.
 - Document updates must be scoped to one Durable Object per workspace/document
   coordination atom.
 - PDF uploads must require `application/pdf`, a known positive content length,
@@ -133,7 +171,9 @@ mode for authenticated hosted collaboration.
 - Annotation creation must require a known PDF, positive page number, exact
   quote, textual context fields, and valid bounded geometry when present.
 - Passage links must match the current source at their supplied offsets.
-- Applying a model candidate must fail after the document revision changes.
+- Model source, selection, revision, and evidence must be captured together
+  before provider I/O; creating or applying its candidate must fail after the
+  document revision changes.
 - Browser code must remain external to Worker-rendered HTML and pass both strict
   worker and client TypeScript configurations.
 
@@ -152,9 +192,28 @@ mode for authenticated hosted collaboration.
 **Scenario: Collaborative source becomes a preview**
 
 - Given: the demo workspace is open in a browser
-- When: a writer changes the Markdown source
-- Then: collaborators converge, the Durable Object materializes Markdown, and
-  the semantic preview updates
+- When: server state and the versioned synchronization control arrive, then a
+  writer changes the Markdown source
+- Then: the update stays queued until its durable acknowledgement,
+  collaborators converge, the Durable Object materializes Markdown, and the
+  semantic preview updates
+
+**Scenario: A lost acknowledgement is recovered**
+
+- Given: the document room persisted a browser update but its acknowledgement
+  was lost with the connection
+- When: the browser reconnects, synchronizes from server state, and replays the
+  unacknowledged update
+- Then: the document room acknowledges the replay at the current revision
+  without persisting, rebroadcasting, or incrementing it again
+
+**Scenario: Resource refresh preserves collaborative text**
+
+- Given: a synchronized editor has a resource refresh in flight
+- When: a collaborator changes the manuscript and the server invalidates
+  resource metadata
+- Then: refresh requests are coalesced, non-editor resources update, and the
+  REST response cannot replace Yjs-owned source or collaboration revision
 
 **Scenario: Evidence becomes linked working memory**
 
@@ -167,9 +226,18 @@ mode for authenticated hosted collaboration.
 **Scenario: Local model proposes grounded prose**
 
 - Given: manuscript text and annotations are explicitly selected
-- When: the local model returns revised Markdown
-- Then: Kirjolab stores a pending candidate with provider, model, revision, and
-  source ids while leaving canonical Markdown unchanged
+- When: Kirjolab captures their immutable base and the local model returns
+  revised Markdown
+- Then: Kirjolab stores a pending candidate only if the captured revision is
+  still current, with provider, model, revision, and source ids while leaving
+  canonical Markdown unchanged
+
+**Scenario: Collaboration invalidates a model result in flight**
+
+- Given: a local model request is running against a captured source revision
+- When: a collaborator advances the document before the provider responds
+- Then: candidate creation rejects the stale base instead of labeling old output
+  with the new revision
 
 **Scenario: Researcher applies a current candidate**
 

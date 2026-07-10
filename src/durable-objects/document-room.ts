@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
 import { mergeBibTeX, normalizeDoi, parseBibTeX, serializeBibTeX, type BibTeXEntry } from "../domain/bibliography";
+import { applyYjsUpdateOnce, encodeServerCollaborationMessage } from "../domain/collaboration";
 import {
   defaultBibliography,
   defaultSource,
@@ -136,6 +137,7 @@ export class DocumentRoom extends DurableObject<Env> {
     const server = pair[1];
     this.ctx.acceptWebSocket(server);
     server.send(Y.encodeStateAsUpdate(this.#document));
+    server.send(encodeServerCollaborationMessage({ type: "sync", protocol: 1, revision: this.#workspaceRow().revision }));
     this.#broadcastPresence();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -152,16 +154,23 @@ export class DocumentRoom extends DurableObject<Env> {
     }
 
     const update = new Uint8Array(message);
+    let applied: boolean;
     try {
-      Y.decodeUpdate(update);
-      Y.applyUpdate(this.#document, update, "remote");
+      applied = applyYjsUpdateOnce(this.#document, update);
     } catch {
       socket.close(1007, "Invalid document update");
       return;
     }
+
+    if (!applied) {
+      socket.send(encodeServerCollaborationMessage({ type: "ack", revision: this.#workspaceRow().revision }));
+      return;
+    }
+
     const revision = this.#persistDocument();
+    socket.send(encodeServerCollaborationMessage({ type: "ack", revision }));
     this.#broadcast(message, socket);
-    this.#broadcast(JSON.stringify({ type: "revision", revision }));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision }), socket);
   }
 
   override webSocketClose(_socket: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
@@ -204,6 +213,7 @@ export class DocumentRoom extends DurableObject<Env> {
       pdf.fingerprint,
       pdf.createdAt,
     );
+    this.#broadcastResources();
     return pdf;
   }
 
@@ -253,6 +263,8 @@ export class DocumentRoom extends DurableObject<Env> {
         ...(metadata.abstract ? { abstract: metadata.abstract } : {}),
       };
       this.#replaceBibliography(serializeBibTeX(entries), "crossref-enrichment");
+    } else {
+      this.#broadcastResources();
     }
     return this.getSnapshot(workspaceId);
   }
@@ -274,6 +286,7 @@ export class DocumentRoom extends DurableObject<Env> {
       JSON.stringify(annotation.rects),
       annotation.createdAt,
     );
+    this.#broadcastResources();
     return annotation;
   }
 
@@ -297,6 +310,7 @@ export class DocumentRoom extends DurableObject<Env> {
       link.excerpt,
       link.createdAt,
     );
+    this.#broadcastResources();
     return link;
   }
 
@@ -321,6 +335,7 @@ export class DocumentRoom extends DurableObject<Env> {
       );
       this.#insertClaimEvidence(claim.id, input.evidence, now);
     });
+    this.#broadcastResources();
     return claim;
   }
 
@@ -339,12 +354,14 @@ export class DocumentRoom extends DurableObject<Env> {
       this.ctx.storage.sql.exec("DELETE FROM claim_evidence_links WHERE claim_id = ?", claimId);
       this.#insertClaimEvidence(claimId, input.evidence, updatedAt);
     });
+    this.#broadcastResources();
     return { ...existing, text: input.text.trim(), note: input.note.trim(), updatedAt };
   }
 
   deleteClaim(claimId: string): void {
     this.#claim(claimId);
     this.ctx.storage.sql.exec("DELETE FROM claims WHERE id = ?", claimId);
+    this.#broadcastResources();
   }
 
   createClaimPassageLink(input: CreateClaimPassageLinkInput): ClaimPassageLink {
@@ -363,10 +380,14 @@ export class DocumentRoom extends DurableObject<Env> {
       link.excerpt,
       link.createdAt,
     );
+    this.#broadcastResources();
     return link;
   }
 
   createCandidate(input: CreateCandidateInput): ModelCandidate {
+    if (input.sourceRevision !== this.#workspaceRow().revision) {
+      throw new Error("Candidate source is stale; generate a new revision");
+    }
     const candidate: ModelCandidate = {
       id: crypto.randomUUID(),
       provider: input.provider,
@@ -389,6 +410,7 @@ export class DocumentRoom extends DurableObject<Env> {
       candidate.status,
       candidate.createdAt,
     );
+    this.#broadcastResources();
     return candidate;
   }
 
@@ -406,7 +428,8 @@ export class DocumentRoom extends DurableObject<Env> {
     this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
     const revision = this.#persistDocument();
     this.#broadcast(Y.encodeStateAsUpdate(this.#document));
-    this.#broadcast(JSON.stringify({ type: "revision", revision }));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision }));
+    this.#broadcastResources();
     return { ok: true, snapshot: this.getSnapshot(workspaceId) };
   }
 
@@ -414,6 +437,7 @@ export class DocumentRoom extends DurableObject<Env> {
     const candidate = this.#candidate(candidateId);
     if (candidate.status !== "pending") throw new Error("Candidate is no longer pending");
     this.ctx.storage.sql.exec("UPDATE candidates SET status = 'rejected' WHERE id = ?", candidateId);
+    this.#broadcastResources();
     return { ...candidate, status: "rejected" };
   }
 
@@ -565,7 +589,8 @@ export class DocumentRoom extends DurableObject<Env> {
     }, origin);
     const revision = this.#persistDocument();
     this.#broadcast(Y.encodeStateAsUpdate(this.#document));
-    this.#broadcast(JSON.stringify({ type: "revision", revision }));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision }));
+    this.#broadcastResources();
   }
 
   #upsertPublication(entry: BibTeXEntry): PublicationResource {
@@ -755,7 +780,11 @@ export class DocumentRoom extends DurableObject<Env> {
   }
 
   #broadcastPresence(): void {
-    this.#broadcast(JSON.stringify({ type: "presence", collaborators: this.ctx.getWebSockets().length }));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "presence", collaborators: this.ctx.getWebSockets().length }));
+  }
+
+  #broadcastResources(): void {
+    this.#broadcast(encodeServerCollaborationMessage({ type: "resources" }));
   }
 }
 

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf } from "./test-support/pdf-fixture";
@@ -44,6 +44,98 @@ test("converges source edits across two writers", async ({ page, context }) => {
   const expandedSource = `${sharedSource}\nThe second writer connects the evidence.\n`;
   await collaborator.locator("#source-editor").fill(expandedSource);
   await expect(page.locator("#source-editor")).toHaveValue(expandedSource);
+  await collaborator.close();
+});
+
+test("does not revise a manuscript when collaborators only reconnect", async ({ page, context }) => {
+  const workspaceId = await createWorkspace(page, "Connection boundary");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  const baseline = await readWorkspaceSnapshot(page, api);
+
+  const collaborator = await context.newPage();
+  await collaborator.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
+  await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
+
+  await collaborator.reload();
+  await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
+  await collaborator.close();
+
+  // A short quiet period makes the negative assertion cover all queued socket frames.
+  await page.waitForTimeout(200);
+  const afterReconnect = await readWorkspaceSnapshot(page, api);
+  expect(afterReconnect.revision).toBe(baseline.revision);
+  expect(afterReconnect.source).toBe(baseline.source);
+  expect(afterReconnect.bibliography).toBe(baseline.bibliography);
+});
+
+test("keeps a focused caret attached to manuscript text during a remote insertion", async ({ page, context }) => {
+  const workspaceId = await createWorkspace(page, "Caret boundary");
+  const path = `/workspaces/${workspaceId}`;
+  await page.goto(path);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+
+  const collaborator = await context.newPage();
+  await collaborator.goto(path);
+  await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
+  await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
+
+  const source = "Alpha keeps its logical caret.\n";
+  const editor = page.locator("#source-editor");
+  await editor.fill(source);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(source);
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    const caret = element.value.indexOf(" keeps");
+    element.focus();
+    element.setSelectionRange(caret, caret);
+  });
+  await expect(editor).toBeFocused();
+
+  const prefix = "A collaborator notes: ";
+  await collaborator.locator("#source-editor").fill(`${prefix}${source}`);
+  await expect(editor).toHaveValue(`${prefix}${source}`);
+  await expect
+    .poll(async () => await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart))
+    .toBe(prefix.length + "Alpha".length);
+
+  await page.keyboard.type("!");
+  await expect(editor).toHaveValue(`${prefix}Alpha! keeps its logical caret.\n`);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(`${prefix}Alpha! keeps its logical caret.\n`);
+  await collaborator.close();
+});
+
+test("invalidates shared resources without replacing the collaborative manuscript", async ({ page, context }) => {
+  const workspaceId = await createWorkspace(page, "Resource invalidation boundary");
+  const api = `/api/workspaces/${workspaceId}`;
+  const path = `/workspaces/${workspaceId}`;
+  await page.goto(path);
+  const collaborator = await context.newPage();
+  await collaborator.goto(path);
+  await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
+  await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
+
+  const sharedSource = "## Shared resource boundary {#shared-resource}\n\nThe manuscript remains under Yjs ownership.\n";
+  await page.locator("#source-editor").fill(sharedSource);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(sharedSource);
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(sharedSource);
+
+  const pdfResponse = await page.request.post(`${api}/pdfs`, {
+    headers: {
+      origin: "http://127.0.0.1:8788",
+      "content-type": "application/pdf",
+      "x-file-name": "socket-invalidated-evidence.pdf",
+    },
+    data: createEvidencePdf(),
+  });
+  expect(pdfResponse.status()).toBe(201);
+
+  await expect(page.locator("#pdf-list")).toContainText("socket-invalidated-evidence.pdf");
+  await expect(collaborator.locator("#pdf-list")).toContainText("socket-invalidated-evidence.pdf");
+  await expect(page.locator("#source-editor")).toHaveValue(sharedSource);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(sharedSource);
+  expect((await readWorkspaceSnapshot(page, api)).source).toBe(sharedSource);
   await collaborator.close();
 });
 
@@ -284,6 +376,111 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
   expect(afterDelete.claimLinks).toEqual([]);
 });
 
+test("rejects a delayed model candidate after a concurrent manuscript edit", async ({ page, context }) => {
+  const origin = "http://127.0.0.1:8788";
+  const workspaceId = await createWorkspace(page, "Stale model boundary");
+  const api = `/api/workspaces/${workspaceId}`;
+  const pdfResponse = await page.request.post(`${api}/pdfs`, {
+    headers: { origin, "content-type": "application/pdf", "x-file-name": "model-evidence.pdf" },
+    data: createEvidencePdf(),
+  });
+  const pdf: unknown = await pdfResponse.json();
+  if (!isRecord(pdf) || typeof pdf.id !== "string") throw new Error("Expected an imported PDF");
+  const annotationResponse = await page.request.post(`${api}/annotations`, {
+    headers: { origin },
+    data: {
+      pdfId: pdf.id,
+      page: 1,
+      quote: "Knowledge grows through inspectable evidence.",
+      prefix: "",
+      suffix: "",
+      comment: "Model grounding",
+      rects: [],
+    },
+  });
+  expect(annotationResponse.status()).toBe(201);
+
+  let markLlmRequested = (): void => undefined;
+  const llmRequested = new Promise<void>((resolve) => {
+    markLlmRequested = resolve;
+  });
+  let releaseLlm = (): void => undefined;
+  const waitForLlmRelease = new Promise<void>((resolve) => {
+    releaseLlm = resolve;
+  });
+  await page.route("http://127.0.0.1:1234/v1/chat/completions", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "POST, OPTIONS",
+          "access-control-allow-headers": "content-type",
+        },
+      });
+      return;
+    }
+    markLlmRequested();
+    await waitForLlmRelease;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({
+        choices: [{ message: { content: "## Proposed revision\n\nThis stale draft must not be stored.\n" } }],
+      }),
+    });
+  });
+
+  const path = `/workspaces/${workspaceId}`;
+  await page.goto(path);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await expect(page.locator("#annotation-list")).toContainText("Model grounding");
+  const editor = page.locator("#source-editor");
+  const baseSource = "## Model boundary {#model-boundary}\n\nThis paragraph is grounded in visible evidence.\n";
+  await editor.fill(baseSource);
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(baseSource);
+  const baseSnapshot = await readWorkspaceSnapshot(page, api);
+
+  const collaborator = await context.newPage();
+  await collaborator.goto(path);
+  await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
+  await expect(collaborator.locator("#source-editor")).toHaveValue(baseSource);
+
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    const start = element.value.indexOf("This paragraph");
+    element.focus();
+    element.setSelectionRange(start, start + "This paragraph is grounded in visible evidence.".length);
+  });
+  await page.locator("[data-annotation-id]").first().check();
+  await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
+  await page.locator("#llm-model").fill("delayed-local-model");
+  await expect(page.getByRole("button", { name: "Draft revision" })).toBeEnabled();
+  await page.getByRole("button", { name: "Draft revision" }).click();
+  await llmRequested;
+
+  const concurrentSource = `${baseSource}\nA collaborator changes the manuscript while the model is thinking.\n`;
+  await collaborator.locator("#source-editor").fill(concurrentSource);
+  await expect(editor).toHaveValue(concurrentSource);
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(concurrentSource);
+  const concurrentSnapshot = await readWorkspaceSnapshot(page, api);
+  expect(concurrentSnapshot.revision).toBeGreaterThan(baseSnapshot.revision);
+  await expect(page.locator("#revision-badge")).toHaveText(`r${concurrentSnapshot.revision}`);
+
+  const candidateResponse = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === `${api}/candidates` && response.request().method() === "POST",
+  );
+  releaseLlm();
+  expect((await candidateResponse).status()).toBe(409);
+  await expect(page.locator("#model-status")).toContainText(/stale|changed/iu);
+  await expect(page.locator("#candidate-list article")).toHaveCount(0);
+  await expect(page.locator("#candidate-list")).toContainText("Model candidates remain separate");
+  const finalSnapshot = await readWorkspaceSnapshot(page, api);
+  expect(finalSnapshot.candidates).toEqual([]);
+  expect(finalSnapshot.source).toBe(concurrentSource);
+  await collaborator.close();
+});
+
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {
   await page.route("http://127.0.0.1:1234/v1/chat/completions", async (route) => {
     if (route.request().method() === "OPTIONS") {
@@ -495,4 +692,23 @@ test("serves stable health and browser assets", async ({ request }) => {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function createWorkspace(page: Page, title: string): Promise<string> {
+  const response = await page.request.post("/api/workspaces", {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { title },
+  });
+  expect(response.status()).toBe(201);
+  const workspace: unknown = await response.json();
+  if (!isRecord(workspace) || typeof workspace.id !== "string") throw new Error("Expected a created workspace");
+  return workspace.id;
+}
+
+async function readWorkspaceSnapshot(page: Page, api: string) {
+  const response = await page.request.get(api);
+  expect(response.ok()).toBe(true);
+  const value: unknown = await response.json();
+  if (!isWorkspaceSnapshot(value)) throw new Error("Expected a workspace snapshot");
+  return value;
 }

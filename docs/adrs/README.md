@@ -82,6 +82,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-046](./implemented/ADR-046-derive-bounded-knowledge-navigation.md)               | Implemented | Derive bounded search and typed navigation projections from authorized workspace state.          |
 | [ADR-047](./implemented/ADR-047-model-evidence-backed-claims.md)                      | Implemented | Store claims and their evidence and manuscript usage as explicit typed resources.                |
 | [ADR-048](./implemented/ADR-048-secure-browser-collaboration-boundary.md)             | Implemented | Sanitize preview output and validate same-origin, binary-only collaboration traffic.             |
+| [ADR-049](./implemented/ADR-049-acknowledge-server-led-yjs-synchronization.md)        | Implemented | Synchronize from server state and acknowledge durable, idempotent Yjs updates.                   |
 
 ## Creating A New ADR
 

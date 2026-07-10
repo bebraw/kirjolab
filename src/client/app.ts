@@ -2,11 +2,11 @@ import * as Y from "yjs";
 import {
   buildWorkspaceKnowledgeGraph,
   isKnowledgeSearchResults,
-  isWorkspaceKnowledgeGraph,
   type KnowledgeGraphNode,
   type KnowledgeSearchResult,
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
+import { parseServerCollaborationMessage } from "../domain/collaboration";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
 import {
   isWorkspaceSnapshot,
@@ -26,6 +26,7 @@ import {
   type WorkspaceSummary,
 } from "../domain/workspace";
 import { buildGroundedPrompt, calculateTextSplice, extractCompletion } from "./operations";
+import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 
 const workspaceId = readWorkspaceId();
@@ -107,15 +108,30 @@ interface Elements {
   toast: HTMLElement;
 }
 
+interface RelativeEditorSelection {
+  readonly text: Y.Text;
+  readonly textarea: HTMLTextAreaElement;
+  readonly start: Y.RelativePosition;
+  readonly end: Y.RelativePosition;
+  readonly direction: "forward" | "backward" | "none" | null;
+}
+
 class WorkspaceApp {
   readonly #elements = collectElements();
   readonly #pdfViewer: PdfEvidenceViewer;
   readonly #document = new Y.Doc();
   readonly #source = this.#document.getText("source");
   readonly #bibliography = this.#document.getText("bibliography");
+  readonly #pendingUpdates = new PendingUpdateQueue();
+  readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
   #snapshot: WorkspaceSnapshot | null = null;
   #revision = 0;
   #socket: WebSocket | null = null;
+  #socketSynced = false;
+  #awaitingRemoteRevision = false;
+  #reconnectTimer: number | undefined;
+  #modelBusy = false;
+  #hasBootstrapSnapshot = false;
   #toastTimer: number | undefined;
   #pendingRects: PdfSelectionRect[] = [];
   #activePdfId: string | undefined;
@@ -142,7 +158,7 @@ class WorkspaceApp {
     this.#bindUi();
     this.#setEditorsEnabled(false);
     await this.#refreshCatalog();
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#connect();
   }
 
@@ -162,7 +178,11 @@ class WorkspaceApp {
     this.#source.observe(() => this.#renderPreview());
     this.#bibliography.observe(() => this.#renderPreview());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
-      if (origin !== remoteOrigin && this.#socket?.readyState === WebSocket.OPEN) this.#socket.send(toArrayBuffer(update));
+      if (origin === remoteOrigin) return;
+      this.#pendingUpdates.enqueue(update);
+      this.#elements.saveStatus.textContent = "Saving…";
+      this.#updateModelAvailability();
+      this.#flushPendingUpdates();
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
     this.#elements.bibliographyUpload.addEventListener("change", () => void this.#importBibliography());
@@ -183,13 +203,17 @@ class WorkspaceApp {
     if (!isWorkspaceSnapshot(value)) throw new Error("Workspace returned an invalid snapshot");
     this.#snapshot = value;
     this.#elements.workspaceTitle.textContent = value.title;
-    this.#revision = value.revision;
-    this.#elements.source.value = value.source;
-    this.#elements.bibliography.value = value.bibliography;
-    this.#renderPreview(value.source, value.bibliography);
+    if (!this.#hasBootstrapSnapshot) {
+      this.#hasBootstrapSnapshot = true;
+      this.#revision = value.revision;
+      this.#elements.source.value = value.source;
+      this.#elements.bibliography.value = value.bibliography;
+      this.#renderPreview(value.source, value.bibliography);
+      this.#updateRevision();
+    } else {
+      this.#renderPreview();
+    }
     this.#renderResources();
-    await this.#refreshKnowledgeGraph();
-    this.#updateRevision();
   }
 
   async #refreshCatalog(): Promise<void> {
@@ -254,38 +278,138 @@ class WorkspaceApp {
   }
 
   #connect(): void {
+    if (this.#socket && this.#socket.readyState < WebSocket.CLOSING) return;
+    window.clearTimeout(this.#reconnectTimer);
+    this.#reconnectTimer = undefined;
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(`${protocol}//${location.host}${apiBase}/socket`);
     socket.binaryType = "arraybuffer";
     this.#socket = socket;
+    this.#socketSynced = false;
+    this.#pendingUpdates.resetForReconnect();
+    this.#updateModelAvailability();
     socket.addEventListener("open", () => {
-      this.#setConnection("Live", true);
-      this.#setEditorsEnabled(true);
-      socket.send(toArrayBuffer(Y.encodeStateAsUpdate(this.#document)));
+      if (this.#socket !== socket) return;
+      this.#setConnection("Synchronizing", false);
     });
-    socket.addEventListener("message", (event: MessageEvent<string | ArrayBuffer>) => this.#handleSocketMessage(event.data));
+    socket.addEventListener("message", (event: MessageEvent<string | ArrayBuffer>) => {
+      if (this.#socket === socket) this.#handleSocketMessage(socket, event.data);
+    });
     socket.addEventListener("close", () => {
+      if (this.#socket !== socket) return;
+      this.#socket = null;
+      this.#socketSynced = false;
+      this.#pendingUpdates.resetForReconnect();
       this.#setConnection("Reconnecting", false);
       this.#setEditorsEnabled(false);
-      window.setTimeout(() => this.#connect(), 1200);
+      this.#updateModelAvailability();
+      this.#reconnectTimer ??= window.setTimeout(() => {
+        this.#reconnectTimer = undefined;
+        this.#connect();
+      }, 1200);
     });
     socket.addEventListener("error", () => socket.close());
   }
 
-  #handleSocketMessage(message: string | ArrayBuffer): void {
+  #handleSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
     if (typeof message !== "string") {
-      Y.applyUpdate(this.#document, new Uint8Array(message), remoteOrigin);
-      this.#elements.saveStatus.textContent = "Materialized to Markdown";
+      const selections = this.#captureEditorSelections();
+      if (this.#socketSynced) this.#awaitingRemoteRevision = true;
+      try {
+        Y.applyUpdate(this.#document, new Uint8Array(message), remoteOrigin);
+      } catch {
+        socket.close(1007, "Invalid collaboration update");
+        return;
+      }
+      this.#restoreEditorSelections(selections);
+      this.#updateModelAvailability();
       return;
     }
-    const value: unknown = JSON.parse(message);
-    if (!isRecord(value) || typeof value.type !== "string") return;
-    if (value.type === "revision" && typeof value.revision === "number") {
-      this.#revision = value.revision;
-      this.#updateRevision();
+
+    const value = parseServerCollaborationMessage(message);
+    if (!value) {
+      socket.close(1002, "Invalid collaboration control");
+      return;
     }
-    if (value.type === "presence" && typeof value.collaborators === "number") {
-      this.#elements.connectionStatus.textContent = `Live · ${value.collaborators} ${value.collaborators === 1 ? "writer" : "writers"}`;
+    switch (value.type) {
+      case "sync":
+        if (this.#socketSynced) {
+          socket.close(1002, "Duplicate collaboration sync");
+          return;
+        }
+        this.#socketSynced = true;
+        this.#awaitingRemoteRevision = false;
+        this.#setConnection("Live", true);
+        this.#setEditorsEnabled(true);
+        this.#setRevision(value.revision);
+        this.#flushPendingUpdates();
+        break;
+      case "ack":
+        try {
+          this.#pendingUpdates.acknowledge();
+        } catch {
+          socket.close(1002, "Unexpected collaboration acknowledgement");
+          return;
+        }
+        this.#setRevision(value.revision);
+        this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Materialized to Markdown" : "Saving…";
+        this.#flushPendingUpdates();
+        break;
+      case "revision":
+        this.#awaitingRemoteRevision = false;
+        this.#setRevision(value.revision);
+        break;
+      case "presence":
+        this.#elements.connectionStatus.textContent = `Live · ${value.collaborators} ${value.collaborators === 1 ? "writer" : "writers"}`;
+        break;
+      case "resources":
+        void this.#resourceRefresh.request().catch((error: unknown) => {
+          this.#showToast(error instanceof Error ? error.message : "Could not refresh workspace resources");
+        });
+        break;
+    }
+    this.#updateModelAvailability();
+  }
+
+  #flushPendingUpdates(): void {
+    const socket = this.#socket;
+    if (!this.#socketSynced || !socket || socket.readyState !== WebSocket.OPEN) return;
+    for (let update = this.#pendingUpdates.nextUnsent(); update; update = this.#pendingUpdates.nextUnsent()) {
+      socket.send(update.payload);
+      this.#pendingUpdates.markSent(update.sequence);
+    }
+  }
+
+  #captureEditorSelections(): RelativeEditorSelection[] {
+    return [
+      captureRelativeSelection(this.#elements.source, this.#source),
+      captureRelativeSelection(this.#elements.bibliography, this.#bibliography),
+    ];
+  }
+
+  #restoreEditorSelections(selections: RelativeEditorSelection[]): void {
+    for (const selection of selections) {
+      const start = Y.createAbsolutePositionFromRelativePosition(selection.start, this.#document);
+      const end = Y.createAbsolutePositionFromRelativePosition(selection.end, this.#document);
+      if (!start || !end || start.type !== selection.text || end.type !== selection.text) continue;
+      selection.textarea.setSelectionRange(start.index, end.index, selection.direction ?? undefined);
+    }
+  }
+
+  #setRevision(revision: number): void {
+    this.#revision = Math.max(this.#revision, revision);
+    this.#updateRevision();
+  }
+
+  #hasStableModelBase(): boolean {
+    return this.#socketSynced && this.#pendingUpdates.size === 0 && !this.#awaitingRemoteRevision;
+  }
+
+  #updateModelAvailability(): void {
+    const stable = this.#hasStableModelBase();
+    this.#elements.generateCandidate.disabled = this.#modelBusy || !stable;
+    for (const apply of document.querySelectorAll<HTMLButtonElement>('[data-candidate-action="apply"]')) {
+      apply.disabled = !stable;
     }
   }
 
@@ -529,7 +653,7 @@ class WorkspaceApp {
     await expectOk(response);
     this.#elements.claimDialog.close();
     this.#editingClaimId = undefined;
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#showToast("Claim and evidence relationships saved.");
   }
 
@@ -537,7 +661,7 @@ class WorkspaceApp {
     if (!window.confirm("Delete this claim and its links? Source annotations and manuscript text will remain.")) return;
     const response = await fetch(`${apiBase}/claims/${claim.id}`, { method: "DELETE", credentials: "same-origin" });
     await expectOk(response);
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#showToast("Claim removed; source evidence remains intact.");
   }
 
@@ -551,7 +675,7 @@ class WorkspaceApp {
     }
     const response = await jsonFetch(`${apiBase}/claim-links`, { claimId, start, end, excerpt });
     await expectOk(response);
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#showToast("Claim linked to the selected manuscript passage.");
   }
 
@@ -584,8 +708,11 @@ class WorkspaceApp {
       if (candidate.status === "pending") {
         const actions = document.createElement("div");
         actions.className = "mt-3 flex gap-2";
+        const apply = actionButton("Apply candidate", "button-primary", () => void this.#updateCandidate(candidate.id, "apply"));
+        apply.dataset.candidateAction = "apply";
+        apply.disabled = !this.#hasStableModelBase();
         actions.append(
-          actionButton("Apply candidate", "button-primary", () => void this.#updateCandidate(candidate.id, "apply")),
+          apply,
           actionButton("Reject", "button-secondary", () => void this.#updateCandidate(candidate.id, "reject")),
         );
         card.append(actions);
@@ -635,14 +762,6 @@ class WorkspaceApp {
       button.addEventListener("click", () => this.#focusKnowledgeResource(result.resourceId));
       this.#elements.knowledgeSearchResults.append(button);
     }
-  }
-
-  async #refreshKnowledgeGraph(): Promise<void> {
-    const response = await fetch(`${apiBase}/graph`, { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isWorkspaceKnowledgeGraph(value)) throw new Error("Workspace connections returned invalid data");
-    this.#renderKnowledgeGraph(value);
   }
 
   #renderKnowledgeGraph(graph: WorkspaceKnowledgeGraph): void {
@@ -727,7 +846,7 @@ class WorkspaceApp {
     });
     await expectOk(response);
     this.#elements.pdfUpload.value = "";
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#showToast("PDF imported without modifying the source file.");
   }
 
@@ -738,7 +857,7 @@ class WorkspaceApp {
     const response = await jsonFetch(`${apiBase}/bibliography/import`, { bibtex: await file.text() });
     await expectOk(response);
     this.#elements.bibliographyUpload.value = "";
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#showToast("References merged by citation key.");
   }
 
@@ -749,7 +868,7 @@ class WorkspaceApp {
       credentials: "same-origin",
     });
     await expectOk(response);
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#showToast("Reference enriched from Crossref.");
   }
 
@@ -771,7 +890,7 @@ class WorkspaceApp {
     this.#elements.annotationComment.value = "";
     this.#pendingRects = [];
     this.#elements.annotationSelectionStatus.textContent = "Annotation saved. Select another passage in the open paper to continue.";
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#showToast("Annotation anchored with geometry and textual context.");
   }
 
@@ -782,13 +901,20 @@ class WorkspaceApp {
     if (!excerpt.trim()) return this.#showToast("Select manuscript text before linking an annotation.");
     const response = await jsonFetch(`${apiBase}/links`, { annotationId, start, end, excerpt });
     await expectOk(response);
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#showToast("Annotation linked to the selected passage.");
   }
 
   async #generateCandidate(): Promise<void> {
-    if (!this.#snapshot) return;
-    const selected = this.#elements.source.value.slice(this.#elements.source.selectionStart, this.#elements.source.selectionEnd);
+    if (!this.#snapshot || !this.#hasStableModelBase()) {
+      this.#elements.modelStatus.textContent = "Wait for the manuscript to finish synchronizing before using the model.";
+      return;
+    }
+
+    const source = this.#source.toString();
+    const selectionStart = this.#elements.source.selectionStart;
+    const selectionEnd = this.#elements.source.selectionEnd;
+    const selected = source.slice(selectionStart, selectionEnd);
     const annotationIds = Array.from(document.querySelectorAll<HTMLInputElement>("[data-annotation-id]:checked")).map(
       (input) => input.dataset.annotationId ?? "",
     );
@@ -798,11 +924,21 @@ class WorkspaceApp {
       return;
     }
 
-    this.#elements.generateCandidate.disabled = true;
+    const endpoint = this.#elements.llmEndpoint.value;
+    let provider: string;
+    try {
+      provider = new URL(endpoint).origin;
+    } catch {
+      this.#elements.modelStatus.textContent = "Enter a valid local model endpoint.";
+      return;
+    }
+    const model = this.#elements.llmModel.value;
+    const sourceRevision = this.#revision;
+    const prompt = buildGroundedPrompt(source, selected, annotations);
+    this.#modelBusy = true;
+    this.#updateModelAvailability();
     this.#elements.modelStatus.textContent = "Asking the local model for a grounded candidate…";
     try {
-      const endpoint = this.#elements.llmEndpoint.value;
-      const model = this.#elements.llmModel.value;
       const llmResponse = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -811,7 +947,7 @@ class WorkspaceApp {
           temperature: 0.2,
           messages: [
             { role: "system", content: "You are a careful scientific editor. Use only supplied evidence and preserve source syntax." },
-            { role: "user", content: buildGroundedPrompt(this.#elements.source.value, selected, annotations) },
+            { role: "user", content: prompt },
           ],
         }),
       });
@@ -820,26 +956,31 @@ class WorkspaceApp {
       const proposedSource = extractCompletion(result);
       if (!proposedSource) throw new Error("The local model returned no text candidate");
       const response = await jsonFetch(`${apiBase}/candidates`, {
-        provider: new URL(endpoint).origin,
+        provider,
         model,
-        sourceRevision: this.#revision,
+        sourceRevision,
         sourceIds: annotationIds,
         proposedSource,
       });
       await expectOk(response);
-      await this.#refreshSnapshot();
+      await this.#resourceRefresh.request();
       this.#elements.modelStatus.textContent = "Candidate ready. Inspect it before applying.";
     } catch (error) {
       this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Local model request failed";
     } finally {
-      this.#elements.generateCandidate.disabled = false;
+      this.#modelBusy = false;
+      this.#updateModelAvailability();
     }
   }
 
   async #updateCandidate(candidateId: string, action: "apply" | "reject"): Promise<void> {
+    if (action === "apply" && !this.#hasStableModelBase()) {
+      this.#showToast("Wait for the manuscript to finish synchronizing before applying a candidate.");
+      return;
+    }
     const response = await fetch(`${apiBase}/candidates/${candidateId}/${action}`, { method: "POST" });
     await expectOk(response);
-    await this.#refreshSnapshot();
+    await this.#resourceRefresh.request();
     this.#showToast(action === "apply" ? "Candidate applied to canonical Markdown." : "Candidate rejected; manuscript unchanged.");
   }
 
@@ -925,6 +1066,17 @@ function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y
     textarea.value = text.toString();
     textarea.setSelectionRange(Math.min(start, textarea.value.length), Math.min(end, textarea.value.length));
   });
+}
+
+function captureRelativeSelection(textarea: HTMLTextAreaElement, text: Y.Text): RelativeEditorSelection {
+  const collapsed = textarea.selectionStart === textarea.selectionEnd;
+  return {
+    text,
+    textarea,
+    start: Y.createRelativePositionFromTypeIndex(text, textarea.selectionStart, collapsed ? -1 : 0),
+    end: Y.createRelativePositionFromTypeIndex(text, textarea.selectionEnd, -1),
+    direction: textarea.selectionDirection,
+  };
 }
 
 function collectElements(): Elements {
@@ -1071,12 +1223,6 @@ function readWorkspaceId(): string {
   const value = document.body.dataset.workspaceId;
   if (!value || !/^[a-z0-9-]{1,64}$/iu.test(value)) throw new Error("Invalid workspace identity");
   return value;
-}
-
-function toArrayBuffer(value: Uint8Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(value.byteLength);
-  new Uint8Array(buffer).set(value);
-  return buffer;
 }
 
 if (typeof document !== "undefined") {
