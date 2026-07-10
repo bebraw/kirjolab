@@ -22,7 +22,11 @@ Owners need a minimal way to grant access to a known collaborator.
 - `GET /api/session` exposes only the current email and authentication mode.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
-- Same-origin `Origin` is required for browser mutations.
+- An exact same-origin `Origin` is required for browser mutations and
+  WebSocket upgrades, including authenticated `GET` upgrade requests.
+- The document channel accepts only bounded binary Yjs updates from clients;
+  client-authored text/control messages and malformed updates close only the
+  offending connection without being persisted or broadcast.
 
 ### Deployment Configuration
 
@@ -54,6 +58,10 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Uninvited identities cannot discover or read the workspace.
 - [x] PDF routes and WebSocket upgrades pass through the same authorization.
 - [x] Cross-origin browser mutations are rejected.
+- [x] Missing and cross-origin WebSocket origins are rejected before document
+      coordination state is reached.
+- [x] Client control messages and malformed Yjs updates cannot be rebroadcast
+      or persisted.
 
 ### Regression Guardrails
 
@@ -62,6 +70,10 @@ Owners need a minimal way to grant access to a known collaborator.
 - Local mode must reject non-loopback hostnames.
 - Membership must be checked before resolving document or R2 state.
 - Only the owner role may add a member.
+- Browser WebSocket upgrades must carry an `Origin` exactly matching the
+  request URL origin.
+- Document rooms must close only the client that sends an unsupported text
+  frame, oversized update, or malformed Yjs update.
 - Identity tokens and signing material must never be persisted in application
   storage or returned by `/api/session`.
 

@@ -23,7 +23,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat parsed syntax, previews, Yjs updates, indexes, and model candidates as supporting representations.
 - Parse standard and scientific-writing Markdown through pinned Satteri plugins; keep its syntax tree and HTML derived.
 - Run the current threaded Satteri WASM binding in the cross-origin-isolated browser, not inside a Cloudflare Worker isolate.
-- Escape authored raw HTML and remove unsafe URL protocols before inserting preview output into the DOM.
+- Escape authored raw HTML and sanitize the final preview tree after all syntax plugins; allow only the elements, properties, and URL protocols required by the scientific-writing vocabulary before inserting output into the DOM.
+- Return a restrictive Content Security Policy on application HTML as an independent browser-execution boundary; do not permit inline or evaluated scripts.
 - Coordinate each collaborative document through its own SQLite-backed Durable Object.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
 - Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
@@ -42,6 +43,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep local-model network access in the browser or a future local companion so a hosted Worker never assumes it can reach localhost.
 - Verify Cloudflare Access JWT signatures and claims inside the Worker for hosted identity; never trust caller-supplied identity headers alone.
 - Authorize every workspace data representation, API operation, PDF stream, and WebSocket upgrade through explicit owner/member state.
+- Require an exact same-origin `Origin` on every browser WebSocket upgrade in addition to identity and workspace authorization.
+- Accept only bounded, valid binary document updates from collaboration clients; keep presence, revision, and protocol control frames server-owned, and never persist or rebroadcast invalid input.
 - Permit local authentication only on loopback hosts; a deployment left in local mode must fail closed.
 
 ## Tooling Baseline

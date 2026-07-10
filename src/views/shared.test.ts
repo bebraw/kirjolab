@@ -3,11 +3,14 @@ import { cssResponse, escapeHtml, htmlResponse, scriptResponse } from "./shared"
 
 describe("htmlResponse", () => {
   it("returns no-store HTML responses", () => {
-    const response = htmlResponse("<p>Hello</p>", 201);
+    const response = htmlResponse("<p>Hello</p>", 201, new URL("https://app.example/workspaces/demo"));
 
     expect(response.status).toBe(201);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("content-security-policy")).toBe(
+      "default-src 'self'; base-uri 'none'; connect-src 'self' wss://app.example http://127.0.0.1:* http://localhost:*; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' http: https:; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; style-src-attr 'unsafe-inline'; worker-src 'self'",
+    );
     expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin");
     expect(response.headers.get("cross-origin-embedder-policy")).toBe("require-corp");
   });

@@ -135,6 +135,30 @@ describe("authentication security boundary", () => {
     expect(
       isSameOriginMutation(new Request("https://app.example/api", { method: "POST", headers: { origin: "https://attacker.example" } })),
     ).toBe(false);
+    expect(
+      isSameOriginMutation(
+        new Request("https://app.example/api/workspaces/demo/socket", {
+          headers: { origin: "https://app.example", upgrade: "websocket" },
+        }),
+      ),
+    ).toBe(true);
+    expect(isSameOriginMutation(new Request("https://app.example/api/workspaces/demo/socket", { headers: { upgrade: "websocket" } }))).toBe(
+      false,
+    );
+    expect(
+      isSameOriginMutation(
+        new Request("https://app.example/api/workspaces/demo/socket", {
+          headers: { origin: "https://attacker.example", upgrade: "websocket" },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isSameOriginMutation(
+        new Request("https://app.example/api/workspaces/demo/socket", {
+          headers: { origin: "https://app.example/", upgrade: "websocket" },
+        }),
+      ),
+    ).toBe(false);
   });
 
   it("verifies Access signature, issuer, audience, and time claims", async () => {

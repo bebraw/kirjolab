@@ -11,16 +11,15 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
   await expect(page.locator("#source-editor")).toHaveValue(/## Evidence becomes prose/);
-  await expect(page.locator("#preview")).toContainText("Merton, 1942");
-  await expect(page.locator("#diagnostic-summary")).toHaveText("No syntax errors");
 
-  const source = await page.locator("#source-editor").inputValue();
   await page
     .locator("#source-editor")
     .fill(
-      `${source.trimEnd()}\n\nA live collaborative note.[^live]\n\n| State | Result |\n| --- | --- |\n| Shared | **Visible** |\n\n[^live]: Rendered by Satteri.\n`,
+      "## Evidence becomes prose {#sec-evidence}\n\nA live collaborative note cites prior work :cite[merton1942].[^live]\n\n| State | Result |\n| --- | --- |\n| Shared | **Visible** |\n\n[^live]: Rendered by Satteri.\n",
     );
-  await expect(page.locator("#preview")).toContainText("A live collaborative note.");
+  await expect(page.locator("#preview")).toContainText("Merton, 1942");
+  await expect(page.locator("#diagnostic-summary")).toHaveText("No syntax errors");
+  await expect(page.locator("#preview")).toContainText("A live collaborative note cites prior work");
   await expect(page.locator("#preview table")).toContainText("Visible");
   await expect(page.locator("#preview .footnotes")).toContainText("Rendered by Satteri");
   await expect(page.locator("#preview .section-number").first()).toBeVisible();
@@ -29,7 +28,7 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   const exported = await page.request.get("/api/workspaces/demo/export/document.md");
   expect(exported.ok()).toBe(true);
   expect(exported.headers()["content-disposition"]).toContain("kirjolab-document.md");
-  expect(await exported.text()).toContain("A live collaborative note.");
+  expect(await exported.text()).toContain("A live collaborative note cites prior work");
 });
 
 test("converges source edits across two writers", async ({ page, context }) => {
@@ -46,6 +45,47 @@ test("converges source edits across two writers", async ({ page, context }) => {
   await collaborator.locator("#source-editor").fill(expandedSource);
   await expect(page.locator("#source-editor")).toHaveValue(expandedSource);
   await collaborator.close();
+});
+
+test("isolates clients that send unsupported collaboration frames", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+
+  const beforeValue: unknown = await (await page.request.get("/api/workspaces/demo")).json();
+  if (!isWorkspaceSnapshot(beforeValue)) throw new Error("Expected a workspace snapshot before hostile frames");
+
+  const outcomes = await page.evaluate(async () => {
+    const endpoint = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/workspaces/demo/socket`;
+    const sendAndWaitForClose = async (payload: string | Uint8Array): Promise<{ code: number; reason: string }> =>
+      await new Promise((resolve, reject) => {
+        const socket = new WebSocket(endpoint);
+        const timeout = window.setTimeout(() => {
+          socket.close();
+          reject(new Error("Hostile collaboration socket was not closed"));
+        }, 5_000);
+        socket.addEventListener("open", () => socket.send(typeof payload === "string" ? payload : new Uint8Array(payload).buffer));
+        socket.addEventListener("close", (event) => {
+          window.clearTimeout(timeout);
+          resolve({ code: event.code, reason: event.reason });
+        });
+      });
+
+    return await Promise.all([
+      sendAndWaitForClose(JSON.stringify({ type: "revision", revision: 999_999 })),
+      sendAndWaitForClose(new Uint8Array([255])),
+    ]);
+  });
+
+  expect(outcomes).toEqual([
+    { code: 1003, reason: "Client text frames are not supported" },
+    { code: 1007, reason: "Invalid document update" },
+  ]);
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+
+  const afterValue: unknown = await (await page.request.get("/api/workspaces/demo")).json();
+  if (!isWorkspaceSnapshot(afterValue)) throw new Error("Expected a workspace snapshot after hostile frames");
+  expect(afterValue.revision).toBe(beforeValue.revision);
+  expect(afterValue.source).toBe(beforeValue.source);
 });
 
 test("creates, shares, and navigates isolated workspaces", async ({ page, browser }) => {
@@ -245,7 +285,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
 });
 
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {
-  await page.route("http://model.local/v1/chat/completions", async (route) => {
+  await page.route("http://127.0.0.1:1234/v1/chat/completions", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({
         status: 204,
@@ -385,7 +425,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
     element.focus();
     element.setSelectionRange(start, start + "Kirjolab keeps the path from an annotation to a claim and into cited prose visible".length);
   });
-  await page.locator("#llm-endpoint").fill("http://model.local/v1/chat/completions");
+  await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
   await page.locator("#llm-model").fill("test-local-model");
   await page.getByRole("button", { name: "Draft revision" }).click();
 

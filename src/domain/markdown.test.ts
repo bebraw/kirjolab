@@ -156,6 +156,98 @@ content
     expect(rendered.html).toContain('href="mailto:test@example.org"');
   });
 
+  it("allows only reviewed properties from authored heading attributes", () => {
+    const rendered = renderWorkspaceMarkdown(
+      '## Safe heading {#safe .primary .secondary onmouseover="alert(1)" style="background:url(javascript:alert(1))" data-leak=yes aria-label="forged" title="forged" tabindex=0}',
+      "",
+    );
+
+    expect(rendered.html).toContain('<h2 id="safe" class="primary secondary"><span class="section-number">1 </span>Safe heading</h2>');
+    expect(rendered.html).not.toContain("onmouseover");
+    expect(rendered.html).not.toContain("javascript:");
+    expect(rendered.html).not.toContain("data-leak");
+    expect(rendered.html).not.toContain("aria-label");
+    expect(rendered.html).not.toContain("title=");
+    expect(rendered.html).not.toContain("tabindex");
+  });
+
+  it("preserves the complete reviewed Markdown element and property vocabulary", () => {
+    const rendered = renderWorkspaceMarkdown(
+      `# One {#one .top}
+
+## Two {#two .main}
+
+### Three {#three}
+
+#### Four
+
+##### Five {#five}
+
+###### Six {#six}
+
+> quote with *emphasis* and **strong**
+
+---
+
+[link](https://example.com "title")  
+next with \`inline\`
+
+\`\`\`ts
+const x = 1
+\`\`\`
+
+- [x] task
+- item
+
+3. third
+4. fourth
+
+| Left | Right |
+| :--- | ---: |
+| ~~old~~ | new |
+
+![diagram](https://example.com/a.png "diagram")
+
+Footnote.[^a]
+
+[^a]: Note.
+`,
+      "",
+    );
+
+    for (const fragment of [
+      '<h1 id="one" class="top">',
+      '<h2 id="two" class="main"><span class="section-number">',
+      '<h3 id="three"><span class="section-number">',
+      "<b>Four</b>",
+      '<h5 id="five">',
+      '<h6 id="six">',
+      "<blockquote>",
+      "<p>quote with <em>emphasis</em> and <strong>strong</strong></p>",
+      "<hr>",
+      '<a href="https://example.com" title="title">',
+      "<br>",
+      "<code>inline</code>",
+      '<pre><code class="language-ts">',
+      '<ul class="contains-task-list">',
+      '<li class="task-list-item"><input type="checkbox" checked disabled>',
+      '<ol start="3">',
+      "<table>",
+      "<thead>",
+      "<tbody>",
+      "<tr>",
+      '<th style="text-align: left">',
+      '<td style="text-align: right">',
+      "<del>old</del>",
+      '<img src="https://example.com/a.png" alt="diagram" title="diagram">',
+      '<sup><a href="#user-content-fn-a" id="user-content-fnref-a" data-footnote-ref aria-describedby="footnote-label">',
+      '<section data-footnotes class="footnotes">',
+      'data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref"',
+    ]) {
+      expect(rendered.html).toContain(fragment);
+    }
+  });
+
   it("resolves numbered aliases, unique slugs, anchors, and multiple citations", () => {
     const extendedBibliography = `${bibliography}
 @article{doe2026,

@@ -13,6 +13,8 @@ describe("worker", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin");
     expect(response.headers.get("cross-origin-embedder-policy")).toBe("require-corp");
+    expect(response.headers.get("content-security-policy")).toContain("connect-src 'self' ws://example.com");
+    expect(response.headers.get("content-security-policy")).toContain("script-src 'self' 'wasm-unsafe-eval'");
 
     const body = await response.text();
     expect(body).toContain("KIRJOLAB");
@@ -52,6 +54,27 @@ describe("worker", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ error: "Cross-origin mutation denied" });
+  });
+
+  it("rejects WebSocket upgrades without an exact same-origin Origin", async () => {
+    const missingOrigin = await handleRequest(
+      new Request("http://example.com/api/workspaces/demo/socket", { headers: { upgrade: "websocket" } }),
+    );
+    expect(missingOrigin.status).toBe(403);
+
+    const foreignOrigin = await handleRequest(
+      new Request("http://example.com/api/workspaces/demo/socket", {
+        headers: { origin: "http://attacker.example", upgrade: "websocket" },
+      }),
+    );
+    expect(foreignOrigin.status).toBe(403);
+
+    const sameOrigin = await handleRequest(
+      new Request("http://example.com/api/workspaces/demo/socket", {
+        headers: { origin: "http://example.com", upgrade: "websocket" },
+      }),
+    );
+    expect(sameOrigin.status).toBe(503);
   });
 
   it("returns a not found page for unknown routes", async () => {

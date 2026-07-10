@@ -79,7 +79,8 @@ export async function ownerKeyForEmail(email: string): Promise<string> {
 }
 
 export function isSameOriginMutation(request: Request): boolean {
-  if (request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS") return true;
+  const isWebSocketUpgrade = request.method === "GET" && request.headers.get("upgrade")?.trim().toLowerCase() === "websocket";
+  if (!isWebSocketUpgrade && (request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS")) return true;
   const origin = request.headers.get("origin");
   if (!origin) return false;
   return origin === new URL(request.url).origin;

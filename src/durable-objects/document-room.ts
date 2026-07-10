@@ -142,7 +142,7 @@ export class DocumentRoom extends DurableObject<Env> {
 
   override webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
     if (typeof message === "string") {
-      this.#broadcast(message, socket);
+      socket.close(1003, "Client text frames are not supported");
       return;
     }
 
@@ -151,7 +151,14 @@ export class DocumentRoom extends DurableObject<Env> {
       return;
     }
 
-    Y.applyUpdate(this.#document, new Uint8Array(message), "remote");
+    const update = new Uint8Array(message);
+    try {
+      Y.decodeUpdate(update);
+      Y.applyUpdate(this.#document, update, "remote");
+    } catch {
+      socket.close(1007, "Invalid document update");
+      return;
+    }
     const revision = this.#persistDocument();
     this.#broadcast(message, socket);
     this.#broadcast(JSON.stringify({ type: "revision", revision }));

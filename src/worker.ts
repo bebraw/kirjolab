@@ -54,12 +54,12 @@ export async function handleRequest(request: Request, env?: Env): Promise<Respon
   }
 
   if (url.pathname === "/") {
-    return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email));
+    return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email), 200, url);
   }
 
   const workspacePage = /^\/workspaces\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
   if (workspacePage?.[1]) {
-    return htmlResponse(renderHomePage(exampleRoutes, workspacePage[1], identity.email));
+    return htmlResponse(renderHomePage(exampleRoutes, workspacePage[1], identity.email), 200, url);
   }
 
   if (url.pathname === "/api/workspaces" || url.pathname.startsWith("/api/workspaces/")) {
@@ -67,7 +67,7 @@ export async function handleRequest(request: Request, env?: Env): Promise<Respon
     return await handleWorkspaceApi(request, env, identity);
   }
 
-  return htmlResponse(renderNotFoundPage(url.pathname), 404);
+  return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
 }
 
 async function loadStylesheet(): Promise<string> {

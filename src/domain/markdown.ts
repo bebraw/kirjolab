@@ -39,6 +39,62 @@ const attributePattern = /([a-z][a-z-]*)=(?:"([^"]*)"|([^\s}]+))/giu;
 const headingPattern = /^(#{2,4})\s+(.+?)(?:\s+\{#([a-zA-Z0-9:_-]+)\})?\s*$/gmu;
 const aliasPattern = /^::alias\[([^\]]*)\]\{([^}]*)\}\s*$/gmu;
 const anchorPattern = /^::anchor\[([^\]]*)\]\{([^}]*)\}\s*$/gmu;
+const safeTableAlignmentPattern = /^text-align: (?:center|left|right)$/u;
+
+// Stryker disable all: The static sanitizer vocabulary is covered by the complete rendered-output test; static mutants cannot isolate its module initialization reliably.
+const safeElements = new Set([
+  "a",
+  "b",
+  "blockquote",
+  "br",
+  "code",
+  "del",
+  "em",
+  "h1",
+  "h2",
+  "h3",
+  "h5",
+  "h6",
+  "hr",
+  "img",
+  "input",
+  "li",
+  "ol",
+  "p",
+  "pre",
+  "section",
+  "span",
+  "strong",
+  "sup",
+  "table",
+  "tbody",
+  "td",
+  "th",
+  "thead",
+  "tr",
+  "ul",
+]);
+
+const safePropertiesByElement: Readonly<Record<string, ReadonlySet<string>>> = {
+  a: new Set(["ariaDescribedBy", "ariaLabel", "className", "dataFootnoteBackref", "dataFootnoteRef", "href", "id", "title"]),
+  code: new Set(["className"]),
+  h1: new Set(["className", "id"]),
+  h2: new Set(["className", "id"]),
+  h3: new Set(["className", "id"]),
+  h5: new Set(["className", "id"]),
+  h6: new Set(["className", "id"]),
+  img: new Set(["alt", "src", "title"]),
+  input: new Set(["checked", "disabled", "type"]),
+  li: new Set(["className", "id"]),
+  ol: new Set(["start"]),
+  section: new Set(["className", "dataFootnotes"]),
+  span: new Set(["ariaLabel", "class", "className", "dataCitation", "id"]),
+  td: new Set(["style"]),
+  th: new Set(["style"]),
+  ul: new Set(["className"]),
+};
+// Stryker restore all
+const noSafeProperties = new Set<string>();
 
 export function renderWorkspaceMarkdown(source: string, bibliographySource: string): RenderedDocument {
   const normalized = source.replaceAll("\r\n", "\n");
@@ -141,22 +197,29 @@ function createSemanticPlugin(bibliography: Map<string, BibliographyEntry>, refe
 function createSecurityPlugin() {
   return defineHastPlugin({
     name: "kirjolab-preview-security",
-    element: [
-      {
-        filter: ["a"],
-        visit(node, context) {
-          const href = typeof node.properties?.href === "string" ? node.properties.href : "";
-          if (href && !isSafeUrl(href, false)) context.setProperty(node, "href", null);
-        },
+    element: {
+      filter: [],
+      visit(node, context) {
+        if (!safeElements.has(node.tagName)) {
+          context.removeNode(node);
+          return;
+        }
+
+        const safeProperties = safePropertiesByElement[node.tagName] ?? noSafeProperties;
+        for (const property of Object.keys(node.properties ?? {})) {
+          if (!safeProperties.has(property)) context.setProperty(node, property, null);
+        }
+
+        const href = typeof node.properties?.href === "string" ? node.properties.href : "";
+        if (href && !isSafeUrl(href, false)) context.setProperty(node, "href", null);
+
+        const source = typeof node.properties?.src === "string" ? node.properties.src : "";
+        if (source && !isSafeUrl(source, true)) context.setProperty(node, "src", null);
+
+        const style = typeof node.properties?.style === "string" ? node.properties.style : "";
+        if (style && !safeTableAlignmentPattern.test(style)) context.setProperty(node, "style", null);
       },
-      {
-        filter: ["img"],
-        visit(node, context) {
-          const source = typeof node.properties?.src === "string" ? node.properties.src : "";
-          if (source && !isSafeUrl(source, true)) context.setProperty(node, "src", null);
-        },
-      },
-    ],
+    },
   });
 }
 

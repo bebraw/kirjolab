@@ -46,8 +46,15 @@ second Markdown dialect.
 - Authored raw HTML renders as text rather than executable markup.
 - Unsafe protocols such as `javascript:` and image `data:` URLs lose their
   target attributes.
+- Rendered elements retain only reviewed properties. Authored heading
+  attributes may provide ids and classes; event handlers, inline styles, and
+  other arbitrary attributes are removed.
 - Semantic HTML escapes bibliography, directive, and heading values.
 - Only the typed client inserts preview HTML into the DOM.
+- HTML responses apply a restrictive Content Security Policy. Same-origin
+  scripts, workers, and WebAssembly remain available for the typed client and
+  Satteri, while browser connections are limited to the workspace origin and
+  loopback local-model endpoints.
 
 ### Anti-Patterns
 
@@ -70,6 +77,9 @@ second Markdown dialect.
 - [x] WASM and helper assets are available through local Wrangler and static
       assets.
 - [x] Raw HTML and unsafe URL protocols cannot execute in the preview.
+- [x] Authored heading attributes cannot introduce executable or unreviewed
+      HTML properties.
+- [x] HTML responses enforce the preview's browser security boundary with CSP.
 - [x] Unit tests cover syntax semantics and a browser test proves WASM startup.
 
 ### Regression Guardrails
@@ -100,6 +110,8 @@ second Markdown dialect.
 
 **Scenario: Collaborator enters unsafe HTML**
 
-- Given: raw HTML or a `javascript:` link in shared Markdown
+- Given: raw HTML, a `javascript:` link, or executable heading attributes in
+  shared Markdown
 - When: the preview renders
-- Then: raw markup is displayed as text and unsafe target attributes are absent
+- Then: raw markup is displayed as text and unsafe target or element attributes
+  are absent
