@@ -40,6 +40,9 @@ mode for authenticated hosted collaboration.
 - **Knowledge navigation:** Bounded workspace search and typed connection
   representations expose documents, sections, publications, PDFs, and
   annotations as navigable resources without making an index authoritative.
+- **Claims:** Human-authored propositions connect annotations to manuscript
+  passages through explicit `supports`, `contradicts`, `extends`, and `used-in`
+  relationships.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable PDF bytes under a
   workspace-scoped key. PDF responses stream from R2 and the R2 ETag identifies
   the exact stored artifact.
@@ -69,6 +72,12 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/publications/{id}/enrich` explicitly enriches a
   DOI-backed publication through Crossref.
 - `POST /api/workspaces/demo/links` links an annotation to an exact current
+  manuscript range.
+- `POST /api/workspaces/demo/claims` creates an evidence-backed claim.
+- `PUT /api/workspaces/demo/claims/{id}` replaces its proposition, note, and
+  evidence set.
+- `DELETE /api/workspaces/demo/claims/{id}` removes the claim and its links.
+- `POST /api/workspaces/demo/claim-links` links a claim to an exact current
   manuscript range.
 - `POST /api/workspaces/demo/candidates` persists a review candidate.
 - `POST /api/workspaces/demo/candidates/{id}/apply` applies a current pending

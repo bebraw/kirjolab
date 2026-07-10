@@ -34,6 +34,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
 - Derive bounded workspace search and hypermedia projections from canonical state until scale measurements justify a persisted index; treat visual graph layouts as optional views, not the navigation model.
+- Treat claims as stable, human-authored propositions; store their evidence and manuscript usage as typed links so editing or deleting a claim never mutates its source annotations or authored prose.
 - Keep BibTeX as the canonical authored bibliography while materializing imported entries as stable publication resources.
 - Treat citation keys as workspace aliases and normalized DOI values as external identifiers; neither is an internal publication identity.
 - Make external metadata enrichment explicit, source-labeled, and materialized back into canonical BibTeX.
