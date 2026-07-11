@@ -15,8 +15,9 @@ connection without reconstructing identity from a citation key or filename.
 - Resource ids use kind-qualified document, section, publication, PDF,
   annotation, and claim identities. Explicit heading ids are stable section
   identities; unanchored headings use their current generated slug.
-- The implemented relationship vocabulary is `cites`, `annotates`, `used-in`,
-  `supports`, `contradicts`, and `extends`.
+- The relationship vocabulary is `cites`, `has-artifact`, `annotates`,
+  `used-in`, `supports`, `contradicts`, and `extends`. `has-artifact` is derived
+  only from a durable explicit publication/PDF link.
 - `GET /api/workspaces/{id}/search?q={query}` returns at most fifty ranked
   resources for at most ten query tokens.
 - `GET /api/workspaces/{id}/graph` returns the current nodes and typed edges.
@@ -46,6 +47,8 @@ connection without reconstructing identity from a citation key or filename.
 - [x] Claim evidence and manuscript usage become typed, navigable connections.
 - [x] Repeated citations produce one connection per publication.
 - [x] Both search results and connection endpoints navigate to their resource.
+- [ ] Explicit publication/PDF associations project as navigable
+      `has-artifact` connections.
 - [x] Search and graph endpoints use the existing workspace access boundary.
 - [x] Domain tests cover ranking, graph derivation, deduplication, and guards.
 - [x] Browser coverage proves search, connection rendering, and API shapes.
@@ -56,6 +59,7 @@ connection without reconstructing identity from a citation key or filename.
   query characters, and fifty results.
 - Projections must be reconstructible from canonical workspace state.
 - Graph edges must refer to kind-qualified resource ids.
+- `has-artifact` must never be inferred from publication or PDF metadata.
 - Client code must validate API representations before rendering them.
 - Live source edits may update derived citation navigation but must never mutate
   canonical Markdown as a side effect.
@@ -80,3 +84,9 @@ connection without reconstructing identity from a citation key or filename.
 - Given: the same stable publication is cited more than once
 - When: the graph projection is derived
 - Then: it contains one `cites` edge for that document-publication pair
+
+**Scenario: Publication links to several PDF artifacts**
+
+- Given: durable links associate one publication with multiple PDFs
+- When: the graph projection is derived
+- Then: it contains one `has-artifact` edge for each explicit unique pair

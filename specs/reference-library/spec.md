@@ -25,6 +25,12 @@ addressable resources, and deliberately improve DOI-backed metadata.
   projection is identical.
 - Publication resources are monotonic working memory. Removing an entry from
   current BibTeX does not delete its resource.
+- `PublicationPdfLink` records associate publications with local PDFs as a
+  durable many-to-many relationship. A publication/PDF pair is unique; neither
+  endpoint is deleted when the relationship is removed.
+- Association is always explicit. Citation keys, DOI values, titles, authors,
+  filenames, and search similarity may support a future reviewed suggestion but
+  never establish a canonical publication/PDF link automatically.
 - Citation keys are workspace aliases. DOI values are normalized external
   identifiers. Neither replaces the internal publication id.
 - `POST /api/workspaces/{id}/bibliography/import` accepts up to 2 MB of BibTeX,
@@ -35,6 +41,10 @@ addressable resources, and deliberately improve DOI-backed metadata.
   stored DOI through Crossref and materializes the result into both the resource
   and canonical BibTeX through the same atomic minimal-splice path while
   preserving explicit `crossref` provenance.
+- `POST /api/workspaces/{id}/publication-pdf-links` creates a unique link
+  between two known same-workspace resources.
+- `DELETE /api/workspaces/{id}/publication-pdf-links/{linkId}` removes only the
+  association.
 - `DocumentRoom` schema and projection backfills use the shared ordered,
   append-only `_kirjolab_migrations` ledger. Initial canonical bibliography
   projection is a named data migration rather than an incidental first edit.
@@ -69,6 +79,9 @@ addressable resources, and deliberately improve DOI-backed metadata.
   ledger or edit an applied migration.
 - Do not accept Node-only storage tests as proof that bibliography projection
   and its document commit are atomic in a Durable Object SQLite transaction.
+- Do not infer publication/PDF links from mutable labels or external metadata.
+- Do not assume a publication has exactly one PDF or a PDF represents exactly
+  one publication.
 
 ## Contract
 
@@ -91,6 +104,10 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - [x] A Workers-runtime test proves historical bibliography projection and
       atomic persistence against real Durable Object SQLite storage.
 - [x] A browser test proves import through the real Worker and Durable Object.
+- [ ] Publications and PDFs can be explicitly linked many-to-many without
+      changing either resource.
+- [ ] Publication/PDF links appear in the typed knowledge projection as
+      `has-artifact`.
 
 ### Regression Guardrails
 
@@ -120,6 +137,9 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - User-controlled metadata must render through DOM text nodes, not HTML.
 - Workspace authorization and same-origin mutation checks apply to all reference
   routes.
+- Publication/PDF link creation must require existing same-workspace endpoints
+  and reject a duplicate pair; unlinking must preserve both resources and every
+  PDF annotation.
 
 ### Scenarios
 
@@ -180,3 +200,16 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - When: its pending named data migration runs
 - Then: the migration atomically projects every complete entry and records its
   ledger version so later activations do not repeat it
+
+**Scenario: Researcher associates a local artifact**
+
+- Given: one publication and one imported PDF exist in the same workspace
+- When: the researcher explicitly links them
+- Then: Kirjolab stores one durable `PublicationPdfLink` and projects one
+  `has-artifact` edge without changing canonical BibTeX or the PDF
+
+**Scenario: Artifact association is absent**
+
+- Given: a publication and similarly named PDF have no explicit link
+- When: either resource is represented
+- Then: both remain usable and Kirjolab does not infer an association

@@ -57,6 +57,24 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coalesced authorized metadata refresh rather than replacing live editor
   state from a workspace snapshot.
 - Treat claims as stable, human-authored propositions; store their evidence and manuscript usage as typed links so editing or deleting a claim never mutates its source annotations or authored prose.
+- Treat authoring and research context as the two primary workspace surfaces.
+  Keep a permanent manuscript Preview in a keyboard-operable right-hand tab
+  pane, and address publication and PDF tabs by stable resource identity.
+- Keep open context tabs, active and pinned state, preview scroll, and PDF
+  reading position local to the browser and scoped to its authorized workspace.
+  Never write routine reading navigation into Yjs, Durable Object resources, or
+  collaboration control messages.
+- Keep adding a publication to working memory, citing it in canonical source,
+  and connecting evidence to prose as distinct explicit actions. Opening,
+  switching, pinning, or closing research context must not imply any of them.
+- Persist publication-to-PDF associations as explicit, workspace-scoped,
+  many-to-many typed links and expose them as `has-artifact` graph edges. Never
+  infer the association from citation keys, DOI values, titles, authors, or
+  filenames; an unlinked publication and an unlinked PDF remain usable
+  resources.
+- Collapse the two-surface workspace to an explicit Authoring/Context switch
+  when both surfaces cannot retain readable measures; preserve editor and
+  per-context local state while either surface is hidden.
 - Treat manuscript passage links as immutable, versioned selectors rather than
   permanent current offsets. Verify the source revision and exact range at
   creation, then capture Yjs relative positions, exact quote/context,

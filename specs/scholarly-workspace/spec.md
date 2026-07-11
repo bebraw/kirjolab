@@ -20,6 +20,11 @@ mode for authenticated hosted collaboration.
 - **Application shell:** `src/views/home.ts` renders the accessible workspace;
   `src/client/app.ts` provides typed browser behavior bundled into
   `.generated/app.txt`.
+- **Primary surfaces:** The authoring editor remains visible beside a tabbed
+  research-context pane on desktop. The pane permanently hosts manuscript
+  Preview and can host publication/PDF resources without making local tab,
+  pin, or reading-position state collaborative. Narrow layouts switch between
+  one Authoring or Context surface while preserving both states.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
@@ -50,10 +55,12 @@ mode for authenticated hosted collaboration.
   a revision increase. When bibliography text changes, every complete canonical
   entry is reconciled into publication resources in the same transaction.
 - **Resource metadata:** The document Durable Object stores PDF artifact
-  fingerprints, annotations, publication projections, passage links, and model
-  candidates alongside the document coordination atom. Its server-owned
-  `resources` control invalidates a coalesced REST metadata refresh without
-  replacing editor state.
+  fingerprints, annotations, publication projections, durable many-to-many
+  publication/PDF links, passage links, and model candidates alongside the
+  document coordination atom. Each explicit publication/PDF pair projects a
+  `has-artifact` edge; no metadata or filename heuristic creates it. Its
+  server-owned `resources` control invalidates a coalesced REST metadata refresh
+  without replacing editor state.
 - **Reference library:** Every complete parsed canonical BibTeX entry
   materializes after local edits, remote edits, imports, enrichment, and initial
   migration. Publication UUID matching uses case-insensitive citation key
@@ -114,6 +121,10 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/publications/{id}/enrich` explicitly enriches a
   DOI-backed publication through Crossref, minimally splicing and atomically
   committing accepted canonical and `crossref`-sourced values.
+- `POST /api/workspaces/demo/publication-pdf-links` explicitly associates a
+  known publication and PDF in the same workspace.
+- `DELETE /api/workspaces/demo/publication-pdf-links/{id}` removes only that
+  association.
 - `POST /api/workspaces/demo/links` accepts an annotation id, source revision,
   requested offsets, and exact current text and returns a selector-backed
   annotation-passage link.
@@ -156,6 +167,9 @@ mode for authenticated hosted collaboration.
   rows, or delete resources absent from current canonical BibTeX.
 - Do not update canonical bibliography and its publication projection in
   separate commits.
+- Do not infer a publication/PDF association from citation key, DOI, title,
+  author, filename, or similarity, and do not delete either endpoint when an
+  explicit link is removed.
 - Do not add ad hoc schema checks or data backfills outside the ordered
   migration ledger, and never edit an applied migration definition.
 - Do not treat a Node storage substitute or browser-only assertion as sufficient
@@ -195,6 +209,8 @@ mode for authenticated hosted collaboration.
       exact manuscript passages.
 - [x] A PDF can be imported, rendered with selectable text, streamed back, and
       annotated without mutation.
+- [ ] Publications and PDFs can be linked explicitly many-to-many and navigated
+      through `has-artifact` without changing either endpoint.
 - [x] An annotation can be linked to the exact selected manuscript range.
 - [x] New annotation and claim passage links follow manuscript edits through
       versioned Yjs relative positions while preserving exact quote/context
@@ -275,6 +291,9 @@ mode for authenticated hosted collaboration.
   enrichment must remain `crossref`.
 - Absence from current canonical BibTeX must never implicitly delete a
   publication resource.
+- Publication/PDF associations must reference known same-workspace resources,
+  remain unique per pair, and originate only from an explicit action. Removing
+  one must preserve both resources and every annotation.
 - Import and enrichment must minimally splice bibliography `Y.Text` and
   atomically persist Yjs/materialized document state, revision, and publication
   reconciliation.
