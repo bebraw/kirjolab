@@ -19,6 +19,12 @@ with an authored passage.
   rectangles. Exact quote, prefix, suffix, and page remain required selectors.
 - `PdfResource.fingerprint` records the immutable R2 artifact ETag identity.
 - `DocumentRoom` adds selector fields without rewriting PDF objects in R2.
+- The PDF viewer is hosted inside the right research-context pane. Its
+  annotation draft is locked to the visible PDF while authoring remains
+  available beside it.
+- `POST /api/workspaces/{id}/annotation-links` validates an annotation and
+  current manuscript selection before atomically inserting both the annotation
+  and its passage link.
 - The generated PDF.js worker is served from `/pdf.worker.js` and stays version
   matched with the display-layer dependency.
 
@@ -38,6 +44,10 @@ with an authored passage.
 - [x] Page navigation renders one page at a time.
 - [x] A selection captures page, quote, prefix, suffix, and normalized geometry.
 - [x] Saving the capture creates an external annotation resource.
+- [x] Saving and linking a capture creates its annotation and manuscript link
+      atomically or creates neither.
+- [x] The PDF and evidence composer remain visible beside manuscript authoring
+      without a modal covering the editor.
 - [x] Reopening an annotation restores its page and visible highlight.
 - [x] An annotation can select its linked manuscript passage.
 - [x] Existing manual annotations without geometry remain readable.
@@ -52,6 +62,10 @@ with an authored passage.
 - PDF.js display and worker assets must come from the same pinned package.
 - The viewer must render only the active page.
 - Stored highlights must never mutate the imported R2 object.
+- The embedded annotation composer must always target the currently visible
+  PDF; it must not expose an independent editable artifact selector.
+- A stale manuscript revision or range must reject atomic annotation/link
+  creation before either row is persisted.
 
 ### Scenarios
 
@@ -68,3 +82,11 @@ with an authored passage.
 - When: the researcher opens the evidence or the linked passage
 - Then: Kirjolab restores the PDF page and highlight or selects the exact
   current manuscript range respectively
+
+**Scenario: Visible evidence connects to selected prose**
+
+- Given: manuscript prose is selected while a PDF is visible in research
+  context
+- When: the researcher saves and links a captured PDF selection
+- Then: Kirjolab commits the annotation and passage link together, or rejects
+  both when the manuscript selection has become stale

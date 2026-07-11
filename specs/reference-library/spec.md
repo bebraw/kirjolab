@@ -104,9 +104,9 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - [x] A Workers-runtime test proves historical bibliography projection and
       atomic persistence against real Durable Object SQLite storage.
 - [x] A browser test proves import through the real Worker and Durable Object.
-- [ ] Publications and PDFs can be explicitly linked many-to-many without
+- [x] Publications and PDFs can be explicitly linked many-to-many without
       changing either resource.
-- [ ] Publication/PDF links appear in the typed knowledge projection as
+- [x] Publication/PDF links appear in the typed knowledge projection as
       `has-artifact`.
 
 ### Regression Guardrails

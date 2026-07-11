@@ -116,6 +116,8 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/pdfs` streams one PDF of at most 25 MB to R2.
 - `GET /api/workspaces/demo/pdfs/{id}` streams an imported PDF.
 - `POST /api/workspaces/demo/annotations` creates a selector-backed annotation.
+- `POST /api/workspaces/demo/annotation-links` atomically creates one
+  selector-backed annotation and its current manuscript passage link.
 - `POST /api/workspaces/demo/bibliography/import` minimally splices merged valid
   BibTeX into Yjs and atomically reconciles its complete publication entries.
 - `POST /api/workspaces/demo/publications/{id}/enrich` explicitly enriches a
@@ -194,8 +196,14 @@ mode for authenticated hosted collaboration.
 - [x] Yjs owns live editor text after synchronization while coalesced resource
       refreshes update only non-editor workspace state.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.
+- [x] A permanent Preview and resource-keyed publication/PDF tabs share one
+      right research-context pane beside manuscript authoring.
+- [x] Tab, pin, page, focus, and reading-position state remains local while
+      narrow layouts switch explicitly between Authoring and Context.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
+- [x] Preview citations open publication context and explicit citation
+      insertion uses a remembered collaborative authoring position.
 - [x] Every complete canonical BibTeX entry materializes after local and remote
       edits as well as imports, independently of citation keys.
 - [x] Stable publication reconciliation preserves an unchanged source/timestamp,
@@ -209,9 +217,11 @@ mode for authenticated hosted collaboration.
       exact manuscript passages.
 - [x] A PDF can be imported, rendered with selectable text, streamed back, and
       annotated without mutation.
-- [ ] Publications and PDFs can be linked explicitly many-to-many and navigated
+- [x] Publications and PDFs can be linked explicitly many-to-many and navigated
       through `has-artifact` without changing either endpoint.
 - [x] An annotation can be linked to the exact selected manuscript range.
+- [x] A visible PDF selection and manuscript selection can create their
+      annotation and passage link in one atomic mutation.
 - [x] New annotation and claim passage links follow manuscript edits through
       versioned Yjs relative positions while preserving exact quote/context
       provenance.

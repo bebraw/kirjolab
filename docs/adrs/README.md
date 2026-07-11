@@ -27,14 +27,12 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                                            | Status   | Summary                                                                                   |
-| ------------------------------------------------------------------------------ | -------- | ----------------------------------------------------------------------------------------- |
-| [ADR-035](./accepted/ADR-035-keep-markdown-canonical.md)                       | Accepted | Keep portable Markdown canonical and derive semantic, preview, and index representations. |
-| [ADR-036](./accepted/ADR-036-model-scholarly-work-as-hypermedia.md)            | Accepted | Model writing and working-memory entities as stable, typed hypermedia resources.          |
-| [ADR-037](./accepted/ADR-037-synchronize-text-and-materialize-markdown.md)     | Accepted | Synchronize collaborative text while materializing clean, recoverable Markdown.           |
-| [ADR-039](./accepted/ADR-039-require-reviewable-model-operations.md)           | Accepted | Route local-capable model work through provenance-aware candidate review and apply.       |
-| [ADR-053](./accepted/ADR-053-use-a-tabbed-research-context-pane.md)            | Accepted | Keep authoring beside a tabbed preview and resource-keyed research context.               |
-| [ADR-054](./accepted/ADR-054-model-publication-pdf-associations-explicitly.md) | Accepted | Link publications and local PDF artifacts only through explicit durable relationships.    |
+| ADR                                                                        | Status   | Summary                                                                                   |
+| -------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
+| [ADR-035](./accepted/ADR-035-keep-markdown-canonical.md)                   | Accepted | Keep portable Markdown canonical and derive semantic, preview, and index representations. |
+| [ADR-036](./accepted/ADR-036-model-scholarly-work-as-hypermedia.md)        | Accepted | Model writing and working-memory entities as stable, typed hypermedia resources.          |
+| [ADR-037](./accepted/ADR-037-synchronize-text-and-materialize-markdown.md) | Accepted | Synchronize collaborative text while materializing clean, recoverable Markdown.           |
+| [ADR-039](./accepted/ADR-039-require-reviewable-model-operations.md)       | Accepted | Route local-capable model work through provenance-aware candidate review and apply.       |
 
 ## Implemented ADRs
 
@@ -88,6 +86,8 @@ ADRs are grouped by lifecycle status:
 | [ADR-050](./implemented/ADR-050-use-durable-manuscript-anchors.md)                    | Implemented | Resolve manuscript links only through versioned Yjs positions with explicit stale state.         |
 | [ADR-051](./implemented/ADR-051-reconcile-bibtex-and-version-sqlite-migrations.md)    | Implemented | Reconcile every canonical BibTeX change and version per-object SQLite evolution.                 |
 | [ADR-052](./implemented/ADR-052-test-durable-objects-in-workers-runtime.md)           | Implemented | Verify migrations, transactions, and eviction in an isolated real Workers runtime.               |
+| [ADR-053](./implemented/ADR-053-use-a-tabbed-research-context-pane.md)                | Implemented | Keep authoring beside a tabbed preview and resource-keyed research context.                      |
+| [ADR-054](./implemented/ADR-054-model-publication-pdf-associations-explicitly.md)     | Implemented | Link publications and local PDF artifacts only through explicit durable relationships.           |
 
 ## Creating A New ADR
 

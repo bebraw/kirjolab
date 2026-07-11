@@ -77,10 +77,12 @@ canonical data, selector, authorization, or rendering contracts.
 - Automatic navigation may replace only the unpinned follow-context resource
   tab. It must never replace Preview or a pinned tab.
 - Selecting text in a visible PDF populates an annotation draft for that exact
-  PDF and page. Saving the draft remains an explicit durable action.
+  PDF and page. Its PDF target is locked to the visible artifact. Saving the
+  draft remains an explicit durable action.
 - Citing a visible publication requires an explicit command and a valid current
-  editor insertion point. If no safe insertion point exists, the command is
-  unavailable or asks the user to return to Authoring; it never guesses.
+  remembered Yjs-relative editor insertion point. If no safe insertion point
+  exists, the command is unavailable; it never falls back to position zero or
+  guesses.
 - Linking a PDF to a publication requires an explicit action against two known
   resources in the current workspace. It does not cite the publication or
   connect an annotation to manuscript prose.
@@ -95,6 +97,10 @@ canonical data, selector, authorization, or rendering contracts.
   returns the link representation.
 - `DELETE /api/workspaces/{id}/publication-pdf-links/{linkId}` removes only the
   association and returns an empty successful response.
+- `POST /api/workspaces/{id}/annotation-links` accepts one annotation draft and
+  one current manuscript passage selector. It validates both before inserting
+  the annotation and passage link in one SQLite transaction, returning both
+  resources; stale input leaves neither row behind.
 
 ### Anti-Patterns
 
@@ -120,26 +126,26 @@ canonical data, selector, authorization, or rendering contracts.
 
 ### Definition of Done
 
-- [ ] The right-hand preview becomes a tabbed context pane with a permanent
+- [x] The right-hand preview becomes a tabbed context pane with a permanent
       Preview tab and resource-keyed publication/PDF tabs.
-- [ ] Opening the same publication, PDF, or annotation twice focuses one
+- [x] Opening the same publication, PDF, or annotation twice focuses one
       existing resource tab instead of creating duplicates.
-- [ ] Preview scroll and each PDF's page, scroll, and focused annotation survive
+- [x] Preview scroll and each PDF's page, scroll, and focused annotation survive
       tab switches.
-- [ ] A PDF can be read and selected beside the live authoring editor without a
+- [x] A PDF can be read and selected beside the live authoring editor without a
       modal covering either surface.
-- [ ] Resource tabs can be pinned, closed, and navigated entirely by keyboard.
-- [ ] Citation and annotation navigation focus the appropriate publication,
+- [x] Resource tabs can be pinned, closed, and navigated entirely by keyboard.
+- [x] Citation and annotation navigation focus the appropriate publication,
       PDF evidence, or resolved manuscript passage.
-- [ ] A publication context lists all explicitly linked PDF artifacts, supports
+- [x] A publication context lists all explicitly linked PDF artifacts, supports
       explicit link/unlink actions, and remains useful when none are linked.
-- [ ] Publication/PDF associations appear as typed `has-artifact` connections
+- [x] Publication/PDF associations appear as typed `has-artifact` connections
       and support many-to-many resource pairs.
-- [ ] Add-to-library, cite, and connect-evidence commands are visibly distinct
+- [x] Add-to-library, cite, and connect-evidence commands are visibly distinct
       and have no implicit cross-effects.
-- [ ] Narrow layouts expose an explicit Authoring/Context switch and preserve
+- [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
-- [ ] Browser coverage proves tab identity, reading-position restoration,
+- [x] Browser coverage proves tab identity, reading-position restoration,
       keyboard behavior, mutation boundaries, and responsive switching.
 
 ### Regression Guardrails
@@ -157,6 +163,8 @@ canonical data, selector, authorization, or rendering contracts.
 - PDF rendering remains single-active-page and uses the pinned matching PDF.js
   display and worker assets.
 - PDF selections and highlights remain external to immutable PDF bytes.
+- A rapid sequence of PDF opens must discard stale loading tasks before they
+  can replace the active artifact, status, or reading position.
 - Workspace authorization still applies to every publication representation,
   PDF stream, annotation mutation, and relationship action.
 - Publication/PDF links must reference existing resources in the same
@@ -167,6 +175,8 @@ canonical data, selector, authorization, or rendering contracts.
   ownership, active context tab, and reading positions.
 - User-provided publication and annotation metadata must render through text
   nodes rather than HTML insertion.
+- Atomic annotation/passage creation must validate the current manuscript
+  revision and exact range before either resource is inserted.
 
 ### Scenarios
 
@@ -208,8 +218,8 @@ canonical data, selector, authorization, or rendering contracts.
 
 - Given: a PDF is visible beside the authoring editor
 - When: the researcher selects source text and explicitly saves it
-- Then: Kirjolab creates an annotation for that PDF and page while preserving
-  the current authoring context
+- Then: Kirjolab atomically creates an annotation for that PDF and page plus a
+  durable link to the selected prose while preserving the authoring context
 
 **Scenario: Navigation does not imply authorship**
 

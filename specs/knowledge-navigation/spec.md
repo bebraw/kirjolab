@@ -47,7 +47,7 @@ connection without reconstructing identity from a citation key or filename.
 - [x] Claim evidence and manuscript usage become typed, navigable connections.
 - [x] Repeated citations produce one connection per publication.
 - [x] Both search results and connection endpoints navigate to their resource.
-- [ ] Explicit publication/PDF associations project as navigable
+- [x] Explicit publication/PDF associations project as navigable
       `has-artifact` connections.
 - [x] Search and graph endpoints use the existing workspace access boundary.
 - [x] Domain tests cover ranking, graph derivation, deduplication, and guards.

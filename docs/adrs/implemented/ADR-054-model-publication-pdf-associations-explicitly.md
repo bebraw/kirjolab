@@ -1,6 +1,6 @@
 # ADR-054: Model Publication-PDF Associations Explicitly
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-11
 

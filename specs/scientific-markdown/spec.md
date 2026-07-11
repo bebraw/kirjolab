@@ -38,6 +38,8 @@ second Markdown dialect.
 - `:ref` accepts bracket targets, custom `text`, and legacy `target` attributes.
 - `:cite` accepts multiple ids, `parenthetical`, `textual`, and `full` modes,
   plus `locator`, `prefix`, and `suffix`.
+- Each rendered citation id is an accessible sanitized button keyed by its
+  citation alias, so grouped citations can open one publication at a time.
 - Quoted and unquoted single-token directive attributes are accepted, matching
   the source project's examples.
 
@@ -71,6 +73,8 @@ second Markdown dialect.
 
 - [x] The documented standard Markdown and GFM examples render through Satteri.
 - [x] Citation modes, multiple ids, locators, prefixes, and suffixes render.
+- [x] Rendered citation buttons open stable publication context without
+      mutating canonical Markdown or the bibliography.
 - [x] Heading, alias, anchor, and custom reference targets resolve.
 - [x] Invalid ids, modes, directives, duplicates, and alias targets diagnose.
 - [x] Browser preview uses the Satteri WASM binding under cross-origin isolation.
@@ -92,6 +96,8 @@ second Markdown dialect.
   fallback, never an application crash or source mutation.
 - Standard Markdown should be delegated to Satteri rather than reimplemented.
 - Satteri asset routes must remain same-origin, immutable, and content-typed.
+- Citation activation may navigate local research context but must never cite,
+  import, enrich, or link a resource as an implicit side effect.
 
 ### Scenarios
 

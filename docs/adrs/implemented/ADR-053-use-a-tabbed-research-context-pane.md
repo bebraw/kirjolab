@@ -1,6 +1,6 @@
 # ADR-053: Use a Tabbed Research Context Pane
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-11
 
