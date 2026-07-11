@@ -17,6 +17,7 @@ runTypecheckWhenNeeded(affectedFiles);
 runWorkerClientGuard(affectedFiles);
 runAuditWhenNeeded(affectedFiles);
 runTestsWhenNeeded(affectedFiles);
+runWorkersTestsWhenNeeded(affectedFiles);
 
 function runPrettier(files) {
   console.log("Checking formatting for affected files...");
@@ -80,9 +81,27 @@ function runTestsWhenNeeded(files) {
   run(repoRoot, "npm", ["run", "test:affected", "--", ...files]);
 }
 
+function runWorkersTestsWhenNeeded(files) {
+  if (!files.some(affectsWorkersTests)) {
+    console.log("Workers runtime tests skipped: no affected Durable Object or Workers test inputs.");
+    return;
+  }
+
+  console.log("Running Workers runtime tests for affected Durable Object or test environment files...");
+  run(repoRoot, "npm", ["run", "test:workers"]);
+}
+
 function affectsTypecheck(file) {
   return (
-    /\.(?:ts|tsx|mts|cts)$/.test(file) || ["tsconfig.json", "vitest.config.ts", "playwright.config.ts", "wrangler.jsonc"].includes(file)
+    /\.(?:ts|tsx|mts|cts)$/.test(file) ||
+    [
+      "tsconfig.json",
+      "tsconfig.workers-test.json",
+      "vitest.config.ts",
+      "vitest.workers.config.mts",
+      "playwright.config.ts",
+      "wrangler.jsonc",
+    ].includes(file)
   );
 }
 
@@ -106,7 +125,29 @@ function affectsUnitCoverage(file) {
     (file.startsWith("src/") &&
       /\.(?:test\.)?(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(file) &&
       !file.endsWith(".d.ts") &&
-      !file.endsWith(".e2e.ts"))
+      !file.endsWith(".e2e.ts") &&
+      !file.endsWith(".workers.test.ts"))
+  );
+}
+
+function affectsWorkersTests(file) {
+  return (
+    affectsWorkersTestEnvironment(file) ||
+    file.endsWith(".workers.test.ts") ||
+    isWorkersRuntimeSource(file) ||
+    file.startsWith("vendor/satteri-wasm32-wasi/")
+  );
+}
+
+function isWorkersRuntimeSource(file) {
+  return (
+    file.startsWith("src/") &&
+    !file.startsWith("src/client/") &&
+    !file.startsWith("src/test-support") &&
+    /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(file) &&
+    !file.endsWith(".d.ts") &&
+    !file.endsWith(".test.ts") &&
+    !file.endsWith(".e2e.ts")
   );
 }
 
@@ -119,5 +160,17 @@ function affectsTestEnvironment(file) {
     "scripts/run-coverage-gate.mjs",
     "scripts/run-affected-tests.mjs",
     "scripts/affected-file-utils.mjs",
+  ].includes(file);
+}
+
+function affectsWorkersTestEnvironment(file) {
+  return [
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "tsconfig.workers-test.json",
+    "vitest.workers.config.mts",
+    "worker-configuration.d.ts",
+    "wrangler.jsonc",
   ].includes(file);
 }

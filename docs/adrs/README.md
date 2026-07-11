@@ -85,6 +85,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-049](./implemented/ADR-049-acknowledge-server-led-yjs-synchronization.md)        | Implemented | Synchronize from server state and acknowledge durable, idempotent Yjs updates.                   |
 | [ADR-050](./implemented/ADR-050-use-durable-manuscript-anchors.md)                    | Implemented | Resolve manuscript links only through versioned Yjs positions with explicit stale state.         |
 | [ADR-051](./implemented/ADR-051-reconcile-bibtex-and-version-sqlite-migrations.md)    | Implemented | Reconcile every canonical BibTeX change and version per-object SQLite evolution.                 |
+| [ADR-052](./implemented/ADR-052-test-durable-objects-in-workers-runtime.md)           | Implemented | Verify migrations, transactions, and eviction in an isolated real Workers runtime.               |
 
 ## Creating A New ADR
 

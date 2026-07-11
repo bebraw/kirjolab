@@ -29,6 +29,10 @@ mode for authenticated hosted collaboration.
   pending migration and its ledger record commit in one synchronous
   transaction; anchor backfill and initial bibliography projection are explicit
   data migrations.
+- **Platform verification:** `src/**/*.workers.test.ts` runs through the
+  dedicated Cloudflare Vitest project in a real local `workerd` runtime with
+  isolated per-test storage. It owns Durable Object migration, transaction,
+  RPC, and eviction contracts; Node tests own shared pure-domain behavior.
 - **Document semantics:** Satteri parses standard Markdown and GFM while
   `src/domain/markdown.ts` adds headings, citations, references, aliases,
   anchors, validation, and preview security from the scientific-writing syntax.
@@ -154,6 +158,9 @@ mode for authenticated hosted collaboration.
   separate commits.
 - Do not add ad hoc schema checks or data backfills outside the ordered
   migration ledger, and never edit an applied migration definition.
+- Do not treat a Node storage substitute or browser-only assertion as sufficient
+  evidence for Durable Object SQLite transactions, migrations, RPC, or recovery
+  after eviction.
 - Do not buffer PDF bodies in Worker memory.
 - Do not write annotation data into imported PDFs.
 - Do not deploy with local authentication or without a protected Cloudflare
@@ -200,6 +207,8 @@ mode for authenticated hosted collaboration.
 - [x] Ordered named migration ledgers apply each Durable Object schema exactly
       once; the document ledger also records anchor backfill and initial
       bibliography projection.
+- [x] Workers-runtime tests exercise migration, rollback, projection, and
+      persisted reconstruction against isolated real Durable Object storage.
 - [x] A local model can return a grounded candidate with inspectable provenance.
 - [x] Candidate creation and application are explicit and reject stale base
       revisions captured before model execution.
@@ -229,6 +238,11 @@ mode for authenticated hosted collaboration.
   transaction; applied version/name mismatches must fail before new work.
 - Initial canonical bibliography projection and manuscript-anchor backfill must
   remain recorded data migrations.
+- Migration ordering, ledger mismatch, transactional rollback, representative
+  historical upgrades, and reconstruction after eviction must be verified in
+  `workerd` against real per-test Durable Object SQLite storage.
+- `cloudflare:test` may seed and inspect private Durable Object state for these
+  platform contracts; Node substitutes must not be their only verification.
 - PDF uploads must require `application/pdf`, a known positive content length,
   and the 25 MB size limit.
 - Annotation creation must require a known PDF, positive page number, exact
@@ -273,9 +287,13 @@ mode for authenticated hosted collaboration.
   model-operation helpers.
 - `src/worker.test.ts` covers routing, generated assets, and missing-binding
   behavior.
+- `src/**/*.workers.test.ts`, selected by `vitest.workers.config.mts`, covers
+  real Durable Object SQLite migration, transaction, projection, and eviction
+  behavior with isolated per-test storage.
 - `src/worker.e2e.ts` exercises real local Durable Object, WebSocket, and R2
   behavior, including the full evidence-to-prose workflow.
-- `npm run quality:gate` and `npm run ci:local` are the readiness gates.
+- `npm run test:workers` is part of the fast gate; `npm run quality:gate` and
+  `npm run ci:local` are the readiness gates.
 
 ### Scenarios
 

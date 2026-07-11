@@ -30,6 +30,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   append-only migration ledger. Apply each pending schema or data migration and
   its ledger record in one synchronous transaction; fail closed if applied
   version/name history changes.
+- Verify Durable Object migration, transaction, RPC, and eviction contracts in
+  an isolated real `workerd` runtime through the dedicated Cloudflare Vitest
+  project. Node tests may cover shared pure logic but must not stand in for
+  platform storage behavior.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
 - Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
 - Establish collaboration through a server-led Yjs handshake: send current
@@ -98,11 +102,20 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - The verification baseline is split into a fast gate and a browser gate so quick checks can return earlier without dropping full coverage.
 - The repo-managed `pre-push` Git hook should run affected-file guardrails before code is pushed.
 - Formatting, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
+- Keep Node Vitest responsible for fast pure-domain coverage and mutation
+  feedback; keep the separate Workers Vitest project responsible for real
+  Durable Object and SQLite integration behavior.
 - Fallow codebase diagnostics are advisory readability checks for complexity, duplication, dependency hygiene, and cleanup evidence; they do not replace the baseline quality gate.
 - Affected-file guardrails should scope checks to changed files when the underlying tool supports it and fall back to project-level checks only when needed.
+- Affected-file guardrails must route Worker-reachable non-client sources,
+  Workers tests and configuration, and Satteri deployment-asset inputs to the
+  Workers-runtime suite, while keeping `*.workers.test.ts` out of the Node
+  Vitest project.
 - The fast quality gate should fail when Worker/view runtime files contain inline script blocks without a `src`, inline event-handler attributes, or `javascript:` URLs. External scripts must point to an explicit typed client build.
 - Unit coverage for `src/` code should stay high enough that the coverage gate remains green.
 - Local CI should validate the same baseline checks before non-documentation changes are proposed or merged.
+- The baseline quality gate and local CI must execute the Workers-runtime test
+  project; its direct command is only a targeted iteration shortcut.
 - Targeted commands are useful while iterating, but `npm run quality:gate` and `npm run ci:local` remain the readiness baseline before proposing or landing non-documentation changes.
 - `npm run diagnostics:codebase` is useful during review and refactoring, but passing or failing it is not a readiness baseline by itself.
 - Documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests.

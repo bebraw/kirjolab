@@ -89,5 +89,10 @@ function isRuntimeSourceFile(file) {
 }
 
 function isUnitTestFile(file) {
-  return file.startsWith("src/") && /\.(?:test\.)?(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(file) && file.endsWith(".test.ts");
+  return (
+    file.startsWith("src/") &&
+    /\.(?:test\.)?(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(file) &&
+    file.endsWith(".test.ts") &&
+    !file.endsWith(".workers.test.ts")
+  );
 }

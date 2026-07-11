@@ -14,5 +14,5 @@
     "types": ["node"]
   },
   "include": ["*.ts", "src/**/*.ts"],
-  "exclude": ["src/client", "src/**/*.e2e.ts"]
+  "exclude": ["src/client", "src/**/*.e2e.ts", "src/**/*.workers.test.ts"]
 }

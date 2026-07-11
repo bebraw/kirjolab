@@ -47,6 +47,8 @@ If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` t
 - Install the Playwright browser with `npm run playwright:install`.
 - Run end-to-end tests with `npm run e2e`.
 - Run unit and integration tests with `npm test`.
+- Run Durable Object integration tests in the local Workers runtime with
+  `npm run test:workers`.
 - Run tests related to affected runtime or unit test files with `npm run test:affected`.
 - Run the unit coverage gate with `npm run test:coverage`.
 - Run full mutation tests with `npm run mutation`.
@@ -62,6 +64,8 @@ Use targeted checks while iterating, then run the full readiness path before pro
 - Docs-only changes: `npm run format:check`
 - TypeScript or typed tooling changes: `npm run typecheck`
 - Runtime `src/` changes while iterating: `npm run typecheck` and `npm run test:affected`
+- Durable Object migration, transaction, RPC, or eviction changes:
+  `npm run typecheck:workers` and `npm run test:workers`
 - Browser behavior or UI changes: `npm run quality:gate`
 - Readability, complexity, duplication, or cleanup review: `npm run diagnostics:codebase`
 - Baseline readiness: `npm run quality:gate` and `npm run ci:local`
@@ -74,7 +78,35 @@ The starter UI now follows the same Tailwind v4 baseline shape as `thesis-journe
 
 The Lighthouse setup is also generic, but the Worker stub gives it a concrete local target. Use `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`. Reports are written to `reports/lighthouse/`.
 
-The Vitest setup is generic as well. `vitest.config.ts` targets colocated `src/**/*.test.ts` files while excluding `src/**/*.e2e.ts`. The default `npm test` command uses `--passWithNoTests` so the template remains usable before a project adds its first test file.
+The Node Vitest setup remains the fast home for pure logic. `vitest.config.ts`
+targets colocated `src/**/*.test.ts` files while excluding end-to-end and
+Workers-runtime tests. The default `npm test` command uses `--passWithNoTests`
+so the template remains usable before a project adds its first test file.
+
+Durable Object integration tests use the separate
+`vitest.workers.config.mts`, select `src/**/*.workers.test.ts`, and receive their
+test-only types through `tsconfig.workers-test.json`. Run them with
+`npm run test:workers`; the command first rebuilds the Satteri deployment assets
+referenced by `wrangler.jsonc` before the Cloudflare Vitest integration starts a
+local `workerd` runtime. The project pins
+`@cloudflare/vitest-pool-workers` 0.18.4 alongside Vitest 4.1.8. Each test gets
+isolated local storage and can use `cloudflare:test` to inspect private Durable
+Object SQLite state or evict an instance while retaining persisted storage.
+These tests never contact deployed Cloudflare resources.
+
+Keep persistence ownership explicit: Node tests cover pure parsers, selectors,
+projections, text-splice helpers, and migration-definition validation. Workers
+tests cover real SQLite migrations and rollback, atomic materialization,
+Durable Object RPC, and reconstruction after eviction. A Node storage substitute
+is useful for fast feedback but is not sufficient evidence for those platform
+contracts.
+
+`npm run quality:affected` treats Worker-reachable non-client source,
+Workers-test files and configuration, and Satteri deployment-asset inputs as
+Workers test inputs and routes them to `npm run test:workers`. The Node
+related-test and coverage selectors explicitly exclude `*.workers.test.ts`, so
+an affected run never executes a platform test under the wrong runtime. The
+full readiness gates still run both projects.
 
 The coverage gate is stricter than the basic test run. `npm run test:coverage` measures runtime `src/**` code with the V8 provider, writes reports to `reports/coverage/`, and enforces high thresholds once a project actually has `src/` code. Colocated unit tests, end-to-end tests, and test-support files do not count as source files for the gate's skip-or-fail logic. `npm run test:affected` runs Vitest related tests for affected runtime files and directly runs affected unit test files. It falls back to `npm run test:coverage` when affected files include test environment inputs or when affected runtime files have no related tests.
 
@@ -111,4 +143,14 @@ Use this expectation for routine changes:
 - `npm run ci:local` should also pass before proposing or landing the change.
 - The repo-managed `pre-push` hook runs `npm run quality:affected` automatically after `npm install`, so pushes stop locally when affected guardrails are already red.
 
-The quality gate currently runs the fast gate first, then the Playwright browser tests, then incremental mutation tests for faster repeated local runs. GitHub Actions runs separate fast, browser, and full mutation jobs, with repository-shape validation included in the fast job. Local Agent CI runs should go through `npm run ci:local`, which lets Agent CI run independent jobs concurrently while its own warm-cache serialization protects the shared `node_modules` mount during cold installs. The command also pauses a failed runner for agent retry. Local browser installation should go through the pinned `npm run playwright:install` script.
+The quality gate currently runs the fast gate first, then the Playwright browser
+tests, then incremental mutation tests for faster repeated local runs. The fast
+gate includes both Node coverage and `npm run test:workers`, so the baseline and
+local Agent CI cannot omit real Durable Object persistence verification. GitHub
+Actions runs separate fast, browser, and full mutation jobs, with
+repository-shape validation included in the fast job. Local Agent CI runs
+should go through `npm run ci:local`, which lets Agent CI run independent jobs
+concurrently while its own warm-cache serialization protects the shared
+`node_modules` mount during cold installs. The command also pauses a failed
+runner for agent retry. Local browser installation should go through the pinned
+`npm run playwright:install` script.

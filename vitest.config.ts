@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     include: ["src/**/*.test.ts"],
-    exclude: ["src/**/*.e2e.ts"],
+    exclude: ["src/**/*.e2e.ts", "src/**/*.workers.test.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}"],

@@ -38,6 +38,9 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - `DocumentRoom` schema and projection backfills use the shared ordered,
   append-only `_kirjolab_migrations` ledger. Initial canonical bibliography
   projection is a named data migration rather than an incidental first edit.
+- Workers-runtime tests seed and inspect private `DocumentRoom` SQLite state
+  through `cloudflare:test`, proving projection migration and atomic
+  materialization in isolated real `workerd` storage rather than a Node double.
 - `CROSSREF_MAILTO` optionally identifies the deployment to Crossref. It is not
   a credential.
 
@@ -64,6 +67,8 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - Do not replace complete bibliography text through delete-all/insert-all.
 - Do not add schema or projection backfills outside the ordered migration
   ledger or edit an applied migration.
+- Do not accept Node-only storage tests as proof that bibliography projection
+  and its document commit are atomic in a Durable Object SQLite transaction.
 
 ## Contract
 
@@ -83,6 +88,8 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - [x] Initial canonical entries are projected through a named data migration.
 - [x] Accepted enrichment is exported in canonical BibTeX.
 - [x] Parser and Crossref mapping behavior have unit tests.
+- [x] A Workers-runtime test proves historical bibliography projection and
+      atomic persistence against real Durable Object SQLite storage.
 - [x] A browser test proves import through the real Worker and Durable Object.
 
 ### Regression Guardrails
@@ -106,6 +113,10 @@ addressable resources, and deliberately improve DOI-backed metadata.
   canonical projection is reconciled.
 - Initial bibliography projection must be a recorded data migration so existing
   rooms converge without a later edit.
+- Projection migration, transaction rollback, ledger persistence, and reload
+  behavior must run in the dedicated Workers Vitest project with isolated
+  per-test SQLite storage; Node tests remain responsible for pure projection
+  logic.
 - User-controlled metadata must render through DOM text nodes, not HTML.
 - Workspace authorization and same-origin mutation checks apply to all reference
   routes.

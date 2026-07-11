@@ -9,6 +9,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 ### Architecture
 
 - **Fast gate:** `npm run quality:gate:fast`
+- **Workers runtime gate:** `npm run test:workers`
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`
 - **Affected test gate:** `npm run test:affected`
@@ -53,7 +54,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 
 ### Definition of Done
 
-- [ ] The fast gate covers formatting, type checking, Worker client-code guardrails, runtime audit, and unit coverage.
+- [ ] The fast gate covers formatting, type checking, Worker client-code guardrails, runtime audit, unit coverage, and real Workers-runtime tests.
 - [ ] The affected guardrail path scopes formatting, JavaScript syntax checks, Worker client-code checks, package audit, and unit tests to affected files when possible.
 - [ ] The affected test gate runs tests related to affected runtime files, runs affected unit test files directly, and falls back to full coverage for broad test environment changes or affected runtime files with no related tests.
 - [ ] The advisory codebase diagnostics report changed-code readability risk, whole-repo health, hotspots, duplication, and cleanup evidence without becoming part of the hard quality gate.
@@ -92,6 +93,11 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The affected guardrail path must run JavaScript syntax checks only for affected JavaScript files.
 - The affected guardrail path must run package audit only when package metadata or lockfiles change.
 - The affected guardrail path must skip unit tests when no runtime or unit test files are affected.
+- The affected guardrail path must route Worker-reachable non-client source,
+  Workers test/configuration files, and Satteri deployment-asset inputs to
+  `npm run test:workers`.
+- The Node affected-test path must never execute `*.workers.test.ts`; those files
+  belong exclusively to the Workers runtime project.
 - The affected test path must run full unit coverage when package metadata, TypeScript config, Vitest config, coverage-gate logic, or affected-test logic changes.
 - The affected test path must run full unit coverage when affected-file helper logic changes.
 - The affected test path must run full unit coverage when affected runtime files have no related tests and no affected unit test files were supplied.
@@ -144,7 +150,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 
 - Given: a change that does not need immediate browser verification
 - When: the contributor runs `npm run quality:gate:fast`
-- Then: formatting, typing, audit, and unit coverage run without waiting for Playwright
+- Then: formatting, typing, audit, unit coverage, and isolated Workers-runtime tests run without waiting for Playwright
 
 **Scenario: Full verification before landing code changes**
 
