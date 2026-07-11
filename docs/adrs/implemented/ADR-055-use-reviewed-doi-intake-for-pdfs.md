@@ -1,6 +1,6 @@
 # ADR-055: Use Reviewed DOI Intake for PDFs
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-11
 

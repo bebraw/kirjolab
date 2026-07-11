@@ -1,6 +1,6 @@
 # ADR-056: Persist Grounded Passage Revisions
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-11
 

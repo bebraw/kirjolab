@@ -33,8 +33,6 @@ ADRs are grouped by lifecycle status:
 | [ADR-036](./accepted/ADR-036-model-scholarly-work-as-hypermedia.md)        | Accepted | Model writing and working-memory entities as stable, typed hypermedia resources.          |
 | [ADR-037](./accepted/ADR-037-synchronize-text-and-materialize-markdown.md) | Accepted | Synchronize collaborative text while materializing clean, recoverable Markdown.           |
 | [ADR-039](./accepted/ADR-039-require-reviewable-model-operations.md)       | Accepted | Route local-capable model work through provenance-aware candidate review and apply.       |
-| [ADR-055](./accepted/ADR-055-use-reviewed-doi-intake-for-pdfs.md)          | Accepted | Identify an imported PDF through reviewed, atomic, DOI-backed publication intake.         |
-| [ADR-056](./accepted/ADR-056-persist-grounded-passage-revisions.md)        | Accepted | Persist typed evidence and targeted replacements for grounded passage revisions.          |
 
 ## Implemented ADRs
 
@@ -90,6 +88,8 @@ ADRs are grouped by lifecycle status:
 | [ADR-052](./implemented/ADR-052-test-durable-objects-in-workers-runtime.md)           | Implemented | Verify migrations, transactions, and eviction in an isolated real Workers runtime.               |
 | [ADR-053](./implemented/ADR-053-use-a-tabbed-research-context-pane.md)                | Implemented | Keep authoring beside a tabbed preview and resource-keyed research context.                      |
 | [ADR-054](./implemented/ADR-054-model-publication-pdf-associations-explicitly.md)     | Implemented | Link publications and local PDF artifacts only through explicit durable relationships.           |
+| [ADR-055](./implemented/ADR-055-use-reviewed-doi-intake-for-pdfs.md)                  | Implemented | Identify an imported PDF through reviewed, atomic, DOI-backed publication intake.                |
+| [ADR-056](./implemented/ADR-056-persist-grounded-passage-revisions.md)                | Implemented | Persist typed evidence and targeted replacements for grounded passage revisions.                 |
 
 ## Creating A New ADR
 
