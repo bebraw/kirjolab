@@ -241,6 +241,85 @@ describe("DocumentRoom in the Workers runtime", () => {
     });
   });
 
+  it("creates an annotation and manuscript passage link in one durable mutation", async () => {
+    const workspaceId = "atomic-annotation-link";
+    const stub = roomStub(workspaceId);
+    const initial = await stub.getSnapshot(workspaceId);
+    const pdf = pdfResource("atomic-evidence.pdf");
+    await stub.registerPdf(pdf);
+    const excerpt = "Kirjolab keeps the path from an annotation to a claim";
+    const start = initial.source.indexOf(excerpt);
+    expect(start).toBeGreaterThanOrEqual(0);
+
+    const created = await stub.createAnnotationLink({
+      annotation: {
+        pdfId: pdf.id,
+        page: 2,
+        quote: "Evidence remains inspectable.",
+        prefix: "Before",
+        suffix: "After",
+        comment: "Atomic evidence",
+        rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+      },
+      passage: {
+        start,
+        end: start + excerpt.length,
+        excerpt,
+        sourceRevision: initial.revision,
+      },
+    });
+
+    expect(created.link.annotationId).toBe(created.annotation.id);
+    expect(created.link.resolution).toMatchObject({
+      status: "resolved",
+      start,
+      end: start + excerpt.length,
+      text: excerpt,
+      exactMatch: true,
+    });
+    const snapshot = await stub.getSnapshot(workspaceId);
+    expect(snapshot.annotations).toContainEqual(created.annotation);
+    expect(snapshot.links).toContainEqual(created.link);
+  });
+
+  it("persists neither resource when an atomic annotation link uses a stale passage", async () => {
+    const workspaceId = "stale-atomic-annotation-link";
+    const stub = roomStub(workspaceId);
+    const initial = await stub.getSnapshot(workspaceId);
+    const pdf = pdfResource("stale-evidence.pdf");
+    await stub.registerPdf(pdf);
+    const accepted = await stub.getSnapshot(workspaceId);
+    const excerpt = "Kirjolab keeps the path from an annotation to a claim";
+    const start = initial.source.indexOf(excerpt);
+    expect(start).toBeGreaterThanOrEqual(0);
+
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() =>
+        instance.createAnnotationLink({
+          annotation: {
+            pdfId: pdf.id,
+            page: 1,
+            quote: "This row must not persist.",
+            prefix: "",
+            suffix: "",
+            comment: "Stale evidence",
+            rects: [],
+          },
+          passage: {
+            start,
+            end: start + excerpt.length,
+            excerpt,
+            sourceRevision: initial.revision + 1,
+          },
+        }),
+      ).toThrow("Document selection is stale");
+    });
+
+    const rejected = await stub.getSnapshot(workspaceId);
+    expect(rejected.annotations).toEqual(accepted.annotations);
+    expect(rejected.links).toEqual(accepted.links);
+  });
+
   it("projects a persisted canonical bibliography when migration v6 is pending", async () => {
     const workspaceId = "persisted-bibliography-migration";
     const stub = roomStub(workspaceId);

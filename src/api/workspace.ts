@@ -1,5 +1,6 @@
 import {
   isCreateAnnotationInput,
+  isCreateAnnotationLinkInput,
   isCreateCandidateInput,
   isCreateClaimPassageLinkInput,
   isCreatePassageLinkInput,
@@ -54,6 +55,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await downloadPdf(storageKey, suffix.slice("/pdfs/".length), env);
     }
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
+    if (suffix === "/annotation-links" && request.method === "POST") return await createAnnotationLink(request, room);
     if (suffix === "/bibliography/import" && request.method === "POST") return await importBibliography(request, workspaceId, room);
     if (suffix === "/publication-pdf-links" && request.method === "POST") {
       return await createPublicationPdfLink(request, room);
@@ -182,6 +184,15 @@ async function createAnnotation(
   const body: unknown = await request.json();
   if (!isCreateAnnotationInput(body)) return jsonError("Invalid annotation", 400);
   return Response.json(await room.createAnnotation(body), { status: 201 });
+}
+
+async function createAnnotationLink(
+  request: Request,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isCreateAnnotationLinkInput(body)) return jsonError("Invalid annotation link", 400);
+  return Response.json(await room.createAnnotationLink(body), { status: 201 });
 }
 
 async function importBibliography(

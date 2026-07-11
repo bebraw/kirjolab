@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isCreateAnnotationInput,
+  isCreateAnnotationLinkInput,
   isCreateCandidateInput,
   isCreateClaimPassageLinkInput,
   isCreatePassageLinkInput,
@@ -39,6 +40,20 @@ describe("workspace input guards", () => {
       }),
     ).toBe(true);
     expect(isCreatePassageLinkInput({ annotationId: "a", start: 0, end: 4, excerpt: "text", sourceRevision: 0 })).toBe(true);
+    expect(
+      isCreateAnnotationLinkInput({
+        annotation: {
+          pdfId: "pdf",
+          page: 1,
+          quote: "evidence",
+          prefix: "before",
+          suffix: "after",
+          comment: "note",
+          rects: [],
+        },
+        passage: { start: 0, end: 4, excerpt: "text", sourceRevision: 0 },
+      }),
+    ).toBe(true);
     expect(
       isUpsertClaimInput({
         text: "Evidence supports inspection.",
@@ -81,6 +96,7 @@ describe("workspace input guards", () => {
   it("rejects malformed resource inputs", () => {
     expect(isCreateAnnotationInput(null)).toBe(false);
     expect(isCreateAnnotationInput({ pdfId: "", page: 0, quote: "", prefix: 1, suffix: "", comment: "", rects: [] })).toBe(false);
+    expect(isCreateAnnotationLinkInput(null)).toBe(false);
     expect(isCreatePassageLinkInput({ annotationId: "a", start: -1, end: 0, excerpt: "" })).toBe(false);
     expect(isUpsertClaimInput({ text: "", note: "", evidence: [] })).toBe(false);
     expect(isCreateClaimPassageLinkInput({ claimId: "", start: -1, end: 0, excerpt: "" })).toBe(false);
@@ -174,6 +190,25 @@ describe("workspace input guards", () => {
     ]) {
       expect(isCreatePassageLinkInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
     }
+  });
+
+  it("requires valid annotation and passage inputs for atomic evidence links", () => {
+    const valid = {
+      annotation: {
+        pdfId: "pdf",
+        page: 1,
+        quote: "evidence",
+        prefix: "before",
+        suffix: "after",
+        comment: "note",
+        rects: [],
+      },
+      passage: { start: 0, end: 4, excerpt: "text", sourceRevision: 0 },
+    };
+    expect(isCreateAnnotationLinkInput({ ...valid, annotation: null })).toBe(false);
+    expect(isCreateAnnotationLinkInput({ ...valid, annotation: { ...valid.annotation, pdfId: "" } })).toBe(false);
+    expect(isCreateAnnotationLinkInput({ ...valid, passage: null })).toBe(false);
+    expect(isCreateAnnotationLinkInput({ ...valid, passage: { ...valid.passage, end: 0 } })).toBe(false);
   });
 
   it("enforces every publication-PDF link boundary", () => {

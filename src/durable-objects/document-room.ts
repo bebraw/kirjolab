@@ -21,6 +21,7 @@ import {
   defaultBibliography,
   defaultSource,
   type ApplyCandidateResult,
+  type AnnotationLinkResult,
   type AnnotationResource,
   type ClaimEvidenceInput,
   type ClaimEvidenceLink,
@@ -28,6 +29,7 @@ import {
   type ClaimPassageLink,
   type ClaimResource,
   type CreateAnnotationInput,
+  type CreateAnnotationLinkInput,
   type CreateCandidateInput,
   type CreateClaimPassageLinkInput,
   type CreatePassageLinkInput,
@@ -382,6 +384,68 @@ export class DocumentRoom extends DurableObject<Env> {
     );
     this.#broadcastResources();
     return annotation;
+  }
+
+  createAnnotationLink(input: CreateAnnotationLinkInput): AnnotationLinkResult {
+    const pdf = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM pdfs WHERE id = ?", input.annotation.pdfId)
+      .one();
+    if (pdf.count === 0) throw new Error("PDF not found");
+
+    const workspace = this.#workspaceRow();
+    const source = this.#document.getText("source").toString();
+    if (input.passage.sourceRevision !== workspace.revision) throw new Error("Document selection is stale");
+    if (
+      source !== workspace.source ||
+      input.passage.end > source.length ||
+      source.slice(input.passage.start, input.passage.end) !== input.passage.excerpt
+    ) {
+      throw new Error("Document selection is stale");
+    }
+
+    const createdAt = new Date().toISOString();
+    const annotation: AnnotationResource = { id: crypto.randomUUID(), ...input.annotation, createdAt };
+    const anchor = createManuscriptAnchor(this.#document, input.passage.start, input.passage.end, workspace.revision);
+    const link: PassageLink = {
+      id: crypto.randomUUID(),
+      annotationId: annotation.id,
+      anchor: toManuscriptAnchorSelector(anchor),
+      resolution: resolveManuscriptAnchor(this.#document, anchor),
+      createdAt,
+    };
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO annotations (id, pdf_id, page, quote, prefix, suffix, comment, rects_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        annotation.id,
+        annotation.pdfId,
+        annotation.page,
+        annotation.quote,
+        annotation.prefix,
+        annotation.suffix,
+        annotation.comment,
+        JSON.stringify(annotation.rects),
+        annotation.createdAt,
+      );
+      this.ctx.storage.sql.exec(
+        `INSERT INTO passage_links
+         (id, annotation_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
+          quote_prefix, quote_suffix, anchored_revision, created_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+        link.id,
+        link.annotationId,
+        input.passage.start,
+        input.passage.end,
+        input.passage.excerpt,
+        anchor.relativeStart,
+        anchor.relativeEnd,
+        anchor.prefix,
+        anchor.suffix,
+        anchor.anchoredRevision,
+        link.createdAt,
+      );
+    });
+    this.#broadcastResources();
+    return { annotation, link };
   }
 
   createPassageLink(input: CreatePassageLinkInput): PassageLink {

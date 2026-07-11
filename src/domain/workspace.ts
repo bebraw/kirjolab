@@ -171,6 +171,23 @@ export interface CreateAnnotationInput {
   rects: PdfSelectionRect[];
 }
 
+export interface ManuscriptPassageInput {
+  start: number;
+  end: number;
+  excerpt: string;
+  sourceRevision: number;
+}
+
+export interface CreateAnnotationLinkInput {
+  annotation: CreateAnnotationInput;
+  passage: ManuscriptPassageInput;
+}
+
+export interface AnnotationLinkResult {
+  annotation: AnnotationResource;
+  link: PassageLink;
+}
+
 export interface CreateWorkspaceInput {
   title: string;
 }
@@ -198,12 +215,8 @@ export interface PublicationEnrichment {
   abstract: string;
 }
 
-export interface CreatePassageLinkInput {
+export interface CreatePassageLinkInput extends ManuscriptPassageInput {
   annotationId: string;
-  start: number;
-  end: number;
-  excerpt: string;
-  sourceRevision: number;
 }
 
 export interface ClaimEvidenceInput {
@@ -217,12 +230,8 @@ export interface UpsertClaimInput {
   evidence: ClaimEvidenceInput[];
 }
 
-export interface CreateClaimPassageLinkInput {
+export interface CreateClaimPassageLinkInput extends ManuscriptPassageInput {
   claimId: string;
-  start: number;
-  end: number;
-  excerpt: string;
-  sourceRevision: number;
 }
 
 export interface CreateCandidateInput {
@@ -249,6 +258,10 @@ export function isCreateAnnotationInput(value: unknown): value is CreateAnnotati
     value.rects.length <= 64 &&
     value.rects.every(isPdfSelectionRect)
   );
+}
+
+export function isCreateAnnotationLinkInput(value: unknown): value is CreateAnnotationLinkInput {
+  return isRecord(value) && isCreateAnnotationInput(value.annotation) && isManuscriptPassageInput(value.passage);
 }
 
 export function isCreateWorkspaceInput(value: unknown): value is CreateWorkspaceInput {
@@ -293,19 +306,7 @@ export function isWorkspaceSummaries(value: unknown): value is WorkspaceSummary[
 }
 
 export function isCreatePassageLinkInput(value: unknown): value is CreatePassageLinkInput {
-  if (!isRecord(value)) return false;
-
-  return (
-    isStringWithin(value.annotationId, 128, true) &&
-    Number.isInteger(value.start) &&
-    Number.isInteger(value.end) &&
-    typeof value.start === "number" &&
-    typeof value.end === "number" &&
-    value.start >= 0 &&
-    value.end > value.start &&
-    isStringWithin(value.excerpt, 50_000, true) &&
-    isNonNegativeInteger(value.sourceRevision)
-  );
+  return isRecord(value) && isStringWithin(value.annotationId, 128, true) && isManuscriptPassageInput(value);
 }
 
 export function isUpsertClaimInput(value: unknown): value is UpsertClaimInput {
@@ -327,18 +328,7 @@ export function isUpsertClaimInput(value: unknown): value is UpsertClaimInput {
 }
 
 export function isCreateClaimPassageLinkInput(value: unknown): value is CreateClaimPassageLinkInput {
-  if (!isRecord(value)) return false;
-  return (
-    isStringWithin(value.claimId, 128, true) &&
-    Number.isInteger(value.start) &&
-    Number.isInteger(value.end) &&
-    typeof value.start === "number" &&
-    typeof value.end === "number" &&
-    value.start >= 0 &&
-    value.end > value.start &&
-    isStringWithin(value.excerpt, 50_000, true) &&
-    isNonNegativeInteger(value.sourceRevision)
-  );
+  return isRecord(value) && isStringWithin(value.claimId, 128, true) && isManuscriptPassageInput(value);
 }
 
 export function isCreateCandidateInput(value: unknown): value is CreateCandidateInput {
@@ -389,6 +379,20 @@ function isPublicationPdfLink(value: unknown): value is PublicationPdfLink {
     isNonEmptyString(value.publicationId) &&
     isNonEmptyString(value.pdfId) &&
     isNonEmptyString(value.createdAt)
+  );
+}
+
+function isManuscriptPassageInput(value: unknown): value is ManuscriptPassageInput {
+  return (
+    isRecord(value) &&
+    Number.isInteger(value.start) &&
+    Number.isInteger(value.end) &&
+    typeof value.start === "number" &&
+    typeof value.end === "number" &&
+    value.start >= 0 &&
+    value.end > value.start &&
+    isStringWithin(value.excerpt, 50_000, true) &&
+    isNonNegativeInteger(value.sourceRevision)
   );
 }
 
