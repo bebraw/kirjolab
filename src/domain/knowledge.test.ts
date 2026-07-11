@@ -5,6 +5,18 @@ import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, isWorkspaceKnow
 const snapshot: WorkspaceSnapshot = {
   id: "workspace",
   title: "Evidence map",
+  entryFileId: "main-file",
+  files: [
+    {
+      id: "main-file",
+      path: "main.md",
+      mediaType: "text/markdown",
+      content: `## Methods {#methods}\n\nInspectable methods support the claim :cite[doe2026, doe2026].\n\n## Results\n\nA separate result.`,
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-10T00:00:00.000Z",
+    },
+  ],
+  composition: { content: "", sourceMap: [], diagnostics: [], dependencies: {} },
   source: `## Methods {#methods}\n\nInspectable methods support the claim :cite[doe2026, doe2026].\n\n## Results\n\nA separate result.`,
   bibliography: "",
   revision: 1,
@@ -63,6 +75,7 @@ const snapshot: WorkspaceSnapshot = {
       annotationId: "annotation-1",
       anchor: {
         version: 1,
+        fileId: "main-file",
         relativeStart: "AA",
         relativeEnd: "AQ",
         exact: "Methods",
@@ -99,6 +112,7 @@ const snapshot: WorkspaceSnapshot = {
       claimId: "claim-1",
       anchor: {
         version: 1,
+        fileId: "main-file",
         relativeStart: "AA",
         relativeEnd: "AQ",
         exact: "Methods",

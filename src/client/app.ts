@@ -9,6 +9,7 @@ import {
 import { parseServerCollaborationMessage } from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
+import { composeProject, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
 import { calculateTextSplice } from "../domain/text";
 import {
   isModelCandidate,
@@ -73,6 +74,15 @@ interface Elements {
   workspaceMemberList: HTMLElement;
   inviteMemberForm: HTMLFormElement;
   inviteMemberEmail: HTMLInputElement;
+  projectFileSwitcher: HTMLSelectElement;
+  newProjectFile: HTMLButtonElement;
+  renameProjectFile: HTMLButtonElement;
+  deleteProjectFile: HTMLButtonElement;
+  projectFileDialog: HTMLDialogElement;
+  projectFileForm: HTMLFormElement;
+  projectFileDialogTitle: HTMLElement;
+  projectFilePath: HTMLInputElement;
+  cancelProjectFile: HTMLButtonElement;
   source: HTMLTextAreaElement;
   bibliography: HTMLTextAreaElement;
   workspaceSurfaces: HTMLElement;
@@ -188,6 +198,7 @@ interface RelativeEditorSelection {
 }
 
 interface AuthoringPassage {
+  readonly fileId: string;
   readonly start: number;
   readonly end: number;
   readonly excerpt: string;
@@ -221,6 +232,10 @@ class WorkspaceApp {
   #publicationIntakeBusy = false;
   #modelEvidenceSelection = new Set<string>();
   #candidateDecision: { id: string; action: "apply" | "reject" } | null = null;
+  #activeFileId: string | null = null;
+  #activeFileText = this.#source;
+  #unbindSourceEditor: () => void = () => undefined;
+  #projectFileDialogMode: "create" | "rename" = "create";
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -258,8 +273,14 @@ class WorkspaceApp {
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
-    bindYText(this.#elements.source, this.#source, this.#document);
+    this.#unbindSourceEditor = bindYText(this.#elements.source, this.#source, this.#document);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
+    this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
+    this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
+    this.#elements.renameProjectFile.addEventListener("click", () => this.#openProjectFileDialog("rename"));
+    this.#elements.deleteProjectFile.addEventListener("click", () => void this.#deleteProjectFile());
+    this.#elements.cancelProjectFile.addEventListener("click", () => this.#elements.projectFileDialog.close());
+    this.#elements.projectFileForm.addEventListener("submit", (event) => void this.#saveProjectFile(event));
     for (const eventName of ["focus", "input", "keyup", "select"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
         if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
@@ -273,6 +294,7 @@ class WorkspaceApp {
       this.#pendingUpdates.enqueue(update);
       this.#elements.saveStatus.textContent = "Saving…";
       this.#updateModelAvailability();
+      this.#renderPreview();
       this.#flushPendingUpdates();
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
@@ -325,6 +347,7 @@ class WorkspaceApp {
     } else {
       this.#renderPreview();
     }
+    this.#renderProjectFiles();
     this.#renderResources();
   }
 
@@ -515,7 +538,7 @@ class WorkspaceApp {
 
   #captureEditorSelections(): RelativeEditorSelection[] {
     return [
-      captureRelativeSelection(this.#elements.source, this.#source),
+      captureRelativeSelection(this.#elements.source, this.#activeFileText),
       captureRelativeSelection(this.#elements.bibliography, this.#bibliography),
     ];
   }
@@ -569,22 +592,33 @@ class WorkspaceApp {
     });
   }
 
-  #renderPreview(source = this.#source.toString(), bibliography = this.#bibliography.toString()): void {
-    const rendered = renderWorkspaceMarkdown(source, bibliography);
+  #renderPreview(source?: string, bibliography = this.#bibliography.toString()): void {
+    const composition =
+      source === undefined && this.#snapshot ? composeProject(this.#liveProjectFiles(), this.#snapshot.entryFileId) : null;
+    const renderedSource = source ?? composition?.content ?? this.#source.toString();
+    const rendered = renderWorkspaceMarkdown(renderedSource, bibliography);
     this.#elements.preview.innerHTML = rendered.html;
     this.#elements.diagnostics.replaceChildren();
+    const diagnosticCount = rendered.diagnostics.length + (composition?.diagnostics.length ?? 0);
     this.#elements.diagnosticSummary.textContent =
-      rendered.diagnostics.length === 0
-        ? "No syntax errors"
-        : `${rendered.diagnostics.length} ${rendered.diagnostics.length === 1 ? "issue" : "issues"}`;
+      diagnosticCount === 0 ? "No syntax errors" : `${diagnosticCount} ${diagnosticCount === 1 ? "issue" : "issues"}`;
+    for (const diagnostic of composition?.diagnostics ?? []) {
+      this.#appendProjectDiagnostic(diagnostic.message, diagnostic.fileId, diagnostic.from, diagnostic.to);
+    }
     for (const diagnostic of rendered.diagnostics) {
       const item = document.createElement("button");
       item.type = "button";
       item.className = "resource-card mb-2 block w-full text-left font-sans text-xs";
       item.textContent = diagnostic.message;
       item.addEventListener("click", () => {
-        this.#elements.source.focus();
-        this.#elements.source.setSelectionRange(diagnostic.from, diagnostic.to);
+        const span = composition ? sourceSpanAt(composition.sourceMap, diagnostic.from) : undefined;
+        if (span)
+          this.#focusProjectRange(
+            span.fileId,
+            span.sourceStart,
+            Math.min(span.sourceEnd, span.sourceStart + diagnostic.to - diagnostic.from),
+          );
+        else this.#focusProjectRange(this.#snapshot?.entryFileId ?? "", diagnostic.from, diagnostic.to);
       });
       this.#elements.diagnostics.append(item);
     }
@@ -598,7 +632,9 @@ class WorkspaceApp {
         resolution: resolveManuscriptAnchor(this.#document, link.anchor),
       }));
       this.#updateAnchorActions([...links, ...claimLinks]);
-      this.#renderKnowledgeGraph(buildWorkspaceKnowledgeGraph({ ...this.#snapshot, source, bibliography, links, claimLinks }));
+      this.#renderKnowledgeGraph(
+        buildWorkspaceKnowledgeGraph({ ...this.#snapshot, source: renderedSource, bibliography, links, claimLinks }),
+      );
     }
   }
 
@@ -611,6 +647,116 @@ class WorkspaceApp {
         action.textContent = anchorActionLabel(link.resolution);
       }
     }
+  }
+
+  #liveProjectFiles(): ProjectFile[] {
+    if (!this.#snapshot) return [];
+    return this.#snapshot.files.map((file) => ({
+      ...file,
+      content: this.#document.getText(file.id === this.#snapshot?.entryFileId ? "source" : `file:${file.id}`).toString(),
+    }));
+  }
+
+  #renderProjectFiles(): void {
+    const snapshot = this.#snapshot;
+    if (!snapshot) return;
+    if (!this.#activeFileId || !snapshot.files.some((file) => file.id === this.#activeFileId)) {
+      this.#activeFileId = snapshot.entryFileId;
+      this.#activeFileText = this.#source;
+    }
+    this.#elements.projectFileSwitcher.replaceChildren(
+      ...snapshot.files.map((file) => {
+        const option = document.createElement("option");
+        option.value = file.id;
+        option.textContent = file.path;
+        option.selected = file.id === this.#activeFileId;
+        return option;
+      }),
+    );
+    const entryActive = this.#activeFileId === snapshot.entryFileId;
+    this.#elements.renameProjectFile.disabled = entryActive;
+    this.#elements.deleteProjectFile.disabled = entryActive;
+  }
+
+  #selectProjectFile(fileId: string): void {
+    const snapshot = this.#snapshot;
+    const file = snapshot?.files.find((item) => item.id === fileId);
+    if (!snapshot || !file || fileId === this.#activeFileId) return;
+    this.#unbindSourceEditor();
+    this.#activeFileId = fileId;
+    this.#activeFileText = this.#document.getText(fileId === snapshot.entryFileId ? "source" : `file:${fileId}`);
+    this.#elements.source.value = this.#activeFileText.toString();
+    this.#unbindSourceEditor = bindYText(this.#elements.source, this.#activeFileText, this.#document);
+    this.#authoringSelection = null;
+    this.#renderProjectFiles();
+    this.#updateModelAvailability();
+  }
+
+  #openProjectFileDialog(mode: "create" | "rename"): void {
+    const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
+    if (mode === "rename" && (!file || file.id === this.#snapshot?.entryFileId)) return;
+    this.#projectFileDialogMode = mode;
+    this.#elements.projectFileDialogTitle.textContent = mode === "create" ? "Add Markdown file" : "Rename Markdown file";
+    this.#elements.projectFilePath.value = mode === "rename" ? (file?.path ?? "") : "";
+    this.#elements.projectFileDialog.showModal();
+    this.#elements.projectFilePath.focus();
+  }
+
+  async #saveProjectFile(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const path = this.#elements.projectFilePath.value.trim();
+    const activeId = this.#activeFileId;
+    const creating = this.#projectFileDialogMode === "create";
+    if (!creating && !activeId) return;
+    const response = await jsonFetch(
+      creating ? `${apiBase}/files` : `${apiBase}/files/${encodeURIComponent(activeId ?? "")}`,
+      { path },
+      creating ? "POST" : "PATCH",
+    );
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
+    this.#snapshot = value;
+    this.#elements.projectFileDialog.close();
+    this.#renderProjectFiles();
+    const selected = value.files.find((file) => file.path === path);
+    if (selected) this.#selectProjectFile(selected.id);
+    this.#renderPreview();
+    this.#showToast(
+      creating ? `Added ${path}. Include it from main.md when ready.` : `Renamed file to ${path}; inbound includes were updated.`,
+    );
+  }
+
+  async #deleteProjectFile(): Promise<void> {
+    const snapshot = this.#snapshot;
+    const file = snapshot?.files.find((item) => item.id === this.#activeFileId);
+    if (!snapshot || !file || file.id === snapshot.entryFileId) return;
+    const response = await fetch(`${apiBase}/files/${encodeURIComponent(file.id)}`, { method: "DELETE", credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
+    this.#snapshot = value;
+    this.#activeFileId = null;
+    this.#selectProjectFile(value.entryFileId);
+    this.#renderProjectFiles();
+    this.#renderPreview();
+    this.#showToast(`Deleted ${file.path}.`);
+  }
+
+  #appendProjectDiagnostic(message: string, fileId: string, from: number, to: number): void {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "resource-card mb-2 block w-full text-left font-sans text-xs";
+    item.textContent = message;
+    item.addEventListener("click", () => this.#focusProjectRange(fileId, from, to));
+    this.#elements.diagnostics.append(item);
+  }
+
+  #focusProjectRange(fileId: string, from: number, to: number): void {
+    if (fileId) this.#selectProjectFile(fileId);
+    this.#elements.source.focus();
+    this.#elements.source.setSelectionRange(from, Math.max(from, to));
+    this.#rememberAuthoringSelection();
   }
 
   #renderResources(): void {
@@ -1548,7 +1694,7 @@ class WorkspaceApp {
   }
 
   #openCitationAtCaret(): void {
-    const keys = citationKeysAtPosition(this.#source.toString(), this.#elements.source.selectionEnd);
+    const keys = citationKeysAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd);
     if (keys.length === 0) {
       this.#showToast("Place the cursor inside a citation directive first.");
       return;
@@ -1568,16 +1714,16 @@ class WorkspaceApp {
   }
 
   #rememberAuthoringSelection(): void {
-    this.#authoringSelection = captureRelativeSelection(this.#elements.source, this.#source);
+    this.#authoringSelection = captureRelativeSelection(this.#elements.source, this.#activeFileText);
     this.#elements.openSourceCitation.disabled =
-      citationKeysAtPosition(this.#source.toString(), this.#elements.source.selectionEnd).length === 0;
+      citationKeysAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd).length === 0;
     this.#updateCitationInsertionAvailability();
   }
 
   #resolvedAuthoringCaret(): number | null {
     if (!this.#authoringSelection) return null;
     const end = Y.createAbsolutePositionFromRelativePosition(this.#authoringSelection.end, this.#document);
-    return end?.type === this.#source ? end.index : null;
+    return end?.type === this.#activeFileText ? end.index : null;
   }
 
   #updateCitationInsertionAvailability(): void {
@@ -1598,12 +1744,12 @@ class WorkspaceApp {
       this.#showToast("Place the manuscript caret before inserting a citation.");
       return;
     }
-    const insertion = createCitationInsertion(this.#source.toString(), index, publication.citationKey);
+    const insertion = createCitationInsertion(this.#activeFileText.toString(), index, publication.citationKey);
     if (!insertion) {
       this.#showToast("This reference key cannot be represented by citation syntax.");
       return;
     }
-    this.#document.transact(() => this.#source.insert(insertion.index, insertion.text), this);
+    this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
     this.#showWorkspaceSurface("authoring");
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
@@ -1771,6 +1917,7 @@ class WorkspaceApp {
     }
     const response = await jsonFetch(`${apiBase}/links`, {
       annotationId,
+      fileId: passage.fileId,
       start: passage.start,
       end: passage.end,
       excerpt: passage.excerpt,
@@ -1783,13 +1930,13 @@ class WorkspaceApp {
 
   #selectedAuthoringPassage(): AuthoringPassage | null {
     const live = this.#elements.source.selectionStart !== this.#elements.source.selectionEnd;
-    const selection = live ? captureRelativeSelection(this.#elements.source, this.#source) : this.#authoringSelection;
+    const selection = live ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : this.#authoringSelection;
     if (!selection) return null;
     const start = Y.createAbsolutePositionFromRelativePosition(selection.start, this.#document);
     const end = Y.createAbsolutePositionFromRelativePosition(selection.end, this.#document);
-    if (!start || !end || start.type !== this.#source || end.type !== this.#source || start.index >= end.index) return null;
-    const excerpt = this.#source.toString().slice(start.index, end.index);
-    return excerpt.trim() ? { start: start.index, end: end.index, excerpt } : null;
+    if (!start || !end || start.type !== this.#activeFileText || end.type !== this.#activeFileText || start.index >= end.index) return null;
+    const excerpt = this.#activeFileText.toString().slice(start.index, end.index);
+    return excerpt.trim() && this.#activeFileId ? { fileId: this.#activeFileId, start: start.index, end: end.index, excerpt } : null;
   }
 
   #setModelEvidenceSelected(key: string, selected: boolean): void {
@@ -1973,6 +2120,7 @@ class WorkspaceApp {
       return;
     }
     this.#showWorkspaceSurface("authoring");
+    this.#selectProjectFile(anchor.fileId);
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(resolution.start, resolution.end);
     this.#rememberAuthoringSelection();
@@ -2004,22 +2152,28 @@ class WorkspaceApp {
   }
 }
 
-function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y.Doc): void {
-  textarea.addEventListener("input", () => {
+function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y.Doc): () => void {
+  const handleInput = (): void => {
     const splice = calculateTextSplice(text.toString(), textarea.value);
     if (!splice) return;
     documentModel.transact(() => {
       if (splice.deleteCount > 0) text.delete(splice.start, splice.deleteCount);
       if (splice.insert) text.insert(splice.start, splice.insert);
     }, textarea);
-  });
-  text.observe((event) => {
+  };
+  const handleText = (event: Y.YTextEvent): void => {
     if (event.transaction.origin === textarea) return;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     textarea.value = text.toString();
     textarea.setSelectionRange(Math.min(start, textarea.value.length), Math.min(end, textarea.value.length));
-  });
+  };
+  textarea.addEventListener("input", handleInput);
+  text.observe(handleText);
+  return () => {
+    textarea.removeEventListener("input", handleInput);
+    text.unobserve(handleText);
+  };
 }
 
 function captureRelativeSelection(textarea: HTMLTextAreaElement, text: Y.Text): RelativeEditorSelection {
@@ -2048,6 +2202,15 @@ function collectElements(): Elements {
     workspaceMemberList: requiredElement("workspace-member-list", HTMLElement),
     inviteMemberForm: requiredElement("invite-member-form", HTMLFormElement),
     inviteMemberEmail: requiredElement("invite-member-email", HTMLInputElement),
+    projectFileSwitcher: requiredElement("project-file-switcher", HTMLSelectElement),
+    newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
+    renameProjectFile: requiredElement("rename-project-file", HTMLButtonElement),
+    deleteProjectFile: requiredElement("delete-project-file", HTMLButtonElement),
+    projectFileDialog: requiredElement("project-file-dialog", HTMLDialogElement),
+    projectFileForm: requiredElement("project-file-form", HTMLFormElement),
+    projectFileDialogTitle: requiredElement("project-file-dialog-title", HTMLElement),
+    projectFilePath: requiredElement("project-file-path", HTMLInputElement),
+    cancelProjectFile: requiredElement("cancel-project-file", HTMLButtonElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
@@ -2201,13 +2364,17 @@ function actionButton(text: string, className: string, action: () => void): HTML
   return button;
 }
 
-async function jsonFetch(url: string, body: object): Promise<Response> {
+async function jsonFetch(url: string, body: object, method = "POST"): Promise<Response> {
   return await fetch(url, {
-    method: "POST",
+    method,
     credentials: "same-origin",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+function sourceSpanAt(sourceMap: readonly CompositionSourceSpan[], offset: number): CompositionSourceSpan | undefined {
+  return sourceMap.find((span) => offset >= span.outputStart && offset < span.outputEnd);
 }
 
 async function expectOk(response: Response): Promise<void> {

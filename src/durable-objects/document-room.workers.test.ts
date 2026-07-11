@@ -30,6 +30,32 @@ const acceptedMetadata = {
 } satisfies PublicationEnrichment;
 
 describe("DocumentRoom in the Workers runtime", () => {
+  it("persists a composed project tree and keeps inbound includes valid across renames", async () => {
+    const workspaceId = "composed-project";
+    const stub = roomStub(workspaceId);
+    const initial = await stub.getSnapshot(workspaceId);
+    const created = await stub.createProjectFile(workspaceId, "chapters/01_intro.md", "## Introduction\n\nEvidence.\n");
+    const supporting = created.files.find((file) => file.path === "chapters/01_intro.md");
+    expect(supporting).toBeDefined();
+    await applyAuthoredSource(stub, "# Study\n\n::include[chapters/01_intro.md]\n");
+
+    const composed = await stub.getSnapshot(workspaceId);
+    expect(composed.entryFileId).toBe(initial.entryFileId);
+    expect(composed.composition.content).toBe("# Study\n\n## Introduction\n\nEvidence.\n");
+    expect(composed.composition.sourceMap.some((span) => span.fileId === supporting?.id)).toBe(true);
+
+    const renamed = await stub.renameProjectFile(workspaceId, supporting!.id, "sections/introduction.md");
+    expect(renamed.source).toContain("::include[sections/introduction.md]");
+    expect(renamed.composition.diagnostics).toEqual([]);
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.deleteProjectFile(workspaceId, supporting!.id)).toThrow("inbound include");
+    });
+
+    await applyAuthoredSource(stub, "# Study\n");
+    const deleted = await stub.deleteProjectFile(workspaceId, supporting!.id);
+    expect(deleted.files.map((file) => file.id)).not.toContain(supporting!.id);
+  });
+
   it("upgrades legacy offset links once and marks mismatches stale", async () => {
     const workspaceId = "legacy-anchor-migration";
     const stub = roomStub(workspaceId);
@@ -204,7 +230,7 @@ describe("DocumentRoom in the Workers runtime", () => {
           (id, provider, model, source_revision, source_ids, proposed_source, status, created_at)
           VALUES ('legacy-candidate', 'legacy-provider', 'legacy-model', 0, '[]', '# Legacy whole document', 'pending',
                   '2025-01-01T00:00:00.000Z');
-          DELETE FROM _kirjolab_migrations WHERE version = 8;
+          DELETE FROM _kirjolab_migrations WHERE version >= 8;
         `);
       });
     });
@@ -234,6 +260,7 @@ describe("DocumentRoom in the Workers runtime", () => {
       "proposed_replacement",
       "status",
       "created_at",
+      "project_file_id",
     ]);
   });
 
@@ -428,6 +455,7 @@ describe("DocumentRoom in the Workers runtime", () => {
         rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
       },
       passage: {
+        fileId: initial.entryFileId,
         start,
         end: start + excerpt.length,
         excerpt,
@@ -472,6 +500,7 @@ describe("DocumentRoom in the Workers runtime", () => {
             rects: [],
           },
           passage: {
+            fileId: initial.entryFileId,
             start,
             end: start + excerpt.length,
             excerpt,
@@ -591,6 +620,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const afterAnchorStart = fixture.snapshot.source.indexOf(afterAnchorText);
     const beforeLink = await stub.createPassageLink({
       annotationId: fixture.annotation.id,
+      fileId: fixture.snapshot.entryFileId,
       start: beforeAnchorStart,
       end: beforeAnchorStart + beforeAnchorText.length,
       excerpt: beforeAnchorText,
@@ -598,6 +628,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     });
     const afterLink = await stub.createPassageLink({
       annotationId: fixture.annotation.id,
+      fileId: fixture.snapshot.entryFileId,
       start: afterAnchorStart,
       end: afterAnchorStart + afterAnchorText.length,
       excerpt: afterAnchorText,
@@ -949,6 +980,7 @@ async function modelCandidateFixture(
     promptVersion: "revise-selection-v1",
     instruction: "Make this passage more precise.",
     target: {
+      fileId: snapshot.entryFileId,
       start,
       end: start + excerpt.length,
       excerpt,
@@ -996,7 +1028,7 @@ async function applyAuthoredSource(stub: DurableObjectStub<DocumentRoom>, nextSo
   await applyAuthoredText(stub, "source", nextSource);
 }
 
-async function applyAuthoredText(stub: DurableObjectStub<DocumentRoom>, name: "source" | "bibliography", nextValue: string): Promise<void> {
+async function applyAuthoredText(stub: DurableObjectStub<DocumentRoom>, name: string, nextValue: string): Promise<void> {
   await runInDurableObject(stub, (instance: DocumentRoom, state) => {
     const row = state.storage.sql.exec<WorkspaceStateRow>("SELECT y_state FROM workspace WHERE id = 1").one();
     const document = new Y.Doc();

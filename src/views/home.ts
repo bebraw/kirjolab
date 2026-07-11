@@ -118,10 +118,14 @@ export function renderHomePage(
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface lg:border-r lg:border-b-0" id="authoring-surface">
         <div class="flex h-12 items-center justify-between border-b border-app-line px-4">
           <div class="flex items-center gap-2">
-            <span class="eyebrow">Manuscript</span>
+            <label class="sr-only" for="project-file-switcher">Project file</label>
+            <select class="workspace-switcher" id="project-file-switcher" aria-label="Project file"><option>main.md</option></select>
             <span class="count-badge" id="revision-badge">r0</span>
           </div>
           <div class="flex items-center gap-2">
+            <button class="button-icon" id="new-project-file" type="button" title="Add project file" aria-label="Add project file">＋</button>
+            <button class="button-secondary hidden xl:inline-flex" id="rename-project-file" type="button">Rename</button>
+            <button class="button-secondary hidden xl:inline-flex" id="delete-project-file" type="button">Delete</button>
             <button class="button-secondary" id="open-source-citation" type="button" disabled>Open reference</button>
             <p class="text-xs text-app-text-soft" id="save-status">Loading source…</p>
           </div>
@@ -374,6 +378,21 @@ export function renderHomePage(
           </div>
         </form>
       </div>
+    </dialog>
+
+    <dialog class="new-workspace-dialog" id="project-file-dialog">
+      <form class="p-5" id="project-file-form">
+        <p class="eyebrow">Project structure</p>
+        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]" id="project-file-dialog-title">Add Markdown file</h2>
+        <label class="field-label mt-5">Relative path
+          <input class="field" id="project-file-path" type="text" maxlength="1024" required placeholder="chapters/01_introduction.md">
+        </label>
+        <p class="mt-2 text-xs leading-5 text-app-text-soft">Compose this file from main.md with <code>::include[path]</code>.</p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="button-secondary" id="cancel-project-file" type="button">Cancel</button>
+          <button class="button-primary" type="submit">Save file</button>
+        </div>
+      </form>
     </dialog>
 
     <dialog class="new-workspace-dialog" id="claim-dialog">

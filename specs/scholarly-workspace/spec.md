@@ -42,8 +42,12 @@ mode for authenticated hosted collaboration.
 - **Document semantics:** Satteri parses standard Markdown and GFM while
   `src/domain/markdown.ts` adds headings, citations, references, aliases,
   anchors, validation, and preview security from the scientific-writing syntax.
+- **Project composition:** One stable root `main.md` composes user-named
+  supporting Markdown files through bounded relative `::include[path]`
+  directives. Preview and export use the composed source while diagnostics and
+  durable anchors retain file-qualified source provenance.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each
-  document. On a hibernatable WebSocket connection it sends full binary Yjs
+  composed project. On a hibernatable WebSocket connection it sends full binary Yjs
   state followed by a versioned `sync` control. The browser sends no state on
   open, retains ordered local updates until a durable `ack`, and replays only
   unacknowledged updates after reconnect.
@@ -79,7 +83,8 @@ mode for authenticated hosted collaboration.
   relationships.
 - **Manuscript anchors:** New annotation and claim passage links verify the
   current source revision and exact requested range, then store version 1 Yjs
-  relative positions (start association `0`, end association `-1`), exact
+  relative positions (start association `0`, end association `-1`), stable file
+  identity, exact
   quote/context, original offsets, and anchored revision. Public links expose
   their immutable selector and a derived `resolved` or `stale` resolution
   rather than top-level current offsets. Version 1 resolves only through its
@@ -119,6 +124,11 @@ mode for authenticated hosted collaboration.
   `{"type":"sync","protocol":1,"revision":n}` and durably handles each client
   binary update before returning `{"type":"ack","revision":n}`.
 - `POST /api/workspaces/demo/pdfs` streams one PDF of at most 25 MB to R2.
+- `POST /api/workspaces/demo/files` creates a supporting Markdown file.
+- `PATCH /api/workspaces/demo/files/{fileId}` renames it and atomically updates
+  inbound include paths.
+- `DELETE /api/workspaces/demo/files/{fileId}` deletes an unreferenced
+  supporting file; the root `main.md` cannot be renamed or deleted.
 - `GET /api/workspaces/demo/pdfs/{id}` streams an imported PDF.
 - `POST /api/workspaces/demo/annotations` creates a selector-backed annotation.
 - `POST /api/workspaces/demo/annotation-links` atomically creates one
@@ -152,7 +162,8 @@ mode for authenticated hosted collaboration.
   candidate.
 - `POST /api/workspaces/demo/candidates/{id}/reject` rejects a pending
   candidate without changing source.
-- `GET /api/workspaces/demo/export/document.md` exports canonical Markdown.
+- `GET /api/workspaces/demo/export/document.md` exports Markdown composed from
+  canonical `main.md`.
 - `GET /api/workspaces/demo/export/bibliography.bib` exports canonical BibTeX.
 
 ### Anti-Patterns

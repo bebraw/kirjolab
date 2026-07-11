@@ -6,6 +6,7 @@ const maximumRelativePositionBytes = 384;
 
 interface ManuscriptAnchorMetadata {
   readonly version: 1;
+  readonly fileId: string;
   readonly exact: string;
   readonly prefix: string;
   readonly suffix: string;
@@ -36,8 +37,14 @@ export interface ResolvedManuscriptAnchor {
 
 export type ManuscriptAnchorResolution = ResolvedManuscriptAnchor | { readonly status: "stale" };
 
-export function createManuscriptAnchor(document: Y.Doc, start: number, end: number, anchoredRevision: number): StoredManuscriptAnchor {
-  const source = document.getText("source");
+export function createManuscriptAnchor(
+  document: Y.Doc,
+  start: number,
+  end: number,
+  anchoredRevision: number,
+  fileId = "main",
+  source = document.getText("source"),
+): StoredManuscriptAnchor {
   assertRange(start, end, source.length);
   if (!Number.isSafeInteger(anchoredRevision) || anchoredRevision < 0) {
     throw new RangeError("The anchored revision must be a non-negative safe integer");
@@ -46,6 +53,7 @@ export function createManuscriptAnchor(document: Y.Doc, start: number, end: numb
   const text = source.toString();
   return {
     version: 1,
+    fileId,
     relativeStart: copyBytes(Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(source, start, 0))),
     relativeEnd: copyBytes(Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(source, end, -1))),
     exact: text.slice(start, end),
@@ -79,10 +87,15 @@ export function resolveManuscriptAnchor(
   if (anchor.relativeStart === null || anchor.relativeEnd === null) return { status: "stale" };
 
   try {
-    const source = document.getText("source");
+    document.getText("source");
+    document.getText(`file:${anchor.fileId}`);
     const start = Y.createAbsolutePositionFromRelativePosition(decodeRelativePosition(anchor.relativeStart), document, false);
     const end = Y.createAbsolutePositionFromRelativePosition(decodeRelativePosition(anchor.relativeEnd), document, false);
-    if (!start || !end || start.type !== source || end.type !== source) return { status: "stale" };
+    if (!start || !end || start.type !== end.type) return { status: "stale" };
+    const typeName = [...document.share.entries()].find(([, type]) => type === start.type)?.[0];
+    if (!typeName || (typeName !== "source" && typeName !== `file:${anchor.fileId}`)) return { status: "stale" };
+    const source = document.getText(typeName);
+    if (source !== start.type) return { status: "stale" };
     if (!Number.isSafeInteger(start.index) || !Number.isSafeInteger(end.index) || start.index < 0 || end.index > source.length) {
       return { status: "stale" };
     }
@@ -98,11 +111,22 @@ export function resolveManuscriptAnchor(
 export function isManuscriptAnchorSelector(value: unknown): value is ManuscriptAnchorSelector {
   if (
     !isRecord(value) ||
-    !hasExactKeys(value, ["version", "relativeStart", "relativeEnd", "exact", "prefix", "suffix", "originalRange", "anchoredRevision"]) ||
+    !hasExactKeys(value, [
+      "version",
+      "fileId",
+      "relativeStart",
+      "relativeEnd",
+      "exact",
+      "prefix",
+      "suffix",
+      "originalRange",
+      "anchoredRevision",
+    ]) ||
     value.version !== 1
   ) {
     return false;
   }
+  if (!isStringWithin(value.fileId, 128, true)) return false;
   if (!isEncodedRelativePosition(value.relativeStart) || !isEncodedRelativePosition(value.relativeEnd)) return false;
   if (!isStringWithin(value.exact, 50_000, true)) return false;
   if (!isStringWithin(value.prefix, 256) || !isStringWithin(value.suffix, 256)) return false;
@@ -142,6 +166,7 @@ export function isManuscriptAnchorResolution(value: unknown): value is Manuscrip
 function metadata(anchor: StoredManuscriptAnchor | ManuscriptAnchorSelector): ManuscriptAnchorMetadata {
   return {
     version: 1,
+    fileId: anchor.fileId,
     exact: anchor.exact,
     prefix: anchor.prefix,
     suffix: anchor.suffix,

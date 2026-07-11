@@ -1,6 +1,6 @@
 # ADR-057: Compose Projects From a Root Main File
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-11
 

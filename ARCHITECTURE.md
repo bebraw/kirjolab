@@ -19,13 +19,25 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 
 ## Kirjolab Product Architecture
 
-- Treat portable Markdown and BibTeX as the canonical authored artifacts.
+- Treat portable project Markdown and BibTeX as the canonical authored artifacts.
+- Compose each paper from exactly one root `main.md` through bounded,
+  project-relative `::include[path]` directives. Keep supporting Markdown files
+  user-named and preserve authored heading levels; never infer composition from
+  file ordering.
+- Give project files stable identities independent of mutable paths. Persist
+  the file tree, all collaborative file texts, and their revision in one
+  project-scoped `DocumentRoom`; qualify manuscript, evidence, and model
+  anchors by file identity.
+- Require every composition result to retain source-map spans back to file
+  identity, source range, output range, and include chain. Reject unsafe paths,
+  cycles, missing files, and resource-limit violations with navigable
+  diagnostics.
 - Treat parsed syntax, previews, Yjs updates, indexes, and model candidates as supporting representations.
 - Parse standard and scientific-writing Markdown through pinned Satteri plugins; keep its syntax tree and HTML derived.
 - Run the current threaded Satteri WASM binding in the cross-origin-isolated browser, not inside a Cloudflare Worker isolate.
 - Escape authored raw HTML and sanitize the final preview tree after all syntax plugins; allow only the elements, properties, and URL protocols required by the scientific-writing vocabulary before inserting output into the DOM.
 - Return a restrictive Content Security Policy on application HTML as an independent browser-execution boundary; do not permit inline or evaluated scripts.
-- Coordinate each collaborative document through its own SQLite-backed Durable Object.
+- Coordinate each collaborative composed project through its own SQLite-backed Durable Object.
 - Evolve every SQLite-backed Durable Object through an ordered, named,
   append-only migration ledger. Apply each pending schema or data migration and
   its ledger record in one synchronous transaction; fail closed if applied

@@ -4,8 +4,10 @@ import {
   type ManuscriptAnchorResolution,
   type ManuscriptAnchorSelector,
 } from "./manuscript-anchor";
+import type { ProjectComposition, ProjectFile } from "./project-files";
 
 export type { ManuscriptAnchorResolution, ManuscriptAnchorSelector } from "./manuscript-anchor";
+export type { ProjectComposition, ProjectFile } from "./project-files";
 
 export const demoWorkspaceId = "demo";
 export const localOwnerId = "local";
@@ -184,6 +186,9 @@ export interface ModelCandidate {
 export interface WorkspaceSnapshot {
   id: string;
   title: string;
+  entryFileId: string;
+  files: ProjectFile[];
+  composition: ProjectComposition;
   source: string;
   bibliography: string;
   revision: number;
@@ -211,6 +216,7 @@ export interface CreateAnnotationInput {
 }
 
 export interface ManuscriptPassageInput {
+  fileId: string;
   start: number;
   end: number;
   excerpt: string;
@@ -500,6 +506,10 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
   return (
     isNonEmptyString(value.id) &&
     isNonEmptyString(value.title) &&
+    isNonEmptyString(value.entryFileId) &&
+    Array.isArray(value.files) &&
+    value.files.every(isProjectFile) &&
+    isProjectComposition(value.composition) &&
     typeof value.source === "string" &&
     typeof value.bibliography === "string" &&
     typeof value.revision === "number" &&
@@ -518,6 +528,30 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     value.claimLinks.every(isClaimPassageLink) &&
     Array.isArray(value.candidates) &&
     value.candidates.every(isModelCandidate)
+  );
+}
+
+function isProjectFile(value: unknown): value is ProjectFile {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["id", "path", "mediaType", "content", "createdAt", "updatedAt"]) &&
+    isStringWithin(value.id, 128, true) &&
+    isStringWithin(value.path, 1_024, true) &&
+    value.mediaType === "text/markdown" &&
+    isStringWithin(value.content, 2_000_000) &&
+    isStringWithin(value.createdAt, 128, true) &&
+    isStringWithin(value.updatedAt, 128, true)
+  );
+}
+
+function isProjectComposition(value: unknown): value is ProjectComposition {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["content", "sourceMap", "diagnostics", "dependencies"]) &&
+    typeof value.content === "string" &&
+    Array.isArray(value.sourceMap) &&
+    Array.isArray(value.diagnostics) &&
+    isRecord(value.dependencies)
   );
 }
 
@@ -630,6 +664,7 @@ function isPublicationPdfLink(value: unknown): value is PublicationPdfLink {
 function isManuscriptPassageInput(value: unknown): value is ManuscriptPassageInput {
   return (
     isRecord(value) &&
+    isStringWithin(value.fileId, 128, true) &&
     Number.isInteger(value.start) &&
     Number.isInteger(value.end) &&
     typeof value.start === "number" &&

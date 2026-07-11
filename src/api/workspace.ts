@@ -53,6 +53,10 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await inviteWorkspaceMember(request, env, identity, workspaceId, summary.title, access);
     }
     if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);
+    if (suffix === "/files" && request.method === "POST") return await createProjectFile(request, workspaceId, room);
+    if (suffix.startsWith("/files/") && (request.method === "PATCH" || request.method === "DELETE")) {
+      return await mutateProjectFile(request, workspaceId, suffix, room);
+    }
     if (suffix.startsWith("/pdfs/") && request.method === "GET") {
       return await downloadPdf(storageKey, suffix.slice("/pdfs/".length), env);
     }
@@ -100,6 +104,33 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
         : 400;
     return jsonError(message, status);
   }
+}
+
+async function createProjectFile(
+  request: Request,
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.path !== "string" || body.path.length > 1_024) return jsonError("Invalid project file", 400);
+  if (body.content !== undefined && (typeof body.content !== "string" || body.content.length > 2_000_000)) {
+    return jsonError("Invalid project file", 400);
+  }
+  return Response.json(await room.createProjectFile(workspaceId, body.path, body.content ?? ""), { status: 201 });
+}
+
+async function mutateProjectFile(
+  request: Request,
+  workspaceId: string,
+  suffix: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const match = /^\/files\/([0-9a-f-]{36})$/iu.exec(suffix);
+  if (!match?.[1]) return jsonError("Project file route not found", 404);
+  if (request.method === "DELETE") return Response.json(await room.deleteProjectFile(workspaceId, match[1]));
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.path !== "string" || body.path.length > 1_024) return jsonError("Invalid project file", 400);
+  return Response.json(await room.renameProjectFile(workspaceId, match[1], body.path));
 }
 
 async function handleWorkspaceCatalog(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
@@ -359,4 +390,8 @@ function safeFilename(value: string): string {
 function workspaceStorageKey(identity: AuthIdentity, workspaceId: string): string {
   if (workspaceId !== "demo" || identity.ownerKey === localOwnerId) return workspaceId;
   return `${identity.ownerKey}:demo`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

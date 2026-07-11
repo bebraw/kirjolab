@@ -23,6 +23,7 @@ describe("workspace input guards", () => {
   it("accepts complete resource inputs", () => {
     const anchor = {
       version: 1,
+      fileId: "main-file",
       relativeStart: "AA",
       relativeEnd: "AQ",
       exact: "text",
@@ -43,7 +44,9 @@ describe("workspace input guards", () => {
         rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
       }),
     ).toBe(true);
-    expect(isCreatePassageLinkInput({ annotationId: "a", start: 0, end: 4, excerpt: "text", sourceRevision: 0 })).toBe(true);
+    expect(isCreatePassageLinkInput({ annotationId: "a", fileId: "main-file", start: 0, end: 4, excerpt: "text", sourceRevision: 0 })).toBe(
+      true,
+    );
     expect(
       isCreateAnnotationLinkInput({
         annotation: {
@@ -55,7 +58,7 @@ describe("workspace input guards", () => {
           comment: "note",
           rects: [],
         },
-        passage: { start: 0, end: 4, excerpt: "text", sourceRevision: 0 },
+        passage: { fileId: "main-file", start: 0, end: 4, excerpt: "text", sourceRevision: 0 },
       }),
     ).toBe(true);
     expect(
@@ -65,7 +68,9 @@ describe("workspace input guards", () => {
         evidence: [{ annotationId: "a", relation: "supports" }],
       }),
     ).toBe(true);
-    expect(isCreateClaimPassageLinkInput({ claimId: "claim", start: 0, end: 4, excerpt: "text", sourceRevision: 0 })).toBe(true);
+    expect(
+      isCreateClaimPassageLinkInput({ claimId: "claim", fileId: "main-file", start: 0, end: 4, excerpt: "text", sourceRevision: 0 }),
+    ).toBe(true);
     expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
     expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
     expect(isImportBibliographyInput({ bibtex: "@article{key, title={Title}}" })).toBe(true);
@@ -88,6 +93,9 @@ describe("workspace input guards", () => {
       isWorkspaceSnapshot({
         id: "demo",
         title: "Title",
+        entryFileId: "main-file",
+        files: [{ id: "main-file", path: "main.md", mediaType: "text/markdown", content: "", createdAt: "now", updatedAt: "now" }],
+        composition: { content: "", sourceMap: [], diagnostics: [], dependencies: {} },
         source: "",
         bibliography: "",
         revision: 0,
@@ -185,10 +193,12 @@ describe("workspace input guards", () => {
   });
 
   it("enforces every passage-link boundary", () => {
-    const valid = { annotationId: "annotation", start: 0, end: 4, excerpt: "text", sourceRevision: 0 };
+    const valid = { annotationId: "annotation", fileId: "main-file", start: 0, end: 4, excerpt: "text", sourceRevision: 0 };
     for (const change of [
       { annotationId: "" },
       { annotationId: "x".repeat(129) },
+      { fileId: "" },
+      { fileId: "x".repeat(129) },
       { start: -1 },
       { start: 0.5 },
       { start: "0" },
@@ -216,7 +226,7 @@ describe("workspace input guards", () => {
         comment: "note",
         rects: [],
       },
-      passage: { start: 0, end: 4, excerpt: "text", sourceRevision: 0 },
+      passage: { fileId: "main-file", start: 0, end: 4, excerpt: "text", sourceRevision: 0 },
     };
     expect(isCreateAnnotationLinkInput({ ...valid, annotation: null })).toBe(false);
     expect(isCreateAnnotationLinkInput({ ...valid, annotation: { ...valid.annotation, pdfId: "" } })).toBe(false);
@@ -353,10 +363,11 @@ describe("workspace input guards", () => {
   });
 
   it("enforces every claim-passage boundary", () => {
-    const valid = { claimId: "claim", start: 0, end: 4, excerpt: "text", sourceRevision: 0 };
+    const valid = { claimId: "claim", fileId: "main-file", start: 0, end: 4, excerpt: "text", sourceRevision: 0 };
     for (const change of [
       { claimId: "" },
       { claimId: "x".repeat(129) },
+      { fileId: "" },
       { start: -1 },
       { start: 0.5 },
       { start: "0" },
@@ -551,6 +562,9 @@ describe("workspace input guards", () => {
     const valid = {
       id: "demo",
       title: "Title",
+      entryFileId: "main-file",
+      files: [{ id: "main-file", path: "main.md", mediaType: "text/markdown", content: "", createdAt: "now", updatedAt: "now" }],
+      composition: { content: "", sourceMap: [], diagnostics: [], dependencies: {} },
       source: "",
       bibliography: "",
       revision: 0,
@@ -617,7 +631,7 @@ function validCandidateInput() {
     model: "test-model",
     promptVersion: "revise-selection-v1",
     instruction: "Make the selected claim more precise.",
-    target: { start: 2, end: 18, excerpt: "selected passage", sourceRevision: 3 },
+    target: { fileId: "main-file", start: 2, end: 18, excerpt: "selected passage", sourceRevision: 3 },
     evidence: [evidenceReference("annotation", "annotation-1"), evidenceReference("claim", "claim-1")],
     proposedReplacement: "more precise passage",
   } as const;
@@ -671,6 +685,7 @@ function validCandidate() {
     target: {
       anchor: {
         version: 1,
+        fileId: "main-file",
         relativeStart: "AA",
         relativeEnd: "AQ",
         exact,

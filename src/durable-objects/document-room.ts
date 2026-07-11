@@ -20,6 +20,14 @@ import {
 import { calculateTextSplice } from "../domain/text";
 import { isValidCitationKey, suggestCitationKey } from "../domain/publication-intake";
 import {
+  composeProject,
+  inboundProjectIncludes,
+  normalizeProjectPath,
+  projectEntryPath,
+  rewriteInboundProjectIncludes,
+  type ProjectFile,
+} from "../domain/project-files";
+import {
   defaultBibliography,
   defaultSource,
   isCreateCandidateInput,
@@ -59,6 +67,17 @@ interface WorkspaceRow extends Record<string, SqlStorageValue> {
   source: string;
   bibliography: string;
   revision: number;
+  entry_file_id: string | null;
+}
+
+interface ProjectFileRow extends Record<string, SqlStorageValue> {
+  id: string;
+  path: string;
+  media_type: string;
+  y_text_name: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface PdfRow extends Record<string, SqlStorageValue> {
@@ -95,6 +114,7 @@ interface LinkRow extends Record<string, SqlStorageValue> {
   quote_prefix: string;
   quote_suffix: string;
   anchored_revision: number | null;
+  project_file_id: string;
   created_at: string;
 }
 
@@ -116,6 +136,7 @@ interface CandidateRow extends Record<string, SqlStorageValue> {
   quote_prefix: string;
   quote_suffix: string;
   anchored_revision: number;
+  project_file_id: string;
   evidence_json: string;
   proposed_replacement: string;
   status: string;
@@ -173,6 +194,7 @@ interface ClaimLinkRow extends Record<string, SqlStorageValue> {
   quote_prefix: string;
   quote_suffix: string;
   anchored_revision: number | null;
+  project_file_id: string;
   created_at: string;
 }
 
@@ -274,9 +296,14 @@ export class DocumentRoom extends DurableObject<Env> {
 
   getSnapshot(workspaceId: string): WorkspaceSnapshot {
     const workspace = this.#workspaceRow();
+    const files = this.#projectFiles();
+    if (!workspace.entry_file_id) throw new Error("Project entry file is not initialized");
     return {
       id: workspaceId,
       title: workspace.title,
+      entryFileId: workspace.entry_file_id,
+      files,
+      composition: composeProject(files, workspace.entry_file_id),
       source: workspace.source,
       bibliography: workspace.bibliography,
       revision: workspace.revision,
@@ -290,6 +317,96 @@ export class DocumentRoom extends DurableObject<Env> {
       claimLinks: this.#claimLinks(),
       candidates: this.#candidates(),
     };
+  }
+
+  createProjectFile(workspaceId: string, pathValue: string, content = ""): WorkspaceSnapshot {
+    const path = normalizeProjectPath(pathValue);
+    if (!path || path !== pathValue.trim() || !path.endsWith(".md") || path === projectEntryPath) {
+      throw new Error("Project files require a unique relative .md path; main.md is reserved");
+    }
+    if (content.length > 2_000_000) throw new Error("Project file exceeds 2 MB");
+    if (this.ctx.storage.sql.exec<ProjectFileRow>("SELECT * FROM project_files WHERE path = ?", path).toArray()[0]) {
+      throw new Error("A project file already uses this path");
+    }
+    const id = crypto.randomUUID();
+    const yTextName = `file:${id}`;
+    const now = new Date().toISOString();
+    const previous = this.#workspaceRow();
+    const stateVector = Y.encodeStateVector(this.#document);
+    const text = this.#document.getText(yTextName);
+    if (content) text.insert(0, content);
+    const persisted = this.#persistDocument(previous, {}, () => {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
+         VALUES (?, ?, 'text/markdown', ?, ?, ?, ?)`,
+        id,
+        path,
+        yTextName,
+        content,
+        now,
+        now,
+      );
+    });
+    this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  renameProjectFile(workspaceId: string, fileId: string, pathValue: string): WorkspaceSnapshot {
+    const nextPath = normalizeProjectPath(pathValue);
+    if (!nextPath || nextPath !== pathValue.trim() || !nextPath.endsWith(".md") || nextPath === projectEntryPath) {
+      throw new Error("Supporting files require a unique relative .md path");
+    }
+    const workspace = this.#workspaceRow();
+    if (workspace.entry_file_id === fileId) throw new Error("The main.md entry path cannot be renamed");
+    const files = this.#projectFiles();
+    const target = files.find((file) => file.id === fileId);
+    if (!target) throw new Error("Project file not found");
+    if (files.some((file) => file.id !== fileId && file.path === nextPath)) throw new Error("A project file already uses this path");
+
+    const previous = workspace;
+    const stateVector = Y.encodeStateVector(this.#document);
+    const updates: Array<{ row: ProjectFileRow; content: string }> = [];
+    for (const row of this.#projectFileRows()) {
+      const current = projectFileFromRow(row);
+      const content = rewriteInboundProjectIncludes(current, target.path, nextPath);
+      if (content === current.content) continue;
+      const text = this.#document.getText(row.y_text_name);
+      const splice = calculateTextSplice(text.toString(), content);
+      if (splice) {
+        if (splice.deleteCount > 0) text.delete(splice.start, splice.deleteCount);
+        if (splice.insert) text.insert(splice.start, splice.insert);
+      }
+      updates.push({ row, content });
+    }
+    const persisted = this.#persistDocument(previous, {}, () => {
+      const now = new Date().toISOString();
+      this.ctx.storage.sql.exec("UPDATE project_files SET path = ?, updated_at = ? WHERE id = ?", nextPath, now, fileId);
+      for (const update of updates) {
+        this.ctx.storage.sql.exec("UPDATE project_files SET content = ?, updated_at = ? WHERE id = ?", update.content, now, update.row.id);
+      }
+    });
+    this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  deleteProjectFile(workspaceId: string, fileId: string): WorkspaceSnapshot {
+    const workspace = this.#workspaceRow();
+    if (workspace.entry_file_id === fileId) throw new Error("The main.md entry file cannot be deleted");
+    const files = this.#projectFiles();
+    const target = files.find((file) => file.id === fileId);
+    if (!target) throw new Error("Project file not found");
+    const inbound = inboundProjectIncludes(files, target.path);
+    if (inbound.length > 0) throw new Error(`Remove ${inbound.length} inbound include directive(s) before deleting this file`);
+    const persisted = this.#persistDocument(workspace, {}, () => {
+      this.ctx.storage.sql.exec("DELETE FROM project_files WHERE id = ?", fileId);
+    });
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
   }
 
   initializeWorkspace(title: string): void {
@@ -490,10 +607,11 @@ export class DocumentRoom extends DurableObject<Env> {
     if (pdf.count === 0) throw new Error("PDF not found");
 
     const workspace = this.#workspaceRow();
-    const source = this.#document.getText("source").toString();
+    const target = this.#projectText(input.passage.fileId);
+    const source = target.text.toString();
     if (input.passage.sourceRevision !== workspace.revision) throw new Error("Document selection is stale");
     if (
-      source !== workspace.source ||
+      source !== target.file.content ||
       input.passage.end > source.length ||
       source.slice(input.passage.start, input.passage.end) !== input.passage.excerpt
     ) {
@@ -502,7 +620,14 @@ export class DocumentRoom extends DurableObject<Env> {
 
     const createdAt = new Date().toISOString();
     const annotation: AnnotationResource = { id: crypto.randomUUID(), ...input.annotation, createdAt };
-    const anchor = createManuscriptAnchor(this.#document, input.passage.start, input.passage.end, workspace.revision);
+    const anchor = createManuscriptAnchor(
+      this.#document,
+      input.passage.start,
+      input.passage.end,
+      workspace.revision,
+      target.file.id,
+      target.text,
+    );
     const link: PassageLink = {
       id: crypto.randomUUID(),
       annotationId: annotation.id,
@@ -526,8 +651,8 @@ export class DocumentRoom extends DurableObject<Env> {
       this.ctx.storage.sql.exec(
         `INSERT INTO passage_links
          (id, annotation_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
-          quote_prefix, quote_suffix, anchored_revision, created_at)
-         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+          quote_prefix, quote_suffix, anchored_revision, project_file_id, created_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
         link.id,
         link.annotationId,
         input.passage.start,
@@ -538,6 +663,7 @@ export class DocumentRoom extends DurableObject<Env> {
         anchor.prefix,
         anchor.suffix,
         anchor.anchoredRevision,
+        anchor.fileId,
         link.createdAt,
       );
     });
@@ -547,24 +673,25 @@ export class DocumentRoom extends DurableObject<Env> {
 
   createPassageLink(input: CreatePassageLinkInput): PassageLink {
     const workspace = this.#workspaceRow();
-    const source = this.#document.getText("source").toString();
+    const target = this.#projectText(input.fileId);
+    const source = target.text.toString();
     const annotation = this.ctx.storage.sql
       .exec<{ count: number }>("SELECT COUNT(*) AS count FROM annotations WHERE id = ?", input.annotationId)
       .one();
     if (annotation.count === 0) throw new Error("Annotation not found");
     if (input.sourceRevision !== workspace.revision) throw new Error("Document selection is stale");
-    if (source !== workspace.source || input.end > source.length || source.slice(input.start, input.end) !== input.excerpt) {
+    if (source !== target.file.content || input.end > source.length || source.slice(input.start, input.end) !== input.excerpt) {
       throw new Error("Document selection is stale");
     }
 
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
-    const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision);
+    const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision, target.file.id, target.text);
     this.ctx.storage.sql.exec(
       `INSERT INTO passage_links
        (id, annotation_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
-        quote_prefix, quote_suffix, anchored_revision, created_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+        quote_prefix, quote_suffix, anchored_revision, project_file_id, created_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       input.annotationId,
       input.start,
@@ -575,6 +702,7 @@ export class DocumentRoom extends DurableObject<Env> {
       anchor.prefix,
       anchor.suffix,
       anchor.anchoredRevision,
+      anchor.fileId,
       createdAt,
     );
     this.#broadcastResources();
@@ -639,20 +767,21 @@ export class DocumentRoom extends DurableObject<Env> {
 
   createClaimPassageLink(input: CreateClaimPassageLinkInput): ClaimPassageLink {
     const workspace = this.#workspaceRow();
-    const source = this.#document.getText("source").toString();
+    const target = this.#projectText(input.fileId);
+    const source = target.text.toString();
     this.#claim(input.claimId);
     if (input.sourceRevision !== workspace.revision) throw new Error("Document selection is stale");
-    if (source !== workspace.source || input.end > source.length || source.slice(input.start, input.end) !== input.excerpt) {
+    if (source !== target.file.content || input.end > source.length || source.slice(input.start, input.end) !== input.excerpt) {
       throw new Error("Document selection is stale");
     }
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
-    const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision);
+    const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision, target.file.id, target.text);
     this.ctx.storage.sql.exec(
       `INSERT INTO claim_passage_links
        (id, claim_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
-        quote_prefix, quote_suffix, anchored_revision, created_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+        quote_prefix, quote_suffix, anchored_revision, project_file_id, created_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       input.claimId,
       input.start,
@@ -663,6 +792,7 @@ export class DocumentRoom extends DurableObject<Env> {
       anchor.prefix,
       anchor.suffix,
       anchor.anchoredRevision,
+      anchor.fileId,
       createdAt,
     );
     this.#broadcastResources();
@@ -678,12 +808,13 @@ export class DocumentRoom extends DurableObject<Env> {
   createCandidate(input: CreateCandidateInput): ModelCandidate {
     if (!isCreateCandidateInput(input)) throw new Error("Model candidate input is invalid");
     const workspace = this.#workspaceRow();
-    const sourceValue = this.#document.getText("source").toString();
+    const target = this.#projectText(input.target.fileId);
+    const sourceValue = target.text.toString();
     if (input.target.sourceRevision !== workspace.revision) {
       throw new Error("Candidate source is stale; generate a new revision");
     }
     if (
-      sourceValue !== workspace.source ||
+      sourceValue !== target.file.content ||
       input.target.end > sourceValue.length ||
       sourceValue.slice(input.target.start, input.target.end) !== input.target.excerpt
     ) {
@@ -691,15 +822,22 @@ export class DocumentRoom extends DurableObject<Env> {
     }
 
     const evidence = this.#captureModelEvidence(input.evidence);
-    const anchor = createManuscriptAnchor(this.#document, input.target.start, input.target.end, workspace.revision);
+    const anchor = createManuscriptAnchor(
+      this.#document,
+      input.target.start,
+      input.target.end,
+      workspace.revision,
+      target.file.id,
+      target.text,
+    );
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     this.ctx.storage.sql.exec(
       `INSERT INTO candidates
        (id, operation, prompt_version, provider_adapter, provider_label, model, instruction, source_revision,
         start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end, quote_prefix, quote_suffix,
-        anchored_revision, evidence_json, proposed_replacement, status, created_at)
-       VALUES (?, 'revise-selection', ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+        anchored_revision, project_file_id, evidence_json, proposed_replacement, status, created_at)
+       VALUES (?, 'revise-selection', ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       id,
       input.promptVersion,
       input.providerAdapter,
@@ -715,6 +853,7 @@ export class DocumentRoom extends DurableObject<Env> {
       anchor.prefix,
       anchor.suffix,
       anchor.anchoredRevision,
+      anchor.fileId,
       JSON.stringify(evidence),
       input.proposedReplacement,
       createdAt,
@@ -729,7 +868,8 @@ export class DocumentRoom extends DurableObject<Env> {
     if (candidate.status !== "pending") return { ok: false, error: "Candidate is no longer pending" };
     if (candidate.sourceRevision !== workspace.revision) return { ok: false, error: "Candidate is stale; generate a new revision" };
 
-    const source = this.#document.getText("source");
+    const target = this.#projectText(candidate.target.anchor.fileId);
+    const source = target.text;
     const resolution = resolveManuscriptAnchor(this.#document, candidate.target.anchor);
     if (resolution.status !== "resolved" || !resolution.exactMatch) {
       return { ok: false, error: "Candidate target is stale; generate a new revision" };
@@ -745,24 +885,9 @@ export class DocumentRoom extends DurableObject<Env> {
     }
     let revision: number | undefined;
     if (splice) {
-      const nextRevision = workspace.revision + 1;
-      revision = nextRevision;
-      try {
-        const state = Y.encodeStateAsUpdate(this.#document);
-        this.ctx.storage.transactionSync(() => {
-          this.ctx.storage.sql.exec(
-            "UPDATE workspace SET y_state = ?, source = ?, bibliography = ?, revision = ? WHERE id = 1",
-            state.buffer,
-            source.toString(),
-            this.#document.getText("bibliography").toString(),
-            nextRevision,
-          );
-          this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
-        });
-      } catch (error) {
-        this.#restoreDocument(workspace.y_state);
-        throw error;
-      }
+      revision = this.#persistDocument(workspace, {}, () => {
+        this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
+      }).revision;
     } else {
       this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
     }
@@ -784,7 +909,9 @@ export class DocumentRoom extends DurableObject<Env> {
 
   getPortableDocument(): { source: string; bibliography: string } {
     const workspace = this.#workspaceRow();
-    return { source: workspace.source, bibliography: workspace.bibliography };
+    const files = this.#projectFiles();
+    if (!workspace.entry_file_id) throw new Error("Project entry file is not initialized");
+    return { source: composeProject(files, workspace.entry_file_id).content, bibliography: workspace.bibliography };
   }
 
   #schemaMigrations(): readonly SQLiteMigration[] {
@@ -999,6 +1126,59 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 9,
+        name: "compose-project-from-main",
+        apply: (): undefined => {
+          const columns = this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(workspace)").toArray();
+          if (!columns.some((column) => column.name === "entry_file_id")) {
+            this.ctx.storage.sql.exec("ALTER TABLE workspace ADD COLUMN entry_file_id TEXT");
+          }
+          this.ctx.storage.sql.exec(`
+            CREATE TABLE IF NOT EXISTS project_files (
+              id TEXT PRIMARY KEY,
+              path TEXT NOT NULL UNIQUE,
+              media_type TEXT NOT NULL CHECK (media_type = 'text/markdown'),
+              y_text_name TEXT NOT NULL UNIQUE,
+              content TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+          `);
+          const workspace = this.#workspaceRow();
+          if (!workspace.entry_file_id) {
+            const id = crypto.randomUUID();
+            const now = new Date().toISOString();
+            this.ctx.storage.sql.exec(
+              `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
+               VALUES (?, ?, 'text/markdown', 'source', ?, ?, ?)`,
+              id,
+              projectEntryPath,
+              workspace.source,
+              now,
+              now,
+            );
+            this.ctx.storage.sql.exec("UPDATE workspace SET entry_file_id = ? WHERE id = 1", id);
+          }
+          return undefined;
+        },
+      },
+      {
+        version: 10,
+        name: "qualify-manuscript-anchors-by-file",
+        apply: (): undefined => {
+          const entryFileId = this.#workspaceRow().entry_file_id;
+          if (!entryFileId) throw new Error("Project entry file is not initialized");
+          for (const table of ["passage_links", "claim_passage_links", "candidates"] as const) {
+            const columns = this.ctx.storage.sql.exec<{ name: string }>(`PRAGMA table_info(${table})`).toArray();
+            if (!columns.some((column) => column.name === "project_file_id")) {
+              this.ctx.storage.sql.exec(`ALTER TABLE ${table} ADD COLUMN project_file_id TEXT`);
+            }
+            this.ctx.storage.sql.exec(`UPDATE ${table} SET project_file_id = ? WHERE project_file_id IS NULL`, entryFileId);
+          }
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -1067,6 +1247,7 @@ export class DocumentRoom extends DurableObject<Env> {
         ? createManuscriptAnchor(this.#document, row.start_offset, row.end_offset, workspace.revision)
         : {
             version: 1,
+            fileId: "main",
             relativeStart: null,
             relativeEnd: null,
             exact: row.excerpt,
@@ -1104,6 +1285,17 @@ export class DocumentRoom extends DurableObject<Env> {
           bibliography,
           revision,
         );
+        for (const file of this.#projectFileRows()) {
+          const content = this.#document.getText(file.y_text_name).toString();
+          if (content !== file.content) {
+            this.ctx.storage.sql.exec(
+              "UPDATE project_files SET content = ?, updated_at = ? WHERE id = ?",
+              content,
+              new Date().toISOString(),
+              file.id,
+            );
+          }
+        }
         if (bibliography !== previous.bibliography || options.acceptedCrossref) {
           resourcesChanged = this.#reconcileBibliography(bibliography, options);
         }
@@ -1114,6 +1306,20 @@ export class DocumentRoom extends DurableObject<Env> {
       throw error;
     }
     return { resourcesChanged, revision };
+  }
+
+  #projectFileRows(): ProjectFileRow[] {
+    return this.ctx.storage.sql.exec<ProjectFileRow>("SELECT * FROM project_files ORDER BY path COLLATE NOCASE, id").toArray();
+  }
+
+  #projectFiles(): ProjectFile[] {
+    return this.#projectFileRows().map(projectFileFromRow);
+  }
+
+  #projectText(fileId: string): { file: ProjectFile; text: Y.Text } {
+    const row = this.#projectFileRows().find((file) => file.id === fileId);
+    if (!row) throw new Error("Project file not found");
+    return { file: projectFileFromRow(row), text: this.#document.getText(row.y_text_name) };
   }
 
   #replaceBibliography(sourceValue: string, origin: string, options: ProjectionOptions = {}, relatedWrite?: () => void): void {
@@ -1462,6 +1668,7 @@ function claimPassageLinkFromRow(document: Y.Doc, row: ClaimLinkRow): ClaimPassa
 function manuscriptAnchorFromRow(row: LinkRow | ClaimLinkRow | CandidateRow): StoredManuscriptAnchor {
   return {
     version: 1,
+    fileId: row.project_file_id,
     relativeStart: row.anchor_version === 1 ? row.relative_start : null,
     relativeEnd: row.anchor_version === 1 ? row.relative_end : null,
     exact: row.excerpt,
@@ -1539,6 +1746,18 @@ function publicationFromRow(row: PublicationRow): PublicationResource {
     url: row.url,
     abstract: row.abstract,
     metadataSource: row.metadata_source === "crossref" ? "crossref" : "bibtex",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function projectFileFromRow(row: ProjectFileRow): ProjectFile {
+  if (row.media_type !== "text/markdown") throw new Error("Stored project file has an unsupported media type");
+  return {
+    id: row.id,
+    path: row.path,
+    mediaType: "text/markdown",
+    content: row.content,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

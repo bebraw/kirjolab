@@ -19,6 +19,7 @@ describe("durable manuscript anchors", () => {
 
     expect(selector).toMatchObject({
       version: 1,
+      fileId: "main",
       exact: "target",
       prefix: "Before ",
       suffix: " after",
@@ -210,6 +211,7 @@ function relativeSelectorForBibliography(document: Y.Doc, base: ManuscriptAnchor
   bibliography.insert(0, "reference");
   return {
     version: 1,
+    fileId: base.fileId,
     relativeStart: bytes(Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(bibliography, 0, 0))),
     relativeEnd: bytes(Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(bibliography, bibliography.length, -1))),
     exact: base.exact,
