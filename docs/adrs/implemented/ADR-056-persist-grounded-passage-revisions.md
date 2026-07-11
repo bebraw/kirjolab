@@ -32,8 +32,11 @@ A provider-neutral browser interface will accept that operation request. The
 initial adapter will call an explicitly configured, credential-free HTTP(S)
 loopback OpenAI-compatible endpoint from the browser, never from the hosted
 Worker, and will request only replacement Markdown for the selected passage.
-Provider responses are time- and size-bounded and mapped before candidate
-creation.
+It omits browser credentials, rejects redirects, aborts after 120 seconds, and
+reads at most 256 KiB of response data before parsing. The request contains the
+selected passage, instruction, chosen evidence, and configured model identifier,
+but no unrelated manuscript text. Provider responses are mapped before
+candidate creation.
 
 After the provider returns, `DocumentRoom` will verify that the manuscript
 revision, exact passage, and every evidence version still match. It will create
@@ -51,6 +54,10 @@ status.
 The pre-launch whole-document candidate table will be replaced by an
 append-only migration. Legacy candidate rows are disposable derived state and
 will not receive compatibility behavior.
+
+This decision supersedes ADR-050 only where that record assumed model
+candidates carried and applied complete proposed Markdown. ADR-050's durable
+anchor identity and general minimal-splice rules remain in force.
 
 ## Trigger
 

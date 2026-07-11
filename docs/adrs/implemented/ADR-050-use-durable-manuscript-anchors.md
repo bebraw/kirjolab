@@ -1,6 +1,6 @@
 # ADR-050: Use Durable Manuscript Anchors
 
-**Status:** Implemented
+**Status:** Implemented; model-candidate replacement scope superseded by [ADR-056](./ADR-056-persist-grounded-passage-revisions.md)
 
 **Date:** 2026-07-10
 
@@ -112,6 +112,12 @@ differing middle as one `Y.Text` transaction. Never implement replacement as
 delete-all followed by insert-all: that discards the Yjs items under unchanged
 prose and makes anchors stale even when their passages survived verbatim.
 
+[ADR-056](./ADR-056-persist-grounded-passage-revisions.md) supersedes the
+whole-document model-candidate assumption above: model revisions now persist a
+Yjs-anchored passage target and splice only that verified range. The anchor
+identity rules and minimal-splice requirement for operations that genuinely
+replace a complete document remain in force.
+
 ## Trigger
 
 A strict review found that stored passage offsets were treated as permanent
@@ -160,8 +166,8 @@ the intended traceable path from evidence and claims into authored prose.
   manuscript.
 - Exact quote/context and original offsets are audit metadata, not alternate
   navigation algorithms.
-- Model candidates may continue to contain complete proposed Markdown; this
-  decision constrains how that value is materialized into Yjs.
+- ADR-056 replaces complete proposed Markdown for model candidates with a
+  targeted passage replacement while retaining this ADR's Yjs anchor rules.
 - This strengthens the passage-link representation introduced with annotations
   and claims without changing those resource identities or relationship types.
 
