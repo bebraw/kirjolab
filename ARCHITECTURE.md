@@ -26,6 +26,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Escape authored raw HTML and sanitize the final preview tree after all syntax plugins; allow only the elements, properties, and URL protocols required by the scientific-writing vocabulary before inserting output into the DOM.
 - Return a restrictive Content Security Policy on application HTML as an independent browser-execution boundary; do not permit inline or evaluated scripts.
 - Coordinate each collaborative document through its own SQLite-backed Durable Object.
+- Evolve every SQLite-backed Durable Object through an ordered, named,
+  append-only migration ledger. Apply each pending schema or data migration and
+  its ledger record in one synchronous transaction; fail closed if applied
+  version/name history changes.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
 - Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
 - Establish collaboration through a server-led Yjs handshake: send current
@@ -65,9 +69,18 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   as the smallest common-prefix/suffix `Y.Text` splice. Never delete and reinsert
   unchanged prefix or suffix content, because doing so destroys surviving Yjs
   anchor identities.
-- Keep BibTeX as the canonical authored bibliography while materializing imported entries as stable publication resources.
-- Treat citation keys as workspace aliases and normalized DOI values as external identifiers; neither is an internal publication identity.
-- Make external metadata enrichment explicit, source-labeled, and materialized back into canonical BibTeX.
+- Keep BibTeX as the canonical authored bibliography and reconcile every
+  complete parsed entry into stable publication resources after each
+  bibliography-changing Yjs update, including manual edits, imports,
+  enrichment, and initial data migration.
+- Match a publication UUID by case-insensitive citation key before normalized
+  DOI. Preserve provenance and timestamps for an exactly unchanged projection;
+  mark authored changes `bibtex` and explicit accepted enrichment `crossref`.
+- Treat publication resources as monotonic working memory: absence from current
+  BibTeX never deletes one implicitly.
+- Apply imports, enrichment, and other complete bibliography replacements as
+  minimal common-prefix/suffix `Y.Text` splices, and atomically commit document
+  materialization with publication reconciliation.
 - Capture a model operation's source, selection, revision, and evidence as one
   immutable base before awaiting a provider; reject stale candidate creation
   and keep application as a separate revision-validated action.

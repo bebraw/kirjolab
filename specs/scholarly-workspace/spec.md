@@ -24,6 +24,11 @@ mode for authenticated hosted collaboration.
   workspace resources while each `DocumentRoom` retains isolated coordination.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
+- **Schema lifecycle:** Every SQLite-backed document, catalog, and access
+  Durable Object owns an ordered, named, append-only migration ledger. Each
+  pending migration and its ledger record commit in one synchronous
+  transaction; anchor backfill and initial bibliography projection are explicit
+  data migrations.
 - **Document semantics:** Satteri parses standard Markdown and GFM while
   `src/domain/markdown.ts` adds headings, citations, references, aliases,
   anchors, validation, and preview security from the scientific-writing syntax.
@@ -38,15 +43,19 @@ mode for authenticated hosted collaboration.
 - **Revision boundary:** Causally new Yjs state materializes Yjs, Markdown, and
   BibTeX together and advances the revision once. Duplicate or replayed updates
   receive an `ack` at the current revision without persistence, rebroadcast, or
-  a revision increase.
+  a revision increase. When bibliography text changes, every complete canonical
+  entry is reconciled into publication resources in the same transaction.
 - **Resource metadata:** The document Durable Object stores PDF artifact
   fingerprints, annotations, publication projections, passage links, and model
   candidates alongside the document coordination atom. Its server-owned
   `resources` control invalidates a coalesced REST metadata refresh without
   replacing editor state.
-- **Reference library:** BibTeX imports merge into canonical bibliography text
-  and materialize stable publication resources. DOI-backed Crossref enrichment
-  is an explicit action.
+- **Reference library:** Every complete parsed canonical BibTeX entry
+  materializes after local edits, remote edits, imports, enrichment, and initial
+  migration. Publication UUID matching uses case-insensitive citation key
+  before normalized DOI. Exact no-op projection preserves provenance and
+  timestamp; authored changes record `bibtex`, explicit Crossref enrichment
+  remains `crossref`, and absent entries do not delete monotonic resources.
 - **Knowledge navigation:** Bounded workspace search and typed connection
   representations expose documents, sections, publications, PDFs, and
   annotations as navigable resources without making an index authoritative.
@@ -96,9 +105,11 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/pdfs` streams one PDF of at most 25 MB to R2.
 - `GET /api/workspaces/demo/pdfs/{id}` streams an imported PDF.
 - `POST /api/workspaces/demo/annotations` creates a selector-backed annotation.
-- `POST /api/workspaces/demo/bibliography/import` merges valid BibTeX entries.
+- `POST /api/workspaces/demo/bibliography/import` minimally splices merged valid
+  BibTeX into Yjs and atomically reconciles its complete publication entries.
 - `POST /api/workspaces/demo/publications/{id}/enrich` explicitly enriches a
-  DOI-backed publication through Crossref.
+  DOI-backed publication through Crossref, minimally splicing and atomically
+  committing accepted canonical and `crossref`-sourced values.
 - `POST /api/workspaces/demo/links` accepts an annotation id, source revision,
   requested offsets, and exact current text and returns a selector-backed
   annotation-passage link.
@@ -137,6 +148,12 @@ mode for authenticated hosted collaboration.
   exact excerpt still match current source during the one-time migration.
 - Do not implement candidate application or another whole-document replacement
   as delete-all/insert-all on `Y.Text`.
+- Do not project publications only during import, rewrite unchanged projection
+  rows, or delete resources absent from current canonical BibTeX.
+- Do not update canonical bibliography and its publication projection in
+  separate commits.
+- Do not add ad hoc schema checks or data backfills outside the ordered
+  migration ledger, and never edit an applied migration definition.
 - Do not buffer PDF bodies in Worker memory.
 - Do not write annotation data into imported PDFs.
 - Do not deploy with local authentication or without a protected Cloudflare
@@ -158,8 +175,13 @@ mode for authenticated hosted collaboration.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
-- [x] BibTeX imports materialize stable publication resources independently of
-      citation keys.
+- [x] Every complete canonical BibTeX entry materializes after local and remote
+      edits as well as imports, independently of citation keys.
+- [x] Stable publication reconciliation preserves an unchanged source/timestamp,
+      records authored edits as `bibtex`, and retains explicitly accepted
+      `crossref` provenance.
+- [x] Removing a canonical entry leaves its monotonic publication resource in
+      working memory.
 - [x] Search results and typed connections navigate across authored and evidence
       resources.
 - [x] Annotations can be synthesized into editable claims and linked onward to
@@ -175,6 +197,9 @@ mode for authenticated hosted collaboration.
 - [x] A one-time migration adds valid relative endpoints to offset-only links
       and leaves unconvertible legacy links explicitly stale with null
       endpoints.
+- [x] Ordered named migration ledgers apply each Durable Object schema exactly
+      once; the document ledger also records anchor backfill and initial
+      bibliography projection.
 - [x] A local model can return a grounded candidate with inspectable provenance.
 - [x] Candidate creation and application are explicit and reject stale base
       revisions captured before model execution.
@@ -198,6 +223,12 @@ mode for authenticated hosted collaboration.
   text or collaboration revision.
 - Document updates must be scoped to one Durable Object per workspace/document
   coordination atom.
+- Every SQLite-backed Durable Object must use strictly increasing, named,
+  append-only migrations recorded in `_kirjolab_migrations`.
+- A pending migration callback and its ledger insert must share one synchronous
+  transaction; applied version/name mismatches must fail before new work.
+- Initial canonical bibliography projection and manuscript-anchor backfill must
+  remain recorded data migrations.
 - PDF uploads must require `application/pdf`, a known positive content length,
   and the 25 MB size limit.
 - Annotation creation must require a known PDF, positive page number, exact
@@ -223,6 +254,16 @@ mode for authenticated hosted collaboration.
 - Candidate application and every other whole-document replacement must retain
   the longest common prefix and non-overlapping common suffix, deleting and
   inserting only the differing middle in one `Y.Text` transaction.
+- Every complete parsed entry must be reconciled after a bibliography-changing
+  Yjs update, matching stable UUID by case-insensitive key before normalized DOI.
+- An exactly unchanged projection must retain its metadata source and timestamp;
+  an authored projected change must record `bibtex`, and explicit accepted
+  enrichment must remain `crossref`.
+- Absence from current canonical BibTeX must never implicitly delete a
+  publication resource.
+- Import and enrichment must minimally splice bibliography `Y.Text` and
+  atomically persist Yjs/materialized document state, revision, and publication
+  reconciliation.
 - Browser code must remain external to Worker-rendered HTML and pass both strict
   worker and client TypeScript configurations.
 
@@ -317,6 +358,28 @@ mode for authenticated hosted collaboration.
 - Then: the candidate is accepted through a minimal common-prefix/suffix splice,
   canonical Markdown changes, anchors in unchanged surrounding prose remain
   resolved, and all collaborators receive the update
+
+**Scenario: Collaborative bibliography becomes resources**
+
+- Given: a synchronized bibliography editor
+- When: a writer completes or changes a supported BibTeX entry
+- Then: the same durable transaction materializes canonical BibTeX and upserts
+  its stable publication, preserving provenance only when projected values are
+  exactly unchanged
+
+**Scenario: Removing authored BibTeX keeps working memory**
+
+- Given: a canonical entry has a stable publication resource
+- When: a writer removes the entry from current bibliography text
+- Then: canonical BibTeX changes while the publication remains available and no
+  relationship is implicitly deleted
+
+**Scenario: A pending schema migration fails**
+
+- Given: a Durable Object has one unapplied named migration
+- When: its migration callback fails during guarded initialization
+- Then: neither its changes nor ledger row commit, and a later activation can
+  retry the same immutable migration
 
 **Scenario: Researcher exports portable work**
 

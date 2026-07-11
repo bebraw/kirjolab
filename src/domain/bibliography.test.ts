@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { mergeBibTeX, normalizeDoi, parseBibTeX, serializeBibTeX } from "./bibliography";
+import {
+  bibTeXPublicationProjectionsEqual,
+  mergeBibTeX,
+  normalizeDoi,
+  parseBibTeX,
+  projectBibTeXPublication,
+  serializeBibTeX,
+  type BibTeXPublicationProjection,
+} from "./bibliography";
 
 describe("BibTeX bibliography domain", () => {
   it("parses braced, quoted, numeric, nested, and parenthesized entries", () => {
@@ -138,5 +146,89 @@ describe("BibTeX bibliography domain", () => {
 }
 `);
     expect(normalizeDoi("http://dx.doi.org/10.1000/Mixed")).toBe("10.1000/mixed");
+  });
+
+  it("projects normalized publication fields from a parsed entry", () => {
+    const [entry] = parseBibTeX(`@article{Inspectable2026,
+      author = {Doe, Jane and   Roe, Richard AND Smith, Alex},
+      title = {Inspectable Evidence},
+      year = {2026},
+      journal = {Journal of Open Evidence},
+      booktitle = {Ignored Proceedings},
+      doi = {https://doi.org/10.1000/Inspectable},
+      url = {https://example.org/paper},
+      abstract = {Evidence remains connected.}
+    }`);
+    if (!entry) throw new Error("Expected a parsed BibTeX entry");
+
+    expect(projectBibTeXPublication(entry)).toEqual({
+      citationKey: "Inspectable2026",
+      type: "article",
+      title: "Inspectable Evidence",
+      authors: ["Doe, Jane", "Roe, Richard", "Smith, Alex"],
+      year: "2026",
+      venue: "Journal of Open Evidence",
+      doi: "10.1000/inspectable",
+      url: "https://example.org/paper",
+      abstract: "Evidence remains connected.",
+    });
+  });
+
+  it("uses booktitle, publisher, and empty publication fallbacks deterministically", () => {
+    expect(
+      projectBibTeXPublication({
+        citationKey: "proceedings",
+        type: "inproceedings",
+        fields: { title: "Conference Paper", booktitle: "Proceedings of Inspection", publisher: "Ignored Press" },
+      }),
+    ).toMatchObject({ venue: "Proceedings of Inspection" });
+    expect(
+      projectBibTeXPublication({
+        citationKey: "book",
+        type: "book",
+        fields: { title: "Published Work", publisher: "Inspection Press", author: " and Doe, Jane and " },
+      }),
+    ).toMatchObject({ authors: ["Doe, Jane"], venue: "Inspection Press" });
+    expect(projectBibTeXPublication({ citationKey: "minimal", type: "misc", fields: {} })).toEqual({
+      citationKey: "minimal",
+      type: "misc",
+      title: "Untitled publication",
+      authors: [],
+      year: "",
+      venue: "",
+      doi: "",
+      url: "",
+      abstract: "",
+    });
+  });
+
+  it("detects exact projection equality and every material field change", () => {
+    const projection: BibTeXPublicationProjection = {
+      citationKey: "same",
+      type: "article",
+      title: "Same title",
+      authors: ["Doe, Jane", "Roe, Richard"],
+      year: "2026",
+      venue: "Journal",
+      doi: "10.1000/same",
+      url: "https://example.org/same",
+      abstract: "Same abstract",
+    };
+    expect(bibTeXPublicationProjectionsEqual(projection, { ...projection, authors: [...projection.authors] })).toBe(true);
+
+    const changes: BibTeXPublicationProjection[] = [
+      { ...projection, citationKey: "changed" },
+      { ...projection, type: "book" },
+      { ...projection, title: "Changed title" },
+      { ...projection, authors: ["Roe, Richard", "Doe, Jane"] },
+      { ...projection, authors: ["Doe, Jane"] },
+      { ...projection, authors: ["Doe, Jane", "Roe, Richard", "Smith, Alex"] },
+      { ...projection, year: "2027" },
+      { ...projection, venue: "Changed Journal" },
+      { ...projection, doi: "10.1000/changed" },
+      { ...projection, url: "https://example.org/changed" },
+      { ...projection, abstract: "Changed abstract" },
+    ];
+    for (const changed of changes) expect(bibTeXPublicationProjectionsEqual(projection, changed), JSON.stringify(changed)).toBe(false);
   });
 });

@@ -1,6 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
-import { mergeBibTeX, normalizeDoi, parseBibTeX, serializeBibTeX, type BibTeXEntry } from "../domain/bibliography";
+import {
+  bibTeXPublicationProjectionsEqual,
+  mergeBibTeX,
+  normalizeDoi,
+  parseBibTeX,
+  projectBibTeXPublication,
+  serializeBibTeX,
+  type BibTeXPublicationProjection,
+} from "../domain/bibliography";
 import { applyYjsUpdateOnce, encodeServerCollaborationMessage } from "../domain/collaboration";
 import {
   createManuscriptAnchor,
@@ -31,6 +39,7 @@ import {
   type UpsertClaimInput,
   type WorkspaceSnapshot,
 } from "../domain/workspace";
+import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 
 interface WorkspaceRow extends Record<string, SqlStorageValue> {
   title: string;
@@ -135,15 +144,28 @@ interface ClaimLinkRow extends Record<string, SqlStorageValue> {
   created_at: string;
 }
 
+interface PersistedDocumentUpdate {
+  readonly resourcesChanged: boolean;
+  readonly revision: number;
+}
+
+interface ProjectionOptions {
+  readonly acceptedCrossref?: {
+    readonly projection: BibTeXPublicationProjection;
+    readonly publicationId: string;
+  };
+}
+
 export class DocumentRoom extends DurableObject<Env> {
   #document = new Y.Doc();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      this.#migrate();
+      this.ctx.storage.sql.exec("PRAGMA foreign_keys = ON");
+      runSQLiteMigrations(this.ctx.storage, this.#schemaMigrations());
       this.#loadDocument();
-      this.#backfillManuscriptAnchors();
+      runSQLiteMigrations(this.ctx.storage, this.#dataMigrations());
     });
   }
 
@@ -173,24 +195,40 @@ export class DocumentRoom extends DurableObject<Env> {
       return;
     }
 
+    let previous: WorkspaceRow;
+    try {
+      previous = this.#workspaceRow();
+    } catch {
+      socket.close(1011, "Document state could not be read");
+      return;
+    }
+
     const update = new Uint8Array(message);
     let applied: boolean;
     try {
       applied = applyYjsUpdateOnce(this.#document, update);
     } catch {
+      this.#restoreDocument(previous.y_state);
       socket.close(1007, "Invalid document update");
       return;
     }
 
     if (!applied) {
-      socket.send(encodeServerCollaborationMessage({ type: "ack", revision: this.#workspaceRow().revision }));
+      socket.send(encodeServerCollaborationMessage({ type: "ack", revision: previous.revision }));
       return;
     }
 
-    const revision = this.#persistDocument();
-    socket.send(encodeServerCollaborationMessage({ type: "ack", revision }));
+    let persisted: PersistedDocumentUpdate;
+    try {
+      persisted = this.#persistDocument(previous);
+    } catch {
+      socket.close(1011, "Document update could not be persisted");
+      return;
+    }
+    socket.send(encodeServerCollaborationMessage({ type: "ack", revision: persisted.revision }));
     this.#broadcast(message, socket);
-    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision }), socket);
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }), socket);
+    if (persisted.resourcesChanged) this.#broadcastResources();
   }
 
   override webSocketClose(_socket: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
@@ -241,7 +279,6 @@ export class DocumentRoom extends DurableObject<Env> {
     const imported = parseBibTeX(bibtex);
     if (imported.length === 0) throw new Error("No valid BibTeX entries found");
     const merged = mergeBibTeX(this.#workspaceRow().bibliography, bibtex);
-    for (const entry of imported) this.#upsertPublication(entry);
     this.#replaceBibliography(merged.source, "bibliography-import");
     return this.getSnapshot(workspaceId);
   }
@@ -255,37 +292,23 @@ export class DocumentRoom extends DurableObject<Env> {
   enrichPublication(workspaceId: string, publicationId: string, metadata: PublicationEnrichment): WorkspaceSnapshot {
     const publication = this.getPublication(publicationId);
     if (!publication.doi) throw new Error("Publication has no DOI");
-    const updatedAt = new Date().toISOString();
-    this.ctx.storage.sql.exec(
-      `UPDATE publications SET title = ?, authors_json = ?, publication_year = ?, venue = ?, doi = ?, url = ?, abstract = ?,
-       metadata_source = 'crossref', updated_at = ? WHERE id = ?`,
-      metadata.title,
-      JSON.stringify(metadata.authors),
-      metadata.year,
-      metadata.venue,
-      normalizeDoi(metadata.doi),
-      metadata.url,
-      metadata.abstract,
-      updatedAt,
-      publicationId,
-    );
     const entries = parseBibTeX(this.#workspaceRow().bibliography);
-    const entry = entries.find((candidate) => candidate.citationKey === publication.citationKey);
-    if (entry) {
-      entry.fields = {
-        ...entry.fields,
-        title: metadata.title,
-        author: metadata.authors.join(" and "),
-        year: metadata.year,
-        journal: metadata.venue,
-        doi: normalizeDoi(metadata.doi),
-        url: metadata.url,
-        ...(metadata.abstract ? { abstract: metadata.abstract } : {}),
-      };
-      this.#replaceBibliography(serializeBibTeX(entries), "crossref-enrichment");
-    } else {
-      this.#broadcastResources();
-    }
+    const citationKey = publication.citationKey.toLowerCase();
+    const entry = entries.find((candidate) => candidate.citationKey.toLowerCase() === citationKey);
+    if (!entry) throw new Error("Publication is not present in the canonical bibliography");
+    entry.fields = {
+      ...entry.fields,
+      title: metadata.title,
+      author: metadata.authors.join(" and "),
+      year: metadata.year,
+      journal: metadata.venue,
+      doi: normalizeDoi(metadata.doi),
+      url: metadata.url,
+      abstract: metadata.abstract,
+    };
+    this.#replaceBibliography(serializeBibTeX(entries), "crossref-enrichment", {
+      acceptedCrossref: { projection: projectBibTeXPublication(entry), publicationId },
+    });
     return this.getSnapshot(workspaceId);
   }
 
@@ -528,119 +551,169 @@ export class DocumentRoom extends DurableObject<Env> {
     return { source: workspace.source, bibliography: workspace.bibliography };
   }
 
-  #migrate(): void {
-    this.ctx.storage.sql.exec(`
-      PRAGMA foreign_keys = ON;
-      CREATE TABLE IF NOT EXISTS workspace (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        title TEXT NOT NULL,
-        y_state BLOB NOT NULL,
-        source TEXT NOT NULL,
-        bibliography TEXT NOT NULL,
-        revision INTEGER NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS pdfs (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        content_type TEXT NOT NULL,
-        size INTEGER NOT NULL,
-        object_key TEXT NOT NULL UNIQUE,
-        fingerprint TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS annotations (
-        id TEXT PRIMARY KEY,
-        pdf_id TEXT NOT NULL REFERENCES pdfs(id),
-        page INTEGER NOT NULL CHECK (page > 0),
-        quote TEXT NOT NULL,
-        prefix TEXT NOT NULL,
-        suffix TEXT NOT NULL,
-        comment TEXT NOT NULL,
-        rects_json TEXT NOT NULL DEFAULT '[]',
-        created_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS passage_links (
-        id TEXT PRIMARY KEY,
-        annotation_id TEXT NOT NULL REFERENCES annotations(id),
-        start_offset INTEGER NOT NULL,
-        end_offset INTEGER NOT NULL,
-        excerpt TEXT NOT NULL,
-        anchor_version INTEGER NOT NULL DEFAULT 0,
-        relative_start BLOB,
-        relative_end BLOB,
-        quote_prefix TEXT NOT NULL DEFAULT '',
-        quote_suffix TEXT NOT NULL DEFAULT '',
-        anchored_revision INTEGER,
-        created_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS candidates (
-        id TEXT PRIMARY KEY,
-        provider TEXT NOT NULL,
-        model TEXT NOT NULL,
-        source_revision INTEGER NOT NULL,
-        source_ids TEXT NOT NULL,
-        proposed_source TEXT NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')),
-        created_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS publications (
-        id TEXT PRIMARY KEY,
-        citation_key TEXT NOT NULL UNIQUE COLLATE NOCASE,
-        entry_type TEXT NOT NULL,
-        title TEXT NOT NULL,
-        authors_json TEXT NOT NULL,
-        publication_year TEXT NOT NULL,
-        venue TEXT NOT NULL,
-        doi TEXT NOT NULL,
-        url TEXT NOT NULL,
-        abstract TEXT NOT NULL,
-        metadata_source TEXT NOT NULL CHECK (metadata_source IN ('bibtex', 'crossref')),
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS claims (
-        id TEXT PRIMARY KEY,
-        text TEXT NOT NULL,
-        note TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS claim_evidence_links (
-        id TEXT PRIMARY KEY,
-        claim_id TEXT NOT NULL REFERENCES claims(id) ON DELETE CASCADE,
-        annotation_id TEXT NOT NULL REFERENCES annotations(id),
-        relation TEXT NOT NULL CHECK (relation IN ('supports', 'contradicts', 'extends')),
-        created_at TEXT NOT NULL,
-        UNIQUE (claim_id, annotation_id)
-      );
-      CREATE TABLE IF NOT EXISTS claim_passage_links (
-        id TEXT PRIMARY KEY,
-        claim_id TEXT NOT NULL REFERENCES claims(id) ON DELETE CASCADE,
-        start_offset INTEGER NOT NULL,
-        end_offset INTEGER NOT NULL,
-        excerpt TEXT NOT NULL,
-        anchor_version INTEGER NOT NULL DEFAULT 0,
-        relative_start BLOB,
-        relative_end BLOB,
-        quote_prefix TEXT NOT NULL DEFAULT '',
-        quote_suffix TEXT NOT NULL DEFAULT '',
-        anchored_revision INTEGER,
-        created_at TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS publications_doi ON publications(doi) WHERE doi <> '';
-      CREATE INDEX IF NOT EXISTS claim_evidence_annotation ON claim_evidence_links(annotation_id);
-      CREATE INDEX IF NOT EXISTS claim_passage_claim ON claim_passage_links(claim_id);
-    `);
-    const pdfColumns = this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(pdfs)").toArray();
-    if (!pdfColumns.some((column) => column.name === "fingerprint")) {
-      this.ctx.storage.sql.exec("ALTER TABLE pdfs ADD COLUMN fingerprint TEXT NOT NULL DEFAULT ''");
-    }
-    const annotationColumns = this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(annotations)").toArray();
-    if (!annotationColumns.some((column) => column.name === "rects_json")) {
-      this.ctx.storage.sql.exec("ALTER TABLE annotations ADD COLUMN rects_json TEXT NOT NULL DEFAULT '[]'");
-    }
-    this.#addAnchorColumns("passage_links");
-    this.#addAnchorColumns("claim_passage_links");
+  #schemaMigrations(): readonly SQLiteMigration[] {
+    return [
+      {
+        version: 1,
+        name: "create-document-room",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS workspace (
+              id INTEGER PRIMARY KEY CHECK (id = 1),
+              title TEXT NOT NULL,
+              y_state BLOB NOT NULL,
+              source TEXT NOT NULL,
+              bibliography TEXT NOT NULL,
+              revision INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS pdfs (
+              id TEXT PRIMARY KEY,
+              name TEXT NOT NULL,
+              content_type TEXT NOT NULL,
+              size INTEGER NOT NULL,
+              object_key TEXT NOT NULL UNIQUE,
+              fingerprint TEXT NOT NULL DEFAULT '',
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS annotations (
+              id TEXT PRIMARY KEY,
+              pdf_id TEXT NOT NULL REFERENCES pdfs(id),
+              page INTEGER NOT NULL CHECK (page > 0),
+              quote TEXT NOT NULL,
+              prefix TEXT NOT NULL,
+              suffix TEXT NOT NULL,
+              comment TEXT NOT NULL,
+              rects_json TEXT NOT NULL DEFAULT '[]',
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS passage_links (
+              id TEXT PRIMARY KEY,
+              annotation_id TEXT NOT NULL REFERENCES annotations(id),
+              start_offset INTEGER NOT NULL,
+              end_offset INTEGER NOT NULL,
+              excerpt TEXT NOT NULL,
+              anchor_version INTEGER NOT NULL DEFAULT 0,
+              relative_start BLOB,
+              relative_end BLOB,
+              quote_prefix TEXT NOT NULL DEFAULT '',
+              quote_suffix TEXT NOT NULL DEFAULT '',
+              anchored_revision INTEGER,
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS candidates (
+              id TEXT PRIMARY KEY,
+              provider TEXT NOT NULL,
+              model TEXT NOT NULL,
+              source_revision INTEGER NOT NULL,
+              source_ids TEXT NOT NULL,
+              proposed_source TEXT NOT NULL,
+              status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')),
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS publications (
+              id TEXT PRIMARY KEY,
+              citation_key TEXT NOT NULL UNIQUE COLLATE NOCASE,
+              entry_type TEXT NOT NULL,
+              title TEXT NOT NULL,
+              authors_json TEXT NOT NULL,
+              publication_year TEXT NOT NULL,
+              venue TEXT NOT NULL,
+              doi TEXT NOT NULL,
+              url TEXT NOT NULL,
+              abstract TEXT NOT NULL,
+              metadata_source TEXT NOT NULL CHECK (metadata_source IN ('bibtex', 'crossref')),
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS claims (
+              id TEXT PRIMARY KEY,
+              text TEXT NOT NULL,
+              note TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS claim_evidence_links (
+              id TEXT PRIMARY KEY,
+              claim_id TEXT NOT NULL REFERENCES claims(id) ON DELETE CASCADE,
+              annotation_id TEXT NOT NULL REFERENCES annotations(id),
+              relation TEXT NOT NULL CHECK (relation IN ('supports', 'contradicts', 'extends')),
+              created_at TEXT NOT NULL,
+              UNIQUE (claim_id, annotation_id)
+            );
+            CREATE TABLE IF NOT EXISTS claim_passage_links (
+              id TEXT PRIMARY KEY,
+              claim_id TEXT NOT NULL REFERENCES claims(id) ON DELETE CASCADE,
+              start_offset INTEGER NOT NULL,
+              end_offset INTEGER NOT NULL,
+              excerpt TEXT NOT NULL,
+              anchor_version INTEGER NOT NULL DEFAULT 0,
+              relative_start BLOB,
+              relative_end BLOB,
+              quote_prefix TEXT NOT NULL DEFAULT '',
+              quote_suffix TEXT NOT NULL DEFAULT '',
+              anchored_revision INTEGER,
+              created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS publications_doi ON publications(doi) WHERE doi <> '';
+            CREATE INDEX IF NOT EXISTS claim_evidence_annotation ON claim_evidence_links(annotation_id);
+            CREATE INDEX IF NOT EXISTS claim_passage_claim ON claim_passage_links(claim_id);
+          `);
+          return undefined;
+        },
+      },
+      {
+        version: 2,
+        name: "add-pdf-fingerprint",
+        apply(sql): undefined {
+          const columns = sql.exec<{ name: string }>("PRAGMA table_info(pdfs)").toArray();
+          if (!columns.some((column) => column.name === "fingerprint")) {
+            sql.exec("ALTER TABLE pdfs ADD COLUMN fingerprint TEXT NOT NULL DEFAULT ''");
+          }
+          return undefined;
+        },
+      },
+      {
+        version: 3,
+        name: "add-annotation-rectangles",
+        apply(sql): undefined {
+          const columns = sql.exec<{ name: string }>("PRAGMA table_info(annotations)").toArray();
+          if (!columns.some((column) => column.name === "rects_json")) {
+            sql.exec("ALTER TABLE annotations ADD COLUMN rects_json TEXT NOT NULL DEFAULT '[]'");
+          }
+          return undefined;
+        },
+      },
+      {
+        version: 4,
+        name: "add-relative-manuscript-anchors",
+        apply: (): undefined => {
+          this.#addAnchorColumns("passage_links");
+          this.#addAnchorColumns("claim_passage_links");
+          return undefined;
+        },
+      },
+    ];
+  }
+
+  #dataMigrations(): readonly SQLiteMigration[] {
+    return [
+      {
+        version: 5,
+        name: "backfill-relative-manuscript-anchors",
+        apply: (): undefined => {
+          this.#backfillManuscriptAnchors();
+          return undefined;
+        },
+      },
+      {
+        version: 6,
+        name: "project-canonical-bibliography",
+        apply: (): undefined => {
+          this.#reconcileBibliography(this.#document.getText("bibliography").toString());
+          return undefined;
+        },
+      },
+    ];
   }
 
   #addAnchorColumns(table: "passage_links" | "claim_passage_links"): void {
@@ -730,80 +803,129 @@ export class DocumentRoom extends DurableObject<Env> {
     }
   }
 
-  #persistDocument(): number {
-    const previous = this.#workspaceRow();
+  #persistDocument(previous: WorkspaceRow, options: ProjectionOptions = {}): PersistedDocumentUpdate {
     const revision = previous.revision + 1;
-    const state = Y.encodeStateAsUpdate(this.#document);
-    this.ctx.storage.sql.exec(
-      "UPDATE workspace SET y_state = ?, source = ?, bibliography = ?, revision = ? WHERE id = 1",
-      state.buffer,
-      this.#document.getText("source").toString(),
-      this.#document.getText("bibliography").toString(),
-      revision,
-    );
-    return revision;
+    let resourcesChanged = false;
+    try {
+      const state = Y.encodeStateAsUpdate(this.#document);
+      const source = this.#document.getText("source").toString();
+      const bibliography = this.#document.getText("bibliography").toString();
+      this.ctx.storage.transactionSync(() => {
+        this.ctx.storage.sql.exec(
+          "UPDATE workspace SET y_state = ?, source = ?, bibliography = ?, revision = ? WHERE id = 1",
+          state.buffer,
+          source,
+          bibliography,
+          revision,
+        );
+        if (bibliography !== previous.bibliography || options.acceptedCrossref) {
+          resourcesChanged = this.#reconcileBibliography(bibliography, options);
+        }
+      });
+    } catch (error) {
+      this.#restoreDocument(previous.y_state);
+      throw error;
+    }
+    return { resourcesChanged, revision };
   }
 
-  #replaceBibliography(sourceValue: string, origin: string): void {
+  #replaceBibliography(sourceValue: string, origin: string, options: ProjectionOptions = {}): void {
     const bibliography = this.#document.getText("bibliography");
+    const splice = calculateTextSplice(bibliography.toString(), sourceValue);
+    if (!splice) {
+      let resourcesChanged = false;
+      this.ctx.storage.transactionSync(() => {
+        resourcesChanged = this.#reconcileBibliography(sourceValue, options);
+      });
+      if (resourcesChanged) this.#broadcastResources();
+      return;
+    }
+
+    const previous = this.#workspaceRow();
+    const stateVector = Y.encodeStateVector(this.#document);
     this.#document.transact(() => {
-      bibliography.delete(0, bibliography.length);
-      bibliography.insert(0, sourceValue);
+      if (splice.deleteCount > 0) bibliography.delete(splice.start, splice.deleteCount);
+      if (splice.insert) bibliography.insert(splice.start, splice.insert);
     }, origin);
-    const revision = this.#persistDocument();
-    this.#broadcast(Y.encodeStateAsUpdate(this.#document));
-    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision }));
-    this.#broadcastResources();
+    const persisted = this.#persistDocument(previous, options);
+    this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    if (persisted.resourcesChanged) this.#broadcastResources();
   }
 
-  #upsertPublication(entry: BibTeXEntry): PublicationResource {
-    const doi = normalizeDoi(entry.fields.doi ?? "");
-    const byCitation = this.ctx.storage.sql
-      .exec<PublicationRow>("SELECT * FROM publications WHERE citation_key = ? COLLATE NOCASE", entry.citationKey)
-      .toArray()[0];
-    const byDoi = doi
-      ? this.ctx.storage.sql.exec<PublicationRow>("SELECT * FROM publications WHERE doi = ? LIMIT 1", doi).toArray()[0]
-      : undefined;
-    const existing = byCitation ?? byDoi;
+  #reconcileBibliography(sourceValue: string, options: ProjectionOptions = {}): boolean {
     const now = new Date().toISOString();
-    const values = publicationValues(entry);
-    if (existing) {
+    let changed = false;
+    for (const entry of parseBibTeX(sourceValue)) {
+      const projection = projectBibTeXPublication(entry);
+      const byCitation = this.ctx.storage.sql
+        .exec<PublicationRow>("SELECT * FROM publications WHERE citation_key = ? COLLATE NOCASE", projection.citationKey)
+        .toArray()[0];
+      const byDoi = projection.doi
+        ? this.ctx.storage.sql
+            .exec<PublicationRow>("SELECT * FROM publications WHERE doi = ? ORDER BY created_at ASC, id ASC LIMIT 1", projection.doi)
+            .toArray()[0]
+        : undefined;
+      const existing = byCitation ?? byDoi;
+      if (!existing) {
+        const id = crypto.randomUUID();
+        this.ctx.storage.sql.exec(
+          `INSERT INTO publications
+           (id, citation_key, entry_type, title, authors_json, publication_year, venue, doi, url, abstract,
+            metadata_source, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bibtex', ?, ?)`,
+          id,
+          projection.citationKey,
+          projection.type,
+          projection.title,
+          JSON.stringify(projection.authors),
+          projection.year,
+          projection.venue,
+          projection.doi,
+          projection.url,
+          projection.abstract,
+          now,
+          now,
+        );
+        changed = true;
+        continue;
+      }
+
+      const projectionChanged = !bibTeXPublicationProjectionsEqual(publicationProjectionFromRow(existing), projection);
+      const acceptedCrossref =
+        existing.id === options.acceptedCrossref?.publicationId &&
+        bibTeXPublicationProjectionsEqual(projection, options.acceptedCrossref.projection);
+      if (!projectionChanged) {
+        if (acceptedCrossref && existing.metadata_source !== "crossref") {
+          this.ctx.storage.sql.exec(
+            "UPDATE publications SET metadata_source = 'crossref', updated_at = ? WHERE id = ?",
+            nextUpdatedAt(existing.updated_at, now),
+            existing.id,
+          );
+          changed = true;
+        }
+        continue;
+      }
+
       this.ctx.storage.sql.exec(
         `UPDATE publications SET citation_key = ?, entry_type = ?, title = ?, authors_json = ?, publication_year = ?, venue = ?,
-         doi = ?, url = ?, abstract = ?, metadata_source = 'bibtex', updated_at = ? WHERE id = ?`,
-        entry.citationKey,
-        entry.type,
-        values.title,
-        JSON.stringify(values.authors),
-        values.year,
-        values.venue,
-        values.doi,
-        values.url,
-        values.abstract,
-        now,
+         doi = ?, url = ?, abstract = ?, metadata_source = ?, updated_at = ? WHERE id = ?`,
+        projection.citationKey,
+        projection.type,
+        projection.title,
+        JSON.stringify(projection.authors),
+        projection.year,
+        projection.venue,
+        projection.doi,
+        projection.url,
+        projection.abstract,
+        acceptedCrossref ? "crossref" : "bibtex",
+        nextUpdatedAt(existing.updated_at, now),
         existing.id,
       );
-      return this.getPublication(existing.id);
+      changed = true;
     }
-    const id = crypto.randomUUID();
-    this.ctx.storage.sql.exec(
-      `INSERT INTO publications
-       (id, citation_key, entry_type, title, authors_json, publication_year, venue, doi, url, abstract, metadata_source, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bibtex', ?, ?)`,
-      id,
-      entry.citationKey,
-      entry.type,
-      values.title,
-      JSON.stringify(values.authors),
-      values.year,
-      values.venue,
-      values.doi,
-      values.url,
-      values.abstract,
-      now,
-      now,
-    );
-    return this.getPublication(id);
+    return changed;
   }
 
   #workspaceRow(): WorkspaceRow {
@@ -995,19 +1117,25 @@ function claimEvidenceRelation(value: string): ClaimEvidenceRelation {
   return "supports";
 }
 
-function publicationValues(entry: BibTeXEntry): Omit<PublicationEnrichment, "doi"> & { doi: string } {
+function publicationProjectionFromRow(row: PublicationRow): BibTeXPublicationProjection {
   return {
-    title: entry.fields.title ?? "Untitled publication",
-    authors: (entry.fields.author ?? "")
-      .split(/\s+and\s+/iu)
-      .map((author) => author.trim())
-      .filter(Boolean),
-    year: entry.fields.year ?? "",
-    venue: entry.fields.journal ?? entry.fields.booktitle ?? entry.fields.publisher ?? "",
-    doi: normalizeDoi(entry.fields.doi ?? ""),
-    url: entry.fields.url ?? "",
-    abstract: entry.fields.abstract ?? "",
+    citationKey: row.citation_key,
+    type: row.entry_type,
+    title: row.title,
+    authors: parseStringArray(row.authors_json),
+    year: row.publication_year,
+    venue: row.venue,
+    doi: row.doi,
+    url: row.url,
+    abstract: row.abstract,
   };
+}
+
+function nextUpdatedAt(previous: string, candidate: string): string {
+  const previousTime = Date.parse(previous);
+  const candidateTime = Date.parse(candidate);
+  if (!Number.isFinite(previousTime) || !Number.isFinite(candidateTime) || candidateTime > previousTime) return candidate;
+  return new Date(previousTime + 1).toISOString();
 }
 
 function publicationFromRow(row: PublicationRow): PublicationResource {

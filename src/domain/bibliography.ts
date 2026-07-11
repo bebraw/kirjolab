@@ -4,6 +4,18 @@ export interface BibTeXEntry {
   type: string;
 }
 
+export interface BibTeXPublicationProjection {
+  readonly citationKey: string;
+  readonly type: string;
+  readonly title: string;
+  readonly authors: readonly string[];
+  readonly year: string;
+  readonly venue: string;
+  readonly doi: string;
+  readonly url: string;
+  readonly abstract: string;
+}
+
 const preferredFields = [
   "author",
   "title",
@@ -65,6 +77,38 @@ export function normalizeDoi(value: string): string {
     .trim()
     .replace(/^https?:\/\/(?:dx\.)?doi\.org\//iu, "")
     .toLowerCase();
+}
+
+export function projectBibTeXPublication(entry: BibTeXEntry): BibTeXPublicationProjection {
+  return {
+    citationKey: entry.citationKey,
+    type: entry.type,
+    title: entry.fields.title ?? "Untitled publication",
+    authors: (entry.fields.author ?? "")
+      .split(/\s+and\s+/iu)
+      .map((author) => author.trim())
+      .filter(Boolean),
+    year: entry.fields.year ?? "",
+    venue: entry.fields.journal ?? entry.fields.booktitle ?? entry.fields.publisher ?? "",
+    doi: normalizeDoi(entry.fields.doi ?? ""),
+    url: entry.fields.url ?? "",
+    abstract: entry.fields.abstract ?? "",
+  };
+}
+
+export function bibTeXPublicationProjectionsEqual(left: BibTeXPublicationProjection, right: BibTeXPublicationProjection): boolean {
+  return (
+    left.citationKey === right.citationKey &&
+    left.type === right.type &&
+    left.title === right.title &&
+    left.authors.length === right.authors.length &&
+    left.authors.every((author, index) => author === right.authors[index]) &&
+    left.year === right.year &&
+    left.venue === right.venue &&
+    left.doi === right.doi &&
+    left.url === right.url &&
+    left.abstract === right.abstract
+  );
 }
 
 function parseFields(source: string): Record<string, string> {

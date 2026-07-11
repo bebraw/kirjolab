@@ -1,5 +1,32 @@
 import { DurableObject } from "cloudflare:workers";
 import { demoWorkspaceId, type WorkspaceSummary } from "../domain/workspace";
+import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+
+const migrations = [
+  {
+    version: 1,
+    name: "create-workspace-catalog",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE IF NOT EXISTS workspaces (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+      const now = new Date().toISOString();
+      sql.exec(
+        "INSERT OR IGNORE INTO workspaces (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        demoWorkspaceId,
+        "Evidence becomes prose",
+        now,
+        now,
+      );
+      return undefined;
+    },
+  },
+] as const satisfies readonly SQLiteMigration[];
 
 interface WorkspaceCatalogRow extends Record<string, SqlStorageValue> {
   id: string;
@@ -12,22 +39,7 @@ export class WorkspaceCatalog extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      this.ctx.storage.sql.exec(`
-        CREATE TABLE IF NOT EXISTS workspaces (
-          id TEXT PRIMARY KEY,
-          title TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        );
-      `);
-      const now = new Date().toISOString();
-      this.ctx.storage.sql.exec(
-        "INSERT OR IGNORE INTO workspaces (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        demoWorkspaceId,
-        "Evidence becomes prose",
-        now,
-        now,
-      );
+      runSQLiteMigrations(this.ctx.storage, migrations);
     });
   }
 

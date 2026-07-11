@@ -509,6 +509,131 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await expect(page.locator("#source-editor")).not.toHaveValue(isolatedSource);
 });
 
+test("projects the default canonical bibliography into a fresh workspace", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Default bibliography projection");
+  const snapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${workspaceId}`);
+  const publication = snapshot.publications.find((candidate) => candidate.citationKey === "merton1942");
+
+  expect(publication).toMatchObject({
+    type: "article",
+    title: "The Normative Structure of Science",
+    authors: ["Merton, Robert K."],
+    year: "1942",
+    venue: "The Sociology of Science",
+    metadataSource: "bibtex",
+  });
+});
+
+test("projects collaborative bibliography edits into stable working-memory resources", async ({ page, context }) => {
+  const workspaceId = await createWorkspace(page, "Collaborative bibliography projection");
+  const api = `/api/workspaces/${workspaceId}`;
+  const path = `/workspaces/${workspaceId}`;
+  await page.goto(path);
+  const collaborator = await context.newPage();
+  await collaborator.goto(path);
+  await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
+  await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
+  await Promise.all([
+    page.getByText("Bibliography source", { exact: true }).click(),
+    collaborator.getByText("Bibliography source", { exact: true }).click(),
+  ]);
+  await expect(page.locator("#bibliography-editor")).toBeVisible();
+  await expect(collaborator.locator("#bibliography-editor")).toBeVisible();
+
+  const initialBibliography = `@article{collaborative2026,
+  author = {Doe, Jane and Researcher, Alex},
+  title = {Collaborative Reference Projection},
+  year = {2026},
+  journal = {Journal of Shared Evidence},
+  doi = {https://doi.org/10.5555/Collaborative.2026}
+}
+`;
+  await page.locator("#bibliography-editor").fill(initialBibliography);
+  await expect(collaborator.locator("#bibliography-editor")).toHaveValue(initialBibliography);
+  await expect(page.locator("#publication-list")).toContainText("Collaborative Reference Projection");
+  await expect(collaborator.locator("#publication-list")).toContainText("Collaborative Reference Projection");
+  await expect
+    .poll(async () => {
+      const snapshot = await readWorkspaceSnapshot(page, api);
+      return snapshot.publications.find((publication) => publication.citationKey === "collaborative2026");
+    })
+    .toMatchObject({
+      title: "Collaborative Reference Projection",
+      authors: ["Doe, Jane", "Researcher, Alex"],
+      year: "2026",
+      venue: "Journal of Shared Evidence",
+      doi: "10.5555/collaborative.2026",
+      metadataSource: "bibtex",
+    });
+  const initialSnapshot = await readWorkspaceSnapshot(page, api);
+  const initialPublication = initialSnapshot.publications.find((publication) => publication.citationKey === "collaborative2026");
+  if (!initialPublication) throw new Error("Expected a collaboratively projected publication");
+
+  const updatedBibliography = `@article{collaborative2026,
+  author = {Doe, Jane},
+  title = {Revised Collaborative Projection},
+  year = {2027},
+  journal = {Journal of Durable Evidence},
+  doi = {10.5555/collaborative.2026}
+}
+`;
+  await collaborator.locator("#bibliography-editor").fill(updatedBibliography);
+  await expect(page.locator("#bibliography-editor")).toHaveValue(updatedBibliography);
+  await expect(page.locator("#publication-list")).toContainText("Revised Collaborative Projection");
+  await expect(collaborator.locator("#publication-list")).toContainText("Revised Collaborative Projection");
+  await expect
+    .poll(async () => {
+      const snapshot = await readWorkspaceSnapshot(page, api);
+      return snapshot.publications.find((publication) => publication.citationKey === "collaborative2026");
+    })
+    .toMatchObject({
+      id: initialPublication.id,
+      title: "Revised Collaborative Projection",
+      authors: ["Doe, Jane"],
+      year: "2027",
+      venue: "Journal of Durable Evidence",
+      metadataSource: "bibtex",
+    });
+
+  const renamedBibliography = updatedBibliography
+    .replace("collaborative2026,", "renamed2027,")
+    .replace("10.5555/collaborative.2026", "https://doi.org/10.5555/COLLABORATIVE.2026");
+  await page.locator("#bibliography-editor").fill(renamedBibliography);
+  await expect(collaborator.locator("#bibliography-editor")).toHaveValue(renamedBibliography);
+  await expect
+    .poll(async () => {
+      const snapshot = await readWorkspaceSnapshot(page, api);
+      return snapshot.publications.find((publication) => publication.citationKey === "renamed2027");
+    })
+    .toMatchObject({
+      id: initialPublication.id,
+      doi: "10.5555/collaborative.2026",
+      metadataSource: "bibtex",
+    });
+
+  await collaborator.locator("#bibliography-editor").fill("");
+  await expect(page.locator("#bibliography-editor")).toHaveValue("");
+  await expect
+    .poll(async () => {
+      const snapshot = await readWorkspaceSnapshot(page, api);
+      return {
+        bibliography: snapshot.bibliography,
+        publication: snapshot.publications.find((publication) => publication.id === initialPublication.id),
+      };
+    })
+    .toMatchObject({
+      bibliography: "",
+      publication: {
+        citationKey: "renamed2027",
+        title: "Revised Collaborative Projection",
+        metadataSource: "bibtex",
+      },
+    });
+  await expect(page.locator("#publication-list")).toContainText("Revised Collaborative Projection");
+  await expect(collaborator.locator("#publication-list")).toContainText("Revised Collaborative Projection");
+  await collaborator.close();
+});
+
 test("imports BibTeX into stable publication resources", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();

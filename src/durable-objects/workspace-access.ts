@@ -1,5 +1,23 @@
 import { DurableObject } from "cloudflare:workers";
 import type { WorkspaceMember, WorkspaceRole } from "../domain/workspace";
+import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+
+const migrations = [
+  {
+    version: 1,
+    name: "create-workspace-access",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE IF NOT EXISTS members (
+          email TEXT PRIMARY KEY,
+          role TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+          added_at TEXT NOT NULL
+        );
+      `);
+      return undefined;
+    },
+  },
+] as const satisfies readonly SQLiteMigration[];
 
 interface MemberRow extends Record<string, SqlStorageValue> {
   email: string;
@@ -11,13 +29,7 @@ export class WorkspaceAccess extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      this.ctx.storage.sql.exec(`
-        CREATE TABLE IF NOT EXISTS members (
-          email TEXT PRIMARY KEY,
-          role TEXT NOT NULL CHECK (role IN ('owner', 'member')),
-          added_at TEXT NOT NULL
-        );
-      `);
+      runSQLiteMigrations(this.ctx.storage, migrations);
     });
   }
 
