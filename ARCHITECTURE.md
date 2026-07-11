@@ -67,6 +67,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep adding a publication to working memory, citing it in canonical source,
   and connecting evidence to prose as distinct explicit actions. Opening,
   switching, pinning, or closing research context must not imply any of them.
+- Keep DOI metadata preview non-mutating. Refetch and remap external metadata on
+  acceptance, then atomically commit a new canonical BibTeX projection and its
+  explicit PDF association; reuse existing DOI identity and completed links.
 - Persist publication-to-PDF associations as explicit, workspace-scoped,
   many-to-many typed links and expose them as `has-artifact` graph edges. Never
   infer the association from citation keys, DOI values, titles, authors, or
@@ -106,6 +109,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Capture a model operation's source, selection, revision, and evidence as one
   immutable base before awaiting a provider; reject stale candidate creation
   and keep application as a separate revision-validated action.
+- Persist passage-revision candidates as a Yjs-relative target, bounded
+  instruction, typed versioned evidence snapshots, provider/model identity, and
+  replacement text. Never model a selected-passage operation as a proposed
+  whole-document replacement, and splice only the verified target on apply.
 - Keep local-model network access in the browser or a future local companion so a hosted Worker never assumes it can reach localhost.
 - Verify Cloudflare Access JWT signatures and claims inside the Worker for hosted identity; never trust caller-supplied identity headers alone.
 - Authorize every workspace data representation, API operation, PDF stream, and WebSocket upgrade through explicit owner/member state.
