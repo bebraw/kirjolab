@@ -24,10 +24,10 @@ Start the repository server:
 npm run studio:start
 ```
 
-Then open the Studio in the debug Chrome window:
+Then open Kirjolab in the debug Chrome window:
 
 ```text
-http://127.0.0.1:4173
+http://127.0.0.1:8787
 ```
 
 ## Check The Hook
