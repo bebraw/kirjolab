@@ -9,9 +9,10 @@ checking the rendered manuscript or reading its supporting sources. The right
 side of the workspace is therefore a research-context surface, not a preview
 component with an unrelated PDF workflow elsewhere.
 
-The feature implements the interface boundary chosen in ADR-053. It hosts the
-existing semantic preview and PDF evidence reader without changing their
-canonical data, selector, authorization, or rendering contracts.
+The feature implements the interface boundary chosen in ADR-053 and extended by
+ADR-055 and ADR-056. It hosts semantic preview, publication/PDF research
+resources, and grounded-revision review without changing their canonical data,
+selector, authorization, or rendering contracts.
 
 ### Architecture
 
@@ -19,13 +20,16 @@ canonical data, selector, authorization, or rendering contracts.
   on the left and a tabbed research-context pane on the right. A compact
   resource-navigation rail may remain ancillary to those surfaces.
 - The context tab model uses a discriminated target keyed by stable resource
-  identity: the singleton manuscript Preview, a publication UUID, or a PDF
-  UUID. One target can have at most one open tab.
+  identity: the singleton manuscript Preview, a publication UUID, a PDF UUID,
+  or a model-candidate UUID. One target can have at most one open tab.
 - Preview is the initial, permanent, non-closable tab. It retains its own scroll
   position when another context becomes active.
 - Publication and PDF tabs are closable. One unpinned resource tab serves as
   the replaceable follow-context slot; pinned tabs are not replaced by later
   navigation.
+- Candidate tabs follow the same close, pin, replace, dedupe, and local-scroll
+  rules. Their review renders immutable original/replacement text and evidence
+  snapshots, with navigation to current evidence resources when available.
 - Each PDF tab retains its page, within-page scroll, and focused annotation.
   Reopening or focusing an existing PDF target restores that local reading
   context rather than loading a duplicate tab.
@@ -39,10 +43,10 @@ canonical data, selector, authorization, or rendering contracts.
 - Local tab state is scoped to the current workspace. Switching workspaces
   reconciles it against the new authorized snapshot so a stale tab cannot show
   a resource from another workspace.
-- Publications, PDFs, annotations, claims, and typed relationships remain
-  shared durable resources behind the existing workspace authorization
-  boundary. Context navigation addresses them by stable resource ids, never by
-  title, citation key, or filename.
+- Publications, PDFs, annotations, claims, model candidates, and typed
+  relationships remain shared durable resources behind the existing workspace
+  authorization boundary. Context navigation addresses them by stable resource
+  ids, never by title, citation key, or filename.
 - `PublicationPdfLink` is a stable, durable, workspace-scoped many-to-many
   association with a unique publication/PDF pair. It projects `has-artifact`
   from publication to PDF in workspace knowledge navigation.
@@ -154,6 +158,9 @@ canonical data, selector, authorization, or rendering contracts.
       and support many-to-many resource pairs.
 - [x] Add-to-library, cite, and connect-evidence commands are visibly distinct
       and have no implicit cross-effects.
+- [x] Grounded model candidates open as resource-keyed Context tabs with
+      original/replacement regions, provenance links, and explicit apply/reject
+      actions.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
 - [x] Browser coverage proves tab identity, reading-position restoration,
@@ -173,13 +180,16 @@ canonical data, selector, authorization, or rendering contracts.
   between PDFs.
 - Context tabs must be reconciled on workspace changes and must not retain a
   representation that is absent from the newly authorized snapshot.
+- Candidate tabs must be authorized by candidate id and must not persist their
+  local open, pin, active, or scroll state into candidate provenance.
 - PDF rendering remains single-active-page and uses the pinned matching PDF.js
   display and worker assets.
 - PDF selections and highlights remain external to immutable PDF bytes.
 - A rapid sequence of PDF opens must discard stale loading tasks before they
   can replace the active artifact, status, or reading position.
-- Workspace authorization still applies to every publication representation,
-  PDF stream, annotation mutation, and relationship action.
+- Workspace authorization still applies to every publication and candidate
+  representation, PDF stream, annotation mutation, relationship action, and
+  candidate apply/reject action.
 - Publication/PDF links must reference existing resources in the same
   workspace, reject duplicate pairs, and never depend on metadata matching.
 - Removing a publication/PDF link must leave both endpoint resources and all

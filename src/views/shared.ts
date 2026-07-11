@@ -13,7 +13,18 @@ export function htmlResponse(body: string, status = 200, requestUrl?: URL): Resp
 
 function contentSecurityPolicy(requestUrl?: URL): string {
   const webSocketOrigin = requestUrl ? `${requestUrl.protocol === "https:" ? "wss:" : "ws:"}//${requestUrl.host}` : undefined;
-  const connectSources = ["'self'", webSocketOrigin, "http://127.0.0.1:*", "http://localhost:*"].filter(Boolean).join(" ");
+  const connectSources = [
+    "'self'",
+    webSocketOrigin,
+    "http://127.0.0.1:*",
+    "https://127.0.0.1:*",
+    "http://localhost:*",
+    "https://localhost:*",
+    "http://[::1]:*",
+    "https://[::1]:*",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return [
     "default-src 'self'",

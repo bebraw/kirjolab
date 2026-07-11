@@ -273,6 +273,45 @@ export function renderHomePage(
             </aside>
           </div>
         </section>
+
+        <section class="context-panel context-candidate-panel" id="context-candidate-panel" role="tabpanel" aria-label="Model revision context" tabindex="0" hidden>
+          <header class="context-resource-header">
+            <div class="min-w-0">
+              <p class="eyebrow">Grounded revision</p>
+              <h2 class="context-resource-title" id="context-candidate-title">No revision selected</h2>
+              <p class="context-resource-meta" id="context-candidate-meta">Provider, model, and source revision appear here.</p>
+            </div>
+            <button class="button-secondary shrink-0" id="close-candidate-context" type="button" aria-label="Close revision context">Close</button>
+          </header>
+          <div class="context-candidate-scroll" id="context-candidate-scroll">
+            <div class="context-candidate-review">
+              <p class="context-candidate-status" id="context-candidate-status" role="status" aria-live="polite">Choose a revision candidate to inspect its scoped change and evidence.</p>
+              <div class="context-candidate-comparison" aria-label="Passage revision comparison">
+                <section class="context-candidate-passage context-candidate-original" aria-labelledby="context-candidate-before-label">
+                  <h3 class="context-candidate-passage-label" id="context-candidate-before-label">Original passage</h3>
+                  <pre id="context-candidate-before" role="region" aria-labelledby="context-candidate-before-label" tabindex="0">The selected manuscript passage appears here.</pre>
+                </section>
+                <section class="context-candidate-passage context-candidate-proposal" aria-labelledby="context-candidate-after-label">
+                  <h3 class="context-candidate-passage-label" id="context-candidate-after-label">Proposed replacement</h3>
+                  <pre id="context-candidate-after" role="region" aria-labelledby="context-candidate-after-label" tabindex="0">The proposed replacement appears here.</pre>
+                </section>
+              </div>
+              <section class="context-candidate-provenance" aria-labelledby="context-candidate-evidence-heading">
+                <div>
+                  <p class="eyebrow">Grounding and provenance</p>
+                  <h3 class="context-candidate-section-title" id="context-candidate-evidence-heading">Evidence used for this revision</h3>
+                </div>
+                <div class="context-candidate-evidence" id="context-candidate-evidence">
+                  <div class="empty-state">Annotation and claim snapshots appear here with links back to their sources.</div>
+                </div>
+              </section>
+              <div class="context-candidate-actions" aria-label="Revision decision">
+                <button class="button-secondary justify-center" id="context-candidate-reject" type="button" disabled>Reject revision</button>
+                <button class="button-primary justify-center" id="context-candidate-apply" type="button" disabled>Apply replacement</button>
+              </div>
+            </div>
+          </div>
+        </section>
       </section>
 
       <aside class="workbench border-t border-app-line bg-app-canvas px-4 py-5 lg:col-span-3 lg:px-6">
@@ -283,20 +322,23 @@ export function renderHomePage(
                 <p class="eyebrow">Local model lab</p>
                 <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Propose, inspect, apply</h2>
               </div>
-              <p class="max-w-md text-xs leading-5 text-app-text-soft">The browser calls your local OpenAI-compatible endpoint. Kirjolab stores only the resulting review candidate and its provenance.</p>
+              <p class="max-w-lg text-xs leading-5 text-app-text-soft">The selected passage, revision instruction, chosen evidence, and configured model identifier are sent from your browser to the local OpenAI-compatible endpoint. No other manuscript text is sent. The proposed replacement stays separate for review in Context.</p>
             </div>
-            <div class="mt-4 grid gap-3 sm:grid-cols-[1fr_0.65fr_auto]">
+            <div class="model-lab-fields">
               <label class="field-label">Endpoint
                 <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
               </label>
               <label class="field-label">Model
                 <input class="field" id="llm-model" type="text" value="local-model">
               </label>
-              <button class="button-primary self-end justify-center" id="generate-candidate" type="button">Draft revision</button>
+              <label class="field-label model-instruction-field" for="model-instruction">Revision instruction
+                <textarea class="field model-instruction" id="model-instruction" maxlength="4000" rows="2">Improve clarity while preserving the claim and citation syntax.</textarea>
+              </label>
+              <button class="button-primary model-generate-action justify-center" id="generate-candidate" type="button">Draft revision</button>
             </div>
-            <p class="mt-3 text-sm text-app-text-soft" id="model-status">Select manuscript text and at least one annotation to ground the request.</p>
+            <p class="mt-3 text-sm text-app-text-soft" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
             <div class="mt-4" id="candidate-list">
-              <div class="empty-state">Model candidates remain separate from the manuscript until you apply one.</div>
+              <div class="empty-state">Grounded revisions open in Context and remain separate from the manuscript until you apply one.</div>
             </div>
           </section>
         </div>

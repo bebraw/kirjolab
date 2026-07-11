@@ -17,6 +17,7 @@ const operation = {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("OpenAICompatibleBrowserProvider", () => {
@@ -35,7 +36,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
     const [endpoint, init] = fetcher.mock.calls[0] ?? [];
     expect(endpoint).toBeInstanceOf(URL);
     expect(String(endpoint)).toBe("http://127.0.0.1:1234/v1/chat/completions");
-    expect(init).toMatchObject({ method: "POST", credentials: "omit" });
+    expect(init).toMatchObject({ method: "POST", credentials: "omit", redirect: "error" });
     expect(init?.headers).toEqual({ "content-type": "application/json" });
     expect(init?.signal).toBeInstanceOf(AbortSignal);
     const body = JSON.parse(String(init?.body)) as {
@@ -64,11 +65,39 @@ describe("OpenAICompatibleBrowserProvider", () => {
     });
   });
 
+  it("invokes the browser fetch function without binding the provider as its receiver", async () => {
+    let receiver: unknown;
+    const browserFetch = vi.fn(function (this: unknown) {
+      receiver = this;
+      if (this !== undefined) throw new TypeError("Illegal invocation");
+      return Promise.resolve(completionResponse("replacement"));
+    }) as typeof fetch;
+    vi.stubGlobal("fetch", browserFetch);
+    const provider = new OpenAICompatibleBrowserProvider({
+      endpoint: "http://127.0.0.1:1234/v1/chat/completions",
+      providerLabel: "Local test model",
+      model: "test-model",
+    });
+
+    await expect(provider.reviseSelection(operation)).resolves.toMatchObject({ replacement: "replacement" });
+    expect(browserFetch).toHaveBeenCalledOnce();
+    expect(receiver).toBeUndefined();
+  });
+
+  it("requires browser fetch to reject redirects outside the validated endpoint", async () => {
+    const fetcher = vi.fn<typeof fetch>((_input, init) => {
+      if (init?.redirect !== "error") return Promise.resolve(completionResponse("redirect followed"));
+      return Promise.reject(new TypeError("fetch redirected"));
+    });
+
+    await expect(createProvider({ fetcher }).reviseSelection(operation)).rejects.toThrow("fetch redirected");
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
   it.each([
     "http://localhost:1234/v1/chat/completions",
     "https://localhost/v1/chat/completions",
-    "http://127.0.0.2:1234/v1/chat/completions",
-    "http://127.255.255.254/v1/chat/completions",
+    "http://127.0.0.1:1234/v1/chat/completions",
     "http://127.1:1234/v1/chat/completions",
     "http://[::1]:1234/v1/chat/completions",
   ])("accepts the credential-free loopback endpoint %s", async (endpoint) => {
@@ -83,6 +112,8 @@ describe("OpenAICompatibleBrowserProvider", () => {
     "file:///tmp/model",
     "ws://127.0.0.1:1234/model",
     "http://example.com/v1/chat/completions",
+    "http://127.0.0.2:1234/v1/chat/completions",
+    "http://127.255.255.254/v1/chat/completions",
     "http://127.0.0.1.example.com/v1/chat/completions",
     "http://user:secret@127.0.0.1:1234/v1/chat/completions",
   ])("rejects the unsafe endpoint %s", (endpoint) => {
@@ -93,6 +124,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
     const fetcher = vi.fn<typeof fetch>();
     const provider = createProvider({ fetcher });
     expect(() => createProvider({ providerLabel: " " })).toThrow("Provider label is required");
+    expect(() => createProvider({ providerLabel: "x".repeat(257) })).toThrow("Provider label exceeds 256 characters");
     expect(() => createProvider({ model: "x".repeat(257) })).toThrow("Model exceeds 256 characters");
     expect(() => createProvider({ endpoint: `http://localhost/${"x".repeat(2_100)}` })).toThrow("Model endpoint exceeds");
 
@@ -106,8 +138,11 @@ describe("OpenAICompatibleBrowserProvider", () => {
       { ...operation, evidence: Array.from({ length: 13 }, (_, index) => evidence("annotation", String(index))) },
       { ...operation, evidence: [{ kind: "note", id: "n", label: "Note", content: "Text" }] },
       { ...operation, evidence: [{ kind: "annotation", id: "", label: "Note", content: "Text" }] },
+      { ...operation, evidence: [{ kind: "annotation", id: "x".repeat(129), label: "Note", content: "Text" }] },
       { ...operation, evidence: [{ kind: "annotation", id: "a", label: "", content: "Text" }] },
+      { ...operation, evidence: [{ kind: "annotation", id: "a", label: "x".repeat(513), content: "Text" }] },
       { ...operation, evidence: [{ kind: "annotation", id: "a", label: "Note", content: "" }] },
+      { ...operation, evidence: [{ kind: "annotation", id: "a", label: "Note", content: "x".repeat(20_001) }] },
       { ...operation, evidence: [evidence("annotation", "same"), evidence("annotation", "same")] },
       {
         ...operation,
@@ -120,6 +155,27 @@ describe("OpenAICompatibleBrowserProvider", () => {
       await expect(provider.reviseSelection(request as ReviseSelectionRequest)).rejects.toThrow();
     }
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("accepts exact individual bounds and distinguishes equal ids across evidence kinds", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(() => Promise.resolve(completionResponse("replacement")));
+    const bounded = createProvider({ providerLabel: "p".repeat(256), fetcher });
+
+    await expect(
+      bounded.reviseSelection({
+        ...operation,
+        evidence: [{ kind: "annotation", id: "i".repeat(128), label: "l".repeat(512), content: "c".repeat(20_000) }],
+      }),
+    ).resolves.toMatchObject({ replacement: "replacement" });
+    await expect(
+      bounded.reviseSelection({
+        ...operation,
+        evidence: [
+          { kind: "annotation", id: "shared", label: "Annotation", content: "Quoted evidence" },
+          { kind: "claim", id: "shared", label: "Claim", content: "Synthesized evidence" },
+        ],
+      }),
+    ).resolves.toMatchObject({ replacement: "replacement" });
   });
 
   it("rejects non-successful and malformed provider responses", async () => {

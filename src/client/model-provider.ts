@@ -3,7 +3,7 @@ const maximumModelLength = 256;
 const maximumProviderLabelLength = 256;
 const maximumSelectedPassageLength = 20_000;
 const maximumInstructionLength = 4_000;
-const maximumEvidenceItems = 12;
+export const maximumModelEvidenceItems = 12;
 const maximumEvidenceIdLength = 128;
 const maximumEvidenceLabelLength = 512;
 const maximumEvidenceContentLength = 20_000;
@@ -62,7 +62,7 @@ export class OpenAICompatibleBrowserProvider implements ModelProvider {
     this.#endpoint = parseLoopbackEndpoint(options.endpoint);
     this.#providerLabel = boundedRequiredString(options.providerLabel, maximumProviderLabelLength, "Provider label");
     this.#model = boundedRequiredString(options.model, maximumModelLength, "Model");
-    this.#fetch = options.fetcher ?? fetch;
+    this.#fetch = options.fetcher ?? ((input, init) => fetch(input, init));
   }
 
   async reviseSelection(request: ReviseSelectionRequest, options: ModelProviderRequestOptions = {}): Promise<ModelRevision> {
@@ -81,6 +81,7 @@ export class OpenAICompatibleBrowserProvider implements ModelProvider {
       const response = await this.#fetch(this.#endpoint, {
         method: "POST",
         credentials: "omit",
+        redirect: "error",
         headers: { "content-type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
@@ -113,8 +114,8 @@ function validateRequest(request: ReviseSelectionRequest): ReviseSelectionReques
   if (!isRecord(request)) throw new TypeError("Model revision request must be an object");
   boundedRequiredString(request.selectedPassage, maximumSelectedPassageLength, "Selected passage");
   boundedRequiredString(request.instruction, maximumInstructionLength, "Instruction");
-  if (!Array.isArray(request.evidence) || request.evidence.length === 0 || request.evidence.length > maximumEvidenceItems) {
-    throw new RangeError(`Evidence must contain between 1 and ${maximumEvidenceItems} items`);
+  if (!Array.isArray(request.evidence) || request.evidence.length === 0 || request.evidence.length > maximumModelEvidenceItems) {
+    throw new RangeError(`Evidence must contain between 1 and ${maximumModelEvidenceItems} items`);
   }
 
   const identities = new Set<string>();
@@ -179,15 +180,7 @@ function parseLoopbackEndpoint(value: string): URL {
 
 function isLoopbackHostname(hostname: string): boolean {
   const normalized = hostname.toLowerCase();
-  if (normalized === "localhost" || normalized === "[::1]" || normalized === "::1") return true;
-  const octets = normalized.split(".");
-  return octets.length === 4 && octets[0] === "127" && octets.every(isDecimalOctet);
-}
-
-function isDecimalOctet(value: string): boolean {
-  if (!/^\d{1,3}$/u.test(value)) return false;
-  const number = Number(value);
-  return number >= 0 && number <= 255;
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "[::1]" || normalized === "::1";
 }
 
 async function readBoundedJson(response: Response): Promise<unknown> {

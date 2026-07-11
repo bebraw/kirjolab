@@ -25,13 +25,15 @@ provider request, the browser captures one immutable operation base:
 - the current manuscript revision and exact selected passage
 - a bounded researcher instruction
 - one or more typed annotation or claim references with their current version
-- the provider endpoint identity and model name
+- the provider adapter/label and model name; the endpoint remains transient
+  browser configuration
 
 A provider-neutral browser interface will accept that operation request. The
-initial adapter will call an explicitly configured OpenAI-compatible HTTP
-endpoint from the browser, never from the hosted Worker, and will request only
-replacement Markdown for the selected passage. Provider responses are bounded
-and mapped before candidate creation.
+initial adapter will call an explicitly configured, credential-free HTTP(S)
+loopback OpenAI-compatible endpoint from the browser, never from the hosted
+Worker, and will request only replacement Markdown for the selected passage.
+Provider responses are time- and size-bounded and mapped before candidate
+creation.
 
 After the provider returns, `DocumentRoom` will verify that the manuscript
 revision, exact passage, and every evidence version still match. It will create

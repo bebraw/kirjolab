@@ -59,7 +59,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat claims as stable, human-authored propositions; store their evidence and manuscript usage as typed links so editing or deleting a claim never mutates its source annotations or authored prose.
 - Treat authoring and research context as the two primary workspace surfaces.
   Keep a permanent manuscript Preview in a keyboard-operable right-hand tab
-  pane, and address publication and PDF tabs by stable resource identity.
+  pane, and address publication, PDF, and model-candidate tabs by stable
+  resource identity.
 - Keep open context tabs, active and pinned state, preview scroll, and PDF
   reading position local to the browser and scoped to its authorized workspace.
   Never write routine reading navigation into Yjs, Durable Object resources, or
@@ -90,10 +91,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   top-level durable link properties. Conservatively backfill a valid legacy
   offset row once; keep an unconvertible row explicitly stale with null
   relative endpoints under the version 1 selector contract.
-- Materialize candidate application and every other whole-document replacement
-  as the smallest common-prefix/suffix `Y.Text` splice. Never delete and reinsert
-  unchanged prefix or suffix content, because doing so destroys surviving Yjs
-  anchor identities.
+- Materialize every complete-document replacement as the smallest
+  common-prefix/suffix `Y.Text` splice. Never delete and reinsert unchanged
+  prefix or suffix content, because doing so destroys surviving Yjs anchor
+  identities.
 - Keep BibTeX as the canonical authored bibliography and reconcile every
   complete parsed entry into stable publication resources after each
   bibliography-changing Yjs update, including manual edits, imports,
@@ -114,6 +115,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   replacement text. Never model a selected-passage operation as a proposed
   whole-document replacement, and splice only the verified target on apply.
 - Keep local-model network access in the browser or a future local companion so a hosted Worker never assumes it can reach localhost.
+- Keep the initial browser-direct model adapter on credential-free HTTP(S)
+  loopback endpoints, reject redirects, bound its response before JSON parsing,
+  and align the page connection policy with the same IPv4, localhost, and IPv6
+  sources.
 - Verify Cloudflare Access JWT signatures and claims inside the Worker for hosted identity; never trust caller-supplied identity headers alone.
 - Authorize every workspace data representation, API operation, PDF stream, and WebSocket upgrade through explicit owner/member state.
 - Require an exact same-origin `Origin` on every browser WebSocket upgrade in addition to identity and workspace authorization.

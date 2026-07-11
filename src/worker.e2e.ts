@@ -537,14 +537,24 @@ test("keeps annotation and claim passage anchors attached across remote insertio
   await expectEditorSelection(editor, resolvedClaimStart, claimExcerpt);
 
   const candidatePrefix = "A reviewed candidate adds context.\n";
+  const candidateTarget = "## Durable anchors {#durable-anchors}";
+  if (typeof annotation.createdAt !== "string") throw new Error("Expected an annotation version");
   const candidateResponse = await page.request.post(`${api}/candidates`, {
     headers: { origin },
     data: {
-      provider: "test",
+      providerAdapter: "openai-compatible",
+      providerLabel: "Browser-local test provider",
       model: "anchor-preserving-model",
-      sourceRevision: shiftedSnapshot.revision,
-      sourceIds: [annotation.id],
-      proposedSource: `${candidatePrefix}${shiftedSource}`,
+      promptVersion: "revise-selection-v1",
+      instruction: "Add one context line before this heading.",
+      target: {
+        start: 0,
+        end: candidateTarget.length,
+        excerpt: candidateTarget,
+        sourceRevision: shiftedSnapshot.revision,
+      },
+      evidence: [{ kind: "annotation", id: annotation.id, version: annotation.createdAt }],
+      proposedReplacement: `${candidatePrefix}${candidateTarget}`,
     },
   });
   expect(candidateResponse.status()).toBe(201);
@@ -1079,7 +1089,7 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
       contentType: "application/json",
       headers: { "access-control-allow-origin": "*" },
       body: JSON.stringify({
-        choices: [{ message: { content: "## Proposed revision\n\nThis stale draft must not be stored.\n" } }],
+        choices: [{ message: { content: "This stale replacement must not be stored." } }],
       }),
     });
   });
@@ -1126,7 +1136,7 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
   expect((await candidateResponse).status()).toBe(409);
   await expect(page.locator("#model-status")).toContainText(/stale|changed/iu);
   await expect(page.locator("#candidate-list article")).toHaveCount(0);
-  await expect(page.locator("#candidate-list")).toContainText("Model candidates remain separate");
+  await expect(page.locator("#candidate-list")).toContainText("Grounded revisions open in Context");
   const finalSnapshot = await readWorkspaceSnapshot(page, api);
   expect(finalSnapshot.candidates).toEqual([]);
   expect(finalSnapshot.source).toBe(concurrentSource);
@@ -1134,6 +1144,14 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
 });
 
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Evidence to prose loop");
+  const api = `/api/workspaces/${workspaceId}`;
+  const modelRequests: unknown[] = [];
+  const decisionRequests: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith(`${api}/candidates/`) && /\/(?:apply|reject)$/u.test(path)) decisionRequests.push(path);
+  });
   await page.route("http://127.0.0.1:1234/v1/chat/completions", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({
@@ -1146,6 +1164,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
       });
       return;
     }
+    modelRequests.push(route.request().postDataJSON());
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1154,8 +1173,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
         choices: [
           {
             message: {
-              content:
-                "## Evidence becomes prose {#sec-evidence}\n\nGrounded revisions retain a visible path to their evidence :cite[merton1942].\n\n## Return to the source {#sec-source}\n\nThe accepted candidate remains portable Markdown.\n",
+              content: "Grounded revisions retain a visible path to their evidence :cite[merton1942].",
             },
           },
         ],
@@ -1163,13 +1181,11 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
     });
   });
 
-  await page.goto("/");
-  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
-  await page
-    .locator("#source-editor")
-    .fill(
-      "## Evidence becomes prose {#sec-evidence}\n\nKirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942].\n\n## Return to the source {#sec-source}\n\nThe preview resolves a link back to :ref[sec-evidence].\n",
-    );
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible({ timeout: 10_000 });
+  const initialSource =
+    "## Evidence becomes prose {#sec-evidence}\n\nKirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942].\n\n## Return to the source {#sec-source}\n\nThe preview resolves a link back to :ref[sec-evidence].\n";
+  await page.locator("#source-editor").fill(initialSource);
   await expect(page.locator("#revision-badge")).not.toHaveText("r0");
 
   await page.locator("#pdf-upload").setInputFiles({
@@ -1210,7 +1226,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
 
   const annotationCard = page.locator("#annotation-list article").filter({ hasText: "Knowledge grows" }).first();
 
-  const snapshotAfterLink = await page.request.get("/api/workspaces/demo");
+  const snapshotAfterLink = await page.request.get(api);
   expect(snapshotAfterLink.ok()).toBe(true);
   const linkedSnapshot: unknown = await snapshotAfterLink.json();
   expect(isWorkspaceSnapshot(linkedSnapshot) ? linkedSnapshot.links.length : 0).toBeGreaterThan(0);
@@ -1223,13 +1239,27 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(page.locator("#claim-list")).toContainText("Inspectable evidence strengthens scholarly claims.");
   await expect(page.locator("#knowledge-connection-list")).toContainText("supports");
 
-  await page.locator("#claim-list").getByRole("button", { name: "Edit" }).click();
+  await page
+    .locator("#claim-list article")
+    .filter({ hasText: "Inspectable evidence strengthens scholarly claims." })
+    .first()
+    .getByRole("button", { name: "Edit" })
+    .click();
   await page.locator("#claim-text").fill("Inspectable evidence keeps scholarly claims accountable.");
   await page.locator("#claim-note").fill("Revised human synthesis");
   await page.locator("#claim-relation").selectOption("extends");
   await page.locator("#claim-dialog").getByRole("button", { name: "Save claim" }).click();
   const claimCard = page.locator("#claim-list article").filter({ hasText: "keeps scholarly claims accountable" }).first();
   await expect(claimCard).toContainText("extends · Grounding for the revision");
+  const claimResourceId = await claimCard.getAttribute("data-claim-resource-id");
+  if (!claimResourceId) throw new Error("Expected a stable claim resource id");
+
+  await page.getByRole("button", { name: "New claim" }).click();
+  await page.locator("#claim-text").fill("UNSELECTED DECOY EVIDENCE MUST STAY LOCAL.");
+  await page.locator("#claim-note").fill("This claim must not enter the model request.");
+  await page.locator('#claim-evidence-options input[type="checkbox"]').first().check();
+  await page.locator("#claim-dialog").getByRole("button", { name: "Save claim" }).click();
+  await expect(page.locator("#claim-list")).toContainText("UNSELECTED DECOY EVIDENCE MUST STAY LOCAL.");
 
   await editor.evaluate((element: HTMLTextAreaElement) => {
     const start = element.value.indexOf("into cited prose");
@@ -1249,21 +1279,17 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(page.locator("#knowledge-connection-list")).toContainText("annotates");
   await expect(page.locator("#knowledge-connection-list")).toContainText("used-in");
 
-  const searchResponse = await page.request.get("/api/workspaces/demo/search?q=inspectable%20evidence");
+  const searchResponse = await page.request.get(`${api}/search?q=inspectable%20evidence`);
   const searchResults: unknown = await searchResponse.json();
   expect(searchResponse.ok()).toBe(true);
   expect(isKnowledgeSearchResults(searchResults)).toBe(true);
-  const graphResponse = await page.request.get("/api/workspaces/demo/graph");
+  const graphResponse = await page.request.get(`${api}/graph`);
   const graph: unknown = await graphResponse.json();
   expect(graphResponse.ok()).toBe(true);
   expect(isWorkspaceKnowledgeGraph(graph)).toBe(true);
 
   await claimCard.getByRole("button", { name: "Open linked passage" }).click();
   await expect(editor).toBeFocused();
-  page.once("dialog", (dialog) => void dialog.accept());
-  await claimCard.getByRole("button", { name: "Delete" }).click();
-  await expect(page.locator("#claim-count")).toHaveText("0");
-  await expect(page.locator("#annotation-list")).toContainText("Grounding for the revision");
 
   await annotationCard.getByRole("button", { name: "Open evidence" }).click();
   await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
@@ -1275,50 +1301,127 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await annotationCard.getByRole("button", { name: "Open linked passage" }).click();
   await expect(editor).toBeFocused();
 
-  await annotationCard.locator('input[type="checkbox"]').check();
-  await editor.evaluate((element: HTMLTextAreaElement) => {
+  await page.getByRole("checkbox", { name: /Use annotation .*Knowledge grows through inspectable evidence/iu }).check();
+  await page.getByRole("checkbox", { name: /Use claim .*keeps scholarly claims accountable/iu }).check();
+  await expect(page.getByRole("checkbox", { name: /Use claim .*UNSELECTED DECOY/iu })).not.toBeChecked();
+  const selectedPassage = "Kirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942].";
+  await editor.evaluate((element: HTMLTextAreaElement, passage: string) => {
     const start = element.value.indexOf("Kirjolab keeps");
     element.focus();
-    element.setSelectionRange(start, start + "Kirjolab keeps the path from an annotation to a claim and into cited prose visible".length);
-  });
+    element.setSelectionRange(start, start + passage.length);
+  }, selectedPassage);
   await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
   await page.locator("#llm-model").fill("test-local-model");
+  const sourceBeforeDraft = await editor.inputValue();
   await page.getByRole("button", { name: "Draft revision" }).click();
 
-  await expect(page.locator("#model-status")).toHaveText("Candidate ready. Inspect it before applying.");
+  await expect(page.locator("#model-status")).toHaveText("Candidate ready. Review its exact replacement and evidence in Context.");
+  await expect.poll(() => modelRequests.length).toBe(1);
+  const firstPrompt = readProviderPrompt(modelRequests[0]);
+  expect(firstPrompt).toEqual({
+    selectedPassage,
+    instruction: "Improve clarity while preserving the claim and citation syntax.",
+    orderedEvidence: [
+      {
+        order: 1,
+        kind: "annotation",
+        id: expect.any(String),
+        label: "PDF annotation on page 1",
+        content: expect.stringContaining("Knowledge grows through inspectable evidence"),
+      },
+      {
+        order: 2,
+        kind: "claim",
+        id: expect.any(String),
+        label: "Researcher-authored claim",
+        content: expect.stringContaining("Inspectable evidence keeps scholarly claims accountable"),
+      },
+    ],
+  });
+  expect(JSON.stringify(firstPrompt)).not.toContain("UNSELECTED DECOY");
+  expect(JSON.stringify(firstPrompt)).not.toContain("Return to the source");
   await expect(page.locator("#candidate-list")).toContainText("test-local-model · pending");
-  await page.getByRole("button", { name: "Apply candidate" }).first().click();
-  await expect(editor).toHaveValue(/Grounded revisions retain a visible path/);
-  await expect(page.locator("#preview")).toContainText("The accepted candidate remains portable Markdown.");
+  await expect(page.locator("#context-candidate-panel")).toBeVisible();
+  await expect(page.locator("#context-candidate-before")).toContainText("Kirjolab keeps the path");
+  await expect(page.locator("#context-candidate-after")).toHaveText(
+    "Grounded revisions retain a visible path to their evidence :cite[merton1942].",
+  );
+  await expect(page.locator("#context-candidate-evidence")).toContainText("Grounding for the revision");
+  await expect(editor).toHaveValue(sourceBeforeDraft);
+  await page.getByRole("button", { name: "Reject revision" }).dblclick();
+  await expect(page.locator("#context-candidate-status")).toContainText("Rejected");
+  await expect(editor).toHaveValue(sourceBeforeDraft);
+  expect(decisionRequests.filter((path) => path.endsWith("/reject"))).toHaveLength(1);
+  await expect(page.getByRole("button", { name: "Draft revision" })).toBeEnabled();
+  await page.getByRole("button", { name: "Draft revision" }).click();
+  await expect(page.locator("#model-status")).toHaveText("Candidate ready. Review its exact replacement and evidence in Context.");
+  await expect.poll(() => modelRequests.length).toBe(2);
+  expect(readProviderPrompt(modelRequests[1])).toEqual(firstPrompt);
+  await expect(page.locator("#context-candidate-status")).toContainText("Pending review");
+  await expect(editor).toHaveValue(sourceBeforeDraft);
+  await page.getByRole("button", { name: "Apply replacement" }).click();
+  const expectedAppliedSource = sourceBeforeDraft.replace(
+    selectedPassage,
+    "Grounded revisions retain a visible path to their evidence :cite[merton1942].",
+  );
+  await expect(editor).toHaveValue(expectedAppliedSource);
+  await expect(page.locator("#preview")).toContainText("Grounded revisions retain a visible path");
+  await expect(page.locator("#context-candidate-status")).toContainText("Accepted");
+  page.once("dialog", (dialog) => void dialog.accept());
+  await claimCard.getByRole("button", { name: "Delete" }).click();
+  await expect(page.locator(`[data-claim-resource-id="${claimResourceId}"]`)).toHaveCount(0);
+  await expect(page.locator("#annotation-list")).toContainText("Grounding for the revision");
+  await expect(page.locator("#context-candidate-evidence")).toContainText("keeps scholarly claims accountable");
 
-  const currentSnapshot: unknown = await (await page.request.get("/api/workspaces/demo")).json();
+  const currentSnapshot: unknown = await (await page.request.get(api)).json();
   if (!isWorkspaceSnapshot(currentSnapshot)) throw new Error("Expected a workspace snapshot");
-  const staleCandidateResponse = await page.request.post("/api/workspaces/demo/candidates", {
+  const staleEvidence = currentSnapshot.annotations[0];
+  if (!staleEvidence) throw new Error("Expected model evidence for the stale candidate");
+  const staleExcerpt = "## Evidence becomes prose {#sec-evidence}";
+  const staleStart = currentSnapshot.source.indexOf(staleExcerpt);
+  const staleCandidateResponse = await page.request.post(`${api}/candidates`, {
     headers: { origin: "http://127.0.0.1:8788" },
     data: {
-      provider: "test",
+      providerAdapter: "openai-compatible",
+      providerLabel: "Browser-local test provider",
       model: "stale-model",
-      sourceRevision: currentSnapshot.revision,
-      sourceIds: [],
-      proposedSource: "## This candidate must not apply\n",
+      promptVersion: "revise-selection-v1",
+      instruction: "Propose a stale replacement.",
+      target: {
+        start: staleStart,
+        end: staleStart + staleExcerpt.length,
+        excerpt: staleExcerpt,
+        sourceRevision: currentSnapshot.revision,
+      },
+      evidence: [{ kind: "annotation", id: staleEvidence.id, version: staleEvidence.createdAt }],
+      proposedReplacement: "## This candidate must not apply",
     },
   });
   expect(staleCandidateResponse.ok()).toBe(true);
   const staleCandidate: unknown = await staleCandidateResponse.json();
   if (!isRecord(staleCandidate) || typeof staleCandidate.id !== "string") throw new Error("Expected a model candidate");
-  await editor.fill(`${await editor.inputValue()}\nA newer writer edit.\n`);
+  await page.reload();
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  const staleCard = page.locator("#candidate-list article").filter({ hasText: "stale-model · pending" }).first();
+  await staleCard.getByRole("button", { name: "Open review" }).click();
+  await expect(page.locator("#context-candidate-status")).toContainText("Pending review");
+  const sourceBeforeStaleEdit = await editor.inputValue();
+  const sourceAfterStaleEdit = `${sourceBeforeStaleEdit}\nA newer writer edit.\n`;
+  await editor.fill(sourceAfterStaleEdit);
   await expect
     .poll(async () => {
-      const value: unknown = await (await page.request.get("/api/workspaces/demo")).json();
+      const value: unknown = await (await page.request.get(api)).json();
       return isWorkspaceSnapshot(value) ? value.revision : -1;
     })
     .toBeGreaterThan(currentSnapshot.revision);
-  const staleApply = await page.request.post(`/api/workspaces/demo/candidates/${staleCandidate.id}/apply`, {
-    headers: { origin: "http://127.0.0.1:8788" },
-  });
-  expect(staleApply.status()).toBe(409);
+  await expect(page.locator("#context-candidate-status")).toContainText("Pending but stale");
+  await expect(page.getByRole("button", { name: "Apply replacement" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Reject revision" })).toBeEnabled();
+  await page.getByRole("button", { name: "Reject revision" }).click();
+  await expect(page.locator("#context-candidate-status")).toContainText("Rejected");
+  await expect(editor).toHaveValue(sourceAfterStaleEdit);
 
-  const bibliography = await page.request.get("/api/workspaces/demo/export/bibliography.bib");
+  const bibliography = await page.request.get(`${api}/export/bibliography.bib`);
   expect(bibliography.ok()).toBe(true);
   expect(await bibliography.text()).toContain("@article{merton1942");
 });
@@ -1351,6 +1454,15 @@ test("serves stable health and browser assets", async ({ request }) => {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readProviderPrompt(value: unknown): Record<string, unknown> {
+  if (!isRecord(value) || !Array.isArray(value.messages)) throw new Error("Expected an OpenAI-compatible request");
+  const userMessage = value.messages.find((message) => isRecord(message) && message.role === "user");
+  if (!isRecord(userMessage) || typeof userMessage.content !== "string") throw new Error("Expected a provider user message");
+  const prompt: unknown = JSON.parse(userMessage.content);
+  if (!isRecord(prompt)) throw new Error("Expected a structured provider prompt");
+  return prompt;
 }
 
 async function createWorkspace(page: Page, title: string): Promise<string> {

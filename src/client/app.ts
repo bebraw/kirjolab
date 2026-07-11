@@ -9,7 +9,9 @@ import {
 import { parseServerCollaborationMessage } from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
+import { calculateTextSplice } from "../domain/text";
 import {
+  isModelCandidate,
   isWorkspaceSnapshot,
   isWorkspaceMembers,
   isWorkspaceSummaries,
@@ -21,6 +23,8 @@ import {
   type ClaimResource,
   type ManuscriptAnchorResolution,
   type ModelCandidate,
+  type ModelEvidence,
+  type ModelEvidenceReference,
   type PassageLink,
   type PdfResource,
   type PdfSelectionRect,
@@ -30,10 +34,10 @@ import {
   type WorkspaceMember,
   type WorkspaceSummary,
 } from "../domain/workspace";
-import { buildGroundedPrompt, calculateTextSplice, extractCompletion } from "./operations";
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
 import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
+import { maximumModelEvidenceItems, OpenAICompatibleBrowserProvider, type ModelEvidenceItem } from "./model-provider";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -85,6 +89,17 @@ interface Elements {
   contextPublicationPanel: HTMLElement;
   contextPublicationBody: HTMLElement;
   contextPdfPanel: HTMLElement;
+  contextCandidatePanel: HTMLElement;
+  contextCandidateScroll: HTMLElement;
+  contextCandidateTitle: HTMLElement;
+  contextCandidateMeta: HTMLElement;
+  contextCandidateStatus: HTMLElement;
+  contextCandidateBefore: HTMLElement;
+  contextCandidateAfter: HTMLElement;
+  contextCandidateEvidence: HTMLElement;
+  contextCandidateApply: HTMLButtonElement;
+  contextCandidateReject: HTMLButtonElement;
+  closeCandidateContext: HTMLButtonElement;
   contextPublicationTitle: HTMLElement;
   contextPublicationMeta: HTMLElement;
   contextPublicationDetails: HTMLElement;
@@ -157,6 +172,7 @@ interface Elements {
   publicationIntakeLinkedList: HTMLElement;
   llmEndpoint: HTMLInputElement;
   llmModel: HTMLInputElement;
+  modelInstruction: HTMLTextAreaElement;
   generateCandidate: HTMLButtonElement;
   modelStatus: HTMLElement;
   candidateList: HTMLElement;
@@ -203,6 +219,8 @@ class WorkspaceApp {
   #publicationIntakeContextPdfId: string | null = null;
   #publicationIntakeRequest = 0;
   #publicationIntakeBusy = false;
+  #modelEvidenceSelection = new Set<string>();
+  #candidateDecision: { id: string; action: "apply" | "reject" } | null = null;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -245,6 +263,7 @@ class WorkspaceApp {
     for (const eventName of ["focus", "input", "keyup", "select"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
         if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
+        this.#updateModelAvailability();
       });
     }
     this.#source.observe(() => this.#renderPreview());
@@ -279,6 +298,12 @@ class WorkspaceApp {
     this.#elements.publicationIntakeForm.addEventListener("submit", (event) => void this.#previewPublicationIntake(event));
     this.#elements.publicationIntakeAccept.addEventListener("click", () => void this.#acceptPublicationIntake());
     this.#elements.publicationIntakeCancel.addEventListener("click", () => this.#cancelPublicationIntake());
+    this.#elements.contextCandidateApply.addEventListener("click", () => void this.#updateActiveCandidate("apply"));
+    this.#elements.contextCandidateReject.addEventListener("click", () => void this.#updateActiveCandidate("reject"));
+    this.#elements.closeCandidateContext.addEventListener("click", () => this.#closeActiveContext());
+    for (const input of [this.#elements.llmEndpoint, this.#elements.llmModel, this.#elements.modelInstruction]) {
+      input.addEventListener("input", () => this.#updateModelAvailability());
+    }
     this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
   }
 
@@ -313,6 +338,13 @@ class WorkspaceApp {
       claimLinks: snapshot.claimLinks.map((link) => ({
         ...link,
         resolution: resolveManuscriptAnchor(this.#document, link.anchor),
+      })),
+      candidates: snapshot.candidates.map((candidate) => ({
+        ...candidate,
+        target: {
+          ...candidate.target,
+          resolution: resolveManuscriptAnchor(this.#document, candidate.target.anchor),
+        },
       })),
     };
   }
@@ -501,6 +533,8 @@ class WorkspaceApp {
   #setRevision(revision: number): void {
     this.#revision = Math.max(this.#revision, revision);
     this.#updateRevision();
+    const active = this.#activeResourceTab();
+    if (active?.kind === "candidate") this.#renderCandidateContext(active);
   }
 
   #hasStableDocumentBase(): boolean {
@@ -509,10 +543,30 @@ class WorkspaceApp {
 
   #updateModelAvailability(): void {
     const stable = this.#hasStableDocumentBase();
-    this.#elements.generateCandidate.disabled = this.#modelBusy || !stable;
+    this.#elements.generateCandidate.disabled = this.#modelBusy || !stable || !this.#canGenerateCandidate();
     for (const apply of document.querySelectorAll<HTMLButtonElement>('[data-candidate-action="apply"]')) {
-      apply.disabled = !stable;
+      const candidate = this.#snapshot?.candidates.find((item) => item.id === apply.dataset.candidateId);
+      const applicable = candidate ? this.#candidateApplicable(candidate) : false;
+      apply.dataset.candidateApplicable = String(applicable);
+      apply.disabled = this.#candidateDecision !== null || !stable || !applicable;
     }
+  }
+
+  #canGenerateCandidate(): boolean {
+    return (
+      this.#modelEvidenceSelection.size > 0 &&
+      this.#modelEvidenceSelection.size <= maximumModelEvidenceItems &&
+      this.#selectedAuthoringPassage() !== null &&
+      Boolean(this.#elements.modelInstruction.value.trim())
+    );
+  }
+
+  #modelProvider(): OpenAICompatibleBrowserProvider {
+    return new OpenAICompatibleBrowserProvider({
+      endpoint: this.#elements.llmEndpoint.value,
+      providerLabel: "Browser-local OpenAI-compatible",
+      model: this.#elements.llmModel.value,
+    });
   }
 
   #renderPreview(source = this.#source.toString(), bibliography = this.#bibliography.toString()): void {
@@ -565,7 +619,15 @@ class WorkspaceApp {
     this.#contextState = reconcileResearchContext(this.#contextState, {
       publicationIds: new Set(this.#snapshot.publications.map((publication) => publication.id)),
       pdfIds: new Set(this.#snapshot.pdfs.map((pdf) => pdf.id)),
+      candidateIds: new Set(this.#snapshot.candidates.map((candidate) => candidate.id)),
     });
+    const validModelEvidence = new Set([
+      ...this.#snapshot.annotations.map((annotation) => modelEvidenceKey("annotation", annotation.id)),
+      ...this.#snapshot.claims.map((claim) => modelEvidenceKey("claim", claim.id)),
+    ]);
+    for (const key of this.#modelEvidenceSelection) {
+      if (!validModelEvidence.has(key)) this.#modelEvidenceSelection.delete(key);
+    }
     this.#renderPdfs(this.#snapshot.pdfs);
     this.#renderPublications(this.#snapshot.publications);
     this.#renderAnnotations(this.#snapshot.annotations, this.#snapshot.links);
@@ -575,6 +637,7 @@ class WorkspaceApp {
       this.#renderedPdfId ? this.#snapshot.annotations.filter((annotation) => annotation.pdfId === this.#renderedPdfId) : [],
     );
     this.#renderResearchContext();
+    this.#updateModelAvailability();
   }
 
   #renderPdfs(pdfs: PdfResource[]): void {
@@ -648,7 +711,14 @@ class WorkspaceApp {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.dataset.annotationId = annotation.id;
+      checkbox.dataset.modelEvidenceKey = modelEvidenceKey("annotation", annotation.id);
       checkbox.className = "mt-1 accent-app-accent";
+      checkbox.checked = this.#modelEvidenceSelection.has(checkbox.dataset.modelEvidenceKey);
+      checkbox.setAttribute(
+        "aria-label",
+        `Use annotation “${accessibleEvidenceExcerpt(annotation.quote)}” on page ${annotation.page} as model evidence`,
+      );
+      checkbox.addEventListener("change", () => this.#setModelEvidenceSelected(checkbox.dataset.modelEvidenceKey ?? "", checkbox.checked));
       const content = document.createElement("span");
       content.className = "min-w-0";
       content.append(resourceLabel(`Page ${annotation.page}`), resourceTitle(`“${annotation.quote}”`));
@@ -701,8 +771,27 @@ class WorkspaceApp {
       const card = document.createElement("article");
       card.className = "resource-card";
       card.dataset.claimResourceId = claim.id;
+      card.tabIndex = -1;
       const evidence = this.#snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id);
-      card.append(resourceLabel(`Claim · ${evidence.length} ${evidence.length === 1 ? "source" : "sources"}`), resourceTitle(claim.text));
+      const grounding = document.createElement("label");
+      grounding.className = "flex items-start gap-2";
+      const groundingCheckbox = document.createElement("input");
+      groundingCheckbox.type = "checkbox";
+      groundingCheckbox.className = "mt-1 accent-app-accent";
+      groundingCheckbox.dataset.modelEvidenceKey = modelEvidenceKey("claim", claim.id);
+      groundingCheckbox.checked = this.#modelEvidenceSelection.has(groundingCheckbox.dataset.modelEvidenceKey);
+      groundingCheckbox.setAttribute("aria-label", `Use claim “${accessibleEvidenceExcerpt(claim.text)}” as model evidence`);
+      groundingCheckbox.addEventListener("change", () =>
+        this.#setModelEvidenceSelected(groundingCheckbox.dataset.modelEvidenceKey ?? "", groundingCheckbox.checked),
+      );
+      const groundingCopy = document.createElement("span");
+      groundingCopy.className = "min-w-0";
+      groundingCopy.append(
+        resourceLabel(`Claim · ${evidence.length} ${evidence.length === 1 ? "source" : "sources"}`),
+        resourceTitle(claim.text),
+      );
+      grounding.append(groundingCheckbox, groundingCopy);
+      card.append(grounding);
       if (claim.note) {
         const note = document.createElement("p");
         note.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
@@ -839,7 +928,7 @@ class WorkspaceApp {
   #renderCandidates(candidates: ModelCandidate[]): void {
     this.#elements.candidateList.replaceChildren();
     if (candidates.length === 0) {
-      this.#elements.candidateList.append(emptyState("Model candidates remain separate from the manuscript until you apply one."));
+      this.#elements.candidateList.append(emptyState("Grounded revisions open in Context and remain separate until you apply one."));
       return;
     }
     for (const candidate of candidates) {
@@ -852,28 +941,11 @@ class WorkspaceApp {
       stamp.className = "font-sans text-[0.65rem] text-app-text-soft";
       stamp.textContent = `r${candidate.sourceRevision}`;
       top.append(stamp);
-      const details = document.createElement("details");
-      details.className = "mt-3";
-      const summary = document.createElement("summary");
-      summary.className = "cursor-pointer font-sans text-xs font-bold text-app-accent-strong";
-      summary.textContent = "Inspect proposed Markdown";
-      const proposal = document.createElement("pre");
-      proposal.className = "mt-3 max-h-64 overflow-auto whitespace-pre-wrap bg-app-surface p-3 font-mono text-xs leading-5";
-      proposal.textContent = candidate.proposedSource;
-      details.append(summary, proposal);
-      card.append(top, details);
-      if (candidate.status === "pending") {
-        const actions = document.createElement("div");
-        actions.className = "mt-3 flex gap-2";
-        const apply = actionButton("Apply candidate", "button-primary", () => void this.#updateCandidate(candidate.id, "apply"));
-        apply.dataset.candidateAction = "apply";
-        apply.disabled = !this.#hasStableDocumentBase();
-        actions.append(
-          apply,
-          actionButton("Reject", "button-secondary", () => void this.#updateCandidate(candidate.id, "reject")),
-        );
-        card.append(actions);
-      }
+      const excerpt = document.createElement("p");
+      excerpt.className = "mt-2 line-clamp-2 font-mono text-xs leading-5 text-app-text-soft";
+      excerpt.textContent = candidate.target.anchor.exact;
+      const open = actionButton("Open review", "button-secondary mt-3 w-full justify-center", () => this.#openCandidateContext(candidate));
+      card.append(top, excerpt, open);
       this.#elements.candidateList.append(card);
     }
   }
@@ -1009,7 +1081,12 @@ class WorkspaceApp {
     }
     const tab = this.#contextState.tabs.find((item) => item.key === key);
     if (!tab) return;
-    const scrollTop = tab.kind === "publication" ? this.#elements.contextPublicationBody.scrollTop : this.#elements.paperReader.scrollTop;
+    const scrollTop =
+      tab.kind === "publication"
+        ? this.#elements.contextPublicationBody.scrollTop
+        : tab.kind === "candidate"
+          ? this.#elements.contextCandidateScroll.scrollTop
+          : this.#elements.paperReader.scrollTop;
     this.#contextState = setResearchTabScroll(this.#contextState, key, scrollTop);
     if (tab.kind === "pdf" && tab.id === this.#renderedPdfId) {
       this.#contextState = setPdfResearchLocation(this.#contextState, key, {
@@ -1033,6 +1110,14 @@ class WorkspaceApp {
     this.#renderResearchContext();
     this.#showWorkspaceSurface("context");
     this.#focusContextTab(researchResourceKey({ kind: "publication", id: publication.id }));
+  }
+
+  #openCandidateContext(candidate: ModelCandidate): void {
+    this.#captureActiveContextState();
+    this.#contextState = openResearchResource(this.#contextState, { kind: "candidate", id: candidate.id });
+    this.#renderResearchContext();
+    this.#showWorkspaceSurface("context");
+    this.#focusContextTab(researchResourceKey({ kind: "candidate", id: candidate.id }));
   }
 
   #closeActiveContext(): void {
@@ -1061,6 +1146,7 @@ class WorkspaceApp {
     this.#elements.contextPreviewPanel.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
     this.#elements.contextPdfPanel.hidden = activeTab?.kind !== "pdf";
+    this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.pinActiveContext.disabled = !activeTab;
     this.#elements.closeActiveContext.disabled = !activeTab;
     this.#elements.pinActiveContext.textContent = activeTab?.pinned ? "Unpin" : "Pin";
@@ -1073,7 +1159,12 @@ class WorkspaceApp {
       activeTab ? `Close ${this.#contextTabTitle(activeTab)}` : "Close active context",
     );
     if (activeTab) {
-      const panel = activeTab.kind === "publication" ? this.#elements.contextPublicationPanel : this.#elements.contextPdfPanel;
+      const panel =
+        activeTab.kind === "publication"
+          ? this.#elements.contextPublicationPanel
+          : activeTab.kind === "candidate"
+            ? this.#elements.contextCandidatePanel
+            : this.#elements.contextPdfPanel;
       panel.setAttribute("aria-labelledby", this.#contextTabId(activeTab));
       panel.removeAttribute("aria-label");
     }
@@ -1087,6 +1178,11 @@ class WorkspaceApp {
     if (activeTab.kind === "publication") {
       this.#renderPublicationContext(activeTab);
       this.#elements.contextPublicationBody.scrollTop = activeTab.scrollTop;
+      return;
+    }
+    if (activeTab.kind === "candidate") {
+      this.#renderCandidateContext(activeTab);
+      this.#elements.contextCandidateScroll.scrollTop = activeTab.scrollTop;
       return;
     }
     this.#renderPublicationIntake(activeTab.id);
@@ -1243,13 +1339,88 @@ class WorkspaceApp {
     button.className = "context-tab";
     button.id = this.#contextTabId(tab);
     button.setAttribute("role", "tab");
-    button.setAttribute("aria-controls", tab.kind === "publication" ? "context-publication-panel" : "context-pdf-panel");
+    button.setAttribute(
+      "aria-controls",
+      tab.kind === "publication" ? "context-publication-panel" : tab.kind === "candidate" ? "context-candidate-panel" : "context-pdf-panel",
+    );
     button.setAttribute("aria-selected", String(this.#contextState.activeKey === tab.key));
     button.tabIndex = this.#contextState.activeKey === tab.key ? 0 : -1;
     button.title = title;
     button.textContent = title;
     button.addEventListener("click", () => this.#activateContext(tab.key));
     return button;
+  }
+
+  #renderCandidateContext(tab: ResearchResourceTab): void {
+    if (tab.kind !== "candidate" || !this.#snapshot) return;
+    const candidate = this.#snapshot.candidates.find((item) => item.id === tab.id);
+    if (!candidate) return;
+
+    this.#elements.contextCandidateTitle.textContent = "Revise selected passage";
+    this.#elements.contextCandidateMeta.textContent = [
+      candidate.model,
+      candidate.providerLabel,
+      candidate.promptVersion,
+      `source r${candidate.sourceRevision}`,
+    ].join(" · ");
+    this.#elements.contextCandidateBefore.textContent = candidate.target.anchor.exact;
+    this.#elements.contextCandidateAfter.textContent = candidate.proposedReplacement;
+    const applicable = this.#candidateApplicable(candidate);
+    this.#elements.contextCandidateStatus.textContent =
+      candidate.status === "pending"
+        ? applicable
+          ? "Pending review. Applying changes only this exact selected passage."
+          : "Pending but stale. Reject it or generate a new revision from current prose and evidence."
+        : candidate.status === "accepted"
+          ? "Accepted. The replacement was applied to canonical Markdown."
+          : "Rejected. Canonical Markdown was not changed by this candidate.";
+
+    this.#elements.contextCandidateEvidence.replaceChildren();
+    for (const evidence of candidate.evidence) this.#elements.contextCandidateEvidence.append(this.#renderCandidateEvidence(evidence));
+
+    const pending = candidate.status === "pending";
+    const currentDecision = this.#candidateDecision?.id === candidate.id ? this.#candidateDecision : null;
+    const decisionBusy = this.#candidateDecision !== null;
+    this.#elements.contextCandidateApply.dataset.candidateId = candidate.id;
+    this.#elements.contextCandidateApply.dataset.candidateAction = "apply";
+    this.#elements.contextCandidateApply.dataset.candidateApplicable = String(applicable);
+    this.#elements.contextCandidateApply.textContent = currentDecision?.action === "apply" ? "Applying…" : "Apply replacement";
+    this.#elements.contextCandidateApply.disabled = decisionBusy || !pending || !applicable || !this.#hasStableDocumentBase();
+    this.#elements.contextCandidateReject.dataset.candidateId = candidate.id;
+    this.#elements.contextCandidateReject.textContent = currentDecision?.action === "reject" ? "Rejecting…" : "Reject revision";
+    this.#elements.contextCandidateReject.disabled = decisionBusy || !pending;
+  }
+
+  #renderCandidateEvidence(evidence: ModelEvidence): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    const title = evidence.kind === "annotation" ? `Annotation · page ${evidence.page}` : "Claim";
+    const content = evidence.kind === "annotation" ? evidence.quote : evidence.text;
+    card.append(resourceLabel(title), resourceTitle(content));
+    const note = document.createElement("p");
+    note.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
+    note.textContent = evidence.kind === "annotation" ? evidence.comment || "No researcher note." : evidence.note || "No working note.";
+    card.append(note);
+
+    if (evidence.kind === "annotation") {
+      const pdf = this.#snapshot?.pdfs.find((item) => item.id === evidence.pdfId);
+      const annotation = this.#snapshot?.annotations.find((item) => item.id === evidence.id);
+      if (pdf && annotation) {
+        card.append(actionButton("Open evidence", "button-secondary mt-3", () => void this.#showPaper(pdf, evidence.page, evidence.id)));
+      }
+    } else if (this.#snapshot?.claims.some((claim) => claim.id === evidence.id)) {
+      card.append(actionButton("Open claim", "button-secondary mt-3", () => this.#focusClaimCard(evidence.id)));
+    }
+    return card;
+  }
+
+  #candidateApplicable(candidate: ModelCandidate): boolean {
+    return (
+      candidate.status === "pending" &&
+      candidate.sourceRevision === this.#revision &&
+      candidate.target.resolution.status === "resolved" &&
+      candidate.target.resolution.exactMatch
+    );
   }
 
   #toggleActiveContextPin(): void {
@@ -1277,7 +1448,9 @@ class WorkspaceApp {
     if (tab.kind === "publication") {
       return this.#snapshot?.publications.find((publication) => publication.id === tab.id)?.title ?? "Reference";
     }
-    return this.#snapshot?.pdfs.find((pdf) => pdf.id === tab.id)?.name ?? "Paper";
+    if (tab.kind === "pdf") return this.#snapshot?.pdfs.find((pdf) => pdf.id === tab.id)?.name ?? "Paper";
+    const candidate = this.#snapshot?.candidates.find((item) => item.id === tab.id);
+    return candidate ? `Revision · ${candidate.model} · ${candidate.id.slice(0, 4)}` : "Revision";
   }
 
   #activeResourceTab(): ResearchResourceTab | undefined {
@@ -1619,66 +1792,98 @@ class WorkspaceApp {
     return excerpt.trim() ? { start: start.index, end: end.index, excerpt } : null;
   }
 
+  #setModelEvidenceSelected(key: string, selected: boolean): void {
+    if (!/^(?:annotation|claim):[^:]+$/u.test(key)) return;
+    if (selected) this.#modelEvidenceSelection.add(key);
+    else this.#modelEvidenceSelection.delete(key);
+    this.#elements.modelStatus.textContent =
+      this.#modelEvidenceSelection.size > maximumModelEvidenceItems
+        ? `Choose no more than ${maximumModelEvidenceItems} evidence resources.`
+        : `${this.#modelEvidenceSelection.size} ${this.#modelEvidenceSelection.size === 1 ? "resource" : "resources"} selected for grounding.`;
+    this.#updateModelAvailability();
+  }
+
+  #modelEvidence(): { items: ModelEvidenceItem[]; references: ModelEvidenceReference[] } {
+    if (!this.#snapshot) return { items: [], references: [] };
+    const items: ModelEvidenceItem[] = [];
+    const references: ModelEvidenceReference[] = [];
+    for (const key of this.#modelEvidenceSelection) {
+      const [kind, id] = parseModelEvidenceKey(key);
+      if (kind === "annotation") {
+        const annotation = this.#snapshot.annotations.find((item) => item.id === id);
+        if (!annotation) continue;
+        references.push({ kind, id, version: annotation.createdAt });
+        items.push({
+          kind,
+          id,
+          label: `PDF annotation on page ${annotation.page}`,
+          content: [
+            `Quote: ${annotation.quote}`,
+            annotation.prefix ? `Context before: ${annotation.prefix}` : "",
+            annotation.suffix ? `Context after: ${annotation.suffix}` : "",
+            annotation.comment ? `Researcher note: ${annotation.comment}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        });
+        continue;
+      }
+      const claim = this.#snapshot.claims.find((item) => item.id === id);
+      if (!claim) continue;
+      references.push({ kind, id, version: claim.updatedAt });
+      items.push({
+        kind,
+        id,
+        label: "Researcher-authored claim",
+        content: [`Claim: ${claim.text}`, claim.note ? `Working note: ${claim.note}` : ""].filter(Boolean).join("\n"),
+      });
+    }
+    return { items, references };
+  }
+
   async #generateCandidate(): Promise<void> {
     if (!this.#snapshot || !this.#hasStableDocumentBase()) {
       this.#elements.modelStatus.textContent = "Wait for the manuscript to finish synchronizing before using the model.";
       return;
     }
 
-    const source = this.#source.toString();
-    const selectionStart = this.#elements.source.selectionStart;
-    const selectionEnd = this.#elements.source.selectionEnd;
-    const selected = source.slice(selectionStart, selectionEnd);
-    const annotationIds = Array.from(document.querySelectorAll<HTMLInputElement>("[data-annotation-id]:checked")).map(
-      (input) => input.dataset.annotationId ?? "",
-    );
-    const annotations = this.#snapshot.annotations.filter((annotation) => annotationIds.includes(annotation.id));
-    if (!selected.trim() || annotations.length === 0) {
-      this.#elements.modelStatus.textContent = "Select manuscript text and at least one annotation first.";
+    const passage = this.#selectedAuthoringPassage();
+    const evidence = this.#modelEvidence();
+    if (!passage || evidence.items.length === 0) {
+      this.#elements.modelStatus.textContent = "Select manuscript text and at least one annotation or claim first.";
       return;
     }
-
-    const endpoint = this.#elements.llmEndpoint.value;
-    let provider: string;
+    let provider: OpenAICompatibleBrowserProvider;
     try {
-      provider = new URL(endpoint).origin;
-    } catch {
-      this.#elements.modelStatus.textContent = "Enter a valid local model endpoint.";
+      provider = this.#modelProvider();
+    } catch (error) {
+      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
       return;
     }
-    const model = this.#elements.llmModel.value;
     const sourceRevision = this.#revision;
-    const prompt = buildGroundedPrompt(source, selected, annotations);
+    const instruction = this.#elements.modelInstruction.value;
     this.#modelBusy = true;
     this.#updateModelAvailability();
     this.#elements.modelStatus.textContent = "Asking the local model for a grounded candidate…";
     try {
-      const llmResponse = await fetch(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          model,
-          temperature: 0.2,
-          messages: [
-            { role: "system", content: "You are a careful scientific editor. Use only supplied evidence and preserve source syntax." },
-            { role: "user", content: prompt },
-          ],
-        }),
-      });
-      await expectOk(llmResponse);
-      const result: unknown = await llmResponse.json();
-      const proposedSource = extractCompletion(result);
-      if (!proposedSource) throw new Error("The local model returned no text candidate");
+      const revision = await provider.reviseSelection({ selectedPassage: passage.excerpt, instruction, evidence: evidence.items });
       const response = await jsonFetch(`${apiBase}/candidates`, {
-        provider,
-        model,
-        sourceRevision,
-        sourceIds: annotationIds,
-        proposedSource,
+        providerAdapter: "openai-compatible",
+        providerLabel: revision.providerLabel,
+        model: revision.model,
+        promptVersion: "revise-selection-v1",
+        instruction,
+        target: { ...passage, sourceRevision },
+        evidence: evidence.references,
+        proposedReplacement: revision.replacement,
       });
       await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isModelCandidate(value)) throw new Error("Candidate endpoint returned an invalid targeted revision");
       await this.#resourceRefresh.request();
-      this.#elements.modelStatus.textContent = "Candidate ready. Inspect it before applying.";
+      const candidate = this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value;
+      this.#openCandidateContext(candidate);
+      this.#elements.modelStatus.textContent = "Candidate ready. Review its exact replacement and evidence in Context.";
     } catch (error) {
       this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Local model request failed";
     } finally {
@@ -1688,14 +1893,39 @@ class WorkspaceApp {
   }
 
   async #updateCandidate(candidateId: string, action: "apply" | "reject"): Promise<void> {
+    if (this.#candidateDecision) return;
     if (action === "apply" && !this.#hasStableDocumentBase()) {
       this.#showToast("Wait for the manuscript to finish synchronizing before applying a candidate.");
       return;
     }
-    const response = await fetch(`${apiBase}/candidates/${candidateId}/${action}`, { method: "POST" });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast(action === "apply" ? "Candidate applied to canonical Markdown." : "Candidate rejected; manuscript unchanged.");
+    this.#candidateDecision = { id: candidateId, action };
+    this.#renderResearchContext(false);
+    this.#updateModelAvailability();
+    let failure: string | null = null;
+    try {
+      const response = await fetch(`${apiBase}/candidates/${candidateId}/${action}`, { method: "POST" });
+      await expectOk(response);
+      await this.#resourceRefresh.request();
+      this.#showToast(action === "apply" ? "Candidate applied to canonical Markdown." : "Candidate rejected; manuscript unchanged.");
+    } catch (error) {
+      failure = error instanceof Error ? error.message : "Candidate decision failed";
+      await this.#resourceRefresh.request().catch(() => undefined);
+      this.#showToast(failure);
+    } finally {
+      this.#candidateDecision = null;
+      this.#renderResearchContext(false);
+      this.#updateModelAvailability();
+      const current = this.#snapshot?.candidates.find((candidate) => candidate.id === candidateId);
+      if (failure && current?.status === "pending" && this.#activeResourceTab()?.id === candidateId) {
+        this.#elements.contextCandidateStatus.textContent = `Could not ${action === "apply" ? "apply" : "reject"} revision: ${failure}`;
+      }
+    }
+  }
+
+  async #updateActiveCandidate(action: "apply" | "reject"): Promise<void> {
+    const tab = this.#activeResourceTab();
+    if (tab?.kind !== "candidate") return;
+    await this.#updateCandidate(tab.id, action);
   }
 
   async #showPaper(pdf: PdfResource, page?: number, focusAnnotationId?: string): Promise<void> {
@@ -1727,6 +1957,12 @@ class WorkspaceApp {
 
   #focusAnnotationCard(annotationId: string): void {
     const card = document.querySelector<HTMLElement>(`[data-annotation-resource-id="${CSS.escape(annotationId)}"]`);
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  #focusClaimCard(claimId: string): void {
+    const card = document.querySelector<HTMLElement>(`[data-claim-resource-id="${CSS.escape(claimId)}"]`);
+    card?.focus({ preventScroll: true });
     card?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
@@ -1828,6 +2064,17 @@ function collectElements(): Elements {
     contextPublicationPanel: requiredElement("context-publication-panel", HTMLElement),
     contextPublicationBody: requiredElement("context-publication-body", HTMLElement),
     contextPdfPanel: requiredElement("context-pdf-panel", HTMLElement),
+    contextCandidatePanel: requiredElement("context-candidate-panel", HTMLElement),
+    contextCandidateScroll: requiredElement("context-candidate-scroll", HTMLElement),
+    contextCandidateTitle: requiredElement("context-candidate-title", HTMLElement),
+    contextCandidateMeta: requiredElement("context-candidate-meta", HTMLElement),
+    contextCandidateStatus: requiredElement("context-candidate-status", HTMLElement),
+    contextCandidateBefore: requiredElement("context-candidate-before", HTMLElement),
+    contextCandidateAfter: requiredElement("context-candidate-after", HTMLElement),
+    contextCandidateEvidence: requiredElement("context-candidate-evidence", HTMLElement),
+    contextCandidateApply: requiredElement("context-candidate-apply", HTMLButtonElement),
+    contextCandidateReject: requiredElement("context-candidate-reject", HTMLButtonElement),
+    closeCandidateContext: requiredElement("close-candidate-context", HTMLButtonElement),
     contextPublicationTitle: requiredElement("context-publication-title", HTMLElement),
     contextPublicationMeta: requiredElement("context-publication-meta", HTMLElement),
     contextPublicationDetails: requiredElement("context-publication-details", HTMLElement),
@@ -1900,6 +2147,7 @@ function collectElements(): Elements {
     publicationIntakeLinkedList: requiredElement("publication-intake-linked-list", HTMLElement),
     llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
     llmModel: requiredElement("llm-model", HTMLInputElement),
+    modelInstruction: requiredElement("model-instruction", HTMLTextAreaElement),
     generateCandidate: requiredElement("generate-candidate", HTMLButtonElement),
     modelStatus: requiredElement("model-status", HTMLElement),
     candidateList: requiredElement("candidate-list", HTMLElement),
@@ -1975,6 +2223,19 @@ function formatBytes(value: number): string {
 function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
   if (value === "contradicts" || value === "extends") return value;
   return "supports";
+}
+
+function modelEvidenceKey(kind: "annotation" | "claim", id: string): string {
+  return `${kind}:${id}`;
+}
+
+function parseModelEvidenceKey(value: string): ["annotation" | "claim", string] {
+  return value.startsWith("claim:") ? ["claim", value.slice("claim:".length)] : ["annotation", value.slice("annotation:".length)];
+}
+
+function accessibleEvidenceExcerpt(value: string): string {
+  const compact = value.replace(/\s+/gu, " ").trim();
+  return compact.length <= 80 ? compact : `${compact.slice(0, 77)}…`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

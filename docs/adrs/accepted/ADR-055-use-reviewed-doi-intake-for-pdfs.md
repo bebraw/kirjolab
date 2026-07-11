@@ -28,10 +28,13 @@ The first slice accepts a DOI or DOI URL only. It resolves the DOI through
 Crossref and returns a bounded, non-mutating preview with an editable,
 collision-aware citation-key suggestion.
 
-Accepting **Add to library & connect** will send the DOI and reviewed citation
-key to the Worker. The Worker will fetch and map Crossref metadata again so a
-browser cannot relabel arbitrary metadata as Crossref-derived. The document
-room will then perform one synchronous transaction that:
+Accepting **Add to library & connect** will send the DOI, reviewed citation key,
+and preview fingerprint to the Worker. The Worker will fetch and map Crossref
+metadata again so a browser cannot relabel arbitrary metadata as
+Crossref-derived. If the reviewed mapping's fingerprint has changed,
+acceptance fails without mutation so the researcher can review the new
+metadata. Otherwise, the document room performs one synchronous transaction
+that:
 
 - reuses an existing publication with the normalized DOI, when present
 - otherwise minimally splices one canonical BibTeX entry into Yjs and projects

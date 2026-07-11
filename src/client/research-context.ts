@@ -1,6 +1,6 @@
 export const RESEARCH_PREVIEW_KEY = "preview" as const;
 
-export type ResearchResourceKind = "publication" | "pdf";
+export type ResearchResourceKind = "publication" | "pdf" | "candidate";
 export type ResearchResourceKey = `${ResearchResourceKind}:${string}`;
 export type ResearchContextKey = typeof RESEARCH_PREVIEW_KEY | ResearchResourceKey;
 
@@ -26,13 +26,17 @@ export interface PublicationResearchTab extends ResourceResearchTab {
   readonly kind: "publication";
 }
 
+export interface CandidateResearchTab extends ResourceResearchTab {
+  readonly kind: "candidate";
+}
+
 export interface PdfResearchTab extends ResourceResearchTab {
   readonly kind: "pdf";
   readonly page: number;
   readonly focusedAnnotationId: string | null;
 }
 
-export type ResearchResourceTab = PublicationResearchTab | PdfResearchTab;
+export type ResearchResourceTab = PublicationResearchTab | PdfResearchTab | CandidateResearchTab;
 export type ResearchContextTab = PreviewResearchTab | ResearchResourceTab;
 
 export interface ResearchContextState {
@@ -44,6 +48,7 @@ export interface ResearchContextState {
 export interface ResearchContextAuthorization {
   readonly publicationIds: ReadonlySet<string>;
   readonly pdfIds: ReadonlySet<string>;
+  readonly candidateIds: ReadonlySet<string>;
 }
 
 export interface PdfResearchLocation {
@@ -153,7 +158,8 @@ export function reconcileResearchContext(state: ResearchContextState, authorizat
 
 function createResourceTab(target: ResearchResourceTarget, key: ResearchResourceKey): ResearchResourceTab {
   const common = { id: target.id, key, pinned: false, scrollTop: 0 };
-  return target.kind === "pdf" ? { ...common, kind: "pdf", page: 1, focusedAnnotationId: null } : { ...common, kind: "publication" };
+  if (target.kind === "pdf") return { ...common, kind: "pdf", page: 1, focusedAnnotationId: null };
+  return target.kind === "publication" ? { ...common, kind: "publication" } : { ...common, kind: "candidate" };
 }
 
 function replaceTab(tabs: readonly ResearchContextTab[], index: number, replacement: ResearchContextTab): readonly ResearchContextTab[] {
@@ -170,5 +176,6 @@ function normalizePage(page: number): number {
 
 function isAuthorized(tab: ResearchContextTab, authorization: ResearchContextAuthorization): boolean {
   if (tab.kind === "preview") return true;
-  return tab.kind === "publication" ? authorization.publicationIds.has(tab.id) : authorization.pdfIds.has(tab.id);
+  if (tab.kind === "publication") return authorization.publicationIds.has(tab.id);
+  return tab.kind === "pdf" ? authorization.pdfIds.has(tab.id) : authorization.candidateIds.has(tab.id);
 }

@@ -19,6 +19,7 @@ describe("research context", () => {
       tabs: [{ kind: "preview", key: RESEARCH_PREVIEW_KEY, scrollTop: 0 }],
     });
     expect(researchResourceKey({ kind: "publication", id: "pub:1" })).toBe("publication:pub:1");
+    expect(researchResourceKey({ kind: "candidate", id: "candidate:1" })).toBe("candidate:candidate:1");
   });
 
   it("uses one replaceable resource slot until a tab is pinned", () => {
@@ -55,6 +56,58 @@ describe("research context", () => {
 
     expect(state.tabs.map((tab) => tab.key)).toEqual(["preview", "pdf:pdf-1", "publication:publication-1", "pdf:pdf-2"]);
     expect(state.tabs.filter((tab) => tab.kind !== "preview" && !tab.pinned)).toHaveLength(1);
+  });
+
+  it("opens, deduplicates, scrolls, and pins candidate tabs like ordinary resources", () => {
+    const initial = createResearchContext();
+    const opened = openResearchResource(initial, { kind: "candidate", id: "candidate-1" });
+    const duplicate = openResearchResource(opened, { kind: "candidate", id: "candidate-1" });
+    const scrolled = setResearchTabScroll(opened, "candidate:candidate-1", 72.5);
+    const pinned = setResearchTabPinned(scrolled, "candidate:candidate-1", true);
+    const followed = openResearchResource(pinned, { kind: "publication", id: "publication-1" });
+    const reopened = openResearchResource(followed, { kind: "candidate", id: "candidate-1" });
+
+    expect(opened).toEqual({
+      activeKey: "candidate:candidate-1",
+      tabs: [
+        initial.tabs[0],
+        {
+          kind: "candidate",
+          id: "candidate-1",
+          key: "candidate:candidate-1",
+          pinned: false,
+          scrollTop: 0,
+        },
+      ],
+    });
+    expect(duplicate).toBe(opened);
+    expect(followed.tabs.map((tab) => tab.key)).toEqual(["preview", "candidate:candidate-1", "publication:publication-1"]);
+    expect(reopened.tabs.find((tab) => tab.key === "candidate:candidate-1")).toMatchObject({ pinned: true, scrollTop: 72.5 });
+  });
+
+  it("keeps resource kinds distinct and lets candidate tabs own the replaceable slot", () => {
+    let state = openResearchResource(createResearchContext(), { kind: "pdf", id: "shared" });
+    state = setResearchTabPinned(state, "pdf:shared", true);
+    state = openResearchResource(state, { kind: "publication", id: "shared" });
+    state = setResearchTabPinned(state, "publication:shared", true);
+    state = openResearchResource(state, { kind: "candidate", id: "shared" });
+
+    expect(state.tabs.map((tab) => tab.key)).toEqual(["preview", "pdf:shared", "publication:shared", "candidate:shared"]);
+
+    const replaced = openResearchResource(state, { kind: "publication", id: "replacement" });
+    expect(replaced.tabs.map((tab) => tab.key)).toEqual(["preview", "pdf:shared", "publication:shared", "publication:replacement"]);
+    expect(replaced.tabs.some((tab) => tab.key === "candidate:shared")).toBe(false);
+  });
+
+  it("closes candidate tabs using the same previous-neighbor rule", () => {
+    let state = openResearchResource(createResearchContext(), { kind: "pdf", id: "first" });
+    state = setResearchTabPinned(state, "pdf:first", true);
+    state = openResearchResource(state, { kind: "candidate", id: "candidate-1" });
+
+    const closed = closeResearchTab(state, "candidate:candidate-1");
+
+    expect(closed.activeKey).toBe("pdf:first");
+    expect(closed.tabs.map((tab) => tab.key)).toEqual(["preview", "pdf:first"]);
   });
 
   it("activates an existing tab without resetting its reading state", () => {
@@ -168,6 +221,7 @@ describe("research context", () => {
     const reconciled = reconcileResearchContext(state, {
       publicationIds: new Set(["allowed-publication"]),
       pdfIds: new Set(),
+      candidateIds: new Set(),
     });
 
     expect(reconciled.activeKey).toBe("preview");
@@ -176,6 +230,7 @@ describe("research context", () => {
       reconcileResearchContext(reconciled, {
         publicationIds: new Set(["allowed-publication"]),
         pdfIds: new Set(),
+        candidateIds: new Set(),
       }),
     ).toBe(reconciled);
   });
@@ -189,9 +244,33 @@ describe("research context", () => {
     const reconciled = reconcileResearchContext(state, {
       publicationIds: new Set(),
       pdfIds: new Set(["allowed-pdf"]),
+      candidateIds: new Set(),
     });
 
     expect(reconciled.activeKey).toBe("pdf:allowed-pdf");
     expect(reconciled.tabs.map((tab) => tab.key)).toEqual(["preview", "pdf:allowed-pdf"]);
+  });
+
+  it("reconciles candidate tabs against their own authorized ids", () => {
+    let state = openResearchResource(createResearchContext(), { kind: "candidate", id: "allowed-candidate" });
+    state = setResearchTabPinned(state, "candidate:allowed-candidate", true);
+    state = openResearchResource(state, { kind: "candidate", id: "revoked-candidate" });
+
+    const activeRevoked = reconcileResearchContext(state, {
+      publicationIds: new Set(),
+      pdfIds: new Set(),
+      candidateIds: new Set(["allowed-candidate"]),
+    });
+
+    expect(activeRevoked.activeKey).toBe("preview");
+    expect(activeRevoked.tabs.map((tab) => tab.key)).toEqual(["preview", "candidate:allowed-candidate"]);
+
+    const activeAllowed = reconcileResearchContext(activateResearchTab(state, "candidate:allowed-candidate"), {
+      publicationIds: new Set(),
+      pdfIds: new Set(),
+      candidateIds: new Set(["allowed-candidate"]),
+    });
+    expect(activeAllowed.activeKey).toBe("candidate:allowed-candidate");
+    expect(activeAllowed.tabs.map((tab) => tab.key)).toEqual(["preview", "candidate:allowed-candidate"]);
   });
 });

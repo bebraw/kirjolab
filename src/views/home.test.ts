@@ -28,6 +28,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-preview-panel" role="tabpanel"');
     expect(html).toContain('id="context-publication-panel" role="tabpanel"');
     expect(html).toContain('id="context-pdf-panel" role="tabpanel"');
+    expect(html).toContain('id="context-candidate-panel" role="tabpanel"');
     expect(html).toContain('id="context-publication-panel" role="tabpanel" aria-label="Publication context" tabindex="0" hidden');
     expect(html).toContain('id="context-pdf-panel" role="tabpanel" aria-label="PDF context" tabindex="0" hidden');
     expect(html).toContain('id="paper-text-layer"');
@@ -70,5 +71,64 @@ describe("renderHomePage", () => {
     expect(html).toContain('type="submit">Look up DOI</button>');
 
     expect(html.indexOf('id="publication-intake"')).toBeLessThan(html.indexOf('id="annotation-composer-title"'));
+  });
+
+  it("renders an accessible, focused passage-revision review in research context", () => {
+    const html = renderHomePage(exampleRoutes);
+
+    expect(html).toContain(
+      'class="context-panel context-candidate-panel" id="context-candidate-panel" role="tabpanel" aria-label="Model revision context" tabindex="0" hidden',
+    );
+    expect(html).toContain('id="close-candidate-context" type="button" aria-label="Close revision context"');
+    expect(html).toContain('id="context-candidate-scroll"');
+    expect(html).toContain('id="context-candidate-title"');
+    expect(html).toContain('id="context-candidate-meta"');
+    expect(html).toContain('id="context-candidate-status" role="status" aria-live="polite"');
+    expect(html).toContain('id="context-candidate-evidence"');
+    expect(html).toContain('id="context-candidate-reject" type="button" disabled>Reject revision</button>');
+    expect(html).toContain('id="context-candidate-apply" type="button" disabled>Apply replacement</button>');
+
+    expect(html).toContain('id="context-candidate-before-label">Original passage</h3>');
+    expect(html).toContain('id="context-candidate-before" role="region" aria-labelledby="context-candidate-before-label" tabindex="0"');
+    expect(html).toContain('id="context-candidate-after-label">Proposed replacement</h3>');
+    expect(html).toContain('id="context-candidate-after" role="region" aria-labelledby="context-candidate-after-label" tabindex="0"');
+    expect(html).toContain('aria-label="Passage revision comparison"');
+    expect(html).toContain('aria-labelledby="context-candidate-evidence-heading"');
+    expect(html).toContain("Evidence used for this revision");
+    expect(html).toContain('aria-label="Revision decision"');
+
+    const panel = html.indexOf('id="context-candidate-panel"');
+    const original = html.indexOf('id="context-candidate-before-label"');
+    const proposal = html.indexOf('id="context-candidate-after-label"');
+    const evidence = html.indexOf('id="context-candidate-evidence-heading"');
+    const reject = html.indexOf('id="context-candidate-reject"');
+    const apply = html.indexOf('id="context-candidate-apply"');
+    const workbench = html.indexOf('class="workbench');
+    expect(panel).toBeGreaterThan(html.indexOf('id="context-pdf-panel"'));
+    expect(panel).toBeLessThan(workbench);
+    expect(original).toBeLessThan(proposal);
+    expect(proposal).toBeLessThan(evidence);
+    expect(evidence).toBeLessThan(reject);
+    expect(reject).toBeLessThan(apply);
+  });
+
+  it("scopes the local model operation to selected prose and labelled instruction", () => {
+    const html = renderHomePage(exampleRoutes);
+
+    expect(html).toContain(
+      "The selected passage, revision instruction, chosen evidence, and configured model identifier are sent from your browser to the local OpenAI-compatible endpoint.",
+    );
+    expect(html).toContain("No other manuscript text is sent.");
+    expect(html).toContain("The proposed replacement stays separate for review in Context.");
+    expect(html).toContain('<label class="field-label model-instruction-field" for="model-instruction">Revision instruction');
+    expect(html).toContain('id="model-instruction" maxlength="4000" rows="2"');
+    expect(html).toContain("Improve clarity while preserving the claim and citation syntax.");
+    expect(html).toContain('id="model-status" role="status" aria-live="polite"');
+    expect(html).toContain("Select manuscript text and at least one annotation or claim to ground the request.");
+    expect(html).toContain("Grounded revisions open in Context and remain separate from the manuscript until you apply one.");
+
+    expect(html.indexOf('id="llm-endpoint"')).toBeLessThan(html.indexOf('id="model-instruction"'));
+    expect(html.indexOf('id="llm-model"')).toBeLessThan(html.indexOf('id="model-instruction"'));
+    expect(html.indexOf('id="model-instruction"')).toBeLessThan(html.indexOf('id="generate-candidate"'));
   });
 });

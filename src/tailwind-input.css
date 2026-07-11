@@ -10,6 +10,8 @@
   --color-app-accent: #0b6b51;
   --color-app-accent-strong: #064737;
   --color-app-accent-ghost: rgb(11 107 81 / 0.09);
+  --color-app-review-base: rgb(18 27 24 / 0.035);
+  --color-app-review-proposal: rgb(11 107 81 / 0.055);
   --color-app-warn: #c07b28;
   --color-app-error: #a33a32;
   --color-app-line: rgb(18 27 24 / 0.14);
@@ -249,13 +251,15 @@
 
   .context-preview-panel,
   .context-publication-panel,
-  .context-pdf-panel {
+  .context-pdf-panel,
+  .context-candidate-panel {
     flex-direction: column;
   }
 
   .context-preview-panel:not([hidden]),
   .context-publication-panel:not([hidden]),
-  .context-pdf-panel:not([hidden]) {
+  .context-pdf-panel:not([hidden]),
+  .context-candidate-panel:not([hidden]) {
     display: flex;
   }
 
@@ -328,6 +332,105 @@
 
   .context-linked-resources {
     margin-top: 0.75rem;
+  }
+
+  .context-candidate-scroll {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+    padding: clamp(1.25rem, 4vw, 3rem);
+  }
+
+  .context-candidate-review {
+    width: 100%;
+    max-width: 48rem;
+    margin-inline: auto;
+  }
+
+  .context-candidate-status {
+    min-height: 1.2rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    line-height: 1.55;
+  }
+
+  .context-candidate-comparison {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .context-candidate-passage {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-app-line);
+    border-left-width: 3px;
+    background: var(--color-app-review-base);
+  }
+
+  .context-candidate-proposal {
+    border-left-color: var(--color-app-accent);
+    background: var(--color-app-review-proposal);
+  }
+
+  .context-candidate-passage-label {
+    border-bottom: 1px solid var(--color-app-line);
+    padding: 0.65rem 0.8rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .context-candidate-passage pre {
+    max-height: 20rem;
+    overflow: auto;
+    padding: 0.85rem;
+    color: var(--color-app-ink);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+    tab-size: 2;
+    white-space: pre-wrap;
+  }
+
+  .context-candidate-provenance {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--color-app-line);
+    padding-top: 1.25rem;
+  }
+
+  .context-candidate-section-title {
+    margin-top: 0.25rem;
+    color: var(--color-app-ink);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+
+  .context-candidate-evidence {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .context-candidate-actions {
+    display: flex;
+    flex-wrap: wrap-reverse;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--color-app-line);
+    padding-top: 1rem;
+  }
+
+  .context-candidate-actions button {
+    flex: 1 1 10rem;
   }
 
   .context-pdf-body {
@@ -411,6 +514,42 @@
 
   .publication-intake-linked-list {
     margin-top: 0.5rem;
+  }
+
+  .model-lab-fields {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .model-instruction {
+    min-height: 4.5rem;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  .model-generate-action {
+    align-self: end;
+  }
+
+  @media (min-width: 40rem) {
+    .context-candidate-actions button {
+      flex: 0 0 auto;
+    }
+
+    .model-lab-fields {
+      grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.55fr) auto;
+      align-items: end;
+    }
+
+    .model-instruction-field {
+      grid-column: 1 / 3;
+    }
+
+    .model-generate-action {
+      grid-column: 3;
+      grid-row: 1 / 3;
+    }
   }
 
   .eyebrow {
@@ -728,6 +867,11 @@
     border-radius: 0.2rem;
     background: rgb(255 255 255 / 0.36);
     padding: 0.8rem;
+  }
+
+  .resource-card:focus-visible {
+    outline: 2px solid var(--color-app-accent);
+    outline-offset: 2px;
   }
 
   .new-workspace-dialog {

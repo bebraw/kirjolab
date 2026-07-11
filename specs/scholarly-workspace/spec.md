@@ -22,9 +22,10 @@ mode for authenticated hosted collaboration.
   `.generated/app.txt`.
 - **Primary surfaces:** The authoring editor remains visible beside a tabbed
   research-context pane on desktop. The pane permanently hosts manuscript
-  Preview and can host publication/PDF resources without making local tab,
-  pin, or reading-position state collaborative. Narrow layouts switch between
-  one Authoring or Context surface while preserving both states.
+  Preview and can host publication, PDF, and model-candidate resources without
+  making local tab, pin, scroll, or reading-position state collaborative.
+  Narrow layouts switch between one Authoring or Context surface while
+  preserving both states.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
@@ -172,8 +173,8 @@ mode for authenticated hosted collaboration.
   or first match as runtime navigation fallback when relative positions fail.
 - Do not derive relative endpoints for a legacy offset row unless its range and
   exact excerpt still match current source during the one-time migration.
-- Do not implement candidate application or another whole-document replacement
-  as delete-all/insert-all on `Y.Text`.
+- Do not represent a selected-passage operation as a whole-document candidate or
+  apply it outside its verified target range.
 - Do not project publications only during import, rewrite unchanged projection
   rows, or delete resources absent from current canonical BibTeX.
 - Do not update canonical bibliography and its publication projection in
@@ -205,8 +206,8 @@ mode for authenticated hosted collaboration.
 - [x] Yjs owns live editor text after synchronization while coalesced resource
       refreshes update only non-editor workspace state.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.
-- [x] A permanent Preview and resource-keyed publication/PDF tabs share one
-      right research-context pane beside manuscript authoring.
+- [x] A permanent Preview and resource-keyed publication, PDF, and candidate
+      tabs share one right research-context pane beside manuscript authoring.
 - [x] Tab, pin, page, focus, and reading-position state remains local while
       narrow layouts switch explicitly between Authoring and Context.
 - [x] Citation and reference targets are validated against BibTeX and document
@@ -228,6 +229,8 @@ mode for authenticated hosted collaboration.
       annotated without mutation.
 - [x] Publications and PDFs can be linked explicitly many-to-many and navigated
       through `has-artifact` without changing either endpoint.
+- [x] An unlinked PDF can be identified through reviewed DOI metadata and
+      atomically added and connected without citing the manuscript.
 - [x] An annotation can be linked to the exact selected manuscript range.
 - [x] A visible PDF selection and manuscript selection can create their
       annotation and passage link in one atomic mutation.
@@ -247,8 +250,8 @@ mode for authenticated hosted collaboration.
 - [x] A local model can return a grounded candidate with inspectable provenance.
 - [x] Candidate creation and application are explicit and reject stale base
       revisions captured before model execution.
-- [x] Applying a whole-document candidate preserves anchors in unchanged prefix
-      and suffix prose through a minimal `Y.Text` splice.
+- [x] Applying a selection candidate changes only its verified target through a
+      local minimal `Y.Text` splice and preserves surrounding anchors.
 - [x] Markdown and BibTeX export without private collaboration state.
 - [x] Unit coverage and browser tests exercise the critical workflow.
 
@@ -300,9 +303,9 @@ mode for authenticated hosted collaboration.
 - Model source, selection, revision, and evidence must be captured together
   before provider I/O; creating or applying its candidate must fail after the
   document revision changes.
-- Candidate application and every other whole-document replacement must retain
-  the longest common prefix and non-overlapping common suffix, deleting and
-  inserting only the differing middle in one `Y.Text` transaction.
+- Candidate application must compute the longest common prefix and
+  non-overlapping suffix inside the verified target, deleting and inserting
+  only its differing middle in one `Y.Text` transaction.
 - Every complete parsed entry must be reconciled after a bibliography-changing
   Yjs update, matching stable UUID by case-insensitive key before normalized DOI.
 - An exactly unchanged projection must retain its metadata source and timestamp;
@@ -393,12 +396,14 @@ mode for authenticated hosted collaboration.
 
 **Scenario: Local model proposes grounded prose**
 
-- Given: manuscript text and annotations are explicitly selected
-- When: Kirjolab captures their immutable base and the local model returns
-  revised Markdown
-- Then: Kirjolab stores a pending candidate only if the captured revision is
-  still current, with provider, model, revision, and source ids while leaving
-  canonical Markdown unchanged
+- Given: one manuscript passage and one or more annotations or claims are
+  explicitly selected
+- When: Kirjolab captures their immutable base and the local model returns a
+  replacement passage
+- Then: Kirjolab stores a pending candidate only if the captured revision and
+  typed evidence versions are still current, with immutable evidence snapshots,
+  provider/model identity, and a targeted replacement while leaving canonical
+  Markdown unchanged
 
 **Scenario: Collaboration invalidates a model result in flight**
 
@@ -411,9 +416,9 @@ mode for authenticated hosted collaboration.
 
 - Given: a pending candidate targets the current document revision
 - When: the researcher inspects and applies it
-- Then: the candidate is accepted through a minimal common-prefix/suffix splice,
-  canonical Markdown changes, anchors in unchanged surrounding prose remain
-  resolved, and all collaborators receive the update
+- Then: only the verified target range is minimally spliced, the candidate is
+  accepted, anchors in unchanged surrounding prose remain resolved, and all
+  collaborators receive the update
 
 **Scenario: Collaborative bibliography becomes resources**
 

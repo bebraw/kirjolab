@@ -11,12 +11,17 @@ using explicit annotations or claims while preserving a human review boundary.
 ### Architecture
 
 - `revise-selection` captures one current exact passage, instruction, provider
-  identity, model name, and one to twenty typed, versioned evidence references
-  before provider I/O.
+  adapter/label, model name, and one to twelve typed, versioned evidence
+  references before provider I/O.
 - A provider-neutral browser contract isolates operation semantics from the
   initial OpenAI-compatible HTTP adapter.
-- Only the selected passage and evidence snapshots enter the provider prompt;
-  the complete manuscript is not transmitted.
+- The initial adapter permits credential-free HTTP(S) loopback endpoints only,
+  omits browser credentials, rejects redirects, aborts after 120 seconds, and
+  reads at most 256 KiB of OpenAI-compatible JSON. The page CSP exposes the same
+  IPv4, localhost, and IPv6 loopback boundary.
+- Only the selected passage, instruction, and chosen evidence snapshots enter
+  the operation prompt; the adapter also sends the configured model identifier.
+  No unrelated manuscript text is transmitted.
 - The provider returns bounded replacement Markdown, never a complete document
   or a direct mutation.
 - Candidate creation verifies current manuscript revision/exact text and every
@@ -29,6 +34,9 @@ using explicit annotations or claims while preserving a human review boundary.
   `revise-selection-v1` operation shape. Apply and reject remain separate
   authorized candidate actions.
 - Review presents before, after, and navigable evidence together.
+- Each candidate can open one stable resource-keyed Context tab. Tab lifecycle
+  and scroll remain local while the candidate and its provenance are shared
+  authorized workspace state.
 - Apply requires a pending, current, exact candidate and splices only the target
   range; reject never changes canonical source.
 - The hosted Worker never attempts to reach a browser-local model endpoint.
@@ -47,20 +55,21 @@ using explicit annotations or claims while preserving a human review boundary.
 
 ### Definition of Done
 
-- [ ] A researcher can select prose, choose annotation/claim evidence, and add
+- [x] A researcher can select prose, choose annotation/claim evidence, and add
       a bounded revision instruction.
-- [ ] The browser invokes a provider-neutral operation through the local
+- [x] The browser invokes a provider-neutral operation through the local
       OpenAI-compatible adapter.
 - [x] A candidate persists a typed immutable base and targeted replacement.
-- [ ] Review shows original, replacement, and linked evidence without a raw
+- [x] Review shows original, replacement, and linked evidence without a raw
       whole-document proposal.
 - [x] Apply changes only the verified selected range; reject changes no source.
 - [x] Stale manuscript or evidence input creates or applies no candidate.
-- [ ] Unit, Workers-runtime, and browser tests cover the reviewed lifecycle.
+- [x] Unit, Workers-runtime, and browser tests cover the reviewed lifecycle.
 
 ### Regression Guardrails
 
-- Provider requests must omit unrelated manuscript text.
+- Provider requests must omit unrelated manuscript text and reject redirects
+  outside the validated endpoint.
 - Provider output, instructions, identifiers, and evidence sets remain bounded.
 - Candidate provenance must be server-validated against known same-workspace
   resources and exact evidence versions.
