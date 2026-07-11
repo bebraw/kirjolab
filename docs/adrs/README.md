@@ -21,9 +21,16 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                       | Status   | Summary                            |
-| ----------------------------------------- | -------- | ---------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
+| ADR                                                                        | Status   | Summary                                                                                         |
+| -------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md)                                  | Proposed | Template for drafting future ADRs.                                                              |
+| [ADR-057](./proposed/ADR-057-compose-projects-from-main.md)                | Proposed | Compose one project from root `main.md` through bounded, source-mapped transclusion.            |
+| [ADR-058](./proposed/ADR-058-use-a-shared-reference-library.md)            | Proposed | Make a user-scoped reference library authoritative and generate project bibliography snapshots. |
+| [ADR-059](./proposed/ADR-059-separate-private-research-from-projects.md)   | Proposed | Keep personal research private by default and share pinned snapshots into projects explicitly.  |
+| [ADR-060](./proposed/ADR-060-capture-versioned-web-sources.md)             | Proposed | Preserve timestamped web-source snapshots for reproducible citations and evidence.              |
+| [ADR-061](./proposed/ADR-061-preserve-project-revisions-and-milestones.md) | Proposed | Keep atomic project revisions, immutable milestones, non-destructive restore, and diffs.        |
+| [ADR-062](./proposed/ADR-062-use-one-source-mapped-export-pipeline.md)     | Proposed | Derive LaTeX and PDF from one pinned, source-mapped composition and typesetting pipeline.       |
+| [ADR-063](./proposed/ADR-063-model-citation-assertions-with-provenance.md) | Proposed | Represent library citation relationships as bounded provenance-bearing assertions.              |
 
 ## Accepted ADRs
 
