@@ -241,26 +241,275 @@ review pass is complete.
 - Author-supplied keywords and researcher-created organizational tags are
   different concepts and should not be silently collapsed into one field.
 
+## Decision Log
+
+### Project composition and entry point
+
+**Decision:** Use one root `main.md` entry point per project.
+
+- A project is a foldered file tree plus its composition, evidence-linking, and
+  collaboration boundary. It draws references from the user's shared library.
+- `main.md` lives at the project root and is the sole composition and rendered
+  export entry point.
+- `main.md` assembles the project through transclusion. Included Markdown files
+  may recursively include other files.
+- Supporting files and folders have user-defined names. Kirjolab does not
+  enforce chapter, section, table, or figure naming conventions.
+- The file tree uses predictable lexical ordering so researchers can control
+  order with `_`, numeric prefixes, or any naming convention they prefer.
+- Supporting Markdown files may be edited and previewed independently, but they
+  do not become separate top-level project documents or export targets.
+
+### Include directive syntax
+
+**Decision:** Use `::include[path]` as the canonical include syntax.
+
+- The directive is a block-level, one-line construct consistent with the
+  existing Kirjolab/Satteri directive family.
+- Its path resolves relative to the including file and remains readable in
+  canonical Markdown.
+- Semantics follow the useful parts of MyST include behavior: recursive
+  composition, bounded resolution, cycle diagnostics, and source provenance.
+- Kirjolab does not adopt MyST's more verbose fenced spelling as canonical.
+
+### Shared reference library
+
+**Decision:** Maintain one user-level reference library that can be reused
+across projects.
+
+- Publication records are not owned by an individual project or a
+  project-local BibTeX file.
+- Stable publication identities, bibliographic metadata, researcher tags, and
+  reusable notes live in the shared library and remain available in every
+  project the researcher works on.
+- Attached PDFs and their highlights are also reusable library resources. A
+  researcher should not have to import or annotate the same paper again for
+  each project.
+- Library notes, researcher tags, highlights, and reading state are private by
+  default. Researchers explicitly share selected research material into a
+  collaborative project.
+- Citing a publication makes the bibliographic record required to understand
+  and render that citation available to project collaborators. It does not
+  implicitly expose the owner's private PDF, annotations, organizational
+  metadata, or research history.
+- Projects cite and link to shared publications without copying their records.
+  Project-specific citations, claims, and links from library highlights into
+  manuscript prose remain project state.
+- Editing a shared publication updates the researcher's canonical record rather
+  than creating divergent per-project copies.
+- BibTeX remains an interchange and export format. A project export
+  materializes a portable `.bib` snapshot from the shared library instead of
+  treating a manually maintained project file as authoritative.
+- Sharing revocation, deletion, and reproducibility require explicit follow-up
+  decisions.
+
+### Source intake and web references
+
+**Decision:** Identify sources as they enter the shared library and support web
+references alongside publication PDFs.
+
+- Adding a PDF starts an identification step before the source becomes an
+  ordinary library item. Do not allow an unidentified PDF to accumulate in the
+  working library.
+- Extract identifiers and metadata from the file, query appropriate metadata
+  services, detect likely duplicates, and prefill as much as possible. Ask the
+  researcher to confirm the match or supply only unresolved required fields.
+- Preserve provenance per metadata field so automatically extracted, externally
+  fetched, and manually corrected values remain distinguishable.
+- Permit manual identification when automatic lookup fails or the source has no
+  DOI or other standard identifier.
+- Use BibTeX entry types and their type-specific required and optional fields as
+  the baseline metadata contract instead of imposing one universal minimum.
+  Validate the appropriate alternatives for articles, books, chapters,
+  proceedings, reports, theses, and other supported source kinds.
+- Treat identifier availability separately from bibliographic completeness. A
+  DOI is valuable but is not required when the selected BibTeX document type
+  can be identified and cited with its recommended fields.
+- Show incomplete or suspicious records as actionable validation warnings tied
+  to the selected entry type. Do not fabricate missing authors, dates, venues,
+  or publishers merely to satisfy a field.
+- A web source is a first-class library reference with its canonical URL,
+  title, author or publisher when available, publication or update date when
+  available, and the exact date and time it was accessed.
+- Preserve a private content snapshot of a web source when it is captured or
+  cited so evidence remains inspectable if the live page changes or disappears.
+  Keep both the fetched representation and an extracted readable form when
+  available, with capture diagnostics when a complete snapshot is impossible.
+- Re-accessing a web source does not erase earlier provenance. Citations and
+  milestone snapshots retain the access time relevant to that use.
+- A later capture creates a new timestamped snapshot rather than mutating the
+  earlier one. Researchers can compare snapshots, and a project milestone pins
+  the version used by its citations and evidence links.
+- Web sources participate in the same private-by-default notes, tags, evidence,
+  project citation aliases, and project-linking workflows as publications.
+- Keep citation-style rendering separate from source metadata. Styles may
+  format fields differently or require extra detail, but changing a project's
+  citation style must not rewrite the canonical library record.
+- Let each project select a default citation style used by preview and normal
+  rendered outputs. Store that choice in project revision and milestone state.
+- An attached publication template may override citation formatting for its
+  export target. Make the override visible before export, and keep it from
+  rewriting manuscript citation syntax, project aliases, or shared library
+  metadata.
+
+### Citation aliases
+
+**Decision:** Use project-local citation keys backed by stable library
+publication identities.
+
+- A publication keeps the same internal identity wherever it is reused.
+- Each project can assign readable citation keys that fit its conventions and
+  avoid collisions with other work.
+- Renaming a project citation key updates project source references without
+  duplicating or renaming the shared publication record.
+- Generated BibTeX uses the project's aliases so exported Markdown, LaTeX, and
+  bibliography files agree.
+
+### Paper revisions and milestones
+
+**Decision:** Keep automatic project revision history and allow researchers to
+name immutable milestone snapshots, analogous to Git tags.
+
+- A paper revision is a coherent project-wide snapshot rather than a revision
+  of `main.md` alone. It covers the file tree and contents, project citation
+  aliases, project claims, evidence links, and the shared-reference metadata
+  needed to reproduce the paper at that point.
+- Ordinary editing creates recoverable history without requiring the researcher
+  to name every revision.
+- A researcher can attach a stable name and optional description to any
+  revision for milestones such as a submission, reviewer response, accepted
+  manuscript, or published version.
+- Milestone names point to immutable snapshots. Later edits create new
+  revisions and milestones rather than altering the historical snapshot.
+- Researchers can diff any two revisions or milestones. The interface should
+  support both file-tree and per-file changes and a composed-paper diff that
+  follows `main.md` transclusion.
+- Historical views are read-only. Restoring one creates a new head revision
+  from that snapshot, preserving the intervening timeline rather than moving or
+  rewriting history.
+- A researcher can copy a revision or milestone into a new project when it is
+  the starting point for substantially divergent work.
+- Preserve every user-visible logical revision and named milestone indefinitely
+  unless the project owner explicitly removes eligible history. Named
+  milestones are never removed by an automatic retention policy.
+- Internal CRDT updates, operation logs, and storage deltas may be compacted,
+  but compaction must preserve the exact content and identity of every retained
+  revision, its provenance, restoration behavior, and the ability to diff it
+  against any other retained revision.
+- Provide semantic text diffs for Markdown and other text-based project files,
+  including rename-aware file identity and the composed-paper view.
+- For images, PDFs, and other binary assets, initially show the two versions
+  side by side with filename, media type, dimensions or page count when
+  available, byte size, checksum, and metadata changes. Defer pixel-level or
+  content-extraction diffs until a source kind has a reliable comparison model.
+
+### Document word statistics
+
+**Decision:** Calculate and expose live word statistics for the composed paper.
+
+- The primary word count represents the resolved `main.md` composition rather
+  than only the active source file.
+- Count readable manuscript prose after resolving includes. Do not inflate the
+  publication count with frontmatter, directive syntax, comments, bibliography
+  records, or raw markup tokens.
+- Show the composed total as a quiet persistent statistic and provide a
+  detailed statistics view with per-file and heading-level breakdowns.
+- When text is selected, the statistics view may also show the selection count
+  without replacing the document total.
+- Revision comparisons should show the change in composed word count alongside
+  the textual diff.
+- Exact treatment of captions, footnotes, tables, equations, code blocks, and
+  appendices must be documented as deterministic counting rules so publication
+  limits can be checked consistently.
+
+### Project and file lifecycle
+
+**Decision:** Use archive-first project management and dependency-aware file
+deletion.
+
+- A project owner can archive, restore, or permanently delete a project.
+  Archiving is the ordinary removal path; permanent deletion clearly includes
+  project files, collaboration state, and revision history.
+- Deleting a project never deletes sources, PDFs, web snapshots, highlights, or
+  notes owned by a researcher's shared library. Project-specific links to them
+  are removed with the project.
+- Block deletion of a file while another project file includes or otherwise
+  depends on it. Show every inbound dependency and let the researcher remove or
+  redirect those links first.
+- The root `main.md` entry point cannot be deleted outright. A researcher can
+  clear it or explicitly replace its contents, while its stable entry-point
+  identity remains.
+- File deletion creates an ordinary project revision. The deleted file remains
+  recoverable through retained revision history unless the entire eligible
+  project history is explicitly and permanently removed.
+
+### Initial project management scope
+
+**Decision:** Keep the first project catalog focused on common lifecycle and
+orientation tasks.
+
+- Support searching and switching projects, creating and renaming them, and
+  viewing recent and archived projects.
+- Support archive, restore, owner-only permanent deletion, and duplication from
+  either the current revision or a named milestone.
+- Include collaborator management and project settings for the root entry
+  point, default citation style, and export template.
+- Defer project folders, catalog labels, bulk actions, and advanced sorting
+  until ordinary navigation works clearly at realistic catalog sizes.
+
+### Onboarding and responsive scope
+
+**Decision:** Support full authoring on desktop and iPad-class tablets, with a
+focused narrow-screen experience.
+
+- Create a new project with an empty root `main.md`, a prominent **Add file**
+  action, and short dismissible examples for include and citation syntax.
+- On narrow screens, replace the simultaneous columns with a single active pane
+  and clear navigation among **Files**, **Editor**, **Preview**, and
+  **Research**. Preserve caret, selection, PDF page, zoom, and scroll position
+  while switching.
+- Treat iPad as a full authoring and research target, including PDF reading,
+  touch- and Apple Pencil-based highlighting, file editing, citation, and
+  project navigation.
+- Initially scope phones to reading, comments, reference lookup, and light text
+  edits rather than compressing the complete multi-pane authoring workflow into
+  an unusable layout.
+- Empty states should offer the next domain action directly and avoid exposing
+  implementation-oriented status panels or large blank inventories.
+
 ## Emerging Product Model
 
 The working hierarchy is:
 
 ```text
+User reference library
+├── Publications and web sources
+├── Metadata, tags, and reusable notes
+└── Attached content and reusable highlights
+
 Project
-├── Documents          named compositions and export targets
-├── Files              Markdown, BibTeX, images, data, and other assets
-└── Research library   PDFs, annotations, claims, and references
+├── main.md            sole composition and rendered export entry point
+├── Files and folders  Markdown, images, data, and other assets
+└── Project links      Citations, claims, and evidence relationships
 ```
 
-- A **project** is the sharing, collaboration, file, and research-library
-  boundary.
-- A **document** is an independently named composition with an entry file.
+- The **reference library** is a user-level research-memory boundary above
+  projects.
+- A **project** is the sharing, collaboration, file, composition, and
+  project-specific evidence boundary.
 - A **file** has a stable internal identity, a mutable project-relative path,
   a kind, and canonical content or a blob.
 - Folders organize files but do not assign semantic types.
-- A Markdown file can be a complete standalone document, an included fragment,
-  or both.
-- Files may be reused by multiple documents in the same project.
+- Kirjolab directly edits portable UTF-8 text assets, including Markdown,
+  custom LaTeX templates, CSV/TSV data, SVG source, and lightweight structured
+  configuration formats.
+- Images, PDFs, office documents, and other binary assets are stored, linked,
+  versioned, and previewed where supported, but Kirjolab does not present itself
+  as their native content editor. PDF highlights remain non-destructive
+  annotation overlays.
+- `main.md` is the only root composition. Other Markdown files are included
+  fragments that may also be previewed in isolation while editing.
+- Files may be reused at several transclusion points within the project.
 - Chapter and section boundaries remain authored Markdown rather than enforced
   file types.
 
@@ -270,11 +519,11 @@ material can remain separate.
 
 ## Transclusion Direction
 
-Transclusion is the underlying composition concept. `include` is the proposed
+Transclusion is the underlying composition concept. `include` is the
 author-facing directive name because it describes inserting file content at a
 specific location more accurately than a programming-language import.
 
-A concise candidate consistent with the existing Kirjolab directive family is:
+The canonical form is:
 
 ```md
 # Discussion
@@ -296,15 +545,15 @@ Working semantic rules:
 - Diagnose missing files, include cycles, project-root escapes, unsupported
   types, excessive depth/size, and duplicate composed anchors.
 - Reject remote includes initially.
-- Apply frontmatter only from the document entry file.
+- Apply frontmatter only from the root `main.md` entry file.
 - Keep headings unchanged; authors control whether a heading belongs in the
   parent file or the included file.
 - Use ordinary Markdown links for binary images. A Markdown figure or table
   wrapper may itself be transcluded.
 
 MyST provides useful precedent for file-relative, recursive include semantics,
-although its fenced directive syntax is more verbose. Exact syntax remains an
-open decision.
+although Kirjolab uses its existing concise directive family for the canonical
+spelling.
 
 ## Interface Direction
 
@@ -312,9 +561,9 @@ Keep the existing three-column desktop composition instead of adding another
 permanent panel:
 
 ```text
-┌ Project ▾   Document ▾                              Share  Export ▾ ┐
+┌ Project ▾                                           Share  Export ▾ ┐
 ├──────────────────┬────────────────────────┬─────────────────────────┤
-│ Files | Research │ Active file editor     │ Composed document       │
+│ Files | Research │ Active file editor     │ Composed main.md         │
 │                  │                        │ preview/context          │
 └──────────────────┴────────────────────────┴─────────────────────────┘
 ```
@@ -326,15 +575,12 @@ permanent panel:
 - Use that project control as the single visible project title; remove the
   adjacent duplicate workspace-title text.
 - Provide labelled **New project** and **Manage projects** actions.
-- Add a document switcher scoped to the active project, including **New
-  document**.
-- When multi-document support exists, distinguish project and document through
-  a labelled breadcrumb or two clearly separate controls, for example **Project:
-  Thesis ▾ / Document: Paper ▾**. Do not reuse the same title in both positions.
+- Do not add a document switcher in the initial file model. The active file path
+  belongs in the editor header while the project header identifies the project.
 - Move project creation into the project menu or expose it as a labelled action
   instead of placing an unexplained `+` between identity labels.
-- Keep connection status, sharing, and export secondary to project/document
-  orientation.
+- Keep connection status, sharing, and export secondary to project and active
+  file orientation.
 
 ### Left rail
 
@@ -349,56 +595,64 @@ permanent panel:
 
 ### Editor and preview
 
-- Selecting a file changes the editor without changing the active document.
-- The right pane continues to preview the active composed document and focuses
+- Selecting a file changes the editor without changing the `main.md`
+  composition root.
+- The right pane continues to preview the composed `main.md` output and focuses
   the selected file's transcluded position.
 - Clicking composed preview content opens its originating file and range.
-- A shared file indicates which documents include it.
+- A reused file indicates which include sites reference it.
 - **Create and include** creates a new fragment and inserts an include directive
   at the current caret.
 - A file action can insert an existing file into the current file.
 
 ### PDF evidence capture
 
-- Render captured draft geometry immediately after pointer release using a
-  visually distinct active-selection highlight.
-- Keep the draft highlight visible until the researcher saves, cancels, or
-  replaces the selection.
-- Saving should transition the draft highlight into the normal persisted
-  annotation style without a visual jump.
-- Keep saved annotations visually quieter than the active draft, while a
-  focused saved annotation remains distinct from both.
-- Present a compact sticky capture summary close to the PDF with the selected
-  quotation and explicit **Save annotation** and **Cancel** actions. Detailed
-  note and linking controls may remain in the composer.
-- Selecting another passage while a draft exists must explicitly replace,
-  extend, or cancel the previous draft rather than silently discarding it.
+- Optimize evidence capture for recovering the relevant place and core idea,
+  not for producing a word-perfect quotation. The selected text and page
+  geometry are a source locator; an editable note captures the researcher's
+  paraphrase or takeaway.
+- Treat highlighting as painting. Render and persist each stroke immediately
+  after pointer or Pencil release without a separate save form.
+- Painting over or directly adjacent to an existing highlight extends that
+  highlight instead of creating overlapping annotation records. An explicitly
+  focused highlight determines which record receives an ambiguous stroke.
+- Provide immediate **Undo**, whole-highlight **Delete**, and an **Eraser** tool
+  that removes part of a highlight. Erasing all of its geometry deletes the
+  empty highlight after an undoable confirmation period.
+- Keep the active highlight visually distinct and expose a lightweight details
+  surface for its selected passage and editable **Core idea** note. Writing the
+  note must not be required to preserve the highlight.
+- Make brush, eraser, selection, and undo controls touch-friendly and usable
+  with Apple Pencil. Editing should tolerate imprecise strokes, support zoom,
+  and make boundary adjustments easy rather than requiring exact initial
+  selection.
+- Keep a local operation history so accidental additions, erasures, merges, or
+  deletions can be undone without relying on project-wide revision restore.
+- Several distinct highlights can later support the same claim or manuscript
+  passage; evidence grouping belongs to the linking workflow, not the painting
+  gesture.
 - Preserve the current rule that highlights are annotation overlays and never
   modify imported PDF bytes.
 
 ### Separate evidence capture, citation, and reference intake
 
 - Make reading and evidence capture the default PDF workflow.
-- Replace the always-expanded intake form with a compact paper-identity status,
-  such as **Unidentified paper · Identify**, or move it behind a disclosure or
-  dedicated reference context.
-- If the PDF is already linked, show its citation identity compactly without
-  exposing enrichment controls by default.
-- Present explicit actions close to an active highlight:
-  - **Save highlight** creates or updates the annotation draft.
-  - **Cite source at cursor** inserts the linked publication's citation at a
-    remembered manuscript caret.
-  - **Link highlight to selected prose** connects exact evidence to an exact
-    authored passage.
-- Keep these as visibly separate commands. Saving a highlight must not silently
-  add a publication, insert a citation, or link manuscript prose.
-- If **Cite source at cursor** is requested for an unidentified PDF, open the
-  identification flow and then return to the pending citation action. Metadata
-  acceptance should still require a final explicit citation confirmation.
-- If no safe manuscript caret or selection exists, keep the relevant action
+- Because PDF identification happens during intake, show the linked citation
+  identity compactly without exposing enrichment controls by default.
+- Keep highlighting automatic and independent of citation or manuscript
+  linking. Painting must not silently add a publication, insert a citation, or
+  link manuscript prose.
+- Drive citation and evidence-linking actions from the current manuscript caret
+  or selection. The researcher first selects prose, then chooses a publication
+  or one or more existing highlights to cite or link.
+- Keep **Cite publication** and **Link supporting highlight** visibly separate:
+  one inserts the paper's citation; the other records the evidence relationship
+  to selected prose. A combined convenience action may perform both only when
+  its result is explicit in the UI.
+- If no safe manuscript caret or selection exists, keep manuscript-linking
   unavailable and explain the prerequisite next to the control.
-- Offer the same **Cite source** action from a saved annotation so citation does
-  not depend on rediscovering the publication context.
+- A highlight can still offer **Use in manuscript**, which returns focus to the
+  editor and asks the researcher to choose the insertion point or prose range.
 - Use action language to teach the model: cite the paper, save the highlight,
   and link the evidence. Avoid relying on the user to understand the internal
   nouns first.
@@ -414,8 +668,18 @@ permanent panel:
 - Give the separator keyboard semantics and visible focus; arrow keys should
   resize in predictable increments.
 - Double-clicking the separator should restore the balanced default.
-- Keep the width as local browser state, not shared project or collaboration
-  state.
+- Remember separate split widths for composed-manuscript preview and source
+  reading. A wide PDF layout must not unexpectedly narrow the normal writing
+  preview. Keep both preferences as local browser state, not shared project or
+  collaboration state.
+- Add a discoverable **Layout** control following Overleaf's proven modes:
+  **Split view**, **Editor only**, and **Context only**. Label the last mode
+  **PDF only** when a PDF is active so its immediate result is unambiguous.
+- Provide adjacent divider affordances to collapse or restore a pane without
+  requiring the menu. Returning to split view restores the last width for that
+  context.
+- Consider **Open context in separate tab** later for multi-screen reading, but
+  keep it outside the initial layout slice.
 - Rerender the active PDF at the new available width after resizing settles so
   text remains sharp and selection geometry stays aligned.
 - A later focused-reading command may collapse the editor or context pane, but
@@ -427,6 +691,8 @@ permanent panel:
   approximately 48px.
 - Keep the tab list as a horizontally scrollable region on the left so Preview
   and open resources retain standard tab semantics.
+- Give the tab list the flexible width and keep the active tab scrolled into
+  view as other tabs overflow.
 - Remove the repeated PDF title; the active tab already supplies resource
   identity and should truncate long filenames with the full name available on
   focus or hover.
@@ -434,8 +700,11 @@ permanent panel:
   when the tab list scrolls.
 - For a PDF, show a quiet inline status followed by a compact grouped page
   control: **Previous · 1 / 4 · Next**.
-- Retain one **Pin** and one **Close** action for the active resource. Remove the
-  second panel-level Close button.
+- Keep PDF page navigation visible whenever a PDF is active. On narrow widths,
+  compress status to an icon or short label with accessible detail and move
+  secondary actions such as **Pin** and **Close** into an overflow menu.
+- At wider widths, retain one **Pin** and one **Close** action for the active
+  resource. Remove the second panel-level Close button.
 - For Preview, use the same row to show the diagnostic summary in place of PDF
   navigation.
 - Keep controls labelled on spacious layouts. On narrow layouts, compact icon
@@ -456,6 +725,12 @@ Separate model connection configuration from model-assisted writing:
 
 - Move endpoint and model configuration to a local **Model connection** or
   **Assistant settings** surface.
+- Keep connection endpoints, credentials, and locally installed model discovery
+  in browser- or device-local settings. Never persist those secrets or private
+  environment details in shared project state.
+- A project may store a non-secret preferred model or task-profile name for
+  reproducibility and convenience. Each collaborator resolves that preference
+  through their own connection and can choose a compatible local substitute.
 - Keep only a compact connection state in the authoring UI, such as **Local
   model connected** or **Configure model**.
 - Replace the full-width workbench with a collapsible assistant attached to the
@@ -463,6 +738,9 @@ Separate model connection configuration from model-assisted writing:
   width.
 - Keep the drawer quiet and collapsed until invoked. An editor selection may
   reveal a small contextual **Ask assistant** or **Revise selection** action.
+- Never invoke the model merely because text was selected. Sending any
+  manuscript text or evidence requires an explicit click, keyboard command, or
+  submitted instruction from the researcher.
 - When expanded, represent the exact selected passage and chosen evidence as
   explicit context chips rather than silently collecting surrounding content.
 - Provide a bounded instruction composer plus optional quick actions such as
@@ -473,6 +751,13 @@ Separate model connection configuration from model-assisted writing:
 - Keep pending and previous candidates in research context or a compact drawer
   history rather than rendering an empty candidate inventory below the whole
   workspace.
+- Retain revision candidates as structured project provenance: selected source
+  range, explicit evidence, instruction, non-secret model/profile identity,
+  proposed replacement, author, timestamp, and accepted, rejected, or pending
+  outcome.
+- Applying a candidate creates an ordinary document revision linked back to
+  that candidate. Candidate history supports inspection and audit but is not a
+  conversational transcript.
 - Preserve the current safety boundary: send only the exact selected passage,
   explicit instruction, and explicitly selected evidence; never write model
   output directly into the document.
@@ -487,8 +772,9 @@ The recommended starter is assistant-shaped rather than a general chat agent:
 ```
 
 A conversational transcript, open-ended document questions, automatic
-retrieval, and multi-turn tool use would be a separate feature. The current
-typed `revise-selection` operation can use a familiar foldable composer without
+retrieval, and multi-turn tool use would be a separate opt-in feature with its
+own retention, sharing, and privacy controls. The current typed
+`revise-selection` operation can use a familiar foldable composer without
 implicitly promising those capabilities.
 
 ### Editor command bar and contextual actions
@@ -497,6 +783,8 @@ Prefer a compact, visible command bar over replacing the browser's native
 right-click menu:
 
 - Reuse the existing editor header instead of adding a tall formatting ribbon.
+- Keep permanent controls limited to the active file path, **Insert**, revision
+  history, document statistics, and save/sync state.
 - Provide a labelled **Insert ▾** menu for scholarly constructs such as:
   - Citation
   - Cross-reference
@@ -507,17 +795,20 @@ right-click menu:
 - Show the corresponding source form beside each command, for example
   **Citation · `:cite[key]`**, so using the UI teaches portable syntax rather
   than hiding it.
-- Offer the most frequent actions directly when space permits, with the rest in
-  **Insert**.
+- Keep insertion commands in **Insert** when there is no relevant selection
+  rather than promoting a growing collection of permanent buttons.
 - Make commands context-aware. A caret can receive a citation or included file;
   selected text can be linked to evidence, wrapped, turned into a claim, or sent
   to the writing assistant.
 - Show a small selection toolbar for transient selection-specific actions such
-  as **Link evidence** and **Ask assistant**.
+  as **Cite**, **Link evidence**, and **Ask assistant**.
 - Preserve the editor selection when a toolbar or menu receives focus, using
   the same durable relative-selection approach required by citation insertion.
 - Provide keyboard shortcuts and a searchable command palette for experienced
   users, but do not make either the only discovery path.
+- Include the searchable command palette in the first editor slice. Defer a
+  `/` command menu until the Markdown directives and insertion syntax are
+  stable enough that it will not teach a moving command vocabulary.
 - Keep button labels and tooltips explicit; avoid an unexplained row of
   word-processor icons.
 - Replace the permanently disabled **Open reference** button with a contextual
@@ -550,17 +841,25 @@ main.md  r578   [ Insert ▾ ] [ Cite ] [ Link evidence ] [ Ask assistant ]   Sa
 Add an explicit **Research → Graph** destination rather than placing a graph
 inside the compact source/file rail:
 
+- Prioritize the **Citation network** in the first graph slice because it
+  directly supports literature analysis. Build the broader **Project graph** as
+  a subsequent view on the same typed relationship and visualization
+  infrastructure.
 - Offer **Explore graph** from the research navigation and from each publication
   card or publication context.
 - Distinguish two honest views:
-  - **Project graph** shows documents, publications, PDFs, annotations, claims,
-    and their current typed relationships.
-  - **Citation network** shows publication-to-publication `cites` edges when
-    those relationships are actually available.
+  - **Project graph** shows project files, the composed paper, linked library
+    sources, highlights, claims, and their current typed relationships.
+  - **Citation network** is a shared-library view of source-to-source `cites`
+    edges when those relationships are actually available, with an optional
+    **Current project** filter.
 - Default to a focused paper view rather than rendering the complete workspace
   as an unreadable hairball.
 - Selecting a publication should show its immediate incoming and outgoing
   relationships, with explicit expansion to another level.
+- Begin with relationships already known in the shared library. Fetch and show
+  external references or citing works only when the researcher explicitly
+  expands a selected source; do not silently grow an unbounded network.
 - Provide filters for resource and relation kinds, such as papers only,
   document citations, evidence links, claims, and PDF artifacts.
 - Open the selected node's details in research context without losing graph
@@ -572,48 +871,75 @@ inside the compact source/file rail:
   follow relationships.
 - Label every paper-to-paper edge with its provenance and direction. Do not
   present title similarity or model inference as a known citation.
+- Accept citation assertions from reviewed external metadata, parsed reference
+  lists in preserved source content, and manual researcher links. Retain the
+  asserting source, capture or retrieval time, extraction method, and any
+  researcher review on each assertion.
+- Distinguish **Confirmed**, **Extracted**, **Inferred**, and **Conflicting**
+  states. Inferred relationships remain review candidates rather than silently
+  becoming established citation edges.
+- Preserve conflicting assertions side by side and expose their provenance;
+  never choose a winner merely because one provider was queried later.
 
 Supporting a real citation network requires an explicit publication-reference
 relationship model. Reference lists may come from reviewed external metadata,
 parsed source material, or manual connections, but uncertain extraction must
 remain distinguishable from confirmed citations.
 
-### Evidence-document lifecycle and removal
+### Shared-source lifecycle and removal
 
-- Add a labelled **Remove from project** action to each PDF's overflow menu and
-  resource context. Do not hide deletion exclusively behind right-click.
-- Keep **Close tab**, **Disconnect from reference**, and **Remove from project**
-  as separate actions with distinct language.
-- Before removal, summarize dependent resources, for example:
+- Add a labelled **Remove from project** action to each linked source's overflow
+  menu and context. This removes the active project's source, highlight, claim,
+  and evidence links but does not delete the source or its private annotations
+  from the owner's shared library.
+- Keep **Close tab**, **Remove from project**, **Archive in library**, and
+  **Delete permanently** as separate actions with distinct language and scope.
+- Before unlinking, archiving, or deletion, summarize affected resources, for
+  example:
 
 ```text
 Remove vogel-354….pdf?
 12 highlights · 3 manuscript links · 1 reference association
 ```
 
-- Allow immediate removal when the PDF has no dependents, with a short undo
-  window if feasible.
-- When dependents exist, require an explicit choice and state exactly what will
-  be retained, detached, archived, or deleted.
+- Allow immediate project unlinking when the source has no project dependents,
+  with a short undo window. When dependents exist, state exactly which
+  project-level links will be detached while the library material is retained.
 - Preserve authored manuscript text and bibliographic publications unless the
-  user separately chooses to remove them. Deleting a PDF must never silently
-  remove citations from prose.
-- Consider two lifecycle operations:
-  - **Archive evidence** hides the PDF from ordinary library navigation while
-    retaining the artifact and provenance required by existing links.
-  - **Delete permanently** removes the stored artifact and applies a reviewed
-    dependency policy to annotations and relationships.
+  user separately chooses to edit them. Unlinking or deleting evidence must
+  never silently remove citations from prose.
+- Include **Archive in library** in the first lifecycle slice. Archiving hides
+  the source from ordinary navigation while retaining the artifact, highlights,
+  notes, and provenance required by existing links and historical milestones.
+- Restrict **Delete permanently** to the library owner and keep it in the
+  library details surface rather than project navigation. Before deletion,
+  summarize dependencies across every current project, shared context, and
+  milestone and require explicit resolution.
+- Permanent deletion removes the private artifact and annotations while
+  retaining tombstoned bibliographic and locator provenance wherever project or
+  revision history must still explain an existing citation or evidence link.
+- Revoking an explicit share stops future access to and updates from the
+  owner's private library resource. It does not retroactively remove the pinned
+  content and provenance already copied into project revisions while sharing
+  was authorized.
+- If the owner later permanently deletes the underlying private material,
+  retained project snapshots degrade to tombstoned provenance according to the
+  deletion contract rather than continuing to expose the deleted artifact.
 - Close any open context tab for a removed artifact and update search and graph
   projections immediately.
-- Restrict permanent deletion to an authorized project role and make the
-  irreversible storage consequence explicit.
+- Make irreversible storage consequences explicit and never present a
+  project-level unlink as though it deleted the library source.
 
 ### Separate test data and add legitimate collection filters
 
 - Run E2E tests against a dedicated ephemeral persistence root or namespace
-  that cannot appear in the interactive developer catalog.
+  created uniquely for each run and unable to appear in the interactive
+  developer catalog.
 - Reset or discard that test store as part of the test-server lifecycle rather
   than requiring every test to delete complex dependent resources.
+- Allow persistent fixtures only through an explicit debugging mode with a
+  clearly named, separately configured namespace and reset lifecycle. Never
+  make that mode the ordinary E2E default.
 - Keep a developer-facing reset command for test state, but do not expose test
   cleanup as ordinary end-user project management.
 - Add search, recent items, sorting, and archive filters to the project menu for
@@ -633,13 +959,23 @@ Make publication context the primary place to inspect and organize a reference:
 - Add explicit **Edit details**, **Add tag**, and **Add note** actions.
 - Provide a structured bibliographic form for citation key, type, title,
   authors, year, venue, DOI, URL, abstract, and author keywords.
-- Apply bibliographic edits back to canonical BibTeX through the existing
-  collaboration/materialization boundary rather than creating a second
-  authoritative metadata copy.
+- Apply bibliographic edits to the canonical shared publication record. Generate
+  BibTeX from that record for interchange and project export.
 - Keep metadata provenance visible so researchers can distinguish imported,
   Crossref-enriched, and manually edited values.
-- Model project tags separately from bibliographic author keywords. Tags
-  organize the local research workflow; keywords describe the publication.
+- Track provenance independently for every externally sourced or editable
+  bibliographic field, including titles, contributors, dates, venue, publisher,
+  identifiers, URLs, abstracts, and author keywords. Each accepted value keeps
+  its source, retrieval or edit time, and responsible researcher when relevant.
+- Researcher-created tags, notes, and reading state keep authorship and
+  timestamps but do not masquerade as bibliographic-source metadata.
+- Model researcher tags separately from bibliographic author keywords. Tags
+  organize the reusable research library; keywords describe the publication.
+- Keep researcher tags out of BibTeX `keywords` by default. Include them in an
+  optional Kirjolab manifest for portable library or project archives.
+- Offer an explicit export-time mapping from selected researcher tags to
+  BibTeX `keywords` when requested, without mutating the canonical library
+  record or conflating the two concepts afterward.
 - Render tags as quiet, searchable labels and allow creating or selecting them
   directly from publication context.
 - Add tag, reading-status, linked/unlinked, and metadata-completeness filters to
@@ -660,10 +996,10 @@ Tags: sociology  scientific-practice
 Status: Reading
 ```
 
-The recommended starting model is shared project metadata for collaborative
-tags and notes, with personal reading state considered separately. Storing all
-organizational tags in BibTeX `keywords` would be portable but would conflate
-researcher workflow with publication metadata.
+The shared library is the canonical home for reusable tags and research notes.
+They remain private by default and are shared explicitly. Storing organizational
+tags in BibTeX `keywords` would be portable but would conflate researcher
+workflow with publication metadata.
 
 ### Export
 
@@ -672,25 +1008,42 @@ researcher workflow with publication metadata.
 
 ```text
 Export
-Document
+Rendered output
   PDF document
   LaTeX project (.zip)
   Composed Markdown (.md)
 
-Project
+Project sources
   Source bundle (.zip)
   Bibliography (.bib)
 ```
 
-- **PDF document** means the rendered active document, not one of the imported
-  research PDFs.
+- **PDF document** means the rendered `main.md` composition, not one of the
+  imported research PDFs.
 - **LaTeX project** should normally be a bundle containing generated `.tex`,
   bibliography, images, and other required assets rather than an isolated file
   with broken dependencies.
-- **Composed Markdown** produces a flattened portable representation of the
-  active document after resolving transclusions.
+- Provide a maintained Kirjolab LaTeX template as the dependable default and
+  allow a project to attach a custom publication template for journal,
+  conference, or institutional requirements.
+- **Composed Markdown** produces a flattened portable representation of
+  `main.md` after resolving transclusions.
+- Rendered outputs and the standalone `.bib` export include only publications
+  cited by the composed `main.md`. Unused records from the user's shared library
+  do not leak into a paper export.
 - **Source bundle** preserves the folder tree, canonical source files,
-  directives, bibliography, and assets.
+  directives, assets, and a generated snapshot of the broader project-linked
+  references and evidence needed for archival portability.
+- Deliver the initial LaTeX project and source-bundle exports as downloadable
+  ZIP archives. Direct synchronization with a local directory is a separate
+  future integration with its own permissions, conflict, and lifecycle model.
+- Generate PDF and LaTeX exports through the same deterministic pipeline:
+  resolve the `main.md` composition, build a source-mapped intermediate
+  document, materialize the selected LaTeX template and assets, and run a pinned
+  typesetting toolchain.
+- Map composition and typesetting diagnostics back to the originating project
+  file and line where possible. A failed render opens actionable diagnostics
+  while retaining the last successful preview and clearly marking it as stale.
 - Keep Markdown canonical. LaTeX and PDF are derived publication targets and
   must not replace or mutate authored source.
 - The initial unified menu can contain only formats that actually work; new
@@ -699,7 +1052,7 @@ Project
 ## Architectural Implications
 
 - The present workspace snapshot, Yjs state, SQLite row, search graph, anchors,
-  revision checks, and export API all assume one source document.
+  revision checks, and export API all assume one source string.
 - Passage anchors, model targets, diagnostics, and revisions must become
   file-qualified.
 - A composed preview needs a source map from rendered ranges back to stable file
@@ -713,69 +1066,25 @@ Project
 - The smallest coherent first implementation likely keeps related files in one
   project-scoped collaboration room. Per-file distributed rooms would introduce
   cross-room composition, revision-vector, and transaction complexity.
+- The current workspace-scoped publication projection and canonical-BibTeX
+  model must be superseded by a stable user-level publication library.
+- Project citation syntax or aliases must resolve to stable shared publication
+  identities while remaining portable in exported source.
+- Because shared metadata can evolve after a manuscript is written, exports
+  need an explicit snapshot or version policy for reproducible output.
+- Revision storage must capture atomic project snapshots across files and
+  project relationships. Milestones add immutable names to those revisions;
+  they are not mutable copies of the project.
+- Diffing must understand stable file identities so renames and moves are not
+  presented as unrelated deletion and creation, and it must preserve source
+  provenance in composed-paper comparisons.
 - This direction changes lasting architectural constraints and therefore needs
-  a proposed ADR plus a multi-file composition spec before implementation.
+  proposed ADRs plus multi-file composition and shared-reference-library specs
+  before implementation.
 
 ## Open Questions
 
-- Use exact MyST include syntax or the concise Kirjolab/Satteri-style
-  `::include[path]` form?
-- Can every Markdown file act as an entry file, or should documents explicitly
-  own designated entry files?
-- Can one entry file back more than one named document?
-- Is bibliography state project-wide, document-specific, or selectable per
-  document?
-- Which asset kinds should Kirjolab edit directly versus only store and link?
-- How should project and file deletion work when resources are shared or
-  included?
-- Which project-management actions belong in the first pass?
-- What are the empty-project, onboarding, mobile, and narrow-screen flows?
-- Should project export use a ZIP bundle, a directory integration, or both?
-- Should a new PDF selection replace the current draft or support accumulating
-  several disjoint passages before saving?
-- Should pane width be one global local preference or remembered separately for
-  manuscript preview and PDF reading contexts?
-- Should **Cite source** be available for an unsaved highlight, or only after an
-  annotation has been saved?
-- Should requesting a citation for an unidentified PDF preserve a pending
-  action across identification, or return neutrally and require the researcher
-  to initiate citation again?
-- What minimum metadata is required to cite a paper when no DOI is available?
-- Should document exports contain only references cited by that composition or
-  the complete project bibliography?
-- What is the portable LaTeX target: one generic Kirjolab template, a
-  user-provided publication template, or both?
-- Which deterministic rendering path should produce PDF, and how should export
-  diagnostics be presented when composition or typesetting fails?
-- How should the single-row context toolbar prioritize status, tabs, and page
-  navigation when several resources are open or the pane is narrow?
-- Should invoking the writing assistant require an explicit selection action,
-  or should a quiet affordance appear automatically after text selection?
-- Should model connection settings be browser-wide, user-wide, or configurable
-  per project?
-- Is assistant history equivalent to persisted revision candidates, or does a
-  future conversational transcript need a separate retention and privacy
-  contract?
-- Which scholarly commands deserve permanent editor-header placement versus
-  the **Insert** menu or selection toolbar?
-- Should a `/` command menu complement the toolbar once the initial syntax set
-  is stable?
-- Should the citation network remain bounded to papers in the project library,
-  or allow on-demand expansion to external publications?
-- Which sources may establish publication-to-publication citation edges, and
-  how should incomplete, inferred, or conflicting relationships be represented?
-- Should the initial graph prioritize paper citation analysis or the broader
-  project evidence-and-claims graph?
-- When a PDF has dependent annotations or claim evidence, should permanent
-  deletion be blocked, cascade those resources, or retain tombstoned provenance
-  without the artifact?
-- Is **Archive evidence** necessary in the first deletion slice, or is a clear
-  dependency-aware permanent removal sufficient?
-- Should local E2E state be fully ephemeral per run or use a dedicated reusable
-  test store with an explicit reset lifecycle?
-- Are tags and research notes shared project knowledge, personal organization,
-  or both with explicit visibility?
-- Should project tags be included in an optional export manifest, mapped to
-  BibTeX keywords on request, or remain Kirjolab-only metadata?
-- Which bibliographic fields must support per-field provenance rather than the
-  current publication-level metadata source?
+The UI review decision pass resolved the currently identified product
+questions. Implementation discovery may surface narrower technical decisions;
+record any lasting constraints in the relevant ADR and feature spec rather than
+reopening this review note implicitly.
