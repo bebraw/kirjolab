@@ -12,6 +12,7 @@ import {
   isCreateWorkspaceInput,
   isInviteWorkspaceMemberInput,
   isImportBibliographyInput,
+  isModelCandidate,
   isUpsertClaimInput,
   isWorkspaceSnapshot,
   isWorkspaceMembers,
@@ -82,9 +83,7 @@ describe("workspace input guards", () => {
     expect(
       isWorkspaceSummaries([{ id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now" }]),
     ).toBe(true);
-    expect(
-      isCreateCandidateInput({ provider: "local", model: "qwen", sourceRevision: 0, sourceIds: ["a"], proposedSource: "## Revised" }),
-    ).toBe(true);
+    expect(isCreateCandidateInput(validCandidateInput())).toBe(true);
     expect(
       isWorkspaceSnapshot({
         id: "demo",
@@ -143,7 +142,7 @@ describe("workspace input guards", () => {
     for (const change of [{ id: "" }, { title: "" }, { href: "" }, { createdAt: "" }, { updatedAt: "" }]) {
       expect(isWorkspaceSummaries([{ ...validSummary, ...change }]), JSON.stringify(change)).toBe(false);
     }
-    expect(isCreateCandidateInput({ provider: "", model: "", sourceRevision: -1, sourceIds: [1], proposedSource: "" })).toBe(false);
+    expect(isCreateCandidateInput(null)).toBe(false);
     expect(isWorkspaceSnapshot({ id: "demo" })).toBe(false);
   });
 
@@ -375,28 +374,177 @@ describe("workspace input guards", () => {
   });
 
   it("enforces every candidate boundary", () => {
-    const valid = { provider: "local", model: "model", sourceRevision: 0, sourceIds: ["a"], proposedSource: "source" };
+    const valid = validCandidateInput();
     for (const change of [
-      { provider: "" },
-      { provider: "x".repeat(513) },
+      { providerAdapter: "other" },
+      { providerLabel: "" },
+      { providerLabel: "x".repeat(257) },
+      { providerLabel: 1 },
       { model: "" },
       { model: "x".repeat(257) },
+      { model: 1 },
+      { promptVersion: "revise-selection-v2" },
+      { instruction: "" },
+      { instruction: "x".repeat(4_001) },
+      { instruction: 1 },
+      { target: null },
+      { target: { ...valid.target, excerpt: "" } },
+      { target: { ...valid.target, excerpt: "x".repeat(20_001) } },
+      { target: { ...valid.target, sourceRevision: -1 } },
+      { evidence: "annotation" },
+      { evidence: [] },
+      { evidence: Array.from({ length: 13 }, (_, index) => evidenceReference("annotation", String(index))) },
+      { evidence: [{ kind: "note", id: "note", version: "v1" }] },
+      { evidence: [{ kind: "annotation", id: "", version: "v1" }] },
+      { evidence: [{ kind: "annotation", id: "x".repeat(129), version: "v1" }] },
+      { evidence: [{ kind: "annotation", id: 1, version: "v1" }] },
+      { evidence: [{ kind: "annotation", id: "annotation", version: "" }] },
+      { evidence: [{ kind: "annotation", id: "annotation", version: "x".repeat(129) }] },
+      { evidence: [{ kind: "annotation", id: "annotation", version: 1 }] },
+      { evidence: [{ kind: "annotation", id: "annotation", version: "v1", extra: true }] },
+      {
+        evidence: [evidenceReference("annotation", "same", "v1"), evidenceReference("annotation", "same", "v2")],
+      },
+      { proposedReplacement: "" },
+      { proposedReplacement: "   " },
+      { proposedReplacement: "x".repeat(50_001) },
+      { proposedReplacement: 1 },
+    ]) {
+      expect(isCreateCandidateInput({ ...valid, ...change }), JSON.stringify(Object.keys(change))).toBe(false);
+    }
+
+    expect(
+      isCreateCandidateInput({
+        ...valid,
+        evidence: [evidenceReference("annotation", "shared"), evidenceReference("claim", "shared")],
+      }),
+    ).toBe(true);
+    expect(
+      isCreateCandidateInput({ ...valid, evidence: Array.from({ length: 12 }, (_, index) => evidenceReference("claim", String(index))) }),
+    ).toBe(true);
+    expect(
+      isCreateCandidateInput({
+        ...valid,
+        providerLabel: "p".repeat(256),
+        model: "m".repeat(256),
+        instruction: "i".repeat(4_000),
+        target: { ...valid.target, excerpt: "e".repeat(20_000) },
+        proposedReplacement: "r".repeat(50_000),
+      }),
+    ).toBe(true);
+    expect(isCreateCandidateInput({ ...valid, legacy: "unexpected" })).toBe(false);
+  });
+
+  it("validates immutable grounded candidate representations", () => {
+    const valid = validCandidate();
+    expect(isModelCandidate(valid)).toBe(true);
+    expect(isModelCandidate({ ...valid, status: "accepted" })).toBe(true);
+    expect(isModelCandidate({ ...valid, status: "rejected" })).toBe(true);
+    expect(isModelCandidate({ ...valid, target: { ...valid.target, resolution: { status: "stale" } } })).toBe(true);
+
+    for (const change of [
+      { id: "" },
+      { id: "x".repeat(129) },
+      { operation: "revise-document" },
+      { promptVersion: "revise-selection-v2" },
+      { providerAdapter: "other" },
+      { providerLabel: "" },
+      { providerLabel: "x".repeat(257) },
+      { model: "" },
+      { model: "x".repeat(257) },
+      { instruction: "" },
+      { instruction: "x".repeat(4_001) },
       { sourceRevision: -1 },
       { sourceRevision: 0.5 },
-      { sourceRevision: "0" },
-      { sourceIds: "a" },
-      { sourceIds: Array.from({ length: 101 }, () => "a") },
-      { sourceIds: [1] },
-      { sourceIds: [""] },
-      { sourceIds: ["x".repeat(129)] },
-      { proposedSource: "" },
-      { proposedSource: "x".repeat(2_000_001) },
+      { sourceRevision: "3" },
+      { target: null },
+      { target: { ...valid.target, extra: true } },
+      { target: { ...valid.target, anchor: { ...valid.target.anchor, anchoredRevision: 4 } } },
+      { target: { ...valid.target, anchor: { ...valid.target.anchor, exact: "x".repeat(20_001) } } },
+      {
+        target: {
+          ...valid.target,
+          resolution: { ...valid.target.resolution, text: "different text!!", exactMatch: true },
+        },
+      },
+      { target: { ...valid.target, resolution: { ...valid.target.resolution, exactMatch: false } } },
+      { evidence: [] },
+      { evidence: Array.from({ length: 13 }, (_, index) => ({ ...annotationEvidence(), id: String(index) })) },
+      { evidence: [{ ...annotationEvidence(), version: "different" }] },
+      { evidence: [{ ...claimEvidence(), version: "different" }] },
+      { evidence: [{ ...annotationEvidence(), kind: "note" }] },
+      { evidence: [{ ...annotationEvidence(), extra: true }] },
+      { evidence: [annotationEvidence(), annotationEvidence()] },
+      { proposedReplacement: "" },
+      { proposedReplacement: " ".repeat(10) },
+      { proposedReplacement: "x".repeat(50_001) },
+      { status: "stale" },
+      { createdAt: "" },
+      { createdAt: "x".repeat(129) },
     ]) {
-      expect(
-        isCreateCandidateInput({ ...valid, ...change }),
-        typeof change.sourceIds === "string" ? change.sourceIds : "candidate boundary",
-      ).toBe(false);
+      expect(isModelCandidate({ ...valid, ...change }), JSON.stringify(Object.keys(change))).toBe(false);
     }
+
+    expect(isModelCandidate({ ...valid, sourceIds: ["legacy"] })).toBe(false);
+    expect(isModelCandidate({ ...valid, proposedSource: "legacy" })).toBe(false);
+    expect(isModelCandidate(null)).toBe(false);
+  });
+
+  it("validates every annotation and claim evidence snapshot field", () => {
+    const valid = validCandidate();
+    const annotation = annotationEvidence();
+    for (const change of [
+      { id: "" },
+      { id: "x".repeat(129) },
+      { version: "" },
+      { version: "x".repeat(129) },
+      { pdfId: "" },
+      { pdfId: "x".repeat(129) },
+      { page: 0 },
+      { page: 1.5 },
+      { page: "1" },
+      { quote: "" },
+      { quote: "x".repeat(20_001) },
+      { quote: 1 },
+      { prefix: "x".repeat(2_001) },
+      { prefix: 1 },
+      { suffix: "x".repeat(2_001) },
+      { suffix: 1 },
+      { comment: "x".repeat(4_001) },
+      { comment: 1 },
+      { rects: null },
+      { rects: Array.from({ length: 65 }, () => ({ x: 0, y: 0, width: 0.1, height: 0.1 })) },
+      { rects: [{ x: -1, y: 0, width: 0.1, height: 0.1 }] },
+      { createdAt: "" },
+      { createdAt: "x".repeat(129) },
+      { createdAt: "different" },
+    ]) {
+      expect(isModelCandidate({ ...valid, evidence: [{ ...annotation, ...change }] }), JSON.stringify(Object.keys(change))).toBe(false);
+    }
+
+    const claim = claimEvidence();
+    for (const change of [
+      { id: "" },
+      { id: "x".repeat(129) },
+      { version: "" },
+      { version: "x".repeat(129) },
+      { text: "" },
+      { text: "x".repeat(2_001) },
+      { text: 1 },
+      { note: "x".repeat(8_001) },
+      { note: 1 },
+      { createdAt: "" },
+      { createdAt: "x".repeat(129) },
+      { createdAt: 1 },
+      { updatedAt: "" },
+      { updatedAt: "x".repeat(129) },
+      { updatedAt: 1 },
+      { updatedAt: "different" },
+    ]) {
+      expect(isModelCandidate({ ...valid, evidence: [{ ...claim, ...change }] }), JSON.stringify(Object.keys(change))).toBe(false);
+    }
+
+    expect(isModelCandidate({ ...valid, evidence: [annotationEvidence(), claimEvidence()] })).toBe(true);
   });
 
   it("validates every snapshot field", () => {
@@ -451,5 +599,91 @@ describe("workspace input guards", () => {
         JSON.stringify(change),
       ).toBe(false);
     }
+    expect(isWorkspaceSnapshot({ ...valid, candidates: [validCandidate()] })).toBe(true);
+    expect(isWorkspaceSnapshot({ ...valid, candidates: [{ ...validCandidate(), providerLabel: "" }] })).toBe(false);
+    expect(
+      isWorkspaceSnapshot({
+        ...valid,
+        candidates: [{ id: "legacy", provider: "local", model: "model", sourceIds: [], proposedSource: "document" }],
+      }),
+    ).toBe(false);
   });
 });
+
+function validCandidateInput() {
+  return {
+    providerAdapter: "openai-compatible",
+    providerLabel: "Local model",
+    model: "test-model",
+    promptVersion: "revise-selection-v1",
+    instruction: "Make the selected claim more precise.",
+    target: { start: 2, end: 18, excerpt: "selected passage", sourceRevision: 3 },
+    evidence: [evidenceReference("annotation", "annotation-1"), evidenceReference("claim", "claim-1")],
+    proposedReplacement: "more precise passage",
+  } as const;
+}
+
+function evidenceReference(kind: "annotation" | "claim", id: string, version = "2026-07-11T08:00:00.000Z") {
+  return { kind, id, version } as const;
+}
+
+function annotationEvidence() {
+  const createdAt = "2026-07-11T08:00:00.000Z";
+  return {
+    kind: "annotation",
+    id: "annotation-1",
+    version: createdAt,
+    pdfId: "pdf-1",
+    page: 4,
+    quote: "Inspectable evidence grounds this revision.",
+    prefix: "Before. ",
+    suffix: " After.",
+    comment: "Grounding note",
+    rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+    createdAt,
+  } as const;
+}
+
+function claimEvidence() {
+  const updatedAt = "2026-07-11T08:01:00.000Z";
+  return {
+    kind: "claim",
+    id: "claim-1",
+    version: updatedAt,
+    text: "Evidence should remain inspectable.",
+    note: "Human-authored synthesis",
+    createdAt: "2026-07-11T08:00:00.000Z",
+    updatedAt,
+  } as const;
+}
+
+function validCandidate() {
+  const exact = "selected passage";
+  return {
+    id: "candidate-1",
+    operation: "revise-selection",
+    promptVersion: "revise-selection-v1",
+    providerAdapter: "openai-compatible",
+    providerLabel: "Local model",
+    model: "test-model",
+    instruction: "Make the selected claim more precise.",
+    sourceRevision: 3,
+    target: {
+      anchor: {
+        version: 1,
+        relativeStart: "AA",
+        relativeEnd: "AQ",
+        exact,
+        prefix: "Before. ",
+        suffix: " After.",
+        originalRange: { start: 2, end: 18 },
+        anchoredRevision: 3,
+      },
+      resolution: { status: "resolved", start: 2, end: 18, text: exact, exactMatch: true },
+    },
+    evidence: [annotationEvidence(), claimEvidence()],
+    proposedReplacement: "more precise passage",
+    status: "pending",
+    createdAt: "2026-07-11T08:02:00.000Z",
+  } as const;
+}

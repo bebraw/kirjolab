@@ -22,6 +22,12 @@ using explicit annotations or claims while preserving a human review boundary.
 - Candidate creation verifies current manuscript revision/exact text and every
   evidence reference/version, then persists a Yjs-relative target, immutable
   evidence snapshots, instruction, provider/model, and replacement.
+- Append-only document-room migration 8 replaces the pre-launch
+  whole-document candidate table and discards its derived rows; no legacy
+  whole-document candidate is interpreted under the targeted contract.
+- `POST /api/workspaces/{id}/candidates` accepts only the fixed
+  `revise-selection-v1` operation shape. Apply and reject remain separate
+  authorized candidate actions.
 - Review presents before, after, and navigable evidence together.
 - Apply requires a pending, current, exact candidate and splices only the target
   range; reject never changes canonical source.
@@ -45,11 +51,11 @@ using explicit annotations or claims while preserving a human review boundary.
       a bounded revision instruction.
 - [ ] The browser invokes a provider-neutral operation through the local
       OpenAI-compatible adapter.
-- [ ] A candidate persists a typed immutable base and targeted replacement.
+- [x] A candidate persists a typed immutable base and targeted replacement.
 - [ ] Review shows original, replacement, and linked evidence without a raw
       whole-document proposal.
-- [ ] Apply changes only the verified selected range; reject changes no source.
-- [ ] Stale manuscript or evidence input creates or applies no candidate.
+- [x] Apply changes only the verified selected range; reject changes no source.
+- [x] Stale manuscript or evidence input creates or applies no candidate.
 - [ ] Unit, Workers-runtime, and browser tests cover the reviewed lifecycle.
 
 ### Regression Guardrails

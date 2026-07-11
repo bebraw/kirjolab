@@ -92,16 +92,17 @@ mode for authenticated hosted collaboration.
   creates exact quote/context selectors plus normalized page rectangles before
   the annotation is saved.
 - **Local models:** Before awaiting a user-configured OpenAI-compatible local
-  endpoint, the browser captures immutable source, selection, revision, and
-  evidence values. Kirjolab receives a typed candidate containing
-  provider/model identity, source resource ids, that base revision, and
-  proposed Markdown.
+  endpoint, the browser captures an exact selected passage, bounded instruction,
+  revision, and typed versioned annotation/claim references. Only that passage
+  and evidence enter the provider-neutral browser adapter. The document room
+  verifies the captured base and persists a Yjs-relative target, immutable
+  evidence snapshots, provider/model identity, and replacement Markdown.
 - **Mutation boundary:** Candidate creation fails if its immutable base revision
-  is already stale. A current pending candidate can be inspected, rejected
-  without changing source, or applied only while its revision remains current.
-  Applying a complete proposed manuscript materializes only the differing
-  middle through the smallest common-prefix/suffix `Y.Text` splice so anchors in
-  unchanged prose retain their Yjs identities.
+  or evidence version is already stale. A current pending candidate can be
+  inspected, rejected without changing source, or applied only while its exact
+  anchored target and revision remain current. Apply computes a local minimal
+  splice inside the target range, atomically persists canonical source and
+  accepted status, and cannot replace unrelated manuscript text.
 - **Exports:** Dedicated endpoints return `document.md` and `bibliography.bib`
   with download metadata.
 
@@ -144,7 +145,8 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/claim-links` accepts a claim id, source revision,
   requested offsets, and exact current text and returns a selector-backed
   claim-passage link.
-- `POST /api/workspaces/demo/candidates` persists a review candidate.
+- `POST /api/workspaces/demo/candidates` verifies and persists a targeted
+  `revise-selection-v1` candidate with typed evidence snapshots.
 - `POST /api/workspaces/demo/candidates/{id}/apply` applies a current pending
   candidate.
 - `POST /api/workspaces/demo/candidates/{id}/reject` rejects a pending

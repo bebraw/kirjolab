@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { type PublicationEnrichment, type WorkspaceSnapshot } from "../domain/workspace";
+import { type CreateCandidateInput, type PublicationEnrichment, type WorkspaceSnapshot } from "../domain/workspace";
 import { DocumentRoom } from "./document-room";
 
 interface WorkspaceStateRow extends Record<string, SqlStorageValue> {
@@ -166,7 +166,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
       state.storage.transactionSync(() => {
         state.storage.sql.exec("DROP TABLE publication_pdf_links");
-        state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 7");
+        state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 7");
       });
     });
 
@@ -177,6 +177,62 @@ describe("DocumentRoom in the Workers runtime", () => {
       "id",
       "publication_id",
       "pdf_id",
+      "created_at",
+    ]);
+  });
+
+  it("replaces legacy whole-document candidates when migration v8 is pending", async () => {
+    const workspaceId = "targeted-candidate-migration";
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      state.storage.transactionSync(() => {
+        state.storage.sql.exec(`
+          DROP TABLE candidates;
+          CREATE TABLE candidates (
+            id TEXT PRIMARY KEY,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            source_revision INTEGER NOT NULL,
+            source_ids TEXT NOT NULL,
+            proposed_source TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')),
+            created_at TEXT NOT NULL
+          );
+          INSERT INTO candidates
+          (id, provider, model, source_revision, source_ids, proposed_source, status, created_at)
+          VALUES ('legacy-candidate', 'legacy-provider', 'legacy-model', 0, '[]', '# Legacy whole document', 'pending',
+                  '2025-01-01T00:00:00.000Z');
+          DELETE FROM _kirjolab_migrations WHERE version = 8;
+        `);
+      });
+    });
+
+    await evictDurableObject(stub);
+    expect((await stub.getSnapshot(workspaceId)).candidates).toEqual([]);
+    expect(await migrationVersion(stub, 8)).toEqual({ version: 8, name: "replace-whole-document-candidates" });
+    expect(await runInDurableObject(stub, (_instance: DocumentRoom, state) => tableColumns(state, "candidates"))).toEqual([
+      "id",
+      "operation",
+      "prompt_version",
+      "provider_adapter",
+      "provider_label",
+      "model",
+      "instruction",
+      "source_revision",
+      "start_offset",
+      "end_offset",
+      "excerpt",
+      "anchor_version",
+      "relative_start",
+      "relative_end",
+      "quote_prefix",
+      "quote_suffix",
+      "anchored_revision",
+      "evidence_json",
+      "proposed_replacement",
+      "status",
       "created_at",
     ]);
   });
@@ -430,6 +486,219 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(rejected.links).toEqual(accepted.links);
   });
 
+  it("persists a targeted candidate with server-derived typed evidence and a durable Yjs target", async () => {
+    const workspaceId = "targeted-candidate-persistence";
+    const stub = roomStub(workspaceId);
+    const fixture = await modelCandidateFixture(stub, workspaceId);
+    const before = await stub.getSnapshot(workspaceId);
+
+    const candidate = await stub.createCandidate(fixture.input);
+
+    expect(candidate).toMatchObject({
+      operation: "revise-selection",
+      promptVersion: "revise-selection-v1",
+      providerAdapter: "openai-compatible",
+      providerLabel: "Workers test provider",
+      model: "workers-test-model",
+      instruction: "Make this passage more precise.",
+      sourceRevision: before.revision,
+      proposedReplacement: fixture.replacement,
+      status: "pending",
+      target: {
+        anchor: {
+          version: 1,
+          exact: fixture.excerpt,
+          originalRange: { start: fixture.start, end: fixture.start + fixture.excerpt.length },
+          anchoredRevision: before.revision,
+        },
+        resolution: {
+          status: "resolved",
+          start: fixture.start,
+          end: fixture.start + fixture.excerpt.length,
+          text: fixture.excerpt,
+          exactMatch: true,
+        },
+      },
+    });
+    expect(candidate.target.anchor.relativeStart).not.toBeNull();
+    expect(candidate.target.anchor.relativeEnd).not.toBeNull();
+    expect(candidate.evidence).toEqual([
+      { kind: "annotation", version: fixture.annotation.createdAt, ...fixture.annotation },
+      { kind: "claim", version: fixture.claim.updatedAt, ...fixture.claim },
+    ]);
+
+    const created = await stub.getSnapshot(workspaceId);
+    expect(created.source).toBe(before.source);
+    expect(created.revision).toBe(before.revision);
+    expect(created.candidates).toEqual([candidate]);
+
+    await evictDurableObject(stub);
+    expect((await stub.getSnapshot(workspaceId)).candidates).toEqual([candidate]);
+  });
+
+  it("persists no candidate for stale evidence, target text, or revision", async () => {
+    const workspaceId = "targeted-candidate-stale-input";
+    const stub = roomStub(workspaceId);
+    const fixture = await modelCandidateFixture(stub, workspaceId);
+    const annotationEvidence = fixture.input.evidence[0];
+    const claimEvidence = fixture.input.evidence[1];
+    if (!annotationEvidence || !claimEvidence) throw new Error("Expected model evidence references");
+
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() =>
+        instance.createCandidate({
+          ...fixture.input,
+          evidence: [{ ...annotationEvidence, version: "stale-annotation-version" }],
+        }),
+      ).toThrow("Model evidence is stale");
+      expect(() =>
+        instance.createCandidate({
+          ...fixture.input,
+          evidence: [{ ...claimEvidence, version: "stale-claim-version" }],
+        }),
+      ).toThrow("Model evidence is stale");
+      expect(() =>
+        instance.createCandidate({
+          ...fixture.input,
+          evidence: [{ kind: "annotation", id: crypto.randomUUID(), version: "missing" }],
+        }),
+      ).toThrow("Model evidence annotation not found");
+      expect(() =>
+        instance.createCandidate({
+          ...fixture.input,
+          target: { ...fixture.input.target, excerpt: "The target no longer matches." },
+        }),
+      ).toThrow("Candidate source is stale");
+      expect(() =>
+        instance.createCandidate({
+          ...fixture.input,
+          target: { ...fixture.input.target, sourceRevision: fixture.input.target.sourceRevision + 1 },
+        }),
+      ).toThrow("Candidate source is stale");
+    });
+
+    expect((await stub.getSnapshot(workspaceId)).candidates).toEqual([]);
+    expect(await runInDurableObject(stub, (_instance: DocumentRoom, state) => candidateRowCount(state))).toBe(0);
+  });
+
+  it("applies only the targeted splice and preserves surrounding manuscript anchors", async () => {
+    const workspaceId = "targeted-candidate-apply";
+    const stub = roomStub(workspaceId);
+    const fixture = await modelCandidateFixture(stub, workspaceId);
+    const beforeAnchorText = "Kirjolab keeps";
+    const afterAnchorText = "into cited prose visible";
+    const beforeAnchorStart = fixture.snapshot.source.indexOf(beforeAnchorText);
+    const afterAnchorStart = fixture.snapshot.source.indexOf(afterAnchorText);
+    const beforeLink = await stub.createPassageLink({
+      annotationId: fixture.annotation.id,
+      start: beforeAnchorStart,
+      end: beforeAnchorStart + beforeAnchorText.length,
+      excerpt: beforeAnchorText,
+      sourceRevision: fixture.snapshot.revision,
+    });
+    const afterLink = await stub.createPassageLink({
+      annotationId: fixture.annotation.id,
+      start: afterAnchorStart,
+      end: afterAnchorStart + afterAnchorText.length,
+      excerpt: afterAnchorText,
+      sourceRevision: fixture.snapshot.revision,
+    });
+    const candidate = await stub.createCandidate(fixture.input);
+    const expectedSource = `${fixture.snapshot.source.slice(0, fixture.start)}${fixture.replacement}${fixture.snapshot.source.slice(
+      fixture.start + fixture.excerpt.length,
+    )}`;
+
+    const applied = await stub.applyCandidate(workspaceId, candidate.id);
+
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) throw new Error(applied.error);
+    expect(applied.snapshot.source).toBe(expectedSource);
+    expect(applied.snapshot.revision).toBe(fixture.snapshot.revision + 1);
+    expect(applied.snapshot.candidates.find((item) => item.id === candidate.id)?.status).toBe("accepted");
+    expect(applied.snapshot.links.find((link) => link.id === beforeLink.id)?.resolution).toMatchObject({
+      status: "resolved",
+      start: beforeAnchorStart,
+      end: beforeAnchorStart + beforeAnchorText.length,
+      text: beforeAnchorText,
+      exactMatch: true,
+    });
+    const shiftedAfterStart = afterAnchorStart + fixture.replacement.length - fixture.excerpt.length;
+    expect(applied.snapshot.links.find((link) => link.id === afterLink.id)?.resolution).toMatchObject({
+      status: "resolved",
+      start: shiftedAfterStart,
+      end: shiftedAfterStart + afterAnchorText.length,
+      text: afterAnchorText,
+      exactMatch: true,
+    });
+  });
+
+  it("rejects stale application and permits rejecting the unchanged pending candidate", async () => {
+    const workspaceId = "targeted-candidate-stale-apply";
+    const stub = roomStub(workspaceId);
+    const fixture = await modelCandidateFixture(stub, workspaceId);
+    const candidate = await stub.createCandidate(fixture.input);
+    const remotelyEditedSource = `${fixture.snapshot.source}\nA collaborator changes unrelated prose.\n`;
+    await applyAuthoredSource(stub, remotelyEditedSource);
+    const afterRemoteEdit = await stub.getSnapshot(workspaceId);
+
+    await expect(stub.applyCandidate(workspaceId, candidate.id)).resolves.toEqual({
+      ok: false,
+      error: "Candidate is stale; generate a new revision",
+    });
+    const afterFailedApply = await stub.getSnapshot(workspaceId);
+    expect(afterFailedApply.source).toBe(remotelyEditedSource);
+    expect(afterFailedApply.revision).toBe(afterRemoteEdit.revision);
+    expect(afterFailedApply.candidates.find((item) => item.id === candidate.id)?.status).toBe("pending");
+
+    const rejected = await stub.rejectCandidate(candidate.id);
+    expect(rejected.status).toBe("rejected");
+    const afterReject = await stub.getSnapshot(workspaceId);
+    expect(afterReject.source).toBe(remotelyEditedSource);
+    expect(afterReject.revision).toBe(afterRemoteEdit.revision);
+    expect(afterReject.candidates.find((item) => item.id === candidate.id)?.status).toBe("rejected");
+  });
+
+  it("accepts a no-op targeted candidate without advancing the manuscript revision", async () => {
+    const workspaceId = "targeted-candidate-no-op";
+    const stub = roomStub(workspaceId);
+    const fixture = await modelCandidateFixture(stub, workspaceId);
+    const candidate = await stub.createCandidate({ ...fixture.input, proposedReplacement: fixture.excerpt });
+
+    const applied = await stub.applyCandidate(workspaceId, candidate.id);
+
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) throw new Error(applied.error);
+    expect(applied.snapshot.source).toBe(fixture.snapshot.source);
+    expect(applied.snapshot.revision).toBe(fixture.snapshot.revision);
+    expect(applied.snapshot.candidates.find((item) => item.id === candidate.id)?.status).toBe("accepted");
+  });
+
+  it("rolls Yjs, materialized source, revision, and status back when candidate acceptance fails", async () => {
+    const workspaceId = "targeted-candidate-rollback";
+    const stub = roomStub(workspaceId);
+    const fixture = await modelCandidateFixture(stub, workspaceId);
+    const candidate = await stub.createCandidate(fixture.input);
+    const beforeApply = await stub.getSnapshot(workspaceId);
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      state.storage.sql.exec(`
+        CREATE TRIGGER reject_candidate_acceptance
+        BEFORE UPDATE OF status ON candidates
+        WHEN NEW.status = 'accepted'
+        BEGIN
+          SELECT RAISE(ABORT, 'blocked candidate acceptance');
+        END;
+      `);
+    });
+
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.applyCandidate(workspaceId, candidate.id)).toThrow("blocked candidate acceptance");
+    });
+    expect(await stub.getSnapshot(workspaceId)).toEqual(beforeApply);
+
+    await evictDurableObject(stub);
+    expect(await stub.getSnapshot(workspaceId)).toEqual(beforeApply);
+  });
+
   it("projects a persisted canonical bibliography when migration v6 is pending", async () => {
     const workspaceId = "persisted-bibliography-migration";
     const stub = roomStub(workspaceId);
@@ -629,11 +898,75 @@ async function inspectAnchorMigrationState(stub: DurableObjectStub<DocumentRoom>
   }));
 }
 
-function tableColumns(state: DurableObjectState, table: "passage_links" | "claim_passage_links" | "publication_pdf_links"): string[] {
+function tableColumns(
+  state: DurableObjectState,
+  table: "passage_links" | "claim_passage_links" | "publication_pdf_links" | "candidates",
+): string[] {
   return state.storage.sql
     .exec<TableColumnRow>(`PRAGMA table_info(${table})`)
     .toArray()
     .map((row) => row.name);
+}
+
+async function modelCandidateFixture(
+  stub: DurableObjectStub<DocumentRoom>,
+  workspaceId: string,
+): Promise<{
+  snapshot: WorkspaceSnapshot;
+  annotation: WorkspaceSnapshot["annotations"][number];
+  claim: WorkspaceSnapshot["claims"][number];
+  excerpt: string;
+  replacement: string;
+  start: number;
+  input: CreateCandidateInput;
+}> {
+  const initial = await stub.getSnapshot(workspaceId);
+  const pdf = pdfResource("model-evidence.pdf");
+  await stub.registerPdf(pdf);
+  const annotation = await stub.createAnnotation({
+    pdfId: pdf.id,
+    page: 3,
+    quote: "Inspectable evidence supports a focused revision.",
+    prefix: "Before the evidence",
+    suffix: "after the evidence",
+    comment: "Ground the model operation",
+    rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+  });
+  const claim = await stub.createClaim({
+    text: "Focused evidence makes revisions reviewable.",
+    note: "A human-authored synthesis",
+    evidence: [{ annotationId: annotation.id, relation: "supports" }],
+  });
+  const snapshot = await stub.getSnapshot(workspaceId);
+  const excerpt = "the path from an annotation to a claim";
+  const replacement = "the path from inspectable evidence to a defensible claim";
+  const start = snapshot.source.indexOf(excerpt);
+  if (start < 0) throw new Error("Expected the targeted manuscript passage");
+  const input: CreateCandidateInput = {
+    providerAdapter: "openai-compatible",
+    providerLabel: "Workers test provider",
+    model: "workers-test-model",
+    promptVersion: "revise-selection-v1",
+    instruction: "Make this passage more precise.",
+    target: {
+      start,
+      end: start + excerpt.length,
+      excerpt,
+      sourceRevision: snapshot.revision,
+    },
+    evidence: [
+      { kind: "annotation", id: annotation.id, version: annotation.createdAt },
+      { kind: "claim", id: claim.id, version: claim.updatedAt },
+    ],
+    proposedReplacement: replacement,
+  };
+  expect(snapshot.source).toBe(initial.source);
+  expect(snapshot.revision).toBe(initial.revision);
+  return { snapshot, annotation, claim, excerpt, replacement, start, input };
+}
+
+function candidateRowCount(state: DurableObjectState): number {
+  return state.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM candidates").one().count;
 }
 
 function pdfResource(name: string): WorkspaceSnapshot["pdfs"][number] {
@@ -656,15 +989,23 @@ function publicationByKey(snapshot: WorkspaceSnapshot, citationKey: string): Wor
 }
 
 async function applyAuthoredBibliography(stub: DurableObjectStub<DocumentRoom>, nextBibliography: string): Promise<void> {
+  await applyAuthoredText(stub, "bibliography", nextBibliography);
+}
+
+async function applyAuthoredSource(stub: DurableObjectStub<DocumentRoom>, nextSource: string): Promise<void> {
+  await applyAuthoredText(stub, "source", nextSource);
+}
+
+async function applyAuthoredText(stub: DurableObjectStub<DocumentRoom>, name: "source" | "bibliography", nextValue: string): Promise<void> {
   await runInDurableObject(stub, (instance: DocumentRoom, state) => {
     const row = state.storage.sql.exec<WorkspaceStateRow>("SELECT y_state FROM workspace WHERE id = 1").one();
     const document = new Y.Doc();
     Y.applyUpdate(document, new Uint8Array(row.y_state), "test-bootstrap");
     const stateVector = Y.encodeStateVector(document);
-    const bibliography = document.getText("bibliography");
+    const text = document.getText(name);
     document.transact(() => {
-      if (bibliography.length > 0) bibliography.delete(0, bibliography.length);
-      bibliography.insert(0, nextBibliography);
+      if (text.length > 0) text.delete(0, text.length);
+      text.insert(0, nextValue);
     }, "authored-test-edit");
     const update = copyArrayBuffer(Y.encodeStateAsUpdate(document, stateVector));
 

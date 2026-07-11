@@ -22,6 +22,8 @@ import { isValidCitationKey, suggestCitationKey } from "../domain/publication-in
 import {
   defaultBibliography,
   defaultSource,
+  isCreateCandidateInput,
+  isModelCandidate,
   type ApplyCandidateResult,
   type AnnotationLinkResult,
   type AnnotationResource,
@@ -37,6 +39,8 @@ import {
   type CreatePassageLinkInput,
   type CreatePublicationPdfLinkInput,
   type ModelCandidate,
+  type ModelEvidence,
+  type ModelEvidenceReference,
   type PassageLink,
   type PdfResource,
   type PublicationEnrichment,
@@ -96,11 +100,24 @@ interface LinkRow extends Record<string, SqlStorageValue> {
 
 interface CandidateRow extends Record<string, SqlStorageValue> {
   id: string;
-  provider: string;
+  operation: string;
+  prompt_version: string;
+  provider_adapter: string;
+  provider_label: string;
   model: string;
+  instruction: string;
   source_revision: number;
-  source_ids: string;
-  proposed_source: string;
+  start_offset: number;
+  end_offset: number;
+  excerpt: string;
+  anchor_version: number;
+  relative_start: ArrayBuffer | null;
+  relative_end: ArrayBuffer | null;
+  quote_prefix: string;
+  quote_suffix: string;
+  anchored_revision: number;
+  evidence_json: string;
+  proposed_replacement: string;
   status: string;
   created_at: string;
 }
@@ -659,33 +676,51 @@ export class DocumentRoom extends DurableObject<Env> {
   }
 
   createCandidate(input: CreateCandidateInput): ModelCandidate {
-    if (input.sourceRevision !== this.#workspaceRow().revision) {
+    if (!isCreateCandidateInput(input)) throw new Error("Model candidate input is invalid");
+    const workspace = this.#workspaceRow();
+    const sourceValue = this.#document.getText("source").toString();
+    if (input.target.sourceRevision !== workspace.revision) {
       throw new Error("Candidate source is stale; generate a new revision");
     }
-    const candidate: ModelCandidate = {
-      id: crypto.randomUUID(),
-      provider: input.provider,
-      model: input.model,
-      operation: "revise-selection",
-      sourceRevision: input.sourceRevision,
-      sourceIds: input.sourceIds,
-      proposedSource: input.proposedSource,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
+    if (
+      sourceValue !== workspace.source ||
+      input.target.end > sourceValue.length ||
+      sourceValue.slice(input.target.start, input.target.end) !== input.target.excerpt
+    ) {
+      throw new Error("Candidate source is stale; generate a new revision");
+    }
+
+    const evidence = this.#captureModelEvidence(input.evidence);
+    const anchor = createManuscriptAnchor(this.#document, input.target.start, input.target.end, workspace.revision);
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
     this.ctx.storage.sql.exec(
-      "INSERT INTO candidates (id, provider, model, source_revision, source_ids, proposed_source, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      candidate.id,
-      candidate.provider,
-      candidate.model,
-      candidate.sourceRevision,
-      JSON.stringify(candidate.sourceIds),
-      candidate.proposedSource,
-      candidate.status,
-      candidate.createdAt,
+      `INSERT INTO candidates
+       (id, operation, prompt_version, provider_adapter, provider_label, model, instruction, source_revision,
+        start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end, quote_prefix, quote_suffix,
+        anchored_revision, evidence_json, proposed_replacement, status, created_at)
+       VALUES (?, 'revise-selection', ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      id,
+      input.promptVersion,
+      input.providerAdapter,
+      input.providerLabel,
+      input.model,
+      input.instruction,
+      workspace.revision,
+      input.target.start,
+      input.target.end,
+      input.target.excerpt,
+      anchor.relativeStart,
+      anchor.relativeEnd,
+      anchor.prefix,
+      anchor.suffix,
+      anchor.anchoredRevision,
+      JSON.stringify(evidence),
+      input.proposedReplacement,
+      createdAt,
     );
     this.#broadcastResources();
-    return candidate;
+    return this.#candidate(id);
   }
 
   applyCandidate(workspaceId: string, candidateId: string): ApplyCandidateResult {
@@ -695,11 +730,17 @@ export class DocumentRoom extends DurableObject<Env> {
     if (candidate.sourceRevision !== workspace.revision) return { ok: false, error: "Candidate is stale; generate a new revision" };
 
     const source = this.#document.getText("source");
-    const splice = calculateTextSplice(source.toString(), candidate.proposedSource);
+    const resolution = resolveManuscriptAnchor(this.#document, candidate.target.anchor);
+    if (resolution.status !== "resolved" || !resolution.exactMatch) {
+      return { ok: false, error: "Candidate target is stale; generate a new revision" };
+    }
+    const splice = calculateTextSplice(candidate.target.anchor.exact, candidate.proposedReplacement);
+    const stateVector = splice ? Y.encodeStateVector(this.#document) : undefined;
     if (splice) {
       this.#document.transact(() => {
-        if (splice.deleteCount > 0) source.delete(splice.start, splice.deleteCount);
-        if (splice.insert) source.insert(splice.start, splice.insert);
+        const start = resolution.start + splice.start;
+        if (splice.deleteCount > 0) source.delete(start, splice.deleteCount);
+        if (splice.insert) source.insert(start, splice.insert);
       }, "candidate");
     }
     let revision: number | undefined;
@@ -725,8 +766,8 @@ export class DocumentRoom extends DurableObject<Env> {
     } else {
       this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
     }
-    if (revision !== undefined) {
-      this.#broadcast(Y.encodeStateAsUpdate(this.#document));
+    if (revision !== undefined && stateVector) {
+      this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
       this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision }));
     }
     this.#broadcastResources();
@@ -921,6 +962,39 @@ export class DocumentRoom extends DurableObject<Env> {
               UNIQUE (publication_id, pdf_id)
             );
             CREATE INDEX IF NOT EXISTS publication_pdf_links_pdf ON publication_pdf_links(pdf_id);
+          `);
+          return undefined;
+        },
+      },
+      {
+        version: 8,
+        name: "replace-whole-document-candidates",
+        apply(sql): undefined {
+          sql.exec(`
+            DROP TABLE IF EXISTS candidates;
+            CREATE TABLE candidates (
+              id TEXT PRIMARY KEY,
+              operation TEXT NOT NULL CHECK (operation = 'revise-selection'),
+              prompt_version TEXT NOT NULL CHECK (prompt_version = 'revise-selection-v1'),
+              provider_adapter TEXT NOT NULL CHECK (provider_adapter = 'openai-compatible'),
+              provider_label TEXT NOT NULL,
+              model TEXT NOT NULL,
+              instruction TEXT NOT NULL,
+              source_revision INTEGER NOT NULL,
+              start_offset INTEGER NOT NULL,
+              end_offset INTEGER NOT NULL,
+              excerpt TEXT NOT NULL,
+              anchor_version INTEGER NOT NULL CHECK (anchor_version = 1),
+              relative_start BLOB NOT NULL,
+              relative_end BLOB NOT NULL,
+              quote_prefix TEXT NOT NULL,
+              quote_suffix TEXT NOT NULL,
+              anchored_revision INTEGER NOT NULL,
+              evidence_json TEXT NOT NULL,
+              proposed_replacement TEXT NOT NULL,
+              status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')),
+              created_at TEXT NOT NULL
+            );
           `);
           return undefined;
         },
@@ -1276,6 +1350,51 @@ export class DocumentRoom extends DurableObject<Env> {
     }
   }
 
+  #captureModelEvidence(references: readonly ModelEvidenceReference[]): ModelEvidence[] {
+    const evidence: ModelEvidence[] = [];
+    let contentLength = 0;
+    for (const reference of references) {
+      if (reference.kind === "annotation") {
+        const row = this.ctx.storage.sql.exec<AnnotationRow>("SELECT * FROM annotations WHERE id = ?", reference.id).toArray()[0];
+        if (!row) throw new Error("Model evidence annotation not found");
+        if (row.created_at !== reference.version) throw new Error("Model evidence is stale; generate a new revision");
+        const snapshot: ModelEvidence = {
+          kind: "annotation",
+          id: row.id,
+          version: row.created_at,
+          pdfId: row.pdf_id,
+          page: row.page,
+          quote: row.quote,
+          prefix: row.prefix,
+          suffix: row.suffix,
+          comment: row.comment,
+          rects: parseSelectionRects(row.rects_json),
+          createdAt: row.created_at,
+        };
+        contentLength += snapshot.quote.length + snapshot.prefix.length + snapshot.suffix.length + snapshot.comment.length;
+        evidence.push(snapshot);
+        continue;
+      }
+
+      const row = this.ctx.storage.sql.exec<ClaimRow>("SELECT * FROM claims WHERE id = ?", reference.id).toArray()[0];
+      if (!row) throw new Error("Model evidence claim not found");
+      if (row.updated_at !== reference.version) throw new Error("Model evidence is stale; generate a new revision");
+      const snapshot: ModelEvidence = {
+        kind: "claim",
+        id: row.id,
+        version: row.updated_at,
+        text: row.text,
+        note: row.note,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+      contentLength += snapshot.text.length + snapshot.note.length;
+      evidence.push(snapshot);
+    }
+    if (contentLength > 64 * 1_024) throw new Error("Model evidence exceeds the operation limit");
+    return evidence;
+  }
+
   #insertClaimEvidence(claimId: string, evidence: ClaimEvidenceInput[], createdAt: string): void {
     for (const item of evidence) {
       this.ctx.storage.sql.exec(
@@ -1293,14 +1412,14 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.ctx.storage.sql
       .exec<CandidateRow>("SELECT * FROM candidates ORDER BY created_at DESC LIMIT 20")
       .toArray()
-      .map(candidateFromRow);
+      .map((row) => candidateFromRow(this.#document, row));
   }
 
   #candidate(candidateId: string): ModelCandidate {
     const rows = this.ctx.storage.sql.exec<CandidateRow>("SELECT * FROM candidates WHERE id = ?", candidateId).toArray();
     const row = rows[0];
     if (!row) throw new Error("Candidate not found");
-    return candidateFromRow(row);
+    return candidateFromRow(this.#document, row);
   }
 
   #broadcast(message: string | ArrayBuffer | ArrayBufferView, except?: WebSocket): void {
@@ -1340,7 +1459,7 @@ function claimPassageLinkFromRow(document: Y.Doc, row: ClaimLinkRow): ClaimPassa
   };
 }
 
-function manuscriptAnchorFromRow(row: LinkRow | ClaimLinkRow): StoredManuscriptAnchor {
+function manuscriptAnchorFromRow(row: LinkRow | ClaimLinkRow | CandidateRow): StoredManuscriptAnchor {
   return {
     version: 1,
     relativeStart: row.anchor_version === 1 ? row.relative_start : null,
@@ -1353,18 +1472,28 @@ function manuscriptAnchorFromRow(row: LinkRow | ClaimLinkRow): StoredManuscriptA
   };
 }
 
-function candidateFromRow(row: CandidateRow): ModelCandidate {
-  return {
+function candidateFromRow(document: Y.Doc, row: CandidateRow): ModelCandidate {
+  const anchor = manuscriptAnchorFromRow(row);
+  const candidate: unknown = {
     id: row.id,
-    provider: row.provider,
+    operation: row.operation,
+    promptVersion: row.prompt_version,
+    providerAdapter: row.provider_adapter,
+    providerLabel: row.provider_label,
     model: row.model,
-    operation: "revise-selection",
+    instruction: row.instruction,
     sourceRevision: row.source_revision,
-    sourceIds: parseStringArray(row.source_ids),
-    proposedSource: row.proposed_source,
+    target: {
+      anchor: toManuscriptAnchorSelector(anchor),
+      resolution: resolveManuscriptAnchor(document, anchor),
+    },
+    evidence: parseJson(row.evidence_json),
+    proposedReplacement: row.proposed_replacement,
     status: row.status === "accepted" || row.status === "rejected" ? row.status : "pending",
     createdAt: row.created_at,
   };
+  if (!isModelCandidate(candidate)) throw new Error("Stored model candidate is invalid");
+  return candidate;
 }
 
 function claimFromRow(row: ClaimRow): ClaimResource {
@@ -1445,6 +1574,14 @@ function parseStringArray(value: string): string[] {
     return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
   } catch {
     return [];
+  }
+}
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
   }
 }
 
