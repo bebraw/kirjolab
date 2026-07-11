@@ -3,6 +3,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: ".",
   testMatch: ["src/**/*.e2e.ts"],
+  testIgnore: ["**/.stryker-tmp/**"],
   fullyParallel: false,
   workers: 1,
   use: {

@@ -12,6 +12,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Workers runtime gate:** `npm run test:workers`
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`
+- **Browser discovery boundary:** canonical `src/**/*.e2e.ts` files outside
+  generated mutation sandboxes
 - **Affected test gate:** `npm run test:affected`
 - **Advisory codebase diagnostics:** `npm run diagnostics:codebase`
 - **Changed-code readability diagnostics:** `npm run diagnostics:readability`
@@ -58,7 +60,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - [ ] The affected guardrail path scopes formatting, JavaScript syntax checks, Worker client-code checks, package audit, and unit tests to affected files when possible.
 - [ ] The affected test gate runs tests related to affected runtime files, runs affected unit test files directly, and falls back to full coverage for broad test environment changes or affected runtime files with no related tests.
 - [ ] The advisory codebase diagnostics report changed-code readability risk, whole-repo health, hotspots, duplication, and cleanup evidence without becoming part of the hard quality gate.
-- [ ] The browser gate covers the Playwright baseline.
+- [ ] The browser gate covers each canonical Playwright baseline file once.
 - [ ] The full mutation gate covers runtime `src/**/*.ts` files with Stryker, Vitest, and TypeScript checking.
 - [ ] The incremental mutation gate reuses prior Stryker results for repeated local quality-gate runs while preserving a complete mutation report.
 - [ ] The full gate runs the fast, browser, and incremental mutation gates in order.
@@ -107,6 +109,10 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The canonical local CI script should use pause-on-failure so agents can fix and retry a failed runner without restarting the whole workflow.
 - The local verification workflow should document macOS as the supported host baseline instead of implying cross-platform support.
 - The Playwright server path must avoid macOS file-watcher exhaustion in local runs without changing the normal `npm run dev` workflow.
+- Playwright must ignore Stryker's generated `.stryker-tmp/` sandbox so an
+  incremental mutation run cannot duplicate browser suites in a later gate.
+- Browser tests that mutate durable state must create isolated workspaces rather
+  than assume the shared demo workspace still contains seed data.
 - The local CI documentation must cover the no-`origin` case through `.env.agent-ci` and `GITHUB_REPO` instead of treating that warning as normal noise.
 - The local CI Docker daemon override must use Agent CI's `AGENT_CI_DOCKER_HOST` variable instead of the general Docker CLI `DOCKER_HOST` variable.
 - Local Playwright browser installation should go through a pinned repo script instead of ad hoc `npx playwright install ...` usage.

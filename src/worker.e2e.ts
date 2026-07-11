@@ -4,7 +4,9 @@ import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
 
 test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
-  await page.goto("/");
+  const workspaceId = await createWorkspace(page, "Live WYSIWYM workspace");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
 
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Evidence" })).toBeVisible();
@@ -25,7 +27,7 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.locator("#preview .section-number").first()).toBeVisible();
   await expect(page.locator("#revision-badge")).not.toHaveText("r0");
 
-  const exported = await page.request.get("/api/workspaces/demo/export/document.md");
+  const exported = await page.request.get(`${api}/export/document.md`);
   expect(exported.ok()).toBe(true);
   expect(exported.headers()["content-disposition"]).toContain("kirjolab-document.md");
   expect(await exported.text()).toContain("A live collaborative note cites prior work");
