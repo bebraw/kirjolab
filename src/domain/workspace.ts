@@ -206,6 +206,7 @@ export interface CreatePublicationPdfLinkInput {
 }
 
 export interface PublicationEnrichment {
+  type?: string;
   title: string;
   authors: string[];
   year: string;
@@ -213,6 +214,32 @@ export interface PublicationEnrichment {
   doi: string;
   url: string;
   abstract: string;
+}
+
+export interface PreviewPublicationIntakeInput {
+  pdfId: string;
+  doi: string;
+}
+
+export interface AcceptPublicationIntakeInput extends PreviewPublicationIntakeInput {
+  citationKey: string;
+  metadataFingerprint: string;
+}
+
+export interface PublicationIntakePreview {
+  pdfId: string;
+  doi: string;
+  metadata: PublicationEnrichment;
+  metadataFingerprint: string;
+  citationKey: string;
+  existingPublicationId: string | null;
+}
+
+export interface PublicationIntakeResult {
+  publication: PublicationResource;
+  link: PublicationPdfLink;
+  publicationCreated: boolean;
+  linkCreated: boolean;
 }
 
 export interface CreatePassageLinkInput extends ManuscriptPassageInput {
@@ -278,6 +305,34 @@ export function isImportBibliographyInput(value: unknown): value is ImportBiblio
 
 export function isCreatePublicationPdfLinkInput(value: unknown): value is CreatePublicationPdfLinkInput {
   return isRecord(value) && isStringWithin(value.publicationId, 128, true) && isStringWithin(value.pdfId, 128, true);
+}
+
+export function isPreviewPublicationIntakeInput(value: unknown): value is PreviewPublicationIntakeInput {
+  return isRecord(value) && isStringWithin(value.pdfId, 128, true) && isStringWithin(value.doi, 500, true);
+}
+
+export function isAcceptPublicationIntakeInput(value: unknown): value is AcceptPublicationIntakeInput {
+  return (
+    isPreviewPublicationIntakeInput(value) &&
+    isRecord(value) &&
+    isStringWithin(value.citationKey, 200, true) &&
+    /^[a-z0-9:._+-]+$/iu.test(value.citationKey) &&
+    typeof value.metadataFingerprint === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.metadataFingerprint)
+  );
+}
+
+export function isPublicationIntakePreview(value: unknown): value is PublicationIntakePreview {
+  return (
+    isRecord(value) &&
+    isStringWithin(value.pdfId, 128, true) &&
+    isStringWithin(value.doi, 500, true) &&
+    isPublicationEnrichment(value.metadata) &&
+    typeof value.metadataFingerprint === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.metadataFingerprint) &&
+    isStringWithin(value.citationKey, 200, true) &&
+    (value.existingPublicationId === null || isStringWithin(value.existingPublicationId, 128, true))
+  );
 }
 
 export function isWorkspaceMembers(value: unknown): value is WorkspaceMember[] {
@@ -398,6 +453,22 @@ function isManuscriptPassageInput(value: unknown): value is ManuscriptPassageInp
 
 function isClaimEvidenceRelation(value: unknown): value is ClaimEvidenceRelation {
   return value === "supports" || value === "contradicts" || value === "extends";
+}
+
+function isPublicationEnrichment(value: unknown): value is PublicationEnrichment {
+  return (
+    isRecord(value) &&
+    (value.type === undefined || isStringWithin(value.type, 32, true)) &&
+    isStringWithin(value.title, 2_000, true) &&
+    Array.isArray(value.authors) &&
+    value.authors.length <= 100 &&
+    value.authors.every((author) => isStringWithin(author, 500, true)) &&
+    isStringWithin(value.year, 32) &&
+    isStringWithin(value.venue, 2_000) &&
+    isStringWithin(value.doi, 500, true) &&
+    isStringWithin(value.url, 2_000) &&
+    isStringWithin(value.abstract, 20_000)
+  );
 }
 
 function isClaimResource(value: unknown): value is ClaimResource {

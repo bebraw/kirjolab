@@ -41,6 +41,14 @@ addressable resources, and deliberately improve DOI-backed metadata.
   stored DOI through Crossref and materializes the result into both the resource
   and canonical BibTeX through the same atomic minimal-splice path while
   preserving explicit `crossref` provenance.
+- `POST /api/workspaces/{id}/publication-intake/preview` maps a DOI through a
+  bounded Crossref response without mutation and returns a collision-aware
+  citation key plus a stable review fingerprint.
+- `POST /api/workspaces/{id}/publication-intake/accept` refetches and verifies
+  the reviewed metadata, then atomically appends a new canonical entry,
+  reconciles its Crossref-backed publication, and creates the explicit PDF
+  association. Existing DOI identity and an existing pair are reused
+  idempotently without overwriting authored metadata.
 - `POST /api/workspaces/{id}/publication-pdf-links` creates a unique link
   between two known same-workspace resources.
 - `DELETE /api/workspaces/{id}/publication-pdf-links/{linkId}` removes only the
@@ -80,6 +88,8 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - Do not accept Node-only storage tests as proof that bibliography projection
   and its document commit are atomic in a Durable Object SQLite transaction.
 - Do not infer publication/PDF links from mutable labels or external metadata.
+- Do not label browser-supplied metadata as Crossref-derived or accept metadata
+  that changed after review.
 - Do not assume a publication has exactly one PDF or a PDF represents exactly
   one publication.
 
@@ -108,6 +118,8 @@ addressable resources, and deliberately improve DOI-backed metadata.
       changing either resource.
 - [x] Publication/PDF links appear in the typed knowledge projection as
       `has-artifact`.
+- [x] DOI intake previews without mutation and atomically creates or reuses a
+      publication plus its explicit PDF association after reviewed acceptance.
 
 ### Regression Guardrails
 
@@ -126,6 +138,11 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - Imports and enrichment must use a minimal common-prefix/suffix `Y.Text` splice
   and atomically persist document materialization with all projection writes.
 - Crossref errors must not partially update stored publication metadata.
+- A DOI intake fingerprint mismatch, citation-key collision, unknown PDF, or
+  ambiguous stored DOI must leave Yjs, materialized bibliography, revision,
+  publication projection, and artifact links unchanged.
+- Repeating a completed DOI/PDF intake must return the same stable publication
+  and link without a revision increase.
 - Accepted Crossref enrichment must remain `crossref` after its identical
   canonical projection is reconciled.
 - Initial bibliography projection must be a recorded data migration so existing
@@ -192,6 +209,13 @@ addressable resources, and deliberately improve DOI-backed metadata.
 - When: Crossref returns an error
 - Then: Kirjolab reports the failure and leaves the existing resource and
   bibliography unchanged
+
+**Scenario: Researcher accepts reviewed DOI metadata**
+
+- Given: a DOI preview for an imported PDF still matches Crossref
+- When: the researcher accepts its available citation key
+- Then: Kirjolab atomically materializes canonical BibTeX, a Crossref-backed
+  publication, and the explicit PDF link without inserting a manuscript citation
 
 **Scenario: Initial bibliography projection migrates once**
 

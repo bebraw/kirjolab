@@ -6,6 +6,9 @@ import {
   isCreateClaimPassageLinkInput,
   isCreatePassageLinkInput,
   isCreatePublicationPdfLinkInput,
+  isAcceptPublicationIntakeInput,
+  isPreviewPublicationIntakeInput,
+  isPublicationIntakePreview,
   isCreateWorkspaceInput,
   isInviteWorkspaceMemberInput,
   isImportBibliographyInput,
@@ -66,6 +69,15 @@ describe("workspace input guards", () => {
     expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
     expect(isImportBibliographyInput({ bibtex: "@article{key, title={Title}}" })).toBe(true);
     expect(isCreatePublicationPdfLinkInput({ publicationId: "publication", pdfId: "pdf" })).toBe(true);
+    expect(isPreviewPublicationIntakeInput({ pdfId: "pdf", doi: "https://doi.org/10.1000/example" })).toBe(true);
+    expect(
+      isAcceptPublicationIntakeInput({
+        pdfId: "pdf",
+        doi: "10.1000/example",
+        citationKey: "doe2026",
+        metadataFingerprint: "a".repeat(64),
+      }),
+    ).toBe(true);
     expect(isWorkspaceMembers([{ email: "owner@example.org", role: "owner", addedAt: "now" }])).toBe(true);
     expect(
       isWorkspaceSummaries([{ id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now" }]),
@@ -110,6 +122,8 @@ describe("workspace input guards", () => {
     expect(isImportBibliographyInput(null)).toBe(false);
     expect(isCreatePublicationPdfLinkInput({ publicationId: "", pdfId: "" })).toBe(false);
     expect(isCreatePublicationPdfLinkInput(null)).toBe(false);
+    expect(isPreviewPublicationIntakeInput(null)).toBe(false);
+    expect(isAcceptPublicationIntakeInput(null)).toBe(false);
     expect(isWorkspaceMembers(null)).toBe(false);
     for (const member of [
       { email: "", role: "owner", addedAt: "now" },
@@ -222,6 +236,95 @@ describe("workspace input guards", () => {
       { pdfId: 1 },
     ]) {
       expect(isCreatePublicationPdfLinkInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
+    }
+  });
+
+  it("enforces publication-intake preview and acceptance input boundaries", () => {
+    const preview = { pdfId: "pdf", doi: "https://doi.org/10.1000/example" };
+    for (const change of [{ pdfId: "" }, { pdfId: "x".repeat(129) }, { pdfId: 1 }, { doi: "" }, { doi: "x".repeat(501) }, { doi: 1 }]) {
+      expect(isPreviewPublicationIntakeInput({ ...preview, ...change }), JSON.stringify(change)).toBe(false);
+    }
+
+    const accepted = { ...preview, citationKey: "doe2026", metadataFingerprint: "a".repeat(64) };
+    for (const change of [
+      { citationKey: "" },
+      { citationKey: "has space" },
+      { citationKey: "has,comma" },
+      { citationKey: "has[bracket]" },
+      { citationKey: "x".repeat(201) },
+      { citationKey: 1 },
+      { metadataFingerprint: "" },
+      { metadataFingerprint: "a".repeat(63) },
+      { metadataFingerprint: "a".repeat(65) },
+      { metadataFingerprint: "A".repeat(64) },
+      { metadataFingerprint: "g".repeat(64) },
+      { metadataFingerprint: 1 },
+    ]) {
+      expect(isAcceptPublicationIntakeInput({ ...accepted, ...change }), JSON.stringify(change)).toBe(false);
+    }
+    expect(isAcceptPublicationIntakeInput({ ...accepted, pdfId: "" })).toBe(false);
+    expect(isAcceptPublicationIntakeInput({ ...accepted, doi: "" })).toBe(false);
+    expect(isAcceptPublicationIntakeInput({ ...accepted, citationKey: "x".repeat(200) })).toBe(true);
+  });
+
+  it("validates publication-intake preview representations", () => {
+    const preview = {
+      pdfId: "pdf",
+      doi: "10.1000/example",
+      metadata: {
+        type: "article",
+        title: "Inspectable evidence",
+        authors: ["Doe, Jane", "Roe, Richard"],
+        year: "2026",
+        venue: "Journal of Testing",
+        doi: "10.1000/example",
+        url: "https://doi.org/10.1000/example",
+        abstract: "An inspectable abstract.",
+      },
+      metadataFingerprint: "b".repeat(64),
+      citationKey: "doe2026",
+      existingPublicationId: null,
+    };
+
+    expect(isPublicationIntakePreview(preview)).toBe(true);
+    expect(isPublicationIntakePreview({ ...preview, existingPublicationId: "publication" })).toBe(true);
+    expect(isPublicationIntakePreview({ ...preview, metadata: { ...preview.metadata, type: undefined } })).toBe(true);
+    expect(isPublicationIntakePreview(null)).toBe(false);
+
+    for (const change of [
+      { pdfId: "" },
+      { pdfId: "x".repeat(129) },
+      { doi: "" },
+      { doi: "x".repeat(501) },
+      { metadata: null },
+      { metadataFingerprint: "a".repeat(63) },
+      { metadataFingerprint: "A".repeat(64) },
+      { citationKey: "" },
+      { citationKey: "x".repeat(201) },
+      { existingPublicationId: "" },
+      { existingPublicationId: "x".repeat(129) },
+    ]) {
+      expect(isPublicationIntakePreview({ ...preview, ...change }), JSON.stringify(change)).toBe(false);
+    }
+
+    for (const metadataChange of [
+      { type: "x".repeat(33) },
+      { title: "" },
+      { title: "x".repeat(2_001) },
+      { authors: Array.from({ length: 101 }, () => "Author") },
+      { authors: [""] },
+      { authors: ["x".repeat(501)] },
+      { year: "x".repeat(33) },
+      { venue: "x".repeat(2_001) },
+      { doi: "" },
+      { doi: "x".repeat(501) },
+      { url: "x".repeat(2_001) },
+      { abstract: "x".repeat(20_001) },
+    ]) {
+      expect(
+        isPublicationIntakePreview({ ...preview, metadata: { ...preview.metadata, ...metadataChange } }),
+        JSON.stringify(Object.keys(metadataChange)),
+      ).toBe(false);
     }
   });
 

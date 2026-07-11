@@ -5,6 +5,8 @@ import {
   isCreateClaimPassageLinkInput,
   isCreatePassageLinkInput,
   isCreatePublicationPdfLinkInput,
+  isAcceptPublicationIntakeInput,
+  isPreviewPublicationIntakeInput,
   isCreateWorkspaceInput,
   isImportBibliographyInput,
   isInviteWorkspaceMemberInput,
@@ -13,7 +15,7 @@ import {
   type PdfResource,
 } from "../domain/workspace";
 import { buildWorkspaceKnowledgeGraph, searchWorkspaceKnowledge } from "../domain/knowledge";
-import { fetchCrossrefWork } from "../integrations/crossref";
+import { fetchCrossrefWork, fingerprintPublicationMetadata } from "../integrations/crossref";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
@@ -57,6 +59,12 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
     if (suffix === "/annotation-links" && request.method === "POST") return await createAnnotationLink(request, room);
     if (suffix === "/bibliography/import" && request.method === "POST") return await importBibliography(request, workspaceId, room);
+    if (suffix === "/publication-intake/preview" && request.method === "POST") {
+      return await previewPublicationIntake(request, env, room);
+    }
+    if (suffix === "/publication-intake/accept" && request.method === "POST") {
+      return await acceptPublicationIntake(request, env, room);
+    }
     if (suffix === "/publication-pdf-links" && request.method === "POST") {
       return await createPublicationPdfLink(request, room);
     }
@@ -87,7 +95,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     const message = error instanceof Error ? error.message : "Workspace operation failed";
     const status = /access denied|only the workspace owner/iu.test(message)
       ? 403
-      : /already exists|stale|pending/iu.test(message)
+      : /already exists|ambiguous|changed|stale|pending/iu.test(message)
         ? 409
         : 400;
     return jsonError(message, status);
@@ -217,6 +225,32 @@ async function enrichPublication(
   if (!publication.doi) return jsonError("Publication has no DOI", 400);
   const metadata = await fetchCrossrefWork(publication.doi, env.CROSSREF_MAILTO);
   return Response.json(await room.enrichPublication(workspaceId, publication.id, metadata));
+}
+
+async function previewPublicationIntake(
+  request: Request,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isPreviewPublicationIntakeInput(body)) return jsonError("Invalid publication intake preview", 400);
+  const metadata = await fetchCrossrefWork(body.doi, env.CROSSREF_MAILTO);
+  const metadataFingerprint = await fingerprintPublicationMetadata(metadata);
+  return Response.json(await room.previewPublicationIntake(body.pdfId, metadata, metadataFingerprint));
+}
+
+async function acceptPublicationIntake(
+  request: Request,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isAcceptPublicationIntakeInput(body)) return jsonError("Invalid publication intake", 400);
+  const metadata = await fetchCrossrefWork(body.doi, env.CROSSREF_MAILTO);
+  const metadataFingerprint = await fingerprintPublicationMetadata(metadata);
+  if (metadataFingerprint !== body.metadataFingerprint) throw new Error("Crossref metadata changed; review it again");
+  const result = await room.acceptPublicationIntake(body.pdfId, body.citationKey, metadata);
+  return Response.json(result, { status: result.publicationCreated || result.linkCreated ? 201 : 200 });
 }
 
 async function createPublicationPdfLink(

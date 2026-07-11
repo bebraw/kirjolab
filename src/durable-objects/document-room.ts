@@ -7,6 +7,7 @@ import {
   parseBibTeX,
   projectBibTeXPublication,
   serializeBibTeX,
+  type BibTeXEntry,
   type BibTeXPublicationProjection,
 } from "../domain/bibliography";
 import { applyYjsUpdateOnce, encodeServerCollaborationMessage } from "../domain/collaboration";
@@ -17,6 +18,7 @@ import {
   type StoredManuscriptAnchor,
 } from "../domain/manuscript-anchor";
 import { calculateTextSplice } from "../domain/text";
+import { isValidCitationKey, suggestCitationKey } from "../domain/publication-intake";
 import {
   defaultBibliography,
   defaultSource,
@@ -38,6 +40,8 @@ import {
   type PassageLink,
   type PdfResource,
   type PublicationEnrichment,
+  type PublicationIntakePreview,
+  type PublicationIntakeResult,
   type PublicationPdfLink,
   type PublicationResource,
   type UpsertClaimInput,
@@ -165,6 +169,11 @@ interface ProjectionOptions {
     readonly projection: BibTeXPublicationProjection;
     readonly publicationId: string;
   };
+}
+
+interface PublicationPdfLinkWrite {
+  readonly created: boolean;
+  readonly link: PublicationPdfLink;
 }
 
 export class DocumentRoom extends DurableObject<Env> {
@@ -299,6 +308,77 @@ export class DocumentRoom extends DurableObject<Env> {
     const row = this.ctx.storage.sql.exec<PublicationRow>("SELECT * FROM publications WHERE id = ?", publicationId).toArray()[0];
     if (!row) throw new Error("Publication not found");
     return publicationFromRow(row);
+  }
+
+  previewPublicationIntake(pdfId: string, metadata: PublicationEnrichment, metadataFingerprint: string): PublicationIntakePreview {
+    this.#assertPdfExists(pdfId);
+    const matches = this.#publicationRowsByDoi(metadata.doi);
+    if (matches.length > 1) throw new Error("Publication DOI is ambiguous in this workspace");
+    const existing = matches[0];
+    const reservedKeys = this.ctx.storage.sql
+      .exec<{ citation_key: string }>("SELECT citation_key FROM publications ORDER BY citation_key")
+      .toArray()
+      .map((row) => row.citation_key);
+    return {
+      pdfId,
+      doi: normalizeDoi(metadata.doi),
+      metadata,
+      metadataFingerprint,
+      citationKey: existing?.citation_key ?? suggestCitationKey(metadata, reservedKeys),
+      existingPublicationId: existing?.id ?? null,
+    };
+  }
+
+  acceptPublicationIntake(pdfId: string, citationKey: string, metadata: PublicationEnrichment): PublicationIntakeResult {
+    const doi = normalizeDoi(metadata.doi);
+    const matches = this.#publicationRowsByDoi(doi);
+    if (matches.length > 1) throw new Error("Publication DOI is ambiguous in this workspace");
+    const existing = matches[0];
+
+    if (existing) {
+      let linkWrite: PublicationPdfLinkWrite | undefined;
+      this.ctx.storage.transactionSync(() => {
+        this.#assertPdfExists(pdfId);
+        linkWrite = this.#ensurePublicationPdfLink(existing.id, pdfId);
+      });
+      if (!linkWrite) throw new Error("Publication intake could not be completed");
+      if (linkWrite.created) this.#broadcastResources();
+      return {
+        publication: publicationFromRow(existing),
+        link: linkWrite.link,
+        publicationCreated: false,
+        linkCreated: linkWrite.created,
+      };
+    }
+
+    if (!isValidCitationKey(citationKey)) throw new Error("Citation key is invalid");
+    const collision = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM publications WHERE citation_key = ? COLLATE NOCASE", citationKey)
+      .one();
+    if (collision.count > 0) throw new Error("Citation key already exists");
+    this.#assertPdfExists(pdfId);
+
+    const entry = publicationIntakeEntry(citationKey, metadata);
+    const projection = projectBibTeXPublication(entry);
+    const publicationId = crypto.randomUUID();
+    const currentBibliography = this.#workspaceRow().bibliography;
+    const nextBibliography = appendBibTeXEntry(currentBibliography, entry);
+    let linkWrite: PublicationPdfLinkWrite | undefined;
+    this.#replaceBibliography(nextBibliography, "doi-publication-intake", { acceptedCrossref: { projection, publicationId } }, () => {
+      const publication = this.ctx.storage.sql
+        .exec<{ count: number }>("SELECT COUNT(*) AS count FROM publications WHERE id = ?", publicationId)
+        .one();
+      if (publication.count === 0) throw new Error("Publication intake projection failed");
+      this.#assertPdfExists(pdfId);
+      linkWrite = this.#ensurePublicationPdfLink(publicationId, pdfId);
+    });
+    if (!linkWrite) throw new Error("Publication intake could not be completed");
+    return {
+      publication: this.getPublication(publicationId),
+      link: linkWrite.link,
+      publicationCreated: true,
+      linkCreated: linkWrite.created,
+    };
   }
 
   createPublicationPdfLink(input: CreatePublicationPdfLinkInput): PublicationPdfLink {
@@ -935,7 +1015,7 @@ export class DocumentRoom extends DurableObject<Env> {
     }
   }
 
-  #persistDocument(previous: WorkspaceRow, options: ProjectionOptions = {}): PersistedDocumentUpdate {
+  #persistDocument(previous: WorkspaceRow, options: ProjectionOptions = {}, relatedWrite?: () => void): PersistedDocumentUpdate {
     const revision = previous.revision + 1;
     let resourcesChanged = false;
     try {
@@ -953,6 +1033,7 @@ export class DocumentRoom extends DurableObject<Env> {
         if (bibliography !== previous.bibliography || options.acceptedCrossref) {
           resourcesChanged = this.#reconcileBibliography(bibliography, options);
         }
+        relatedWrite?.();
       });
     } catch (error) {
       this.#restoreDocument(previous.y_state);
@@ -961,13 +1042,14 @@ export class DocumentRoom extends DurableObject<Env> {
     return { resourcesChanged, revision };
   }
 
-  #replaceBibliography(sourceValue: string, origin: string, options: ProjectionOptions = {}): void {
+  #replaceBibliography(sourceValue: string, origin: string, options: ProjectionOptions = {}, relatedWrite?: () => void): void {
     const bibliography = this.#document.getText("bibliography");
     const splice = calculateTextSplice(bibliography.toString(), sourceValue);
     if (!splice) {
       let resourcesChanged = false;
       this.ctx.storage.transactionSync(() => {
         resourcesChanged = this.#reconcileBibliography(sourceValue, options);
+        relatedWrite?.();
       });
       if (resourcesChanged) this.#broadcastResources();
       return;
@@ -979,7 +1061,7 @@ export class DocumentRoom extends DurableObject<Env> {
       if (splice.deleteCount > 0) bibliography.delete(splice.start, splice.deleteCount);
       if (splice.insert) bibliography.insert(splice.start, splice.insert);
     }, origin);
-    const persisted = this.#persistDocument(previous, options);
+    const persisted = this.#persistDocument(previous, options, relatedWrite);
     this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     if (persisted.resourcesChanged) this.#broadcastResources();
@@ -1000,12 +1082,14 @@ export class DocumentRoom extends DurableObject<Env> {
         : undefined;
       const existing = byCitation ?? byDoi;
       if (!existing) {
-        const id = crypto.randomUUID();
+        const accepted = options.acceptedCrossref;
+        const acceptedCrossref = accepted !== undefined && bibTeXPublicationProjectionsEqual(projection, accepted.projection);
+        const id = acceptedCrossref ? accepted.publicationId : crypto.randomUUID();
         this.ctx.storage.sql.exec(
           `INSERT INTO publications
            (id, citation_key, entry_type, title, authors_json, publication_year, venue, doi, url, abstract,
             metadata_source, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bibtex', ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           id,
           projection.citationKey,
           projection.type,
@@ -1016,6 +1100,7 @@ export class DocumentRoom extends DurableObject<Env> {
           projection.doi,
           projection.url,
           projection.abstract,
+          acceptedCrossref ? "crossref" : "bibtex",
           now,
           now,
         );
@@ -1062,6 +1147,41 @@ export class DocumentRoom extends DurableObject<Env> {
 
   #workspaceRow(): WorkspaceRow {
     return this.ctx.storage.sql.exec<WorkspaceRow>("SELECT * FROM workspace WHERE id = 1").one();
+  }
+
+  #publicationRowsByDoi(value: string): PublicationRow[] {
+    const doi = normalizeDoi(value);
+    return doi
+      ? this.ctx.storage.sql
+          .exec<PublicationRow>("SELECT * FROM publications WHERE doi = ? ORDER BY created_at ASC, id ASC LIMIT 2", doi)
+          .toArray()
+      : [];
+  }
+
+  #assertPdfExists(pdfId: string): void {
+    const pdf = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM pdfs WHERE id = ?", pdfId).one();
+    if (pdf.count === 0) throw new Error("PDF not found");
+  }
+
+  #ensurePublicationPdfLink(publicationId: string, pdfId: string): PublicationPdfLinkWrite {
+    const existing = this.ctx.storage.sql
+      .exec<PublicationPdfLinkRow>("SELECT * FROM publication_pdf_links WHERE publication_id = ? AND pdf_id = ?", publicationId, pdfId)
+      .toArray()[0];
+    if (existing) return { created: false, link: publicationPdfLinkFromRow(existing) };
+    const link: PublicationPdfLink = {
+      id: crypto.randomUUID(),
+      publicationId,
+      pdfId,
+      createdAt: new Date().toISOString(),
+    };
+    this.ctx.storage.sql.exec(
+      "INSERT INTO publication_pdf_links (id, publication_id, pdf_id, created_at) VALUES (?, ?, ?, ?)",
+      link.id,
+      link.publicationId,
+      link.pdfId,
+      link.createdAt,
+    );
+    return { created: true, link };
   }
 
   #pdfs(): PdfResource[] {
@@ -1302,6 +1422,21 @@ function publicationPdfLinkFromRow(row: PublicationPdfLinkRow): PublicationPdfLi
     pdfId: row.pdf_id,
     createdAt: row.created_at,
   };
+}
+
+function publicationIntakeEntry(citationKey: string, metadata: PublicationEnrichment): BibTeXEntry {
+  const fields: Record<string, string> = { title: metadata.title, doi: normalizeDoi(metadata.doi) };
+  if (metadata.authors.length > 0) fields.author = metadata.authors.join(" and ");
+  if (metadata.year) fields.year = metadata.year;
+  if (metadata.venue) fields.journal = metadata.venue;
+  if (metadata.url) fields.url = metadata.url;
+  if (metadata.abstract) fields.abstract = metadata.abstract;
+  return { type: metadata.type ?? "misc", citationKey, fields };
+}
+
+function appendBibTeXEntry(source: string, entry: BibTeXEntry): string {
+  const serialized = serializeBibTeX([entry]);
+  return source.trim().length === 0 ? serialized : `${source.trimEnd()}\n\n${serialized}`;
 }
 
 function parseStringArray(value: string): string[] {

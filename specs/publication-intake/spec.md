@@ -12,10 +12,16 @@ association, and manuscript citation.
 ### Architecture
 
 - DOI preview is bounded, Crossref-backed, and non-mutating.
+- `POST /api/workspaces/{id}/publication-intake/preview` accepts a known PDF
+  id and DOI, then returns mapped metadata, its SHA-256 review fingerprint, an
+  existing publication id when applicable, and a collision-aware key.
 - Citation-key suggestions derive deterministically from mapped author/year
   metadata and all stable publication aliases, with explicit collision suffixes.
 - Acceptance refetches Crossref metadata and delegates one atomic bibliography,
   publication, and PDF-link operation to the document room.
+- `POST /api/workspaces/{id}/publication-intake/accept` accepts the PDF, DOI,
+  reviewed citation key, and preview fingerprint. A changed fingerprint returns
+  a conflict before any document-room mutation.
 - Existing normalized DOI identity wins over a newly proposed citation key.
 - New canonical entries use minimal Yjs bibliography splices and Crossref
   provenance; existing DOI-matched publications retain their metadata.
@@ -38,12 +44,13 @@ association, and manuscript citation.
 ### Definition of Done
 
 - [ ] An unlinked PDF exposes an Identify paper action.
-- [ ] DOI and DOI URL input return a reviewed metadata preview.
-- [ ] Cancellation leaves bibliography, publications, and links unchanged.
-- [ ] Acceptance atomically creates or reuses the publication and artifact link.
-- [ ] Citation-key collision and repeated-acceptance behavior are deterministic.
+- [x] DOI and DOI URL input return a reviewed metadata preview.
+- [x] Cancellation leaves bibliography, publications, and links unchanged.
+- [x] Acceptance atomically creates or reuses the publication and artifact link.
+- [x] Citation-key collision and repeated-acceptance behavior are deterministic.
 - [ ] Success opens publication context without inserting a citation.
-- [ ] Unit, Workers-runtime, and browser tests cover the complete flow.
+- [ ] Unit, Workers-runtime, and browser tests cover the complete flow. Unit and
+      Workers-runtime coverage is implemented; browser coverage follows the UI.
 
 ### Regression Guardrails
 

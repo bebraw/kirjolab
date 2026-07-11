@@ -19,6 +19,7 @@ interface TableColumnRow extends Record<string, SqlStorageValue> {
 }
 
 const acceptedMetadata = {
+  type: "article",
   title: "Accepted metadata title",
   authors: ["Lovelace, Ada", "Hopper, Grace"],
   year: "2025",
@@ -239,6 +240,115 @@ describe("DocumentRoom in the Workers runtime", () => {
     await runInDurableObject(stub, (instance: DocumentRoom) => {
       expect(() => instance.deletePublicationPdfLink(primaryLink.id)).toThrow("Publication/PDF link not found");
     });
+  });
+
+  it("atomically identifies a PDF by DOI and treats retries as idempotent", async () => {
+    const workspaceId = "doi-intake";
+    const stub = roomStub(workspaceId);
+    const pdf = pdfResource("identified.pdf");
+    await stub.registerPdf(pdf);
+
+    const preview = await stub.previewPublicationIntake(pdf.id, acceptedMetadata, "a".repeat(64));
+    expect(preview).toMatchObject({
+      pdfId: pdf.id,
+      doi: "10.5555/kirjolab.1",
+      citationKey: "lovelace2025",
+      existingPublicationId: null,
+    });
+
+    const created = await stub.acceptPublicationIntake(pdf.id, preview.citationKey, acceptedMetadata);
+    expect(created).toMatchObject({ publicationCreated: true, linkCreated: true });
+    expect(created.publication).toMatchObject({
+      citationKey: "lovelace2025",
+      type: "article",
+      doi: "10.5555/kirjolab.1",
+      metadataSource: "crossref",
+    });
+    expect(created.link).toMatchObject({ publicationId: created.publication.id, pdfId: pdf.id });
+
+    const accepted = await stub.getSnapshot(workspaceId);
+    expect(accepted.bibliography).toContain("@article{lovelace2025,");
+    expect(accepted.publicationPdfLinks).toEqual([created.link]);
+    const retry = await stub.acceptPublicationIntake(pdf.id, "ignored-on-existing-doi", acceptedMetadata);
+    expect(retry).toEqual({
+      publication: created.publication,
+      link: created.link,
+      publicationCreated: false,
+      linkCreated: false,
+    });
+    expect(await stub.getSnapshot(workspaceId)).toEqual(accepted);
+
+    await evictDurableObject(stub);
+    expect(await stub.getSnapshot(workspaceId)).toEqual(accepted);
+  });
+
+  it("reuses DOI identity without overwriting authored metadata", async () => {
+    const workspaceId = "doi-intake-existing";
+    const stub = roomStub(workspaceId);
+    const imported = await stub.importBibliography(
+      workspaceId,
+      `@article{authored2024,
+        title = {Researcher-authored title},
+        author = {Author, Human},
+        year = {2024},
+        doi = {10.5555/kirjolab.1}
+      }`,
+    );
+    const authored = publicationByKey(imported, "authored2024");
+    const pdf = pdfResource("existing.pdf");
+    await stub.registerPdf(pdf);
+    const before = await stub.getSnapshot(workspaceId);
+
+    const accepted = await stub.acceptPublicationIntake(pdf.id, "new-key-is-ignored", acceptedMetadata);
+    expect(accepted).toMatchObject({
+      publication: { id: authored.id, citationKey: "authored2024", title: "Researcher-authored title", metadataSource: "bibtex" },
+      publicationCreated: false,
+      linkCreated: true,
+    });
+    const after = await stub.getSnapshot(workspaceId);
+    expect(after.revision).toBe(before.revision);
+    expect(after.bibliography).toBe(before.bibliography);
+    expect(after.publications).toContainEqual(accepted.publication);
+  });
+
+  it("rolls DOI intake back when the atomic artifact link fails", async () => {
+    const workspaceId = "doi-intake-rollback";
+    const stub = roomStub(workspaceId);
+    const pdf = pdfResource("rollback.pdf");
+    await stub.registerPdf(pdf);
+    const before = await stub.getSnapshot(workspaceId);
+
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      state.storage.sql.exec(`
+        CREATE TRIGGER reject_doi_intake_link
+        BEFORE INSERT ON publication_pdf_links
+        WHEN NEW.pdf_id = '${pdf.id}'
+        BEGIN
+          SELECT RAISE(ABORT, 'blocked DOI intake link');
+        END;
+      `);
+    });
+
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.acceptPublicationIntake(pdf.id, "rollback2025", acceptedMetadata)).toThrow("blocked DOI intake link");
+    });
+    expect(await stub.getSnapshot(workspaceId)).toEqual(before);
+    await evictDurableObject(stub);
+    expect(await stub.getSnapshot(workspaceId)).toEqual(before);
+  });
+
+  it("rejects DOI intake citation-key collisions without mutation", async () => {
+    const workspaceId = "doi-intake-collision";
+    const stub = roomStub(workspaceId);
+    const pdf = pdfResource("collision.pdf");
+    await stub.registerPdf(pdf);
+    const before = await stub.getSnapshot(workspaceId);
+    const metadata = { ...acceptedMetadata, doi: "10.5555/different" };
+
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.acceptPublicationIntake(pdf.id, "merton1942", metadata)).toThrow("Citation key already exists");
+    });
+    expect(await stub.getSnapshot(workspaceId)).toEqual(before);
   });
 
   it("creates an annotation and manuscript passage link in one durable mutation", async () => {

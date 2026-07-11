@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchCrossrefWork } from "./crossref";
+import { fetchCrossrefWork, fingerprintPublicationMetadata } from "./crossref";
 
 describe("Crossref metadata integration", () => {
   it("maps a DOI singleton response into bounded publication metadata", async () => {
@@ -12,6 +12,7 @@ describe("Crossref metadata integration", () => {
         message: {
           DOI: "10.1000/EXAMPLE",
           URL: "https://doi.org/10.1000/example",
+          type: "journal-article",
           title: ["<i>Inspectable</i> Evidence"],
           author: [{ family: "Doe", given: "Jane" }, { family: "Merton" }, { given: "Collective" }, null],
           "container-title": ["Journal of Testing"],
@@ -22,6 +23,7 @@ describe("Crossref metadata integration", () => {
     });
 
     await expect(fetchCrossrefWork("https://doi.org/10.1000/Example", " Contact@Example.org ", fetcher)).resolves.toEqual({
+      type: "article",
       title: "Inspectable Evidence",
       authors: ["Doe, Jane", "Merton", "Collective"],
       year: "2026",
@@ -45,6 +47,7 @@ describe("Crossref metadata integration", () => {
       return Response.json({ message: { title: ["Title"], DOI: "10.2000/item", issued: { "date-parts": [[2020]] } } });
     });
     await expect(fetchCrossrefWork("10.2000/item", "", minimal)).resolves.toMatchObject({
+      type: "misc",
       authors: [],
       year: "2020",
       venue: "",
@@ -87,6 +90,7 @@ describe("Crossref metadata integration", () => {
       }),
     );
     expect(metadata).toEqual({
+      type: "misc",
       title: "A <careful> & open title",
       authors: ["Doe, Jane", "Solo"],
       year: "2024",
@@ -101,5 +105,82 @@ describe("Crossref metadata integration", () => {
         Response.json({ message: { title: ["No year"], issued: { "date-parts": [["2024"]] } } }),
       ),
     ).resolves.toMatchObject({ year: "" });
+  });
+
+  it.each([
+    ["journal-article", "article"],
+    ["proceedings-article", "inproceedings"],
+    ["book-chapter", "incollection"],
+    ["reference-entry", "incollection"],
+    ["book", "book"],
+    ["edited-book", "book"],
+    ["dissertation", "phdthesis"],
+    ["report", "techreport"],
+    ["dataset", "misc"],
+  ])("maps Crossref type %s to BibTeX type %s", async (crossrefType, bibTeXType) => {
+    await expect(
+      fetchCrossrefWork("10.4000/type", "", async () =>
+        Response.json({ message: { type: crossrefType, title: ["Typed work"], DOI: "10.4000/type" } }),
+      ),
+    ).resolves.toMatchObject({ type: bibTeXType });
+  });
+
+  it("bounds accepted Crossref fields and author counts", async () => {
+    const metadata = await fetchCrossrefWork("10.5000/bounded", "", async () =>
+      Response.json({
+        message: {
+          DOI: "10.5000/bounded",
+          URL: `https://example.test/${"u".repeat(2_100)}`,
+          title: ["t".repeat(2_100)],
+          author: Array.from({ length: 101 }, () => ({ family: "f".repeat(400), given: "g".repeat(400) })),
+          "container-title": ["v".repeat(2_100)],
+          abstract: "a".repeat(20_100),
+        },
+      }),
+    );
+
+    expect(metadata.title).toHaveLength(2_000);
+    expect(metadata.authors).toHaveLength(100);
+    expect(metadata.authors[0]).toHaveLength(500);
+    expect(metadata.venue).toHaveLength(2_000);
+    expect(metadata.url).toHaveLength(2_000);
+    expect(metadata.abstract).toHaveLength(20_000);
+  });
+
+  it("rejects oversized and malformed Crossref response bodies", async () => {
+    await expect(
+      fetchCrossrefWork("10.6000/header-limit", "", async () => new Response("{}", { headers: { "content-length": "1000001" } })),
+    ).rejects.toThrow("too large");
+    await expect(fetchCrossrefWork("10.6000/body-limit", "", async () => new Response("x".repeat(1_000_001)))).rejects.toThrow("too large");
+    await expect(fetchCrossrefWork("10.6000/malformed", "", async () => new Response("{"))).rejects.toThrow("invalid metadata");
+    await expect(fetchCrossrefWork("10.6000/empty", "", async () => new Response(null))).rejects.toThrow("invalid metadata");
+  });
+
+  it("fingerprints normalized metadata stably and detects material changes", async () => {
+    const metadata = {
+      type: "article",
+      title: "Inspectable evidence",
+      authors: ["Doe, Jane", "Roe, Richard"],
+      year: "2026",
+      venue: "Journal of Testing",
+      doi: "https://doi.org/10.7000/EXAMPLE",
+      url: "https://example.test/work",
+      abstract: "A bounded abstract.",
+    };
+    const fingerprint = await fingerprintPublicationMetadata(metadata);
+    const { type: _type, ...metadataWithoutType } = metadata;
+
+    expect(fingerprint).toMatch(/^[a-f0-9]{64}$/u);
+    await expect(fingerprintPublicationMetadata({ ...metadata })).resolves.toBe(fingerprint);
+    await expect(fingerprintPublicationMetadata({ ...metadata, doi: "10.7000/example" })).resolves.toBe(fingerprint);
+    await expect(fingerprintPublicationMetadata({ ...metadata, title: "Changed title" })).resolves.not.toBe(fingerprint);
+    await expect(fingerprintPublicationMetadata({ ...metadata, authors: [...metadata.authors].reverse() })).resolves.not.toBe(fingerprint);
+    await expect(fingerprintPublicationMetadata({ ...metadata, type: "book" })).resolves.not.toBe(fingerprint);
+    await expect(fingerprintPublicationMetadata({ ...metadata, abstract: "Changed abstract." })).resolves.not.toBe(fingerprint);
+    await expect(fingerprintPublicationMetadata(metadataWithoutType)).resolves.not.toBe(fingerprint);
+    await expect(fingerprintPublicationMetadata({ ...metadata, type: "misc" })).resolves.not.toBe(fingerprint);
+    await expect(fingerprintPublicationMetadata(metadataWithoutType)).resolves.toBe(
+      await fingerprintPublicationMetadata({ ...metadata, type: "misc" }),
+    );
   });
 });
