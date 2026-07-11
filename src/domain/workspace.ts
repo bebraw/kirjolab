@@ -72,6 +72,13 @@ export interface PublicationResource {
   updatedAt: string;
 }
 
+export interface PublicationPdfLink {
+  id: string;
+  publicationId: string;
+  pdfId: string;
+  createdAt: string;
+}
+
 export interface AnnotationResource {
   id: string;
   pdfId: string;
@@ -143,6 +150,7 @@ export interface WorkspaceSnapshot {
   revision: number;
   pdfs: PdfResource[];
   publications: PublicationResource[];
+  publicationPdfLinks: PublicationPdfLink[];
   annotations: AnnotationResource[];
   links: PassageLink[];
   claims: ClaimResource[];
@@ -173,6 +181,11 @@ export interface InviteWorkspaceMemberInput {
 
 export interface ImportBibliographyInput {
   bibtex: string;
+}
+
+export interface CreatePublicationPdfLinkInput {
+  publicationId: string;
+  pdfId: string;
 }
 
 export interface PublicationEnrichment {
@@ -248,6 +261,10 @@ export function isInviteWorkspaceMemberInput(value: unknown): value is InviteWor
 
 export function isImportBibliographyInput(value: unknown): value is ImportBibliographyInput {
   return isRecord(value) && isStringWithin(value.bibtex, 2_000_000, true);
+}
+
+export function isCreatePublicationPdfLinkInput(value: unknown): value is CreatePublicationPdfLinkInput {
+  return isRecord(value) && isStringWithin(value.publicationId, 128, true) && isStringWithin(value.pdfId, 128, true);
 }
 
 export function isWorkspaceMembers(value: unknown): value is WorkspaceMember[] {
@@ -350,6 +367,8 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     typeof value.revision === "number" &&
     Array.isArray(value.pdfs) &&
     Array.isArray(value.publications) &&
+    Array.isArray(value.publicationPdfLinks) &&
+    value.publicationPdfLinks.every(isPublicationPdfLink) &&
     Array.isArray(value.annotations) &&
     Array.isArray(value.links) &&
     value.links.every(isPassageLink) &&
@@ -360,6 +379,16 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     Array.isArray(value.claimLinks) &&
     value.claimLinks.every(isClaimPassageLink) &&
     Array.isArray(value.candidates)
+  );
+}
+
+function isPublicationPdfLink(value: unknown): value is PublicationPdfLink {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.publicationId) &&
+    isNonEmptyString(value.pdfId) &&
+    isNonEmptyString(value.createdAt)
   );
 }
 

@@ -1,7 +1,7 @@
 import type { WorkspaceSnapshot } from "./workspace";
 
 export type KnowledgeResourceKind = "document" | "section" | "publication" | "pdf" | "annotation" | "claim";
-export type ScholarlyRelation = "cites" | "annotates" | "used-in" | "supports" | "contradicts" | "extends";
+export type ScholarlyRelation = "cites" | "annotates" | "has-artifact" | "used-in" | "supports" | "contradicts" | "extends";
 
 export interface KnowledgeSearchResult {
   resourceId: string;
@@ -106,6 +106,15 @@ export function buildWorkspaceKnowledgeGraph(snapshot: WorkspaceSnapshot): Works
     nodes.push({ id: publicationId(publication.id), kind: "publication", label: publication.title });
   }
   for (const pdf of snapshot.pdfs) nodes.push({ id: pdfId(pdf.id), kind: "pdf", label: pdf.name });
+  for (const link of snapshot.publicationPdfLinks) {
+    edges.push({
+      id: `has-artifact:${link.id}`,
+      relation: "has-artifact",
+      from: publicationId(link.publicationId),
+      to: pdfId(link.pdfId),
+      label: "has artifact",
+    });
+  }
   for (const annotation of snapshot.annotations) {
     const resourceId = annotationId(annotation.id);
     nodes.push({ id: resourceId, kind: "annotation", label: annotation.comment || excerpt(annotation.quote, 80) });
@@ -280,6 +289,7 @@ function isGraphEdge(value: unknown): value is KnowledgeGraphEdge {
     isNonEmptyString(value.id) &&
     (value.relation === "cites" ||
       value.relation === "annotates" ||
+      value.relation === "has-artifact" ||
       value.relation === "used-in" ||
       value.relation === "supports" ||
       value.relation === "contradicts" ||

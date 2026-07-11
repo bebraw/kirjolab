@@ -4,6 +4,7 @@ import {
   isCreateCandidateInput,
   isCreateClaimPassageLinkInput,
   isCreatePassageLinkInput,
+  isCreatePublicationPdfLinkInput,
   isCreateWorkspaceInput,
   isInviteWorkspaceMemberInput,
   isImportBibliographyInput,
@@ -49,6 +50,7 @@ describe("workspace input guards", () => {
     expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
     expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
     expect(isImportBibliographyInput({ bibtex: "@article{key, title={Title}}" })).toBe(true);
+    expect(isCreatePublicationPdfLinkInput({ publicationId: "publication", pdfId: "pdf" })).toBe(true);
     expect(isWorkspaceMembers([{ email: "owner@example.org", role: "owner", addedAt: "now" }])).toBe(true);
     expect(
       isWorkspaceSummaries([{ id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now" }]),
@@ -65,6 +67,7 @@ describe("workspace input guards", () => {
         revision: 0,
         pdfs: [],
         publications: [],
+        publicationPdfLinks: [{ id: "artifact-link", publicationId: "publication", pdfId: "pdf", createdAt: "now" }],
         annotations: [],
         links: [{ id: "link", annotationId: "annotation", anchor, resolution, createdAt: "now" }],
         claims: [],
@@ -89,6 +92,8 @@ describe("workspace input guards", () => {
     expect(isImportBibliographyInput({ bibtex: "" })).toBe(false);
     expect(isImportBibliographyInput({ bibtex: "x".repeat(2_000_001) })).toBe(false);
     expect(isImportBibliographyInput(null)).toBe(false);
+    expect(isCreatePublicationPdfLinkInput({ publicationId: "", pdfId: "" })).toBe(false);
+    expect(isCreatePublicationPdfLinkInput(null)).toBe(false);
     expect(isWorkspaceMembers(null)).toBe(false);
     for (const member of [
       { email: "", role: "owner", addedAt: "now" },
@@ -168,6 +173,20 @@ describe("workspace input guards", () => {
       { sourceRevision: "0" },
     ]) {
       expect(isCreatePassageLinkInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
+    }
+  });
+
+  it("enforces every publication-PDF link boundary", () => {
+    const valid = { publicationId: "publication", pdfId: "pdf" };
+    for (const change of [
+      { publicationId: "" },
+      { publicationId: "x".repeat(129) },
+      { publicationId: 1 },
+      { pdfId: "" },
+      { pdfId: "x".repeat(129) },
+      { pdfId: 1 },
+    ]) {
+      expect(isCreatePublicationPdfLinkInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
     }
   });
 
@@ -251,6 +270,7 @@ describe("workspace input guards", () => {
       revision: 0,
       pdfs: [],
       publications: [],
+      publicationPdfLinks: [],
       annotations: [],
       links: [],
       claims: [],
@@ -266,6 +286,7 @@ describe("workspace input guards", () => {
       { revision: "0" },
       { pdfs: null },
       { publications: null },
+      { publicationPdfLinks: null },
       { annotations: null },
       { links: null },
       { claims: null },
@@ -280,5 +301,17 @@ describe("workspace input guards", () => {
     expect(isWorkspaceSnapshot({ ...valid, claims: [{ id: "claim" }] })).toBe(false);
     expect(isWorkspaceSnapshot({ ...valid, claimEvidenceLinks: [{ relation: "unknown" }] })).toBe(false);
     expect(isWorkspaceSnapshot({ ...valid, claimLinks: [{ anchor: null, resolution: null }] })).toBe(false);
+    const validPublicationPdfLink = {
+      id: "link",
+      publicationId: "publication",
+      pdfId: "pdf",
+      createdAt: "created",
+    };
+    for (const change of [{ id: "" }, { publicationId: "" }, { pdfId: "" }, { createdAt: "" }]) {
+      expect(
+        isWorkspaceSnapshot({ ...valid, publicationPdfLinks: [{ ...validPublicationPdfLink, ...change }] }),
+        JSON.stringify(change),
+      ).toBe(false);
+    }
   });
 });

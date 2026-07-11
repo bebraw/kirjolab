@@ -31,10 +31,12 @@ import {
   type CreateCandidateInput,
   type CreateClaimPassageLinkInput,
   type CreatePassageLinkInput,
+  type CreatePublicationPdfLinkInput,
   type ModelCandidate,
   type PassageLink,
   type PdfResource,
   type PublicationEnrichment,
+  type PublicationPdfLink,
   type PublicationResource,
   type UpsertClaimInput,
   type WorkspaceSnapshot,
@@ -111,6 +113,13 @@ interface PublicationRow extends Record<string, SqlStorageValue> {
   metadata_source: string;
   created_at: string;
   updated_at: string;
+}
+
+interface PublicationPdfLinkRow extends Record<string, SqlStorageValue> {
+  id: string;
+  publication_id: string;
+  pdf_id: string;
+  created_at: string;
 }
 
 interface ClaimRow extends Record<string, SqlStorageValue> {
@@ -245,6 +254,7 @@ export class DocumentRoom extends DurableObject<Env> {
       revision: workspace.revision,
       pdfs: this.#pdfs(),
       publications: this.#publications(),
+      publicationPdfLinks: this.#publicationPdfLinks(),
       annotations: this.#annotations(),
       links: this.#links(),
       claims: this.#claims(),
@@ -287,6 +297,47 @@ export class DocumentRoom extends DurableObject<Env> {
     const row = this.ctx.storage.sql.exec<PublicationRow>("SELECT * FROM publications WHERE id = ?", publicationId).toArray()[0];
     if (!row) throw new Error("Publication not found");
     return publicationFromRow(row);
+  }
+
+  createPublicationPdfLink(input: CreatePublicationPdfLinkInput): PublicationPdfLink {
+    const link: PublicationPdfLink = {
+      id: crypto.randomUUID(),
+      publicationId: input.publicationId,
+      pdfId: input.pdfId,
+      createdAt: new Date().toISOString(),
+    };
+    this.ctx.storage.transactionSync(() => {
+      const publication = this.ctx.storage.sql
+        .exec<{ count: number }>("SELECT COUNT(*) AS count FROM publications WHERE id = ?", link.publicationId)
+        .one();
+      if (publication.count === 0) throw new Error("Publication not found");
+      const pdf = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM pdfs WHERE id = ?", link.pdfId).one();
+      if (pdf.count === 0) throw new Error("PDF not found");
+      const existing = this.ctx.storage.sql
+        .exec<{
+          count: number;
+        }>("SELECT COUNT(*) AS count FROM publication_pdf_links WHERE publication_id = ? AND pdf_id = ?", link.publicationId, link.pdfId)
+        .one();
+      if (existing.count > 0) throw new Error("Publication/PDF link already exists");
+      this.ctx.storage.sql.exec(
+        "INSERT INTO publication_pdf_links (id, publication_id, pdf_id, created_at) VALUES (?, ?, ?, ?)",
+        link.id,
+        link.publicationId,
+        link.pdfId,
+        link.createdAt,
+      );
+    });
+    this.#broadcastResources();
+    return link;
+  }
+
+  deletePublicationPdfLink(linkId: string): void {
+    const existing = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM publication_pdf_links WHERE id = ?", linkId)
+      .one();
+    if (existing.count === 0) throw new Error("Publication/PDF link not found");
+    this.ctx.storage.sql.exec("DELETE FROM publication_pdf_links WHERE id = ?", linkId);
+    this.#broadcastResources();
   }
 
   enrichPublication(workspaceId: string, publicationId: string, metadata: PublicationEnrichment): WorkspaceSnapshot {
@@ -713,6 +764,23 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 7,
+        name: "add-publication-pdf-links",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS publication_pdf_links (
+              id TEXT PRIMARY KEY,
+              publication_id TEXT NOT NULL REFERENCES publications(id),
+              pdf_id TEXT NOT NULL REFERENCES pdfs(id),
+              created_at TEXT NOT NULL,
+              UNIQUE (publication_id, pdf_id)
+            );
+            CREATE INDEX IF NOT EXISTS publication_pdf_links_pdf ON publication_pdf_links(pdf_id);
+          `);
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -954,6 +1022,13 @@ export class DocumentRoom extends DurableObject<Env> {
       .map(publicationFromRow);
   }
 
+  #publicationPdfLinks(): PublicationPdfLink[] {
+    return this.ctx.storage.sql
+      .exec<PublicationPdfLinkRow>("SELECT * FROM publication_pdf_links ORDER BY created_at DESC, id ASC")
+      .toArray()
+      .map(publicationPdfLinkFromRow);
+  }
+
   #annotations(): AnnotationResource[] {
     return this.ctx.storage.sql
       .exec<AnnotationRow>("SELECT * FROM annotations ORDER BY created_at DESC")
@@ -1153,6 +1228,15 @@ function publicationFromRow(row: PublicationRow): PublicationResource {
     metadataSource: row.metadata_source === "crossref" ? "crossref" : "bibtex",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function publicationPdfLinkFromRow(row: PublicationPdfLinkRow): PublicationPdfLink {
+  return {
+    id: row.id,
+    publicationId: row.publication_id,
+    pdfId: row.pdf_id,
+    createdAt: row.created_at,
   };
 }
 

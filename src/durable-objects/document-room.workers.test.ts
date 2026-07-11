@@ -129,7 +129,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     });
 
     const firstMigrationState = await inspectAnchorMigrationState(stub);
-    expect(firstMigrationState.versions).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(firstMigrationState.versions).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(firstMigrationState.passageColumns).toEqual(expect.arrayContaining(anchorColumnNames));
     expect(firstMigrationState.claimColumns).toEqual(expect.arrayContaining(anchorColumnNames));
 
@@ -155,6 +155,90 @@ describe("DocumentRoom in the Workers runtime", () => {
         metadataSource: "bibtex",
       }),
     ]);
+  });
+
+  it("adds the publication-PDF link table when migration v7 is pending", async () => {
+    const workspaceId = "publication-pdf-link-migration";
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      state.storage.transactionSync(() => {
+        state.storage.sql.exec("DROP TABLE publication_pdf_links");
+        state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 7");
+      });
+    });
+
+    await evictDurableObject(stub);
+    expect((await stub.getSnapshot(workspaceId)).publicationPdfLinks).toEqual([]);
+    expect(await migrationVersion(stub, 7)).toEqual({ version: 7, name: "add-publication-pdf-links" });
+    expect(await runInDurableObject(stub, (_instance: DocumentRoom, state) => tableColumns(state, "publication_pdf_links"))).toEqual([
+      "id",
+      "publication_id",
+      "pdf_id",
+      "created_at",
+    ]);
+  });
+
+  it("persists explicit many-to-many publication-PDF links and unlinks only the association", async () => {
+    const workspaceId = "publication-pdf-links";
+    const stub = roomStub(workspaceId);
+    const imported = await stub.importBibliography(
+      workspaceId,
+      `@article{second2026,
+        title = {A second publication},
+        author = {Hopper, Grace},
+        year = {2026}
+      }`,
+    );
+    const firstPublication = publicationByKey(imported, "merton1942");
+    const secondPublication = publicationByKey(imported, "second2026");
+    const firstPdf = pdfResource("first-paper.pdf");
+    const secondPdf = pdfResource("supplement.pdf");
+    await stub.registerPdf(firstPdf);
+    await stub.registerPdf(secondPdf);
+
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.createPublicationPdfLink({ publicationId: crypto.randomUUID(), pdfId: firstPdf.id })).toThrow(
+        "Publication not found",
+      );
+      expect(() => instance.createPublicationPdfLink({ publicationId: firstPublication.id, pdfId: crypto.randomUUID() })).toThrow(
+        "PDF not found",
+      );
+    });
+
+    const primaryLink = await stub.createPublicationPdfLink({ publicationId: firstPublication.id, pdfId: firstPdf.id });
+    const supplementLink = await stub.createPublicationPdfLink({ publicationId: firstPublication.id, pdfId: secondPdf.id });
+    const sharedArtifactLink = await stub.createPublicationPdfLink({ publicationId: secondPublication.id, pdfId: firstPdf.id });
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.createPublicationPdfLink({ publicationId: firstPublication.id, pdfId: firstPdf.id })).toThrow(
+        "Publication/PDF link already exists",
+      );
+    });
+
+    const annotation = await stub.createAnnotation({
+      pdfId: firstPdf.id,
+      page: 1,
+      quote: "Durable evidence",
+      prefix: "",
+      suffix: "",
+      comment: "Preserve this annotation",
+      rects: [],
+    });
+    await evictDurableObject(stub);
+    const persisted = await stub.getSnapshot(workspaceId);
+    expect(persisted.publicationPdfLinks).toEqual(expect.arrayContaining([primaryLink, supplementLink, sharedArtifactLink]));
+
+    await stub.deletePublicationPdfLink(primaryLink.id);
+    const unlinked = await stub.getSnapshot(workspaceId);
+    expect(unlinked.publicationPdfLinks).toEqual(expect.arrayContaining([supplementLink, sharedArtifactLink]));
+    expect(unlinked.publicationPdfLinks).not.toContainEqual(primaryLink);
+    expect(unlinked.publications).toEqual(expect.arrayContaining([firstPublication, secondPublication]));
+    expect(unlinked.pdfs).toEqual(expect.arrayContaining([firstPdf, secondPdf]));
+    expect(unlinked.annotations).toContainEqual(annotation);
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.deletePublicationPdfLink(primaryLink.id)).toThrow("Publication/PDF link not found");
+    });
   });
 
   it("projects a persisted canonical bibliography when migration v6 is pending", async () => {
@@ -184,7 +268,7 @@ describe("DocumentRoom in the Workers runtime", () => {
       state.storage.transactionSync(() => {
         state.storage.sql.exec("UPDATE workspace SET y_state = ?, bibliography = ? WHERE id = 1", persistedState, customBibliography);
         state.storage.sql.exec("DELETE FROM publications");
-        state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 6");
+        state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 6");
       });
       document.destroy();
     });
@@ -349,18 +433,31 @@ async function inspectAnchorMigrationState(stub: DurableObjectStub<DocumentRoom>
 }> {
   return await runInDurableObject(stub, (_instance: DocumentRoom, state) => ({
     versions: migrationRows(state)
-      .filter((row) => row.version <= 6)
+      .filter((row) => row.version <= 7)
       .map((row) => row.version),
     passageColumns: tableColumns(state, "passage_links"),
     claimColumns: tableColumns(state, "claim_passage_links"),
   }));
 }
 
-function tableColumns(state: DurableObjectState, table: "passage_links" | "claim_passage_links"): string[] {
+function tableColumns(state: DurableObjectState, table: "passage_links" | "claim_passage_links" | "publication_pdf_links"): string[] {
   return state.storage.sql
     .exec<TableColumnRow>(`PRAGMA table_info(${table})`)
     .toArray()
     .map((row) => row.name);
+}
+
+function pdfResource(name: string): WorkspaceSnapshot["pdfs"][number] {
+  const id = crypto.randomUUID();
+  return {
+    id,
+    name,
+    contentType: "application/pdf",
+    size: 42,
+    objectKey: `publication-pdf-links/${id}.pdf`,
+    fingerprint: `test:${id}`,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 function publicationByKey(snapshot: WorkspaceSnapshot, citationKey: string): WorkspaceSnapshot["publications"][number] {

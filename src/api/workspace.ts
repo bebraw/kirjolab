@@ -3,6 +3,7 @@ import {
   isCreateCandidateInput,
   isCreateClaimPassageLinkInput,
   isCreatePassageLinkInput,
+  isCreatePublicationPdfLinkInput,
   isCreateWorkspaceInput,
   isImportBibliographyInput,
   isInviteWorkspaceMemberInput,
@@ -54,6 +55,12 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     }
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
     if (suffix === "/bibliography/import" && request.method === "POST") return await importBibliography(request, workspaceId, room);
+    if (suffix === "/publication-pdf-links" && request.method === "POST") {
+      return await createPublicationPdfLink(request, room);
+    }
+    if (suffix.startsWith("/publication-pdf-links/") && request.method === "DELETE") {
+      return await deletePublicationPdfLink(suffix, room);
+    }
     if (suffix.startsWith("/publications/") && request.method === "POST") {
       return await enrichPublication(workspaceId, suffix, env, room);
     }
@@ -76,7 +83,11 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     return jsonError("Route not found", 404);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Workspace operation failed";
-    const status = /access denied|only the workspace owner/iu.test(message) ? 403 : /stale|pending/iu.test(message) ? 409 : 400;
+    const status = /access denied|only the workspace owner/iu.test(message)
+      ? 403
+      : /already exists|stale|pending/iu.test(message)
+        ? 409
+        : 400;
     return jsonError(message, status);
   }
 }
@@ -195,6 +206,25 @@ async function enrichPublication(
   if (!publication.doi) return jsonError("Publication has no DOI", 400);
   const metadata = await fetchCrossrefWork(publication.doi, env.CROSSREF_MAILTO);
   return Response.json(await room.enrichPublication(workspaceId, publication.id, metadata));
+}
+
+async function createPublicationPdfLink(
+  request: Request,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isCreatePublicationPdfLinkInput(body)) return jsonError("Invalid publication/PDF link", 400);
+  return Response.json(await room.createPublicationPdfLink(body), { status: 201 });
+}
+
+async function deletePublicationPdfLink(
+  suffix: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const match = /^\/publication-pdf-links\/([0-9a-f-]{36})$/iu.exec(suffix);
+  if (!match?.[1]) return jsonError("Publication/PDF link route not found", 404);
+  await room.deletePublicationPdfLink(match[1]);
+  return new Response(null, { status: 204 });
 }
 
 async function createPassageLink(

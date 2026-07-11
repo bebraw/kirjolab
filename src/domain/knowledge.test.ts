@@ -36,6 +36,14 @@ const snapshot: WorkspaceSnapshot = {
       updatedAt: "2026-07-10T00:00:00.000Z",
     },
   ],
+  publicationPdfLinks: [
+    {
+      id: "publication-pdf-1",
+      publicationId: "publication-1",
+      pdfId: "pdf-1",
+      createdAt: "2026-07-10T00:00:00.000Z",
+    },
+  ],
   annotations: [
     {
       id: "annotation-1",
@@ -202,6 +210,13 @@ describe("knowledge navigation", () => {
         { id: "claim:claim-1", kind: "claim", label: "Inspectable evidence supports accountable claims." },
       ],
       edges: [
+        {
+          id: "has-artifact:publication-pdf-1",
+          relation: "has-artifact",
+          from: "publication:publication-1",
+          to: "pdf:pdf-1",
+          label: "has artifact",
+        },
         {
           id: "annotates:annotation-1:pdf-1",
           relation: "annotates",
