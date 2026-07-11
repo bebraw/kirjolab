@@ -47,6 +47,7 @@ const safeElements = new Set([
   "b",
   "blockquote",
   "br",
+  "button",
   "code",
   "del",
   "em",
@@ -77,6 +78,7 @@ const safeElements = new Set([
 
 const safePropertiesByElement: Readonly<Record<string, ReadonlySet<string>>> = {
   a: new Set(["ariaDescribedBy", "ariaLabel", "className", "dataFootnoteBackref", "dataFootnoteRef", "href", "id", "title"]),
+  button: new Set(["ariaLabel", "className", "dataCitation", "type"]),
   code: new Set(["className"]),
   h1: new Set(["className", "id"]),
   h2: new Set(["className", "id"]),
@@ -351,11 +353,15 @@ function validateReferenceDeclarations(source: string): Diagnostic[] {
 function renderCitation(citation: Citation, bibliography: Map<string, BibliographyEntry>): string {
   const entries = citation.ids.map((id) => bibliography.get(id) ?? { id, author: id, title: id, year: "n.d." });
   const separator = citation.mode === "textual" ? ", " : "; ";
-  const value = entries.map((entry) => formatCitation(entry, citation.mode)).join(separator);
+  const value = entries
+    .map(
+      (entry) =>
+        `<button type="button" class="semantic-citation" data-citation="${escapeHtml(entry.id)}" aria-label="Open reference ${escapeHtml(entry.title || entry.id)}">${escapeHtml(formatCitation(entry, citation.mode))}</button>`,
+    )
+    .join(separator);
   const wrapped = citation.mode === "parenthetical" ? `(${value})` : value;
-  const locator = citation.locator ? `, ${citation.locator}` : "";
-  const rendered = `${citation.prefix ?? ""}${wrapped}${locator}${citation.suffix ?? ""}`;
-  return `<span class="semantic-citation" data-citation="${escapeHtml(citation.ids.join(", "))}">${escapeHtml(rendered)}</span>`;
+  const locator = citation.locator ? `, ${escapeHtml(citation.locator)}` : "";
+  return `<span class="semantic-citation-group">${escapeHtml(citation.prefix ?? "")}${wrapped}${locator}${escapeHtml(citation.suffix ?? "")}</span>`;
 }
 
 function formatCitation(entry: BibliographyEntry, mode: string): string {

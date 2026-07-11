@@ -1,11 +1,27 @@
 export function createEvidencePdf(): Buffer {
-  const content = "BT /F1 18 Tf 72 700 Td (Knowledge grows through inspectable evidence.) Tj ET";
+  return createPdf(["Knowledge grows through inspectable evidence."]);
+}
+
+export function createTwoPageEvidencePdf(): Buffer {
+  return createPdf(["First page keeps its reading position.", "Second page verifies restored PDF context."]);
+}
+
+function createPdf(pageTexts: string[]): Buffer {
+  const pageIds = pageTexts.map((_, index) => 3 + index);
+  const fontId = 3 + pageTexts.length;
+  const contentIds = pageTexts.map((_, index) => fontId + 1 + index);
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageTexts.length} >>`,
+    ...contentIds.map(
+      (contentId) =>
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`,
+    ),
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`,
+    ...pageTexts.map((text) => {
+      const content = `BT /F1 18 Tf 72 700 Td (${text}) Tj ET`;
+      return `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`;
+    }),
   ];
   let source = "%PDF-1.4\n";
   const offsets = [0];

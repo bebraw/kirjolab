@@ -29,7 +29,9 @@ const answer = 42;
 
     expect(rendered.diagnostics).toEqual([]);
     expect(rendered.html).toContain('<h2 id="evidence"><span class="section-number">1 </span>Evidence</h2>');
-    expect(rendered.html).toContain("Merton (1942), p. 4");
+    expect(rendered.html).toContain(
+      '<button type="button" class="semantic-citation" data-citation="merton1942" aria-label="Open reference The Normative Structure of Science">Merton (1942)</button>, p. 4',
+    );
     expect(rendered.html).toContain('<a class="semantic-reference"');
     expect(rendered.html).toContain("<strong>weight</strong>");
     expect(rendered.html).toContain("<li>one</li>");
@@ -75,8 +77,11 @@ const answer = 42;
 unfinished`;
     const rendered = renderWorkspaceMarkdown(source, bibliography);
 
-    expect(rendered.html).toContain("See Merton. 1942. The Normative Structure of Science.");
-    expect(rendered.html).toContain("(Merton, 1942)");
+    expect(rendered.html).toContain("See <button");
+    expect(rendered.html).toContain(">Merton. 1942. The Normative Structure of Science</button>.");
+    expect(rendered.html).toContain(
+      '(<button type="button" class="semantic-citation" data-citation="merton1942" aria-label="Open reference The Normative Structure of Science">Merton, 1942</button>)',
+    );
     expect(rendered.html).toContain("unfinished\n</code></pre>");
     expect(rendered.html).toContain('<h2 id="notes"><span class="section-number">1 </span>Notes</h2>');
   });
@@ -145,12 +150,14 @@ content
 
   it("renders authored HTML as text and removes unsafe link targets", () => {
     const rendered = renderWorkspaceMarkdown(
-      '<img src=x onerror="alert(1)">\n\n[unsafe](javascript:alert(1)) ![unsafe](data:image/svg+xml,evil) [safe](mailto:test@example.org)',
+      '<img src=x onerror="alert(1)"> <button type="button" onclick="alert(1)">authored</button>\n\n[unsafe](javascript:alert(1)) ![unsafe](data:image/svg+xml,evil) [safe](mailto:test@example.org)',
       "",
     );
 
     expect(rendered.html).toContain('&lt;img src=x onerror="alert(1)"&gt;');
     expect(rendered.html).not.toContain("<img src=x onerror");
+    expect(rendered.html).toContain('&lt;button type="button" onclick="alert(1)"&gt;authored&lt;/button&gt;');
+    expect(rendered.html).not.toContain('<button type="button" onclick=');
     expect(rendered.html).not.toContain("javascript:");
     expect(rendered.html).not.toContain("data:image");
     expect(rendered.html).toContain('href="mailto:test@example.org"');
@@ -277,7 +284,9 @@ Footnote.[^a]
     expect(rendered.html).toContain('<h2 id="repeated-2"><span class="section-number">2 </span>Repeated</h2>');
     expect(rendered.html).toContain('<a class="semantic-reference" href="#repeated">1 Repeated</a>');
     expect(rendered.html).toContain('<a class="semantic-reference" href="#table-one">custom table</a>');
-    expect(rendered.html).toContain("See Merton (1942), Doe (2026), p. 4 for context");
+    expect(rendered.html).toContain("See <button");
+    expect(rendered.html).toContain(">Merton (1942)</button>, <button");
+    expect(rendered.html).toContain(">Doe (2026)</button>, p. 4 for context");
   });
 
   it("diagnoses incomplete semantic declarations", () => {

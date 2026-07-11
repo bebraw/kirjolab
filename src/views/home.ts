@@ -41,7 +41,11 @@ export function renderHomePage(
       </div>
     </header>
 
-    <main class="workspace-grid min-h-[calc(100vh-4rem)]">
+    <main class="workspace-grid min-h-[calc(100vh-4rem)]" id="workspace-surfaces" data-active-surface="authoring">
+      <nav class="surface-switcher" aria-label="Workspace surface">
+        <button class="surface-switch" id="show-authoring-surface" type="button" aria-controls="authoring-surface" aria-pressed="true">Authoring</button>
+        <button class="surface-switch" id="show-context-surface" type="button" aria-controls="context-surface" aria-pressed="false">Context</button>
+      </nav>
       <aside class="source-rail border-b border-app-line bg-app-paper px-4 py-5 lg:border-r lg:border-b-0 lg:px-5">
         <div class="flex items-end justify-between gap-3">
           <div>
@@ -111,13 +115,16 @@ export function renderHomePage(
         </section>
       </aside>
 
-      <section class="editor-column min-w-0 border-b border-app-line bg-app-surface lg:border-r lg:border-b-0">
+      <section class="editor-column min-w-0 border-b border-app-line bg-app-surface lg:border-r lg:border-b-0" id="authoring-surface">
         <div class="flex h-12 items-center justify-between border-b border-app-line px-4">
           <div class="flex items-center gap-2">
             <span class="eyebrow">Manuscript</span>
             <span class="count-badge" id="revision-badge">r0</span>
           </div>
-          <p class="text-xs text-app-text-soft" id="save-status">Loading source…</p>
+          <div class="flex items-center gap-2">
+            <button class="button-secondary" id="open-source-citation" type="button" disabled>Open reference</button>
+            <p class="text-xs text-app-text-soft" id="save-status">Loading source…</p>
+          </div>
         </div>
         <label class="sr-only" for="source-editor">Markdown source</label>
         <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
@@ -129,52 +136,117 @@ export function renderHomePage(
         </details>
       </section>
 
-      <section class="preview-column min-w-0 bg-app-paper">
-        <div class="flex h-12 items-center justify-between border-b border-app-line px-5">
-          <p class="eyebrow">Fast preview</p>
-          <span class="text-xs text-app-text-soft" id="diagnostic-summary">Validating…</span>
+      <section class="context-column preview-column min-w-0 bg-app-paper" id="context-surface" aria-label="Research context">
+        <div class="context-tabs" id="context-tabs">
+          <div class="context-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
+            <button class="context-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
+            <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
+          </div>
+          <div class="context-tab-controls" aria-label="Active context actions">
+            <button id="pin-active-context" type="button" disabled>Pin</button>
+            <button id="close-active-context" type="button" disabled>Close</button>
+          </div>
         </div>
-        <div class="preview-scroll">
-          <article class="prose-preview" id="preview" aria-live="polite"></article>
-          <div class="mx-auto mt-8 max-w-[44rem] border-t border-app-line pt-4" id="diagnostics"></div>
-        </div>
+
+        <section class="context-panel context-preview-panel" id="context-preview-panel" role="tabpanel" aria-labelledby="context-preview-tab" tabindex="0">
+          <div class="flex h-12 items-center justify-between border-b border-app-line px-5">
+            <p class="eyebrow">Manuscript preview</p>
+            <span class="text-xs text-app-text-soft" id="diagnostic-summary">Validating…</span>
+          </div>
+          <div class="preview-scroll" id="preview-scroll">
+            <article class="prose-preview" id="preview" aria-live="polite"></article>
+            <div class="mx-auto mt-8 max-w-[44rem] border-t border-app-line pt-4" id="diagnostics"></div>
+          </div>
+        </section>
+
+        <section class="context-panel context-publication-panel" id="context-publication-panel" role="tabpanel" aria-label="Publication context" tabindex="0" hidden>
+          <header class="context-resource-header">
+            <div class="min-w-0">
+              <p class="eyebrow">Reference</p>
+              <h2 class="context-resource-title" id="context-publication-title">No reference selected</h2>
+              <p class="context-resource-meta" id="context-publication-meta">Choose a citation or reference to inspect its scholarly record.</p>
+            </div>
+            <button class="button-secondary shrink-0" id="close-publication-context" type="button">Close</button>
+          </header>
+          <div class="context-publication-body" id="context-publication-body">
+            <div class="context-resource-copy" id="context-publication-details">
+              <div class="empty-state">Publication metadata and linked papers appear here.</div>
+            </div>
+            <div class="context-resource-actions">
+              <button class="button-primary justify-center" id="insert-context-citation" type="button" disabled>Insert citation</button>
+              <button class="button-secondary justify-center" id="open-paper" type="button" disabled>Open linked paper</button>
+            </div>
+            <form class="context-link-form" id="publication-pdf-link-form">
+              <label class="field-label" for="publication-pdf-link">Linked paper
+                <select class="field" id="publication-pdf-link" disabled><option value="">Import a PDF first</option></select>
+              </label>
+              <button class="button-secondary justify-center" type="submit" disabled>Connect paper</button>
+            </form>
+            <div class="context-linked-resources" id="context-publication-pdfs">
+              <p class="empty-state">No paper connected to this reference yet.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="context-panel context-pdf-panel" id="context-pdf-panel" role="tabpanel" aria-label="PDF context" tabindex="0" hidden>
+          <header class="context-resource-header">
+            <div class="min-w-0">
+              <p class="truncate font-sans text-sm font-bold" id="paper-title">Paper</p>
+              <p class="mt-0.5 font-sans text-xs text-app-text-soft" id="paper-status">Loading PDF…</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="button-secondary" id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
+              <span class="min-w-16 text-center font-sans text-xs text-app-text-soft" id="paper-page-indicator">– / –</span>
+              <button class="button-secondary" id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
+              <button class="button-secondary" id="close-paper" type="button">Close</button>
+            </div>
+          </header>
+          <div class="context-pdf-body">
+            <div class="pdf-reader" id="paper-reader">
+              <div class="pdf-page" id="paper-page">
+                <canvas class="block" id="paper-canvas"></canvas>
+                <div class="pdf-highlights" id="paper-highlights"></div>
+                <div class="textLayer" id="paper-text-layer"></div>
+              </div>
+            </div>
+            <aside class="annotation-composer" aria-labelledby="annotation-composer-title">
+              <div>
+                <p class="eyebrow">Evidence capture</p>
+                <h2 class="mt-1 text-lg font-semibold tracking-[-0.035em]" id="annotation-composer-title">Annotate this paper</h2>
+              </div>
+              <p class="mt-2 text-xs leading-5 text-app-text-soft" id="annotation-selection-status">Select text in the paper to capture its quotation, context, page, and geometry.</p>
+              <form class="mt-3 grid gap-3 sm:grid-cols-2" id="annotation-form">
+                <label class="field-label sm:col-span-2">Paper
+                  <select class="field" id="annotation-pdf" required disabled><option value="">Import a PDF first</option></select>
+                </label>
+                <label class="field-label">Page
+                  <input class="field" id="annotation-page" type="number" min="1" value="1" required>
+                </label>
+                <label class="field-label">Your note
+                  <input class="field" id="annotation-comment" type="text" placeholder="Why this matters">
+                </label>
+                <label class="field-label sm:col-span-2">Exact quotation
+                  <textarea class="field min-h-20" id="annotation-quote" required placeholder="Select a passage in the paper"></textarea>
+                </label>
+                <label class="field-label">Text before
+                  <input class="field" id="annotation-prefix" type="text" placeholder="Context before selection">
+                </label>
+                <label class="field-label">Text after
+                  <input class="field" id="annotation-suffix" type="text" placeholder="Context after selection">
+                </label>
+                <div class="grid gap-2 sm:col-span-2 sm:grid-cols-2">
+                  <button class="button-primary justify-center" type="submit">Save annotation</button>
+                  <button class="button-secondary justify-center" id="save-and-link-annotation" type="submit">Save &amp; link selected prose</button>
+                </div>
+              </form>
+            </aside>
+          </div>
+        </section>
       </section>
 
       <aside class="workbench border-t border-app-line bg-app-canvas px-4 py-5 lg:col-span-3 lg:px-6">
-        <div class="grid gap-6 xl:grid-cols-[minmax(20rem,0.8fr)_minmax(28rem,1.2fr)]">
+        <div class="mx-auto max-w-5xl">
           <section>
-            <div class="flex items-end justify-between gap-3">
-              <div>
-                <p class="eyebrow">PDF evidence capture</p>
-                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Select, annotate, connect</h2>
-              </div>
-              <button class="button-secondary" id="open-paper" type="button" disabled>Open paper</button>
-            </div>
-            <p class="mt-3 text-sm leading-6 text-app-text-soft" id="annotation-selection-status">Open a paper and select its text. Page, quotation, context, and geometry will be captured here.</p>
-            <form class="mt-4 grid gap-3 sm:grid-cols-2" id="annotation-form">
-              <label class="field-label sm:col-span-2">Paper
-                <select class="field" id="annotation-pdf" required><option value="">Import a PDF first</option></select>
-              </label>
-              <label class="field-label">Page
-                <input class="field" id="annotation-page" type="number" min="1" value="1" required>
-              </label>
-              <label class="field-label">Your note
-                <input class="field" id="annotation-comment" type="text" placeholder="Why this matters">
-              </label>
-              <label class="field-label sm:col-span-2">Exact quotation
-                <textarea class="field min-h-24" id="annotation-quote" required placeholder="Paste the selected passage"></textarea>
-              </label>
-              <label class="field-label">Text before
-                <input class="field" id="annotation-prefix" type="text" placeholder="Context before selection">
-              </label>
-              <label class="field-label">Text after
-                <input class="field" id="annotation-suffix" type="text" placeholder="Context after selection">
-              </label>
-              <button class="button-primary justify-center sm:col-span-2" type="submit">Save evidence annotation</button>
-            </form>
-          </section>
-
-          <section class="border-t border-app-line pt-5 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-6">
             <div class="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p class="eyebrow">Local model lab</p>
@@ -199,30 +271,6 @@ export function renderHomePage(
         </div>
       </aside>
     </main>
-
-    <dialog class="paper-dialog" id="paper-dialog">
-      <div class="flex h-full flex-col">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-app-line px-4 py-3">
-          <div class="min-w-0">
-            <p class="truncate font-sans text-sm font-bold" id="paper-title">Paper</p>
-            <p class="mt-0.5 font-sans text-xs text-app-text-soft" id="paper-status">Loading PDF…</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button class="button-secondary" id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
-            <span class="min-w-16 text-center font-sans text-xs text-app-text-soft" id="paper-page-indicator">– / –</span>
-            <button class="button-secondary" id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
-            <button class="button-secondary" id="close-paper" type="button">Close</button>
-          </div>
-        </div>
-        <div class="pdf-reader min-h-0 flex-1" id="paper-reader">
-          <div class="pdf-page" id="paper-page">
-            <canvas class="block" id="paper-canvas"></canvas>
-            <div class="pdf-highlights" id="paper-highlights"></div>
-            <div class="textLayer" id="paper-text-layer"></div>
-          </div>
-        </div>
-      </div>
-    </dialog>
 
     <dialog class="new-workspace-dialog" id="new-workspace-dialog">
       <form class="p-5" id="new-workspace-form">

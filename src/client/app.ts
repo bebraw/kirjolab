@@ -14,6 +14,7 @@ import {
   isWorkspaceMembers,
   isWorkspaceSummaries,
   type AnnotationResource,
+  type AnnotationLinkResult,
   type ClaimEvidenceRelation,
   type ClaimPassageLink,
   type ClaimResource,
@@ -29,7 +30,23 @@ import {
 } from "../domain/workspace";
 import { buildGroundedPrompt, calculateTextSplice, extractCompletion } from "./operations";
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
+import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
+import {
+  activateResearchTab,
+  closeResearchTab,
+  createResearchContext,
+  openResearchResource,
+  RESEARCH_PREVIEW_KEY,
+  reconcileResearchContext,
+  researchResourceKey,
+  setPdfResearchLocation,
+  setResearchTabPinned,
+  setResearchTabScroll,
+  type ResearchContextKey,
+  type ResearchContextState,
+  type ResearchResourceTab,
+} from "./research-context";
 
 const workspaceId = readWorkspaceId();
 const catalogBase = "/api/workspaces";
@@ -52,6 +69,28 @@ interface Elements {
   inviteMemberEmail: HTMLInputElement;
   source: HTMLTextAreaElement;
   bibliography: HTMLTextAreaElement;
+  workspaceSurfaces: HTMLElement;
+  showAuthoringSurface: HTMLButtonElement;
+  showContextSurface: HTMLButtonElement;
+  openSourceCitation: HTMLButtonElement;
+  contextTabList: HTMLElement;
+  contextPreviewTab: HTMLButtonElement;
+  contextResourceTabs: HTMLElement;
+  pinActiveContext: HTMLButtonElement;
+  closeActiveContext: HTMLButtonElement;
+  contextPreviewPanel: HTMLElement;
+  previewScroll: HTMLElement;
+  contextPublicationPanel: HTMLElement;
+  contextPublicationBody: HTMLElement;
+  contextPdfPanel: HTMLElement;
+  contextPublicationTitle: HTMLElement;
+  contextPublicationMeta: HTMLElement;
+  contextPublicationDetails: HTMLElement;
+  contextPublicationPdfs: HTMLElement;
+  closePublicationContext: HTMLButtonElement;
+  insertContextCitation: HTMLButtonElement;
+  publicationPdfLinkForm: HTMLFormElement;
+  publicationPdfLink: HTMLSelectElement;
   preview: HTMLElement;
   diagnostics: HTMLElement;
   diagnosticSummary: HTMLElement;
@@ -90,8 +129,8 @@ interface Elements {
   annotationSuffix: HTMLInputElement;
   annotationComment: HTMLInputElement;
   annotationSelectionStatus: HTMLElement;
+  saveAndLinkAnnotation: HTMLButtonElement;
   openPaper: HTMLButtonElement;
-  paperDialog: HTMLDialogElement;
   closePaper: HTMLButtonElement;
   paperTitle: HTMLElement;
   paperStatus: HTMLElement;
@@ -100,6 +139,7 @@ interface Elements {
   paperTextLayer: HTMLElement;
   paperHighlights: HTMLElement;
   paperPageIndicator: HTMLElement;
+  paperReader: HTMLElement;
   previousPaperPage: HTMLButtonElement;
   nextPaperPage: HTMLButtonElement;
   llmEndpoint: HTMLInputElement;
@@ -116,6 +156,12 @@ interface RelativeEditorSelection {
   readonly start: Y.RelativePosition;
   readonly end: Y.RelativePosition;
   readonly direction: "forward" | "backward" | "none" | null;
+}
+
+interface AuthoringPassage {
+  readonly start: number;
+  readonly end: number;
+  readonly excerpt: string;
 }
 
 class WorkspaceApp {
@@ -136,8 +182,10 @@ class WorkspaceApp {
   #hasBootstrapSnapshot = false;
   #toastTimer: number | undefined;
   #pendingRects: PdfSelectionRect[] = [];
-  #activePdfId: string | undefined;
+  #renderedPdfId: string | undefined;
   #editingClaimId: string | undefined;
+  #contextState: ResearchContextState = createResearchContext();
+  #authoringSelection: RelativeEditorSelection | null = null;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -177,6 +225,11 @@ class WorkspaceApp {
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
     bindYText(this.#elements.source, this.#source, this.#document);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
+    for (const eventName of ["focus", "input", "keyup", "select"] as const) {
+      this.#elements.source.addEventListener(eventName, () => {
+        if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
+      });
+    }
     this.#source.observe(() => this.#renderPreview());
     this.#bibliography.observe(() => this.#renderPreview());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
@@ -193,8 +246,19 @@ class WorkspaceApp {
     this.#elements.newClaim.addEventListener("click", () => this.#openClaimDialog());
     this.#elements.cancelClaim.addEventListener("click", () => this.#elements.claimDialog.close());
     this.#elements.claimForm.addEventListener("submit", (event) => void this.#saveClaim(event));
-    this.#elements.openPaper.addEventListener("click", () => void this.#showPaper());
-    this.#elements.closePaper.addEventListener("click", () => this.#elements.paperDialog.close());
+    this.#elements.showAuthoringSurface.addEventListener("click", () => this.#showWorkspaceSurface("authoring"));
+    this.#elements.showContextSurface.addEventListener("click", () => this.#showWorkspaceSurface("context"));
+    this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
+    this.#elements.contextTabList.addEventListener("keydown", (event) => this.#moveContextTabFocus(event));
+    this.#elements.preview.addEventListener("click", (event) => this.#openPreviewCitation(event));
+    this.#elements.openSourceCitation.addEventListener("click", () => this.#openCitationAtCaret());
+    this.#elements.insertContextCitation.addEventListener("click", () => this.#insertActivePublicationCitation());
+    this.#elements.publicationPdfLinkForm.addEventListener("submit", (event) => void this.#linkActivePublicationPdf(event));
+    this.#elements.openPaper.addEventListener("click", () => void this.#openOnlyLinkedPaper());
+    this.#elements.pinActiveContext.addEventListener("click", () => this.#toggleActiveContextPin());
+    this.#elements.closeActiveContext.addEventListener("click", () => this.#closeActiveContext());
+    this.#elements.closePublicationContext.addEventListener("click", () => this.#closeActiveContext());
+    this.#elements.closePaper.addEventListener("click", () => this.#closeActiveContext());
     this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
   }
 
@@ -411,6 +475,7 @@ class WorkspaceApp {
       if (!start || !end || start.type !== selection.text || end.type !== selection.text) continue;
       selection.textarea.setSelectionRange(start.index, end.index, selection.direction ?? undefined);
     }
+    if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
   }
 
   #setRevision(revision: number): void {
@@ -476,21 +541,29 @@ class WorkspaceApp {
 
   #renderResources(): void {
     if (!this.#snapshot) return;
+    this.#captureActiveContextState();
+    this.#contextState = reconcileResearchContext(this.#contextState, {
+      publicationIds: new Set(this.#snapshot.publications.map((publication) => publication.id)),
+      pdfIds: new Set(this.#snapshot.pdfs.map((pdf) => pdf.id)),
+    });
     this.#renderPdfs(this.#snapshot.pdfs);
     this.#renderPublications(this.#snapshot.publications);
     this.#renderAnnotations(this.#snapshot.annotations, this.#snapshot.links);
     this.#renderClaims(this.#snapshot.claims, this.#snapshot.claimLinks);
     this.#renderCandidates(this.#snapshot.candidates);
-    this.#pdfViewer.updateAnnotations(this.#snapshot.annotations);
+    this.#pdfViewer.updateAnnotations(
+      this.#renderedPdfId ? this.#snapshot.annotations.filter((annotation) => annotation.pdfId === this.#renderedPdfId) : [],
+    );
+    this.#renderResearchContext();
   }
 
   #renderPdfs(pdfs: PdfResource[]): void {
     this.#elements.pdfList.replaceChildren();
     this.#elements.annotationPdf.replaceChildren();
+    this.#elements.annotationPdf.disabled = true;
     if (pdfs.length === 0) {
       this.#elements.pdfList.append(emptyState("No paper imported yet."));
       this.#elements.annotationPdf.append(new Option("Import a PDF first", ""));
-      this.#elements.openPaper.disabled = true;
       return;
     }
     for (const pdf of pdfs) {
@@ -506,7 +579,7 @@ class WorkspaceApp {
       this.#elements.pdfList.append(button);
       this.#elements.annotationPdf.append(new Option(pdf.name, pdf.id));
     }
-    this.#elements.openPaper.disabled = false;
+    if (this.#renderedPdfId) this.#elements.annotationPdf.value = this.#renderedPdfId;
   }
 
   #renderPublications(publications: PublicationResource[]): void {
@@ -525,15 +598,16 @@ class WorkspaceApp {
       details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
       details.textContent = [publication.authors.join("; "), publication.year, publication.venue].filter(Boolean).join(" · ");
       card.append(details);
+      const actions = document.createElement("div");
+      actions.className = "mt-3 flex flex-wrap items-center gap-2";
+      actions.append(actionButton("Open in context", "button-secondary", () => this.#openPublicationContext(publication)));
       if (publication.doi) {
-        const actions = document.createElement("div");
-        actions.className = "mt-3 flex flex-wrap items-center gap-2";
         actions.append(
           resourceLabel(`doi:${publication.doi}`),
           actionButton("Enrich", "button-secondary", () => void this.#enrichPublication(publication.id)),
         );
-        card.append(actions);
       }
+      card.append(actions);
       this.#elements.publicationList.append(card);
     }
   }
@@ -868,17 +942,21 @@ class WorkspaceApp {
     const kind = resourceId.slice(0, separator);
     const id = resourceId.slice(separator + 1);
     if (kind === "document") {
+      this.#showWorkspaceSurface("authoring");
       this.#elements.source.focus();
       this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     if (kind === "section") {
+      this.#activateContext(RESEARCH_PREVIEW_KEY);
       const section = this.#elements.preview.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
       section?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     if (kind === "annotation") {
-      this.#focusAnnotationCard(id);
+      const annotation = this.#snapshot?.annotations.find((item) => item.id === id);
+      const pdf = annotation ? this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId) : undefined;
+      if (annotation && pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
       return;
     }
     if (kind === "claim") {
@@ -892,8 +970,368 @@ class WorkspaceApp {
       return;
     }
     if (kind === "publication") {
-      const card = document.querySelector<HTMLElement>(`[data-publication-resource-id="${CSS.escape(id)}"]`);
-      card?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const publication = this.#snapshot?.publications.find((item) => item.id === id);
+      if (publication) this.#openPublicationContext(publication);
+    }
+  }
+
+  #showWorkspaceSurface(surface: "authoring" | "context"): void {
+    this.#elements.workspaceSurfaces.dataset.activeSurface = surface;
+    this.#elements.showAuthoringSurface.setAttribute("aria-pressed", String(surface === "authoring"));
+    this.#elements.showContextSurface.setAttribute("aria-pressed", String(surface === "context"));
+  }
+
+  #captureActiveContextState(): void {
+    const key = this.#contextState.activeKey;
+    if (key === RESEARCH_PREVIEW_KEY) {
+      this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.previewScroll.scrollTop);
+      return;
+    }
+    const tab = this.#contextState.tabs.find((item) => item.key === key);
+    if (!tab) return;
+    const scrollTop = tab.kind === "publication" ? this.#elements.contextPublicationBody.scrollTop : this.#elements.paperReader.scrollTop;
+    this.#contextState = setResearchTabScroll(this.#contextState, key, scrollTop);
+    if (tab.kind === "pdf" && tab.id === this.#renderedPdfId) {
+      this.#contextState = setPdfResearchLocation(this.#contextState, key, {
+        page: this.#pdfViewer.currentPage,
+        focusedAnnotationId: this.#pdfViewer.focusedAnnotationId,
+      });
+    }
+  }
+
+  #activateContext(key: ResearchContextKey): void {
+    this.#captureActiveContextState();
+    this.#contextState = activateResearchTab(this.#contextState, key);
+    this.#renderResearchContext();
+    this.#showWorkspaceSurface("context");
+    this.#focusContextTab(key);
+  }
+
+  #openPublicationContext(publication: PublicationResource): void {
+    this.#captureActiveContextState();
+    this.#contextState = openResearchResource(this.#contextState, { kind: "publication", id: publication.id });
+    this.#renderResearchContext();
+    this.#showWorkspaceSurface("context");
+    this.#focusContextTab(researchResourceKey({ kind: "publication", id: publication.id }));
+  }
+
+  #closeActiveContext(): void {
+    this.#closeContextTab(this.#contextState.activeKey);
+  }
+
+  #setContextPinned(key: ResearchContextKey, pinned: boolean): void {
+    this.#captureActiveContextState();
+    this.#contextState = setResearchTabPinned(this.#contextState, key, pinned);
+    this.#renderResearchContext();
+    this.#focusContextTab(key);
+  }
+
+  #renderResearchContext(loadPdf = true): void {
+    const activeKey = this.#contextState.activeKey;
+    this.#elements.contextPreviewTab.setAttribute("aria-selected", String(activeKey === RESEARCH_PREVIEW_KEY));
+    this.#elements.contextPreviewTab.tabIndex = activeKey === RESEARCH_PREVIEW_KEY ? 0 : -1;
+    this.#elements.contextResourceTabs.replaceChildren();
+
+    for (const tab of this.#contextState.tabs) {
+      if (tab.kind === "preview") continue;
+      this.#elements.contextResourceTabs.append(this.#renderContextResourceTab(tab));
+    }
+
+    const activeTab = this.#activeResourceTab();
+    this.#elements.contextPreviewPanel.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
+    this.#elements.contextPdfPanel.hidden = activeTab?.kind !== "pdf";
+    this.#elements.pinActiveContext.disabled = !activeTab;
+    this.#elements.closeActiveContext.disabled = !activeTab;
+    this.#elements.pinActiveContext.textContent = activeTab?.pinned ? "Unpin" : "Pin";
+    this.#elements.pinActiveContext.setAttribute(
+      "aria-label",
+      activeTab ? `${activeTab.pinned ? "Unpin" : "Pin"} ${this.#contextTabTitle(activeTab)}` : "Pin active context",
+    );
+    this.#elements.closeActiveContext.setAttribute(
+      "aria-label",
+      activeTab ? `Close ${this.#contextTabTitle(activeTab)}` : "Close active context",
+    );
+    if (activeTab) {
+      const panel = activeTab.kind === "publication" ? this.#elements.contextPublicationPanel : this.#elements.contextPdfPanel;
+      panel.setAttribute("aria-labelledby", this.#contextTabId(activeTab));
+      panel.removeAttribute("aria-label");
+    }
+
+    if (activeKey === RESEARCH_PREVIEW_KEY) {
+      this.#elements.previewScroll.scrollTop = this.#contextState.tabs[0]?.scrollTop ?? 0;
+      return;
+    }
+
+    if (!activeTab) return;
+    if (activeTab.kind === "publication") {
+      this.#renderPublicationContext(activeTab);
+      this.#elements.contextPublicationBody.scrollTop = activeTab.scrollTop;
+      return;
+    }
+    if (loadPdf) void this.#loadActivePdf(false);
+  }
+
+  #renderContextResourceTab(tab: ResearchResourceTab): HTMLButtonElement {
+    const title = this.#contextTabTitle(tab);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "context-tab";
+    button.id = this.#contextTabId(tab);
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-controls", tab.kind === "publication" ? "context-publication-panel" : "context-pdf-panel");
+    button.setAttribute("aria-selected", String(this.#contextState.activeKey === tab.key));
+    button.tabIndex = this.#contextState.activeKey === tab.key ? 0 : -1;
+    button.title = title;
+    button.textContent = title;
+    button.addEventListener("click", () => this.#activateContext(tab.key));
+    return button;
+  }
+
+  #toggleActiveContextPin(): void {
+    const tab = this.#activeResourceTab();
+    if (tab) this.#setContextPinned(tab.key, !tab.pinned);
+  }
+
+  #closeContextTab(key: ResearchContextKey): void {
+    this.#captureActiveContextState();
+    this.#contextState = closeResearchTab(this.#contextState, key);
+    this.#renderResearchContext();
+    this.#focusContextTab(this.#contextState.activeKey);
+  }
+
+  #focusContextTab(key: ResearchContextKey): void {
+    const selector = key === RESEARCH_PREVIEW_KEY ? "#context-preview-tab" : `#${CSS.escape(`context-tab-${key.replace(":", "-")}`)}`;
+    queueMicrotask(() => this.#elements.contextTabList.querySelector<HTMLButtonElement>(selector)?.focus());
+  }
+
+  #contextTabId(tab: ResearchResourceTab): string {
+    return `context-tab-${tab.kind}-${tab.id}`;
+  }
+
+  #contextTabTitle(tab: ResearchResourceTab): string {
+    if (tab.kind === "publication") {
+      return this.#snapshot?.publications.find((publication) => publication.id === tab.id)?.title ?? "Reference";
+    }
+    return this.#snapshot?.pdfs.find((pdf) => pdf.id === tab.id)?.name ?? "Paper";
+  }
+
+  #activeResourceTab(): ResearchResourceTab | undefined {
+    return this.#contextState.tabs.find(
+      (tab): tab is ResearchResourceTab => tab.kind !== "preview" && tab.key === this.#contextState.activeKey,
+    );
+  }
+
+  #moveContextTabFocus(event: KeyboardEvent): void {
+    if (!(event.target instanceof HTMLButtonElement) || event.target.getAttribute("role") !== "tab") return;
+    const tabs = Array.from(this.#elements.contextTabList.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const index = tabs.indexOf(event.target);
+    if (index < 0) return;
+    let nextIndex: number;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+    else if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    for (const tab of tabs) tab.tabIndex = tab === tabs[nextIndex] ? 0 : -1;
+    tabs[nextIndex]?.focus();
+  }
+
+  #renderPublicationContext(tab: ResearchResourceTab): void {
+    if (tab.kind !== "publication" || !this.#snapshot) return;
+    const publication = this.#snapshot.publications.find((item) => item.id === tab.id);
+    if (!publication) return;
+
+    this.#elements.contextPublicationTitle.textContent = publication.title;
+    this.#elements.contextPublicationMeta.textContent = [
+      publication.authors.join("; "),
+      publication.year,
+      publication.venue,
+      publication.doi ? `doi:${publication.doi}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    this.#elements.contextPublicationDetails.replaceChildren();
+    const source = document.createElement("p");
+    source.className = "eyebrow";
+    source.textContent = `${publication.type} · ${publication.metadataSource}`;
+    const description = document.createElement("p");
+    description.className = "mt-3";
+    description.textContent = publication.abstract || "No abstract is stored for this publication yet.";
+    this.#elements.contextPublicationDetails.append(source, description);
+
+    this.#updateCitationInsertionAvailability();
+    const links = this.#snapshot.publicationPdfLinks.filter((link) => link.publicationId === publication.id);
+    const linkedPdfs = links
+      .map((link) => ({ link, pdf: this.#snapshot?.pdfs.find((pdf) => pdf.id === link.pdfId) }))
+      .filter((item): item is { link: (typeof links)[number]; pdf: PdfResource } => Boolean(item.pdf));
+    this.#elements.openPaper.disabled = linkedPdfs.length !== 1;
+    this.#elements.openPaper.textContent = linkedPdfs.length > 1 ? "Choose a paper below" : "Open linked paper";
+
+    this.#elements.contextPublicationPdfs.replaceChildren();
+    if (linkedPdfs.length === 0) {
+      this.#elements.contextPublicationPdfs.append(emptyState("No paper connected to this reference yet."));
+    } else {
+      for (const { link, pdf } of linkedPdfs) {
+        const row = document.createElement("div");
+        row.className = "resource-card mt-2 flex items-center justify-between gap-3";
+        const copy = document.createElement("div");
+        copy.className = "min-w-0";
+        copy.append(resourceLabel(`PDF · ${formatBytes(pdf.size)}`), resourceTitle(pdf.name));
+        const actions = document.createElement("div");
+        actions.className = "flex shrink-0 gap-2";
+        actions.append(
+          actionButton("Open", "button-secondary", () => void this.#showPaper(pdf)),
+          actionButton("Disconnect", "button-secondary", () => void this.#unlinkPublicationPdf(link.id)),
+        );
+        row.append(copy, actions);
+        this.#elements.contextPublicationPdfs.append(row);
+      }
+    }
+
+    const linkedIds = new Set(links.map((link) => link.pdfId));
+    const available = this.#snapshot.pdfs.filter((pdf) => !linkedIds.has(pdf.id));
+    this.#elements.publicationPdfLink.replaceChildren();
+    this.#elements.publicationPdfLink.append(new Option(available.length === 0 ? "No unlinked PDFs available" : "Choose a PDF", ""));
+    for (const pdf of available) this.#elements.publicationPdfLink.append(new Option(pdf.name, pdf.id));
+    this.#elements.publicationPdfLink.disabled = available.length === 0;
+    const submit = this.#elements.publicationPdfLinkForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (submit) submit.disabled = available.length === 0;
+  }
+
+  #openPreviewCitation(event: MouseEvent): void {
+    if (!(event.target instanceof Element)) return;
+    const citation = event.target.closest<HTMLButtonElement>("button.semantic-citation[data-citation]");
+    if (!citation) return;
+    const key = parseCitationKeys(citation.dataset.citation ?? "")[0];
+    const publication = key ? this.#publicationByCitationKey(key) : undefined;
+    if (publication) this.#openPublicationContext(publication);
+    else this.#showToast(`No publication resource is available for ${key ?? "this citation"}.`);
+  }
+
+  #openCitationAtCaret(): void {
+    const keys = citationKeysAtPosition(this.#source.toString(), this.#elements.source.selectionEnd);
+    if (keys.length === 0) {
+      this.#showToast("Place the cursor inside a citation directive first.");
+      return;
+    }
+    if (keys.length > 1) {
+      this.#showToast("Open this grouped citation from Preview to choose a reference.");
+      return;
+    }
+    const publication = this.#publicationByCitationKey(keys[0] ?? "");
+    if (publication) this.#openPublicationContext(publication);
+    else this.#showToast(`No publication resource is available for ${keys[0]}.`);
+  }
+
+  #publicationByCitationKey(citationKey: string): PublicationResource | undefined {
+    const normalized = citationKey.toLocaleLowerCase();
+    return this.#snapshot?.publications.find((publication) => publication.citationKey.toLocaleLowerCase() === normalized);
+  }
+
+  #rememberAuthoringSelection(): void {
+    this.#authoringSelection = captureRelativeSelection(this.#elements.source, this.#source);
+    this.#elements.openSourceCitation.disabled =
+      citationKeysAtPosition(this.#source.toString(), this.#elements.source.selectionEnd).length === 0;
+    this.#updateCitationInsertionAvailability();
+  }
+
+  #resolvedAuthoringCaret(): number | null {
+    if (!this.#authoringSelection) return null;
+    const end = Y.createAbsolutePositionFromRelativePosition(this.#authoringSelection.end, this.#document);
+    return end?.type === this.#source ? end.index : null;
+  }
+
+  #updateCitationInsertionAvailability(): void {
+    const available = this.#activeResourceTab()?.kind === "publication" && this.#resolvedAuthoringCaret() !== null;
+    this.#elements.insertContextCitation.disabled = !available;
+    this.#elements.insertContextCitation.title = available
+      ? "Insert this reference at the remembered manuscript caret"
+      : "Place the manuscript caret before inserting a citation";
+  }
+
+  #insertActivePublicationCitation(): void {
+    const tab = this.#activeResourceTab();
+    const publication = tab?.kind === "publication" ? this.#snapshot?.publications.find((item) => item.id === tab.id) : undefined;
+    if (!publication) return;
+
+    const index = this.#resolvedAuthoringCaret();
+    if (index === null) {
+      this.#showToast("Place the manuscript caret before inserting a citation.");
+      return;
+    }
+    const insertion = createCitationInsertion(this.#source.toString(), index, publication.citationKey);
+    if (!insertion) {
+      this.#showToast("This reference key cannot be represented by citation syntax.");
+      return;
+    }
+    this.#document.transact(() => this.#source.insert(insertion.index, insertion.text), this);
+    this.#showWorkspaceSurface("authoring");
+    this.#elements.source.focus();
+    this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
+    this.#rememberAuthoringSelection();
+    this.#showToast(`Inserted :cite[${publication.citationKey}] into canonical Markdown.`);
+  }
+
+  async #linkActivePublicationPdf(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const tab = this.#activeResourceTab();
+    const pdfId = this.#elements.publicationPdfLink.value;
+    if (tab?.kind !== "publication" || !pdfId) return;
+    const response = await jsonFetch(`${apiBase}/publication-pdf-links`, { publicationId: tab.id, pdfId });
+    await expectOk(response);
+    await this.#resourceRefresh.request();
+    this.#showToast("Paper connected to this publication.");
+  }
+
+  async #unlinkPublicationPdf(linkId: string): Promise<void> {
+    const response = await fetch(`${apiBase}/publication-pdf-links/${encodeURIComponent(linkId)}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    await this.#resourceRefresh.request();
+    this.#showToast("Paper disconnected; both resources remain available.");
+  }
+
+  async #openOnlyLinkedPaper(): Promise<void> {
+    const tab = this.#activeResourceTab();
+    if (tab?.kind !== "publication" || !this.#snapshot) return;
+    const links = this.#snapshot.publicationPdfLinks.filter((item) => item.publicationId === tab.id);
+    const pdf = links.length === 1 ? this.#snapshot.pdfs.find((item) => item.id === links[0]?.pdfId) : undefined;
+    if (pdf) await this.#showPaper(pdf);
+  }
+
+  async #loadActivePdf(force: boolean): Promise<void> {
+    const tab = this.#activeResourceTab();
+    if (tab?.kind !== "pdf") return;
+    const pdf = this.#snapshot?.pdfs.find((item) => item.id === tab.id);
+    if (!pdf) return;
+    this.#elements.annotationPdf.value = pdf.id;
+    this.#elements.paperTitle.textContent = pdf.name;
+    const annotations = this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === pdf.id) ?? [];
+    this.#pdfViewer.updateAnnotations(annotations);
+    if (!force && this.#renderedPdfId === pdf.id) {
+      this.#elements.paperReader.scrollTop = tab.scrollTop;
+      return;
+    }
+    try {
+      const opened = await this.#pdfViewer.open({
+        url: `${apiBase}/pdfs/${pdf.id}`,
+        annotations,
+        page: tab.page,
+        ...(tab.focusedAnnotationId ? { focusAnnotationId: tab.focusedAnnotationId } : {}),
+      });
+      const active = this.#activeResourceTab();
+      if (!opened || active?.kind !== "pdf" || active.id !== pdf.id) return;
+      this.#renderedPdfId = pdf.id;
+      this.#elements.paperReader.scrollTop = tab.scrollTop;
+    } catch (error) {
+      const active = this.#activeResourceTab();
+      if (active?.kind === "pdf" && active.id === pdf.id) {
+        this.#elements.paperStatus.textContent = error instanceof Error ? error.message : "Could not render this PDF";
+      }
     }
   }
 
@@ -937,7 +1375,17 @@ class WorkspaceApp {
 
   async #createAnnotation(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const response = await jsonFetch(`${apiBase}/annotations`, {
+    const shouldLink = event.submitter === this.#elements.saveAndLinkAnnotation;
+    const passage = shouldLink ? this.#selectedAuthoringPassage() : null;
+    if (shouldLink && !this.#hasStableDocumentBase()) {
+      this.#showToast("Wait for the manuscript to finish synchronizing before saving and linking evidence.");
+      return;
+    }
+    if (shouldLink && !passage) {
+      this.#showToast("Select manuscript prose before saving and linking evidence.");
+      return;
+    }
+    const annotation = {
       pdfId: this.#elements.annotationPdf.value,
       page: this.#elements.annotationPage.valueAsNumber,
       quote: this.#elements.annotationQuote.value,
@@ -945,16 +1393,33 @@ class WorkspaceApp {
       suffix: this.#elements.annotationSuffix.value,
       comment: this.#elements.annotationComment.value,
       rects: this.#pendingRects,
-    });
+    };
+    const response = await jsonFetch(
+      passage ? `${apiBase}/annotation-links` : `${apiBase}/annotations`,
+      passage
+        ? {
+            annotation,
+            passage: { ...passage, sourceRevision: this.#revision },
+          }
+        : annotation,
+    );
     await expectOk(response);
+    const created: unknown = await response.json();
+    if (passage ? !isAnnotationLinkResult(created) : !isCreatedAnnotation(created)) {
+      throw new Error("Annotation endpoint returned an invalid resource");
+    }
     this.#elements.annotationQuote.value = "";
     this.#elements.annotationPrefix.value = "";
     this.#elements.annotationSuffix.value = "";
     this.#elements.annotationComment.value = "";
     this.#pendingRects = [];
-    this.#elements.annotationSelectionStatus.textContent = "Annotation saved. Select another passage in the open paper to continue.";
+    this.#elements.annotationSelectionStatus.textContent = passage
+      ? "Annotation saved and connected to the selected manuscript prose."
+      : "Annotation saved. Select another passage in the open paper to continue.";
     await this.#resourceRefresh.request();
-    this.#showToast("Annotation anchored with geometry and textual context.");
+    this.#showToast(
+      passage ? "Evidence annotated and linked to manuscript prose." : "Annotation anchored with geometry and textual context.",
+    );
   }
 
   async #linkAnnotation(annotationId: string): Promise<void> {
@@ -962,20 +1427,32 @@ class WorkspaceApp {
       this.#showToast("Wait for the manuscript to finish synchronizing before linking an annotation.");
       return;
     }
-    const start = this.#elements.source.selectionStart;
-    const end = this.#elements.source.selectionEnd;
-    const excerpt = this.#elements.source.value.slice(start, end);
-    if (!excerpt.trim()) return this.#showToast("Select manuscript text before linking an annotation.");
+    const passage = this.#selectedAuthoringPassage();
+    if (!passage) {
+      this.#showToast("Select manuscript text before linking an annotation.");
+      return;
+    }
     const response = await jsonFetch(`${apiBase}/links`, {
       annotationId,
-      start,
-      end,
-      excerpt,
+      start: passage.start,
+      end: passage.end,
+      excerpt: passage.excerpt,
       sourceRevision: this.#revision,
     });
     await expectOk(response);
     await this.#resourceRefresh.request();
     this.#showToast("Annotation linked to the selected passage.");
+  }
+
+  #selectedAuthoringPassage(): AuthoringPassage | null {
+    const live = this.#elements.source.selectionStart !== this.#elements.source.selectionEnd;
+    const selection = live ? captureRelativeSelection(this.#elements.source, this.#source) : this.#authoringSelection;
+    if (!selection) return null;
+    const start = Y.createAbsolutePositionFromRelativePosition(selection.start, this.#document);
+    const end = Y.createAbsolutePositionFromRelativePosition(selection.end, this.#document);
+    if (!start || !end || start.type !== this.#source || end.type !== this.#source || start.index >= end.index) return null;
+    const excerpt = this.#source.toString().slice(start.index, end.index);
+    return excerpt.trim() ? { start: start.index, end: end.index, excerpt } : null;
   }
 
   async #generateCandidate(): Promise<void> {
@@ -1057,28 +1534,24 @@ class WorkspaceApp {
     this.#showToast(action === "apply" ? "Candidate applied to canonical Markdown." : "Candidate rejected; manuscript unchanged.");
   }
 
-  async #showPaper(pdf?: PdfResource, page = 1, focusAnnotationId?: string): Promise<void> {
-    const selectedId = pdf?.id ?? this.#elements.annotationPdf.value;
-    const selected = pdf ?? this.#snapshot?.pdfs.find((item) => item.id === selectedId);
-    if (!selected) return;
-    this.#activePdfId = selected.id;
-    this.#elements.annotationPdf.value = selected.id;
-    this.#elements.paperTitle.textContent = selected.name;
-    this.#elements.paperDialog.showModal();
-    try {
-      await this.#pdfViewer.open({
-        url: `${apiBase}/pdfs/${selected.id}`,
-        annotations: this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === selected.id) ?? [],
-        page,
-        ...(focusAnnotationId ? { focusAnnotationId } : {}),
+  async #showPaper(pdf: PdfResource, page?: number, focusAnnotationId?: string): Promise<void> {
+    this.#captureActiveContextState();
+    this.#contextState = openResearchResource(this.#contextState, { kind: "pdf", id: pdf.id });
+    const key = researchResourceKey({ kind: "pdf", id: pdf.id });
+    if (page !== undefined || focusAnnotationId !== undefined) {
+      this.#contextState = setPdfResearchLocation(this.#contextState, key, {
+        ...(page !== undefined ? { page } : {}),
+        ...(focusAnnotationId !== undefined ? { focusedAnnotationId: focusAnnotationId } : {}),
       });
-    } catch (error) {
-      this.#elements.paperStatus.textContent = error instanceof Error ? error.message : "Could not render this PDF";
     }
+    this.#renderResearchContext(false);
+    this.#showWorkspaceSurface("context");
+    this.#focusContextTab(key);
+    await this.#loadActivePdf(page !== undefined || focusAnnotationId !== undefined);
   }
 
   #capturePdfSelection(capture: PdfSelectionCapture): void {
-    if (this.#activePdfId) this.#elements.annotationPdf.value = this.#activePdfId;
+    if (this.#renderedPdfId) this.#elements.annotationPdf.value = this.#renderedPdfId;
     this.#elements.annotationPage.value = String(capture.page);
     this.#elements.annotationQuote.value = capture.quote;
     this.#elements.annotationPrefix.value = capture.prefix;
@@ -1099,9 +1572,10 @@ class WorkspaceApp {
       this.#showToast("This manuscript anchor is stale and needs to be linked again.");
       return;
     }
-    this.#elements.paperDialog.close();
+    this.#showWorkspaceSurface("authoring");
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(resolution.start, resolution.end);
+    this.#rememberAuthoringSelection();
     this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
     this.#showToast(
       resolution.exactMatch ? "Linked manuscript passage selected." : "Changed linked passage selected; review its current text.",
@@ -1176,6 +1650,28 @@ function collectElements(): Elements {
     inviteMemberEmail: requiredElement("invite-member-email", HTMLInputElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
+    workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
+    showAuthoringSurface: requiredElement("show-authoring-surface", HTMLButtonElement),
+    showContextSurface: requiredElement("show-context-surface", HTMLButtonElement),
+    openSourceCitation: requiredElement("open-source-citation", HTMLButtonElement),
+    contextTabList: requiredElement("context-tab-list", HTMLElement),
+    contextPreviewTab: requiredElement("context-preview-tab", HTMLButtonElement),
+    contextResourceTabs: requiredElement("context-resource-tabs", HTMLElement),
+    pinActiveContext: requiredElement("pin-active-context", HTMLButtonElement),
+    closeActiveContext: requiredElement("close-active-context", HTMLButtonElement),
+    contextPreviewPanel: requiredElement("context-preview-panel", HTMLElement),
+    previewScroll: requiredElement("preview-scroll", HTMLElement),
+    contextPublicationPanel: requiredElement("context-publication-panel", HTMLElement),
+    contextPublicationBody: requiredElement("context-publication-body", HTMLElement),
+    contextPdfPanel: requiredElement("context-pdf-panel", HTMLElement),
+    contextPublicationTitle: requiredElement("context-publication-title", HTMLElement),
+    contextPublicationMeta: requiredElement("context-publication-meta", HTMLElement),
+    contextPublicationDetails: requiredElement("context-publication-details", HTMLElement),
+    contextPublicationPdfs: requiredElement("context-publication-pdfs", HTMLElement),
+    closePublicationContext: requiredElement("close-publication-context", HTMLButtonElement),
+    insertContextCitation: requiredElement("insert-context-citation", HTMLButtonElement),
+    publicationPdfLinkForm: requiredElement("publication-pdf-link-form", HTMLFormElement),
+    publicationPdfLink: requiredElement("publication-pdf-link", HTMLSelectElement),
     preview: requiredElement("preview", HTMLElement),
     diagnostics: requiredElement("diagnostics", HTMLElement),
     diagnosticSummary: requiredElement("diagnostic-summary", HTMLElement),
@@ -1214,8 +1710,8 @@ function collectElements(): Elements {
     annotationSuffix: requiredElement("annotation-suffix", HTMLInputElement),
     annotationComment: requiredElement("annotation-comment", HTMLInputElement),
     annotationSelectionStatus: requiredElement("annotation-selection-status", HTMLElement),
+    saveAndLinkAnnotation: requiredElement("save-and-link-annotation", HTMLButtonElement),
     openPaper: requiredElement("open-paper", HTMLButtonElement),
-    paperDialog: requiredElement("paper-dialog", HTMLDialogElement),
     closePaper: requiredElement("close-paper", HTMLButtonElement),
     paperTitle: requiredElement("paper-title", HTMLElement),
     paperStatus: requiredElement("paper-status", HTMLElement),
@@ -1224,6 +1720,7 @@ function collectElements(): Elements {
     paperTextLayer: requiredElement("paper-text-layer", HTMLElement),
     paperHighlights: requiredElement("paper-highlights", HTMLElement),
     paperPageIndicator: requiredElement("paper-page-indicator", HTMLElement),
+    paperReader: requiredElement("paper-reader", HTMLElement),
     previousPaperPage: requiredElement("previous-paper-page", HTMLButtonElement),
     nextPaperPage: requiredElement("next-paper-page", HTMLButtonElement),
     llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
@@ -1307,6 +1804,34 @@ function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isCreatedAnnotation(value: unknown): value is AnnotationResource {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.pdfId === "string" &&
+    typeof value.page === "number" &&
+    typeof value.quote === "string" &&
+    typeof value.prefix === "string" &&
+    typeof value.suffix === "string" &&
+    typeof value.comment === "string" &&
+    Array.isArray(value.rects) &&
+    typeof value.createdAt === "string"
+  );
+}
+
+function isAnnotationLinkResult(value: unknown): value is AnnotationLinkResult {
+  return (
+    isRecord(value) &&
+    isCreatedAnnotation(value.annotation) &&
+    isRecord(value.link) &&
+    typeof value.link.id === "string" &&
+    value.link.annotationId === value.annotation.id &&
+    isRecord(value.link.anchor) &&
+    isRecord(value.link.resolution) &&
+    typeof value.link.createdAt === "string"
+  );
 }
 
 function readWorkspaceId(): string {

@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
-import { createEvidencePdf } from "./test-support/pdf-fixture";
+import { createEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
 
 test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page.goto("/");
@@ -29,6 +29,162 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   expect(exported.ok()).toBe(true);
   expect(exported.headers()["content-disposition"]).toContain("kirjolab-document.md");
   expect(await exported.text()).toContain("A live collaborative note cites prior work");
+});
+
+test("keeps resource-keyed research context beside authoring", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Research context boundary");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+
+  await page.locator("#preview .semantic-citation[data-citation='merton1942']").evaluate((element: HTMLButtonElement) => element.click());
+  await expect(page.locator("#insert-context-citation")).toBeDisabled();
+  await expect(page.locator("#insert-context-citation")).toHaveAttribute("title", "Place the manuscript caret before inserting a citation");
+  await page.getByRole("tab", { name: "Preview" }).click();
+
+  const editor = page.locator("#source-editor");
+  const body = Array.from(
+    { length: 36 },
+    (_, index) => `Paragraph ${index + 1} keeps enough manuscript context visible while a source is inspected.`,
+  ).join("\n\n");
+  const source = `## Context pane {#context-pane}\n\nThe manuscript cites prior work :cite[merton1942].\n\n${body}`;
+  await editor.fill(source);
+  await expect(page.locator("#preview .semantic-citation[data-citation='merton1942']")).toBeVisible();
+
+  await page.locator("#pdf-upload").setInputFiles({
+    name: "context-paper.pdf",
+    mimeType: "application/pdf",
+    buffer: createTwoPageEvidencePdf(),
+  });
+  await expect(page.locator("#pdf-list")).toContainText("context-paper.pdf");
+  await page.locator("#pdf-upload").setInputFiles({
+    name: "current-paper.pdf",
+    mimeType: "application/pdf",
+    buffer: createEvidencePdf(),
+  });
+  await expect(page.locator("#pdf-list")).toContainText("current-paper.pdf");
+
+  const imported = await readWorkspaceSnapshot(page, api);
+  const delayedPdf = imported.pdfs.find((pdf) => pdf.name === "context-paper.pdf");
+  if (!delayedPdf) throw new Error("Expected the delayed PDF resource");
+  await page.route(`**${api}/pdfs/${delayedPdf.id}`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue().catch(() => undefined);
+  });
+  await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "context-paper.pdf" }).click();
+  await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "current-paper.pdf" }).click();
+  await expect(page.locator("#paper-title")).toHaveText("current-paper.pdf");
+  await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
+  await page.waitForTimeout(300);
+  await expect(page.locator("#paper-title")).toHaveText("current-paper.pdf");
+  await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
+  await page.unroute(`**${api}/pdfs/${delayedPdf.id}`);
+  await page.getByRole("tab", { name: "Preview" }).click();
+
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(element.value.length, element.value.length);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  const previewScroll = page.locator("#preview-scroll");
+  await previewScroll.evaluate((element) => {
+    element.scrollTop = 240;
+  });
+  const previewPosition = await previewScroll.evaluate((element) => element.scrollTop);
+  expect(previewPosition).toBeGreaterThan(0);
+
+  await page.locator("#preview .semantic-citation[data-citation='merton1942']").evaluate((element: HTMLButtonElement) => element.click());
+  await expect(page.locator("#context-publication-panel")).toBeVisible();
+  await expect(page.locator("#context-publication-title")).toHaveText("The Normative Structure of Science");
+  const publicationTabId = await page.getByRole("tab", { name: "The Normative Structure of Science" }).getAttribute("id");
+  await expect(page.locator("#context-publication-panel")).toHaveAttribute("aria-labelledby", publicationTabId ?? "missing");
+  await expect(page.locator("#context-publication-pdfs")).toContainText("No paper connected");
+
+  await page.locator("#publication-pdf-link").selectOption({ label: "context-paper.pdf" });
+  await page.locator("#publication-pdf-link-form").getByRole("button", { name: "Connect paper" }).click();
+  await expect(page.locator("#context-publication-pdfs")).toContainText("context-paper.pdf");
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).publicationPdfLinks.length).toBe(1);
+  const graphResponse = await page.request.get(`${api}/graph`);
+  const graph: unknown = await graphResponse.json();
+  expect(isWorkspaceKnowledgeGraph(graph) ? graph.edges.some((edge) => edge.relation === "has-artifact") : false).toBe(true);
+
+  const contextMutations: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && new URL(request.url()).pathname.startsWith(api)) contextMutations.push(request.method());
+  });
+  await page.getByRole("button", { name: "Pin The Normative Structure of Science" }).click();
+  await page.locator("#context-publication-pdfs").getByRole("button", { name: "Open" }).click();
+  await expect(page.locator("#context-pdf-panel")).toBeVisible();
+  const pdfTabId = await page.getByRole("tab", { name: "context-paper.pdf" }).getAttribute("id");
+  await expect(page.locator("#context-pdf-panel")).toHaveAttribute("aria-labelledby", pdfTabId ?? "missing");
+  await expect(page.locator("#annotation-pdf")).toBeDisabled();
+  await expect(page.locator("#annotation-pdf")).toHaveValue(delayedPdf.id);
+  await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
+  await page.locator("#next-paper-page").click();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.locator("#paper-reader").evaluate((element) => {
+    element.scrollTop = 120;
+  });
+
+  await page.getByRole("tab", { name: "Preview" }).click();
+  expect(await previewScroll.evaluate((element) => element.scrollTop)).toBe(previewPosition);
+  const refreshAnnotation = await page.request.post(`${api}/annotations`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: {
+      pdfId: delayedPdf.id,
+      page: 2,
+      quote: "Second page verifies restored PDF context.",
+      prefix: "",
+      suffix: "",
+      comment: "Refresh must preserve reading positions",
+      rects: [],
+    },
+  });
+  expect(refreshAnnotation.status()).toBe(201);
+  await expect(page.locator("#annotation-list")).toContainText("Refresh must preserve reading positions");
+  expect(await previewScroll.evaluate((element) => element.scrollTop)).toBe(previewPosition);
+  contextMutations.length = 0;
+  await page.getByRole("tab", { name: "context-paper.pdf" }).click();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  const pdfPosition = await page.locator("#paper-reader").evaluate((element) => element.scrollTop);
+  expect(pdfPosition).toBeGreaterThan(0);
+  const activePdfRefresh = await page.request.post(`${api}/annotations`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: {
+      pdfId: delayedPdf.id,
+      page: 2,
+      quote: "Second page verifies restored PDF context.",
+      prefix: "",
+      suffix: "",
+      comment: "Active PDF refresh keeps its position",
+      rects: [],
+    },
+  });
+  expect(activePdfRefresh.status()).toBe(201);
+  await expect(page.locator("#annotation-list")).toContainText("Active PDF refresh keeps its position");
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  expect(await page.locator("#paper-reader").evaluate((element) => element.scrollTop)).toBe(pdfPosition);
+  contextMutations.length = 0;
+
+  await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
+  await page.getByRole("tab", { name: "Preview" }).focus();
+  await page.keyboard.press("End");
+  await expect(page.getByRole("tab", { name: "context-paper.pdf" })).toBeFocused();
+  await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#context-pdf-panel")).toBeVisible();
+  expect(contextMutations).toEqual([]);
+  await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
+  await page.locator("#insert-context-citation").click();
+  await expect.poll(async () => ((await editor.inputValue()).match(/:cite\[merton1942\]/gu) ?? []).length).toBe(2);
+
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.locator("#show-context-surface").click();
+  await expect(page.locator("#context-surface")).toBeVisible();
+  await expect(page.locator("#authoring-surface")).toBeHidden();
+  await page.locator("#show-authoring-surface").click();
+  await expect(page.locator("#authoring-surface")).toBeVisible();
+  await expect(editor).toHaveValue(`${source} :cite[merton1942]`);
 });
 
 test("converges source edits across two writers", async ({ page, context }) => {
@@ -929,7 +1085,18 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   });
   await expect(page.locator("#pdf-list")).toContainText("evidence.pdf");
 
+  const editor = page.locator("#source-editor");
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    const start = element.value.indexOf("Kirjolab keeps");
+    element.focus();
+    element.setSelectionRange(start, start + "Kirjolab keeps the path".length);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+
   await page.locator("#pdf-list button[data-pdf-id]").first().click();
+  await expect(page.locator("#context-preview-panel")).toBeHidden();
+  await expect(page.locator("#context-pdf-panel")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "evidence.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
   await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
@@ -943,19 +1110,11 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   });
   await expect(page.locator("#annotation-quote")).toHaveValue("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#annotation-selection-status")).toContainText("Captured 1 fragment from page 1");
-  await page.getByRole("button", { name: "Close" }).click();
   await page.locator("#annotation-comment").fill("Grounding for the revision");
-  await page.getByRole("button", { name: "Save evidence annotation" }).click();
+  await page.getByRole("button", { name: "Save & link selected prose" }).click();
   await expect(page.locator("#annotation-list")).toContainText("Knowledge grows through inspectable evidence.");
 
   const annotationCard = page.locator("#annotation-list article").filter({ hasText: "Knowledge grows" }).first();
-  const editor = page.locator("#source-editor");
-  await editor.evaluate((element: HTMLTextAreaElement) => {
-    const start = element.value.indexOf("Kirjolab keeps");
-    element.focus();
-    element.setSelectionRange(start, start + "Kirjolab keeps the path".length);
-  });
-  await annotationCard.getByRole("button", { name: "Link selected manuscript text" }).click();
 
   const snapshotAfterLink = await page.request.get("/api/workspaces/demo");
   expect(snapshotAfterLink.ok()).toBe(true);
@@ -1014,7 +1173,11 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
 
   await annotationCard.getByRole("button", { name: "Open evidence" }).click();
   await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
-  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("tab", { name: "Preview" }).click();
+  await expect(page.locator("#context-preview-panel")).toBeVisible();
+  await expect(page.locator("#context-pdf-panel")).toBeHidden();
+  await page.getByRole("tab", { name: "evidence.pdf" }).click();
+  await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
   await annotationCard.getByRole("button", { name: "Open linked passage" }).click();
   await expect(editor).toBeFocused();
 

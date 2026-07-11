@@ -41,6 +41,7 @@ export class PdfEvidenceViewer {
   #pageText = "";
   #focusedAnnotationId: string | undefined;
   #renderVersion = 0;
+  #openVersion = 0;
 
   constructor(
     elements: PdfViewerElements,
@@ -55,17 +56,42 @@ export class PdfEvidenceViewer {
     elements.textLayer.addEventListener("pointerup", () => this.#captureSelection());
   }
 
-  async open(options: OpenPdfOptions): Promise<void> {
+  get currentPage(): number {
+    return this.#pageNumber;
+  }
+
+  get focusedAnnotationId(): string | null {
+    return this.#focusedAnnotationId ?? null;
+  }
+
+  async open(options: OpenPdfOptions): Promise<boolean> {
+    const openVersion = ++this.#openVersion;
     this.#renderVersion += 1;
-    await this.#loadingTask?.destroy();
+    const previousTask = this.#loadingTask;
+    this.#loadingTask = null;
+    await previousTask?.destroy();
+    if (openVersion !== this.#openVersion) return false;
     this.#document = null;
     this.#annotations = options.annotations;
     this.#focusedAnnotationId = options.focusAnnotationId;
     this.#elements.status.textContent = "Loading PDF…";
-    this.#loadingTask = getDocument({ url: options.url });
-    this.#document = await this.#loadingTask.promise;
-    this.#pageNumber = clamp(options.page ?? 1, 1, this.#document.numPages);
+    const loadingTask = getDocument({ url: options.url });
+    this.#loadingTask = loadingTask;
+    let documentModel: PDFDocumentProxy;
+    try {
+      documentModel = await loadingTask.promise;
+    } catch (error) {
+      if (openVersion !== this.#openVersion) return false;
+      throw error;
+    }
+    if (openVersion !== this.#openVersion) {
+      await loadingTask.destroy();
+      return false;
+    }
+    this.#document = documentModel;
+    this.#pageNumber = clamp(options.page ?? 1, 1, documentModel.numPages);
     await this.#renderPage();
+    return openVersion === this.#openVersion;
   }
 
   updateAnnotations(annotations: AnnotationResource[]): void {
