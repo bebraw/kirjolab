@@ -46,4 +46,29 @@ describe("renderHomePage", () => {
     expect(html).not.toContain("Stryker was here!");
     expect(renderHomePage(exampleRoutes, "workspace", `person\"@example.org`)).toContain("person&quot;@example.org");
   });
+
+  it("renders an inline, review-first DOI intake before evidence capture", () => {
+    const html = renderHomePage(exampleRoutes);
+
+    expect(html).toContain('<section class="publication-intake" id="publication-intake" aria-labelledby="publication-intake-heading">');
+    expect(html).toContain("Identify this paper");
+    expect(html).toContain("Review DOI metadata before adding the reference and connecting this PDF.");
+    expect(html).toContain('<form class="publication-intake-form" id="publication-intake-form">');
+    expect(html).toContain('<label class="field-label" for="publication-intake-doi">DOI</label>');
+    expect(html).toContain('id="publication-intake-doi" type="text" inputmode="url" maxlength="500" required autocomplete="off"');
+    expect(html).toContain('id="publication-intake-status" role="status" aria-live="polite"');
+    expect(html).toContain("Looking up a DOI does not change the library.");
+    expect(html).toContain('class="publication-intake-review" id="publication-intake-review" hidden');
+    expect(html).toContain('id="publication-intake-title"');
+    expect(html).toContain('id="publication-intake-meta"');
+    expect(html).toContain('<label class="field-label mt-3" for="publication-intake-key">Citation key');
+    expect(html).toContain('id="publication-intake-key" type="text" maxlength="200" required autocomplete="off"');
+    expect(html).toContain('id="publication-intake-accept" type="button">Add to library &amp; connect</button>');
+    expect(html).toContain('id="publication-intake-cancel" type="button">Cancel</button>');
+    expect(html).toContain('class="publication-intake-linked" id="publication-intake-linked" hidden');
+    expect(html).toContain('id="publication-intake-linked-list"');
+    expect(html).toContain('type="submit">Look up DOI</button>');
+
+    expect(html.indexOf('id="publication-intake"')).toBeLessThan(html.indexOf('id="annotation-composer-title"'));
+  });
 });

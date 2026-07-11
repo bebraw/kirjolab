@@ -53,6 +53,9 @@ canonical data, selector, authorization, or rendering contracts.
 - An imported PDF with no publication link remains a usable standalone PDF
   context. Linking or unlinking it is explicit and never deletes the PDF,
   publication, or annotations.
+- An unlinked PDF exposes an inline DOI intake with separate lookup, reviewed
+  acceptance, and cancellation states. Successful **Add to library & connect**
+  opens the stable publication context but never inserts manuscript syntax.
 - Opening an annotation focuses its PDF, page, and stored highlight. Navigating
   from that annotation to a manuscript passage restores the Authoring surface
   and selects only a currently resolved durable anchor.
@@ -86,6 +89,9 @@ canonical data, selector, authorization, or rendering contracts.
 - Linking a PDF to a publication requires an explicit action against two known
   resources in the current workspace. It does not cite the publication or
   connect an annotation to manuscript prose.
+- DOI lookup and cancellation are non-mutating. Acceptance remains disabled
+  while a request is active, and a response for a PDF that is no longer active
+  cannot replace the current context.
 
 ### API Contracts
 
@@ -101,6 +107,11 @@ canonical data, selector, authorization, or rendering contracts.
   one current manuscript passage selector. It validates both before inserting
   the annotation and passage link in one SQLite transaction, returning both
   resources; stale input leaves neither row behind.
+- `POST /api/workspaces/{id}/publication-intake/preview` returns bounded,
+  fingerprinted DOI metadata without mutation.
+- `POST /api/workspaces/{id}/publication-intake/accept` refetches reviewed
+  metadata and atomically creates or reuses canonical publication state plus
+  the explicit PDF link.
 
 ### Anti-Patterns
 
@@ -147,6 +158,8 @@ canonical data, selector, authorization, or rendering contracts.
       the hidden surface's local state.
 - [x] Browser coverage proves tab identity, reading-position restoration,
       keyboard behavior, mutation boundaries, and responsive switching.
+- [x] An unlinked PDF can be identified by reviewed DOI metadata and connected
+      to stable publication context without citing the manuscript.
 
 ### Regression Guardrails
 
@@ -227,6 +240,13 @@ canonical data, selector, authorization, or rendering contracts.
 - When: the researcher switches, pins, or closes its tab
 - Then: Kirjolab performs no library, citation, annotation, claim, or link
   mutation
+
+**Scenario: Unlinked PDF becomes reviewed working memory**
+
+- Given: an imported PDF has no publication association
+- When: the researcher previews a DOI, reviews its key, and explicitly accepts
+- Then: the publication and PDF link appear atomically, publication context
+  opens, and canonical manuscript text is unchanged
 
 **Scenario: Context collapses to one surface**
 

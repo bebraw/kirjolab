@@ -210,6 +210,37 @@ export function renderHomePage(
               </div>
             </div>
             <aside class="annotation-composer" aria-labelledby="annotation-composer-title">
+              <section class="publication-intake" id="publication-intake" aria-labelledby="publication-intake-heading">
+                <div>
+                  <p class="eyebrow">Reference intake</p>
+                  <h2 class="mt-1 text-lg font-semibold tracking-[-0.035em]" id="publication-intake-heading">Identify this paper</h2>
+                </div>
+                <p class="mt-2 text-xs leading-5 text-app-text-soft">Review DOI metadata before adding the reference and connecting this PDF.</p>
+                <form class="publication-intake-form" id="publication-intake-form">
+                  <label class="field-label" for="publication-intake-doi">DOI</label>
+                  <div class="publication-intake-lookup-row">
+                    <input class="field" id="publication-intake-doi" type="text" inputmode="url" maxlength="500" required autocomplete="off" placeholder="10.1234/example or doi.org URL">
+                    <button class="button-secondary justify-center" type="submit">Look up DOI</button>
+                  </div>
+                </form>
+                <p class="publication-intake-status" id="publication-intake-status" role="status" aria-live="polite">Looking up a DOI does not change the library.</p>
+                <div class="publication-intake-review" id="publication-intake-review" hidden>
+                  <p class="eyebrow">Review metadata</p>
+                  <h3 class="publication-intake-title" id="publication-intake-title">Publication title</h3>
+                  <p class="publication-intake-meta" id="publication-intake-meta">Authors, year, and venue appear here.</p>
+                  <label class="field-label mt-3" for="publication-intake-key">Citation key
+                    <input class="field" id="publication-intake-key" type="text" maxlength="200" required autocomplete="off">
+                  </label>
+                  <div class="publication-intake-actions">
+                    <button class="button-primary justify-center" id="publication-intake-accept" type="button">Add to library &amp; connect</button>
+                    <button class="button-secondary justify-center" id="publication-intake-cancel" type="button">Cancel</button>
+                  </div>
+                </div>
+                <div class="publication-intake-linked" id="publication-intake-linked" hidden>
+                  <p class="eyebrow">Linked reference</p>
+                  <div class="publication-intake-linked-list" id="publication-intake-linked-list"></div>
+                </div>
+              </section>
               <div>
                 <p class="eyebrow">Evidence capture</p>
                 <h2 class="mt-1 text-lg font-semibold tracking-[-0.035em]" id="annotation-composer-title">Annotate this paper</h2>

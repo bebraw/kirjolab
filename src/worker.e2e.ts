@@ -187,6 +187,100 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(editor).toHaveValue(`${source} :cite[merton1942]`);
 });
 
+test("reviews DOI metadata before adding and connecting an imported paper", async ({ page }) => {
+  const origin = "http://127.0.0.1:8788";
+  const workspaceId = await createWorkspace(page, "Reviewed DOI intake");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+
+  await page.locator("#pdf-upload").setInputFiles({
+    name: "identified-paper.pdf",
+    mimeType: "application/pdf",
+    buffer: createEvidencePdf(),
+  });
+  await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "identified-paper.pdf" }).click();
+  await expect(page.locator("#publication-intake")).toBeVisible();
+  const baseline = await readWorkspaceSnapshot(page, api);
+  const pdf = baseline.pdfs.find((item) => item.name === "identified-paper.pdf");
+  if (!pdf) throw new Error("Expected imported DOI-intake PDF");
+
+  const preview = {
+    pdfId: pdf.id,
+    doi: "10.5555/reviewed-intake",
+    metadata: {
+      type: "article",
+      title: "Reviewed metadata becomes working memory",
+      authors: ["Lovelace, Ada"],
+      year: "2026",
+      venue: "Journal of Inspectable Intake",
+      doi: "10.5555/reviewed-intake",
+      url: "https://doi.org/10.5555/reviewed-intake",
+      abstract: "A deterministic Crossref fixture.",
+    },
+    metadataFingerprint: "a".repeat(64),
+    citationKey: "lovelace2026",
+    existingPublicationId: null,
+  };
+  await page.route(`**${api}/publication-intake/preview`, async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(preview) });
+  });
+
+  await page.locator("#publication-intake-doi").fill("https://doi.org/10.5555/reviewed-intake");
+  await page.locator("#publication-intake-form").getByRole("button", { name: "Look up DOI" }).click();
+  await expect(page.locator("#publication-intake-review")).toBeVisible();
+  await expect(page.locator("#publication-intake-title")).toHaveText("Reviewed metadata becomes working memory");
+  await expect(page.locator("#publication-intake-key")).toHaveValue("lovelace2026");
+  await page.locator("#publication-intake-cancel").click();
+  await expect(page.locator("#publication-intake-review")).toBeHidden();
+  expect(await readWorkspaceSnapshot(page, api)).toEqual(baseline);
+
+  await page.locator("#publication-intake-form").getByRole("button", { name: "Look up DOI" }).click();
+  await expect(page.locator("#publication-intake-review")).toBeVisible();
+  await page.route(`**${api}/publication-intake/accept`, async (route) => {
+    const body: unknown = route.request().postDataJSON();
+    if (!isRecord(body) || body.pdfId !== pdf.id) throw new Error("Expected the active PDF intake request");
+    const importedResponse = await page.request.post(`${api}/bibliography/import`, {
+      headers: { origin },
+      data: {
+        bibtex: `@article{lovelace2026,
+          title = {Reviewed metadata becomes working memory},
+          author = {Lovelace, Ada},
+          year = {2026},
+          journal = {Journal of Inspectable Intake},
+          doi = {10.5555/reviewed-intake}
+        }`,
+      },
+    });
+    const imported: unknown = await importedResponse.json();
+    if (!isWorkspaceSnapshot(imported)) throw new Error("Expected imported publication snapshot");
+    const publication = imported.publications.find((item) => item.doi === preview.doi);
+    if (!publication) throw new Error("Expected DOI-matched publication");
+    const linkResponse = await page.request.post(`${api}/publication-pdf-links`, {
+      headers: { origin },
+      data: { publicationId: publication.id, pdfId: pdf.id },
+    });
+    const link: unknown = await linkResponse.json();
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ publication, link, publicationCreated: true, linkCreated: true }),
+    });
+  });
+
+  await page.locator("#publication-intake-accept").click();
+  await expect(page.locator("#context-publication-title")).toHaveText("Reviewed metadata becomes working memory");
+  await expect(page.getByRole("tab", { name: "Reviewed metadata becomes working memory" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#toast")).toContainText("manuscript is unchanged");
+  const accepted = await readWorkspaceSnapshot(page, api);
+  expect(accepted.source).toBe(baseline.source);
+  expect(accepted.source).not.toContain(":cite[lovelace2026]");
+  expect(accepted.bibliography).toContain("@article{lovelace2026,");
+  const publication = accepted.publications.find((item) => item.doi === preview.doi);
+  expect(publication).toBeDefined();
+  expect(accepted.publicationPdfLinks).toContainEqual(expect.objectContaining({ publicationId: publication?.id, pdfId: pdf.id }));
+});
+
 test("converges source edits across two writers", async ({ page, context }) => {
   const collaborator = await context.newPage();
   await Promise.all([page.goto("/"), collaborator.goto("/")]);

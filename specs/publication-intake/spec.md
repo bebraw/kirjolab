@@ -43,14 +43,13 @@ association, and manuscript citation.
 
 ### Definition of Done
 
-- [ ] An unlinked PDF exposes an Identify paper action.
+- [x] An unlinked PDF exposes an Identify paper action.
 - [x] DOI and DOI URL input return a reviewed metadata preview.
 - [x] Cancellation leaves bibliography, publications, and links unchanged.
 - [x] Acceptance atomically creates or reuses the publication and artifact link.
 - [x] Citation-key collision and repeated-acceptance behavior are deterministic.
-- [ ] Success opens publication context without inserting a citation.
-- [ ] Unit, Workers-runtime, and browser tests cover the complete flow. Unit and
-      Workers-runtime coverage is implemented; browser coverage follows the UI.
+- [x] Success opens publication context without inserting a citation.
+- [x] Unit, Workers-runtime, and browser tests cover the complete flow.
 
 ### Regression Guardrails
 

@@ -67,6 +67,9 @@ mode for authenticated hosted collaboration.
   before normalized DOI. Exact no-op projection preserves provenance and
   timestamp; authored changes record `bibtex`, explicit Crossref enrichment
   remains `crossref`, and absent entries do not delete monotonic resources.
+  An unlinked PDF can use a non-mutating DOI preview followed by fingerprinted
+  acceptance that atomically appends a new Crossref-backed entry and its
+  explicit artifact link, or idempotently reuses existing DOI identity.
 - **Knowledge navigation:** Bounded workspace search and typed connection
   representations expose documents, sections, publications, PDFs, and
   annotations as navigable resources without making an index authoritative.
@@ -123,6 +126,10 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/publications/{id}/enrich` explicitly enriches a
   DOI-backed publication through Crossref, minimally splicing and atomically
   committing accepted canonical and `crossref`-sourced values.
+- `POST /api/workspaces/demo/publication-intake/preview` resolves a known PDF
+  and DOI to a bounded, non-mutating metadata review.
+- `POST /api/workspaces/demo/publication-intake/accept` verifies that review
+  and atomically creates or reuses its publication and PDF association.
 - `POST /api/workspaces/demo/publication-pdf-links` explicitly associates a
   known publication and PDF in the same workspace.
 - `DELETE /api/workspaces/demo/publication-pdf-links/{id}` removes only that

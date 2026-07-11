@@ -13,6 +13,7 @@ import {
   isWorkspaceSnapshot,
   isWorkspaceMembers,
   isWorkspaceSummaries,
+  isPublicationIntakePreview,
   type AnnotationResource,
   type AnnotationLinkResult,
   type ClaimEvidenceRelation,
@@ -23,6 +24,7 @@ import {
   type PassageLink,
   type PdfResource,
   type PdfSelectionRect,
+  type PublicationIntakePreview,
   type PublicationResource,
   type WorkspaceSnapshot,
   type WorkspaceMember,
@@ -142,6 +144,17 @@ interface Elements {
   paperReader: HTMLElement;
   previousPaperPage: HTMLButtonElement;
   nextPaperPage: HTMLButtonElement;
+  publicationIntakeForm: HTMLFormElement;
+  publicationIntakeDoi: HTMLInputElement;
+  publicationIntakeStatus: HTMLElement;
+  publicationIntakeReview: HTMLElement;
+  publicationIntakeTitle: HTMLElement;
+  publicationIntakeMeta: HTMLElement;
+  publicationIntakeKey: HTMLInputElement;
+  publicationIntakeAccept: HTMLButtonElement;
+  publicationIntakeCancel: HTMLButtonElement;
+  publicationIntakeLinked: HTMLElement;
+  publicationIntakeLinkedList: HTMLElement;
   llmEndpoint: HTMLInputElement;
   llmModel: HTMLInputElement;
   generateCandidate: HTMLButtonElement;
@@ -186,6 +199,10 @@ class WorkspaceApp {
   #editingClaimId: string | undefined;
   #contextState: ResearchContextState = createResearchContext();
   #authoringSelection: RelativeEditorSelection | null = null;
+  #publicationIntakePreview: PublicationIntakePreview | null = null;
+  #publicationIntakeContextPdfId: string | null = null;
+  #publicationIntakeRequest = 0;
+  #publicationIntakeBusy = false;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -259,6 +276,9 @@ class WorkspaceApp {
     this.#elements.closeActiveContext.addEventListener("click", () => this.#closeActiveContext());
     this.#elements.closePublicationContext.addEventListener("click", () => this.#closeActiveContext());
     this.#elements.closePaper.addEventListener("click", () => this.#closeActiveContext());
+    this.#elements.publicationIntakeForm.addEventListener("submit", (event) => void this.#previewPublicationIntake(event));
+    this.#elements.publicationIntakeAccept.addEventListener("click", () => void this.#acceptPublicationIntake());
+    this.#elements.publicationIntakeCancel.addEventListener("click", () => this.#cancelPublicationIntake());
     this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
   }
 
@@ -1069,7 +1089,151 @@ class WorkspaceApp {
       this.#elements.contextPublicationBody.scrollTop = activeTab.scrollTop;
       return;
     }
+    this.#renderPublicationIntake(activeTab.id);
     if (loadPdf) void this.#loadActivePdf(false);
+  }
+
+  #renderPublicationIntake(pdfId: string): void {
+    if (!this.#snapshot) return;
+    if (this.#publicationIntakeContextPdfId !== pdfId) {
+      this.#publicationIntakeContextPdfId = pdfId;
+      this.#publicationIntakeRequest += 1;
+      this.#publicationIntakeBusy = false;
+      this.#publicationIntakePreview = null;
+    }
+
+    const publications = this.#snapshot.publicationPdfLinks
+      .filter((link) => link.pdfId === pdfId)
+      .map((link) => this.#snapshot?.publications.find((publication) => publication.id === link.publicationId))
+      .filter((publication): publication is PublicationResource => Boolean(publication));
+    const linked = publications.length > 0;
+    this.#elements.publicationIntakeForm.hidden = linked;
+    this.#elements.publicationIntakeLinked.hidden = !linked;
+    this.#elements.publicationIntakeLinkedList.replaceChildren();
+    for (const publication of publications) {
+      const row = document.createElement("div");
+      row.className = "resource-card mt-2 flex items-center justify-between gap-3";
+      const copy = document.createElement("div");
+      copy.className = "min-w-0";
+      copy.append(resourceLabel(`Reference · ${publication.citationKey}`), resourceTitle(publication.title));
+      row.append(
+        copy,
+        actionButton("Open reference", "button-secondary shrink-0", () => this.#openPublicationContext(publication)),
+      );
+      this.#elements.publicationIntakeLinkedList.append(row);
+    }
+
+    const preview = this.#publicationIntakePreview?.pdfId === pdfId ? this.#publicationIntakePreview : null;
+    this.#elements.publicationIntakeReview.hidden = linked || !preview;
+    if (linked) {
+      this.#elements.publicationIntakeStatus.textContent = `${publications.length} ${publications.length === 1 ? "reference is" : "references are"} connected to this PDF.`;
+      return;
+    }
+    if (!preview) return;
+    this.#elements.publicationIntakeTitle.textContent = preview.metadata.title;
+    this.#elements.publicationIntakeMeta.textContent = [
+      preview.metadata.type,
+      preview.metadata.authors.join("; "),
+      preview.metadata.year,
+      preview.metadata.venue,
+      `doi:${preview.doi}`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    this.#elements.publicationIntakeKey.value = preview.citationKey;
+  }
+
+  async #previewPublicationIntake(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const tab = this.#activeResourceTab();
+    if (!tab || tab.kind !== "pdf") return;
+    const pdfId = tab.id;
+    const request = ++this.#publicationIntakeRequest;
+    this.#publicationIntakeBusy = true;
+    this.#updatePublicationIntakeAvailability();
+    this.#elements.publicationIntakeStatus.textContent = "Looking up DOI metadata…";
+    try {
+      const response = await jsonFetch(`${apiBase}/publication-intake/preview`, {
+        pdfId,
+        doi: this.#elements.publicationIntakeDoi.value,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isPublicationIntakePreview(value)) throw new Error("Publication intake returned an invalid preview");
+      const active = this.#activeResourceTab();
+      if (request !== this.#publicationIntakeRequest || active?.kind !== "pdf" || active.id !== pdfId || value.pdfId !== pdfId) return;
+      this.#publicationIntakePreview = value;
+      this.#elements.publicationIntakeStatus.textContent = value.existingPublicationId
+        ? "This DOI is already in the library. Review the existing key, then connect this PDF."
+        : "Review the metadata and citation key before adding it.";
+      this.#renderPublicationIntake(pdfId);
+      this.#elements.publicationIntakeKey.focus();
+    } catch (error) {
+      if (request !== this.#publicationIntakeRequest) return;
+      this.#publicationIntakePreview = null;
+      this.#elements.publicationIntakeReview.hidden = true;
+      this.#elements.publicationIntakeStatus.textContent = error instanceof Error ? error.message : "DOI lookup failed";
+    } finally {
+      if (request === this.#publicationIntakeRequest) {
+        this.#publicationIntakeBusy = false;
+        this.#updatePublicationIntakeAvailability();
+      }
+    }
+  }
+
+  async #acceptPublicationIntake(): Promise<void> {
+    const preview = this.#publicationIntakePreview;
+    const active = this.#activeResourceTab();
+    if (!preview || active?.kind !== "pdf" || active.id !== preview.pdfId) return;
+    const request = ++this.#publicationIntakeRequest;
+    this.#publicationIntakeBusy = true;
+    this.#updatePublicationIntakeAvailability();
+    this.#elements.publicationIntakeStatus.textContent = "Adding the reference and connecting this PDF…";
+    try {
+      const response = await jsonFetch(`${apiBase}/publication-intake/accept`, {
+        pdfId: preview.pdfId,
+        doi: preview.doi,
+        citationKey: this.#elements.publicationIntakeKey.value,
+        metadataFingerprint: preview.metadataFingerprint,
+      });
+      await expectOk(response);
+      await this.#resourceRefresh.request();
+      const publication = this.#snapshot?.publications.find((item) => item.doi === preview.doi);
+      if (!publication) throw new Error("The connected publication could not be found");
+      this.#publicationIntakePreview = null;
+      this.#elements.publicationIntakeStatus.textContent = "Reference added and PDF connected. Citation remains a separate action.";
+      this.#openPublicationContext(publication);
+      this.#showToast("Reference added and connected; the manuscript is unchanged.");
+    } catch (error) {
+      if (request !== this.#publicationIntakeRequest) return;
+      this.#elements.publicationIntakeStatus.textContent = error instanceof Error ? error.message : "Publication intake failed";
+      this.#elements.publicationIntakeKey.focus();
+    } finally {
+      if (request === this.#publicationIntakeRequest) {
+        this.#publicationIntakeBusy = false;
+        this.#updatePublicationIntakeAvailability();
+      }
+    }
+  }
+
+  #cancelPublicationIntake(): void {
+    this.#publicationIntakeRequest += 1;
+    this.#publicationIntakeBusy = false;
+    this.#publicationIntakePreview = null;
+    this.#elements.publicationIntakeReview.hidden = true;
+    this.#elements.publicationIntakeStatus.textContent = "Lookup cancelled. The library and PDF are unchanged.";
+    this.#updatePublicationIntakeAvailability();
+    this.#elements.publicationIntakeDoi.focus();
+  }
+
+  #updatePublicationIntakeAvailability(): void {
+    const submit = this.#elements.publicationIntakeForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (!submit) throw new Error("Missing DOI lookup action");
+    submit.disabled = this.#publicationIntakeBusy;
+    this.#elements.publicationIntakeDoi.disabled = this.#publicationIntakeBusy;
+    this.#elements.publicationIntakeKey.disabled = this.#publicationIntakeBusy;
+    this.#elements.publicationIntakeAccept.disabled = this.#publicationIntakeBusy;
+    this.#elements.publicationIntakeCancel.disabled = this.#publicationIntakeBusy;
   }
 
   #renderContextResourceTab(tab: ResearchResourceTab): HTMLButtonElement {
@@ -1723,6 +1887,17 @@ function collectElements(): Elements {
     paperReader: requiredElement("paper-reader", HTMLElement),
     previousPaperPage: requiredElement("previous-paper-page", HTMLButtonElement),
     nextPaperPage: requiredElement("next-paper-page", HTMLButtonElement),
+    publicationIntakeForm: requiredElement("publication-intake-form", HTMLFormElement),
+    publicationIntakeDoi: requiredElement("publication-intake-doi", HTMLInputElement),
+    publicationIntakeStatus: requiredElement("publication-intake-status", HTMLElement),
+    publicationIntakeReview: requiredElement("publication-intake-review", HTMLElement),
+    publicationIntakeTitle: requiredElement("publication-intake-title", HTMLElement),
+    publicationIntakeMeta: requiredElement("publication-intake-meta", HTMLElement),
+    publicationIntakeKey: requiredElement("publication-intake-key", HTMLInputElement),
+    publicationIntakeAccept: requiredElement("publication-intake-accept", HTMLButtonElement),
+    publicationIntakeCancel: requiredElement("publication-intake-cancel", HTMLButtonElement),
+    publicationIntakeLinked: requiredElement("publication-intake-linked", HTMLElement),
+    publicationIntakeLinkedList: requiredElement("publication-intake-linked-list", HTMLElement),
     llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
     llmModel: requiredElement("llm-model", HTMLInputElement),
     generateCandidate: requiredElement("generate-candidate", HTMLButtonElement),
