@@ -36,11 +36,10 @@ Implemented during the follow-up pass:
   erasing, undo, and dependency-aware deletion.
 - Reference cards expose structured canonical metadata editing with manual
   provenance, distinct collections, and reading status, priority, and rating.
+- Desktop view controls expose Split, Editor only, Context only, and PDF only,
+  remembering the choice locally per project.
 
 Still open as distinct feature work:
-
-- Dedicated editor-only/context-only focus controls beyond responsive switching
-  and the resizable desktop split.
 
 ## Review Context
 

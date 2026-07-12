@@ -30,6 +30,12 @@ export function renderHomePage(
           <button class="button-secondary shrink-0" id="new-workspace" type="button">New project</button>
         </div>
         <div class="flex items-center gap-3">
+          <label class="hidden items-center gap-2 font-sans text-xs text-app-text-soft lg:flex">View
+            <select class="workspace-switcher" id="workspace-layout" aria-label="Workspace view">
+              <option value="split">Split</option><option value="editor">Editor only</option>
+              <option value="context">Context only</option><option value="pdf">PDF only</option>
+            </select>
+          </label>
           <span class="hidden max-w-44 truncate font-sans text-xs text-app-text-soft 2xl:inline" title="${escapedIdentityEmail}">${escapedIdentityEmail}</span>
           <div class="flex items-center gap-2 text-xs text-app-text-soft" aria-live="polite">
             <span class="h-2 w-2 rounded-full bg-app-warn" id="connection-dot"></span>
@@ -43,7 +49,7 @@ export function renderHomePage(
       <div class="hidden border-t border-app-line px-4 py-2 font-sans text-xs text-app-text-soft lg:px-6" id="collaborator-selections" aria-live="polite"></div>
     </header>
 
-    <main class="workspace-grid min-h-[calc(100vh-4rem)]" id="workspace-surfaces" data-active-surface="authoring">
+    <main class="workspace-grid min-h-[calc(100vh-4rem)]" id="workspace-surfaces" data-active-surface="authoring" data-layout="split">
       <nav class="surface-switcher" aria-label="Workspace surface">
         <button class="surface-switch" id="show-authoring-surface" type="button" aria-controls="authoring-surface" aria-pressed="true">Authoring</button>
         <button class="surface-switch" id="show-context-surface" type="button" aria-controls="context-surface" aria-pressed="false">Context</button>

@@ -84,6 +84,7 @@ const remoteOrigin = Symbol("remote");
 interface Elements {
   collaboratorSelections: HTMLElement;
   workspaceSwitcher: HTMLSelectElement;
+  workspaceLayout: HTMLSelectElement;
   manageWorkspaces: HTMLButtonElement;
   workspaceSettings: HTMLButtonElement;
   workspaceSettingsDialog: HTMLDialogElement;
@@ -366,6 +367,7 @@ class WorkspaceApp {
 
   async start(): Promise<void> {
     this.#bindUi();
+    this.#restoreWorkspaceLayout();
     this.#setEditorsEnabled(false);
     await this.#refreshCatalog();
     await this.#resourceRefresh.request();
@@ -377,6 +379,7 @@ class WorkspaceApp {
       const selected = this.#elements.workspaceSwitcher.value;
       if (selected && selected !== workspaceId) location.assign(`/workspaces/${encodeURIComponent(selected)}`);
     });
+    this.#elements.workspaceLayout.addEventListener("change", () => void this.#setWorkspaceLayout(this.#elements.workspaceLayout.value));
     this.#elements.manageWorkspaces.addEventListener("click", () => {
       this.#elements.workspaceCatalogDialog.showModal();
       this.#elements.workspaceCatalogFilter.value = "";
@@ -613,6 +616,27 @@ class WorkspaceApp {
     this.#elements.researchRailPanel.hidden = files;
     this.#elements.showFilesRail.setAttribute("aria-selected", String(files));
     this.#elements.showResearchRail.setAttribute("aria-selected", String(!files));
+  }
+
+  #restoreWorkspaceLayout(): void {
+    const stored = localStorage.getItem(`kirjolab:layout:${workspaceId}`) ?? "split";
+    void this.#setWorkspaceLayout(stored, false);
+  }
+
+  async #setWorkspaceLayout(value: string, persist = true): Promise<void> {
+    const layout = value === "editor" || value === "context" || value === "pdf" ? value : "split";
+    this.#elements.workspaceLayout.value = layout;
+    this.#elements.workspaceSurfaces.dataset.layout = layout;
+    if (persist) localStorage.setItem(`kirjolab:layout:${workspaceId}`, layout);
+    if (layout === "pdf") {
+      const active = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
+      if (active?.kind !== "pdf") {
+        const pdf = this.#snapshot?.pdfs[0];
+        if (pdf) await this.#showPaper(pdf);
+        else this.#showToast("Add or open a PDF before using PDF-only view.");
+      }
+    }
+    window.dispatchEvent(new Event("resize"));
   }
 
   async #createWorkspace(event: SubmitEvent): Promise<void> {
@@ -3862,6 +3886,7 @@ function collectElements(): Elements {
   return {
     collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
     workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
+    workspaceLayout: requiredElement("workspace-layout", HTMLSelectElement),
     manageWorkspaces: requiredElement("manage-workspaces", HTMLButtonElement),
     workspaceSettings: requiredElement("workspace-settings", HTMLButtonElement),
     workspaceSettingsDialog: requiredElement("workspace-settings-dialog", HTMLDialogElement),

@@ -20,6 +20,26 @@ test("renames, archives, duplicates, and permanently deletes projects", async ({
   expect((await page.request.get(`/api/workspaces/${duplicate.id}`)).ok()).toBe(true);
 });
 
+test("switches and remembers focused workspace views", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Focus modes");
+  await page.goto(`/workspaces/${workspaceId}`);
+  const layout = page.locator("#workspace-layout");
+  await layout.selectOption("editor");
+  await expect(page.locator("#authoring-surface")).toBeVisible();
+  await expect(page.locator("#context-surface")).toBeHidden();
+  await layout.selectOption("context");
+  await expect(page.locator("#authoring-surface")).toBeHidden();
+  await expect(page.locator("#context-surface")).toBeVisible();
+  await page.reload();
+  await expect(layout).toHaveValue("context");
+  await layout.selectOption("pdf");
+  await expect(page.locator("#context-surface")).toBeVisible();
+  await expect(page.locator("#toast")).toContainText("Add or open a PDF");
+  await layout.selectOption("split");
+  await expect(page.locator("#authoring-surface")).toBeVisible();
+  await expect(page.locator("#context-surface")).toBeVisible();
+});
+
 test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Live WYSIWYM workspace");
   const api = `/api/workspaces/${workspaceId}`;

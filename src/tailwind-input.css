@@ -249,6 +249,34 @@
       display: flex;
     }
 
+    .workspace-grid[data-layout="editor"] {
+      grid-template-columns: 17rem minmax(0, 1fr);
+    }
+
+    .workspace-grid[data-layout="editor"] .authoring-context-resizer,
+    .workspace-grid[data-layout="editor"] .context-column {
+      display: none;
+    }
+
+    .workspace-grid[data-layout="context"],
+    .workspace-grid[data-layout="pdf"] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .workspace-grid[data-layout="context"] .source-rail,
+    .workspace-grid[data-layout="context"] .editor-column,
+    .workspace-grid[data-layout="context"] .authoring-context-resizer,
+    .workspace-grid[data-layout="pdf"] .source-rail,
+    .workspace-grid[data-layout="pdf"] .editor-column,
+    .workspace-grid[data-layout="pdf"] .authoring-context-resizer {
+      display: none;
+    }
+
+    .workspace-grid[data-layout="context"] .context-column,
+    .workspace-grid[data-layout="pdf"] .context-column {
+      grid-column: 1;
+    }
+
     .source-rail,
     .editor-column {
       min-height: 0;

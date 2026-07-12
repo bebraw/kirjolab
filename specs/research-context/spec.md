@@ -48,6 +48,12 @@ selector, authorization, or rendering contracts.
   Context while preserving readable minimum widths. The local authoring width
   is remembered per workspace and context kind so a wide PDF reading layout
   does not force the same proportion onto manuscript Preview.
+- A desktop view control switches among Split, Editor only, Context only, and
+  PDF only. The choice is local per workspace, survives reload, never enters
+  collaborative state, and triggers PDF rerendering after geometry changes.
+- PDF only activates an open PDF or the first project PDF when available; an
+  empty project explains that a PDF must be added instead of showing a broken
+  viewer.
 - Local tab state is scoped to the current workspace. Switching workspaces
   reconciles it against the new authorized snapshot so a stale tab cannot show
   a resource from another workspace.
