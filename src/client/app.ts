@@ -122,6 +122,8 @@ interface Elements {
   closeReferenceLibrary: HTMLButtonElement;
   referenceLibraryList: HTMLElement;
   libraryBibliographyUpload: HTMLInputElement;
+  libraryCslUpload: HTMLInputElement;
+  libraryArchiveUpload: HTMLInputElement;
   libraryPdfUpload: HTMLInputElement;
   showArchivedReferences: HTMLButtonElement;
   referenceFilterQuery: HTMLInputElement;
@@ -434,6 +436,8 @@ class WorkspaceApp {
     }
     this.#elements.closeReferenceLibrary.addEventListener("click", () => this.#elements.referenceLibraryDialog.close());
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
+    this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
+    this.#elements.libraryArchiveUpload.addEventListener("change", () => void this.#importLibraryArchive());
     this.#elements.libraryPdfUpload.addEventListener("change", () => void this.#uploadLibraryPdf());
     this.#elements.webSourceForm.addEventListener("submit", (event) => void this.#captureWebSource(event));
     this.#elements.openCitationNetwork.addEventListener("click", () => void this.#openCitationNetwork());
@@ -1899,6 +1903,36 @@ class WorkspaceApp {
     this.#elements.libraryBibliographyUpload.value = "";
     await this.#refreshReferenceLibrary();
     this.#showToast("References imported into your private library. Add only the ones this project uses.");
+  }
+
+  async #importCslJson(): Promise<void> {
+    const file = this.#elements.libraryCslUpload.files?.[0];
+    if (!file) return;
+    const response = await fetch("/api/library/import/csl-json", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: await file.text(),
+    });
+    await expectOk(response);
+    this.#elements.libraryCslUpload.value = "";
+    await this.#refreshReferenceLibrary();
+    this.#showToast("CSL JSON imported into the canonical library.");
+  }
+
+  async #importLibraryArchive(): Promise<void> {
+    const file = this.#elements.libraryArchiveUpload.files?.[0];
+    if (!file) return;
+    const response = await fetch("/api/library/import/archive", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/zip" },
+      body: file,
+    });
+    await expectOk(response);
+    this.#elements.libraryArchiveUpload.value = "";
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Portable library metadata restored.");
   }
 
   async #uploadLibraryPdf(): Promise<void> {
@@ -4077,6 +4111,8 @@ function collectElements(): Elements {
     closeReferenceLibrary: requiredElement("close-reference-library", HTMLButtonElement),
     referenceLibraryList: requiredElement("reference-library-list", HTMLElement),
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
+    libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
+    libraryArchiveUpload: requiredElement("library-archive-upload", HTMLInputElement),
     libraryPdfUpload: requiredElement("library-pdf-upload", HTMLInputElement),
     showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
     referenceFilterQuery: requiredElement("reference-filter-query", HTMLInputElement),

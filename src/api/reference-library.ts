@@ -23,6 +23,15 @@ import {
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
 import { fetchCrossrefReferences } from "../integrations/crossref";
 import type { AuthIdentity } from "../security/auth";
+import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from "fflate";
+import {
+  cslJsonToBibTeX,
+  libraryArchiveVersion,
+  parseCslJson,
+  parsePortableResearch,
+  portableResearch,
+  referenceToCslJson,
+} from "../domain/library-interchange";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumWebRawBytes = 2 * 1024 * 1024;
@@ -91,6 +100,37 @@ export async function handleReferenceLibraryApi(
         return jsonError("Invalid BibTeX import", 400);
       }
       return Response.json(await library.importBibTeX(body.bibtex, identity.email), { status: 201, ...noStore() });
+    }
+    if (suffix === "/import/csl-json" && request.method === "POST") {
+      const body = await readBoundedJson(request, 2_000_000);
+      const items = parseCslJson(body);
+      return Response.json(await library.importBibTeX(cslJsonToBibTeX(items), identity.email), { status: 201, ...noStore() });
+    }
+    if (suffix === "/import/archive" && request.method === "POST") {
+      return await importPortableLibrary(request, identity, library);
+    }
+    if (suffix === "/export/csl.json" && request.method === "GET") {
+      const snapshot = await library.getSnapshot(true);
+      return downloadJson(snapshot.references.map(referenceToCslJson), "kirjolab-library.csl.json");
+    }
+    if (suffix === "/export/library.zip" && request.method === "GET") {
+      const snapshot = await library.getSnapshot(true);
+      const timestamp = new Date("1980-01-01T00:00:00.000Z");
+      const files: Zippable = {
+        "manifest.json": [
+          strToU8(`${JSON.stringify({ version: libraryArchiveVersion, binaryArtifacts: "metadata-only" }, null, 2)}\n`),
+          { mtime: timestamp },
+        ],
+        "references.csl.json": [strToU8(`${JSON.stringify(snapshot.references.map(referenceToCslJson), null, 2)}\n`), { mtime: timestamp }],
+        "research.json": [strToU8(`${JSON.stringify(portableResearch(snapshot), null, 2)}\n`), { mtime: timestamp }],
+      };
+      return new Response(zipSync(files, { level: 9, mtime: timestamp }), {
+        headers: {
+          "content-type": "application/zip",
+          "content-disposition": 'attachment; filename="kirjolab-library.zip"',
+          "cache-control": "no-store",
+        },
+      });
     }
     if (suffix === "/web-sources" && request.method === "POST") {
       return await captureWebSource(request, identity, env, library, fetchExternal);
@@ -646,6 +686,61 @@ function noStore(): { headers: { "cache-control": string } } {
 
 function jsonError(error: string, status: number): Response {
   return Response.json({ error }, { status, ...noStore() });
+}
+
+async function readBoundedJson(request: Request, maximumBytes: number): Promise<unknown> {
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (declared > maximumBytes) throw new Error("Import exceeds the size limit");
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.byteLength === 0 || bytes.byteLength > maximumBytes) throw new Error("Import exceeds the size limit");
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+async function importPortableLibrary(request: Request, identity: AuthIdentity, library: ReferenceLibraryApi): Promise<Response> {
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (declared > 5_000_000) return jsonError("Portable library archive exceeds 5 MB", 413);
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.byteLength === 0 || bytes.byteLength > 5_000_000) return jsonError("Portable library archive exceeds 5 MB", 413);
+  const files = unzipSync(bytes, {
+    filter: (file) => (file.name === "references.csl.json" || file.name === "research.json") && file.originalSize <= 2_000_000,
+  });
+  const referencesFile = files["references.csl.json"];
+  const researchFile = files["research.json"];
+  if (!referencesFile || !researchFile) return jsonError("Portable library archive is missing required metadata", 400);
+  if (referencesFile.byteLength + researchFile.byteLength > 3_000_000) return jsonError("Portable library metadata exceeds 3 MB", 413);
+  const items = parseCslJson(JSON.parse(strFromU8(referencesFile)));
+  const research = parsePortableResearch(JSON.parse(strFromU8(researchFile)));
+  const imported = await library.importBibTeX(cslJsonToBibTeX(items), identity.email);
+  const identities = new Map(
+    items.map((item, index) => [item.id, imported[index]?.reference.id]).filter((entry): entry is [string, string] => Boolean(entry[1])),
+  );
+  for (const [oldId, tags] of Object.entries(research.tags)) {
+    const referenceId = identities.get(oldId);
+    if (referenceId) await library.setTags(referenceId, tags);
+  }
+  for (const [oldId, collections] of Object.entries(research.collections)) {
+    const referenceId = identities.get(oldId);
+    if (referenceId) await library.setCollections(referenceId, collections);
+  }
+  for (const note of research.notes) {
+    const referenceId = identities.get(note.referenceId);
+    if (referenceId) await library.createNote(referenceId, note.body);
+  }
+  for (const state of research.reading) {
+    const referenceId = identities.get(state.referenceId);
+    if (referenceId) await library.setReadingState(referenceId, state.status, state.rating, state.priority);
+  }
+  return Response.json({ imported: imported.length, restoredOrganization: identities.size }, { status: 201, ...noStore() });
+}
+
+function downloadJson(value: unknown, filename: string): Response {
+  return new Response(`${JSON.stringify(value, null, 2)}\n`, {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "content-disposition": `attachment; filename="${filename}"`,
+      "cache-control": "no-store",
+    },
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

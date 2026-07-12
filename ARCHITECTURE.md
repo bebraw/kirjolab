@@ -64,6 +64,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owner-private by default. A project citation receives only its local alias
   and bibliographic snapshot; sharing any additional resource must be a
   separate explicit, rights-checked action pinned into a project revision.
+- Treat CSL JSON and portable library ZIPs as bounded interchange adapters,
+  not canonical storage. Metadata archives omit private binary artifacts unless
+  a future explicit rights-aware contract says otherwise.
 - Model each web source as one stable owner-library identity with append-only,
   timestamped captures. Retrieve only bounded public HTTP(S) content through
   manually validated redirects, store raw/readable representations privately

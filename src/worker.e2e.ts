@@ -208,6 +208,34 @@ test("keeps private library research separate from project citations", async ({ 
   await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("researchGuide");
 });
 
+test("round-trips CSL JSON and portable library metadata", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Library interchange");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await page.locator("#open-reference-library").click();
+  await page.locator("#library-csl-upload").setInputFiles({
+    name: "zotero-export.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify([
+        {
+          id: "zoteroGuide",
+          type: "article-journal",
+          title: "Zotero Guide",
+          author: [{ family: "Writer", given: "Ada" }],
+          issued: { "date-parts": [[2026]] },
+        },
+      ]),
+    ),
+  });
+  await expect(page.locator("#reference-library-list")).toContainText("Zotero Guide");
+  const csl = await page.request.get("/api/library/export/csl.json");
+  expect(csl.ok()).toBe(true);
+  expect(await csl.json()).toContainEqual(expect.objectContaining({ title: "Zotero Guide" }));
+  const archive = await page.request.get("/api/library/export/library.zip");
+  expect(archive.ok()).toBe(true);
+  expect((await archive.body()).subarray(0, 2).toString()).toBe("PK");
+});
+
 test("records and reviews source citation assertions in an accessible shared network", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Citation assertion network");
   await page.goto(`/workspaces/${workspaceId}`);

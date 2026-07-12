@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { unzipSync } from "fflate";
 import type { CitationAssertion, CitationNetwork } from "../domain/citation-assertions";
 import type { BibliographicRecord, ReferenceLibrarySnapshot, WebSnapshot } from "../domain/reference-library";
 import type { AuthIdentity } from "../security/auth";
@@ -100,6 +101,62 @@ describe("reference library API", () => {
     );
     expect(imported.status).toBe(201);
     expect(fixture.library.importBibTeX).toHaveBeenCalledWith("@manual{guide,title={Private Guide}}", identity.email);
+  });
+
+  it("imports Zotero-compatible CSL JSON and round-trips portable library metadata", async () => {
+    const fixture = apiFixture();
+    const csl = [
+      {
+        id: "guide",
+        type: "article-journal",
+        title: "Private Guide",
+        author: [{ family: "Writer", given: "Ada" }],
+        issued: { "date-parts": [[2026]] },
+      },
+    ];
+    const imported = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/import/csl-json", {
+        method: "POST",
+        headers: { origin: "https://example.test", "content-type": "application/json" },
+        body: JSON.stringify(csl),
+      }),
+      fixture.env,
+      identity,
+    );
+    expect(imported.status).toBe(201);
+    expect(fixture.library.importBibTeX).toHaveBeenLastCalledWith(expect.stringContaining("@article{guide,"), identity.email);
+
+    const cslExport = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/export/csl.json"),
+      fixture.env,
+      identity,
+    );
+    expect(cslExport.headers.get("content-disposition")).toContain("kirjolab-library.csl.json");
+    await expect(cslExport.json()).resolves.toEqual([expect.objectContaining({ id: reference.id, title: reference.title })]);
+
+    const archive = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/export/library.zip"),
+      fixture.env,
+      identity,
+    );
+    const archiveBytes = new Uint8Array(await archive.arrayBuffer());
+    expect(Object.keys(unzipSync(archiveBytes)).sort()).toEqual(["manifest.json", "references.csl.json", "research.json"]);
+    const secondArchive = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/export/library.zip"),
+      fixture.env,
+      identity,
+    );
+    expect(new Uint8Array(await secondArchive.arrayBuffer())).toEqual(archiveBytes);
+    const restored = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/import/archive", {
+        method: "POST",
+        headers: { origin: "https://example.test", "content-type": "application/zip" },
+        body: archiveBytes,
+      }),
+      fixture.env,
+      identity,
+    );
+    expect(restored.status).toBe(201);
   });
 
   it("rejects private web destinations and records a bounded failed capture when metadata identifies the source", async () => {

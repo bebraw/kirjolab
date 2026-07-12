@@ -101,6 +101,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-066](./implemented/ADR-066-filter-private-reference-library-locally.md)          | Implemented          | Combine private research facets as an ephemeral local projection over the authorized library snapshot.       |
 | [ADR-067](./implemented/ADR-067-adjust-highlight-strokes-nondestructively.md)         | Implemented          | Correct touch-selected quotation and normalized geometry without replacing evidence identity or source PDFs. |
 | [ADR-068](./implemented/ADR-068-use-bounded-submission-templates.md)                  | Implemented          | Resolve common submission targets to pinned safe layout presets shared by LaTeX and direct PDF exports.      |
+| [ADR-069](./implemented/ADR-069-use-csl-json-and-bounded-library-archives.md)         | Implemented          | Exchange Zotero-compatible CSL JSON and bounded metadata-only private-library archives.                      |
 
 ## Creating A New ADR
 

@@ -536,7 +536,11 @@ export function renderHomePage(
         </div>
         <div class="mt-5 flex flex-wrap gap-2 border-y border-app-line py-4">
           <label class="button-primary">Import BibTeX<input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
+          <label class="button-secondary">Import CSL JSON<input class="sr-only" id="library-csl-upload" type="file" accept=".json,application/json"></label>
+          <label class="button-secondary">Restore archive<input class="sr-only" id="library-archive-upload" type="file" accept=".zip,application/zip"></label>
           <label class="button-secondary">Add PDF<input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf"></label>
+          <a class="button-secondary" href="/api/library/export/csl.json">Export CSL JSON</a>
+          <a class="button-secondary" href="/api/library/export/library.zip">Export library</a>
           <button class="button-secondary" id="open-citation-network" type="button">Citation network</button>
           <button class="button-secondary" id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
         </div>
