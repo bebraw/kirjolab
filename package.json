@@ -37,7 +37,7 @@
     "build:model-companion": "mkdir -p ./.generated && esbuild src/model-companion.ts --bundle --platform=node --format=esm --target=node24 --outfile=.generated/model-companion.mjs",
     "build:pdf-worker": "mkdir -p ./.generated && esbuild node_modules/pdfjs-dist/build/pdf.worker.mjs --bundle --format=esm --target=es2022 --minify --outfile=.generated/pdf-worker.txt",
     "build:satteri-assets": "mkdir -p ./.generated/assets && cp vendor/satteri-wasm32-wasi/satteri_napi.wasm32-wasi.wasm ./.generated/assets/satteri_napi.wasm32-wasi.wasm && esbuild vendor/satteri-wasm32-wasi/wasi-worker-browser.mjs --bundle --platform=browser --format=esm --target=es2022 --outfile=.generated/assets/satteri-wasi-worker.mjs",
-    "ci:local": "agent-ci run --quiet --pause-on-failure --workflow .github/workflows/ci.yml",
+    "ci:local": "agent-ci run --quiet --jobs 1 --pause-on-failure --workflow .github/workflows/ci.yml",
     "ci:local:retry": "agent-ci retry",
     "deploy": "wrangler deploy",
     "dev": "HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
