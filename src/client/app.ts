@@ -391,6 +391,12 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
+    document.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      for (const menu of document.querySelectorAll<HTMLDetailsElement>("details[data-action-menu][open]")) {
+        if (!menu.contains(event.target) || event.target.closest("button, a")) menu.open = false;
+      }
+    });
     this.#elements.workspaceSwitcher.addEventListener("change", () => {
       const selected = this.#elements.workspaceSwitcher.value;
       if (selected && selected !== workspaceId) location.assign(`/workspaces/${encodeURIComponent(selected)}`);

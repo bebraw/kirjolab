@@ -7,7 +7,9 @@ describe("renderHomePage", () => {
     const html = renderHomePage(exampleRoutes);
 
     expect(html).toContain("KIRJOLAB");
-    expect(html).toContain('id="manage-workspaces" type="button">Projects</button>');
+    expect(html).toContain('class="action-menu header-action-menu" data-action-menu');
+    expect(html).toContain('id="manage-workspaces" type="button"><strong>Open projects</strong></button>');
+    expect(html).toContain('aria-label="File actions"');
     expect(html).toContain('id="workspace-catalog-filter"');
     expect(html).toContain('id="diagnostic-summary"');
     expect(html).toContain('id="authoring-context-resizer" role="separator"');

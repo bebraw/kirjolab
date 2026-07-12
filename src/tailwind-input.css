@@ -318,17 +318,23 @@
     flex-direction: column;
   }
 
-  .editor-insert-menu {
+  .action-menu {
     position: relative;
   }
 
-  .editor-insert-menu > summary {
+  .action-menu > summary {
     cursor: pointer;
     list-style: none;
   }
 
-  .editor-insert-menu > summary::-webkit-details-marker {
+  .action-menu > summary::-webkit-details-marker {
     display: none;
+  }
+
+  .header-action-menu .editor-command-menu {
+    right: auto;
+    left: 0;
+    width: 13rem;
   }
 
   .editor-command-menu {

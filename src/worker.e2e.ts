@@ -73,6 +73,12 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Sources & evidence" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Project settings" })).toBeHidden();
+  await page.locator(".header-action-menu summary").click();
+  await expect(page.getByRole("button", { name: "Project settings" })).toBeVisible();
+  await page.getByRole("button", { name: "Project settings" }).click();
+  await expect(page.locator("#workspace-settings-dialog")).toBeVisible();
+  await page.locator("#close-workspace-settings").click();
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
   await expect(page.locator("#source-editor")).toHaveValue(/## Evidence becomes prose/);
 

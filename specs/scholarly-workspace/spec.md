@@ -29,6 +29,8 @@ mode for authenticated hosted collaboration.
   introducing horizontal page overflow.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
+  Infrequent project-management and file-mutation actions stay grouped in
+  labelled menus so the persistent chrome prioritizes authoring and export.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
 - **Schema lifecycle:** Every SQLite-backed document, catalog, and access
@@ -278,6 +280,8 @@ mode for authenticated hosted collaboration.
       narrow layouts switch explicitly between Authoring and Context.
 - [x] The split workspace activates only when all minimum-width tracks fit;
       compact desktop windows remain free of horizontal page overflow.
+- [x] Persistent toolbars group infrequent project and file mutations without
+      hiding them behind unexplained glyphs.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
 - [x] Preview citations open publication context and explicit citation

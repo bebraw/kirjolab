@@ -25,9 +25,14 @@ export function renderHomePage(
           <span class="hidden h-4 w-px bg-app-line sm:block"></span>
           <label class="sr-only" for="workspace-switcher">Current project</label>
           <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading workspace…</option></select>
-          <button class="button-secondary shrink-0" id="manage-workspaces" type="button">Projects</button>
-          <button class="button-secondary shrink-0" id="workspace-settings" type="button">Settings</button>
-          <button class="button-secondary shrink-0" id="new-workspace" type="button">New project</button>
+          <details class="action-menu header-action-menu" data-action-menu>
+            <summary class="button-secondary shrink-0">Project</summary>
+            <div class="editor-command-menu" aria-label="Project actions">
+              <button id="manage-workspaces" type="button"><strong>Open projects</strong></button>
+              <button id="workspace-settings" type="button"><strong>Project settings</strong></button>
+              <button id="new-workspace" type="button"><strong>New project</strong></button>
+            </div>
+          </details>
         </div>
         <div class="flex items-center gap-3">
           <label class="hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
@@ -121,7 +126,7 @@ export function renderHomePage(
             <button class="button-secondary" id="open-project-history" type="button">History</button>
           </div>
           <div class="flex items-center gap-2">
-            <details class="editor-insert-menu" id="editor-insert-menu">
+            <details class="action-menu" id="editor-insert-menu" data-action-menu>
               <summary class="button-secondary">Insert</summary>
               <div class="editor-command-menu" role="menu" aria-label="Insert scholarly syntax">
                 <button type="button" role="menuitem" data-insert-syntax="citation"><strong>Citation</strong><code>:cite[key]</code></button>
@@ -132,9 +137,14 @@ export function renderHomePage(
                 <button type="button" role="menuitem" data-insert-syntax="include"><strong>Included file</strong><code>::include[path]</code></button>
               </div>
             </details>
-            <button class="button-secondary" id="new-project-file" type="button">Add file</button>
-            <button class="button-secondary hidden xl:inline-flex" id="rename-project-file" type="button">Rename</button>
-            <button class="button-secondary hidden xl:inline-flex" id="delete-project-file" type="button">Delete</button>
+            <details class="action-menu" data-action-menu>
+              <summary class="button-secondary">File</summary>
+              <div class="editor-command-menu" aria-label="File actions">
+                <button id="new-project-file" type="button"><strong>Add file</strong></button>
+                <button id="rename-project-file" type="button"><strong>Rename file</strong></button>
+                <button id="delete-project-file" type="button"><strong>Delete file</strong></button>
+              </div>
+            </details>
             <button class="button-secondary" id="open-source-citation" type="button" title="Place the caret inside :cite[key] to view its source" disabled>View cited source</button>
             <p class="text-xs text-app-text-soft" id="save-status">Opening…</p>
           </div>
