@@ -7,7 +7,8 @@ describe("renderHomePage", () => {
     const html = renderHomePage(exampleRoutes);
 
     expect(html).toContain("KIRJOLAB");
-    expect(html).toContain("Manuscript preview");
+    expect(html).toContain('id="diagnostic-summary"');
+    expect(html).toContain('id="authoring-context-resizer" role="separator"');
     expect(html).toContain("Annotate this paper");
     expect(html).toContain("Import BibTeX");
     expect(html).toContain('id="open-citation-network"');
@@ -41,6 +42,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
     expect(html).toContain('id="pin-active-context"');
     expect(html).toContain('id="close-active-context"');
+    expect(html).toContain('id="pdf-context-controls" hidden');
     expect(html).toContain('id="context-preview-tab" type="button" role="tab"');
     expect(html).toContain('aria-controls="context-preview-panel" aria-selected="true"');
     expect(html).toContain('id="context-preview-panel" role="tabpanel"');

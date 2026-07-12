@@ -157,6 +157,8 @@ export function renderHomePage(
         </details>
       </section>
 
+      <div class="authoring-context-resizer" id="authoring-context-resizer" role="separator" aria-label="Resize authoring and context panes" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" tabindex="0"></div>
+
       <section class="context-column preview-column min-w-0 bg-app-paper" id="context-surface" aria-label="Research context">
         <div class="context-tabs" id="context-tabs">
           <div class="context-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
@@ -164,16 +166,21 @@ export function renderHomePage(
             <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
           </div>
           <div class="context-tab-controls" aria-label="Active context actions">
+            <div class="context-mode-controls" id="preview-context-controls">
+              <span id="diagnostic-summary">Validating…</span>
+            </div>
+            <div class="context-mode-controls" id="pdf-context-controls" hidden>
+              <span class="context-status" id="paper-status">Loading PDF…</span>
+              <button id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
+              <span class="context-page-indicator" id="paper-page-indicator">– / –</span>
+              <button id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
+            </div>
             <button id="pin-active-context" type="button" disabled>Pin</button>
             <button id="close-active-context" type="button" disabled>Close</button>
           </div>
         </div>
 
         <section class="context-panel context-preview-panel" id="context-preview-panel" role="tabpanel" aria-labelledby="context-preview-tab" tabindex="0">
-          <div class="flex h-12 items-center justify-between border-b border-app-line px-5">
-            <p class="eyebrow">Manuscript preview</p>
-            <span class="text-xs text-app-text-soft" id="diagnostic-summary">Validating…</span>
-          </div>
           <div class="preview-scroll" id="preview-scroll">
             <article class="prose-preview" id="preview" aria-live="polite"></article>
             <div class="mx-auto mt-8 max-w-[44rem] border-t border-app-line pt-4" id="diagnostics"></div>
@@ -210,18 +217,6 @@ export function renderHomePage(
         </section>
 
         <section class="context-panel context-pdf-panel" id="context-pdf-panel" role="tabpanel" aria-label="PDF context" tabindex="0" hidden>
-          <header class="context-resource-header">
-            <div class="min-w-0">
-              <p class="truncate font-sans text-sm font-bold" id="paper-title">Paper</p>
-              <p class="mt-0.5 font-sans text-xs text-app-text-soft" id="paper-status">Loading PDF…</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <button class="button-secondary" id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
-              <span class="min-w-16 text-center font-sans text-xs text-app-text-soft" id="paper-page-indicator">– / –</span>
-              <button class="button-secondary" id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
-              <button class="button-secondary" id="close-paper" type="button">Close</button>
-            </div>
-          </header>
           <div class="context-pdf-body">
             <div class="pdf-reader" id="paper-reader">
               <div class="pdf-page" id="paper-page">
@@ -335,7 +330,7 @@ export function renderHomePage(
         </section>
       </section>
 
-      <aside class="workbench border-t border-app-line bg-app-canvas px-4 py-5 lg:col-span-3 lg:px-6">
+      <aside class="workbench border-t border-app-line bg-app-canvas px-4 py-5 lg:col-span-4 lg:px-6">
         <div class="mx-auto max-w-5xl">
           <section>
             <div class="flex flex-wrap items-end justify-between gap-3">

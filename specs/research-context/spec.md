@@ -44,6 +44,10 @@ selector, authorization, or rendering contracts.
   page, PDF scroll, and focused annotation are local browser state. They must
   not be written to Yjs, the workspace snapshot, Durable Object SQLite, or
   collaboration control messages.
+- On desktop, a pointer- and keyboard-operable separator resizes Authoring and
+  Context while preserving readable minimum widths. The local authoring width
+  is remembered per workspace and context kind so a wide PDF reading layout
+  does not force the same proportion onto manuscript Preview.
 - Local tab state is scoped to the current workspace. Switching workspaces
   reconciles it against the new authorized snapshot so a stale tab cannot show
   a resource from another workspace.
@@ -79,6 +83,9 @@ selector, authorization, or rendering contracts.
 - The tab list uses standard tab semantics: the container has `tablist`, each
   tab has `tab`, the active tab exposes `aria-selected="true"`, and its content
   has `tabpanel` with an accessible label relationship.
+- The tab row owns active-context status, page navigation, pin, and close
+  controls. A PDF filename appears in its resource tab instead of being
+  repeated in a second content header.
 - Left/Right Arrow moves tab focus, Home/End reaches the first/last tab, Enter
   or Space activates a focused tab, and a close control is independently
   labelled. Closing the active resource selects the nearest remaining tab,
@@ -154,6 +161,8 @@ selector, authorization, or rendering contracts.
 - [x] A PDF can be read and selected beside the live authoring editor without a
       modal covering either surface.
 - [x] Resource tabs can be pinned, closed, and navigated entirely by keyboard.
+- [x] Desktop users can resize Authoring and Context by pointer or keyboard,
+      reset the split, and retain separate Preview/PDF reading proportions.
 - [x] Citation and annotation navigation focus the appropriate publication,
       PDF evidence, or resolved manuscript passage.
 - [x] A publication context lists all explicitly linked PDF artifacts, supports

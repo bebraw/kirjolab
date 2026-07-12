@@ -57,6 +57,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .authoring-context-resizer {
+    display: none;
+  }
+
   .surface-switcher {
     position: sticky;
     top: 4rem;
@@ -210,7 +214,7 @@
 
   @media (min-width: 64rem) {
     .workspace-grid {
-      grid-template-columns: 17rem minmax(26rem, 0.95fr) minmax(28rem, 1.05fr);
+      grid-template-columns: 17rem minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(28rem, 1.05fr);
       grid-template-rows: minmax(38rem, calc(100vh - 4rem)) auto;
     }
 
@@ -231,6 +235,31 @@
 
     .source-rail {
       max-height: none;
+    }
+
+    .authoring-context-resizer {
+      position: relative;
+      display: block;
+      cursor: col-resize;
+      background: var(--color-app-paper);
+      touch-action: none;
+    }
+
+    .authoring-context-resizer::after {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: calc(50% - 0.5px);
+      width: 1px;
+      background: var(--color-app-line);
+      content: "";
+    }
+
+    .authoring-context-resizer:hover::after,
+    .authoring-context-resizer:focus-visible::after,
+    .authoring-context-resizer[data-dragging="true"]::after {
+      width: 2px;
+      background: var(--color-app-accent);
     }
   }
 
@@ -344,6 +373,39 @@
     display: flex;
     flex: none;
     border-left: 1px solid var(--color-app-line);
+  }
+
+  .context-mode-controls {
+    display: flex;
+    min-width: 0;
+    align-items: stretch;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.64rem;
+  }
+
+  .context-mode-controls[hidden] {
+    display: none;
+  }
+
+  .context-mode-controls > span {
+    display: flex;
+    max-width: 12rem;
+    align-items: center;
+    overflow: hidden;
+    padding-inline: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .context-mode-controls .context-page-indicator {
+    min-width: 3.5rem;
+    justify-content: center;
+    padding-inline: 0.35rem;
+  }
+
+  .context-mode-controls > button {
+    min-width: 2.5rem;
   }
 
   .context-tab-controls button {

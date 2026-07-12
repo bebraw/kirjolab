@@ -24,6 +24,20 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
     .click();
   await expect(page.locator("#source-editor")).toHaveValue(/:cite\[key\]/);
   await page.getByRole("tab", { name: "Research" }).click();
+  const paneResizer = page.getByRole("separator", { name: "Resize authoring and context panes" });
+  await paneResizer.focus();
+  await paneResizer.press("ArrowRight");
+  await expect
+    .poll(
+      async () => await page.locator("#workspace-surfaces").evaluate((element) => element.style.getPropertyValue("--authoring-pane-width")),
+    )
+    .toMatch(/px$/u);
+  await paneResizer.press("Home");
+  await expect
+    .poll(
+      async () => await page.locator("#workspace-surfaces").evaluate((element) => element.style.getPropertyValue("--authoring-pane-width")),
+    )
+    .toBe("");
 
   await page
     .locator("#source-editor")
@@ -230,10 +244,10 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   });
   await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "context-paper.pdf" }).click();
   await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "current-paper.pdf" }).click();
-  await expect(page.locator("#paper-title")).toHaveText("current-paper.pdf");
+  await expect(page.getByRole("tab", { name: "current-paper.pdf", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await page.waitForTimeout(300);
-  await expect(page.locator("#paper-title")).toHaveText("current-paper.pdf");
+  await expect(page.getByRole("tab", { name: "current-paper.pdf", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await page.unroute(`**${api}/pdfs/${delayedPdf.id}`);
   await page.getByRole("tab", { name: "Preview" }).click();

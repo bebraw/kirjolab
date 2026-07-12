@@ -162,6 +162,7 @@ interface Elements {
   manuscriptCommentCount: HTMLElement;
   manuscriptCommentList: HTMLElement;
   workspaceSurfaces: HTMLElement;
+  authoringContextResizer: HTMLElement;
   showAuthoringSurface: HTMLButtonElement;
   showContextSurface: HTMLButtonElement;
   openSourceCitation: HTMLButtonElement;
@@ -170,6 +171,8 @@ interface Elements {
   contextResourceTabs: HTMLElement;
   pinActiveContext: HTMLButtonElement;
   closeActiveContext: HTMLButtonElement;
+  previewContextControls: HTMLElement;
+  pdfContextControls: HTMLElement;
   contextPreviewPanel: HTMLElement;
   previewScroll: HTMLElement;
   contextPublicationPanel: HTMLElement;
@@ -237,8 +240,6 @@ interface Elements {
   annotationSelectionStatus: HTMLElement;
   saveAndLinkAnnotation: HTMLButtonElement;
   openPaper: HTMLButtonElement;
-  closePaper: HTMLButtonElement;
-  paperTitle: HTMLElement;
   paperStatus: HTMLElement;
   paperCanvas: HTMLCanvasElement;
   paperPage: HTMLElement;
@@ -439,6 +440,7 @@ class WorkspaceApp {
     this.#elements.claimForm.addEventListener("submit", (event) => void this.#saveClaim(event));
     this.#elements.showAuthoringSurface.addEventListener("click", () => this.#showWorkspaceSurface("authoring"));
     this.#elements.showContextSurface.addEventListener("click", () => this.#showWorkspaceSurface("context"));
+    this.#bindPaneResizer();
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
     this.#elements.contextTabList.addEventListener("keydown", (event) => this.#moveContextTabFocus(event));
     this.#elements.preview.addEventListener("click", (event) => this.#openPreviewCitation(event));
@@ -449,7 +451,6 @@ class WorkspaceApp {
     this.#elements.pinActiveContext.addEventListener("click", () => this.#toggleActiveContextPin());
     this.#elements.closeActiveContext.addEventListener("click", () => this.#closeActiveContext());
     this.#elements.closePublicationContext.addEventListener("click", () => this.#closeActiveContext());
-    this.#elements.closePaper.addEventListener("click", () => this.#closeActiveContext());
     this.#elements.publicationIntakeForm.addEventListener("submit", (event) => void this.#previewPublicationIntake(event));
     this.#elements.publicationIntakeAccept.addEventListener("click", () => void this.#acceptPublicationIntake());
     this.#elements.publicationIntakeCancel.addEventListener("click", () => this.#cancelPublicationIntake());
@@ -2375,6 +2376,101 @@ class WorkspaceApp {
     this.#elements.showContextSurface.setAttribute("aria-pressed", String(surface === "context"));
   }
 
+  #bindPaneResizer(): void {
+    const resizer = this.#elements.authoringContextResizer;
+    const resize = (clientX: number, persist: boolean): void => {
+      const authoring = resizer.previousElementSibling;
+      const context = resizer.nextElementSibling;
+      if (!(authoring instanceof HTMLElement) || !(context instanceof HTMLElement)) return;
+      const authoringLeft = authoring.getBoundingClientRect().left;
+      const contextRight = context.getBoundingClientRect().right;
+      const available = contextRight - authoringLeft - resizer.getBoundingClientRect().width;
+      const maximum = Math.max(416, available - 448);
+      const width = Math.min(maximum, Math.max(416, clientX - authoringLeft));
+      this.#setAuthoringPaneWidth(width);
+      if (persist) this.#storeAuthoringPaneWidth(width);
+    };
+    resizer.addEventListener("pointerdown", (event) => {
+      resizer.dataset.dragging = "true";
+      resizer.setPointerCapture(event.pointerId);
+      resize(event.clientX, false);
+    });
+    resizer.addEventListener("pointermove", (event) => {
+      if (resizer.dataset.dragging === "true") resize(event.clientX, false);
+    });
+    const finish = (event: PointerEvent, persist: boolean): void => {
+      if (resizer.dataset.dragging !== "true") return;
+      delete resizer.dataset.dragging;
+      if (persist) resize(event.clientX, true);
+      if (resizer.hasPointerCapture(event.pointerId)) resizer.releasePointerCapture(event.pointerId);
+      void this.#pdfViewer.resize();
+    };
+    resizer.addEventListener("pointerup", (event) => finish(event, true));
+    resizer.addEventListener("pointercancel", (event) => finish(event, false));
+    resizer.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
+      event.preventDefault();
+      if (event.key === "Home") {
+        this.#elements.workspaceSurfaces.style.removeProperty("--authoring-pane-width");
+        this.#removeStoredAuthoringPaneWidth();
+        resizer.setAttribute("aria-valuenow", "48");
+      } else {
+        const authoring = resizer.previousElementSibling;
+        if (!(authoring instanceof HTMLElement)) return;
+        const direction = event.key === "ArrowLeft" ? -24 : 24;
+        resize(authoring.getBoundingClientRect().right + direction, true);
+      }
+      void this.#pdfViewer.resize();
+    });
+  }
+
+  #setAuthoringPaneWidth(width: number): void {
+    this.#elements.workspaceSurfaces.style.setProperty("--authoring-pane-width", `${Math.round(width)}px`);
+    const resizer = this.#elements.authoringContextResizer;
+    const authoring = resizer.previousElementSibling;
+    const context = resizer.nextElementSibling;
+    if (!(authoring instanceof HTMLElement) || !(context instanceof HTMLElement)) return;
+    const total = authoring.getBoundingClientRect().width + context.getBoundingClientRect().width;
+    const percentage = total > 0 ? Math.round((width / total) * 100) : 48;
+    resizer.setAttribute("aria-valuenow", String(percentage));
+  }
+
+  #paneWidthStorageKey(): string {
+    const kind = this.#activeResourceTab()?.kind ?? "preview";
+    return `kirjolab:authoring-pane:${workspaceId}:${kind}`;
+  }
+
+  #storeAuthoringPaneWidth(width: number): void {
+    try {
+      localStorage.setItem(this.#paneWidthStorageKey(), String(Math.round(width)));
+    } catch {
+      // Pane resizing remains usable when browser storage is unavailable.
+    }
+  }
+
+  #removeStoredAuthoringPaneWidth(): void {
+    try {
+      localStorage.removeItem(this.#paneWidthStorageKey());
+    } catch {
+      // Pane resizing remains usable when browser storage is unavailable.
+    }
+  }
+
+  #restoreAuthoringPaneWidth(): void {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(this.#paneWidthStorageKey());
+    } catch {
+      // Use the stylesheet default when browser storage is unavailable.
+    }
+    const width = stored ? Number.parseInt(stored, 10) : Number.NaN;
+    if (Number.isFinite(width)) this.#setAuthoringPaneWidth(width);
+    else {
+      this.#elements.workspaceSurfaces.style.removeProperty("--authoring-pane-width");
+      this.#elements.authoringContextResizer.setAttribute("aria-valuenow", "48");
+    }
+  }
+
   #captureActiveContextState(): void {
     const key = this.#contextState.activeKey;
     if (key === RESEARCH_PREVIEW_KEY) {
@@ -2445,10 +2541,13 @@ class WorkspaceApp {
     }
 
     const activeTab = this.#activeResourceTab();
+    this.#restoreAuthoringPaneWidth();
     this.#elements.contextPreviewPanel.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
     this.#elements.contextPdfPanel.hidden = activeTab?.kind !== "pdf";
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
+    this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#elements.pdfContextControls.hidden = activeTab?.kind !== "pdf";
     this.#elements.pinActiveContext.disabled = !activeTab;
     this.#elements.closeActiveContext.disabled = !activeTab;
     this.#elements.pinActiveContext.textContent = activeTab?.pinned ? "Unpin" : "Pin";
@@ -2948,7 +3047,6 @@ class WorkspaceApp {
     const pdf = this.#snapshot?.pdfs.find((item) => item.id === tab.id);
     if (!pdf) return;
     this.#elements.annotationPdf.value = pdf.id;
-    this.#elements.paperTitle.textContent = pdf.name;
     const annotations = this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === pdf.id) ?? [];
     this.#pdfViewer.updateAnnotations(annotations);
     if (!force && this.#renderedPdfId === pdf.id) {
@@ -3485,6 +3583,7 @@ function collectElements(): Elements {
     manuscriptCommentCount: requiredElement("manuscript-comment-count", HTMLElement),
     manuscriptCommentList: requiredElement("manuscript-comment-list", HTMLElement),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
+    authoringContextResizer: requiredElement("authoring-context-resizer", HTMLElement),
     showAuthoringSurface: requiredElement("show-authoring-surface", HTMLButtonElement),
     showContextSurface: requiredElement("show-context-surface", HTMLButtonElement),
     openSourceCitation: requiredElement("open-source-citation", HTMLButtonElement),
@@ -3493,6 +3592,8 @@ function collectElements(): Elements {
     contextResourceTabs: requiredElement("context-resource-tabs", HTMLElement),
     pinActiveContext: requiredElement("pin-active-context", HTMLButtonElement),
     closeActiveContext: requiredElement("close-active-context", HTMLButtonElement),
+    previewContextControls: requiredElement("preview-context-controls", HTMLElement),
+    pdfContextControls: requiredElement("pdf-context-controls", HTMLElement),
     contextPreviewPanel: requiredElement("context-preview-panel", HTMLElement),
     previewScroll: requiredElement("preview-scroll", HTMLElement),
     contextPublicationPanel: requiredElement("context-publication-panel", HTMLElement),
@@ -3560,8 +3661,6 @@ function collectElements(): Elements {
     annotationSelectionStatus: requiredElement("annotation-selection-status", HTMLElement),
     saveAndLinkAnnotation: requiredElement("save-and-link-annotation", HTMLButtonElement),
     openPaper: requiredElement("open-paper", HTMLButtonElement),
-    closePaper: requiredElement("close-paper", HTMLButtonElement),
-    paperTitle: requiredElement("paper-title", HTMLElement),
     paperStatus: requiredElement("paper-status", HTMLElement),
     paperCanvas: requiredElement("paper-canvas", HTMLCanvasElement),
     paperPage: requiredElement("paper-page", HTMLElement),

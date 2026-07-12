@@ -99,6 +99,10 @@ export class PdfEvidenceViewer {
     this.#renderHighlights();
   }
 
+  async resize(): Promise<void> {
+    await this.#renderPage();
+  }
+
   async #move(offset: number): Promise<void> {
     if (!this.#document) return;
     const next = clamp(this.#pageNumber + offset, 1, this.#document.numPages);

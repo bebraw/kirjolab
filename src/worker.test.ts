@@ -18,7 +18,7 @@ describe("worker", () => {
 
     const body = await response.text();
     expect(body).toContain("KIRJOLAB");
-    expect(body).toContain("Manuscript preview");
+    expect(body).toContain('id="context-preview-tab"');
   });
 
   it("renders a stable workspace resource", async () => {
