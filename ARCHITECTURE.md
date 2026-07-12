@@ -123,6 +123,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
 - Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
+- Give workspace people opaque stored identities independent of email. Derive
+  project membership, shared-note provenance, and model-candidate evidence as
+  typed hypermedia links without making the projection authoritative.
 - Derive bounded workspace search and hypermedia projections from canonical state until scale measurements justify a persisted index; treat visual graph layouts as optional views, not the navigation model.
 - Invalidate browser resource views with a server-owned control message and a
   coalesced authorized metadata refresh rather than replacing live editor

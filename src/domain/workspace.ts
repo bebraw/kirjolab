@@ -47,6 +47,7 @@ export interface WorkspaceSummary {
 export type WorkspaceRole = "owner" | "member";
 
 export interface WorkspaceMember {
+  id: string;
   email: string;
   role: WorkspaceRole;
   addedAt: string;
@@ -403,7 +404,11 @@ export function isWorkspaceMembers(value: unknown): value is WorkspaceMember[] {
     Array.isArray(value) &&
     value.every(
       (item) =>
-        isRecord(item) && isEmail(item.email) && (item.role === "owner" || item.role === "member") && isNonEmptyString(item.addedAt),
+        isRecord(item) &&
+        isStringWithin(item.id, 128, true) &&
+        isEmail(item.email) &&
+        (item.role === "owner" || item.role === "member") &&
+        isNonEmptyString(item.addedAt),
     )
   );
 }

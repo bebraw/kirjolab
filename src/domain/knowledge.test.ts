@@ -217,6 +217,7 @@ describe("knowledge navigation", () => {
   it("derives typed links and deduplicates repeated citations", () => {
     expect(buildWorkspaceKnowledgeGraph(snapshot)).toEqual({
       nodes: [
+        { id: "project:workspace", kind: "project", label: "Evidence map" },
         { id: "document:workspace", kind: "document", label: "Evidence map" },
         { id: "section:methods", kind: "section", label: "Methods" },
         { id: "section:results", kind: "section", label: "Results" },
@@ -226,6 +227,13 @@ describe("knowledge navigation", () => {
         { id: "claim:claim-1", kind: "claim", label: "Inspectable evidence supports accountable claims." },
       ],
       edges: [
+        {
+          id: "contains:workspace:workspace",
+          relation: "contains",
+          from: "project:workspace",
+          to: "document:workspace",
+          label: "main manuscript",
+        },
         {
           id: "has-artifact:publication-pdf-1",
           relation: "has-artifact",
@@ -270,6 +278,89 @@ describe("knowledge navigation", () => {
         },
       ],
     });
+  });
+
+  it("projects people, shared notes, and provenance-bearing model candidates as typed resources", () => {
+    const members = [{ id: "person-1", email: "researcher@example.org", role: "owner" as const, addedAt: "2026-07-10T00:00:00.000Z" }];
+    const expanded: WorkspaceSnapshot = {
+      ...snapshot,
+      researchShares: [
+        {
+          id: "share-1",
+          projectId: snapshot.id,
+          referenceId: "publication-1",
+          resourceId: "note-1",
+          kind: "note",
+          content: { kind: "note", body: "Private interpretation shared deliberately with the project." },
+          createdAt: "2026-07-10T00:00:00.000Z",
+          revokedAt: null,
+        },
+      ],
+      candidates: [
+        {
+          id: "candidate-1",
+          operation: "revise-selection",
+          promptVersion: "revise-selection-v1",
+          providerAdapter: "openai-compatible",
+          providerLabel: "Local model",
+          model: "scholar-1",
+          instruction: "Make the revision proposal precise.",
+          sourceRevision: 1,
+          target: { anchor: snapshot.claimLinks[0]!.anchor, resolution: snapshot.claimLinks[0]!.resolution },
+          evidence: [
+            {
+              kind: "claim",
+              id: snapshot.claims[0]!.id,
+              version: snapshot.claims[0]!.updatedAt,
+              text: snapshot.claims[0]!.text,
+              note: snapshot.claims[0]!.note,
+              createdAt: snapshot.claims[0]!.createdAt,
+              updatedAt: snapshot.claims[0]!.updatedAt,
+            },
+          ],
+          proposedReplacement: "A precise revision proposal grounded in the claim.",
+          status: "pending",
+          createdAt: "2026-07-10T00:00:00.000Z",
+        },
+      ],
+    };
+
+    expect(searchWorkspaceKnowledge(expanded, "private interpretation", members)).toContainEqual(
+      expect.objectContaining({ resourceId: "note:note-1", kind: "note" }),
+    );
+    expect(searchWorkspaceKnowledge(expanded, "revision proposal", members)).toContainEqual(
+      expect.objectContaining({ resourceId: "model-candidate:candidate-1", kind: "model-candidate" }),
+    );
+    expect(searchWorkspaceKnowledge(expanded, "project collaborator", members)).toContainEqual(
+      expect.objectContaining({ resourceId: "person:person-1", kind: "person" }),
+    );
+
+    const graph = buildWorkspaceKnowledgeGraph(expanded, members);
+    expect(graph.nodes).toEqual(
+      expect.arrayContaining([
+        { id: "project:workspace", kind: "project", label: "Evidence map" },
+        { id: "person:person-1", kind: "person", label: "researcher@example.org" },
+        { id: "note:note-1", kind: "note", label: "Private interpretation shared deliberately with the project." },
+        {
+          id: "model-candidate:candidate-1",
+          kind: "model-candidate",
+          label: "A precise revision proposal grounded in the claim.",
+        },
+      ]),
+    );
+    expect(graph.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ relation: "participates-in", from: "person:person-1", to: "project:workspace" }),
+        expect.objectContaining({ relation: "derived-from", from: "note:note-1", to: "publication:publication-1" }),
+        expect.objectContaining({
+          relation: "derived-from",
+          from: "model-candidate:candidate-1",
+          to: "claim:claim-1",
+        }),
+        expect.objectContaining({ relation: "used-in", from: "model-candidate:candidate-1", to: "document:workspace" }),
+      ]),
+    );
+    expect(isWorkspaceKnowledgeGraph(graph)).toBe(true);
   });
 
   it("matches preview identities for repeated navigable headings", () => {

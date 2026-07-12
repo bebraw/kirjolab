@@ -23,7 +23,10 @@ describe("supporting Durable Objects in the Workers runtime", () => {
     const catalogLedger = await runInDurableObject(catalog, (_instance: WorkspaceCatalog, state) => ledgerRows(state));
     const accessLedger = await runInDurableObject(access, (_instance: WorkspaceAccess, state) => ledgerRows(state));
     expect(catalogLedger).toEqual([{ version: 1, name: "create-workspace-catalog" }]);
-    expect(accessLedger).toEqual([{ version: 1, name: "create-workspace-access" }]);
+    expect(accessLedger).toEqual([
+      { version: 1, name: "create-workspace-access" },
+      { version: 2, name: "assign-stable-person-identities" },
+    ]);
 
     const acceptedCatalogState = {
       workspaces: await catalog.listWorkspaces(),
@@ -36,6 +39,8 @@ describe("supporting Durable Objects in the Workers runtime", () => {
     };
     expect(acceptedCatalogState.registered).toEqual(registered);
     expect(acceptedAccessState).toEqual({ ownerRole: "owner", memberRole: "member", members: [owner, member] });
+    expect(owner.id).toMatch(/^[0-9a-f-]{32,36}$/u);
+    expect(member.id).toMatch(/^[0-9a-f-]{32,36}$/u);
 
     await evictDurableObject(catalog);
     await evictDurableObject(access);

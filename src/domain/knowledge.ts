@@ -1,7 +1,27 @@
-import type { WorkspaceSnapshot } from "./workspace";
+import type { WorkspaceMember, WorkspaceSnapshot } from "./workspace";
 
-export type KnowledgeResourceKind = "document" | "section" | "publication" | "pdf" | "annotation" | "claim";
-export type ScholarlyRelation = "cites" | "annotates" | "has-artifact" | "used-in" | "supports" | "contradicts" | "extends";
+export type KnowledgeResourceKind =
+  | "project"
+  | "document"
+  | "section"
+  | "publication"
+  | "pdf"
+  | "annotation"
+  | "claim"
+  | "note"
+  | "person"
+  | "model-candidate";
+export type ScholarlyRelation =
+  | "contains"
+  | "participates-in"
+  | "cites"
+  | "annotates"
+  | "has-artifact"
+  | "used-in"
+  | "supports"
+  | "contradicts"
+  | "extends"
+  | "derived-from";
 
 export interface KnowledgeSearchResult {
   resourceId: string;
@@ -36,10 +56,20 @@ interface SectionResource {
   excerpt: string;
 }
 
-export function searchWorkspaceKnowledge(snapshot: WorkspaceSnapshot, query: string): KnowledgeSearchResult[] {
+export function searchWorkspaceKnowledge(
+  snapshot: WorkspaceSnapshot,
+  query: string,
+  members: readonly WorkspaceMember[] = [],
+): KnowledgeSearchResult[] {
   const tokens = tokenize(query);
   if (tokens.length === 0) return [];
   const candidates: Array<Omit<KnowledgeSearchResult, "score">> = [
+    {
+      resourceId: projectId(snapshot.id),
+      kind: "project",
+      title: snapshot.title,
+      excerpt: "Scholarly project",
+    },
     {
       resourceId: documentId(snapshot.id),
       kind: "document",
@@ -87,6 +117,30 @@ export function searchWorkspaceKnowledge(snapshot: WorkspaceSnapshot, query: str
         ].join(" · "),
       ),
     })),
+    ...snapshot.researchShares.flatMap((share) =>
+      share.revokedAt === null && share.content.kind === "note"
+        ? [
+            {
+              resourceId: noteId(share.resourceId),
+              kind: "note" as const,
+              title: excerpt(share.content.body, 80) || "Shared research note",
+              excerpt: excerpt(share.content.body),
+            },
+          ]
+        : [],
+    ),
+    ...snapshot.candidates.map((candidate) => ({
+      resourceId: modelCandidateId(candidate.id),
+      kind: "model-candidate" as const,
+      title: excerpt(candidate.proposedReplacement, 80) || "Model revision candidate",
+      excerpt: excerpt([candidate.operation, candidate.instruction, candidate.model, candidate.status].join(" · ")),
+    })),
+    ...members.map((member) => ({
+      resourceId: personId(member.id),
+      kind: "person" as const,
+      title: member.email,
+      excerpt: `${member.role} · project collaborator`,
+    })),
   ];
 
   return candidates
@@ -96,10 +150,37 @@ export function searchWorkspaceKnowledge(snapshot: WorkspaceSnapshot, query: str
     .slice(0, 50);
 }
 
-export function buildWorkspaceKnowledgeGraph(snapshot: WorkspaceSnapshot): WorkspaceKnowledgeGraph {
+export function buildWorkspaceKnowledgeGraph(
+  snapshot: WorkspaceSnapshot,
+  members: readonly WorkspaceMember[] = [],
+): WorkspaceKnowledgeGraph {
+  const projectResourceId = projectId(snapshot.id);
   const documentResourceId = documentId(snapshot.id);
-  const nodes: KnowledgeGraphNode[] = [{ id: documentResourceId, kind: "document", label: snapshot.title }];
-  const edges: KnowledgeGraphEdge[] = [];
+  const nodes: KnowledgeGraphNode[] = [
+    { id: projectResourceId, kind: "project", label: snapshot.title },
+    { id: documentResourceId, kind: "document", label: snapshot.title },
+  ];
+  const edges: KnowledgeGraphEdge[] = [
+    {
+      id: `contains:${snapshot.id}:${snapshot.id}`,
+      relation: "contains",
+      from: projectResourceId,
+      to: documentResourceId,
+      label: "main manuscript",
+    },
+  ];
+
+  for (const member of members) {
+    const resourceId = personId(member.id);
+    nodes.push({ id: resourceId, kind: "person", label: member.email });
+    edges.push({
+      id: `participates-in:${member.id}:${snapshot.id}`,
+      relation: "participates-in",
+      from: resourceId,
+      to: projectResourceId,
+      label: member.role,
+    });
+  }
 
   for (const section of extractSections(snapshot.source)) nodes.push({ id: section.id, kind: "section", label: section.title });
   for (const publication of snapshot.publications) {
@@ -152,6 +233,47 @@ export function buildWorkspaceKnowledgeGraph(snapshot: WorkspaceSnapshot): Works
       from: annotationId(link.annotationId),
       to: documentResourceId,
       label: excerpt(link.resolution.status === "resolved" ? link.resolution.text : link.anchor.exact, 100),
+    });
+  }
+
+  const publicationIds = new Set(snapshot.publications.map((publication) => publication.id));
+  for (const share of snapshot.researchShares) {
+    if (share.revokedAt !== null || share.content.kind !== "note") continue;
+    const resourceId = noteId(share.resourceId);
+    nodes.push({ id: resourceId, kind: "note", label: excerpt(share.content.body, 80) || "Shared research note" });
+    if (publicationIds.has(share.referenceId)) {
+      edges.push({
+        id: `derived-from:${share.id}`,
+        relation: "derived-from",
+        from: resourceId,
+        to: publicationId(share.referenceId),
+        label: "note about source",
+      });
+    }
+  }
+
+  for (const candidate of snapshot.candidates) {
+    const resourceId = modelCandidateId(candidate.id);
+    nodes.push({
+      id: resourceId,
+      kind: "model-candidate",
+      label: excerpt(candidate.proposedReplacement, 80) || "Model revision candidate",
+    });
+    for (const evidence of candidate.evidence) {
+      edges.push({
+        id: `derived-from:${candidate.id}:${evidence.kind}:${evidence.id}`,
+        relation: "derived-from",
+        from: resourceId,
+        to: evidence.kind === "annotation" ? annotationId(evidence.id) : claimId(evidence.id),
+        label: evidence.kind,
+      });
+    }
+    edges.push({
+      id: `used-in:${candidate.id}`,
+      relation: "used-in",
+      from: resourceId,
+      to: documentResourceId,
+      label: excerpt(candidate.target.anchor.exact, 100),
     });
   }
 
@@ -248,6 +370,10 @@ function documentId(id: string): string {
   return `document:${id}`;
 }
 
+function projectId(id: string): string {
+  return `project:${id}`;
+}
+
 function sectionId(id: string): string {
   return `section:${id}`;
 }
@@ -266,6 +392,18 @@ function annotationId(id: string): string {
 
 function claimId(id: string): string {
   return `claim:${id}`;
+}
+
+function noteId(id: string): string {
+  return `note:${id}`;
+}
+
+function personId(id: string): string {
+  return `person:${id}`;
+}
+
+function modelCandidateId(id: string): string {
+  return `model-candidate:${id}`;
 }
 
 function isSearchResult(value: unknown): value is KnowledgeSearchResult {
@@ -288,12 +426,15 @@ function isGraphEdge(value: unknown): value is KnowledgeGraphEdge {
     isRecord(value) &&
     isNonEmptyString(value.id) &&
     (value.relation === "cites" ||
+      value.relation === "contains" ||
+      value.relation === "participates-in" ||
       value.relation === "annotates" ||
       value.relation === "has-artifact" ||
       value.relation === "used-in" ||
       value.relation === "supports" ||
       value.relation === "contradicts" ||
-      value.relation === "extends") &&
+      value.relation === "extends" ||
+      value.relation === "derived-from") &&
     isNonEmptyString(value.from) &&
     isNonEmptyString(value.to) &&
     typeof value.label === "string"
@@ -302,7 +443,16 @@ function isGraphEdge(value: unknown): value is KnowledgeGraphEdge {
 
 function isKind(value: unknown): value is KnowledgeResourceKind {
   return (
-    value === "document" || value === "section" || value === "publication" || value === "pdf" || value === "annotation" || value === "claim"
+    value === "project" ||
+    value === "document" ||
+    value === "section" ||
+    value === "publication" ||
+    value === "pdf" ||
+    value === "annotation" ||
+    value === "claim" ||
+    value === "note" ||
+    value === "person" ||
+    value === "model-candidate"
   );
 }
 

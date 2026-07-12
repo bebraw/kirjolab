@@ -47,10 +47,12 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     }
     if (suffix === "/search" && request.method === "GET") {
       const query = url.searchParams.get("q")?.slice(0, 200) ?? "";
-      return Response.json(searchWorkspaceKnowledge(await room.getSnapshot(workspaceId), query));
+      const [snapshot, members] = await Promise.all([room.getSnapshot(workspaceId), access.listMembers(identity.email)]);
+      return Response.json(searchWorkspaceKnowledge(snapshot, query, members));
     }
     if (suffix === "/graph" && request.method === "GET") {
-      return Response.json(buildWorkspaceKnowledgeGraph(await room.getSnapshot(workspaceId)));
+      const [snapshot, members] = await Promise.all([room.getSnapshot(workspaceId), access.listMembers(identity.email)]);
+      return Response.json(buildWorkspaceKnowledgeGraph(snapshot, members));
     }
     if (suffix === "/socket" && request.method === "GET") return await room.fetch(request);
     if (suffix === "/members" && request.method === "GET") return Response.json(await access.listMembers(identity.email));

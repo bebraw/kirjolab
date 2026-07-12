@@ -1,6 +1,6 @@
 # ADR-036: Model Scholarly Work as Typed Hypermedia Resources
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-10
 
@@ -63,6 +63,29 @@ to claim to cited prose as the product's defining workflow.
   lookup and reconciliation.
 - A visual graph may be added as a secondary view but is not the primary domain
   or navigation model.
+
+## Implementation
+
+- Projects, documents, files and sections, publications, PDFs, annotations,
+  claims, shared notes, people, typed links, and model candidates expose stable
+  internal ids. Workspace-access migration 2 assigns opaque stored person ids
+  while keeping normalized email as an access attribute.
+- Durable relational records own explicit publication/PDF, annotation/passage,
+  claim/evidence, claim/passage, project-reference, research-share, and
+  citation-assertion relationships. No graph database is required.
+- `src/domain/knowledge.ts` derives bounded kind-qualified resource nodes and
+  typed edges, including `contains`, `participates-in`, `cites`, `annotates`,
+  `has-artifact`, `used-in`, `supports`, `contradicts`, `extends`, and
+  `derived-from`.
+- Model candidates project `derived-from` edges to their immutable evidence
+  snapshots and `used-in` edges to the manuscript. Shared notes project their
+  source relationship only after explicit project sharing.
+- Authorized workspace search and graph routes return derived representations;
+  the browser validates them and provides ordinary keyboard-operable resource
+  actions. Canonical Markdown and durable resource tables remain authoritative.
+- `specs/knowledge-navigation/spec.md`, `specs/evidence-backed-claims/spec.md`,
+  `specs/citation-network/spec.md`, and `specs/workspace-access/spec.md` maintain
+  the resource, relationship, identity, authorization, and navigation contracts.
 
 ## Alternatives Considered
 

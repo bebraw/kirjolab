@@ -84,7 +84,7 @@ describe("workspace input guards", () => {
         metadataFingerprint: "a".repeat(64),
       }),
     ).toBe(true);
-    expect(isWorkspaceMembers([{ email: "owner@example.org", role: "owner", addedAt: "now" }])).toBe(true);
+    expect(isWorkspaceMembers([{ id: "person-1", email: "owner@example.org", role: "owner", addedAt: "now" }])).toBe(true);
     expect(
       isWorkspaceSummaries([{ id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now" }]),
     ).toBe(true);
@@ -135,9 +135,10 @@ describe("workspace input guards", () => {
     expect(isAcceptPublicationIntakeInput(null)).toBe(false);
     expect(isWorkspaceMembers(null)).toBe(false);
     for (const member of [
-      { email: "", role: "owner", addedAt: "now" },
-      { email: "owner@example.org", role: "admin", addedAt: "now" },
-      { email: "owner@example.org", role: "member", addedAt: "" },
+      { id: "", email: "owner@example.org", role: "owner", addedAt: "now" },
+      { id: "person-1", email: "", role: "owner", addedAt: "now" },
+      { id: "person-1", email: "owner@example.org", role: "admin", addedAt: "now" },
+      { id: "person-1", email: "owner@example.org", role: "member", addedAt: "" },
     ]) {
       expect(isWorkspaceMembers([member]), JSON.stringify(member)).toBe(false);
     }

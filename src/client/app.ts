@@ -2116,6 +2116,26 @@ class WorkspaceApp {
       this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
+    if (kind === "project") {
+      this.#elements.workspaceSwitcher.focus();
+      return;
+    }
+    if (kind === "person") {
+      void this.#openSharing();
+      return;
+    }
+    if (kind === "model-candidate") {
+      const candidate = this.#snapshot?.candidates.find((item) => item.id === id);
+      if (candidate) this.#openCandidateContext(candidate);
+      return;
+    }
+    if (kind === "note") {
+      const share = this.#snapshot?.researchShares.find(
+        (item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note",
+      );
+      if (share?.content.kind === "note") this.#showToast(excerptForToast(share.content.body));
+      return;
+    }
     if (kind === "section") {
       this.#activateContext(RESEARCH_PREVIEW_KEY);
       const section = this.#elements.preview.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
@@ -3466,6 +3486,11 @@ function parseModelEvidenceKey(value: string): ["annotation" | "claim", string] 
 function accessibleEvidenceExcerpt(value: string): string {
   const compact = value.replace(/\s+/gu, " ").trim();
   return compact.length <= 80 ? compact : `${compact.slice(0, 77)}…`;
+}
+
+function excerptForToast(value: string): string {
+  const compact = value.replaceAll(/\s+/gu, " ").trim();
+  return compact.length <= 240 ? compact : `${compact.slice(0, 239).trimEnd()}…`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

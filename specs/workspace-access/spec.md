@@ -16,7 +16,9 @@ Owners need a minimal way to grant access to a known collaborator.
 - Signing keys are cached through the Workers Cache API for one hour.
 - Local mode succeeds only for `localhost`, `127.0.0.1`, or `::1`; the optional
   `x-kirjolab-local-user` header enables loopback multi-identity testing.
-- `WorkspaceAccess` stores one owner and zero or more members in SQLite.
+- `WorkspaceAccess` stores one owner and zero or more members in SQLite. Every
+  member receives an opaque stable person id; normalized email remains a unique
+  mutable access attribute rather than the hypermedia identity.
 - Workspace catalog, access, document-room, and R2 lookups use opaque or hashed
   storage identities rather than plaintext hosted email values.
 - `GET /api/session` exposes only the current email and authentication mode.
@@ -57,6 +59,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Access JWT verification covers signature, issuer, audience, and time.
 - [x] Workspace creation initializes an owner role.
 - [x] Owners can invite a normalized collaborator email.
+- [x] Owner and member records retain stable opaque person identities across
+      Durable Object reconstruction.
 - [x] Invited collaborators discover and open the shared workspace.
 - [x] Uninvited identities cannot discover or read the workspace.
 - [x] PDF routes and WebSocket upgrades pass through the same authorization.
@@ -73,6 +77,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - Local mode must reject non-loopback hostnames.
 - Membership must be checked before resolving document or R2 state.
 - Only the owner role may add a member.
+- Hypermedia representations must address people by stored person id rather
+  than email.
 - Only the owner role may mutate project history or create a revision seed;
   history reads retain normal workspace membership authorization.
 - Browser WebSocket upgrades must carry an `Origin` exactly matching the

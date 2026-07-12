@@ -17,9 +17,29 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 2,
+    name: "assign-stable-person-identities",
+    apply(sql): undefined {
+      sql.exec(`
+        ALTER TABLE members RENAME TO members_v1;
+        CREATE TABLE members (
+          id TEXT PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          role TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+          added_at TEXT NOT NULL
+        );
+        INSERT INTO members (id, email, role, added_at)
+          SELECT lower(hex(randomblob(16))), email, role, added_at FROM members_v1;
+        DROP TABLE members_v1;
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface MemberRow extends Record<string, SqlStorageValue> {
+  id: string;
   email: string;
   role: string;
   added_at: string;
@@ -36,8 +56,18 @@ export class WorkspaceAccess extends DurableObject<Env> {
   initializeOwner(email: string): WorkspaceMember {
     const existing = this.ctx.storage.sql.exec<MemberRow>("SELECT * FROM members WHERE role = 'owner'").toArray()[0];
     if (existing) return memberFromRow(existing);
-    const member: WorkspaceMember = { email: normalizeEmail(email), role: "owner", addedAt: new Date().toISOString() };
-    this.ctx.storage.sql.exec("INSERT INTO members (email, role, added_at) VALUES (?, 'owner', ?)", member.email, member.addedAt);
+    const member: WorkspaceMember = {
+      id: crypto.randomUUID(),
+      email: normalizeEmail(email),
+      role: "owner",
+      addedAt: new Date().toISOString(),
+    };
+    this.ctx.storage.sql.exec(
+      "INSERT INTO members (id, email, role, added_at) VALUES (?, ?, 'owner', ?)",
+      member.id,
+      member.email,
+      member.addedAt,
+    );
     return member;
   }
 
@@ -59,14 +89,19 @@ export class WorkspaceAccess extends DurableObject<Env> {
     const email = normalizeEmail(memberEmail);
     const existing = this.ctx.storage.sql.exec<MemberRow>("SELECT * FROM members WHERE email = ?", email).toArray()[0];
     if (existing) return memberFromRow(existing);
-    const member: WorkspaceMember = { email, role: "member", addedAt: new Date().toISOString() };
-    this.ctx.storage.sql.exec("INSERT INTO members (email, role, added_at) VALUES (?, 'member', ?)", member.email, member.addedAt);
+    const member: WorkspaceMember = { id: crypto.randomUUID(), email, role: "member", addedAt: new Date().toISOString() };
+    this.ctx.storage.sql.exec(
+      "INSERT INTO members (id, email, role, added_at) VALUES (?, ?, 'member', ?)",
+      member.id,
+      member.email,
+      member.addedAt,
+    );
     return member;
   }
 }
 
 function memberFromRow(row: MemberRow): WorkspaceMember {
-  return { email: row.email, role: row.role === "owner" ? "owner" : "member", addedAt: row.added_at };
+  return { id: row.id, email: row.email, role: row.role === "owner" ? "owner" : "member", addedAt: row.added_at };
 }
 
 function normalizeEmail(value: string): string {

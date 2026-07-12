@@ -1475,6 +1475,13 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   const graph: unknown = await graphResponse.json();
   expect(graphResponse.ok()).toBe(true);
   expect(isWorkspaceKnowledgeGraph(graph)).toBe(true);
+  if (!isWorkspaceKnowledgeGraph(graph)) throw new Error("Expected a typed workspace graph");
+  expect(graph.nodes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ kind: "project" }), expect.objectContaining({ kind: "person" })]),
+  );
+  expect(graph.edges).toEqual(
+    expect.arrayContaining([expect.objectContaining({ relation: "contains" }), expect.objectContaining({ relation: "participates-in" })]),
+  );
 
   await claimCard.getByRole("button", { name: "Open linked passage" }).click();
   await expect(editor).toBeFocused();
@@ -1529,6 +1536,13 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   expect(JSON.stringify(firstPrompt)).not.toContain("UNSELECTED DECOY");
   expect(JSON.stringify(firstPrompt)).not.toContain("Return to the source");
   await expect(page.locator("#candidate-list")).toContainText("test-local-model · pending");
+  await expect(page.locator("#knowledge-connection-list")).toContainText("derived-from");
+  const candidateGraphValue: unknown = await (await page.request.get(`${api}/graph`)).json();
+  if (!isWorkspaceKnowledgeGraph(candidateGraphValue)) throw new Error("Expected model candidate graph provenance");
+  expect(candidateGraphValue.nodes).toContainEqual(expect.objectContaining({ kind: "model-candidate" }));
+  expect(candidateGraphValue.edges).toContainEqual(
+    expect.objectContaining({ relation: "derived-from", from: expect.stringMatching(/^model-candidate:/u) }),
+  );
   await expect(page.locator("#context-candidate-panel")).toBeVisible();
   await expect(page.locator("#context-candidate-before")).toContainText("Kirjolab keeps the path");
   await expect(page.locator("#context-candidate-after")).toHaveText(

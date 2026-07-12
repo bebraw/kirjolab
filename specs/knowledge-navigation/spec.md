@@ -12,12 +12,16 @@ connection without reconstructing identity from a citation key or filename.
 
 - `src/domain/knowledge.ts` derives lexical search results and typed graph
   projections from an authorized `WorkspaceSnapshot`.
-- Resource ids use kind-qualified document, section, publication, PDF,
-  annotation, and claim identities. Explicit heading ids are stable section
-  identities; unanchored headings use their current generated slug.
-- The relationship vocabulary is `cites`, `has-artifact`, `annotates`,
-  `used-in`, `supports`, `contradicts`, and `extends`. `has-artifact` is derived
-  only from a durable explicit publication/PDF link.
+- Resource ids use kind-qualified project, document, section, publication, PDF,
+  annotation, claim, shared note, person, and model-candidate identities.
+  Explicit heading ids are stable section identities; unanchored headings use
+  their current generated slug. Workspace people receive stored opaque ids
+  independent of their mutable email attribute.
+- The relationship vocabulary is `contains`, `participates-in`, `cites`,
+  `has-artifact`, `annotates`, `used-in`, `supports`, `contradicts`, `extends`,
+  and `derived-from`. `has-artifact` is derived only from a durable explicit
+  publication/PDF link. Model candidates retain typed `derived-from` edges to
+  their captured evidence.
 - `GET /api/workspaces/{id}/search?q={query}` returns at most fifty ranked
   resources for at most ten query tokens.
 - `GET /api/workspaces/{id}/graph` returns the current nodes and typed edges.
@@ -38,8 +42,9 @@ connection without reconstructing identity from a citation key or filename.
 
 ### Definition of Done
 
-- [x] Search covers documents, sections, publications, PDFs, annotations, and
-      evidence-backed claims.
+- [x] Search covers projects, documents, sections, publications, PDFs,
+      annotations, evidence-backed claims, shared notes, people, and model
+      candidates.
 - [x] Multi-token results require every bounded query token and use
       deterministic relevance ordering.
 - [x] Citations, PDF annotations, and manuscript passage links become typed
@@ -49,6 +54,8 @@ connection without reconstructing identity from a citation key or filename.
 - [x] Both search results and connection endpoints navigate to their resource.
 - [x] Explicit publication/PDF associations project as navigable
       `has-artifact` connections.
+- [x] Project membership, shared-note provenance, and model evidence project as
+      typed connections without creating another authority.
 - [x] Search and graph endpoints use the existing workspace access boundary.
 - [x] Domain tests cover ranking, graph derivation, deduplication, and guards.
 - [x] Browser coverage proves search, connection rendering, and API shapes.
@@ -59,6 +66,7 @@ connection without reconstructing identity from a citation key or filename.
   query characters, and fifty results.
 - Projections must be reconstructible from canonical workspace state.
 - Graph edges must refer to kind-qualified resource ids.
+- Person endpoints must use stored opaque member ids rather than email values.
 - `has-artifact` must never be inferred from publication or PDF metadata.
 - Client code must validate API representations before rendering them.
 - Live source edits may update derived citation navigation but must never mutate
@@ -90,3 +98,10 @@ connection without reconstructing identity from a citation key or filename.
 - Given: durable links associate one publication with multiple PDFs
 - When: the graph projection is derived
 - Then: it contains one `has-artifact` edge for each explicit unique pair
+
+**Scenario: Model proposal retains evidence provenance**
+
+- Given: a persisted candidate was grounded in an annotation or claim
+- When: the knowledge projection is derived
+- Then: the candidate is an addressable resource with a `derived-from` edge to
+  each captured evidence resource and a `used-in` edge to its manuscript

@@ -29,7 +29,6 @@ ADRs are grouped by lifecycle status:
 
 | ADR                                                                        | Status   | Summary                                                                             |
 | -------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------- |
-| [ADR-036](./accepted/ADR-036-model-scholarly-work-as-hypermedia.md)        | Accepted | Model writing and working-memory entities as stable, typed hypermedia resources.    |
 | [ADR-037](./accepted/ADR-037-synchronize-text-and-materialize-markdown.md) | Accepted | Synchronize collaborative text while materializing clean, recoverable Markdown.     |
 | [ADR-039](./accepted/ADR-039-require-reviewable-model-operations.md)       | Accepted | Route local-capable model work through provenance-aware candidate review and apply. |
 
@@ -72,6 +71,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-033](./implemented/ADR-033-add-advisory-fallow-diagnostics.md)                   | Implemented          | Add advisory Fallow diagnostics for readability, health, duplication, and cleanup evidence.           |
 | [ADR-034](./implemented/ADR-034-adopt-typescript-7-typechecking.md)                   | Implemented          | Typecheck the project with the TypeScript 7 preview while preserving the current build compiler.      |
 | [ADR-035](./implemented/ADR-035-keep-markdown-canonical.md)                           | Implemented          | Keep portable Markdown canonical and derive semantic, preview, and index representations.             |
+| [ADR-036](./implemented/ADR-036-model-scholarly-work-as-hypermedia.md)                | Implemented          | Model writing and working-memory entities as stable, typed hypermedia resources.                      |
 | [ADR-038](./implemented/ADR-038-store-pdf-annotations-separately.md)                  | Implemented          | Preserve PDFs and store annotations separately with geometric and textual selectors.                  |
 | [ADR-040](./implemented/ADR-040-use-durable-objects-and-r2-for-vertical-slice.md)     | Implemented          | Use Yjs and per-document Durable Objects for collaboration, with R2 for immutable PDFs.               |
 | [ADR-041](./implemented/ADR-041-render-pdfs-with-pdfjs.md)                            | Implemented          | Render one selectable PDF page with PDF.js and store normalized external highlight geometry.          |
