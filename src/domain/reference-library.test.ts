@@ -215,10 +215,34 @@ describe("shared reference library", () => {
       { notes: null },
       { highlights: null },
       { tags: [] },
+      { tags: { [record.id]: [1] } },
+      { collections: [] },
+      { collections: { [record.id]: [1] } },
       { reading: null },
     ]) {
       const candidate = Object.keys(change).length === 0 ? [] : { ...valid, ...change };
       expect(isReferenceLibrarySnapshot(candidate), JSON.stringify(change)).toBe(false);
+    }
+    const reading = { referenceId: record.id, status: "reading", rating: 4, priority: "high", updatedAt: "now" } as const;
+    expect(isReferenceLibrarySnapshot({ ...valid, reading: [reading] })).toBe(true);
+    for (const status of ["unread", "read"] as const) {
+      expect(isReferenceLibrarySnapshot({ ...valid, reading: [{ ...reading, status }] })).toBe(true);
+    }
+    for (const priority of ["low", "normal"] as const) {
+      expect(isReferenceLibrarySnapshot({ ...valid, reading: [{ ...reading, priority }] })).toBe(true);
+    }
+    expect(isReferenceLibrarySnapshot({ ...valid, reading: [{ ...reading, rating: null }] })).toBe(true);
+    for (const change of [
+      { referenceId: 1 },
+      { status: "queued" },
+      { rating: "4" },
+      { rating: 0 },
+      { rating: 6 },
+      { rating: 1.5 },
+      { priority: "urgent" },
+      { updatedAt: 1 },
+    ]) {
+      expect(isReferenceLibrarySnapshot({ ...valid, reading: [{ ...reading, ...change }] }), JSON.stringify(change)).toBe(false);
     }
     expect(isReferenceLibrarySnapshot(null)).toBe(false);
     expect(bibliographicSnapshot({ ...record, deletedAt: "deleted" }, "snapshot")).toMatchObject({

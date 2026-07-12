@@ -394,19 +394,24 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
     value.webSnapshots.every(isWebSnapshot) &&
     Array.isArray(value.notes) &&
     Array.isArray(value.highlights) &&
-    isRecord(value.tags) &&
-    isRecord(value.collections) &&
+    isStringArrayRecord(value.tags) &&
+    isStringArrayRecord(value.collections) &&
     Array.isArray(value.reading) &&
     value.reading.every(
       (item) =>
         isRecord(item) &&
         typeof item.referenceId === "string" &&
         (item.status === "unread" || item.status === "reading" || item.status === "read") &&
-        (item.rating === null || (typeof item.rating === "number" && Number.isInteger(item.rating))) &&
+        (item.rating === null ||
+          (typeof item.rating === "number" && Number.isInteger(item.rating) && item.rating >= 1 && item.rating <= 5)) &&
         (item.priority === "low" || item.priority === "normal" || item.priority === "high") &&
         typeof item.updatedAt === "string",
     )
   );
+}
+
+function isStringArrayRecord(value: unknown): value is Readonly<Record<string, readonly string[]>> {
+  return isRecord(value) && Object.values(value).every((items) => Array.isArray(items) && items.every((item) => typeof item === "string"));
 }
 
 function isWebSource(value: unknown): value is WebSource {
