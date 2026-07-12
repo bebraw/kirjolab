@@ -129,6 +129,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
 - Model a mutable PDF highlight as one stable annotation with ordered, provenance-bearing selection strokes. Auto-save paint strokes, address undo and erasing by stroke identity, and keep claim-dependent annotation deletion guarded.
 - Keep citation style and locale as versioned project publication settings consumed by preview and export; never rewrite canonical Markdown or shared bibliographic records when they change.
+- Keep reference-library search, facets, and sorting as ephemeral local projections over the authorized private snapshot; never persist private search intent into project or collaboration state.
 - Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
 - Give workspace people opaque stored identities independent of email. Derive

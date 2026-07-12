@@ -32,6 +32,7 @@ import {
   type WebSnapshotComparison,
 } from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
+import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 import {
   isModelCandidate,
   isWorkspaceSnapshot,
@@ -120,6 +121,14 @@ interface Elements {
   libraryBibliographyUpload: HTMLInputElement;
   libraryPdfUpload: HTMLInputElement;
   showArchivedReferences: HTMLButtonElement;
+  referenceFilterQuery: HTMLInputElement;
+  referenceFilterType: HTMLSelectElement;
+  referenceFilterReading: HTMLSelectElement;
+  referenceFilterOrganization: HTMLInputElement;
+  referenceFilterLinkage: HTMLSelectElement;
+  referenceFilterCompleteness: HTMLSelectElement;
+  referenceFilterSort: HTMLSelectElement;
+  referenceFilterCount: HTMLElement;
   openCitationNetwork: HTMLButtonElement;
   citationNetwork: HTMLElement;
   closeCitationNetwork: HTMLButtonElement;
@@ -441,6 +450,17 @@ class WorkspaceApp {
       this.#elements.showArchivedReferences.setAttribute("aria-pressed", String(this.#showArchivedReferences));
       void this.#refreshReferenceLibrary();
     });
+    for (const control of [
+      this.#elements.referenceFilterQuery,
+      this.#elements.referenceFilterType,
+      this.#elements.referenceFilterReading,
+      this.#elements.referenceFilterOrganization,
+      this.#elements.referenceFilterLinkage,
+      this.#elements.referenceFilterCompleteness,
+      this.#elements.referenceFilterSort,
+    ]) {
+      control.addEventListener("input", () => this.#renderReferenceLibrary());
+    }
     this.#unbindSourceEditor = bindYText(this.#elements.source, this.#source, this.#document);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
@@ -1349,17 +1369,47 @@ class WorkspaceApp {
     const library = this.#librarySnapshot;
     if (!library) return;
     this.#renderCitationAssertionOptions();
+    const types = [...new Set(library.references.map((reference) => reference.type))].sort();
+    const selectedType = this.#elements.referenceFilterType.value;
+    this.#elements.referenceFilterType.replaceChildren(new Option("All types", ""), ...types.map((type) => new Option(type, type)));
+    if (types.includes(selectedType)) this.#elements.referenceFilterType.value = selectedType;
+    const filters = this.#referenceLibraryFilters();
+    const linked = new Set(this.#snapshot?.projectReferences.map((reference) => reference.referenceId) ?? []);
+    const references = filterReferenceLibrary(library, linked, filters);
+    this.#elements.referenceFilterCount.textContent = `${references.length} of ${library.references.length} references`;
     this.#elements.referenceLibraryList.replaceChildren();
-    if (library.references.length === 0) {
-      this.#elements.referenceLibraryList.append(emptyState("No references yet. Import BibTeX or add a PDF to begin."));
+    if (references.length === 0) {
+      this.#elements.referenceLibraryList.append(
+        emptyState(
+          library.references.length === 0
+            ? "No references yet. Import BibTeX or add a PDF to begin."
+            : "No references match these filters.",
+        ),
+      );
     }
-    for (const reference of library.references) this.#elements.referenceLibraryList.append(this.#referenceLibraryCard(reference));
+    for (const reference of references) this.#elements.referenceLibraryList.append(this.#referenceLibraryCard(reference));
 
     const unidentified = library.artifacts.filter((artifact) => artifact.referenceId === null);
     this.#elements.unidentifiedPdfCount.textContent = String(unidentified.length);
     this.#elements.unidentifiedPdfList.replaceChildren();
     if (unidentified.length === 0) this.#elements.unidentifiedPdfList.append(emptyState("No unidentified PDFs."));
     for (const artifact of unidentified) this.#elements.unidentifiedPdfList.append(this.#unidentifiedPdfCard(artifact, library.references));
+  }
+
+  #referenceLibraryFilters(): ReferenceLibraryFilters {
+    const reading = this.#elements.referenceFilterReading.value;
+    const linkage = this.#elements.referenceFilterLinkage.value;
+    const completeness = this.#elements.referenceFilterCompleteness.value;
+    const sort = this.#elements.referenceFilterSort.value;
+    return {
+      query: this.#elements.referenceFilterQuery.value,
+      type: this.#elements.referenceFilterType.value,
+      readingStatus: reading === "unread" || reading === "reading" || reading === "read" ? reading : "all",
+      organization: this.#elements.referenceFilterOrganization.value,
+      linkage: linkage === "linked" || linkage === "unlinked" ? linkage : "all",
+      completeness: completeness === "complete" || completeness === "incomplete" ? completeness : "all",
+      sort: sort === "title" || sort === "year" || sort === "priority" ? sort : "updated",
+    };
   }
 
   async #openCitationNetwork(): Promise<void> {
@@ -3944,6 +3994,14 @@ function collectElements(): Elements {
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryPdfUpload: requiredElement("library-pdf-upload", HTMLInputElement),
     showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
+    referenceFilterQuery: requiredElement("reference-filter-query", HTMLInputElement),
+    referenceFilterType: requiredElement("reference-filter-type", HTMLSelectElement),
+    referenceFilterReading: requiredElement("reference-filter-reading", HTMLSelectElement),
+    referenceFilterOrganization: requiredElement("reference-filter-organization", HTMLInputElement),
+    referenceFilterLinkage: requiredElement("reference-filter-linkage", HTMLSelectElement),
+    referenceFilterCompleteness: requiredElement("reference-filter-completeness", HTMLSelectElement),
+    referenceFilterSort: requiredElement("reference-filter-sort", HTMLSelectElement),
+    referenceFilterCount: requiredElement("reference-filter-count", HTMLElement),
     openCitationNetwork: requiredElement("open-citation-network", HTMLButtonElement),
     citationNetwork: requiredElement("citation-network", HTMLElement),
     closeCitationNetwork: requiredElement("close-citation-network", HTMLButtonElement),

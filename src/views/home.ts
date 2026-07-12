@@ -535,6 +535,16 @@ export function renderHomePage(
           <button class="button-secondary" id="open-citation-network" type="button">Citation network</button>
           <button class="button-secondary" id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
         </div>
+        <section class="mt-4 grid gap-3 border-b border-app-line pb-4 md:grid-cols-3" aria-label="Filter reference library">
+          <label class="field-label md:col-span-2">Search<input class="field" id="reference-filter-query" type="search" maxlength="200" placeholder="Title, author, venue, DOI, or URL"></label>
+          <label class="field-label">Type<select class="field" id="reference-filter-type"><option value="">All types</option></select></label>
+          <label class="field-label">Reading<select class="field" id="reference-filter-reading"><option value="all">Any status</option><option value="unread">Unread</option><option value="reading">Reading</option><option value="read">Read</option></select></label>
+          <label class="field-label">Tag or collection<input class="field" id="reference-filter-organization" maxlength="80" placeholder="Filter labels"></label>
+          <label class="field-label">Project link<select class="field" id="reference-filter-linkage"><option value="all">Linked or unlinked</option><option value="linked">Linked to this project</option><option value="unlinked">Not linked</option></select></label>
+          <label class="field-label">Metadata<select class="field" id="reference-filter-completeness"><option value="all">Any completeness</option><option value="complete">Complete core fields</option><option value="incomplete">Needs metadata</option></select></label>
+          <label class="field-label">Sort<select class="field" id="reference-filter-sort"><option value="updated">Recently updated</option><option value="title">Title</option><option value="year">Year</option><option value="priority">Reading priority</option></select></label>
+          <p class="self-end pb-2 font-sans text-xs text-app-text-soft" id="reference-filter-count" aria-live="polite">0 references</p>
+        </section>
         <details class="mt-4 rounded-sm border border-app-line p-4" id="web-source-intake">
           <summary class="cursor-pointer font-sans text-sm font-semibold">Capture web source</summary>
           <form class="mt-4 grid gap-3 md:grid-cols-2" id="web-source-form">

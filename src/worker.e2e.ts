@@ -179,6 +179,14 @@ test("keeps private library research separate from project citations", async ({ 
   await card.getByRole("button", { name: "Save tags" }).click();
   await expect(page.locator("#toast")).toHaveText("Private tags saved.");
   await expect(card.getByLabel("Private tags for Private Research Guide")).toHaveValue("methods, revisit");
+  await page.locator("#reference-filter-organization").fill("methods");
+  await expect(page.locator("#reference-filter-count")).toHaveText(/1 of \d+ references/u);
+  await page.locator("#reference-filter-linkage").selectOption("linked");
+  await expect(card).toBeVisible();
+  await page.locator("#reference-filter-query").fill("no matching reference");
+  await expect(page.locator("#reference-library-list")).toContainText("No references match these filters.");
+  await page.locator("#reference-filter-query").fill("");
+  await page.locator("#reference-filter-organization").fill("");
   await card.getByPlaceholder("Add a private note").fill("Only share this interpretation deliberately.");
   await card.getByRole("button", { name: "Save private note" }).click();
   await expect(page.locator("#toast")).toHaveText("Private note saved. It is not visible to project collaborators.");
