@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
+import { adjustSelectionRects, deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
 
 describe("PDF selection helpers", () => {
   it("normalizes viewport rectangles and clips them to the page", () => {
@@ -27,5 +27,19 @@ describe("PDF selection helpers", () => {
     });
     expect(deriveTextQuoteContext("Other text", "missing")).toEqual({ quote: "missing", prefix: "", suffix: "" });
     expect(deriveTextQuoteContext("Other text", "  ")).toEqual({ quote: "", prefix: "", suffix: "" });
+  });
+
+  it("nudges and resizes imprecise touch geometry within page bounds", () => {
+    const rect = [{ x: 0, y: 0.98, width: 0.2, height: 0.02 }];
+    expect(adjustSelectionRects(rect, "left")).toEqual(rect);
+    expect(adjustSelectionRects(rect, "right")).toEqual([{ ...rect[0]!, x: 0.005 }]);
+    expect(adjustSelectionRects(rect, "down")).toEqual(rect);
+    expect(adjustSelectionRects(rect, "up")).toEqual([{ ...rect[0]!, y: 0.975 }]);
+    expect(adjustSelectionRects(rect, "wider")).toEqual([{ ...rect[0]!, width: 0.205 }]);
+    expect(adjustSelectionRects([{ x: 0, y: 0, width: 0.005, height: 0.005 }], "narrower")).toEqual([
+      { x: 0, y: 0, width: 0.005, height: 0.005 },
+    ]);
+    expect(adjustSelectionRects(rect, "taller")).toEqual([{ ...rect[0]!, height: 0.02 }]);
+    expect(adjustSelectionRects(rect, "shorter", 1)).toEqual([{ ...rect[0]!, height: 0.005 }]);
   });
 });

@@ -14,6 +14,7 @@ import {
   isImportBibliographyInput,
   isInviteWorkspaceMemberInput,
   isUpdateAnnotationInput,
+  isUpdateAnnotationFragmentInput,
   isUpsertClaimInput,
   demoWorkspaceId,
   localOwnerId,
@@ -486,6 +487,11 @@ async function mutateAnnotation(
     if (request.method === "DELETE" && fragmentMatch[2]) {
       const annotation = await room.removeAnnotationFragment(fragmentMatch[1], fragmentMatch[2]);
       return annotation ? Response.json(annotation) : new Response(null, { status: 204 });
+    }
+    if (request.method === "PUT" && fragmentMatch[2] && !fragmentMatch[2].startsWith("legacy-")) {
+      const body: unknown = await request.json();
+      if (!isUpdateAnnotationFragmentInput(body)) return jsonError("Invalid highlight fragment", 400);
+      return Response.json(await room.updateAnnotationFragment(fragmentMatch[1], fragmentMatch[2], body));
     }
     return jsonError("Highlight fragment route not found", 404);
   }

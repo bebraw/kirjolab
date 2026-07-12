@@ -60,6 +60,7 @@ import {
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
 import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
+import { adjustSelectionRects } from "./pdf-selection";
 import { maximumModelEvidenceItems, OpenAICompatibleBrowserProvider, type ModelEvidenceItem } from "./model-provider";
 import {
   activateResearchTab,
@@ -2308,6 +2309,60 @@ class WorkspaceApp {
         () => void this.#deleteAnnotation(annotation),
       );
       actions.append(openEvidence, edit, linkButton, remove);
+      const strokeEditor = document.createElement("details");
+      strokeEditor.className = "mt-3 border-t border-app-line pt-3";
+      const strokeSummary = document.createElement("summary");
+      strokeSummary.className = "cursor-pointer font-sans text-xs font-semibold";
+      strokeSummary.textContent = `Adjust ${annotation.fragments.length} stroke${annotation.fragments.length === 1 ? "" : "s"}`;
+      strokeEditor.append(strokeSummary);
+      for (const [index, fragment] of annotation.fragments.entries()) {
+        const row = document.createElement("section");
+        row.className = "mt-3 border border-app-line bg-app-paper p-3";
+        const quote = document.createElement("textarea");
+        quote.className = "field min-h-16";
+        quote.value = fragment.quote;
+        quote.maxLength = 20_000;
+        quote.setAttribute("aria-label", `Text for highlight stroke ${index + 1}`);
+        const controls = document.createElement("div");
+        controls.className = "touch-adjustments mt-2 flex flex-wrap gap-2";
+        for (const [labelText, adjustment] of [
+          ["←", "left"],
+          ["↑", "up"],
+          ["↓", "down"],
+          ["→", "right"],
+          ["Wider", "wider"],
+          ["Narrower", "narrower"],
+          ["Taller", "taller"],
+          ["Shorter", "shorter"],
+        ] as const) {
+          const button = actionButton(
+            labelText,
+            "button-secondary",
+            () =>
+              void this.#updateHighlightFragment(
+                annotation.id,
+                fragment.id,
+                quote.value,
+                fragment.prefix,
+                fragment.suffix,
+                adjustSelectionRects(fragment.rects, adjustment),
+              ),
+          );
+          button.setAttribute("aria-label", `${labelText} highlight stroke ${index + 1}`);
+          controls.append(button);
+        }
+        controls.append(
+          actionButton(
+            "Save text",
+            "button-primary",
+            () =>
+              void this.#updateHighlightFragment(annotation.id, fragment.id, quote.value, fragment.prefix, fragment.suffix, fragment.rects),
+          ),
+          actionButton("Erase stroke", "button-secondary", () => void this.#removeHighlightFragment(annotation.id, fragment.id, true)),
+        );
+        row.append(quote, controls);
+        strokeEditor.append(row);
+      }
       const passage = links.find((link) => link.annotationId === annotation.id);
       if (passage) {
         const openPassage = actionButton(anchorActionLabel(passage.resolution), "button-secondary w-full justify-center", () =>
@@ -2319,7 +2374,7 @@ class WorkspaceApp {
         openPassage.dataset.anchorMatch = anchorMatchState(passage.resolution);
         actions.append(openPassage);
       }
-      card.append(label, actions);
+      card.append(label, actions, strokeEditor);
       this.#elements.annotationList.append(card);
     }
   }
@@ -3828,6 +3883,28 @@ class WorkspaceApp {
     if (this.#editingAnnotationId === annotationId && response.status === 204) this.#editingAnnotationId = null;
     await this.#resourceRefresh.request();
     if (announce) this.#showToast("Highlight stroke erased.");
+  }
+
+  async #updateHighlightFragment(
+    annotationId: string,
+    fragmentId: string,
+    quote: string,
+    prefix: string,
+    suffix: string,
+    rects: readonly PdfSelectionRect[],
+  ): Promise<void> {
+    if (!quote.trim()) {
+      this.#showToast("A highlight stroke needs enough text to find the idea again.");
+      return;
+    }
+    const response = await jsonFetch(
+      `${apiBase}/annotations/${encodeURIComponent(annotationId)}/fragments/${encodeURIComponent(fragmentId)}`,
+      { quote: quote.trim(), prefix, suffix, rects },
+      "PUT",
+    );
+    await expectOk(response);
+    await this.#resourceRefresh.request();
+    this.#showToast("Highlight stroke adjusted.");
   }
 
   async #undoLastHighlightStroke(): Promise<void> {

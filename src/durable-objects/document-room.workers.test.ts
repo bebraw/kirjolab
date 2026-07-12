@@ -790,8 +790,15 @@ describe("DocumentRoom in the Workers runtime", () => {
 
     const noted = await stub.updateAnnotation(annotation.id, { comment: "Reusable synthesis note" });
     expect(noted.comment).toBe("Reusable synthesis note");
+    const adjusted = await stub.updateAnnotationFragment(annotation.id, extended.fragments[0]!.id, {
+      quote: "Corrected first idea.",
+      prefix: "Before first",
+      suffix: "After first",
+      rects: [{ x: 0.095, y: 0.2, width: 0.26, height: 0.04 }],
+    });
+    expect(adjusted.fragments[0]).toMatchObject({ quote: "Corrected first idea.", rects: [{ x: 0.095, width: 0.26 }] });
     const erased = await stub.removeAnnotationFragment(annotation.id, extended.fragments[1]?.id ?? "missing");
-    expect(erased?.quote).toBe("First selected idea.");
+    expect(erased?.quote).toBe("Corrected first idea.");
     expect(erased?.fragments).toHaveLength(1);
 
     await stub.deleteAnnotation(annotation.id);

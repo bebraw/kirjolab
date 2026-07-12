@@ -571,6 +571,20 @@ test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(1);
 
   await openResearchCollection(page, "Highlights");
+  let annotationCard = page.locator("#annotation-list .resource-card").first();
+  await annotationCard.getByText("Adjust 1 stroke").click();
+  await annotationCard.getByLabel("Text for highlight stroke 1").fill("Corrected touch selection idea");
+  await annotationCard.getByRole("button", { name: "Save text" }).click();
+  await expect
+    .poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments[0]?.quote)
+    .toBe("Corrected touch selection idea");
+  const beforeX = (await readWorkspaceSnapshot(page, api)).annotations[0]!.fragments[0]!.rects[0]!.x;
+  annotationCard = page.locator("#annotation-list .resource-card").first();
+  await annotationCard.getByText("Adjust 1 stroke").click();
+  await annotationCard.getByRole("button", { name: "→ highlight stroke 1" }).click();
+  await expect
+    .poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments[0]?.rects[0]?.x)
+    .toBeGreaterThan(beforeX);
   page.once("dialog", (dialog) => void dialog.accept());
   await page.locator("#annotation-list").getByRole("button", { name: "Delete highlight" }).click();
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations.length).toBe(0);

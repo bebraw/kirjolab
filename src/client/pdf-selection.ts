@@ -1,5 +1,29 @@
 import type { PdfSelectionRect } from "../domain/workspace";
 
+export type HighlightGeometryAdjustment = "left" | "right" | "up" | "down" | "wider" | "narrower" | "taller" | "shorter";
+
+export function adjustSelectionRects(
+  rects: readonly PdfSelectionRect[],
+  adjustment: HighlightGeometryAdjustment,
+  step = 0.005,
+): PdfSelectionRect[] {
+  const amount = Math.max(0.001, Math.min(0.05, step));
+  return rects.map((rect) => {
+    if (adjustment === "left" || adjustment === "right") {
+      return { ...rect, x: round(clamp(rect.x + (adjustment === "left" ? -amount : amount), 0, 1 - rect.width)) };
+    }
+    if (adjustment === "up" || adjustment === "down") {
+      return { ...rect, y: round(clamp(rect.y + (adjustment === "up" ? -amount : amount), 0, 1 - rect.height)) };
+    }
+    if (adjustment === "wider" || adjustment === "narrower") {
+      const width = round(clamp(rect.width + (adjustment === "wider" ? amount : -amount), 0.005, 1 - rect.x));
+      return { ...rect, width };
+    }
+    const height = round(clamp(rect.height + (adjustment === "taller" ? amount : -amount), 0.005, 1 - rect.y));
+    return { ...rect, height };
+  });
+}
+
 export interface RectLike {
   left: number;
   top: number;

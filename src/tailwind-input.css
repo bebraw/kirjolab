@@ -1289,6 +1289,12 @@
     box-shadow: inset 0 0 0 1px rgb(11 107 81 / 0.7);
   }
 
+  .touch-adjustments button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    touch-action: manipulation;
+  }
+
   .pdf-highlight[data-draft="true"] {
     background: rgb(11 107 81 / 0.2);
     box-shadow: inset 0 0 0 1px rgb(11 107 81 / 0.8);

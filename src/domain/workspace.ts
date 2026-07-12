@@ -280,6 +280,13 @@ export interface UpdateAnnotationInput {
   comment: string;
 }
 
+export interface UpdateAnnotationFragmentInput {
+  quote: string;
+  prefix: string;
+  suffix: string;
+  rects: PdfSelectionRect[];
+}
+
 export interface ManuscriptPassageInput {
   fileId: string;
   start: number;
@@ -422,6 +429,19 @@ export function isAddAnnotationFragmentInput(value: unknown): value is AddAnnota
 
 export function isUpdateAnnotationInput(value: unknown): value is UpdateAnnotationInput {
   return isRecord(value) && isStringWithin(value.comment, 4_000);
+}
+
+export function isUpdateAnnotationFragmentInput(value: unknown): value is UpdateAnnotationFragmentInput {
+  return (
+    isRecord(value) &&
+    isStringWithin(value.quote, 20_000, true) &&
+    isStringWithin(value.prefix, 2_000) &&
+    isStringWithin(value.suffix, 2_000) &&
+    Array.isArray(value.rects) &&
+    value.rects.length > 0 &&
+    value.rects.length <= 64 &&
+    value.rects.every(isPdfSelectionRect)
+  );
 }
 
 export function isCreateAnnotationLinkInput(value: unknown): value is CreateAnnotationLinkInput {

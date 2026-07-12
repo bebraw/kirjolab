@@ -58,6 +58,7 @@ import {
   type CreateAnnotationInput,
   type CreateAnnotationLinkInput,
   type UpdateAnnotationInput,
+  type UpdateAnnotationFragmentInput,
   type CreateCandidateInput,
   type CreateClaimPassageLinkInput,
   type CreateManuscriptCommentInput,
@@ -1329,6 +1330,26 @@ export class DocumentRoom extends DurableObject<Env> {
     const updatedAt = new Date().toISOString();
     const summary = annotationFragmentSummary(fragments);
     this.#persistResourceRevision("annotation-fragment-remove", () => {
+      this.ctx.storage.sql.exec(
+        "UPDATE annotations SET quote = ?, prefix = ?, suffix = ?, rects_json = ? WHERE id = ?",
+        summary.quote,
+        summary.prefix,
+        summary.suffix,
+        serializeAnnotationState(fragments, updatedAt),
+        annotationId,
+      );
+    });
+    this.#broadcastResources();
+    return annotationFromRow(this.#annotationRow(annotationId));
+  }
+
+  updateAnnotationFragment(annotationId: string, fragmentId: string, input: UpdateAnnotationFragmentInput): AnnotationResource {
+    const current = annotationFromRow(this.#annotationRow(annotationId));
+    if (!current.fragments.some((fragment) => fragment.id === fragmentId)) throw new Error("Highlight fragment not found");
+    const fragments = current.fragments.map((fragment) => (fragment.id === fragmentId ? { ...fragment, ...input } : fragment));
+    const updatedAt = new Date().toISOString();
+    const summary = annotationFragmentSummary(fragments);
+    this.#persistResourceRevision("annotation-fragment-update", () => {
       this.ctx.storage.sql.exec(
         "UPDATE annotations SET quote = ?, prefix = ?, suffix = ?, rects_json = ? WHERE id = ?",
         summary.quote,
