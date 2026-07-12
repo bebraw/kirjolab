@@ -40,6 +40,10 @@ second Markdown dialect.
   plus `locator`, `prefix`, and `suffix`.
 - Each rendered citation id is an accessible sanitized button keyed by its
   citation alias, so grouped citations can open one publication at a time.
+- The authoring toolbar exposes labelled insertion templates for citations,
+  cross-references, anchors, footnotes, links, and `::include[path]`. Insertion
+  teaches and writes canonical Markdown syntax; it does not introduce an
+  editor-only document model.
 - Quoted and unquoted single-token directive attributes are accepted, matching
   the source project's examples.
 

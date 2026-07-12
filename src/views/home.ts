@@ -23,10 +23,9 @@ export function renderHomePage(
         <div class="flex min-w-0 items-center gap-3">
           <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
           <span class="hidden h-4 w-px bg-app-line sm:block"></span>
-          <label class="sr-only" for="workspace-switcher">Current workspace</label>
+          <label class="sr-only" for="workspace-switcher">Current project</label>
           <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading workspace…</option></select>
-          <button class="button-icon shrink-0" id="new-workspace" type="button" title="Create workspace" aria-label="Create workspace">＋</button>
-          <p class="hidden truncate text-sm text-app-text-soft xl:block" id="workspace-title">Evidence becomes prose</p>
+          <button class="button-secondary shrink-0" id="new-workspace" type="button">New project</button>
         </div>
         <div class="flex items-center gap-3">
           <span class="hidden max-w-44 truncate font-sans text-xs text-app-text-soft 2xl:inline" title="${escapedIdentityEmail}">${escapedIdentityEmail}</span>
@@ -47,67 +46,60 @@ export function renderHomePage(
         <button class="surface-switch" id="show-authoring-surface" type="button" aria-controls="authoring-surface" aria-pressed="true">Authoring</button>
         <button class="surface-switch" id="show-context-surface" type="button" aria-controls="context-surface" aria-pressed="false">Context</button>
       </nav>
-      <aside class="source-rail border-b border-app-line bg-app-paper px-4 py-5 lg:border-r lg:border-b-0 lg:px-5">
-        <div class="flex items-end justify-between gap-3">
-          <div>
-            <p class="eyebrow">Source shelf</p>
-            <h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Evidence</h1>
-          </div>
-          <button class="button-icon" id="open-reference-library-shelf" type="button" title="Open private reference library" aria-label="Open private reference library">＋</button>
+      <aside class="source-rail border-b border-app-line bg-app-paper lg:border-r lg:border-b-0">
+        <div class="rail-mode-switcher" role="tablist" aria-label="Project navigation">
+          <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-controls="files-rail-panel" aria-selected="false">Files</button>
+          <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-controls="research-rail-panel" aria-selected="true">Research</button>
         </div>
-        <p class="mt-3 text-sm leading-6 text-app-text-soft">Import a paper, select evidence in place, then carry its durable anchor into the draft.</p>
-        <form class="mt-4 flex gap-2" id="knowledge-search-form" role="search">
-          <label class="sr-only" for="knowledge-search-input">Search this workspace</label>
-          <input class="field min-w-0" id="knowledge-search-input" type="search" maxlength="200" placeholder="Search this workspace">
-          <button class="button-secondary shrink-0" type="submit">Find</button>
-        </form>
-        <div class="mt-3 hidden space-y-2" id="knowledge-search-results" aria-live="polite"></div>
-        <div class="mt-5 space-y-2" id="pdf-list">
-          <div class="empty-state">No paper imported yet.</div>
-        </div>
-        <section class="mt-6 border-t border-app-line pt-5">
-          <div class="flex items-center justify-between gap-3">
-            <p class="eyebrow">Annotations</p>
-            <span class="count-badge" id="annotation-count">0</span>
+
+        <section class="rail-panel px-4 py-5 lg:px-5" id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail" hidden>
+          <div class="flex items-end justify-between gap-3">
+            <div><p class="eyebrow">Project files</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Writing</h1></div>
+            <button class="button-secondary" id="new-project-file-rail" type="button">Add file</button>
           </div>
-          <div class="mt-3 space-y-3" id="annotation-list">
-            <div class="empty-state">Annotations appear here with their source context.</div>
-          </div>
+          <p class="mt-3 text-sm leading-6 text-app-text-soft"><strong>main.md</strong> composes the project. Include supporting files with <code>::include[path]</code>.</p>
+          <div class="mt-4 flex items-center justify-between gap-3"><p class="eyebrow">Lexical file order</p><span class="count-badge" id="project-file-count">1</span></div>
+          <div class="mt-3 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
         </section>
-        <section class="mt-6 border-t border-app-line pt-5">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <p class="eyebrow">Claims</p>
-              <span class="count-badge" id="claim-count">0</span>
-            </div>
-            <button class="button-secondary" id="new-claim" type="button">New claim</button>
+
+        <section class="rail-panel px-4 py-5 lg:px-5" id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail">
+          <div class="flex items-end justify-between gap-3">
+            <div><p class="eyebrow">Research</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Sources &amp; evidence</h1></div>
+            <button class="button-secondary" id="open-reference-library-shelf" type="button">Open library</button>
           </div>
-          <p class="mt-2 text-xs leading-5 text-app-text-soft">Synthesize annotations into propositions, then connect them to prose.</p>
-          <div class="mt-3 space-y-3" id="claim-list">
-            <div class="empty-state">Evidence-backed claims appear here.</div>
+          <form class="mt-4 flex gap-2" id="knowledge-search-form" role="search">
+            <label class="sr-only" for="knowledge-search-input">Filter project research</label>
+            <input class="field min-w-0" id="knowledge-search-input" type="search" maxlength="200" placeholder="Filter project research">
+            <button class="button-secondary shrink-0" type="submit">Search</button>
+          </form>
+          <div class="mt-3 hidden space-y-2" id="knowledge-search-results" aria-live="polite"></div>
+          <div class="research-inventory" id="research-inventory">
+            <details class="rail-collection" open>
+              <summary><span>Papers</span><span class="count-badge" id="pdf-count">0</span></summary>
+              <div class="rail-collection-body" id="pdf-list"><div class="empty-state">No paper imported yet.</div></div>
+            </details>
+            <details class="rail-collection">
+              <summary><span>Highlights</span><span class="count-badge" id="annotation-count">0</span></summary>
+              <div class="rail-collection-body" id="annotation-list"><div class="empty-state">Highlights appear here with their source context.</div></div>
+            </details>
+            <details class="rail-collection">
+              <summary><span>Claims</span><span class="count-badge" id="claim-count">0</span></summary>
+              <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="new-claim" type="button">New claim</button></div>
+              <div class="rail-collection-body" id="claim-list"><div class="empty-state">Evidence-backed claims appear here.</div></div>
+            </details>
+            <details class="rail-collection">
+              <summary><span>References</span><span class="count-badge" id="publication-count">0</span></summary>
+              <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="browse-reference-library" type="button">Browse private library</button></div>
+              <div class="rail-collection-body" id="publication-list"><div class="empty-state">Project references appear here.</div></div>
+            </details>
+            <details class="rail-collection">
+              <summary><span>Project graph</span><span class="count-badge" id="connection-count">0</span></summary>
+              <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="explore-research-graph" type="button">Explore citation network</button></div>
+              <div class="rail-collection-body" id="knowledge-connection-list"><div class="empty-state">Typed relationships appear here.</div></div>
+            </details>
           </div>
-        </section>
-        <section class="mt-6 border-t border-app-line pt-5">
-          <div class="flex items-center justify-between gap-3">
-            <p class="eyebrow">References</p>
-            <span class="count-badge" id="publication-count">0</span>
-          </div>
-          <button class="button-secondary mt-3 w-full justify-center" id="browse-reference-library" type="button">Browse private library</button>
           <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf">
           <input class="sr-only" id="bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain">
-          <div class="mt-3 space-y-3" id="publication-list">
-            <div class="empty-state">Imported references appear here as stable publication resources.</div>
-          </div>
-        </section>
-        <section class="mt-6 border-t border-app-line pt-5">
-          <div class="flex items-center justify-between gap-3">
-            <p class="eyebrow">Connections</p>
-            <span class="count-badge" id="connection-count">0</span>
-          </div>
-          <p class="mt-2 text-xs leading-5 text-app-text-soft">Follow typed links through the scholarly record.</p>
-          <div class="mt-3 space-y-2" id="knowledge-connection-list">
-            <div class="empty-state">Citations and evidence links appear here.</div>
-          </div>
         </section>
       </aside>
 
@@ -121,11 +113,22 @@ export function renderHomePage(
             <button class="button-secondary" id="open-project-history" type="button">History</button>
           </div>
           <div class="flex items-center gap-2">
-            <button class="button-icon" id="new-project-file" type="button" title="Add project file" aria-label="Add project file">＋</button>
+            <details class="editor-insert-menu" id="editor-insert-menu">
+              <summary class="button-secondary">Insert</summary>
+              <div class="editor-command-menu" role="menu" aria-label="Insert scholarly syntax">
+                <button type="button" role="menuitem" data-insert-syntax="citation"><strong>Citation</strong><code>:cite[key]</code></button>
+                <button type="button" role="menuitem" data-insert-syntax="reference"><strong>Cross-reference</strong><code>:ref[target]</code></button>
+                <button type="button" role="menuitem" data-insert-syntax="anchor"><strong>Anchor</strong><code>{#label}</code></button>
+                <button type="button" role="menuitem" data-insert-syntax="footnote"><strong>Footnote</strong><code>[^note]</code></button>
+                <button type="button" role="menuitem" data-insert-syntax="link"><strong>Link</strong><code>[text](url)</code></button>
+                <button type="button" role="menuitem" data-insert-syntax="include"><strong>Included file</strong><code>::include[path]</code></button>
+              </div>
+            </details>
+            <button class="button-secondary" id="new-project-file" type="button">Add file</button>
             <button class="button-secondary hidden xl:inline-flex" id="rename-project-file" type="button">Rename</button>
             <button class="button-secondary hidden xl:inline-flex" id="delete-project-file" type="button">Delete</button>
-            <button class="button-secondary" id="open-source-citation" type="button" disabled>Open reference</button>
-            <p class="text-xs text-app-text-soft" id="save-status">Loading source…</p>
+            <button class="button-secondary" id="open-source-citation" type="button" title="Place the caret inside :cite[key] to view its source" disabled>View cited source</button>
+            <p class="text-xs text-app-text-soft" id="save-status">Opening…</p>
           </div>
         </div>
         <label class="sr-only" for="source-editor">Markdown source</label>

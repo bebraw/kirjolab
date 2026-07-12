@@ -29,6 +29,10 @@ collaborative, and unambiguous about what preview and export mean.
   deleted.
 - Preview and Markdown export always compose from `main.md`; selecting a
   supporting file changes the editor, not the publication root.
+- The workspace exposes project files as a dedicated navigation mode, separate
+  from research inventory. The entry file is visibly identified, supporting
+  paths are sorted for scanning, and file creation is available from both the
+  file navigator and the active-file toolbar.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.

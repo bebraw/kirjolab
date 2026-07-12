@@ -19,6 +19,10 @@ selector, authorization, or rendering contracts.
 - The desktop workspace has two primary document surfaces: an authoring editor
   on the left and a tabbed research-context pane on the right. A compact
   resource-navigation rail may remain ancillary to those surfaces.
+- The ancillary rail separates project files from research. Research is the
+  default mode, presents bounded collapsible collections, and exposes the
+  private library and relationship graph through labelled actions rather than
+  unexplained glyphs or permanently expanded inventories.
 - The context tab model uses a discriminated target keyed by stable resource
   identity: the singleton manuscript Preview, a publication UUID, a PDF UUID,
   or a model-candidate UUID. One target can have at most one open tab.
@@ -198,6 +202,8 @@ selector, authorization, or rendering contracts.
   ownership, active context tab, and reading positions.
 - User-provided publication and annotation metadata must render through text
   nodes rather than HTML insertion.
+- Research search temporarily replaces the collection inventory and clearing
+  the query restores it without changing durable resources.
 - Atomic annotation/passage creation must validate the current manuscript
   revision and exact range before either resource is inserted.
 

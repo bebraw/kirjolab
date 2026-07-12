@@ -84,7 +84,6 @@ const remoteOrigin = Symbol("remote");
 
 interface Elements {
   collaboratorSelections: HTMLElement;
-  workspaceTitle: HTMLElement;
   workspaceSwitcher: HTMLSelectElement;
   newWorkspace: HTMLButtonElement;
   newWorkspaceDialog: HTMLDialogElement;
@@ -125,6 +124,13 @@ interface Elements {
   webSnapshotComparison: HTMLElement;
   unidentifiedPdfCount: HTMLElement;
   unidentifiedPdfList: HTMLElement;
+  showFilesRail: HTMLButtonElement;
+  showResearchRail: HTMLButtonElement;
+  filesRailPanel: HTMLElement;
+  researchRailPanel: HTMLElement;
+  newProjectFileRail: HTMLButtonElement;
+  projectFileCount: HTMLElement;
+  projectFileList: HTMLElement;
   projectFileSwitcher: HTMLSelectElement;
   newProjectFile: HTMLButtonElement;
   renameProjectFile: HTMLButtonElement;
@@ -148,6 +154,7 @@ interface Elements {
   projectHistoryInspector: HTMLElement;
   projectHistoryList: HTMLElement;
   source: HTMLTextAreaElement;
+  editorInsertMenu: HTMLDetailsElement;
   bibliography: HTMLTextAreaElement;
   manuscriptCommentForm: HTMLFormElement;
   manuscriptCommentBody: HTMLTextAreaElement;
@@ -195,11 +202,14 @@ interface Elements {
   saveStatus: HTMLElement;
   revisionBadge: HTMLElement;
   pdfUpload: HTMLInputElement;
+  pdfCount: HTMLElement;
   pdfList: HTMLElement;
   bibliographyUpload: HTMLInputElement;
   knowledgeSearchForm: HTMLFormElement;
   knowledgeSearchInput: HTMLInputElement;
   knowledgeSearchResults: HTMLElement;
+  researchInventory: HTMLElement;
+  exploreResearchGraph: HTMLButtonElement;
   publicationCount: HTMLElement;
   publicationList: HTMLElement;
   annotationCount: HTMLElement;
@@ -350,6 +360,8 @@ class WorkspaceApp {
     this.#elements.newWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.showModal());
     this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
     this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
+    this.#elements.showFilesRail.addEventListener("click", () => this.#showRail("files"));
+    this.#elements.showResearchRail.addEventListener("click", () => this.#showRail("research"));
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
@@ -365,6 +377,10 @@ class WorkspaceApp {
     this.#elements.libraryPdfUpload.addEventListener("change", () => void this.#uploadLibraryPdf());
     this.#elements.webSourceForm.addEventListener("submit", (event) => void this.#captureWebSource(event));
     this.#elements.openCitationNetwork.addEventListener("click", () => void this.#openCitationNetwork());
+    this.#elements.exploreResearchGraph.addEventListener(
+      "click",
+      () => void this.#openReferenceLibrary().then(() => this.#openCitationNetwork()),
+    );
     this.#elements.closeCitationNetwork.addEventListener("click", () => {
       this.#elements.citationNetwork.classList.add("hidden");
     });
@@ -383,10 +399,12 @@ class WorkspaceApp {
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
     this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
+    this.#elements.newProjectFileRail.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.renameProjectFile.addEventListener("click", () => this.#openProjectFileDialog("rename"));
     this.#elements.deleteProjectFile.addEventListener("click", () => void this.#deleteProjectFile());
     this.#elements.cancelProjectFile.addEventListener("click", () => this.#elements.projectFileDialog.close());
     this.#elements.projectFileForm.addEventListener("submit", (event) => void this.#saveProjectFile(event));
+    this.#elements.editorInsertMenu.addEventListener("click", (event) => this.#insertSourceSyntax(event));
     this.#elements.openProjectHistory.addEventListener("click", () => void this.#openProjectHistory());
     for (const button of [this.#elements.openExport, this.#elements.wordCountBadge]) {
       button.addEventListener("click", () => this.#openExport());
@@ -466,7 +484,6 @@ class WorkspaceApp {
     if (!isWorkspaceSnapshot(value)) throw new Error("Workspace returned an invalid snapshot");
     const snapshot = this.#socketSynced ? this.#resolveSnapshotAnchors(value) : value;
     this.#snapshot = snapshot;
-    this.#elements.workspaceTitle.textContent = snapshot.title;
     if (!this.#hasBootstrapSnapshot) {
       this.#hasBootstrapSnapshot = true;
       this.#revision = snapshot.revision;
@@ -521,6 +538,14 @@ class WorkspaceApp {
       this.#elements.workspaceSwitcher.append(option);
     }
     if (workspaces.some((workspace) => workspace.id === workspaceId)) this.#elements.workspaceSwitcher.value = workspaceId;
+  }
+
+  #showRail(mode: "files" | "research"): void {
+    const files = mode === "files";
+    this.#elements.filesRailPanel.hidden = !files;
+    this.#elements.researchRailPanel.hidden = files;
+    this.#elements.showFilesRail.setAttribute("aria-selected", String(files));
+    this.#elements.showResearchRail.setAttribute("aria-selected", String(!files));
   }
 
   async #createWorkspace(event: SubmitEvent): Promise<void> {
@@ -645,7 +670,7 @@ class WorkspaceApp {
           return;
         }
         this.#setRevision(value.revision);
-        this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Materialized to Markdown" : "Saving…";
+        this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
         this.#flushPendingUpdates();
         break;
       case "revision":
@@ -881,6 +906,24 @@ class WorkspaceApp {
         return option;
       }),
     );
+    this.#elements.projectFileCount.textContent = String(snapshot.files.length);
+    this.#elements.projectFileList.replaceChildren();
+    for (const file of [...snapshot.files].sort((left, right) => left.path.localeCompare(right.path))) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "project-file-row";
+      button.dataset.active = String(file.id === this.#activeFileId);
+      button.setAttribute("aria-current", file.id === this.#activeFileId ? "page" : "false");
+      const path = document.createElement("span");
+      path.className = "truncate";
+      path.textContent = file.path;
+      const kind = document.createElement("span");
+      kind.className = "project-file-kind";
+      kind.textContent = file.id === snapshot.entryFileId ? "entry" : "md";
+      button.append(path, kind);
+      button.addEventListener("click", () => this.#selectProjectFile(file.id));
+      this.#elements.projectFileList.append(button);
+    }
     const entryActive = this.#activeFileId === snapshot.entryFileId;
     this.#elements.renameProjectFile.disabled = entryActive;
     this.#elements.deleteProjectFile.disabled = entryActive;
@@ -1811,6 +1854,7 @@ class WorkspaceApp {
   }
 
   #renderPdfs(pdfs: PdfResource[]): void {
+    this.#elements.pdfCount.textContent = String(pdfs.length);
     this.#elements.pdfList.replaceChildren();
     this.#elements.annotationPdf.replaceChildren();
     this.#elements.annotationPdf.disabled = true;
@@ -2191,6 +2235,7 @@ class WorkspaceApp {
     if (!query) {
       this.#elements.knowledgeSearchResults.replaceChildren();
       this.#elements.knowledgeSearchResults.classList.add("hidden");
+      this.#elements.researchInventory.classList.remove("hidden");
       return;
     }
     try {
@@ -2201,6 +2246,7 @@ class WorkspaceApp {
       this.#renderKnowledgeSearchResults(value);
     } catch (error) {
       this.#elements.knowledgeSearchResults.classList.remove("hidden");
+      this.#elements.researchInventory.classList.add("hidden");
       this.#elements.knowledgeSearchResults.replaceChildren(emptyState(error instanceof Error ? error.message : "Workspace search failed"));
     }
   }
@@ -2208,6 +2254,7 @@ class WorkspaceApp {
   #renderKnowledgeSearchResults(results: KnowledgeSearchResult[]): void {
     this.#elements.knowledgeSearchResults.replaceChildren();
     this.#elements.knowledgeSearchResults.classList.remove("hidden");
+    this.#elements.researchInventory.classList.add("hidden");
     if (results.length === 0) {
       this.#elements.knowledgeSearchResults.append(emptyState("No matching workspace resources."));
       return;
@@ -3048,6 +3095,37 @@ class WorkspaceApp {
     return excerpt.trim() && this.#activeFileId ? { fileId: this.#activeFileId, start: start.index, end: end.index, excerpt } : null;
   }
 
+  #insertSourceSyntax(event: MouseEvent): void {
+    const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-insert-syntax]") : null;
+    const kind = target?.dataset.insertSyntax;
+    if (!kind) return;
+    event.preventDefault();
+    const passage = this.#selectedAuthoringPassage();
+    const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
+    const templates: Record<string, { text: string; select: string }> = {
+      citation: { text: ":cite[key]", select: "key" },
+      reference: { text: ":ref[target]", select: "target" },
+      anchor: { text: "{#label}", select: "label" },
+      footnote: { text: "[^note]", select: "note" },
+      include: { text: "\n::include[path]\n", select: "path" },
+      link: { text: passage ? `[${passage.excerpt}](url)` : "[text](url)", select: passage ? "url" : "text" },
+    };
+    const template = templates[kind];
+    if (!template) return;
+    const start = passage?.start ?? caret;
+    const end = passage?.end ?? caret;
+    this.#document.transact(() => {
+      if (end > start) this.#activeFileText.delete(start, end - start);
+      this.#activeFileText.insert(start, template.text);
+    }, this);
+    const selectionStart = start + template.text.indexOf(template.select);
+    this.#elements.source.focus();
+    this.#elements.source.setSelectionRange(selectionStart, selectionStart + template.select.length);
+    this.#rememberAuthoringSelection();
+    this.#elements.editorInsertMenu.open = false;
+    this.#showToast(`Inserted ${target.textContent?.trim() ?? "scholarly syntax"}.`);
+  }
+
   #setModelEvidenceSelected(key: string, selected: boolean): void {
     if (!/^(?:annotation|claim):[^:]+$/u.test(key)) return;
     if (selected) this.#modelEvidenceSelection.add(key);
@@ -3329,7 +3407,6 @@ function statisticsGroup(title: string, items: readonly { label: string; words: 
 function collectElements(): Elements {
   return {
     collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
-    workspaceTitle: requiredElement("workspace-title", HTMLElement),
     workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
     newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
     newWorkspaceDialog: requiredElement("new-workspace-dialog", HTMLDialogElement),
@@ -3370,6 +3447,13 @@ function collectElements(): Elements {
     webSnapshotComparison: requiredElement("web-snapshot-comparison", HTMLElement),
     unidentifiedPdfCount: requiredElement("unidentified-pdf-count", HTMLElement),
     unidentifiedPdfList: requiredElement("unidentified-pdf-list", HTMLElement),
+    showFilesRail: requiredElement("show-files-rail", HTMLButtonElement),
+    showResearchRail: requiredElement("show-research-rail", HTMLButtonElement),
+    filesRailPanel: requiredElement("files-rail-panel", HTMLElement),
+    researchRailPanel: requiredElement("research-rail-panel", HTMLElement),
+    newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
+    projectFileCount: requiredElement("project-file-count", HTMLElement),
+    projectFileList: requiredElement("project-file-list", HTMLElement),
     projectFileSwitcher: requiredElement("project-file-switcher", HTMLSelectElement),
     newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
     renameProjectFile: requiredElement("rename-project-file", HTMLButtonElement),
@@ -3393,6 +3477,7 @@ function collectElements(): Elements {
     projectHistoryInspector: requiredElement("project-history-inspector", HTMLElement),
     projectHistoryList: requiredElement("project-history-list", HTMLElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
+    editorInsertMenu: requiredElement("editor-insert-menu", HTMLDetailsElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
     manuscriptCommentForm: requiredElement("manuscript-comment-form", HTMLFormElement),
     manuscriptCommentBody: requiredElement("manuscript-comment-body", HTMLTextAreaElement),
@@ -3440,11 +3525,14 @@ function collectElements(): Elements {
     saveStatus: requiredElement("save-status", HTMLElement),
     revisionBadge: requiredElement("revision-badge", HTMLElement),
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
+    pdfCount: requiredElement("pdf-count", HTMLElement),
     pdfList: requiredElement("pdf-list", HTMLElement),
     bibliographyUpload: requiredElement("bibliography-upload", HTMLInputElement),
     knowledgeSearchForm: requiredElement("knowledge-search-form", HTMLFormElement),
     knowledgeSearchInput: requiredElement("knowledge-search-input", HTMLInputElement),
     knowledgeSearchResults: requiredElement("knowledge-search-results", HTMLElement),
+    researchInventory: requiredElement("research-inventory", HTMLElement),
+    exploreResearchGraph: requiredElement("explore-research-graph", HTMLButtonElement),
     publicationCount: requiredElement("publication-count", HTMLElement),
     publicationList: requiredElement("publication-list", HTMLElement),
     annotationCount: requiredElement("annotation-count", HTMLElement),

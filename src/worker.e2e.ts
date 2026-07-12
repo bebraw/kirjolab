@@ -9,10 +9,21 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page.goto(`/workspaces/${workspaceId}`);
 
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1, name: "Evidence" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Sources & evidence" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
   await expect(page.locator("#source-editor")).toHaveValue(/## Evidence becomes prose/);
+
+  await page.getByRole("tab", { name: "Files" }).click();
+  await expect(page.locator("#project-file-list")).toContainText("main.md");
+  await expect(page.getByRole("button", { name: "Add file" }).first()).toBeVisible();
+  await page.locator("#editor-insert-menu summary").click();
+  await page
+    .locator("#editor-insert-menu")
+    .getByRole("menuitem", { name: /Citation/ })
+    .click();
+  await expect(page.locator("#source-editor")).toHaveValue(/:cite\[key\]/);
+  await page.getByRole("tab", { name: "Research" }).click();
 
   await page
     .locator("#source-editor")
@@ -656,6 +667,8 @@ test("keeps annotation and claim passage anchors attached across remote insertio
   expectResolvedPassage(annotationLink, annotationStart, annotationExcerpt);
   expectResolvedPassage(claimLink, claimStart, claimExcerpt);
 
+  await openResearchCollection(page, "Highlights");
+  await openResearchCollection(page, "Claims");
   const annotationCard = page.locator("#annotation-list article").filter({ hasText: "Durable annotation anchor" });
   const claimCard = page.locator("#claim-list article").filter({ hasText: "Durable anchors keep claims connected" });
   await expect(annotationCard.getByRole("button", { name: "Open linked passage" })).toBeVisible();
@@ -888,7 +901,7 @@ test("isolates clients that send unsupported collaboration frames", async ({ pag
 
 test("creates, shares, and navigates isolated workspaces", async ({ page, browser }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Create workspace" }).click();
+  await page.getByRole("button", { name: "New project" }).click();
   await page.locator("#new-workspace-title").fill("Independent inquiry");
   await page.locator("#new-workspace-dialog").getByRole("button", { name: "Create workspace" }).click();
   await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
@@ -896,7 +909,7 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   const workspaceId = new URL(page.url()).pathname.split("/").at(-1);
   if (!workspaceId) throw new Error("Expected a workspace id");
   await expect(page.locator("#workspace-switcher")).toHaveValue(workspaceId);
-  await expect(page.locator("#workspace-title")).toHaveText("Independent inquiry");
+  await expect(page.locator("#workspace-switcher option:checked")).toHaveText("Independent inquiry");
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
 
   const isolatedSource = "## Independent evidence {#independent}\n\nThis belongs to one workspace.\n";
@@ -1330,6 +1343,7 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
     element.focus();
     element.setSelectionRange(start, start + "This paragraph is grounded in visible evidence.".length);
   });
+  await openResearchCollection(page, "Highlights");
   await page.locator("[data-annotation-id]").first().check();
   await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
   await page.locator("#llm-model").fill("delayed-local-model");
@@ -1447,6 +1461,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   const linkedSnapshot: unknown = await snapshotAfterLink.json();
   expect(isWorkspaceSnapshot(linkedSnapshot) ? linkedSnapshot.links.length : 0).toBeGreaterThan(0);
 
+  await openResearchCollection(page, "Claims");
   await page.getByRole("button", { name: "New claim" }).click();
   await page.locator("#claim-text").fill("Inspectable evidence strengthens scholarly claims.");
   await page.locator("#claim-note").fill("Human-authored synthesis");
@@ -1486,11 +1501,11 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(claimCard.getByRole("button", { name: "Open linked passage" })).toBeVisible();
 
   await page.locator("#knowledge-search-input").fill("human synthesis accountable");
-  await page.locator("#knowledge-search-form").getByRole("button", { name: "Find" }).click();
+  await page.locator("#knowledge-search-form").getByRole("button", { name: "Search" }).click();
   await expect(page.locator("#knowledge-search-results")).toContainText("Inspectable evidence keeps scholarly claims accountable.");
 
   await page.locator("#knowledge-search-input").fill("Grounding revision");
-  await page.locator("#knowledge-search-form").getByRole("button", { name: "Find" }).click();
+  await page.locator("#knowledge-search-form").getByRole("button", { name: "Search" }).click();
   await expect(page.locator("#knowledge-search-results")).toContainText("Grounding for the revision");
   await expect(page.locator("#knowledge-connection-list")).toContainText("annotates");
   await expect(page.locator("#knowledge-connection-list")).toContainText("used-in");
@@ -1511,9 +1526,12 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
     expect.arrayContaining([expect.objectContaining({ relation: "contains" }), expect.objectContaining({ relation: "participates-in" })]),
   );
 
+  await page.locator("#knowledge-search-input").fill("");
+  await page.locator("#knowledge-search-form").getByRole("button", { name: "Search" }).click();
   await claimCard.getByRole("button", { name: "Open linked passage" }).click();
   await expect(editor).toBeFocused();
 
+  await openResearchCollection(page, "Highlights");
   await annotationCard.getByRole("button", { name: "Open evidence" }).click();
   await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
   await page.getByRole("tab", { name: "Preview" }).click();
@@ -1754,4 +1772,11 @@ async function expectEditorSelection(editor: Locator, start: number, text: strin
         })),
     )
     .toEqual({ start, end: start + text.length, text });
+}
+
+async function openResearchCollection(page: Page, name: string): Promise<void> {
+  const collection = page.locator(".rail-collection").filter({ has: page.getByText(name, { exact: true }) });
+  await collection.evaluate((element: HTMLDetailsElement) => {
+    element.open = true;
+  });
 }
