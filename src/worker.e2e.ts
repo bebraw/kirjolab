@@ -31,6 +31,51 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   expect(exported.ok()).toBe(true);
   expect(exported.headers()["content-disposition"]).toContain("kirjolab-document.md");
   expect(await exported.text()).toContain("A live collaborative note cites prior work");
+
+  await expect(page.locator("#word-count-badge")).toContainText("words");
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await expect(page.locator("#export-dialog")).toBeVisible();
+  await expect(page.locator("#export-statistics")).toContainText("Composed prose from main.md");
+  await expect(page.getByRole("link", { name: /PDF Pinned Kirjolab renderer/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /LaTeX project/ })).toBeVisible();
+
+  const statistics = await page.request.get(`${api}/export/statistics.json`);
+  expect(statistics.ok()).toBe(true);
+  expect(await statistics.json()).toMatchObject({ countingRule: "kirjolab-prose-v1", totalWords: expect.any(Number) });
+  const latex = await page.request.get(`${api}/export/latex.zip`);
+  expect(latex.ok()).toBe(true);
+  expect(latex.headers()["content-type"]).toContain("application/zip");
+  expect((await latex.body()).subarray(0, 2).toString()).toBe("PK");
+  const pdf = await page.request.get(`${api}/export/document.pdf`);
+  expect(pdf.ok()).toBe(true);
+  expect(pdf.headers()["content-type"]).toContain("application/pdf");
+  expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+  const sourceBundle = await page.request.get(`${api}/export/source.zip`);
+  expect(sourceBundle.ok()).toBe(true);
+  expect((await sourceBundle.body()).subarray(0, 2).toString()).toBe("PK");
+});
+
+test("maps broken export composition back to authored source without losing recovery output", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Broken export diagnostics");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await page.locator("#source-editor").fill("# Broken\n::include[missing.md]\n");
+  await expect(page.locator("#diagnostic-summary")).toContainText("issues");
+  await expect.poll(async () => (await page.request.get(`${api}/export/document.md`)).status()).toBe(422);
+
+  const failed = await page.request.get(`${api}/export/document.md`);
+  expect(await failed.json()).toMatchObject({
+    error: "Project composition must be fixed before export",
+    diagnostics: [{ code: "missing-file", path: "main.md", line: 2, includeChain: [expect.any(String)] }],
+  });
+  const diagnostics = await page.request.get(`${api}/export/diagnostics.json`);
+  expect(diagnostics.ok()).toBe(true);
+  expect(await diagnostics.json()).toMatchObject([{ code: "missing-file", line: 2 }]);
+  const sourceBundle = await page.request.get(`${api}/export/source.zip`);
+  expect(sourceBundle.ok()).toBe(true);
+  expect((await sourceBundle.body()).subarray(0, 2).toString()).toBe("PK");
+  await expect(page.locator("#preview")).toContainText("Broken");
 });
 
 test("keeps private library research separate from project citations", async ({ page }) => {

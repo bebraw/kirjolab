@@ -189,10 +189,10 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/history/{revision}/milestones` immutably names an
   exact revision. Owner-only `restore` creates a new head and owner-only `seed`
   creates a new isolated workspace from the retained state.
-- `GET /api/workspaces/demo/export/document.md` exports Markdown composed from
-  canonical `main.md`.
-- `GET /api/workspaces/demo/export/bibliography.bib` exports derived BibTeX for
-  aliases cited by composed `main.md`.
+- `GET /api/workspaces/{id}/export/*` exposes the source-mapped publication
+  representations defined in `specs/export-pipeline/spec.md`, including
+  composed Markdown, cited BibTeX, LaTeX ZIP, bounded PDF, source ZIP,
+  diagnostics, intermediate data, and publication statistics.
 
 ### Anti-Patterns
 
@@ -292,7 +292,8 @@ mode for authenticated hosted collaboration.
       revisions captured before model execution.
 - [x] Applying a selection candidate changes only its verified target through a
       local minimal `Y.Text` splice and preserves surrounding anchors.
-- [x] Markdown and BibTeX export without private collaboration state.
+- [x] One source-mapped Markdown, BibTeX, LaTeX, PDF, statistics, diagnostics,
+      and archive export boundary without private library state.
 - [x] Unit coverage and browser tests exercise the critical workflow.
 
 ### Regression Guardrails

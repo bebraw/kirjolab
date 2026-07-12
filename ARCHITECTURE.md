@@ -34,6 +34,20 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   identity, source range, output range, and include chain. Reject unsafe paths,
   cycles, missing files, and resource-limit violations with navigable
   diagnostics.
+- Derive every publication target from one versioned, source-mapped export
+  intermediate. Markdown, cited BibTeX, LaTeX, PDF, statistics, and archives
+  must not independently resolve includes or citation reachability.
+- Pin export schemas, maintained templates, PDF rendering, and ZIP encoding at
+  reproducible boundaries. Keep Markdown canonical; generated LaTeX and PDF
+  are publication targets and never write back into authored files.
+- Do not execute arbitrary authored TeX inside the hosted Worker. The bounded
+  default PDF renderer may consume the shared intermediate; a future custom
+  TeX engine requires a separately isolated, resource-bounded execution
+  boundary and mapped diagnostics.
+- Count publication words from composed prose under a named, testable rule and
+  expose totals by file and heading. Use the same rule for revision word
+  deltas, and disclose excluded syntax rather than implying a universal
+  publisher policy.
 - Treat parsed syntax, previews, Yjs updates, indexes, and model candidates as supporting representations.
 - Parse standard and scientific-writing Markdown through pinned Satteri plugins; keep its syntax tree and HTML derived.
 - Run the current threaded Satteri WASM binding in the cross-origin-isolated browser, not inside a Cloudflare Worker isolate.

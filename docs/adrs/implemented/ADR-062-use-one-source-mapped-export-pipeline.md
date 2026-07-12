@@ -1,6 +1,6 @@
 # ADR-062: Use One Source-Mapped Export Pipeline
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-11
 
@@ -24,9 +24,10 @@ pipeline:
 1. Resolve root `main.md`, bounded transclusions, citations, and project assets.
 2. Build a source-mapped intermediate document carrying original file identity,
    range, and include-chain provenance.
-3. Materialize either the maintained Kirjolab LaTeX template or an explicit
-   project publication template together with cited bibliography and assets.
-4. Run a pinned, isolated typesetting toolchain to produce PDF when requested.
+3. Materialize the maintained Kirjolab LaTeX template together with cited
+   bibliography, manifest, and source map.
+4. Run a pinned, bounded typesetting toolchain over that same intermediate to
+   produce PDF when requested.
 
 LaTeX project and PDF output must use the same materialized bundle. Composition
 and typesetting diagnostics map back to authored project files and ranges where
@@ -39,9 +40,28 @@ also contain broader project-linked reference and evidence snapshots. Initial
 multi-file exports are downloadable ZIP archives; directory synchronization is
 a separate future integration.
 
-The pipeline implementation, intermediate schema, converter, and TeX engine may
-be selected during implementation, but their versions and templates must be
-pinned at each reproducible export boundary.
+The pipeline implementation, intermediate schema, converter, and rendering
+engine may be selected during implementation, but their versions and templates
+must be pinned at each reproducible export boundary. Arbitrary project-authored
+TeX must not execute in the hosted Worker without a separately isolated,
+resource-bounded engine.
+
+## Implementation
+
+The implemented `kirjolab-export-v1` intermediate drives all export endpoints,
+the live `kirjolab-prose-v1` statistics projection, and revision word deltas.
+It materializes `kirjolab-article-v1`, citation-scoped BibTeX, generated-line
+source maps, and pinned manifests. `fflate@0.8.3` produces byte-reproducible
+LaTeX and archival ZIPs.
+
+The initial hosted PDF boundary is `kirjolab-pdf-lib@1.17.1`. It is a bounded,
+deterministic renderer over the same intermediate and performs no network
+access or authored-code execution. It deliberately supports a smaller layout
+vocabulary than full TeX. The LaTeX ZIP is the publisher-facing representation
+for full external compilation. Attaching and executing arbitrary custom
+publication templates remains deferred until Kirjolab has a suitable isolated
+TeX runtime; adding it must extend this pipeline rather than create a second
+composition path.
 
 ## Trigger
 

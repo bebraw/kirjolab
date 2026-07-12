@@ -16,6 +16,7 @@ import {
   type ProjectRevisionSummary,
 } from "../domain/project-history";
 import { composeProject, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
+import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
 import {
   isReferenceLibrarySnapshot,
   type BibliographicRecord,
@@ -116,6 +117,11 @@ interface Elements {
   projectFilePath: HTMLInputElement;
   cancelProjectFile: HTMLButtonElement;
   openProjectHistory: HTMLButtonElement;
+  openExport: HTMLButtonElement;
+  exportDialog: HTMLDialogElement;
+  closeExport: HTMLButtonElement;
+  exportStatistics: HTMLElement;
+  wordCountBadge: HTMLButtonElement;
   projectHistoryDialog: HTMLDialogElement;
   closeProjectHistory: HTMLButtonElement;
   projectHistoryCompareForm: HTMLFormElement;
@@ -279,6 +285,7 @@ class WorkspaceApp {
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #showArchivedReferences = false;
   #projectHistory: ProjectRevisionSummary[] = [];
+  #wordStatistics: PublicationWordStatistics | null = null;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -341,6 +348,10 @@ class WorkspaceApp {
     this.#elements.cancelProjectFile.addEventListener("click", () => this.#elements.projectFileDialog.close());
     this.#elements.projectFileForm.addEventListener("submit", (event) => void this.#saveProjectFile(event));
     this.#elements.openProjectHistory.addEventListener("click", () => void this.#openProjectHistory());
+    for (const button of [this.#elements.openExport, this.#elements.wordCountBadge]) {
+      button.addEventListener("click", () => this.#openExport());
+    }
+    this.#elements.closeExport.addEventListener("click", () => this.#elements.exportDialog.close());
     this.#elements.closeProjectHistory.addEventListener("click", () => this.#elements.projectHistoryDialog.close());
     this.#elements.projectHistoryCompareForm.addEventListener("submit", (event) => void this.#compareProjectHistory(event));
     for (const eventName of ["focus", "input", "keyup", "select"] as const) {
@@ -663,6 +674,20 @@ class WorkspaceApp {
     const composition =
       source === undefined && this.#snapshot ? composeProject(this.#liveProjectFiles(), this.#snapshot.entryFileId) : null;
     const renderedSource = source ?? composition?.content ?? this.#source.toString();
+    const statisticsComposition =
+      composition ??
+      (source !== undefined
+        ? (this.#snapshot?.composition ?? null)
+        : this.#snapshot
+          ? composeProject(this.#liveProjectFiles(), this.#snapshot.entryFileId)
+          : null);
+    if (statisticsComposition && this.#snapshot) {
+      this.#wordStatistics = publicationWordStatistics(
+        statisticsComposition,
+        source !== undefined ? this.#snapshot.files : this.#liveProjectFiles(),
+      );
+      this.#renderExportStatistics();
+    }
     const rendered = renderWorkspaceMarkdown(renderedSource, bibliography);
     this.#elements.preview.innerHTML = rendered.html;
     this.#elements.diagnostics.replaceChildren();
@@ -820,6 +845,36 @@ class WorkspaceApp {
     if (!this.#elements.projectHistoryDialog.open) this.#elements.projectHistoryDialog.showModal();
   }
 
+  #openExport(): void {
+    this.#renderExportStatistics();
+    if (!this.#elements.exportDialog.open) this.#elements.exportDialog.showModal();
+  }
+
+  #renderExportStatistics(): void {
+    const statistics = this.#wordStatistics;
+    this.#elements.wordCountBadge.textContent = statistics ? `${statistics.totalWords.toLocaleString()} words` : "… words";
+    if (!statistics) return;
+    const total = document.createElement("p");
+    total.className = "font-sans text-3xl font-semibold tracking-[-0.04em]";
+    total.textContent = `${statistics.totalWords.toLocaleString()} words`;
+    const rule = document.createElement("p");
+    rule.className = "mt-1 text-xs leading-5 text-app-text-soft";
+    rule.textContent = "Composed prose from main.md; code, equations, citation keys, and link destinations are excluded.";
+    const columns = document.createElement("div");
+    columns.className = "mt-4 grid gap-4 md:grid-cols-2";
+    columns.append(
+      statisticsGroup(
+        "Files",
+        statistics.files.map((file) => ({ label: file.path, words: file.words })),
+      ),
+      statisticsGroup(
+        "Headings",
+        statistics.headings.map((heading) => ({ label: heading.heading, words: heading.words })),
+      ),
+    );
+    this.#elements.exportStatistics.replaceChildren(total, rule, columns);
+  }
+
   #renderProjectHistory(): void {
     const options = this.#projectHistory.map((revision) => {
       const option = document.createElement("option");
@@ -912,7 +967,8 @@ class WorkspaceApp {
     heading.textContent = `v${value.fromRevision} → v${value.toRevision}`;
     const composed = document.createElement("p");
     composed.className = "mt-2 text-sm text-app-text-soft";
-    composed.textContent = `Composed manuscript: +${value.composed.addedLines} / −${value.composed.removedLines} lines`;
+    const wordDelta = value.composed.wordDelta >= 0 ? `+${value.composed.wordDelta}` : String(value.composed.wordDelta);
+    composed.textContent = `Composed manuscript: +${value.composed.addedLines} / −${value.composed.removedLines} lines · ${value.composed.beforeWords.toLocaleString()} → ${value.composed.afterWords.toLocaleString()} words (${wordDelta})`;
     const list = document.createElement("ul");
     list.className = "mt-3 space-y-1 font-sans text-xs";
     for (const file of value.files.filter((item) => item.status !== "unchanged")) {
@@ -2813,6 +2869,36 @@ function captureRelativeSelection(textarea: HTMLTextAreaElement, text: Y.Text): 
   };
 }
 
+function statisticsGroup(title: string, items: readonly { label: string; words: number }[]): HTMLElement {
+  const section = document.createElement("section");
+  const heading = document.createElement("h3");
+  heading.className = "font-sans text-sm font-semibold";
+  heading.textContent = title;
+  const list = document.createElement("dl");
+  list.className = "mt-2 divide-y divide-app-line border-y border-app-line";
+  if (items.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "py-3 text-xs text-app-text-soft";
+    empty.textContent = `No ${title.toLocaleLowerCase()} in the composed document.`;
+    section.append(heading, empty);
+    return section;
+  }
+  for (const item of items) {
+    const row = document.createElement("div");
+    row.className = "flex items-center justify-between gap-3 py-2 text-xs";
+    const term = document.createElement("dt");
+    term.className = "min-w-0 truncate";
+    term.textContent = item.label;
+    const detail = document.createElement("dd");
+    detail.className = "shrink-0 font-sans font-semibold";
+    detail.textContent = item.words.toLocaleString();
+    row.append(term, detail);
+    list.append(row);
+  }
+  section.append(heading, list);
+  return section;
+}
+
 function collectElements(): Elements {
   return {
     workspaceTitle: requiredElement("workspace-title", HTMLElement),
@@ -2856,6 +2942,11 @@ function collectElements(): Elements {
     projectFilePath: requiredElement("project-file-path", HTMLInputElement),
     cancelProjectFile: requiredElement("cancel-project-file", HTMLButtonElement),
     openProjectHistory: requiredElement("open-project-history", HTMLButtonElement),
+    openExport: requiredElement("open-export", HTMLButtonElement),
+    exportDialog: requiredElement("export-dialog", HTMLDialogElement),
+    closeExport: requiredElement("close-export", HTMLButtonElement),
+    exportStatistics: requiredElement("export-statistics", HTMLElement),
+    wordCountBadge: requiredElement("word-count-badge", HTMLButtonElement),
     projectHistoryDialog: requiredElement("project-history-dialog", HTMLDialogElement),
     closeProjectHistory: requiredElement("close-project-history", HTMLButtonElement),
     projectHistoryCompareForm: requiredElement("project-history-compare-form", HTMLFormElement),

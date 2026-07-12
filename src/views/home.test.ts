@@ -22,6 +22,14 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="open-project-history"');
     expect(html).toContain('id="project-history-dialog"');
     expect(html).toContain("Automatic snapshots include the complete file tree");
+    expect(html).toContain('id="open-export" type="button">Export</button>');
+    expect(html).toContain('id="word-count-badge"');
+    expect(html).toContain('id="export-dialog"');
+    expect(html).toContain("Every target resolves the same main.md tree and cited bibliography.");
+    expect(html).toContain("/api/workspaces/demo/export/document.pdf");
+    expect(html).toContain("/api/workspaces/demo/export/latex.zip");
+    expect(html).toContain("/api/workspaces/demo/export/source.zip");
+    expect(html).toContain('id="export-statistics"');
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
     expect(html).toContain('id="pin-active-context"');

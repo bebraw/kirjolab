@@ -1439,19 +1439,6 @@ export class DocumentRoom extends DurableObject<Env> {
     return { ...candidate, status: "rejected" };
   }
 
-  getPortableDocument(): { source: string; bibliography: string } {
-    const workspace = this.#workspaceRow();
-    const files = this.#projectFiles();
-    if (!workspace.entry_file_id) throw new Error("Project entry file is not initialized");
-    const source = composeProject(files, workspace.entry_file_id).content;
-    const references = this.#projectReferences();
-    const bibliography =
-      references.length === 0
-        ? workspace.bibliography
-        : projectReferenceBibliography(references.filter((link) => citedAliases(source).has(link.citationAlias)));
-    return { source, bibliography };
-  }
-
   #schemaMigrations(): readonly SQLiteMigration[] {
     return [
       {
@@ -2801,18 +2788,6 @@ function projectReferenceBibliography(links: readonly ProjectReferenceLink[]): s
       return { type: link.snapshot.type, citationKey: link.citationAlias, fields };
     }),
   );
-}
-
-function citedAliases(source: string): Set<string> {
-  const aliases = new Set<string>();
-  for (const match of source.matchAll(/:cite\[(?<keys>[^\]\r\n]+)\]/gu)) {
-    for (const key of (match.groups?.keys ?? "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean))
-      aliases.add(key);
-  }
-  return aliases;
 }
 
 function parseBibliographicSnapshot(value: string): BibliographicSnapshot {

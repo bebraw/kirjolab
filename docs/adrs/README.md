@@ -21,16 +21,10 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                                                        | Status   | Summary                                                                                         |
-| -------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md)                                  | Proposed | Template for drafting future ADRs.                                                              |
-| [ADR-057](./proposed/ADR-057-compose-projects-from-main.md)                | Proposed | Compose one project from root `main.md` through bounded, source-mapped transclusion.            |
-| [ADR-058](./proposed/ADR-058-use-a-shared-reference-library.md)            | Proposed | Make a user-scoped reference library authoritative and generate project bibliography snapshots. |
-| [ADR-059](./proposed/ADR-059-separate-private-research-from-projects.md)   | Proposed | Keep personal research private by default and share pinned snapshots into projects explicitly.  |
-| [ADR-060](./proposed/ADR-060-capture-versioned-web-sources.md)             | Proposed | Preserve timestamped web-source snapshots for reproducible citations and evidence.              |
-| [ADR-061](./proposed/ADR-061-preserve-project-revisions-and-milestones.md) | Proposed | Keep atomic project revisions, immutable milestones, non-destructive restore, and diffs.        |
-| [ADR-062](./proposed/ADR-062-use-one-source-mapped-export-pipeline.md)     | Proposed | Derive LaTeX and PDF from one pinned, source-mapped composition and typesetting pipeline.       |
-| [ADR-063](./proposed/ADR-063-model-citation-assertions-with-provenance.md) | Proposed | Represent library citation relationships as bounded provenance-bearing assertions.              |
+| ADR                                                                        | Status   | Summary                                                                            |
+| -------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md)                                  | Proposed | Template for drafting future ADRs.                                                 |
+| [ADR-063](./proposed/ADR-063-model-citation-assertions-with-provenance.md) | Proposed | Represent library citation relationships as bounded provenance-bearing assertions. |
 
 ## Accepted ADRs
 
@@ -97,6 +91,12 @@ ADRs are grouped by lifecycle status:
 | [ADR-054](./implemented/ADR-054-model-publication-pdf-associations-explicitly.md)     | Implemented          | Link publications and local PDF artifacts only through explicit durable relationships.                |
 | [ADR-055](./implemented/ADR-055-use-reviewed-doi-intake-for-pdfs.md)                  | Implemented          | Identify an imported PDF through reviewed, atomic, DOI-backed publication intake.                     |
 | [ADR-056](./implemented/ADR-056-persist-grounded-passage-revisions.md)                | Implemented          | Persist typed evidence and targeted replacements for grounded passage revisions.                      |
+| [ADR-057](./implemented/ADR-057-compose-projects-from-main.md)                        | Implemented          | Compose one project from root `main.md` through bounded, source-mapped transclusion.                  |
+| [ADR-058](./implemented/ADR-058-use-a-shared-reference-library.md)                    | Implemented          | Make a user-scoped reference library authoritative and derive project bibliography snapshots.         |
+| [ADR-059](./implemented/ADR-059-separate-private-research-from-projects.md)           | Implemented          | Keep personal research private by default and share pinned snapshots into projects explicitly.        |
+| [ADR-060](./implemented/ADR-060-capture-versioned-web-sources.md)                     | Implemented          | Preserve timestamped web-source snapshots for reproducible citations and evidence.                    |
+| [ADR-061](./implemented/ADR-061-preserve-project-revisions-and-milestones.md)         | Implemented          | Keep atomic project revisions, immutable milestones, non-destructive restore, and diffs.              |
+| [ADR-062](./implemented/ADR-062-use-one-source-mapped-export-pipeline.md)             | Implemented          | Derive publication targets and statistics from one pinned, source-mapped export intermediate.         |
 
 ## Creating A New ADR
 

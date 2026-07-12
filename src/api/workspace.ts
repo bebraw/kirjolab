@@ -15,6 +15,8 @@ import {
   type PdfResource,
 } from "../domain/workspace";
 import { buildWorkspaceKnowledgeGraph, searchWorkspaceKnowledge } from "../domain/knowledge";
+import { archivalSourceBundle, latexArchive, renderExportPdf } from "./export-artifacts";
+import { assertExportable, buildExportBundle, ExportPipelineError } from "../domain/export-pipeline";
 import { fetchCrossrefWork, fingerprintPublicationMetadata } from "../integrations/crossref";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 
@@ -122,16 +124,15 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix.startsWith("/history/")) {
       return await handleProjectHistory(request, suffix, workspaceId, env, identity, role, room, catalog);
     }
-    if (suffix === "/export/document.md" && request.method === "GET") {
-      const portable = await room.getPortableDocument();
-      return portableResponse(portable.source, "text/markdown; charset=utf-8", "kirjolab-document.md");
-    }
-    if (suffix === "/export/bibliography.bib" && request.method === "GET") {
-      const portable = await room.getPortableDocument();
-      return portableResponse(portable.bibliography, "application/x-bibtex; charset=utf-8", "bibliography.bib");
-    }
+    if (suffix.startsWith("/export/") && request.method === "GET") return await exportWorkspace(suffix, workspaceId, room);
     return jsonError("Route not found", 404);
   } catch (error) {
+    if (error instanceof ExportPipelineError) {
+      return Response.json(
+        { error: error.message, diagnostics: error.diagnostics },
+        { status: 422, headers: { "cache-control": "no-store" } },
+      );
+    }
     const message = error instanceof Error ? error.message : "Workspace operation failed";
     const status = /access denied|only the workspace owner/iu.test(message)
       ? 403
@@ -140,6 +141,39 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
         : 400;
     return jsonError(message, status);
   }
+}
+
+async function exportWorkspace(
+  suffix: string,
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const snapshot = await room.getSnapshot(workspaceId);
+  const bundle = buildExportBundle({
+    title: snapshot.title,
+    files: snapshot.files,
+    entryFileId: snapshot.entryFileId,
+    bibliography: snapshot.bibliography,
+  });
+  if (suffix === "/export/statistics.json") return privateJsonResponse(bundle.intermediate.statistics);
+  if (suffix === "/export/diagnostics.json") return privateJsonResponse(bundle.intermediate.diagnostics);
+  if (suffix === "/export/intermediate.json") return privateJsonResponse(bundle.intermediate, "kirjolab-intermediate.json");
+  if (suffix === "/export/source.zip") {
+    const { files: _files, composition: _composition, source: _source, candidates: _candidates, ...metadata } = snapshot;
+    return binaryDownload(archivalSourceBundle(bundle, snapshot.files, metadata), "application/zip", "kirjolab-source.zip");
+  }
+  assertExportable(bundle.intermediate);
+  if (suffix === "/export/document.md") {
+    return portableResponse(bundle.intermediate.markdown, "text/markdown; charset=utf-8", "kirjolab-document.md");
+  }
+  if (suffix === "/export/bibliography.bib") {
+    return portableResponse(bundle.bibliography, "application/x-bibtex; charset=utf-8", "bibliography.bib");
+  }
+  if (suffix === "/export/latex.zip") return binaryDownload(latexArchive(bundle), "application/zip", "kirjolab-latex.zip");
+  if (suffix === "/export/document.pdf") {
+    return binaryDownload(await renderExportPdf(bundle), "application/pdf", "kirjolab-document.pdf");
+  }
+  return jsonError("Export route not found", 404);
 }
 
 async function handleProjectHistory(
@@ -621,6 +655,24 @@ function portableResponse(body: string, contentType: string, filename: string): 
       "cache-control": "no-store",
     },
   });
+}
+
+function binaryDownload(body: Uint8Array, contentType: string, filename: string): Response {
+  const bytes = new Uint8Array(body);
+  return new Response(bytes, {
+    headers: {
+      "content-type": contentType,
+      "content-length": String(bytes.byteLength),
+      "content-disposition": `attachment; filename="${filename}"`,
+      "cache-control": "no-store",
+    },
+  });
+}
+
+function privateJsonResponse(value: unknown, filename?: string): Response {
+  const headers = new Headers({ "cache-control": "no-store" });
+  if (filename) headers.set("content-disposition", `attachment; filename="${filename}"`);
+  return Response.json(value, { headers });
 }
 
 function jsonError(error: string, status: number): Response {

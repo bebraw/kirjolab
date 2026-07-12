@@ -53,7 +53,7 @@ describe("project revision comparison", () => {
     expect(comparison).toMatchObject({
       fromRevision: 3,
       toRevision: 9,
-      composed: { addedLines: 1, removedLines: 1 },
+      composed: { addedLines: 1, removedLines: 1, beforeWords: 2, afterWords: 2, wordDelta: 0 },
       files: [
         { id: "appendix", status: "added", beforePath: null, afterPath: "appendix.md" },
         { id: "chapter", status: "renamed", beforePath: "chapters/a.md", afterPath: "chapters/renamed.md" },
@@ -91,6 +91,9 @@ describe("project revision comparison", () => {
       composed: {
         addedLines: 0,
         removedLines: 1,
+        beforeWords: 2,
+        afterWords: 0,
+        wordDelta: -2,
         hunks: [{ beforeLine: 1, afterLine: 1, removed: ["Old claim"], added: [], truncated: false }],
       },
       binaries: [
@@ -136,6 +139,9 @@ describe("project revision comparison", () => {
     expect(compareProjectRevisions(before, after).composed).toEqual({
       addedLines: 1,
       removedLines: 1,
+      beforeWords: 2,
+      afterWords: 2,
+      wordDelta: 0,
       hunks: [{ beforeLine: 1, afterLine: 1, removed: ["Old fallback"], added: ["New fallback"], truncated: false }],
     });
   });
@@ -191,6 +197,11 @@ describe("project revision comparison", () => {
       { composed: null },
       { composed: { ...comparison.composed, addedLines: 1.5 } },
       { composed: { ...comparison.composed, removedLines: "0" } },
+      { composed: { ...comparison.composed, beforeWords: 1.5 } },
+      { composed: { ...comparison.composed, beforeWords: -1 } },
+      { composed: { ...comparison.composed, afterWords: "0" } },
+      { composed: { ...comparison.composed, wordDelta: null } },
+      { composed: { ...comparison.composed, wordDelta: comparison.composed.wordDelta + 1 } },
       { composed: { ...comparison.composed, hunks: null } },
       { binaries: null },
     ]) {

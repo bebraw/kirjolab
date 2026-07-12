@@ -1,5 +1,6 @@
 import { compareWebSnapshotText, type WebSnapshotDiffHunk } from "./reference-library";
 import { composeProject, type ProjectFile } from "./project-files";
+import { countPublicationWords } from "./publication-statistics";
 import type { AnnotationResource, ClaimResource, PdfResource, ProjectReferenceLink, PublicationPdfLink } from "./workspace";
 import type { ResearchShareSnapshot } from "./reference-library";
 
@@ -68,6 +69,9 @@ export interface ProjectRevisionDiff {
   readonly composed: {
     readonly addedLines: number;
     readonly removedLines: number;
+    readonly beforeWords: number;
+    readonly afterWords: number;
+    readonly wordDelta: number;
     readonly hunks: readonly WebSnapshotDiffHunk[];
   };
   readonly binaries: readonly ProjectBinaryDiff[];
@@ -101,7 +105,11 @@ export function compareProjectRevisions(before: ProjectRevisionContent, after: P
     };
   });
 
-  const composed = compareWebSnapshotText(composedSource(before), composedSource(after));
+  const beforeComposed = composedSource(before);
+  const afterComposed = composedSource(after);
+  const composed = compareWebSnapshotText(beforeComposed, afterComposed);
+  const beforeWords = countPublicationWords(beforeComposed);
+  const afterWords = countPublicationWords(afterComposed);
   const binaries = stableUnion(
     before.pdfs.map((pdf) => pdf.id),
     after.pdfs.map((pdf) => pdf.id),
@@ -122,7 +130,14 @@ export function compareProjectRevisions(before: ProjectRevisionContent, after: P
     fromRevision: before.revision,
     toRevision: after.revision,
     files,
-    composed: { addedLines: composed.addedLines, removedLines: composed.removedLines, hunks: composed.hunks },
+    composed: {
+      addedLines: composed.addedLines,
+      removedLines: composed.removedLines,
+      beforeWords,
+      afterWords,
+      wordDelta: afterWords - beforeWords,
+      hunks: composed.hunks,
+    },
     binaries,
   };
 }
@@ -196,6 +211,11 @@ export function isProjectRevisionDiff(value: unknown): value is ProjectRevisionD
     isRecord(value.composed) &&
     Number.isSafeInteger(value.composed.addedLines) &&
     Number.isSafeInteger(value.composed.removedLines) &&
+    isWordCount(value.composed.beforeWords) &&
+    isWordCount(value.composed.afterWords) &&
+    typeof value.composed.wordDelta === "number" &&
+    Number.isSafeInteger(value.composed.wordDelta) &&
+    value.composed.wordDelta === value.composed.afterWords - value.composed.beforeWords &&
     Array.isArray(value.composed.hunks) &&
     Array.isArray(value.binaries)
   );
@@ -231,6 +251,10 @@ function isProjectMilestone(value: unknown): value is ProjectMilestone {
 }
 
 function isRevision(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isWordCount(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 

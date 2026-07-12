@@ -29,6 +29,9 @@ collaborative, and unambiguous about what preview and export mean.
   deleted.
 - Preview and Markdown export always compose from `main.md`; selecting a
   supporting file changes the editor, not the publication root.
+- Publication exports consume the versioned source-mapped intermediate defined
+  by `specs/export-pipeline/spec.md`; no target may reimplement include
+  expansion or front-matter offset handling.
 - Stable file identities also qualify rename-aware history. A historical
   composition resolves the retained `main.md` and file tree from that exact
   logical revision rather than current paths or content.

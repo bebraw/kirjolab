@@ -36,7 +36,9 @@ continues to use a narrow source revision for stale-selection checks.
   does not copy collaborators or milestones.
 - Diffs join files and PDFs by stable id. Text files report added/removed lines,
   path changes are renames, and composed `main.md` is compared at both
-  endpoints. PDFs report name, media type, size, and fingerprint changes.
+  endpoints. The composed comparison also reports before, after, and delta
+  word counts under `kirjolab-prose-v1`. PDFs report name, media type, size,
+  and fingerprint changes.
 - Logical history and named milestones are retained indefinitely. This slice
   exposes no automatic pruning or milestone mutation.
 
@@ -46,7 +48,7 @@ continues to use a narrow source revision for stale-selection checks.
   summaries while retaining older rows in storage.
 - `GET /api/workspaces/{id}/history/{revision}` returns one read-only snapshot.
 - `GET /api/workspaces/{id}/history/compare?from={a}&to={b}` returns neutral
-  file, composed-text, and binary identity changes.
+  file, composed-text, publication word-count, and binary identity changes.
 - `POST /api/workspaces/{id}/history/{revision}/milestones` creates one
   immutable owner-only milestone.
 - `POST /api/workspaces/{id}/history/{revision}/restore` restores as a new
@@ -74,8 +76,9 @@ continues to use a narrow source revision for stale-selection checks.
 
 - Implemented: atomic logical snapshots, history list and read-only inspector,
   immutable milestones, restore-as-new-head, revision seeds, rename-aware text
-  and composed diffs, binary identity comparison, owner/member authorization,
-  reset-safe collaboration, Workers tests, and browser coverage.
+  and composed diffs, publication word deltas, binary identity comparison,
+  owner/member authorization, reset-safe collaboration, Workers tests, and
+  browser coverage.
 - Deferred: pagination beyond 500 summaries, owner-directed eligible-history
   deletion, deduplicated snapshot storage, PDF page-count/dimension extraction,
   and richer semantic Markdown diff rendering.

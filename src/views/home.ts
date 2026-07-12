@@ -36,8 +36,7 @@ export function renderHomePage(
           </div>
           <button class="button-secondary hidden sm:inline-flex" id="share-workspace" type="button">Share</button>
           <button class="button-secondary hidden sm:inline-flex" id="open-reference-library" type="button">Library</button>
-          <a class="button-secondary hidden sm:inline-flex" href="/api/workspaces/${escapedWorkspaceId}/export/bibliography.bib">Export .bib</a>
-          <a class="button-primary" href="/api/workspaces/${escapedWorkspaceId}/export/document.md">Export .md</a>
+          <button class="button-primary" id="open-export" type="button">Export</button>
         </div>
       </div>
     </header>
@@ -117,6 +116,7 @@ export function renderHomePage(
             <label class="sr-only" for="project-file-switcher">Project file</label>
             <select class="workspace-switcher" id="project-file-switcher" aria-label="Project file"><option>main.md</option></select>
             <span class="count-badge" id="revision-badge">r0</span>
+            <button class="count-badge" id="word-count-badge" type="button" title="Open publication statistics">… words</button>
             <button class="button-secondary" id="open-project-history" type="button">History</button>
           </div>
           <div class="flex items-center gap-2">
@@ -345,6 +345,30 @@ export function renderHomePage(
         </div>
       </aside>
     </main>
+
+    <dialog class="reference-library-dialog" id="export-dialog">
+      <div class="p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="eyebrow">Publication output</p>
+            <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Export composed project</h2>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-app-text-soft">Every target resolves the same main.md tree and cited bibliography. LaTeX includes the source map and pinned manifest used by the bounded PDF renderer.</p>
+          </div>
+          <button class="button-secondary" id="close-export" type="button">Close</button>
+        </div>
+        <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/document.pdf"><span class="eyebrow">Ready to read</span><strong class="mt-2 block font-sans">PDF</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Pinned Kirjolab renderer</span></a>
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/latex.zip"><span class="eyebrow">Publisher workflow</span><strong class="mt-2 block font-sans">LaTeX project</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Template, bibliography, manifest, and source map</span></a>
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/document.md"><span class="eyebrow">Portable source</span><strong class="mt-2 block font-sans">Markdown</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Composed canonical prose</span></a>
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/bibliography.bib"><span class="eyebrow">Cited only</span><strong class="mt-2 block font-sans">BibTeX</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">References reachable from main.md</span></a>
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/source.zip"><span class="eyebrow">Archival</span><strong class="mt-2 block font-sans">Source bundle</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Project tree and shared evidence metadata</span></a>
+        </div>
+        <section class="mt-6 border-t border-app-line pt-5">
+          <div class="flex items-center justify-between gap-3"><p class="eyebrow">Publication statistics</p><a class="font-sans text-xs font-semibold text-app-accent" href="/api/workspaces/${escapedWorkspaceId}/export/statistics.json">Download JSON</a></div>
+          <div class="mt-3" id="export-statistics" aria-live="polite"><div class="empty-state">Loading composed word counts…</div></div>
+        </section>
+      </div>
+    </dialog>
 
     <dialog class="new-workspace-dialog" id="new-workspace-dialog">
       <form class="p-5" id="new-workspace-form">

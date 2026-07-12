@@ -213,15 +213,16 @@ function expand(
     return;
   }
 
-  const content = isEntry ? file.content : stripFrontmatter(file.content);
+  const prepared = isEntry ? { content: file.content, sourceOffset: 0 } : stripFrontmatter(file.content);
+  const { content, sourceOffset } = prepared;
   let cursor = 0;
   for (const match of content.matchAll(includeLine)) {
     const index = match.index;
-    append(file, content, cursor, index, chain, state, limits);
+    append(file, content, cursor, index, sourceOffset, chain, state, limits);
     if (state.stopped) return;
     const requested = match.groups?.path?.trim() ?? "";
     const resolvedPath = resolveProjectPath(file.path, requested);
-    const from = index + (match[0].indexOf(requested) >= 0 ? match[0].indexOf(requested) : 0);
+    const from = sourceOffset + index + (match[0].indexOf(requested) >= 0 ? match[0].indexOf(requested) : 0);
     const to = from + requested.length;
     if (!resolvedPath) {
       state.diagnostics.push(diagnostic("invalid-path", `Invalid include path: ${requested}`, file, from, to, chain));
@@ -251,7 +252,7 @@ function expand(
     }
     cursor = index + match[0].length;
   }
-  append(file, content, cursor, content.length, chain, state, limits);
+  append(file, content, cursor, content.length, sourceOffset, chain, state, limits);
 }
 
 function append(
@@ -259,6 +260,7 @@ function append(
   content: string,
   sourceStart: number,
   sourceEnd: number,
+  sourceOffset: number,
   chain: readonly string[],
   state: ExpansionState,
   limits: RequiredLimits,
@@ -267,7 +269,14 @@ function append(
   const fragment = content.slice(sourceStart, sourceEnd);
   if (new TextEncoder().encode(state.output + fragment).byteLength > limits.maximumOutputBytes) {
     state.diagnostics.push(
-      diagnostic("output-limit", `Composed output exceeds ${limits.maximumOutputBytes} bytes`, file, sourceStart, sourceEnd, chain),
+      diagnostic(
+        "output-limit",
+        `Composed output exceeds ${limits.maximumOutputBytes} bytes`,
+        file,
+        sourceStart + sourceOffset,
+        sourceEnd + sourceOffset,
+        chain,
+      ),
     );
     state.stopped = true;
     return;
@@ -279,14 +288,15 @@ function append(
     outputEnd: state.output.length,
     fileId: file.id,
     path: file.path,
-    sourceStart,
-    sourceEnd,
+    sourceStart: sourceStart + sourceOffset,
+    sourceEnd: sourceEnd + sourceOffset,
     includeChain: [...chain],
   });
 }
 
-function stripFrontmatter(content: string): string {
-  return content.replace(frontmatter, "");
+function stripFrontmatter(content: string): { content: string; sourceOffset: number } {
+  const match = frontmatter.exec(content);
+  return match ? { content: content.slice(match[0].length), sourceOffset: match[0].length } : { content, sourceOffset: 0 };
 }
 
 function diagnostic(
