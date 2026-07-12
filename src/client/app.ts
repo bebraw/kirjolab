@@ -39,7 +39,6 @@ import {
   isWorkspaceSummaries,
   isPublicationIntakePreview,
   type AnnotationResource,
-  type AnnotationLinkResult,
   type ClaimEvidenceRelation,
   type ClaimPassageLink,
   type ClaimResource,
@@ -244,6 +243,9 @@ interface Elements {
   annotationComment: HTMLInputElement;
   annotationSelectionStatus: HTMLElement;
   saveAndLinkAnnotation: HTMLButtonElement;
+  highlightPaintTool: HTMLButtonElement;
+  highlightEraserTool: HTMLButtonElement;
+  undoHighlight: HTMLButtonElement;
   citeActivePdf: HTMLButtonElement;
   openPaper: HTMLButtonElement;
   paperStatus: HTMLElement;
@@ -312,7 +314,9 @@ class WorkspaceApp {
   #modelBusy = false;
   #hasBootstrapSnapshot = false;
   #toastTimer: number | undefined;
-  #pendingRects: PdfSelectionRect[] = [];
+  #editingAnnotationId: string | null = null;
+  #highlightTool: "paint" | "erase" = "paint";
+  #lastHighlightStroke: { annotationId: string; fragmentId: string } | null = null;
   #renderedPdfId: string | undefined;
   #editingClaimId: string | undefined;
   #contextState: ResearchContextState = createResearchContext();
@@ -348,7 +352,7 @@ class WorkspaceApp {
         status: this.#elements.paperStatus,
       },
       (capture) => this.#capturePdfSelection(capture),
-      (annotationId) => this.#focusAnnotationCard(annotationId),
+      (annotationId, fragmentId) => void this.#activateHighlightFragment(annotationId, fragmentId),
     );
   }
 
@@ -450,6 +454,9 @@ class WorkspaceApp {
     this.#elements.bibliographyUpload.addEventListener("change", () => void this.#importBibliography());
     this.#elements.knowledgeSearchForm.addEventListener("submit", (event) => void this.#searchKnowledge(event));
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
+    this.#elements.highlightPaintTool.addEventListener("click", () => this.#setHighlightTool("paint"));
+    this.#elements.highlightEraserTool.addEventListener("click", () => this.#setHighlightTool("erase"));
+    this.#elements.undoHighlight.addEventListener("click", () => void this.#undoLastHighlightStroke());
     this.#elements.citeActivePdf.addEventListener("click", () => this.#citeActivePdf());
     this.#elements.newClaim.addEventListener("click", () => this.#openClaimDialog());
     this.#elements.cancelClaim.addEventListener("click", () => this.#elements.claimDialog.close());
@@ -2022,7 +2029,21 @@ class WorkspaceApp {
         const pdf = this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId);
         if (pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
       });
-      actions.append(openEvidence, linkButton);
+      const edit = actionButton("Edit note", "button-secondary w-full justify-center", () => {
+        this.#editingAnnotationId = annotation.id;
+        this.#elements.annotationComment.value = annotation.comment;
+        this.#elements.annotationQuote.value = annotation.quote;
+        this.#elements.annotationPrefix.value = annotation.prefix;
+        this.#elements.annotationSuffix.value = annotation.suffix;
+        const pdf = this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId);
+        if (pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
+      });
+      const remove = actionButton(
+        "Delete highlight",
+        "button-secondary w-full justify-center",
+        () => void this.#deleteAnnotation(annotation),
+      );
+      actions.append(openEvidence, edit, linkButton, remove);
       const passage = links.find((link) => link.annotationId === annotation.id);
       if (passage) {
         const openPassage = actionButton(anchorActionLabel(passage.resolution), "button-secondary w-full justify-center", () =>
@@ -2037,6 +2058,24 @@ class WorkspaceApp {
       card.append(label, actions);
       this.#elements.annotationList.append(card);
     }
+  }
+
+  async #deleteAnnotation(annotation: AnnotationResource): Promise<void> {
+    const claims = this.#snapshot?.claimEvidenceLinks.filter((link) => link.annotationId === annotation.id).length ?? 0;
+    if (claims > 0) {
+      this.#showToast(`Remove this highlight from ${claims} claim(s) before deleting it.`);
+      return;
+    }
+    const passages = this.#snapshot?.links.filter((link) => link.annotationId === annotation.id).length ?? 0;
+    if (!confirm(`Delete this highlight and its ${passages} manuscript link(s)?`)) return;
+    const response = await fetch(`${apiBase}/annotations/${encodeURIComponent(annotation.id)}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    if (this.#editingAnnotationId === annotation.id) this.#editingAnnotationId = null;
+    await this.#resourceRefresh.request();
+    this.#showToast("Highlight deleted; the PDF remains unchanged.");
   }
 
   #renderClaims(claims: ClaimResource[], links: ClaimPassageLink[]): void {
@@ -3196,51 +3235,21 @@ class WorkspaceApp {
   async #createAnnotation(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const shouldLink = event.submitter === this.#elements.saveAndLinkAnnotation;
-    const passage = shouldLink ? this.#selectedAuthoringPassage() : null;
-    if (shouldLink && !this.#hasStableDocumentBase()) {
-      this.#showToast("Wait for the manuscript to finish synchronizing before saving and linking evidence.");
+    const annotationId = this.#editingAnnotationId;
+    if (!annotationId) {
+      this.#showToast("Paint a highlight in the PDF before adding a note or manuscript link.");
       return;
     }
-    if (shouldLink && !passage) {
-      this.#showToast("Select manuscript prose before saving and linking evidence.");
-      return;
-    }
-    const annotation = {
-      pdfId: this.#elements.annotationPdf.value,
-      page: this.#elements.annotationPage.valueAsNumber,
-      quote: this.#elements.annotationQuote.value,
-      prefix: this.#elements.annotationPrefix.value,
-      suffix: this.#elements.annotationSuffix.value,
-      comment: this.#elements.annotationComment.value,
-      rects: this.#pendingRects,
-    };
-    const response = await jsonFetch(
-      passage ? `${apiBase}/annotation-links` : `${apiBase}/annotations`,
-      passage
-        ? {
-            annotation,
-            passage: { ...passage, sourceRevision: this.#revision },
-          }
-        : annotation,
-    );
+    const response = await fetch(`${apiBase}/annotations/${encodeURIComponent(annotationId)}`, {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ comment: this.#elements.annotationComment.value }),
+    });
     await expectOk(response);
-    const created: unknown = await response.json();
-    if (passage ? !isAnnotationLinkResult(created) : !isCreatedAnnotation(created)) {
-      throw new Error("Annotation endpoint returned an invalid resource");
-    }
-    this.#elements.annotationQuote.value = "";
-    this.#elements.annotationPrefix.value = "";
-    this.#elements.annotationSuffix.value = "";
-    this.#elements.annotationComment.value = "";
-    this.#pendingRects = [];
-    this.#pdfViewer.clearDraftSelection();
-    this.#elements.annotationSelectionStatus.textContent = passage
-      ? "Annotation saved and connected to the selected manuscript prose."
-      : "Annotation saved. Select another passage in the open paper to continue.";
     await this.#resourceRefresh.request();
-    this.#showToast(
-      passage ? "Evidence annotated and linked to manuscript prose." : "Annotation anchored with geometry and textual context.",
-    );
+    if (shouldLink) await this.#linkAnnotation(annotationId);
+    else this.#showToast("Highlight note saved.");
   }
 
   async #linkAnnotation(annotationId: string): Promise<void> {
@@ -3328,7 +3337,7 @@ class WorkspaceApp {
       if (kind === "annotation") {
         const annotation = this.#snapshot.annotations.find((item) => item.id === id);
         if (!annotation) continue;
-        references.push({ kind, id, version: annotation.createdAt });
+        references.push({ kind, id, version: annotation.updatedAt });
         items.push({
           kind,
           id,
@@ -3466,9 +3475,104 @@ class WorkspaceApp {
     this.#elements.annotationQuote.value = capture.quote;
     this.#elements.annotationPrefix.value = capture.prefix;
     this.#elements.annotationSuffix.value = capture.suffix;
-    this.#pendingRects = capture.rects;
-    this.#elements.annotationSelectionStatus.textContent = `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "fragment" : "fragments"} from page ${capture.page}. Add a note, then save.`;
-    this.#showToast("Evidence captured. Add your note and save the annotation.");
+    this.#elements.annotationSelectionStatus.textContent =
+      this.#highlightTool === "erase"
+        ? "Erasing overlapping highlight strokes…"
+        : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "fragment" : "fragments"} from page ${capture.page}. Saving automatically…`;
+    void this.#persistPdfSelection(capture);
+  }
+
+  async #persistPdfSelection(capture: PdfSelectionCapture): Promise<void> {
+    const pdfId = this.#renderedPdfId;
+    if (!pdfId || !this.#snapshot) return;
+    const overlaps = this.#snapshot.annotations
+      .filter((annotation) => annotation.pdfId === pdfId && annotation.page === capture.page)
+      .flatMap((annotation) =>
+        annotation.fragments
+          .filter((fragment) => fragment.rects.some((rect) => capture.rects.some((candidate) => selectionRectsOverlap(rect, candidate))))
+          .map((fragment) => ({ annotation, fragment })),
+      );
+    if (this.#highlightTool === "erase") {
+      if (overlaps.length === 0) {
+        this.#pdfViewer.clearDraftSelection();
+        this.#elements.annotationSelectionStatus.textContent = "The eraser did not cross a saved highlight stroke.";
+        return;
+      }
+      for (const overlap of overlaps) await this.#removeHighlightFragment(overlap.annotation.id, overlap.fragment.id, false);
+      this.#pdfViewer.clearDraftSelection();
+      this.#elements.annotationSelectionStatus.textContent = `Removed ${overlaps.length} overlapping highlight ${overlaps.length === 1 ? "stroke" : "strokes"}.`;
+      this.#showToast("Highlight content erased.");
+      return;
+    }
+
+    const target = overlaps[0]?.annotation;
+    const response = target
+      ? await jsonFetch(`${apiBase}/annotations/${encodeURIComponent(target.id)}/fragments`, capture)
+      : await jsonFetch(`${apiBase}/annotations`, { pdfId, ...capture, comment: "" });
+    await expectOk(response);
+    const annotationValue: unknown = await response.json();
+    if (!isCreatedAnnotation(annotationValue)) throw new Error("Highlight endpoint returned an invalid resource");
+    const fragment = annotationValue.fragments.at(-1);
+    if (!fragment) throw new Error("Highlight endpoint omitted the saved stroke");
+    this.#editingAnnotationId = annotationValue.id;
+    this.#lastHighlightStroke = { annotationId: annotationValue.id, fragmentId: fragment.id };
+    this.#elements.undoHighlight.disabled = false;
+    this.#elements.annotationComment.value = annotationValue.comment;
+    this.#elements.annotationQuote.value = annotationValue.quote;
+    this.#elements.annotationPrefix.value = annotationValue.prefix;
+    this.#elements.annotationSuffix.value = annotationValue.suffix;
+    this.#pdfViewer.clearDraftSelection();
+    await this.#resourceRefresh.request();
+    this.#elements.annotationSelectionStatus.textContent = target
+      ? `Added a stroke to the existing highlight. ${annotationValue.fragments.length} strokes saved automatically.`
+      : "Highlight saved automatically. Add an optional note or link it to selected manuscript prose.";
+  }
+
+  #setHighlightTool(tool: "paint" | "erase"): void {
+    this.#highlightTool = tool;
+    this.#elements.highlightPaintTool.setAttribute("aria-pressed", String(tool === "paint"));
+    this.#elements.highlightEraserTool.setAttribute("aria-pressed", String(tool === "erase"));
+    this.#pdfViewer.setTool(tool);
+    this.#elements.annotationSelectionStatus.textContent =
+      tool === "paint"
+        ? "Paint PDF text to save or extend a highlight."
+        : "Select across a saved highlight stroke or tap it to erase that content.";
+  }
+
+  async #activateHighlightFragment(annotationId: string, fragmentId: string): Promise<void> {
+    if (this.#highlightTool === "erase") {
+      await this.#removeHighlightFragment(annotationId, fragmentId, true);
+      return;
+    }
+    const annotation = this.#snapshot?.annotations.find((item) => item.id === annotationId);
+    if (!annotation) return;
+    this.#editingAnnotationId = annotation.id;
+    this.#elements.annotationComment.value = annotation.comment;
+    this.#elements.annotationQuote.value = annotation.quote;
+    this.#elements.annotationPrefix.value = annotation.prefix;
+    this.#elements.annotationSuffix.value = annotation.suffix;
+    this.#elements.annotationPage.value = String(annotation.page);
+    this.#focusAnnotationCard(annotationId);
+  }
+
+  async #removeHighlightFragment(annotationId: string, fragmentId: string, announce: boolean): Promise<void> {
+    const response = await fetch(`${apiBase}/annotations/${encodeURIComponent(annotationId)}/fragments/${encodeURIComponent(fragmentId)}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    if (this.#editingAnnotationId === annotationId && response.status === 204) this.#editingAnnotationId = null;
+    await this.#resourceRefresh.request();
+    if (announce) this.#showToast("Highlight stroke erased.");
+  }
+
+  async #undoLastHighlightStroke(): Promise<void> {
+    const stroke = this.#lastHighlightStroke;
+    if (!stroke) return;
+    await this.#removeHighlightFragment(stroke.annotationId, stroke.fragmentId, false);
+    this.#lastHighlightStroke = null;
+    this.#elements.undoHighlight.disabled = true;
+    this.#showToast("Last highlight stroke undone.");
   }
 
   #focusAnnotationCard(annotationId: string): void {
@@ -3749,6 +3853,9 @@ function collectElements(): Elements {
     annotationComment: requiredElement("annotation-comment", HTMLInputElement),
     annotationSelectionStatus: requiredElement("annotation-selection-status", HTMLElement),
     saveAndLinkAnnotation: requiredElement("save-and-link-annotation", HTMLButtonElement),
+    highlightPaintTool: requiredElement("highlight-paint-tool", HTMLButtonElement),
+    highlightEraserTool: requiredElement("highlight-eraser-tool", HTMLButtonElement),
+    undoHighlight: requiredElement("undo-highlight", HTMLButtonElement),
     citeActivePdf: requiredElement("cite-active-pdf", HTMLButtonElement),
     openPaper: requiredElement("open-paper", HTMLButtonElement),
     paperStatus: requiredElement("paper-status", HTMLElement),
@@ -3905,6 +4012,12 @@ function formatCalendarDate(value: string): string {
   return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(parsed);
 }
 
+function selectionRectsOverlap(left: PdfSelectionRect, right: PdfSelectionRect): boolean {
+  return (
+    left.x < right.x + right.width && left.x + left.width > right.x && left.y < right.y + right.height && left.y + left.height > right.y
+  );
+}
+
 function formatTimestamp(value: string): string {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
@@ -3955,20 +4068,9 @@ function isCreatedAnnotation(value: unknown): value is AnnotationResource {
     typeof value.suffix === "string" &&
     typeof value.comment === "string" &&
     Array.isArray(value.rects) &&
-    typeof value.createdAt === "string"
-  );
-}
-
-function isAnnotationLinkResult(value: unknown): value is AnnotationLinkResult {
-  return (
-    isRecord(value) &&
-    isCreatedAnnotation(value.annotation) &&
-    isRecord(value.link) &&
-    typeof value.link.id === "string" &&
-    value.link.annotationId === value.annotation.id &&
-    isRecord(value.link.anchor) &&
-    isRecord(value.link.resolution) &&
-    typeof value.link.createdAt === "string"
+    Array.isArray(value.fragments) &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string"
   );
 }
 

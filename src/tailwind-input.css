@@ -682,6 +682,19 @@
     padding: 1rem;
   }
 
+  .highlight-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+  }
+
+  .highlight-tools button[aria-pressed="true"] {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+  }
+
   .publication-intake {
     margin-bottom: 1rem;
     border-bottom: 1px solid var(--color-app-line);
@@ -1251,6 +1264,16 @@
   .pdf-highlight[data-draft="true"] {
     background: rgb(11 107 81 / 0.2);
     box-shadow: inset 0 0 0 1px rgb(11 107 81 / 0.8);
+  }
+
+  .pdf-highlights[data-tool="erase"] {
+    z-index: 3;
+    pointer-events: auto;
+  }
+
+  .pdf-highlights[data-tool="erase"] .pdf-highlight:not([data-draft="true"]) {
+    cursor: crosshair;
+    pointer-events: auto;
   }
 
   .textLayer {

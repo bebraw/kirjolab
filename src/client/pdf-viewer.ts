@@ -33,7 +33,7 @@ interface OpenPdfOptions {
 export class PdfEvidenceViewer {
   readonly #elements: PdfViewerElements;
   readonly #onSelection: (capture: PdfSelectionCapture) => void;
-  readonly #onHighlight: (annotationId: string) => void;
+  readonly #onHighlight: (annotationId: string, fragmentId: string) => void;
   #document: PDFDocumentProxy | null = null;
   #loadingTask: PDFDocumentLoadingTask | null = null;
   #annotations: AnnotationResource[] = [];
@@ -47,7 +47,7 @@ export class PdfEvidenceViewer {
   constructor(
     elements: PdfViewerElements,
     onSelection: (capture: PdfSelectionCapture) => void,
-    onHighlight: (annotationId: string) => void,
+    onHighlight: (annotationId: string, fragmentId: string) => void,
   ) {
     this.#elements = elements;
     this.#onSelection = onSelection;
@@ -104,6 +104,10 @@ export class PdfEvidenceViewer {
   clearDraftSelection(): void {
     this.#draftSelection = null;
     this.#renderHighlights();
+  }
+
+  setTool(tool: "paint" | "erase"): void {
+    this.#elements.highlights.dataset.tool = tool;
   }
 
   async resize(): Promise<void> {
@@ -182,18 +186,24 @@ export class PdfEvidenceViewer {
   #renderHighlights(): void {
     this.#elements.highlights.replaceChildren();
     for (const annotation of this.#annotations.filter((item) => item.page === this.#pageNumber)) {
-      for (const rect of annotation.rects) {
-        const highlight = document.createElement("button");
-        highlight.type = "button";
-        highlight.className = "pdf-highlight";
-        if (annotation.id === this.#focusedAnnotationId) highlight.dataset.focused = "true";
-        highlight.style.left = `${rect.x * 100}%`;
-        highlight.style.top = `${rect.y * 100}%`;
-        highlight.style.width = `${rect.width * 100}%`;
-        highlight.style.height = `${rect.height * 100}%`;
-        highlight.title = annotation.comment || annotation.quote;
-        highlight.addEventListener("click", () => this.#onHighlight(annotation.id));
-        this.#elements.highlights.append(highlight);
+      const fragments =
+        annotation.fragments.length > 0 ? annotation.fragments : [{ id: `legacy-${annotation.id}`, rects: annotation.rects }];
+      for (const fragment of fragments) {
+        for (const rect of fragment.rects) {
+          const highlight = document.createElement("button");
+          highlight.type = "button";
+          highlight.className = "pdf-highlight";
+          if (annotation.id === this.#focusedAnnotationId) highlight.dataset.focused = "true";
+          highlight.style.left = `${rect.x * 100}%`;
+          highlight.style.top = `${rect.y * 100}%`;
+          highlight.style.width = `${rect.width * 100}%`;
+          highlight.style.height = `${rect.height * 100}%`;
+          highlight.title = annotation.comment || annotation.quote;
+          highlight.dataset.annotationId = annotation.id;
+          highlight.dataset.fragmentId = fragment.id;
+          highlight.addEventListener("click", () => this.#onHighlight(annotation.id, fragment.id));
+          this.#elements.highlights.append(highlight);
+        }
       }
     }
     if (this.#draftSelection?.page === this.#pageNumber) {

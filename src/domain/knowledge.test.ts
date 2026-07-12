@@ -68,7 +68,9 @@ const snapshot: WorkspaceSnapshot = {
       suffix: "",
       comment: "Grounding note",
       rects: [],
+      fragments: [],
       createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-10T00:00:00.000Z",
     },
   ],
   links: [

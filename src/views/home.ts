@@ -264,6 +264,11 @@ export function renderHomePage(
                 </div>
                 <button class="button-secondary" id="cite-active-pdf" type="button" disabled>Cite linked reference</button>
               </div>
+              <div class="highlight-tools" role="group" aria-label="PDF highlight tool">
+                <button class="button-secondary" id="highlight-paint-tool" type="button" aria-pressed="true">Paint</button>
+                <button class="button-secondary" id="highlight-eraser-tool" type="button" aria-pressed="false">Eraser</button>
+                <button class="button-secondary" id="undo-highlight" type="button" disabled>Undo last stroke</button>
+              </div>
               <p class="mt-2 text-xs leading-5 text-app-text-soft" id="annotation-selection-status">Select text in the paper to capture its quotation, context, page, and geometry.</p>
               <form class="mt-3 grid gap-3 sm:grid-cols-2" id="annotation-form">
                 <label class="field-label sm:col-span-2">Paper
@@ -276,7 +281,7 @@ export function renderHomePage(
                   <input class="field" id="annotation-comment" type="text" placeholder="Why this matters">
                 </label>
                 <label class="field-label sm:col-span-2">Exact quotation
-                  <textarea class="field min-h-20" id="annotation-quote" required placeholder="Select a passage in the paper"></textarea>
+                  <textarea class="field min-h-20" id="annotation-quote" required readonly placeholder="Select a passage in the paper"></textarea>
                 </label>
                 <label class="field-label">Text before
                   <input class="field" id="annotation-prefix" type="text" placeholder="Context before selection">
@@ -285,8 +290,8 @@ export function renderHomePage(
                   <input class="field" id="annotation-suffix" type="text" placeholder="Context after selection">
                 </label>
                 <div class="grid gap-2 sm:col-span-2 sm:grid-cols-2">
-                  <button class="button-primary justify-center" type="submit">Save annotation</button>
-                  <button class="button-secondary justify-center" id="save-and-link-annotation" type="submit">Save highlight &amp; link to selection</button>
+                  <button class="button-primary justify-center" type="submit">Save note</button>
+                  <button class="button-secondary justify-center" id="save-and-link-annotation" type="submit">Link highlight to selection</button>
                 </div>
               </form>
             </aside>

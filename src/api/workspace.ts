@@ -1,4 +1,5 @@
 import {
+  isAddAnnotationFragmentInput,
   isCreateAnnotationInput,
   isCreateAnnotationLinkInput,
   isCreateCandidateInput,
@@ -11,6 +12,7 @@ import {
   isCreateWorkspaceInput,
   isImportBibliographyInput,
   isInviteWorkspaceMemberInput,
+  isUpdateAnnotationInput,
   isUpsertClaimInput,
   localOwnerId,
   type PdfResource,
@@ -72,6 +74,9 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await deletePdf(storageKey, suffix.slice("/pdfs/".length), env, room);
     }
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
+    if (suffix.startsWith("/annotations/") && ["POST", "PUT", "DELETE"].includes(request.method)) {
+      return await mutateAnnotation(request, suffix, room);
+    }
     if (suffix === "/annotation-links" && request.method === "POST") return await createAnnotationLink(request, room);
     if (suffix === "/bibliography/import" && request.method === "POST") {
       if (role !== "owner") return jsonError("Only the workspace owner can import into the shared library", 403);
@@ -374,6 +379,38 @@ async function createAnnotation(
   const body: unknown = await request.json();
   if (!isCreateAnnotationInput(body)) return jsonError("Invalid annotation", 400);
   return Response.json(await room.createAnnotation(body), { status: 201 });
+}
+
+async function mutateAnnotation(
+  request: Request,
+  suffix: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const fragmentMatch = /^\/annotations\/([0-9a-f-]{36})\/fragments(?:\/([0-9a-f-]{36}|legacy-[0-9a-f-]{36}))?$/iu.exec(suffix);
+  if (fragmentMatch?.[1]) {
+    if (request.method === "POST" && !fragmentMatch[2]) {
+      const body: unknown = await request.json();
+      if (!isAddAnnotationFragmentInput(body)) return jsonError("Invalid highlight fragment", 400);
+      return Response.json(await room.appendAnnotationFragment(fragmentMatch[1], body), { status: 201 });
+    }
+    if (request.method === "DELETE" && fragmentMatch[2]) {
+      const annotation = await room.removeAnnotationFragment(fragmentMatch[1], fragmentMatch[2]);
+      return annotation ? Response.json(annotation) : new Response(null, { status: 204 });
+    }
+    return jsonError("Highlight fragment route not found", 404);
+  }
+  const annotationMatch = /^\/annotations\/([0-9a-f-]{36})$/iu.exec(suffix);
+  if (!annotationMatch?.[1]) return jsonError("Highlight route not found", 404);
+  if (request.method === "PUT") {
+    const body: unknown = await request.json();
+    if (!isUpdateAnnotationInput(body)) return jsonError("Invalid highlight", 400);
+    return Response.json(await room.updateAnnotation(annotationMatch[1], body));
+  }
+  if (request.method === "DELETE") {
+    await room.deleteAnnotation(annotationMatch[1]);
+    return new Response(null, { status: 204 });
+  }
+  return jsonError("Highlight route not found", 404);
 }
 
 async function createAnnotationLink(

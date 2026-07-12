@@ -104,6 +104,17 @@ export interface AnnotationResource {
   suffix: string;
   comment: string;
   rects: PdfSelectionRect[];
+  fragments: AnnotationFragment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnnotationFragment {
+  id: string;
+  quote: string;
+  prefix: string;
+  suffix: string;
+  rects: PdfSelectionRect[];
   createdAt: string;
 }
 
@@ -176,6 +187,7 @@ export interface ModelAnnotationEvidence {
   readonly comment: string;
   readonly rects: readonly PdfSelectionRect[];
   readonly createdAt: string;
+  readonly updatedAt: string;
 }
 
 export interface ModelClaimEvidence {
@@ -244,6 +256,18 @@ export interface CreateAnnotationInput {
   suffix: string;
   comment: string;
   rects: PdfSelectionRect[];
+}
+
+export interface AddAnnotationFragmentInput {
+  page: number;
+  quote: string;
+  prefix: string;
+  suffix: string;
+  rects: PdfSelectionRect[];
+}
+
+export interface UpdateAnnotationInput {
+  comment: string;
 }
 
 export interface ManuscriptPassageInput {
@@ -368,6 +392,26 @@ export function isCreateAnnotationInput(value: unknown): value is CreateAnnotati
     value.rects.length <= 64 &&
     value.rects.every(isPdfSelectionRect)
   );
+}
+
+export function isAddAnnotationFragmentInput(value: unknown): value is AddAnnotationFragmentInput {
+  return (
+    isRecord(value) &&
+    Number.isInteger(value.page) &&
+    typeof value.page === "number" &&
+    value.page > 0 &&
+    isStringWithin(value.quote, 20_000, true) &&
+    isStringWithin(value.prefix, 2_000) &&
+    isStringWithin(value.suffix, 2_000) &&
+    Array.isArray(value.rects) &&
+    value.rects.length > 0 &&
+    value.rects.length <= 64 &&
+    value.rects.every(isPdfSelectionRect)
+  );
+}
+
+export function isUpdateAnnotationInput(value: unknown): value is UpdateAnnotationInput {
+  return isRecord(value) && isStringWithin(value.comment, 4_000);
 }
 
 export function isCreateAnnotationLinkInput(value: unknown): value is CreateAnnotationLinkInput {
@@ -691,7 +735,20 @@ function isModelEvidenceSnapshot(value: unknown): value is ModelEvidence {
 function isModelAnnotationEvidence(value: unknown): value is ModelAnnotationEvidence {
   if (!isRecord(value)) return false;
   return (
-    hasExactKeys(value, ["kind", "id", "version", "pdfId", "page", "quote", "prefix", "suffix", "comment", "rects", "createdAt"]) &&
+    hasExactKeys(value, [
+      "kind",
+      "id",
+      "version",
+      "pdfId",
+      "page",
+      "quote",
+      "prefix",
+      "suffix",
+      "comment",
+      "rects",
+      "createdAt",
+      "updatedAt",
+    ]) &&
     value.kind === "annotation" &&
     isStringWithin(value.id, 128, true) &&
     isStringWithin(value.version, 128, true) &&
@@ -705,7 +762,8 @@ function isModelAnnotationEvidence(value: unknown): value is ModelAnnotationEvid
     value.rects.length <= 64 &&
     value.rects.every(isPdfSelectionRect) &&
     isStringWithin(value.createdAt, 128, true) &&
-    value.version === value.createdAt
+    isStringWithin(value.updatedAt, 128, true) &&
+    value.version === value.updatedAt
   );
 }
 

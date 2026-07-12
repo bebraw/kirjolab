@@ -45,7 +45,9 @@ import {
   isModelCandidate,
   type ApplyCandidateResult,
   type AnnotationLinkResult,
+  type AnnotationFragment,
   type AnnotationResource,
+  type AddAnnotationFragmentInput,
   type ClaimEvidenceInput,
   type ClaimEvidenceLink,
   type ClaimEvidenceRelation,
@@ -53,6 +55,7 @@ import {
   type ClaimResource,
   type CreateAnnotationInput,
   type CreateAnnotationLinkInput,
+  type UpdateAnnotationInput,
   type CreateCandidateInput,
   type CreateClaimPassageLinkInput,
   type CreateManuscriptCommentInput,
@@ -1214,7 +1217,16 @@ export class DocumentRoom extends DurableObject<Env> {
     const pdf = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM pdfs WHERE id = ?", input.pdfId).one();
     if (pdf.count === 0) throw new Error("PDF not found");
 
-    const annotation: AnnotationResource = { id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() };
+    const createdAt = new Date().toISOString();
+    const fragment: AnnotationFragment = {
+      id: crypto.randomUUID(),
+      quote: input.quote,
+      prefix: input.prefix,
+      suffix: input.suffix,
+      rects: input.rects,
+      createdAt,
+    };
+    const annotation: AnnotationResource = { id: crypto.randomUUID(), ...input, fragments: [fragment], createdAt, updatedAt: createdAt };
     this.#persistResourceRevision("annotation-create", () => {
       this.ctx.storage.sql.exec(
         "INSERT INTO annotations (id, pdf_id, page, quote, prefix, suffix, comment, rects_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -1225,11 +1237,86 @@ export class DocumentRoom extends DurableObject<Env> {
         annotation.prefix,
         annotation.suffix,
         annotation.comment,
-        JSON.stringify(annotation.rects),
+        serializeAnnotationState(annotation.fragments, annotation.updatedAt),
         annotation.createdAt,
       );
     });
     return annotation;
+  }
+
+  appendAnnotationFragment(annotationId: string, input: AddAnnotationFragmentInput): AnnotationResource {
+    const row = this.#annotationRow(annotationId);
+    if (row.page !== input.page) throw new Error("Highlight fragments must remain on one PDF page");
+    const current = annotationFromRow(row);
+    const updatedAt = new Date().toISOString();
+    const fragment: AnnotationFragment = { id: crypto.randomUUID(), ...input, createdAt: updatedAt };
+    const fragments = [...current.fragments, fragment];
+    const summary = annotationFragmentSummary(fragments);
+    this.#persistResourceRevision("annotation-fragment-add", () => {
+      this.ctx.storage.sql.exec(
+        "UPDATE annotations SET quote = ?, prefix = ?, suffix = ?, rects_json = ? WHERE id = ?",
+        summary.quote,
+        summary.prefix,
+        summary.suffix,
+        serializeAnnotationState(fragments, updatedAt),
+        annotationId,
+      );
+    });
+    this.#broadcastResources();
+    return annotationFromRow(this.#annotationRow(annotationId));
+  }
+
+  updateAnnotation(annotationId: string, input: UpdateAnnotationInput): AnnotationResource {
+    this.#annotationRow(annotationId);
+    const updatedAt = new Date().toISOString();
+    const current = annotationFromRow(this.#annotationRow(annotationId));
+    this.#persistResourceRevision("annotation-update", () => {
+      this.ctx.storage.sql.exec(
+        "UPDATE annotations SET comment = ?, rects_json = ? WHERE id = ?",
+        input.comment,
+        serializeAnnotationState(current.fragments, updatedAt),
+        annotationId,
+      );
+    });
+    this.#broadcastResources();
+    return annotationFromRow(this.#annotationRow(annotationId));
+  }
+
+  removeAnnotationFragment(annotationId: string, fragmentId: string): AnnotationResource | null {
+    const current = annotationFromRow(this.#annotationRow(annotationId));
+    if (!current.fragments.some((fragment) => fragment.id === fragmentId)) throw new Error("Highlight fragment not found");
+    const fragments = current.fragments.filter((fragment) => fragment.id !== fragmentId);
+    if (fragments.length === 0) {
+      this.deleteAnnotation(annotationId);
+      return null;
+    }
+    const updatedAt = new Date().toISOString();
+    const summary = annotationFragmentSummary(fragments);
+    this.#persistResourceRevision("annotation-fragment-remove", () => {
+      this.ctx.storage.sql.exec(
+        "UPDATE annotations SET quote = ?, prefix = ?, suffix = ?, rects_json = ? WHERE id = ?",
+        summary.quote,
+        summary.prefix,
+        summary.suffix,
+        serializeAnnotationState(fragments, updatedAt),
+        annotationId,
+      );
+    });
+    this.#broadcastResources();
+    return annotationFromRow(this.#annotationRow(annotationId));
+  }
+
+  deleteAnnotation(annotationId: string): void {
+    this.#annotationRow(annotationId);
+    const claims = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM claim_evidence_links WHERE annotation_id = ?", annotationId)
+      .one().count;
+    if (claims > 0) throw new Error(`Remove this highlight from ${claims} claim(s) before deleting it`);
+    this.#persistResourceRevision("annotation-delete", () => {
+      this.ctx.storage.sql.exec("DELETE FROM passage_links WHERE annotation_id = ?", annotationId);
+      this.ctx.storage.sql.exec("DELETE FROM annotations WHERE id = ?", annotationId);
+    });
+    this.#broadcastResources();
   }
 
   createAnnotationLink(input: CreateAnnotationLinkInput): AnnotationLinkResult {
@@ -1251,7 +1338,21 @@ export class DocumentRoom extends DurableObject<Env> {
     }
 
     const createdAt = new Date().toISOString();
-    const annotation: AnnotationResource = { id: crypto.randomUUID(), ...input.annotation, createdAt };
+    const fragment: AnnotationFragment = {
+      id: crypto.randomUUID(),
+      quote: input.annotation.quote,
+      prefix: input.annotation.prefix,
+      suffix: input.annotation.suffix,
+      rects: input.annotation.rects,
+      createdAt,
+    };
+    const annotation: AnnotationResource = {
+      id: crypto.randomUUID(),
+      ...input.annotation,
+      fragments: [fragment],
+      createdAt,
+      updatedAt: createdAt,
+    };
     const anchor = createManuscriptAnchor(
       this.#document,
       input.passage.start,
@@ -1277,7 +1378,7 @@ export class DocumentRoom extends DurableObject<Env> {
         annotation.prefix,
         annotation.suffix,
         annotation.comment,
-        JSON.stringify(annotation.rects),
+        serializeAnnotationState(annotation.fragments, annotation.updatedAt),
         annotation.createdAt,
       );
       this.ctx.storage.sql.exec(
@@ -2460,20 +2561,7 @@ export class DocumentRoom extends DurableObject<Env> {
   }
 
   #annotations(): AnnotationResource[] {
-    return this.ctx.storage.sql
-      .exec<AnnotationRow>("SELECT * FROM annotations ORDER BY created_at DESC")
-      .toArray()
-      .map((row) => ({
-        id: row.id,
-        pdfId: row.pdf_id,
-        page: row.page,
-        quote: row.quote,
-        prefix: row.prefix,
-        suffix: row.suffix,
-        comment: row.comment,
-        rects: parseSelectionRects(row.rects_json),
-        createdAt: row.created_at,
-      }));
+    return this.ctx.storage.sql.exec<AnnotationRow>("SELECT * FROM annotations ORDER BY created_at DESC").toArray().map(annotationFromRow);
   }
 
   #links(): PassageLink[] {
@@ -2520,6 +2608,12 @@ export class DocumentRoom extends DurableObject<Env> {
     return manuscriptCommentFromRow(this.#document, row);
   }
 
+  #annotationRow(annotationId: string): AnnotationRow {
+    const row = this.ctx.storage.sql.exec<AnnotationRow>("SELECT * FROM annotations WHERE id = ?", annotationId).toArray()[0];
+    if (!row) throw new Error("Highlight not found");
+    return row;
+  }
+
   #claim(claimId: string): ClaimResource {
     const row = this.ctx.storage.sql.exec<ClaimRow>("SELECT * FROM claims WHERE id = ?", claimId).toArray()[0];
     if (!row) throw new Error("Claim not found");
@@ -2542,19 +2636,21 @@ export class DocumentRoom extends DurableObject<Env> {
       if (reference.kind === "annotation") {
         const row = this.ctx.storage.sql.exec<AnnotationRow>("SELECT * FROM annotations WHERE id = ?", reference.id).toArray()[0];
         if (!row) throw new Error("Model evidence annotation not found");
-        if (row.created_at !== reference.version) throw new Error("Model evidence is stale; generate a new revision");
+        const annotation = annotationFromRow(row);
+        if (annotation.updatedAt !== reference.version) throw new Error("Model evidence is stale; generate a new revision");
         const snapshot: ModelEvidence = {
           kind: "annotation",
           id: row.id,
-          version: row.created_at,
+          version: annotation.updatedAt,
           pdfId: row.pdf_id,
           page: row.page,
-          quote: row.quote,
-          prefix: row.prefix,
-          suffix: row.suffix,
+          quote: annotation.quote,
+          prefix: annotation.prefix,
+          suffix: annotation.suffix,
           comment: row.comment,
-          rects: parseSelectionRects(row.rects_json),
+          rects: annotation.rects,
           createdAt: row.created_at,
+          updatedAt: annotation.updatedAt,
         };
         contentLength += snapshot.quote.length + snapshot.prefix.length + snapshot.suffix.length + snapshot.comment.length;
         evidence.push(snapshot);
@@ -2684,17 +2780,18 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
     }),
   );
   const annotations = revisionRows(state, "annotations").map(
-    (row): AnnotationResource => ({
-      id: sqlString(row, "id"),
-      pdfId: sqlString(row, "pdf_id"),
-      page: sqlNumber(row, "page"),
-      quote: sqlString(row, "quote"),
-      prefix: sqlString(row, "prefix"),
-      suffix: sqlString(row, "suffix"),
-      comment: sqlString(row, "comment"),
-      rects: parseSelectionRects(sqlString(row, "rects_json")),
-      createdAt: sqlString(row, "created_at"),
-    }),
+    (row): AnnotationResource =>
+      annotationFromRow({
+        id: sqlString(row, "id"),
+        pdf_id: sqlString(row, "pdf_id"),
+        page: sqlNumber(row, "page"),
+        quote: sqlString(row, "quote"),
+        prefix: sqlString(row, "prefix"),
+        suffix: sqlString(row, "suffix"),
+        comment: sqlString(row, "comment"),
+        rects_json: sqlString(row, "rects_json"),
+        created_at: sqlString(row, "created_at"),
+      }),
   );
   const claims = revisionRows(state, "claims").map(
     (row): ClaimResource => ({
@@ -3252,21 +3349,97 @@ function parseJson(value: string): unknown {
   }
 }
 
-function parseSelectionRects(value: string): AnnotationResource["rects"] {
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is AnnotationResource["rects"][number] =>
-        typeof item === "object" &&
-        item !== null &&
-        "x" in item &&
-        "y" in item &&
-        "width" in item &&
-        "height" in item &&
-        [item.x, item.y, item.width, item.height].every((coordinate) => typeof coordinate === "number"),
-    );
-  } catch {
-    return [];
-  }
+function annotationFromRow(row: AnnotationRow): AnnotationResource {
+  const state = parseAnnotationState(row);
+  const summary = annotationFragmentSummary(state.fragments);
+  return {
+    id: row.id,
+    pdfId: row.pdf_id,
+    page: row.page,
+    quote: summary.quote || row.quote,
+    prefix: summary.prefix || row.prefix,
+    suffix: summary.suffix || row.suffix,
+    comment: row.comment,
+    rects: state.fragments.flatMap((fragment) => fragment.rects),
+    fragments: state.fragments,
+    createdAt: row.created_at,
+    updatedAt: state.updatedAt,
+  };
+}
+
+function parseAnnotationState(row: AnnotationRow): { fragments: AnnotationFragment[]; updatedAt: string } {
+  const parsed = parseJson(row.rects_json);
+  if (isStoredAnnotationState(parsed)) return parsed;
+  const rects = Array.isArray(parsed) ? parsed.filter(isStoredSelectionRect) : [];
+  return {
+    fragments: [
+      {
+        id: `legacy-${row.id}`,
+        quote: row.quote,
+        prefix: row.prefix,
+        suffix: row.suffix,
+        rects,
+        createdAt: row.created_at,
+      },
+    ],
+    updatedAt: row.created_at,
+  };
+}
+
+function serializeAnnotationState(fragments: readonly AnnotationFragment[], updatedAt: string): string {
+  return JSON.stringify({ version: 2, fragments, updatedAt });
+}
+
+function annotationFragmentSummary(fragments: readonly AnnotationFragment[]): { quote: string; prefix: string; suffix: string } {
+  return {
+    quote: fragments.map((fragment) => fragment.quote).join(" … "),
+    prefix: fragments[0]?.prefix ?? "",
+    suffix: fragments.at(-1)?.suffix ?? "",
+  };
+}
+
+function isStoredAnnotationState(value: unknown): value is { version: 2; fragments: AnnotationFragment[]; updatedAt: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "version" in value &&
+    value.version === 2 &&
+    "updatedAt" in value &&
+    typeof value.updatedAt === "string" &&
+    "fragments" in value &&
+    Array.isArray(value.fragments) &&
+    value.fragments.every(isStoredAnnotationFragment)
+  );
+}
+
+function isStoredAnnotationFragment(value: unknown): value is AnnotationFragment {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "quote" in value &&
+    typeof value.quote === "string" &&
+    "prefix" in value &&
+    typeof value.prefix === "string" &&
+    "suffix" in value &&
+    typeof value.suffix === "string" &&
+    "createdAt" in value &&
+    typeof value.createdAt === "string" &&
+    "rects" in value &&
+    Array.isArray(value.rects) &&
+    value.rects.every(isStoredSelectionRect)
+  );
+}
+
+function isStoredSelectionRect(value: unknown): value is AnnotationResource["rects"][number] {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "x" in value &&
+    "y" in value &&
+    "width" in value &&
+    "height" in value &&
+    [value.x, value.y, value.width, value.height].every((coordinate) => typeof coordinate === "number")
+  );
 }

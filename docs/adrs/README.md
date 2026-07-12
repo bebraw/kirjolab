@@ -96,6 +96,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-061](./implemented/ADR-061-preserve-project-revisions-and-milestones.md)         | Implemented          | Keep atomic project revisions, immutable milestones, non-destructive restore, and diffs.              |
 | [ADR-062](./implemented/ADR-062-use-one-source-mapped-export-pipeline.md)             | Implemented          | Derive publication targets and statistics from one pinned, source-mapped export intermediate.         |
 | [ADR-063](./implemented/ADR-063-model-citation-assertions-with-provenance.md)         | Implemented          | Represent library citation relationships as bounded provenance-bearing assertions.                    |
+| [ADR-064](./implemented/ADR-064-model-editable-highlights-as-strokes.md)              | Implemented          | Auto-save grouped PDF highlight strokes with additive painting, undo, erasing, and guarded deletion.  |
 
 ## Creating A New ADR
 

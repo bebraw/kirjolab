@@ -15,8 +15,10 @@ with an authored passage.
   rendering, page navigation, stored highlights, and browser selection capture.
 - `src/client/pdf-selection.ts` normalizes selection geometry and derives quote
   context independently of the viewer runtime.
-- `AnnotationResource.rects` stores at most 64 normalized top-left page
-  rectangles. Exact quote, prefix, suffix, and page remain required selectors.
+- `AnnotationResource.fragments` retains ordered, independently identified
+  highlight strokes. Each stroke stores at most 64 normalized top-left page
+  rectangles plus exact quote, prefix, suffix, and creation time. The resource
+  projects combined quote and rectangle summaries for existing consumers.
 - `PdfResource.fingerprint` records the immutable R2 artifact ETag identity.
 - `DocumentRoom` adds selector fields without rewriting PDF objects in R2.
 - The PDF viewer is hosted inside the right research-context pane. Its
@@ -25,6 +27,9 @@ with an authored passage.
 - `POST /api/workspaces/{id}/annotation-links` validates an annotation and
   current manuscript selection before atomically inserting both the annotation
   and its passage link.
+- PDF selection auto-saves a new stroke. A geometric overlap on the same page
+  appends to the existing annotation. Stroke deletion powers both one-step undo
+  and the eraser; annotation deletion is explicit and blocked by claim usage.
 - The generated PDF.js worker is served from `/pdf.worker.js` and stays version
   matched with the display-layer dependency.
 
@@ -43,7 +48,10 @@ with an authored passage.
 - [x] An imported valid PDF renders inside Kirjolab with selectable text.
 - [x] Page navigation renders one page at a time.
 - [x] A selection captures page, quote, prefix, suffix, and normalized geometry.
-- [x] Saving the capture creates an external annotation resource.
+- [x] Releasing a PDF selection immediately saves an external annotation stroke.
+- [x] Painting over a highlight extends one resource; undo and eraser remove
+      identified strokes without changing PDF bytes.
+- [x] A highlight note can be edited and an unused highlight can be deleted.
 - [x] Saving and linking a capture creates its annotation and manuscript link
       atomically or creates neither.
 - [x] The PDF and evidence composer remain visible beside manuscript authoring

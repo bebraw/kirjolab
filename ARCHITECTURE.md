@@ -127,6 +127,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
 - Combine PDF page/geometry identity with exact quote, prefix, and suffix selectors; never require mutation of the imported PDF.
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
+- Model a mutable PDF highlight as one stable annotation with ordered, provenance-bearing selection strokes. Auto-save paint strokes, address undo and erasing by stroke identity, and keep claim-dependent annotation deletion guarded.
 - Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
 - Give workspace people opaque stored identities independent of email. Derive

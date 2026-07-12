@@ -467,6 +467,62 @@ test("reviews DOI metadata before adding and connecting an imported paper", asyn
   expect(accepted.publicationPdfLinks).toContainEqual(expect.objectContaining({ publicationId: publication?.id, pdfId: pdf.id }));
 });
 
+test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Editable highlight lifecycle");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await page.locator("#pdf-upload").setInputFiles({
+    name: "editable-highlights.pdf",
+    mimeType: "application/pdf",
+    buffer: createEvidencePdf(),
+  });
+  await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "editable-highlights.pdf" }).click();
+  await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
+  let delayFirstSave = true;
+  await page.route(`**${api}/annotations`, async (route) => {
+    if (delayFirstSave && route.request().method() === "POST") {
+      delayFirstSave = false;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    await route.continue();
+  });
+
+  const paintSelection = async (): Promise<void> => {
+    await page.locator("#paper-text-layer").evaluate((layer) => {
+      const span = layer.querySelector("span");
+      if (!span?.firstChild) throw new Error("Expected rendered PDF text");
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    });
+  };
+
+  await paintSelection();
+  await expect(page.locator("#paper-highlights .pdf-highlight[data-draft='true']")).toBeVisible();
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(1);
+  await paintSelection();
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(2);
+  expect((await readWorkspaceSnapshot(page, api)).annotations).toHaveLength(1);
+
+  await page.getByRole("button", { name: "Undo last stroke" }).click();
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(1);
+  await paintSelection();
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(2);
+
+  await page.getByRole("button", { name: "Eraser" }).click();
+  await page.locator("#paper-highlights .pdf-highlight[data-fragment-id]").last().click();
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(1);
+
+  await openResearchCollection(page, "Highlights");
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.locator("#annotation-list").getByRole("button", { name: "Delete highlight" }).click();
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations.length).toBe(0);
+});
+
 test("converges source edits across two writers", async ({ page, context }) => {
   const collaborator = await context.newPage();
   await Promise.all([page.goto("/"), collaborator.goto("/")]);
@@ -747,7 +803,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
 
   const candidatePrefix = "A reviewed candidate adds context.\n";
   const candidateTarget = "## Durable anchors {#durable-anchors}";
-  if (typeof annotation.createdAt !== "string") throw new Error("Expected an annotation version");
+  if (typeof annotation.updatedAt !== "string") throw new Error("Expected an annotation version");
   const candidateResponse = await page.request.post(`${api}/candidates`, {
     headers: { origin },
     data: {
@@ -763,7 +819,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
         excerpt: candidateTarget,
         sourceRevision: shiftedSnapshot.revision,
       },
-      evidence: [{ kind: "annotation", id: annotation.id, version: annotation.createdAt }],
+      evidence: [{ kind: "annotation", id: annotation.id, version: annotation.updatedAt }],
       proposedReplacement: `${candidatePrefix}${candidateTarget}`,
     },
   });
@@ -1487,11 +1543,11 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
     layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
   });
   await expect(page.locator("#annotation-quote")).toHaveValue("Knowledge grows through inspectable evidence.");
-  await expect(page.locator("#annotation-selection-status")).toContainText("Captured 1 fragment from page 1");
-  await expect(page.locator("#paper-highlights .pdf-highlight[data-draft='true']")).toBeVisible();
+  await expect(page.locator("#annotation-selection-status")).toContainText("saved automatically");
   await page.locator("#annotation-comment").fill("Grounding for the revision");
-  await page.getByRole("button", { name: "Save highlight & link to selection" }).click();
+  await page.getByRole("button", { name: "Link highlight to selection" }).click();
   await expect(page.locator("#annotation-list")).toContainText("Knowledge grows through inspectable evidence.");
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).links.length).toBeGreaterThan(0);
 
   const annotationCard = page.locator("#annotation-list article").filter({ hasText: "Knowledge grows" }).first();
 
@@ -1682,7 +1738,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
         excerpt: staleExcerpt,
         sourceRevision: currentSnapshot.revision,
       },
-      evidence: [{ kind: "annotation", id: staleEvidence.id, version: staleEvidence.createdAt }],
+      evidence: [{ kind: "annotation", id: staleEvidence.id, version: staleEvidence.updatedAt }],
       proposedReplacement: "## This candidate must not apply",
     },
   });

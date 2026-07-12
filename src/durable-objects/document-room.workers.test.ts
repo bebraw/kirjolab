@@ -749,6 +749,44 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(snapshot.links).toContainEqual(created.link);
   });
 
+  it("adds, edits, erases, and deletes auto-saved highlight strokes", async () => {
+    const workspaceId = "editable-highlight-strokes";
+    const stub = roomStub(workspaceId);
+    const pdf = pdfResource("editable-highlights.pdf");
+    await stub.registerPdf(pdf);
+    const annotation = await stub.createAnnotation({
+      pdfId: pdf.id,
+      page: 1,
+      quote: "First selected idea.",
+      prefix: "Before first",
+      suffix: "After first",
+      comment: "",
+      rects: [{ x: 0.1, y: 0.2, width: 0.25, height: 0.04 }],
+    });
+    expect(annotation.fragments).toHaveLength(1);
+
+    const extended = await stub.appendAnnotationFragment(annotation.id, {
+      page: 1,
+      quote: "Second selected idea.",
+      prefix: "Before second",
+      suffix: "After second",
+      rects: [{ x: 0.1, y: 0.25, width: 0.3, height: 0.04 }],
+    });
+    expect(extended.quote).toBe("First selected idea. … Second selected idea.");
+    expect(extended.rects).toHaveLength(2);
+    expect(extended.fragments).toHaveLength(2);
+    expect(extended.updatedAt).not.toBe("");
+
+    const noted = await stub.updateAnnotation(annotation.id, { comment: "Reusable synthesis note" });
+    expect(noted.comment).toBe("Reusable synthesis note");
+    const erased = await stub.removeAnnotationFragment(annotation.id, extended.fragments[1]?.id ?? "missing");
+    expect(erased?.quote).toBe("First selected idea.");
+    expect(erased?.fragments).toHaveLength(1);
+
+    await stub.deleteAnnotation(annotation.id);
+    expect((await stub.getSnapshot(workspaceId)).annotations).toEqual([]);
+  });
+
   it("persists neither resource when an atomic annotation link uses a stale passage", async () => {
     const workspaceId = "stale-atomic-annotation-link";
     const stub = roomStub(workspaceId);
@@ -824,8 +862,9 @@ describe("DocumentRoom in the Workers runtime", () => {
     });
     expect(candidate.target.anchor.relativeStart).not.toBeNull();
     expect(candidate.target.anchor.relativeEnd).not.toBeNull();
+    const { fragments: _fragments, updatedAt: annotationVersion, ...annotationEvidence } = fixture.annotation;
     expect(candidate.evidence).toEqual([
-      { kind: "annotation", version: fixture.annotation.createdAt, ...fixture.annotation },
+      { kind: "annotation", version: annotationVersion, updatedAt: annotationVersion, ...annotationEvidence },
       { kind: "claim", version: fixture.claim.updatedAt, ...fixture.claim },
     ]);
 

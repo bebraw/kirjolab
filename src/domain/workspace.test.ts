@@ -579,7 +579,11 @@ describe("workspace input guards", () => {
       { rects: [{ x: -1, y: 0, width: 0.1, height: 0.1 }] },
       { createdAt: "" },
       { createdAt: "x".repeat(129) },
-      { createdAt: "different" },
+      { createdAt: 1 },
+      { updatedAt: "" },
+      { updatedAt: "x".repeat(129) },
+      { updatedAt: 1 },
+      { updatedAt: "different" },
     ]) {
       expect(isModelCandidate({ ...valid, evidence: [{ ...annotation, ...change }] }), JSON.stringify(Object.keys(change))).toBe(false);
     }
@@ -709,6 +713,7 @@ function annotationEvidence() {
     comment: "Grounding note",
     rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
     createdAt,
+    updatedAt: createdAt,
   } as const;
 }
 
