@@ -24,7 +24,7 @@ export function renderHomePage(
           <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
           <span class="hidden h-4 w-px bg-app-line sm:block"></span>
           <label class="sr-only" for="workspace-switcher">Current project</label>
-          <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading workspace…</option></select>
+          <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading project…</option></select>
           <details class="action-menu header-action-menu" data-action-menu>
             <summary class="button-secondary shrink-0">Project</summary>
             <div class="editor-command-menu" aria-label="Project actions">
@@ -36,7 +36,7 @@ export function renderHomePage(
         </div>
         <div class="flex items-center gap-3">
           <label class="hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
-            <select class="workspace-switcher" id="workspace-layout" aria-label="Workspace view">
+            <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
               <option value="split">Split</option><option value="editor">Editor only</option>
               <option value="context">Context only</option><option value="pdf">PDF only</option>
             </select>
@@ -55,7 +55,7 @@ export function renderHomePage(
     </header>
 
     <main class="workspace-grid min-h-[calc(100vh-4rem)]" id="workspace-surfaces" data-active-surface="authoring" data-layout="split">
-      <nav class="surface-switcher" aria-label="Workspace surface">
+      <nav class="surface-switcher" aria-label="Project surface">
         <button class="surface-switch" id="show-authoring-surface" type="button" aria-controls="authoring-surface" aria-pressed="true">Authoring</button>
         <button class="surface-switch" id="show-context-surface" type="button" aria-controls="context-surface" aria-pressed="false">Context</button>
       </nav>
@@ -423,14 +423,14 @@ export function renderHomePage(
 
     <dialog class="new-workspace-dialog" id="new-workspace-dialog">
       <form class="p-5" id="new-workspace-form">
-        <p class="eyebrow">New workspace</p>
+        <p class="eyebrow">New project</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Start another line of inquiry</h2>
-        <label class="field-label mt-5">Workspace title
+        <label class="field-label mt-5">Project title
           <input class="field" id="new-workspace-title" type="text" maxlength="120" required autofocus placeholder="Working title">
         </label>
         <div class="mt-5 flex justify-end gap-2">
           <button class="button-secondary" id="cancel-new-workspace" type="button">Cancel</button>
-          <button class="button-primary" type="submit">Create workspace</button>
+          <button class="button-primary" type="submit">Create project</button>
         </div>
       </form>
     </dialog>
@@ -483,7 +483,7 @@ export function renderHomePage(
 
     <dialog class="new-workspace-dialog" id="share-workspace-dialog">
       <div class="p-5">
-        <p class="eyebrow">Workspace access</p>
+        <p class="eyebrow">Project access</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Collaborators</h2>
         <div class="mt-4 space-y-2" id="workspace-member-list"><div class="empty-state">Loading members…</div></div>
         <form class="mt-5 border-t border-app-line pt-5" id="invite-member-form">

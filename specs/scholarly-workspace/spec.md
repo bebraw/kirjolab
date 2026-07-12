@@ -33,6 +33,8 @@ mode for authenticated hosted collaboration.
   workspace resources while each `DocumentRoom` retains isolated coordination.
   Infrequent project-management and file-mutation actions stay grouped in
   labelled menus so the persistent chrome prioritizes authoring and export.
+  User-facing copy calls the editable unit a project; workspace remains an
+  implementation term for APIs, types, and coordination boundaries.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
 - **Schema lifecycle:** Every SQLite-backed document, catalog, and access
@@ -286,6 +288,8 @@ mode for authenticated hosted collaboration.
       hiding them behind unexplained glyphs.
 - [x] Permanent helper and empty-state copy stays concise, action-oriented, and
       free of architecture terminology that does not change the user's choice.
+- [x] Project creation, navigation, access, search, and errors use one
+      consistent user-facing noun.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
 - [x] Preview citations open publication context and explicit citation

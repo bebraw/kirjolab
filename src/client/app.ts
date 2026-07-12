@@ -564,9 +564,9 @@ class WorkspaceApp {
 
   async #refreshSnapshot(): Promise<void> {
     const response = await fetch(apiBase);
-    if (!response.ok) throw new Error("Could not load the workspace");
+    if (!response.ok) throw new Error("Could not load the project");
     const value: unknown = await response.json();
-    if (!isWorkspaceSnapshot(value)) throw new Error("Workspace returned an invalid snapshot");
+    if (!isWorkspaceSnapshot(value)) throw new Error("Project returned an invalid snapshot");
     const snapshot = this.#socketSynced ? this.#resolveSnapshotAnchors(value) : value;
     this.#snapshot = snapshot;
     if (!this.#hasBootstrapSnapshot) {
@@ -610,9 +610,9 @@ class WorkspaceApp {
 
   async #refreshCatalog(): Promise<void> {
     const response = await fetch(catalogBase);
-    if (!response.ok) throw new Error("Could not load workspace navigation");
+    if (!response.ok) throw new Error("Could not load project navigation");
     const value: unknown = await response.json();
-    if (!isWorkspaceSummaries(value)) throw new Error("Workspace catalog returned invalid data");
+    if (!isWorkspaceSummaries(value)) throw new Error("Project catalog returned invalid data");
     this.#renderWorkspaceCatalog(value);
   }
 
@@ -690,7 +690,7 @@ class WorkspaceApp {
     await expectOk(response);
     const workspace: unknown = await response.json();
     const created: unknown = [workspace];
-    if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Workspace catalog returned invalid data");
+    if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Project catalog returned invalid data");
     location.assign(created[0].href);
   }
 
@@ -727,7 +727,7 @@ class WorkspaceApp {
     const response = await jsonFetch(`${apiBase}/duplicate`, { title });
     await expectOk(response);
     const value: unknown = await response.json();
-    if (!isWorkspaceSummaries([value])) throw new Error("Workspace duplicate returned invalid data");
+    if (!isWorkspaceSummaries([value])) throw new Error("Project duplicate returned invalid data");
     location.assign((value as WorkspaceSummary).href);
   }
 
@@ -747,7 +747,7 @@ class WorkspaceApp {
     const response = await fetch(`${apiBase}/members`, { credentials: "same-origin" });
     await expectOk(response);
     const members: unknown = await response.json();
-    if (!isWorkspaceMembers(members)) throw new Error("Workspace members returned invalid data");
+    if (!isWorkspaceMembers(members)) throw new Error("Project members returned invalid data");
     this.#renderMembers(members);
   }
 
@@ -770,7 +770,7 @@ class WorkspaceApp {
     await expectOk(response);
     this.#elements.inviteMemberEmail.value = "";
     await this.#refreshMembers();
-    this.#showToast("Collaborator invited to this workspace.");
+    this.#showToast("Collaborator invited to this project.");
   }
 
   #connect(): void {
@@ -874,7 +874,7 @@ class WorkspaceApp {
         break;
       case "resources":
         void this.#resourceRefresh.request().catch((error: unknown) => {
-          this.#showToast(error instanceof Error ? error.message : "Could not refresh workspace resources");
+          this.#showToast(error instanceof Error ? error.message : "Could not refresh project resources");
         });
         break;
     }
@@ -2177,7 +2177,7 @@ class WorkspaceApp {
   async #acceptWorkspaceMutation(response: Response): Promise<void> {
     await expectOk(response);
     const value: unknown = await response.json();
-    if (!isWorkspaceSnapshot(value)) throw new Error("Workspace mutation returned an invalid snapshot");
+    if (!isWorkspaceSnapshot(value)) throw new Error("Project mutation returned an invalid snapshot");
     this.#snapshot = value;
     this.#renderResources();
     this.#renderProjectFiles();
@@ -2709,12 +2709,12 @@ class WorkspaceApp {
       const response = await fetch(`${apiBase}/search?q=${encodeURIComponent(query)}`, { credentials: "same-origin" });
       await expectOk(response);
       const value: unknown = await response.json();
-      if (!isKnowledgeSearchResults(value)) throw new Error("Workspace search returned invalid data");
+      if (!isKnowledgeSearchResults(value)) throw new Error("Project search returned invalid data");
       this.#renderKnowledgeSearchResults(value);
     } catch (error) {
       this.#elements.knowledgeSearchResults.classList.remove("hidden");
       this.#elements.researchInventory.classList.add("hidden");
-      this.#elements.knowledgeSearchResults.replaceChildren(emptyState(error instanceof Error ? error.message : "Workspace search failed"));
+      this.#elements.knowledgeSearchResults.replaceChildren(emptyState(error instanceof Error ? error.message : "Project search failed"));
     }
   }
 
@@ -2723,7 +2723,7 @@ class WorkspaceApp {
     this.#elements.knowledgeSearchResults.classList.remove("hidden");
     this.#elements.researchInventory.classList.add("hidden");
     if (results.length === 0) {
-      this.#elements.knowledgeSearchResults.append(emptyState("No matching workspace resources."));
+      this.#elements.knowledgeSearchResults.append(emptyState("No matching project resources."));
       return;
     }
     for (const result of results) {
@@ -4486,7 +4486,7 @@ function isCreatedAnnotation(value: unknown): value is AnnotationResource {
 
 function readWorkspaceId(): string {
   const value = document.body.dataset.workspaceId;
-  if (!value || !/^[a-z0-9-]{1,64}$/iu.test(value)) throw new Error("Invalid workspace identity");
+  if (!value || !/^[a-z0-9-]{1,64}$/iu.test(value)) throw new Error("Invalid project identity");
   return value;
 }
 

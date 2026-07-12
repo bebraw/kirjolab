@@ -1104,9 +1104,10 @@ test("isolates clients that send unsupported collaboration frames", async ({ pag
 
 test("creates, shares, and navigates isolated workspaces", async ({ page, browser }) => {
   await page.goto("/");
+  await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
   await page.locator("#new-workspace-title").fill("Independent inquiry");
-  await page.locator("#new-workspace-dialog").getByRole("button", { name: "Create workspace" }).click();
+  await page.locator("#new-workspace-dialog").getByRole("button", { name: "Create project" }).click();
   await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
 
   const workspaceId = new URL(page.url()).pathname.split("/").at(-1);
@@ -1114,7 +1115,8 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await expect(page.locator("#workspace-switcher")).toHaveValue(workspaceId);
   await expect(page.locator("#workspace-switcher option:checked")).toHaveText("Independent inquiry");
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
-  await page.getByRole("button", { name: "Projects" }).click();
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "Open projects" }).click();
   await page.locator("#workspace-catalog-filter").fill("Independent inquiry");
   await expect(page.locator("#workspace-catalog-list")).toContainText("Independent inquiry");
   await expect(page.locator("#workspace-catalog-list")).toContainText("Current project");
