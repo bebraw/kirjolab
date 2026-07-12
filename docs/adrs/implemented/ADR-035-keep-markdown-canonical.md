@@ -1,6 +1,6 @@
 # ADR-035: Keep Markdown as the Canonical Authored Representation
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-10
 
@@ -59,6 +59,27 @@ Markdown while preserving work independently of Kirjolab.
 - Collaboration state may use a specialized internal representation, but it
   must materialize to canonical Markdown as defined separately.
 - Exact parser and editor libraries remain implementation choices.
+
+## Implementation
+
+- Root `main.md` and its bounded `::include[path]` tree are the canonical
+  authored project representation. Supporting file identities and source-map
+  spans keep diagnostics, navigation, and exports tied to authored ranges.
+- Yjs coordinates current text, while every causally new update materializes
+  readable Markdown. Synchronization state, Satteri syntax trees, rendered HTML,
+  previews, indexes, statistics, and publication artifacts remain derived.
+- The pinned Satteri pipeline parses and validates standard and scholarly
+  Markdown. Preview sanitization and CSP boundaries prevent derived rendering
+  from becoming an execution or persistence authority.
+- The single export pipeline consumes the composed Markdown tree once and
+  derives Markdown, citation-scoped BibTeX, LaTeX, PDF, statistics, diagnostics,
+  and archives with source mappings back to project files.
+- Shared bibliographic records are authoritative library resources; portable
+  BibTeX remains bounded import/export interchange and project bibliography is
+  derived from stable linked snapshots and local aliases.
+- `specs/scientific-markdown/spec.md`, `specs/project-composition/spec.md`,
+  `specs/export-pipeline/spec.md`, and `specs/scholarly-workspace/spec.md` define
+  the maintained canonical-source and derivation contracts.
 
 ## Alternatives Considered
 
