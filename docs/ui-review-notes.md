@@ -1,8 +1,44 @@
 # UI Review Notes
 
-**Status:** Provisional review notes. These observations are not an approved
-feature spec or architecture decision. Revisit and refine them after the UI
-review pass is complete.
+**Status:** Review complete. Architectural decisions were promoted to ADRs and
+feature specs; this file remains the observation log and implementation audit.
+
+## Implementation Audit (2026-07-12)
+
+Implemented during the follow-up pass:
+
+- Files and Research are separate rail modes; bounded collections collapse and
+  search replaces the inventory instead of stacking another result list.
+- Project files, `main.md`, `::include[path]`, file creation, history,
+  milestones, diffs, unified export, PDF/LaTeX output, and word statistics are
+  available through their dedicated workflows.
+- The header uses project vocabulary, removes the duplicated title and glyph
+  action, and adds a searchable Projects browser.
+- The editor exposes scholarly insertion templates and explains the
+  conditional cited-source action with user-facing save status.
+- Authoring/Context is resizable by pointer or keyboard with per-context local
+  widths and sharp PDF rerendering. PDF identity, page navigation, pin, and
+  close controls share one context row.
+- PDF selection paints an immediate draft highlight. Reference intake is
+  folded; citation and highlight-to-prose linking are explicit adjacent tasks.
+- The model surface is a collapsed, selection-scoped Writing assistant with
+  provider settings secondary to its reviewable revision workflow.
+- The citation network has a labelled entry point. Unused project PDFs can be
+  removed; dependency counts block unsafe deletion without cascading.
+- Browser tests use disposable Wrangler persistence and no longer pollute the
+  interactive project catalog.
+- The private reference library exposes researcher tags and notes on each
+  reference card.
+
+Still open as distinct feature work:
+
+- Project rename, archive, permanent deletion, duplication, and settings.
+- Automatic highlight persistence, additive painting into an existing
+  highlight, erasing geometry, and deleting or undoing saved highlights.
+- Manual editing of canonical bibliographic fields, collections, reading
+  status, priority, and rating.
+- Dedicated editor-only/context-only focus controls beyond responsive switching
+  and the resizable desktop split.
 
 ## Review Context
 
