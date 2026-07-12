@@ -39,8 +39,6 @@ Implemented during the follow-up pass:
 - Desktop view controls expose Split, Editor only, Context only, and PDF only,
   remembering the choice locally per project.
 
-Still open as distinct feature work:
-
 ## Review Context
 
 - Reviewed the current desktop workspace at `http://localhost:8787/` in a

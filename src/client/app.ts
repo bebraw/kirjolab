@@ -581,6 +581,7 @@ class WorkspaceApp {
     this.#workspaceCatalog = workspaces;
     this.#elements.workspaceSwitcher.replaceChildren();
     for (const workspace of workspaces) {
+      if (workspace.archivedAt && workspace.id !== workspaceId) continue;
       const option = new Option(workspace.title, workspace.id, workspace.id === workspaceId, workspace.id === workspaceId);
       this.#elements.workspaceSwitcher.append(option);
     }
@@ -604,7 +605,12 @@ class WorkspaceApp {
       const title = document.createElement("strong");
       title.textContent = workspace.title;
       const meta = document.createElement("span");
-      meta.textContent = workspace.id === workspaceId ? "Current project" : `Updated ${formatCalendarDate(workspace.updatedAt)}`;
+      meta.textContent =
+        workspace.id === workspaceId
+          ? workspace.archivedAt
+            ? "Current project · archived"
+            : "Current project"
+          : `${workspace.archivedAt ? "Archived" : "Updated"} ${formatCalendarDate(workspace.archivedAt ?? workspace.updatedAt)}`;
       link.append(title, meta);
       this.#elements.workspaceCatalogList.append(link);
     }
