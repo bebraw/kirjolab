@@ -73,6 +73,9 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Sources & evidence" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  await expect(page.locator("#open-source-citation")).toBeHidden();
+  await expect(page.locator("#pin-active-context")).toBeHidden();
+  await expect(page.locator("#close-active-context")).toBeHidden();
   await expect(page.getByRole("button", { name: "Project settings" })).toBeHidden();
   await page.locator(".header-action-menu summary").click();
   await expect(page.getByRole("button", { name: "Project settings" })).toBeVisible();
@@ -119,6 +122,14 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.locator("#preview .footnotes")).toContainText("Rendered by Satteri");
   await expect(page.locator("#preview .section-number").first()).toBeVisible();
   await expect(page.locator("#revision-badge")).not.toHaveText("r0");
+
+  await page.locator("#source-editor").evaluate((element: HTMLTextAreaElement) => {
+    const citation = element.value.indexOf(":cite[merton1942]");
+    element.focus();
+    element.setSelectionRange(citation + 7, citation + 7);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await expect(page.locator("#open-source-citation")).toBeVisible();
 
   const exported = await page.request.get(`${api}/export/document.md`);
   expect(exported.ok()).toBe(true);

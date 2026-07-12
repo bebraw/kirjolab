@@ -3025,6 +3025,8 @@ class WorkspaceApp {
           : "Identify before citing";
     this.#elements.pinActiveContext.disabled = !activeTab;
     this.#elements.closeActiveContext.disabled = !activeTab;
+    this.#elements.pinActiveContext.hidden = !activeTab;
+    this.#elements.closeActiveContext.hidden = !activeTab;
     this.#elements.pinActiveContext.textContent = activeTab?.pinned ? "Unpin" : "Pin";
     this.#elements.pinActiveContext.setAttribute(
       "aria-label",
@@ -3445,8 +3447,9 @@ class WorkspaceApp {
 
   #rememberAuthoringSelection(): void {
     this.#authoringSelection = captureRelativeSelection(this.#elements.source, this.#activeFileText);
-    this.#elements.openSourceCitation.disabled =
-      citationKeysAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd).length === 0;
+    const citationAtCaret = citationKeysAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd).length > 0;
+    this.#elements.openSourceCitation.disabled = !citationAtCaret;
+    this.#elements.openSourceCitation.classList.toggle("hidden", !citationAtCaret);
     this.#updateCitationInsertionAvailability();
   }
 

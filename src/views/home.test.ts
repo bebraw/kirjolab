@@ -33,7 +33,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="workspace-surfaces" data-active-surface="authoring"');
     expect(html).toContain('id="show-authoring-surface"');
     expect(html).toContain('id="show-context-surface"');
-    expect(html).toContain('id="open-source-citation"');
+    expect(html).toContain('class="button-secondary hidden" id="open-source-citation"');
     expect(html).toContain('id="open-project-history"');
     expect(html).toContain('id="project-history-dialog"');
     expect(html).toContain("Browse, compare, restore, or branch from saved versions.");
@@ -47,8 +47,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="export-statistics"');
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
-    expect(html).toContain('id="pin-active-context"');
-    expect(html).toContain('id="close-active-context"');
+    expect(html).toContain('id="pin-active-context" type="button" disabled hidden');
+    expect(html).toContain('id="close-active-context" type="button" disabled hidden');
     expect(html).toContain('id="pdf-context-controls" hidden');
     expect(html).toContain('id="context-preview-tab" type="button" role="tab"');
     expect(html).toContain('aria-controls="context-preview-panel" aria-selected="true"');

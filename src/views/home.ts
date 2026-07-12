@@ -144,7 +144,7 @@ export function renderHomePage(
                 <button id="delete-project-file" type="button"><strong>Delete file</strong></button>
               </div>
             </details>
-            <button class="button-secondary" id="open-source-citation" type="button" title="Place the caret inside :cite[key] to view its source" disabled>View cited source</button>
+            <button class="button-secondary hidden" id="open-source-citation" type="button" title="View the citation at the caret" disabled>View cited source</button>
             <p class="text-xs text-app-text-soft" id="save-status">Opening…</p>
           </div>
         </div>
@@ -192,8 +192,8 @@ export function renderHomePage(
               <span class="context-page-indicator" id="paper-page-indicator">– / –</span>
               <button id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
             </div>
-            <button id="pin-active-context" type="button" disabled>Pin</button>
-            <button id="close-active-context" type="button" disabled>Close</button>
+            <button id="pin-active-context" type="button" disabled hidden>Pin</button>
+            <button id="close-active-context" type="button" disabled hidden>Close</button>
           </div>
         </div>
 
