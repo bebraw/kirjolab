@@ -22,12 +22,17 @@ describe("supporting Durable Objects in the Workers runtime", () => {
 
     const catalogLedger = await runInDurableObject(catalog, (_instance: WorkspaceCatalog, state) => ledgerRows(state));
     const accessLedger = await runInDurableObject(access, (_instance: WorkspaceAccess, state) => ledgerRows(state));
-    expect(catalogLedger).toEqual([{ version: 1, name: "create-workspace-catalog" }]);
+    expect(catalogLedger).toEqual([
+      { version: 1, name: "create-workspace-catalog" },
+      { version: 2, name: "archive-workspaces" },
+    ]);
     expect(accessLedger).toEqual([
       { version: 1, name: "create-workspace-access" },
       { version: 2, name: "assign-stable-person-identities" },
     ]);
 
+    expect((await catalog.updateWorkspace(registered.id, "Renamed workspace", true)).archivedAt).not.toBeNull();
+    expect((await catalog.updateWorkspace(registered.id, registered.title, false)).archivedAt).toBeNull();
     const acceptedCatalogState = {
       workspaces: await catalog.listWorkspaces(),
       registered: await catalog.getWorkspace(registered.id),
@@ -37,7 +42,7 @@ describe("supporting Durable Objects in the Workers runtime", () => {
       memberRole: await access.getRole(member.email),
       members: await access.listMembers(owner.email),
     };
-    expect(acceptedCatalogState.registered).toEqual(registered);
+    expect(acceptedCatalogState.registered).toMatchObject({ id: registered.id, title: registered.title, archivedAt: null });
     expect(acceptedAccessState).toEqual({ ownerRole: "owner", memberRole: "member", members: [owner, member] });
     expect(owner.id).toMatch(/^[0-9a-f-]{32,36}$/u);
     expect(member.id).toMatch(/^[0-9a-f-]{32,36}$/u);

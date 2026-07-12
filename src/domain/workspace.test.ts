@@ -97,7 +97,9 @@ describe("workspace input guards", () => {
     ).toBe(true);
     expect(isWorkspaceMembers([{ id: "person-1", email: "owner@example.org", role: "owner", addedAt: "now" }])).toBe(true);
     expect(
-      isWorkspaceSummaries([{ id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now" }]),
+      isWorkspaceSummaries([
+        { id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now", archivedAt: null },
+      ]),
     ).toBe(true);
     expect(isCreateCandidateInput(validCandidateInput())).toBe(true);
     expect(
@@ -173,10 +175,13 @@ describe("workspace input guards", () => {
       href: "/workspaces/workspace",
       createdAt: "created",
       updatedAt: "updated",
+      archivedAt: null,
     };
     for (const change of [{ id: "" }, { title: "" }, { href: "" }, { createdAt: "" }, { updatedAt: "" }]) {
       expect(isWorkspaceSummaries([{ ...validSummary, ...change }]), JSON.stringify(change)).toBe(false);
     }
+    expect(isWorkspaceSummaries([{ ...validSummary, archivedAt: "archived" }])).toBe(true);
+    expect(isWorkspaceSummaries([{ ...validSummary, archivedAt: "" }])).toBe(false);
     expect(isCreateCandidateInput(null)).toBe(false);
     expect(isWorkspaceSnapshot({ id: "demo" })).toBe(false);
   });

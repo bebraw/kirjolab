@@ -85,6 +85,14 @@ interface Elements {
   collaboratorSelections: HTMLElement;
   workspaceSwitcher: HTMLSelectElement;
   manageWorkspaces: HTMLButtonElement;
+  workspaceSettings: HTMLButtonElement;
+  workspaceSettingsDialog: HTMLDialogElement;
+  workspaceSettingsForm: HTMLFormElement;
+  workspaceSettingsTitle: HTMLInputElement;
+  closeWorkspaceSettings: HTMLButtonElement;
+  duplicateWorkspace: HTMLButtonElement;
+  archiveWorkspace: HTMLButtonElement;
+  deleteWorkspace: HTMLButtonElement;
   workspaceCatalogDialog: HTMLDialogElement;
   closeWorkspaceCatalog: HTMLButtonElement;
   workspaceCatalogFilter: HTMLInputElement;
@@ -375,6 +383,17 @@ class WorkspaceApp {
       this.#renderWorkspaceCatalogList();
       this.#elements.workspaceCatalogFilter.focus();
     });
+    this.#elements.workspaceSettings.addEventListener("click", () => {
+      const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
+      this.#elements.workspaceSettingsTitle.value = current?.title ?? "";
+      this.#elements.archiveWorkspace.textContent = current?.archivedAt ? "Restore" : "Archive";
+      this.#elements.workspaceSettingsDialog.showModal();
+    });
+    this.#elements.closeWorkspaceSettings.addEventListener("click", () => this.#elements.workspaceSettingsDialog.close());
+    this.#elements.workspaceSettingsForm.addEventListener("submit", (event) => void this.#saveWorkspaceSettings(event));
+    this.#elements.archiveWorkspace.addEventListener("click", () => void this.#toggleWorkspaceArchive());
+    this.#elements.duplicateWorkspace.addEventListener("click", () => void this.#duplicateWorkspace());
+    this.#elements.deleteWorkspace.addEventListener("click", () => void this.#deleteWorkspace());
     this.#elements.closeWorkspaceCatalog.addEventListener("click", () => this.#elements.workspaceCatalogDialog.close());
     this.#elements.workspaceCatalogFilter.addEventListener("input", () => this.#renderWorkspaceCatalogList());
     this.#elements.newWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.showModal());
@@ -604,6 +623,36 @@ class WorkspaceApp {
     const created: unknown = [workspace];
     if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Workspace catalog returned invalid data");
     location.assign(created[0].href);
+  }
+
+  async #saveWorkspaceSettings(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    await expectOk(await jsonFetch(`${apiBase}/settings`, { title: this.#elements.workspaceSettingsTitle.value }, "PATCH"));
+    location.reload();
+  }
+
+  async #toggleWorkspaceArchive(): Promise<void> {
+    const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
+    await expectOk(await jsonFetch(`${apiBase}/settings`, { archived: !current?.archivedAt }, "PATCH"));
+    this.#elements.workspaceSettingsDialog.close();
+    await this.#refreshCatalog();
+  }
+
+  async #duplicateWorkspace(): Promise<void> {
+    const title = prompt("Title for the duplicate", `${this.#elements.workspaceSettingsTitle.value} copy`)?.trim();
+    if (!title) return;
+    const response = await jsonFetch(`${apiBase}/duplicate`, { title });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWorkspaceSummaries([value])) throw new Error("Workspace duplicate returned invalid data");
+    location.assign((value as WorkspaceSummary).href);
+  }
+
+  async #deleteWorkspace(): Promise<void> {
+    const confirmation = prompt(`Type DELETE to permanently remove “${this.#elements.workspaceSettingsTitle.value}” and its project PDFs.`);
+    if (confirmation !== "DELETE") return;
+    await expectOk(await fetch(`${apiBase}/settings`, { method: "DELETE", credentials: "same-origin" }));
+    location.assign("/");
   }
 
   async #openSharing(): Promise<void> {
@@ -3695,6 +3744,14 @@ function collectElements(): Elements {
     collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
     workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
     manageWorkspaces: requiredElement("manage-workspaces", HTMLButtonElement),
+    workspaceSettings: requiredElement("workspace-settings", HTMLButtonElement),
+    workspaceSettingsDialog: requiredElement("workspace-settings-dialog", HTMLDialogElement),
+    workspaceSettingsForm: requiredElement("workspace-settings-form", HTMLFormElement),
+    workspaceSettingsTitle: requiredElement("workspace-settings-title", HTMLInputElement),
+    closeWorkspaceSettings: requiredElement("close-workspace-settings", HTMLButtonElement),
+    duplicateWorkspace: requiredElement("duplicate-workspace", HTMLButtonElement),
+    archiveWorkspace: requiredElement("archive-workspace", HTMLButtonElement),
+    deleteWorkspace: requiredElement("delete-workspace", HTMLButtonElement),
     workspaceCatalogDialog: requiredElement("workspace-catalog-dialog", HTMLDialogElement),
     closeWorkspaceCatalog: requiredElement("close-workspace-catalog", HTMLButtonElement),
     workspaceCatalogFilter: requiredElement("workspace-catalog-filter", HTMLInputElement),

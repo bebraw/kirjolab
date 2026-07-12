@@ -26,6 +26,14 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 2,
+    name: "archive-workspaces",
+    apply(sql): undefined {
+      sql.exec("ALTER TABLE workspaces ADD COLUMN archived_at TEXT");
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface WorkspaceCatalogRow extends Record<string, SqlStorageValue> {
@@ -33,6 +41,7 @@ interface WorkspaceCatalogRow extends Record<string, SqlStorageValue> {
   title: string;
   created_at: string;
   updated_at: string;
+  archived_at: string | null;
 }
 
 export class WorkspaceCatalog extends DurableObject<Env> {
@@ -68,6 +77,24 @@ export class WorkspaceCatalog extends DurableObject<Env> {
     const row = this.ctx.storage.sql.exec<WorkspaceCatalogRow>("SELECT * FROM workspaces WHERE id = ?", id).toArray()[0];
     return row ? summaryFromRow(row) : null;
   }
+
+  updateWorkspace(id: string, title: string | null, archived: boolean | null): WorkspaceSummary {
+    const current = this.getWorkspace(id);
+    if (!current) throw new Error("Workspace not found");
+    const now = new Date().toISOString();
+    this.ctx.storage.sql.exec(
+      "UPDATE workspaces SET title = ?, archived_at = ?, updated_at = ? WHERE id = ?",
+      title ?? current.title,
+      archived === null ? current.archivedAt : archived ? now : null,
+      now,
+      id,
+    );
+    return summaryFromRow(this.ctx.storage.sql.exec<WorkspaceCatalogRow>("SELECT * FROM workspaces WHERE id = ?", id).one());
+  }
+
+  removeWorkspace(id: string): void {
+    this.ctx.storage.sql.exec("DELETE FROM workspaces WHERE id = ?", id);
+  }
 }
 
 function summaryFromRow(row: WorkspaceCatalogRow): WorkspaceSummary {
@@ -77,5 +104,6 @@ function summaryFromRow(row: WorkspaceCatalogRow): WorkspaceSummary {
     href: `/workspaces/${row.id}`,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    archivedAt: row.archived_at,
   };
 }

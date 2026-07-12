@@ -98,6 +98,11 @@ export class WorkspaceAccess extends DurableObject<Env> {
     );
     return member;
   }
+
+  async deleteWorkspaceAccess(requesterEmail: string): Promise<void> {
+    if (this.getRole(requesterEmail) !== "owner") throw new Error("Only the workspace owner can delete workspace access");
+    await this.ctx.storage.deleteAll();
+  }
 }
 
 function memberFromRow(row: MemberRow): WorkspaceMember {

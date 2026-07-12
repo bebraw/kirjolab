@@ -14,6 +14,7 @@ import {
   isInviteWorkspaceMemberInput,
   isUpdateAnnotationInput,
   isUpsertClaimInput,
+  demoWorkspaceId,
   localOwnerId,
   type PdfResource,
 } from "../domain/workspace";
@@ -44,6 +45,18 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
 
   try {
+    if (suffix === "/settings" && request.method === "PATCH") {
+      if (role !== "owner") return jsonError("Only the workspace owner can change project settings", 403);
+      return await updateWorkspaceSettings(request, workspaceId, room, access, catalog, env, identity.email);
+    }
+    if (suffix === "/duplicate" && request.method === "POST") {
+      if (role !== "owner") return jsonError("Only the workspace owner can duplicate a project", 403);
+      return await duplicateWorkspace(request, workspaceId, room, catalog, env, identity);
+    }
+    if (suffix === "/settings" && request.method === "DELETE") {
+      if (role !== "owner") return jsonError("Only the workspace owner can permanently delete a project", 403);
+      return await permanentlyDeleteWorkspace(workspaceId, room, access, catalog, env, identity);
+    }
     if (suffix === "/" && request.method === "GET") {
       const library = await projectOwnerLibrary(env, access, identity.email);
       return Response.json(await refreshLinkedReferences(workspaceId, room, library));
@@ -158,6 +171,75 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
         : 400;
     return jsonError(message, status);
   }
+}
+
+async function updateWorkspaceSettings(
+  request: Request,
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  access: DurableObjectStub<import("../durable-objects/workspace-access").WorkspaceAccess>,
+  catalog: DurableObjectStub<import("../durable-objects/workspace-catalog").WorkspaceCatalog>,
+  env: Env,
+  requesterEmail: string,
+): Promise<Response> {
+  if (workspaceId === demoWorkspaceId) return jsonError("The demo project cannot be changed", 409);
+  const body: unknown = await request.json();
+  if (!isRecord(body)) return jsonError("Invalid project settings", 400);
+  const title = body.title === undefined ? null : typeof body.title === "string" ? body.title.trim() : "";
+  const archived = body.archived === undefined ? null : typeof body.archived === "boolean" ? body.archived : undefined;
+  if ((title !== null && (!title || title.length > 120)) || archived === undefined) return jsonError("Invalid project settings", 400);
+  if (title !== null) await room.renameWorkspace(title);
+  const members = await access.listMembers(requesterEmail);
+  let result = await catalog.updateWorkspace(workspaceId, title, archived);
+  for (const member of members) {
+    const memberCatalog = env.WORKSPACE_CATALOGS.getByName(await ownerKeyForEmail(member.email));
+    result = await memberCatalog.updateWorkspace(workspaceId, title, archived);
+  }
+  return Response.json(result);
+}
+
+async function duplicateWorkspace(
+  request: Request,
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  catalog: DurableObjectStub<import("../durable-objects/workspace-catalog").WorkspaceCatalog>,
+  env: Env,
+  identity: AuthIdentity,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.title !== "string" || !body.title.trim() || body.title.length > 120)
+    return jsonError("Invalid duplicate title", 400);
+  const source = await room.getSnapshot(workspaceId);
+  const id = crypto.randomUUID();
+  const storageKey = workspaceStorageKey(identity, id);
+  await env.WORKSPACE_ACCESS.getByName(storageKey).initializeOwner(identity.email);
+  await env.DOCUMENT_ROOMS.getByName(storageKey).seedFromRevision(id, body.title.trim(), await room.getRevisionSeed(source.revision));
+  return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
+}
+
+async function permanentlyDeleteWorkspace(
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  access: DurableObjectStub<import("../durable-objects/workspace-access").WorkspaceAccess>,
+  catalog: DurableObjectStub<import("../durable-objects/workspace-catalog").WorkspaceCatalog>,
+  env: Env,
+  identity: AuthIdentity,
+): Promise<Response> {
+  if (workspaceId === demoWorkspaceId) return jsonError("The demo project cannot be deleted", 409);
+  const [snapshot, members] = await Promise.all([room.getSnapshot(workspaceId), access.listMembers(identity.email)]);
+  const library = await projectOwnerLibrary(env, access, identity.email);
+  for (const reference of snapshot.projectReferences) await library.unregisterProjectDependency(workspaceId, reference.referenceId);
+  let cursor: string | undefined;
+  do {
+    const page = await env.PAPERS.list({ prefix: `${workspaceId}/`, ...(cursor ? { cursor } : {}) });
+    if (page.objects.length) await env.PAPERS.delete(page.objects.map((object) => object.key));
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  for (const member of members) await env.WORKSPACE_CATALOGS.getByName(await ownerKeyForEmail(member.email)).removeWorkspace(workspaceId);
+  await room.deleteWorkspaceData();
+  await access.deleteWorkspaceAccess(identity.email);
+  await catalog.removeWorkspace(workspaceId);
+  return new Response(null, { status: 204 });
 }
 
 async function exportWorkspace(

@@ -27,6 +27,12 @@ Owners need a minimal way to grant access to a known collaborator.
 - Authorized members may inspect project history and comparisons. Only the
   owner may name milestones, restore a retained state, or seed a new project
   from one.
+- Project settings expose owner-only rename, archive/restore, current-revision
+  duplication, and permanent deletion. Lifecycle changes are mirrored into
+  every member catalog.
+- Permanent deletion first unregisters shared-library dependencies and removes
+  project-owned R2 objects, then erases document, access, and catalog state.
+  It never deletes canonical private-library references.
 - An exact same-origin `Origin` is required for browser mutations and
   WebSocket upgrades, including authenticated `GET` upgrade requests.
 - The document channel accepts bounded binary Yjs updates and one exact,
@@ -64,6 +70,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Owner and member records retain stable opaque person identities across
       Durable Object reconstruction.
 - [x] Invited collaborators discover and open the shared workspace.
+- [x] Owners can rename, archive, restore, duplicate, and permanently delete a
+      non-demo project through explicit project settings.
 - [x] Uninvited identities cannot discover or read the workspace.
 - [x] PDF routes and WebSocket upgrades pass through the same authorization.
 - [x] Cross-origin browser mutations are rejected.
@@ -80,6 +88,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - Local mode must reject non-loopback hostnames.
 - Membership must be checked before resolving document or R2 state.
 - Only the owner role may add a member.
+- Only the owner may mutate project lifecycle; the demo project cannot be
+  archived or permanently deleted.
 - Hypermedia representations must address people by stored person id rather
   than email.
 - Only the owner role may mutate project history or create a revision seed;

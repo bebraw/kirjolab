@@ -42,6 +42,7 @@ export interface WorkspaceSummary {
   href: string;
   createdAt: string;
   updatedAt: string;
+  archivedAt: string | null;
 }
 
 export type WorkspaceRole = "owner" | "member";
@@ -486,7 +487,8 @@ export function isWorkspaceSummaries(value: unknown): value is WorkspaceSummary[
         isNonEmptyString(item.title) &&
         isNonEmptyString(item.href) &&
         isNonEmptyString(item.createdAt) &&
-        isNonEmptyString(item.updatedAt),
+        isNonEmptyString(item.updatedAt) &&
+        (item.archivedAt === null || isNonEmptyString(item.archivedAt)),
     )
   );
 }

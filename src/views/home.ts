@@ -26,6 +26,7 @@ export function renderHomePage(
           <label class="sr-only" for="workspace-switcher">Current project</label>
           <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading workspace…</option></select>
           <button class="button-secondary shrink-0" id="manage-workspaces" type="button">Projects</button>
+          <button class="button-secondary shrink-0" id="workspace-settings" type="button">Settings</button>
           <button class="button-secondary shrink-0" id="new-workspace" type="button">New project</button>
         </div>
         <div class="flex items-center gap-3">
@@ -416,6 +417,25 @@ export function renderHomePage(
           <button class="button-secondary" id="cancel-new-workspace" type="button">Cancel</button>
           <button class="button-primary" type="submit">Create workspace</button>
         </div>
+      </form>
+    </dialog>
+
+    <dialog class="new-workspace-dialog" id="workspace-settings-dialog">
+      <form class="p-5" id="workspace-settings-form">
+        <p class="eyebrow">Project settings</p>
+        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Manage this project</h2>
+        <label class="field-label mt-5">Project title<input class="field" id="workspace-settings-title" maxlength="120" required></label>
+        <div class="mt-5 flex flex-wrap gap-2">
+          <button class="button-primary" type="submit">Save title</button>
+          <button class="button-secondary" id="duplicate-workspace" type="button">Duplicate</button>
+          <button class="button-secondary" id="archive-workspace" type="button">Archive</button>
+        </div>
+        <section class="mt-6 border-t border-app-line pt-5">
+          <p class="eyebrow">Danger zone</p>
+          <p class="mt-2 text-sm leading-6 text-app-text-soft">Permanent deletion removes project revisions, collaborators, project PDFs, and project links. Private library references remain.</p>
+          <button class="button-secondary mt-3" id="delete-workspace" type="button">Delete permanently</button>
+        </section>
+        <div class="mt-5 flex justify-end"><button class="button-secondary" id="close-workspace-settings" type="button">Close</button></div>
       </form>
     </dialog>
 

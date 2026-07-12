@@ -1017,6 +1017,21 @@ export class DocumentRoom extends DurableObject<Env> {
     });
   }
 
+  renameWorkspace(titleValue: string): WorkspaceSnapshot {
+    const title = titleValue.trim();
+    if (!title || title.length > 120) throw new Error("Workspace title is invalid");
+    this.#persistResourceRevision("workspace-rename", () => {
+      this.ctx.storage.sql.exec("UPDATE workspace SET title = ? WHERE id = 1", title);
+    });
+    return this.getSnapshot("");
+  }
+
+  async deleteWorkspaceData(): Promise<void> {
+    for (const socket of this.ctx.getWebSockets()) socket.close(1001, "Workspace deleted");
+    this.#document.destroy();
+    await this.ctx.storage.deleteAll();
+  }
+
   registerPdf(pdf: PdfResource): PdfResource {
     this.#persistResourceRevision("pdf-register", () => {
       this.ctx.storage.sql.exec(

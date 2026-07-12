@@ -29,12 +29,14 @@ Implemented during the follow-up pass:
   interactive project catalog.
 - The private reference library exposes researcher tags and notes on each
   reference card.
+- Project settings support rename, archive/restore, current-revision
+  duplication, and owner-confirmed permanent deletion without deleting shared
+  private-library references.
+- Saved PDF highlights now auto-persist as additive strokes with editing,
+  erasing, undo, and dependency-aware deletion.
 
 Still open as distinct feature work:
 
-- Project rename, archive, permanent deletion, duplication, and settings.
-- Automatic highlight persistence, additive painting into an existing
-  highlight, erasing geometry, and deleting or undoing saved highlights.
 - Manual editing of canonical bibliographic fields, collections, reading
   status, priority, and rating.
 - Dedicated editor-only/context-only focus controls beyond responsive switching
