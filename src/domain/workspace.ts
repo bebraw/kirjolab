@@ -146,6 +146,20 @@ export interface ClaimPassageLink {
   createdAt: string;
 }
 
+export type ManuscriptCommentStatus = "open" | "resolved";
+
+export interface ManuscriptComment {
+  readonly id: string;
+  readonly authorId: string;
+  readonly authorLabel: string;
+  readonly body: string;
+  readonly anchor: ManuscriptAnchorSelector;
+  readonly resolution: ManuscriptAnchorResolution;
+  readonly status: ManuscriptCommentStatus;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
 export type ModelEvidenceReference =
   | { readonly kind: "annotation"; readonly id: string; readonly version: string }
   | { readonly kind: "claim"; readonly id: string; readonly version: string };
@@ -216,6 +230,7 @@ export interface WorkspaceSnapshot {
   claims: ClaimResource[];
   claimEvidenceLinks: ClaimEvidenceLink[];
   claimLinks: ClaimPassageLink[];
+  comments: ManuscriptComment[];
   candidates: ModelCandidate[];
 }
 
@@ -320,6 +335,10 @@ export interface UpsertClaimInput {
 
 export interface CreateClaimPassageLinkInput extends ManuscriptPassageInput {
   claimId: string;
+}
+
+export interface CreateManuscriptCommentInput extends ManuscriptPassageInput {
+  body: string;
 }
 
 export interface CreateCandidateInput {
@@ -430,6 +449,10 @@ export function isWorkspaceSummaries(value: unknown): value is WorkspaceSummary[
 
 export function isCreatePassageLinkInput(value: unknown): value is CreatePassageLinkInput {
   return isRecord(value) && isStringWithin(value.annotationId, 128, true) && isManuscriptPassageInput(value);
+}
+
+export function isCreateManuscriptCommentInput(value: unknown): value is CreateManuscriptCommentInput {
+  return isRecord(value) && isManuscriptPassageInput(value) && isStringWithin(value.body, 8_000, true);
 }
 
 export function isUpsertClaimInput(value: unknown): value is UpsertClaimInput {
@@ -550,6 +573,8 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     value.claimEvidenceLinks.every(isClaimEvidenceLink) &&
     Array.isArray(value.claimLinks) &&
     value.claimLinks.every(isClaimPassageLink) &&
+    Array.isArray(value.comments) &&
+    value.comments.every(isManuscriptComment) &&
     Array.isArray(value.candidates) &&
     value.candidates.every(isModelCandidate)
   );
@@ -778,6 +803,22 @@ function isClaimPassageLink(value: unknown): value is ClaimPassageLink {
     isManuscriptAnchorSelector(value.anchor) &&
     isManuscriptAnchorResolution(value.resolution) &&
     isNonEmptyString(value.createdAt)
+  );
+}
+
+function isManuscriptComment(value: unknown): value is ManuscriptComment {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["id", "authorId", "authorLabel", "body", "anchor", "resolution", "status", "createdAt", "updatedAt"]) &&
+    isStringWithin(value.id, 128, true) &&
+    isStringWithin(value.authorId, 128, true) &&
+    isStringWithin(value.authorLabel, 320, true) &&
+    isStringWithin(value.body, 8_000, true) &&
+    isManuscriptAnchorSelector(value.anchor) &&
+    isManuscriptAnchorResolution(value.resolution) &&
+    (value.status === "open" || value.status === "resolved") &&
+    isStringWithin(value.createdAt, 128, true) &&
+    isStringWithin(value.updatedAt, 128, true)
   );
 }
 

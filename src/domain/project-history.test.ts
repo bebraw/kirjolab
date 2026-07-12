@@ -33,7 +33,8 @@ const base: ProjectRevisionContent = {
   publicationPdfLinks: [],
   annotations: [],
   claims: [],
-  relationships: { annotationPassages: 0, claimEvidence: 0, claimPassages: 0 },
+  comments: [],
+  relationships: { annotationPassages: 0, claimEvidence: 0, claimPassages: 0, comments: 0 },
 };
 
 describe("project revision comparison", () => {
@@ -170,10 +171,12 @@ describe("project revision comparison", () => {
       { publicationPdfLinks: null },
       { annotations: null },
       { claims: null },
+      { comments: null },
       { relationships: null },
       { relationships: { ...base.relationships, annotationPassages: 1.5 } },
       { relationships: { ...base.relationships, claimEvidence: "1" } },
       { relationships: { ...base.relationships, claimPassages: null } },
+      { relationships: { ...base.relationships, comments: -1 } },
     ]) {
       expect(isProjectRevisionContent({ ...base, ...change }), JSON.stringify(change)).toBe(false);
     }

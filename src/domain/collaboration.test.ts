@@ -3,9 +3,11 @@ import * as Y from "yjs";
 import {
   applyYjsUpdateOnce,
   collaborationProtocolVersion,
+  encodeClientSelectionMessage,
   encodeServerCollaborationMessage,
   isServerCollaborationMessage,
   parseServerCollaborationMessage,
+  parseClientSelectionMessage,
   type ServerCollaborationMessage,
 } from "./collaboration";
 
@@ -16,6 +18,8 @@ describe("server collaboration messages", () => {
     { type: "revision", revision: 6 },
     { type: "reset", revision: 7 },
     { type: "presence", collaborators: 2 },
+    { type: "selection", collaboratorId: "session-1", fileId: "main-file", start: 4, end: 12, revision: 8 },
+    { type: "selection-clear", collaboratorId: "session-1" },
     { type: "resources" },
   ];
 
@@ -51,6 +55,39 @@ describe("server collaboration messages", () => {
       "Invalid server collaboration message",
     );
     expect(() => encodeServerCollaborationMessage({ type: "resources", unexpected: true })).toThrow("Invalid server collaboration message");
+  });
+});
+
+describe("client collaboration selection messages", () => {
+  const selection = {
+    type: "selection",
+    protocol: collaborationProtocolVersion,
+    fileId: "main-file",
+    start: 4,
+    end: 12,
+    revision: 8,
+  } as const;
+
+  it("round-trips one bounded version-linked source selection", () => {
+    expect(parseClientSelectionMessage(encodeClientSelectionMessage(selection))).toEqual(selection);
+    expect(parseClientSelectionMessage(JSON.stringify({ ...selection, start: 12, end: 12 }))).toMatchObject({ start: 12, end: 12 });
+  });
+
+  it("rejects malformed, stale-shaped, and oversized selection messages", () => {
+    for (const invalid of [
+      "",
+      "{",
+      JSON.stringify({ ...selection, protocol: 2 }),
+      JSON.stringify({ ...selection, fileId: "" }),
+      JSON.stringify({ ...selection, start: -1 }),
+      JSON.stringify({ ...selection, start: 13 }),
+      JSON.stringify({ ...selection, revision: 1.5 }),
+      JSON.stringify({ ...selection, extra: true }),
+      "x".repeat(1_025),
+    ]) {
+      expect(parseClientSelectionMessage(invalid), invalid.slice(0, 80)).toBeNull();
+    }
+    expect(() => encodeClientSelectionMessage({ ...selection, end: -1 })).toThrow("Invalid client selection message");
   });
 });
 

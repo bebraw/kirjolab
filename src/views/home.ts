@@ -39,6 +39,7 @@ export function renderHomePage(
           <button class="button-primary" id="open-export" type="button">Export</button>
         </div>
       </div>
+      <div class="hidden border-t border-app-line px-4 py-2 font-sans text-xs text-app-text-soft lg:px-6" id="collaborator-selections" aria-live="polite"></div>
     </header>
 
     <main class="workspace-grid min-h-[calc(100vh-4rem)]" id="workspace-surfaces" data-active-surface="authoring">
@@ -130,6 +131,22 @@ export function renderHomePage(
         <label class="sr-only" for="source-editor">Markdown source</label>
         <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
         <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation.</p>
+        <details class="border-t border-app-line bg-app-paper/75" id="manuscript-comments">
+          <summary class="flex cursor-pointer items-center justify-between px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.14em] text-app-text-soft">
+            <span>Comments</span><span class="count-badge" id="manuscript-comment-count">0</span>
+          </summary>
+          <div class="border-t border-app-line px-4 py-4">
+            <form class="grid gap-3" id="manuscript-comment-form">
+              <label class="field-label" for="manuscript-comment-body">Comment on selected manuscript text</label>
+              <textarea class="field min-h-20 resize-y" id="manuscript-comment-body" maxlength="8000" required placeholder="Select a passage above, then leave a comment."></textarea>
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-xs leading-5 text-app-text-soft" id="manuscript-comment-status" role="status">Comments follow the passage as collaborators edit.</p>
+                <button class="button-secondary shrink-0" type="submit">Add comment</button>
+              </div>
+            </form>
+            <div class="mt-4 grid gap-3" id="manuscript-comment-list"></div>
+          </div>
+        </details>
         <details class="border-t border-app-line bg-app-paper/60">
           <summary class="cursor-pointer px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.14em] text-app-text-soft">Derived project bibliography</summary>
           <label class="sr-only" for="bibliography-editor">BibTeX bibliography</label>

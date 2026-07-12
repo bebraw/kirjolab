@@ -29,9 +29,11 @@ Owners need a minimal way to grant access to a known collaborator.
   from one.
 - An exact same-origin `Origin` is required for browser mutations and
   WebSocket upgrades, including authenticated `GET` upgrade requests.
-- The document channel accepts only bounded binary Yjs updates from clients;
-  client-authored text/control messages and malformed updates close only the
-  offending connection without being persisted or broadcast.
+- The document channel accepts bounded binary Yjs updates and one exact,
+  versioned selection message from clients. The room replaces its identity with
+  the server-assigned socket identity, validates the current file revision and
+  range, and never persists it. Other client-authored text/control messages and
+  malformed updates close only the offending connection.
 
 ### Deployment Configuration
 
@@ -68,7 +70,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Missing and cross-origin WebSocket origins are rejected before document
       coordination state is reached.
 - [x] Client control messages and malformed Yjs updates cannot be rebroadcast
-      or persisted.
+      or persisted; validated selection metadata cannot claim identity or enter
+      durable state.
 
 ### Regression Guardrails
 
@@ -83,8 +86,9 @@ Owners need a minimal way to grant access to a known collaborator.
   history reads retain normal workspace membership authorization.
 - Browser WebSocket upgrades must carry an `Origin` exactly matching the
   request URL origin.
-- Document rooms must close only the client that sends an unsupported text
-  frame, oversized update, or malformed Yjs update.
+- Document rooms must close only the client that sends unsupported text,
+  oversized metadata/update, or malformed Yjs state. Stale valid selection
+  metadata must be ignored rather than persisted or rebroadcast.
 - Identity tokens and signing material must never be persisted in application
   storage or returned by `/api/session`.
 

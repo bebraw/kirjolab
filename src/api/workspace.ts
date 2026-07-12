@@ -3,6 +3,7 @@ import {
   isCreateAnnotationLinkInput,
   isCreateCandidateInput,
   isCreateClaimPassageLinkInput,
+  isCreateManuscriptCommentInput,
   isCreatePassageLinkInput,
   isCreatePublicationPdfLinkInput,
   isAcceptPublicationIntakeInput,
@@ -114,6 +115,12 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await mutateClaim(request, suffix, room);
     }
     if (suffix === "/claim-links" && request.method === "POST") return await createClaimPassageLink(request, room);
+    if (suffix === "/comments" && request.method === "POST") {
+      const member = (await access.listMembers(identity.email)).find((candidate) => candidate.email === identity.email);
+      if (!member) return jsonError("Workspace member is unavailable", 403);
+      return await createManuscriptComment(request, room, member.id, member.email);
+    }
+    if (suffix.startsWith("/comments/") && request.method === "POST") return await resolveManuscriptComment(suffix, room);
     if (suffix === "/candidates" && request.method === "POST") return await createCandidate(request, room);
     if (suffix.startsWith("/candidates/") && request.method === "POST") return await updateCandidate(workspaceId, suffix, room);
     if (suffix === "/history" && request.method === "GET") return Response.json(await room.listRevisions());
@@ -626,6 +633,26 @@ async function createClaimPassageLink(
   const body: unknown = await request.json();
   if (!isCreateClaimPassageLinkInput(body)) return jsonError("Invalid claim passage link", 400);
   return Response.json(await room.createClaimPassageLink(body), { status: 201 });
+}
+
+async function createManuscriptComment(
+  request: Request,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  authorId: string,
+  authorLabel: string,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isCreateManuscriptCommentInput(body)) return jsonError("Invalid manuscript comment", 400);
+  return Response.json(await room.createManuscriptComment(body, authorId, authorLabel), { status: 201 });
+}
+
+async function resolveManuscriptComment(
+  suffix: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const match = /^\/comments\/([0-9a-f-]{36})\/resolve$/iu.exec(suffix);
+  if (!match?.[1]) return jsonError("Manuscript comment route not found", 404);
+  return Response.json(await room.resolveManuscriptComment(match[1]));
 }
 
 async function createCandidate(

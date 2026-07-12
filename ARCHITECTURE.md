@@ -118,6 +118,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - After synchronization, derive browser editor text from Yjs and its displayed
   revision from collaboration controls; REST resource refreshes must not write
   either value.
+- Keep collaborator selections ephemeral. Accept only bounded, versioned
+  selection metadata for the current file revision, replace client identity
+  with a server-assigned socket identity, and never persist selection state.
+- Keep manuscript comments outside canonical Markdown. Attribute them to stable
+  workspace-person ids, anchor them with file-qualified Yjs relative positions,
+  retain them in project history, and preserve resolved comments as resources.
 - Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
 - Combine PDF page/geometry identity with exact quote, prefix, and suffix selectors; never require mutation of the imported PDF.
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
@@ -194,7 +200,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   let workspace membership imply access to the owner's private library;
   collaborators may read only active project-pinned snapshots.
 - Require an exact same-origin `Origin` on every browser WebSocket upgrade in addition to identity and workspace authorization.
-- Accept only bounded, valid binary document updates from collaboration clients; keep presence, revision, and protocol control frames server-owned, and never persist or rebroadcast invalid input.
+- Accept only bounded, valid binary document updates and the exact validated
+  selection-metadata message from collaboration clients; keep identity,
+  presence, revision, selection-clear, and other controls server-owned, and
+  never persist or rebroadcast invalid input.
 - Permit local authentication only on loopback hosts; a deployment left in local mode must fail closed.
 
 ## Tooling Baseline

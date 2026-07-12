@@ -1,7 +1,14 @@
 import { compareWebSnapshotText, type WebSnapshotDiffHunk } from "./reference-library";
 import { composeProject, type ProjectFile } from "./project-files";
 import { countPublicationWords } from "./publication-statistics";
-import type { AnnotationResource, ClaimResource, PdfResource, ProjectReferenceLink, PublicationPdfLink } from "./workspace";
+import type {
+  AnnotationResource,
+  ClaimResource,
+  ManuscriptComment,
+  PdfResource,
+  ProjectReferenceLink,
+  PublicationPdfLink,
+} from "./workspace";
 import type { ResearchShareSnapshot } from "./reference-library";
 
 export interface ProjectMilestone {
@@ -25,6 +32,7 @@ export interface ProjectRelationshipCounts {
   readonly annotationPassages: number;
   readonly claimEvidence: number;
   readonly claimPassages: number;
+  readonly comments: number;
 }
 
 export interface ProjectRevisionContent {
@@ -40,6 +48,7 @@ export interface ProjectRevisionContent {
   readonly publicationPdfLinks: readonly PublicationPdfLink[];
   readonly annotations: readonly AnnotationResource[];
   readonly claims: readonly ClaimResource[];
+  readonly comments: readonly ManuscriptComment[];
   readonly relationships: ProjectRelationshipCounts;
 }
 
@@ -186,10 +195,20 @@ export function isProjectRevisionContent(value: unknown): value is ProjectRevisi
     Array.isArray(value.publicationPdfLinks) &&
     Array.isArray(value.annotations) &&
     Array.isArray(value.claims) &&
+    Array.isArray(value.comments) &&
     isRecord(value.relationships) &&
+    typeof value.relationships.annotationPassages === "number" &&
     Number.isSafeInteger(value.relationships.annotationPassages) &&
+    value.relationships.annotationPassages >= 0 &&
+    typeof value.relationships.claimEvidence === "number" &&
     Number.isSafeInteger(value.relationships.claimEvidence) &&
-    Number.isSafeInteger(value.relationships.claimPassages)
+    value.relationships.claimEvidence >= 0 &&
+    typeof value.relationships.claimPassages === "number" &&
+    Number.isSafeInteger(value.relationships.claimPassages) &&
+    value.relationships.claimPassages >= 0 &&
+    typeof value.relationships.comments === "number" &&
+    Number.isSafeInteger(value.relationships.comments) &&
+    value.relationships.comments >= 0
   );
 }
 

@@ -54,6 +54,10 @@ mode for authenticated hosted collaboration.
 - **Editor ownership:** After `sync`, source and bibliography inputs derive from
   `Y.Text`; server collaboration controls own the displayed revision. REST
   workspace refreshes cannot assign those values.
+- **Collaborator selections:** A client may send only an exact-key, bounded
+  `protocol: 1` selection message for the current file and revision. The room
+  supplies its socket identity, validates the range, broadcasts it only to
+  peers, and never persists it. Disconnect emits a server-owned clear control.
 - **Revision boundary:** Causally new Yjs state materializes Yjs, Markdown, and
   BibTeX together and advances the revision once. Duplicate or replayed updates
   receive an `ack` at the current revision without persistence, rebroadcast, or
@@ -93,7 +97,7 @@ mode for authenticated hosted collaboration.
 - **Claims:** Human-authored propositions connect annotations to manuscript
   passages through explicit `supports`, `contradicts`, `extends`, and `used-in`
   relationships.
-- **Manuscript anchors:** New annotation and claim passage links verify the
+- **Manuscript anchors:** New annotation, claim passage links, and comments verify the
   current source revision and exact requested range, then store version 1 Yjs
   relative positions (start association `0`, end association `-1`), stable file
   identity, exact
@@ -103,6 +107,11 @@ mode for authenticated hosted collaboration.
   relative positions. A one-time migration derives endpoints for still-valid
   offset rows; unconvertible legacy rows retain null endpoints and remain
   explicitly stale under the version 1 selector contract.
+- **Manuscript comments:** Comments are attributed to stable workspace-person
+  ids and stored outside Markdown with a version 1 manuscript anchor, body,
+  lifecycle status, and timestamps. Creation and resolution are explicit
+  resource mutations retained in project history; neither changes authored
+  source.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable private PDF bytes
   and bounded web representations under owner-library keys. Responses stream
   only through an authorized private-library route or active explicit project
@@ -181,6 +190,11 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/claim-links` accepts a claim id, source revision,
   requested offsets, and exact current text and returns a selector-backed
   claim-passage link.
+- `POST /api/workspaces/demo/comments` accepts a current non-empty passage and
+  bounded body, attributes it to the authenticated workspace person, and
+  returns the anchored comment.
+- `POST /api/workspaces/demo/comments/{id}/resolve` preserves the comment while
+  recording its resolved state in project history.
 - `POST /api/workspaces/demo/candidates` verifies and persists a targeted
   `revise-selection-v1` candidate with typed evidence snapshots.
 - `POST /api/workspaces/demo/candidates/{id}/apply` applies a current pending
@@ -246,6 +260,10 @@ mode for authenticated hosted collaboration.
 ### Definition of Done
 
 - [x] Two browser sessions converge on one collaborative Markdown document.
+- [x] Current collaborator carets and selections are visible without entering
+      canonical source or durable project state.
+- [x] Collaborators can create, navigate, and resolve attributed range-anchored
+      comments without mutating Markdown.
 - [x] Server state establishes synchronization before the browser sends queued
       updates, and each client update receives a durable acknowledgement.
 - [x] Reconnect replays only unacknowledged updates; an already integrated
@@ -316,6 +334,11 @@ mode for authenticated hosted collaboration.
   browser writers for editor text and displayed revision respectively.
 - Resource invalidation refreshes must be coalesced and must never write editor
   text or collaboration revision.
+- Selection metadata must be bounded, current-revision, file-valid, and
+  server-attributed. It must never enter SQLite or project history.
+- Comment creation must require the current source revision and exact selected
+  text. Comment anchors and lifecycle changes must remain in logical history
+  without moving the manuscript revision.
 - Document updates must be scoped to one Durable Object per workspace/document
   coordination atom.
 - Every SQLite-backed Durable Object must use strictly increasing, named,

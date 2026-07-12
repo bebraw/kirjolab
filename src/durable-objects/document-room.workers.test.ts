@@ -108,7 +108,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(historical.files).toContainEqual(expect.objectContaining({ id: chapter!.id, path: "chapters/revisions.md" }));
     expect(historical.pdfs).toHaveLength(1);
     expect(historical.claims).toContainEqual(claim);
-    expect(historical.relationships).toEqual({ annotationPassages: 1, claimEvidence: 1, claimPassages: 1 });
+    expect(historical.relationships).toEqual({ annotationPassages: 1, claimEvidence: 1, claimPassages: 1, comments: 0 });
     const comparison = await stub.compareRevisions(0, head.revision);
     expect(comparison.files).toContainEqual(expect.objectContaining({ id: chapter!.id, status: "added" }));
     expect(comparison.binaries).toContainEqual(expect.objectContaining({ status: "added" }));
@@ -137,6 +137,73 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(await seedStub.listRevisions()).toEqual([
       expect.objectContaining({ revision: 0, title: "Submission branch", reason: "seed-from-revision" }),
     ]);
+  });
+
+  it("anchors attributed comments through edits and preserves their resolved history", async () => {
+    const workspaceId = "manuscript-comments";
+    const stub = roomStub(workspaceId);
+    const initial = await stub.getSnapshot(workspaceId);
+    const excerpt = "Evidence becomes prose";
+    const start = initial.source.indexOf(excerpt);
+    const comment = await stub.createManuscriptComment(
+      {
+        fileId: initial.entryFileId,
+        start,
+        end: start + excerpt.length,
+        excerpt,
+        sourceRevision: initial.revision,
+        body: "Clarify how this transition works.",
+      },
+      "member-1",
+      "writer@example.test",
+    );
+    expect(comment).toMatchObject({
+      authorId: "member-1",
+      authorLabel: "writer@example.test",
+      body: "Clarify how this transition works.",
+      status: "open",
+      resolution: { status: "resolved", text: excerpt, exactMatch: true },
+    });
+
+    await applyAuthoredInsertion(stub, "source", 0, "Preface.\n\n");
+    const shifted = (await stub.getSnapshot(workspaceId)).comments.find((item) => item.id === comment.id);
+    expect(shifted?.resolution).toMatchObject({ status: "resolved", text: excerpt, exactMatch: true });
+    expect(shifted?.resolution.status === "resolved" ? shifted.resolution.start : -1).toBe(start + "Preface.\n\n".length);
+
+    const resolved = await stub.resolveManuscriptComment(comment.id);
+    expect(resolved.status).toBe("resolved");
+    const commentRevision = (await stub.listRevisions()).find((revision) => revision.reason === "comment-resolve");
+    expect(commentRevision).toBeDefined();
+    expect((await stub.getRevision(commentRevision!.revision)).comments).toContainEqual(
+      expect.objectContaining({ id: comment.id, status: "resolved" }),
+    );
+  });
+
+  it("upgrades pre-comment history snapshots through migration v16", async () => {
+    const workspaceId = "comment-history-migration";
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      const revisions = state.storage.sql
+        .exec<{ revision: number; snapshot_json: string }>("SELECT revision, snapshot_json FROM project_revisions")
+        .toArray();
+      for (const revision of revisions) {
+        const snapshot = JSON.parse(revision.snapshot_json) as { tables: Record<string, unknown> };
+        delete snapshot.tables.manuscript_comments;
+        state.storage.sql.exec(
+          "UPDATE project_revisions SET snapshot_json = ? WHERE revision = ?",
+          JSON.stringify(snapshot),
+          revision.revision,
+        );
+      }
+      state.storage.sql.exec("DROP TABLE manuscript_comments");
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 16");
+    });
+
+    await evictDurableObject(stub);
+    expect((await stub.getSnapshot(workspaceId)).comments).toEqual([]);
+    expect(await stub.getRevision(0)).toMatchObject({ comments: [], relationships: { comments: 0 } });
+    expect(await migrationVersion(stub, 16)).toEqual({ version: 16, name: "anchor-collaborative-comments" });
   });
 
   it("persists a composed project tree and keeps inbound includes valid across renames", async () => {
@@ -1273,6 +1340,26 @@ async function applyAuthoredText(stub: DurableObjectStub<DocumentRoom>, name: st
     }, "authored-test-edit");
     const update = copyArrayBuffer(Y.encodeStateAsUpdate(document, stateVector));
 
+    const pair = new WebSocketPair();
+    const client = pair[0];
+    const server = pair[1];
+    state.acceptWebSocket(server);
+    client.accept();
+    instance.webSocketMessage(server, update);
+    if (server.readyState === WebSocket.OPEN) server.close(1000, "test edit complete");
+    if (client.readyState === WebSocket.OPEN) client.close(1000, "test edit complete");
+    document.destroy();
+  });
+}
+
+async function applyAuthoredInsertion(stub: DurableObjectStub<DocumentRoom>, name: string, index: number, value: string): Promise<void> {
+  await runInDurableObject(stub, (instance: DocumentRoom, state) => {
+    const row = state.storage.sql.exec<WorkspaceStateRow>("SELECT y_state FROM workspace WHERE id = 1").one();
+    const document = new Y.Doc();
+    Y.applyUpdate(document, new Uint8Array(row.y_state), "test-bootstrap");
+    const stateVector = Y.encodeStateVector(document);
+    document.getText(name).insert(index, value);
+    const update = copyArrayBuffer(Y.encodeStateAsUpdate(document, stateVector));
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];

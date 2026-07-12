@@ -7,7 +7,12 @@ import {
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
 import { isCitationNetwork, type CitationAssertionView, type CitationNetwork } from "../domain/citation-assertions";
-import { parseServerCollaborationMessage } from "../domain/collaboration";
+import {
+  collaborationProtocolVersion,
+  encodeClientSelectionMessage,
+  parseServerCollaborationMessage,
+  type ServerCollaborationMessage,
+} from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
 import {
@@ -39,6 +44,7 @@ import {
   type ClaimPassageLink,
   type ClaimResource,
   type ManuscriptAnchorResolution,
+  type ManuscriptComment,
   type ModelCandidate,
   type ModelEvidence,
   type ModelEvidenceReference,
@@ -77,6 +83,7 @@ const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
 
 interface Elements {
+  collaboratorSelections: HTMLElement;
   workspaceTitle: HTMLElement;
   workspaceSwitcher: HTMLSelectElement;
   newWorkspace: HTMLButtonElement;
@@ -142,6 +149,11 @@ interface Elements {
   projectHistoryList: HTMLElement;
   source: HTMLTextAreaElement;
   bibliography: HTMLTextAreaElement;
+  manuscriptCommentForm: HTMLFormElement;
+  manuscriptCommentBody: HTMLTextAreaElement;
+  manuscriptCommentStatus: HTMLElement;
+  manuscriptCommentCount: HTMLElement;
+  manuscriptCommentList: HTMLElement;
   workspaceSurfaces: HTMLElement;
   showAuthoringSurface: HTMLButtonElement;
   showContextSurface: HTMLButtonElement;
@@ -246,6 +258,8 @@ interface Elements {
   toast: HTMLElement;
 }
 
+type RemoteCollaboratorSelection = Extract<ServerCollaborationMessage, { type: "selection" }>;
+
 interface RelativeEditorSelection {
   readonly text: Y.Text;
   readonly textarea: HTMLTextAreaElement;
@@ -275,6 +289,8 @@ class WorkspaceApp {
   #socketSynced = false;
   #awaitingRemoteRevision = false;
   #reconnectTimer: number | undefined;
+  #selectionBroadcastTimer: number | undefined;
+  readonly #remoteSelections = new Map<string, RemoteCollaboratorSelection>();
   #modelBusy = false;
   #hasBootstrapSnapshot = false;
   #toastTimer: number | undefined;
@@ -377,9 +393,11 @@ class WorkspaceApp {
     this.#elements.closeExport.addEventListener("click", () => this.#elements.exportDialog.close());
     this.#elements.closeProjectHistory.addEventListener("click", () => this.#elements.projectHistoryDialog.close());
     this.#elements.projectHistoryCompareForm.addEventListener("submit", (event) => void this.#compareProjectHistory(event));
+    this.#elements.manuscriptCommentForm.addEventListener("submit", (event) => void this.#createManuscriptComment(event));
     for (const eventName of ["focus", "input", "keyup", "select"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
         if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
+        this.#scheduleSelectionBroadcast();
         this.#updateModelAvailability();
       });
     }
@@ -457,6 +475,10 @@ class WorkspaceApp {
       claimLinks: snapshot.claimLinks.map((link) => ({
         ...link,
         resolution: resolveManuscriptAnchor(this.#document, link.anchor),
+      })),
+      comments: snapshot.comments.map((comment) => ({
+        ...comment,
+        resolution: resolveManuscriptAnchor(this.#document, comment.anchor),
       })),
       candidates: snapshot.candidates.map((candidate) => ({
         ...candidate,
@@ -553,6 +575,8 @@ class WorkspaceApp {
       this.#socket = null;
       this.#socketSynced = false;
       this.#pendingUpdates.resetForReconnect();
+      this.#remoteSelections.clear();
+      this.#renderRemoteSelections();
       this.#setConnection("Reconnecting", false);
       this.#setEditorsEnabled(false);
       this.#updateModelAvailability();
@@ -619,6 +643,14 @@ class WorkspaceApp {
       case "presence":
         this.#elements.connectionStatus.textContent = `Live · ${value.collaborators} ${value.collaborators === 1 ? "writer" : "writers"}`;
         break;
+      case "selection":
+        if (value.revision === this.#revision) this.#remoteSelections.set(value.collaboratorId, value);
+        this.#renderRemoteSelections();
+        break;
+      case "selection-clear":
+        this.#remoteSelections.delete(value.collaboratorId);
+        this.#renderRemoteSelections();
+        break;
       case "resources":
         void this.#resourceRefresh.request().catch((error: unknown) => {
           this.#showToast(error instanceof Error ? error.message : "Could not refresh workspace resources");
@@ -656,9 +688,47 @@ class WorkspaceApp {
 
   #setRevision(revision: number): void {
     this.#revision = Math.max(this.#revision, revision);
+    for (const [collaboratorId, selection] of this.#remoteSelections) {
+      if (selection.revision !== this.#revision) this.#remoteSelections.delete(collaboratorId);
+    }
+    this.#renderRemoteSelections();
     this.#updateRevision();
     const active = this.#activeResourceTab();
     if (active?.kind === "candidate") this.#renderCandidateContext(active);
+  }
+
+  #scheduleSelectionBroadcast(): void {
+    window.clearTimeout(this.#selectionBroadcastTimer);
+    this.#selectionBroadcastTimer = window.setTimeout(() => {
+      this.#selectionBroadcastTimer = undefined;
+      const socket = this.#socket;
+      if (!this.#socketSynced || !socket || socket.readyState !== WebSocket.OPEN || !this.#activeFileId) return;
+      socket.send(
+        encodeClientSelectionMessage({
+          type: "selection",
+          protocol: collaborationProtocolVersion,
+          fileId: this.#activeFileId,
+          start: this.#elements.source.selectionStart,
+          end: this.#elements.source.selectionEnd,
+          revision: this.#revision,
+        }),
+      );
+    }, 80);
+  }
+
+  #renderRemoteSelections(): void {
+    this.#elements.collaboratorSelections.replaceChildren();
+    const selections = [...this.#remoteSelections.values()].filter((selection) => selection.revision === this.#revision);
+    this.#elements.collaboratorSelections.classList.toggle("hidden", selections.length === 0);
+    for (const selection of selections) {
+      const file = this.#liveProjectFiles().find((candidate) => candidate.id === selection.fileId);
+      const selected = file?.content.slice(selection.start, selection.end).replaceAll(/\s+/gu, " ").trim() ?? "";
+      const range = selection.start === selection.end ? `caret at ${selection.start}` : `selection ${selection.start}–${selection.end}`;
+      const item = document.createElement("span");
+      item.className = "mr-4 inline-block";
+      item.textContent = `Collaborator · ${file?.path ?? "project file"} · ${range}${selected ? ` · “${accessibleEvidenceExcerpt(selected)}”` : ""}`;
+      this.#elements.collaboratorSelections.append(item);
+    }
   }
 
   #hasStableDocumentBase(): boolean {
@@ -747,6 +817,12 @@ class WorkspaceApp {
         resolution: resolveManuscriptAnchor(this.#document, link.anchor),
       }));
       this.#updateAnchorActions([...links, ...claimLinks]);
+      this.#renderManuscriptComments(
+        this.#snapshot.comments.map((comment) => ({
+          ...comment,
+          resolution: resolveManuscriptAnchor(this.#document, comment.anchor),
+        })),
+      );
       this.#renderKnowledgeGraph(
         buildWorkspaceKnowledgeGraph({ ...this.#snapshot, source: renderedSource, bibliography, links, claimLinks }),
       );
@@ -1708,6 +1784,7 @@ class WorkspaceApp {
     this.#renderPublications(this.#snapshot.publications);
     this.#renderAnnotations(this.#snapshot.annotations, this.#snapshot.links);
     this.#renderClaims(this.#snapshot.claims, this.#snapshot.claimLinks);
+    this.#renderManuscriptComments(this.#snapshot.comments);
     this.#renderCandidates(this.#snapshot.candidates);
     this.#pdfViewer.updateAnnotations(
       this.#renderedPdfId ? this.#snapshot.annotations.filter((annotation) => annotation.pdfId === this.#renderedPdfId) : [],
@@ -1916,6 +1993,70 @@ class WorkspaceApp {
       card.append(actions);
       this.#elements.claimList.append(card);
     }
+  }
+
+  #renderManuscriptComments(comments: ManuscriptComment[]): void {
+    this.#elements.manuscriptCommentCount.textContent = String(comments.filter((comment) => comment.status === "open").length);
+    this.#elements.manuscriptCommentList.replaceChildren();
+    if (comments.length === 0) {
+      this.#elements.manuscriptCommentList.append(emptyState("No manuscript comments yet."));
+      return;
+    }
+    for (const comment of comments) {
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      card.dataset.commentResourceId = comment.id;
+      const meta = resourceLabel(`${comment.status} · ${comment.authorLabel}`);
+      const body = document.createElement("p");
+      body.className = "mt-2 text-sm leading-6";
+      body.textContent = comment.body;
+      const excerpt = document.createElement("blockquote");
+      excerpt.className = "mt-2 border-l-2 border-app-line pl-3 font-sans text-xs leading-5 text-app-text-soft";
+      excerpt.textContent = comment.anchor.exact;
+      const actions = document.createElement("div");
+      actions.className = "mt-3 flex flex-wrap gap-2";
+      const open = actionButton(anchorActionLabel(comment.resolution), "button-secondary", () => this.#showPassage(comment.anchor));
+      open.disabled = comment.resolution.status !== "resolved";
+      actions.append(open);
+      if (comment.status === "open") {
+        actions.append(actionButton("Resolve", "button-secondary", () => void this.#resolveManuscriptComment(comment.id)));
+      }
+      card.append(meta, body, excerpt, actions);
+      this.#elements.manuscriptCommentList.append(card);
+    }
+  }
+
+  async #createManuscriptComment(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    if (!this.#hasStableDocumentBase()) {
+      this.#showToast("Wait for the manuscript to finish synchronizing before commenting.");
+      return;
+    }
+    const passage = this.#selectedAuthoringPassage();
+    if (!passage) {
+      this.#showToast("Select manuscript text before adding a comment.");
+      return;
+    }
+    const response = await jsonFetch(`${apiBase}/comments`, {
+      ...passage,
+      sourceRevision: this.#revision,
+      body: this.#elements.manuscriptCommentBody.value,
+    });
+    await expectOk(response);
+    this.#elements.manuscriptCommentBody.value = "";
+    this.#elements.manuscriptCommentStatus.textContent = "Comment saved without changing the Markdown source.";
+    await this.#resourceRefresh.request();
+    this.#showToast("Comment anchored to the selected passage.");
+  }
+
+  async #resolveManuscriptComment(commentId: string): Promise<void> {
+    const response = await fetch(`${apiBase}/comments/${encodeURIComponent(commentId)}/resolve`, {
+      method: "POST",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    await this.#resourceRefresh.request();
+    this.#showToast("Comment resolved; its revision history is preserved.");
   }
 
   #openClaimDialog(claim?: ClaimResource): void {
@@ -3170,6 +3311,7 @@ function statisticsGroup(title: string, items: readonly { label: string; words: 
 
 function collectElements(): Elements {
   return {
+    collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
     workspaceTitle: requiredElement("workspace-title", HTMLElement),
     workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
     newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
@@ -3235,6 +3377,11 @@ function collectElements(): Elements {
     projectHistoryList: requiredElement("project-history-list", HTMLElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
+    manuscriptCommentForm: requiredElement("manuscript-comment-form", HTMLFormElement),
+    manuscriptCommentBody: requiredElement("manuscript-comment-body", HTMLTextAreaElement),
+    manuscriptCommentStatus: requiredElement("manuscript-comment-status", HTMLElement),
+    manuscriptCommentCount: requiredElement("manuscript-comment-count", HTMLElement),
+    manuscriptCommentList: requiredElement("manuscript-comment-list", HTMLElement),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
     showAuthoringSurface: requiredElement("show-authoring-surface", HTMLButtonElement),
     showContextSurface: requiredElement("show-context-surface", HTMLButtonElement),

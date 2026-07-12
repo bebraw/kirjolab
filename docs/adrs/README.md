@@ -27,10 +27,9 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                                        | Status   | Summary                                                                             |
-| -------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------- |
-| [ADR-037](./accepted/ADR-037-synchronize-text-and-materialize-markdown.md) | Accepted | Synchronize collaborative text while materializing clean, recoverable Markdown.     |
-| [ADR-039](./accepted/ADR-039-require-reviewable-model-operations.md)       | Accepted | Route local-capable model work through provenance-aware candidate review and apply. |
+| ADR                                                                  | Status   | Summary                                                                             |
+| -------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------- |
+| [ADR-039](./accepted/ADR-039-require-reviewable-model-operations.md) | Accepted | Route local-capable model work through provenance-aware candidate review and apply. |
 
 ## Implemented ADRs
 
@@ -72,6 +71,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-034](./implemented/ADR-034-adopt-typescript-7-typechecking.md)                   | Implemented          | Typecheck the project with the TypeScript 7 preview while preserving the current build compiler.      |
 | [ADR-035](./implemented/ADR-035-keep-markdown-canonical.md)                           | Implemented          | Keep portable Markdown canonical and derive semantic, preview, and index representations.             |
 | [ADR-036](./implemented/ADR-036-model-scholarly-work-as-hypermedia.md)                | Implemented          | Model writing and working-memory entities as stable, typed hypermedia resources.                      |
+| [ADR-037](./implemented/ADR-037-synchronize-text-and-materialize-markdown.md)         | Implemented          | Synchronize text, ephemeral selections, durable comments, and recoverable Markdown.                   |
 | [ADR-038](./implemented/ADR-038-store-pdf-annotations-separately.md)                  | Implemented          | Preserve PDFs and store annotations separately with geometric and textual selectors.                  |
 | [ADR-040](./implemented/ADR-040-use-durable-objects-and-r2-for-vertical-slice.md)     | Implemented          | Use Yjs and per-document Durable Objects for collaboration, with R2 for immutable PDFs.               |
 | [ADR-041](./implemented/ADR-041-render-pdfs-with-pdfjs.md)                            | Implemented          | Render one selectable PDF page with PDF.js and store normalized external highlight geometry.          |
@@ -81,7 +81,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-045](./implemented/ADR-045-use-satteri-for-scientific-markdown.md)               | Implemented          | Parse scientific Markdown with Satteri in an isolated browser WASM runtime.                           |
 | [ADR-046](./implemented/ADR-046-derive-bounded-knowledge-navigation.md)               | Implemented          | Derive bounded search and typed navigation projections from authorized workspace state.               |
 | [ADR-047](./implemented/ADR-047-model-evidence-backed-claims.md)                      | Implemented          | Store claims and their evidence and manuscript usage as explicit typed resources.                     |
-| [ADR-048](./implemented/ADR-048-secure-browser-collaboration-boundary.md)             | Implemented          | Sanitize preview output and validate same-origin, binary-only collaboration traffic.                  |
+| [ADR-048](./implemented/ADR-048-secure-browser-collaboration-boundary.md)             | Implemented          | Sanitize preview output and validate same-origin, bounded collaboration traffic.                      |
 | [ADR-049](./implemented/ADR-049-acknowledge-server-led-yjs-synchronization.md)        | Implemented          | Synchronize from server state and acknowledge durable, idempotent Yjs updates.                        |
 | [ADR-050](./implemented/ADR-050-use-durable-manuscript-anchors.md)                    | Partially superseded | Resolve manuscript links through versioned Yjs positions; ADR-056 replaces its model-candidate scope. |
 | [ADR-051](./implemented/ADR-051-reconcile-bibtex-and-version-sqlite-migrations.md)    | Implemented          | Reconcile every canonical BibTeX change and version per-object SQLite evolution.                      |

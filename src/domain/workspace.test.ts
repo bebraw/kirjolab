@@ -4,6 +4,7 @@ import {
   isCreateAnnotationLinkInput,
   isCreateCandidateInput,
   isCreateClaimPassageLinkInput,
+  isCreateManuscriptCommentInput,
   isCreatePassageLinkInput,
   isCreatePublicationPdfLinkInput,
   isAcceptPublicationIntakeInput,
@@ -71,6 +72,16 @@ describe("workspace input guards", () => {
     expect(
       isCreateClaimPassageLinkInput({ claimId: "claim", fileId: "main-file", start: 0, end: 4, excerpt: "text", sourceRevision: 0 }),
     ).toBe(true);
+    expect(
+      isCreateManuscriptCommentInput({
+        fileId: "main-file",
+        start: 0,
+        end: 4,
+        excerpt: "text",
+        sourceRevision: 0,
+        body: "Review this passage.",
+      }),
+    ).toBe(true);
     expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
     expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
     expect(isImportBibliographyInput({ bibtex: "@article{key, title={Title}}" })).toBe(true);
@@ -109,6 +120,19 @@ describe("workspace input guards", () => {
         claims: [],
         claimEvidenceLinks: [],
         claimLinks: [{ id: "claim-link", claimId: "claim", anchor, resolution, createdAt: "now" }],
+        comments: [
+          {
+            id: "comment",
+            authorId: "member",
+            authorLabel: "writer@example.test",
+            body: "Review this passage.",
+            anchor,
+            resolution,
+            status: "open",
+            createdAt: "now",
+            updatedAt: "now",
+          },
+        ],
         candidates: [],
       }),
     ).toBe(true);
@@ -387,6 +411,30 @@ describe("workspace input guards", () => {
     }
   });
 
+  it("enforces every manuscript-comment boundary", () => {
+    const valid = {
+      fileId: "main-file",
+      start: 0,
+      end: 4,
+      excerpt: "text",
+      sourceRevision: 0,
+      body: "Review this passage.",
+    };
+    for (const change of [
+      { fileId: "" },
+      { start: -1 },
+      { end: 0 },
+      { excerpt: "" },
+      { sourceRevision: -1 },
+      { body: "" },
+      { body: "x".repeat(8_001) },
+      { body: 1 },
+    ]) {
+      expect(isCreateManuscriptCommentInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
+    }
+    expect(isCreateManuscriptCommentInput(null)).toBe(false);
+  });
+
   it("enforces every candidate boundary", () => {
     const valid = validCandidateInput();
     for (const change of [
@@ -581,6 +629,7 @@ describe("workspace input guards", () => {
       claims: [],
       claimEvidenceLinks: [],
       claimLinks: [],
+      comments: [],
       candidates: [],
     };
     for (const change of [

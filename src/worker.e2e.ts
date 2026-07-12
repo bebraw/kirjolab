@@ -440,6 +440,25 @@ test("converges source edits across two writers", async ({ page, context }) => {
   const expandedSource = `${sharedSource}\nThe second writer connects the evidence.\n`;
   await collaborator.locator("#source-editor").fill(expandedSource);
   await expect(page.locator("#source-editor")).toHaveValue(expandedSource);
+
+  const selectedText = "second writer";
+  await page.locator("#source-editor").evaluate((element: HTMLTextAreaElement, text: string) => {
+    const start = element.value.indexOf(text);
+    element.focus();
+    element.setSelectionRange(start, start + text.length);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  }, selectedText);
+  await expect(collaborator.locator("#collaborator-selections")).toContainText(`“${selectedText}”`);
+
+  const sourceBeforeComment = await page.locator("#source-editor").inputValue();
+  await page.locator("#manuscript-comments summary").click();
+  await page.locator("#manuscript-comment-body").fill("Keep this collaboration claim concrete.");
+  await page.locator("#manuscript-comment-form").getByRole("button", { name: "Add comment" }).click();
+  await expect(collaborator.locator("#manuscript-comment-list")).toContainText("Keep this collaboration claim concrete.");
+  await collaborator.locator("#manuscript-comments summary").click();
+  await collaborator.locator("#manuscript-comment-list").getByRole("button", { name: "Resolve" }).click();
+  await expect(page.locator("#manuscript-comment-list")).toContainText("resolved");
+  await expect(page.locator("#source-editor")).toHaveValue(sourceBeforeComment);
   await collaborator.close();
 });
 
@@ -856,7 +875,7 @@ test("isolates clients that send unsupported collaboration frames", async ({ pag
   });
 
   expect(outcomes).toEqual([
-    { code: 1003, reason: "Client text frames are not supported" },
+    { code: 1003, reason: "Unsupported client collaboration metadata" },
     { code: 1007, reason: "Invalid document update" },
   ]);
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();

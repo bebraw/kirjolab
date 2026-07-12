@@ -1,6 +1,6 @@
 # ADR-037: Synchronize Text and Materialize Clean Markdown
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-10
 
@@ -82,3 +82,21 @@ provides a substantially better implementation.
 
 This would be simpler but does not satisfy concurrent multiplayer editing and
 risks silent data loss.
+
+## Implementation
+
+- Yjs synchronizes each project file as text while `DocumentRoom`
+  transactionally materializes readable Markdown and BibTeX and records
+  recoverable project revisions.
+- The server assigns each socket an ephemeral collaborator id and accepts only
+  bounded, protocol-versioned selection metadata tied to an existing file and
+  the current manuscript revision. Selection state is broadcast to peers but
+  is never persisted.
+- Collaborative comments are attributed to stable workspace-person ids, stored
+  separately from Markdown, anchored with file-qualified Yjs relative
+  positions plus quote provenance, and retained in logical revision snapshots.
+  Resolving a comment preserves its resource and history.
+- Presence, selections, comment invalidation, synchronization,
+  acknowledgement, revision, and reset behavior remain distinct from parser
+  and preview state.
+- Track changes and editorial approval remain deferred as decided.

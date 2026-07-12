@@ -10,7 +10,7 @@ import {
   type BibTeXEntry,
   type BibTeXPublicationProjection,
 } from "../domain/bibliography";
-import { applyYjsUpdateOnce, encodeServerCollaborationMessage } from "../domain/collaboration";
+import { applyYjsUpdateOnce, encodeServerCollaborationMessage, parseClientSelectionMessage } from "../domain/collaboration";
 import {
   createManuscriptAnchor,
   resolveManuscriptAnchor,
@@ -55,12 +55,14 @@ import {
   type CreateAnnotationLinkInput,
   type CreateCandidateInput,
   type CreateClaimPassageLinkInput,
+  type CreateManuscriptCommentInput,
   type CreatePassageLinkInput,
   type CreatePublicationPdfLinkInput,
   type ModelCandidate,
   type ModelEvidence,
   type ModelEvidenceReference,
   type PassageLink,
+  type ManuscriptComment,
   type PdfResource,
   type PublicationEnrichment,
   type PublicationIntakePreview,
@@ -230,9 +232,33 @@ interface ClaimLinkRow extends Record<string, SqlStorageValue> {
   created_at: string;
 }
 
+interface ManuscriptCommentRow extends Record<string, SqlStorageValue> {
+  id: string;
+  author_id: string;
+  author_label: string;
+  body: string;
+  start_offset: number;
+  end_offset: number;
+  excerpt: string;
+  anchor_version: number;
+  relative_start: ArrayBuffer | null;
+  relative_end: ArrayBuffer | null;
+  quote_prefix: string;
+  quote_suffix: string;
+  anchored_revision: number;
+  project_file_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface PersistedDocumentUpdate {
   readonly resourcesChanged: boolean;
   readonly revision: number;
+}
+
+interface CollaborationSocketAttachment {
+  readonly collaboratorId: string;
 }
 
 interface ProjectionOptions {
@@ -285,6 +311,7 @@ const revisionTables = [
   "claims",
   "claim_evidence_links",
   "claim_passage_links",
+  "manuscript_comments",
   "publication_pdf_links",
   "project_files",
   "project_references",
@@ -344,6 +371,25 @@ const revisionTableColumns: Readonly<Record<RevisionTable, readonly string[]>> =
     "created_at",
     "project_file_id",
   ],
+  manuscript_comments: [
+    "id",
+    "author_id",
+    "author_label",
+    "body",
+    "start_offset",
+    "end_offset",
+    "excerpt",
+    "anchor_version",
+    "relative_start",
+    "relative_end",
+    "quote_prefix",
+    "quote_suffix",
+    "anchored_revision",
+    "project_file_id",
+    "status",
+    "created_at",
+    "updated_at",
+  ],
   publication_pdf_links: ["id", "publication_id", "pdf_id", "created_at"],
   project_files: ["id", "path", "media_type", "y_text_name", "content", "created_at", "updated_at"],
   project_references: ["id", "reference_id", "citation_alias", "snapshot_json", "created_at", "updated_at"],
@@ -352,6 +398,7 @@ const revisionTableColumns: Readonly<Record<RevisionTable, readonly string[]>> =
 };
 
 const revisionDeleteOrder: readonly RevisionTable[] = [
+  "manuscript_comments",
   "passage_links",
   "claim_passage_links",
   "claim_evidence_links",
@@ -379,6 +426,7 @@ const revisionInsertOrder: readonly RevisionTable[] = [
   "claim_evidence_links",
   "passage_links",
   "claim_passage_links",
+  "manuscript_comments",
 ];
 
 export class DocumentRoom extends DurableObject<Env> {
@@ -403,6 +451,7 @@ export class DocumentRoom extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
+    server.serializeAttachment({ collaboratorId: crypto.randomUUID() } satisfies CollaborationSocketAttachment);
     this.ctx.acceptWebSocket(server);
     server.send(Y.encodeStateAsUpdate(this.#document));
     server.send(encodeServerCollaborationMessage({ type: "sync", protocol: 1, revision: this.#workspaceRow().revision }));
@@ -412,7 +461,34 @@ export class DocumentRoom extends DurableObject<Env> {
 
   override webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
     if (typeof message === "string") {
-      socket.close(1003, "Client text frames are not supported");
+      const selection = parseClientSelectionMessage(message);
+      if (!selection) {
+        socket.close(1003, "Unsupported client collaboration metadata");
+        return;
+      }
+      const workspace = this.#workspaceRow();
+      if (selection.revision !== workspace.revision) return;
+      const file = this.#projectFiles().find((candidate) => candidate.id === selection.fileId);
+      if (!file || selection.end > file.content.length) {
+        socket.close(1007, "Invalid collaborator selection");
+        return;
+      }
+      const attachment = collaborationSocketAttachment(socket);
+      if (!attachment) {
+        socket.close(1011, "Collaboration identity is unavailable");
+        return;
+      }
+      this.#broadcast(
+        encodeServerCollaborationMessage({
+          type: "selection",
+          collaboratorId: attachment.collaboratorId,
+          fileId: selection.fileId,
+          start: selection.start,
+          end: selection.end,
+          revision: selection.revision,
+        }),
+        socket,
+      );
       return;
     }
 
@@ -457,7 +533,11 @@ export class DocumentRoom extends DurableObject<Env> {
     if (persisted.resourcesChanged) this.#broadcastResources();
   }
 
-  override webSocketClose(_socket: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
+  override webSocketClose(socket: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
+    const attachment = collaborationSocketAttachment(socket);
+    if (attachment) {
+      this.#broadcast(encodeServerCollaborationMessage({ type: "selection-clear", collaboratorId: attachment.collaboratorId }), socket);
+    }
     this.#broadcastPresence();
   }
 
@@ -485,6 +565,7 @@ export class DocumentRoom extends DurableObject<Env> {
       claims: this.#claims(),
       claimEvidenceLinks: this.#claimEvidenceLinks(),
       claimLinks: this.#claimLinks(),
+      comments: this.#comments(),
       candidates: this.#candidates(),
     };
   }
@@ -1332,6 +1413,55 @@ export class DocumentRoom extends DurableObject<Env> {
     };
   }
 
+  createManuscriptComment(input: CreateManuscriptCommentInput, authorId: string, authorLabel: string): ManuscriptComment {
+    const workspace = this.#workspaceRow();
+    const target = this.#projectText(input.fileId);
+    const source = target.text.toString();
+    if (input.sourceRevision !== workspace.revision) throw new Error("Document selection is stale");
+    if (source !== target.file.content || input.end > source.length || source.slice(input.start, input.end) !== input.excerpt) {
+      throw new Error("Document selection is stale");
+    }
+
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision, target.file.id, target.text);
+    this.#persistResourceRevision("comment-create", () => {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO manuscript_comments
+         (id, author_id, author_label, body, start_offset, end_offset, excerpt, anchor_version,
+          relative_start, relative_end, quote_prefix, quote_suffix, anchored_revision, project_file_id,
+          status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
+        id,
+        authorId,
+        authorLabel,
+        input.body.trim(),
+        input.start,
+        input.end,
+        input.excerpt,
+        anchor.relativeStart,
+        anchor.relativeEnd,
+        anchor.prefix,
+        anchor.suffix,
+        anchor.anchoredRevision,
+        anchor.fileId,
+        createdAt,
+        createdAt,
+      );
+    });
+    return this.#comment(id);
+  }
+
+  resolveManuscriptComment(commentId: string): ManuscriptComment {
+    const existing = this.#comment(commentId);
+    if (existing.status === "resolved") return existing;
+    const updatedAt = new Date().toISOString();
+    this.#persistResourceRevision("comment-resolve", () => {
+      this.ctx.storage.sql.exec("UPDATE manuscript_comments SET status = 'resolved', updated_at = ? WHERE id = ?", updatedAt, commentId);
+    });
+    return this.#comment(commentId);
+  }
+
   createCandidate(input: CreateCandidateInput): ModelCandidate {
     if (!isCreateCandidateInput(input)) throw new Error("Model candidate input is invalid");
     const workspace = this.#workspaceRow();
@@ -1801,6 +1931,42 @@ export class DocumentRoom extends DurableObject<Env> {
             );
             CREATE INDEX IF NOT EXISTS project_milestones_revision ON project_milestones(revision);
           `);
+          return undefined;
+        },
+      },
+      {
+        version: 16,
+        name: "anchor-collaborative-comments",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS manuscript_comments (
+              id TEXT PRIMARY KEY,
+              author_id TEXT NOT NULL,
+              author_label TEXT NOT NULL,
+              body TEXT NOT NULL,
+              start_offset INTEGER NOT NULL,
+              end_offset INTEGER NOT NULL,
+              excerpt TEXT NOT NULL,
+              anchor_version INTEGER NOT NULL CHECK (anchor_version = 1),
+              relative_start BLOB NOT NULL,
+              relative_end BLOB NOT NULL,
+              quote_prefix TEXT NOT NULL,
+              quote_suffix TEXT NOT NULL,
+              anchored_revision INTEGER NOT NULL,
+              project_file_id TEXT NOT NULL,
+              status TEXT NOT NULL CHECK (status IN ('open', 'resolved')),
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS manuscript_comments_status ON manuscript_comments(status, updated_at DESC);
+          `);
+          const revisions = sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions").toArray();
+          for (const revision of revisions) {
+            const snapshot: unknown = JSON.parse(revision.snapshot_json);
+            if (!isRecordValue(snapshot) || !isRecordValue(snapshot.tables) || "manuscript_comments" in snapshot.tables) continue;
+            snapshot.tables.manuscript_comments = [];
+            sql.exec("UPDATE project_revisions SET snapshot_json = ? WHERE revision = ?", JSON.stringify(snapshot), revision.revision);
+          }
           return undefined;
         },
       },
@@ -2317,6 +2483,19 @@ export class DocumentRoom extends DurableObject<Env> {
       .map((row) => claimPassageLinkFromRow(this.#document, row));
   }
 
+  #comments(): ManuscriptComment[] {
+    return this.ctx.storage.sql
+      .exec<ManuscriptCommentRow>("SELECT * FROM manuscript_comments ORDER BY updated_at DESC, id ASC")
+      .toArray()
+      .map((row) => manuscriptCommentFromRow(this.#document, row));
+  }
+
+  #comment(commentId: string): ManuscriptComment {
+    const row = this.ctx.storage.sql.exec<ManuscriptCommentRow>("SELECT * FROM manuscript_comments WHERE id = ?", commentId).toArray()[0];
+    if (!row) throw new Error("Comment not found");
+    return manuscriptCommentFromRow(this.#document, row);
+  }
+
   #claim(claimId: string): ClaimResource {
     const row = this.ctx.storage.sql.exec<ClaimRow>("SELECT * FROM claims WHERE id = ?", claimId).toArray()[0];
     if (!row) throw new Error("Claim not found");
@@ -2419,7 +2598,16 @@ export class DocumentRoom extends DurableObject<Env> {
   }
 }
 
+function collaborationSocketAttachment(socket: WebSocket): CollaborationSocketAttachment | null {
+  const value: unknown = socket.deserializeAttachment();
+  return isRecordValue(value) && typeof value.collaboratorId === "string" && value.collaboratorId.length <= 128
+    ? { collaboratorId: value.collaboratorId }
+    : null;
+}
+
 function projectRevisionContent(revision: number, state: StoredProjectRevision): ProjectRevisionContent {
+  const document = new Y.Doc();
+  Y.applyUpdate(document, new Uint8Array(decodeBase64(state.workspace.yState)));
   const files = revisionRows(state, "project_files").map(
     (row): ProjectFile => ({
       id: sqlString(row, "id"),
@@ -2493,6 +2681,27 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
       updatedAt: sqlString(row, "updated_at"),
     }),
   );
+  const comments = revisionRows(state, "manuscript_comments").map((row) =>
+    manuscriptCommentFromRow(document, {
+      id: sqlString(row, "id"),
+      author_id: sqlString(row, "author_id"),
+      author_label: sqlString(row, "author_label"),
+      body: sqlString(row, "body"),
+      start_offset: sqlNumber(row, "start_offset"),
+      end_offset: sqlNumber(row, "end_offset"),
+      excerpt: sqlString(row, "excerpt"),
+      anchor_version: sqlNumber(row, "anchor_version"),
+      relative_start: sqlNullableBlob(row, "relative_start"),
+      relative_end: sqlNullableBlob(row, "relative_end"),
+      quote_prefix: sqlString(row, "quote_prefix"),
+      quote_suffix: sqlString(row, "quote_suffix"),
+      anchored_revision: sqlNumber(row, "anchored_revision"),
+      project_file_id: sqlString(row, "project_file_id"),
+      status: sqlString(row, "status"),
+      created_at: sqlString(row, "created_at"),
+      updated_at: sqlString(row, "updated_at"),
+    }),
+  );
   const composition = files.some((file) => file.id === state.workspace.entryFileId)
     ? composeProject(files, state.workspace.entryFileId).content
     : state.workspace.source;
@@ -2509,10 +2718,12 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
     publicationPdfLinks,
     annotations,
     claims,
+    comments,
     relationships: {
       annotationPassages: state.tables.passage_links.length,
       claimEvidence: state.tables.claim_evidence_links.length,
       claimPassages: state.tables.claim_passage_links.length,
+      comments: state.tables.manuscript_comments.length,
     },
   };
 }
@@ -2605,6 +2816,12 @@ function sqlNumber(row: Record<string, SqlStorageValue>, field: string): number 
   return value;
 }
 
+function sqlNullableBlob(row: Record<string, SqlStorageValue>, field: string): ArrayBuffer | null {
+  const value = row[field];
+  if (value === null || value instanceof ArrayBuffer) return value;
+  throw new Error(`Stored project revision field ${field} is invalid`);
+}
+
 function encodeBase64(value: ArrayBufferLike): string {
   let binary = "";
   for (const byte of new Uint8Array(value)) binary += String.fromCharCode(byte);
@@ -2646,7 +2863,7 @@ function claimPassageLinkFromRow(document: Y.Doc, row: ClaimLinkRow): ClaimPassa
   };
 }
 
-function manuscriptAnchorFromRow(row: LinkRow | ClaimLinkRow | CandidateRow): StoredManuscriptAnchor {
+function manuscriptAnchorFromRow(row: LinkRow | ClaimLinkRow | CandidateRow | ManuscriptCommentRow): StoredManuscriptAnchor {
   return {
     version: 1,
     fileId: row.project_file_id,
@@ -2657,6 +2874,21 @@ function manuscriptAnchorFromRow(row: LinkRow | ClaimLinkRow | CandidateRow): St
     suffix: row.quote_suffix,
     originalRange: { start: row.start_offset, end: row.end_offset },
     anchoredRevision: row.anchored_revision ?? 0,
+  };
+}
+
+function manuscriptCommentFromRow(document: Y.Doc, row: ManuscriptCommentRow): ManuscriptComment {
+  const anchor = manuscriptAnchorFromRow(row);
+  return {
+    id: row.id,
+    authorId: row.author_id,
+    authorLabel: row.author_label,
+    body: row.body,
+    anchor: toManuscriptAnchorSelector(anchor),
+    resolution: resolveManuscriptAnchor(document, anchor),
+    status: row.status === "resolved" ? "resolved" : "open",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 

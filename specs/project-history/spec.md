@@ -15,8 +15,8 @@ continues to use a narrow source revision for stale-selection checks.
   sequence is distinct from the manuscript concurrency revision.
 - Every retained snapshot stores the exact Yjs update plus workspace settings
   and the rows for project files, references, research shares, PDFs,
-  annotations, claims, and their typed relationships in the same transaction
-  as the logical mutation.
+  annotations, claims, manuscript comments, and their typed relationships in
+  the same transaction as the logical mutation.
 - Consecutive manuscript updates within 30 seconds refresh one untagged working
   checkpoint instead of creating one full snapshot per keystroke. A milestone
   freezes that checkpoint; the next edit starts another revision. Explicit
@@ -66,6 +66,8 @@ continues to use a narrow source revision for stale-selection checks.
 - Restore failure must retain the prior live Yjs document and head state.
 - Milestone creation must reject duplicate names without changing the target.
 - Historical reads and comparisons must not mutate the live project.
+- Comment creation and resolution must create distinct resource revisions while
+  leaving the manuscript concurrency revision unchanged.
 - Restore must preserve every older revision and milestone.
 - Seed must not inherit workspace membership or point research shares at the
   source workspace id.
@@ -78,7 +80,8 @@ continues to use a narrow source revision for stale-selection checks.
   immutable milestones, restore-as-new-head, revision seeds, rename-aware text
   and composed diffs, publication word deltas, binary identity comparison,
   owner/member authorization, reset-safe collaboration, Workers tests, and
-  browser coverage.
+  browser coverage. Revision projections include attributed open and resolved
+  manuscript comments.
 - Deferred: pagination beyond 500 summaries, owner-directed eligible-history
   deletion, deduplicated snapshot storage, PDF page-count/dimension extraction,
   and richer semantic Markdown diff rendering.

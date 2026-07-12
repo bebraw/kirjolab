@@ -50,11 +50,14 @@ to authentication, catalog discovery, and workspace role authorization before
 the request reaches `DocumentRoom`; missing and cross-origin values fail
 closed.
 
-Define and validate the WebSocket frame boundary. Clients may send only bounded
-binary Yjs updates. JSON presence, revision, and protocol-error messages are
-server-owned control frames and must not be accepted or rebroadcast from a
-client. Reject malformed, oversized, or unsupported input without persisting or
-broadcasting it, and close the offending connection with an appropriate
+Define and validate the WebSocket frame boundary. Clients may send bounded
+binary Yjs updates and one bounded, versioned selection-metadata text message.
+The document room verifies the selection against the current revision, file,
+and text length, replaces any claimed identity with its server-assigned socket
+identity, and never persists it. JSON presence, revision, selection-clear, and
+protocol-error messages remain server-owned and cannot be accepted or
+rebroadcast from a client. Reject malformed, oversized, stale, or unsupported
+input without persistence, and close invalid senders with an appropriate
 WebSocket protocol status.
 
 ## Trigger
@@ -117,3 +120,10 @@ upgrade. Ambient authentication can accompany a cross-site WebSocket request.
 
 This is simple, but it lets clients forge server control messages and prevents
 the protocol from enforcing a stable trust boundary.
+
+## Implementation Note
+
+ADR-037 introduced the sole client text-frame exception: an exact-key,
+size-bounded `protocol: 1` selection message. The server owns collaborator
+identity and validates revision and range before peer broadcast. All other
+client text remains unsupported.
