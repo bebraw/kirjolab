@@ -1275,6 +1275,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
 
 test("selects the explicit local companion connection", async ({ page }) => {
   await page.goto("/");
+  await openWritingAssistant(page, true);
   await page.locator("#llm-connection").selectOption("companion");
   await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:8790/v1/chat/completions");
   await expect(page.locator("#model-status")).toContainText("npm run model:companion");
@@ -1360,6 +1361,7 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
   });
   await openResearchCollection(page, "Highlights");
   await page.locator("[data-annotation-id]").first().check();
+  await openWritingAssistant(page, true);
   await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
   await page.locator("#llm-model").fill("delayed-local-model");
   await expect(page.getByRole("button", { name: "Draft revision" })).toBeEnabled();
@@ -1567,6 +1569,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
     element.focus();
     element.setSelectionRange(start, start + passage.length);
   }, selectedPassage);
+  await openWritingAssistant(page, true);
   await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
   await page.locator("#llm-model").fill("test-local-model");
   const sourceBeforeDraft = await editor.inputValue();
@@ -1667,6 +1670,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   if (!isRecord(staleCandidate) || typeof staleCandidate.id !== "string") throw new Error("Expected a model candidate");
   await page.reload();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  await openWritingAssistant(page);
   const staleCard = page.locator("#candidate-list article").filter({ hasText: "stale-model · pending" }).first();
   await staleCard.getByRole("button", { name: "Open review" }).click();
   await expect(page.locator("#context-candidate-status")).toContainText("Pending review");
@@ -1795,4 +1799,15 @@ async function openResearchCollection(page: Page, name: string): Promise<void> {
   await collection.evaluate((element: HTMLDetailsElement) => {
     element.open = true;
   });
+}
+
+async function openWritingAssistant(page: Page, includeSettings = false): Promise<void> {
+  await page.locator("#writing-assistant").evaluate((element: HTMLDetailsElement) => {
+    element.open = true;
+  });
+  if (includeSettings) {
+    await page.locator("#assistant-model-settings").evaluate((element: HTMLDetailsElement) => {
+      element.open = true;
+    });
+  }
 }

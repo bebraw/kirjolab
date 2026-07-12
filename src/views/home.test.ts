@@ -54,7 +54,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="paper-text-layer"');
     expect(html).toContain('id="save-and-link-annotation"');
     expect(html).not.toContain('id="paper-dialog"');
-    expect(html).toContain("Propose, inspect, apply");
+    expect(html).toContain('id="writing-assistant"');
+    expect(html).toContain("Draft a reviewable revision");
     expect(html).toContain('src="/app.js"');
     expect(html).toContain('href="/styles.css"');
     expect(html).toContain("/api/workspaces/demo");
@@ -148,8 +149,9 @@ describe("renderHomePage", () => {
     expect(html).toContain("Select manuscript text and at least one annotation or claim to ground the request.");
     expect(html).toContain("Grounded revisions open in Context and remain separate from the manuscript until you apply one.");
 
-    expect(html.indexOf('id="llm-endpoint"')).toBeLessThan(html.indexOf('id="model-instruction"'));
-    expect(html.indexOf('id="llm-model"')).toBeLessThan(html.indexOf('id="model-instruction"'));
+    expect(html.indexOf('id="model-instruction"')).toBeLessThan(html.indexOf('id="assistant-model-settings"'));
+    expect(html.indexOf('id="assistant-model-settings"')).toBeLessThan(html.indexOf('id="llm-endpoint"'));
+    expect(html.indexOf('id="assistant-model-settings"')).toBeLessThan(html.indexOf('id="llm-model"'));
     expect(html.indexOf('id="model-instruction"')).toBeLessThan(html.indexOf('id="generate-candidate"'));
   });
 });

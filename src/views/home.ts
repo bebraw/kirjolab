@@ -332,41 +332,47 @@ export function renderHomePage(
         </section>
       </section>
 
-      <aside class="workbench border-t border-app-line bg-app-canvas px-4 py-5 lg:col-span-4 lg:px-6">
-        <div class="mx-auto max-w-5xl">
+      <details class="workbench assistant-drawer border-t border-app-line bg-app-canvas lg:col-span-4" id="writing-assistant">
+        <summary><span>Writing assistant</span><span>Works from selected prose and evidence</span></summary>
+        <div class="mx-auto max-w-5xl px-4 py-5 lg:px-6">
           <section>
             <div class="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p class="eyebrow">Local model lab</p>
-                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Propose, inspect, apply</h2>
+                <p class="eyebrow">Selected passage</p>
+                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Draft a reviewable revision</h2>
               </div>
               <p class="max-w-lg text-xs leading-5 text-app-text-soft">The selected passage, revision instruction, chosen evidence, and configured model identifier are sent from your browser to the local OpenAI-compatible endpoint. No other manuscript text is sent. The proposed replacement stays separate for review in Context.</p>
             </div>
-            <div class="model-lab-fields">
-              <label class="field-label">Connection
-                <select class="field" id="llm-connection">
-                  <option value="direct">Direct browser connection</option>
-                  <option value="companion">Local companion</option>
-                </select>
-              </label>
-              <label class="field-label">Endpoint
-                <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
-              </label>
-              <label class="field-label">Model
-                <input class="field" id="llm-model" type="text" value="local-model">
-              </label>
+            <div class="assistant-workflow">
               <label class="field-label model-instruction-field" for="model-instruction">Revision instruction
                 <textarea class="field model-instruction" id="model-instruction" maxlength="4000" rows="2">Improve clarity while preserving the claim and citation syntax.</textarea>
               </label>
               <button class="button-primary model-generate-action justify-center" id="generate-candidate" type="button">Draft revision</button>
             </div>
+            <details class="assistant-settings" id="assistant-model-settings">
+              <summary>Model connection</summary>
+              <div class="assistant-settings-grid">
+                <label class="field-label">Connection
+                  <select class="field" id="llm-connection">
+                    <option value="direct">Direct browser connection</option>
+                    <option value="companion">Local companion</option>
+                  </select>
+                </label>
+                <label class="field-label">Endpoint
+                  <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
+                </label>
+                <label class="field-label">Model
+                  <input class="field" id="llm-model" type="text" value="local-model">
+                </label>
+              </div>
+            </details>
             <p class="mt-3 text-sm text-app-text-soft" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
             <div class="mt-4" id="candidate-list">
               <div class="empty-state">Grounded revisions open in Context and remain separate from the manuscript until you apply one.</div>
             </div>
           </section>
         </div>
-      </aside>
+      </details>
     </main>
 
     <dialog class="reference-library-dialog" id="export-dialog">
