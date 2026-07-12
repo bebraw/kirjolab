@@ -34,11 +34,11 @@ Implemented during the follow-up pass:
   private-library references.
 - Saved PDF highlights now auto-persist as additive strokes with editing,
   erasing, undo, and dependency-aware deletion.
+- Reference cards expose structured canonical metadata editing with manual
+  provenance, distinct collections, and reading status, priority, and rating.
 
 Still open as distinct feature work:
 
-- Manual editing of canonical bibliographic fields, collections, reading
-  status, priority, and rating.
 - Dedicated editor-only/context-only focus controls beyond responsive switching
   and the resizable desktop split.
 

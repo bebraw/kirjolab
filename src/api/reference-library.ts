@@ -38,10 +38,21 @@ interface ReferenceLibraryApi {
   identifyPdf(artifactId: string, referenceId: string): Promise<LibraryPdfArtifact>;
   setArtifactRights(artifactId: string, rights: LibraryPdfArtifact["rights"]): Promise<LibraryPdfArtifact>;
   archiveReference(referenceId: string, archived: boolean): Promise<BibliographicRecord>;
+  updateReferenceMetadata(
+    referenceId: string,
+    fields: Pick<BibliographicRecord, "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract">,
+    actor: string,
+  ): Promise<BibliographicRecord>;
   setTags(referenceId: string, tags: readonly string[]): Promise<readonly string[]>;
+  setCollections(referenceId: string, collections: readonly string[]): Promise<readonly string[]>;
   createNote(referenceId: string, body: string): Promise<LibraryNote>;
   createHighlight(referenceId: string, artifactId: string, page: number, quote: string, comment: string): Promise<LibraryHighlight>;
-  setReadingState(referenceId: string, status: ReadingState["status"], rating: number | null): Promise<ReadingState>;
+  setReadingState(
+    referenceId: string,
+    status: ReadingState["status"],
+    rating: number | null,
+    priority: ReadingState["priority"],
+  ): Promise<ReadingState>;
   getDeletionImpact(referenceId: string): Promise<ReferenceDeletionImpact>;
   permanentlyDeleteReference(referenceId: string, expectedProjectIds: readonly string[]): Promise<BibliographicRecord>;
   registerWebCapture(registration: WebCaptureRegistration): Promise<WebCaptureItem>;
@@ -134,7 +145,7 @@ export async function handleReferenceLibraryApi(
       return Response.json(await library.setArtifactRights(pdfMatch[1], body.rights), noStore());
     }
     const referenceMatch =
-      /^\/references\/([0-9a-f-]{36})(?:\/(tags|notes|highlights|reading|deletion-impact|web-snapshots|citation-expansions))?$/iu.exec(
+      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|reading|deletion-impact|web-snapshots|citation-expansions))?$/iu.exec(
         suffix,
       );
     if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
@@ -142,8 +153,39 @@ export async function handleReferenceLibraryApi(
     const action = referenceMatch[2];
     if (!action && request.method === "PATCH") {
       const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.archived !== "boolean") return jsonError("Invalid archive state", 400);
-      return Response.json(await library.archiveReference(referenceId, body.archived), noStore());
+      if (!isRecord(body)) return jsonError("Invalid reference update", 400);
+      if (typeof body.archived === "boolean") return Response.json(await library.archiveReference(referenceId, body.archived), noStore());
+      if (
+        typeof body.type !== "string" ||
+        typeof body.title !== "string" ||
+        !Array.isArray(body.authors) ||
+        !body.authors.every((author) => typeof author === "string") ||
+        typeof body.year !== "string" ||
+        typeof body.venue !== "string" ||
+        typeof body.doi !== "string" ||
+        typeof body.url !== "string" ||
+        typeof body.abstract !== "string" ||
+        body.title.length > 2_000 ||
+        body.abstract.length > 20_000
+      )
+        return jsonError("Invalid bibliographic metadata", 400);
+      return Response.json(
+        await library.updateReferenceMetadata(
+          referenceId,
+          {
+            type: body.type,
+            title: body.title,
+            authors: body.authors,
+            year: body.year,
+            venue: body.venue,
+            doi: body.doi,
+            url: body.url,
+            abstract: body.abstract,
+          },
+          identity.email,
+        ),
+        noStore(),
+      );
     }
     if (action === "tags" && request.method === "PUT") {
       const body: unknown = await request.json();
@@ -151,6 +193,13 @@ export async function handleReferenceLibraryApi(
         return jsonError("Invalid reference tags", 400);
       }
       return Response.json(await library.setTags(referenceId, body.tags), noStore());
+    }
+    if (action === "collections" && request.method === "PUT") {
+      const body: unknown = await request.json();
+      if (!isRecord(body) || !Array.isArray(body.collections) || !body.collections.every((item) => typeof item === "string")) {
+        return jsonError("Invalid reference collections", 400);
+      }
+      return Response.json(await library.setCollections(referenceId, body.collections), noStore());
     }
     if (action === "notes" && request.method === "POST") {
       const body: unknown = await request.json();
@@ -175,10 +224,15 @@ export async function handleReferenceLibraryApi(
     }
     if (action === "reading" && request.method === "PUT") {
       const body: unknown = await request.json();
-      if (!isRecord(body) || !isReadingStatus(body.status) || (body.rating !== null && typeof body.rating !== "number")) {
+      if (
+        !isRecord(body) ||
+        !isReadingStatus(body.status) ||
+        (body.rating !== null && typeof body.rating !== "number") ||
+        (body.priority !== "low" && body.priority !== "normal" && body.priority !== "high")
+      ) {
         return jsonError("Invalid reading state", 400);
       }
-      return Response.json(await library.setReadingState(referenceId, body.status, body.rating), noStore());
+      return Response.json(await library.setReadingState(referenceId, body.status, body.rating, body.priority), noStore());
     }
     if (action === "deletion-impact" && request.method === "GET") {
       return Response.json(await library.getDeletionImpact(referenceId), noStore());

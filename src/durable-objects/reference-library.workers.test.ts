@@ -34,9 +34,29 @@ describe("ReferenceLibrary in the Workers runtime", () => {
 
     const referenceId = first[0]!.reference.id;
     expect(await library.setTags(referenceId, ["Methods", "methods", "To read"])).toEqual(["Methods", "To read"]);
+    expect(await library.setCollections(referenceId, ["Dissertation", "Dissertation"])).toEqual(["Dissertation"]);
     expect((await library.createNote(referenceId, "Private interpretation")).body).toBe("Private interpretation");
-    expect(await library.setReadingState(referenceId, "reading", 4)).toMatchObject({ status: "reading", rating: 4 });
-    expect((await library.getSnapshot()).references[0]?.title).toBe("Corrected Inspectable Evidence");
+    expect(await library.setReadingState(referenceId, "reading", 4, "high")).toMatchObject({
+      status: "reading",
+      rating: 4,
+      priority: "high",
+    });
+    const edited = await library.updateReferenceMetadata(
+      referenceId,
+      {
+        type: "article",
+        title: "Manually corrected title",
+        authors: ["Doe, Jane"],
+        year: "2026",
+        venue: "Open Research",
+        doi: "10.1000/example",
+        url: "https://example.test",
+        abstract: "Reviewed abstract",
+      },
+      "owner@example.test",
+    );
+    expect(edited).toMatchObject({ title: "Manually corrected title", provenance: { title: { method: "manual" } } });
+    expect((await library.getSnapshot()).collections[referenceId]).toEqual(["Dissertation"]);
     expect((await library.archiveReference(referenceId, true)).archivedAt).not.toBeNull();
     expect((await library.getSnapshot()).references).toEqual([]);
     expect((await library.getSnapshot(true)).references).toHaveLength(1);

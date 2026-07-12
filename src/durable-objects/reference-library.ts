@@ -111,12 +111,18 @@ interface ReadingRow extends Record<string, SqlStorageValue> {
   reference_id: string;
   status: string;
   rating: number | null;
+  priority: string;
   updated_at: string;
 }
 
 interface TagRow extends Record<string, SqlStorageValue> {
   reference_id: string;
   tag: string;
+}
+
+interface CollectionRow extends Record<string, SqlStorageValue> {
+  reference_id: string;
+  collection_name: string;
 }
 
 interface ProjectDependencyRow extends Record<string, SqlStorageValue> {
@@ -363,6 +369,22 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 5,
+    name: "organize-reference-library",
+    apply(sql): undefined {
+      sql.exec(`
+        ALTER TABLE reading_state ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal'
+          CHECK (priority IN ('low', 'normal', 'high'));
+        CREATE TABLE reference_collections (
+          reference_id TEXT NOT NULL REFERENCES library_references(id),
+          collection_name TEXT NOT NULL COLLATE NOCASE,
+          PRIMARY KEY (reference_id, collection_name)
+        );
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -411,6 +433,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
         .filter((row) => referenceIds.has(row.reference_id))
         .map(highlightFromRow),
       tags: this.#tags(referenceIds),
+      collections: this.#collections(referenceIds),
       reading: this.ctx.storage.sql
         .exec<ReadingRow>("SELECT * FROM reading_state ORDER BY updated_at DESC")
         .toArray()
@@ -770,20 +793,62 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return { ...shareFromRow(row), revokedAt };
   }
 
-  setReadingState(referenceId: string, status: ReadingState["status"], rating: number | null): ReadingState {
+  setReadingState(
+    referenceId: string,
+    status: ReadingState["status"],
+    rating: number | null,
+    priority: ReadingState["priority"] = "normal",
+  ): ReadingState {
     this.#reference(referenceId);
     if (!(["unread", "reading", "read"] as const).includes(status)) throw new Error("Invalid reading state");
     if (rating !== null && (!Number.isInteger(rating) || rating < 1 || rating > 5)) throw new Error("Rating must be between 1 and 5");
+    if (!(["low", "normal", "high"] as const).includes(priority)) throw new Error("Invalid reading priority");
     const updatedAt = new Date().toISOString();
     this.ctx.storage.sql.exec(
-      `INSERT INTO reading_state (reference_id, status, rating, updated_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT(reference_id) DO UPDATE SET status = excluded.status, rating = excluded.rating, updated_at = excluded.updated_at`,
+      `INSERT INTO reading_state (reference_id, status, rating, priority, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(reference_id) DO UPDATE SET status = excluded.status, rating = excluded.rating,
+       priority = excluded.priority, updated_at = excluded.updated_at`,
       referenceId,
       status,
       rating,
+      priority,
       updatedAt,
     );
-    return { referenceId, status, rating, updatedAt };
+    return { referenceId, status, rating, priority, updatedAt };
+  }
+
+  setCollections(referenceId: string, values: readonly string[]): string[] {
+    this.#reference(referenceId);
+    const collections = [...new Set(values.map((value) => value.trim()).filter(Boolean))].slice(0, 32);
+    if (collections.some((value) => value.length > 80)) throw new Error("Collection name is too long");
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("DELETE FROM reference_collections WHERE reference_id = ?", referenceId);
+      for (const collection of collections) {
+        this.ctx.storage.sql.exec(
+          "INSERT INTO reference_collections (reference_id, collection_name) VALUES (?, ?)",
+          referenceId,
+          collection,
+        );
+      }
+    });
+    return collections;
+  }
+
+  updateReferenceMetadata(
+    referenceId: string,
+    fields: Pick<BibliographicRecord, "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract">,
+    actor: string,
+  ): BibliographicRecord {
+    const current = this.#reference(referenceId);
+    const updatedAt = new Date().toISOString();
+    const provenance = { ...current.provenance };
+    for (const field of ["type", "title", "authors", "year", "venue", "doi", "url", "abstract"] as const) {
+      provenance[field] = { method: "manual", capturedAt: updatedAt, actor };
+    }
+    const next: BibliographicRecord = { ...current, ...fields, provenance, updatedAt };
+    if (!next.title.trim() || !next.type.trim()) throw new Error("Reference type and title are required");
+    this.#writeReference(next, likelyReferenceIdentity(next), false);
+    return this.#reference(referenceId);
   }
 
   archiveReference(referenceId: string, archived: boolean): BibliographicRecord {
@@ -985,6 +1050,17 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return tags;
   }
 
+  #collections(referenceIds: ReadonlySet<string>): Record<string, string[]> {
+    const collections: Record<string, string[]> = {};
+    for (const row of this.ctx.storage.sql.exec<CollectionRow>(
+      "SELECT reference_id, collection_name FROM reference_collections ORDER BY collection_name COLLATE NOCASE",
+    )) {
+      if (!referenceIds.has(row.reference_id)) continue;
+      (collections[row.reference_id] ??= []).push(row.collection_name);
+    }
+    return collections;
+  }
+
   #count(table: "artifacts" | "notes" | "highlights", referenceId: string): number {
     return this.ctx.storage.sql.exec<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table} WHERE reference_id = ?`, referenceId).one()
       .count;
@@ -1119,6 +1195,7 @@ function readingFromRow(row: ReadingRow): ReadingState {
     referenceId: row.reference_id,
     status: row.status === "reading" || row.status === "read" ? row.status : "unread",
     rating: row.rating,
+    priority: row.priority === "low" || row.priority === "high" ? row.priority : "normal",
     updatedAt: row.updated_at,
   };
 }

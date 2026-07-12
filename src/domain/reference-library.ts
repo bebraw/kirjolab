@@ -147,6 +147,7 @@ export interface ReadingState {
   readonly referenceId: string;
   readonly status: "unread" | "reading" | "read";
   readonly rating: number | null;
+  readonly priority: "low" | "normal" | "high";
   readonly updatedAt: string;
 }
 
@@ -158,6 +159,7 @@ export interface ReferenceLibrarySnapshot {
   readonly notes: readonly LibraryNote[];
   readonly highlights: readonly LibraryHighlight[];
   readonly tags: Readonly<Record<string, readonly string[]>>;
+  readonly collections: Readonly<Record<string, readonly string[]>>;
   readonly reading: readonly ReadingState[];
 }
 
@@ -393,7 +395,17 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
     Array.isArray(value.notes) &&
     Array.isArray(value.highlights) &&
     isRecord(value.tags) &&
-    Array.isArray(value.reading)
+    isRecord(value.collections) &&
+    Array.isArray(value.reading) &&
+    value.reading.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item.referenceId === "string" &&
+        (item.status === "unread" || item.status === "reading" || item.status === "read") &&
+        (item.rating === null || (typeof item.rating === "number" && Number.isInteger(item.rating))) &&
+        (item.priority === "low" || item.priority === "normal" || item.priority === "high") &&
+        typeof item.updatedAt === "string",
+    )
   );
 }
 

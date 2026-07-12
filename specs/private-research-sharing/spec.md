@@ -13,6 +13,11 @@ into a collaborative paper.
 - Library artifacts, web captures, notes, highlights, tags, and reading state
   are private by default. A project citation receives only a bibliographic
   snapshot and exact web-capture provenance.
+- Canonical bibliographic fields can be manually corrected in a structured
+  editor. Every corrected field receives manual provenance with actor and edit
+  time; authoring tags remain separate from bibliographic metadata.
+- Private organization uses distinct tags and collections plus unread/reading/
+  read status, low/normal/high priority, and an optional one-to-five rating.
 - Sharing is a separate owner action naming one project, reference, resource,
   and kind. The library captures an immutable bounded snapshot; the project
   pins it in a new project revision.
@@ -40,6 +45,8 @@ into a collaborative paper.
   project storage for historical revision capture, not current access.
 - Permanent library deletion compares the caller's reviewed project dependency
   list against current state before mutating.
+- `PATCH /api/library/references/{id}` replaces reviewed canonical metadata;
+  `/collections` and `/reading` update private organizational facets.
 
 ### Anti-Patterns
 
@@ -60,4 +67,6 @@ into a collaborative paper.
   rights-gated artifact sharing, inert web content, current-project access,
   forward-only revocation, archive, deletion impact, and bibliographic
   tombstones.
+- Implemented: manual metadata editing with provenance, collections, reading
+  status, priority, and rating.
 - Revision/milestone retention consumes the pinned rows under ADR-061.

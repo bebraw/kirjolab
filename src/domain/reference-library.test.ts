@@ -197,6 +197,7 @@ describe("shared reference library", () => {
       notes: [],
       highlights: [],
       tags: {},
+      collections: {},
       reading: [],
     };
     expect(isReferenceLibrarySnapshot(valid)).toBe(true);

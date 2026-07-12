@@ -30,6 +30,7 @@ const snapshot: ReferenceLibrarySnapshot = {
   notes: [],
   highlights: [],
   tags: {},
+  collections: {},
   reading: [],
 };
 const webSnapshot: WebSnapshot = {
@@ -221,6 +222,28 @@ describe("reference library API", () => {
       ).status,
     ).toBe(200);
     expect(
+      (
+        await handleReferenceLibraryApi(
+          jsonRequest(`/api/library/references/${id}/collections`, { collections: ["Dissertation"] }, "PUT"),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(200);
+    const metadata = {
+      type: "article",
+      title: "Edited",
+      authors: ["Doe, Jane"],
+      year: "2026",
+      venue: "Journal",
+      doi: "",
+      url: "",
+      abstract: "",
+    };
+    expect(
+      (await handleReferenceLibraryApi(jsonRequest(`/api/library/references/${id}`, metadata, "PATCH"), fixture.env, identity)).status,
+    ).toBe(200);
+    expect(
       (await handleReferenceLibraryApi(jsonRequest(`/api/library/references/${id}/notes`, { body: "Private note" }), fixture.env, identity))
         .status,
     ).toBe(201);
@@ -241,7 +264,7 @@ describe("reference library API", () => {
     expect(
       (
         await handleReferenceLibraryApi(
-          jsonRequest(`/api/library/references/${id}/reading`, { status: "reading", rating: 4 }, "PUT"),
+          jsonRequest(`/api/library/references/${id}/reading`, { status: "reading", rating: 4, priority: "high" }, "PUT"),
           fixture.env,
           identity,
         )
@@ -272,7 +295,9 @@ describe("reference library API", () => {
     expect(fixture.library.setTags).toHaveBeenCalledWith(id, ["methods"]);
     expect(fixture.library.createNote).toHaveBeenCalledWith(id, "Private note");
     expect(fixture.library.createHighlight).toHaveBeenCalledWith(id, "artifact", 2, "Evidence", "Private");
-    expect(fixture.library.setReadingState).toHaveBeenCalledWith(id, "reading", 4);
+    expect(fixture.library.setReadingState).toHaveBeenCalledWith(id, "reading", 4, "high");
+    expect(fixture.library.setCollections).toHaveBeenCalledWith(id, ["Dissertation"]);
+    expect(fixture.library.updateReferenceMetadata).toHaveBeenCalledWith(id, metadata, identity.email);
     expect(fixture.library.archiveReference).toHaveBeenCalledWith(id, true);
     expect(fixture.library.permanentlyDeleteReference).toHaveBeenCalledWith(id, ["project"]);
   });
@@ -432,7 +457,9 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     identifyPdf: vi.fn(async () => artifact),
     setArtifactRights: vi.fn(async () => ({ ...artifact, rights: "shareable" as const })),
     archiveReference: vi.fn(async () => ({ ...reference, archivedAt: now })),
+    updateReferenceMetadata: vi.fn(async () => ({ ...reference, updatedAt: now })),
     setTags: vi.fn(async (_referenceId: string, tags: readonly string[]) => tags),
+    setCollections: vi.fn(async (_referenceId: string, collections: readonly string[]) => collections),
     createNote: vi.fn(async (referenceId: string, body: string) => ({ id: "note", referenceId, body, createdAt: now, updatedAt: now })),
     createHighlight: vi.fn(async (referenceId: string, artifactId: string, page: number, quote: string, comment: string) => ({
       id: "highlight",
@@ -444,12 +471,15 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       createdAt: now,
       updatedAt: now,
     })),
-    setReadingState: vi.fn(async (referenceId: string, status: "unread" | "reading" | "read", rating: number | null) => ({
-      referenceId,
-      status,
-      rating,
-      updatedAt: now,
-    })),
+    setReadingState: vi.fn(
+      async (referenceId: string, status: "unread" | "reading" | "read", rating: number | null, priority: "low" | "normal" | "high") => ({
+        referenceId,
+        status,
+        rating,
+        priority,
+        updatedAt: now,
+      }),
+    ),
     getDeletionImpact: vi.fn(async () => ({
       referenceId: reference.id,
       projectIds: ["project"],

@@ -1550,6 +1550,40 @@ class WorkspaceApp {
     details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
     details.textContent = [reference.authors.join("; "), reference.year, reference.venue].filter(Boolean).join(" · ");
     card.append(details);
+    const metadataEditor = document.createElement("details");
+    metadataEditor.className = "mt-3 border-t border-app-line pt-3";
+    const metadataSummary = document.createElement("summary");
+    metadataSummary.className = "button-secondary w-fit cursor-pointer";
+    metadataSummary.textContent = "Edit details";
+    metadataEditor.append(metadataSummary);
+    const metadataFields = new Map<string, HTMLInputElement | HTMLTextAreaElement>();
+    for (const [name, value] of [
+      ["type", reference.type],
+      ["title", reference.title],
+      ["authors", reference.authors.join("; ")],
+      ["year", reference.year],
+      ["venue", reference.venue],
+      ["doi", reference.doi],
+      ["url", reference.url],
+    ] as const) {
+      const input = document.createElement("input");
+      input.className = "field mt-2";
+      input.value = value;
+      input.placeholder = name;
+      input.setAttribute("aria-label", `${name} for ${reference.title}`);
+      metadataFields.set(name, input);
+      metadataEditor.append(input);
+    }
+    const abstract = document.createElement("textarea");
+    abstract.className = "field mt-2 min-h-20";
+    abstract.value = reference.abstract;
+    abstract.placeholder = "abstract";
+    metadataFields.set("abstract", abstract);
+    metadataEditor.append(
+      abstract,
+      actionButton("Save details", "button-primary mt-2", () => void this.#saveReferenceMetadata(reference.id, metadataFields)),
+    );
+    card.append(metadataEditor);
     const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
     const projectRow = document.createElement("div");
     projectRow.className = "mt-3 flex items-center gap-2";
@@ -1574,10 +1608,16 @@ class WorkspaceApp {
     tags.placeholder = "Private tags, comma separated";
     tags.setAttribute("aria-label", `Private tags for ${reference.title}`);
     card.append(tags);
+    const collections = document.createElement("input");
+    collections.className = "field mt-2";
+    collections.value = (this.#librarySnapshot?.collections[reference.id] ?? []).join(", ");
+    collections.placeholder = "Collections, comma separated";
+    card.append(collections);
     const privateActions = document.createElement("div");
     privateActions.className = "mt-2 flex flex-wrap gap-2";
     privateActions.append(
       actionButton("Save tags", "button-secondary", () => void this.#saveReferenceTags(reference.id, tags.value)),
+      actionButton("Save collections", "button-secondary", () => void this.#saveReferenceCollections(reference.id, collections.value)),
       actionButton(
         reference.archivedAt ? "Restore" : "Archive",
         "button-secondary",
@@ -1585,6 +1625,30 @@ class WorkspaceApp {
       ),
     );
     card.append(privateActions);
+    const reading = this.#librarySnapshot?.reading.find((item) => item.referenceId === reference.id);
+    const readingStatus = document.createElement("select");
+    readingStatus.className = "field mt-3";
+    for (const value of ["unread", "reading", "read"] as const) readingStatus.append(new Option(value, value));
+    readingStatus.value = reading?.status ?? "unread";
+    const priority = document.createElement("select");
+    priority.className = "field mt-2";
+    for (const value of ["low", "normal", "high"] as const) priority.append(new Option(`Priority: ${value}`, value));
+    priority.value = reading?.priority ?? "normal";
+    const rating = document.createElement("select");
+    rating.className = "field mt-2";
+    rating.append(new Option("No rating", ""));
+    for (let value = 1; value <= 5; value += 1) rating.append(new Option(`${value} star${value === 1 ? "" : "s"}`, String(value)));
+    rating.value = reading?.rating === null || reading?.rating === undefined ? "" : String(reading.rating);
+    card.append(
+      readingStatus,
+      priority,
+      rating,
+      actionButton(
+        "Save reading state",
+        "button-secondary mt-2",
+        () => void this.#saveReadingState(reference.id, readingStatus.value, rating.value, priority.value),
+      ),
+    );
 
     const noteInput = document.createElement("textarea");
     noteInput.className = "field mt-3 min-h-16";
@@ -1867,6 +1931,61 @@ class WorkspaceApp {
     await expectOk(response);
     await this.#refreshReferenceLibrary();
     this.#showToast("Private tags saved.");
+  }
+
+  async #saveReferenceCollections(referenceId: string, value: string): Promise<void> {
+    const collections = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    await expectOk(await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/collections`, { collections }, "PUT"));
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Collections saved.");
+  }
+
+  async #saveReferenceMetadata(referenceId: string, fields: ReadonlyMap<string, HTMLInputElement | HTMLTextAreaElement>): Promise<void> {
+    const value = (name: string): string => fields.get(name)?.value.trim() ?? "";
+    const response = await jsonFetch(
+      `/api/library/references/${encodeURIComponent(referenceId)}`,
+      {
+        type: value("type"),
+        title: value("title"),
+        authors: value("authors")
+          .split(";")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        year: value("year"),
+        venue: value("venue"),
+        doi: value("doi"),
+        url: value("url"),
+        abstract: value("abstract"),
+      },
+      "PATCH",
+    );
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Bibliographic details saved with manual provenance.");
+  }
+
+  async #saveReadingState(referenceId: string, status: string, rating: string, priority: string): Promise<void> {
+    if (
+      !(["unread", "reading", "read"] as const).includes(status as "unread") ||
+      !(["low", "normal", "high"] as const).includes(priority as "normal")
+    )
+      return;
+    await expectOk(
+      await jsonFetch(
+        `/api/library/references/${encodeURIComponent(referenceId)}/reading`,
+        {
+          status,
+          rating: rating ? Number(rating) : null,
+          priority,
+        },
+        "PUT",
+      ),
+    );
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Reading state saved.");
   }
 
   async #createReferenceNote(referenceId: string, body: string): Promise<void> {
