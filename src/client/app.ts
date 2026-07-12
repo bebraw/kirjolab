@@ -239,6 +239,7 @@ interface Elements {
   annotationComment: HTMLInputElement;
   annotationSelectionStatus: HTMLElement;
   saveAndLinkAnnotation: HTMLButtonElement;
+  citeActivePdf: HTMLButtonElement;
   openPaper: HTMLButtonElement;
   paperStatus: HTMLElement;
   paperCanvas: HTMLCanvasElement;
@@ -435,6 +436,7 @@ class WorkspaceApp {
     this.#elements.bibliographyUpload.addEventListener("change", () => void this.#importBibliography());
     this.#elements.knowledgeSearchForm.addEventListener("submit", (event) => void this.#searchKnowledge(event));
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
+    this.#elements.citeActivePdf.addEventListener("click", () => this.#citeActivePdf());
     this.#elements.newClaim.addEventListener("click", () => this.#openClaimDialog());
     this.#elements.cancelClaim.addEventListener("click", () => this.#elements.claimDialog.close());
     this.#elements.claimForm.addEventListener("submit", (event) => void this.#saveClaim(event));
@@ -2548,6 +2550,15 @@ class WorkspaceApp {
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.pdfContextControls.hidden = activeTab?.kind !== "pdf";
+    const activePdfPublications =
+      activeTab?.kind === "pdf" ? (this.#snapshot?.publicationPdfLinks.filter((link) => link.pdfId === activeTab.id) ?? []) : [];
+    this.#elements.citeActivePdf.disabled = activePdfPublications.length !== 1;
+    this.#elements.citeActivePdf.textContent =
+      activePdfPublications.length > 1
+        ? "Choose reference to cite"
+        : activePdfPublications.length === 1
+          ? "Cite linked reference"
+          : "Identify before citing";
     this.#elements.pinActiveContext.disabled = !activeTab;
     this.#elements.closeActiveContext.disabled = !activeTab;
     this.#elements.pinActiveContext.textContent = activeTab?.pinned ? "Unpin" : "Pin";
@@ -2994,6 +3005,18 @@ class WorkspaceApp {
     const publication = tab?.kind === "publication" ? this.#snapshot?.publications.find((item) => item.id === tab.id) : undefined;
     if (!publication) return;
 
+    this.#insertPublicationCitation(publication);
+  }
+
+  #citeActivePdf(): void {
+    const tab = this.#activeResourceTab();
+    if (tab?.kind !== "pdf" || !this.#snapshot) return;
+    const links = this.#snapshot.publicationPdfLinks.filter((link) => link.pdfId === tab.id);
+    const publication = links.length === 1 ? this.#snapshot.publications.find((item) => item.id === links[0]?.publicationId) : undefined;
+    if (publication) this.#insertPublicationCitation(publication);
+  }
+
+  #insertPublicationCitation(publication: PublicationResource): void {
     const index = this.#resolvedAuthoringCaret();
     if (index === null) {
       this.#showToast("Place the manuscript caret before inserting a citation.");
@@ -3150,6 +3173,7 @@ class WorkspaceApp {
     this.#elements.annotationSuffix.value = "";
     this.#elements.annotationComment.value = "";
     this.#pendingRects = [];
+    this.#pdfViewer.clearDraftSelection();
     this.#elements.annotationSelectionStatus.textContent = passage
       ? "Annotation saved and connected to the selected manuscript prose."
       : "Annotation saved. Select another passage in the open paper to continue.";
@@ -3660,6 +3684,7 @@ function collectElements(): Elements {
     annotationComment: requiredElement("annotation-comment", HTMLInputElement),
     annotationSelectionStatus: requiredElement("annotation-selection-status", HTMLElement),
     saveAndLinkAnnotation: requiredElement("save-and-link-annotation", HTMLButtonElement),
+    citeActivePdf: requiredElement("cite-active-pdf", HTMLButtonElement),
     openPaper: requiredElement("open-paper", HTMLButtonElement),
     paperStatus: requiredElement("paper-status", HTMLElement),
     paperCanvas: requiredElement("paper-canvas", HTMLCanvasElement),

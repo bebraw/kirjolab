@@ -226,11 +226,9 @@ export function renderHomePage(
               </div>
             </div>
             <aside class="annotation-composer" aria-labelledby="annotation-composer-title">
-              <section class="publication-intake" id="publication-intake" aria-labelledby="publication-intake-heading">
-                <div>
-                  <p class="eyebrow">Reference intake</p>
-                  <h2 class="mt-1 text-lg font-semibold tracking-[-0.035em]" id="publication-intake-heading">Identify this paper</h2>
-                </div>
+              <details class="publication-intake" id="publication-intake">
+                <summary><span id="publication-intake-heading">Identify reference</span><span class="count-badge">Optional</span></summary>
+                <div class="publication-intake-body">
                 <p class="mt-2 text-xs leading-5 text-app-text-soft">Review DOI metadata before adding the reference and connecting this PDF.</p>
                 <form class="publication-intake-form" id="publication-intake-form">
                   <label class="field-label" for="publication-intake-doi">DOI</label>
@@ -256,10 +254,14 @@ export function renderHomePage(
                   <p class="eyebrow">Linked reference</p>
                   <div class="publication-intake-linked-list" id="publication-intake-linked-list"></div>
                 </div>
-              </section>
-              <div>
-                <p class="eyebrow">Evidence capture</p>
-                <h2 class="mt-1 text-lg font-semibold tracking-[-0.035em]" id="annotation-composer-title">Annotate this paper</h2>
+                </div>
+              </details>
+              <div class="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p class="eyebrow">Evidence capture</p>
+                  <h2 class="mt-1 text-lg font-semibold tracking-[-0.035em]" id="annotation-composer-title">Annotate this paper</h2>
+                </div>
+                <button class="button-secondary" id="cite-active-pdf" type="button" disabled>Cite linked reference</button>
               </div>
               <p class="mt-2 text-xs leading-5 text-app-text-soft" id="annotation-selection-status">Select text in the paper to capture its quotation, context, page, and geometry.</p>
               <form class="mt-3 grid gap-3 sm:grid-cols-2" id="annotation-form">
@@ -283,7 +285,7 @@ export function renderHomePage(
                 </label>
                 <div class="grid gap-2 sm:col-span-2 sm:grid-cols-2">
                   <button class="button-primary justify-center" type="submit">Save annotation</button>
-                  <button class="button-secondary justify-center" id="save-and-link-annotation" type="submit">Save &amp; link selected prose</button>
+                  <button class="button-secondary justify-center" id="save-and-link-annotation" type="submit">Save highlight &amp; link to selection</button>
                 </div>
               </form>
             </aside>

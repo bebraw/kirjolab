@@ -40,6 +40,7 @@ export class PdfEvidenceViewer {
   #pageNumber = 1;
   #pageText = "";
   #focusedAnnotationId: string | undefined;
+  #draftSelection: PdfSelectionCapture | null = null;
   #renderVersion = 0;
   #openVersion = 0;
 
@@ -74,6 +75,7 @@ export class PdfEvidenceViewer {
     this.#document = null;
     this.#annotations = options.annotations;
     this.#focusedAnnotationId = options.focusAnnotationId;
+    this.#draftSelection = null;
     this.#elements.status.textContent = "Loading PDF…";
     const loadingTask = getDocument({ url: options.url });
     this.#loadingTask = loadingTask;
@@ -99,6 +101,11 @@ export class PdfEvidenceViewer {
     this.#renderHighlights();
   }
 
+  clearDraftSelection(): void {
+    this.#draftSelection = null;
+    this.#renderHighlights();
+  }
+
   async resize(): Promise<void> {
     await this.#renderPage();
   }
@@ -109,6 +116,7 @@ export class PdfEvidenceViewer {
     if (next === this.#pageNumber) return;
     this.#pageNumber = next;
     this.#focusedAnnotationId = undefined;
+    this.#draftSelection = null;
     await this.#renderPage();
   }
 
@@ -164,7 +172,9 @@ export class PdfEvidenceViewer {
     const rects = normalizeSelectionRects(range.getClientRects(), this.#elements.page.getBoundingClientRect());
     const context = deriveTextQuoteContext(this.#pageText, selection.toString());
     if (!context.quote || rects.length === 0) return;
-    this.#onSelection({ page: this.#pageNumber, ...context, rects });
+    this.#draftSelection = { page: this.#pageNumber, ...context, rects };
+    this.#renderHighlights();
+    this.#onSelection(this.#draftSelection);
     this.#elements.status.textContent = `${rects.length} ${rects.length === 1 ? "fragment" : "fragments"} captured from page ${this.#pageNumber}`;
     selection.removeAllRanges();
   }
@@ -183,6 +193,18 @@ export class PdfEvidenceViewer {
         highlight.style.height = `${rect.height * 100}%`;
         highlight.title = annotation.comment || annotation.quote;
         highlight.addEventListener("click", () => this.#onHighlight(annotation.id));
+        this.#elements.highlights.append(highlight);
+      }
+    }
+    if (this.#draftSelection?.page === this.#pageNumber) {
+      for (const rect of this.#draftSelection.rects) {
+        const highlight = document.createElement("span");
+        highlight.className = "pdf-highlight";
+        highlight.dataset.draft = "true";
+        highlight.style.left = `${rect.x * 100}%`;
+        highlight.style.top = `${rect.y * 100}%`;
+        highlight.style.width = `${rect.width * 100}%`;
+        highlight.style.height = `${rect.height * 100}%`;
         this.#elements.highlights.append(highlight);
       }
     }

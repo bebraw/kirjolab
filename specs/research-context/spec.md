@@ -95,8 +95,13 @@ selector, authorization, or rendering contracts.
 - Automatic navigation may replace only the unpinned follow-context resource
   tab. It must never replace Preview or a pinned tab.
 - Selecting text in a visible PDF populates an annotation draft for that exact
-  PDF and page. Its PDF target is locked to the visible artifact. Saving the
-  draft remains an explicit durable action.
+  PDF and page and immediately paints its pending geometry over the page so
+  the researcher does not lose visual context. Its PDF target is locked to the
+  visible artifact. Saving the draft remains an explicit durable action.
+- Reference intake is folded by default because identification is a distinct
+  research task. A PDF with exactly one linked publication exposes a labelled
+  citation action beside evidence capture; linking a highlight to selected
+  manuscript prose remains a separate labelled save action.
 - Citing a visible publication requires an explicit command and a valid current
   remembered Yjs-relative editor insertion point. If no safe insertion point
   exists, the command is unavailable; it never falls back to position zero or

@@ -71,8 +71,8 @@ describe("renderHomePage", () => {
   it("renders an inline, review-first DOI intake before evidence capture", () => {
     const html = renderHomePage(exampleRoutes);
 
-    expect(html).toContain('<section class="publication-intake" id="publication-intake" aria-labelledby="publication-intake-heading">');
-    expect(html).toContain("Identify this paper");
+    expect(html).toContain('<details class="publication-intake" id="publication-intake">');
+    expect(html).toContain("Identify reference");
     expect(html).toContain("Review DOI metadata before adding the reference and connecting this PDF.");
     expect(html).toContain('<form class="publication-intake-form" id="publication-intake-form">');
     expect(html).toContain('<label class="field-label" for="publication-intake-doi">DOI</label>');
@@ -89,6 +89,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('class="publication-intake-linked" id="publication-intake-linked" hidden');
     expect(html).toContain('id="publication-intake-linked-list"');
     expect(html).toContain('type="submit">Look up DOI</button>');
+    expect(html).toContain('id="cite-active-pdf" type="button" disabled>Cite linked reference</button>');
 
     expect(html.indexOf('id="publication-intake"')).toBeLessThan(html.indexOf('id="annotation-composer-title"'));
   });

@@ -372,6 +372,7 @@ test("reviews DOI metadata before adding and connecting an imported paper", asyn
   });
   await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "identified-paper.pdf" }).click();
   await expect(page.locator("#publication-intake")).toBeVisible();
+  await page.locator("#publication-intake summary").click();
   const baseline = await readWorkspaceSnapshot(page, api);
   const pdf = baseline.pdfs.find((item) => item.name === "identified-paper.pdf");
   if (!pdf) throw new Error("Expected imported DOI-intake PDF");
@@ -1464,8 +1465,9 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   });
   await expect(page.locator("#annotation-quote")).toHaveValue("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#annotation-selection-status")).toContainText("Captured 1 fragment from page 1");
+  await expect(page.locator("#paper-highlights .pdf-highlight[data-draft='true']")).toBeVisible();
   await page.locator("#annotation-comment").fill("Grounding for the revision");
-  await page.getByRole("button", { name: "Save & link selected prose" }).click();
+  await page.getByRole("button", { name: "Save highlight & link to selection" }).click();
   await expect(page.locator("#annotation-list")).toContainText("Knowledge grows through inspectable evidence.");
 
   const annotationCard = page.locator("#annotation-list article").filter({ hasText: "Knowledge grows" }).first();
