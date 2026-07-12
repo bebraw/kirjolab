@@ -22,6 +22,9 @@ addressable without collapsing their collaboration state into one process.
 - `/workspaces/{id}` is the stable browser representation and
   `/api/workspaces/{id}` is the stable API representation.
 - `/` remains the browser representation of the seeded `demo` workspace.
+- The application shell pairs a compact current-project selector with a
+  labelled Projects browser. The browser filters the authorized catalog by
+  title, marks the current project, and links directly to stable project URLs.
 
 ### Anti-Patterns
 
@@ -41,6 +44,8 @@ addressable without collapsing their collaboration state into one process.
 - [x] A researcher can create a titled workspace from the application shell.
 - [x] Creation returns and navigates to a stable UUID workspace URL.
 - [x] The workspace switcher lists catalog entries and opens another workspace.
+- [x] A searchable project browser makes larger catalogs discoverable without
+      expanding the primary authoring header.
 - [x] Source edits and scholarly resources remain isolated by workspace id.
 - [x] Unknown workspace API identities return not found.
 - [x] Browser tests prove creation, listing, navigation, and source isolation.

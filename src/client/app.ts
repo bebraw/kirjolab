@@ -85,6 +85,11 @@ const remoteOrigin = Symbol("remote");
 interface Elements {
   collaboratorSelections: HTMLElement;
   workspaceSwitcher: HTMLSelectElement;
+  manageWorkspaces: HTMLButtonElement;
+  workspaceCatalogDialog: HTMLDialogElement;
+  closeWorkspaceCatalog: HTMLButtonElement;
+  workspaceCatalogFilter: HTMLInputElement;
+  workspaceCatalogList: HTMLElement;
   newWorkspace: HTMLButtonElement;
   newWorkspaceDialog: HTMLDialogElement;
   newWorkspaceForm: HTMLFormElement;
@@ -328,6 +333,7 @@ class WorkspaceApp {
   #filterProjectCitations = false;
   #projectHistory: ProjectRevisionSummary[] = [];
   #wordStatistics: PublicationWordStatistics | null = null;
+  #workspaceCatalog: WorkspaceSummary[] = [];
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -359,6 +365,14 @@ class WorkspaceApp {
       const selected = this.#elements.workspaceSwitcher.value;
       if (selected && selected !== workspaceId) location.assign(`/workspaces/${encodeURIComponent(selected)}`);
     });
+    this.#elements.manageWorkspaces.addEventListener("click", () => {
+      this.#elements.workspaceCatalogDialog.showModal();
+      this.#elements.workspaceCatalogFilter.value = "";
+      this.#renderWorkspaceCatalogList();
+      this.#elements.workspaceCatalogFilter.focus();
+    });
+    this.#elements.closeWorkspaceCatalog.addEventListener("click", () => this.#elements.workspaceCatalogDialog.close());
+    this.#elements.workspaceCatalogFilter.addEventListener("input", () => this.#renderWorkspaceCatalogList());
     this.#elements.newWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.showModal());
     this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
     this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
@@ -535,12 +549,36 @@ class WorkspaceApp {
   }
 
   #renderWorkspaceCatalog(workspaces: WorkspaceSummary[]): void {
+    this.#workspaceCatalog = workspaces;
     this.#elements.workspaceSwitcher.replaceChildren();
     for (const workspace of workspaces) {
       const option = new Option(workspace.title, workspace.id, workspace.id === workspaceId, workspace.id === workspaceId);
       this.#elements.workspaceSwitcher.append(option);
     }
     if (workspaces.some((workspace) => workspace.id === workspaceId)) this.#elements.workspaceSwitcher.value = workspaceId;
+    this.#renderWorkspaceCatalogList();
+  }
+
+  #renderWorkspaceCatalogList(): void {
+    const query = this.#elements.workspaceCatalogFilter.value.trim().toLocaleLowerCase();
+    const workspaces = this.#workspaceCatalog.filter((workspace) => workspace.title.toLocaleLowerCase().includes(query));
+    this.#elements.workspaceCatalogList.replaceChildren();
+    if (workspaces.length === 0) {
+      this.#elements.workspaceCatalogList.append(emptyState(query ? "No projects match this title." : "No projects available."));
+      return;
+    }
+    for (const workspace of workspaces) {
+      const link = document.createElement("a");
+      link.className = "project-catalog-row";
+      link.href = workspace.href;
+      if (workspace.id === workspaceId) link.setAttribute("aria-current", "page");
+      const title = document.createElement("strong");
+      title.textContent = workspace.title;
+      const meta = document.createElement("span");
+      meta.textContent = workspace.id === workspaceId ? "Current project" : `Updated ${formatCalendarDate(workspace.updatedAt)}`;
+      link.append(title, meta);
+      this.#elements.workspaceCatalogList.append(link);
+    }
   }
 
   #showRail(mode: "files" | "research"): void {
@@ -3552,6 +3590,11 @@ function collectElements(): Elements {
   return {
     collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
     workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
+    manageWorkspaces: requiredElement("manage-workspaces", HTMLButtonElement),
+    workspaceCatalogDialog: requiredElement("workspace-catalog-dialog", HTMLDialogElement),
+    closeWorkspaceCatalog: requiredElement("close-workspace-catalog", HTMLButtonElement),
+    workspaceCatalogFilter: requiredElement("workspace-catalog-filter", HTMLInputElement),
+    workspaceCatalogList: requiredElement("workspace-catalog-list", HTMLElement),
     newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
     newWorkspaceDialog: requiredElement("new-workspace-dialog", HTMLDialogElement),
     newWorkspaceForm: requiredElement("new-workspace-form", HTMLFormElement),
@@ -3855,6 +3898,11 @@ async function expectOk(response: Response): Promise<void> {
 
 function formatBytes(value: number): string {
   return value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatCalendarDate(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(parsed);
 }
 
 function formatTimestamp(value: string): string {

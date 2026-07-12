@@ -7,6 +7,8 @@ describe("renderHomePage", () => {
     const html = renderHomePage(exampleRoutes);
 
     expect(html).toContain("KIRJOLAB");
+    expect(html).toContain('id="manage-workspaces" type="button">Projects</button>');
+    expect(html).toContain('id="workspace-catalog-filter"');
     expect(html).toContain('id="diagnostic-summary"');
     expect(html).toContain('id="authoring-context-resizer" role="separator"');
     expect(html).toContain("Annotate this paper");

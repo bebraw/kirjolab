@@ -940,6 +940,13 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await expect(page.locator("#workspace-switcher")).toHaveValue(workspaceId);
   await expect(page.locator("#workspace-switcher option:checked")).toHaveText("Independent inquiry");
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  await page.getByRole("button", { name: "Projects" }).click();
+  await page.locator("#workspace-catalog-filter").fill("Independent inquiry");
+  await expect(page.locator("#workspace-catalog-list")).toContainText("Independent inquiry");
+  await expect(page.locator("#workspace-catalog-list")).toContainText("Current project");
+  await page.locator("#workspace-catalog-filter").fill("No matching project title");
+  await expect(page.locator("#workspace-catalog-list")).toContainText("No projects match this title.");
+  await page.getByRole("button", { name: "Close" }).click();
 
   const isolatedSource = "## Independent evidence {#independent}\n\nThis belongs to one workspace.\n";
   await page.locator("#source-editor").fill(isolatedSource);

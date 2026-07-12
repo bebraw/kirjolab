@@ -169,6 +169,28 @@
     text-transform: uppercase;
   }
 
+  .project-catalog-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid var(--color-app-line);
+    background: var(--color-app-paper);
+    padding: 0.85rem 1rem;
+    font-family: var(--font-sans);
+  }
+
+  .project-catalog-row:hover,
+  .project-catalog-row[aria-current="page"] {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+  }
+
+  .project-catalog-row span {
+    color: var(--color-app-text-soft);
+    font-size: 0.68rem;
+  }
+
   .research-inventory {
     margin-top: 1rem;
     border-top: 1px solid var(--color-app-line);

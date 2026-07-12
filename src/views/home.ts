@@ -25,6 +25,7 @@ export function renderHomePage(
           <span class="hidden h-4 w-px bg-app-line sm:block"></span>
           <label class="sr-only" for="workspace-switcher">Current project</label>
           <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading workspace…</option></select>
+          <button class="button-secondary shrink-0" id="manage-workspaces" type="button">Projects</button>
           <button class="button-secondary shrink-0" id="new-workspace" type="button">New project</button>
         </div>
         <div class="flex items-center gap-3">
@@ -411,6 +412,19 @@ export function renderHomePage(
           <button class="button-primary" type="submit">Create workspace</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="reference-library-dialog" id="workspace-catalog-dialog">
+      <div class="p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div><p class="eyebrow">Project library</p><h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Open a project</h2></div>
+          <button class="button-secondary" id="close-workspace-catalog" type="button">Close</button>
+        </div>
+        <label class="field-label mt-5" for="workspace-catalog-filter">Find by title
+          <input class="field" id="workspace-catalog-filter" type="search" maxlength="120" autocomplete="off" placeholder="Filter projects">
+        </label>
+        <div class="mt-4 grid gap-2" id="workspace-catalog-list" aria-live="polite"><div class="empty-state">Loading projects…</div></div>
+      </div>
     </dialog>
 
     <dialog class="new-workspace-dialog" id="share-workspace-dialog">
