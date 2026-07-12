@@ -234,7 +234,7 @@
     padding: 0.25rem 0.1rem 0.85rem;
   }
 
-  @media (min-width: 64rem) {
+  @media (min-width: 72rem) {
     .workspace-grid {
       grid-template-columns: 17rem minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(28rem, 1.05fr);
       grid-template-rows: minmax(38rem, calc(100vh - 4rem)) auto;
@@ -1004,7 +1004,7 @@
     padding: 2rem clamp(1.25rem, 4vw, 3rem);
   }
 
-  @media (min-width: 64rem) {
+  @media (min-width: 72rem) {
     .source-editor {
       height: calc(100% - 7rem);
       min-height: 0;

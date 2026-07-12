@@ -24,8 +24,9 @@ mode for authenticated hosted collaboration.
   research-context pane on desktop. The pane permanently hosts manuscript
   Preview and can host publication, PDF, and model-candidate resources without
   making local tab, pin, scroll, or reading-position state collaborative.
-  Narrow layouts switch between one Authoring or Context surface while
-  preserving both states.
+  Layouts narrower than the split pane's declared minimum width switch between
+  one Authoring or Context surface while preserving both states and without
+  introducing horizontal page overflow.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
@@ -275,6 +276,8 @@ mode for authenticated hosted collaboration.
       tabs share one right research-context pane beside manuscript authoring.
 - [x] Tab, pin, page, focus, and reading-position state remains local while
       narrow layouts switch explicitly between Authoring and Context.
+- [x] The split workspace activates only when all minimum-width tracks fit;
+      compact desktop windows remain free of horizontal page overflow.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
 - [x] Preview citations open publication context and explicit citation

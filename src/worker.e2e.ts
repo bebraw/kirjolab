@@ -50,6 +50,21 @@ test("switches and remembers focused workspace views", async ({ page }) => {
   await expect(page.locator("#context-surface")).toBeVisible();
 });
 
+test("keeps the workspace within a compact desktop viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 800 });
+  const workspaceId = await createWorkspace(page, "Compact desktop");
+  await page.goto(`/workspaces/${workspaceId}`);
+
+  await expect(page.locator("#show-authoring-surface")).toBeVisible();
+  await expect(page.locator("#show-context-surface")).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    })),
+  ).toMatchObject({ clientWidth: 1100, scrollWidth: 1100 });
+});
+
 test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Live WYSIWYM workspace");
   const api = `/api/workspaces/${workspaceId}`;

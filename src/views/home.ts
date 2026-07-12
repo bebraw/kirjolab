@@ -30,7 +30,7 @@ export function renderHomePage(
           <button class="button-secondary shrink-0" id="new-workspace" type="button">New project</button>
         </div>
         <div class="flex items-center gap-3">
-          <label class="hidden items-center gap-2 font-sans text-xs text-app-text-soft lg:flex">View
+          <label class="hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
             <select class="workspace-switcher" id="workspace-layout" aria-label="Workspace view">
               <option value="split">Split</option><option value="editor">Editor only</option>
               <option value="context">Context only</option><option value="pdf">PDF only</option>
@@ -54,7 +54,7 @@ export function renderHomePage(
         <button class="surface-switch" id="show-authoring-surface" type="button" aria-controls="authoring-surface" aria-pressed="true">Authoring</button>
         <button class="surface-switch" id="show-context-surface" type="button" aria-controls="context-surface" aria-pressed="false">Context</button>
       </nav>
-      <aside class="source-rail border-b border-app-line bg-app-paper lg:border-r lg:border-b-0">
+      <aside class="source-rail border-b border-app-line bg-app-paper min-[72rem]:border-r min-[72rem]:border-b-0">
         <div class="rail-mode-switcher" role="tablist" aria-label="Project navigation">
           <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-controls="files-rail-panel" aria-selected="false">Files</button>
           <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-controls="research-rail-panel" aria-selected="true">Research</button>
@@ -111,7 +111,7 @@ export function renderHomePage(
         </section>
       </aside>
 
-      <section class="editor-column min-w-0 border-b border-app-line bg-app-surface lg:border-r lg:border-b-0" id="authoring-surface">
+      <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
         <div class="flex h-12 items-center justify-between border-b border-app-line px-4">
           <div class="flex items-center gap-2">
             <label class="sr-only" for="project-file-switcher">Project file</label>
@@ -345,7 +345,7 @@ export function renderHomePage(
         </section>
       </section>
 
-      <details class="workbench assistant-drawer border-t border-app-line bg-app-canvas lg:col-span-4" id="writing-assistant">
+      <details class="workbench assistant-drawer border-t border-app-line bg-app-canvas min-[72rem]:col-span-4" id="writing-assistant">
         <summary><span>Writing assistant</span><span>Works from selected prose and evidence</span></summary>
         <div class="mx-auto max-w-5xl px-4 py-5 lg:px-6">
           <section>
