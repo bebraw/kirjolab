@@ -1,6 +1,6 @@
 # ADR-058: Use a Shared Reference Library
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-11
 

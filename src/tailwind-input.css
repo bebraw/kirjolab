@@ -886,6 +886,20 @@
     background: rgb(18 27 24 / 0.62);
   }
 
+  .reference-library-dialog {
+    width: min(64rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    padding: 0;
+    overflow: auto;
+    border: 1px solid var(--color-app-line);
+    background: var(--color-app-paper);
+    box-shadow: 0 2rem 6rem rgb(18 27 24 / 0.28);
+  }
+
+  .reference-library-dialog::backdrop {
+    background: rgb(18 27 24 / 0.62);
+  }
+
   .pdf-reader {
     min-height: 0;
     overflow: auto;

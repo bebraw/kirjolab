@@ -48,6 +48,8 @@ const snapshot: WorkspaceSnapshot = {
       updatedAt: "2026-07-10T00:00:00.000Z",
     },
   ],
+  projectReferences: [],
+  researchShares: [],
   publicationPdfLinks: [
     {
       id: "publication-pdf-1",

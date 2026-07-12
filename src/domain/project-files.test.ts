@@ -3,7 +3,10 @@ import {
   composeProject,
   inboundProjectIncludes,
   normalizeProjectPath,
+  projectUsesCitationAlias,
+  relativeProjectPath,
   resolveProjectPath,
+  rewriteProjectCitationAlias,
   rewriteInboundProjectIncludes,
   type ProjectFile,
 } from "./project-files";
@@ -34,6 +37,19 @@ describe("project composition", () => {
     ]);
   });
 
+  it("renames only exact project-local citation aliases", () => {
+    expect(rewriteProjectCitationAlias('See :cite[doe2026, doe2020]{locator="p. 2"}.', "doe2026", "doeStudy")).toBe(
+      'See :cite[doeStudy, doe2020]{locator="p. 2"}.',
+    );
+    expect(rewriteProjectCitationAlias("See :cite[doe20260].", "doe2026", "doeStudy")).toBe("See :cite[doe20260].");
+    expect(rewriteProjectCitationAlias(":cite[doe2026]\n:cite[other, doe2026]\n", "doe2026", "renamed")).toBe(
+      ":cite[renamed]\n:cite[other, renamed]\n",
+    );
+    const cited = [file("main", "main.md", "See :cite[doe2026, other]."), file("other", "other.md", "No citation")];
+    expect(projectUsesCitationAlias(cited, "doe2026")).toBe(true);
+    expect(projectUsesCitationAlias(cited, "doe20260")).toBe(false);
+  });
+
   it("reports missing files and cycles without inventing output", () => {
     const result = composeProject(
       [file("main", "main.md", "::include[a.md]\n::include[missing.md]\n"), file("a", "a.md", "::include[main.md]\n")],
@@ -49,17 +65,70 @@ describe("project composition", () => {
     const result = composeProject([file("main", "main.md", "12345")], "main", { maximumOutputBytes: 4 });
     expect(result.content).toBe("");
     expect(result.diagnostics[0]?.code).toBe("output-limit");
+    expect(() => composeProject([file("main", "main.md", "text")], "missing")).toThrow("does not exist");
+    for (const limits of [{ maximumDepth: 0 }, { maximumFiles: -1 }, { maximumOutputBytes: 1.5 }]) {
+      expect(() => composeProject([file("main", "main.md", "text")], "main", limits)).toThrow("positive safe integer");
+    }
+    const depth = composeProject(
+      [file("main", "main.md", "::include[a.md]\n"), file("a", "a.md", "::include[b.md]\n"), file("b", "b.md", "deep")],
+      "main",
+      { maximumDepth: 2 },
+    );
+    expect(depth.diagnostics.map(({ code }) => code)).toEqual(["depth-limit"]);
+    const count = composeProject(
+      [file("main", "main.md", "::include[a.md]\n::include[b.md]\n"), file("a", "a.md", "a"), file("b", "b.md", "b")],
+      "main",
+      { maximumFiles: 2 },
+    );
+    expect(count.content).toBe("a");
+    expect(count.diagnostics.map(({ code }) => code)).toEqual(["file-limit"]);
+    expect(composeProject([file("main", "main.md", "é")], "main", { maximumOutputBytes: 1 }).diagnostics[0]?.code).toBe("output-limit");
   });
 
   it("normalizes safe project-relative paths and finds inbound includes", () => {
     expect(normalizeProjectPath("chapters/../main.md")).toBe("main.md");
     expect(normalizeProjectPath("../outside.md")).toBeNull();
+    expect(normalizeProjectPath("/absolute.md")).toBeNull();
+    expect(normalizeProjectPath("\0bad.md")).toBeNull();
+    expect(normalizeProjectPath(" ./chapters\\intro.md ")).toBe("chapters/intro.md");
+    expect(normalizeProjectPath("chapters//./intro.md")).toBe("chapters/intro.md");
+    expect(normalizeProjectPath("chapters/../..")).toBeNull();
     expect(resolveProjectPath("chapters/intro.md", "../tables/result.md")).toBe("tables/result.md");
     const files = [file("main", "main.md", "::include[chapters/intro.md]\n"), file("intro", "chapters/intro.md", "Text")];
     expect(inboundProjectIncludes(files, "chapters/intro.md").map(({ id }) => id)).toEqual(["main"]);
+    expect(inboundProjectIncludes(files, "missing.md")).toEqual([]);
     expect(rewriteInboundProjectIncludes(files[0]!, "chapters/intro.md", "sections/01_intro.md")).toBe("::include[sections/01_intro.md]\n");
     expect(
       rewriteInboundProjectIncludes(file("peer", "chapters/peer.md", "::include[intro.md]\n"), "chapters/intro.md", "text/intro.md"),
     ).toBe("::include[../text/intro.md]\n");
+    expect(relativeProjectPath("chapters/peer.md", "chapters/intro.md")).toBe("intro.md");
+    expect(relativeProjectPath("main.md", "chapters/intro.md")).toBe("chapters/intro.md");
+  });
+
+  it("reports invalid and duplicate stored paths while preserving valid composition", () => {
+    const result = composeProject(
+      [
+        file("main", "main.md", "root\n"),
+        file("unsafe", "../unsafe.md", "unsafe"),
+        file("duplicate-a", "same.md", "a"),
+        file("duplicate-b", "same.md", "b"),
+      ],
+      "main",
+    );
+    expect(result.content).toBe("root\n");
+    expect(result.diagnostics.map(({ code }) => code)).toEqual(["invalid-path", "duplicate-path"]);
+  });
+
+  it("maps source ranges around repeated includes and strips only leading included frontmatter", () => {
+    const result = composeProject(
+      [
+        file("main", "main.md", "before\n::include[part.md]\nafter\n::include[part.md]\n"),
+        file("part", "part.md", "---\r\ntitle: Hidden\r\n---\r\npart\n---\nnot frontmatter\n"),
+      ],
+      "main",
+    );
+    expect(result.content).toBe("before\npart\n---\nnot frontmatter\nafter\npart\n---\nnot frontmatter\n");
+    expect(result.sourceMap.map((span) => span.fileId)).toEqual(["main", "part", "main", "part"]);
+    expect(result.dependencies).toEqual({ main: ["part"] });
   });
 });

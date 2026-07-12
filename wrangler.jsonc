@@ -24,12 +24,14 @@
       { "name": "DOCUMENT_ROOMS", "class_name": "DocumentRoom" },
       { "name": "WORKSPACE_CATALOGS", "class_name": "WorkspaceCatalog" },
       { "name": "WORKSPACE_ACCESS", "class_name": "WorkspaceAccess" },
+      { "name": "REFERENCE_LIBRARIES", "class_name": "ReferenceLibrary" },
     ],
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["DocumentRoom"] },
     { "tag": "v2", "new_sqlite_classes": ["WorkspaceCatalog"] },
     { "tag": "v3", "new_sqlite_classes": ["WorkspaceAccess"] },
+    { "tag": "v4", "new_sqlite_classes": ["ReferenceLibrary"] },
   ],
   "r2_buckets": [{ "binding": "PAPERS", "bucket_name": "kirjolab-papers" }],
   "observability": {

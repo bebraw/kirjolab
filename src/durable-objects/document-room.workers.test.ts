@@ -56,6 +56,66 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(deleted.files.map((file) => file.id)).not.toContain(supporting!.id);
   });
 
+  it("derives project aliases and bibliography from shared reference snapshots", async () => {
+    const workspaceId = "shared-reference-project";
+    const stub = roomStub(workspaceId);
+    const initial = await stub.getSnapshot(workspaceId);
+    const now = "2026-07-11T10:00:00.000Z";
+    const reference = {
+      id: crypto.randomUUID(),
+      type: "article",
+      title: "Shared Research Memory",
+      authors: ["Doe, Jane"],
+      year: "2026",
+      venue: "Open Research",
+      doi: "10.1000/shared",
+      url: "https://example.test/shared",
+      abstract: "Private library metadata",
+      provenance: {},
+      archivedAt: null,
+      deletedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    } as const;
+    const linked = await stub.linkProjectReference(workspaceId, reference, "doe2026");
+    expect(linked.projectReferences[0]).toMatchObject({ referenceId: reference.id, citationAlias: "doe2026" });
+    expect(linked.bibliography).toContain("@article{doe2026");
+    expect(linked.projectReferences[0]?.snapshot).not.toHaveProperty("abstract");
+
+    await applyAuthoredSource(stub, `${initial.source}\n\n:cite[doe2026]\n`);
+    const renamed = await stub.renameProjectReferenceAlias(workspaceId, reference.id, "sharedMemory");
+    expect(renamed.source).toContain(":cite[sharedMemory]");
+    expect(renamed.bibliography).toContain("@article{sharedMemory");
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.unlinkProjectReference(workspaceId, reference.id)).toThrow("Remove citations");
+    });
+    await applyAuthoredSource(stub, initial.source);
+    expect((await stub.unlinkProjectReference(workspaceId, reference.id)).projectReferences).toEqual([]);
+  });
+
+  it("pins explicit private research snapshots and removes future access on revocation", async () => {
+    const workspaceId = "explicit-research-share";
+    const stub = roomStub(workspaceId);
+    const share = {
+      id: crypto.randomUUID(),
+      projectId: workspaceId,
+      referenceId: crypto.randomUUID(),
+      resourceId: crypto.randomUUID(),
+      kind: "note",
+      content: { kind: "note", body: "Explicitly shared interpretation" },
+      createdAt: "2026-07-11T10:00:00.000Z",
+      revokedAt: null,
+    } as const;
+    const pinned = await stub.pinResearchShare(workspaceId, share);
+    expect(pinned.researchShares).toEqual([share]);
+    expect(await stub.getActiveResearchShare(workspaceId, share.id)).toEqual(share);
+    const revoked = await stub.revokeResearchShare(workspaceId, share.id, "2026-07-11T11:00:00.000Z");
+    expect(revoked.researchShares).toEqual([]);
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.getActiveResearchShare(workspaceId, share.id)).toThrow("revoked");
+    });
+  });
+
   it("upgrades legacy offset links once and marks mismatches stale", async () => {
     const workspaceId = "legacy-anchor-migration";
     const stub = roomStub(workspaceId);

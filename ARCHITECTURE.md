@@ -19,7 +19,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 
 ## Kirjolab Product Architecture
 
-- Treat portable project Markdown and BibTeX as the canonical authored artifacts.
+- Treat portable project Markdown and stable shared-library records as the
+  canonical authored artifacts. Keep BibTeX as bounded derived interchange and
+  export, not a second project-local metadata authority.
 - Compose each paper from exactly one root `main.md` through bounded,
   project-relative `::include[path]` directives. Keep supporting Markdown files
   user-named and preserve authored heading levels; never infer composition from
@@ -38,6 +40,19 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Escape authored raw HTML and sanitize the final preview tree after all syntax plugins; allow only the elements, properties, and URL protocols required by the scientific-writing vocabulary before inserting output into the DOM.
 - Return a restrictive Content Security Policy on application HTML as an independent browser-execution boundary; do not permit inline or evaluated scripts.
 - Coordinate each collaborative composed project through its own SQLite-backed Durable Object.
+- Coordinate each personal reference library through a separate SQLite-backed
+  Durable Object keyed by verified owner identity. Stable source identity must
+  not depend on a DOI, title, filename, or project citation alias.
+- Keep bibliographic provenance per field. Import and metadata services may
+  suggest and deduplicate records, but source-type requirements must remain
+  explicit and missing values must never be fabricated.
+- Keep library PDFs, web captures, notes, highlights, tags, and reading state
+  owner-private by default. A project citation receives only its local alias
+  and bibliographic snapshot; sharing any additional resource must be a
+  separate explicit, rights-checked action pinned into a project revision.
+- Treat project unlink, library archive, share revocation, and permanent owner
+  deletion as distinct operations. Revocation is forward-only; deletion keeps
+  only the tombstoned provenance needed by historical project revisions.
 - Evolve every SQLite-backed Durable Object through an ordered, named,
   append-only migration ledger. Apply each pending schema or data migration and
   its ledger record in one synchronous transaction; fail closed if applied
@@ -80,14 +95,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep adding a publication to working memory, citing it in canonical source,
   and connecting evidence to prose as distinct explicit actions. Opening,
   switching, pinning, or closing research context must not imply any of them.
-- Keep DOI metadata preview non-mutating. Refetch and remap external metadata on
-  acceptance, then atomically commit a new canonical BibTeX projection and its
-  explicit PDF association; reuse existing DOI identity and completed links.
-- Persist publication-to-PDF associations as explicit, workspace-scoped,
-  many-to-many typed links and expose them as `has-artifact` graph edges. Never
-  infer the association from citation keys, DOI values, titles, authors, or
-  filenames; an unlinked publication and an unlinked PDF remain usable
-  resources.
+- Keep external metadata preview non-mutating. Refetch and remap external
+  metadata on acceptance into the owner library with per-field provenance;
+  reuse stable likely-duplicate identity only after normalized identifier or
+  reviewed bibliographic matching.
+- Persist publication-to-PDF associations as explicit library-owned links.
+  Never infer the canonical association from citation aliases, titles,
+  authors, or filenames; an unidentified PDF remains private intake until its
+  source is reviewed.
 - Collapse the two-surface workspace to an explicit Authoring/Context switch
   when both surfaces cannot retain readable measures; preserve editor and
   per-context local state while either surface is hidden.
@@ -107,18 +122,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   common-prefix/suffix `Y.Text` splice. Never delete and reinsert unchanged
   prefix or suffix content, because doing so destroys surviving Yjs anchor
   identities.
-- Keep BibTeX as the canonical authored bibliography and reconcile every
-  complete parsed entry into stable publication resources after each
-  bibliography-changing Yjs update, including manual edits, imports,
-  enrichment, and initial data migration.
-- Match a publication UUID by case-insensitive citation key before normalized
-  DOI. Preserve provenance and timestamps for an exactly unchanged projection;
-  mark authored changes `bibtex` and explicit accepted enrichment `crossref`.
-- Treat publication resources as monotonic working memory: absence from current
-  BibTeX never deletes one implicitly.
-- Apply imports, enrichment, and other complete bibliography replacements as
-  minimal common-prefix/suffix `Y.Text` splices, and atomically commit document
-  materialization with publication reconciliation.
+- Assign citation aliases only inside projects. Derive project bibliography
+  from linked library snapshots, rewrite exact citation directives when an
+  alias changes, and include only aliases cited by composed `main.md` in normal
+  exports.
+- Migrate legacy workspace BibTeX idempotently into the owner library and
+  project reference links. Absence from a project never deletes owner research
+  memory.
 - Capture a model operation's source, selection, revision, and evidence as one
   immutable base before awaiting a provider; reject stale candidate creation
   and keep application as a separate revision-validated action.
@@ -133,6 +143,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   sources.
 - Verify Cloudflare Access JWT signatures and claims inside the Worker for hosted identity; never trust caller-supplied identity headers alone.
 - Authorize every workspace data representation, API operation, PDF stream, and WebSocket upgrade through explicit owner/member state.
+- Authorize every library operation through its verified owner identity. Never
+  let workspace membership imply access to the owner's private library;
+  collaborators may read only active project-pinned snapshots.
 - Require an exact same-origin `Origin` on every browser WebSocket upgrade in addition to identity and workspace authorization.
 - Accept only bounded, valid binary document updates from collaboration clients; keep presence, revision, and protocol control frames server-owned, and never persist or rebroadcast invalid input.
 - Permit local authentication only on loopback hosts; a deployment left in local mode must fail closed.

@@ -18,7 +18,7 @@ const config = {
     "!src/test-support/**",
     "!src/client/app.ts",
     "!src/client/pdf-viewer.ts",
-    "!src/api/workspace.ts",
+    "!src/api/**",
     "!src/durable-objects/**",
   ],
   packageManager: "npm",

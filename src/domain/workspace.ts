@@ -5,9 +5,13 @@ import {
   type ManuscriptAnchorSelector,
 } from "./manuscript-anchor";
 import type { ProjectComposition, ProjectFile } from "./project-files";
+import type { BibliographicSnapshot } from "./reference-library";
+import type { ResearchShareSnapshot } from "./reference-library";
 
 export type { ManuscriptAnchorResolution, ManuscriptAnchorSelector } from "./manuscript-anchor";
 export type { ProjectComposition, ProjectFile } from "./project-files";
+export type { BibliographicSnapshot } from "./reference-library";
+export type { ResearchShareSnapshot } from "./reference-library";
 
 export const demoWorkspaceId = "demo";
 export const localOwnerId = "local";
@@ -79,6 +83,15 @@ export interface PublicationPdfLink {
   publicationId: string;
   pdfId: string;
   createdAt: string;
+}
+
+export interface ProjectReferenceLink {
+  id: string;
+  referenceId: string;
+  citationAlias: string;
+  snapshot: BibliographicSnapshot;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AnnotationResource {
@@ -194,6 +207,8 @@ export interface WorkspaceSnapshot {
   revision: number;
   pdfs: PdfResource[];
   publications: PublicationResource[];
+  projectReferences: ProjectReferenceLink[];
+  researchShares: ResearchShareSnapshot[];
   publicationPdfLinks: PublicationPdfLink[];
   annotations: AnnotationResource[];
   links: PassageLink[];
@@ -515,6 +530,10 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     typeof value.revision === "number" &&
     Array.isArray(value.pdfs) &&
     Array.isArray(value.publications) &&
+    Array.isArray(value.projectReferences) &&
+    value.projectReferences.every(isProjectReferenceLink) &&
+    Array.isArray(value.researchShares) &&
+    value.researchShares.every(isResearchShareSnapshot) &&
     Array.isArray(value.publicationPdfLinks) &&
     value.publicationPdfLinks.every(isPublicationPdfLink) &&
     Array.isArray(value.annotations) &&
@@ -528,6 +547,34 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     value.claimLinks.every(isClaimPassageLink) &&
     Array.isArray(value.candidates) &&
     value.candidates.every(isModelCandidate)
+  );
+}
+
+function isResearchShareSnapshot(value: unknown): value is ResearchShareSnapshot {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["id", "projectId", "referenceId", "resourceId", "kind", "content", "createdAt", "revokedAt"]) &&
+    isStringWithin(value.id, 128, true) &&
+    isStringWithin(value.projectId, 128, true) &&
+    isStringWithin(value.referenceId, 128, true) &&
+    isStringWithin(value.resourceId, 128, true) &&
+    (value.kind === "artifact" || value.kind === "note" || value.kind === "highlight") &&
+    isRecord(value.content) &&
+    isStringWithin(value.createdAt, 128, true) &&
+    (value.revokedAt === null || isStringWithin(value.revokedAt, 128, true))
+  );
+}
+
+function isProjectReferenceLink(value: unknown): value is ProjectReferenceLink {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["id", "referenceId", "citationAlias", "snapshot", "createdAt", "updatedAt"]) &&
+    isStringWithin(value.id, 128, true) &&
+    isStringWithin(value.referenceId, 128, true) &&
+    isStringWithin(value.citationAlias, 128, true) &&
+    isRecord(value.snapshot) &&
+    isStringWithin(value.createdAt, 128, true) &&
+    isStringWithin(value.updatedAt, 128, true)
   );
 }
 

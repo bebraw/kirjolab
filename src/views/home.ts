@@ -35,6 +35,7 @@ export function renderHomePage(
             <span id="connection-status">Connecting</span>
           </div>
           <button class="button-secondary hidden sm:inline-flex" id="share-workspace" type="button">Share</button>
+          <button class="button-secondary hidden sm:inline-flex" id="open-reference-library" type="button">Library</button>
           <a class="button-secondary hidden sm:inline-flex" href="/api/workspaces/${escapedWorkspaceId}/export/bibliography.bib">Export .bib</a>
           <a class="button-primary" href="/api/workspaces/${escapedWorkspaceId}/export/document.md">Export .md</a>
         </div>
@@ -52,11 +53,7 @@ export function renderHomePage(
             <p class="eyebrow">Source shelf</p>
             <h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Evidence</h1>
           </div>
-          <label class="button-icon" title="Import a PDF">
-            <span aria-hidden="true">＋</span>
-            <span class="sr-only">Import PDF</span>
-            <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf">
-          </label>
+          <button class="button-icon" id="open-reference-library-shelf" type="button" title="Open private reference library" aria-label="Open private reference library">＋</button>
         </div>
         <p class="mt-3 text-sm leading-6 text-app-text-soft">Import a paper, select evidence in place, then carry its durable anchor into the draft.</p>
         <form class="mt-4 flex gap-2" id="knowledge-search-form" role="search">
@@ -95,10 +92,9 @@ export function renderHomePage(
             <p class="eyebrow">References</p>
             <span class="count-badge" id="publication-count">0</span>
           </div>
-          <label class="button-secondary mt-3 w-full justify-center">
-            Import BibTeX
-            <input class="sr-only" id="bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain">
-          </label>
+          <button class="button-secondary mt-3 w-full justify-center" id="browse-reference-library" type="button">Browse private library</button>
+          <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf">
+          <input class="sr-only" id="bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain">
           <div class="mt-3 space-y-3" id="publication-list">
             <div class="empty-state">Imported references appear here as stable publication resources.</div>
           </div>
@@ -134,9 +130,9 @@ export function renderHomePage(
         <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
         <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation.</p>
         <details class="border-t border-app-line bg-app-paper/60">
-          <summary class="cursor-pointer px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.14em] text-app-text-soft">Bibliography source</summary>
+          <summary class="cursor-pointer px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.14em] text-app-text-soft">Derived project bibliography</summary>
           <label class="sr-only" for="bibliography-editor">BibTeX bibliography</label>
-          <textarea class="bibliography-editor" id="bibliography-editor" spellcheck="false"></textarea>
+          <textarea class="bibliography-editor" id="bibliography-editor" spellcheck="false" readonly></textarea>
         </details>
       </section>
 
@@ -393,6 +389,29 @@ export function renderHomePage(
           <button class="button-primary" type="submit">Save file</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="reference-library-dialog" id="reference-library-dialog">
+      <div class="p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="eyebrow">Private research memory</p>
+            <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Reference library</h2>
+            <p class="mt-2 max-w-xl text-sm leading-6 text-app-text-soft">References, PDFs, tags, notes, highlights, and reading state stay private. Adding a citation shares only its bibliographic snapshot with this project.</p>
+          </div>
+          <button class="button-secondary" id="close-reference-library" type="button">Close</button>
+        </div>
+        <div class="mt-5 flex flex-wrap gap-2 border-y border-app-line py-4">
+          <label class="button-primary">Import BibTeX<input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
+          <label class="button-secondary">Add PDF<input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf"></label>
+          <button class="button-secondary" id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
+        </div>
+        <div class="mt-5 grid gap-3 md:grid-cols-2" id="reference-library-list"><div class="empty-state">Loading private library…</div></div>
+        <section class="mt-6 border-t border-app-line pt-5">
+          <div class="flex items-center justify-between gap-3"><p class="eyebrow">PDFs awaiting identification</p><span class="count-badge" id="unidentified-pdf-count">0</span></div>
+          <div class="mt-3 grid gap-3 md:grid-cols-2" id="unidentified-pdf-list"><div class="empty-state">No unidentified PDFs.</div></div>
+        </section>
+      </div>
     </dialog>
 
     <dialog class="new-workspace-dialog" id="claim-dialog">

@@ -44,10 +44,11 @@ export class WorkspaceCatalog extends DurableObject<Env> {
   }
 
   listWorkspaces(): WorkspaceSummary[] {
-    return this.ctx.storage.sql
-      .exec<WorkspaceCatalogRow>("SELECT * FROM workspaces ORDER BY updated_at DESC, title ASC LIMIT 200")
-      .toArray()
-      .map(summaryFromRow);
+    const demo = this.ctx.storage.sql.exec<WorkspaceCatalogRow>("SELECT * FROM workspaces WHERE id = ?", demoWorkspaceId).toArray()[0];
+    const recent = this.ctx.storage.sql
+      .exec<WorkspaceCatalogRow>("SELECT * FROM workspaces WHERE id <> ? ORDER BY updated_at DESC, title ASC LIMIT 199", demoWorkspaceId)
+      .toArray();
+    return [...(demo ? [demo] : []), ...recent].map(summaryFromRow);
   }
 
   registerWorkspace(id: string, title: string): WorkspaceSummary {

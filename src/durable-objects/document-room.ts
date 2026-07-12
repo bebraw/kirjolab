@@ -23,10 +23,14 @@ import {
   composeProject,
   inboundProjectIncludes,
   normalizeProjectPath,
+  projectUsesCitationAlias,
   projectEntryPath,
   rewriteInboundProjectIncludes,
+  rewriteProjectCitationAlias,
   type ProjectFile,
 } from "../domain/project-files";
+import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnapshot } from "../domain/reference-library";
+import type { ResearchShareSnapshot } from "../domain/reference-library";
 import {
   defaultBibliography,
   defaultSource,
@@ -56,6 +60,7 @@ import {
   type PublicationIntakeResult,
   type PublicationPdfLink,
   type PublicationResource,
+  type ProjectReferenceLink,
   type UpsertClaimInput,
   type WorkspaceSnapshot,
 } from "../domain/workspace";
@@ -78,6 +83,26 @@ interface ProjectFileRow extends Record<string, SqlStorageValue> {
   content: string;
   created_at: string;
   updated_at: string;
+}
+
+interface ProjectReferenceRow extends Record<string, SqlStorageValue> {
+  id: string;
+  reference_id: string;
+  citation_alias: string;
+  snapshot_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ResearchShareRow extends Record<string, SqlStorageValue> {
+  id: string;
+  project_id: string;
+  reference_id: string;
+  resource_id: string;
+  kind: string;
+  snapshot_json: string;
+  created_at: string;
+  revoked_at: string | null;
 }
 
 interface PdfRow extends Record<string, SqlStorageValue> {
@@ -297,6 +322,7 @@ export class DocumentRoom extends DurableObject<Env> {
   getSnapshot(workspaceId: string): WorkspaceSnapshot {
     const workspace = this.#workspaceRow();
     const files = this.#projectFiles();
+    const projectReferences = this.#projectReferences();
     if (!workspace.entry_file_id) throw new Error("Project entry file is not initialized");
     return {
       id: workspaceId,
@@ -308,7 +334,9 @@ export class DocumentRoom extends DurableObject<Env> {
       bibliography: workspace.bibliography,
       revision: workspace.revision,
       pdfs: this.#pdfs(),
-      publications: this.#publications(),
+      publications: projectReferences.length > 0 ? projectReferences.map(projectReferencePublication) : this.#publications(),
+      projectReferences,
+      researchShares: this.#researchShares(),
       publicationPdfLinks: this.#publicationPdfLinks(),
       annotations: this.#annotations(),
       links: this.#links(),
@@ -317,6 +345,165 @@ export class DocumentRoom extends DurableObject<Env> {
       claimLinks: this.#claimLinks(),
       candidates: this.#candidates(),
     };
+  }
+
+  linkProjectReference(workspaceId: string, reference: BibliographicRecord, aliasValue: string): WorkspaceSnapshot {
+    const alias = aliasValue.trim();
+    if (!isValidCitationKey(alias)) throw new Error("Citation alias is invalid");
+    const rows = this.#projectReferenceRows();
+    const existingReference = rows.find((row) => row.reference_id === reference.id);
+    if (existingReference) return this.getSnapshot(workspaceId);
+    if (rows.some((row) => row.citation_alias.toLocaleLowerCase() === alias.toLocaleLowerCase())) {
+      throw new Error("Citation alias already exists in this project");
+    }
+    const now = new Date().toISOString();
+    const link: ProjectReferenceLink = {
+      id: crypto.randomUUID(),
+      referenceId: reference.id,
+      citationAlias: alias,
+      snapshot: bibliographicSnapshot(reference, now),
+      createdAt: now,
+      updatedAt: now,
+    };
+    const next = [...rows.map(projectReferenceFromRow), link];
+    this.#replaceBibliography(projectReferenceBibliography(next), "project-reference-link", {}, () => {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO project_references (id, reference_id, citation_alias, snapshot_json, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        link.id,
+        link.referenceId,
+        link.citationAlias,
+        JSON.stringify(link.snapshot),
+        now,
+        now,
+      );
+    });
+    return this.getSnapshot(workspaceId);
+  }
+
+  syncProjectReference(workspaceId: string, reference: BibliographicRecord): WorkspaceSnapshot {
+    const rows = this.#projectReferenceRows();
+    const row = rows.find((item) => item.reference_id === reference.id);
+    if (!row) throw new Error("Reference is not linked to this project");
+    const now = new Date().toISOString();
+    const snapshot = bibliographicSnapshot(reference, now);
+    const next = rows
+      .map(projectReferenceFromRow)
+      .map((link) => (link.referenceId === reference.id ? { ...link, snapshot, updatedAt: now } : link));
+    this.#replaceBibliography(projectReferenceBibliography(next), "project-reference-sync", {}, () => {
+      this.ctx.storage.sql.exec(
+        "UPDATE project_references SET snapshot_json = ?, updated_at = ? WHERE reference_id = ?",
+        JSON.stringify(snapshot),
+        now,
+        reference.id,
+      );
+    });
+    return this.getSnapshot(workspaceId);
+  }
+
+  renameProjectReferenceAlias(workspaceId: string, referenceId: string, aliasValue: string): WorkspaceSnapshot {
+    const alias = aliasValue.trim();
+    if (!isValidCitationKey(alias)) throw new Error("Citation alias is invalid");
+    const rows = this.#projectReferenceRows();
+    const row = rows.find((item) => item.reference_id === referenceId);
+    if (!row) throw new Error("Reference is not linked to this project");
+    if (rows.some((item) => item.reference_id !== referenceId && item.citation_alias.toLocaleLowerCase() === alias.toLocaleLowerCase())) {
+      throw new Error("Citation alias already exists in this project");
+    }
+    if (row.citation_alias === alias) return this.getSnapshot(workspaceId);
+
+    const previous = this.#workspaceRow();
+    const stateVector = Y.encodeStateVector(this.#document);
+    for (const fileRow of this.#projectFileRows()) {
+      const text = this.#document.getText(fileRow.y_text_name);
+      const content = rewriteProjectCitationAlias(text.toString(), row.citation_alias, alias);
+      const splice = calculateTextSplice(text.toString(), content);
+      if (!splice) continue;
+      if (splice.deleteCount > 0) text.delete(splice.start, splice.deleteCount);
+      if (splice.insert) text.insert(splice.start, splice.insert);
+    }
+    const now = new Date().toISOString();
+    const next = rows
+      .map(projectReferenceFromRow)
+      .map((link) => (link.referenceId === referenceId ? { ...link, citationAlias: alias, updatedAt: now } : link));
+    const bibliography = this.#document.getText("bibliography");
+    const bibliographySplice = calculateTextSplice(bibliography.toString(), projectReferenceBibliography(next));
+    if (bibliographySplice) {
+      if (bibliographySplice.deleteCount > 0) bibliography.delete(bibliographySplice.start, bibliographySplice.deleteCount);
+      if (bibliographySplice.insert) bibliography.insert(bibliographySplice.start, bibliographySplice.insert);
+    }
+    const persisted = this.#persistDocument(previous, {}, () => {
+      this.ctx.storage.sql.exec(
+        "UPDATE project_references SET citation_alias = ?, updated_at = ? WHERE reference_id = ?",
+        alias,
+        now,
+        referenceId,
+      );
+    });
+    this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  unlinkProjectReference(workspaceId: string, referenceId: string): WorkspaceSnapshot {
+    const rows = this.#projectReferenceRows();
+    const row = rows.find((item) => item.reference_id === referenceId);
+    if (!row) throw new Error("Reference is not linked to this project");
+    if (projectUsesCitationAlias(this.#projectFiles(), row.citation_alias)) {
+      throw new Error("Remove citations using this alias before unlinking the reference");
+    }
+    const next = rows.filter((item) => item.reference_id !== referenceId).map(projectReferenceFromRow);
+    this.#replaceBibliography(projectReferenceBibliography(next), "project-reference-unlink", {}, () => {
+      this.ctx.storage.sql.exec("DELETE FROM project_references WHERE reference_id = ?", referenceId);
+    });
+    return this.getSnapshot(workspaceId);
+  }
+
+  pinResearchShare(workspaceId: string, share: ResearchShareSnapshot): WorkspaceSnapshot {
+    if (share.projectId !== workspaceId || share.revokedAt !== null) throw new Error("Research share is not active for this project");
+    const existing = this.ctx.storage.sql
+      .exec<ResearchShareRow>("SELECT * FROM project_research_shares WHERE id = ?", share.id)
+      .toArray()[0];
+    if (existing && existing.revoked_at === null) return this.getSnapshot(workspaceId);
+    const previous = this.#workspaceRow();
+    const persisted = this.#persistDocument(previous, {}, () => {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO project_research_shares
+         (id, project_id, reference_id, resource_id, kind, snapshot_json, created_at, revoked_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+         ON CONFLICT(id) DO UPDATE SET snapshot_json = excluded.snapshot_json, created_at = excluded.created_at, revoked_at = NULL`,
+        share.id,
+        share.projectId,
+        share.referenceId,
+        share.resourceId,
+        share.kind,
+        JSON.stringify(share.content),
+        share.createdAt,
+      );
+    });
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  revokeResearchShare(workspaceId: string, shareId: string, revokedAt: string): WorkspaceSnapshot {
+    const row = this.ctx.storage.sql.exec<ResearchShareRow>("SELECT * FROM project_research_shares WHERE id = ?", shareId).toArray()[0];
+    if (!row || row.project_id !== workspaceId) throw new Error("Research share not found");
+    if (row.revoked_at) return this.getSnapshot(workspaceId);
+    const previous = this.#workspaceRow();
+    const persisted = this.#persistDocument(previous, {}, () => {
+      this.ctx.storage.sql.exec("UPDATE project_research_shares SET revoked_at = ? WHERE id = ?", revokedAt, shareId);
+    });
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  getActiveResearchShare(workspaceId: string, shareId: string): ResearchShareSnapshot {
+    const share = this.#researchShares().find((item) => item.id === shareId && item.projectId === workspaceId);
+    if (!share) throw new Error("Research share not found or revoked");
+    return share;
   }
 
   createProjectFile(workspaceId: string, pathValue: string, content = ""): WorkspaceSnapshot {
@@ -526,17 +713,21 @@ export class DocumentRoom extends DurableObject<Env> {
       const publication = this.ctx.storage.sql
         .exec<{ count: number }>("SELECT COUNT(*) AS count FROM publications WHERE id = ?", link.publicationId)
         .one();
-      if (publication.count === 0) throw new Error("Publication not found");
+      const projectReference = this.ctx.storage.sql
+        .exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_references WHERE reference_id = ?", link.publicationId)
+        .one();
+      if (publication.count === 0 && projectReference.count === 0) throw new Error("Publication not found");
       const pdf = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM pdfs WHERE id = ?", link.pdfId).one();
       if (pdf.count === 0) throw new Error("PDF not found");
+      const table = projectReference.count > 0 ? "project_reference_pdf_links" : "publication_pdf_links";
       const existing = this.ctx.storage.sql
         .exec<{
           count: number;
-        }>("SELECT COUNT(*) AS count FROM publication_pdf_links WHERE publication_id = ? AND pdf_id = ?", link.publicationId, link.pdfId)
+        }>(`SELECT COUNT(*) AS count FROM ${table} WHERE publication_id = ? AND pdf_id = ?`, link.publicationId, link.pdfId)
         .one();
       if (existing.count > 0) throw new Error("Publication/PDF link already exists");
       this.ctx.storage.sql.exec(
-        "INSERT INTO publication_pdf_links (id, publication_id, pdf_id, created_at) VALUES (?, ?, ?, ?)",
+        `INSERT INTO ${table} (id, publication_id, pdf_id, created_at) VALUES (?, ?, ?, ?)`,
         link.id,
         link.publicationId,
         link.pdfId,
@@ -548,11 +739,15 @@ export class DocumentRoom extends DurableObject<Env> {
   }
 
   deletePublicationPdfLink(linkId: string): void {
-    const existing = this.ctx.storage.sql
+    const legacy = this.ctx.storage.sql
       .exec<{ count: number }>("SELECT COUNT(*) AS count FROM publication_pdf_links WHERE id = ?", linkId)
       .one();
-    if (existing.count === 0) throw new Error("Publication/PDF link not found");
+    const shared = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_reference_pdf_links WHERE id = ?", linkId)
+      .one();
+    if (legacy.count + shared.count === 0) throw new Error("Publication/PDF link not found");
     this.ctx.storage.sql.exec("DELETE FROM publication_pdf_links WHERE id = ?", linkId);
+    this.ctx.storage.sql.exec("DELETE FROM project_reference_pdf_links WHERE id = ?", linkId);
     this.#broadcastResources();
   }
 
@@ -911,7 +1106,13 @@ export class DocumentRoom extends DurableObject<Env> {
     const workspace = this.#workspaceRow();
     const files = this.#projectFiles();
     if (!workspace.entry_file_id) throw new Error("Project entry file is not initialized");
-    return { source: composeProject(files, workspace.entry_file_id).content, bibliography: workspace.bibliography };
+    const source = composeProject(files, workspace.entry_file_id).content;
+    const references = this.#projectReferences();
+    const bibliography =
+      references.length === 0
+        ? workspace.bibliography
+        : projectReferenceBibliography(references.filter((link) => citedAliases(source).has(link.citationAlias)));
+    return { source, bibliography };
   }
 
   #schemaMigrations(): readonly SQLiteMigration[] {
@@ -1179,6 +1380,59 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 11,
+        name: "link-shared-library-references",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS project_references (
+              id TEXT PRIMARY KEY,
+              reference_id TEXT NOT NULL UNIQUE,
+              citation_alias TEXT NOT NULL UNIQUE COLLATE NOCASE,
+              snapshot_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+          `);
+          return undefined;
+        },
+      },
+      {
+        version: 12,
+        name: "pin-explicit-private-research-shares",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS project_research_shares (
+              id TEXT PRIMARY KEY,
+              project_id TEXT NOT NULL,
+              reference_id TEXT NOT NULL,
+              resource_id TEXT NOT NULL,
+              kind TEXT NOT NULL CHECK (kind IN ('artifact', 'note', 'highlight')),
+              snapshot_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              revoked_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS project_research_shares_reference ON project_research_shares(reference_id);
+          `);
+          return undefined;
+        },
+      },
+      {
+        version: 13,
+        name: "retain-legacy-project-pdf-links",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS project_reference_pdf_links (
+              id TEXT PRIMARY KEY,
+              publication_id TEXT NOT NULL,
+              pdf_id TEXT NOT NULL REFERENCES pdfs(id),
+              created_at TEXT NOT NULL,
+              UNIQUE (publication_id, pdf_id)
+            );
+          `);
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -1320,6 +1574,23 @@ export class DocumentRoom extends DurableObject<Env> {
     const row = this.#projectFileRows().find((file) => file.id === fileId);
     if (!row) throw new Error("Project file not found");
     return { file: projectFileFromRow(row), text: this.#document.getText(row.y_text_name) };
+  }
+
+  #projectReferenceRows(): ProjectReferenceRow[] {
+    return this.ctx.storage.sql
+      .exec<ProjectReferenceRow>("SELECT * FROM project_references ORDER BY citation_alias COLLATE NOCASE, id")
+      .toArray();
+  }
+
+  #projectReferences(): ProjectReferenceLink[] {
+    return this.#projectReferenceRows().map(projectReferenceFromRow);
+  }
+
+  #researchShares(): ResearchShareSnapshot[] {
+    return this.ctx.storage.sql
+      .exec<ResearchShareRow>("SELECT * FROM project_research_shares WHERE revoked_at IS NULL ORDER BY created_at, id")
+      .toArray()
+      .map(researchShareFromRow);
   }
 
   #replaceBibliography(sourceValue: string, origin: string, options: ProjectionOptions = {}, relatedWrite?: () => void): void {
@@ -1487,10 +1758,15 @@ export class DocumentRoom extends DurableObject<Env> {
   }
 
   #publicationPdfLinks(): PublicationPdfLink[] {
-    return this.ctx.storage.sql
+    const legacy = this.ctx.storage.sql
       .exec<PublicationPdfLinkRow>("SELECT * FROM publication_pdf_links ORDER BY created_at DESC, id ASC")
       .toArray()
       .map(publicationPdfLinkFromRow);
+    const shared = this.ctx.storage.sql
+      .exec<PublicationPdfLinkRow>("SELECT * FROM project_reference_pdf_links ORDER BY created_at DESC, id ASC")
+      .toArray()
+      .map(publicationPdfLinkFromRow);
+    return [...legacy, ...shared].sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
   }
 
   #annotations(): AnnotationResource[] {
@@ -1761,6 +2037,167 @@ function projectFileFromRow(row: ProjectFileRow): ProjectFile {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function projectReferenceFromRow(row: ProjectReferenceRow): ProjectReferenceLink {
+  const snapshot = parseBibliographicSnapshot(row.snapshot_json);
+  if (snapshot.referenceId !== row.reference_id) throw new Error("Stored project reference snapshot has the wrong identity");
+  return {
+    id: row.id,
+    referenceId: row.reference_id,
+    citationAlias: row.citation_alias,
+    snapshot,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function projectReferencePublication(link: ProjectReferenceLink): PublicationResource {
+  return {
+    id: link.referenceId,
+    citationKey: link.citationAlias,
+    type: link.snapshot.type,
+    title: link.snapshot.title,
+    authors: [...link.snapshot.authors],
+    year: link.snapshot.year,
+    venue: link.snapshot.venue,
+    doi: link.snapshot.doi,
+    url: link.snapshot.url,
+    abstract: "",
+    metadataSource: "bibtex",
+    createdAt: link.createdAt,
+    updatedAt: link.updatedAt,
+  };
+}
+
+function projectReferenceBibliography(links: readonly ProjectReferenceLink[]): string {
+  return serializeBibTeX(
+    links.map((link) => {
+      const fields: Record<string, string> = { title: link.snapshot.title };
+      if (link.snapshot.authors.length > 0) fields.author = link.snapshot.authors.join(" and ");
+      if (link.snapshot.year) fields.year = link.snapshot.year;
+      if (link.snapshot.venue) fields[link.snapshot.type === "article" ? "journal" : "publisher"] = link.snapshot.venue;
+      if (link.snapshot.doi) fields.doi = link.snapshot.doi;
+      if (link.snapshot.url) fields.url = link.snapshot.url;
+      return { type: link.snapshot.type, citationKey: link.citationAlias, fields };
+    }),
+  );
+}
+
+function citedAliases(source: string): Set<string> {
+  const aliases = new Set<string>();
+  for (const match of source.matchAll(/:cite\[(?<keys>[^\]\r\n]+)\]/gu)) {
+    for (const key of (match.groups?.keys ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean))
+      aliases.add(key);
+  }
+  return aliases;
+}
+
+function parseBibliographicSnapshot(value: string): BibliographicSnapshot {
+  const parsed = parseJson(value);
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    Array.isArray(parsed) ||
+    !("referenceId" in parsed) ||
+    !("type" in parsed) ||
+    !("title" in parsed) ||
+    !("authors" in parsed) ||
+    !("year" in parsed) ||
+    !("venue" in parsed) ||
+    !("doi" in parsed) ||
+    !("url" in parsed) ||
+    !("capturedAt" in parsed) ||
+    !("tombstone" in parsed) ||
+    typeof parsed.referenceId !== "string" ||
+    typeof parsed.type !== "string" ||
+    typeof parsed.title !== "string" ||
+    !Array.isArray(parsed.authors) ||
+    !parsed.authors.every((author) => typeof author === "string") ||
+    typeof parsed.year !== "string" ||
+    typeof parsed.venue !== "string" ||
+    typeof parsed.doi !== "string" ||
+    typeof parsed.url !== "string" ||
+    typeof parsed.capturedAt !== "string" ||
+    typeof parsed.tombstone !== "boolean"
+  ) {
+    throw new Error("Stored project reference snapshot is invalid");
+  }
+  return {
+    referenceId: parsed.referenceId,
+    type: parsed.type,
+    title: parsed.title,
+    authors: parsed.authors,
+    year: parsed.year,
+    venue: parsed.venue,
+    doi: parsed.doi,
+    url: parsed.url,
+    capturedAt: parsed.capturedAt,
+    tombstone: parsed.tombstone,
+  };
+}
+
+function researchShareFromRow(row: ResearchShareRow): ResearchShareSnapshot {
+  const content = parseJson(row.snapshot_json);
+  if (row.kind === "artifact" && isRecordValue(content) && content.kind === "artifact") {
+    if (
+      typeof content.name !== "string" ||
+      typeof content.size !== "number" ||
+      typeof content.fingerprint !== "string" ||
+      typeof content.objectKey !== "string"
+    ) {
+      throw new Error("Stored project research share is invalid");
+    }
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      referenceId: row.reference_id,
+      resourceId: row.resource_id,
+      kind: "artifact",
+      content: { kind: "artifact", name: content.name, size: content.size, fingerprint: content.fingerprint, objectKey: content.objectKey },
+      createdAt: row.created_at,
+      revokedAt: row.revoked_at,
+    };
+  }
+  if (row.kind === "note" && isRecordValue(content) && content.kind === "note" && typeof content.body === "string") {
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      referenceId: row.reference_id,
+      resourceId: row.resource_id,
+      kind: "note",
+      content: { kind: "note", body: content.body },
+      createdAt: row.created_at,
+      revokedAt: row.revoked_at,
+    };
+  }
+  if (
+    row.kind === "highlight" &&
+    isRecordValue(content) &&
+    content.kind === "highlight" &&
+    typeof content.page === "number" &&
+    typeof content.quote === "string" &&
+    typeof content.comment === "string"
+  ) {
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      referenceId: row.reference_id,
+      resourceId: row.resource_id,
+      kind: "highlight",
+      content: { kind: "highlight", page: content.page, quote: content.quote, comment: content.comment },
+      createdAt: row.created_at,
+      revokedAt: row.revoked_at,
+    };
+  }
+  throw new Error("Stored project research share is invalid");
+}
+
+function isRecordValue(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function publicationPdfLinkFromRow(row: PublicationPdfLinkRow): PublicationPdfLink {

@@ -1,15 +1,17 @@
 import { createHealthResponse } from "./api/health";
 import { handleWorkspaceApi } from "./api/workspace";
+import { handleReferenceLibraryApi } from "./api/reference-library";
 import { exampleRoutes } from "./app-routes";
 import { DocumentRoom } from "./durable-objects/document-room";
 import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
 import { WorkspaceAccess } from "./durable-objects/workspace-access";
+import { ReferenceLibrary } from "./durable-objects/reference-library";
 import { authenticateRequest, isSameOriginMutation, type AuthIdentity } from "./security/auth";
 import { renderHomePage } from "./views/home";
 import { renderNotFoundPage } from "./views/not-found";
 import { cssResponse, htmlResponse, scriptResponse } from "./views/shared";
 
-export { DocumentRoom, WorkspaceAccess, WorkspaceCatalog };
+export { DocumentRoom, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
 
 export default {
   async fetch(request: Request, env?: Env): Promise<Response> {
@@ -65,6 +67,11 @@ export async function handleRequest(request: Request, env?: Env): Promise<Respon
   if (url.pathname === "/api/workspaces" || url.pathname.startsWith("/api/workspaces/")) {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await handleWorkspaceApi(request, env, identity);
+  }
+
+  if (url.pathname === "/api/library" || url.pathname.startsWith("/api/library/")) {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await handleReferenceLibraryApi(request, env, identity);
   }
 
   return htmlResponse(renderNotFoundPage(url.pathname), 404, url);

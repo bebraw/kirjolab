@@ -1,6 +1,6 @@
 # ADR-059: Separate Private Research From Project State
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-11
 

@@ -33,6 +33,56 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   expect(await exported.text()).toContain("A live collaborative note cites prior work");
 });
 
+test("keeps private library research separate from project citations", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Private library boundary");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+
+  await page.locator("#open-reference-library").click();
+  await expect(page.locator("#reference-library-dialog")).toBeVisible();
+  await page.locator("#library-bibliography-upload").setInputFiles({
+    name: "private-library.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from(`@manual{privateGuide,
+      title = {Private Research Guide},
+      author = {Writer, Ada},
+      year = {2026}
+    }`),
+  });
+  const card = page.locator("#reference-library-list .resource-card").filter({ hasText: "Private Research Guide" });
+  await expect(card).toBeVisible();
+  await expect(page.locator("#publication-list")).not.toContainText("Private Research Guide");
+
+  const alias = card.getByLabel("Project citation alias for Private Research Guide");
+  await alias.fill("researchGuide");
+  await card.getByRole("button", { name: "Add to project" }).click();
+  await expect(page.locator("#publication-list")).toContainText("Private Research Guide");
+
+  const tags = card.getByLabel("Private tags for Private Research Guide");
+  await tags.fill("methods, revisit");
+  await card.getByRole("button", { name: "Save tags" }).click();
+  await expect(page.locator("#toast")).toHaveText("Private tags saved.");
+  await expect(card.getByLabel("Private tags for Private Research Guide")).toHaveValue("methods, revisit");
+  await card.getByPlaceholder("Add a private note").fill("Only share this interpretation deliberately.");
+  await card.getByRole("button", { name: "Save private note" }).click();
+  await expect(page.locator("#toast")).toHaveText("Private note saved. It is not visible to project collaborators.");
+  await expect(card).toContainText("Only share this interpretation deliberately.");
+  await card
+    .locator(".rounded-sm")
+    .filter({ hasText: "Only share this interpretation deliberately." })
+    .first()
+    .getByRole("button", { name: "Share snapshot with project" })
+    .click();
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).researchShares.length).toBe(1);
+
+  const uncitedExport = await page.request.get(`${api}/export/bibliography.bib`);
+  expect(await uncitedExport.text()).not.toContain("researchGuide");
+  await page.locator("#close-reference-library").click();
+  await page.locator("#source-editor").fill("# Study\n\nThis uses the guide :cite[researchGuide].\n");
+  await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("researchGuide");
+});
+
 test("keeps resource-keyed research context beside authoring", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Research context boundary");
   const api = `/api/workspaces/${workspaceId}`;
@@ -456,6 +506,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
     headers: { origin },
     data: {
       annotationId: annotation.id,
+      fileId: anchoredSnapshot.entryFileId,
       sourceRevision: anchoredSnapshot.revision,
       start: annotationStart,
       end: annotationStart + annotationExcerpt.length,
@@ -467,6 +518,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
     headers: { origin },
     data: {
       claimId: claim.id,
+      fileId: anchoredSnapshot.entryFileId,
       sourceRevision: anchoredSnapshot.revision,
       start: claimStart,
       end: claimStart + claimExcerpt.length,
@@ -550,6 +602,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
       promptVersion: "revise-selection-v1",
       instruction: "Add one context line before this heading.",
       target: {
+        fileId: shiftedSnapshot.entryFileId,
         start: 0,
         end: candidateTarget.length,
         excerpt: candidateTarget,
@@ -651,6 +704,7 @@ test("reports a deleted passage anchor as stale instead of guessing", async ({ p
     headers: { origin },
     data: {
       annotationId: annotation.id,
+      fileId: sourceSnapshot.entryFileId,
       sourceRevision: sourceSnapshot.revision,
       start,
       end: start + excerpt.length,
@@ -786,118 +840,64 @@ test("projects the default canonical bibliography into a fresh workspace", async
   });
 });
 
-test("projects collaborative bibliography edits into stable working-memory resources", async ({ page, context }) => {
-  const workspaceId = await createWorkspace(page, "Collaborative bibliography projection");
+test("derives collaborative project bibliography from shared-library aliases", async ({ page, context }) => {
+  const workspaceId = await createWorkspace(page, "Derived project bibliography");
   const api = `/api/workspaces/${workspaceId}`;
   const path = `/workspaces/${workspaceId}`;
   await page.goto(path);
   const collaborator = await context.newPage();
   await collaborator.goto(path);
   await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
-  await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
-  await Promise.all([
-    page.getByText("Bibliography source", { exact: true }).click(),
-    collaborator.getByText("Bibliography source", { exact: true }).click(),
-  ]);
-  await expect(page.locator("#bibliography-editor")).toBeVisible();
-  await expect(collaborator.locator("#bibliography-editor")).toBeVisible();
 
-  const initialBibliography = `@article{collaborative2026,
-  author = {Doe, Jane and Researcher, Alex},
-  title = {Collaborative Reference Projection},
-  year = {2026},
-  journal = {Journal of Shared Evidence},
-  doi = {https://doi.org/10.5555/Collaborative.2026}
-}
-`;
-  await page.locator("#bibliography-editor").fill(initialBibliography);
-  await expect(collaborator.locator("#bibliography-editor")).toHaveValue(initialBibliography);
+  const imported = await page.request.post(`${api}/bibliography/import`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: {
+      bibtex: `@article{collaborative2026,
+        author = {Doe, Jane and Researcher, Alex},
+        title = {Collaborative Reference Projection},
+        year = {2026},
+        journal = {Journal of Shared Evidence},
+        doi = {10.5555/collaborative.2026}
+      }`,
+    },
+  });
+  expect(imported.status()).toBe(200);
   await expect(page.locator("#publication-list")).toContainText("Collaborative Reference Projection");
   await expect(collaborator.locator("#publication-list")).toContainText("Collaborative Reference Projection");
-  await expect
-    .poll(async () => {
-      const snapshot = await readWorkspaceSnapshot(page, api);
-      return snapshot.publications.find((publication) => publication.citationKey === "collaborative2026");
-    })
-    .toMatchObject({
-      title: "Collaborative Reference Projection",
-      authors: ["Doe, Jane", "Researcher, Alex"],
-      year: "2026",
-      venue: "Journal of Shared Evidence",
-      doi: "10.5555/collaborative.2026",
-      metadataSource: "bibtex",
-    });
-  const initialSnapshot = await readWorkspaceSnapshot(page, api);
-  const initialPublication = initialSnapshot.publications.find((publication) => publication.citationKey === "collaborative2026");
-  if (!initialPublication) throw new Error("Expected a collaboratively projected publication");
+  const snapshot = await readWorkspaceSnapshot(page, api);
+  const link = snapshot.projectReferences.find((item) => item.citationAlias === "collaborative2026");
+  if (!link) throw new Error("Expected a shared-library project link");
 
-  const updatedBibliography = `@article{collaborative2026,
-  author = {Doe, Jane},
-  title = {Revised Collaborative Projection},
-  year = {2027},
-  journal = {Journal of Durable Evidence},
-  doi = {10.5555/collaborative.2026}
-}
-`;
-  await collaborator.locator("#bibliography-editor").fill(updatedBibliography);
-  await expect(page.locator("#bibliography-editor")).toHaveValue(updatedBibliography);
-  await expect(page.locator("#publication-list")).toContainText("Revised Collaborative Projection");
-  await expect(collaborator.locator("#publication-list")).toContainText("Revised Collaborative Projection");
-  await expect
-    .poll(async () => {
-      const snapshot = await readWorkspaceSnapshot(page, api);
-      return snapshot.publications.find((publication) => publication.citationKey === "collaborative2026");
-    })
-    .toMatchObject({
-      id: initialPublication.id,
-      title: "Revised Collaborative Projection",
-      authors: ["Doe, Jane"],
-      year: "2027",
-      venue: "Journal of Durable Evidence",
-      metadataSource: "bibtex",
-    });
+  await Promise.all([
+    page.locator("summary").filter({ hasText: "Derived project bibliography" }).click(),
+    collaborator.locator("summary").filter({ hasText: "Derived project bibliography" }).click(),
+  ]);
+  await expect(page.locator("#bibliography-editor")).toHaveAttribute("readonly", "");
+  await expect(collaborator.locator("#bibliography-editor")).toHaveValue(/@article\{collaborative2026/u);
+  const source = "# Shared source\n\nThe project cites :cite[collaborative2026].\n";
+  await page.locator("#source-editor").fill(source);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(source);
 
-  const renamedBibliography = updatedBibliography
-    .replace("collaborative2026,", "renamed2027,")
-    .replace("10.5555/collaborative.2026", "https://doi.org/10.5555/COLLABORATIVE.2026");
-  await page.locator("#bibliography-editor").fill(renamedBibliography);
-  await expect(collaborator.locator("#bibliography-editor")).toHaveValue(renamedBibliography);
-  await expect
-    .poll(async () => {
-      const snapshot = await readWorkspaceSnapshot(page, api);
-      return snapshot.publications.find((publication) => publication.citationKey === "renamed2027");
-    })
-    .toMatchObject({
-      id: initialPublication.id,
-      doi: "10.5555/collaborative.2026",
-      metadataSource: "bibtex",
-    });
+  const renamed = await page.request.patch(`${api}/references/${link.referenceId}`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { citationAlias: "renamed2027" },
+  });
+  expect(renamed.ok()).toBe(true);
+  await expect(page.locator("#source-editor")).toHaveValue(/:cite\[renamed2027\]/u);
+  await expect(collaborator.locator("#source-editor")).toHaveValue(/:cite\[renamed2027\]/u);
+  await expect(page.locator("#bibliography-editor")).toHaveValue(/@article\{renamed2027/u);
 
-  await collaborator.locator("#bibliography-editor").fill("");
-  await expect(page.locator("#bibliography-editor")).toHaveValue("");
-  await expect
-    .poll(async () => {
-      const snapshot = await readWorkspaceSnapshot(page, api);
-      return {
-        bibliography: snapshot.bibliography,
-        publication: snapshot.publications.find((publication) => publication.id === initialPublication.id),
-      };
-    })
-    .toMatchObject({
-      bibliography: "",
-      publication: {
-        citationKey: "renamed2027",
-        title: "Revised Collaborative Projection",
-        metadataSource: "bibtex",
-      },
-    });
-  await expect(page.locator("#publication-list")).toContainText("Revised Collaborative Projection");
-  await expect(collaborator.locator("#publication-list")).toContainText("Revised Collaborative Projection");
+  const guardedUnlink = await page.request.delete(`${api}/references/${link.referenceId}`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+  });
+  expect(guardedUnlink.status()).toBe(409);
   await collaborator.close();
 });
 
 test("imports BibTeX into stable publication resources", async ({ page }) => {
-  await page.goto("/");
+  const workspaceId = await createWorkspace(page, "Stable shared import");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   await page.locator("#bibliography-upload").setInputFiles({
     name: "references.bib",
@@ -916,7 +916,7 @@ test("imports BibTeX into stable publication resources", async ({ page }) => {
   await expect(page.locator("#publication-count")).not.toHaveText("0");
   await expect(page.locator("#bibliography-editor")).toHaveValue(/@article\{inspectable2026,/u);
 
-  const response = await page.request.get("/api/workspaces/demo");
+  const response = await page.request.get(api);
   const value: unknown = await response.json();
   expect(response.ok()).toBe(true);
   const imported = isWorkspaceSnapshot(value)
@@ -939,12 +939,13 @@ test("imports BibTeX into stable publication resources", async ({ page }) => {
 }`),
   });
   await expect(page.locator("#publication-list")).toContainText("Updated Reference Workflows");
-  const updatedResponse = await page.request.get("/api/workspaces/demo");
+  const updatedResponse = await page.request.get(api);
   const updatedValue: unknown = await updatedResponse.json();
   const updated = isWorkspaceSnapshot(updatedValue)
-    ? updatedValue.publications.find((publication) => publication.citationKey === "Inspectable2026")
+    ? updatedValue.publications.find((publication) => publication.citationKey === "inspectable2026")
     : undefined;
   expect(updated?.id).toBe(imported?.id);
+  expect(updated).toMatchObject({ title: "Updated Reference Workflows", year: "2027" });
 });
 
 test("persists and atomically replaces evidence-backed claims", async ({ page }) => {
@@ -1009,7 +1010,14 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
   const start = snapshot.source.indexOf(excerpt);
   const linkResponse = await page.request.post(`${api}/claim-links`, {
     headers: { origin },
-    data: { claimId: claim.id, start, end: start + excerpt.length, excerpt, sourceRevision: snapshot.revision },
+    data: {
+      claimId: claim.id,
+      fileId: snapshot.entryFileId,
+      start,
+      end: start + excerpt.length,
+      excerpt,
+      sourceRevision: snapshot.revision,
+    },
   });
   expect(linkResponse.status()).toBe(201);
 
@@ -1390,6 +1398,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
       promptVersion: "revise-selection-v1",
       instruction: "Propose a stale replacement.",
       target: {
+        fileId: currentSnapshot.entryFileId,
         start: staleStart,
         end: staleStart + staleExcerpt.length,
         excerpt: staleExcerpt,

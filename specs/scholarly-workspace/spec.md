@@ -59,22 +59,19 @@ mode for authenticated hosted collaboration.
   receive an `ack` at the current revision without persistence, rebroadcast, or
   a revision increase. When bibliography text changes, every complete canonical
   entry is reconciled into publication resources in the same transaction.
-- **Resource metadata:** The document Durable Object stores PDF artifact
-  fingerprints, annotations, publication projections, durable many-to-many
-  publication/PDF links, passage links, and model candidates alongside the
-  document coordination atom. Each explicit publication/PDF pair projects a
-  `has-artifact` edge; no metadata or filename heuristic creates it. Its
+- **Resource metadata:** The document Durable Object stores project-pinned
+  bibliographic and explicitly shared research snapshots, passage links, and
+  model candidates alongside the project coordination atom. The owner-scoped
+  reference library stores private PDF artifacts, annotations, notes, tags, and
+  reading state. No metadata or filename heuristic creates an association. Its
   server-owned `resources` control invalidates a coalesced REST metadata refresh
   without replacing editor state.
-- **Reference library:** Every complete parsed canonical BibTeX entry
-  materializes after local edits, remote edits, imports, enrichment, and initial
-  migration. Publication UUID matching uses case-insensitive citation key
-  before normalized DOI. Exact no-op projection preserves provenance and
-  timestamp; authored changes record `bibtex`, explicit Crossref enrichment
-  remains `crossref`, and absent entries do not delete monotonic resources.
-  An unlinked PDF can use a non-mutating DOI preview followed by fingerprinted
-  acceptance that atomically appends a new Crossref-backed entry and its
-  explicit artifact link, or idempotently reuses existing DOI identity.
+- **Reference library:** A separate owner-keyed Durable Object is authoritative
+  for stable bibliographic records and per-field provenance. BibTeX imports and
+  legacy workspace data reconcile into it; project-local aliases derive
+  bibliography snapshots without exposing private notes, tags, PDFs,
+  highlights, or reading state. Additional research enters a project only by
+  explicit rights-checked snapshot sharing and forward-only revocation.
 - **Knowledge navigation:** Bounded workspace search and typed connection
   representations expose documents, sections, publications, PDFs, and
   annotations as navigable resources without making an index authoritative.
@@ -91,9 +88,10 @@ mode for authenticated hosted collaboration.
   relative positions. A one-time migration derives endpoints for still-valid
   offset rows; unconvertible legacy rows retain null endpoints and remain
   explicitly stale under the version 1 selector contract.
-- **Blob storage:** The `PAPERS` R2 binding stores immutable PDF bytes under a
-  workspace-scoped key. PDF responses stream from R2 and the R2 ETag identifies
-  the exact stored artifact.
+- **Blob storage:** The `PAPERS` R2 binding stores immutable private PDF bytes
+  under an owner-library key. PDF responses stream only through an authorized
+  private-library route or active explicit project share; the R2 ETag
+  identifies the exact stored artifact.
 - **Evidence capture:** PDF.js renders one selectable page. Text selection
   creates exact quote/context selectors plus normalized page rectangles before
   the annotation is saved.
@@ -115,6 +113,9 @@ mode for authenticated hosted collaboration.
 ### API Contracts
 
 - `GET /api/workspaces` returns the current owner's workspace summaries.
+- `GET /api/library` returns only the verified owner's private reference
+  library; its import, PDF, metadata, tag, note, highlight, reading, archive,
+  and deletion routes retain that owner boundary.
 - `POST /api/workspaces` creates and registers an isolated workspace.
 - `GET /api/workspaces/demo` returns the complete workspace representation.
 - `GET /api/workspaces/demo/search?q={query}` searches the authorized workspace.
@@ -134,7 +135,11 @@ mode for authenticated hosted collaboration.
 - `POST /api/workspaces/demo/annotation-links` atomically creates one
   selector-backed annotation and its current manuscript passage link.
 - `POST /api/workspaces/demo/bibliography/import` minimally splices merged valid
-  BibTeX into Yjs and atomically reconciles its complete publication entries.
+  BibTeX into the owner library and links its stable records with local aliases.
+- `POST /api/workspaces/demo/references` links one owner-library record through
+  a project-local alias and bibliographic snapshot.
+- `POST /api/workspaces/demo/research-shares` explicitly pins one private
+  research snapshot; its delete route revokes future access.
 - `POST /api/workspaces/demo/publications/{id}/enrich` explicitly enriches a
   DOI-backed publication through Crossref, minimally splicing and atomically
   committing accepted canonical and `crossref`-sourced values.
@@ -164,7 +169,8 @@ mode for authenticated hosted collaboration.
   candidate without changing source.
 - `GET /api/workspaces/demo/export/document.md` exports Markdown composed from
   canonical `main.md`.
-- `GET /api/workspaces/demo/export/bibliography.bib` exports canonical BibTeX.
+- `GET /api/workspaces/demo/export/bibliography.bib` exports derived BibTeX for
+  aliases cited by composed `main.md`.
 
 ### Anti-Patterns
 
@@ -186,10 +192,8 @@ mode for authenticated hosted collaboration.
   exact excerpt still match current source during the one-time migration.
 - Do not represent a selected-passage operation as a whole-document candidate or
   apply it outside its verified target range.
-- Do not project publications only during import, rewrite unchanged projection
-  rows, or delete resources absent from current canonical BibTeX.
-- Do not update canonical bibliography and its publication projection in
-  separate commits.
+- Do not treat derived project BibTeX or citation aliases as shared-library
+  authority, and do not delete owner research when a project link disappears.
 - Do not infer a publication/PDF association from citation key, DOI, title,
   author, filename, or similarity, and do not delete either endpoint when an
   explicit link is removed.
@@ -225,13 +229,11 @@ mode for authenticated hosted collaboration.
       targets.
 - [x] Preview citations open publication context and explicit citation
       insertion uses a remembered collaborative authoring position.
-- [x] Every complete canonical BibTeX entry materializes after local and remote
-      edits as well as imports, independently of citation keys.
-- [x] Stable publication reconciliation preserves an unchanged source/timestamp,
-      records authored edits as `bibtex`, and retains explicitly accepted
-      `crossref` provenance.
-- [x] Removing a canonical entry leaves its monotonic publication resource in
-      working memory.
+- [x] Legacy workspace BibTeX and explicit imports reconcile into stable
+      owner-library identities with per-field provenance.
+- [x] Project-local aliases derive reproducible bibliography snapshots without
+      exposing private library research.
+- [x] Removing a project reference leaves its owner-library record intact.
 - [x] Search results and typed connections navigate across authored and evidence
       resources.
 - [x] Annotations can be synthesized into editable claims and linked onward to
@@ -317,19 +319,14 @@ mode for authenticated hosted collaboration.
 - Candidate application must compute the longest common prefix and
   non-overlapping suffix inside the verified target, deleting and inserting
   only its differing middle in one `Y.Text` transaction.
-- Every complete parsed entry must be reconciled after a bibliography-changing
-  Yjs update, matching stable UUID by case-insensitive key before normalized DOI.
-- An exactly unchanged projection must retain its metadata source and timestamp;
-  an authored projected change must record `bibtex`, and explicit accepted
-  enrichment must remain `crossref`.
-- Absence from current canonical BibTeX must never implicitly delete a
-  publication resource.
-- Publication/PDF associations must reference known same-workspace resources,
-  remain unique per pair, and originate only from an explicit action. Removing
-  one must preserve both resources and every annotation.
-- Import and enrichment must minimally splice bibliography `Y.Text` and
-  atomically persist Yjs/materialized document state, revision, and publication
-  reconciliation.
+- Imported entries must reconcile stable library UUIDs by normalized DOI or a
+  bounded reviewed bibliographic fingerprint, never by project alias alone.
+- Absence from current project links must never delete a library record.
+- PDF association must require reviewed identification against a complete
+  source record; explicit artifact sharing must additionally pass rights
+  checks.
+- Derived project bibliography and alias rewrites must commit with their
+  project revision and retain the linked bibliographic snapshot.
 - Browser code must remain external to Worker-rendered HTML and pass both strict
   worker and client TypeScript configurations.
 
@@ -431,20 +428,19 @@ mode for authenticated hosted collaboration.
   accepted, anchors in unchanged surrounding prose remain resolved, and all
   collaborators receive the update
 
-**Scenario: Collaborative bibliography becomes resources**
+**Scenario: Imported bibliography becomes shared research memory**
 
-- Given: a synchronized bibliography editor
-- When: a writer completes or changes a supported BibTeX entry
-- Then: the same durable transaction materializes canonical BibTeX and upserts
-  its stable publication, preserving provenance only when projected values are
-  exactly unchanged
+- Given: an owner imports supported BibTeX
+- When: records reconcile into the private shared library
+- Then: each stable source retains per-field provenance and its imported key is
+  only a suggested project alias
 
-**Scenario: Removing authored BibTeX keeps working memory**
+**Scenario: Removing a project reference keeps working memory**
 
-- Given: a canonical entry has a stable publication resource
-- When: a writer removes the entry from current bibliography text
-- Then: canonical BibTeX changes while the publication remains available and no
-  relationship is implicitly deleted
+- Given: a project link has a stable owner-library source
+- When: the owner removes its citations and unlinks it from the project
+- Then: derived project BibTeX changes while private library content remains
+  available and no unrelated relationship is deleted
 
 **Scenario: A pending schema migration fails**
 

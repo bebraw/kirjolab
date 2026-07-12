@@ -39,7 +39,10 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
 
   try {
-    if (suffix === "/" && request.method === "GET") return Response.json(await room.getSnapshot(workspaceId));
+    if (suffix === "/" && request.method === "GET") {
+      const library = await projectOwnerLibrary(env, access, identity.email);
+      return Response.json(await refreshLinkedReferences(workspaceId, room, library));
+    }
     if (suffix === "/search" && request.method === "GET") {
       const query = url.searchParams.get("q")?.slice(0, 200) ?? "";
       return Response.json(searchWorkspaceKnowledge(await room.getSnapshot(workspaceId), query));
@@ -62,7 +65,30 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     }
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
     if (suffix === "/annotation-links" && request.method === "POST") return await createAnnotationLink(request, room);
-    if (suffix === "/bibliography/import" && request.method === "POST") return await importBibliography(request, workspaceId, room);
+    if (suffix === "/bibliography/import" && request.method === "POST") {
+      if (role !== "owner") return jsonError("Only the workspace owner can import into the shared library", 403);
+      const library = await projectOwnerLibrary(env, access, identity.email);
+      return await importBibliography(request, workspaceId, identity.email, room, library);
+    }
+    if (suffix === "/references" && request.method === "POST") {
+      if (role !== "owner") return jsonError("Only the workspace owner can link private library references", 403);
+      const library = await projectOwnerLibrary(env, access, identity.email);
+      return await linkProjectReference(request, workspaceId, room, library);
+    }
+    if (suffix.startsWith("/references/") && (request.method === "PATCH" || request.method === "POST" || request.method === "DELETE")) {
+      if (role !== "owner") return jsonError("Only the workspace owner can manage project references", 403);
+      const library = await projectOwnerLibrary(env, access, identity.email);
+      return await mutateProjectReference(request, workspaceId, suffix, room, library);
+    }
+    if (suffix === "/research-shares" && request.method === "POST") {
+      if (role !== "owner") return jsonError("Only the workspace owner can share private research", 403);
+      const library = await projectOwnerLibrary(env, access, identity.email);
+      return await sharePrivateResearch(request, workspaceId, room, library);
+    }
+    if (suffix.startsWith("/research-shares/") && (request.method === "DELETE" || request.method === "GET")) {
+      const library = await projectOwnerLibrary(env, access, identity.email);
+      return await accessSharedResearch(request, workspaceId, suffix, env, room, library, role);
+    }
     if (suffix === "/publication-intake/preview" && request.method === "POST") {
       return await previewPublicationIntake(request, env, room);
     }
@@ -99,7 +125,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     const message = error instanceof Error ? error.message : "Workspace operation failed";
     const status = /access denied|only the workspace owner/iu.test(message)
       ? 403
-      : /already exists|ambiguous|changed|stale|pending/iu.test(message)
+      : /already exists|ambiguous|changed|stale|pending|remove citations|inbound include|dependencies/iu.test(message)
         ? 409
         : 400;
     return jsonError(message, status);
@@ -237,11 +263,134 @@ async function createAnnotationLink(
 async function importBibliography(
   request: Request,
   workspaceId: string,
+  actor: string,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
 ): Promise<Response> {
   const body: unknown = await request.json();
   if (!isImportBibliographyInput(body)) return jsonError("Invalid BibTeX import", 400);
-  return Response.json(await room.importBibliography(workspaceId, body.bibtex));
+  const imported = await library.importBibTeX(body.bibtex, actor);
+  let snapshot = await room.getSnapshot(workspaceId);
+  const aliases = new Set(snapshot.projectReferences.map((link) => link.citationAlias.toLocaleLowerCase()));
+  for (const item of imported) {
+    if (snapshot.projectReferences.some((link) => link.referenceId === item.reference.id)) continue;
+    if (aliases.has(item.suggestedAlias.toLocaleLowerCase())) throw new Error(`Citation alias already exists: ${item.suggestedAlias}`);
+    aliases.add(item.suggestedAlias.toLocaleLowerCase());
+  }
+  for (const item of imported) {
+    if (snapshot.projectReferences.some((link) => link.referenceId === item.reference.id)) {
+      snapshot = await room.syncProjectReference(workspaceId, item.reference);
+      continue;
+    }
+    snapshot = await room.linkProjectReference(workspaceId, item.reference, item.suggestedAlias);
+    await library.registerProjectDependency(workspaceId, item.reference.id);
+  }
+  return Response.json(snapshot);
+}
+
+async function linkProjectReference(
+  request: Request,
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.referenceId !== "string" || typeof body.citationAlias !== "string") {
+    return jsonError("Invalid project reference", 400);
+  }
+  const reference = (await library.getReferences([body.referenceId]))[0];
+  if (!reference) return jsonError("Reference not found", 404);
+  const snapshot = await room.linkProjectReference(workspaceId, reference, body.citationAlias);
+  await library.registerProjectDependency(workspaceId, reference.id);
+  return Response.json(snapshot, { status: 201 });
+}
+
+async function mutateProjectReference(
+  request: Request,
+  workspaceId: string,
+  suffix: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
+): Promise<Response> {
+  const match = /^\/references\/([0-9a-f-]{36})(?:\/(sync))?$/iu.exec(suffix);
+  if (!match?.[1]) return jsonError("Project reference route not found", 404);
+  const referenceId = match[1];
+  if (request.method === "DELETE" && !match[2]) {
+    const snapshot = await room.unlinkProjectReference(workspaceId, referenceId);
+    await library.unregisterProjectDependency(workspaceId, referenceId);
+    return Response.json(snapshot);
+  }
+  if (request.method === "POST" && match[2] === "sync") {
+    const reference = (await library.getReferences([referenceId]))[0];
+    if (!reference) return jsonError("Reference not found", 404);
+    return Response.json(await room.syncProjectReference(workspaceId, reference));
+  }
+  if (request.method === "PATCH" && !match[2]) {
+    const body: unknown = await request.json();
+    if (!isRecord(body) || typeof body.citationAlias !== "string") return jsonError("Invalid citation alias", 400);
+    return Response.json(await room.renameProjectReferenceAlias(workspaceId, referenceId, body.citationAlias));
+  }
+  return jsonError("Project reference route not found", 404);
+}
+
+async function sharePrivateResearch(
+  request: Request,
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (
+    !isRecord(body) ||
+    typeof body.referenceId !== "string" ||
+    typeof body.resourceId !== "string" ||
+    (body.kind !== "artifact" && body.kind !== "note" && body.kind !== "highlight")
+  ) {
+    return jsonError("Invalid private research share", 400);
+  }
+  const snapshot = await room.getSnapshot(workspaceId);
+  if (!snapshot.projectReferences.some((link) => link.referenceId === body.referenceId)) {
+    return jsonError("Link the bibliographic reference to the project before sharing research", 409);
+  }
+  const share = await library.shareResearch(workspaceId, body.referenceId, body.kind, body.resourceId);
+  try {
+    return Response.json(await room.pinResearchShare(workspaceId, share), { status: 201 });
+  } catch (error) {
+    await library.revokeResearchShare(share.id);
+    throw error;
+  }
+}
+
+async function accessSharedResearch(
+  request: Request,
+  workspaceId: string,
+  suffix: string,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
+  role: import("../domain/workspace").WorkspaceRole,
+): Promise<Response> {
+  const match = /^\/research-shares\/([0-9a-f-]{36})(?:\/(content))?$/iu.exec(suffix);
+  if (!match?.[1]) return jsonError("Research share route not found", 404);
+  if (request.method === "DELETE" && !match[2]) {
+    if (role !== "owner") return jsonError("Only the workspace owner can revoke private research", 403);
+    const revoked = await library.revokeResearchShare(match[1]);
+    return Response.json(await room.revokeResearchShare(workspaceId, match[1], revoked.revokedAt ?? new Date().toISOString()));
+  }
+  if (request.method === "GET" && match[2] === "content") {
+    const share = await room.getActiveResearchShare(workspaceId, match[1]);
+    if (share.content.kind !== "artifact") return jsonError("Research share has no binary content", 400);
+    const object = await env.PAPERS.get(share.content.objectKey);
+    if (!object || `r2-etag:${object.etag.replaceAll('"', "")}` !== share.content.fingerprint) {
+      return jsonError("Shared artifact is unavailable", 410);
+    }
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("cache-control", "private, no-store");
+    headers.set("content-disposition", `inline; filename="${safeFilename(share.content.name)}"`);
+    return new Response(object.body, { headers });
+  }
+  return jsonError("Research share route not found", 404);
 }
 
 async function enrichPublication(
@@ -390,6 +539,60 @@ function safeFilename(value: string): string {
 function workspaceStorageKey(identity: AuthIdentity, workspaceId: string): string {
   if (workspaceId !== "demo" || identity.ownerKey === localOwnerId) return workspaceId;
   return `${identity.ownerKey}:demo`;
+}
+
+async function projectOwnerLibrary(
+  env: Env,
+  access: DurableObjectStub<import("../durable-objects/workspace-access").WorkspaceAccess>,
+  requesterEmail: string,
+): Promise<DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>> {
+  const owner = (await access.listMembers(requesterEmail)).find((member) => member.role === "owner");
+  if (!owner) throw new Error("Workspace owner is unavailable");
+  return env.REFERENCE_LIBRARIES.getByName(await ownerKeyForEmail(owner.email));
+}
+
+async function refreshLinkedReferences(
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
+) {
+  let snapshot = await room.getSnapshot(workspaceId);
+  if (snapshot.projectReferences.length === 0 && snapshot.bibliography.trim()) {
+    const imported = await library.importBibTeX(snapshot.bibliography, "workspace migration");
+    for (const item of imported) {
+      snapshot = await room.linkProjectReference(workspaceId, item.reference, item.suggestedAlias);
+      await library.registerProjectDependency(workspaceId, item.reference.id);
+    }
+  }
+  if (snapshot.projectReferences.length === 0) return snapshot;
+  const references = await library.getReferences(snapshot.projectReferences.map((link) => link.referenceId));
+  for (const reference of references) {
+    const link = snapshot.projectReferences.find((item) => item.referenceId === reference.id);
+    if (!link || projectReferenceIsCurrent(link, reference)) continue;
+    snapshot = await room.syncProjectReference(workspaceId, reference);
+  }
+  return snapshot;
+}
+
+function projectReferenceIsCurrent(
+  link: import("../domain/workspace").ProjectReferenceLink,
+  reference: import("../domain/reference-library").BibliographicRecord,
+): boolean {
+  const snapshot = link.snapshot;
+  return (
+    snapshot.type === reference.type &&
+    snapshot.title === reference.title &&
+    arraysEqual(snapshot.authors, reference.authors) &&
+    snapshot.year === reference.year &&
+    snapshot.venue === reference.venue &&
+    snapshot.doi === reference.doi &&
+    snapshot.url === reference.url &&
+    snapshot.tombstone === (reference.deletedAt !== null)
+  );
+}
+
+function arraysEqual(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

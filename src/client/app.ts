@@ -10,6 +10,12 @@ import { parseServerCollaborationMessage } from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
 import { composeProject, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
+import {
+  isReferenceLibrarySnapshot,
+  type BibliographicRecord,
+  type LibraryPdfArtifact,
+  type ReferenceLibrarySnapshot,
+} from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
 import {
   isModelCandidate,
@@ -74,6 +80,17 @@ interface Elements {
   workspaceMemberList: HTMLElement;
   inviteMemberForm: HTMLFormElement;
   inviteMemberEmail: HTMLInputElement;
+  openReferenceLibrary: HTMLButtonElement;
+  openReferenceLibraryShelf: HTMLButtonElement;
+  browseReferenceLibrary: HTMLButtonElement;
+  referenceLibraryDialog: HTMLDialogElement;
+  closeReferenceLibrary: HTMLButtonElement;
+  referenceLibraryList: HTMLElement;
+  libraryBibliographyUpload: HTMLInputElement;
+  libraryPdfUpload: HTMLInputElement;
+  showArchivedReferences: HTMLButtonElement;
+  unidentifiedPdfCount: HTMLElement;
+  unidentifiedPdfList: HTMLElement;
   projectFileSwitcher: HTMLSelectElement;
   newProjectFile: HTMLButtonElement;
   renameProjectFile: HTMLButtonElement;
@@ -236,6 +253,8 @@ class WorkspaceApp {
   #activeFileText = this.#source;
   #unbindSourceEditor: () => void = () => undefined;
   #projectFileDialogMode: "create" | "rename" = "create";
+  #librarySnapshot: ReferenceLibrarySnapshot | null = null;
+  #showArchivedReferences = false;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -273,6 +292,21 @@ class WorkspaceApp {
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
+    for (const button of [
+      this.#elements.openReferenceLibrary,
+      this.#elements.openReferenceLibraryShelf,
+      this.#elements.browseReferenceLibrary,
+    ]) {
+      button.addEventListener("click", () => void this.#openReferenceLibrary());
+    }
+    this.#elements.closeReferenceLibrary.addEventListener("click", () => this.#elements.referenceLibraryDialog.close());
+    this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
+    this.#elements.libraryPdfUpload.addEventListener("change", () => void this.#uploadLibraryPdf());
+    this.#elements.showArchivedReferences.addEventListener("click", () => {
+      this.#showArchivedReferences = !this.#showArchivedReferences;
+      this.#elements.showArchivedReferences.setAttribute("aria-pressed", String(this.#showArchivedReferences));
+      void this.#refreshReferenceLibrary();
+    });
     this.#unbindSourceEditor = bindYText(this.#elements.source, this.#source, this.#document);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
@@ -386,6 +420,7 @@ class WorkspaceApp {
       const option = new Option(workspace.title, workspace.id, workspace.id === workspaceId, workspace.id === workspaceId);
       this.#elements.workspaceSwitcher.append(option);
     }
+    if (workspaces.some((workspace) => workspace.id === workspaceId)) this.#elements.workspaceSwitcher.value = workspaceId;
   }
 
   async #createWorkspace(event: SubmitEvent): Promise<void> {
@@ -759,6 +794,295 @@ class WorkspaceApp {
     this.#rememberAuthoringSelection();
   }
 
+  async #openReferenceLibrary(): Promise<void> {
+    this.#elements.referenceLibraryDialog.showModal();
+    await this.#refreshReferenceLibrary();
+  }
+
+  async #refreshReferenceLibrary(): Promise<void> {
+    const response = await fetch(`/api/library${this.#showArchivedReferences ? "?archived=include" : ""}`, {
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
+    this.#librarySnapshot = value;
+    this.#renderReferenceLibrary();
+  }
+
+  #renderReferenceLibrary(): void {
+    const library = this.#librarySnapshot;
+    if (!library) return;
+    this.#elements.referenceLibraryList.replaceChildren();
+    if (library.references.length === 0) {
+      this.#elements.referenceLibraryList.append(emptyState("No references yet. Import BibTeX or add a PDF to begin."));
+    }
+    for (const reference of library.references) this.#elements.referenceLibraryList.append(this.#referenceLibraryCard(reference));
+
+    const unidentified = library.artifacts.filter((artifact) => artifact.referenceId === null);
+    this.#elements.unidentifiedPdfCount.textContent = String(unidentified.length);
+    this.#elements.unidentifiedPdfList.replaceChildren();
+    if (unidentified.length === 0) this.#elements.unidentifiedPdfList.append(emptyState("No unidentified PDFs."));
+    for (const artifact of unidentified) this.#elements.unidentifiedPdfList.append(this.#unidentifiedPdfCard(artifact, library.references));
+  }
+
+  #referenceLibraryCard(reference: BibliographicRecord): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    const privacy = reference.archivedAt ? "Private · archived" : "Private library";
+    card.append(resourceLabel(`${privacy} · ${reference.type}`), resourceTitle(reference.title));
+    const details = document.createElement("p");
+    details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
+    details.textContent = [reference.authors.join("; "), reference.year, reference.venue].filter(Boolean).join(" · ");
+    card.append(details);
+    const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
+    const projectRow = document.createElement("div");
+    projectRow.className = "mt-3 flex items-center gap-2";
+    const alias = document.createElement("input");
+    alias.className = "field min-w-0";
+    alias.value = linked?.citationAlias ?? suggestedReferenceAlias(reference);
+    alias.setAttribute("aria-label", `Project citation alias for ${reference.title}`);
+    const projectAction = actionButton(
+      linked ? "Rename alias" : "Add to project",
+      linked ? "button-secondary" : "button-primary",
+      () => void (linked ? this.#renameProjectReference(reference.id, alias.value) : this.#linkLibraryReference(reference.id, alias.value)),
+    );
+    projectRow.append(alias, projectAction);
+    if (linked) {
+      projectRow.append(actionButton("Remove", "button-secondary", () => void this.#unlinkProjectReference(reference.id)));
+    }
+    card.append(projectRow);
+
+    const tags = document.createElement("input");
+    tags.className = "field mt-3";
+    tags.value = (this.#librarySnapshot?.tags[reference.id] ?? []).join(", ");
+    tags.placeholder = "Private tags, comma separated";
+    tags.setAttribute("aria-label", `Private tags for ${reference.title}`);
+    card.append(tags);
+    const privateActions = document.createElement("div");
+    privateActions.className = "mt-2 flex flex-wrap gap-2";
+    privateActions.append(
+      actionButton("Save tags", "button-secondary", () => void this.#saveReferenceTags(reference.id, tags.value)),
+      actionButton(
+        reference.archivedAt ? "Restore" : "Archive",
+        "button-secondary",
+        () => void this.#setReferenceArchived(reference.id, reference.archivedAt === null),
+      ),
+    );
+    card.append(privateActions);
+
+    const noteInput = document.createElement("textarea");
+    noteInput.className = "field mt-3 min-h-16";
+    noteInput.placeholder = "Add a private note";
+    noteInput.maxLength = 20_000;
+    const addNote = actionButton(
+      "Save private note",
+      "button-secondary mt-2",
+      () => void this.#createReferenceNote(reference.id, noteInput.value),
+    );
+    card.append(noteInput, addNote);
+
+    const resources = document.createElement("div");
+    resources.className = "mt-3 space-y-2 border-t border-app-line pt-3";
+    const notes = this.#librarySnapshot?.notes.filter((note) => note.referenceId === reference.id) ?? [];
+    const artifacts = this.#librarySnapshot?.artifacts.filter((artifact) => artifact.referenceId === reference.id) ?? [];
+    const highlights = this.#librarySnapshot?.highlights.filter((highlight) => highlight.referenceId === reference.id) ?? [];
+    for (const note of notes) {
+      resources.append(this.#privateResearchRow(reference.id, "note", note.id, `Note · ${note.body.slice(0, 100)}`, linked !== undefined));
+    }
+    for (const artifact of artifacts) {
+      const row = this.#privateResearchRow(reference.id, "artifact", artifact.id, `PDF · ${artifact.name}`, linked !== undefined);
+      const rights = document.createElement("select");
+      rights.className = "field mt-2";
+      for (const value of ["private", "unknown", "shareable"] as const) rights.append(new Option(`Rights: ${value}`, value));
+      rights.value = artifact.rights;
+      rights.addEventListener("change", () => void this.#setArtifactRights(artifact.id, rights.value));
+      row.append(rights);
+      resources.append(row);
+    }
+    for (const highlight of highlights) {
+      resources.append(
+        this.#privateResearchRow(
+          reference.id,
+          "highlight",
+          highlight.id,
+          `Highlight p. ${highlight.page} · ${highlight.quote.slice(0, 100)}`,
+          linked !== undefined,
+        ),
+      );
+    }
+    if (notes.length + artifacts.length + highlights.length > 0) card.append(resources);
+    return card;
+  }
+
+  #privateResearchRow(
+    referenceId: string,
+    kind: "artifact" | "note" | "highlight",
+    resourceId: string,
+    label: string,
+    referenceLinked: boolean,
+  ): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "rounded-sm border border-app-line p-2";
+    const text = document.createElement("p");
+    text.className = "font-sans text-xs leading-5 text-app-text-soft";
+    text.textContent = label;
+    row.append(text);
+    const share = this.#snapshot?.researchShares.find((item) => item.kind === kind && item.resourceId === resourceId);
+    const action = share
+      ? actionButton("Revoke project share", "button-secondary mt-2", () => void this.#revokePrivateResearch(share.id))
+      : actionButton(
+          "Share snapshot with project",
+          "button-secondary mt-2",
+          () => void this.#sharePrivateResearch(referenceId, kind, resourceId),
+        );
+    action.disabled = !share && !referenceLinked;
+    action.title = referenceLinked ? "" : "Add the bibliographic reference to this project first";
+    row.append(action);
+    return row;
+  }
+
+  #unidentifiedPdfCard(artifact: LibraryPdfArtifact, references: readonly BibliographicRecord[]): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    card.append(resourceLabel(`Private PDF · ${formatBytes(artifact.size)}`), resourceTitle(artifact.name));
+    const select = document.createElement("select");
+    select.className = "field mt-3";
+    select.setAttribute("aria-label", `Identify ${artifact.name} as a reference`);
+    select.append(new Option("Choose identified source…", ""));
+    for (const reference of references) select.append(new Option(reference.title, reference.id));
+    const identify = actionButton(
+      "Identify PDF",
+      "button-primary mt-2 w-full justify-center",
+      () => void this.#identifyLibraryPdf(artifact.id, select.value),
+    );
+    identify.disabled = references.length === 0;
+    card.append(select, identify);
+    return card;
+  }
+
+  async #importIntoReferenceLibrary(): Promise<void> {
+    const file = this.#elements.libraryBibliographyUpload.files?.[0];
+    if (!file) return;
+    const response = await jsonFetch("/api/library/import", { bibtex: await file.text() });
+    await expectOk(response);
+    this.#elements.libraryBibliographyUpload.value = "";
+    await this.#refreshReferenceLibrary();
+    this.#showToast("References imported into your private library. Add only the ones this project uses.");
+  }
+
+  async #uploadLibraryPdf(): Promise<void> {
+    const file = this.#elements.libraryPdfUpload.files?.[0];
+    if (!file) return;
+    const response = await fetch("/api/library/pdfs", {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "content-length": String(file.size), "x-file-name": encodeURIComponent(file.name) },
+      body: file,
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    this.#elements.libraryPdfUpload.value = "";
+    await this.#refreshReferenceLibrary();
+    this.#showToast("PDF saved privately. Identify its source before using it as a library item.");
+  }
+
+  async #identifyLibraryPdf(artifactId: string, referenceId: string): Promise<void> {
+    if (!referenceId) return;
+    const response = await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/identify`, { referenceId });
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast("PDF identified and attached to the private source record.");
+  }
+
+  async #linkLibraryReference(referenceId: string, citationAlias: string): Promise<void> {
+    const response = await jsonFetch(`${apiBase}/references`, { referenceId, citationAlias });
+    await this.#acceptWorkspaceMutation(response);
+    this.#renderReferenceLibrary();
+    this.#showToast(`Added :cite[${citationAlias.trim()}] to this project's reference set.`);
+  }
+
+  async #renameProjectReference(referenceId: string, citationAlias: string): Promise<void> {
+    const response = await jsonFetch(`${apiBase}/references/${encodeURIComponent(referenceId)}`, { citationAlias }, "PATCH");
+    await this.#acceptWorkspaceMutation(response);
+    this.#renderReferenceLibrary();
+    this.#showToast("Citation alias renamed across project files.");
+  }
+
+  async #unlinkProjectReference(referenceId: string): Promise<void> {
+    const response = await fetch(`${apiBase}/references/${encodeURIComponent(referenceId)}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    await this.#acceptWorkspaceMutation(response);
+    this.#renderReferenceLibrary();
+    this.#showToast("Reference removed from this project; the private library record remains.");
+  }
+
+  async #saveReferenceTags(referenceId: string, value: string): Promise<void> {
+    const response = await jsonFetch(
+      `/api/library/references/${encodeURIComponent(referenceId)}/tags`,
+      {
+        tags: value
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      },
+      "PUT",
+    );
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Private tags saved.");
+  }
+
+  async #createReferenceNote(referenceId: string, body: string): Promise<void> {
+    if (!body.trim()) return;
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/notes`, { body });
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Private note saved. It is not visible to project collaborators.");
+  }
+
+  async #setArtifactRights(artifactId: string, rightsValue: string): Promise<void> {
+    if (rightsValue !== "private" && rightsValue !== "unknown" && rightsValue !== "shareable") return;
+    const response = await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/rights`, { rights: rightsValue }, "PUT");
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+  }
+
+  async #sharePrivateResearch(referenceId: string, kind: "artifact" | "note" | "highlight", resourceId: string): Promise<void> {
+    const response = await jsonFetch(`${apiBase}/research-shares`, { referenceId, kind, resourceId });
+    await this.#acceptWorkspaceMutation(response);
+    this.#renderReferenceLibrary();
+    this.#showToast("Private research snapshot shared explicitly with this project.");
+  }
+
+  async #revokePrivateResearch(shareId: string): Promise<void> {
+    const response = await fetch(`${apiBase}/research-shares/${encodeURIComponent(shareId)}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    await this.#acceptWorkspaceMutation(response);
+    this.#renderReferenceLibrary();
+    this.#showToast("Share revoked for future project access; prior revision history remains intact.");
+  }
+
+  async #setReferenceArchived(referenceId: string, archived: boolean): Promise<void> {
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}`, { archived }, "PATCH");
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast(archived ? "Reference archived." : "Reference restored.");
+  }
+
+  async #acceptWorkspaceMutation(response: Response): Promise<void> {
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWorkspaceSnapshot(value)) throw new Error("Workspace mutation returned an invalid snapshot");
+    this.#snapshot = value;
+    this.#renderResources();
+    this.#renderProjectFiles();
+    this.#renderPreview();
+  }
+
   #renderResources(): void {
     if (!this.#snapshot) return;
     this.#captureActiveContextState();
@@ -830,11 +1154,16 @@ class WorkspaceApp {
       const actions = document.createElement("div");
       actions.className = "mt-3 flex flex-wrap items-center gap-2";
       actions.append(actionButton("Open in context", "button-secondary", () => this.#openPublicationContext(publication)));
+      const projectReference = this.#snapshot?.projectReferences.find((link) => link.referenceId === publication.id);
+      if (projectReference) {
+        actions.append(resourceLabel(`alias:${projectReference.citationAlias}`));
+        actions.append(actionButton("Manage in library", "button-secondary", () => void this.#openReferenceLibrary()));
+      }
       if (publication.doi) {
-        actions.append(
-          resourceLabel(`doi:${publication.doi}`),
-          actionButton("Enrich", "button-secondary", () => void this.#enrichPublication(publication.id)),
-        );
+        actions.append(resourceLabel(`doi:${publication.doi}`));
+        if (!projectReference) {
+          actions.append(actionButton("Enrich", "button-secondary", () => void this.#enrichPublication(publication.id)));
+        }
       }
       card.append(actions);
       this.#elements.publicationList.append(card);
@@ -1052,18 +1381,14 @@ class WorkspaceApp {
       this.#showToast("Wait for the manuscript to finish synchronizing before linking a claim.");
       return;
     }
-    const start = this.#elements.source.selectionStart;
-    const end = this.#elements.source.selectionEnd;
-    const excerpt = this.#elements.source.value.slice(start, end);
-    if (!excerpt.trim()) {
+    const passage = this.#selectedAuthoringPassage();
+    if (!passage) {
       this.#showToast("Select manuscript text before linking a claim.");
       return;
     }
     const response = await jsonFetch(`${apiBase}/claim-links`, {
       claimId,
-      start,
-      end,
-      excerpt,
+      ...passage,
       sourceRevision: this.#revision,
     });
     await expectOk(response);
@@ -2202,6 +2527,17 @@ function collectElements(): Elements {
     workspaceMemberList: requiredElement("workspace-member-list", HTMLElement),
     inviteMemberForm: requiredElement("invite-member-form", HTMLFormElement),
     inviteMemberEmail: requiredElement("invite-member-email", HTMLInputElement),
+    openReferenceLibrary: requiredElement("open-reference-library", HTMLButtonElement),
+    openReferenceLibraryShelf: requiredElement("open-reference-library-shelf", HTMLButtonElement),
+    browseReferenceLibrary: requiredElement("browse-reference-library", HTMLButtonElement),
+    referenceLibraryDialog: requiredElement("reference-library-dialog", HTMLDialogElement),
+    closeReferenceLibrary: requiredElement("close-reference-library", HTMLButtonElement),
+    referenceLibraryList: requiredElement("reference-library-list", HTMLElement),
+    libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
+    libraryPdfUpload: requiredElement("library-pdf-upload", HTMLInputElement),
+    showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
+    unidentifiedPdfCount: requiredElement("unidentified-pdf-count", HTMLElement),
+    unidentifiedPdfList: requiredElement("unidentified-pdf-list", HTMLElement),
     projectFileSwitcher: requiredElement("project-file-switcher", HTMLSelectElement),
     newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
     renameProjectFile: requiredElement("rename-project-file", HTMLButtonElement),
@@ -2375,6 +2711,12 @@ async function jsonFetch(url: string, body: object, method = "POST"): Promise<Re
 
 function sourceSpanAt(sourceMap: readonly CompositionSourceSpan[], offset: number): CompositionSourceSpan | undefined {
   return sourceMap.find((span) => offset >= span.outputStart && offset < span.outputEnd);
+}
+
+function suggestedReferenceAlias(reference: BibliographicRecord): string {
+  const family = reference.authors[0]?.split(",", 1)[0]?.replaceAll(/[^\p{L}\p{N}]/gu, "") || "source";
+  const year = reference.year.replaceAll(/[^0-9a-z]/giu, "");
+  return `${family.toLocaleLowerCase()}${year}`.slice(0, 80) || "source";
 }
 
 async function expectOk(response: Response): Promise<void> {
