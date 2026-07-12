@@ -2,6 +2,8 @@ import { strToU8, zipSync, type Zippable } from "fflate";
 import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
 import { assertExportable, exportPdfEngine, type MaterializedExportBundle } from "../domain/export-pipeline";
 import type { ProjectFile } from "../domain/project-files";
+import { resolveSubmissionTemplate, submissionPageSize } from "../domain/submission-templates";
+import type { ProjectPublicationProfile } from "../domain/workspace";
 
 const reproducibleTimestamp = new Date("1980-01-01T00:00:00.000Z");
 const citationDirective = /:cite\[(?<keys>[^\]\r\n]+)\]/gu;
@@ -49,7 +51,7 @@ export async function renderExportPdf(bundle: MaterializedExportBundle): Promise
   document.setModificationDate(reproducibleTimestamp);
   const regular = await document.embedFont(StandardFonts.Helvetica);
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
-  const renderer = new PdfTextRenderer(document, regular, bold);
+  const renderer = new PdfTextRenderer(document, regular, bold, bundle.intermediate.publicationProfile);
   renderer.heading(bundle.intermediate.title, 22, 18);
   for (const line of pdfLines(bundle.intermediate.markdown)) {
     if (line.kind === "heading") renderer.heading(line.text, Math.max(12, 20 - line.depth * 1.5), 8);
@@ -153,13 +155,20 @@ class PdfTextRenderer {
   readonly #document: PDFDocument;
   readonly #regular: PDFFont;
   readonly #bold: PDFFont;
+  readonly #pageSize: readonly [number, number];
+  readonly #margin: number;
+  readonly #spacing: number;
   #page: PDFPage;
   #y = 0;
 
-  constructor(document: PDFDocument, regular: PDFFont, bold: PDFFont) {
+  constructor(document: PDFDocument, regular: PDFFont, bold: PDFFont, profile: ProjectPublicationProfile) {
     this.#document = document;
     this.#regular = regular;
     this.#bold = bold;
+    const template = resolveSubmissionTemplate(profile);
+    this.#pageSize = submissionPageSize(profile);
+    this.#margin = template.marginPoints;
+    this.#spacing = template.lineSpacing;
     this.#page = this.#newPage();
   }
 
@@ -178,22 +187,22 @@ class PdfTextRenderer {
   }
 
   #drawWrapped(text: string, font: PDFFont, size: number, indent: number, leading: number): void {
-    const width = this.#page.getWidth() - 108 - indent;
+    const width = this.#page.getWidth() - this.#margin * 2 - indent;
     for (const line of wrapPdfText(text, font, size, width)) {
       this.#ensureSpace(leading);
-      this.#page.drawText(`${indent > 0 ? "• " : ""}${line}`, { x: 54 + indent, y: this.#y, size, font });
-      this.#y -= leading;
+      this.#page.drawText(`${indent > 0 ? "• " : ""}${line}`, { x: this.#margin + indent, y: this.#y, size, font });
+      this.#y -= leading * this.#spacing;
     }
   }
 
   #ensureSpace(height: number): void {
-    if (this.#y - height >= 54) return;
+    if (this.#y - height >= this.#margin) return;
     this.#page = this.#newPage();
   }
 
   #newPage(): PDFPage {
-    const page = this.#document.addPage([595.28, 841.89]);
-    this.#y = page.getHeight() - 54;
+    const page = this.#document.addPage([...this.#pageSize]);
+    this.#y = page.getHeight() - this.#margin;
     return page;
   }
 }

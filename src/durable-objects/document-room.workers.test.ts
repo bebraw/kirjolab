@@ -33,12 +33,27 @@ describe("DocumentRoom in the Workers runtime", () => {
   it("versions publication profiles and restores them with project history", async () => {
     const workspaceId = "publication-profile";
     const stub = roomStub(workspaceId);
-    expect((await stub.getSnapshot(workspaceId)).publicationProfile).toEqual({ citationStyle: "apa", locale: "en-US" });
-    const updated = await stub.updatePublicationProfile({ citationStyle: "ieee", locale: "fi-FI" });
-    expect(updated.publicationProfile).toEqual({ citationStyle: "ieee", locale: "fi-FI" });
+    expect((await stub.getSnapshot(workspaceId)).publicationProfile).toEqual({
+      citationStyle: "apa",
+      locale: "en-US",
+      submissionTemplate: "article",
+      paperSize: "a4",
+    });
+    const updated = await stub.updatePublicationProfile({
+      citationStyle: "ieee",
+      locale: "fi-FI",
+      submissionTemplate: "anonymous-review",
+      paperSize: "letter",
+    });
+    expect(updated.publicationProfile).toEqual({
+      citationStyle: "ieee",
+      locale: "fi-FI",
+      submissionTemplate: "anonymous-review",
+      paperSize: "letter",
+    });
     expect((await stub.listRevisions())[0]).toMatchObject({ reason: "publication-profile-update" });
     const restored = await stub.restoreRevision(workspaceId, 0);
-    expect(restored.publicationProfile).toEqual({ citationStyle: "apa", locale: "en-US" });
+    expect(restored.publicationProfile).toEqual({ citationStyle: "apa", locale: "en-US", submissionTemplate: "article", paperSize: "a4" });
   });
 
   it("preserves atomic project history, immutable milestones, non-destructive restore, and revision seeds", async () => {

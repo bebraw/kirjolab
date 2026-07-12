@@ -14,10 +14,11 @@ would instead couple authored content to a journal or publisher.
 
 ## Decision
 
-Store a versioned publication profile with each project. The first profile
-contract selects one bounded citation style (`apa`, `chicago-author-date`, or
-`ieee`) and locale (`en-US`, `en-GB`, or `fi-FI`). Markdown citation directives,
-project aliases, and shared reference records remain unchanged.
+Store a versioned publication profile with each project. Its citation contract
+selects one bounded style (`apa`, `chicago-author-date`, or `ieee`) and locale
+(`en-US`, `en-GB`, or `fi-FI`). ADR-068 extends the same profile with bounded
+submission layout settings. Markdown citation directives, project aliases, and
+shared reference records remain unchanged.
 
 Preview and every export consume the same project profile. LaTeX materialization
 selects a compatible pinned bibliography style and citation command. Export

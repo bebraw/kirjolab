@@ -100,6 +100,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-065](./implemented/ADR-065-render-project-publication-profiles.md)               | Implemented          | Keep citation style and locale as versioned project rendering settings shared by preview and export.         |
 | [ADR-066](./implemented/ADR-066-filter-private-reference-library-locally.md)          | Implemented          | Combine private research facets as an ephemeral local projection over the authorized library snapshot.       |
 | [ADR-067](./implemented/ADR-067-adjust-highlight-strokes-nondestructively.md)         | Implemented          | Correct touch-selected quotation and normalized geometry without replacing evidence identity or source PDFs. |
+| [ADR-068](./implemented/ADR-068-use-bounded-submission-templates.md)                  | Implemented          | Resolve common submission targets to pinned safe layout presets shared by LaTeX and direct PDF exports.      |
 
 ## Creating A New ADR
 

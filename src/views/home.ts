@@ -438,6 +438,11 @@ export function renderHomePage(
           <label class="field-label">Citation locale<select class="field" id="workspace-citation-locale">
             <option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="fi-FI">Finnish</option>
           </select></label>
+          <label class="field-label">Submission template<select class="field" id="workspace-submission-template">
+            <option value="article">Standard article</option><option value="preprint">Preprint</option>
+            <option value="anonymous-review">Anonymous review</option><option value="journal-two-column">Journal two-column</option>
+          </select></label>
+          <label class="field-label">Paper size<select class="field" id="workspace-paper-size"><option value="a4">A4</option><option value="letter">US Letter</option></select></label>
         </div>
         <p class="mt-2 text-xs leading-5 text-app-text-soft">The profile changes preview and derived exports without rewriting canonical Markdown or shared references.</p>
         <div class="mt-5 flex flex-wrap gap-2">

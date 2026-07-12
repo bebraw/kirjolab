@@ -36,13 +36,21 @@ export const defaultBibliography = `@article{merton1942,
 export type CandidateStatus = "pending" | "accepted" | "rejected";
 export type ClaimEvidenceRelation = "supports" | "contradicts" | "extends";
 export type CitationStyle = "apa" | "chicago-author-date" | "ieee";
+export type SubmissionTemplate = "article" | "preprint" | "anonymous-review" | "journal-two-column";
 
 export interface ProjectPublicationProfile {
   readonly citationStyle: CitationStyle;
   readonly locale: "en-US" | "en-GB" | "fi-FI";
+  readonly submissionTemplate: SubmissionTemplate;
+  readonly paperSize: "a4" | "letter";
 }
 
-export const defaultProjectPublicationProfile: ProjectPublicationProfile = { citationStyle: "apa", locale: "en-US" };
+export const defaultProjectPublicationProfile: ProjectPublicationProfile = {
+  citationStyle: "apa",
+  locale: "en-US",
+  submissionTemplate: "article",
+  paperSize: "a4",
+};
 
 export interface WorkspaceSummary {
   id: string;
@@ -659,9 +667,14 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
 export function isProjectPublicationProfile(value: unknown): value is ProjectPublicationProfile {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ["citationStyle", "locale"]) &&
+    hasExactKeys(value, ["citationStyle", "locale", "submissionTemplate", "paperSize"]) &&
     (value.citationStyle === "apa" || value.citationStyle === "chicago-author-date" || value.citationStyle === "ieee") &&
-    (value.locale === "en-US" || value.locale === "en-GB" || value.locale === "fi-FI")
+    (value.locale === "en-US" || value.locale === "en-GB" || value.locale === "fi-FI") &&
+    (value.submissionTemplate === "article" ||
+      value.submissionTemplate === "preprint" ||
+      value.submissionTemplate === "anonymous-review" ||
+      value.submissionTemplate === "journal-two-column") &&
+    (value.paperSize === "a4" || value.paperSize === "letter")
   );
 }
 

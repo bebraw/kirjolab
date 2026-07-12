@@ -94,6 +94,8 @@ interface Elements {
   workspaceSettingsTitle: HTMLInputElement;
   workspaceCitationStyle: HTMLSelectElement;
   workspaceCitationLocale: HTMLSelectElement;
+  workspaceSubmissionTemplate: HTMLSelectElement;
+  workspacePaperSize: HTMLSelectElement;
   closeWorkspaceSettings: HTMLButtonElement;
   duplicateWorkspace: HTMLButtonElement;
   archiveWorkspace: HTMLButtonElement;
@@ -403,6 +405,8 @@ class WorkspaceApp {
       this.#elements.workspaceSettingsTitle.value = current?.title ?? "";
       this.#elements.workspaceCitationStyle.value = this.#snapshot?.publicationProfile.citationStyle ?? "apa";
       this.#elements.workspaceCitationLocale.value = this.#snapshot?.publicationProfile.locale ?? "en-US";
+      this.#elements.workspaceSubmissionTemplate.value = this.#snapshot?.publicationProfile.submissionTemplate ?? "article";
+      this.#elements.workspacePaperSize.value = this.#snapshot?.publicationProfile.paperSize ?? "a4";
       this.#elements.archiveWorkspace.textContent = current?.archivedAt ? "Restore" : "Archive";
       this.#elements.workspaceSettingsDialog.showModal();
     });
@@ -690,6 +694,8 @@ class WorkspaceApp {
           publicationProfile: {
             citationStyle: this.#elements.workspaceCitationStyle.value,
             locale: this.#elements.workspaceCitationLocale.value,
+            submissionTemplate: this.#elements.workspaceSubmissionTemplate.value,
+            paperSize: this.#elements.workspacePaperSize.value,
           },
         },
         "PATCH",
@@ -4043,6 +4049,8 @@ function collectElements(): Elements {
     workspaceSettingsTitle: requiredElement("workspace-settings-title", HTMLInputElement),
     workspaceCitationStyle: requiredElement("workspace-citation-style", HTMLSelectElement),
     workspaceCitationLocale: requiredElement("workspace-citation-locale", HTMLSelectElement),
+    workspaceSubmissionTemplate: requiredElement("workspace-submission-template", HTMLSelectElement),
+    workspacePaperSize: requiredElement("workspace-paper-size", HTMLSelectElement),
     closeWorkspaceSettings: requiredElement("close-workspace-settings", HTMLButtonElement),
     duplicateWorkspace: requiredElement("duplicate-workspace", HTMLButtonElement),
     archiveWorkspace: requiredElement("archive-workspace", HTMLButtonElement),

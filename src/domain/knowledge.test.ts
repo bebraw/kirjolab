@@ -5,7 +5,7 @@ import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, isWorkspaceKnow
 const snapshot: WorkspaceSnapshot = {
   id: "workspace",
   title: "Evidence map",
-  publicationProfile: { citationStyle: "apa", locale: "en-US" },
+  publicationProfile: { citationStyle: "apa", locale: "en-US", submissionTemplate: "article", paperSize: "a4" },
   entryFileId: "main-file",
   files: [
     {
