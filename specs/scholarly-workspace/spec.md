@@ -290,6 +290,8 @@ mode for authenticated hosted collaboration.
       free of architecture terminology that does not change the user's choice.
 - [x] Project creation, navigation, access, search, and errors use one
       consistent user-facing noun.
+- [x] Normal-sized secondary text maintains at least 4.5:1 contrast across the
+      canvas, paper, and editor surfaces.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
 - [x] Preview citations open publication context and explicit citation
