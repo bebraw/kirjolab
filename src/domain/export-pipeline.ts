@@ -1,6 +1,7 @@
 import { parseBibTeX, serializeBibTeX } from "./bibliography";
 import { composeProject, type CompositionDiagnostic, type CompositionSourceSpan, type ProjectFile } from "./project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "./publication-statistics";
+import { defaultProjectPublicationProfile, type ProjectPublicationProfile } from "./workspace";
 
 export { countPublicationWords, publicationWordStatistics } from "./publication-statistics";
 
@@ -14,6 +15,7 @@ export interface ExportPipelineInput {
   readonly files: readonly ProjectFile[];
   readonly entryFileId: string;
   readonly bibliography: string;
+  readonly publicationProfile?: ProjectPublicationProfile;
 }
 
 export interface ExportSourceLocation {
@@ -43,6 +45,7 @@ export interface SourceMappedIntermediate {
   readonly markdown: string;
   readonly citationKeys: readonly string[];
   readonly bibliography: string;
+  readonly publicationProfile: ProjectPublicationProfile;
   readonly sourceMap: readonly CompositionSourceSpan[];
   readonly diagnostics: readonly ExportDiagnostic[];
   readonly statistics: PublicationWordStatistics;
@@ -57,6 +60,7 @@ export interface ExportManifest {
   readonly canonicalSource: "main.md";
   readonly citationKeys: readonly string[];
   readonly wordCount: number;
+  readonly publicationProfile: ProjectPublicationProfile;
 }
 
 export interface MaterializedExportBundle {
@@ -74,12 +78,14 @@ export function buildExportBundle(input: ExportPipelineInput): MaterializedExpor
   const composition = composeProject(input.files, input.entryFileId);
   const citationKeys = citedAliases(composition.content);
   const bibliography = citedBibliography(input.bibliography, citationKeys);
+  const publicationProfile = input.publicationProfile ?? defaultProjectPublicationProfile;
   const intermediate: SourceMappedIntermediate = {
     schemaVersion: exportSchemaVersion,
     title: input.title.trim() || "Untitled project",
     markdown: composition.content,
     citationKeys,
     bibliography,
+    publicationProfile,
     sourceMap: composition.sourceMap,
     diagnostics: composition.diagnostics.map((diagnostic) => exportDiagnostic(diagnostic, input.files)),
     statistics: publicationWordStatistics(composition, input.files),
@@ -96,6 +102,7 @@ export function buildExportBundle(input: ExportPipelineInput): MaterializedExpor
       canonicalSource: "main.md",
       citationKeys,
       wordCount: intermediate.statistics.totalWords,
+      publicationProfile,
     },
     mainTex: latex.source,
     bibliography,
@@ -173,7 +180,7 @@ function materializeLatex(
   const sourceMap: GeneratedSourceSpan[] = [];
   let outputOffset = 0;
   for (const markdownLine of intermediate.markdown.split(/\r?\n/u)) {
-    const generated = latexLine(markdownLine);
+    const generated = latexLine(markdownLine, intermediate.publicationProfile);
     const generatedLineStart = lines.length + 1;
     lines.push(...generated);
     const location = sourceLocationAt(intermediate.sourceMap, files, outputOffset, markdownLine.length);
@@ -185,28 +192,37 @@ function materializeLatex(
     });
     outputOffset += markdownLine.length + 1;
   }
-  if (intermediate.bibliography) lines.push("\\bibliographystyle{plainnat}", "\\bibliography{bibliography}");
+  if (intermediate.bibliography) {
+    const bibliographyStyle =
+      intermediate.publicationProfile.citationStyle === "apa"
+        ? "apalike"
+        : intermediate.publicationProfile.citationStyle === "ieee"
+          ? "unsrt"
+          : "plainnat";
+    lines.push(`\\bibliographystyle{${bibliographyStyle}}`, "\\bibliography{bibliography}");
+  }
   lines.push("\\end{document}", "");
   return { source: lines.join("\n"), sourceMap };
 }
 
-function latexLine(line: string): string[] {
+function latexLine(line: string, publicationProfile: ProjectPublicationProfile): string[] {
   const heading = headingLine.exec(line);
   if (heading?.groups?.marks && heading.groups.title) {
     const commands = ["section", "subsection", "subsubsection", "paragraph", "subparagraph", "subparagraph"];
     const command = commands[heading.groups.marks.length - 1] ?? "paragraph";
-    return [`\\${command}{${inlineLatex(heading.groups.title)}}`];
+    return [`\\${command}{${inlineLatex(heading.groups.title, publicationProfile)}}`];
   }
   const bullet = /^[ \t]*[-*+][ \t]+(?<text>.+)$/u.exec(line);
-  if (bullet?.groups?.text) return [`\\begin{itemize}`, `\\item ${inlineLatex(bullet.groups.text)}`, `\\end{itemize}`];
+  if (bullet?.groups?.text) return [`\\begin{itemize}`, `\\item ${inlineLatex(bullet.groups.text, publicationProfile)}`, `\\end{itemize}`];
   const numbered = /^[ \t]*\d+[.)][ \t]+(?<text>.+)$/u.exec(line);
-  if (numbered?.groups?.text) return [`\\begin{enumerate}`, `\\item ${inlineLatex(numbered.groups.text)}`, `\\end{enumerate}`];
+  if (numbered?.groups?.text)
+    return [`\\begin{enumerate}`, `\\item ${inlineLatex(numbered.groups.text, publicationProfile)}`, `\\end{enumerate}`];
   if (/^[ \t]*$/u.test(line)) return [""];
   if (/^[ \t]*```/u.test(line)) return [`% fenced code boundary`];
-  return [inlineLatex(line), ""];
+  return [inlineLatex(line, publicationProfile), ""];
 }
 
-function inlineLatex(value: string): string {
+function inlineLatex(value: string, publicationProfile: ProjectPublicationProfile): string {
   const tokens: string[] = [];
   const token = (replacement: string): string => {
     const index = tokens.push(replacement) - 1;
@@ -221,7 +237,8 @@ function inlineLatex(value: string): string {
             .map((key) => key.trim())
             .filter((key) => /^[a-z0-9:._+-]{1,200}$/iu.test(key))
         : [];
-      return keys.length > 0 ? token(`\\citep{${keys.join(",")}}`) : "";
+      const command = publicationProfile.citationStyle === "ieee" ? "cite" : "citep";
+      return keys.length > 0 ? token(`\\${command}{${keys.join(",")}}`) : "";
     })
     .replace(/\$(?<math>[^$\r\n]+)\$/gu, (_match, ...values: unknown[]) => {
       const groups = values.at(-1);

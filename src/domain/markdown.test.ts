@@ -9,6 +9,15 @@ const bibliography = `@article{merton1942,
 `;
 
 describe("renderWorkspaceMarkdown", () => {
+  it("renders project citation profiles without changing citation identity", () => {
+    const source = "Evidence :cite[merton1942, doe2026].";
+    const sources = `${bibliography}\n@article{doe2026, author={Doe, Jane}, year={2026}, title={Methods}}`;
+    const text = (style: "apa" | "chicago-author-date" | "ieee") =>
+      renderWorkspaceMarkdown(source, sources, style).html.replaceAll(/<[^>]+>/gu, "");
+    expect(text("apa")).toContain("(Merton, 1942; Doe, 2026)");
+    expect(text("chicago-author-date")).toContain("(Merton 1942; Doe 2026)");
+    expect(text("ieee")).toContain("[1, 2]");
+  });
   it("renders meaningful Markdown and extended scholarly directives", () => {
     const source = `::alias[Evidence]{target="sec:legacy" slug="evidence"}
 

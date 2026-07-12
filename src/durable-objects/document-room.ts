@@ -43,6 +43,8 @@ import {
   defaultSource,
   isCreateCandidateInput,
   isModelCandidate,
+  isProjectPublicationProfile,
+  defaultProjectPublicationProfile,
   type ApplyCandidateResult,
   type AnnotationLinkResult,
   type AnnotationFragment,
@@ -73,6 +75,7 @@ import {
   type PublicationPdfLink,
   type PublicationResource,
   type ProjectReferenceLink,
+  type ProjectPublicationProfile,
   type UpsertClaimInput,
   type WorkspaceSnapshot,
 } from "../domain/workspace";
@@ -85,6 +88,7 @@ interface WorkspaceRow extends Record<string, SqlStorageValue> {
   bibliography: string;
   revision: number;
   entry_file_id: string | null;
+  settings_json: string;
 }
 
 interface ProjectFileRow extends Record<string, SqlStorageValue> {
@@ -302,6 +306,7 @@ interface StoredProjectRevision {
     readonly source: string;
     readonly bibliography: string;
     readonly entryFileId: string;
+    readonly publicationProfile: ProjectPublicationProfile;
   };
   readonly tables: Readonly<Record<RevisionTable, readonly StoredSqlRow[]>>;
 }
@@ -558,6 +563,7 @@ export class DocumentRoom extends DurableObject<Env> {
       source: workspace.source,
       bibliography: workspace.bibliography,
       revision: workspace.revision,
+      publicationProfile: parsePublicationProfile(workspace.settings_json),
       pdfs: this.#pdfs(),
       publications: projectReferences.length > 0 ? projectReferences.map(projectReferencePublication) : this.#publications(),
       projectReferences,
@@ -641,7 +647,7 @@ export class DocumentRoom extends DurableObject<Env> {
         this.ctx.storage.sql.exec("DELETE FROM candidates");
         this.ctx.storage.sql.exec(
           `UPDATE workspace
-           SET title = ?, y_state = ?, source = ?, bibliography = ?, revision = ?, entry_file_id = ?
+           SET title = ?, y_state = ?, source = ?, bibliography = ?, revision = ?, entry_file_id = ?, settings_json = ?
            WHERE id = 1`,
           target.workspace.title,
           targetState,
@@ -649,6 +655,7 @@ export class DocumentRoom extends DurableObject<Env> {
           target.workspace.bibliography,
           nextRevision,
           target.workspace.entryFileId,
+          JSON.stringify({ publicationProfile: target.workspace.publicationProfile }),
         );
         this.#recordRevision(`restore:r${targetRevision}`);
       });
@@ -663,6 +670,11 @@ export class DocumentRoom extends DurableObject<Env> {
 
   getRevisionSeed(revision: number): string {
     return this.#revisionRow(revision).snapshot_json;
+  }
+
+  getHeadRevisionSeed(): string {
+    const row = this.ctx.storage.sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions ORDER BY revision DESC LIMIT 1").one();
+    return row.snapshot_json;
   }
 
   seedFromRevision(workspaceId: string, titleValue: string, seedValue: string): WorkspaceSnapshot {
@@ -680,13 +692,14 @@ export class DocumentRoom extends DurableObject<Env> {
         this.ctx.storage.sql.exec("DELETE FROM project_revisions");
         this.ctx.storage.sql.exec(
           `UPDATE workspace
-           SET title = ?, y_state = ?, source = ?, bibliography = ?, revision = 0, entry_file_id = ?
+           SET title = ?, y_state = ?, source = ?, bibliography = ?, revision = 0, entry_file_id = ?, settings_json = ?
            WHERE id = 1`,
           title,
           targetState,
           seed.workspace.source,
           seed.workspace.bibliography,
           seed.workspace.entryFileId,
+          JSON.stringify({ publicationProfile: seed.workspace.publicationProfile }),
         );
         this.#recordRevision("seed-from-revision", 0);
       });
@@ -1022,6 +1035,14 @@ export class DocumentRoom extends DurableObject<Env> {
     if (!title || title.length > 120) throw new Error("Workspace title is invalid");
     this.#persistResourceRevision("workspace-rename", () => {
       this.ctx.storage.sql.exec("UPDATE workspace SET title = ? WHERE id = 1", title);
+    });
+    return this.getSnapshot("");
+  }
+
+  updatePublicationProfile(profile: ProjectPublicationProfile): WorkspaceSnapshot {
+    if (!isProjectPublicationProfile(profile)) throw new Error("Project publication profile is invalid");
+    this.#persistResourceRevision("publication-profile-update", () => {
+      this.ctx.storage.sql.exec("UPDATE workspace SET settings_json = ? WHERE id = 1", JSON.stringify({ publicationProfile: profile }));
     });
     return this.getSnapshot("");
   }
@@ -2110,6 +2131,19 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 17,
+        name: "store-project-publication-profile",
+        apply(sql): undefined {
+          const columns = sql.exec<{ name: string }>("PRAGMA table_info(workspace)").toArray();
+          if (!columns.some((column) => column.name === "settings_json")) {
+            sql.exec(
+              `ALTER TABLE workspace ADD COLUMN settings_json TEXT NOT NULL DEFAULT '{"publicationProfile":{"citationStyle":"apa","locale":"en-US"}}'`,
+            );
+          }
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -2319,6 +2353,7 @@ export class DocumentRoom extends DurableObject<Env> {
         source: workspace.source,
         bibliography: workspace.bibliography,
         entryFileId: workspace.entry_file_id,
+        publicationProfile: parsePublicationProfile(workspace.settings_json),
       },
       tables,
     };
@@ -2888,9 +2923,18 @@ function parseStoredProjectRevision(value: string): StoredProjectRevision {
       source: workspace.source,
       bibliography: workspace.bibliography,
       entryFileId: workspace.entryFileId,
+      publicationProfile: isProjectPublicationProfile(workspace.publicationProfile)
+        ? workspace.publicationProfile
+        : defaultProjectPublicationProfile,
     },
     tables: parsed.tables,
   };
+}
+
+function parsePublicationProfile(value: string): ProjectPublicationProfile {
+  const parsed: unknown = JSON.parse(value);
+  if (!isRecordValue(parsed) || !isProjectPublicationProfile(parsed.publicationProfile)) return defaultProjectPublicationProfile;
+  return parsed.publicationProfile;
 }
 
 function isStoredRevisionTables(value: unknown): value is StoredProjectRevision["tables"] {

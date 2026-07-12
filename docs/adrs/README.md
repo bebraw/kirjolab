@@ -97,6 +97,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-062](./implemented/ADR-062-use-one-source-mapped-export-pipeline.md)             | Implemented          | Derive publication targets and statistics from one pinned, source-mapped export intermediate.         |
 | [ADR-063](./implemented/ADR-063-model-citation-assertions-with-provenance.md)         | Implemented          | Represent library citation relationships as bounded provenance-bearing assertions.                    |
 | [ADR-064](./implemented/ADR-064-model-editable-highlights-as-strokes.md)              | Implemented          | Auto-save grouped PDF highlight strokes with additive painting, undo, erasing, and guarded deletion.  |
+| [ADR-065](./implemented/ADR-065-render-project-publication-profiles.md)               | Implemented          | Keep citation style and locale as versioned project rendering settings shared by preview and export.  |
 
 ## Creating A New ADR
 

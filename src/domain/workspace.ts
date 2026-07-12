@@ -35,6 +35,14 @@ export const defaultBibliography = `@article{merton1942,
 
 export type CandidateStatus = "pending" | "accepted" | "rejected";
 export type ClaimEvidenceRelation = "supports" | "contradicts" | "extends";
+export type CitationStyle = "apa" | "chicago-author-date" | "ieee";
+
+export interface ProjectPublicationProfile {
+  readonly citationStyle: CitationStyle;
+  readonly locale: "en-US" | "en-GB" | "fi-FI";
+}
+
+export const defaultProjectPublicationProfile: ProjectPublicationProfile = { citationStyle: "apa", locale: "en-US" };
 
 export interface WorkspaceSummary {
   id: string;
@@ -233,6 +241,7 @@ export interface WorkspaceSnapshot {
   source: string;
   bibliography: string;
   revision: number;
+  publicationProfile: ProjectPublicationProfile;
   pdfs: PdfResource[];
   publications: PublicationResource[];
   projectReferences: ProjectReferenceLink[];
@@ -602,6 +611,7 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     typeof value.source === "string" &&
     typeof value.bibliography === "string" &&
     typeof value.revision === "number" &&
+    isProjectPublicationProfile(value.publicationProfile) &&
     Array.isArray(value.pdfs) &&
     Array.isArray(value.publications) &&
     Array.isArray(value.projectReferences) &&
@@ -623,6 +633,15 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     value.comments.every(isManuscriptComment) &&
     Array.isArray(value.candidates) &&
     value.candidates.every(isModelCandidate)
+  );
+}
+
+export function isProjectPublicationProfile(value: unknown): value is ProjectPublicationProfile {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["citationStyle", "locale"]) &&
+    (value.citationStyle === "apa" || value.citationStyle === "chicago-author-date" || value.citationStyle === "ieee") &&
+    (value.locale === "en-US" || value.locale === "en-GB" || value.locale === "fi-FI")
   );
 }
 

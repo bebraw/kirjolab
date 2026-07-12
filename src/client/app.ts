@@ -90,6 +90,8 @@ interface Elements {
   workspaceSettingsDialog: HTMLDialogElement;
   workspaceSettingsForm: HTMLFormElement;
   workspaceSettingsTitle: HTMLInputElement;
+  workspaceCitationStyle: HTMLSelectElement;
+  workspaceCitationLocale: HTMLSelectElement;
   closeWorkspaceSettings: HTMLButtonElement;
   duplicateWorkspace: HTMLButtonElement;
   archiveWorkspace: HTMLButtonElement;
@@ -389,6 +391,8 @@ class WorkspaceApp {
     this.#elements.workspaceSettings.addEventListener("click", () => {
       const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
       this.#elements.workspaceSettingsTitle.value = current?.title ?? "";
+      this.#elements.workspaceCitationStyle.value = this.#snapshot?.publicationProfile.citationStyle ?? "apa";
+      this.#elements.workspaceCitationLocale.value = this.#snapshot?.publicationProfile.locale ?? "en-US";
       this.#elements.archiveWorkspace.textContent = current?.archivedAt ? "Restore" : "Archive";
       this.#elements.workspaceSettingsDialog.showModal();
     });
@@ -657,7 +661,19 @@ class WorkspaceApp {
 
   async #saveWorkspaceSettings(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    await expectOk(await jsonFetch(`${apiBase}/settings`, { title: this.#elements.workspaceSettingsTitle.value }, "PATCH"));
+    await expectOk(
+      await jsonFetch(
+        `${apiBase}/settings`,
+        {
+          title: this.#elements.workspaceSettingsTitle.value,
+          publicationProfile: {
+            citationStyle: this.#elements.workspaceCitationStyle.value,
+            locale: this.#elements.workspaceCitationLocale.value,
+          },
+        },
+        "PATCH",
+      ),
+    );
     location.reload();
   }
 
@@ -950,7 +966,7 @@ class WorkspaceApp {
       );
       this.#renderExportStatistics();
     }
-    const rendered = renderWorkspaceMarkdown(renderedSource, bibliography);
+    const rendered = renderWorkspaceMarkdown(renderedSource, bibliography, this.#snapshot?.publicationProfile.citationStyle);
     this.#elements.preview.innerHTML = rendered.html;
     this.#elements.diagnostics.replaceChildren();
     const diagnosticCount = rendered.diagnostics.length + (composition?.diagnostics.length ?? 0);
@@ -3898,6 +3914,8 @@ function collectElements(): Elements {
     workspaceSettingsDialog: requiredElement("workspace-settings-dialog", HTMLDialogElement),
     workspaceSettingsForm: requiredElement("workspace-settings-form", HTMLFormElement),
     workspaceSettingsTitle: requiredElement("workspace-settings-title", HTMLInputElement),
+    workspaceCitationStyle: requiredElement("workspace-citation-style", HTMLSelectElement),
+    workspaceCitationLocale: requiredElement("workspace-citation-locale", HTMLSelectElement),
     closeWorkspaceSettings: requiredElement("close-workspace-settings", HTMLButtonElement),
     duplicateWorkspace: requiredElement("duplicate-workspace", HTMLButtonElement),
     archiveWorkspace: requiredElement("archive-workspace", HTMLButtonElement),

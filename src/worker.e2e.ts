@@ -10,11 +10,19 @@ test("renames, archives, duplicates, and permanently deletes projects", async ({
   let response = await page.request.patch(`${api}/settings`, { headers, data: { title: "Renamed lifecycle", archived: true } });
   expect(response.ok()).toBe(true);
   expect(await response.json()).toMatchObject({ id: workspaceId, title: "Renamed lifecycle", archivedAt: expect.any(String) });
+  response = await page.request.patch(`${api}/settings`, {
+    headers,
+    data: { publicationProfile: { citationStyle: "ieee", locale: "fi-FI" } },
+  });
+  expect(response.ok()).toBe(true);
+  expect(await (await page.request.get(api)).json()).toMatchObject({ publicationProfile: { citationStyle: "ieee", locale: "fi-FI" } });
   response = await page.request.post(`${api}/duplicate`, { headers, data: { title: "Lifecycle copy" } });
   expect(response.status()).toBe(201);
   const duplicate = (await response.json()) as { id: string; title: string };
   expect(duplicate).toMatchObject({ title: "Lifecycle copy" });
-  expect((await page.request.get(`/api/workspaces/${duplicate.id}`)).ok()).toBe(true);
+  expect(await (await page.request.get(`/api/workspaces/${duplicate.id}`)).json()).toMatchObject({
+    publicationProfile: { citationStyle: "ieee", locale: "fi-FI" },
+  });
   expect((await page.request.delete(`${api}/settings`, { headers })).status()).toBe(204);
   expect((await page.request.get(api)).status()).toBe(404);
   expect((await page.request.get(`/api/workspaces/${duplicate.id}`)).ok()).toBe(true);

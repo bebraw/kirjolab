@@ -1,5 +1,6 @@
 import { defineHastPlugin, defineMdastPlugin, markdownToHtml } from "satteri";
 import { parseBibTeX } from "./bibliography";
+import type { CitationStyle } from "./workspace";
 
 export interface Diagnostic {
   severity: "error" | "warning";
@@ -98,7 +99,11 @@ const safePropertiesByElement: Readonly<Record<string, ReadonlySet<string>>> = {
 // Stryker restore all
 const noSafeProperties = new Set<string>();
 
-export function renderWorkspaceMarkdown(source: string, bibliographySource: string): RenderedDocument {
+export function renderWorkspaceMarkdown(
+  source: string,
+  bibliographySource: string,
+  citationStyle: CitationStyle = "apa",
+): RenderedDocument {
   const normalized = source.replaceAll("\r\n", "\n");
   const bibliography = parseBibliography(bibliographySource);
   const references = collectReferences(normalized);
@@ -107,7 +112,7 @@ export function renderWorkspaceMarkdown(source: string, bibliographySource: stri
   try {
     const result = markdownToHtml(normalized, {
       features: { directive: true, frontmatter: true, gfm: true, headingAttributes: true },
-      mdastPlugins: [createSemanticPlugin(bibliography, references)],
+      mdastPlugins: [createSemanticPlugin(bibliography, references, citationStyle)],
       hastPlugins: [createHeadingPlugin(), createSecurityPlugin()],
     });
     return { html: result.html, diagnostics };
@@ -149,7 +154,11 @@ export function slugify(value: string): string {
     .replaceAll(/^-|-$/gu, "");
 }
 
-function createSemanticPlugin(bibliography: Map<string, BibliographyEntry>, references: Map<string, ReferenceEntry>) {
+function createSemanticPlugin(
+  bibliography: Map<string, BibliographyEntry>,
+  references: Map<string, ReferenceEntry>,
+  citationStyle: CitationStyle,
+) {
   return defineMdastPlugin({
     name: "kirjolab-scientific-writing-semantics",
     html(node) {
@@ -168,7 +177,7 @@ function createSemanticPlugin(bibliography: Map<string, BibliographyEntry>, refe
           ...(prefix ? { prefix } : {}),
           ...(suffix ? { suffix } : {}),
         } satisfies Citation;
-        return { type: "html", value: renderCitation(citation, bibliography) };
+        return { type: "html", value: renderCitation(citation, bibliography, citationStyle) };
       }
       if (node.name === "ref") {
         const target = attributeValue(node.attributes?.target) ?? content;
@@ -350,25 +359,26 @@ function validateReferenceDeclarations(source: string): Diagnostic[] {
   return diagnostics;
 }
 
-function renderCitation(citation: Citation, bibliography: Map<string, BibliographyEntry>): string {
+function renderCitation(citation: Citation, bibliography: Map<string, BibliographyEntry>, citationStyle: CitationStyle): string {
   const entries = citation.ids.map((id) => bibliography.get(id) ?? { id, author: id, title: id, year: "n.d." });
-  const separator = citation.mode === "textual" ? ", " : "; ";
+  const separator = citationStyle === "ieee" || citation.mode === "textual" ? ", " : "; ";
   const value = entries
     .map(
       (entry) =>
-        `<button type="button" class="semantic-citation" data-citation="${escapeHtml(entry.id)}" aria-label="Open reference ${escapeHtml(entry.title || entry.id)}">${escapeHtml(formatCitation(entry, citation.mode))}</button>`,
+        `<button type="button" class="semantic-citation" data-citation="${escapeHtml(entry.id)}" aria-label="Open reference ${escapeHtml(entry.title || entry.id)}">${escapeHtml(formatCitation(entry, citation.mode, citationStyle, [...bibliography.keys()].indexOf(entry.id) + 1))}</button>`,
     )
     .join(separator);
-  const wrapped = citation.mode === "parenthetical" ? `(${value})` : value;
+  const wrapped = citation.mode === "parenthetical" ? (citationStyle === "ieee" ? `[${value}]` : `(${value})`) : value;
   const locator = citation.locator ? `, ${escapeHtml(citation.locator)}` : "";
   return `<span class="semantic-citation-group">${escapeHtml(citation.prefix ?? "")}${wrapped}${locator}${escapeHtml(citation.suffix ?? "")}</span>`;
 }
 
-function formatCitation(entry: BibliographyEntry, mode: string): string {
+function formatCitation(entry: BibliographyEntry, mode: string, citationStyle: CitationStyle, number: number): string {
   const author = entry.author.split(",", 1)[0]?.trim() || entry.id;
+  if (citationStyle === "ieee") return mode === "textual" ? `${author} [${number}]` : String(number);
   if (mode === "full") return [author, entry.year, entry.title].filter(Boolean).join(". ");
   if (mode === "textual") return `${author} (${entry.year || "n.d."})`;
-  return `${author}, ${entry.year || "n.d."}`;
+  return citationStyle === "chicago-author-date" ? `${author} ${entry.year || "n.d."}` : `${author}, ${entry.year || "n.d."}`;
 }
 
 function getHeadingNumber(type: string, counters: { h2: number; h3: number }): string {

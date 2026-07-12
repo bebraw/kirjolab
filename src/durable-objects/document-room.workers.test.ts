@@ -30,6 +30,17 @@ const acceptedMetadata = {
 } satisfies PublicationEnrichment;
 
 describe("DocumentRoom in the Workers runtime", () => {
+  it("versions publication profiles and restores them with project history", async () => {
+    const workspaceId = "publication-profile";
+    const stub = roomStub(workspaceId);
+    expect((await stub.getSnapshot(workspaceId)).publicationProfile).toEqual({ citationStyle: "apa", locale: "en-US" });
+    const updated = await stub.updatePublicationProfile({ citationStyle: "ieee", locale: "fi-FI" });
+    expect(updated.publicationProfile).toEqual({ citationStyle: "ieee", locale: "fi-FI" });
+    expect((await stub.listRevisions())[0]).toMatchObject({ reason: "publication-profile-update" });
+    const restored = await stub.restoreRevision(workspaceId, 0);
+    expect(restored.publicationProfile).toEqual({ citationStyle: "apa", locale: "en-US" });
+  });
+
   it("preserves atomic project history, immutable milestones, non-destructive restore, and revision seeds", async () => {
     const workspaceId = "project-history";
     const stub = roomStub(workspaceId);
@@ -197,7 +208,7 @@ describe("DocumentRoom in the Workers runtime", () => {
         );
       }
       state.storage.sql.exec("DROP TABLE manuscript_comments");
-      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version = 16");
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 16");
     });
 
     await evictDurableObject(stub);

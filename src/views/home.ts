@@ -431,6 +431,15 @@ export function renderHomePage(
         <p class="eyebrow">Project settings</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Manage this project</h2>
         <label class="field-label mt-5">Project title<input class="field" id="workspace-settings-title" maxlength="120" required></label>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <label class="field-label">Citation style<select class="field" id="workspace-citation-style">
+            <option value="apa">APA</option><option value="chicago-author-date">Chicago author-date</option><option value="ieee">IEEE numeric</option>
+          </select></label>
+          <label class="field-label">Citation locale<select class="field" id="workspace-citation-locale">
+            <option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="fi-FI">Finnish</option>
+          </select></label>
+        </div>
+        <p class="mt-2 text-xs leading-5 text-app-text-soft">The profile changes preview and derived exports without rewriting canonical Markdown or shared references.</p>
         <div class="mt-5 flex flex-wrap gap-2">
           <button class="button-primary" type="submit">Save title</button>
           <button class="button-secondary" id="duplicate-workspace" type="button">Duplicate</button>

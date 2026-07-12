@@ -9,6 +9,7 @@ import {
   isCreatePublicationPdfLinkInput,
   isAcceptPublicationIntakeInput,
   isPreviewPublicationIntakeInput,
+  isProjectPublicationProfile,
   isCreateWorkspaceInput,
   isImportBibliographyInput,
   isInviteWorkspaceMemberInput,
@@ -187,8 +188,15 @@ async function updateWorkspaceSettings(
   if (!isRecord(body)) return jsonError("Invalid project settings", 400);
   const title = body.title === undefined ? null : typeof body.title === "string" ? body.title.trim() : "";
   const archived = body.archived === undefined ? null : typeof body.archived === "boolean" ? body.archived : undefined;
-  if ((title !== null && (!title || title.length > 120)) || archived === undefined) return jsonError("Invalid project settings", 400);
+  const publicationProfile = body.publicationProfile === undefined ? null : body.publicationProfile;
+  if (
+    (title !== null && (!title || title.length > 120)) ||
+    archived === undefined ||
+    (publicationProfile !== null && !isProjectPublicationProfile(publicationProfile))
+  )
+    return jsonError("Invalid project settings", 400);
   if (title !== null) await room.renameWorkspace(title);
+  if (publicationProfile !== null) await room.updatePublicationProfile(publicationProfile);
   const members = await access.listMembers(requesterEmail);
   let result = await catalog.updateWorkspace(workspaceId, title, archived);
   for (const member of members) {
@@ -209,11 +217,10 @@ async function duplicateWorkspace(
   const body: unknown = await request.json();
   if (!isRecord(body) || typeof body.title !== "string" || !body.title.trim() || body.title.length > 120)
     return jsonError("Invalid duplicate title", 400);
-  const source = await room.getSnapshot(workspaceId);
   const id = crypto.randomUUID();
   const storageKey = workspaceStorageKey(identity, id);
   await env.WORKSPACE_ACCESS.getByName(storageKey).initializeOwner(identity.email);
-  await env.DOCUMENT_ROOMS.getByName(storageKey).seedFromRevision(id, body.title.trim(), await room.getRevisionSeed(source.revision));
+  await env.DOCUMENT_ROOMS.getByName(storageKey).seedFromRevision(id, body.title.trim(), await room.getHeadRevisionSeed());
   return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
 }
 
@@ -253,6 +260,7 @@ async function exportWorkspace(
     files: snapshot.files,
     entryFileId: snapshot.entryFileId,
     bibliography: snapshot.bibliography,
+    publicationProfile: snapshot.publicationProfile,
   });
   if (suffix === "/export/statistics.json") return privateJsonResponse(bundle.intermediate.statistics);
   if (suffix === "/export/diagnostics.json") return privateJsonResponse(bundle.intermediate.diagnostics);
