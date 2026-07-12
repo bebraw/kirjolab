@@ -343,6 +343,12 @@ export function renderHomePage(
               <p class="max-w-lg text-xs leading-5 text-app-text-soft">The selected passage, revision instruction, chosen evidence, and configured model identifier are sent from your browser to the local OpenAI-compatible endpoint. No other manuscript text is sent. The proposed replacement stays separate for review in Context.</p>
             </div>
             <div class="model-lab-fields">
+              <label class="field-label">Connection
+                <select class="field" id="llm-connection">
+                  <option value="direct">Direct browser connection</option>
+                  <option value="companion">Local companion</option>
+                </select>
+              </label>
               <label class="field-label">Endpoint
                 <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
               </label>

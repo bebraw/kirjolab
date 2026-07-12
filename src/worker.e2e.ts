@@ -1245,6 +1245,15 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
   expect(afterDelete.claimLinks).toEqual([]);
 });
 
+test("selects the explicit local companion connection", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#llm-connection").selectOption("companion");
+  await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:8790/v1/chat/completions");
+  await expect(page.locator("#model-status")).toContainText("npm run model:companion");
+  await page.locator("#llm-connection").selectOption("direct");
+  await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:1234/v1/chat/completions");
+});
+
 test("rejects a delayed model candidate after a concurrent manuscript edit", async ({ page, context }) => {
   const origin = "http://127.0.0.1:8788";
   const workspaceId = await createWorkspace(page, "Stale model boundary");

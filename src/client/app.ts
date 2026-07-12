@@ -250,6 +250,7 @@ interface Elements {
   publicationIntakeLinked: HTMLElement;
   publicationIntakeLinkedList: HTMLElement;
   llmEndpoint: HTMLInputElement;
+  llmConnection: HTMLSelectElement;
   llmModel: HTMLInputElement;
   modelInstruction: HTMLTextAreaElement;
   generateCandidate: HTMLButtonElement;
@@ -437,9 +438,24 @@ class WorkspaceApp {
     this.#elements.contextCandidateApply.addEventListener("click", () => void this.#updateActiveCandidate("apply"));
     this.#elements.contextCandidateReject.addEventListener("click", () => void this.#updateActiveCandidate("reject"));
     this.#elements.closeCandidateContext.addEventListener("click", () => this.#closeActiveContext());
-    for (const input of [this.#elements.llmEndpoint, this.#elements.llmModel, this.#elements.modelInstruction]) {
+    for (const input of [
+      this.#elements.llmConnection,
+      this.#elements.llmEndpoint,
+      this.#elements.llmModel,
+      this.#elements.modelInstruction,
+    ]) {
       input.addEventListener("input", () => this.#updateModelAvailability());
     }
+    this.#elements.llmConnection.addEventListener("change", () => {
+      this.#elements.llmEndpoint.value =
+        this.#elements.llmConnection.value === "companion"
+          ? "http://127.0.0.1:8790/v1/chat/completions"
+          : "http://127.0.0.1:1234/v1/chat/completions";
+      this.#elements.modelStatus.textContent =
+        this.#elements.llmConnection.value === "companion"
+          ? "Start npm run model:companion, then select manuscript text and grounding evidence."
+          : "The browser will contact the configured loopback provider directly.";
+    });
     this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
   }
 
@@ -758,7 +774,8 @@ class WorkspaceApp {
   #modelProvider(): OpenAICompatibleBrowserProvider {
     return new OpenAICompatibleBrowserProvider({
       endpoint: this.#elements.llmEndpoint.value,
-      providerLabel: "Browser-local OpenAI-compatible",
+      providerLabel:
+        this.#elements.llmConnection.value === "companion" ? "Local companion · OpenAI-compatible" : "Browser-local OpenAI-compatible",
       model: this.#elements.llmModel.value,
     });
   }
@@ -3478,6 +3495,7 @@ function collectElements(): Elements {
     publicationIntakeLinked: requiredElement("publication-intake-linked", HTMLElement),
     publicationIntakeLinkedList: requiredElement("publication-intake-linked-list", HTMLElement),
     llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
+    llmConnection: requiredElement("llm-connection", HTMLSelectElement),
     llmModel: requiredElement("llm-model", HTMLInputElement),
     modelInstruction: requiredElement("model-instruction", HTMLTextAreaElement),
     generateCandidate: requiredElement("generate-candidate", HTMLButtonElement),

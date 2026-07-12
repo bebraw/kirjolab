@@ -19,6 +19,12 @@ using explicit annotations or claims while preserving a human review boundary.
   omits browser credentials, rejects redirects, aborts after 120 seconds, and
   reads at most 256 KiB of OpenAI-compatible JSON. The page CSP exposes the same
   IPv4, localhost, and IPv6 loopback boundary.
+- When direct browser access is blocked by provider CORS or browser networking,
+  `npm run model:companion` exposes the same OpenAI-compatible path at
+  `127.0.0.1:8790`. The user explicitly starts it with a fixed loopback
+  upstream and exact allowed Kirjolab origin. It binds only IPv4 loopback,
+  validates task shape, permits bounded CORS/private-network preflight, rejects
+  redirects, and caps request and response bodies at 256 KiB.
 - Only the selected passage, instruction, and chosen evidence snapshots enter
   the operation prompt; the adapter also sends the configured model identifier.
   No unrelated manuscript text is transmitted.
@@ -48,6 +54,8 @@ using explicit annotations or claims while preserving a human review boundary.
 - Do not reconstruct candidate evidence from mutable current resources alone.
 - Do not apply stale, collapsed, or inexact targets.
 - Do not let provider-specific response shapes enter the domain API.
+- Do not let the browser choose or override the companion's upstream, expose
+  the companion on a non-loopback interface, or allow wildcard origins.
 - Do not add chat, RAG, embeddings, automatic citations, or direct model writes
   in this slice.
 
@@ -59,6 +67,8 @@ using explicit annotations or claims while preserving a human review boundary.
       a bounded revision instruction.
 - [x] The browser invokes a provider-neutral operation through the local
       OpenAI-compatible adapter.
+- [x] An explicitly started local companion can bridge the same operation when
+      direct browser-provider access is unavailable.
 - [x] A candidate persists a typed immutable base and targeted replacement.
 - [x] Review shows original, replacement, and linked evidence without a raw
       whole-document proposal.
@@ -79,6 +89,9 @@ using explicit annotations or claims while preserving a human review boundary.
 - Apply and accepted status persist atomically and preserve surrounding Yjs
   identities through a range-only splice.
 - Provider errors and candidate rejection leave canonical Markdown unchanged.
+- The companion must require one exact origin and a fixed credential-free
+  loopback upstream, and it must fail closed on invalid shape, size, route,
+  method, media type, redirect, timeout, or network response.
 
 ### Scenarios
 
@@ -101,3 +114,11 @@ using explicit annotations or claims while preserving a human review boundary.
 - When: the manuscript or selected claim version changes before persistence
 - Then: candidate creation fails as stale and no candidate or source mutation is
   stored
+
+**Scenario: Provider does not allow direct browser access**
+
+- Given: the researcher explicitly starts the companion with a fixed local
+  provider and exact Kirjolab origin
+- When: the browser sends the typed operation to the companion endpoint
+- Then: the companion validates and forwards only that bounded request and the
+  normal candidate review/apply boundary remains unchanged

@@ -44,6 +44,7 @@ If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` t
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
 - Run the shipped runtime dependency audit with `npm run security:audit`.
 - Start the local Worker with `npm run dev`.
+- Start the optional local-model bridge with `KIRJOLAB_MODEL_UPSTREAM=http://127.0.0.1:1234/v1/chat/completions npm run model:companion`.
 - Install the Playwright browser with `npm run playwright:install`.
 - Run end-to-end tests with `npm run e2e`.
 - Run unit and integration tests with `npm test`.
@@ -75,6 +76,25 @@ The template now ships with a minimal Worker stub in `src/worker.ts`. `npm run d
 The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.61.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The full `quality-mutation` workflow job is reserved for GitHub Actions with a `github.server_url` guard, so local Agent CI runs skip it; use `npm run quality:gate` or `npm run mutation` when local mutation feedback is needed. Dependency installation uses plain `npm ci`; local Agent CI serializes the first cold warm-cache job internally, which keeps parallel jobs from racing on the mounted `node_modules` cache while avoiding unnecessary npm self-upgrades in CI and mutable action tags.
 
 The starter UI now follows the same Tailwind v4 baseline shape as `thesis-journey-tracker`: Tailwind input lives in `src/tailwind-input.css`, generated CSS is written to `.generated/styles.css`, and Wrangler runs `npm run build:css` automatically before local development.
+
+### Local Model Companion
+
+Use the companion only when the configured local provider cannot accept the
+browser request directly. Starting it is the explicit permission boundary:
+
+```sh
+KIRJOLAB_MODEL_UPSTREAM=http://127.0.0.1:1234/v1/chat/completions \
+KIRJOLAB_MODEL_COMPANION_ORIGIN=http://127.0.0.1:8787 \
+npm run model:companion
+```
+
+It listens on `127.0.0.1:8790` unless
+`KIRJOLAB_MODEL_COMPANION_PORT` selects another valid port. The upstream is
+fixed at process start and must be a credential-free HTTP(S) loopback URL. The
+browser origin must match exactly; wildcard origins and browser-selected
+upstreams are not supported. In Kirjolab choose **Local companion**, which uses
+`http://127.0.0.1:8790/v1/chat/completions` by default. `GET /health` reports
+only availability and the upstream origin, not its path or model request data.
 
 The Lighthouse setup is also generic, but the Worker stub gives it a concrete local target. Use `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`. Reports are written to `reports/lighthouse/`.
 

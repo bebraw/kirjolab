@@ -1,6 +1,6 @@
 # ADR-039: Require Reviewable, Provenance-Aware Model Operations
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-10
 
@@ -82,3 +82,25 @@ concepts into product workflows and limit future hosted or local choices.
 
 This avoids context selection UI but performs poorly with local models, weakens
 provenance, increases privacy exposure, and makes results harder to reproduce.
+
+## Implementation
+
+- `ModelProvider` exposes the typed `reviseSelection` capability independently
+  of provider response shapes. The first adapter maps that task to a bounded,
+  credential-free OpenAI-compatible loopback request.
+- Before provider I/O, the browser captures the exact passage, manuscript
+  revision, bounded instruction, and selected versioned annotations or claims.
+  The fixed prompt and generation settings are identified by
+  `revise-selection-v1`.
+- `ModelCandidate` retains operation and prompt version, provider label and
+  adapter, model, instruction, immutable evidence snapshots, a Yjs-relative
+  target, output, status, and creation time. Apply and reject are separate
+  authorized actions; apply validates the current base and changes only the
+  selected range.
+- `npm run model:companion` starts an optional loopback-only bridge under
+  explicit user control. Its upstream is fixed by environment configuration;
+  it requires one exact browser origin, validates the OpenAI-compatible task,
+  bounds request/response bodies, rejects redirects, and never exposes the
+  configured provider through the hosted Worker.
+- The UI distinguishes direct browser and local-companion connections while
+  both remain behind the same provider-neutral operation contract.

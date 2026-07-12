@@ -27,9 +27,7 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                                  | Status   | Summary                                                                             |
-| -------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------- |
-| [ADR-039](./accepted/ADR-039-require-reviewable-model-operations.md) | Accepted | Route local-capable model work through provenance-aware candidate review and apply. |
+None. Accepted decisions move here only until their implementation is verified.
 
 ## Implemented ADRs
 
@@ -73,6 +71,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-036](./implemented/ADR-036-model-scholarly-work-as-hypermedia.md)                | Implemented          | Model writing and working-memory entities as stable, typed hypermedia resources.                      |
 | [ADR-037](./implemented/ADR-037-synchronize-text-and-materialize-markdown.md)         | Implemented          | Synchronize text, ephemeral selections, durable comments, and recoverable Markdown.                   |
 | [ADR-038](./implemented/ADR-038-store-pdf-annotations-separately.md)                  | Implemented          | Preserve PDFs and store annotations separately with geometric and textual selectors.                  |
+| [ADR-039](./implemented/ADR-039-require-reviewable-model-operations.md)               | Implemented          | Route local-capable model work through provenance-aware candidate review and apply.                   |
 | [ADR-040](./implemented/ADR-040-use-durable-objects-and-r2-for-vertical-slice.md)     | Implemented          | Use Yjs and per-document Durable Objects for collaboration, with R2 for immutable PDFs.               |
 | [ADR-041](./implemented/ADR-041-render-pdfs-with-pdfjs.md)                            | Implemented          | Render one selectable PDF page with PDF.js and store normalized external highlight geometry.          |
 | [ADR-042](./implemented/ADR-042-use-per-owner-workspace-catalogs.md)                  | Implemented          | Discover isolated document rooms through a separate SQLite catalog per owner identity.                |

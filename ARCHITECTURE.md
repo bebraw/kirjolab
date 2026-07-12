@@ -189,7 +189,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   instruction, typed versioned evidence snapshots, provider/model identity, and
   replacement text. Never model a selected-passage operation as a proposed
   whole-document replacement, and splice only the verified target on apply.
-- Keep local-model network access in the browser or a future local companion so a hosted Worker never assumes it can reach localhost.
+- Keep local-model network access in the browser or the explicitly launched
+  loopback companion so a hosted Worker never assumes it can reach localhost.
+- Configure the companion with one fixed credential-free loopback upstream and
+  one exact allowed browser origin. Bind it only to `127.0.0.1`, bound and
+  validate both sides of the request, reject redirects, and never accept a
+  browser-selected upstream.
 - Keep the initial browser-direct model adapter on credential-free HTTP(S)
   loopback endpoints, reject redirects, bound its response before JSON parsing,
   and align the page connection policy with the same IPv4, localhost, and IPv6

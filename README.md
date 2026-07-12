@@ -18,6 +18,7 @@ Local development in this repo targets macOS. Other platforms may need script an
 - Implemented reference-library contract: `specs/reference-library/spec.md`
 - Implemented DOI-intake contract: `specs/publication-intake/spec.md`
 - Implemented grounded model-operation contract: `specs/model-operations/spec.md`
+- Implemented collaborative-comment contract: `specs/manuscript-comments/spec.md`
 - Implemented research-context contract: `specs/research-context/spec.md`
 - Implemented scientific-Markdown contract: `specs/scientific-markdown/spec.md`
 - Development setup and local CI: `docs/development.md`
@@ -38,6 +39,12 @@ Local development in this repo targets macOS. Other platforms may need script an
   instruction, chosen evidence, and model identifier go directly from the
   browser to a credential-free loopback OpenAI-compatible endpoint; no other
   manuscript text is sent by the selection-revision operation.
+- If the provider cannot be reached directly from the browser, set
+  `KIRJOLAB_MODEL_UPSTREAM` to its credential-free loopback completion URL,
+  optionally set `KIRJOLAB_MODEL_COMPANION_ORIGIN`, run
+  `npm run model:companion`, and choose **Local companion** in the model lab.
+  The companion listens only on `127.0.0.1:8790` by default and never routes
+  through the hosted Worker.
 - Use repo-pinned CLI tools through `npx`, including `npx wrangler` for Cloudflare-based experiments.
 - Start Kirjolab with `npm run dev`, then open `http://127.0.0.1:8787`.
 - `npm run build` generates the Tailwind stylesheet, typed browser bundle, version-matched PDF.js worker, and Satteri browser assets under the ignored `.generated/` directory.
@@ -92,8 +99,8 @@ For cross-repo agent work, tell the agent:
 - Streamed PDF import, selectable single-page rendering, resilient highlights, and bidirectional manuscript links.
 - BibTeX import, explicit Crossref enrichment, and reviewed DOI-to-PDF intake
   with stable publication resources.
-- Browser-direct, selection-scoped local-model revisions with typed evidence,
-  focused Context review, and targeted apply/reject.
+- Browser-direct or explicit local-companion, selection-scoped model revisions
+  with typed evidence, focused Context review, and targeted apply/reject.
 - Portable `.md` and `.bib` exports.
 
 ## Source Layout
@@ -104,6 +111,8 @@ For cross-repo agent work, tell the agent:
 - `vendor/satteri-wasm32-wasi/` pins the reviewed browser binding needed for deterministic Satteri previews.
 - `src/api/` holds health and scholarly-workspace routes.
 - `src/client/` holds the typed browser client and local-model operations.
+- `src/model-companion.ts` holds the optional loopback-only local-provider
+  bridge and its strict request boundary.
 - `src/views/` holds the server-rendered workspace shell.
 - Tests live next to the code they exercise under `src/`.
 
