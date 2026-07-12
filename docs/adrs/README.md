@@ -21,10 +21,9 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                                                        | Status   | Summary                                                                            |
-| -------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md)                                  | Proposed | Template for drafting future ADRs.                                                 |
-| [ADR-063](./proposed/ADR-063-model-citation-assertions-with-provenance.md) | Proposed | Represent library citation relationships as bounded provenance-bearing assertions. |
+| ADR                                       | Status   | Summary                            |
+| ----------------------------------------- | -------- | ---------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
 
 ## Accepted ADRs
 
@@ -97,6 +96,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-060](./implemented/ADR-060-capture-versioned-web-sources.md)                     | Implemented          | Preserve timestamped web-source snapshots for reproducible citations and evidence.                    |
 | [ADR-061](./implemented/ADR-061-preserve-project-revisions-and-milestones.md)         | Implemented          | Keep atomic project revisions, immutable milestones, non-destructive restore, and diffs.              |
 | [ADR-062](./implemented/ADR-062-use-one-source-mapped-export-pipeline.md)             | Implemented          | Derive publication targets and statistics from one pinned, source-mapped export intermediate.         |
+| [ADR-063](./implemented/ADR-063-model-citation-assertions-with-provenance.md)         | Implemented          | Represent library citation relationships as bounded provenance-bearing assertions.                    |
 
 ## Creating A New ADR
 

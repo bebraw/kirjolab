@@ -12,7 +12,16 @@ import {
   type WebCaptureRegistration,
   type WebSnapshot,
 } from "../domain/reference-library";
+import {
+  isCreateCitationAssertionInput,
+  isReviewCitationAssertionInput,
+  type CitationAssertion,
+  type CitationNetwork,
+  type CreateCitationAssertionInput,
+  type ReviewCitationAssertionInput,
+} from "../domain/citation-assertions";
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
+import { fetchCrossrefReferences } from "../integrations/crossref";
 import type { AuthIdentity } from "../security/auth";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
@@ -20,7 +29,7 @@ const maximumWebRawBytes = 2 * 1024 * 1024;
 const maximumWebReadableBytes = 1024 * 1024;
 const maximumWebRedirects = 5;
 
-type WebFetch = (request: Request) => Promise<Response>;
+type ExternalFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
 interface ReferenceLibraryApi {
   getSnapshot(includeArchived?: boolean): Promise<ReferenceLibrarySnapshot>;
@@ -38,18 +47,25 @@ interface ReferenceLibraryApi {
   registerWebCapture(registration: WebCaptureRegistration): Promise<WebCaptureItem>;
   getWebSnapshot(snapshotId: string): Promise<WebSnapshot>;
   getWebSnapshots(referenceId: string): Promise<readonly WebSnapshot[]>;
+  getReferences(referenceIds: readonly string[]): Promise<BibliographicRecord[]>;
+  findReferencesByDois(doiValues: readonly string[]): Promise<BibliographicRecord[]>;
+  createCitationAssertions(inputs: readonly CreateCitationAssertionInput[], actor: string): Promise<CitationAssertion[]>;
+  getCitationAssertions(referenceId?: string): Promise<CitationAssertion[]>;
+  reviewCitationAssertion(assertionId: string, input: ReviewCitationAssertionInput, reviewer: string): Promise<CitationAssertion>;
+  getCitationNetwork(projectId?: string): Promise<CitationNetwork>;
 }
 
 interface ReferenceLibraryApiEnv {
   readonly REFERENCE_LIBRARIES: { getByName(name: string): ReferenceLibraryApi };
   readonly PAPERS: Pick<R2Bucket, "put" | "get" | "delete">;
+  readonly CROSSREF_MAILTO: string;
 }
 
 export async function handleReferenceLibraryApi(
   request: Request,
   env: ReferenceLibraryApiEnv,
   identity: AuthIdentity,
-  fetchWeb: WebFetch = (outbound) => fetch(outbound),
+  fetchExternal: ExternalFetch = (input, init) => fetch(input, init),
 ): Promise<Response> {
   const url = new URL(request.url);
   const suffix = url.pathname.slice("/api/library".length) || "/";
@@ -66,7 +82,27 @@ export async function handleReferenceLibraryApi(
       return Response.json(await library.importBibTeX(body.bibtex, identity.email), { status: 201, ...noStore() });
     }
     if (suffix === "/web-sources" && request.method === "POST") {
-      return await captureWebSource(request, identity, env, library, fetchWeb);
+      return await captureWebSource(request, identity, env, library, fetchExternal);
+    }
+    if (suffix === "/citation-network" && request.method === "GET") {
+      const projectId = url.searchParams.get("projectId")?.trim() || undefined;
+      if (projectId && !/^[a-z0-9-]{1,64}$/iu.test(projectId)) return jsonError("Invalid citation-network project filter", 400);
+      return Response.json(await library.getCitationNetwork(projectId), noStore());
+    }
+    if (suffix === "/citation-assertions" && request.method === "GET") {
+      const referenceId = url.searchParams.get("referenceId")?.trim() || undefined;
+      return Response.json(await library.getCitationAssertions(referenceId), noStore());
+    }
+    if (suffix === "/citation-assertions" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isCreateCitationAssertionInput(body)) return jsonError("Invalid citation assertion", 400);
+      return Response.json((await library.createCitationAssertions([body], identity.email))[0], { status: 201, ...noStore() });
+    }
+    const assertionReviewMatch = /^\/citation-assertions\/([0-9a-f-]{36})\/review$/iu.exec(suffix);
+    if (assertionReviewMatch?.[1] && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isReviewCitationAssertionInput(body)) return jsonError("Invalid citation assertion review", 400);
+      return Response.json(await library.reviewCitationAssertion(assertionReviewMatch[1], body, identity.email), noStore());
     }
     const comparisonMatch = /^\/web-snapshots\/([0-9a-f-]{36})\/compare\/([0-9a-f-]{36})$/iu.exec(suffix);
     if (comparisonMatch?.[1] && comparisonMatch[2] && request.method === "GET") {
@@ -97,9 +133,10 @@ export async function handleReferenceLibraryApi(
       }
       return Response.json(await library.setArtifactRights(pdfMatch[1], body.rights), noStore());
     }
-    const referenceMatch = /^\/references\/([0-9a-f-]{36})(?:\/(tags|notes|highlights|reading|deletion-impact|web-snapshots))?$/iu.exec(
-      suffix,
-    );
+    const referenceMatch =
+      /^\/references\/([0-9a-f-]{36})(?:\/(tags|notes|highlights|reading|deletion-impact|web-snapshots|citation-expansions))?$/iu.exec(
+        suffix,
+      );
     if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
     const referenceId = referenceMatch[1];
     const action = referenceMatch[2];
@@ -149,6 +186,9 @@ export async function handleReferenceLibraryApi(
     if (action === "web-snapshots" && request.method === "GET") {
       return Response.json(await library.getWebSnapshots(referenceId), noStore());
     }
+    if (action === "citation-expansions" && request.method === "POST") {
+      return await expandCitationReferences(referenceId, identity, env, library, fetchExternal);
+    }
     if (!action && request.method === "DELETE") {
       const body: unknown = await request.json();
       if (!isRecord(body) || !Array.isArray(body.expectedProjectIds) || !body.expectedProjectIds.every((id) => typeof id === "string")) {
@@ -164,12 +204,60 @@ export async function handleReferenceLibraryApi(
   }
 }
 
+async function expandCitationReferences(
+  referenceId: string,
+  identity: AuthIdentity,
+  env: ReferenceLibraryApiEnv,
+  library: ReferenceLibraryApi,
+  fetchExternal: ExternalFetch,
+): Promise<Response> {
+  const source = (await library.getReferences([referenceId]))[0];
+  if (!source) return jsonError("Reference not found", 404);
+  if (!source.doi) return jsonError("Add a DOI before expanding external citation references", 409);
+  const expansion = await fetchCrossrefReferences(source.doi, env.CROSSREF_MAILTO, fetchExternal);
+  const matches = await library.findReferencesByDois(expansion.candidates.map((candidate) => candidate.doi));
+  const byDoi = new Map(matches.map((reference) => [reference.doi.toLocaleLowerCase(), reference]));
+  const inputs = new Map<string, CreateCitationAssertionInput>();
+  for (const candidate of expansion.candidates) {
+    const target = byDoi.get(candidate.doi.toLocaleLowerCase());
+    if (!target || target.id === source.id || inputs.has(target.id)) continue;
+    inputs.set(target.id, {
+      citingReferenceId: source.id,
+      citedReferenceId: target.id,
+      polarity: "cites",
+      evidenceState: "extracted",
+      method: "provider",
+      observedAt: expansion.retrievedAt,
+      sourceKind: "provider-response",
+      sourceId: expansion.responseId,
+      sourceLocator: expansion.sourceLocator,
+      confidence: null,
+    });
+  }
+  const assertions = inputs.size > 0 ? await library.createCitationAssertions([...inputs.values()], "Crossref") : [];
+  const matchedDois = new Set(assertions.map((assertion) => matches.find((reference) => reference.id === assertion.citedReferenceId)?.doi));
+  return Response.json(
+    {
+      provider: expansion.provider,
+      direction: expansion.direction,
+      retrievedAt: expansion.retrievedAt,
+      responseId: expansion.responseId,
+      sourceLocator: expansion.sourceLocator,
+      assertions,
+      unmatched: expansion.candidates.filter((candidate) => !matchedDois.has(candidate.doi)),
+      truncated: expansion.truncated,
+      requestedBy: identity.email,
+    },
+    { status: 201, ...noStore() },
+  );
+}
+
 async function captureWebSource(
   request: Request,
   identity: AuthIdentity,
   env: ReferenceLibraryApiEnv,
   library: ReferenceLibraryApi,
-  fetchWeb: WebFetch,
+  fetchWeb: ExternalFetch,
 ): Promise<Response> {
   const body: unknown = await request.json();
   if (!isWebCaptureBody(body)) return jsonError("Invalid web source capture", 400);
@@ -258,7 +346,7 @@ interface RetrievedWebSource {
   readonly lastModified: string;
 }
 
-async function retrieveWebSource(requestedUrl: string, fetchWeb: WebFetch): Promise<RetrievedWebSource> {
+async function retrieveWebSource(requestedUrl: string, fetchWeb: ExternalFetch): Promise<RetrievedWebSource> {
   const redirectChain: string[] = [];
   const diagnostics: string[] = [];
   let currentUrl = requestedUrl;

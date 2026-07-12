@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchCrossrefWork, fingerprintPublicationMetadata } from "./crossref";
+import { fetchCrossrefReferences, fetchCrossrefWork, fingerprintPublicationMetadata } from "./crossref";
 
 describe("Crossref metadata integration", () => {
   it("maps a DOI singleton response into bounded publication metadata", async () => {
@@ -181,6 +181,70 @@ describe("Crossref metadata integration", () => {
     await expect(fingerprintPublicationMetadata({ ...metadata, type: "misc" })).resolves.not.toBe(fingerprint);
     await expect(fingerprintPublicationMetadata(metadataWithoutType)).resolves.toBe(
       await fingerprintPublicationMetadata({ ...metadata, type: "misc" }),
+    );
+  });
+
+  it("retrieves a bounded outgoing reference expansion with a reproducible provider-response identity", async () => {
+    const fetcher = vi.fn(async () =>
+      Response.json({
+        message: {
+          reference: [
+            {
+              DOI: "10.1000/TARGET",
+              "article-title": "<i>Target</i> paper",
+              author: "Doe, Jane",
+              year: " 2020 ",
+              unstructured: "Doe. <b>Target</b> paper.",
+            },
+            { DOI: "not-a-doi", unstructured: "Unmatched" },
+            { unstructured: "No identifier" },
+          ],
+        },
+      }),
+    );
+    const first = await fetchCrossrefReferences("10.1000/source", " Contact@Example.org ", fetcher);
+    const second = await fetchCrossrefReferences("10.1000/source", " Contact@Example.org ", fetcher);
+
+    expect(first).toMatchObject({
+      provider: "crossref",
+      direction: "references",
+      responseId: expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
+      sourceLocator: "https://api.crossref.org/works/10.1000%2Fsource?mailto=contact%40example.org",
+      candidates: [
+        {
+          doi: "10.1000/target",
+          title: "Target paper",
+          authors: "Doe, Jane",
+          year: "2020",
+          unstructured: "Doe. Target paper.",
+        },
+      ],
+      truncated: false,
+    });
+    expect(first.retrievedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/u);
+    expect(second.responseId).toBe(first.responseId);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("bounds Crossref citation candidates and maps missing or invalid reference lists to an empty expansion", async () => {
+    const references = Array.from({ length: 129 }, (_, index) => ({ DOI: `10.2000/${index}`, unstructured: `Reference ${index}` }));
+    const bounded = await fetchCrossrefReferences("10.1000/source", "", async () => Response.json({ message: { reference: references } }));
+    expect(bounded.candidates).toHaveLength(128);
+    expect(bounded.truncated).toBe(true);
+
+    await expect(fetchCrossrefReferences("10.1000/source", "", async () => Response.json({ message: {} }))).resolves.toMatchObject({
+      candidates: [],
+      truncated: false,
+    });
+    await expect(fetchCrossrefReferences("invalid", "", async () => Response.json({ message: {} }))).rejects.toThrow("DOI is invalid");
+    await expect(fetchCrossrefReferences("10.1000/missing", "", async () => new Response(null, { status: 404 }))).rejects.toThrow(
+      "no record",
+    );
+    await expect(fetchCrossrefReferences("10.1000/error", "", async () => new Response(null, { status: 500 }))).rejects.toThrow(
+      "request failed",
+    );
+    await expect(fetchCrossrefReferences("10.1000/invalid", "", async () => Response.json({ message: null }))).rejects.toThrow(
+      "invalid metadata",
     );
   });
 });

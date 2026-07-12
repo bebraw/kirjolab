@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { CitationAssertion, CitationNetwork } from "../domain/citation-assertions";
 import type { BibliographicRecord, ReferenceLibrarySnapshot, WebSnapshot } from "../domain/reference-library";
 import type { AuthIdentity } from "../security/auth";
 import { handleReferenceLibraryApi } from "./reference-library";
@@ -54,6 +55,23 @@ const webSnapshot: WebSnapshot = {
   etag: "",
   lastModified: "",
 };
+const citationAssertion: CitationAssertion = {
+  id: "55555555-5555-4555-8555-555555555555",
+  citingReferenceId: reference.id,
+  citedReferenceId: "66666666-6666-4666-8666-666666666666",
+  polarity: "cites",
+  evidenceState: "extracted",
+  method: "provider",
+  assertedBy: "Crossref",
+  observedAt: now,
+  sourceKind: "provider-response",
+  sourceId: "sha256:response",
+  sourceLocator: "https://api.crossref.org/works/10.1000%2Fsource",
+  confidence: null,
+  review: null,
+  createdAt: now,
+};
+const citationNetwork: CitationNetwork = { projectId: null, nodes: [], edges: [], truncated: false };
 
 describe("reference library API", () => {
   it("returns only the selected owner library and supports archived navigation", async () => {
@@ -128,7 +146,7 @@ describe("reference library API", () => {
     const bucket = new MemoryR2Bucket();
     const fixture = apiFixture(bucket);
     const fetchWeb = vi
-      .fn<(request: Request) => Promise<Response>>()
+      .fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>()
       .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: "https://example.com/final" } }))
       .mockResolvedValueOnce(
         new Response(
@@ -289,6 +307,110 @@ describe("reference library API", () => {
     expect(missing.status).toBe(404);
     expect(missing.headers.get("cache-control")).toBe("no-store");
   });
+
+  it("routes citation assertions, review, project filtering, and explicit Crossref expansion", async () => {
+    const fixture = apiFixture();
+    const createBody = {
+      citingReferenceId: reference.id,
+      citedReferenceId: citationAssertion.citedReferenceId,
+      polarity: "cites",
+      evidenceState: "confirmed",
+      method: "manual",
+      observedAt: now,
+      sourceKind: "researcher",
+      sourceId: "manual:1",
+      sourceLocator: "researcher review",
+      confidence: null,
+    };
+    expect(
+      (await handleReferenceLibraryApi(jsonRequest("/api/library/citation-assertions", createBody), fixture.env, identity)).status,
+    ).toBe(201);
+    expect(
+      (
+        await handleReferenceLibraryApi(
+          jsonRequest(`/api/library/citation-assertions/${citationAssertion.id}/review`, {
+            decision: "confirmed",
+            note: "Checked source",
+          }),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await handleReferenceLibraryApi(
+          new Request("https://example.test/api/library/citation-network?projectId=project-a"),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (await handleReferenceLibraryApi(new Request("https://example.test/api/library/citation-assertions"), fixture.env, identity)).status,
+    ).toBe(200);
+    expect(fixture.library.createCitationAssertions).toHaveBeenCalledWith([createBody], identity.email);
+    expect(fixture.library.reviewCitationAssertion).toHaveBeenCalledWith(
+      citationAssertion.id,
+      { decision: "confirmed", note: "Checked source" },
+      identity.email,
+    );
+    expect(fixture.library.getCitationNetwork).toHaveBeenCalledWith("project-a");
+
+    const source = { ...reference, doi: "10.1000/source" };
+    const target = { ...reference, id: citationAssertion.citedReferenceId, title: "Target", doi: "10.1000/target" };
+    fixture.library.getReferences.mockResolvedValueOnce([source]);
+    fixture.library.findReferencesByDois.mockResolvedValueOnce([target]);
+    const fetchExternal = vi.fn(async () =>
+      Response.json({ message: { reference: [{ DOI: "10.1000/target", "article-title": "Target" }, { DOI: "10.1000/unmatched" }] } }),
+    );
+    const expanded = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/citation-expansions`, {}),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    expect(expanded.status).toBe(201);
+    await expect(expanded.json()).resolves.toMatchObject({
+      provider: "crossref",
+      direction: "references",
+      assertions: [expect.objectContaining({ citingReferenceId: reference.id, citedReferenceId: target.id })],
+      unmatched: [{ doi: "10.1000/unmatched" }],
+      requestedBy: identity.email,
+    });
+    expect(fetchExternal).toHaveBeenCalledOnce();
+    expect(fixture.library.createCitationAssertions).toHaveBeenLastCalledWith(
+      [
+        expect.objectContaining({
+          citingReferenceId: reference.id,
+          citedReferenceId: target.id,
+          evidenceState: "extracted",
+          method: "provider",
+          sourceKind: "provider-response",
+        }),
+      ],
+      "Crossref",
+    );
+
+    expect(
+      (
+        await handleReferenceLibraryApi(
+          new Request("https://example.test/api/library/citation-network?projectId=../bad"),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await handleReferenceLibraryApi(
+          jsonRequest("/api/library/citation-assertions", { ...createBody, evidenceState: "conflicting" }),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(400);
+  });
 });
 
 function apiFixture(bucket = new MemoryR2Bucket()) {
@@ -345,6 +467,17 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     })),
     getWebSnapshot: vi.fn(async (_snapshotId: string) => webSnapshot),
     getWebSnapshots: vi.fn(async () => [webSnapshot]),
+    getReferences: vi.fn(async () => [reference]),
+    findReferencesByDois: vi.fn(async () => [] as BibliographicRecord[]),
+    createCitationAssertions: vi.fn(async (inputs: readonly import("../domain/citation-assertions").CreateCitationAssertionInput[]) =>
+      inputs.map((input) => ({ ...citationAssertion, ...input })),
+    ),
+    getCitationAssertions: vi.fn(async () => [citationAssertion]),
+    reviewCitationAssertion: vi.fn(async (_id: string, input: import("../domain/citation-assertions").ReviewCitationAssertionInput) => ({
+      ...citationAssertion,
+      review: { decision: input.decision, note: input.note, reviewer: identity.email, reviewedAt: now },
+    })),
+    getCitationNetwork: vi.fn(async () => citationNetwork),
   };
   const getByName = vi.fn(() => library);
   return {
@@ -353,6 +486,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     env: {
       REFERENCE_LIBRARIES: { getByName },
       PAPERS: bucket,
+      CROSSREF_MAILTO: "",
     },
   };
 }

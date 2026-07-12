@@ -1,6 +1,6 @@
 # ADR-063: Model Citation Assertions With Provenance
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-11
 
@@ -76,6 +76,27 @@ and selected citation analysis as the first graph experience.
   database is not implied.
 - The broader project evidence-and-claims graph remains a later view on the same
   typed-resource foundation.
+
+## Implementation
+
+- `src/domain/citation-assertions.ts` validates immutable assertions and
+  derives bounded shared or project-focused networks. Opposing active polarity
+  derives `conflicting`; rejected assertions remain stored but leave the active
+  projection.
+- Reference-library SQLite migration 4 stores stable directional endpoints,
+  polarity, evidence state, method, actor, observation time, source identity,
+  locator, confidence, and review. The owner-private library API exposes
+  assertion creation, audit reads, review, and network projection.
+- Explicit DOI expansion retrieves one bounded Crossref work response, hashes
+  its normalized candidate representation, and records only DOI matches already
+  in the library as `extracted` provider assertions. Unmatched candidates remain
+  visible for later identification; no recursive or title-based matching occurs.
+- The closed-by-default library UI provides a shared graph, a project-neighborhood
+  filter, manual assertions, review controls, and an accessible list containing
+  full provenance. The graph is derived SVG rather than authoritative storage.
+- `specs/citation-network/spec.md` defines API, privacy, interaction, bounding,
+  and regression contracts. Pure, integration, API, real-Workers, view, and
+  browser tests protect the implementation.
 
 ## Alternatives Considered
 

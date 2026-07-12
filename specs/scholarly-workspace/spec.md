@@ -82,6 +82,11 @@ mode for authenticated hosted collaboration.
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and
   content hash; normal reference refresh cannot move the pin.
+- **Citation assertions:** Source-to-source relationships live in the private
+  shared library as directional provenance-bearing assertions, not manuscript
+  `cites` edges. The bounded derived network can focus on current-project
+  references, retains conflicts, and expands Crossref references only after an
+  explicit owner action.
 - **Knowledge navigation:** Bounded workspace search and typed connection
   representations expose documents, sections, publications, PDFs, and
   annotations as navigable resources without making an index authoritative.
@@ -261,6 +266,8 @@ mode for authenticated hosted collaboration.
 - [x] Project-local aliases derive reproducible bibliography snapshots without
       exposing private library research.
 - [x] Removing a project reference leaves its owner-library record intact.
+- [x] Source citation assertions retain provenance and review while an
+      accessible shared network exposes conflicts and current-project focus.
 - [x] Search results and typed connections navigate across authored and evidence
       resources.
 - [x] Annotations can be synthesized into editable claims and linked onward to

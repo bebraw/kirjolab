@@ -1,6 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
 import { parseBibTeX } from "../domain/bibliography";
 import {
+  buildCitationNetwork,
+  type CitationAssertion,
+  type CitationAssertionReview,
+  type CitationNetwork,
+  type CreateCitationAssertionInput,
+  type ReviewCitationAssertionInput,
+} from "../domain/citation-assertions";
+import {
   likelyReferenceIdentity,
   missingRequiredBibliographicFields,
   referenceFromBibTeX,
@@ -113,6 +121,7 @@ interface TagRow extends Record<string, SqlStorageValue> {
 
 interface ProjectDependencyRow extends Record<string, SqlStorageValue> {
   project_id: string;
+  reference_id: string;
 }
 
 interface ShareRow extends Record<string, SqlStorageValue> {
@@ -124,6 +133,26 @@ interface ShareRow extends Record<string, SqlStorageValue> {
   snapshot_json: string;
   created_at: string;
   revoked_at: string | null;
+}
+
+interface CitationAssertionRow extends Record<string, SqlStorageValue> {
+  id: string;
+  citing_reference_id: string;
+  cited_reference_id: string;
+  polarity: string;
+  evidence_state: string;
+  extraction_method: string;
+  asserted_by: string;
+  observed_at: string;
+  source_kind: string;
+  source_id: string;
+  source_locator: string;
+  confidence: number | null;
+  review_decision: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_note: string | null;
+  created_at: string;
 }
 
 export interface ReferenceImportItem {
@@ -300,6 +329,40 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 4,
+    name: "model-citation-assertions-with-provenance",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE citation_assertions (
+          id TEXT PRIMARY KEY,
+          citing_reference_id TEXT NOT NULL REFERENCES library_references(id),
+          cited_reference_id TEXT NOT NULL REFERENCES library_references(id),
+          polarity TEXT NOT NULL CHECK (polarity IN ('cites', 'does-not-cite')),
+          evidence_state TEXT NOT NULL CHECK (evidence_state IN ('confirmed', 'extracted', 'inferred')),
+          extraction_method TEXT NOT NULL CHECK (
+            extraction_method IN ('authoritative-metadata', 'source-extraction', 'provider', 'model', 'manual')
+          ),
+          asserted_by TEXT NOT NULL,
+          observed_at TEXT NOT NULL,
+          source_kind TEXT NOT NULL CHECK (source_kind IN ('pdf-artifact', 'web-snapshot', 'provider-response', 'researcher')),
+          source_id TEXT NOT NULL,
+          source_locator TEXT NOT NULL,
+          confidence REAL CHECK (confidence IS NULL OR confidence BETWEEN 0 AND 1),
+          review_decision TEXT CHECK (review_decision IS NULL OR review_decision IN ('confirmed', 'rejected')),
+          reviewed_by TEXT,
+          reviewed_at TEXT,
+          review_note TEXT,
+          created_at TEXT NOT NULL,
+          CHECK (citing_reference_id <> cited_reference_id),
+          UNIQUE (citing_reference_id, cited_reference_id, polarity, extraction_method, source_kind, source_id)
+        );
+        CREATE INDEX citation_assertions_citing ON citation_assertions(citing_reference_id, created_at, id);
+        CREATE INDEX citation_assertions_cited ON citation_assertions(cited_reference_id, created_at, id);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -382,6 +445,77 @@ export class ReferenceLibrary extends DurableObject<Env> {
   getReferences(referenceIds: readonly string[]): BibliographicRecord[] {
     if (referenceIds.length > 512) throw new Error("Too many references requested");
     return referenceIds.map((id) => this.#reference(id, true));
+  }
+
+  findReferencesByDois(doiValues: readonly string[]): BibliographicRecord[] {
+    if (doiValues.length > 128) throw new Error("Too many citation identifiers requested");
+    const found = new Map<string, BibliographicRecord>();
+    for (const doi of doiValues.map((value) => value.trim().toLocaleLowerCase()).filter(Boolean)) {
+      const row = this.ctx.storage.sql
+        .exec<ReferenceRow>("SELECT * FROM library_references WHERE LOWER(doi) = ? AND deleted_at IS NULL LIMIT 1", doi)
+        .toArray()[0];
+      if (row) found.set(row.id, referenceFromRow(row));
+    }
+    return [...found.values()];
+  }
+
+  createCitationAssertions(inputs: readonly CreateCitationAssertionInput[], actor: string): CitationAssertion[] {
+    if (inputs.length === 0 || inputs.length > 128) throw new Error("Add between 1 and 128 citation assertions at a time");
+    return this.ctx.storage.transactionSync(() => inputs.map((input) => this.#createCitationAssertion(input, actor)));
+  }
+
+  getCitationAssertions(referenceId?: string): CitationAssertion[] {
+    if (referenceId) this.#reference(referenceId, true);
+    const rows = referenceId
+      ? this.ctx.storage.sql
+          .exec<CitationAssertionRow>(
+            `SELECT * FROM citation_assertions
+             WHERE citing_reference_id = ? OR cited_reference_id = ? ORDER BY created_at, id LIMIT 512`,
+            referenceId,
+            referenceId,
+          )
+          .toArray()
+      : this.ctx.storage.sql.exec<CitationAssertionRow>("SELECT * FROM citation_assertions ORDER BY created_at, id LIMIT 512").toArray();
+    return rows.map(citationAssertionFromRow);
+  }
+
+  reviewCitationAssertion(assertionId: string, input: ReviewCitationAssertionInput, reviewer: string): CitationAssertion {
+    const row = this.#citationAssertion(assertionId);
+    const reviewedAt = new Date().toISOString();
+    this.ctx.storage.sql.exec(
+      `UPDATE citation_assertions SET review_decision = ?, reviewed_by = ?, reviewed_at = ?, review_note = ? WHERE id = ?`,
+      input.decision,
+      reviewer,
+      reviewedAt,
+      input.note.trim(),
+      assertionId,
+    );
+    return {
+      ...citationAssertionFromRow(row),
+      review: { decision: input.decision, reviewer, reviewedAt, note: input.note.trim() },
+    };
+  }
+
+  getCitationNetwork(projectId?: string): CitationNetwork {
+    const references = this.ctx.storage.sql
+      .exec<ReferenceRow>(
+        "SELECT * FROM library_references WHERE archived_at IS NULL AND deleted_at IS NULL ORDER BY title COLLATE NOCASE, id",
+      )
+      .toArray()
+      .map(referenceFromRow);
+    const assertions = this.ctx.storage.sql
+      .exec<CitationAssertionRow>("SELECT * FROM citation_assertions ORDER BY created_at, id LIMIT 513")
+      .toArray()
+      .map(citationAssertionFromRow);
+    const projectReferenceIds = projectId
+      ? new Set(
+          this.ctx.storage.sql
+            .exec<ProjectDependencyRow>("SELECT project_id, reference_id FROM project_dependencies WHERE project_id = ?", projectId)
+            .toArray()
+            .map((row) => row.reference_id),
+        )
+      : new Set<string>();
+    return buildCitationNetwork(references, assertions, projectId ?? null, projectReferenceIds);
   }
 
   registerWebCapture(registration: WebCaptureRegistration): WebCaptureItem {
@@ -732,6 +866,58 @@ export class ReferenceLibrary extends DurableObject<Env> {
     };
   }
 
+  #createCitationAssertion(input: CreateCitationAssertionInput, actor: string): CitationAssertion {
+    this.#reference(input.citingReferenceId);
+    this.#reference(input.citedReferenceId);
+    const existing = this.ctx.storage.sql
+      .exec<CitationAssertionRow>(
+        `SELECT * FROM citation_assertions WHERE citing_reference_id = ? AND cited_reference_id = ? AND polarity = ?
+         AND extraction_method = ? AND source_kind = ? AND source_id = ?`,
+        input.citingReferenceId,
+        input.citedReferenceId,
+        input.polarity,
+        input.method,
+        input.sourceKind,
+        input.sourceId,
+      )
+      .toArray()[0];
+    if (existing) return citationAssertionFromRow(existing);
+    const assertion: CitationAssertion = {
+      id: crypto.randomUUID(),
+      ...input,
+      assertedBy: actor,
+      review: null,
+      createdAt: new Date().toISOString(),
+    };
+    this.ctx.storage.sql.exec(
+      `INSERT INTO citation_assertions
+       (id, citing_reference_id, cited_reference_id, polarity, evidence_state, extraction_method, asserted_by,
+        observed_at, source_kind, source_id, source_locator, confidence, review_decision, reviewed_by,
+        reviewed_at, review_note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?)`,
+      assertion.id,
+      assertion.citingReferenceId,
+      assertion.citedReferenceId,
+      assertion.polarity,
+      assertion.evidenceState,
+      assertion.method,
+      assertion.assertedBy,
+      assertion.observedAt,
+      assertion.sourceKind,
+      assertion.sourceId,
+      assertion.sourceLocator,
+      assertion.confidence,
+      assertion.createdAt,
+    );
+    return assertion;
+  }
+
+  #citationAssertion(assertionId: string): CitationAssertionRow {
+    const row = this.ctx.storage.sql.exec<CitationAssertionRow>("SELECT * FROM citation_assertions WHERE id = ?", assertionId).toArray()[0];
+    if (!row) throw new Error("Citation assertion not found");
+    return row;
+  }
+
   #writeReference(reference: BibliographicRecord, identityKey: string, insert: boolean): void {
     const values = [
       reference.id,
@@ -952,6 +1138,60 @@ function shareFromRow(row: ShareRow): ResearchShareSnapshot {
     createdAt: row.created_at,
     revokedAt: row.revoked_at,
   };
+}
+
+function citationAssertionFromRow(row: CitationAssertionRow): CitationAssertion {
+  if (
+    (row.polarity !== "cites" && row.polarity !== "does-not-cite") ||
+    (row.evidence_state !== "confirmed" && row.evidence_state !== "extracted" && row.evidence_state !== "inferred") ||
+    !isCitationMethod(row.extraction_method) ||
+    !isCitationSourceKind(row.source_kind)
+  ) {
+    throw new Error("Stored citation assertion is invalid");
+  }
+  let review: CitationAssertionReview | null = null;
+  if (row.review_decision !== null) {
+    if (
+      (row.review_decision !== "confirmed" && row.review_decision !== "rejected") ||
+      row.reviewed_by === null ||
+      row.reviewed_at === null ||
+      row.review_note === null
+    ) {
+      throw new Error("Stored citation assertion review is invalid");
+    }
+    review = {
+      decision: row.review_decision,
+      reviewer: row.reviewed_by,
+      reviewedAt: row.reviewed_at,
+      note: row.review_note,
+    };
+  }
+  return {
+    id: row.id,
+    citingReferenceId: row.citing_reference_id,
+    citedReferenceId: row.cited_reference_id,
+    polarity: row.polarity,
+    evidenceState: row.evidence_state,
+    method: row.extraction_method,
+    assertedBy: row.asserted_by,
+    observedAt: row.observed_at,
+    sourceKind: row.source_kind,
+    sourceId: row.source_id,
+    sourceLocator: row.source_locator,
+    confidence: row.confidence,
+    review,
+    createdAt: row.created_at,
+  };
+}
+
+function isCitationMethod(value: string): value is CitationAssertion["method"] {
+  return (
+    value === "authoritative-metadata" || value === "source-extraction" || value === "provider" || value === "model" || value === "manual"
+  );
+}
+
+function isCitationSourceKind(value: string): value is CitationAssertion["sourceKind"] {
+  return value === "pdf-artifact" || value === "web-snapshot" || value === "provider-response" || value === "researcher";
 }
 
 function parseSharedContent(kind: string, value: string): ResearchShareSnapshot["content"] {

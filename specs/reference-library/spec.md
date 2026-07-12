@@ -40,6 +40,10 @@ memory and makes citation aliases compete with stable source identity.
   access appends an immutable bounded snapshot with exact timestamp, content
   hash, retrieval metadata, diagnostics, and private raw/readable R2 objects.
   Existing project pins never advance during ordinary library refresh.
+- Source-to-source citation relationships are stored as provenance-bearing
+  assertions between stable reference UUIDs. Confirmed, extracted, inferred,
+  and conflicting derived states remain distinct from project manuscript
+  `cites` links; researcher review never erases captured provenance.
 
 ### API Contracts
 
@@ -55,6 +59,9 @@ memory and makes citation aliases compete with stable source identity.
   confirmed deletion routes mutate only the authenticated owner's library.
 - Web-source capture, snapshot inspection, inert content download, and neutral
   snapshot comparison routes remain within the same owner-private API.
+- Citation assertion, review, bounded network, and explicit Crossref reference
+  expansion routes remain within the same owner-private API. A project id only
+  filters the projection; it does not grant library access.
 - `POST /api/workspaces/{id}/references` links a source snapshot and local
   alias. Patch renames the alias; sync refreshes metadata; delete unlinks only
   after its citations are removed.
@@ -80,6 +87,8 @@ memory and makes citation aliases compete with stable source identity.
 - Do not keep an editable project bibliography as a second authority.
 - Do not silently identify a PDF from uncertain or incomplete metadata.
 - Do not delete a library source because one project unlinks it.
+- Do not flatten provider, extraction, model, or manual citation evidence into
+  one trusted boolean edge.
 
 ### Validation
 
@@ -94,6 +103,7 @@ memory and makes citation aliases compete with stable source identity.
 - Implemented: owner-scoped library, provenance, BibTeX migration/import,
   private PDFs and identification, notes/tags/highlights/reading state, archive
   and tombstone deletion, project aliases/snapshots, derived cited-only BibTeX,
-  versioned web captures, and separate closed-by-default library UI.
+  versioned web captures, provenance-bearing citation assertions and network,
+  and separate closed-by-default library UI.
 - Superseded: workspace BibTeX authority and workspace-scoped publication
   projection described by ADR-044, ADR-051, and ADR-055.

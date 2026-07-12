@@ -128,6 +128,55 @@ test("keeps private library research separate from project citations", async ({ 
   await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("researchGuide");
 });
 
+test("records and reviews source citation assertions in an accessible shared network", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Citation assertion network");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+
+  await page.locator("#open-reference-library").click();
+  await page.locator("#library-bibliography-upload").setInputFiles({
+    name: "citation-network.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from(`@article{networkAlpha,
+      title = {Network Alpha Study},
+      author = {Alpha, Ada},
+      year = {2024},
+      doi = {10.1000/network-alpha}
+    }
+    @article{networkBeta,
+      title = {Network Beta Study},
+      author = {Beta, Bea},
+      year = {2025},
+      doi = {10.1000/network-beta}
+    }`),
+  });
+  const alpha = page.locator("#reference-library-list .resource-card").filter({ hasText: "Network Alpha Study" });
+  await expect(alpha).toBeVisible();
+  await alpha.getByLabel("Project citation alias for Network Alpha Study").fill("networkAlpha");
+  await alpha.getByRole("button", { name: "Add to project" }).click();
+
+  await page.locator("#open-citation-network").click();
+  await expect(page.locator("#citation-network")).toBeVisible();
+  await page.locator("#citation-assertion-citing").selectOption({ label: "Network Alpha Study" });
+  await page.locator("#citation-assertion-cited").selectOption({ label: "Network Beta Study" });
+  await page.locator("#citation-assertion-form").getByRole("button", { name: "Record assertion" }).click();
+
+  const list = page.locator("#citation-network-list");
+  await expect(list).toContainText("Network Alpha Study → Network Beta Study");
+  await expect(list).toContainText("cites · confirmed · manual");
+  await expect(list).toContainText("Kirjolab researcher assertion");
+  await expect(page.locator("#citation-network-graph line")).toHaveCount(1);
+  await expect(page.locator("#citation-network-graph circle")).toHaveCount(2);
+
+  page.once("dialog", (dialog) => dialog.accept("Checked the source reference list"));
+  await list.getByRole("button", { name: "Confirm" }).click();
+  await expect(list).toContainText("confirmed by");
+  await page.locator("#filter-project-citations").click();
+  await expect(page.locator("#filter-project-citations")).toHaveAttribute("aria-pressed", "true");
+  await expect(list).toContainText("Network Alpha Study → Network Beta Study");
+  await expect(list).toContainText("Current project");
+});
+
 test("keeps resource-keyed research context beside authoring", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Research context boundary");
   const api = `/api/workspaces/${workspaceId}`;

@@ -449,6 +449,7 @@ export function renderHomePage(
         <div class="mt-5 flex flex-wrap gap-2 border-y border-app-line py-4">
           <label class="button-primary">Import BibTeX<input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
           <label class="button-secondary">Add PDF<input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf"></label>
+          <button class="button-secondary" id="open-citation-network" type="button">Citation network</button>
           <button class="button-secondary" id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
         </div>
         <details class="mt-4 rounded-sm border border-app-line p-4" id="web-source-intake">
@@ -465,6 +466,20 @@ export function renderHomePage(
         </details>
         <div class="mt-5 grid gap-3 md:grid-cols-2" id="reference-library-list"><div class="empty-state">Loading private library…</div></div>
         <section class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></section>
+        <section class="mt-6 hidden border-t border-app-line pt-5" id="citation-network" aria-labelledby="citation-network-heading">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div><p class="eyebrow">Shared literature map</p><h3 class="mt-1 text-lg font-semibold" id="citation-network-heading">Citation assertions</h3><p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">Source-to-source assertions retain direction, extraction state, provider or source identity, retrieval time, and researcher review. Conflicts remain visible.</p></div>
+            <div class="flex gap-2"><button class="button-secondary" id="filter-project-citations" type="button" aria-pressed="false">Current project</button><button class="button-secondary" id="close-citation-network" type="button">Close network</button></div>
+          </div>
+          <form class="mt-4 grid gap-3 border-y border-app-line py-4 md:grid-cols-[1fr_auto_1fr_auto]" id="citation-assertion-form">
+            <label class="field-label">Citing source<select class="field" id="citation-assertion-citing" required></select></label>
+            <label class="field-label">Relationship<select class="field" id="citation-assertion-polarity"><option value="cites">Cites</option><option value="does-not-cite">Does not cite</option></select></label>
+            <label class="field-label">Cited source<select class="field" id="citation-assertion-cited" required></select></label>
+            <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Record assertion</button></div>
+          </form>
+          <div class="mt-4 overflow-hidden border border-app-line bg-app-paper"><svg class="block min-h-72 w-full" id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"></svg></div>
+          <div class="mt-4 space-y-3" id="citation-network-list" aria-live="polite"><div class="empty-state">Loading citation assertions…</div></div>
+        </section>
         <section class="mt-6 border-t border-app-line pt-5">
           <div class="flex items-center justify-between gap-3"><p class="eyebrow">PDFs awaiting identification</p><span class="count-badge" id="unidentified-pdf-count">0</span></div>
           <div class="mt-3 grid gap-3 md:grid-cols-2" id="unidentified-pdf-list"><div class="empty-state">No unidentified PDFs.</div></div>

@@ -111,6 +111,90 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       content: { kind: "web-snapshot", snapshotId: "capture-1", contentHash: "sha256:first" },
     });
   });
+
+  it("retains provenance-bearing citation assertions, conflicts, review, and project-filtered networks", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`citation-library-${crypto.randomUUID()}`);
+    const imported = await library.importBibTeX(
+      `@article{alpha, title={Alpha paper}, author={A, Ada}, year={2026}, journal={Journal}, doi={10.1000/alpha}}
+       @article{beta, title={Beta paper}, author={B, Bea}, year={2025}, journal={Journal}, doi={10.1000/beta}}
+       @article{gamma, title={Gamma paper}, author={G, Gio}, year={2024}, journal={Journal}, doi={10.1000/gamma}}`,
+      "owner@example.test",
+    );
+    const alpha = imported[0]!.reference;
+    const beta = imported[1]!.reference;
+    const gamma = imported[2]!.reference;
+    expect(await library.findReferencesByDois(["10.1000/BETA", "10.1000/beta", "10.1000/missing"])).toEqual([
+      expect.objectContaining({ id: beta.id, doi: "10.1000/beta" }),
+    ]);
+
+    await library.registerProjectDependency("project-a", beta.id);
+    await library.registerProjectDependency("project-a", gamma.id);
+    const observedAt = "2026-07-12T10:00:00.000Z";
+    const positiveInput = {
+      citingReferenceId: alpha.id,
+      citedReferenceId: beta.id,
+      polarity: "cites" as const,
+      evidenceState: "extracted" as const,
+      method: "provider" as const,
+      observedAt,
+      sourceKind: "provider-response" as const,
+      sourceId: "sha256:crossref-response",
+      sourceLocator: "https://api.crossref.org/works/10.1000%2Falpha",
+      confidence: null,
+    };
+    const [positive] = await library.createCitationAssertions([positiveInput], "Crossref");
+    expect((await library.createCitationAssertions([positiveInput], "Crossref"))[0]?.id).toBe(positive!.id);
+    const [negative] = await library.createCitationAssertions(
+      [
+        {
+          ...positiveInput,
+          polarity: "does-not-cite",
+          evidenceState: "inferred",
+          method: "model",
+          sourceKind: "researcher",
+          sourceId: "model-candidate-1",
+          sourceLocator: "manual review queue",
+          confidence: 0.4,
+        },
+      ],
+      "owner@example.test",
+    );
+
+    expect(await library.getCitationNetwork()).toMatchObject({
+      projectId: null,
+      edges: [{ state: "conflicting", assertions: [{ state: "conflicting" }, { state: "conflicting" }] }],
+    });
+    expect((await library.getCitationAssertions(alpha.id)).map((assertion) => assertion.id)).toEqual([positive!.id, negative!.id]);
+    await library.reviewCitationAssertion(negative!.id, { decision: "rejected", note: "No source support" }, "owner@example.test");
+    expect((await library.getCitationNetwork()).edges[0]).toMatchObject({ state: "extracted", assertions: [{ id: positive!.id }] });
+    await library.reviewCitationAssertion(
+      positive!.id,
+      { decision: "confirmed", note: "Checked publisher reference list" },
+      "owner@example.test",
+    );
+    expect(await library.getCitationNetwork("project-a")).toMatchObject({
+      projectId: "project-a",
+      nodes: [
+        expect.objectContaining({ referenceId: alpha.id, inProject: false }),
+        expect.objectContaining({ referenceId: beta.id, inProject: true }),
+        expect.objectContaining({ referenceId: gamma.id, inProject: true }),
+      ],
+      edges: [{ state: "confirmed", assertions: [{ review: { decision: "confirmed", reviewer: "owner@example.test" } }] }],
+    });
+
+    await runInDurableObject(library, (instance: ReferenceLibrary, state) => {
+      expect(
+        state.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
+          .toArray(),
+      ).toContainEqual({ version: 4, name: "model-citation-assertions-with-provenance" });
+      expect(() => instance.createCitationAssertions([], "owner")).toThrow("between 1 and 128");
+      expect(() => instance.findReferencesByDois(Array.from({ length: 129 }, () => "10.1000/x"))).toThrow("Too many");
+      expect(() => instance.reviewCitationAssertion(crypto.randomUUID(), { decision: "confirmed", note: "" }, "owner")).toThrow(
+        "not found",
+      );
+    });
+  });
 });
 
 function webCapture(id: string, accessedAt: string, contentHash: string, readableName: string): WebCaptureRegistration {

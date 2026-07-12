@@ -72,6 +72,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat web-capture comparison as neutral readable-text change data. Never
   render fetched markup, silently move a project pin, or infer authority or
   correctness from a capture or diff.
+- Store source-to-source citations as owner-library assertions between stable
+  reference identities, with direction, polarity, evidence state, source,
+  retrieval time, method, confidence, and review. Derive conflicts without
+  overwriting assertions; keep manuscript `cites` links separate.
+- Derive the bounded citation network from relational assertions, pair every
+  graph with an accessible provenance list, and expand a DOI-backed source only
+  through an explicit bounded provider request. A project id narrows the
+  private projection but never grants library access.
 - Retain immutable project-wide logical revisions separately from the
   manuscript concurrency revision. Each history snapshot must atomically
   preserve the exact Yjs state, stable file tree, aliases, pinned source and

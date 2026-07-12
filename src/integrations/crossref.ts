@@ -5,6 +5,25 @@ import type { PublicationEnrichment } from "../domain/workspace";
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
 const maximumCrossrefBytes = 1_000_000;
+const maximumCitationCandidates = 128;
+
+export interface CrossrefCitationCandidate {
+  readonly doi: string;
+  readonly title: string;
+  readonly authors: string;
+  readonly year: string;
+  readonly unstructured: string;
+}
+
+export interface CrossrefCitationExpansion {
+  readonly provider: "crossref";
+  readonly direction: "references";
+  readonly retrievedAt: string;
+  readonly responseId: string;
+  readonly sourceLocator: string;
+  readonly candidates: readonly CrossrefCitationCandidate[];
+  readonly truncated: boolean;
+}
 
 export async function fetchCrossrefWork(doiValue: string, mailto: string, fetcher: Fetcher = fetch): Promise<PublicationEnrichment> {
   if (!isValidDoi(doiValue)) throw new Error("Publication DOI is invalid");
@@ -49,6 +68,52 @@ export async function fingerprintPublicationMetadata(metadata: PublicationEnrich
   });
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical)));
   return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function fetchCrossrefReferences(
+  doiValue: string,
+  mailto: string,
+  fetcher: Fetcher = fetch,
+): Promise<CrossrefCitationExpansion> {
+  if (!isValidDoi(doiValue)) throw new Error("Publication DOI is invalid");
+  const doi = normalizePublicationDoi(doiValue);
+  const url = new URL(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
+  const contact = mailto.trim().toLowerCase();
+  if (contact) url.searchParams.set("mailto", contact);
+  const response = await fetcher(url, {
+    headers: {
+      accept: "application/vnd.crossref-api-message+json",
+      "user-agent": contact ? `Kirjolab/0.1 (mailto:${contact})` : "Kirjolab/0.1",
+    },
+  });
+  if (!response.ok) throw new Error(response.status === 404 ? "Crossref has no record for this DOI" : "Crossref metadata request failed");
+  const body = await readBoundedJson(response);
+  if (!isRecord(body) || !isRecord(body.message)) throw new Error("Crossref returned invalid metadata");
+  const references = Array.isArray(body.message.reference) ? body.message.reference : [];
+  const candidates = references.slice(0, maximumCitationCandidates).flatMap((value): CrossrefCitationCandidate[] => {
+    if (!isRecord(value) || typeof value.DOI !== "string" || !isValidDoi(value.DOI)) return [];
+    return [
+      {
+        doi: normalizeDoi(value.DOI),
+        title: bound(typeof value["article-title"] === "string" ? stripMarkup(value["article-title"]) : "", 2_000),
+        authors: bound(typeof value.author === "string" ? stripMarkup(value.author) : "", 2_000),
+        year: bound(typeof value.year === "string" ? value.year.trim() : "", 100),
+        unstructured: bound(typeof value.unstructured === "string" ? stripMarkup(value.unstructured) : "", 4_000),
+      },
+    ];
+  });
+  const retrievedAt = new Date().toISOString();
+  const canonical = JSON.stringify({ doi, candidates });
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical)));
+  return {
+    provider: "crossref",
+    direction: "references",
+    retrievedAt,
+    responseId: `sha256:${Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("")}`,
+    sourceLocator: url.toString(),
+    candidates,
+    truncated: references.length > maximumCitationCandidates,
+  };
 }
 
 async function readBoundedJson(response: Response): Promise<unknown> {

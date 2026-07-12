@@ -6,6 +6,7 @@ import {
   type KnowledgeSearchResult,
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
+import { isCitationNetwork, type CitationAssertionView, type CitationNetwork } from "../domain/citation-assertions";
 import { parseServerCollaborationMessage } from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
@@ -98,6 +99,16 @@ interface Elements {
   libraryBibliographyUpload: HTMLInputElement;
   libraryPdfUpload: HTMLInputElement;
   showArchivedReferences: HTMLButtonElement;
+  openCitationNetwork: HTMLButtonElement;
+  citationNetwork: HTMLElement;
+  closeCitationNetwork: HTMLButtonElement;
+  filterProjectCitations: HTMLButtonElement;
+  citationAssertionForm: HTMLFormElement;
+  citationAssertionCiting: HTMLSelectElement;
+  citationAssertionCited: HTMLSelectElement;
+  citationAssertionPolarity: HTMLSelectElement;
+  citationNetworkGraph: SVGSVGElement;
+  citationNetworkList: HTMLElement;
   webSourceForm: HTMLFormElement;
   webSourceUrl: HTMLInputElement;
   webSourceTitle: HTMLInputElement;
@@ -284,6 +295,8 @@ class WorkspaceApp {
   #projectFileDialogMode: "create" | "rename" = "create";
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #showArchivedReferences = false;
+  #citationNetwork: CitationNetwork | null = null;
+  #filterProjectCitations = false;
   #projectHistory: ProjectRevisionSummary[] = [];
   #wordStatistics: PublicationWordStatistics | null = null;
 
@@ -334,6 +347,16 @@ class WorkspaceApp {
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryPdfUpload.addEventListener("change", () => void this.#uploadLibraryPdf());
     this.#elements.webSourceForm.addEventListener("submit", (event) => void this.#captureWebSource(event));
+    this.#elements.openCitationNetwork.addEventListener("click", () => void this.#openCitationNetwork());
+    this.#elements.closeCitationNetwork.addEventListener("click", () => {
+      this.#elements.citationNetwork.classList.add("hidden");
+    });
+    this.#elements.filterProjectCitations.addEventListener("click", () => {
+      this.#filterProjectCitations = !this.#filterProjectCitations;
+      this.#elements.filterProjectCitations.setAttribute("aria-pressed", String(this.#filterProjectCitations));
+      void this.#refreshCitationNetwork();
+    });
+    this.#elements.citationAssertionForm.addEventListener("submit", (event) => void this.#recordCitationAssertion(event));
     this.#elements.showArchivedReferences.addEventListener("click", () => {
       this.#showArchivedReferences = !this.#showArchivedReferences;
       this.#elements.showArchivedReferences.setAttribute("aria-pressed", String(this.#showArchivedReferences));
@@ -1046,6 +1069,7 @@ class WorkspaceApp {
   #renderReferenceLibrary(): void {
     const library = this.#librarySnapshot;
     if (!library) return;
+    this.#renderCitationAssertionOptions();
     this.#elements.referenceLibraryList.replaceChildren();
     if (library.references.length === 0) {
       this.#elements.referenceLibraryList.append(emptyState("No references yet. Import BibTeX or add a PDF to begin."));
@@ -1057,6 +1081,231 @@ class WorkspaceApp {
     this.#elements.unidentifiedPdfList.replaceChildren();
     if (unidentified.length === 0) this.#elements.unidentifiedPdfList.append(emptyState("No unidentified PDFs."));
     for (const artifact of unidentified) this.#elements.unidentifiedPdfList.append(this.#unidentifiedPdfCard(artifact, library.references));
+  }
+
+  async #openCitationNetwork(): Promise<void> {
+    this.#elements.citationNetwork.classList.remove("hidden");
+    this.#renderCitationAssertionOptions();
+    await this.#refreshCitationNetwork();
+    this.#elements.citationNetwork.scrollIntoView({ block: "start" });
+  }
+
+  async #refreshCitationNetwork(): Promise<void> {
+    const filter = this.#filterProjectCitations ? `?projectId=${encodeURIComponent(workspaceId)}` : "";
+    const response = await fetch(`/api/library/citation-network${filter}`, { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isCitationNetwork(value)) throw new Error("Citation network returned an invalid representation");
+    this.#citationNetwork = value;
+    this.#renderCitationNetwork();
+  }
+
+  #renderCitationAssertionOptions(): void {
+    const references = this.#librarySnapshot?.references ?? [];
+    for (const select of [this.#elements.citationAssertionCiting, this.#elements.citationAssertionCited]) {
+      const current = select.value;
+      select.replaceChildren(new Option("Choose source…", ""), ...references.map((reference) => new Option(reference.title, reference.id)));
+      if (references.some((reference) => reference.id === current)) select.value = current;
+    }
+  }
+
+  #renderCitationNetwork(): void {
+    const network = this.#citationNetwork;
+    if (!network) return;
+    this.#renderCitationGraph(network);
+    this.#elements.citationNetworkList.replaceChildren();
+    if (network.nodes.length === 0) {
+      this.#elements.citationNetworkList.append(
+        emptyState(
+          this.#filterProjectCitations
+            ? "No citation assertions touch references in this project yet."
+            : "No source-to-source citation assertions yet. Record one or expand a DOI-backed source.",
+        ),
+      );
+      return;
+    }
+    const nodes = document.createElement("section");
+    nodes.className = "grid gap-3 md:grid-cols-2";
+    for (const node of network.nodes) {
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      card.append(resourceLabel(node.inProject ? "Current project" : "Shared library"), resourceTitle(node.label));
+      const detail = document.createElement("p");
+      detail.className = "mt-2 text-xs text-app-text-soft";
+      detail.textContent = [node.authors.join("; "), node.year, node.doi].filter(Boolean).join(" · ");
+      card.append(detail);
+      if (node.doi) {
+        card.append(actionButton("Expand references", "button-secondary mt-3", () => void this.#expandCitationReference(node.referenceId)));
+      }
+      nodes.append(card);
+    }
+    this.#elements.citationNetworkList.append(nodes);
+
+    if (network.edges.length === 0) return;
+    const heading = document.createElement("h4");
+    heading.className = "eyebrow mt-3";
+    heading.textContent = `Assertions${network.truncated ? " · first 512" : ""}`;
+    this.#elements.citationNetworkList.append(heading);
+    const labels = new Map(network.nodes.map((node) => [node.id, node.label]));
+    for (const edge of network.edges) {
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      card.append(resourceLabel(edge.state), resourceTitle(`${labels.get(edge.from) ?? edge.from} → ${labels.get(edge.to) ?? edge.to}`));
+      for (const assertion of edge.assertions) card.append(this.#citationAssertionRow(assertion));
+      this.#elements.citationNetworkList.append(card);
+    }
+  }
+
+  #renderCitationGraph(network: CitationNetwork): void {
+    const svg = this.#elements.citationNetworkGraph;
+    svg.replaceChildren();
+    const namespace = "http://www.w3.org/2000/svg";
+    if (network.nodes.length === 0) {
+      const text = document.createElementNS(namespace, "text");
+      text.setAttribute("x", "400");
+      text.setAttribute("y", "180");
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("fill", "currentColor");
+      text.textContent = "No citation assertions to draw";
+      svg.append(text);
+      return;
+    }
+    const definitions = document.createElementNS(namespace, "defs");
+    const marker = document.createElementNS(namespace, "marker");
+    marker.setAttribute("id", "citation-arrow");
+    marker.setAttribute("viewBox", "0 0 10 10");
+    marker.setAttribute("refX", "9");
+    marker.setAttribute("refY", "5");
+    marker.setAttribute("markerWidth", "6");
+    marker.setAttribute("markerHeight", "6");
+    marker.setAttribute("orient", "auto-start-reverse");
+    const arrow = document.createElementNS(namespace, "path");
+    arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+    arrow.setAttribute("fill", "context-stroke");
+    marker.append(arrow);
+    definitions.append(marker);
+    svg.append(definitions);
+    const positions = new Map(
+      network.nodes.map((node, index) => {
+        const angle = (index / network.nodes.length) * Math.PI * 2 - Math.PI / 2;
+        return [node.id, { x: 400 + Math.cos(angle) * 270, y: 180 + Math.sin(angle) * 125 }] as const;
+      }),
+    );
+    for (const edge of network.edges) {
+      const from = positions.get(edge.from);
+      const to = positions.get(edge.to);
+      if (!from || !to) continue;
+      const line = document.createElementNS(namespace, "line");
+      line.setAttribute("x1", String(from.x));
+      line.setAttribute("y1", String(from.y));
+      line.setAttribute("x2", String(to.x));
+      line.setAttribute("y2", String(to.y));
+      line.setAttribute("stroke", citationStateColor(edge.state));
+      line.setAttribute("stroke-width", edge.state === "confirmed" ? "3" : "2");
+      line.setAttribute("marker-end", "url(#citation-arrow)");
+      if (edge.state === "inferred") line.setAttribute("stroke-dasharray", "6 5");
+      svg.append(line);
+    }
+    for (const node of network.nodes) {
+      const position = positions.get(node.id)!;
+      const group = document.createElementNS(namespace, "g");
+      const circle = document.createElementNS(namespace, "circle");
+      circle.setAttribute("cx", String(position.x));
+      circle.setAttribute("cy", String(position.y));
+      circle.setAttribute("r", node.inProject ? "19" : "15");
+      circle.setAttribute("fill", node.inProject ? "#0c7655" : "#e8e2d6");
+      circle.setAttribute("stroke", "#26312d");
+      const text = document.createElementNS(namespace, "text");
+      text.setAttribute("x", String(position.x));
+      text.setAttribute("y", String(position.y + 34));
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("font-size", "11");
+      text.setAttribute("fill", "currentColor");
+      text.textContent = node.label.length > 28 ? `${node.label.slice(0, 27)}…` : node.label;
+      const title = document.createElementNS(namespace, "title");
+      title.textContent = node.label;
+      group.append(circle, text, title);
+      svg.append(group);
+    }
+  }
+
+  #citationAssertionRow(assertion: CitationAssertionView): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "mt-3 border-t border-app-line pt-3";
+    const summary = document.createElement("p");
+    summary.className = "font-sans text-xs leading-5";
+    summary.textContent = `${assertion.polarity} · ${assertion.state} · ${assertion.method}`;
+    const provenance = document.createElement("p");
+    provenance.className = "mt-1 text-xs leading-5 text-app-text-soft";
+    provenance.textContent = [
+      assertion.assertedBy,
+      formatTimestamp(assertion.observedAt),
+      assertion.sourceKind,
+      assertion.sourceId,
+      assertion.sourceLocator,
+      assertion.confidence === null ? "" : `confidence ${assertion.confidence.toFixed(2)}`,
+      assertion.review ? `${assertion.review.decision} by ${assertion.review.reviewer}` : "unreviewed",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    row.append(summary, provenance);
+    if (!assertion.review) {
+      const actions = document.createElement("div");
+      actions.className = "mt-2 flex gap-2";
+      actions.append(
+        actionButton("Confirm", "button-secondary", () => void this.#reviewCitationAssertion(assertion.id, "confirmed")),
+        actionButton("Reject", "button-secondary", () => void this.#reviewCitationAssertion(assertion.id, "rejected")),
+      );
+      row.append(actions);
+    }
+    return row;
+  }
+
+  async #recordCitationAssertion(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const citingReferenceId = this.#elements.citationAssertionCiting.value;
+    const citedReferenceId = this.#elements.citationAssertionCited.value;
+    if (!citingReferenceId || !citedReferenceId || citingReferenceId === citedReferenceId) {
+      this.#showToast("Choose two different sources for the citation assertion.");
+      return;
+    }
+    const polarity = this.#elements.citationAssertionPolarity.value === "does-not-cite" ? "does-not-cite" : "cites";
+    const response = await jsonFetch("/api/library/citation-assertions", {
+      citingReferenceId,
+      citedReferenceId,
+      polarity,
+      evidenceState: "confirmed",
+      method: "manual",
+      observedAt: new Date().toISOString(),
+      sourceKind: "researcher",
+      sourceId: `manual:${crypto.randomUUID()}`,
+      sourceLocator: "Kirjolab researcher assertion",
+      confidence: null,
+    });
+    await expectOk(response);
+    await this.#refreshCitationNetwork();
+    this.#showToast("Citation assertion recorded with researcher provenance.");
+  }
+
+  async #reviewCitationAssertion(assertionId: string, decision: "confirmed" | "rejected"): Promise<void> {
+    const note = window.prompt(`${decision === "confirmed" ? "Confirmation" : "Rejection"} note (optional)`) ?? "";
+    const response = await jsonFetch(`/api/library/citation-assertions/${encodeURIComponent(assertionId)}/review`, { decision, note });
+    await expectOk(response);
+    await this.#refreshCitationNetwork();
+    this.#showToast(`Citation assertion ${decision}.`);
+  }
+
+  async #expandCitationReference(referenceId: string): Promise<void> {
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/citation-expansions`, {});
+    await expectOk(response);
+    const value: unknown = await response.json();
+    const unmatched = isUnknownRecord(value) && Array.isArray(value.unmatched) ? value.unmatched.length : 0;
+    await this.#refreshCitationNetwork();
+    this.#showToast(
+      unmatched > 0
+        ? `Known Crossref relationships added; ${unmatched} external reference${unmatched === 1 ? "" : "s"} await library matching.`
+        : "Known Crossref relationships added to the shared citation network.",
+    );
   }
 
   #referenceLibraryCard(reference: BibliographicRecord): HTMLElement {
@@ -2923,6 +3172,16 @@ function collectElements(): Elements {
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryPdfUpload: requiredElement("library-pdf-upload", HTMLInputElement),
     showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
+    openCitationNetwork: requiredElement("open-citation-network", HTMLButtonElement),
+    citationNetwork: requiredElement("citation-network", HTMLElement),
+    closeCitationNetwork: requiredElement("close-citation-network", HTMLButtonElement),
+    filterProjectCitations: requiredElement("filter-project-citations", HTMLButtonElement),
+    citationAssertionForm: requiredElement("citation-assertion-form", HTMLFormElement),
+    citationAssertionCiting: requiredElement("citation-assertion-citing", HTMLSelectElement),
+    citationAssertionCited: requiredElement("citation-assertion-cited", HTMLSelectElement),
+    citationAssertionPolarity: requiredElement("citation-assertion-polarity", HTMLSelectElement),
+    citationNetworkGraph: requiredElement("citation-network-graph", SVGSVGElement),
+    citationNetworkList: requiredElement("citation-network-list", HTMLElement),
     webSourceForm: requiredElement("web-source-form", HTMLFormElement),
     webSourceUrl: requiredElement("web-source-url", HTMLInputElement),
     webSourceTitle: requiredElement("web-source-title", HTMLInputElement),
@@ -3182,6 +3441,13 @@ function formatBytes(value: number): string {
 function formatTimestamp(value: string): string {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
+function citationStateColor(state: CitationNetwork["edges"][number]["state"]): string {
+  if (state === "confirmed") return "#0c7655";
+  if (state === "extracted") return "#4e6b61";
+  if (state === "conflicting") return "#b34835";
+  return "#9b7b3d";
 }
 
 function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
