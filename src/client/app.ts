@@ -2683,7 +2683,7 @@ class WorkspaceApp {
   #renderCandidates(candidates: ModelCandidate[]): void {
     this.#elements.candidateList.replaceChildren();
     if (candidates.length === 0) {
-      this.#elements.candidateList.append(emptyState("Grounded revisions open in Context and remain separate until you apply one."));
+      this.#elements.candidateList.append(emptyState("Drafts open in Context and do not change the manuscript until applied."));
       return;
     }
     for (const candidate of candidates) {
