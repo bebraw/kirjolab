@@ -50,6 +50,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owner-private by default. A project citation receives only its local alias
   and bibliographic snapshot; sharing any additional resource must be a
   separate explicit, rights-checked action pinned into a project revision.
+- Model each web source as one stable owner-library identity with append-only,
+  timestamped captures. Retrieve only bounded public HTTP(S) content through
+  manually validated redirects, store raw/readable representations privately
+  as inert R2 objects, and make projects pin an exact capture rather than a
+  mutable latest URL.
+- Treat web-capture comparison as neutral readable-text change data. Never
+  render fetched markup, silently move a project pin, or infer authority or
+  correctness from a capture or diff.
 - Treat project unlink, library archive, share revocation, and permanent owner
   deletion as distinct operations. Revocation is forward-only; deletion keeps
   only the tombstoned provenance needed by historical project revisions.

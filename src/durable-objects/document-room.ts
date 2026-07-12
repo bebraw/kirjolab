@@ -29,7 +29,7 @@ import {
   rewriteProjectCitationAlias,
   type ProjectFile,
 } from "../domain/project-files";
-import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnapshot } from "../domain/reference-library";
+import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnapshot, type WebSnapshot } from "../domain/reference-library";
 import type { ResearchShareSnapshot } from "../domain/reference-library";
 import {
   defaultBibliography,
@@ -347,7 +347,12 @@ export class DocumentRoom extends DurableObject<Env> {
     };
   }
 
-  linkProjectReference(workspaceId: string, reference: BibliographicRecord, aliasValue: string): WorkspaceSnapshot {
+  linkProjectReference(
+    workspaceId: string,
+    reference: BibliographicRecord,
+    aliasValue: string,
+    webSnapshot: WebSnapshot | null = null,
+  ): WorkspaceSnapshot {
     const alias = aliasValue.trim();
     if (!isValidCitationKey(alias)) throw new Error("Citation alias is invalid");
     const rows = this.#projectReferenceRows();
@@ -361,7 +366,7 @@ export class DocumentRoom extends DurableObject<Env> {
       id: crypto.randomUUID(),
       referenceId: reference.id,
       citationAlias: alias,
-      snapshot: bibliographicSnapshot(reference, now),
+      snapshot: bibliographicSnapshot(reference, now, webSnapshot),
       createdAt: now,
       updatedAt: now,
     };
@@ -386,11 +391,33 @@ export class DocumentRoom extends DurableObject<Env> {
     const row = rows.find((item) => item.reference_id === reference.id);
     if (!row) throw new Error("Reference is not linked to this project");
     const now = new Date().toISOString();
-    const snapshot = bibliographicSnapshot(reference, now);
+    const existing = projectReferenceFromRow(row);
+    const snapshot = existing.snapshot.webSnapshot ? existing.snapshot : bibliographicSnapshot(reference, now);
     const next = rows
       .map(projectReferenceFromRow)
       .map((link) => (link.referenceId === reference.id ? { ...link, snapshot, updatedAt: now } : link));
     this.#replaceBibliography(projectReferenceBibliography(next), "project-reference-sync", {}, () => {
+      this.ctx.storage.sql.exec(
+        "UPDATE project_references SET snapshot_json = ?, updated_at = ? WHERE reference_id = ?",
+        JSON.stringify(snapshot),
+        now,
+        reference.id,
+      );
+    });
+    return this.getSnapshot(workspaceId);
+  }
+
+  pinProjectWebSnapshot(workspaceId: string, reference: BibliographicRecord, webSnapshot: WebSnapshot): WorkspaceSnapshot {
+    if (webSnapshot.referenceId !== reference.id) throw new Error("Web snapshot does not belong to this reference");
+    const rows = this.#projectReferenceRows();
+    const row = rows.find((item) => item.reference_id === reference.id);
+    if (!row) throw new Error("Reference is not linked to this project");
+    const now = new Date().toISOString();
+    const snapshot = bibliographicSnapshot(reference, now, webSnapshot);
+    const next = rows
+      .map(projectReferenceFromRow)
+      .map((link) => (link.referenceId === reference.id ? { ...link, snapshot, updatedAt: now } : link));
+    this.#replaceBibliography(projectReferenceBibliography(next), "project-web-snapshot-pin", {}, () => {
       this.ctx.storage.sql.exec(
         "UPDATE project_references SET snapshot_json = ?, updated_at = ? WHERE reference_id = ?",
         JSON.stringify(snapshot),
@@ -1433,6 +1460,30 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 14,
+        name: "pin-shared-web-snapshots",
+        apply(sql): undefined {
+          sql.exec(`
+            DROP INDEX IF EXISTS project_research_shares_reference;
+            ALTER TABLE project_research_shares RENAME TO project_research_shares_v13;
+            CREATE TABLE project_research_shares (
+              id TEXT PRIMARY KEY,
+              project_id TEXT NOT NULL,
+              reference_id TEXT NOT NULL,
+              resource_id TEXT NOT NULL,
+              kind TEXT NOT NULL CHECK (kind IN ('artifact', 'note', 'highlight', 'web-snapshot')),
+              snapshot_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              revoked_at TEXT
+            );
+            INSERT INTO project_research_shares SELECT * FROM project_research_shares_v13;
+            DROP TABLE project_research_shares_v13;
+            CREATE INDEX project_research_shares_reference ON project_research_shares(reference_id);
+          `);
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -2079,6 +2130,7 @@ function projectReferenceBibliography(links: readonly ProjectReferenceLink[]): s
       if (link.snapshot.venue) fields[link.snapshot.type === "article" ? "journal" : "publisher"] = link.snapshot.venue;
       if (link.snapshot.doi) fields.doi = link.snapshot.doi;
       if (link.snapshot.url) fields.url = link.snapshot.url;
+      if (link.snapshot.webSnapshot) fields.urldate = link.snapshot.webSnapshot.accessedAt.slice(0, 10);
       return { type: link.snapshot.type, citationKey: link.citationAlias, fields };
     }),
   );
@@ -2126,6 +2178,7 @@ function parseBibliographicSnapshot(value: string): BibliographicSnapshot {
   ) {
     throw new Error("Stored project reference snapshot is invalid");
   }
+  const webSnapshot = "webSnapshot" in parsed ? parseWebCitationSnapshot(parsed.webSnapshot) : null;
   return {
     referenceId: parsed.referenceId,
     type: parsed.type,
@@ -2137,6 +2190,31 @@ function parseBibliographicSnapshot(value: string): BibliographicSnapshot {
     url: parsed.url,
     capturedAt: parsed.capturedAt,
     tombstone: parsed.tombstone,
+    webSnapshot,
+  };
+}
+
+function parseWebCitationSnapshot(value: unknown): BibliographicSnapshot["webSnapshot"] {
+  if (value === null || value === undefined) return null;
+  if (
+    !isRecordValue(value) ||
+    typeof value.id !== "string" ||
+    typeof value.accessedAt !== "string" ||
+    typeof value.finalUrl !== "string" ||
+    typeof value.contentHash !== "string" ||
+    typeof value.complete !== "boolean" ||
+    !Array.isArray(value.diagnostics) ||
+    !value.diagnostics.every((diagnostic) => typeof diagnostic === "string")
+  ) {
+    throw new Error("Stored project web citation snapshot is invalid");
+  }
+  return {
+    id: value.id,
+    accessedAt: value.accessedAt,
+    finalUrl: value.finalUrl,
+    contentHash: value.contentHash,
+    complete: value.complete,
+    diagnostics: value.diagnostics,
   };
 }
 
@@ -2189,6 +2267,41 @@ function researchShareFromRow(row: ResearchShareRow): ResearchShareSnapshot {
       resourceId: row.resource_id,
       kind: "highlight",
       content: { kind: "highlight", page: content.page, quote: content.quote, comment: content.comment },
+      createdAt: row.created_at,
+      revokedAt: row.revoked_at,
+    };
+  }
+  if (
+    row.kind === "web-snapshot" &&
+    isRecordValue(content) &&
+    content.kind === "web-snapshot" &&
+    typeof content.snapshotId === "string" &&
+    typeof content.accessedAt === "string" &&
+    typeof content.finalUrl === "string" &&
+    typeof content.contentHash === "string" &&
+    (content.rawObjectKey === null || typeof content.rawObjectKey === "string") &&
+    (content.readableObjectKey === null || typeof content.readableObjectKey === "string") &&
+    typeof content.complete === "boolean" &&
+    Array.isArray(content.diagnostics) &&
+    content.diagnostics.every((diagnostic) => typeof diagnostic === "string")
+  ) {
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      referenceId: row.reference_id,
+      resourceId: row.resource_id,
+      kind: "web-snapshot",
+      content: {
+        kind: "web-snapshot",
+        snapshotId: content.snapshotId,
+        accessedAt: content.accessedAt,
+        finalUrl: content.finalUrl,
+        contentHash: content.contentHash,
+        rawObjectKey: content.rawObjectKey,
+        readableObjectKey: content.readableObjectKey,
+        complete: content.complete,
+        diagnostics: content.diagnostics,
+      },
       createdAt: row.created_at,
       revokedAt: row.revoked_at,
     };

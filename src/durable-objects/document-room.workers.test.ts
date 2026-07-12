@@ -93,6 +93,43 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect((await stub.unlinkProjectReference(workspaceId, reference.id)).projectReferences).toEqual([]);
   });
 
+  it("pins an exact web capture and changes it only through explicit repinning", async () => {
+    const workspaceId = "versioned-web-reference";
+    const stub = roomStub(workspaceId);
+    const now = "2026-07-12T08:00:00.000Z";
+    const reference = {
+      id: crypto.randomUUID(),
+      type: "misc",
+      title: "Versioned web evidence",
+      authors: ["Writer, Ada"],
+      year: "2026",
+      venue: "Research Notes",
+      doi: "",
+      url: "https://example.com/article",
+      abstract: "",
+      provenance: {},
+      archivedAt: null,
+      deletedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    } as const;
+    const first = webSnapshot(reference.id, "web-1", now, "sha256:first");
+    const linked = await stub.linkProjectReference(workspaceId, reference, "webEvidence", first);
+    expect(linked.projectReferences[0]?.snapshot.webSnapshot).toMatchObject({ id: "web-1", contentHash: "sha256:first" });
+    expect(linked.bibliography).toContain("urldate = {2026-07-12}");
+
+    const synced = await stub.syncProjectReference(workspaceId, { ...reference, title: "Mutable library title", updatedAt: "later" });
+    expect(synced.projectReferences[0]?.snapshot).toEqual(linked.projectReferences[0]?.snapshot);
+
+    const second = webSnapshot(reference.id, "web-2", "2026-07-13T09:30:00.000Z", "sha256:second");
+    const repinned = await stub.pinProjectWebSnapshot(workspaceId, { ...reference, title: "Mutable library title" }, second);
+    expect(repinned.projectReferences[0]?.snapshot).toMatchObject({
+      title: "Versioned web evidence",
+      webSnapshot: { id: "web-2", accessedAt: "2026-07-13T09:30:00.000Z", contentHash: "sha256:second" },
+    });
+    expect(repinned.bibliography).toContain("urldate = {2026-07-13}");
+  });
+
   it("pins explicit private research snapshots and removes future access on revocation", async () => {
     const workspaceId = "explicit-research-share";
     const stub = roomStub(workspaceId);
@@ -960,6 +997,32 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(Date.parse(duplicateDoiPublications[0]?.updatedAt ?? "")).toBeGreaterThan(Date.parse(beforeEnrichment.updatedAt));
   });
 });
+
+function webSnapshot(referenceId: string, id: string, accessedAt: string, contentHash: string) {
+  return {
+    id,
+    referenceId,
+    requestedUrl: "https://example.com/article",
+    finalUrl: "https://example.com/article",
+    accessedAt,
+    status: 200,
+    contentType: "text/html",
+    rawObjectKey: `libraries/owner/web/${id}/raw`,
+    readableObjectKey: `libraries/owner/web/${id}/readable.txt`,
+    rawSize: 100,
+    readableSize: 50,
+    contentHash,
+    title: "Versioned web evidence",
+    authors: ["Writer, Ada"],
+    publisher: "Research Notes",
+    publishedAt: "2026-07-12",
+    complete: true,
+    diagnostics: [],
+    redirectChain: [],
+    etag: `\"${id}\"`,
+    lastModified: accessedAt,
+  } as const;
+}
 
 const anchorColumnNames = ["anchor_version", "relative_start", "relative_end", "quote_prefix", "quote_suffix", "anchored_revision"];
 

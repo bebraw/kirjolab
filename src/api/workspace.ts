@@ -300,7 +300,8 @@ async function linkProjectReference(
   }
   const reference = (await library.getReferences([body.referenceId]))[0];
   if (!reference) return jsonError("Reference not found", 404);
-  const snapshot = await room.linkProjectReference(workspaceId, reference, body.citationAlias);
+  const webSnapshot = await library.getLatestWebSnapshot(reference.id);
+  const snapshot = await room.linkProjectReference(workspaceId, reference, body.citationAlias, webSnapshot);
   await library.registerProjectDependency(workspaceId, reference.id);
   return Response.json(snapshot, { status: 201 });
 }
@@ -312,7 +313,7 @@ async function mutateProjectReference(
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
   library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
 ): Promise<Response> {
-  const match = /^\/references\/([0-9a-f-]{36})(?:\/(sync))?$/iu.exec(suffix);
+  const match = /^\/references\/([0-9a-f-]{36})(?:\/(sync|web-snapshot))?$/iu.exec(suffix);
   if (!match?.[1]) return jsonError("Project reference route not found", 404);
   const referenceId = match[1];
   if (request.method === "DELETE" && !match[2]) {
@@ -324,6 +325,17 @@ async function mutateProjectReference(
     const reference = (await library.getReferences([referenceId]))[0];
     if (!reference) return jsonError("Reference not found", 404);
     return Response.json(await room.syncProjectReference(workspaceId, reference));
+  }
+  if (request.method === "POST" && match[2] === "web-snapshot") {
+    const body: unknown = await request.json();
+    if (!isRecord(body) || typeof body.snapshotId !== "string") return jsonError("Invalid web snapshot pin", 400);
+    const [reference, webSnapshot] = await Promise.all([
+      library.getReferences([referenceId]).then((references) => references[0]),
+      library.getWebSnapshot(body.snapshotId),
+    ]);
+    if (!reference) return jsonError("Reference not found", 404);
+    if (webSnapshot.referenceId !== referenceId) return jsonError("Web snapshot does not belong to this reference", 409);
+    return Response.json(await room.pinProjectWebSnapshot(workspaceId, reference, webSnapshot));
   }
   if (request.method === "PATCH" && !match[2]) {
     const body: unknown = await request.json();
@@ -344,7 +356,7 @@ async function sharePrivateResearch(
     !isRecord(body) ||
     typeof body.referenceId !== "string" ||
     typeof body.resourceId !== "string" ||
-    (body.kind !== "artifact" && body.kind !== "note" && body.kind !== "highlight")
+    (body.kind !== "artifact" && body.kind !== "note" && body.kind !== "highlight" && body.kind !== "web-snapshot")
   ) {
     return jsonError("Invalid private research share", 400);
   }
@@ -379,6 +391,24 @@ async function accessSharedResearch(
   }
   if (request.method === "GET" && match[2] === "content") {
     const share = await room.getActiveResearchShare(workspaceId, match[1]);
+    if (share.content.kind === "web-snapshot") {
+      const representation = new URL(request.url).searchParams.get("representation") === "raw" ? "raw" : "readable";
+      const objectKey = representation === "raw" ? share.content.rawObjectKey : share.content.readableObjectKey;
+      if (!objectKey) return jsonError(`Shared web ${representation} content is unavailable`, 404);
+      const object = await env.PAPERS.get(objectKey);
+      if (!object) return jsonError("Shared web snapshot is unavailable", 410);
+      if (representation === "raw" && object.customMetadata?.contentHash !== share.content.contentHash) {
+        return jsonError("Shared web snapshot no longer matches its captured fingerprint", 410);
+      }
+      const headers = new Headers({
+        "cache-control": "private, no-store",
+        "content-disposition": `attachment; filename="web-snapshot-${share.content.snapshotId}.${representation === "raw" ? "bin" : "txt"}"`,
+        "content-security-policy": "sandbox; default-src 'none'",
+        "content-type": representation === "raw" ? "application/octet-stream" : "text/plain; charset=utf-8",
+        "x-content-type-options": "nosniff",
+      });
+      return new Response(object.body, { headers });
+    }
     if (share.content.kind !== "artifact") return jsonError("Research share has no binary content", 400);
     const object = await env.PAPERS.get(share.content.objectKey);
     if (!object || `r2-etag:${object.etag.replaceAll('"', "")}` !== share.content.fingerprint) {
@@ -568,6 +598,7 @@ async function refreshLinkedReferences(
   const references = await library.getReferences(snapshot.projectReferences.map((link) => link.referenceId));
   for (const reference of references) {
     const link = snapshot.projectReferences.find((item) => item.referenceId === reference.id);
+    if (link?.snapshot.webSnapshot) continue;
     if (!link || projectReferenceIsCurrent(link, reference)) continue;
     snapshot = await room.syncProjectReference(workspaceId, reference);
   }

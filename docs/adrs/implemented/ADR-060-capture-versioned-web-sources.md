@@ -1,6 +1,6 @@
 # ADR-060: Capture Versioned Web Sources
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-11
 

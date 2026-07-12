@@ -13,6 +13,9 @@ import {
   type ReferenceLibrarySnapshot,
   type ResearchShareKind,
   type ResearchShareSnapshot,
+  type WebCaptureRegistration,
+  type WebSnapshot,
+  type WebSource,
 } from "../domain/reference-library";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 
@@ -44,6 +47,37 @@ interface ArtifactRow extends Record<string, SqlStorageValue> {
   fingerprint: string;
   rights: string;
   created_at: string;
+}
+
+interface WebSourceRow extends Record<string, SqlStorageValue> {
+  reference_id: string;
+  canonical_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface WebSnapshotRow extends Record<string, SqlStorageValue> {
+  id: string;
+  reference_id: string;
+  requested_url: string;
+  final_url: string;
+  accessed_at: string;
+  http_status: number;
+  content_type: string;
+  raw_object_key: string | null;
+  readable_object_key: string | null;
+  raw_size: number;
+  readable_size: number;
+  content_hash: string;
+  title: string;
+  authors_json: string;
+  publisher: string;
+  published_at: string;
+  complete: number;
+  diagnostics_json: string;
+  redirect_chain_json: string;
+  etag: string;
+  last_modified: string;
 }
 
 interface NoteRow extends Record<string, SqlStorageValue> {
@@ -104,6 +138,14 @@ export interface ReferenceDeletionImpact {
   readonly artifactCount: number;
   readonly noteCount: number;
   readonly highlightCount: number;
+  readonly webSnapshotCount: number;
+}
+
+export interface WebCaptureItem {
+  readonly reference: BibliographicRecord;
+  readonly source: WebSource;
+  readonly snapshot: WebSnapshot;
+  readonly created: boolean;
 }
 
 const migrations = [
@@ -202,6 +244,62 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 3,
+    name: "capture-versioned-web-sources",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE web_sources (
+          reference_id TEXT PRIMARY KEY REFERENCES library_references(id),
+          canonical_url TEXT NOT NULL UNIQUE,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE web_snapshots (
+          id TEXT PRIMARY KEY,
+          reference_id TEXT NOT NULL REFERENCES web_sources(reference_id),
+          requested_url TEXT NOT NULL,
+          final_url TEXT NOT NULL,
+          accessed_at TEXT NOT NULL,
+          http_status INTEGER NOT NULL CHECK (http_status BETWEEN 0 AND 599),
+          content_type TEXT NOT NULL,
+          raw_object_key TEXT UNIQUE,
+          readable_object_key TEXT UNIQUE,
+          raw_size INTEGER NOT NULL CHECK (raw_size >= 0),
+          readable_size INTEGER NOT NULL CHECK (readable_size >= 0),
+          content_hash TEXT NOT NULL,
+          title TEXT NOT NULL,
+          authors_json TEXT NOT NULL,
+          publisher TEXT NOT NULL,
+          published_at TEXT NOT NULL,
+          complete INTEGER NOT NULL CHECK (complete IN (0, 1)),
+          diagnostics_json TEXT NOT NULL,
+          redirect_chain_json TEXT NOT NULL,
+          etag TEXT NOT NULL,
+          last_modified TEXT NOT NULL
+        );
+        CREATE INDEX web_snapshots_reference ON web_snapshots(reference_id, accessed_at DESC, id);
+
+        DROP INDEX research_shares_reference;
+        ALTER TABLE research_shares RENAME TO research_shares_v2;
+        CREATE TABLE research_shares (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          reference_id TEXT NOT NULL REFERENCES library_references(id),
+          resource_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('artifact', 'note', 'highlight', 'web-snapshot')),
+          snapshot_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          revoked_at TEXT,
+          UNIQUE (project_id, kind, resource_id)
+        );
+        INSERT INTO research_shares SELECT * FROM research_shares_v2;
+        DROP TABLE research_shares_v2;
+        CREATE INDEX research_shares_reference ON research_shares(reference_id);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -225,9 +323,20 @@ export class ReferenceLibrary extends DurableObject<Env> {
       .toArray()
       .map(artifactFromRow)
       .filter((artifact) => artifact.referenceId === null || referenceIds.has(artifact.referenceId));
+    const webSources = this.ctx.storage.sql
+      .exec<WebSourceRow>("SELECT * FROM web_sources ORDER BY updated_at DESC, reference_id")
+      .toArray()
+      .filter((source) => referenceIds.has(source.reference_id))
+      .map(webSourceFromRow);
     return {
       references,
       artifacts,
+      webSources,
+      webSnapshots: this.ctx.storage.sql
+        .exec<WebSnapshotRow>("SELECT * FROM web_snapshots ORDER BY accessed_at DESC, id LIMIT 512")
+        .toArray()
+        .filter((snapshot) => referenceIds.has(snapshot.reference_id))
+        .map(webSnapshotFromRow),
       notes: this.ctx.storage.sql
         .exec<NoteRow>("SELECT * FROM notes ORDER BY updated_at DESC, id")
         .toArray()
@@ -273,6 +382,114 @@ export class ReferenceLibrary extends DurableObject<Env> {
   getReferences(referenceIds: readonly string[]): BibliographicRecord[] {
     if (referenceIds.length > 512) throw new Error("Too many references requested");
     return referenceIds.map((id) => this.#reference(id, true));
+  }
+
+  registerWebCapture(registration: WebCaptureRegistration): WebCaptureItem {
+    const existingSource = this.ctx.storage.sql
+      .exec<WebSourceRow>("SELECT * FROM web_sources WHERE canonical_url = ?", registration.canonicalUrl)
+      .toArray()[0];
+    const count = existingSource
+      ? this.ctx.storage.sql
+          .exec<{ count: number }>("SELECT COUNT(*) AS count FROM web_snapshots WHERE reference_id = ?", existingSource.reference_id)
+          .one().count
+      : 0;
+    if (count >= 512) throw new Error("A web source may retain at most 512 captures");
+    const now = registration.snapshot.accessedAt;
+    const referenceId = existingSource?.reference_id ?? crypto.randomUUID();
+    const existingReference = existingSource ? this.#reference(referenceId, true) : null;
+    const snapshot: WebSnapshot = { ...registration.snapshot, referenceId };
+    const provenance: MetadataFieldProvenance = { method: "web", capturedAt: now, actor: registration.actor };
+    const reference: BibliographicRecord = {
+      id: referenceId,
+      type: "misc",
+      title: snapshot.title || existingReference?.title || registration.canonicalUrl,
+      authors: snapshot.authors.length > 0 ? [...snapshot.authors] : (existingReference?.authors ?? []),
+      year: publicationYear(snapshot.publishedAt) || existingReference?.year || "",
+      venue: snapshot.publisher || existingReference?.venue || "",
+      doi: existingReference?.doi ?? "",
+      url: registration.canonicalUrl,
+      abstract: existingReference?.abstract ?? "",
+      provenance: {
+        ...(existingReference?.provenance ?? {}),
+        type: provenance,
+        title: provenance,
+        authors: provenance,
+        year: provenance,
+        venue: provenance,
+        url: provenance,
+      },
+      archivedAt: null,
+      deletedAt: null,
+      createdAt: existingReference?.createdAt ?? now,
+      updatedAt: now,
+    };
+    const source: WebSource = {
+      referenceId,
+      canonicalUrl: registration.canonicalUrl,
+      createdAt: existingSource?.created_at ?? now,
+      updatedAt: now,
+    };
+    this.ctx.storage.transactionSync(() => {
+      this.#writeReference(reference, `web:${registration.canonicalUrl}`, !existingSource);
+      this.ctx.storage.sql.exec(
+        `INSERT INTO web_sources (reference_id, canonical_url, created_at, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(reference_id) DO UPDATE SET canonical_url = excluded.canonical_url, updated_at = excluded.updated_at`,
+        referenceId,
+        registration.canonicalUrl,
+        source.createdAt,
+        now,
+      );
+      this.ctx.storage.sql.exec(
+        `INSERT INTO web_snapshots
+         (id, reference_id, requested_url, final_url, accessed_at, http_status, content_type, raw_object_key,
+          readable_object_key, raw_size, readable_size, content_hash, title, authors_json, publisher, published_at,
+          complete, diagnostics_json, redirect_chain_json, etag, last_modified)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        snapshot.id,
+        snapshot.referenceId,
+        snapshot.requestedUrl,
+        snapshot.finalUrl,
+        snapshot.accessedAt,
+        snapshot.status,
+        snapshot.contentType,
+        snapshot.rawObjectKey,
+        snapshot.readableObjectKey,
+        snapshot.rawSize,
+        snapshot.readableSize,
+        snapshot.contentHash,
+        snapshot.title,
+        JSON.stringify(snapshot.authors),
+        snapshot.publisher,
+        snapshot.publishedAt,
+        snapshot.complete ? 1 : 0,
+        JSON.stringify(snapshot.diagnostics),
+        JSON.stringify(snapshot.redirectChain),
+        snapshot.etag,
+        snapshot.lastModified,
+      );
+    });
+    return { reference, source, snapshot, created: !existingSource };
+  }
+
+  getWebSnapshot(snapshotId: string): WebSnapshot {
+    const row = this.ctx.storage.sql.exec<WebSnapshotRow>("SELECT * FROM web_snapshots WHERE id = ?", snapshotId).toArray()[0];
+    if (!row) throw new Error("Web snapshot not found");
+    return webSnapshotFromRow(row);
+  }
+
+  getWebSnapshots(referenceId: string): WebSnapshot[] {
+    this.#reference(referenceId);
+    return this.ctx.storage.sql
+      .exec<WebSnapshotRow>("SELECT * FROM web_snapshots WHERE reference_id = ? ORDER BY accessed_at DESC, id LIMIT 512", referenceId)
+      .toArray()
+      .map(webSnapshotFromRow);
+  }
+
+  getLatestWebSnapshot(referenceId: string): WebSnapshot | null {
+    const row = this.ctx.storage.sql
+      .exec<WebSnapshotRow>("SELECT * FROM web_snapshots WHERE reference_id = ? ORDER BY accessed_at DESC, id DESC LIMIT 1", referenceId)
+      .toArray()[0];
+    return row ? webSnapshotFromRow(row) : null;
   }
 
   registerPdf(artifact: LibraryPdfArtifact): LibraryPdfArtifact {
@@ -472,6 +689,9 @@ export class ReferenceLibrary extends DurableObject<Env> {
       artifactCount: this.#count("artifacts", referenceId),
       noteCount: this.#count("notes", referenceId),
       highlightCount: this.#count("highlights", referenceId),
+      webSnapshotCount: this.ctx.storage.sql
+        .exec<{ count: number }>("SELECT COUNT(*) AS count FROM web_snapshots WHERE reference_id = ?", referenceId)
+        .one().count,
     };
   }
 
@@ -488,6 +708,8 @@ export class ReferenceLibrary extends DurableObject<Env> {
       this.ctx.storage.sql.exec("DELETE FROM reference_tags WHERE reference_id = ?", referenceId);
       this.ctx.storage.sql.exec("DELETE FROM reading_state WHERE reference_id = ?", referenceId);
       this.ctx.storage.sql.exec("DELETE FROM artifacts WHERE reference_id = ?", referenceId);
+      this.ctx.storage.sql.exec("DELETE FROM web_snapshots WHERE reference_id = ?", referenceId);
+      this.ctx.storage.sql.exec("DELETE FROM web_sources WHERE reference_id = ?", referenceId);
       this.ctx.storage.sql.exec(
         `UPDATE library_references SET authors_json = '[]', venue = '', doi = '', url = '', abstract = '', provenance_json = '{}',
          archived_at = NULL, deleted_at = ?, updated_at = ? WHERE id = ?`,
@@ -602,6 +824,21 @@ export class ReferenceLibrary extends DurableObject<Env> {
       if (!row) throw new Error("Private note not found");
       return { kind, body: row.body };
     }
+    if (kind === "web-snapshot") {
+      const snapshot = this.getWebSnapshot(resourceId);
+      if (snapshot.referenceId !== referenceId) throw new Error("Web snapshot does not belong to this reference");
+      return {
+        kind,
+        snapshotId: snapshot.id,
+        accessedAt: snapshot.accessedAt,
+        finalUrl: snapshot.finalUrl,
+        contentHash: snapshot.contentHash,
+        rawObjectKey: snapshot.rawObjectKey,
+        readableObjectKey: snapshot.readableObjectKey,
+        complete: snapshot.complete,
+        diagnostics: [...snapshot.diagnostics],
+      };
+    }
     const row = this.ctx.storage.sql
       .exec<HighlightRow>("SELECT * FROM highlights WHERE id = ? AND reference_id = ?", resourceId, referenceId)
       .toArray()[0];
@@ -644,6 +881,36 @@ function artifactFromRow(row: ArtifactRow): LibraryPdfArtifact {
   };
 }
 
+function webSourceFromRow(row: WebSourceRow): WebSource {
+  return { referenceId: row.reference_id, canonicalUrl: row.canonical_url, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+
+function webSnapshotFromRow(row: WebSnapshotRow): WebSnapshot {
+  return {
+    id: row.id,
+    referenceId: row.reference_id,
+    requestedUrl: row.requested_url,
+    finalUrl: row.final_url,
+    accessedAt: row.accessed_at,
+    status: row.http_status,
+    contentType: row.content_type,
+    rawObjectKey: row.raw_object_key,
+    readableObjectKey: row.readable_object_key,
+    rawSize: row.raw_size,
+    readableSize: row.readable_size,
+    contentHash: row.content_hash,
+    title: row.title,
+    authors: parseStringArray(row.authors_json),
+    publisher: row.publisher,
+    publishedAt: row.published_at,
+    complete: row.complete === 1,
+    diagnostics: parseStringArray(row.diagnostics_json),
+    redirectChain: parseStringArray(row.redirect_chain_json),
+    etag: row.etag,
+    lastModified: row.last_modified,
+  };
+}
+
 function noteFromRow(row: NoteRow): LibraryNote {
   return { id: row.id, referenceId: row.reference_id, body: row.body, createdAt: row.created_at, updatedAt: row.updated_at };
 }
@@ -672,7 +939,9 @@ function readingFromRow(row: ReadingRow): ReadingState {
 
 function shareFromRow(row: ShareRow): ResearchShareSnapshot {
   const content = parseSharedContent(row.kind, row.snapshot_json);
-  if (row.kind !== "artifact" && row.kind !== "note" && row.kind !== "highlight") throw new Error("Stored research share is invalid");
+  if (row.kind !== "artifact" && row.kind !== "note" && row.kind !== "highlight" && row.kind !== "web-snapshot") {
+    throw new Error("Stored research share is invalid");
+  }
   return {
     id: row.id,
     projectId: row.project_id,
@@ -701,7 +970,35 @@ function parseSharedContent(kind: string, value: string): ResearchShareSnapshot[
   if (kind === "highlight" && typeof parsed.page === "number" && typeof parsed.quote === "string" && typeof parsed.comment === "string") {
     return { kind, page: parsed.page, quote: parsed.quote, comment: parsed.comment };
   }
+  if (
+    kind === "web-snapshot" &&
+    typeof parsed.snapshotId === "string" &&
+    typeof parsed.accessedAt === "string" &&
+    typeof parsed.finalUrl === "string" &&
+    typeof parsed.contentHash === "string" &&
+    (parsed.rawObjectKey === null || typeof parsed.rawObjectKey === "string") &&
+    (parsed.readableObjectKey === null || typeof parsed.readableObjectKey === "string") &&
+    typeof parsed.complete === "boolean" &&
+    Array.isArray(parsed.diagnostics) &&
+    parsed.diagnostics.every((diagnostic) => typeof diagnostic === "string")
+  ) {
+    return {
+      kind,
+      snapshotId: parsed.snapshotId,
+      accessedAt: parsed.accessedAt,
+      finalUrl: parsed.finalUrl,
+      contentHash: parsed.contentHash,
+      rawObjectKey: parsed.rawObjectKey,
+      readableObjectKey: parsed.readableObjectKey,
+      complete: parsed.complete,
+      diagnostics: parsed.diagnostics,
+    };
+  }
   throw new Error("Stored research share snapshot is invalid");
+}
+
+function publicationYear(value: string): string {
+  return /^(\d{4})/u.exec(value.trim())?.[1] ?? "";
 }
 
 function parseStringArray(value: string): string[] {

@@ -15,6 +15,8 @@ import {
   type BibliographicRecord,
   type LibraryPdfArtifact,
   type ReferenceLibrarySnapshot,
+  type WebSnapshot,
+  type WebSnapshotComparison,
 } from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
 import {
@@ -89,6 +91,13 @@ interface Elements {
   libraryBibliographyUpload: HTMLInputElement;
   libraryPdfUpload: HTMLInputElement;
   showArchivedReferences: HTMLButtonElement;
+  webSourceForm: HTMLFormElement;
+  webSourceUrl: HTMLInputElement;
+  webSourceTitle: HTMLInputElement;
+  webSourceAuthor: HTMLInputElement;
+  webSourcePublisher: HTMLInputElement;
+  webSourcePublishedAt: HTMLInputElement;
+  webSnapshotComparison: HTMLElement;
   unidentifiedPdfCount: HTMLElement;
   unidentifiedPdfList: HTMLElement;
   projectFileSwitcher: HTMLSelectElement;
@@ -302,6 +311,7 @@ class WorkspaceApp {
     this.#elements.closeReferenceLibrary.addEventListener("click", () => this.#elements.referenceLibraryDialog.close());
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryPdfUpload.addEventListener("change", () => void this.#uploadLibraryPdf());
+    this.#elements.webSourceForm.addEventListener("submit", (event) => void this.#captureWebSource(event));
     this.#elements.showArchivedReferences.addEventListener("click", () => {
       this.#showArchivedReferences = !this.#showArchivedReferences;
       this.#elements.showArchivedReferences.setAttribute("aria-pressed", String(this.#showArchivedReferences));
@@ -887,6 +897,10 @@ class WorkspaceApp {
     const notes = this.#librarySnapshot?.notes.filter((note) => note.referenceId === reference.id) ?? [];
     const artifacts = this.#librarySnapshot?.artifacts.filter((artifact) => artifact.referenceId === reference.id) ?? [];
     const highlights = this.#librarySnapshot?.highlights.filter((highlight) => highlight.referenceId === reference.id) ?? [];
+    const webSource = this.#librarySnapshot?.webSources.find((source) => source.referenceId === reference.id);
+    const webSnapshots = [...(this.#librarySnapshot?.webSnapshots.filter((snapshot) => snapshot.referenceId === reference.id) ?? [])].sort(
+      (left, right) => right.accessedAt.localeCompare(left.accessedAt),
+    );
     for (const note of notes) {
       resources.append(this.#privateResearchRow(reference.id, "note", note.id, `Note · ${note.body.slice(0, 100)}`, linked !== undefined));
     }
@@ -911,13 +925,57 @@ class WorkspaceApp {
         ),
       );
     }
-    if (notes.length + artifacts.length + highlights.length > 0) card.append(resources);
+    if (webSource) {
+      const recapture = actionButton(
+        "Capture current version",
+        "button-secondary mt-3",
+        () => void this.#recaptureWebSource(reference, webSource.canonicalUrl),
+      );
+      card.append(recapture);
+      for (const [index, snapshot] of webSnapshots.entries()) {
+        const status = snapshot.complete ? "complete" : "incomplete";
+        const row = this.#privateResearchRow(
+          reference.id,
+          "web-snapshot",
+          snapshot.id,
+          `Web capture · ${formatTimestamp(snapshot.accessedAt)} · ${status}`,
+          linked !== undefined,
+        );
+        const links = document.createElement("div");
+        links.className = "mt-2 flex flex-wrap gap-2";
+        if (snapshot.readableObjectKey) links.append(downloadLink(`/api/library/web-snapshots/${snapshot.id}/readable`, "Readable text"));
+        if (snapshot.rawObjectKey) links.append(downloadLink(`/api/library/web-snapshots/${snapshot.id}/raw`, "Raw capture"));
+        const prior = webSnapshots[index + 1];
+        if (prior) {
+          links.append(actionButton("Compare with prior", "button-secondary", () => void this.#compareWebSnapshots(prior.id, snapshot.id)));
+        }
+        if (linked) {
+          const pin = actionButton(
+            "Use for project",
+            "button-secondary",
+            () => void this.#pinProjectWebSnapshot(reference.id, snapshot.id),
+          );
+          pin.disabled = linked.snapshot.webSnapshot?.id === snapshot.id;
+          pin.title = pin.disabled ? "This version is pinned to the project" : "Pin this exact capture to future citations and milestones";
+          links.append(pin);
+        }
+        if (snapshot.diagnostics.length > 0) {
+          const diagnostic = document.createElement("p");
+          diagnostic.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
+          diagnostic.textContent = snapshot.diagnostics.join(" ");
+          row.append(diagnostic);
+        }
+        row.append(links);
+        resources.append(row);
+      }
+    }
+    if (notes.length + artifacts.length + highlights.length + webSnapshots.length > 0) card.append(resources);
     return card;
   }
 
   #privateResearchRow(
     referenceId: string,
-    kind: "artifact" | "note" | "highlight",
+    kind: "artifact" | "note" | "highlight" | "web-snapshot",
     resourceId: string,
     label: string,
     referenceLinked: boolean,
@@ -986,6 +1044,78 @@ class WorkspaceApp {
     this.#showToast("PDF saved privately. Identify its source before using it as a library item.");
   }
 
+  async #captureWebSource(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    await this.#captureWebSourceInput({
+      url: this.#elements.webSourceUrl.value,
+      title: this.#elements.webSourceTitle.value,
+      authors: this.#elements.webSourceAuthor.value.trim() ? [this.#elements.webSourceAuthor.value] : [],
+      publisher: this.#elements.webSourcePublisher.value,
+      publishedAt: this.#elements.webSourcePublishedAt.value,
+    });
+    this.#elements.webSourceForm.reset();
+  }
+
+  async #recaptureWebSource(reference: BibliographicRecord, url: string): Promise<void> {
+    await this.#captureWebSourceInput({
+      url,
+      title: reference.title,
+      authors: [...reference.authors],
+      publisher: reference.venue,
+      publishedAt: reference.year,
+    });
+  }
+
+  async #captureWebSourceInput(input: {
+    readonly url: string;
+    readonly title: string;
+    readonly authors: readonly string[];
+    readonly publisher: string;
+    readonly publishedAt: string;
+  }): Promise<void> {
+    const response = await jsonFetch("/api/library/web-sources", input);
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Web source captured privately with an immutable access timestamp.");
+  }
+
+  async #pinProjectWebSnapshot(referenceId: string, snapshotId: string): Promise<void> {
+    const response = await jsonFetch(`${apiBase}/references/${encodeURIComponent(referenceId)}/web-snapshot`, { snapshotId });
+    await this.#acceptWorkspaceMutation(response);
+    this.#renderReferenceLibrary();
+    this.#showToast("This exact web capture is pinned to the project.");
+  }
+
+  async #compareWebSnapshots(beforeId: string, afterId: string): Promise<void> {
+    const response = await fetch(`/api/library/web-snapshots/${encodeURIComponent(beforeId)}/compare/${encodeURIComponent(afterId)}`, {
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWebSnapshotComparisonResponse(value)) throw new Error("Web snapshot comparison returned an invalid result");
+    const section = this.#elements.webSnapshotComparison;
+    section.classList.remove("hidden");
+    section.replaceChildren();
+    const heading = document.createElement("h3");
+    heading.className = "text-lg font-semibold tracking-[-0.025em]";
+    heading.textContent = value.comparison.identical
+      ? "No readable-text changes"
+      : `${value.comparison.addedLines} added · ${value.comparison.removedLines} removed`;
+    section.append(resourceLabel("Neutral snapshot comparison"), heading);
+    for (const hunk of value.comparison.hunks) {
+      const block = document.createElement("pre");
+      block.className = "mt-3 overflow-auto rounded-sm border border-app-line bg-app-surface p-3 font-mono text-xs leading-5";
+      block.textContent = [
+        `@@ before ${hunk.beforeLine} · after ${hunk.afterLine} @@`,
+        ...hunk.removed.map((line) => `- ${line}`),
+        ...hunk.added.map((line) => `+ ${line}`),
+        ...(hunk.truncated ? ["… excerpt truncated"] : []),
+      ].join("\n");
+      section.append(block);
+    }
+    section.scrollIntoView({ block: "nearest" });
+  }
+
   async #identifyLibraryPdf(artifactId: string, referenceId: string): Promise<void> {
     if (!referenceId) return;
     const response = await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/identify`, { referenceId });
@@ -1049,7 +1179,11 @@ class WorkspaceApp {
     await this.#refreshReferenceLibrary();
   }
 
-  async #sharePrivateResearch(referenceId: string, kind: "artifact" | "note" | "highlight", resourceId: string): Promise<void> {
+  async #sharePrivateResearch(
+    referenceId: string,
+    kind: "artifact" | "note" | "highlight" | "web-snapshot",
+    resourceId: string,
+  ): Promise<void> {
     const response = await jsonFetch(`${apiBase}/research-shares`, { referenceId, kind, resourceId });
     await this.#acceptWorkspaceMutation(response);
     this.#renderReferenceLibrary();
@@ -2536,6 +2670,13 @@ function collectElements(): Elements {
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryPdfUpload: requiredElement("library-pdf-upload", HTMLInputElement),
     showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
+    webSourceForm: requiredElement("web-source-form", HTMLFormElement),
+    webSourceUrl: requiredElement("web-source-url", HTMLInputElement),
+    webSourceTitle: requiredElement("web-source-title", HTMLInputElement),
+    webSourceAuthor: requiredElement("web-source-author", HTMLInputElement),
+    webSourcePublisher: requiredElement("web-source-publisher", HTMLInputElement),
+    webSourcePublishedAt: requiredElement("web-source-published-at", HTMLInputElement),
+    webSnapshotComparison: requiredElement("web-snapshot-comparison", HTMLElement),
     unidentifiedPdfCount: requiredElement("unidentified-pdf-count", HTMLElement),
     unidentifiedPdfList: requiredElement("unidentified-pdf-list", HTMLElement),
     projectFileSwitcher: requiredElement("project-file-switcher", HTMLSelectElement),
@@ -2700,6 +2841,49 @@ function actionButton(text: string, className: string, action: () => void): HTML
   return button;
 }
 
+function downloadLink(href: string, label: string): HTMLAnchorElement {
+  const link = document.createElement("a");
+  link.className = "button-secondary";
+  link.href = href;
+  link.textContent = label;
+  return link;
+}
+
+interface WebSnapshotComparisonResponse {
+  readonly before: WebSnapshot;
+  readonly after: WebSnapshot;
+  readonly comparison: WebSnapshotComparison;
+}
+
+function isWebSnapshotComparisonResponse(value: unknown): value is WebSnapshotComparisonResponse {
+  if (!isUnknownRecord(value) || !isUnknownRecord(value.before) || !isUnknownRecord(value.after) || !isUnknownRecord(value.comparison)) {
+    return false;
+  }
+  return (
+    typeof value.before.id === "string" &&
+    typeof value.after.id === "string" &&
+    typeof value.comparison.identical === "boolean" &&
+    typeof value.comparison.addedLines === "number" &&
+    typeof value.comparison.removedLines === "number" &&
+    Array.isArray(value.comparison.hunks) &&
+    value.comparison.hunks.every(
+      (hunk) =>
+        isUnknownRecord(hunk) &&
+        typeof hunk.beforeLine === "number" &&
+        typeof hunk.afterLine === "number" &&
+        Array.isArray(hunk.removed) &&
+        hunk.removed.every((line) => typeof line === "string") &&
+        Array.isArray(hunk.added) &&
+        hunk.added.every((line) => typeof line === "string") &&
+        typeof hunk.truncated === "boolean",
+    )
+  );
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 async function jsonFetch(url: string, body: object, method = "POST"): Promise<Response> {
   return await fetch(url, {
     method,
@@ -2727,6 +2911,11 @@ async function expectOk(response: Response): Promise<void> {
 
 function formatBytes(value: number): string {
   return value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatTimestamp(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
 function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {

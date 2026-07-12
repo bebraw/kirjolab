@@ -558,7 +558,7 @@ function isResearchShareSnapshot(value: unknown): value is ResearchShareSnapshot
     isStringWithin(value.projectId, 128, true) &&
     isStringWithin(value.referenceId, 128, true) &&
     isStringWithin(value.resourceId, 128, true) &&
-    (value.kind === "artifact" || value.kind === "note" || value.kind === "highlight") &&
+    (value.kind === "artifact" || value.kind === "note" || value.kind === "highlight" || value.kind === "web-snapshot") &&
     isRecord(value.content) &&
     isStringWithin(value.createdAt, 128, true) &&
     (value.revokedAt === null || isStringWithin(value.revokedAt, 128, true))

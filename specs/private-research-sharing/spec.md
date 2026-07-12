@@ -10,8 +10,9 @@ into a collaborative paper.
 
 ### Architecture
 
-- Library artifacts, notes, highlights, tags, and reading state are private by
-  default. A project citation receives only a bibliographic snapshot.
+- Library artifacts, web captures, notes, highlights, tags, and reading state
+  are private by default. A project citation receives only a bibliographic
+  snapshot and exact web-capture provenance.
 - Sharing is a separate owner action naming one project, reference, resource,
   and kind. The library captures an immutable bounded snapshot; the project
   pins it in a new project revision.
@@ -28,11 +29,13 @@ into a collaborative paper.
 ### API Contracts
 
 - `POST /api/workspaces/{id}/research-shares` requires a project-linked
-  reference and explicitly pins one artifact, note, or highlight snapshot.
+  reference and explicitly pins one artifact, web capture, note, or highlight
+  snapshot.
 - `DELETE /api/workspaces/{id}/research-shares/{shareId}` revokes future access
   in both owner library and project head.
 - `GET /api/workspaces/{id}/research-shares/{shareId}/content` streams only an
-  active artifact share after workspace authorization and fingerprint check.
+  active artifact or inert web-capture representation after workspace
+  authorization; raw web bytes are always attachment-only.
 - Project snapshots expose active shares only. Revoked snapshots remain in
   project storage for historical revision capture, not current access.
 - Permanent library deletion compares the caller's reviewed project dependency
@@ -53,7 +56,8 @@ into a collaborative paper.
 
 ## Current Milestone
 
-- Implemented: explicit note/highlight/artifact snapshots, rights-gated artifact
-  sharing, current-project access, forward-only revocation, archive, deletion
-  impact, and bibliographic tombstones.
+- Implemented: explicit note/highlight/artifact/web-capture snapshots,
+  rights-gated artifact sharing, inert web content, current-project access,
+  forward-only revocation, archive, deletion impact, and bibliographic
+  tombstones.
 - Revision/milestone retention consumes the pinned rows under ADR-061.

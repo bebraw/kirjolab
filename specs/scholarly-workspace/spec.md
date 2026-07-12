@@ -72,6 +72,10 @@ mode for authenticated hosted collaboration.
   bibliography snapshots without exposing private notes, tags, PDFs,
   highlights, or reading state. Additional research enters a project only by
   explicit rights-checked snapshot sharing and forward-only revocation.
+- **Web sources:** Public HTTP(S) pages are captured through bounded,
+  redirect-controlled Worker retrieval into immutable owner-private raw and
+  readable R2 objects. Project citations pin one exact access timestamp and
+  content hash; normal reference refresh cannot move the pin.
 - **Knowledge navigation:** Bounded workspace search and typed connection
   representations expose documents, sections, publications, PDFs, and
   annotations as navigable resources without making an index authoritative.
@@ -89,9 +93,9 @@ mode for authenticated hosted collaboration.
   offset rows; unconvertible legacy rows retain null endpoints and remain
   explicitly stale under the version 1 selector contract.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable private PDF bytes
-  under an owner-library key. PDF responses stream only through an authorized
-  private-library route or active explicit project share; the R2 ETag
-  identifies the exact stored artifact.
+  and bounded web representations under owner-library keys. Responses stream
+  only through an authorized private-library route or active explicit project
+  share; captured markup is attachment-only and never rendered.
 - **Evidence capture:** PDF.js renders one selectable page. Text selection
   creates exact quote/context selectors plus normalized page rectangles before
   the annotation is saved.
@@ -116,6 +120,9 @@ mode for authenticated hosted collaboration.
 - `GET /api/library` returns only the verified owner's private reference
   library; its import, PDF, metadata, tag, note, highlight, reading, archive,
   and deletion routes retain that owner boundary.
+- `POST /api/library/web-sources` captures one immutable web version; snapshot
+  metadata, raw/readable attachment, source history, and comparison routes stay
+  owner-private.
 - `POST /api/workspaces` creates and registers an isolated workspace.
 - `GET /api/workspaces/demo` returns the complete workspace representation.
 - `GET /api/workspaces/demo/search?q={query}` searches the authorized workspace.
@@ -138,6 +145,8 @@ mode for authenticated hosted collaboration.
   BibTeX into the owner library and links its stable records with local aliases.
 - `POST /api/workspaces/demo/references` links one owner-library record through
   a project-local alias and bibliographic snapshot.
+- `POST /api/workspaces/demo/references/{id}/web-snapshot` explicitly repins a
+  web citation to one immutable capture and derived access date.
 - `POST /api/workspaces/demo/research-shares` explicitly pins one private
   research snapshot; its delete route revokes future access.
 - `POST /api/workspaces/demo/publications/{id}/enrich` explicitly enriches a
@@ -203,6 +212,8 @@ mode for authenticated hosted collaboration.
   evidence for Durable Object SQLite transactions, migrations, RPC, or recovery
   after eviction.
 - Do not buffer PDF bodies in Worker memory.
+- Do not fetch private/local web destinations, auto-follow redirects, buffer an
+  unbounded page, render captured markup, or silently advance a project pin.
 - Do not write annotation data into imported PDFs.
 - Do not deploy with local authentication or without a protected Cloudflare
   Access hostname and matching JWT configuration.

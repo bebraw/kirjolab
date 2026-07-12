@@ -36,6 +36,10 @@ memory and makes citation aliases compete with stable source identity.
   silently accept it.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
+- Web sources are stable records keyed by normalized canonical URL. Every
+  access appends an immutable bounded snapshot with exact timestamp, content
+  hash, retrieval metadata, diagnostics, and private raw/readable R2 objects.
+  Existing project pins never advance during ordinary library refresh.
 
 ### API Contracts
 
@@ -49,6 +53,8 @@ memory and makes citation aliases compete with stable source identity.
   artifact rights.
 - Reference tag, note, highlight, reading, archive, deletion-impact, and
   confirmed deletion routes mutate only the authenticated owner's library.
+- Web-source capture, snapshot inspection, inert content download, and neutral
+  snapshot comparison routes remain within the same owner-private API.
 - `POST /api/workspaces/{id}/references` links a source snapshot and local
   alias. Patch renames the alias; sync refreshes metadata; delete unlinks only
   after its citations are removed.
@@ -88,6 +94,6 @@ memory and makes citation aliases compete with stable source identity.
 - Implemented: owner-scoped library, provenance, BibTeX migration/import,
   private PDFs and identification, notes/tags/highlights/reading state, archive
   and tombstone deletion, project aliases/snapshots, derived cited-only BibTeX,
-  and separate closed-by-default library UI.
+  versioned web captures, and separate closed-by-default library UI.
 - Superseded: workspace BibTeX authority and workspace-scoped publication
   projection described by ADR-044, ADR-051, and ADR-055.

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import type { LibraryPdfArtifact } from "../domain/reference-library";
+import type { LibraryPdfArtifact, WebCaptureRegistration } from "../domain/reference-library";
 import { ReferenceLibrary } from "./reference-library";
 
 describe("ReferenceLibrary in the Workers runtime", () => {
@@ -90,4 +90,54 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(tombstone).toMatchObject({ id: referenceId, deletedAt: expect.any(String), title: "Field Guide" });
     expect((await library.getReferences([referenceId]))[0]).toMatchObject({ deletedAt: expect.any(String), authors: [] });
   });
+
+  it("keeps immutable web captures under one stable source identity", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`web-library-${crypto.randomUUID()}`);
+    const first = await library.registerWebCapture(webCapture("capture-1", "2026-07-12T08:00:00.000Z", "sha256:first", "First version"));
+    const second = await library.registerWebCapture(webCapture("capture-2", "2026-07-12T09:00:00.000Z", "sha256:second", "Second version"));
+    expect(second.reference.id).toBe(first.reference.id);
+    expect(second.created).toBe(false);
+    expect(second.reference).toMatchObject({ title: "Example source", url: "https://example.com/article", year: "2026" });
+    expect(await library.getWebSnapshots(first.reference.id)).toMatchObject([
+      { id: "capture-2", contentHash: "sha256:second" },
+      { id: "capture-1", contentHash: "sha256:first" },
+    ]);
+    expect((await library.getSnapshot()).webSources).toEqual([
+      expect.objectContaining({ referenceId: first.reference.id, canonicalUrl: "https://example.com/article" }),
+    ]);
+    const share = await library.shareResearch("project-a", first.reference.id, "web-snapshot", first.snapshot.id);
+    expect(share).toMatchObject({
+      kind: "web-snapshot",
+      content: { kind: "web-snapshot", snapshotId: "capture-1", contentHash: "sha256:first" },
+    });
+  });
 });
+
+function webCapture(id: string, accessedAt: string, contentHash: string, readableName: string): WebCaptureRegistration {
+  return {
+    canonicalUrl: "https://example.com/article",
+    actor: "owner@example.test",
+    snapshot: {
+      id,
+      requestedUrl: "https://example.com/article#section",
+      finalUrl: "https://example.com/article",
+      accessedAt,
+      status: 200,
+      contentType: "text/html; charset=utf-8",
+      rawObjectKey: `libraries/owner/web/${id}/raw`,
+      readableObjectKey: `libraries/owner/web/${id}/${readableName}.txt`,
+      rawSize: 100,
+      readableSize: 50,
+      contentHash,
+      title: "Example source",
+      authors: ["Ada Writer"],
+      publisher: "Example Press",
+      publishedAt: "2026-07-12",
+      complete: true,
+      diagnostics: [],
+      redirectChain: [],
+      etag: `\"${id}\"`,
+      lastModified: accessedAt,
+    },
+  };
+}

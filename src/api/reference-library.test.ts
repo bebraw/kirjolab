@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BibliographicRecord, ReferenceLibrarySnapshot } from "../domain/reference-library";
+import type { BibliographicRecord, ReferenceLibrarySnapshot, WebSnapshot } from "../domain/reference-library";
 import type { AuthIdentity } from "../security/auth";
 import { handleReferenceLibraryApi } from "./reference-library";
 
@@ -24,10 +24,35 @@ const reference: BibliographicRecord = {
 const snapshot: ReferenceLibrarySnapshot = {
   references: [reference],
   artifacts: [],
+  webSources: [],
+  webSnapshots: [],
   notes: [],
   highlights: [],
   tags: {},
   reading: [],
+};
+const webSnapshot: WebSnapshot = {
+  id: "33333333-3333-4333-8333-333333333333",
+  referenceId: reference.id,
+  requestedUrl: "https://example.com/article",
+  finalUrl: "https://example.com/article",
+  accessedAt: now,
+  status: 200,
+  contentType: "text/html",
+  rawObjectKey: null,
+  readableObjectKey: null,
+  rawSize: 0,
+  readableSize: 0,
+  contentHash: "sha256:empty",
+  title: reference.title,
+  authors: [],
+  publisher: "",
+  publishedAt: "",
+  complete: false,
+  diagnostics: ["The page could not be retrieved during this capture."],
+  redirectChain: [],
+  etag: "",
+  lastModified: "",
 };
 
 describe("reference library API", () => {
@@ -56,6 +81,113 @@ describe("reference library API", () => {
     );
     expect(imported.status).toBe(201);
     expect(fixture.library.importBibTeX).toHaveBeenCalledWith("@manual{guide,title={Private Guide}}", identity.email);
+  });
+
+  it("rejects private web destinations and records a bounded failed capture when metadata identifies the source", async () => {
+    const fixture = apiFixture();
+    const invalid = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/web-sources", {
+        url: "http://127.0.0.1/private",
+        title: "Private",
+        authors: [],
+        publisher: "",
+        publishedAt: "",
+      }),
+      fixture.env,
+      identity,
+    );
+    expect(invalid.status).toBe(400);
+
+    const fetchWeb = vi.fn(async (): Promise<never> => {
+      throw new Error("offline");
+    });
+    const captured = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/web-sources", {
+        url: "https://example.com/article#section",
+        title: "Private Guide",
+        authors: ["Ada Writer"],
+        publisher: "Example",
+        publishedAt: "2026-07-12",
+      }),
+      fixture.env,
+      identity,
+      fetchWeb,
+    );
+    expect(captured.status).toBe(201);
+    expect(fetchWeb).toHaveBeenCalledOnce();
+    expect(fixture.library.registerWebCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        canonicalUrl: "https://example.com/article",
+        actor: identity.email,
+        snapshot: expect.objectContaining({ complete: false, status: 0, title: "Private Guide" }),
+      }),
+    );
+  });
+
+  it("captures redirected HTML into inert R2 representations and compares readable versions", async () => {
+    const bucket = new MemoryR2Bucket();
+    const fixture = apiFixture(bucket);
+    const fetchWeb = vi
+      .fn<(request: Request) => Promise<Response>>()
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: "https://example.com/final" } }))
+      .mockResolvedValueOnce(
+        new Response(
+          `<html><head><meta property="og:title" content="Captured page"><meta name="author" content="Ada Writer"></head>
+           <body><main><h1>Evidence</h1><p>First readable version with enough detail to inspect safely.</p></main></body></html>`,
+          { headers: { "content-type": "text/html; charset=utf-8", etag: '"page-1"' } },
+        ),
+      );
+    const response = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/web-sources", {
+        url: "https://example.com/start",
+        title: "",
+        authors: [],
+        publisher: "",
+        publishedAt: "",
+      }),
+      fixture.env,
+      identity,
+      fetchWeb,
+    );
+    expect(response.status).toBe(201);
+    expect(fetchWeb).toHaveBeenCalledTimes(2);
+    const registration = fixture.library.registerWebCapture.mock.calls[0]?.[0];
+    expect(registration).toBeDefined();
+    expect(registration?.snapshot).toMatchObject({
+      finalUrl: "https://example.com/final",
+      title: "Captured page",
+      authors: ["Ada Writer"],
+      complete: true,
+      redirectChain: ["https://example.com/final"],
+      etag: '"page-1"',
+      rawSize: expect.any(Number),
+      readableSize: expect.any(Number),
+    });
+    const captured = { ...registration!.snapshot, referenceId: reference.id };
+    fixture.library.getWebSnapshot.mockResolvedValue(captured);
+    const raw = await handleReferenceLibraryApi(
+      new Request(`https://example.test/api/library/web-snapshots/${captured.id}/raw`),
+      fixture.env,
+      identity,
+    );
+    expect(raw.status).toBe(200);
+    expect(raw.headers.get("content-type")).toBe("application/octet-stream");
+    expect(raw.headers.get("content-disposition")).toContain("attachment");
+    expect(raw.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(await raw.text()).toContain("First readable version");
+
+    const older = { ...captured, id: "44444444-4444-4444-8444-444444444444", readableObjectKey: "older-readable" };
+    await bucket.put("older-readable", "Evidence\nEarlier idea");
+    fixture.library.getWebSnapshot.mockImplementation(async (id: string) => (id === older.id ? older : captured));
+    const compared = await handleReferenceLibraryApi(
+      new Request(`https://example.test/api/library/web-snapshots/${older.id}/compare/${captured.id}`),
+      fixture.env,
+      identity,
+    );
+    expect(compared.status).toBe(200);
+    await expect(compared.json()).resolves.toMatchObject({
+      comparison: { identical: false, addedLines: expect.any(Number), removedLines: expect.any(Number) },
+    });
   });
 
   it("routes private metadata, annotation, archive, and deletion operations", async () => {
@@ -159,7 +291,7 @@ describe("reference library API", () => {
   });
 });
 
-function apiFixture() {
+function apiFixture(bucket = new MemoryR2Bucket()) {
   const artifact = {
     id: "22222222-2222-4222-8222-222222222222",
     referenceId: reference.id,
@@ -202,8 +334,17 @@ function apiFixture() {
       artifactCount: 0,
       noteCount: 0,
       highlightCount: 0,
+      webSnapshotCount: 0,
     })),
     permanentlyDeleteReference: vi.fn(async () => ({ ...reference, deletedAt: now })),
+    registerWebCapture: vi.fn(async (registration: import("../domain/reference-library").WebCaptureRegistration) => ({
+      reference,
+      source: { referenceId: reference.id, canonicalUrl: registration.canonicalUrl, createdAt: now, updatedAt: now },
+      snapshot: { ...registration.snapshot, referenceId: reference.id },
+      created: true,
+    })),
+    getWebSnapshot: vi.fn(async (_snapshotId: string) => webSnapshot),
+    getWebSnapshots: vi.fn(async () => [webSnapshot]),
   };
   const getByName = vi.fn(() => library);
   return {
@@ -211,17 +352,94 @@ function apiFixture() {
     getByName,
     env: {
       REFERENCE_LIBRARIES: { getByName },
-      PAPERS: {
-        put: async (): Promise<never> => {
-          throw new Error("Unexpected R2 put");
-        },
-        get: async (): Promise<never> => {
-          throw new Error("Unexpected R2 get");
-        },
-        delete: async (): Promise<never> => {
-          throw new Error("Unexpected R2 delete");
-        },
-      },
+      PAPERS: bucket,
+    },
+  };
+}
+
+class MemoryR2Bucket implements Pick<R2Bucket, "put" | "get" | "delete"> {
+  readonly #objects = new Map<
+    string,
+    { bytes: Uint8Array; httpMetadata: R2HTTPMetadata | undefined; customMetadata: Record<string, string> | undefined }
+  >();
+
+  async put(
+    key: string,
+    value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob,
+    options?: R2PutOptions,
+  ): Promise<R2Object> {
+    const bytes = await r2ValueBytes(value);
+    const httpMetadata = normalizeR2HttpMetadata(options?.httpMetadata);
+    this.#objects.set(key, { bytes, httpMetadata, customMetadata: options?.customMetadata });
+    return memoryR2Object(key, bytes, httpMetadata, options?.customMetadata);
+  }
+
+  async get(key: string): Promise<R2ObjectBody | null> {
+    const value = this.#objects.get(key);
+    return value ? memoryR2Object(key, value.bytes, value.httpMetadata, value.customMetadata) : null;
+  }
+
+  async delete(keys: string | string[]): Promise<void> {
+    for (const key of typeof keys === "string" ? [keys] : keys) this.#objects.delete(key);
+  }
+}
+
+function normalizeR2HttpMetadata(value: R2HTTPMetadata | Headers | undefined): R2HTTPMetadata | undefined {
+  if (!(value instanceof Headers)) return value;
+  const contentType = value.get("content-type") ?? undefined;
+  return contentType ? { contentType } : undefined;
+}
+
+async function r2ValueBytes(value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob): Promise<Uint8Array> {
+  if (value === null) return new Uint8Array();
+  if (typeof value === "string") return new TextEncoder().encode(value);
+  if (value instanceof Blob) return new Uint8Array(await value.arrayBuffer());
+  if (value instanceof ArrayBuffer) return new Uint8Array(value.slice(0));
+  if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength).slice();
+  return new Uint8Array(await new Response(value).arrayBuffer());
+}
+
+function memoryR2Object(
+  key: string,
+  storedBytes: Uint8Array,
+  httpMetadata?: R2HTTPMetadata,
+  customMetadata?: Record<string, string>,
+): R2ObjectBody {
+  const bytes = storedBytes.slice();
+  return {
+    key,
+    version: "test-version",
+    size: bytes.length,
+    etag: "test-etag",
+    httpEtag: '"test-etag"',
+    checksums: { toJSON: () => ({}) },
+    uploaded: new Date(now),
+    ...(httpMetadata ? { httpMetadata } : {}),
+    ...(customMetadata ? { customMetadata } : {}),
+    storageClass: "Standard",
+    writeHttpMetadata(headers: Headers): void {
+      if (httpMetadata?.contentType) headers.set("content-type", httpMetadata.contentType);
+    },
+    get body(): ReadableStream {
+      return new Blob([bytes]).stream();
+    },
+    get bodyUsed(): boolean {
+      return false;
+    },
+    async arrayBuffer(): Promise<ArrayBuffer> {
+      return bytes.slice().buffer;
+    },
+    async bytes(): Promise<Uint8Array> {
+      return bytes.slice();
+    },
+    async text(): Promise<string> {
+      return new TextDecoder().decode(bytes);
+    },
+    async json<T>(): Promise<T> {
+      return JSON.parse(new TextDecoder().decode(bytes));
+    },
+    async blob(): Promise<Blob> {
+      return new Blob([bytes]);
     },
   };
 }

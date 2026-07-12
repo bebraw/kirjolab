@@ -406,7 +406,20 @@ export function renderHomePage(
           <label class="button-secondary">Add PDF<input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf"></label>
           <button class="button-secondary" id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
         </div>
+        <details class="mt-4 rounded-sm border border-app-line p-4" id="web-source-intake">
+          <summary class="cursor-pointer font-sans text-sm font-semibold">Capture web source</summary>
+          <form class="mt-4 grid gap-3 md:grid-cols-2" id="web-source-form">
+            <label class="field-label md:col-span-2">Public URL<input class="field" id="web-source-url" type="url" maxlength="4096" required placeholder="https://example.org/article"></label>
+            <label class="field-label">Title override<input class="field" id="web-source-title" maxlength="1000" placeholder="Fetched automatically when available"></label>
+            <label class="field-label">Author or organization<input class="field" id="web-source-author" maxlength="500"></label>
+            <label class="field-label">Publisher<input class="field" id="web-source-publisher" maxlength="500"></label>
+            <label class="field-label">Publication date<input class="field" id="web-source-published-at" maxlength="100" placeholder="YYYY-MM-DD"></label>
+            <div class="flex items-end md:col-span-2"><button class="button-primary" type="submit">Capture immutable version</button></div>
+          </form>
+          <p class="mt-3 text-xs leading-5 text-app-text-soft">Captures are private, bounded, timestamped, and stored as inert raw bytes plus extracted plain text. Redirects and incomplete captures are recorded.</p>
+        </details>
         <div class="mt-5 grid gap-3 md:grid-cols-2" id="reference-library-list"><div class="empty-state">Loading private library…</div></div>
+        <section class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></section>
         <section class="mt-6 border-t border-app-line pt-5">
           <div class="flex items-center justify-between gap-3"><p class="eyebrow">PDFs awaiting identification</p><span class="count-badge" id="unidentified-pdf-count">0</span></div>
           <div class="mt-3 grid gap-3 md:grid-cols-2" id="unidentified-pdf-list"><div class="empty-state">No unidentified PDFs.</div></div>
