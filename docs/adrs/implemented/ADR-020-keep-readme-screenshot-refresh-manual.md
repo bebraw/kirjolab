@@ -1,6 +1,6 @@
 # ADR-020: Keep README Screenshot Refresh Manual
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-070](./ADR-070-remove-the-readme-screenshot.md)
 
 **Date:** 2026-05-08
 

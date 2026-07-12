@@ -52,7 +52,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-017](./implemented/ADR-017-prune-redundant-package-scripts.md)                   | Accepted             | Keep one canonical package script per normal workflow and remove redundant aliases.                          |
 | [ADR-018](./implemented/ADR-018-add-capability-kits.md)                               | Accepted             | Add lightweight capability kits for applying specific template practices to existing repos.                  |
 | [ADR-019](./implemented/ADR-019-tighten-agent-workflow-guardrails.md)                 | Accepted             | Tighten TypeScript, write-target, and readiness-validation guardrails for agent work.                        |
-| [ADR-020](./implemented/ADR-020-keep-readme-screenshot-refresh-manual.md)             | Accepted             | Keep README screenshot refresh manual and outside the automated development loop.                            |
+| [ADR-020](./implemented/ADR-020-keep-readme-screenshot-refresh-manual.md)             | Superseded           | Kept README screenshot refresh manual and outside the automated development loop.                            |
 | [ADR-021](./implemented/ADR-021-add-accepted-adr-state.md)                            | Accepted             | Add an accepted ADR state so implemented means the decision is actually reflected in the repo.               |
 | [ADR-022](./implemented/ADR-022-add-mutation-testing-gate.md)                         | Accepted             | Add Stryker mutation testing to the full quality gate and CI workflow.                                       |
 | [ADR-023](./implemented/ADR-023-pin-github-actions-to-commit-shas.md)                 | Accepted             | Pin GitHub Actions workflow action references to immutable commit SHAs.                                      |
@@ -102,6 +102,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-067](./implemented/ADR-067-adjust-highlight-strokes-nondestructively.md)         | Implemented          | Correct touch-selected quotation and normalized geometry without replacing evidence identity or source PDFs. |
 | [ADR-068](./implemented/ADR-068-use-bounded-submission-templates.md)                  | Implemented          | Resolve common submission targets to pinned safe layout presets shared by LaTeX and direct PDF exports.      |
 | [ADR-069](./implemented/ADR-069-use-csl-json-and-bounded-library-archives.md)         | Implemented          | Exchange Zotero-compatible CSL JSON and bounded metadata-only private-library archives.                      |
+| [ADR-070](./implemented/ADR-070-remove-the-readme-screenshot.md)                      | Implemented          | Prefer no README screenshot over a stale representation of the application.                                  |
 
 ## Creating A New ADR
 

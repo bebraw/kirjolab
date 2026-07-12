@@ -115,9 +115,3 @@ For cross-repo agent work, tell the agent:
   bridge and its strict request boundary.
 - `src/views/` holds the server-rendered workspace shell.
 - Tests live next to the code they exercise under `src/`.
-
-## Application Screenshot
-
-![Kirjolab scholarly workspace](docs/screenshots/home.png)
-
-Refresh this asset manually when the starter UI changes materially.

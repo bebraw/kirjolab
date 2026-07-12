@@ -1,0 +1,9 @@
+{
+  "id": "2026-07-12-remove-readme-screenshot",
+  "title": "Remove a stale README screenshot",
+  "status": "implemented",
+  "risk": "low",
+  "adrs": ["docs/adrs/implemented/ADR-070-remove-the-readme-screenshot.md"],
+  "touches": ["README.md", "docs/screenshots/home.png"],
+  "checks": ["npm run format:check"]
+}

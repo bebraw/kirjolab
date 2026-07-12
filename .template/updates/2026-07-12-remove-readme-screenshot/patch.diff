@@ -1,0 +1,9 @@
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@
+-## Application Screenshot
+-
+-![Kirjolab scholarly workspace](docs/screenshots/home.png)
+-
+-Refresh this asset manually when the starter UI changes materially.
