@@ -68,6 +68,9 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix.startsWith("/pdfs/") && request.method === "GET") {
       return await downloadPdf(storageKey, suffix.slice("/pdfs/".length), env);
     }
+    if (suffix.startsWith("/pdfs/") && request.method === "DELETE") {
+      return await deletePdf(storageKey, suffix.slice("/pdfs/".length), env, room);
+    }
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
     if (suffix === "/annotation-links" && request.method === "POST") return await createAnnotationLink(request, room);
     if (suffix === "/bibliography/import" && request.method === "POST") {
@@ -350,6 +353,18 @@ async function downloadPdf(workspaceId: string, pdfId: string, env: Env): Promis
   headers.set("cache-control", "private, max-age=300");
   headers.set("content-disposition", "inline");
   return new Response(object.body, { headers });
+}
+
+async function deletePdf(
+  workspaceId: string,
+  pdfId: string,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  if (!/^[0-9a-f-]{36}$/iu.test(pdfId)) return jsonError("PDF not found", 404);
+  const pdf = await room.deletePdf(pdfId);
+  await env.PAPERS.delete(pdf.objectKey || `${workspaceId}/${pdfId}.pdf`);
+  return new Response(null, { status: 204 });
 }
 
 async function createAnnotation(

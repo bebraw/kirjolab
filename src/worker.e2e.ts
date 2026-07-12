@@ -251,6 +251,14 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await page.unroute(`**${api}/pdfs/${delayedPdf.id}`);
   await page.getByRole("tab", { name: "Preview" }).click();
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page
+    .locator("#pdf-list article")
+    .filter({ hasText: "current-paper.pdf" })
+    .getByRole("button", { name: "Remove from project" })
+    .click();
+  await expect(page.locator("#pdf-list")).not.toContainText("current-paper.pdf");
+  expect((await readWorkspaceSnapshot(page, api)).pdfs.some((pdf) => pdf.name === "current-paper.pdf")).toBe(false);
 
   await editor.evaluate((element: HTMLTextAreaElement) => {
     element.focus();
@@ -278,6 +286,12 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   const graphResponse = await page.request.get(`${api}/graph`);
   const graph: unknown = await graphResponse.json();
   expect(isWorkspaceKnowledgeGraph(graph) ? graph.edges.some((edge) => edge.relation === "has-artifact") : false).toBe(true);
+  await page
+    .locator("#pdf-list article")
+    .filter({ hasText: "context-paper.pdf" })
+    .getByRole("button", { name: "Remove from project" })
+    .click();
+  await expect(page.locator("#toast")).toContainText("remove 0 highlight(s) and 1 reference link(s) first");
 
   const contextMutations: string[] = [];
   page.on("request", (request) => {

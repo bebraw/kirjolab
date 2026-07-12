@@ -65,6 +65,10 @@ selector, authorization, or rendering contracts.
 - An imported PDF with no publication link remains a usable standalone PDF
   context. Linking or unlinking it is explicit and never deletes the PDF,
   publication, or annotations.
+- An unused imported PDF can be explicitly removed from its project together
+  with its stored bytes. Removal is blocked with dependency counts while any
+  highlight or publication/PDF link still refers to it; relationships are
+  never silently cascaded from a rail action.
 - An unlinked PDF exposes an inline DOI intake with separate lookup, reviewed
   acceptance, and cancellation states. Successful **Add to library & connect**
   opens the stable publication context but never inserts manuscript syntax.

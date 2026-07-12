@@ -1867,19 +1867,41 @@ class WorkspaceApp {
       return;
     }
     for (const pdf of pdfs) {
+      const card = document.createElement("article");
+      card.className = "resource-card";
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "resource-card block w-full text-left";
+      button.className = "block w-full text-left";
       button.dataset.pdfId = pdf.id;
       button.append(resourceLabel("PDF · " + formatBytes(pdf.size)), resourceTitle(pdf.name));
       button.addEventListener("click", () => {
         this.#elements.annotationPdf.value = pdf.id;
         void this.#showPaper(pdf);
       });
-      this.#elements.pdfList.append(button);
+      const remove = actionButton("Remove from project", "button-secondary mt-3 w-full justify-center", () => void this.#removePdf(pdf));
+      card.append(button, remove);
+      this.#elements.pdfList.append(card);
       this.#elements.annotationPdf.append(new Option(pdf.name, pdf.id));
     }
     if (this.#renderedPdfId) this.#elements.annotationPdf.value = this.#renderedPdfId;
+  }
+
+  async #removePdf(pdf: PdfResource): Promise<void> {
+    if (!this.#snapshot) return;
+    const annotations = this.#snapshot.annotations.filter((annotation) => annotation.pdfId === pdf.id).length;
+    const references = this.#snapshot.publicationPdfLinks.filter((link) => link.pdfId === pdf.id).length;
+    if (annotations + references > 0) {
+      this.#showToast(`Cannot remove ${pdf.name}: remove ${annotations} highlight(s) and ${references} reference link(s) first.`);
+      return;
+    }
+    if (!confirm(`Remove ${pdf.name} from this project? The imported PDF bytes will be deleted.`)) return;
+    const response = await fetch(`${apiBase}/pdfs/${encodeURIComponent(pdf.id)}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    await this.#resourceRefresh.request();
+    this.#showToast(`${pdf.name} removed from the project.`);
   }
 
   #renderPublications(publications: PublicationResource[]): void {

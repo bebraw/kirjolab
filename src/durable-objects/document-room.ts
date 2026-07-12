@@ -1030,6 +1030,30 @@ export class DocumentRoom extends DurableObject<Env> {
     return pdf;
   }
 
+  deletePdf(pdfId: string): PdfResource {
+    const pdf = this.#pdfs().find((item) => item.id === pdfId);
+    if (!pdf) throw new Error("PDF not found");
+    const annotations = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM annotations WHERE pdf_id = ?", pdfId)
+      .one().count;
+    const publicationLinks = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM publication_pdf_links WHERE pdf_id = ?", pdfId)
+      .one().count;
+    const referenceLinks = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_reference_pdf_links WHERE pdf_id = ?", pdfId)
+      .one().count;
+    if (annotations + publicationLinks + referenceLinks > 0) {
+      throw new Error(
+        `Remove ${annotations} annotation(s) and ${publicationLinks + referenceLinks} reference link(s) before removing this PDF`,
+      );
+    }
+    this.#persistResourceRevision("pdf-delete", () => {
+      this.ctx.storage.sql.exec("DELETE FROM pdfs WHERE id = ?", pdfId);
+    });
+    this.#broadcastResources();
+    return pdf;
+  }
+
   importBibliography(workspaceId: string, bibtex: string): WorkspaceSnapshot {
     const imported = parseBibTeX(bibtex);
     if (imported.length === 0) throw new Error("No valid BibTeX entries found");
