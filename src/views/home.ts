@@ -70,8 +70,7 @@ export function renderHomePage(
             <div><p class="eyebrow">Project files</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Writing</h1></div>
             <button class="button-secondary" id="new-project-file-rail" type="button">Add file</button>
           </div>
-          <p class="mt-3 text-sm leading-6 text-app-text-soft"><strong>main.md</strong> composes the project. Include supporting files with <code>::include[path]</code>.</p>
-          <div class="mt-4 flex items-center justify-between gap-3"><p class="eyebrow">Lexical file order</p><span class="count-badge" id="project-file-count">1</span></div>
+          <div class="mt-4 flex items-center justify-between gap-3"><p class="eyebrow">Files · A–Z</p><span class="count-badge" id="project-file-count">1</span></div>
           <div class="mt-3 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
         </section>
 
@@ -93,22 +92,22 @@ export function renderHomePage(
             </details>
             <details class="rail-collection">
               <summary><span>Highlights</span><span class="count-badge" id="annotation-count">0</span></summary>
-              <div class="rail-collection-body" id="annotation-list"><div class="empty-state">Highlights appear here with their source context.</div></div>
+              <div class="rail-collection-body" id="annotation-list"><div class="empty-state">No highlights yet.</div></div>
             </details>
             <details class="rail-collection">
               <summary><span>Claims</span><span class="count-badge" id="claim-count">0</span></summary>
               <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="new-claim" type="button">New claim</button></div>
-              <div class="rail-collection-body" id="claim-list"><div class="empty-state">Evidence-backed claims appear here.</div></div>
+              <div class="rail-collection-body" id="claim-list"><div class="empty-state">No claims yet.</div></div>
             </details>
             <details class="rail-collection">
               <summary><span>References</span><span class="count-badge" id="publication-count">0</span></summary>
               <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="browse-reference-library" type="button">Browse private library</button></div>
-              <div class="rail-collection-body" id="publication-list"><div class="empty-state">Project references appear here.</div></div>
+              <div class="rail-collection-body" id="publication-list"><div class="empty-state">No project references yet.</div></div>
             </details>
             <details class="rail-collection">
               <summary><span>Project graph</span><span class="count-badge" id="connection-count">0</span></summary>
               <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="explore-research-graph" type="button">Explore citation network</button></div>
-              <div class="rail-collection-body" id="knowledge-connection-list"><div class="empty-state">Typed relationships appear here.</div></div>
+              <div class="rail-collection-body" id="knowledge-connection-list"><div class="empty-state">No connections yet.</div></div>
             </details>
           </div>
           <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf">
@@ -356,7 +355,7 @@ export function renderHomePage(
       </section>
 
       <details class="workbench assistant-drawer border-t border-app-line bg-app-canvas min-[72rem]:col-span-4" id="writing-assistant">
-        <summary><span>Writing assistant</span><span>Works from selected prose and evidence</span></summary>
+        <summary><span>Writing assistant</span><span>Selected text only</span></summary>
         <div class="mx-auto max-w-5xl px-4 py-5 lg:px-6">
           <section>
             <div class="flex flex-wrap items-end justify-between gap-3">
@@ -364,7 +363,7 @@ export function renderHomePage(
                 <p class="eyebrow">Selected passage</p>
                 <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Draft a reviewable revision</h2>
               </div>
-              <p class="max-w-lg text-xs leading-5 text-app-text-soft">The selected passage, revision instruction, chosen evidence, and configured model identifier are sent from your browser to the local OpenAI-compatible endpoint. No other manuscript text is sent. The proposed replacement stays separate for review in Context.</p>
+              <p class="max-w-lg text-xs leading-5 text-app-text-soft">Uses only the selected passage and chosen evidence. Review the draft in Context before applying it.</p>
             </div>
             <div class="assistant-workflow">
               <label class="field-label model-instruction-field" for="model-instruction">Revision instruction
@@ -391,7 +390,7 @@ export function renderHomePage(
             </details>
             <p class="mt-3 text-sm text-app-text-soft" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
             <div class="mt-4" id="candidate-list">
-              <div class="empty-state">Grounded revisions open in Context and remain separate from the manuscript until you apply one.</div>
+              <div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>
             </div>
           </section>
         </div>
@@ -404,16 +403,16 @@ export function renderHomePage(
           <div>
             <p class="eyebrow">Publication output</p>
             <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Export composed project</h2>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-app-text-soft">Every target resolves the same main.md tree and cited bibliography. LaTeX includes the source map and pinned manifest used by the bounded PDF renderer.</p>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-app-text-soft">Choose a format for the composed project.</p>
           </div>
           <button class="button-secondary" id="close-export" type="button">Close</button>
         </div>
         <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/document.pdf"><span class="eyebrow">Ready to read</span><strong class="mt-2 block font-sans">PDF</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Pinned Kirjolab renderer</span></a>
-          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/latex.zip"><span class="eyebrow">Publisher workflow</span><strong class="mt-2 block font-sans">LaTeX project</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Template, bibliography, manifest, and source map</span></a>
-          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/document.md"><span class="eyebrow">Portable source</span><strong class="mt-2 block font-sans">Markdown</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Composed canonical prose</span></a>
-          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/bibliography.bib"><span class="eyebrow">Cited only</span><strong class="mt-2 block font-sans">BibTeX</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">References reachable from main.md</span></a>
-          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/source.zip"><span class="eyebrow">Archival</span><strong class="mt-2 block font-sans">Source bundle</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Project tree and shared evidence metadata</span></a>
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/document.pdf"><span class="eyebrow">Ready to share</span><strong class="mt-2 block font-sans">PDF</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Formatted document</span></a>
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/latex.zip"><span class="eyebrow">Publisher</span><strong class="mt-2 block font-sans">LaTeX project</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Source and bibliography</span></a>
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/document.md"><span class="eyebrow">Plain text</span><strong class="mt-2 block font-sans">Markdown</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Composed manuscript</span></a>
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/bibliography.bib"><span class="eyebrow">References</span><strong class="mt-2 block font-sans">BibTeX</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Cited sources</span></a>
+          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/source.zip"><span class="eyebrow">Archive</span><strong class="mt-2 block font-sans">Source bundle</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Files and evidence</span></a>
         </div>
         <section class="mt-6 border-t border-app-line pt-5">
           <div class="flex items-center justify-between gap-3"><p class="eyebrow">Publication statistics</p><a class="font-sans text-xs font-semibold text-app-accent" href="/api/workspaces/${escapedWorkspaceId}/export/statistics.json">Download JSON</a></div>
@@ -454,7 +453,7 @@ export function renderHomePage(
           </select></label>
           <label class="field-label">Paper size<select class="field" id="workspace-paper-size"><option value="a4">A4</option><option value="letter">US Letter</option></select></label>
         </div>
-        <p class="mt-2 text-xs leading-5 text-app-text-soft">The profile changes preview and derived exports without rewriting canonical Markdown or shared references.</p>
+        <p class="mt-2 text-xs leading-5 text-app-text-soft">These settings affect preview and exports without changing the manuscript.</p>
         <div class="mt-5 flex flex-wrap gap-2">
           <button class="button-primary" type="submit">Save title</button>
           <button class="button-secondary" id="duplicate-workspace" type="button">Duplicate</button>
@@ -520,7 +519,7 @@ export function renderHomePage(
           <div>
             <p class="eyebrow">Project record</p>
             <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Revision history</h2>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-app-text-soft">Automatic snapshots include the complete file tree, pinned sources, evidence relationships, and project settings. Milestones name one exact immutable state.</p>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-app-text-soft">Browse, compare, restore, or branch from saved versions.</p>
           </div>
           <button class="button-secondary" id="close-project-history" type="button">Close</button>
         </div>
@@ -540,7 +539,7 @@ export function renderHomePage(
           <div>
             <p class="eyebrow">Private research memory</p>
             <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Reference library</h2>
-            <p class="mt-2 max-w-xl text-sm leading-6 text-app-text-soft">References, PDFs, tags, notes, highlights, and reading state stay private. Adding a citation shares only its bibliographic snapshot with this project.</p>
+            <p class="mt-2 max-w-xl text-sm leading-6 text-app-text-soft">Your library is private. Adding a source to a project shares its citation details only.</p>
           </div>
           <button class="button-secondary" id="close-reference-library" type="button">Close</button>
         </div>
@@ -572,15 +571,15 @@ export function renderHomePage(
             <label class="field-label">Author or organization<input class="field" id="web-source-author" maxlength="500"></label>
             <label class="field-label">Publisher<input class="field" id="web-source-publisher" maxlength="500"></label>
             <label class="field-label">Publication date<input class="field" id="web-source-published-at" maxlength="100" placeholder="YYYY-MM-DD"></label>
-            <div class="flex items-end md:col-span-2"><button class="button-primary" type="submit">Capture immutable version</button></div>
+            <div class="flex items-end md:col-span-2"><button class="button-primary" type="submit">Save snapshot</button></div>
           </form>
-          <p class="mt-3 text-xs leading-5 text-app-text-soft">Captures are private, bounded, timestamped, and stored as inert raw bytes plus extracted plain text. Redirects and incomplete captures are recorded.</p>
+          <p class="mt-3 text-xs leading-5 text-app-text-soft">Snapshots are private and timestamped. Incomplete captures stay marked.</p>
         </details>
         <div class="mt-5 grid gap-3 md:grid-cols-2" id="reference-library-list"><div class="empty-state">Loading private library…</div></div>
         <section class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></section>
         <section class="mt-6 hidden border-t border-app-line pt-5" id="citation-network" aria-labelledby="citation-network-heading">
           <div class="flex flex-wrap items-start justify-between gap-3">
-            <div><p class="eyebrow">Shared literature map</p><h3 class="mt-1 text-lg font-semibold" id="citation-network-heading">Citation assertions</h3><p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">Source-to-source assertions retain direction, extraction state, provider or source identity, retrieval time, and researcher review. Conflicts remain visible.</p></div>
+            <div><p class="eyebrow">Shared literature map</p><h3 class="mt-1 text-lg font-semibold" id="citation-network-heading">Citation assertions</h3><p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">Review how sources cite one another. Conflicting relationships remain visible.</p></div>
             <div class="flex gap-2"><button class="button-secondary" id="filter-project-citations" type="button" aria-pressed="false">Current project</button><button class="button-secondary" id="close-citation-network" type="button">Close network</button></div>
           </div>
           <form class="mt-4 grid gap-3 border-y border-app-line py-4 md:grid-cols-[1fr_auto_1fr_auto]" id="citation-assertion-form">

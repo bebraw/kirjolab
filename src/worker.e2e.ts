@@ -129,7 +129,7 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await expect(page.locator("#export-dialog")).toBeVisible();
   await expect(page.locator("#export-statistics")).toContainText("Composed prose from main.md");
-  await expect(page.getByRole("link", { name: /PDF Pinned Kirjolab renderer/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /PDF Formatted document/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /LaTeX project/ })).toBeVisible();
 
   const statistics = await page.request.get(`${api}/export/statistics.json`);
@@ -1578,7 +1578,7 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
   expect((await candidateResponse).status()).toBe(409);
   await expect(page.locator("#model-status")).toContainText(/stale|changed/iu);
   await expect(page.locator("#candidate-list article")).toHaveCount(0);
-  await expect(page.locator("#candidate-list")).toContainText("Grounded revisions open in Context");
+  await expect(page.locator("#candidate-list")).toContainText("Drafts open in Context");
   const finalSnapshot = await readWorkspaceSnapshot(page, api);
   expect(finalSnapshot.candidates).toEqual([]);
   expect(finalSnapshot.source).toBe(concurrentSource);

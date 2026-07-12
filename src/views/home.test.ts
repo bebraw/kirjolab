@@ -21,7 +21,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="citation-assertion-form"');
     expect(html).toContain('id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"');
     expect(html).toContain('id="citation-network-list" aria-live="polite"');
-    expect(html).toContain("Conflicts remain visible.");
+    expect(html).toContain("Conflicting relationships remain visible.");
     expect(html).toContain('id="publication-list"');
     expect(html).toContain('id="knowledge-search-form"');
     expect(html).toContain('id="knowledge-connection-list"');
@@ -33,11 +33,11 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="open-source-citation"');
     expect(html).toContain('id="open-project-history"');
     expect(html).toContain('id="project-history-dialog"');
-    expect(html).toContain("Automatic snapshots include the complete file tree");
+    expect(html).toContain("Browse, compare, restore, or branch from saved versions.");
     expect(html).toContain('id="open-export" type="button">Export</button>');
     expect(html).toContain('id="word-count-badge"');
     expect(html).toContain('id="export-dialog"');
-    expect(html).toContain("Every target resolves the same main.md tree and cited bibliography.");
+    expect(html).toContain("Choose a format for the composed project.");
     expect(html).toContain("/api/workspaces/demo/export/document.pdf");
     expect(html).toContain("/api/workspaces/demo/export/latex.zip");
     expect(html).toContain("/api/workspaces/demo/export/source.zip");
@@ -141,17 +141,14 @@ describe("renderHomePage", () => {
   it("scopes the local model operation to selected prose and labelled instruction", () => {
     const html = renderHomePage(exampleRoutes);
 
-    expect(html).toContain(
-      "The selected passage, revision instruction, chosen evidence, and configured model identifier are sent from your browser to the local OpenAI-compatible endpoint.",
-    );
-    expect(html).toContain("No other manuscript text is sent.");
-    expect(html).toContain("The proposed replacement stays separate for review in Context.");
+    expect(html).toContain("Uses only the selected passage and chosen evidence.");
+    expect(html).toContain("Review the draft in Context before applying it.");
     expect(html).toContain('<label class="field-label model-instruction-field" for="model-instruction">Revision instruction');
     expect(html).toContain('id="model-instruction" maxlength="4000" rows="2"');
     expect(html).toContain("Improve clarity while preserving the claim and citation syntax.");
     expect(html).toContain('id="model-status" role="status" aria-live="polite"');
     expect(html).toContain("Select manuscript text and at least one annotation or claim to ground the request.");
-    expect(html).toContain("Grounded revisions open in Context and remain separate from the manuscript until you apply one.");
+    expect(html).toContain("Drafts open in Context and do not change the manuscript until applied.");
 
     expect(html.indexOf('id="model-instruction"')).toBeLessThan(html.indexOf('id="assistant-model-settings"'));
     expect(html.indexOf('id="assistant-model-settings"')).toBeLessThan(html.indexOf('id="llm-endpoint"'));

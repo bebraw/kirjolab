@@ -19,7 +19,9 @@ mode for authenticated hosted collaboration.
 
 - **Application shell:** `src/views/home.ts` renders the accessible workspace;
   `src/client/app.ts` provides typed browser behavior bundled into
-  `.generated/app.txt`.
+  `.generated/app.txt`. Persistent interface copy names the user's next action
+  and keeps implementation detail in feature documentation rather than the
+  task surface.
 - **Primary surfaces:** The authoring editor remains visible beside a tabbed
   research-context pane on desktop. The pane permanently hosts manuscript
   Preview and can host publication, PDF, and model-candidate resources without
@@ -282,6 +284,8 @@ mode for authenticated hosted collaboration.
       compact desktop windows remain free of horizontal page overflow.
 - [x] Persistent toolbars group infrequent project and file mutations without
       hiding them behind unexplained glyphs.
+- [x] Permanent helper and empty-state copy stays concise, action-oriented, and
+      free of architecture terminology that does not change the user's choice.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
 - [x] Preview citations open publication context and explicit citation
