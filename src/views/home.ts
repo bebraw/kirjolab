@@ -117,6 +117,7 @@ export function renderHomePage(
             <label class="sr-only" for="project-file-switcher">Project file</label>
             <select class="workspace-switcher" id="project-file-switcher" aria-label="Project file"><option>main.md</option></select>
             <span class="count-badge" id="revision-badge">r0</span>
+            <button class="button-secondary" id="open-project-history" type="button">History</button>
           </div>
           <div class="flex items-center gap-2">
             <button class="button-icon" id="new-project-file" type="button" title="Add project file" aria-label="Add project file">＋</button>
@@ -389,6 +390,26 @@ export function renderHomePage(
           <button class="button-primary" type="submit">Save file</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="reference-library-dialog" id="project-history-dialog">
+      <div class="p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="eyebrow">Project record</p>
+            <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Revision history</h2>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-app-text-soft">Automatic snapshots include the complete file tree, pinned sources, evidence relationships, and project settings. Milestones name one exact immutable state.</p>
+          </div>
+          <button class="button-secondary" id="close-project-history" type="button">Close</button>
+        </div>
+        <form class="mt-5 grid gap-3 border-y border-app-line py-4 sm:grid-cols-[1fr_1fr_auto]" id="project-history-compare-form">
+          <label class="field-label">From<select class="field" id="project-history-from"></select></label>
+          <label class="field-label">To<select class="field" id="project-history-to"></select></label>
+          <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Compare</button></div>
+        </form>
+        <section class="mt-5 hidden border border-app-line bg-app-paper p-4" id="project-history-inspector" aria-live="polite"></section>
+        <div class="mt-5 space-y-3" id="project-history-list"><div class="empty-state">Loading revision history…</div></div>
+      </div>
     </dialog>
 
     <dialog class="reference-library-dialog" id="reference-library-dialog">

@@ -825,6 +825,90 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await expect(page.locator("#source-editor")).not.toHaveValue(isolatedSource);
 });
 
+test("names, compares, restores, and branches immutable project revisions", async ({ page, browser }) => {
+  const workspaceId = await createWorkspace(page, "Revision workflow");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  await page.locator("#source-editor").fill("# Revised manuscript\n\nA versioned claim.\n");
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toContain("A versioned claim.");
+
+  const historyResponse = await page.request.get(`${api}/history`);
+  expect(historyResponse.ok()).toBe(true);
+  const history: unknown = await historyResponse.json();
+  if (!Array.isArray(history) || !isRecord(history[0]) || typeof history[0].revision !== "number") {
+    throw new Error("Expected project revision history");
+  }
+  const head = history[0].revision;
+  const milestone = await page.request.post(`${api}/history/${head}/milestones`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { name: "review draft", description: "Sent for review" },
+  });
+  expect(milestone.status()).toBe(201);
+  const invited = await page.request.post(`${api}/members`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { email: "history-reader@example.org" },
+  });
+  expect(invited.status()).toBe(201);
+  const memberContext = await browser.newContext({
+    baseURL: "http://127.0.0.1:8788",
+    extraHTTPHeaders: { "x-kirjolab-local-user": "history-reader@example.org" },
+  });
+  expect((await memberContext.request.get(`${api}/history`)).status()).toBe(200);
+  const forbiddenMilestone = await memberContext.request.post(`${api}/history/${head}/milestones`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { name: "member cannot tag" },
+  });
+  expect(forbiddenMilestone.status()).toBe(403);
+  await memberContext.close();
+
+  const fileCreated = await page.request.post(`${api}/files`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { path: "appendix/reviewer-notes.md", content: "Reviewer response\n" },
+  });
+  expect(fileCreated.status()).toBe(201);
+  const nextHistory: unknown = await (await page.request.get(`${api}/history`)).json();
+  if (!Array.isArray(nextHistory) || !isRecord(nextHistory[0]) || typeof nextHistory[0].revision !== "number") {
+    throw new Error("Expected updated project revision history");
+  }
+  const next = nextHistory[0].revision;
+  const compared = await page.request.get(`${api}/history/compare?from=${head}&to=${next}`);
+  expect(compared.ok()).toBe(true);
+  await expect(compared.json()).resolves.toMatchObject({
+    fromRevision: head,
+    toRevision: next,
+    files: expect.arrayContaining([expect.objectContaining({ status: "added", afterPath: "appendix/reviewer-notes.md" })]),
+  });
+
+  await page.getByRole("button", { name: "History" }).click();
+  await expect(page.locator("#project-history-dialog")).toBeVisible();
+  await expect(page.locator("#project-history-list")).toContainText("review draft");
+  await expect(page.locator("#project-history-list")).toContainText("project-file-create");
+  await page.locator("#close-project-history").click();
+
+  const branch = await page.request.post(`${api}/history/${head}/seed`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { title: "Reviewer response branch" },
+  });
+  expect(branch.status()).toBe(201);
+  const branchSummary: unknown = await branch.json();
+  if (!isRecord(branchSummary) || typeof branchSummary.id !== "string") throw new Error("Expected revision branch workspace");
+  const branchSnapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${branchSummary.id}`);
+  expect(branchSnapshot.source).toContain("A versioned claim.");
+  expect(branchSnapshot.files.some((file) => file.path === "appendix/reviewer-notes.md")).toBe(false);
+
+  const restored = await page.request.post(`${api}/history/${head}/restore`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: {},
+  });
+  expect(restored.ok()).toBe(true);
+  await expect
+    .poll(async () => (await readWorkspaceSnapshot(page, api)).files.some((file) => file.path === "appendix/reviewer-notes.md"))
+    .toBe(false);
+  const restoredHistory: unknown = await (await page.request.get(`${api}/history`)).json();
+  expect(restoredHistory).toEqual(expect.arrayContaining([expect.objectContaining({ reason: `restore:r${head}` })]));
+});
+
 test("projects the default canonical bibliography into a fresh workspace", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Default bibliography projection");
   const snapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${workspaceId}`);

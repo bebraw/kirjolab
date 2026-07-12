@@ -58,6 +58,20 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat web-capture comparison as neutral readable-text change data. Never
   render fetched markup, silently move a project pin, or infer authority or
   correctness from a capture or diff.
+- Retain immutable project-wide logical revisions separately from the
+  manuscript concurrency revision. Each history snapshot must atomically
+  preserve the exact Yjs state, stable file tree, aliases, pinned source and
+  research snapshots, PDFs, annotations, claims, and their relationships.
+- Coalesce rapid manuscript updates into one short-lived untagged working
+  checkpoint. Naming a milestone freezes that snapshot; explicit resource and
+  project operations always create distinct history revisions.
+- Keep historical views read-only and milestone names immutable. Restoring an
+  older snapshot must create a new head, preserve the intervening timeline,
+  and reset connected browsers before their newer CRDT state can merge back
+  into the restored document.
+- Compare project revisions by stable file and binary identity. Treat path
+  changes as renames, compose `main.md` at both endpoints, and report neutral
+  additions/removals without interpreting correctness.
 - Treat project unlink, library archive, share revocation, and permanent owner
   deletion as distinct operations. Revocation is forward-only; deletion keeps
   only the tombstoned provenance needed by historical project revisions.

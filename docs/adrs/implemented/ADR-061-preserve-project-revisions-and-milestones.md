@@ -1,6 +1,6 @@
 # ADR-061: Preserve Project Revisions and Milestones
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-11
 

@@ -17,6 +17,13 @@ import {
   toManuscriptAnchorSelector,
   type StoredManuscriptAnchor,
 } from "../domain/manuscript-anchor";
+import {
+  compareProjectRevisions,
+  type ProjectMilestone,
+  type ProjectRevisionContent,
+  type ProjectRevisionDiff,
+  type ProjectRevisionSummary,
+} from "../domain/project-history";
 import { calculateTextSplice } from "../domain/text";
 import { isValidCitationKey, suggestCitationKey } from "../domain/publication-intake";
 import {
@@ -240,6 +247,140 @@ interface PublicationPdfLinkWrite {
   readonly link: PublicationPdfLink;
 }
 
+interface ProjectRevisionRow extends Record<string, SqlStorageValue> {
+  revision: number;
+  reason: string;
+  snapshot_json: string;
+  created_at: string;
+}
+
+interface ProjectMilestoneRow extends Record<string, SqlStorageValue> {
+  id: string;
+  revision: number;
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+type StoredSqlValue = string | number | null | { readonly blob: string };
+type StoredSqlRow = Readonly<Record<string, StoredSqlValue>>;
+
+interface StoredProjectRevision {
+  readonly version: 1;
+  readonly workspace: {
+    readonly title: string;
+    readonly yState: string;
+    readonly source: string;
+    readonly bibliography: string;
+    readonly entryFileId: string;
+  };
+  readonly tables: Readonly<Record<RevisionTable, readonly StoredSqlRow[]>>;
+}
+
+const revisionTables = [
+  "pdfs",
+  "annotations",
+  "passage_links",
+  "publications",
+  "claims",
+  "claim_evidence_links",
+  "claim_passage_links",
+  "publication_pdf_links",
+  "project_files",
+  "project_references",
+  "project_research_shares",
+  "project_reference_pdf_links",
+] as const;
+
+type RevisionTable = (typeof revisionTables)[number];
+
+const revisionTableColumns: Readonly<Record<RevisionTable, readonly string[]>> = {
+  pdfs: ["id", "name", "content_type", "size", "object_key", "fingerprint", "created_at"],
+  annotations: ["id", "pdf_id", "page", "quote", "prefix", "suffix", "comment", "rects_json", "created_at"],
+  passage_links: [
+    "id",
+    "annotation_id",
+    "start_offset",
+    "end_offset",
+    "excerpt",
+    "anchor_version",
+    "relative_start",
+    "relative_end",
+    "quote_prefix",
+    "quote_suffix",
+    "anchored_revision",
+    "created_at",
+    "project_file_id",
+  ],
+  publications: [
+    "id",
+    "citation_key",
+    "entry_type",
+    "title",
+    "authors_json",
+    "publication_year",
+    "venue",
+    "doi",
+    "url",
+    "abstract",
+    "metadata_source",
+    "created_at",
+    "updated_at",
+  ],
+  claims: ["id", "text", "note", "created_at", "updated_at"],
+  claim_evidence_links: ["id", "claim_id", "annotation_id", "relation", "created_at"],
+  claim_passage_links: [
+    "id",
+    "claim_id",
+    "start_offset",
+    "end_offset",
+    "excerpt",
+    "anchor_version",
+    "relative_start",
+    "relative_end",
+    "quote_prefix",
+    "quote_suffix",
+    "anchored_revision",
+    "created_at",
+    "project_file_id",
+  ],
+  publication_pdf_links: ["id", "publication_id", "pdf_id", "created_at"],
+  project_files: ["id", "path", "media_type", "y_text_name", "content", "created_at", "updated_at"],
+  project_references: ["id", "reference_id", "citation_alias", "snapshot_json", "created_at", "updated_at"],
+  project_research_shares: ["id", "project_id", "reference_id", "resource_id", "kind", "snapshot_json", "created_at", "revoked_at"],
+  project_reference_pdf_links: ["id", "publication_id", "pdf_id", "created_at"],
+};
+
+const revisionDeleteOrder: readonly RevisionTable[] = [
+  "passage_links",
+  "claim_passage_links",
+  "claim_evidence_links",
+  "publication_pdf_links",
+  "project_reference_pdf_links",
+  "project_research_shares",
+  "project_references",
+  "claims",
+  "annotations",
+  "publications",
+  "project_files",
+  "pdfs",
+];
+
+const revisionInsertOrder: readonly RevisionTable[] = [
+  "pdfs",
+  "annotations",
+  "publications",
+  "claims",
+  "project_files",
+  "project_references",
+  "project_research_shares",
+  "publication_pdf_links",
+  "project_reference_pdf_links",
+  "claim_evidence_links",
+  "passage_links",
+  "claim_passage_links",
+];
+
 export class DocumentRoom extends DurableObject<Env> {
   #document = new Y.Doc();
 
@@ -250,6 +391,7 @@ export class DocumentRoom extends DurableObject<Env> {
       runSQLiteMigrations(this.ctx.storage, this.#schemaMigrations());
       this.#loadDocument();
       runSQLiteMigrations(this.ctx.storage, this.#dataMigrations());
+      this.#ensureInitialRevision();
     });
   }
 
@@ -345,6 +487,131 @@ export class DocumentRoom extends DurableObject<Env> {
       claimLinks: this.#claimLinks(),
       candidates: this.#candidates(),
     };
+  }
+
+  listRevisions(): ProjectRevisionSummary[] {
+    const milestones = this.#milestones();
+    return this.ctx.storage.sql
+      .exec<ProjectRevisionRow>("SELECT * FROM project_revisions ORDER BY revision DESC LIMIT 500")
+      .toArray()
+      .map((row) => {
+        const state = parseStoredProjectRevision(row.snapshot_json);
+        return {
+          revision: row.revision,
+          title: state.workspace.title,
+          reason: row.reason,
+          createdAt: row.created_at,
+          fileCount: state.tables.project_files.length,
+          milestones: milestones.filter((milestone) => milestone.revision === row.revision),
+        };
+      });
+  }
+
+  getRevision(revision: number): ProjectRevisionContent {
+    const row = this.#revisionRow(revision);
+    return projectRevisionContent(row.revision, parseStoredProjectRevision(row.snapshot_json));
+  }
+
+  compareRevisions(fromRevision: number, toRevision: number): ProjectRevisionDiff {
+    return compareProjectRevisions(this.getRevision(fromRevision), this.getRevision(toRevision));
+  }
+
+  createMilestone(revision: number, nameValue: string, descriptionValue = ""): ProjectMilestone {
+    const name = nameValue.trim();
+    const description = descriptionValue.trim();
+    if (!name || name.length > 120 || description.length > 2_000) throw new Error("Milestone name or description is invalid");
+    this.#revisionRow(revision);
+    const existing = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_milestones WHERE name = ? COLLATE NOCASE", name)
+      .one();
+    if (existing.count > 0) throw new Error("Milestone name already exists");
+    const milestone: ProjectMilestone = {
+      id: crypto.randomUUID(),
+      revision,
+      name,
+      description,
+      createdAt: new Date().toISOString(),
+    };
+    this.ctx.storage.sql.exec(
+      "INSERT INTO project_milestones (id, revision, name, description, created_at) VALUES (?, ?, ?, ?, ?)",
+      milestone.id,
+      milestone.revision,
+      milestone.name,
+      milestone.description,
+      milestone.createdAt,
+    );
+    this.#broadcastResources();
+    return milestone;
+  }
+
+  restoreRevision(workspaceId: string, targetRevision: number): WorkspaceSnapshot {
+    const target = parseStoredProjectRevision(this.#revisionRow(targetRevision).snapshot_json);
+    const current = this.#workspaceRow();
+    const nextRevision = current.revision + 1;
+    const previousState = current.y_state;
+    const targetState = decodeBase64(target.workspace.yState);
+    this.#restoreDocument(targetState);
+    try {
+      this.ctx.storage.transactionSync(() => {
+        this.#replaceRevisionTables(target);
+        this.ctx.storage.sql.exec("DELETE FROM candidates");
+        this.ctx.storage.sql.exec(
+          `UPDATE workspace
+           SET title = ?, y_state = ?, source = ?, bibliography = ?, revision = ?, entry_file_id = ?
+           WHERE id = 1`,
+          target.workspace.title,
+          targetState,
+          target.workspace.source,
+          target.workspace.bibliography,
+          nextRevision,
+          target.workspace.entryFileId,
+        );
+        this.#recordRevision(`restore:r${targetRevision}`);
+      });
+    } catch (error) {
+      this.#restoreDocument(previousState);
+      throw error;
+    }
+    this.#broadcast(encodeServerCollaborationMessage({ type: "reset", revision: nextRevision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  getRevisionSeed(revision: number): string {
+    return this.#revisionRow(revision).snapshot_json;
+  }
+
+  seedFromRevision(workspaceId: string, titleValue: string, seedValue: string): WorkspaceSnapshot {
+    const seed = parseStoredProjectRevision(seedValue);
+    const title = titleValue.trim();
+    if (!title || title.length > 120) throw new Error("Workspace title is invalid");
+    const targetState = decodeBase64(seed.workspace.yState);
+    const previous = this.#workspaceRow();
+    this.#restoreDocument(targetState);
+    try {
+      this.ctx.storage.transactionSync(() => {
+        this.#replaceRevisionTables(seed, workspaceId);
+        this.ctx.storage.sql.exec("DELETE FROM candidates");
+        this.ctx.storage.sql.exec("DELETE FROM project_milestones");
+        this.ctx.storage.sql.exec("DELETE FROM project_revisions");
+        this.ctx.storage.sql.exec(
+          `UPDATE workspace
+           SET title = ?, y_state = ?, source = ?, bibliography = ?, revision = 0, entry_file_id = ?
+           WHERE id = 1`,
+          title,
+          targetState,
+          seed.workspace.source,
+          seed.workspace.bibliography,
+          seed.workspace.entryFileId,
+        );
+        this.#recordRevision("seed-from-revision", 0);
+      });
+    } catch (error) {
+      this.#restoreDocument(previous.y_state);
+      throw error;
+    }
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
   }
 
   linkProjectReference(
@@ -459,14 +726,19 @@ export class DocumentRoom extends DurableObject<Env> {
       if (bibliographySplice.deleteCount > 0) bibliography.delete(bibliographySplice.start, bibliographySplice.deleteCount);
       if (bibliographySplice.insert) bibliography.insert(bibliographySplice.start, bibliographySplice.insert);
     }
-    const persisted = this.#persistDocument(previous, {}, () => {
-      this.ctx.storage.sql.exec(
-        "UPDATE project_references SET citation_alias = ?, updated_at = ? WHERE reference_id = ?",
-        alias,
-        now,
-        referenceId,
-      );
-    });
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => {
+        this.ctx.storage.sql.exec(
+          "UPDATE project_references SET citation_alias = ?, updated_at = ? WHERE reference_id = ?",
+          alias,
+          now,
+          referenceId,
+        );
+      },
+      "project-reference-alias-rename",
+    );
     this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
@@ -494,21 +766,26 @@ export class DocumentRoom extends DurableObject<Env> {
       .toArray()[0];
     if (existing && existing.revoked_at === null) return this.getSnapshot(workspaceId);
     const previous = this.#workspaceRow();
-    const persisted = this.#persistDocument(previous, {}, () => {
-      this.ctx.storage.sql.exec(
-        `INSERT INTO project_research_shares
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => {
+        this.ctx.storage.sql.exec(
+          `INSERT INTO project_research_shares
          (id, project_id, reference_id, resource_id, kind, snapshot_json, created_at, revoked_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
          ON CONFLICT(id) DO UPDATE SET snapshot_json = excluded.snapshot_json, created_at = excluded.created_at, revoked_at = NULL`,
-        share.id,
-        share.projectId,
-        share.referenceId,
-        share.resourceId,
-        share.kind,
-        JSON.stringify(share.content),
-        share.createdAt,
-      );
-    });
+          share.id,
+          share.projectId,
+          share.referenceId,
+          share.resourceId,
+          share.kind,
+          JSON.stringify(share.content),
+          share.createdAt,
+        );
+      },
+      "research-share-pin",
+    );
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
     return this.getSnapshot(workspaceId);
@@ -519,9 +796,14 @@ export class DocumentRoom extends DurableObject<Env> {
     if (!row || row.project_id !== workspaceId) throw new Error("Research share not found");
     if (row.revoked_at) return this.getSnapshot(workspaceId);
     const previous = this.#workspaceRow();
-    const persisted = this.#persistDocument(previous, {}, () => {
-      this.ctx.storage.sql.exec("UPDATE project_research_shares SET revoked_at = ? WHERE id = ?", revokedAt, shareId);
-    });
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => {
+        this.ctx.storage.sql.exec("UPDATE project_research_shares SET revoked_at = ? WHERE id = ?", revokedAt, shareId);
+      },
+      "research-share-revoke",
+    );
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
     return this.getSnapshot(workspaceId);
@@ -549,18 +831,23 @@ export class DocumentRoom extends DurableObject<Env> {
     const stateVector = Y.encodeStateVector(this.#document);
     const text = this.#document.getText(yTextName);
     if (content) text.insert(0, content);
-    const persisted = this.#persistDocument(previous, {}, () => {
-      this.ctx.storage.sql.exec(
-        `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => {
+        this.ctx.storage.sql.exec(
+          `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
          VALUES (?, ?, 'text/markdown', ?, ?, ?, ?)`,
-        id,
-        path,
-        yTextName,
-        content,
-        now,
-        now,
-      );
-    });
+          id,
+          path,
+          yTextName,
+          content,
+          now,
+          now,
+        );
+      },
+      "project-file-create",
+    );
     this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
@@ -594,13 +881,23 @@ export class DocumentRoom extends DurableObject<Env> {
       }
       updates.push({ row, content });
     }
-    const persisted = this.#persistDocument(previous, {}, () => {
-      const now = new Date().toISOString();
-      this.ctx.storage.sql.exec("UPDATE project_files SET path = ?, updated_at = ? WHERE id = ?", nextPath, now, fileId);
-      for (const update of updates) {
-        this.ctx.storage.sql.exec("UPDATE project_files SET content = ?, updated_at = ? WHERE id = ?", update.content, now, update.row.id);
-      }
-    });
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => {
+        const now = new Date().toISOString();
+        this.ctx.storage.sql.exec("UPDATE project_files SET path = ?, updated_at = ? WHERE id = ?", nextPath, now, fileId);
+        for (const update of updates) {
+          this.ctx.storage.sql.exec(
+            "UPDATE project_files SET content = ?, updated_at = ? WHERE id = ?",
+            update.content,
+            now,
+            update.row.id,
+          );
+        }
+      },
+      "project-file-rename",
+    );
     this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
@@ -615,9 +912,14 @@ export class DocumentRoom extends DurableObject<Env> {
     if (!target) throw new Error("Project file not found");
     const inbound = inboundProjectIncludes(files, target.path);
     if (inbound.length > 0) throw new Error(`Remove ${inbound.length} inbound include directive(s) before deleting this file`);
-    const persisted = this.#persistDocument(workspace, {}, () => {
-      this.ctx.storage.sql.exec("DELETE FROM project_files WHERE id = ?", fileId);
-    });
+    const persisted = this.#persistDocument(
+      workspace,
+      {},
+      () => {
+        this.ctx.storage.sql.exec("DELETE FROM project_files WHERE id = ?", fileId);
+      },
+      "project-file-delete",
+    );
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
     return this.getSnapshot(workspaceId);
@@ -626,21 +928,24 @@ export class DocumentRoom extends DurableObject<Env> {
   initializeWorkspace(title: string): void {
     const workspace = this.#workspaceRow();
     if (workspace.revision !== 0 || workspace.title !== "Evidence becomes prose") return;
-    this.ctx.storage.sql.exec("UPDATE workspace SET title = ? WHERE id = 1", title);
+    this.#persistResourceRevision("workspace-initialize", () => {
+      this.ctx.storage.sql.exec("UPDATE workspace SET title = ? WHERE id = 1", title);
+    });
   }
 
   registerPdf(pdf: PdfResource): PdfResource {
-    this.ctx.storage.sql.exec(
-      "INSERT INTO pdfs (id, name, content_type, size, object_key, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      pdf.id,
-      pdf.name,
-      pdf.contentType,
-      pdf.size,
-      pdf.objectKey,
-      pdf.fingerprint,
-      pdf.createdAt,
-    );
-    this.#broadcastResources();
+    this.#persistResourceRevision("pdf-register", () => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO pdfs (id, name, content_type, size, object_key, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        pdf.id,
+        pdf.name,
+        pdf.contentType,
+        pdf.size,
+        pdf.objectKey,
+        pdf.fingerprint,
+        pdf.createdAt,
+      );
+    });
     return pdf;
   }
 
@@ -685,12 +990,11 @@ export class DocumentRoom extends DurableObject<Env> {
 
     if (existing) {
       let linkWrite: PublicationPdfLinkWrite | undefined;
-      this.ctx.storage.transactionSync(() => {
+      this.#persistResourceRevision("publication-pdf-link", () => {
         this.#assertPdfExists(pdfId);
         linkWrite = this.#ensurePublicationPdfLink(existing.id, pdfId);
       });
       if (!linkWrite) throw new Error("Publication intake could not be completed");
-      if (linkWrite.created) this.#broadcastResources();
       return {
         publication: publicationFromRow(existing),
         link: linkWrite.link,
@@ -736,7 +1040,7 @@ export class DocumentRoom extends DurableObject<Env> {
       pdfId: input.pdfId,
       createdAt: new Date().toISOString(),
     };
-    this.ctx.storage.transactionSync(() => {
+    this.#persistResourceRevision("publication-pdf-link", () => {
       const publication = this.ctx.storage.sql
         .exec<{ count: number }>("SELECT COUNT(*) AS count FROM publications WHERE id = ?", link.publicationId)
         .one();
@@ -761,7 +1065,6 @@ export class DocumentRoom extends DurableObject<Env> {
         link.createdAt,
       );
     });
-    this.#broadcastResources();
     return link;
   }
 
@@ -773,9 +1076,10 @@ export class DocumentRoom extends DurableObject<Env> {
       .exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_reference_pdf_links WHERE id = ?", linkId)
       .one();
     if (legacy.count + shared.count === 0) throw new Error("Publication/PDF link not found");
-    this.ctx.storage.sql.exec("DELETE FROM publication_pdf_links WHERE id = ?", linkId);
-    this.ctx.storage.sql.exec("DELETE FROM project_reference_pdf_links WHERE id = ?", linkId);
-    this.#broadcastResources();
+    this.#persistResourceRevision("publication-pdf-unlink", () => {
+      this.ctx.storage.sql.exec("DELETE FROM publication_pdf_links WHERE id = ?", linkId);
+      this.ctx.storage.sql.exec("DELETE FROM project_reference_pdf_links WHERE id = ?", linkId);
+    });
   }
 
   enrichPublication(workspaceId: string, publicationId: string, metadata: PublicationEnrichment): WorkspaceSnapshot {
@@ -806,19 +1110,20 @@ export class DocumentRoom extends DurableObject<Env> {
     if (pdf.count === 0) throw new Error("PDF not found");
 
     const annotation: AnnotationResource = { id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() };
-    this.ctx.storage.sql.exec(
-      "INSERT INTO annotations (id, pdf_id, page, quote, prefix, suffix, comment, rects_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      annotation.id,
-      annotation.pdfId,
-      annotation.page,
-      annotation.quote,
-      annotation.prefix,
-      annotation.suffix,
-      annotation.comment,
-      JSON.stringify(annotation.rects),
-      annotation.createdAt,
-    );
-    this.#broadcastResources();
+    this.#persistResourceRevision("annotation-create", () => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO annotations (id, pdf_id, page, quote, prefix, suffix, comment, rects_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        annotation.id,
+        annotation.pdfId,
+        annotation.page,
+        annotation.quote,
+        annotation.prefix,
+        annotation.suffix,
+        annotation.comment,
+        JSON.stringify(annotation.rects),
+        annotation.createdAt,
+      );
+    });
     return annotation;
   }
 
@@ -857,7 +1162,7 @@ export class DocumentRoom extends DurableObject<Env> {
       resolution: resolveManuscriptAnchor(this.#document, anchor),
       createdAt,
     };
-    this.ctx.storage.transactionSync(() => {
+    this.#persistResourceRevision("annotation-passage-link", () => {
       this.ctx.storage.sql.exec(
         "INSERT INTO annotations (id, pdf_id, page, quote, prefix, suffix, comment, rects_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         annotation.id,
@@ -889,7 +1194,6 @@ export class DocumentRoom extends DurableObject<Env> {
         link.createdAt,
       );
     });
-    this.#broadcastResources();
     return { annotation, link };
   }
 
@@ -909,25 +1213,26 @@ export class DocumentRoom extends DurableObject<Env> {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision, target.file.id, target.text);
-    this.ctx.storage.sql.exec(
-      `INSERT INTO passage_links
-       (id, annotation_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
-        quote_prefix, quote_suffix, anchored_revision, project_file_id, created_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
-      id,
-      input.annotationId,
-      input.start,
-      input.end,
-      input.excerpt,
-      anchor.relativeStart,
-      anchor.relativeEnd,
-      anchor.prefix,
-      anchor.suffix,
-      anchor.anchoredRevision,
-      anchor.fileId,
-      createdAt,
-    );
-    this.#broadcastResources();
+    this.#persistResourceRevision("annotation-passage-link", () => {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO passage_links
+         (id, annotation_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
+          quote_prefix, quote_suffix, anchored_revision, project_file_id, created_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        input.annotationId,
+        input.start,
+        input.end,
+        input.excerpt,
+        anchor.relativeStart,
+        anchor.relativeEnd,
+        anchor.prefix,
+        anchor.suffix,
+        anchor.anchoredRevision,
+        anchor.fileId,
+        createdAt,
+      );
+    });
     return {
       id,
       annotationId: input.annotationId,
@@ -947,7 +1252,7 @@ export class DocumentRoom extends DurableObject<Env> {
       createdAt: now,
       updatedAt: now,
     };
-    this.ctx.storage.transactionSync(() => {
+    this.#persistResourceRevision("claim-create", () => {
       this.ctx.storage.sql.exec(
         "INSERT INTO claims (id, text, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         claim.id,
@@ -958,7 +1263,6 @@ export class DocumentRoom extends DurableObject<Env> {
       );
       this.#insertClaimEvidence(claim.id, input.evidence, now);
     });
-    this.#broadcastResources();
     return claim;
   }
 
@@ -966,7 +1270,7 @@ export class DocumentRoom extends DurableObject<Env> {
     const existing = this.#claim(claimId);
     this.#assertEvidenceAnnotations(input.evidence);
     const updatedAt = new Date().toISOString();
-    this.ctx.storage.transactionSync(() => {
+    this.#persistResourceRevision("claim-update", () => {
       this.ctx.storage.sql.exec(
         "UPDATE claims SET text = ?, note = ?, updated_at = ? WHERE id = ?",
         input.text.trim(),
@@ -977,14 +1281,14 @@ export class DocumentRoom extends DurableObject<Env> {
       this.ctx.storage.sql.exec("DELETE FROM claim_evidence_links WHERE claim_id = ?", claimId);
       this.#insertClaimEvidence(claimId, input.evidence, updatedAt);
     });
-    this.#broadcastResources();
     return { ...existing, text: input.text.trim(), note: input.note.trim(), updatedAt };
   }
 
   deleteClaim(claimId: string): void {
     this.#claim(claimId);
-    this.ctx.storage.sql.exec("DELETE FROM claims WHERE id = ?", claimId);
-    this.#broadcastResources();
+    this.#persistResourceRevision("claim-delete", () => {
+      this.ctx.storage.sql.exec("DELETE FROM claims WHERE id = ?", claimId);
+    });
   }
 
   createClaimPassageLink(input: CreateClaimPassageLinkInput): ClaimPassageLink {
@@ -999,25 +1303,26 @@ export class DocumentRoom extends DurableObject<Env> {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision, target.file.id, target.text);
-    this.ctx.storage.sql.exec(
-      `INSERT INTO claim_passage_links
-       (id, claim_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
-        quote_prefix, quote_suffix, anchored_revision, project_file_id, created_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
-      id,
-      input.claimId,
-      input.start,
-      input.end,
-      input.excerpt,
-      anchor.relativeStart,
-      anchor.relativeEnd,
-      anchor.prefix,
-      anchor.suffix,
-      anchor.anchoredRevision,
-      anchor.fileId,
-      createdAt,
-    );
-    this.#broadcastResources();
+    this.#persistResourceRevision("claim-passage-link", () => {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO claim_passage_links
+         (id, claim_id, start_offset, end_offset, excerpt, anchor_version, relative_start, relative_end,
+          quote_prefix, quote_suffix, anchored_revision, project_file_id, created_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        input.claimId,
+        input.start,
+        input.end,
+        input.excerpt,
+        anchor.relativeStart,
+        anchor.relativeEnd,
+        anchor.prefix,
+        anchor.suffix,
+        anchor.anchoredRevision,
+        anchor.fileId,
+        createdAt,
+      );
+    });
     return {
       id,
       claimId: input.claimId,
@@ -1107,9 +1412,14 @@ export class DocumentRoom extends DurableObject<Env> {
     }
     let revision: number | undefined;
     if (splice) {
-      revision = this.#persistDocument(workspace, {}, () => {
-        this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
-      }).revision;
+      revision = this.#persistDocument(
+        workspace,
+        {},
+        () => {
+          this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
+        },
+        "model-candidate-apply",
+      ).revision;
     } else {
       this.ctx.storage.sql.exec("UPDATE candidates SET status = 'accepted' WHERE id = ?", candidateId);
     }
@@ -1484,6 +1794,29 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 15,
+        name: "preserve-project-revisions-and-milestones",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS project_revisions (
+              revision INTEGER PRIMARY KEY,
+              reason TEXT NOT NULL,
+              snapshot_json TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS project_milestones (
+              id TEXT PRIMARY KEY,
+              revision INTEGER NOT NULL REFERENCES project_revisions(revision),
+              name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+              description TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS project_milestones_revision ON project_milestones(revision);
+          `);
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -1575,7 +1908,12 @@ export class DocumentRoom extends DurableObject<Env> {
     }
   }
 
-  #persistDocument(previous: WorkspaceRow, options: ProjectionOptions = {}, relatedWrite?: () => void): PersistedDocumentUpdate {
+  #persistDocument(
+    previous: WorkspaceRow,
+    options: ProjectionOptions = {},
+    relatedWrite?: () => void,
+    reason = "document-edit",
+  ): PersistedDocumentUpdate {
     const revision = previous.revision + 1;
     let resourcesChanged = false;
     try {
@@ -1605,12 +1943,129 @@ export class DocumentRoom extends DurableObject<Env> {
           resourcesChanged = this.#reconcileBibliography(bibliography, options);
         }
         relatedWrite?.();
+        this.#recordRevision(reason);
       });
     } catch (error) {
       this.#restoreDocument(previous.y_state);
       throw error;
     }
     return { resourcesChanged, revision };
+  }
+
+  #persistResourceRevision(reason: string, relatedWrite: () => void): number {
+    let revision = 0;
+    this.ctx.storage.transactionSync(() => {
+      relatedWrite();
+      revision = this.#recordRevision(reason);
+    });
+    this.#broadcastResources();
+    return revision;
+  }
+
+  #ensureInitialRevision(): void {
+    const existing = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_revisions").one();
+    if (existing.count > 0) return;
+    this.#recordRevision("history-adoption", 0);
+  }
+
+  #recordRevision(reason: string, requestedRevision?: number): number {
+    const coalesced = reason === "document-edit" && requestedRevision === undefined ? this.#coalescedDocumentRevision() : null;
+    if (coalesced !== null) {
+      this.ctx.storage.sql.exec(
+        "UPDATE project_revisions SET snapshot_json = ?, created_at = ? WHERE revision = ?",
+        JSON.stringify(this.#captureRevisionState()),
+        new Date().toISOString(),
+        coalesced,
+      );
+      return coalesced;
+    }
+    const revision = requestedRevision ?? this.#nextHistoryRevision();
+    this.ctx.storage.sql.exec(
+      "INSERT INTO project_revisions (revision, reason, snapshot_json, created_at) VALUES (?, ?, ?, ?)",
+      revision,
+      reason,
+      JSON.stringify(this.#captureRevisionState()),
+      new Date().toISOString(),
+    );
+    return revision;
+  }
+
+  #coalescedDocumentRevision(): number | null {
+    const latest = this.ctx.storage.sql
+      .exec<ProjectRevisionRow>("SELECT * FROM project_revisions ORDER BY revision DESC LIMIT 1")
+      .toArray()[0];
+    if (!latest || latest.reason !== "document-edit") return null;
+    const age = Date.now() - Date.parse(latest.created_at);
+    if (!Number.isFinite(age) || age < 0 || age > 30_000) return null;
+    const milestone = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_milestones WHERE revision = ?", latest.revision)
+      .one();
+    return milestone.count === 0 ? latest.revision : null;
+  }
+
+  #nextHistoryRevision(): number {
+    const row = this.ctx.storage.sql.exec<{ revision: number | null }>("SELECT MAX(revision) AS revision FROM project_revisions").one();
+    return (row.revision ?? -1) + 1;
+  }
+
+  #captureRevisionState(): StoredProjectRevision {
+    const workspace = this.#workspaceRow();
+    if (!workspace.entry_file_id) throw new Error("Project entry file is not initialized");
+    const tables = Object.fromEntries(
+      revisionTables.map((table) => [
+        table,
+        this.ctx.storage.sql.exec<Record<string, SqlStorageValue>>(`SELECT * FROM ${table}`).toArray().map(storeSqlRow),
+      ]),
+    );
+    if (!isStoredRevisionTables(tables)) throw new Error("Project revision tables could not be captured");
+    return {
+      version: 1,
+      workspace: {
+        title: workspace.title,
+        yState: encodeBase64(Y.encodeStateAsUpdate(this.#document).buffer),
+        source: workspace.source,
+        bibliography: workspace.bibliography,
+        entryFileId: workspace.entry_file_id,
+      },
+      tables,
+    };
+  }
+
+  #revisionRow(revision: number): ProjectRevisionRow {
+    if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("Project revision is invalid");
+    const row = this.ctx.storage.sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions WHERE revision = ?", revision).toArray()[0];
+    if (!row) throw new Error("Project revision not found");
+    return row;
+  }
+
+  #milestones(): ProjectMilestone[] {
+    return this.ctx.storage.sql
+      .exec<ProjectMilestoneRow>("SELECT * FROM project_milestones ORDER BY created_at DESC, name COLLATE NOCASE")
+      .toArray()
+      .map((row) => ({
+        id: row.id,
+        revision: row.revision,
+        name: row.name,
+        description: row.description,
+        createdAt: row.created_at,
+      }));
+  }
+
+  #replaceRevisionTables(state: StoredProjectRevision, workspaceId?: string): void {
+    for (const table of revisionDeleteOrder) this.ctx.storage.sql.exec(`DELETE FROM ${table}`);
+    for (const table of revisionInsertOrder) {
+      for (const storedRow of state.tables[table]) {
+        const row = restoreSqlRow(storedRow);
+        if (table === "project_research_shares" && workspaceId) row.project_id = workspaceId;
+        const columns = Object.keys(row);
+        if (columns.length === 0) continue;
+        const placeholders = columns.map(() => "?").join(", ");
+        this.ctx.storage.sql.exec(
+          `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
+          ...columns.map((column) => row[column] ?? null),
+        );
+      }
+    }
   }
 
   #projectFileRows(): ProjectFileRow[] {
@@ -1649,10 +2104,17 @@ export class DocumentRoom extends DurableObject<Env> {
     const splice = calculateTextSplice(bibliography.toString(), sourceValue);
     if (!splice) {
       let resourcesChanged = false;
+      let revision: number | undefined;
       this.ctx.storage.transactionSync(() => {
         resourcesChanged = this.#reconcileBibliography(sourceValue, options);
         relatedWrite?.();
+        if (resourcesChanged || relatedWrite) {
+          revision = this.#workspaceRow().revision + 1;
+          this.ctx.storage.sql.exec("UPDATE workspace SET revision = ? WHERE id = 1", revision);
+          this.#recordRevision(origin);
+        }
       });
+      if (revision !== undefined) this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision }));
       if (resourcesChanged) this.#broadcastResources();
       return;
     }
@@ -1663,7 +2125,7 @@ export class DocumentRoom extends DurableObject<Env> {
       if (splice.deleteCount > 0) bibliography.delete(splice.start, splice.deleteCount);
       if (splice.insert) bibliography.insert(splice.start, splice.insert);
     }, origin);
-    const persisted = this.#persistDocument(previous, options, relatedWrite);
+    const persisted = this.#persistDocument(previous, options, relatedWrite, origin);
     this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     if (persisted.resourcesChanged) this.#broadcastResources();
@@ -1968,6 +2430,211 @@ export class DocumentRoom extends DurableObject<Env> {
   #broadcastResources(): void {
     this.#broadcast(encodeServerCollaborationMessage({ type: "resources" }));
   }
+}
+
+function projectRevisionContent(revision: number, state: StoredProjectRevision): ProjectRevisionContent {
+  const files = revisionRows(state, "project_files").map(
+    (row): ProjectFile => ({
+      id: sqlString(row, "id"),
+      path: sqlString(row, "path"),
+      mediaType: "text/markdown",
+      content: sqlString(row, "content"),
+      createdAt: sqlString(row, "created_at"),
+      updatedAt: sqlString(row, "updated_at"),
+    }),
+  );
+  const projectReferences = revisionRows(state, "project_references").map((row) =>
+    projectReferenceFromRow({
+      id: sqlString(row, "id"),
+      reference_id: sqlString(row, "reference_id"),
+      citation_alias: sqlString(row, "citation_alias"),
+      snapshot_json: sqlString(row, "snapshot_json"),
+      created_at: sqlString(row, "created_at"),
+      updated_at: sqlString(row, "updated_at"),
+    }),
+  );
+  const researchShares = revisionRows(state, "project_research_shares").map((row) =>
+    researchShareFromRow({
+      id: sqlString(row, "id"),
+      project_id: sqlString(row, "project_id"),
+      reference_id: sqlString(row, "reference_id"),
+      resource_id: sqlString(row, "resource_id"),
+      kind: sqlString(row, "kind"),
+      snapshot_json: sqlString(row, "snapshot_json"),
+      created_at: sqlString(row, "created_at"),
+      revoked_at: sqlNullableString(row, "revoked_at"),
+    }),
+  );
+  const pdfs = revisionRows(state, "pdfs").map(
+    (row): PdfResource => ({
+      id: sqlString(row, "id"),
+      name: sqlString(row, "name"),
+      contentType: "application/pdf",
+      size: sqlNumber(row, "size"),
+      objectKey: sqlString(row, "object_key"),
+      fingerprint: sqlString(row, "fingerprint"),
+      createdAt: sqlString(row, "created_at"),
+    }),
+  );
+  const publicationPdfLinks = [...revisionRows(state, "publication_pdf_links"), ...revisionRows(state, "project_reference_pdf_links")].map(
+    (row): PublicationPdfLink => ({
+      id: sqlString(row, "id"),
+      publicationId: sqlString(row, "publication_id"),
+      pdfId: sqlString(row, "pdf_id"),
+      createdAt: sqlString(row, "created_at"),
+    }),
+  );
+  const annotations = revisionRows(state, "annotations").map(
+    (row): AnnotationResource => ({
+      id: sqlString(row, "id"),
+      pdfId: sqlString(row, "pdf_id"),
+      page: sqlNumber(row, "page"),
+      quote: sqlString(row, "quote"),
+      prefix: sqlString(row, "prefix"),
+      suffix: sqlString(row, "suffix"),
+      comment: sqlString(row, "comment"),
+      rects: parseSelectionRects(sqlString(row, "rects_json")),
+      createdAt: sqlString(row, "created_at"),
+    }),
+  );
+  const claims = revisionRows(state, "claims").map(
+    (row): ClaimResource => ({
+      id: sqlString(row, "id"),
+      text: sqlString(row, "text"),
+      note: sqlString(row, "note"),
+      createdAt: sqlString(row, "created_at"),
+      updatedAt: sqlString(row, "updated_at"),
+    }),
+  );
+  const composition = files.some((file) => file.id === state.workspace.entryFileId)
+    ? composeProject(files, state.workspace.entryFileId).content
+    : state.workspace.source;
+  return {
+    revision,
+    title: state.workspace.title,
+    entryFileId: state.workspace.entryFileId,
+    source: composition,
+    bibliography: state.workspace.bibliography,
+    files,
+    projectReferences,
+    researchShares,
+    pdfs,
+    publicationPdfLinks,
+    annotations,
+    claims,
+    relationships: {
+      annotationPassages: state.tables.passage_links.length,
+      claimEvidence: state.tables.claim_evidence_links.length,
+      claimPassages: state.tables.claim_passage_links.length,
+    },
+  };
+}
+
+function parseStoredProjectRevision(value: string): StoredProjectRevision {
+  const parsed: unknown = JSON.parse(value);
+  if (!isRecordValue(parsed) || parsed.version !== 1 || !isRecordValue(parsed.workspace) || !isStoredRevisionTables(parsed.tables)) {
+    throw new Error("Stored project revision is invalid");
+  }
+  const workspace = parsed.workspace;
+  if (
+    typeof workspace.title !== "string" ||
+    typeof workspace.yState !== "string" ||
+    typeof workspace.source !== "string" ||
+    typeof workspace.bibliography !== "string" ||
+    typeof workspace.entryFileId !== "string" ||
+    !workspace.entryFileId
+  ) {
+    throw new Error("Stored project revision is invalid");
+  }
+  return {
+    version: 1,
+    workspace: {
+      title: workspace.title,
+      yState: workspace.yState,
+      source: workspace.source,
+      bibliography: workspace.bibliography,
+      entryFileId: workspace.entryFileId,
+    },
+    tables: parsed.tables,
+  };
+}
+
+function isStoredRevisionTables(value: unknown): value is StoredProjectRevision["tables"] {
+  if (!isRecordValue(value)) return false;
+  for (const table of revisionTables) {
+    const rows = value[table];
+    if (!Array.isArray(rows)) return false;
+    for (const row of rows) {
+      if (!isRecordValue(row)) return false;
+      const columns = revisionTableColumns[table];
+      const keys = Object.keys(row);
+      if (keys.length !== columns.length || !keys.every((key) => columns.includes(key))) return false;
+      for (const [key, item] of Object.entries(row)) {
+        if (!/^[a-z_]+$/u.test(key)) return false;
+        if (item === null || typeof item === "string" || typeof item === "number") continue;
+        if (!isStoredBlob(item)) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function storeSqlRow(row: Record<string, SqlStorageValue>): StoredSqlRow {
+  return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, storeSqlValue(value)]));
+}
+
+function storeSqlValue(value: SqlStorageValue): StoredSqlValue {
+  if (value === null || typeof value === "string" || typeof value === "number") return value;
+  if (value instanceof ArrayBuffer) return { blob: encodeBase64(value) };
+  throw new Error("Project revision contains an unsupported SQLite value");
+}
+
+function restoreSqlRow(row: StoredSqlRow): Record<string, SqlStorageValue> {
+  const restored: Record<string, SqlStorageValue> = {};
+  for (const [key, value] of Object.entries(row)) restored[key] = isStoredBlob(value) ? decodeBase64(value.blob) : value;
+  return restored;
+}
+
+function revisionRows(state: StoredProjectRevision, table: RevisionTable): Record<string, SqlStorageValue>[] {
+  return state.tables[table].map(restoreSqlRow);
+}
+
+function sqlString(row: Record<string, SqlStorageValue>, field: string): string {
+  const value = row[field];
+  if (typeof value !== "string") throw new Error(`Stored project revision field ${field} is invalid`);
+  return value;
+}
+
+function sqlNullableString(row: Record<string, SqlStorageValue>, field: string): string | null {
+  const value = row[field];
+  if (value === null) return null;
+  if (typeof value !== "string") throw new Error(`Stored project revision field ${field} is invalid`);
+  return value;
+}
+
+function sqlNumber(row: Record<string, SqlStorageValue>, field: string): number {
+  const value = row[field];
+  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`Stored project revision field ${field} is invalid`);
+  return value;
+}
+
+function encodeBase64(value: ArrayBufferLike): string {
+  let binary = "";
+  for (const byte of new Uint8Array(value)) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function isStoredBlob(value: unknown): value is { readonly blob: string } {
+  return isRecordValue(value) && Object.keys(value).length === 1 && typeof value.blob === "string";
+}
+
+function decodeBase64(value: string): ArrayBuffer {
+  if (!value || value.length > 180_000_000 || !/^[A-Za-z0-9+/]+={0,2}$/u.test(value))
+    throw new Error("Stored project revision state is invalid");
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes.buffer;
 }
 
 function passageLinkFromRow(document: Y.Doc, row: LinkRow): PassageLink {

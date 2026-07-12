@@ -112,6 +112,16 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix === "/claim-links" && request.method === "POST") return await createClaimPassageLink(request, room);
     if (suffix === "/candidates" && request.method === "POST") return await createCandidate(request, room);
     if (suffix.startsWith("/candidates/") && request.method === "POST") return await updateCandidate(workspaceId, suffix, room);
+    if (suffix === "/history" && request.method === "GET") return Response.json(await room.listRevisions());
+    if (suffix === "/history/compare" && request.method === "GET") {
+      const from = revisionParameter(url.searchParams.get("from"));
+      const to = revisionParameter(url.searchParams.get("to"));
+      if (from === null || to === null) return jsonError("Invalid project revision comparison", 400);
+      return Response.json(await room.compareRevisions(from, to));
+    }
+    if (suffix.startsWith("/history/")) {
+      return await handleProjectHistory(request, suffix, workspaceId, env, identity, role, room, catalog);
+    }
     if (suffix === "/export/document.md" && request.method === "GET") {
       const portable = await room.getPortableDocument();
       return portableResponse(portable.source, "text/markdown; charset=utf-8", "kirjolab-document.md");
@@ -130,6 +140,63 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
         : 400;
     return jsonError(message, status);
   }
+}
+
+async function handleProjectHistory(
+  request: Request,
+  suffix: string,
+  workspaceId: string,
+  env: Env,
+  identity: AuthIdentity,
+  role: "owner" | "member",
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  catalog: DurableObjectStub<import("../durable-objects/workspace-catalog").WorkspaceCatalog>,
+): Promise<Response> {
+  const match = /^\/history\/(\d+)(?:\/(milestones|restore|seed))?$/u.exec(suffix);
+  const revision = revisionParameter(match?.[1] ?? null);
+  if (revision === null) return jsonError("Project revision route not found", 404);
+  const action = match?.[2];
+  if (!action && request.method === "GET") return Response.json(await room.getRevision(revision));
+  if (role !== "owner") return jsonError("Only the workspace owner can manage project history", 403);
+  if (action === "milestones" && request.method === "POST") {
+    const body: unknown = await request.json();
+    if (
+      !isRecord(body) ||
+      typeof body.name !== "string" ||
+      body.name.trim().length === 0 ||
+      body.name.length > 120 ||
+      (body.description !== undefined && (typeof body.description !== "string" || body.description.length > 2_000))
+    ) {
+      return jsonError("Invalid project milestone", 400);
+    }
+    return Response.json(await room.createMilestone(revision, body.name, body.description ?? ""), { status: 201 });
+  }
+  if (action === "restore" && request.method === "POST") {
+    const snapshot = await room.restoreRevision(workspaceId, revision);
+    await catalog.registerWorkspace(workspaceId, snapshot.title);
+    return Response.json(snapshot);
+  }
+  if (action === "seed" && request.method === "POST") {
+    const body: unknown = await request.json();
+    if (!isRecord(body) || typeof body.title !== "string" || !body.title.trim() || body.title.length > 120) {
+      return jsonError("Invalid workspace seed", 400);
+    }
+    const id = crypto.randomUUID();
+    const title = body.title.trim();
+    const storageKey = workspaceStorageKey(identity, id);
+    const access = env.WORKSPACE_ACCESS.getByName(storageKey);
+    await access.initializeOwner(identity.email);
+    const target = env.DOCUMENT_ROOMS.getByName(storageKey);
+    await target.seedFromRevision(id, title, await room.getRevisionSeed(revision));
+    return Response.json(await catalog.registerWorkspace(id, title), { status: 201 });
+  }
+  return jsonError("Project revision route not found", 404);
+}
+
+function revisionParameter(value: string | null): number | null {
+  if (!value || !/^\d{1,10}$/u.test(value)) return null;
+  const revision = Number(value);
+  return Number.isSafeInteger(revision) ? revision : null;
 }
 
 async function createProjectFile(

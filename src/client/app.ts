@@ -9,6 +9,12 @@ import {
 import { parseServerCollaborationMessage } from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { renderWorkspaceMarkdown } from "../domain/markdown";
+import {
+  isProjectRevisionContent,
+  isProjectRevisionDiff,
+  isProjectRevisionSummaries,
+  type ProjectRevisionSummary,
+} from "../domain/project-history";
 import { composeProject, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
 import {
   isReferenceLibrarySnapshot,
@@ -109,6 +115,14 @@ interface Elements {
   projectFileDialogTitle: HTMLElement;
   projectFilePath: HTMLInputElement;
   cancelProjectFile: HTMLButtonElement;
+  openProjectHistory: HTMLButtonElement;
+  projectHistoryDialog: HTMLDialogElement;
+  closeProjectHistory: HTMLButtonElement;
+  projectHistoryCompareForm: HTMLFormElement;
+  projectHistoryFrom: HTMLSelectElement;
+  projectHistoryTo: HTMLSelectElement;
+  projectHistoryInspector: HTMLElement;
+  projectHistoryList: HTMLElement;
   source: HTMLTextAreaElement;
   bibliography: HTMLTextAreaElement;
   workspaceSurfaces: HTMLElement;
@@ -264,6 +278,7 @@ class WorkspaceApp {
   #projectFileDialogMode: "create" | "rename" = "create";
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #showArchivedReferences = false;
+  #projectHistory: ProjectRevisionSummary[] = [];
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -325,6 +340,9 @@ class WorkspaceApp {
     this.#elements.deleteProjectFile.addEventListener("click", () => void this.#deleteProjectFile());
     this.#elements.cancelProjectFile.addEventListener("click", () => this.#elements.projectFileDialog.close());
     this.#elements.projectFileForm.addEventListener("submit", (event) => void this.#saveProjectFile(event));
+    this.#elements.openProjectHistory.addEventListener("click", () => void this.#openProjectHistory());
+    this.#elements.closeProjectHistory.addEventListener("click", () => this.#elements.projectHistoryDialog.close());
+    this.#elements.projectHistoryCompareForm.addEventListener("submit", (event) => void this.#compareProjectHistory(event));
     for (const eventName of ["focus", "input", "keyup", "select"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
         if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
@@ -560,6 +578,10 @@ class WorkspaceApp {
         this.#awaitingRemoteRevision = false;
         this.#setRevision(value.revision);
         break;
+      case "reset":
+        this.#socketSynced = false;
+        window.location.reload();
+        return;
       case "presence":
         this.#elements.connectionStatus.textContent = `Live · ${value.collaborators} ${value.collaborators === 1 ? "writer" : "writers"}`;
         break;
@@ -786,6 +808,151 @@ class WorkspaceApp {
     this.#renderProjectFiles();
     this.#renderPreview();
     this.#showToast(`Deleted ${file.path}.`);
+  }
+
+  async #openProjectHistory(): Promise<void> {
+    const response = await fetch(`${apiBase}/history`, { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isProjectRevisionSummaries(value)) throw new Error("Project history returned an invalid timeline");
+    this.#projectHistory = value;
+    this.#renderProjectHistory();
+    if (!this.#elements.projectHistoryDialog.open) this.#elements.projectHistoryDialog.showModal();
+  }
+
+  #renderProjectHistory(): void {
+    const options = this.#projectHistory.map((revision) => {
+      const option = document.createElement("option");
+      option.value = String(revision.revision);
+      option.textContent = `v${revision.revision} · ${revision.reason}`;
+      return option;
+    });
+    this.#elements.projectHistoryFrom.replaceChildren(...options.map((option) => option.cloneNode(true)));
+    this.#elements.projectHistoryTo.replaceChildren(...options.map((option) => option.cloneNode(true)));
+    if (this.#projectHistory[1]) this.#elements.projectHistoryFrom.value = String(this.#projectHistory[1].revision);
+    if (this.#projectHistory[0]) this.#elements.projectHistoryTo.value = String(this.#projectHistory[0].revision);
+
+    const head = this.#projectHistory[0]?.revision;
+    this.#elements.projectHistoryList.replaceChildren(
+      ...this.#projectHistory.map((revision) => {
+        const card = document.createElement("article");
+        card.className = "rounded-sm border border-app-line bg-app-paper p-4";
+        const heading = document.createElement("div");
+        heading.className = "flex flex-wrap items-start justify-between gap-3";
+        const copy = document.createElement("div");
+        const title = document.createElement("h3");
+        title.className = "font-sans text-sm font-bold";
+        title.textContent = `v${revision.revision} · ${revision.reason}`;
+        const meta = document.createElement("p");
+        meta.className = "mt-1 text-xs text-app-text-soft";
+        meta.textContent = `${formatTimestamp(revision.createdAt)} · ${revision.fileCount} file${revision.fileCount === 1 ? "" : "s"}`;
+        copy.append(title, meta);
+        const actions = document.createElement("div");
+        actions.className = "flex flex-wrap gap-2";
+        actions.append(
+          actionButton("Inspect", "button-secondary", () => void this.#inspectProjectRevision(revision.revision)),
+          actionButton("Name milestone", "button-secondary", () => void this.#nameProjectMilestone(revision.revision)),
+          actionButton("Branch", "button-secondary", () => void this.#seedProjectRevision(revision.revision)),
+        );
+        if (revision.revision !== head) {
+          actions.append(
+            actionButton("Restore as new head", "button-secondary", () => void this.#restoreProjectRevision(revision.revision)),
+          );
+        }
+        heading.append(copy, actions);
+        card.append(heading);
+        if (revision.milestones.length > 0) {
+          const milestones = document.createElement("div");
+          milestones.className = "mt-3 flex flex-wrap gap-2";
+          for (const milestone of revision.milestones) {
+            const label = resourceLabel(milestone.name);
+            label.title = milestone.description || `Immutable milestone for v${revision.revision}`;
+            milestones.append(label);
+          }
+          card.append(milestones);
+        }
+        return card;
+      }),
+    );
+  }
+
+  async #inspectProjectRevision(revision: number): Promise<void> {
+    const response = await fetch(`${apiBase}/history/${revision}`, { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isProjectRevisionContent(value)) throw new Error("Project revision returned an invalid snapshot");
+    const inspector = this.#elements.projectHistoryInspector;
+    inspector.classList.remove("hidden");
+    const heading = document.createElement("h3");
+    heading.className = "font-sans text-sm font-bold";
+    heading.textContent = `Read-only v${value.revision} · ${value.title}`;
+    const meta = document.createElement("p");
+    meta.className = "mt-2 text-xs leading-5 text-app-text-soft";
+    meta.textContent = `${value.files.length} files · ${value.projectReferences.length} references · ${value.pdfs.length} PDFs · ${value.claims.length} claims`;
+    const source = document.createElement("pre");
+    source.className = "mt-4 max-h-80 overflow-auto whitespace-pre-wrap border-t border-app-line pt-4 text-xs leading-5";
+    source.textContent = value.source;
+    inspector.replaceChildren(heading, meta, source);
+  }
+
+  async #compareProjectHistory(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const from = this.#elements.projectHistoryFrom.value;
+    const to = this.#elements.projectHistoryTo.value;
+    const response = await fetch(`${apiBase}/history/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isProjectRevisionDiff(value)) throw new Error("Project history returned an invalid comparison");
+    const inspector = this.#elements.projectHistoryInspector;
+    inspector.classList.remove("hidden");
+    const heading = document.createElement("h3");
+    heading.className = "font-sans text-sm font-bold";
+    heading.textContent = `v${value.fromRevision} → v${value.toRevision}`;
+    const composed = document.createElement("p");
+    composed.className = "mt-2 text-sm text-app-text-soft";
+    composed.textContent = `Composed manuscript: +${value.composed.addedLines} / −${value.composed.removedLines} lines`;
+    const list = document.createElement("ul");
+    list.className = "mt-3 space-y-1 font-sans text-xs";
+    for (const file of value.files.filter((item) => item.status !== "unchanged")) {
+      const item = document.createElement("li");
+      item.textContent = `${file.status}: ${file.beforePath ?? "∅"} → ${file.afterPath ?? "∅"} (+${file.addedLines}/−${file.removedLines})`;
+      list.append(item);
+    }
+    const binaries = document.createElement("p");
+    binaries.className = "mt-3 text-xs text-app-text-soft";
+    binaries.textContent = `${value.binaries.filter((item) => item.status !== "unchanged").length} binary identity change(s)`;
+    inspector.replaceChildren(heading, composed, list, binaries);
+  }
+
+  async #nameProjectMilestone(revision: number): Promise<void> {
+    const name = window.prompt(`Name immutable milestone v${revision}`)?.trim();
+    if (!name) return;
+    const description = window.prompt("Optional milestone description")?.trim() ?? "";
+    const response = await jsonFetch(`${apiBase}/history/${revision}/milestones`, { name, description });
+    await expectOk(response);
+    await this.#openProjectHistory();
+    this.#showToast(`Milestone “${name}” now identifies v${revision}.`);
+  }
+
+  async #restoreProjectRevision(revision: number): Promise<void> {
+    if (!window.confirm(`Restore v${revision} as a new head revision? Current history will be preserved.`)) return;
+    const response = await jsonFetch(`${apiBase}/history/${revision}/restore`, {});
+    await expectOk(response);
+    this.#showToast(`Restored v${revision} as a new head.`);
+    window.location.reload();
+  }
+
+  async #seedProjectRevision(revision: number): Promise<void> {
+    const title = window.prompt(`Name the new project seeded from v${revision}`)?.trim();
+    if (!title) return;
+    const response = await jsonFetch(`${apiBase}/history/${revision}/seed`, { title });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    const summaries: unknown = [value];
+    if (!isWorkspaceSummaries(summaries) || !summaries[0]) throw new Error("Project branch returned an invalid workspace");
+    window.location.assign(summaries[0].href);
   }
 
   #appendProjectDiagnostic(message: string, fileId: string, from: number, to: number): void {
@@ -2688,6 +2855,14 @@ function collectElements(): Elements {
     projectFileDialogTitle: requiredElement("project-file-dialog-title", HTMLElement),
     projectFilePath: requiredElement("project-file-path", HTMLInputElement),
     cancelProjectFile: requiredElement("cancel-project-file", HTMLButtonElement),
+    openProjectHistory: requiredElement("open-project-history", HTMLButtonElement),
+    projectHistoryDialog: requiredElement("project-history-dialog", HTMLDialogElement),
+    closeProjectHistory: requiredElement("close-project-history", HTMLButtonElement),
+    projectHistoryCompareForm: requiredElement("project-history-compare-form", HTMLFormElement),
+    projectHistoryFrom: requiredElement("project-history-from", HTMLSelectElement),
+    projectHistoryTo: requiredElement("project-history-to", HTMLSelectElement),
+    projectHistoryInspector: requiredElement("project-history-inspector", HTMLElement),
+    projectHistoryList: requiredElement("project-history-list", HTMLElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),

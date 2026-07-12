@@ -59,6 +59,12 @@ mode for authenticated hosted collaboration.
   receive an `ack` at the current revision without persistence, rebroadcast, or
   a revision increase. When bibliography text changes, every complete canonical
   entry is reconciled into publication resources in the same transaction.
+- **Logical history:** A separate monotonic history sequence captures complete
+  project state for manuscript and resource mutations without changing the
+  source revision used to validate selections. Immutable milestone names point
+  to one history revision. Restore creates a new source and history head and
+  sends a server-owned reset control so every connected browser reloads from
+  the restored coordination state.
 - **Resource metadata:** The document Durable Object stores project-pinned
   bibliographic and explicitly shared research snapshots, passage links, and
   model candidates alongside the project coordination atom. The owner-scoped
@@ -176,6 +182,13 @@ mode for authenticated hosted collaboration.
   candidate.
 - `POST /api/workspaces/demo/candidates/{id}/reject` rejects a pending
   candidate without changing source.
+- `GET /api/workspaces/demo/history` lists retained logical revisions and
+  immutable milestones; `GET /history/{revision}` returns a read-only snapshot.
+- `GET /api/workspaces/demo/history/compare?from={revision}&to={revision}`
+  returns rename-aware file, composed manuscript, and binary identity changes.
+- `POST /api/workspaces/demo/history/{revision}/milestones` immutably names an
+  exact revision. Owner-only `restore` creates a new head and owner-only `seed`
+  creates a new isolated workspace from the retained state.
 - `GET /api/workspaces/demo/export/document.md` exports Markdown composed from
   canonical `main.md`.
 - `GET /api/workspaces/demo/export/bibliography.bib` exports derived BibTeX for
@@ -189,6 +202,9 @@ mode for authenticated hosted collaboration.
   sent frame as durable before its acknowledgement.
 - Do not let a REST metadata refresh assign source, bibliography, or displayed
   revision after Yjs synchronization.
+- Do not move the source concurrency revision for resource-only history events,
+  destructively move history backward, retarget a milestone, or merge a
+  restored historical Yjs state into still-connected newer browser documents.
 - Do not proxy arbitrary local-model endpoints through the hosted Worker.
 - Do not capture a model candidate's source revision after awaiting its provider
   or accept stale candidate creation, stale candidate application, or stale

@@ -22,6 +22,9 @@ Owners need a minimal way to grant access to a known collaborator.
 - `GET /api/session` exposes only the current email and authentication mode.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
+- Authorized members may inspect project history and comparisons. Only the
+  owner may name milestones, restore a retained state, or seed a new project
+  from one.
 - An exact same-origin `Origin` is required for browser mutations and
   WebSocket upgrades, including authenticated `GET` upgrade requests.
 - The document channel accepts only bounded binary Yjs updates from clients;
@@ -70,6 +73,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - Local mode must reject non-loopback hostnames.
 - Membership must be checked before resolving document or R2 state.
 - Only the owner role may add a member.
+- Only the owner role may mutate project history or create a revision seed;
+  history reads retain normal workspace membership authorization.
 - Browser WebSocket upgrades must carry an `Origin` exactly matching the
   request URL origin.
 - Document rooms must close only the client that sends an unsupported text

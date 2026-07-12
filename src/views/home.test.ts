@@ -19,6 +19,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="show-authoring-surface"');
     expect(html).toContain('id="show-context-surface"');
     expect(html).toContain('id="open-source-citation"');
+    expect(html).toContain('id="open-project-history"');
+    expect(html).toContain('id="project-history-dialog"');
+    expect(html).toContain("Automatic snapshots include the complete file tree");
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
     expect(html).toContain('id="pin-active-context"');

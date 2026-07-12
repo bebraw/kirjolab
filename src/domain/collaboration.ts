@@ -6,6 +6,7 @@ export type ServerCollaborationMessage =
   | { type: "sync"; protocol: typeof collaborationProtocolVersion; revision: number }
   | { type: "ack"; revision: number }
   | { type: "revision"; revision: number }
+  | { type: "reset"; revision: number }
   | { type: "presence"; collaborators: number }
   | { type: "resources" };
 
@@ -35,6 +36,7 @@ export function isServerCollaborationMessage(value: unknown): value is ServerCol
       );
     case "ack":
     case "revision":
+    case "reset":
       return hasExactKeys(value, ["type", "revision"]) && isRevision(value.revision);
     case "presence":
       return hasExactKeys(value, ["type", "collaborators"]) && isRevision(value.collaborators);

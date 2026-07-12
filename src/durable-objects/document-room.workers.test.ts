@@ -30,6 +30,115 @@ const acceptedMetadata = {
 } satisfies PublicationEnrichment;
 
 describe("DocumentRoom in the Workers runtime", () => {
+  it("preserves atomic project history, immutable milestones, non-destructive restore, and revision seeds", async () => {
+    const workspaceId = "project-history";
+    const stub = roomStub(workspaceId);
+    const initial = await stub.getSnapshot(workspaceId);
+    expect(await stub.listRevisions()).toEqual([
+      expect.objectContaining({ revision: 0, reason: "history-adoption", fileCount: 1, milestones: [] }),
+    ]);
+
+    const historicalPdf = pdfResource("historical.pdf");
+    await stub.registerPdf(historicalPdf);
+    expect((await stub.getSnapshot(workspaceId)).revision).toBe(initial.revision);
+    const excerpt = "the path from an annotation to a claim";
+    const start = initial.source.indexOf(excerpt);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const linked = await stub.createAnnotationLink({
+      annotation: {
+        pdfId: historicalPdf.id,
+        page: 2,
+        quote: "Historical evidence",
+        prefix: "before",
+        suffix: "after",
+        comment: "Retain this relationship",
+        rects: [],
+      },
+      passage: {
+        fileId: initial.entryFileId,
+        start,
+        end: start + excerpt.length,
+        excerpt,
+        sourceRevision: initial.revision,
+      },
+    });
+    const claim = await stub.createClaim({
+      text: "History retains evidence relationships.",
+      note: "Milestone evidence",
+      evidence: [{ annotationId: linked.annotation.id, relation: "supports" }],
+    });
+    await stub.createClaimPassageLink({
+      claimId: claim.id,
+      fileId: initial.entryFileId,
+      start,
+      end: start + excerpt.length,
+      excerpt,
+      sourceRevision: initial.revision,
+    });
+    const withChapter = await stub.createProjectFile(workspaceId, "chapters/history.md", "Old historical claim\n");
+    const chapter = withChapter.files.find((file) => file.path === "chapters/history.md");
+    expect(chapter).toBeDefined();
+    await stub.renameProjectFile(workspaceId, chapter!.id, "chapters/revisions.md");
+
+    const revisions = await stub.listRevisions();
+    expect(revisions.map((revision) => revision.reason)).toEqual([
+      "project-file-rename",
+      "project-file-create",
+      "claim-passage-link",
+      "claim-create",
+      "annotation-passage-link",
+      "pdf-register",
+      "history-adoption",
+    ]);
+    const head = revisions[0]!;
+    const milestone = await stub.createMilestone(head.revision, "first submission", "Exact state sent for review");
+    expect(milestone).toMatchObject({ revision: head.revision, name: "first submission" });
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.createMilestone(head.revision, "first submission")).toThrow();
+    });
+    await applyAuthoredSource(stub, `${initial.source}\n\nFirst rapid edit.\n`);
+    const firstWorkingRevision = (await stub.listRevisions())[0]!;
+    await applyAuthoredSource(stub, `${initial.source}\n\nSecond rapid edit.\n`);
+    const secondWorkingRevision = (await stub.listRevisions())[0]!;
+    expect(firstWorkingRevision).toMatchObject({ reason: "document-edit" });
+    expect(secondWorkingRevision.revision).toBe(firstWorkingRevision.revision);
+    expect((await stub.getRevision(secondWorkingRevision.revision)).source).toContain("Second rapid edit.");
+
+    const historical = await stub.getRevision(head.revision);
+    expect(historical.files).toContainEqual(expect.objectContaining({ id: chapter!.id, path: "chapters/revisions.md" }));
+    expect(historical.pdfs).toHaveLength(1);
+    expect(historical.claims).toContainEqual(claim);
+    expect(historical.relationships).toEqual({ annotationPassages: 1, claimEvidence: 1, claimPassages: 1 });
+    const comparison = await stub.compareRevisions(0, head.revision);
+    expect(comparison.files).toContainEqual(expect.objectContaining({ id: chapter!.id, status: "added" }));
+    expect(comparison.binaries).toContainEqual(expect.objectContaining({ status: "added" }));
+
+    const beforeRestore = await stub.getSnapshot(workspaceId);
+    const restored = await stub.restoreRevision(workspaceId, 0);
+    expect(restored.revision).toBe(beforeRestore.revision + 1);
+    expect(restored.files).toHaveLength(1);
+    expect(restored.pdfs).toEqual([]);
+    const afterRestore = await stub.listRevisions();
+    expect(afterRestore[0]).toMatchObject({ reason: "restore:r0" });
+    expect(afterRestore.find((revision) => revision.revision === head.revision)?.milestones).toEqual([milestone]);
+
+    const seedWorkspaceId = "project-history-seed";
+    const seedStub = roomStub(seedWorkspaceId);
+    await seedStub.seedFromRevision(seedWorkspaceId, "Submission branch", await stub.getRevisionSeed(head.revision));
+    const seeded = await seedStub.getSnapshot(seedWorkspaceId);
+    expect(seeded).toMatchObject({ title: "Submission branch", revision: 0 });
+    expect(seeded.files).toContainEqual(expect.objectContaining({ id: chapter!.id, path: "chapters/revisions.md" }));
+    expect(seeded.links).toContainEqual(
+      expect.objectContaining({ annotationId: linked.annotation.id, resolution: expect.objectContaining({ status: "resolved" }) }),
+    );
+    expect(seeded.claimLinks).toContainEqual(
+      expect.objectContaining({ claimId: claim.id, resolution: expect.objectContaining({ status: "resolved" }) }),
+    );
+    expect(await seedStub.listRevisions()).toEqual([
+      expect.objectContaining({ revision: 0, title: "Submission branch", reason: "seed-from-revision" }),
+    ]);
+  });
+
   it("persists a composed project tree and keeps inbound includes valid across renames", async () => {
     const workspaceId = "composed-project";
     const stub = roomStub(workspaceId);

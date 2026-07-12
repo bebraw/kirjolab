@@ -29,6 +29,9 @@ collaborative, and unambiguous about what preview and export mean.
   deleted.
 - Preview and Markdown export always compose from `main.md`; selecting a
   supporting file changes the editor, not the publication root.
+- Stable file identities also qualify rename-aware history. A historical
+  composition resolves the retained `main.md` and file tree from that exact
+  logical revision rather than current paths or content.
 
 ### API Contracts
 
@@ -59,7 +62,9 @@ collaborative, and unambiguous about what preview and export mean.
   missing paths, path normalization, inbound rewrite, and resource bounds.
 - Workers tests cover migration, stable entry identity, project-wide
   persistence, composition, atomic rename, guarded deletion, and file-qualified
-  anchors in a real `workerd` runtime.
+  anchors in a real `workerd` runtime. Project-history tests cover retained
+  file identity across rename, composed diffs, non-destructive restore, and
+  revision seeds.
 
 ## Current Milestone
 

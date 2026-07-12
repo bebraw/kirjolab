@@ -14,6 +14,7 @@ describe("server collaboration messages", () => {
     { type: "sync", protocol: collaborationProtocolVersion, revision: 4 },
     { type: "ack", revision: 5 },
     { type: "revision", revision: 6 },
+    { type: "reset", revision: 7 },
     { type: "presence", collaborators: 2 },
     { type: "resources" },
   ];
