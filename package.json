@@ -45,7 +45,7 @@
     "diagnostics:health": "fallow health --score --hotspots --targets --quiet --no-cache",
     "diagnostics:readability": "fallow audit --max-crap 100 --quiet --no-cache",
     "e2e": "playwright test --pass-with-no-tests",
-    "e2e:server": "CHOKIDAR_USEPOLLING=1 CHOKIDAR_INTERVAL=200 HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8788 --inspector-ip 127.0.0.1 --inspector-port 9230 --log-level error --show-interactive-dev-session=false",
+    "e2e:server": "node ./scripts/run-e2e-server.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lighthouse": "node ./scripts/run-lighthouse.mjs",
