@@ -10,6 +10,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('class="action-menu header-action-menu" data-action-menu');
     expect(html).toContain('id="manage-workspaces" type="button"><strong>Open projects</strong></button>');
     expect(html).toContain('aria-label="File actions"');
+    expect(html).not.toContain('role="menu"');
+    expect(html).not.toContain('role="menuitem"');
     expect(html).toContain('aria-label="Project view"');
     expect(html).toContain('<p class="eyebrow">New project</p>');
     expect(html).toContain('type="submit">Create project</button>');

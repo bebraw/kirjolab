@@ -294,6 +294,8 @@ mode for authenticated hosted collaboration.
       canvas, paper, and editor surfaces.
 - [x] Contextual toolbar actions stay out of the persistent chrome until the
       active citation or resource makes them usable.
+- [x] Action popovers expose ordinary button-list keyboard semantics, close on
+      Escape, and return focus to their labelled summary control.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
 - [x] Preview citations open publication context and explicit citation

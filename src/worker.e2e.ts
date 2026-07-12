@@ -88,11 +88,16 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page.getByRole("tab", { name: "Files" }).click();
   await expect(page.locator("#project-file-list")).toContainText("main.md");
   await expect(page.getByRole("button", { name: "Add file" }).first()).toBeVisible();
-  await page.locator("#editor-insert-menu summary").click();
-  await page
-    .locator("#editor-insert-menu")
-    .getByRole("menuitem", { name: /Citation/ })
-    .click();
+  const insertMenu = page.locator("#editor-insert-menu");
+  const insertSummary = insertMenu.locator("summary");
+  await insertSummary.focus();
+  await insertSummary.press("Enter");
+  await expect(insertMenu).toHaveAttribute("open", "");
+  await page.keyboard.press("Escape");
+  await expect(insertMenu).not.toHaveAttribute("open", "");
+  await expect(insertSummary).toBeFocused();
+  await insertSummary.click();
+  await insertMenu.getByRole("button", { name: /Citation/ }).click();
   await expect(page.locator("#source-editor")).toHaveValue(/:cite\[key\]/);
   await page.getByRole("tab", { name: "Research" }).click();
   const paneResizer = page.getByRole("separator", { name: "Resize authoring and context panes" });

@@ -397,6 +397,15 @@ class WorkspaceApp {
         if (!menu.contains(event.target) || event.target.closest("button, a")) menu.open = false;
       }
     });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const openMenus = Array.from(document.querySelectorAll<HTMLDetailsElement>("details[data-action-menu][open]"));
+      const menu = openMenus.at(-1);
+      if (!menu) return;
+      menu.open = false;
+      menu.querySelector<HTMLElement>("summary")?.focus();
+      event.preventDefault();
+    });
     this.#elements.workspaceSwitcher.addEventListener("change", () => {
       const selected = this.#elements.workspaceSwitcher.value;
       if (selected && selected !== workspaceId) location.assign(`/workspaces/${encodeURIComponent(selected)}`);

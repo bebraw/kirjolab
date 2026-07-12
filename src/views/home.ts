@@ -127,13 +127,13 @@ export function renderHomePage(
           <div class="flex items-center gap-2">
             <details class="action-menu" id="editor-insert-menu" data-action-menu>
               <summary class="button-secondary">Insert</summary>
-              <div class="editor-command-menu" role="menu" aria-label="Insert scholarly syntax">
-                <button type="button" role="menuitem" data-insert-syntax="citation"><strong>Citation</strong><code>:cite[key]</code></button>
-                <button type="button" role="menuitem" data-insert-syntax="reference"><strong>Cross-reference</strong><code>:ref[target]</code></button>
-                <button type="button" role="menuitem" data-insert-syntax="anchor"><strong>Anchor</strong><code>{#label}</code></button>
-                <button type="button" role="menuitem" data-insert-syntax="footnote"><strong>Footnote</strong><code>[^note]</code></button>
-                <button type="button" role="menuitem" data-insert-syntax="link"><strong>Link</strong><code>[text](url)</code></button>
-                <button type="button" role="menuitem" data-insert-syntax="include"><strong>Included file</strong><code>::include[path]</code></button>
+              <div class="editor-command-menu">
+                <button type="button" data-insert-syntax="citation"><strong>Citation</strong><code>:cite[key]</code></button>
+                <button type="button" data-insert-syntax="reference"><strong>Cross-reference</strong><code>:ref[target]</code></button>
+                <button type="button" data-insert-syntax="anchor"><strong>Anchor</strong><code>{#label}</code></button>
+                <button type="button" data-insert-syntax="footnote"><strong>Footnote</strong><code>[^note]</code></button>
+                <button type="button" data-insert-syntax="link"><strong>Link</strong><code>[text](url)</code></button>
+                <button type="button" data-insert-syntax="include"><strong>Included file</strong><code>::include[path]</code></button>
               </div>
             </details>
             <details class="action-menu" data-action-menu>
