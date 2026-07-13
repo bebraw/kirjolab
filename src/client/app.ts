@@ -849,6 +849,7 @@ class WorkspaceApp {
         this.#setConnection("Live", true);
         this.#setEditorsEnabled(true);
         this.#setRevision(value.revision);
+        this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
         this.#flushPendingUpdates();
         break;
       case "ack":

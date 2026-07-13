@@ -54,7 +54,7 @@ export function renderHomePage(
       <div class="hidden border-t border-app-line px-4 py-2 font-sans text-xs text-app-text-soft lg:px-6" id="collaborator-selections" aria-live="polite"></div>
     </header>
 
-    <main class="workspace-grid min-h-[calc(100vh-4rem)]" id="workspace-surfaces" data-active-surface="authoring" data-layout="split">
+    <main class="workspace-grid min-h-[calc(100vh-4rem-1px)]" id="workspace-surfaces" data-active-surface="authoring" data-layout="split">
       <nav class="surface-switcher" aria-label="Project surface">
         <button class="surface-switch" id="show-authoring-surface" type="button" aria-controls="authoring-surface" aria-pressed="true">Authoring</button>
         <button class="surface-switch" id="show-context-surface" type="button" aria-controls="context-surface" aria-pressed="false">Context</button>

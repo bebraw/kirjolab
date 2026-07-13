@@ -26,6 +26,8 @@ mode for authenticated hosted collaboration.
   research-context pane on desktop. The pane permanently hosts manuscript
   Preview and can host publication, PDF, and model-candidate resources without
   making local tab, pin, scroll, or reading-position state collaborative.
+  The collapsed Writing assistant entry point remains inside the desktop
+  viewport instead of extending the primary workspace below the fold.
   Layouts narrower than the split pane's declared minimum width switch between
   one Authoring or Context surface while preserving both states and without
   introducing horizontal page overflow.
@@ -60,7 +62,8 @@ mode for authenticated hosted collaboration.
   unacknowledged updates after reconnect.
 - **Editor ownership:** After `sync`, source and bibliography inputs derive from
   `Y.Text`; server collaboration controls own the displayed revision. REST
-  workspace refreshes cannot assign those values.
+  workspace refreshes cannot assign those values. The editor reports `Saved`
+  once initial synchronization completes with no queued local updates.
 - **Collaborator selections:** A client may send only an exact-key, bounded
   `protocol: 1` selection message for the current file and revision. The room
   supplies its socket identity, validates the range, broadcasts it only to
@@ -284,6 +287,10 @@ mode for authenticated hosted collaboration.
       narrow layouts switch explicitly between Authoring and Context.
 - [x] The split workspace activates only when all minimum-width tracks fit;
       compact desktop windows remain free of horizontal page overflow.
+- [x] The collapsed Writing assistant entry point remains visible within the
+      desktop viewport.
+- [x] Initial collaboration synchronization resolves the editor status from
+      `Opening…` to `Saved` when no local update is pending.
 - [x] Persistent toolbars group infrequent project and file mutations without
       hiding them behind unexplained glyphs.
 - [x] Permanent helper and empty-state copy stays concise, action-oriented, and

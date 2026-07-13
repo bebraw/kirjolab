@@ -237,7 +237,7 @@
   @media (min-width: 72rem) {
     .workspace-grid {
       grid-template-columns: 17rem minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(28rem, 1.05fr);
-      grid-template-rows: minmax(38rem, calc(100vh - 4rem)) auto;
+      grid-template-rows: minmax(38rem, calc(100vh - 6.875rem)) auto;
     }
 
     .surface-switcher {

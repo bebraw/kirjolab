@@ -73,6 +73,10 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Sources & evidence" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  await expect(page.locator("#save-status")).toHaveText("Saved");
+  const assistantSummary = page.locator("#writing-assistant > summary");
+  await expect(assistantSummary).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= document.documentElement.clientHeight)).toBe(true);
   await expect(page.locator("#open-source-citation")).toBeHidden();
   await expect(page.locator("#pin-active-context")).toBeHidden();
   await expect(page.locator("#close-active-context")).toBeHidden();
