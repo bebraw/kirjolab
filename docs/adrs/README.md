@@ -108,13 +108,14 @@ None.
 | [ADR-073](./implemented/ADR-073-host-writing-assistant-in-context.md)                 | Implemented          | Keep Writing assistant in a permanent Context tab instead of a full-width drawer.                            |
 | [ADR-074](./implemented/ADR-074-host-comments-in-left-rail.md)                        | Implemented          | Keep manuscript comments in a dedicated left-rail mode instead of the editor column.                         |
 | [ADR-075](./implemented/ADR-075-host-derived-bibliography-in-files-rail.md)           | Implemented          | Keep derived project BibTeX as collapsed secondary context in the Files rail.                                |
-| [ADR-076](./implemented/ADR-076-assign-immutable-reference-keys.md)                   | Implemented          | Assign unique memorable keys once and create editable library drafts directly from PDF uploads.              |
+| [ADR-076](./implemented/ADR-076-assign-immutable-reference-keys.md)                   | Partially superseded | Assign memorable keys and create editable library drafts directly from PDF uploads.                          |
 | [ADR-077](./implemented/ADR-077-layer-markdown-editor-highlighting.md)                | Implemented          | Layer derived Markdown highlighting behind the native collaborative textarea.                                |
 | [ADR-078](./implemented/ADR-078-add-bounded-vim-textarea-keymap.md)                   | Implemented          | Add an opt-in bounded Vim keymap over the native collaborative textarea.                                     |
-| [ADR-079](./implemented/ADR-079-review-bounded-pdf-metadata.md)                       | Implemented          | Extract bounded PDF metadata as ephemeral browser suggestions and apply only explicitly reviewed fields.     |
-| [ADR-080](./implemented/ADR-080-review-library-crossref-metadata.md)                  | Implemented          | Preview and selectively accept refetched Crossref metadata for DOI-backed private-library records.           |
+| [ADR-079](./implemented/ADR-079-review-bounded-pdf-metadata.md)                       | Partially superseded | Extract bounded PDF metadata as ephemeral browser suggestions and apply only explicitly reviewed fields.     |
+| [ADR-080](./implemented/ADR-080-review-library-crossref-metadata.md)                  | Partially superseded | Preview and selectively accept refetched Crossref metadata for DOI-backed private-library records.           |
 | [ADR-081](./implemented/ADR-081-read-private-library-pdfs-in-context.md)              | Partially superseded | Open owner-private library PDFs in kind-qualified context tabs with local reading position.                  |
 | [ADR-082](./implemented/ADR-082-capture-private-library-pdf-highlights.md)            | Implemented          | Capture explicit page-and-quote highlights while reading an owner-private library PDF.                       |
+| [ADR-083](./implemented/ADR-083-finalize-provisional-reference-keys.md)               | Implemented          | Improve private PDF keys until their first project link permanently finalizes them.                          |
 
 ## Creating A New ADR
 

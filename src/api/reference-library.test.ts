@@ -26,6 +26,7 @@ const reference: BibliographicRecord = {
 };
 const snapshot: ReferenceLibrarySnapshot = {
   references: [reference],
+  referenceKeyStates: { [reference.id]: "final" },
   artifacts: [],
   webSources: [],
   webSnapshots: [],

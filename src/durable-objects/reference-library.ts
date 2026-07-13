@@ -25,6 +25,7 @@ import {
   type ReadingState,
   type ReviewedPdfMetadata,
   type ReferenceLibrarySnapshot,
+  type ReferenceKeyState,
   type ResearchShareKind,
   type ResearchShareSnapshot,
   type WebCaptureRegistration,
@@ -36,6 +37,7 @@ import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 interface ReferenceRow extends Record<string, SqlStorageValue> {
   id: string;
   reference_key: string | null;
+  reference_key_state: string;
   identity_key: string;
   entry_type: string;
   title: string;
@@ -409,6 +411,17 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 7,
+    name: "finalize-provisional-reference-keys",
+    apply(sql): undefined {
+      sql.exec(`
+        ALTER TABLE library_references ADD COLUMN reference_key_state TEXT NOT NULL DEFAULT 'final'
+          CHECK (reference_key_state IN ('provisional', 'final'));
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -423,10 +436,10 @@ export class ReferenceLibrary extends DurableObject<Env> {
 
   getSnapshot(includeArchived = false): ReferenceLibrarySnapshot {
     const where = includeArchived ? "deleted_at IS NULL" : "archived_at IS NULL AND deleted_at IS NULL";
-    const references = this.ctx.storage.sql
+    const referenceRows = this.ctx.storage.sql
       .exec<ReferenceRow>(`SELECT * FROM library_references WHERE ${where} ORDER BY title COLLATE NOCASE, id`)
-      .toArray()
-      .map(referenceFromRow);
+      .toArray();
+    const references = referenceRows.map(referenceFromRow);
     const referenceIds = new Set(references.map((reference) => reference.id));
     const artifacts = this.ctx.storage.sql
       .exec<ArtifactRow>("SELECT * FROM artifacts ORDER BY created_at DESC, id")
@@ -440,6 +453,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       .map(webSourceFromRow);
     return {
       references,
+      referenceKeyStates: Object.fromEntries(referenceRows.map((row) => [row.id, referenceKeyStateFromRow(row)])),
       artifacts,
       webSources,
       webSnapshots: this.ctx.storage.sql
@@ -480,13 +494,17 @@ export class ReferenceLibrary extends DurableObject<Env> {
           .exec<ReferenceRow>("SELECT * FROM library_references WHERE identity_key = ?", identityKey)
           .toArray()[0];
         if (existing) {
+          const referenceKeyState = referenceKeyStateFromRow(existing);
           const updated = {
             ...candidate,
             id: existing.id,
-            referenceKey: existing.reference_key ?? this.#allocateReferenceKey(candidate),
+            referenceKey:
+              referenceKeyState === "provisional"
+                ? this.#allocateReferenceKey({ ...candidate, id: existing.id })
+                : (existing.reference_key ?? this.#allocateReferenceKey(candidate)),
             createdAt: existing.created_at,
           };
-          this.#writeReference(updated, identityKey, false);
+          this.#writeReference(updated, identityKey, false, referenceKeyState);
           return { reference: updated, suggestedAlias: entry.citationKey, created: false };
         }
         const created = { ...candidate, referenceKey: this.#allocateReferenceKey(candidate) };
@@ -728,7 +746,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const reference = { ...draft, referenceKey: this.#allocateReferenceKey(draft) };
     const identified = { ...artifact, referenceId: reference.id };
     this.ctx.storage.transactionSync(() => {
-      this.#writeReference(reference, `pdf:${artifact.fingerprint}`, true);
+      this.#writeReference(reference, `pdf:${artifact.fingerprint}`, true, "provisional");
       this.ctx.storage.sql.exec(
         `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, fingerprint, rights, created_at)
          VALUES (?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?)`,
@@ -927,7 +945,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     }
     const next: BibliographicRecord = { ...current, ...fields, provenance, updatedAt };
     if (!next.title.trim() || !next.type.trim()) throw new Error("Reference type and title are required");
-    this.#writeReference(next, likelyReferenceIdentity(next), false);
+    this.#writeEnrichedReference(next);
     return this.#reference(referenceId);
   }
 
@@ -957,7 +975,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     for (const [field] of entries) provenance[field] = { method: "pdf-metadata", capturedAt: updatedAt, actor };
     const next = { ...current, ...normalized, provenance, updatedAt };
     if (!next.title.trim()) throw new Error("Reference title is required");
-    this.#writeReference(next, likelyReferenceIdentity(next), false);
+    this.#writeEnrichedReference(next);
     return this.#reference(referenceId);
   }
 
@@ -1007,7 +1025,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     };
     const next: BibliographicRecord = { ...current, ...selected, provenance, updatedAt };
     if (!next.title.trim() || !next.type.trim()) throw new Error("Reference type and title are required");
-    this.#writeReference(next, likelyReferenceIdentity(next), false);
+    this.#writeEnrichedReference(next);
     return this.#reference(referenceId);
   }
 
@@ -1025,12 +1043,15 @@ export class ReferenceLibrary extends DurableObject<Env> {
 
   registerProjectDependency(projectId: string, referenceId: string): void {
     this.#reference(referenceId);
-    this.ctx.storage.sql.exec(
-      "INSERT OR IGNORE INTO project_dependencies (project_id, reference_id, linked_at) VALUES (?, ?, ?)",
-      projectId,
-      referenceId,
-      new Date().toISOString(),
-    );
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("UPDATE library_references SET reference_key_state = 'final' WHERE id = ?", referenceId);
+      this.ctx.storage.sql.exec(
+        "INSERT OR IGNORE INTO project_dependencies (project_id, reference_id, linked_at) VALUES (?, ?, ?)",
+        projectId,
+        referenceId,
+        new Date().toISOString(),
+      );
+    });
   }
 
   unregisterProjectDependency(projectId: string, referenceId: string): void {
@@ -1143,37 +1164,41 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return row;
   }
 
-  #writeReference(reference: BibliographicRecord, identityKey: string, insert: boolean): void {
-    const values = [
-      reference.id,
-      reference.referenceKey,
-      identityKey,
-      reference.type,
-      reference.title,
-      JSON.stringify(reference.authors),
-      reference.year,
-      reference.venue,
-      reference.doi,
-      reference.url,
-      reference.abstract,
-      JSON.stringify(reference.provenance),
-      reference.createdAt,
-      reference.updatedAt,
-    ] as const;
+  #writeReference(
+    reference: BibliographicRecord,
+    identityKey: string,
+    insert: boolean,
+    referenceKeyState: ReferenceKeyState = "final",
+  ): void {
     if (insert) {
       this.ctx.storage.sql.exec(
         `INSERT INTO library_references
-         (id, reference_key, identity_key, entry_type, title, authors_json, publication_year, venue, doi, url, abstract,
+         (id, reference_key, reference_key_state, identity_key, entry_type, title, authors_json, publication_year, venue, doi, url, abstract,
           provenance_json, archived_at, deleted_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
-        ...values,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
+        reference.id,
+        reference.referenceKey,
+        referenceKeyState,
+        identityKey,
+        reference.type,
+        reference.title,
+        JSON.stringify(reference.authors),
+        reference.year,
+        reference.venue,
+        reference.doi,
+        reference.url,
+        reference.abstract,
+        JSON.stringify(reference.provenance),
+        reference.createdAt,
+        reference.updatedAt,
       );
       return;
     }
     this.ctx.storage.sql.exec(
-      `UPDATE library_references SET reference_key = ?, identity_key = ?, entry_type = ?, title = ?, authors_json = ?, publication_year = ?, venue = ?,
+      `UPDATE library_references SET reference_key = ?, reference_key_state = ?, identity_key = ?, entry_type = ?, title = ?, authors_json = ?, publication_year = ?, venue = ?,
        doi = ?, url = ?, abstract = ?, provenance_json = ?, archived_at = NULL, deleted_at = NULL, updated_at = ? WHERE id = ?`,
       reference.referenceKey,
+      referenceKeyState,
       identityKey,
       reference.type,
       reference.title,
@@ -1187,6 +1212,13 @@ export class ReferenceLibrary extends DurableObject<Env> {
       reference.updatedAt,
       reference.id,
     );
+  }
+
+  #writeEnrichedReference(reference: BibliographicRecord): void {
+    const row = this.ctx.storage.sql.exec<ReferenceRow>("SELECT * FROM library_references WHERE id = ?", reference.id).one();
+    const referenceKeyState = referenceKeyStateFromRow(row);
+    const next = referenceKeyState === "provisional" ? { ...reference, referenceKey: this.#allocateReferenceKey(reference) } : reference;
+    this.#writeReference(next, likelyReferenceIdentity(next), false, referenceKeyState);
   }
 
   #reference(referenceId: string, includeDeleted = false): BibliographicRecord {
@@ -1322,6 +1354,10 @@ function referenceFromRow(row: ReferenceRow): BibliographicRecord {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function referenceKeyStateFromRow(row: ReferenceRow): ReferenceKeyState {
+  return row.reference_key_state === "provisional" ? "provisional" : "final";
 }
 
 function artifactFromRow(row: ArtifactRow): LibraryPdfArtifact {

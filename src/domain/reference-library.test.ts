@@ -294,6 +294,7 @@ describe("shared reference library", () => {
     const record = referenceFromBibTeX({ type: "manual", citationKey: "guide", fields: { title: "Guide" } }, "guide", provenance);
     const valid = {
       references: [record],
+      referenceKeyStates: { [record.id]: "final" },
       artifacts: [],
       webSources: [],
       webSnapshots: [],
@@ -312,6 +313,8 @@ describe("shared reference library", () => {
       { references: [{ ...record, provenance: null }] },
       { references: [{ ...record, archivedAt: 1 }] },
       { references: [{ ...record, deletedAt: 1 }] },
+      { referenceKeyStates: null },
+      { referenceKeyStates: { [record.id]: "mutable" } },
       { artifacts: null },
       { webSources: null },
       { webSnapshots: null },

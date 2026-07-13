@@ -1754,7 +1754,9 @@ class WorkspaceApp {
     card.className = "resource-card";
     card.dataset.referenceId = reference.id;
     const privacy = reference.archivedAt ? "Private · archived" : "Private library";
-    card.append(resourceLabel(`${reference.referenceKey} · ${privacy} · ${reference.type}`), resourceTitle(reference.title));
+    const keyState = this.#librarySnapshot?.referenceKeyStates[reference.id] ?? "final";
+    const keyLabel = keyState === "provisional" ? "provisional ID" : "reference ID";
+    card.append(resourceLabel(`${reference.referenceKey} · ${keyLabel} · ${privacy} · ${reference.type}`), resourceTitle(reference.title));
     const details = document.createElement("p");
     details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
     details.textContent = [reference.authors.join("; "), reference.year, reference.venue].filter(Boolean).join(" · ");

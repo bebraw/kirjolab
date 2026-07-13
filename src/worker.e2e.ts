@@ -469,7 +469,7 @@ test("reviews bounded PDF metadata before enriching a library record", async ({ 
 
   await draft.getByRole("button", { name: "Apply selected metadata" }).click();
   const enriched = page.locator("#reference-library-list .resource-card").filter({ hasText: "Metadata Review in Practice" });
-  await expect(enriched).toContainText("sourceundatedmetadata");
+  await expect(enriched).toContainText("doe2025 · provisional ID");
   const library = (await (await page.request.get("/api/library")).json()) as {
     references: Array<{ title: string; provenance: Record<string, { method: string }> }>;
   };

@@ -152,6 +152,7 @@ describe("library interchange", () => {
   it("validates portable research metadata without conflating tags and collections", () => {
     const snapshot = {
       references: [],
+      referenceKeyStates: {},
       artifacts: [],
       webSources: [],
       webSnapshots: [],

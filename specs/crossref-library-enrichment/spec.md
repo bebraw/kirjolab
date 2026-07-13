@@ -19,7 +19,8 @@ authoritative metadata provider without silently overwriting reviewed fields.
 - The Worker refetches Crossref metadata and rejects a changed fingerprint before mutation.
 - The owner-keyed library authority verifies DOI stability and uniqueness, then
   applies only selected fields with `crossref` provenance.
-- UUID, immutable reference key, PDF artifacts, and unselected values and provenance remain unchanged.
+- UUID, PDF artifacts, and unselected values and provenance remain unchanged.
+  Reviewed values may improve a private-only provisional key; finalized keys remain unchanged.
 
 ### API Contract
 
@@ -36,7 +37,7 @@ authoritative metadata provider without silently overwriting reviewed fields.
 - Do not mutate on preview or accept metadata echoed by the browser.
 - Do not overwrite every field when only some were reviewed.
 - Do not merge duplicate records or move private research as an enrichment side effect.
-- Do not change immutable reference keys after enrichment.
+- Do not change finalized reference keys after enrichment.
 
 ## Contract
 
@@ -62,7 +63,8 @@ authoritative metadata provider without silently overwriting reviewed fields.
 
 - Given: a library record has a reviewed DOI and partial metadata
 - When: the researcher previews Crossref and accepts selected fields
-- Then: only those values change with Crossref provenance and the reference key remains stable
+- Then: only those values change with Crossref provenance; a private-only
+  provisional key may improve, while a finalized key remains stable
 
 **Scenario: Crossref metadata changes after preview**
 

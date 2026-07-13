@@ -17,10 +17,13 @@ memory and makes citation aliases compete with stable source identity.
   project citation aliases. DOI is normalized and preferred for likely-duplicate
   identity; records without DOI use a normalized title/year/first-author
   fingerprint and remain reviewable.
-- Each source also has one unique immutable author-facing reference key. New
+- Each source also has one unique author-facing reference key. New
   keys prefer normalized first-author surname plus publication year, add a
   topical suffix for collisions, and use explicit `source`/`undated` fallbacks
-  when intake metadata is sparse. UUIDs remain the relational identity.
+  when intake metadata is sparse. A new PDF key remains provisional while the
+  source is private-only, may improve with reviewed metadata, and becomes
+  permanently final on its first project link. Imported, captured, migrated,
+  and already finalized keys remain stable. UUIDs remain the relational identity.
 - Type-specific required fields follow common BibTeX entry types. DOI is not
   universally required. Every editable metadata field stores method, capture
   time, and actor provenance.
@@ -38,13 +41,14 @@ memory and makes citation aliases compete with stable source identity.
 - Existing workspace BibTeX migrates lazily and idempotently into the owner
   library, then becomes project links and derived bibliography.
 - A PDF upload creates a provisional `misc` source immediately, derives only a
-  title from its filename, assigns its immutable reference key, and attaches
+  title from its filename, assigns its provisional reference key, and attaches
   the private artifact atomically. Researchers may enrich metadata later;
   automatic services may suggest values but never fabricate or silently accept
   them.
 - DOI-backed records may preview bounded Crossref metadata inline. Acceptance
   refetches and verifies the provider fingerprint, then changes only the fields
-  the researcher selected while preserving the immutable reference key.
+  the researcher selected. This may improve a private-only provisional key but
+  never changes a finalized key.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - Web sources are stable records keyed by normalized canonical URL. Every
@@ -115,8 +119,9 @@ memory and makes citation aliases compete with stable source identity.
 
 - Do not make citation keys, DOI values, titles, or filenames stable source
   identities.
-- Do not mutate an assigned reference key when metadata changes; it is an
-  author-facing handle over the UUID, not a replacement relational identity.
+- Do not mutate a finalized reference key when metadata changes or a project
+  unlinks it; it is an author-facing handle over the UUID, not a replacement
+  relational identity.
 - Do not copy the full private record into a project when it is merely cited.
 - Do not keep an editable project bibliography as a second authority.
 - Do not give the derived project bibliography a primary editor, Library tab,
@@ -139,7 +144,7 @@ memory and makes citation aliases compete with stable source identity.
   derived bibliography, cited-only filtering, alias rewrites, and selective
   Crossref provenance.
 - Key tests cover surname/year generation, sparse fallbacks, topical and numeric
-  collision suffixes and immutability through enrichment.
+  collision suffixes, provisional improvement, and permanent first-link finalization.
 - Browser coverage opens a private artifact, saves and revisits a private
   page-and-quote highlight, restores reading state, keeps project evidence
   controls unavailable, and proves that capture does not mutate the workspace
@@ -150,7 +155,7 @@ memory and makes citation aliases compete with stable source identity.
 ## Current Milestone
 
 - Implemented: owner-scoped library, provenance, BibTeX migration/import,
-  immutable memorable reference keys, direct PDF drafts, private PDFs and
+  lifecycle-aware memorable reference keys, direct PDF drafts, private PDFs and
   legacy identification, notes/tags/highlights/reading state, archive
   and tombstone deletion, project aliases/snapshots, derived cited-only BibTeX,
   versioned web captures, provenance-bearing citation assertions and network,

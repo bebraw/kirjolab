@@ -18,7 +18,8 @@ should be easy to review and reuse later without becoming canonical silently.
 - Each suggested field can be selected independently. Applying suggestions sends only selected fields and the artifact id to the owner-private route.
 - The library verifies the artifact/reference relationship, bounds every value,
   updates only selected fields, and records `pdf-metadata` provenance for those fields.
-- Reference UUID, immutable reference key, unselected metadata, and PDF bytes remain unchanged.
+- Reference UUID, unselected metadata, and PDF bytes remain unchanged. Reviewed
+  values may improve a private-only provisional key; finalized keys remain unchanged.
 
 ### API Contract
 
@@ -31,7 +32,7 @@ should be easy to review and reuse later without becoming canonical silently.
 - Do not extract automatically during upload or block intake on extraction.
 - Do not persist unreviewed candidates or replace all metadata with a partial extraction.
 - Do not claim Crossref provenance for browser-derived values.
-- Do not change an immutable reference key after enrichment.
+- Do not change a finalized reference key after enrichment.
 - Do not send private PDF bytes to a third-party identification service.
 
 ## Contract
@@ -41,7 +42,7 @@ should be easy to review and reuse later without becoming canonical silently.
 - [x] A PDF-backed Library record exposes inline metadata review.
 - [x] Embedded metadata and bounded opening-page text produce useful candidates.
 - [x] The user can apply individual fields and leave the rest untouched.
-- [x] Accepted fields record PDF-specific provenance and keep the reference key.
+- [x] Accepted fields record PDF-specific provenance and preserve finalized keys.
 - [x] Empty, malformed, or unlinked updates fail without mutation.
 - [x] Unit, Workers-runtime, and browser tests cover extraction and review.
 

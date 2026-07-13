@@ -33,6 +33,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(second[0]?.created).toBe(false);
     expect(second[0]?.suggestedAlias).toBe("localAlias");
     expect(second[0]?.reference.provenance.title).toMatchObject({ method: "bibtex", actor: "owner@example.test" });
+    expect((await library.getSnapshot()).referenceKeyStates[first[0]!.reference.id]).toBe("final");
 
     const referenceId = first[0]!.reference.id;
     expect(await library.setTags(referenceId, ["Methods", "methods", "To read"])).toEqual(["Methods", "To read"]);
@@ -103,7 +104,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     });
   });
 
-  it("creates PDF drafts immediately with immutable unique reference keys", async () => {
+  it("improves provisional PDF keys until their first project link finalizes them", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`pdf-drafts-${crypto.randomUUID()}`);
     const artifact = (id: string): LibraryPdfArtifact => ({
       id,
@@ -127,6 +128,10 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       artifact: { referenceId: first.reference.id },
     });
     expect(second.reference.referenceKey).toBe("sourceundatedclimate2");
+    expect((await library.getSnapshot()).referenceKeyStates).toMatchObject({
+      [first.reference.id]: "provisional",
+      [second.reference.id]: "provisional",
+    });
     const edited = await library.updateReferenceMetadata(
       first.reference.id,
       {
@@ -141,7 +146,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       },
       "owner@example.test",
     );
-    expect(edited.referenceKey).toBe("sourceundatedclimate");
+    expect(edited.referenceKey).toBe("smith2024");
     const enriched = await library.applyReviewedPdfMetadata(
       first.reference.id,
       first.artifact.id,
@@ -149,7 +154,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       "owner@example.test",
     );
     expect(enriched).toMatchObject({
-      referenceKey: "sourceundatedclimate",
+      referenceKey: "smith2025",
       title: "Climate evidence",
       authors: ["Smith, Jane"],
       year: "2025",
@@ -178,7 +183,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       "owner@example.test",
     );
     expect(crossrefEnriched).toMatchObject({
-      referenceKey: "sourceundatedclimate",
+      referenceKey: "smith2025",
       title: "Climate adaptation pathways",
       authors: ["Smith, Jane"],
       year: "2025",
@@ -192,6 +197,18 @@ describe("ReferenceLibrary in the Workers runtime", () => {
         year: { method: "pdf-metadata" },
       },
     });
+    await library.registerProjectDependency("project-a", first.reference.id);
+    expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("final");
+    const finalized = await library.updateReferenceMetadata(
+      first.reference.id,
+      { ...crossrefEnriched, year: "2027" },
+      "owner@example.test",
+    );
+    expect(finalized.referenceKey).toBe("smith2025");
+    await library.unregisterProjectDependency("project-a", first.reference.id);
+    const unlinked = await library.updateReferenceMetadata(first.reference.id, { ...finalized, year: "2028" }, "owner@example.test");
+    expect(unlinked.referenceKey).toBe("smith2025");
+    expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("final");
     await runInDurableObject(library, (instance: ReferenceLibrary) => {
       expect(() =>
         instance.applyReviewedCrossrefMetadata(
@@ -337,6 +354,11 @@ describe("ReferenceLibrary in the Workers runtime", () => {
           .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
           .toArray(),
       ).toContainEqual({ version: 4, name: "model-citation-assertions-with-provenance" });
+      expect(
+        state.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
+          .toArray(),
+      ).toContainEqual({ version: 7, name: "finalize-provisional-reference-keys" });
       expect(() => instance.createCitationAssertions([], "owner")).toThrow("between 1 and 128");
       expect(() => instance.findReferencesByDois(Array.from({ length: 129 }, () => "10.1000/x"))).toThrow("Too many");
       expect(() => instance.reviewCitationAssertion(crypto.randomUUID(), { decision: "confirmed", note: "" }, "owner")).toThrow(

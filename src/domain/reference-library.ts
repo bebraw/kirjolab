@@ -180,8 +180,11 @@ export interface ReadingState {
   readonly updatedAt: string;
 }
 
+export type ReferenceKeyState = "provisional" | "final";
+
 export interface ReferenceLibrarySnapshot {
   readonly references: readonly BibliographicRecord[];
+  readonly referenceKeyStates: Readonly<Record<string, ReferenceKeyState>>;
   readonly artifacts: readonly LibraryPdfArtifact[];
   readonly webSources: readonly WebSource[];
   readonly webSnapshots: readonly WebSnapshot[];
@@ -430,6 +433,8 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
     isRecord(value) &&
     Array.isArray(value.references) &&
     value.references.every(isBibliographicRecord) &&
+    isRecord(value.referenceKeyStates) &&
+    Object.values(value.referenceKeyStates).every((state) => state === "provisional" || state === "final") &&
     Array.isArray(value.artifacts) &&
     Array.isArray(value.webSources) &&
     value.webSources.every(isWebSource) &&

@@ -145,6 +145,7 @@ function fixture(): ReferenceLibrarySnapshot {
         updatedAt: "2026-02-01",
       },
     ],
+    referenceKeyStates: { incomplete: "final", alpha: "final", zulu: "final" },
     artifacts: [],
     webSources: [],
     webSnapshots: [],

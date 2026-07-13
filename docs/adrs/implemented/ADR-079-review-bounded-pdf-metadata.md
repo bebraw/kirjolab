@@ -1,6 +1,6 @@
 # ADR-079: Review Bounded PDF Metadata Before Enrichment
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-083](./ADR-083-finalize-provisional-reference-keys.md)
 
 **Date:** 2026-07-13
 
