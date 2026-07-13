@@ -1248,7 +1248,7 @@ test("creates and inserts transcluded project files", async ({ page }) => {
     element.dispatchEvent(new Event("select", { bubbles: true }));
   });
   await page.locator("#editor-insert-menu summary").click();
-  await page.locator("#include-project-file-list [data-include-file-id]").click();
+  await page.getByRole("button", { name: /chapters\/method\.md/u }).click();
   await expect(source).toHaveValue(/::include\[chapters\/method\.md\]\n$/u);
   await page.locator("#project-file-switcher").selectOption({ label: "chapters/method.md" });
   await source.fill("## Method\n\nDescribe the procedure.\n");
@@ -1455,6 +1455,20 @@ test("projects the default canonical bibliography into a fresh workspace", async
     venue: "The Sociology of Science",
     metadataSource: "bibtex",
   });
+});
+
+test("starts a fresh project with a discoverable transclusion example", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Transclusion starter");
+  const snapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${workspaceId}`);
+
+  expect(snapshot.files).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ path: "main.md", content: expect.stringContaining("::include[sections/transclusion.md]") }),
+      expect.objectContaining({ path: "sections/transclusion.md", content: expect.stringContaining("Included from another file") }),
+    ]),
+  );
+  expect(snapshot.composition.content).toContain("This section lives in `sections/transclusion.md`");
+  expect(snapshot.composition.diagnostics).toEqual([]);
 });
 
 test("derives collaborative project bibliography from shared-library aliases", async ({ page, context }) => {

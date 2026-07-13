@@ -20,9 +20,18 @@ export const defaultSource = `## Evidence becomes prose {#sec-evidence}
 
 Kirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942]{locator="p. 270"}.
 
+::include[sections/transclusion.md]
+
 ## Return to the source {#sec-source}
 
 The preview resolves a link back to :ref[sec-evidence]. Select this paragraph, attach a PDF annotation, and ask a local model to propose a grounded revision.
+`;
+
+export const defaultTransclusionPath = "sections/transclusion.md";
+
+export const defaultTransclusionSource = `## Included from another file {#sec-transclusion}
+
+This section lives in \`${defaultTransclusionPath}\`. Edit that file from the Files rail and the composed preview will update here.
 `;
 
 export const defaultBibliography = `@article{merton1942,

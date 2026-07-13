@@ -33,6 +33,9 @@ collaborative, and unambiguous about what preview and export mean.
   from research inventory. The entry file is visibly identified, supporting
   paths are sorted for scanning, and file creation is available from both the
   file navigator and the active-file toolbar.
+- A fresh starter project includes one supporting Markdown file transcluded
+  from `main.md`, making the portable include syntax and composed result
+  discoverable without changing existing projects during migration.
 - The authoring toolbar inserts an existing file with a path relative to the
   active file. **Create and include** creates a supporting file and inserts its
   directive at the remembered collaborative caret, so authors do not have to
@@ -79,10 +82,12 @@ collaborative, and unambiguous about what preview and export mean.
 - Browser coverage verifies that authors can insert an existing file and create
   a new file at a remembered caret without changing the `main.md` composition
   root.
+- Workers coverage verifies that a fresh project exposes the transclusion demo
+  as a real supporting file and composes it without diagnostics.
 
 ## Current Milestone
 
-- Implemented: Markdown file tree, canonical `main.md`, recursive composition,
+- Implemented: discoverable starter transclusion, Markdown file tree, canonical `main.md`, recursive composition,
   source maps and diagnostics, file management API/UI, composed preview/export,
   project-wide revisions, and file-qualified manuscript/model anchors.
 - Deferred: binary asset management and a graphical folder tree. These do not

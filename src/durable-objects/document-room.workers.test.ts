@@ -61,7 +61,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const stub = roomStub(workspaceId);
     const initial = await stub.getSnapshot(workspaceId);
     expect(await stub.listRevisions()).toEqual([
-      expect.objectContaining({ revision: 0, reason: "history-adoption", fileCount: 1, milestones: [] }),
+      expect.objectContaining({ revision: 0, reason: "history-adoption", fileCount: 2, milestones: [] }),
     ]);
 
     const historicalPdf = pdfResource("historical.pdf");
@@ -142,7 +142,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const beforeRestore = await stub.getSnapshot(workspaceId);
     const restored = await stub.restoreRevision(workspaceId, 0);
     expect(restored.revision).toBe(beforeRestore.revision + 1);
-    expect(restored.files).toHaveLength(1);
+    expect(restored.files).toHaveLength(2);
     expect(restored.pdfs).toEqual([]);
     const afterRestore = await stub.listRevisions();
     expect(afterRestore[0]).toMatchObject({ reason: "restore:r0" });

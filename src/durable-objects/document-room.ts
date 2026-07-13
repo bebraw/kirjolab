@@ -41,6 +41,8 @@ import type { ResearchShareSnapshot } from "../domain/reference-library";
 import {
   defaultBibliography,
   defaultSource,
+  defaultTransclusionPath,
+  defaultTransclusionSource,
   isCreateCandidateInput,
   isModelCandidate,
   isProjectPublicationProfile,
@@ -1996,6 +1998,23 @@ export class DocumentRoom extends DurableObject<Env> {
               now,
             );
             this.ctx.storage.sql.exec("UPDATE workspace SET entry_file_id = ? WHERE id = 1", id);
+            if (workspace.source === defaultSource) {
+              const supportingId = crypto.randomUUID();
+              const yTextName = `file:${supportingId}`;
+              this.#document.getText(yTextName).insert(0, defaultTransclusionSource);
+              this.ctx.storage.sql.exec(
+                `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
+                 VALUES (?, ?, 'text/markdown', ?, ?, ?, ?)`,
+                supportingId,
+                defaultTransclusionPath,
+                yTextName,
+                defaultTransclusionSource,
+                now,
+                now,
+              );
+              const state = Y.encodeStateAsUpdate(this.#document);
+              this.ctx.storage.sql.exec("UPDATE workspace SET y_state = ? WHERE id = 1", state.buffer);
+            }
           }
           return undefined;
         },
