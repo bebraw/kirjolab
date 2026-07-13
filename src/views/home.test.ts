@@ -39,6 +39,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="comments-rail-panel" role="tabpanel"');
     expect(html).toContain('id="manuscript-comment-form"');
     expect(html).not.toContain('id="manuscript-comments"');
+    expect(html).toContain('id="derived-project-bibliography"');
+    expect(html).toContain('class="bibliography-editor rail-bibliography-editor" id="bibliography-editor"');
     expect(html).toContain('class="button-secondary hidden" id="open-source-citation"');
     expect(html).toContain('id="open-project-history"');
     expect(html).toContain('id="project-history-dialog"');
@@ -72,6 +74,7 @@ describe("renderHomePage", () => {
     expect(html).not.toContain('id="paper-dialog"');
     expect(html).not.toContain('id="writing-assistant"');
     expect(html.indexOf('id="comments-rail-panel"')).toBeLessThan(html.indexOf('id="authoring-surface"'));
+    expect(html.indexOf('id="bibliography-editor"')).toBeLessThan(html.indexOf('id="authoring-surface"'));
     expect(html).toContain("Draft a reviewable revision");
     expect(html).toContain('src="/app.js"');
     expect(html).toContain('href="/styles.css"');

@@ -72,6 +72,14 @@ export function renderHomePage(
           </div>
           <div class="mt-4 flex items-center justify-between gap-3"><p class="eyebrow">Files · A–Z</p><span class="count-badge" id="project-file-count">1</span></div>
           <div class="mt-3 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
+          <details class="rail-collection mt-4" id="derived-project-bibliography">
+            <summary><span>Derived project bibliography</span></summary>
+            <div class="pb-4">
+              <p class="mb-3 text-xs leading-5 text-app-text-soft">Read-only BibTeX generated from references linked to this project.</p>
+              <label class="sr-only" for="bibliography-editor">Derived project BibTeX</label>
+              <textarea class="bibliography-editor rail-bibliography-editor" id="bibliography-editor" spellcheck="false" readonly></textarea>
+            </div>
+          </details>
         </section>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail">
@@ -159,11 +167,6 @@ export function renderHomePage(
         <label class="sr-only" for="source-editor">Markdown source</label>
         <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
         <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation.</p>
-        <details class="border-t border-app-line bg-app-paper/60">
-          <summary class="cursor-pointer px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.14em] text-app-text-soft">Derived project bibliography</summary>
-          <label class="sr-only" for="bibliography-editor">BibTeX bibliography</label>
-          <textarea class="bibliography-editor" id="bibliography-editor" spellcheck="false" readonly></textarea>
-        </details>
       </section>
 
       <div class="authoring-context-resizer" id="authoring-context-resizer" role="separator" aria-label="Resize authoring and context panes" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" tabindex="0"></div>

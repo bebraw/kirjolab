@@ -32,7 +32,9 @@ mode for authenticated hosted collaboration.
   introducing horizontal page overflow.
 - **Left project rail:** Files, Research, and Comments are peer local navigation
   modes. Comments contains the selected-passage composer and durable comment
-  history without taking vertical space from the manuscript editor.
+  history without taking vertical space from the manuscript editor. Files owns
+  the collapsed read-only project bibliography projection beside the authored
+  file list.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
   Infrequent project-management and file-mutation actions stay grouped in
@@ -278,6 +280,8 @@ mode for authenticated hosted collaboration.
       comments without mutating Markdown.
 - [x] Comments use a dedicated left-rail mode instead of an editor-bottom
       drawer or modal.
+- [x] The derived project bibliography is inspectable as secondary Files-rail
+      context without shortening the manuscript editor.
 - [x] Server state establishes synchronization before the browser sends queued
       updates, and each client update receives a durable acknowledgement.
 - [x] Reconnect replays only unacknowledged updates; an already integrated

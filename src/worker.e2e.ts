@@ -1345,6 +1345,7 @@ test("derives collaborative project bibliography from shared-library aliases", a
   const link = snapshot.projectReferences.find((item) => item.citationAlias === "collaborative2026");
   if (!link) throw new Error("Expected a shared-library project link");
 
+  await Promise.all([page.getByRole("tab", { name: "Files" }).click(), collaborator.getByRole("tab", { name: "Files" }).click()]);
   await Promise.all([
     page.locator("summary").filter({ hasText: "Derived project bibliography" }).click(),
     collaborator.locator("summary").filter({ hasText: "Derived project bibliography" }).click(),

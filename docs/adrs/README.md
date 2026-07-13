@@ -107,6 +107,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-072](./implemented/ADR-072-report-local-ci-progress.md)                          | Implemented          | Format Agent CI events and heartbeat long-running local validation without changing workflow semantics.      |
 | [ADR-073](./implemented/ADR-073-host-writing-assistant-in-context.md)                 | Implemented          | Keep Writing assistant in a permanent Context tab instead of a full-width drawer.                            |
 | [ADR-074](./implemented/ADR-074-host-comments-in-left-rail.md)                        | Implemented          | Keep manuscript comments in a dedicated left-rail mode instead of the editor column.                         |
+| [ADR-075](./implemented/ADR-075-host-derived-bibliography-in-files-rail.md)           | Implemented          | Keep derived project BibTeX as collapsed secondary context in the Files rail.                                |
 
 ## Creating A New ADR
 
