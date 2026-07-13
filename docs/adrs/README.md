@@ -27,7 +27,9 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-None.
+| ADR                                                                      | Status   | Summary                                                                                        |
+| ------------------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------------------------- |
+| [ADR-088](./accepted/ADR-088-project-structured-publication-markdown.md) | Accepted | Project bounded tables and footnotes once for deterministic LaTeX and PDF publication exports. |
 
 ## Implemented ADRs
 

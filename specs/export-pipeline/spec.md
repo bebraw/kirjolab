@@ -28,10 +28,21 @@ files.
   declarations are non-printing, cross-references resolve to their visible
   heading or anchor labels, and citation attributes are consumed completely.
   Directive-looking content inside fenced code remains literal.
+- After composition, both publication targets share one bounded structured-block
+  projection for GFM pipe tables and named footnotes. A table requires a header
+  and delimiter row, supports escaped pipes and delimiter alignment, and does
+  not infer spans or multiline cells. Footnote definitions support immediate
+  indented continuations and receive stable numbers in first-reference order.
+  Fenced examples, malformed structures, and unsupported block forms remain
+  literal prose.
+- LaTeX emits `booktabs` tables and native footnotes. Direct PDF draws aligned,
+  wrapping table rows and numbered page notes without executing authored TeX.
+  Repeated footnote references reuse their first number, while unreferenced
+  definitions do not print.
 - Direct PDF citations resolve cited bibliography metadata through the selected
   APA, Chicago author-date, or IEEE profile instead of exposing project aliases.
   LaTeX uses the corresponding citation commands and bibliography style.
-- The maintained `kirjolab-article-v1` LaTeX template is the reproducible
+- The maintained `kirjolab-article-v2` LaTeX template is the reproducible
   default. The ZIP records template and engine versions in
   `export-manifest.json` and includes `source-map.json` plus the complete
   intermediate.
@@ -138,6 +149,16 @@ journal uses the same counting policy.
 - Given the same logical project state and pinned versions
 - When LaTeX ZIP or bounded PDF generation runs twice
 - Then both byte sequences are identical.
+
+### Structured publication fidelity
+
+- Given a composed manuscript containing transclusion, citations, references,
+  aligned pipe tables, named footnotes, lists, fenced code, and math
+- When LaTeX and bounded PDF artifacts are generated
+- Then table delimiters and footnote definitions do not print as source syntax,
+  tables remain readable, notes share first-reference numbering, fenced syntax
+  remains literal, and all previously supported scholarly projections remain
+  intact.
 
 ## Verification
 
