@@ -27,7 +27,9 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-None. Accepted decisions move here only until their implementation is verified.
+| ADR                                                          | Status   | Summary                                                                                                   |
+| ------------------------------------------------------------ | -------- | --------------------------------------------------------------------------------------------------------- |
+| [ADR-079](./accepted/ADR-079-review-bounded-pdf-metadata.md) | Accepted | Extract bounded PDF metadata as ephemeral browser suggestions and apply only explicitly reviewed fields. |
 
 ## Implemented ADRs
 

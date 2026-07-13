@@ -66,6 +66,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Create a provisional `misc` library record when a PDF is uploaded, deriving
   only its title from the filename and attaching the private artifact in the
   same library transaction. Let researchers enrich metadata later.
+- Extract PDF metadata only as bounded, browser-local suggestions. Apply
+  canonical library changes per field after the library authority verifies the
+  artifact/reference relationship; never change the immutable reference key.
 - Keep library PDFs, web captures, notes, highlights, tags, and reading state
   owner-private by default. A project citation receives only its local alias
   and bibliographic snapshot; sharing any additional resource must be a
