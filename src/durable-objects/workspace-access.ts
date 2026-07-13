@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import type { WorkspaceMember, WorkspaceRole } from "../domain/workspace";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { currentRecoveryBookmark } from "./recovery";
 
 const migrations = [
   {
@@ -82,6 +83,11 @@ export class WorkspaceAccess extends DurableObject<Env> {
       .exec<MemberRow>("SELECT * FROM members ORDER BY CASE role WHEN 'owner' THEN 0 ELSE 1 END, added_at ASC")
       .toArray()
       .map(memberFromRow);
+  }
+
+  async getBackupSnapshot(requesterEmail: string): Promise<{ members: WorkspaceMember[]; bookmark: string | null }> {
+    const members = this.listMembers(requesterEmail);
+    return { members, bookmark: await currentRecoveryBookmark(this.ctx.storage, this.env.AUTH_MODE) };
   }
 
   addMember(requesterEmail: string, memberEmail: string): WorkspaceMember {

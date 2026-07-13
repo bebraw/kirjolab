@@ -35,6 +35,7 @@ import {
   type WebSource,
 } from "../domain/reference-library";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { currentRecoveryBookmark } from "./recovery";
 
 interface ReferenceRow extends Record<string, SqlStorageValue> {
   id: string;
@@ -476,6 +477,11 @@ export class ReferenceLibrary extends DurableObject<Env> {
         .filter((row) => referenceIds.has(row.reference_id))
         .map(readingFromRow),
     };
+  }
+
+  async getBackupSnapshot(): Promise<{ snapshot: ReferenceLibrarySnapshot; bookmark: string | null }> {
+    const snapshot = this.getSnapshot(true);
+    return { snapshot, bookmark: await currentRecoveryBookmark(this.ctx.storage, this.env.AUTH_MODE) };
   }
 
   importBibTeX(source: string, actor: string): ReferenceImportItem[] {

@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kirjolab",
   "main": "src/worker.ts",
-  "compatibility_date": "2026-07-13",
+  "compatibility_date": "2026-06-18",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "AUTH_MODE": "local",
@@ -25,6 +25,7 @@
       { "name": "WORKSPACE_CATALOGS", "class_name": "WorkspaceCatalog" },
       { "name": "WORKSPACE_ACCESS", "class_name": "WorkspaceAccess" },
       { "name": "REFERENCE_LIBRARIES", "class_name": "ReferenceLibrary" },
+      { "name": "BACKUP_COORDINATOR", "class_name": "BackupCoordinator" },
     ],
   },
   "migrations": [
@@ -32,7 +33,9 @@
     { "tag": "v2", "new_sqlite_classes": ["WorkspaceCatalog"] },
     { "tag": "v3", "new_sqlite_classes": ["WorkspaceAccess"] },
     { "tag": "v4", "new_sqlite_classes": ["ReferenceLibrary"] },
+    { "tag": "v5", "new_sqlite_classes": ["BackupCoordinator"] },
   ],
+  "triggers": { "crons": ["17 2 * * *"] },
   "r2_buckets": [{ "binding": "PAPERS", "bucket_name": "kirjolab-papers" }],
   "observability": {
     "enabled": true,

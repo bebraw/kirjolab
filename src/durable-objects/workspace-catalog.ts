@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { demoWorkspaceId, type WorkspaceSummary } from "../domain/workspace";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { currentRecoveryBookmark } from "./recovery";
 
 const migrations = [
   {
@@ -58,6 +59,11 @@ export class WorkspaceCatalog extends DurableObject<Env> {
       .exec<WorkspaceCatalogRow>("SELECT * FROM workspaces WHERE id <> ? ORDER BY updated_at DESC, title ASC LIMIT 199", demoWorkspaceId)
       .toArray();
     return [...(demo ? [demo] : []), ...recent].map(summaryFromRow);
+  }
+
+  async getBackupSnapshot(): Promise<{ workspaces: WorkspaceSummary[]; bookmark: string | null }> {
+    const workspaces = this.listWorkspaces();
+    return { workspaces, bookmark: await currentRecoveryBookmark(this.ctx.storage, this.env.AUTH_MODE) };
   }
 
   registerWorkspace(id: string, title: string): WorkspaceSummary {

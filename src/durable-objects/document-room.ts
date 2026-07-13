@@ -83,6 +83,7 @@ import {
   type WorkspaceSnapshot,
 } from "../domain/workspace";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { currentRecoveryBookmark } from "./recovery";
 
 interface WorkspaceRow extends Record<string, SqlStorageValue> {
   title: string;
@@ -579,6 +580,16 @@ export class DocumentRoom extends DurableObject<Env> {
       claimLinks: this.#claimLinks(),
       comments: this.#comments(),
       candidates: this.#candidates(),
+    };
+  }
+
+  async getBackupSnapshot(workspaceId: string): Promise<{ snapshot: WorkspaceSnapshot; revisionSeed: string; bookmark: string | null }> {
+    const snapshot = this.getSnapshot(workspaceId);
+    const revisionSeed = this.getHeadRevisionSeed();
+    return {
+      snapshot,
+      revisionSeed,
+      bookmark: await currentRecoveryBookmark(this.ctx.storage, this.env.AUTH_MODE),
     };
   }
 

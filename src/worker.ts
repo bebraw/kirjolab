@@ -1,4 +1,5 @@
 import { createHealthResponse } from "./api/health";
+import { handleBackupApi } from "./api/backups";
 import { handleWorkspaceApi } from "./api/workspace";
 import { handleReferenceLibraryApi } from "./api/reference-library";
 import { exampleRoutes } from "./app-routes";
@@ -6,20 +7,24 @@ import { DocumentRoom } from "./durable-objects/document-room";
 import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
 import { WorkspaceAccess } from "./durable-objects/workspace-access";
 import { ReferenceLibrary } from "./durable-objects/reference-library";
+import { BackupCoordinator } from "./durable-objects/backup-coordinator";
 import { authenticateRequest, isSameOriginMutation, type AuthIdentity } from "./security/auth";
 import { renderHomePage } from "./views/home";
 import { renderNotFoundPage } from "./views/not-found";
 import { cssResponse, htmlResponse, scriptResponse } from "./views/shared";
 
-export { DocumentRoom, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
+export { BackupCoordinator, DocumentRoom, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
 
 export default {
-  async fetch(request: Request, env?: Env): Promise<Response> {
-    return await handleRequest(request, env);
+  async fetch(request: Request, env?: Env, ctx?: ExecutionContext): Promise<Response> {
+    return await handleRequest(request, env, ctx);
+  },
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runScheduledBackups(env));
   },
 } satisfies ExportedHandler<Env>;
 
-export async function handleRequest(request: Request, env?: Env): Promise<Response> {
+export async function handleRequest(request: Request, env?: Env, ctx?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
 
   if (url.pathname === "/styles.css") {
@@ -48,11 +53,21 @@ export async function handleRequest(request: Request, env?: Env): Promise<Respon
     const authentication = await authenticateRequest(request, env);
     if (!authentication.ok) return authentication.response;
     identity = authentication.identity;
+    if (identity.mode === "access") {
+      const registration = env.BACKUP_COORDINATOR.getByName("primary").registerOwner(identity.ownerKey, identity.email);
+      if (ctx) ctx.waitUntil(registration);
+      else await registration;
+    }
   }
   if (!isSameOriginMutation(request)) return Response.json({ error: "Cross-origin mutation denied" }, { status: 403 });
 
   if (url.pathname === "/api/session") {
     return Response.json({ email: identity.email, mode: identity.mode }, { headers: { "cache-control": "no-store" } });
+  }
+
+  if (url.pathname === "/api/backups" || url.pathname.startsWith("/api/backups/")) {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await handleBackupApi(request, env, identity);
   }
 
   if (url.pathname === "/") {
@@ -75,6 +90,12 @@ export async function handleRequest(request: Request, env?: Env): Promise<Respon
   }
 
   return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+}
+
+export async function runScheduledBackups(env: Env): Promise<void> {
+  const summary = await env.BACKUP_COORDINATOR.getByName("primary").runScheduledBackups();
+  console.log(JSON.stringify({ event: "scheduled-backup", ...summary }));
+  if (summary.failed > 0 || summary.truncated) throw new Error("Scheduled backup did not process every registered owner successfully");
 }
 
 async function loadStylesheet(): Promise<string> {
