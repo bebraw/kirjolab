@@ -67,6 +67,7 @@ import {
   closeResearchTab,
   createResearchContext,
   openResearchResource,
+  RESEARCH_ASSISTANT_KEY,
   RESEARCH_LIBRARY_KEY,
   RESEARCH_PREVIEW_KEY,
   reconcileResearchContext,
@@ -194,6 +195,7 @@ interface Elements {
   contextTabList: HTMLElement;
   contextPreviewTab: HTMLButtonElement;
   contextLibraryTab: HTMLButtonElement;
+  contextAssistantTab: HTMLButtonElement;
   contextResourceTabs: HTMLElement;
   pinActiveContext: HTMLButtonElement;
   closeActiveContext: HTMLButtonElement;
@@ -203,6 +205,8 @@ interface Elements {
   previewScroll: HTMLElement;
   contextLibraryPanel: HTMLElement;
   contextLibraryScroll: HTMLElement;
+  contextAssistantPanel: HTMLElement;
+  contextAssistantScroll: HTMLElement;
   contextPublicationPanel: HTMLElement;
   contextPublicationBody: HTMLElement;
   contextPdfPanel: HTMLElement;
@@ -527,6 +531,7 @@ class WorkspaceApp {
     this.#elements.showContextSurface.addEventListener("click", () => this.#showWorkspaceSurface("context"));
     this.#bindPaneResizer();
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
+    this.#elements.contextAssistantTab.addEventListener("click", () => this.#activateContext(RESEARCH_ASSISTANT_KEY));
     this.#elements.contextTabList.addEventListener("keydown", (event) => this.#moveContextTabFocus(event));
     this.#elements.preview.addEventListener("click", (event) => this.#openPreviewCitation(event));
     this.#elements.openSourceCitation.addEventListener("click", () => this.#openCitationAtCaret());
@@ -2949,6 +2954,10 @@ class WorkspaceApp {
       this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.contextLibraryScroll.scrollTop);
       return;
     }
+    if (key === RESEARCH_ASSISTANT_KEY) {
+      this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.contextAssistantScroll.scrollTop);
+      return;
+    }
     const tab = this.#contextState.tabs.find((item) => item.key === key);
     if (!tab) return;
     const scrollTop =
@@ -3007,10 +3016,12 @@ class WorkspaceApp {
     this.#elements.contextPreviewTab.tabIndex = activeKey === RESEARCH_PREVIEW_KEY ? 0 : -1;
     this.#elements.contextLibraryTab.setAttribute("aria-selected", String(activeKey === RESEARCH_LIBRARY_KEY));
     this.#elements.contextLibraryTab.tabIndex = activeKey === RESEARCH_LIBRARY_KEY ? 0 : -1;
+    this.#elements.contextAssistantTab.setAttribute("aria-selected", String(activeKey === RESEARCH_ASSISTANT_KEY));
+    this.#elements.contextAssistantTab.tabIndex = activeKey === RESEARCH_ASSISTANT_KEY ? 0 : -1;
     this.#elements.contextResourceTabs.replaceChildren();
 
     for (const tab of this.#contextState.tabs) {
-      if (tab.kind === "preview" || tab.kind === "library") continue;
+      if (tab.kind === "preview" || tab.kind === "library" || tab.kind === "assistant") continue;
       this.#elements.contextResourceTabs.append(this.#renderContextResourceTab(tab));
     }
 
@@ -3018,6 +3029,7 @@ class WorkspaceApp {
     this.#restoreAuthoringPaneWidth();
     this.#elements.contextPreviewPanel.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.contextLibraryPanel.hidden = activeKey !== RESEARCH_LIBRARY_KEY;
+    this.#elements.contextAssistantPanel.hidden = activeKey !== RESEARCH_ASSISTANT_KEY;
     this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
     this.#elements.contextPdfPanel.hidden = activeTab?.kind !== "pdf";
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
@@ -3064,6 +3076,12 @@ class WorkspaceApp {
     if (activeKey === RESEARCH_LIBRARY_KEY) {
       const libraryTab = this.#contextState.tabs.find((tab) => tab.key === RESEARCH_LIBRARY_KEY);
       this.#elements.contextLibraryScroll.scrollTop = libraryTab?.scrollTop ?? 0;
+      return;
+    }
+
+    if (activeKey === RESEARCH_ASSISTANT_KEY) {
+      const assistantTab = this.#contextState.tabs.find((tab) => tab.key === RESEARCH_ASSISTANT_KEY);
+      this.#elements.contextAssistantScroll.scrollTop = assistantTab?.scrollTop ?? 0;
       return;
     }
 
@@ -3334,7 +3352,9 @@ class WorkspaceApp {
         ? "#context-preview-tab"
         : key === RESEARCH_LIBRARY_KEY
           ? "#context-library-tab"
-          : `#${CSS.escape(`context-tab-${key.replace(":", "-")}`)}`;
+          : key === RESEARCH_ASSISTANT_KEY
+            ? "#context-assistant-tab"
+            : `#${CSS.escape(`context-tab-${key.replace(":", "-")}`)}`;
     queueMicrotask(() => this.#elements.contextTabList.querySelector<HTMLButtonElement>(selector)?.focus());
   }
 
@@ -3353,7 +3373,8 @@ class WorkspaceApp {
 
   #activeResourceTab(): ResearchResourceTab | undefined {
     return this.#contextState.tabs.find(
-      (tab): tab is ResearchResourceTab => tab.kind !== "preview" && tab.kind !== "library" && tab.key === this.#contextState.activeKey,
+      (tab): tab is ResearchResourceTab =>
+        tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant" && tab.key === this.#contextState.activeKey,
     );
   }
 
@@ -3819,6 +3840,7 @@ class WorkspaceApp {
       const response = await fetch(`${apiBase}/candidates/${candidateId}/${action}`, { method: "POST" });
       await expectOk(response);
       await this.#resourceRefresh.request();
+      if (action === "reject") this.#contextState = activateResearchTab(this.#contextState, RESEARCH_ASSISTANT_KEY);
       this.#showToast(action === "apply" ? "Candidate applied to canonical Markdown." : "Candidate rejected; manuscript unchanged.");
     } catch (error) {
       failure = error instanceof Error ? error.message : "Candidate decision failed";
@@ -3828,6 +3850,7 @@ class WorkspaceApp {
       this.#candidateDecision = null;
       this.#renderResearchContext(false);
       this.#updateModelAvailability();
+      if (!failure && action === "reject") this.#focusContextTab(RESEARCH_ASSISTANT_KEY);
       const current = this.#snapshot?.candidates.find((candidate) => candidate.id === candidateId);
       if (failure && current?.status === "pending" && this.#activeResourceTab()?.id === candidateId) {
         this.#elements.contextCandidateStatus.textContent = `Could not ${action === "apply" ? "apply" : "reject"} revision: ${failure}`;
@@ -4211,6 +4234,7 @@ function collectElements(): Elements {
     contextTabList: requiredElement("context-tab-list", HTMLElement),
     contextPreviewTab: requiredElement("context-preview-tab", HTMLButtonElement),
     contextLibraryTab: requiredElement("context-library-tab", HTMLButtonElement),
+    contextAssistantTab: requiredElement("context-assistant-tab", HTMLButtonElement),
     contextResourceTabs: requiredElement("context-resource-tabs", HTMLElement),
     pinActiveContext: requiredElement("pin-active-context", HTMLButtonElement),
     closeActiveContext: requiredElement("close-active-context", HTMLButtonElement),
@@ -4220,6 +4244,8 @@ function collectElements(): Elements {
     previewScroll: requiredElement("preview-scroll", HTMLElement),
     contextLibraryPanel: requiredElement("context-library-panel", HTMLElement),
     contextLibraryScroll: requiredElement("context-library-scroll", HTMLElement),
+    contextAssistantPanel: requiredElement("context-assistant-panel", HTMLElement),
+    contextAssistantScroll: requiredElement("context-assistant-scroll", HTMLElement),
     contextPublicationPanel: requiredElement("context-publication-panel", HTMLElement),
     contextPublicationBody: requiredElement("context-publication-body", HTMLElement),
     contextPdfPanel: requiredElement("context-pdf-panel", HTMLElement),

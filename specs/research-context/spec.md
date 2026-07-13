@@ -10,10 +10,10 @@ side of the workspace is therefore a research-context surface, not a preview
 component with an unrelated PDF workflow elsewhere.
 
 The feature implements the interface boundary chosen in ADR-053 and extended by
-ADR-055, ADR-056, and ADR-071. It hosts semantic preview, the owner-private
-reference library, publication/PDF research resources, and grounded-revision
-review without changing their canonical data, selector, authorization, or
-rendering contracts.
+ADR-055, ADR-056, ADR-071, and ADR-073. It hosts semantic preview, the
+owner-private reference library, the selected-passage Writing assistant,
+publication/PDF research resources, and grounded-revision review without
+changing their canonical data, selector, authorization, or rendering contracts.
 
 ### Architecture
 
@@ -24,33 +24,39 @@ rendering contracts.
   default mode and presents bounded collapsible project collections rather
   than duplicating the permanent private Library destination.
 - The context tab model uses a discriminated target keyed by stable identity:
-  the singleton manuscript Preview, the singleton owner Library, a publication
-  UUID, a PDF UUID, or a model-candidate UUID. One target can have at most one
-  open tab.
-- Preview is the initial permanent tab and Library follows it as the second
-  permanent tab. Neither can be closed or replaced, and each retains its own
-  scroll position when another context becomes active.
+  the singleton manuscript Preview, singleton owner Library, singleton Writing
+  assistant, a publication UUID, a PDF UUID, or a model-candidate UUID. One
+  target can have at most one open tab.
+- Preview is the initial permanent tab, followed by Library and Writing
+  assistant. None can be closed or replaced, and each retains its own scroll
+  position when another context becomes active.
+- Writing assistant contains the selected-passage instruction, explicit model
+  connection settings, request status, and draft inventory. Activating its tab
+  never starts a model request; a generated candidate opens its resource-keyed
+  review tab without removing the assistant destination.
 - Publication and PDF tabs are closable. One unpinned resource tab serves as
   the replaceable follow-context slot; pinned tabs are not replaced by later
   navigation.
 - Candidate tabs follow the same close, pin, replace, dedupe, and local-scroll
   rules. Their review renders immutable original/replacement text and evidence
   snapshots, with navigation to current evidence resources when available.
+  Rejecting returns to Writing assistant for rapid redrafting; applying keeps
+  the accepted review visible.
 - Each PDF tab retains its page, within-page scroll, and focused annotation.
   Reopening or focusing an existing PDF target restores that local reading
   context rather than loading a duplicate tab.
 - The semantic preview and `PdfEvidenceViewer` remain independent views behind
   one context-pane controller. Switching tabs must not recreate a resource
   identity or mutate the manuscript, PDF, or annotation records.
-- Active target, tab order, open/closed state, pin state, Preview/Library
-  scroll, PDF page, PDF scroll, and focused annotation are local browser state.
+- Active target, tab order, open/closed state, pin state, permanent-tab scroll,
+  PDF page, PDF scroll, and focused annotation are local browser state.
   They must not be written to Yjs, the workspace snapshot, Durable Object
   SQLite, or collaboration control messages.
 - On desktop, a pointer- and keyboard-operable separator resizes Authoring and
   Context while preserving readable minimum widths. The local authoring width
-  is remembered per workspace and context kind. Preview and Library share one
-  stable proportion, while a wide PDF reading layout does not force that
-  proportion onto the permanent tabs.
+  is remembered per workspace and context kind. Preview, Library, and Writing
+  assistant share one stable proportion, while a wide PDF reading layout does
+  not force that proportion onto the permanent tabs.
 - A desktop view control switches among Split, Editor only, Context only, and
   PDF only. The choice is local per workspace, survives reload, never enters
   collaborative state, and triggers PDF rerendering after geometry changes.
@@ -105,11 +111,12 @@ rendering contracts.
 - Left/Right Arrow moves tab focus, Home/End reaches the first/last tab, Enter
   or Space activates a focused tab, and a close control is independently
   labelled. Closing the active resource selects the nearest remaining tab;
-  permanent Preview and Library tabs are never removed.
+  permanent Preview, Library, and Writing assistant tabs are never removed.
 - Opening an existing resource tab activates it without changing tab order or
   resetting its reading position.
 - Automatic navigation may replace only the unpinned follow-context resource
-  tab. It must never replace Preview, Library, or a pinned tab.
+  tab. It must never replace Preview, Library, Writing assistant, or a pinned
+  tab.
 - Selecting text in a visible PDF populates an annotation draft for that exact
   PDF and page and immediately paints its pending geometry over the page so
   the researcher does not lose visual context. Its PDF target is locked to the
@@ -155,6 +162,7 @@ rendering contracts.
   panes.
 - Do not remove or make the Preview tab closable.
 - Do not remove, duplicate, or make the Library tab closable.
+- Do not move, duplicate, or make the Writing assistant tab closable.
 - Do not identify open tabs by mutable citation key, title, or filename.
 - Do not persist ephemeral context navigation as collaborative workspace state.
 - Do not reload a PDF from page one merely because another tab was viewed.
@@ -175,8 +183,8 @@ rendering contracts.
 ### Definition of Done
 
 - [x] The right-hand preview becomes a tabbed context pane with a permanent
-      Preview tab, a permanent Library tab, and resource-keyed publication/PDF
-      tabs.
+      Preview tab, permanent Library tab, permanent Writing assistant tab, and
+      resource-keyed publication/PDF tabs.
 - [x] Library browsing and management remain beside authoring without a modal
       covering the workspace.
 - [x] Opening the same publication, PDF, or annotation twice focuses one
@@ -187,7 +195,7 @@ rendering contracts.
       modal covering either surface.
 - [x] Resource tabs can be pinned, closed, and navigated entirely by keyboard.
 - [x] Desktop users can resize Authoring and Context by pointer or keyboard,
-      reset the split, keep Preview and Library at one width, and retain a
+      reset the split, keep all permanent tabs at one width, and retain a
       separate PDF reading proportion.
 - [x] Citation and annotation navigation focus the appropriate publication,
       PDF evidence, or resolved manuscript passage.
@@ -209,13 +217,14 @@ rendering contracts.
 
 ### Regression Guardrails
 
-- Preview and Library must remain present, unique, and non-closable.
+- Preview, Library, and Writing assistant must remain present, unique, and
+  non-closable.
 - An open resource target must map to at most one tab by kind-qualified stable
   id.
 - Switching, closing, or pinning tabs must not send Yjs updates or resource
   mutation requests.
-- Following context must never replace Preview, Library, or a pinned resource
-  tab.
+- Following context must never replace Preview, Library, Writing assistant, or
+  a pinned resource tab.
 - Per-tab reading state must be scoped by resource identity and must not leak
   between PDFs.
 - Context tabs must be reconciled on workspace changes and must not retain a
@@ -296,8 +305,15 @@ rendering contracts.
 **Scenario: Permanent tabs preserve the split**
 
 - Given: the researcher has resized the Authoring and Context panes
-- When: they switch between Preview and Library
+- When: they switch among Preview, Library, and Writing assistant
 - Then: both panes retain the same widths across the tab switch
+
+**Scenario: Assistant drafts into review context**
+
+- Given: the researcher selected manuscript text and grounding evidence
+- When: they explicitly draft a revision from the Writing assistant tab
+- Then: one candidate review tab opens while Writing assistant remains present
+  and the manuscript remains unchanged until explicit application
 
 **Scenario: Unlinked PDF becomes reviewed working memory**
 

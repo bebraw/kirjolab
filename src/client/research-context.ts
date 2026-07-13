@@ -1,9 +1,14 @@
 export const RESEARCH_PREVIEW_KEY = "preview" as const;
 export const RESEARCH_LIBRARY_KEY = "library" as const;
+export const RESEARCH_ASSISTANT_KEY = "assistant" as const;
 
 export type ResearchResourceKind = "publication" | "pdf" | "candidate";
 export type ResearchResourceKey = `${ResearchResourceKind}:${string}`;
-export type ResearchContextKey = typeof RESEARCH_PREVIEW_KEY | typeof RESEARCH_LIBRARY_KEY | ResearchResourceKey;
+export type ResearchContextKey =
+  | typeof RESEARCH_PREVIEW_KEY
+  | typeof RESEARCH_LIBRARY_KEY
+  | typeof RESEARCH_ASSISTANT_KEY
+  | ResearchResourceKey;
 
 export interface ResearchResourceTarget {
   readonly kind: ResearchResourceKind;
@@ -19,6 +24,12 @@ export interface PreviewResearchTab {
 export interface LibraryResearchTab {
   readonly kind: "library";
   readonly key: typeof RESEARCH_LIBRARY_KEY;
+  readonly scrollTop: number;
+}
+
+export interface AssistantResearchTab {
+  readonly kind: "assistant";
+  readonly key: typeof RESEARCH_ASSISTANT_KEY;
   readonly scrollTop: number;
 }
 
@@ -44,11 +55,11 @@ export interface PdfResearchTab extends ResourceResearchTab {
 }
 
 export type ResearchResourceTab = PublicationResearchTab | PdfResearchTab | CandidateResearchTab;
-export type ResearchContextTab = PreviewResearchTab | LibraryResearchTab | ResearchResourceTab;
+export type ResearchContextTab = PreviewResearchTab | LibraryResearchTab | AssistantResearchTab | ResearchResourceTab;
 
 export interface ResearchContextState {
   readonly activeKey: ResearchContextKey;
-  /** Preview and Library are always first, followed by pinned tabs and at most one unpinned tab. */
+  /** Preview, Library, and Writing assistant are always first, followed by pinned tabs and at most one unpinned tab. */
   readonly tabs: readonly ResearchContextTab[];
 }
 
@@ -69,6 +80,7 @@ export function createResearchContext(): ResearchContextState {
     tabs: [
       { kind: "preview", key: RESEARCH_PREVIEW_KEY, scrollTop: 0 },
       { kind: "library", key: RESEARCH_LIBRARY_KEY, scrollTop: 0 },
+      { kind: "assistant", key: RESEARCH_ASSISTANT_KEY, scrollTop: 0 },
     ],
   };
 }
@@ -190,6 +202,6 @@ function isAuthorized(tab: ResearchContextTab, authorization: ResearchContextAut
   return tab.kind === "pdf" ? authorization.pdfIds.has(tab.id) : authorization.candidateIds.has(tab.id);
 }
 
-function isPermanentTab(tab: ResearchContextTab): tab is PreviewResearchTab | LibraryResearchTab {
-  return tab.kind === "preview" || tab.kind === "library";
+function isPermanentTab(tab: ResearchContextTab): tab is PreviewResearchTab | LibraryResearchTab | AssistantResearchTab {
+  return tab.kind === "preview" || tab.kind === "library" || tab.kind === "assistant";
 }

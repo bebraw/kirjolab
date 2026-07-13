@@ -24,11 +24,9 @@ mode for authenticated hosted collaboration.
   task surface.
 - **Primary surfaces:** The authoring editor remains visible beside a tabbed
   research-context pane on desktop. The pane permanently hosts manuscript
-  Preview and the owner-private Library, and can host publication, PDF, and
-  model-candidate resources without making local tab, pin, scroll, or
-  reading-position state collaborative.
-  The collapsed Writing assistant entry point remains inside the desktop
-  viewport instead of extending the primary workspace below the fold.
+  Preview, the owner-private Library, and Writing assistant, and can host
+  publication, PDF, and model-candidate resources without making local tab,
+  pin, scroll, or reading-position state collaborative.
   Layouts narrower than the split pane's declared minimum width switch between
   one Authoring or Context surface while preserving both states and without
   introducing horizontal page overflow.
@@ -282,14 +280,15 @@ mode for authenticated hosted collaboration.
 - [x] Yjs owns live editor text after synchronization while coalesced resource
       refreshes update only non-editor workspace state.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.
-- [x] A permanent Preview and resource-keyed publication, PDF, and candidate
-      tabs share one right research-context pane beside manuscript authoring.
+- [x] Permanent Preview, Library, and Writing assistant tabs plus resource-keyed
+      publication, PDF, and candidate tabs share one right research-context
+      pane beside manuscript authoring.
 - [x] Tab, pin, page, focus, and reading-position state remains local while
       narrow layouts switch explicitly between Authoring and Context.
 - [x] The split workspace activates only when all minimum-width tracks fit;
       compact desktop windows remain free of horizontal page overflow.
-- [x] The collapsed Writing assistant entry point remains visible within the
-      desktop viewport.
+- [x] Writing assistant remains a permanent, keyboard-accessible Context tab
+      instead of extending the workspace below the fold.
 - [x] Initial collaboration synchronization resolves the editor status from
       `Opening…` to `Saved` when no local update is pending.
 - [x] Persistent toolbars group infrequent project and file mutations without

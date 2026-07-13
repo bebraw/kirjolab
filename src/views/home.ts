@@ -176,6 +176,7 @@ export function renderHomePage(
           <div class="context-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
             <button class="context-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
             <button class="context-tab" id="context-library-tab" type="button" role="tab" aria-controls="context-library-panel" aria-selected="false" tabindex="-1">Library</button>
+            <button class="context-tab" id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1">Writing assistant</button>
             <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
           </div>
           <div class="context-tab-controls" aria-label="Active context actions">
@@ -259,6 +260,45 @@ export function renderHomePage(
               <div class="flex items-center justify-between gap-3"><p class="eyebrow">PDFs awaiting identification</p><span class="count-badge" id="unidentified-pdf-count">0</span></div>
               <div class="mt-3 grid gap-3" id="unidentified-pdf-list"><div class="empty-state">No unidentified PDFs.</div></div>
             </section>
+          </div>
+        </section>
+
+        <section class="context-panel context-assistant-panel" id="context-assistant-panel" role="tabpanel" aria-labelledby="context-assistant-tab" tabindex="0" hidden>
+          <div class="context-assistant-scroll p-5" id="context-assistant-scroll">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p class="eyebrow">Selected passage</p>
+                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Draft a reviewable revision</h2>
+              </div>
+              <p class="max-w-lg text-xs leading-5 text-app-text-soft">Uses only the selected passage and chosen evidence. Review the draft in Context before applying it.</p>
+            </div>
+            <div class="assistant-workflow">
+              <label class="field-label model-instruction-field" for="model-instruction">Revision instruction
+                <textarea class="field model-instruction" id="model-instruction" maxlength="4000" rows="2">Improve clarity while preserving the claim and citation syntax.</textarea>
+              </label>
+              <button class="button-primary model-generate-action justify-center" id="generate-candidate" type="button">Draft revision</button>
+            </div>
+            <details class="assistant-settings" id="assistant-model-settings">
+              <summary>Model connection</summary>
+              <div class="assistant-settings-grid">
+                <label class="field-label">Connection
+                  <select class="field" id="llm-connection">
+                    <option value="direct">Direct browser connection</option>
+                    <option value="companion">Local companion</option>
+                  </select>
+                </label>
+                <label class="field-label">Endpoint
+                  <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
+                </label>
+                <label class="field-label">Model
+                  <input class="field" id="llm-model" type="text" value="local-model">
+                </label>
+              </div>
+            </details>
+            <p class="mt-3 text-sm text-app-text-soft" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
+            <div class="mt-4" id="candidate-list">
+              <div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>
+            </div>
           </div>
         </section>
 
@@ -412,47 +452,6 @@ export function renderHomePage(
         </section>
       </section>
 
-      <details class="workbench assistant-drawer border-t border-app-line bg-app-canvas min-[72rem]:col-span-4" id="writing-assistant">
-        <summary><span>Writing assistant</span><span>Selected text only</span></summary>
-        <div class="mx-auto max-w-5xl px-4 py-5 lg:px-6">
-          <section>
-            <div class="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p class="eyebrow">Selected passage</p>
-                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Draft a reviewable revision</h2>
-              </div>
-              <p class="max-w-lg text-xs leading-5 text-app-text-soft">Uses only the selected passage and chosen evidence. Review the draft in Context before applying it.</p>
-            </div>
-            <div class="assistant-workflow">
-              <label class="field-label model-instruction-field" for="model-instruction">Revision instruction
-                <textarea class="field model-instruction" id="model-instruction" maxlength="4000" rows="2">Improve clarity while preserving the claim and citation syntax.</textarea>
-              </label>
-              <button class="button-primary model-generate-action justify-center" id="generate-candidate" type="button">Draft revision</button>
-            </div>
-            <details class="assistant-settings" id="assistant-model-settings">
-              <summary>Model connection</summary>
-              <div class="assistant-settings-grid">
-                <label class="field-label">Connection
-                  <select class="field" id="llm-connection">
-                    <option value="direct">Direct browser connection</option>
-                    <option value="companion">Local companion</option>
-                  </select>
-                </label>
-                <label class="field-label">Endpoint
-                  <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
-                </label>
-                <label class="field-label">Model
-                  <input class="field" id="llm-model" type="text" value="local-model">
-                </label>
-              </div>
-            </details>
-            <p class="mt-3 text-sm text-app-text-soft" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
-            <div class="mt-4" id="candidate-list">
-              <div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>
-            </div>
-          </section>
-        </div>
-      </details>
     </main>
 
     <dialog class="reference-library-dialog" id="export-dialog">

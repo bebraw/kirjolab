@@ -55,6 +55,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-preview-tab" type="button" role="tab"');
     expect(html).toContain('aria-controls="context-preview-panel" aria-selected="true"');
     expect(html).toContain('id="context-preview-panel" role="tabpanel"');
+    expect(html).toContain('id="context-assistant-tab" type="button" role="tab"');
+    expect(html).toContain('aria-controls="context-assistant-panel" aria-selected="false"');
+    expect(html).toContain('id="context-assistant-panel" role="tabpanel"');
     expect(html).toContain('id="context-publication-panel" role="tabpanel"');
     expect(html).toContain('id="context-pdf-panel" role="tabpanel"');
     expect(html).toContain('id="context-candidate-panel" role="tabpanel"');
@@ -63,7 +66,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="paper-text-layer"');
     expect(html).toContain('id="save-and-link-annotation"');
     expect(html).not.toContain('id="paper-dialog"');
-    expect(html).toContain('id="writing-assistant"');
+    expect(html).not.toContain('id="writing-assistant"');
     expect(html).toContain("Draft a reviewable revision");
     expect(html).toContain('src="/app.js"');
     expect(html).toContain('href="/styles.css"');
@@ -134,9 +137,9 @@ describe("renderHomePage", () => {
     const evidence = html.indexOf('id="context-candidate-evidence-heading"');
     const reject = html.indexOf('id="context-candidate-reject"');
     const apply = html.indexOf('id="context-candidate-apply"');
-    const workbench = html.indexOf('class="workbench');
+    const mainEnd = html.indexOf("</main>");
     expect(panel).toBeGreaterThan(html.indexOf('id="context-pdf-panel"'));
-    expect(panel).toBeLessThan(workbench);
+    expect(panel).toBeLessThan(mainEnd);
     expect(original).toBeLessThan(proposal);
     expect(proposal).toBeLessThan(evidence);
     expect(evidence).toBeLessThan(reject);

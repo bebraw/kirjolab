@@ -40,10 +40,10 @@ using explicit annotations or claims while preserving a human review boundary.
   `revise-selection-v1` operation shape. Apply and reject remain separate
   authorized candidate actions.
 - Review presents before, after, and navigable evidence together.
-- The operation UI is a collapsed Writing assistant drawer associated with the
-  authoring workflow. Passage selection, instruction, and evidence are primary;
-  endpoint and model connection fields remain available under secondary
-  settings instead of occupying a permanent empty workspace region.
+- The operation UI is the permanent Writing assistant Context tab associated
+  with the authoring workflow. Passage selection, instruction, and evidence are
+  primary; endpoint and model connection fields remain available under
+  secondary settings instead of occupying persistent chrome.
 - Each candidate can open one stable resource-keyed Context tab. Tab lifecycle
   and scroll remain local while the candidate and its provenance are shared
   authorized workspace state.

@@ -105,6 +105,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-070](./implemented/ADR-070-remove-the-readme-screenshot.md)                      | Implemented          | Prefer no README screenshot over a stale representation of the application.                                  |
 | [ADR-071](./implemented/ADR-071-host-reference-library-in-context.md)                 | Implemented          | Keep the private reference library in a permanent Context tab instead of a modal.                            |
 | [ADR-072](./implemented/ADR-072-report-local-ci-progress.md)                          | Implemented          | Format Agent CI events and heartbeat long-running local validation without changing workflow semantics.      |
+| [ADR-073](./implemented/ADR-073-host-writing-assistant-in-context.md)                 | Implemented          | Keep Writing assistant in a permanent Context tab instead of a full-width drawer.                            |
 
 ## Creating A New ADR
 

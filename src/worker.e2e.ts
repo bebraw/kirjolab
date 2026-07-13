@@ -74,8 +74,8 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Sources & evidence" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   await expect(page.locator("#save-status")).toHaveText("Saved");
-  const assistantSummary = page.locator("#writing-assistant > summary");
-  await expect(assistantSummary).toBeVisible();
+  const assistantTab = page.getByRole("tab", { name: "Writing assistant" });
+  await expect(assistantTab).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= document.documentElement.clientHeight)).toBe(true);
   const previewTab = page.getByRole("tab", { name: "Preview" });
   const libraryTab = page.getByRole("tab", { name: "Library" });
@@ -84,6 +84,10 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(libraryTab).toBeFocused();
   await libraryTab.press("Enter");
   await expect(page.locator("#context-library-panel")).toBeVisible();
+  await libraryTab.press("ArrowRight");
+  await expect(assistantTab).toBeFocused();
+  await assistantTab.press("Enter");
+  await expect(page.locator("#context-assistant-panel")).toBeVisible();
   await previewTab.click();
   await expect(page.locator("#open-source-citation")).toBeHidden();
   await expect(page.locator("#pin-active-context")).toBeHidden();
@@ -124,6 +128,12 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
     .locator("#workspace-surfaces")
     .evaluate((element) => element.style.getPropertyValue("--authoring-pane-width"));
   await libraryTab.click();
+  await expect
+    .poll(
+      async () => await page.locator("#workspace-surfaces").evaluate((element) => element.style.getPropertyValue("--authoring-pane-width")),
+    )
+    .toBe(resizedPaneWidth);
+  await assistantTab.click();
   await expect
     .poll(
       async () => await page.locator("#workspace-surfaces").evaluate((element) => element.style.getPropertyValue("--authoring-pane-width")),
@@ -1858,6 +1868,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(editor).toHaveValue(sourceBeforeDraft);
   await page.getByRole("button", { name: "Reject revision" }).dblclick();
   await expect(page.locator("#context-candidate-status")).toContainText("Rejected");
+  await expect(page.getByRole("tab", { name: "Writing assistant" })).toBeFocused();
   await expect(editor).toHaveValue(sourceBeforeDraft);
   expect(decisionRequests.filter((path) => path.endsWith("/reject"))).toHaveLength(1);
   await expect(page.getByRole("button", { name: "Draft revision" })).toBeEnabled();
@@ -2043,9 +2054,8 @@ async function openResearchCollection(page: Page, name: string): Promise<void> {
 }
 
 async function openWritingAssistant(page: Page, includeSettings = false): Promise<void> {
-  await page.locator("#writing-assistant").evaluate((element: HTMLDetailsElement) => {
-    element.open = true;
-  });
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await expect(page.locator("#context-assistant-panel")).toBeVisible();
   if (includeSettings) {
     await page.locator("#assistant-model-settings").evaluate((element: HTMLDetailsElement) => {
       element.open = true;

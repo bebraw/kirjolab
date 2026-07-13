@@ -519,6 +519,7 @@
 
   .context-preview-panel,
   .context-library-panel,
+  .context-assistant-panel,
   .context-publication-panel,
   .context-pdf-panel,
   .context-candidate-panel {
@@ -527,6 +528,7 @@
 
   .context-preview-panel:not([hidden]),
   .context-library-panel:not([hidden]),
+  .context-assistant-panel:not([hidden]),
   .context-publication-panel:not([hidden]),
   .context-pdf-panel:not([hidden]),
   .context-candidate-panel:not([hidden]) {
@@ -539,7 +541,8 @@
     overflow: auto;
   }
 
-  .context-library-scroll {
+  .context-library-scroll,
+  .context-assistant-scroll {
     min-height: 0;
     flex: 1;
     overflow: auto;
@@ -826,36 +829,6 @@
     margin-top: 0.5rem;
   }
 
-  .assistant-drawer > summary {
-    display: flex;
-    cursor: pointer;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.85rem 1.5rem;
-    color: var(--color-app-ink);
-    font-family: var(--font-sans);
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .assistant-drawer > summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .assistant-drawer > summary span:last-child {
-    color: var(--color-app-text-soft);
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-  }
-
-  .assistant-drawer[open] > summary {
-    border-bottom: 1px solid var(--color-app-line);
-  }
-
   .assistant-workflow {
     display: grid;
     gap: 0.75rem;
@@ -880,6 +853,15 @@
     display: grid;
     gap: 0.75rem;
     padding-top: 0.75rem;
+  }
+
+  .context-assistant-panel .assistant-workflow,
+  .context-assistant-panel .assistant-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .context-assistant-panel .model-generate-action {
+    grid-column: auto;
   }
 
   .model-instruction {
