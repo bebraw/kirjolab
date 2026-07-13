@@ -1,6 +1,6 @@
 # ADR-088: Project Structured Markdown for Publication Export
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-13
 

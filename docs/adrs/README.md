@@ -27,9 +27,7 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                                      | Status   | Summary                                                                                        |
-| ------------------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------------------------- |
-| [ADR-088](./accepted/ADR-088-project-structured-publication-markdown.md) | Accepted | Project bounded tables and footnotes once for deterministic LaTeX and PDF publication exports. |
+None.
 
 ## Implemented ADRs
 
@@ -122,6 +120,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-085](./implemented/ADR-085-unify-reviewed-metadata-refinement.md)                | Implemented          | Unify local PDF hints, bounded provider matching, and selective acceptance in one refinement flow.           |
 | [ADR-086](./implemented/ADR-086-coordinate-batch-pdf-intake-in-browser.md)            | Implemented          | Coordinate bounded sequential PDF intake and retry state in the browser.                                     |
 | [ADR-087](./implemented/ADR-087-reconcile-exact-pdf-duplicates.md)                    | Implemented          | Resolve exact owner-library PDF repeats to their canonical source and remove redundant stored bytes.         |
+| [ADR-088](./implemented/ADR-088-project-structured-publication-markdown.md)           | Implemented          | Project bounded tables and footnotes once for deterministic LaTeX and PDF publication exports.               |
 
 ## Creating A New ADR
 
