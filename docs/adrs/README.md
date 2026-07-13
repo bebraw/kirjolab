@@ -118,6 +118,8 @@ None.
 | [ADR-083](./implemented/ADR-083-finalize-provisional-reference-keys.md)               | Implemented          | Improve private PDF keys until their first project link permanently finalizes them.                          |
 | [ADR-084](./implemented/ADR-084-separate-source-capture-from-refinement.md)           | Implemented          | Keep initial PDF and website collection separate from later metadata refinement.                             |
 | [ADR-085](./implemented/ADR-085-unify-reviewed-metadata-refinement.md)                | Implemented          | Unify local PDF hints, bounded provider matching, and selective acceptance in one refinement flow.           |
+| [ADR-086](./implemented/ADR-086-coordinate-batch-pdf-intake-in-browser.md)            | Implemented          | Coordinate bounded sequential PDF intake and retry state in the browser.                                     |
+| [ADR-087](./accepted/ADR-087-reconcile-exact-pdf-duplicates.md)                       | Accepted             | Resolve exact owner-library PDF repeats to their canonical source and remove redundant stored bytes.         |
 
 ## Creating A New ADR
 
