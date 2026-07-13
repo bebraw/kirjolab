@@ -10,6 +10,7 @@ import {
 } from "../domain/citation-assertions";
 import {
   likelyReferenceIdentity,
+  memorableReferenceKey,
   missingRequiredBibliographicFields,
   referenceFromBibTeX,
   type BibliographicRecord,
@@ -29,6 +30,7 @@ import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 
 interface ReferenceRow extends Record<string, SqlStorageValue> {
   id: string;
+  reference_key: string | null;
   identity_key: string;
   entry_type: string;
   title: string;
@@ -181,6 +183,11 @@ export interface WebCaptureItem {
   readonly source: WebSource;
   readonly snapshot: WebSnapshot;
   readonly created: boolean;
+}
+
+export interface PdfDraftItem {
+  readonly reference: BibliographicRecord;
+  readonly artifact: LibraryPdfArtifact;
 }
 
 const migrations = [
@@ -385,6 +392,18 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 6,
+    name: "add-immutable-reference-keys",
+    apply(sql): undefined {
+      sql.exec(`
+        ALTER TABLE library_references ADD COLUMN reference_key TEXT;
+        CREATE UNIQUE INDEX references_reference_key ON library_references(reference_key COLLATE NOCASE)
+          WHERE reference_key IS NOT NULL;
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -393,6 +412,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     ctx.blockConcurrencyWhile(async () => {
       this.ctx.storage.sql.exec("PRAGMA foreign_keys = ON");
       runSQLiteMigrations(this.ctx.storage, migrations);
+      this.#backfillReferenceKeys();
     });
   }
 
@@ -455,12 +475,18 @@ export class ReferenceLibrary extends DurableObject<Env> {
           .exec<ReferenceRow>("SELECT * FROM library_references WHERE identity_key = ?", identityKey)
           .toArray()[0];
         if (existing) {
-          const updated = { ...candidate, id: existing.id, createdAt: existing.created_at };
+          const updated = {
+            ...candidate,
+            id: existing.id,
+            referenceKey: existing.reference_key ?? this.#allocateReferenceKey(candidate),
+            createdAt: existing.created_at,
+          };
           this.#writeReference(updated, identityKey, false);
           return { reference: updated, suggestedAlias: entry.citationKey, created: false };
         }
-        this.#writeReference(candidate, identityKey, true);
-        return { reference: candidate, suggestedAlias: entry.citationKey, created: true };
+        const created = { ...candidate, referenceKey: this.#allocateReferenceKey(candidate) };
+        this.#writeReference(created, identityKey, true);
+        return { reference: created, suggestedAlias: entry.citationKey, created: true };
       }),
     );
   }
@@ -558,6 +584,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const provenance: MetadataFieldProvenance = { method: "web", capturedAt: now, actor: registration.actor };
     const reference: BibliographicRecord = {
       id: referenceId,
+      referenceKey: existingReference?.referenceKey ?? "",
       type: "misc",
       title: snapshot.title || existingReference?.title || registration.canonicalUrl,
       authors: snapshot.authors.length > 0 ? [...snapshot.authors] : (existingReference?.authors ?? []),
@@ -580,6 +607,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       createdAt: existingReference?.createdAt ?? now,
       updatedAt: now,
     };
+    const keyedReference = reference.referenceKey ? reference : { ...reference, referenceKey: this.#allocateReferenceKey(reference) };
     const source: WebSource = {
       referenceId,
       canonicalUrl: registration.canonicalUrl,
@@ -587,7 +615,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       updatedAt: now,
     };
     this.ctx.storage.transactionSync(() => {
-      this.#writeReference(reference, `web:${registration.canonicalUrl}`, !existingSource);
+      this.#writeReference(keyedReference, `web:${registration.canonicalUrl}`, !existingSource);
       this.ctx.storage.sql.exec(
         `INSERT INTO web_sources (reference_id, canonical_url, created_at, updated_at) VALUES (?, ?, ?, ?)
          ON CONFLICT(reference_id) DO UPDATE SET canonical_url = excluded.canonical_url, updated_at = excluded.updated_at`,
@@ -625,7 +653,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
         snapshot.lastModified,
       );
     });
-    return { reference, source, snapshot, created: !existingSource };
+    return { reference: keyedReference, source, snapshot, created: !existingSource };
   }
 
   getWebSnapshot(snapshotId: string): WebSnapshot {
@@ -663,6 +691,53 @@ export class ReferenceLibrary extends DurableObject<Env> {
       artifact.createdAt,
     );
     return artifact;
+  }
+
+  createPdfDraft(artifact: LibraryPdfArtifact, actor: string): PdfDraftItem {
+    if (artifact.referenceId !== null) throw new Error("A new PDF draft must not already identify a reference");
+    const now = artifact.createdAt;
+    const titleProvenance: MetadataFieldProvenance = { method: "filename", capturedAt: now, actor };
+    const typeProvenance: MetadataFieldProvenance = { method: "migration", capturedAt: now, actor };
+    const title =
+      artifact.name
+        .replace(/\.pdf$/iu, "")
+        .replaceAll(/[_-]+/gu, " ")
+        .trim() || "Untitled PDF";
+    const draft: BibliographicRecord = {
+      id: crypto.randomUUID(),
+      referenceKey: "",
+      type: "misc",
+      title,
+      authors: [],
+      year: "",
+      venue: "",
+      doi: "",
+      url: "",
+      abstract: "",
+      provenance: { type: typeProvenance, title: titleProvenance },
+      archivedAt: null,
+      deletedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const reference = { ...draft, referenceKey: this.#allocateReferenceKey(draft) };
+    const identified = { ...artifact, referenceId: reference.id };
+    this.ctx.storage.transactionSync(() => {
+      this.#writeReference(reference, `pdf:${artifact.fingerprint}`, true);
+      this.ctx.storage.sql.exec(
+        `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, fingerprint, rights, created_at)
+         VALUES (?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?)`,
+        identified.id,
+        identified.referenceId,
+        identified.name,
+        identified.size,
+        identified.objectKey,
+        identified.fingerprint,
+        identified.rights,
+        identified.createdAt,
+      );
+    });
+    return { reference, artifact: identified };
   }
 
   identifyPdf(artifactId: string, referenceId: string): LibraryPdfArtifact {
@@ -986,6 +1061,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
   #writeReference(reference: BibliographicRecord, identityKey: string, insert: boolean): void {
     const values = [
       reference.id,
+      reference.referenceKey,
       identityKey,
       reference.type,
       reference.title,
@@ -1002,16 +1078,17 @@ export class ReferenceLibrary extends DurableObject<Env> {
     if (insert) {
       this.ctx.storage.sql.exec(
         `INSERT INTO library_references
-         (id, identity_key, entry_type, title, authors_json, publication_year, venue, doi, url, abstract,
+         (id, reference_key, identity_key, entry_type, title, authors_json, publication_year, venue, doi, url, abstract,
           provenance_json, archived_at, deleted_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
         ...values,
       );
       return;
     }
     this.ctx.storage.sql.exec(
-      `UPDATE library_references SET identity_key = ?, entry_type = ?, title = ?, authors_json = ?, publication_year = ?, venue = ?,
+      `UPDATE library_references SET reference_key = ?, identity_key = ?, entry_type = ?, title = ?, authors_json = ?, publication_year = ?, venue = ?,
        doi = ?, url = ?, abstract = ?, provenance_json = ?, archived_at = NULL, deleted_at = NULL, updated_at = ? WHERE id = ?`,
+      reference.referenceKey,
       identityKey,
       reference.type,
       reference.title,
@@ -1031,6 +1108,39 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const row = this.ctx.storage.sql.exec<ReferenceRow>("SELECT * FROM library_references WHERE id = ?", referenceId).toArray()[0];
     if (!row || (!includeDeleted && row.deleted_at !== null)) throw new Error("Reference not found");
     return referenceFromRow(row);
+  }
+
+  #allocateReferenceKey(reference: Pick<BibliographicRecord, "id" | "title" | "authors" | "year">): string {
+    const available = (candidate: string): boolean =>
+      !this.ctx.storage.sql
+        .exec<{
+          id: string;
+        }>("SELECT id FROM library_references WHERE reference_key = ? COLLATE NOCASE AND id <> ? LIMIT 1", candidate, reference.id)
+        .toArray()[0];
+    const base = memorableReferenceKey(reference);
+    if (available(base)) return base;
+    const topical = memorableReferenceKey(reference, true);
+    if (available(topical)) return topical;
+    for (let index = 2; index <= 9_999; index += 1) {
+      const suffix = String(index);
+      const candidate = `${topical.slice(0, 80 - suffix.length)}${suffix}`;
+      if (available(candidate)) return candidate;
+    }
+    throw new Error("Unable to allocate a unique reference key");
+  }
+
+  #backfillReferenceKeys(): void {
+    const rows = this.ctx.storage.sql
+      .exec<ReferenceRow>("SELECT * FROM library_references WHERE reference_key IS NULL ORDER BY created_at, id")
+      .toArray();
+    for (const row of rows) {
+      const reference = referenceFromRow(row);
+      this.ctx.storage.sql.exec(
+        "UPDATE library_references SET reference_key = ? WHERE id = ?",
+        this.#allocateReferenceKey(reference),
+        row.id,
+      );
+    }
   }
 
   #artifact(artifactId: string): LibraryPdfArtifact {
@@ -1112,6 +1222,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
 function referenceFromRow(row: ReferenceRow): BibliographicRecord {
   return {
     id: row.id,
+    referenceKey: row.reference_key ?? "",
     type: row.entry_type,
     title: row.title,
     authors: parseStringArray(row.authors_json),
@@ -1344,6 +1455,7 @@ function parseProvenance(value: string): BibliographicRecord["provenance"] {
         "actor" in item &&
         (item.method === "bibtex" ||
           item.method === "crossref" ||
+          item.method === "filename" ||
           item.method === "manual" ||
           item.method === "web" ||
           item.method === "migration") &&

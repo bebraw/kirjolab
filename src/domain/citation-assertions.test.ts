@@ -193,6 +193,7 @@ describe("citation assertions", () => {
 function reference(id: string, title: string): BibliographicRecord {
   return {
     id,
+    referenceKey: id,
     type: "article",
     title,
     authors: [`Author ${id}`],

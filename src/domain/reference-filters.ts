@@ -20,7 +20,15 @@ export function filterReferenceLibrary(
   const reading = new Map(library.reading.map((state) => [state.referenceId, state]));
   const results = library.references.filter((reference) => {
     const state = reading.get(reference.id);
-    const searchable = [reference.title, reference.authors.join(" "), reference.year, reference.venue, reference.doi, reference.url]
+    const searchable = [
+      reference.referenceKey,
+      reference.title,
+      reference.authors.join(" "),
+      reference.year,
+      reference.venue,
+      reference.doi,
+      reference.url,
+    ]
       .join(" ")
       .toLocaleLowerCase();
     const organizedBy = [...(library.tags[reference.id] ?? []), ...(library.collections[reference.id] ?? [])].map((value) =>

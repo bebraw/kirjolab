@@ -1,7 +1,7 @@
 import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "./bibliography";
 
 export type ReferenceMetadataField = "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract";
-export type MetadataProvenanceMethod = "bibtex" | "crossref" | "manual" | "web" | "migration";
+export type MetadataProvenanceMethod = "bibtex" | "crossref" | "filename" | "manual" | "web" | "migration";
 
 export interface MetadataFieldProvenance {
   readonly method: MetadataProvenanceMethod;
@@ -11,6 +11,7 @@ export interface MetadataFieldProvenance {
 
 export interface BibliographicRecord {
   readonly id: string;
+  readonly referenceKey: string;
   readonly type: string;
   readonly title: string;
   readonly authors: readonly string[];
@@ -366,6 +367,7 @@ export function referenceFromBibTeX(
   );
   return {
     id,
+    referenceKey: memorableReferenceKey(projected),
     ...projected,
     doi: normalizeDoi(projected.doi),
     provenance: fields,
@@ -374,6 +376,19 @@ export function referenceFromBibTeX(
     createdAt,
     updatedAt: createdAt,
   };
+}
+
+export function memorableReferenceKey(record: Pick<BibliographicRecord, "title" | "authors" | "year">, includeTopic = false): string {
+  const author = record.authors[0]?.trim() ?? "";
+  const surname = author.includes(",") ? (author.split(",", 1)[0] ?? "") : (author.split(/\s+/u).at(-1) ?? "");
+  const family = referenceKeyPart(surname) || "source";
+  const year = /(?:^|\D)(\d{4})(?:\D|$)/u.exec(record.year)?.[1] ?? "undated";
+  const topic = record.title
+    .split(/[^\p{L}\p{N}]+/gu)
+    .map(referenceKeyPart)
+    .find((part) => part.length >= 3 && part !== family && !referenceKeyStopWords.has(part));
+  const needsTopic = includeTopic || family === "source" || year === "undated";
+  return `${family}${year}${needsTopic ? (topic ?? "work") : ""}`.slice(0, 80);
 }
 
 export function likelyReferenceIdentity(record: Pick<BibliographicRecord, "title" | "authors" | "year" | "doi">): string {
@@ -454,10 +469,22 @@ function isWebSnapshot(value: unknown): value is WebSnapshot {
   );
 }
 
+const referenceKeyStopWords = new Set(["a", "an", "and", "for", "from", "in", "of", "on", "the", "to", "with"]);
+
+function referenceKeyPart(value: string): string {
+  return value
+    .normalize("NFKD")
+    .toLocaleLowerCase()
+    .replaceAll(/\p{Mark}/gu, "")
+    .replaceAll(/[^\p{L}\p{N}]/gu, "");
+}
+
 function isBibliographicRecord(value: unknown): value is BibliographicRecord {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
+    typeof value.referenceKey === "string" &&
+    value.referenceKey.length > 0 &&
     typeof value.type === "string" &&
     typeof value.title === "string" &&
     Array.isArray(value.authors) &&

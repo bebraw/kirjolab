@@ -20,7 +20,7 @@ import {
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
-import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
+import type { PdfDraftItem, ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
 import { fetchCrossrefReferences } from "../integrations/crossref";
 import type { AuthIdentity } from "../security/auth";
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from "fflate";
@@ -44,6 +44,7 @@ interface ReferenceLibraryApi {
   getSnapshot(includeArchived?: boolean): Promise<ReferenceLibrarySnapshot>;
   importBibTeX(source: string, actor: string): Promise<ReferenceImportItem[]>;
   registerPdf(artifact: LibraryPdfArtifact): Promise<LibraryPdfArtifact>;
+  createPdfDraft(artifact: LibraryPdfArtifact, actor: string): Promise<PdfDraftItem>;
   identifyPdf(artifactId: string, referenceId: string): Promise<LibraryPdfArtifact>;
   setArtifactRights(artifactId: string, rights: LibraryPdfArtifact["rights"]): Promise<LibraryPdfArtifact>;
   archiveReference(referenceId: string, archived: boolean): Promise<BibliographicRecord>;
@@ -167,7 +168,8 @@ export async function handleReferenceLibraryApi(
       if (representation !== "raw" && representation !== "readable") return jsonError("Invalid web snapshot representation", 400);
       return await downloadWebSnapshot(snapshot, representation, env);
     }
-    if (suffix === "/pdfs" && request.method === "POST") return await uploadLibraryPdf(request, identity.ownerKey, env, library);
+    if (suffix === "/pdfs" && request.method === "POST")
+      return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
     const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})(?:\/(identify|rights))?$/iu.exec(suffix);
     if (pdfMatch?.[1] && request.method === "GET" && !pdfMatch[2]) {
       return await downloadLibraryPdf(pdfMatch[1], env, library);
@@ -600,6 +602,7 @@ async function downloadWebSnapshot(
 async function uploadLibraryPdf(
   request: Request,
   ownerKey: string,
+  actor: string,
   env: ReferenceLibraryApiEnv,
   library: ReferenceLibraryApi,
 ): Promise<Response> {
@@ -626,12 +629,12 @@ async function uploadLibraryPdf(
     createdAt: new Date().toISOString(),
   };
   try {
-    await library.registerPdf(artifact);
+    const draft = await library.createPdfDraft(artifact, actor);
+    return Response.json(draft, { status: 201, ...noStore() });
   } catch (error) {
     await env.PAPERS.delete(objectKey);
     throw error;
   }
-  return Response.json(artifact, { status: 201, ...noStore() });
 }
 
 async function downloadLibraryPdf(artifactId: string, env: ReferenceLibraryApiEnv, library: ReferenceLibraryApi): Promise<Response> {

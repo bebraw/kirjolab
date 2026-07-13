@@ -1467,6 +1467,7 @@ class WorkspaceApp {
 
     const unidentified = library.artifacts.filter((artifact) => artifact.referenceId === null);
     this.#elements.unidentifiedPdfCount.textContent = String(unidentified.length);
+    this.#elements.unidentifiedPdfList.closest("section")?.classList.toggle("hidden", unidentified.length === 0);
     this.#elements.unidentifiedPdfList.replaceChildren();
     if (unidentified.length === 0) this.#elements.unidentifiedPdfList.append(emptyState("No unidentified PDFs."));
     for (const artifact of unidentified) this.#elements.unidentifiedPdfList.append(this.#unidentifiedPdfCard(artifact, library.references));
@@ -1717,7 +1718,7 @@ class WorkspaceApp {
     const card = document.createElement("article");
     card.className = "resource-card";
     const privacy = reference.archivedAt ? "Private · archived" : "Private library";
-    card.append(resourceLabel(`${privacy} · ${reference.type}`), resourceTitle(reference.title));
+    card.append(resourceLabel(`${reference.referenceKey} · ${privacy} · ${reference.type}`), resourceTitle(reference.title));
     const details = document.createElement("p");
     details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
     details.textContent = [reference.authors.join("; "), reference.year, reference.venue].filter(Boolean).join(" · ");
@@ -1726,7 +1727,7 @@ class WorkspaceApp {
     metadataEditor.className = "mt-3 border-t border-app-line pt-3";
     const metadataSummary = document.createElement("summary");
     metadataSummary.className = "button-secondary w-fit cursor-pointer";
-    metadataSummary.textContent = "Edit details";
+    metadataSummary.textContent = "Metadata and research";
     metadataEditor.append(metadataSummary);
     const metadataFields = new Map<string, HTMLInputElement | HTMLTextAreaElement>();
     for (const [name, value] of [
@@ -1755,22 +1756,19 @@ class WorkspaceApp {
       abstract,
       actionButton("Save details", "button-primary mt-2", () => void this.#saveReferenceMetadata(reference.id, metadataFields)),
     );
-    card.append(metadataEditor);
     const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
     const projectRow = document.createElement("div");
-    projectRow.className = "mt-3 flex items-center gap-2";
-    const alias = document.createElement("input");
-    alias.className = "field min-w-0";
-    alias.value = linked?.citationAlias ?? suggestedReferenceAlias(reference);
-    alias.setAttribute("aria-label", `Project citation alias for ${reference.title}`);
-    const projectAction = actionButton(
-      linked ? "Rename alias" : "Add to project",
-      linked ? "button-secondary" : "button-primary",
-      () => void (linked ? this.#renameProjectReference(reference.id, alias.value) : this.#linkLibraryReference(reference.id, alias.value)),
-    );
-    projectRow.append(alias, projectAction);
+    projectRow.className = "mt-3 flex flex-wrap items-center gap-2";
+    const citation = document.createElement("code");
+    citation.className = "min-w-0 flex-1 truncate text-xs";
+    citation.textContent = `:cite[${linked?.citationAlias ?? reference.referenceKey}]`;
+    projectRow.append(citation);
     if (linked) {
       projectRow.append(actionButton("Remove", "button-secondary", () => void this.#unlinkProjectReference(reference.id)));
+    } else {
+      projectRow.append(
+        actionButton("Add to project", "button-primary", () => void this.#linkLibraryReference(reference.id, reference.referenceKey)),
+      );
     }
     card.append(projectRow);
 
@@ -1779,12 +1777,12 @@ class WorkspaceApp {
     tags.value = (this.#librarySnapshot?.tags[reference.id] ?? []).join(", ");
     tags.placeholder = "Private tags, comma separated";
     tags.setAttribute("aria-label", `Private tags for ${reference.title}`);
-    card.append(tags);
+    metadataEditor.append(tags);
     const collections = document.createElement("input");
     collections.className = "field mt-2";
     collections.value = (this.#librarySnapshot?.collections[reference.id] ?? []).join(", ");
     collections.placeholder = "Collections, comma separated";
-    card.append(collections);
+    metadataEditor.append(collections);
     const privateActions = document.createElement("div");
     privateActions.className = "mt-2 flex flex-wrap gap-2";
     privateActions.append(
@@ -1796,7 +1794,7 @@ class WorkspaceApp {
         () => void this.#setReferenceArchived(reference.id, reference.archivedAt === null),
       ),
     );
-    card.append(privateActions);
+    metadataEditor.append(privateActions);
     const reading = this.#librarySnapshot?.reading.find((item) => item.referenceId === reference.id);
     const readingStatus = document.createElement("select");
     readingStatus.className = "field mt-3";
@@ -1811,7 +1809,7 @@ class WorkspaceApp {
     rating.append(new Option("No rating", ""));
     for (let value = 1; value <= 5; value += 1) rating.append(new Option(`${value} star${value === 1 ? "" : "s"}`, String(value)));
     rating.value = reading?.rating === null || reading?.rating === undefined ? "" : String(reading.rating);
-    card.append(
+    metadataEditor.append(
       readingStatus,
       priority,
       rating,
@@ -1831,7 +1829,7 @@ class WorkspaceApp {
       "button-secondary mt-2",
       () => void this.#createReferenceNote(reference.id, noteInput.value),
     );
-    card.append(noteInput, addNote);
+    metadataEditor.append(noteInput, addNote);
 
     const resources = document.createElement("div");
     resources.className = "mt-3 space-y-2 border-t border-app-line pt-3";
@@ -1872,7 +1870,7 @@ class WorkspaceApp {
         "button-secondary mt-3",
         () => void this.#recaptureWebSource(reference, webSource.canonicalUrl),
       );
-      card.append(recapture);
+      metadataEditor.append(recapture);
       for (const [index, snapshot] of webSnapshots.entries()) {
         const status = snapshot.complete ? "complete" : "incomplete";
         const row = this.#privateResearchRow(
@@ -1910,7 +1908,8 @@ class WorkspaceApp {
         resources.append(row);
       }
     }
-    if (notes.length + artifacts.length + highlights.length + webSnapshots.length > 0) card.append(resources);
+    if (notes.length + artifacts.length + highlights.length + webSnapshots.length > 0) metadataEditor.append(resources);
+    card.append(metadataEditor);
     return card;
   }
 
@@ -2012,7 +2011,7 @@ class WorkspaceApp {
     await expectOk(response);
     this.#elements.libraryPdfUpload.value = "";
     await this.#refreshReferenceLibrary();
-    this.#showToast("PDF saved privately. Identify its source before using it as a library item.");
+    this.#showToast("PDF added with a stable reference ID. Add metadata when ready.");
   }
 
   async #captureWebSource(event: SubmitEvent): Promise<void> {
@@ -2100,13 +2099,6 @@ class WorkspaceApp {
     await this.#acceptWorkspaceMutation(response);
     this.#renderReferenceLibrary();
     this.#showToast(`Added :cite[${citationAlias.trim()}] to this project's reference set.`);
-  }
-
-  async #renameProjectReference(referenceId: string, citationAlias: string): Promise<void> {
-    const response = await jsonFetch(`${apiBase}/references/${encodeURIComponent(referenceId)}`, { citationAlias }, "PATCH");
-    await this.#acceptWorkspaceMutation(response);
-    this.#renderReferenceLibrary();
-    this.#showToast("Citation alias renamed across project files.");
   }
 
   async #unlinkProjectReference(referenceId: string): Promise<void> {
@@ -4523,12 +4515,6 @@ async function jsonFetch(url: string, body: object, method = "POST"): Promise<Re
 
 function sourceSpanAt(sourceMap: readonly CompositionSourceSpan[], offset: number): CompositionSourceSpan | undefined {
   return sourceMap.find((span) => offset >= span.outputStart && offset < span.outputEnd);
-}
-
-function suggestedReferenceAlias(reference: BibliographicRecord): string {
-  const family = reference.authors[0]?.split(",", 1)[0]?.replaceAll(/[^\p{L}\p{N}]/gu, "") || "source";
-  const year = reference.year.replaceAll(/[^0-9a-z]/giu, "");
-  return `${family.toLocaleLowerCase()}${year}`.slice(0, 80) || "source";
 }
 
 async function expectOk(response: Response): Promise<void> {

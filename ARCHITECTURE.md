@@ -57,9 +57,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Coordinate each personal reference library through a separate SQLite-backed
   Durable Object keyed by verified owner identity. Stable source identity must
   not depend on a DOI, title, filename, or project citation alias.
+- Give each stable UUID-backed source a separate unique, immutable,
+  author-facing reference key. Derive the key once from available author,
+  year, and title metadata; never change it during later enrichment.
 - Keep bibliographic provenance per field. Import and metadata services may
   suggest and deduplicate records, but source-type requirements must remain
   explicit and missing values must never be fabricated.
+- Create a provisional `misc` library record when a PDF is uploaded, deriving
+  only its title from the filename and attaching the private artifact in the
+  same library transaction. Let researchers enrich metadata later.
 - Keep library PDFs, web captures, notes, highlights, tags, and reading state
   owner-private by default. A project citation receives only its local alias
   and bibliographic snapshot; sharing any additional resource must be a

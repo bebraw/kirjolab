@@ -28,6 +28,8 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       "owner@example.test",
     );
     expect(second[0]?.reference.id).toBe(first[0]?.reference.id);
+    expect(first[0]?.reference.referenceKey).toBe("doe2026");
+    expect(second[0]?.reference.referenceKey).toBe("doe2026");
     expect(second[0]?.created).toBe(false);
     expect(second[0]?.suggestedAlias).toBe("localAlias");
     expect(second[0]?.reference.provenance.title).toMatchObject({ method: "bibtex", actor: "owner@example.test" });
@@ -55,7 +57,11 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       },
       "owner@example.test",
     );
-    expect(edited).toMatchObject({ title: "Manually corrected title", provenance: { title: { method: "manual" } } });
+    expect(edited).toMatchObject({
+      referenceKey: "doe2026",
+      title: "Manually corrected title",
+      provenance: { title: { method: "manual" } },
+    });
     expect((await library.getSnapshot()).collections[referenceId]).toEqual(["Dissertation"]);
     expect((await library.archiveReference(referenceId, true)).archivedAt).not.toBeNull();
     expect((await library.getSnapshot()).references).toEqual([]);
@@ -95,6 +101,54 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(await library.shareResearch("project-a", complete!.reference.id, "artifact", artifact.id)).toMatchObject({
       content: { kind: "artifact", objectKey: artifact.objectKey },
     });
+  });
+
+  it("creates PDF drafts immediately with immutable unique reference keys", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`pdf-drafts-${crypto.randomUUID()}`);
+    const artifact = (id: string): LibraryPdfArtifact => ({
+      id,
+      referenceId: null,
+      name: "climate_adaptation.pdf",
+      contentType: "application/pdf",
+      size: 100,
+      objectKey: `libraries/owner/${id}.pdf`,
+      fingerprint: `etag:${id}`,
+      rights: "private",
+      createdAt: "2026-07-13T10:00:00.000Z",
+    });
+    const first = await library.createPdfDraft(artifact(crypto.randomUUID()), "owner@example.test");
+    const second = await library.createPdfDraft(artifact(crypto.randomUUID()), "owner@example.test");
+    expect(first).toMatchObject({
+      reference: {
+        referenceKey: "sourceundatedclimate",
+        title: "climate adaptation",
+        provenance: { title: { method: "filename" }, type: { method: "migration" } },
+      },
+      artifact: { referenceId: first.reference.id },
+    });
+    expect(second.reference.referenceKey).toBe("sourceundatedclimate2");
+    const edited = await library.updateReferenceMetadata(
+      first.reference.id,
+      {
+        type: "article",
+        title: "Climate adaptation",
+        authors: ["Smith, Jane"],
+        year: "2024",
+        venue: "Research Journal",
+        doi: "",
+        url: "",
+        abstract: "",
+      },
+      "owner@example.test",
+    );
+    expect(edited.referenceKey).toBe("sourceundatedclimate");
+
+    const longName = `${"x".repeat(100)}.pdf`;
+    const longArtifact = (id: string): LibraryPdfArtifact => ({ ...artifact(id), name: longName });
+    const longFirst = await library.createPdfDraft(longArtifact(crypto.randomUUID()), "owner@example.test");
+    const longSecond = await library.createPdfDraft(longArtifact(crypto.randomUUID()), "owner@example.test");
+    expect(longFirst.reference.referenceKey).toHaveLength(80);
+    expect(longSecond.reference.referenceKey).toBe(`${longFirst.reference.referenceKey.slice(0, 79)}2`);
   });
 
   it("distinguishes project unlink dependencies, archive, and confirmed permanent deletion", async () => {

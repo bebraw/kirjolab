@@ -5,6 +5,7 @@ import {
   extractWebDocument,
   isReferenceLibrarySnapshot,
   likelyReferenceIdentity,
+  memorableReferenceKey,
   missingRequiredBibliographicFields,
   normalizeWebSourceUrl,
   referenceFromBibTeX,
@@ -36,6 +37,25 @@ const capturedWebSnapshot = {
 } as const;
 
 describe("shared reference library", () => {
+  it("derives memorable reference keys from available metadata", () => {
+    expect(memorableReferenceKey({ title: "Climate adaptation pathways", authors: ["Smith, Jane"], year: "2024" })).toBe("smith2024");
+    expect(memorableReferenceKey({ title: "Climate adaptation pathways", authors: ["Jane Smith"], year: "2024" }, true)).toBe(
+      "smith2024climate",
+    );
+    expect(memorableReferenceKey({ title: "Climate adaptation pathways.pdf", authors: [], year: "" })).toBe("sourceundatedclimate");
+    expect(memorableReferenceKey({ title: "Über methods", authors: ["Jöhn Dœ"], year: "forthcoming" })).toBe("dœundateduber");
+    expect(memorableReferenceKey({ title: "The study of climate", authors: ["Ada Mary van Rossum"], year: "Spring 2025" }, true)).toBe(
+      "rossum2025study",
+    );
+    expect(memorableReferenceKey({ title: "Smith and the AI", authors: ["Smith,"], year: "x2025y" })).toBe("smith2025");
+    expect(memorableReferenceKey({ title: "Smith and the AI", authors: ["Smith,"], year: "12025" })).toBe("smithundatedwork");
+    expect(memorableReferenceKey({ title: "Smith and the AI", authors: ["Smith,"], year: "20251" })).toBe("smithundatedwork");
+    expect(memorableReferenceKey({ title: "A study", authors: [" , Jane"], year: "" })).toBe("sourceundatedstudy");
+    expect(memorableReferenceKey({ title: "The AI of an", authors: [], year: "" })).toBe("sourceundatedwork");
+    expect(memorableReferenceKey({ title: "Map of evidence", authors: [" Jane Smith "], year: "2025" }, true)).toBe("smith2025map");
+    expect(memorableReferenceKey({ title: "Evidence map", authors: [], year: "2025" })).toBe("source2025evidence");
+    expect(memorableReferenceKey({ title: "x".repeat(100), authors: [], year: "" })).toHaveLength(80);
+  });
   it("retains per-field provenance and derives a portable snapshot", () => {
     const record = referenceFromBibTeX(
       {
@@ -108,6 +128,7 @@ describe("shared reference library", () => {
   it("deduplicates by DOI before a normalized bibliographic fingerprint", () => {
     const first = { title: "A Study", authors: ["Doe, Jane"], year: "2026", doi: "10.1/ABC" };
     const second = { title: "Different", authors: [], year: "", doi: "https://doi.org/10.1/abc" };
+    expect(likelyReferenceIdentity(first)).toBe("doi:10.1/abc");
     expect(likelyReferenceIdentity(first)).toBe(likelyReferenceIdentity(second));
     expect(likelyReferenceIdentity({ ...first, doi: "" })).toBe("work:a study|2026|doe jane");
     expect(likelyReferenceIdentity({ title: " Étude—One! ", authors: ["Ångström, Ada"], year: " 2025 ", doi: "" })).toBe(

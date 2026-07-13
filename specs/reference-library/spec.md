@@ -17,6 +17,10 @@ memory and makes citation aliases compete with stable source identity.
   project citation aliases. DOI is normalized and preferred for likely-duplicate
   identity; records without DOI use a normalized title/year/first-author
   fingerprint and remain reviewable.
+- Each source also has one unique immutable author-facing reference key. New
+  keys prefer normalized first-author surname plus publication year, add a
+  topical suffix for collisions, and use explicit `source`/`undated` fallbacks
+  when intake metadata is sparse. UUIDs remain the relational identity.
 - Type-specific required fields follow common BibTeX entry types. DOI is not
   universally required. Every editable metadata field stores method, capture
   time, and actor provenance.
@@ -33,10 +37,11 @@ memory and makes citation aliases compete with stable source identity.
   editor or becoming an editable library authority.
 - Existing workspace BibTeX migrates lazily and idempotently into the owner
   library, then becomes project links and derived bibliography.
-- A PDF first enters as an unidentified private artifact. It cannot attach to
-  an ordinary source until the selected BibTeX type's required fields are
-  complete. Automatic services may suggest metadata but never fabricate or
-  silently accept it.
+- A PDF upload creates a provisional `misc` source immediately, derives only a
+  title from its filename, assigns its immutable reference key, and attaches
+  the private artifact atomically. Researchers may enrich metadata later;
+  automatic services may suggest values but never fabricate or silently accept
+  them.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - Web sources are stable records keyed by normalized canonical URL. Every
@@ -50,15 +55,18 @@ memory and makes citation aliases compete with stable source identity.
 - The library is a permanent, non-closable tab beside Preview in the project's
   research-context pane. Activating it refreshes the authorized owner snapshot
   without opening a modal or mutating project state.
+- The default Library view gives PDF upload and website URL capture first-class
+  actions, keeps search visible, and folds filters, interchange, graph, metadata,
+  organization, and reading controls into progressive disclosure.
 
 ### API Contracts
 
 - `GET /api/library` returns the authenticated owner's private active library;
   `?archived=include` also returns archived records.
 - `POST /api/library/import` imports bounded BibTeX with per-field provenance.
-- `POST /api/library/pdfs` stores a private unidentified PDF under an
-  owner-scoped R2 key; `POST /api/library/pdfs/{id}/identify` attaches it only
-  to a complete source record.
+- `POST /api/library/pdfs` stores a private PDF under an owner-scoped R2 key and
+  atomically creates its editable library draft. The legacy identify route
+  remains available for artifacts created before this flow.
 - `PUT /api/library/pdfs/{id}/rights` records private, unknown, or shareable
   artifact rights.
 - Reference tag, note, highlight, reading, archive, deletion-impact, and
@@ -89,6 +97,8 @@ memory and makes citation aliases compete with stable source identity.
 
 - Do not make citation keys, DOI values, titles, or filenames stable source
   identities.
+- Do not mutate an assigned reference key when metadata changes; it is an
+  author-facing handle over the UUID, not a replacement relational identity.
 - Do not copy the full private record into a project when it is merely cited.
 - Do not keep an editable project bibliography as a second authority.
 - Do not give the derived project bibliography a primary editor, Library tab,
@@ -107,11 +117,14 @@ memory and makes citation aliases compete with stable source identity.
 - Real-`workerd` tests cover stable upsert, private state, PDF identification,
   project dependency impact, archive, tombstone deletion, project aliases,
   derived bibliography, cited-only filtering, and alias rewrites.
+- Key tests cover surname/year generation, sparse fallbacks, topical and numeric
+  collision suffixes and immutability through enrichment.
 
 ## Current Milestone
 
 - Implemented: owner-scoped library, provenance, BibTeX migration/import,
-  private PDFs and identification, notes/tags/highlights/reading state, archive
+  immutable memorable reference keys, direct PDF drafts, private PDFs and
+  legacy identification, notes/tags/highlights/reading state, archive
   and tombstone deletion, project aliases/snapshots, derived cited-only BibTeX,
   versioned web captures, provenance-bearing citation assertions and network,
   and a permanent owner-private Library context tab.

@@ -9,6 +9,7 @@ it("keeps discovery projection inputs and sorting active", () => {
       {
         ...base,
         id: "recent",
+        referenceKey: "recent",
         type: "article",
         title: "Zulu methods",
         authors: ["Doe"],
@@ -22,6 +23,7 @@ it("keeps discovery projection inputs and sorting active", () => {
       {
         ...base,
         id: "older",
+        referenceKey: "older",
         type: "book",
         title: "Alpha",
         authors: ["Smith"],
@@ -58,8 +60,26 @@ it("applies priority ordering before the default update ordering", () => {
   const base = { type: "article", authors: ["Author"], year: "2026", venue: "", doi: "", url: "", abstract: "", provenance: {} } as const;
   const library: ReferenceLibrarySnapshot = {
     references: [
-      { ...base, id: "high", title: "Zulu", archivedAt: null, deletedAt: null, createdAt: "same", updatedAt: "2026-01-01" },
-      { ...base, id: "low", title: "Alpha", archivedAt: null, deletedAt: null, createdAt: "same", updatedAt: "2026-02-01" },
+      {
+        ...base,
+        id: "high",
+        referenceKey: "high",
+        title: "Zulu",
+        archivedAt: null,
+        deletedAt: null,
+        createdAt: "same",
+        updatedAt: "2026-01-01",
+      },
+      {
+        ...base,
+        id: "low",
+        referenceKey: "low",
+        title: "Alpha",
+        archivedAt: null,
+        deletedAt: null,
+        createdAt: "same",
+        updatedAt: "2026-02-01",
+      },
     ],
     artifacts: [],
     webSources: [],

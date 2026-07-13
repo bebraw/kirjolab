@@ -216,37 +216,49 @@ export function renderHomePage(
               <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Reference library</h2>
               <p class="mt-2 max-w-xl text-sm leading-6 text-app-text-soft">Your library is private. Adding a source to a project shares its citation details only.</p>
             </div>
-            <div class="mt-5 flex flex-wrap gap-2 border-y border-app-line py-4">
-              <label class="button-primary">Import BibTeX<input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
-              <label class="button-secondary">Import CSL JSON<input class="sr-only" id="library-csl-upload" type="file" accept=".json,application/json"></label>
-              <label class="button-secondary">Restore archive<input class="sr-only" id="library-archive-upload" type="file" accept=".zip,application/zip"></label>
-              <label class="button-secondary">Add PDF<input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf"></label>
-              <a class="button-secondary" href="/api/library/export/csl.json">Export CSL JSON</a>
-              <a class="button-secondary" href="/api/library/export/library.zip">Export library</a>
-              <button class="button-secondary" id="open-citation-network" type="button">Citation network</button>
-              <button class="button-secondary" id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
-            </div>
-            <section class="mt-4 grid gap-3 border-b border-app-line pb-4 md:grid-cols-3" aria-label="Filter reference library">
-              <label class="field-label md:col-span-2">Search<input class="field" id="reference-filter-query" type="search" maxlength="200" placeholder="Title, author, venue, DOI, or URL"></label>
-              <label class="field-label">Type<select class="field" id="reference-filter-type"><option value="">All types</option></select></label>
-              <label class="field-label">Reading<select class="field" id="reference-filter-reading"><option value="all">Any status</option><option value="unread">Unread</option><option value="reading">Reading</option><option value="read">Read</option></select></label>
-              <label class="field-label">Tag or collection<input class="field" id="reference-filter-organization" maxlength="80" placeholder="Filter labels"></label>
-              <label class="field-label">Project link<select class="field" id="reference-filter-linkage"><option value="all">Linked or unlinked</option><option value="linked">Linked to this project</option><option value="unlinked">Not linked</option></select></label>
-              <label class="field-label">Metadata<select class="field" id="reference-filter-completeness"><option value="all">Any completeness</option><option value="complete">Complete core fields</option><option value="incomplete">Needs metadata</option></select></label>
-              <label class="field-label">Sort<select class="field" id="reference-filter-sort"><option value="updated">Recently updated</option><option value="title">Title</option><option value="year">Year</option><option value="priority">Reading priority</option></select></label>
-              <p class="self-end pb-2 font-sans text-xs text-app-text-soft" id="reference-filter-count" aria-live="polite">0 references</p>
-            </section>
-            <details class="mt-4 rounded-sm border border-app-line p-4" id="web-source-intake">
-              <summary class="cursor-pointer font-sans text-sm font-semibold">Capture web source</summary>
-              <form class="mt-4 grid gap-3 md:grid-cols-2" id="web-source-form">
-                <label class="field-label md:col-span-2">Public URL<input class="field" id="web-source-url" type="url" maxlength="4096" required placeholder="https://example.org/article"></label>
+            <section class="mt-5 border-y border-app-line py-4" aria-labelledby="library-add-heading">
+              <p class="eyebrow" id="library-add-heading">Add source</p>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <label class="button-primary">Upload PDF<input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf"></label>
+              </div>
+              <form class="mt-3 grid gap-3 md:grid-cols-[1fr_auto]" id="web-source-form">
+                <label class="field-label">Website URL<input class="field" id="web-source-url" type="url" maxlength="4096" required placeholder="https://example.org/article"></label>
+                <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Add website</button></div>
+                <details class="md:col-span-2">
+                  <summary class="cursor-pointer font-sans text-xs text-app-text-soft">Optional metadata overrides</summary>
+                  <div class="mt-3 grid gap-3 md:grid-cols-2">
                 <label class="field-label">Title override<input class="field" id="web-source-title" maxlength="1000" placeholder="Fetched automatically when available"></label>
                 <label class="field-label">Author or organization<input class="field" id="web-source-author" maxlength="500"></label>
                 <label class="field-label">Publisher<input class="field" id="web-source-publisher" maxlength="500"></label>
                 <label class="field-label">Publication date<input class="field" id="web-source-published-at" maxlength="100" placeholder="YYYY-MM-DD"></label>
-                <div class="flex items-end md:col-span-2"><button class="button-primary" type="submit">Save snapshot</button></div>
+                  </div>
+                </details>
               </form>
-              <p class="mt-3 text-xs leading-5 text-app-text-soft">Snapshots are private and timestamped. Incomplete captures stay marked.</p>
+              <p class="mt-3 text-xs leading-5 text-app-text-soft">New sources receive a unique, memorable citation ID. Add or correct metadata later.</p>
+            </section>
+            <div class="mt-4 grid gap-3 border-b border-app-line pb-4 md:grid-cols-[1fr_auto]">
+              <label class="field-label">Search library<input class="field" id="reference-filter-query" type="search" maxlength="200" placeholder="Title, author, reference ID, DOI, or URL"></label>
+              <p class="self-end pb-2 font-sans text-xs text-app-text-soft" id="reference-filter-count" aria-live="polite">0 references</p>
+            </div>
+            <details class="mt-4 border-b border-app-line pb-4">
+              <summary class="cursor-pointer font-sans text-xs font-semibold">Filters and library tools</summary>
+              <section class="mt-3 grid gap-3 md:grid-cols-3" aria-label="Filter reference library">
+                <label class="field-label">Type<select class="field" id="reference-filter-type"><option value="">All types</option></select></label>
+                <label class="field-label">Reading<select class="field" id="reference-filter-reading"><option value="all">Any status</option><option value="unread">Unread</option><option value="reading">Reading</option><option value="read">Read</option></select></label>
+                <label class="field-label">Tag or collection<input class="field" id="reference-filter-organization" maxlength="80" placeholder="Filter labels"></label>
+                <label class="field-label">Project link<select class="field" id="reference-filter-linkage"><option value="all">Linked or unlinked</option><option value="linked">Linked to this project</option><option value="unlinked">Not linked</option></select></label>
+                <label class="field-label">Metadata<select class="field" id="reference-filter-completeness"><option value="all">Any completeness</option><option value="complete">Complete core fields</option><option value="incomplete">Needs metadata</option></select></label>
+                <label class="field-label">Sort<select class="field" id="reference-filter-sort"><option value="updated">Recently updated</option><option value="title">Title</option><option value="year">Year</option><option value="priority">Reading priority</option></select></label>
+              </section>
+              <div class="mt-3 flex flex-wrap gap-2 border-t border-app-line pt-3">
+                <label class="button-secondary">Import BibTeX<input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
+                <label class="button-secondary">Import CSL JSON<input class="sr-only" id="library-csl-upload" type="file" accept=".json,application/json"></label>
+                <label class="button-secondary">Restore archive<input class="sr-only" id="library-archive-upload" type="file" accept=".zip,application/zip"></label>
+                <a class="button-secondary" href="/api/library/export/csl.json">Export CSL JSON</a>
+                <a class="button-secondary" href="/api/library/export/library.zip">Export library</a>
+                <button class="button-secondary" id="open-citation-network" type="button">Citation network</button>
+                <button class="button-secondary" id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
+              </div>
             </details>
             <div class="mt-5 grid gap-3" id="reference-library-list"><div class="empty-state">Loading private library…</div></div>
             <section class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></section>
@@ -264,7 +276,7 @@ export function renderHomePage(
               <div class="mt-4 overflow-hidden border border-app-line bg-app-paper"><svg class="block min-h-72 w-full" id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"></svg></div>
               <div class="mt-4 space-y-3" id="citation-network-list" aria-live="polite"><div class="empty-state">Loading citation assertions…</div></div>
             </section>
-            <section class="mt-6 border-t border-app-line pt-5">
+            <section class="mt-6 border-t border-app-line pt-5" id="unidentified-pdf-section">
               <div class="flex items-center justify-between gap-3"><p class="eyebrow">PDFs awaiting identification</p><span class="count-badge" id="unidentified-pdf-count">0</span></div>
               <div class="mt-3 grid gap-3" id="unidentified-pdf-list"><div class="empty-state">No unidentified PDFs.</div></div>
             </section>

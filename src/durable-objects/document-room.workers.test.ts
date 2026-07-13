@@ -265,6 +265,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const now = "2026-07-11T10:00:00.000Z";
     const reference = {
       id: crypto.randomUUID(),
+      referenceKey: "doe2026",
       type: "article",
       title: "Shared Research Memory",
       authors: ["Doe, Jane"],
@@ -301,6 +302,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const now = "2026-07-12T08:00:00.000Z";
     const reference = {
       id: crypto.randomUUID(),
+      referenceKey: "writer2026",
       type: "misc",
       title: "Versioned web evidence",
       authors: ["Writer, Ada"],

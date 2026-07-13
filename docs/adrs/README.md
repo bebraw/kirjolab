@@ -108,6 +108,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-073](./implemented/ADR-073-host-writing-assistant-in-context.md)                 | Implemented          | Keep Writing assistant in a permanent Context tab instead of a full-width drawer.                            |
 | [ADR-074](./implemented/ADR-074-host-comments-in-left-rail.md)                        | Implemented          | Keep manuscript comments in a dedicated left-rail mode instead of the editor column.                         |
 | [ADR-075](./implemented/ADR-075-host-derived-bibliography-in-files-rail.md)           | Implemented          | Keep derived project BibTeX as collapsed secondary context in the Files rail.                                |
+| [ADR-076](./implemented/ADR-076-assign-immutable-reference-keys.md)                   | Implemented          | Assign unique memorable keys once and create editable library drafts directly from PDF uploads.              |
 
 ## Creating A New ADR
 

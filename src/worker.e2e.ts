@@ -245,18 +245,27 @@ test("keeps private library research separate from project citations", async ({ 
   });
   const card = page.locator("#reference-library-list .resource-card").filter({ hasText: "Private Research Guide" });
   await expect(card).toBeVisible();
+  await expect(card).toContainText("writer2026");
   await expect(page.locator("#publication-list")).not.toContainText("Private Research Guide");
 
-  const alias = card.getByLabel("Project citation alias for Private Research Guide");
-  await alias.fill("researchGuide");
   await card.getByRole("button", { name: "Add to project" }).click();
   await expect(page.locator("#publication-list")).toContainText("Private Research Guide");
+  await page.locator("#library-pdf-upload").setInputFiles({
+    name: "climate_adaptation.pdf",
+    mimeType: "application/pdf",
+    buffer: createEvidencePdf(),
+  });
+  const pdfCard = page.locator("#reference-library-list .resource-card").filter({ hasText: "climate adaptation" });
+  await expect(pdfCard).toContainText("sourceundatedclimate");
+  await expect(page.locator("#unidentified-pdf-section")).toBeHidden();
 
+  await card.getByText("Metadata and research").click();
   const tags = card.getByLabel("Private tags for Private Research Guide");
   await tags.fill("methods, revisit");
   await card.getByRole("button", { name: "Save tags" }).click();
   await expect(page.locator("#toast")).toHaveText("Private tags saved.");
   await expect(card.getByLabel("Private tags for Private Research Guide")).toHaveValue("methods, revisit");
+  await page.getByText("Filters and library tools").click();
   await page.locator("#reference-filter-organization").fill("methods");
   await expect(page.locator("#reference-filter-count")).toHaveText(/1 of \d+ references/u);
   await page.locator("#reference-filter-linkage").selectOption("linked");
@@ -265,10 +274,12 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#reference-library-list")).toContainText("No references match these filters.");
   await page.locator("#reference-filter-query").fill("");
   await page.locator("#reference-filter-organization").fill("");
+  await card.getByText("Metadata and research").click();
   await card.getByPlaceholder("Add a private note").fill("Only share this interpretation deliberately.");
   await card.getByRole("button", { name: "Save private note" }).click();
   await expect(page.locator("#toast")).toHaveText("Private note saved. It is not visible to project collaborators.");
   await expect(card).toContainText("Only share this interpretation deliberately.");
+  await card.getByText("Metadata and research").click();
   await card
     .locator(".rounded-sm")
     .filter({ hasText: "Only share this interpretation deliberately." })
@@ -278,15 +289,15 @@ test("keeps private library research separate from project citations", async ({ 
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).researchShares.length).toBe(1);
 
   const uncitedExport = await page.request.get(`${api}/export/bibliography.bib`);
-  expect(await uncitedExport.text()).not.toContain("researchGuide");
+  expect(await uncitedExport.text()).not.toContain("writer2026");
   await page.locator("#context-library-scroll").evaluate((element) => {
     element.scrollTop = 160;
   });
   await page.getByRole("tab", { name: "Preview" }).click();
   await page.getByRole("tab", { name: "Library" }).click();
   await expect.poll(async () => await page.locator("#context-library-scroll").evaluate((element) => element.scrollTop)).toBe(160);
-  await page.locator("#source-editor").fill("# Study\n\nThis uses the guide :cite[researchGuide].\n");
-  await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("researchGuide");
+  await page.locator("#source-editor").fill("# Study\n\nThis uses the guide :cite[writer2026].\n");
+  await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("writer2026");
 });
 
 test("round-trips CSL JSON and portable library metadata", async ({ page }) => {
@@ -341,9 +352,9 @@ test("records and reviews source citation assertions in an accessible shared net
   });
   const alpha = page.locator("#reference-library-list .resource-card").filter({ hasText: "Network Alpha Study" });
   await expect(alpha).toBeVisible();
-  await alpha.getByLabel("Project citation alias for Network Alpha Study").fill("networkAlpha");
   await alpha.getByRole("button", { name: "Add to project" }).click();
 
+  await page.getByText("Filters and library tools").click();
   await page.locator("#open-citation-network").click();
   await expect(page.locator("#citation-network")).toBeVisible();
   await page.locator("#citation-assertion-citing").selectOption({ label: "Network Alpha Study" });

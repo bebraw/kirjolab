@@ -120,6 +120,7 @@ function fixture(): ReferenceLibrarySnapshot {
       {
         ...base,
         id: "incomplete",
+        referenceKey: "incomplete",
         type: "book",
         title: "Untitled notes",
         authors: [],
@@ -132,6 +133,7 @@ function fixture(): ReferenceLibrarySnapshot {
       {
         ...base,
         id: "complete",
+        referenceKey: "complete",
         type: "article",
         title: "Methods",
         authors: ["Doe, Jane"],

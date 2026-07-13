@@ -9,6 +9,7 @@ const identity: AuthIdentity = { subject: "owner", email: "owner@example.test", 
 const now = "2026-07-11T10:00:00.000Z";
 const reference: BibliographicRecord = {
   id: "11111111-1111-4111-8111-111111111111",
+  referenceKey: "guide",
   type: "manual",
   title: "Private Guide",
   authors: [],
@@ -511,6 +512,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     getSnapshot: vi.fn(async () => snapshot),
     importBibTeX: vi.fn(async () => [{ reference, suggestedAlias: "guide", created: true }]),
     registerPdf: vi.fn(async () => artifact),
+    createPdfDraft: vi.fn(async () => ({ reference, artifact })),
     identifyPdf: vi.fn(async () => artifact),
     setArtifactRights: vi.fn(async () => ({ ...artifact, rights: "shareable" as const })),
     archiveReference: vi.fn(async () => ({ ...reference, archivedAt: now })),
