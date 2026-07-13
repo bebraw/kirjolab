@@ -152,8 +152,10 @@ interface Elements {
   unidentifiedPdfList: HTMLElement;
   showFilesRail: HTMLButtonElement;
   showResearchRail: HTMLButtonElement;
+  showCommentsRail: HTMLButtonElement;
   filesRailPanel: HTMLElement;
   researchRailPanel: HTMLElement;
+  commentsRailPanel: HTMLElement;
   newProjectFileRail: HTMLButtonElement;
   projectFileCount: HTMLElement;
   projectFileList: HTMLElement;
@@ -442,6 +444,7 @@ class WorkspaceApp {
     this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
     this.#elements.showFilesRail.addEventListener("click", () => this.#showRail("files"));
     this.#elements.showResearchRail.addEventListener("click", () => this.#showRail("research"));
+    this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
@@ -661,12 +664,16 @@ class WorkspaceApp {
     }
   }
 
-  #showRail(mode: "files" | "research"): void {
+  #showRail(mode: "files" | "research" | "comments"): void {
     const files = mode === "files";
+    const research = mode === "research";
+    const comments = mode === "comments";
     this.#elements.filesRailPanel.hidden = !files;
-    this.#elements.researchRailPanel.hidden = files;
+    this.#elements.researchRailPanel.hidden = !research;
+    this.#elements.commentsRailPanel.hidden = !comments;
     this.#elements.showFilesRail.setAttribute("aria-selected", String(files));
-    this.#elements.showResearchRail.setAttribute("aria-selected", String(!files));
+    this.#elements.showResearchRail.setAttribute("aria-selected", String(research));
+    this.#elements.showCommentsRail.setAttribute("aria-selected", String(comments));
   }
 
   #restoreWorkspaceLayout(): void {
@@ -4191,8 +4198,10 @@ function collectElements(): Elements {
     unidentifiedPdfList: requiredElement("unidentified-pdf-list", HTMLElement),
     showFilesRail: requiredElement("show-files-rail", HTMLButtonElement),
     showResearchRail: requiredElement("show-research-rail", HTMLButtonElement),
+    showCommentsRail: requiredElement("show-comments-rail", HTMLButtonElement),
     filesRailPanel: requiredElement("files-rail-panel", HTMLElement),
     researchRailPanel: requiredElement("research-rail-panel", HTMLElement),
+    commentsRailPanel: requiredElement("comments-rail-panel", HTMLElement),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     projectFileCount: requiredElement("project-file-count", HTMLElement),
     projectFileList: requiredElement("project-file-list", HTMLElement),

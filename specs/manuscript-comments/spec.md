@@ -23,6 +23,9 @@ ephemeral rather than a scholarly resource.
   advancing the manuscript concurrency revision.
 - The browser resolves each anchor against live Yjs state, exposes changed or
   stale status, and navigates only a resolved range.
+- The left project rail exposes Comments as a peer of Files and Research. Its
+  local mode contains the selected-passage composer, open-comment count, and
+  open/resolved history without reducing the manuscript editor height.
 - A socket receives a server-owned ephemeral collaborator id. Its bounded
   current-revision selection is broadcast to peers and cleared on disconnect;
   it is never stored or added to history.
@@ -43,6 +46,8 @@ ephemeral rather than a scholarly resource.
 - Do not relocate a stale comment by fuzzy quote matching or original offsets.
 - Do not persist collaborator selections or ordinary reading position.
 - Do not delete a comment merely because it is resolved.
+- Do not put the comment composer in a modal, editor-bottom drawer, or research
+  inventory collection.
 
 ## Contract
 
@@ -51,6 +56,8 @@ ephemeral rather than a scholarly resource.
 - [x] A collaborator can select manuscript text and create a bounded comment.
 - [x] Comments retain stable author identity and follow surviving Yjs edits.
 - [x] Resolved comments remain visible and recoverable through revision history.
+- [x] Comment creation and history have a dedicated left-rail mode beside the
+      manuscript instead of occupying the editor column.
 - [x] Comment actions leave canonical Markdown and its concurrency revision
       unchanged.
 - [x] Peer selections are visible, revision-linked, server-attributed, and
@@ -67,6 +74,8 @@ ephemeral rather than a scholarly resource.
 - Selection messages must use exact keys, protocol version 1, safe integer
   offsets, and a valid current project file/revision.
 - Invalid client metadata must never be persisted or rebroadcast.
+- Switching the local left-rail mode must not mutate Markdown, comments, Yjs
+  state, or collaboration messages.
 
 ### Scenarios
 
@@ -83,6 +92,13 @@ ephemeral rather than a scholarly resource.
 - When: an authorized member resolves it
 - Then: source is unchanged and a later revision inspector still exposes the
   resolved comment
+
+**Scenario: Collaborator opens comments beside the manuscript**
+
+- Given: the manuscript editor and left project rail are visible
+- When: the collaborator activates the Comments rail mode
+- Then: the composer and comment history replace the rail contents while the
+  editor keeps its height and selection
 
 **Scenario: Peer selects manuscript text**
 

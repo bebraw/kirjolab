@@ -719,11 +719,12 @@ test("converges source edits across two writers", async ({ page, context }) => {
   await expect(collaborator.locator("#collaborator-selections")).toContainText(`“${selectedText}”`);
 
   const sourceBeforeComment = await page.locator("#source-editor").inputValue();
-  await page.locator("#manuscript-comments summary").click();
+  await page.getByRole("tab", { name: /Comments/ }).click();
+  await expect(page.locator("#comments-rail-panel")).toBeVisible();
   await page.locator("#manuscript-comment-body").fill("Keep this collaboration claim concrete.");
   await page.locator("#manuscript-comment-form").getByRole("button", { name: "Add comment" }).click();
   await expect(collaborator.locator("#manuscript-comment-list")).toContainText("Keep this collaboration claim concrete.");
-  await collaborator.locator("#manuscript-comments summary").click();
+  await collaborator.getByRole("tab", { name: /Comments/ }).click();
   await collaborator.locator("#manuscript-comment-list").getByRole("button", { name: "Resolve" }).click();
   await expect(page.locator("#manuscript-comment-list")).toContainText("resolved");
   await expect(page.locator("#source-editor")).toHaveValue(sourceBeforeComment);

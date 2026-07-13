@@ -62,6 +62,7 @@ export function renderHomePage(
         <div class="rail-mode-switcher" role="tablist" aria-label="Project navigation">
           <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-controls="files-rail-panel" aria-selected="false">Files</button>
           <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-controls="research-rail-panel" aria-selected="true">Research</button>
+          <button class="rail-mode" id="show-comments-rail" type="button" role="tab" aria-controls="comments-rail-panel" aria-selected="false"><span>Comments</span><span class="count-badge" id="manuscript-comment-count">0</span></button>
         </div>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail" hidden>
@@ -108,6 +109,18 @@ export function renderHomePage(
           <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf">
           <input class="sr-only" id="bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain">
         </section>
+
+        <section class="rail-panel px-4 py-5 lg:px-5" id="comments-rail-panel" role="tabpanel" aria-labelledby="show-comments-rail" hidden>
+          <div><p class="eyebrow">Collaboration</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Manuscript comments</h1></div>
+          <p class="mt-2 text-xs leading-5 text-app-text-soft">Select manuscript text, then leave a comment that follows the passage as collaborators edit.</p>
+          <form class="mt-4 grid gap-3 border-t border-app-line pt-4" id="manuscript-comment-form">
+            <label class="field-label" for="manuscript-comment-body">Comment on selected text</label>
+            <textarea class="field min-h-24 resize-y" id="manuscript-comment-body" maxlength="8000" required placeholder="Leave a comment on the selected passage."></textarea>
+            <button class="button-secondary w-full justify-center" type="submit">Add comment</button>
+            <p class="text-xs leading-5 text-app-text-soft" id="manuscript-comment-status" role="status">Comments stay outside the Markdown source.</p>
+          </form>
+          <div class="mt-4 grid gap-3" id="manuscript-comment-list"></div>
+        </section>
       </aside>
 
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
@@ -146,22 +159,6 @@ export function renderHomePage(
         <label class="sr-only" for="source-editor">Markdown source</label>
         <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
         <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation.</p>
-        <details class="border-t border-app-line bg-app-paper/75" id="manuscript-comments">
-          <summary class="flex cursor-pointer items-center justify-between px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.14em] text-app-text-soft">
-            <span>Comments</span><span class="count-badge" id="manuscript-comment-count">0</span>
-          </summary>
-          <div class="border-t border-app-line px-4 py-4">
-            <form class="grid gap-3" id="manuscript-comment-form">
-              <label class="field-label" for="manuscript-comment-body">Comment on selected manuscript text</label>
-              <textarea class="field min-h-20 resize-y" id="manuscript-comment-body" maxlength="8000" required placeholder="Select a passage above, then leave a comment."></textarea>
-              <div class="flex items-center justify-between gap-3">
-                <p class="text-xs leading-5 text-app-text-soft" id="manuscript-comment-status" role="status">Comments follow the passage as collaborators edit.</p>
-                <button class="button-secondary shrink-0" type="submit">Add comment</button>
-              </div>
-            </form>
-            <div class="mt-4 grid gap-3" id="manuscript-comment-list"></div>
-          </div>
-        </details>
         <details class="border-t border-app-line bg-app-paper/60">
           <summary class="cursor-pointer px-4 py-3 font-sans text-xs font-bold uppercase tracking-[0.14em] text-app-text-soft">Derived project bibliography</summary>
           <label class="sr-only" for="bibliography-editor">BibTeX bibliography</label>
