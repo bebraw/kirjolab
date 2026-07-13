@@ -1,7 +1,8 @@
-# UI Review Notes
+# UI Review Notes — 2026-07-12
 
-**Status:** Review complete. Architectural decisions were promoted to ADRs and
-feature specs; this file remains the observation log and implementation audit.
+**Status:** Archived. Review complete. Architectural decisions were promoted to
+ADRs and feature specs; this file remains the observation log and
+implementation audit.
 
 ## Implementation Audit (2026-07-12)
 
