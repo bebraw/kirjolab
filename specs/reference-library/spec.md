@@ -45,6 +45,10 @@ memory and makes citation aliases compete with stable source identity.
   the private artifact atomically. Researchers may enrich metadata later;
   automatic services may suggest values but never fabricate or silently accept
   them.
+- The browser may coordinate an ordered batch of at most 20 PDFs through the
+  same atomic upload endpoint. Per-file failure does not stop later uploads;
+  only failed files remain in an ephemeral retry queue. Batch intake performs no
+  metadata extraction or provider lookup.
 - DOI-backed records may preview bounded Crossref metadata inline. Acceptance
   refetches and verifies the provider fingerprint, then changes only the fields
   the researcher selected. This may improve a private-only provisional key but
@@ -150,6 +154,8 @@ memory and makes citation aliases compete with stable source identity.
   page-and-quote highlight, restores reading state, keeps project evidence
   controls unavailable, and proves that capture does not mutate the workspace
   snapshot.
+- Browser coverage proves bounded batch progress, partial success, and retry
+  without resubmitting successful PDFs.
 - Browser coverage advances the reader's project-use states explicitly and
   proves PDF and highlight sharing can be revoked independently.
 
@@ -157,7 +163,8 @@ memory and makes citation aliases compete with stable source identity.
 
 - Implemented: owner-scoped library, provenance, BibTeX migration/import,
   lifecycle-aware memorable reference keys, direct PDF drafts, private PDFs and
-  legacy identification, notes/tags/highlights/reading state, archive
+  browser-coordinated batch PDF intake, legacy identification,
+  notes/tags/highlights/reading state, archive
   and tombstone deletion, project aliases/snapshots, derived cited-only BibTeX,
   versioned web captures, provenance-bearing citation assertions and network,
   reviewed Crossref enrichment, explicit private PDF highlights in Context,

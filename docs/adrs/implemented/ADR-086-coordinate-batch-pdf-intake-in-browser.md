@@ -1,6 +1,6 @@
 # ADR-086: Coordinate Batch PDF Intake in the Browser
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-13
 

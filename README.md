@@ -96,7 +96,7 @@ For cross-repo agent work, tell the agent:
 - Multiple isolated workspaces with stable URLs and identity-scoped navigation.
 - Cloudflare Access JWT verification plus owner/member workspace sharing.
 - Satteri-powered standard Markdown, GFM, and scientific-writing preview with semantic validation.
-- Streamed PDF import, selectable single-page rendering, resilient highlights, and bidirectional manuscript links.
+- Streamed single and batch PDF import, selectable single-page rendering, resilient highlights, and bidirectional manuscript links.
 - BibTeX import, explicit Crossref enrichment, and reviewed DOI-to-PDF intake
   with stable publication resources.
 - Browser-direct or explicit local-companion, selection-scoped model revisions

@@ -43,13 +43,13 @@ as separate operations.
 
 ### Definition of Done
 
-- [ ] Users can select or drop several PDFs in one bounded action.
-- [ ] Progress identifies the active file and the completed count.
-- [ ] A failed file does not block later files from being added.
-- [ ] Failed files can be retried without re-uploading successful files.
-- [ ] Intake preserves the existing collect-now, refine-later behavior.
-- [ ] Automated tests cover success, partial failure, retry, and the batch bound.
-- [ ] The spec and ADR reflect the implemented behavior.
+- [x] Users can select or drop several PDFs in one bounded action.
+- [x] Progress identifies the active file and the completed count.
+- [x] A failed file does not block later files from being added.
+- [x] Failed files can be retried without re-uploading successful files.
+- [x] Intake preserves the existing collect-now, refine-later behavior.
+- [x] Automated tests cover success, partial failure, retry, and the batch bound.
+- [x] The spec and ADR reflect the implemented behavior.
 
 ### Regression Guardrails
 
