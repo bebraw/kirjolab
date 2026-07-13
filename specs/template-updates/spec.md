@@ -36,6 +36,7 @@ copying unrelated starter structure.
   - `2026-06-17-shared-affected-file-utils`
   - `2026-07-08-typescript-7-typecheck`
   - `2026-07-10-playwright-1-61-ci-image`
+  - `2026-07-13-agent-ci-progress`
 
 ### Anti-Patterns
 

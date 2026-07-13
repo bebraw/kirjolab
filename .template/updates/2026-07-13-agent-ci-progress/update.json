@@ -1,0 +1,16 @@
+{
+  "id": "2026-07-13-agent-ci-progress",
+  "title": "Report Agent CI progress",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-072-report-local-ci-progress.md"],
+  "touches": [
+    "package.json",
+    "scripts/run-local-ci.mjs",
+    "docs/development.md",
+    "specs/quality-gate/spec.md",
+    "specs/template-updates/spec.md"
+  ],
+  "checks": ["npm run quality:gate", "npm run ci:local"]
+}
