@@ -120,6 +120,16 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
       async () => await page.locator("#workspace-surfaces").evaluate((element) => element.style.getPropertyValue("--authoring-pane-width")),
     )
     .toMatch(/px$/u);
+  const resizedPaneWidth = await page
+    .locator("#workspace-surfaces")
+    .evaluate((element) => element.style.getPropertyValue("--authoring-pane-width"));
+  await libraryTab.click();
+  await expect
+    .poll(
+      async () => await page.locator("#workspace-surfaces").evaluate((element) => element.style.getPropertyValue("--authoring-pane-width")),
+    )
+    .toBe(resizedPaneWidth);
+  await previewTab.click();
   await paneResizer.press("Home");
   await expect
     .poll(

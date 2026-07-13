@@ -48,8 +48,9 @@ rendering contracts.
   SQLite, or collaboration control messages.
 - On desktop, a pointer- and keyboard-operable separator resizes Authoring and
   Context while preserving readable minimum widths. The local authoring width
-  is remembered per workspace and context kind so a wide PDF reading layout
-  does not force the same proportion onto manuscript Preview.
+  is remembered per workspace and context kind. Preview and Library share one
+  stable proportion, while a wide PDF reading layout does not force that
+  proportion onto the permanent tabs.
 - A desktop view control switches among Split, Editor only, Context only, and
   PDF only. The choice is local per workspace, survives reload, never enters
   collaborative state, and triggers PDF rerendering after geometry changes.
@@ -186,7 +187,8 @@ rendering contracts.
       modal covering either surface.
 - [x] Resource tabs can be pinned, closed, and navigated entirely by keyboard.
 - [x] Desktop users can resize Authoring and Context by pointer or keyboard,
-      reset the split, and retain separate Preview/PDF reading proportions.
+      reset the split, keep Preview and Library at one width, and retain a
+      separate PDF reading proportion.
 - [x] Citation and annotation navigation focus the appropriate publication,
       PDF evidence, or resolved manuscript passage.
 - [x] A publication context lists all explicitly linked PDF artifacts, supports
@@ -290,6 +292,12 @@ rendering contracts.
 - When: the researcher switches, pins, or closes its tab
 - Then: Kirjolab performs no library, citation, annotation, claim, or link
   mutation
+
+**Scenario: Permanent tabs preserve the split**
+
+- Given: the researcher has resized the Authoring and Context panes
+- When: they switch between Preview and Library
+- Then: both panes retain the same widths across the tab switch
 
 **Scenario: Unlinked PDF becomes reviewed working memory**
 

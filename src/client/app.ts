@@ -2904,7 +2904,7 @@ class WorkspaceApp {
   }
 
   #paneWidthStorageKey(): string {
-    const kind = this.#contextState.activeKey === RESEARCH_LIBRARY_KEY ? "library" : (this.#activeResourceTab()?.kind ?? "preview");
+    const kind = this.#activeResourceTab()?.kind ?? "preview";
     return `kirjolab:authoring-pane:${workspaceId}:${kind}`;
   }
 
