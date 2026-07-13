@@ -77,6 +77,14 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   const assistantSummary = page.locator("#writing-assistant > summary");
   await expect(assistantSummary).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= document.documentElement.clientHeight)).toBe(true);
+  const previewTab = page.getByRole("tab", { name: "Preview" });
+  const libraryTab = page.getByRole("tab", { name: "Library" });
+  await previewTab.focus();
+  await previewTab.press("ArrowRight");
+  await expect(libraryTab).toBeFocused();
+  await libraryTab.press("Enter");
+  await expect(page.locator("#context-library-panel")).toBeVisible();
+  await previewTab.click();
   await expect(page.locator("#open-source-citation")).toBeHidden();
   await expect(page.locator("#pin-active-context")).toBeHidden();
   await expect(page.locator("#close-active-context")).toBeHidden();
@@ -197,8 +205,9 @@ test("keeps private library research separate from project citations", async ({ 
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
 
-  await page.locator("#open-reference-library").click();
-  await expect(page.locator("#reference-library-dialog")).toBeVisible();
+  await page.getByRole("tab", { name: "Library" }).click();
+  await expect(page.locator("#context-library-panel")).toBeVisible();
+  await expect(page.locator("#reference-library-dialog")).toHaveCount(0);
   await page.locator("#library-bibliography-upload").setInputFiles({
     name: "private-library.bib",
     mimeType: "application/x-bibtex",
@@ -244,7 +253,12 @@ test("keeps private library research separate from project citations", async ({ 
 
   const uncitedExport = await page.request.get(`${api}/export/bibliography.bib`);
   expect(await uncitedExport.text()).not.toContain("researchGuide");
-  await page.locator("#close-reference-library").click();
+  await page.locator("#context-library-scroll").evaluate((element) => {
+    element.scrollTop = 160;
+  });
+  await page.getByRole("tab", { name: "Preview" }).click();
+  await page.getByRole("tab", { name: "Library" }).click();
+  await expect.poll(async () => await page.locator("#context-library-scroll").evaluate((element) => element.scrollTop)).toBe(160);
   await page.locator("#source-editor").fill("# Study\n\nThis uses the guide :cite[researchGuide].\n");
   await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("researchGuide");
 });
@@ -252,7 +266,7 @@ test("keeps private library research separate from project citations", async ({ 
 test("round-trips CSL JSON and portable library metadata", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Library interchange");
   await page.goto(`/workspaces/${workspaceId}`);
-  await page.locator("#open-reference-library").click();
+  await page.getByRole("tab", { name: "Library" }).click();
   await page.locator("#library-csl-upload").setInputFiles({
     name: "zotero-export.json",
     mimeType: "application/json",
@@ -282,7 +296,7 @@ test("records and reviews source citation assertions in an accessible shared net
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
 
-  await page.locator("#open-reference-library").click();
+  await page.getByRole("tab", { name: "Library" }).click();
   await page.locator("#library-bibliography-upload").setInputFiles({
     name: "citation-network.bib",
     mimeType: "application/x-bibtex",

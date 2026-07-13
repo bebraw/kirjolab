@@ -10,9 +10,10 @@ side of the workspace is therefore a research-context surface, not a preview
 component with an unrelated PDF workflow elsewhere.
 
 The feature implements the interface boundary chosen in ADR-053 and extended by
-ADR-055 and ADR-056. It hosts semantic preview, publication/PDF research
-resources, and grounded-revision review without changing their canonical data,
-selector, authorization, or rendering contracts.
+ADR-055, ADR-056, and ADR-071. It hosts semantic preview, the owner-private
+reference library, publication/PDF research resources, and grounded-revision
+review without changing their canonical data, selector, authorization, or
+rendering contracts.
 
 ### Architecture
 
@@ -20,14 +21,15 @@ selector, authorization, or rendering contracts.
   on the left and a tabbed research-context pane on the right. A compact
   resource-navigation rail may remain ancillary to those surfaces.
 - The ancillary rail separates project files from research. Research is the
-  default mode, presents bounded collapsible collections, and exposes the
-  private library and relationship graph through labelled actions rather than
-  unexplained glyphs or permanently expanded inventories.
-- The context tab model uses a discriminated target keyed by stable resource
-  identity: the singleton manuscript Preview, a publication UUID, a PDF UUID,
-  or a model-candidate UUID. One target can have at most one open tab.
-- Preview is the initial, permanent, non-closable tab. It retains its own scroll
-  position when another context becomes active.
+  default mode and presents bounded collapsible project collections rather
+  than duplicating the permanent private Library destination.
+- The context tab model uses a discriminated target keyed by stable identity:
+  the singleton manuscript Preview, the singleton owner Library, a publication
+  UUID, a PDF UUID, or a model-candidate UUID. One target can have at most one
+  open tab.
+- Preview is the initial permanent tab and Library follows it as the second
+  permanent tab. Neither can be closed or replaced, and each retains its own
+  scroll position when another context becomes active.
 - Publication and PDF tabs are closable. One unpinned resource tab serves as
   the replaceable follow-context slot; pinned tabs are not replaced by later
   navigation.
@@ -40,10 +42,10 @@ selector, authorization, or rendering contracts.
 - The semantic preview and `PdfEvidenceViewer` remain independent views behind
   one context-pane controller. Switching tabs must not recreate a resource
   identity or mutate the manuscript, PDF, or annotation records.
-- Active target, tab order, open/closed state, pin state, preview scroll, PDF
-  page, PDF scroll, and focused annotation are local browser state. They must
-  not be written to Yjs, the workspace snapshot, Durable Object SQLite, or
-  collaboration control messages.
+- Active target, tab order, open/closed state, pin state, Preview/Library
+  scroll, PDF page, PDF scroll, and focused annotation are local browser state.
+  They must not be written to Yjs, the workspace snapshot, Durable Object
+  SQLite, or collaboration control messages.
 - On desktop, a pointer- and keyboard-operable separator resizes Authoring and
   Context while preserving readable minimum widths. The local authoring width
   is remembered per workspace and context kind so a wide PDF reading layout
@@ -84,6 +86,9 @@ selector, authorization, or rendering contracts.
 - **Add to library**, **Cite in manuscript**, and **Connect as evidence** are
   separate, labelled commands. Context navigation has no implicit mutation
   side effects.
+- Activating **Library** refreshes the current owner's authorized library in
+  place. Contextual **Manage in library** actions focus that same tab instead of
+  opening a modal or creating another tab.
 - On narrow screens, only Authoring or Context is presented as the primary
   surface. A keyboard-operable switch changes surfaces without discarding the
   current tab or any per-tab reading position.
@@ -98,12 +103,12 @@ selector, authorization, or rendering contracts.
   repeated in a second content header.
 - Left/Right Arrow moves tab focus, Home/End reaches the first/last tab, Enter
   or Space activates a focused tab, and a close control is independently
-  labelled. Closing the active resource selects the nearest remaining tab,
-  with Preview as the final fallback.
+  labelled. Closing the active resource selects the nearest remaining tab;
+  permanent Preview and Library tabs are never removed.
 - Opening an existing resource tab activates it without changing tab order or
   resetting its reading position.
 - Automatic navigation may replace only the unpinned follow-context resource
-  tab. It must never replace Preview or a pinned tab.
+  tab. It must never replace Preview, Library, or a pinned tab.
 - Selecting text in a visible PDF populates an annotation draft for that exact
   PDF and page and immediately paints its pending geometry over the page so
   the researcher does not lose visual context. Its PDF target is locked to the
@@ -148,6 +153,7 @@ selector, authorization, or rendering contracts.
 - Do not render the preview, PDF, and editor as three mandatory document-width
   panes.
 - Do not remove or make the Preview tab closable.
+- Do not remove, duplicate, or make the Library tab closable.
 - Do not identify open tabs by mutable citation key, title, or filename.
 - Do not persist ephemeral context navigation as collaborative workspace state.
 - Do not reload a PDF from page one merely because another tab was viewed.
@@ -168,7 +174,10 @@ selector, authorization, or rendering contracts.
 ### Definition of Done
 
 - [x] The right-hand preview becomes a tabbed context pane with a permanent
-      Preview tab and resource-keyed publication/PDF tabs.
+      Preview tab, a permanent Library tab, and resource-keyed publication/PDF
+      tabs.
+- [x] Library browsing and management remain beside authoring without a modal
+      covering the workspace.
 - [x] Opening the same publication, PDF, or annotation twice focuses one
       existing resource tab instead of creating duplicates.
 - [x] Preview scroll and each PDF's page, scroll, and focused annotation survive
@@ -198,12 +207,13 @@ selector, authorization, or rendering contracts.
 
 ### Regression Guardrails
 
-- Preview must remain present, unique, and non-closable.
+- Preview and Library must remain present, unique, and non-closable.
 - An open resource target must map to at most one tab by kind-qualified stable
   id.
 - Switching, closing, or pinning tabs must not send Yjs updates or resource
   mutation requests.
-- Following context must never replace Preview or a pinned resource tab.
+- Following context must never replace Preview, Library, or a pinned resource
+  tab.
 - Per-tab reading state must be scoped by resource identity and must not leak
   between PDFs.
 - Context tabs must be reconciled on workspace changes and must not retain a

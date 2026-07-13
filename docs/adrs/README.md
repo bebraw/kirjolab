@@ -103,6 +103,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-068](./implemented/ADR-068-use-bounded-submission-templates.md)                  | Implemented          | Resolve common submission targets to pinned safe layout presets shared by LaTeX and direct PDF exports.      |
 | [ADR-069](./implemented/ADR-069-use-csl-json-and-bounded-library-archives.md)         | Implemented          | Exchange Zotero-compatible CSL JSON and bounded metadata-only private-library archives.                      |
 | [ADR-070](./implemented/ADR-070-remove-the-readme-screenshot.md)                      | Implemented          | Prefer no README screenshot over a stale representation of the application.                                  |
+| [ADR-071](./implemented/ADR-071-host-reference-library-in-context.md)                 | Implemented          | Keep the private reference library in a permanent Context tab instead of a modal.                            |
 
 ## Creating A New ADR
 

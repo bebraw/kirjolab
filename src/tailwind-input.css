@@ -518,6 +518,7 @@
   }
 
   .context-preview-panel,
+  .context-library-panel,
   .context-publication-panel,
   .context-pdf-panel,
   .context-candidate-panel {
@@ -525,6 +526,7 @@
   }
 
   .context-preview-panel:not([hidden]),
+  .context-library-panel:not([hidden]),
   .context-publication-panel:not([hidden]),
   .context-pdf-panel:not([hidden]),
   .context-candidate-panel:not([hidden]) {
@@ -532,6 +534,12 @@
   }
 
   .context-preview-panel .preview-scroll {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+  }
+
+  .context-library-scroll {
     min-height: 0;
     flex: 1;
     overflow: auto;

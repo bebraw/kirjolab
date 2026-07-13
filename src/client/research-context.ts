@@ -1,8 +1,9 @@
 export const RESEARCH_PREVIEW_KEY = "preview" as const;
+export const RESEARCH_LIBRARY_KEY = "library" as const;
 
 export type ResearchResourceKind = "publication" | "pdf" | "candidate";
 export type ResearchResourceKey = `${ResearchResourceKind}:${string}`;
-export type ResearchContextKey = typeof RESEARCH_PREVIEW_KEY | ResearchResourceKey;
+export type ResearchContextKey = typeof RESEARCH_PREVIEW_KEY | typeof RESEARCH_LIBRARY_KEY | ResearchResourceKey;
 
 export interface ResearchResourceTarget {
   readonly kind: ResearchResourceKind;
@@ -12,6 +13,12 @@ export interface ResearchResourceTarget {
 export interface PreviewResearchTab {
   readonly kind: "preview";
   readonly key: typeof RESEARCH_PREVIEW_KEY;
+  readonly scrollTop: number;
+}
+
+export interface LibraryResearchTab {
+  readonly kind: "library";
+  readonly key: typeof RESEARCH_LIBRARY_KEY;
   readonly scrollTop: number;
 }
 
@@ -37,11 +44,11 @@ export interface PdfResearchTab extends ResourceResearchTab {
 }
 
 export type ResearchResourceTab = PublicationResearchTab | PdfResearchTab | CandidateResearchTab;
-export type ResearchContextTab = PreviewResearchTab | ResearchResourceTab;
+export type ResearchContextTab = PreviewResearchTab | LibraryResearchTab | ResearchResourceTab;
 
 export interface ResearchContextState {
   readonly activeKey: ResearchContextKey;
-  /** Preview is always first, followed by pinned tabs and at most one unpinned tab. */
+  /** Preview and Library are always first, followed by pinned tabs and at most one unpinned tab. */
   readonly tabs: readonly ResearchContextTab[];
 }
 
@@ -59,7 +66,10 @@ export interface PdfResearchLocation {
 export function createResearchContext(): ResearchContextState {
   return {
     activeKey: RESEARCH_PREVIEW_KEY,
-    tabs: [{ kind: "preview", key: RESEARCH_PREVIEW_KEY, scrollTop: 0 }],
+    tabs: [
+      { kind: "preview", key: RESEARCH_PREVIEW_KEY, scrollTop: 0 },
+      { kind: "library", key: RESEARCH_LIBRARY_KEY, scrollTop: 0 },
+    ],
   };
 }
 
@@ -72,7 +82,7 @@ export function openResearchResource(state: ResearchContextState, target: Resear
   const existing = state.tabs.find((tab) => tab.key === key);
   if (existing) return state.activeKey === key ? state : { ...state, activeKey: key };
 
-  const pinnedTabs = state.tabs.filter((tab) => tab.kind === "preview" || tab.pinned);
+  const pinnedTabs = state.tabs.filter((tab) => isPermanentTab(tab) || tab.pinned);
   return {
     activeKey: key,
     tabs: [...pinnedTabs, createResourceTab(target, key)],
@@ -88,7 +98,7 @@ export function activateResearchTab(state: ResearchContextState, key: string): R
 export function setResearchTabPinned(state: ResearchContextState, key: string, pinned: boolean): ResearchContextState {
   const targetIndex = state.tabs.findIndex((tab) => tab.key === key);
   const target = state.tabs[targetIndex];
-  if (!target || target.kind === "preview" || target.pinned === pinned) return state;
+  if (!target || isPermanentTab(target) || target.pinned === pinned) return state;
 
   if (pinned) {
     return {
@@ -97,9 +107,9 @@ export function setResearchTabPinned(state: ResearchContextState, key: string, p
     };
   }
 
-  const replaceableTab = state.tabs.find((tab) => tab.kind !== "preview" && !tab.pinned);
+  const replaceableTab = state.tabs.find((tab) => !isPermanentTab(tab) && !tab.pinned);
   const replacedActiveTab = replaceableTab?.key === state.activeKey;
-  const retainedTabs = state.tabs.filter((tab) => tab.kind === "preview" || (tab.pinned && tab.key !== key));
+  const retainedTabs = state.tabs.filter((tab) => isPermanentTab(tab) || (tab.pinned && tab.key !== key));
   const unpinnedTarget = { ...target, pinned: false };
   return {
     activeKey: replacedActiveTab ? unpinnedTarget.key : state.activeKey,
@@ -110,7 +120,7 @@ export function setResearchTabPinned(state: ResearchContextState, key: string, p
 export function closeResearchTab(state: ResearchContextState, key: string): ResearchContextState {
   const index = state.tabs.findIndex((tab) => tab.key === key);
   const target = state.tabs[index];
-  if (!target || target.kind === "preview") return state;
+  if (!target || isPermanentTab(target)) return state;
 
   const tabs = state.tabs.filter((tab) => tab.key !== key);
   return {
@@ -175,7 +185,11 @@ function normalizePage(page: number): number {
 }
 
 function isAuthorized(tab: ResearchContextTab, authorization: ResearchContextAuthorization): boolean {
-  if (tab.kind === "preview") return true;
+  if (isPermanentTab(tab)) return true;
   if (tab.kind === "publication") return authorization.publicationIds.has(tab.id);
   return tab.kind === "pdf" ? authorization.pdfIds.has(tab.id) : authorization.candidateIds.has(tab.id);
+}
+
+function isPermanentTab(tab: ResearchContextTab): tab is PreviewResearchTab | LibraryResearchTab {
+  return tab.kind === "preview" || tab.kind === "library";
 }

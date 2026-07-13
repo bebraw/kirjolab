@@ -67,6 +67,7 @@ import {
   closeResearchTab,
   createResearchContext,
   openResearchResource,
+  RESEARCH_LIBRARY_KEY,
   RESEARCH_PREVIEW_KEY,
   reconcileResearchContext,
   researchResourceKey,
@@ -115,11 +116,6 @@ interface Elements {
   workspaceMemberList: HTMLElement;
   inviteMemberForm: HTMLFormElement;
   inviteMemberEmail: HTMLInputElement;
-  openReferenceLibrary: HTMLButtonElement;
-  openReferenceLibraryShelf: HTMLButtonElement;
-  browseReferenceLibrary: HTMLButtonElement;
-  referenceLibraryDialog: HTMLDialogElement;
-  closeReferenceLibrary: HTMLButtonElement;
   referenceLibraryList: HTMLElement;
   libraryBibliographyUpload: HTMLInputElement;
   libraryCslUpload: HTMLInputElement;
@@ -197,6 +193,7 @@ interface Elements {
   openSourceCitation: HTMLButtonElement;
   contextTabList: HTMLElement;
   contextPreviewTab: HTMLButtonElement;
+  contextLibraryTab: HTMLButtonElement;
   contextResourceTabs: HTMLElement;
   pinActiveContext: HTMLButtonElement;
   closeActiveContext: HTMLButtonElement;
@@ -204,6 +201,8 @@ interface Elements {
   pdfContextControls: HTMLElement;
   contextPreviewPanel: HTMLElement;
   previewScroll: HTMLElement;
+  contextLibraryPanel: HTMLElement;
+  contextLibraryScroll: HTMLElement;
   contextPublicationPanel: HTMLElement;
   contextPublicationBody: HTMLElement;
   contextPdfPanel: HTMLElement;
@@ -442,14 +441,7 @@ class WorkspaceApp {
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
-    for (const button of [
-      this.#elements.openReferenceLibrary,
-      this.#elements.openReferenceLibraryShelf,
-      this.#elements.browseReferenceLibrary,
-    ]) {
-      button.addEventListener("click", () => void this.#openReferenceLibrary());
-    }
-    this.#elements.closeReferenceLibrary.addEventListener("click", () => this.#elements.referenceLibraryDialog.close());
+    this.#elements.contextLibraryTab.addEventListener("click", () => void this.#openReferenceLibrary());
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
     this.#elements.libraryArchiveUpload.addEventListener("change", () => void this.#importLibraryArchive());
@@ -1377,7 +1369,7 @@ class WorkspaceApp {
   }
 
   async #openReferenceLibrary(): Promise<void> {
-    this.#elements.referenceLibraryDialog.showModal();
+    this.#activateContext(RESEARCH_LIBRARY_KEY);
     await this.#refreshReferenceLibrary();
   }
 
@@ -1481,7 +1473,7 @@ class WorkspaceApp {
       return;
     }
     const nodes = document.createElement("section");
-    nodes.className = "grid gap-3 md:grid-cols-2";
+    nodes.className = "grid gap-3";
     for (const node of network.nodes) {
       const card = document.createElement("article");
       card.className = "resource-card";
@@ -2912,7 +2904,7 @@ class WorkspaceApp {
   }
 
   #paneWidthStorageKey(): string {
-    const kind = this.#activeResourceTab()?.kind ?? "preview";
+    const kind = this.#contextState.activeKey === RESEARCH_LIBRARY_KEY ? "library" : (this.#activeResourceTab()?.kind ?? "preview");
     return `kirjolab:authoring-pane:${workspaceId}:${kind}`;
   }
 
@@ -2951,6 +2943,10 @@ class WorkspaceApp {
     const key = this.#contextState.activeKey;
     if (key === RESEARCH_PREVIEW_KEY) {
       this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.previewScroll.scrollTop);
+      return;
+    }
+    if (key === RESEARCH_LIBRARY_KEY) {
+      this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.contextLibraryScroll.scrollTop);
       return;
     }
     const tab = this.#contextState.tabs.find((item) => item.key === key);
@@ -3009,16 +3005,19 @@ class WorkspaceApp {
     const activeKey = this.#contextState.activeKey;
     this.#elements.contextPreviewTab.setAttribute("aria-selected", String(activeKey === RESEARCH_PREVIEW_KEY));
     this.#elements.contextPreviewTab.tabIndex = activeKey === RESEARCH_PREVIEW_KEY ? 0 : -1;
+    this.#elements.contextLibraryTab.setAttribute("aria-selected", String(activeKey === RESEARCH_LIBRARY_KEY));
+    this.#elements.contextLibraryTab.tabIndex = activeKey === RESEARCH_LIBRARY_KEY ? 0 : -1;
     this.#elements.contextResourceTabs.replaceChildren();
 
     for (const tab of this.#contextState.tabs) {
-      if (tab.kind === "preview") continue;
+      if (tab.kind === "preview" || tab.kind === "library") continue;
       this.#elements.contextResourceTabs.append(this.#renderContextResourceTab(tab));
     }
 
     const activeTab = this.#activeResourceTab();
     this.#restoreAuthoringPaneWidth();
     this.#elements.contextPreviewPanel.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#elements.contextLibraryPanel.hidden = activeKey !== RESEARCH_LIBRARY_KEY;
     this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
     this.#elements.contextPdfPanel.hidden = activeTab?.kind !== "pdf";
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
@@ -3059,6 +3058,12 @@ class WorkspaceApp {
 
     if (activeKey === RESEARCH_PREVIEW_KEY) {
       this.#elements.previewScroll.scrollTop = this.#contextState.tabs[0]?.scrollTop ?? 0;
+      return;
+    }
+
+    if (activeKey === RESEARCH_LIBRARY_KEY) {
+      const libraryTab = this.#contextState.tabs.find((tab) => tab.key === RESEARCH_LIBRARY_KEY);
+      this.#elements.contextLibraryScroll.scrollTop = libraryTab?.scrollTop ?? 0;
       return;
     }
 
@@ -3324,7 +3329,12 @@ class WorkspaceApp {
   }
 
   #focusContextTab(key: ResearchContextKey): void {
-    const selector = key === RESEARCH_PREVIEW_KEY ? "#context-preview-tab" : `#${CSS.escape(`context-tab-${key.replace(":", "-")}`)}`;
+    const selector =
+      key === RESEARCH_PREVIEW_KEY
+        ? "#context-preview-tab"
+        : key === RESEARCH_LIBRARY_KEY
+          ? "#context-library-tab"
+          : `#${CSS.escape(`context-tab-${key.replace(":", "-")}`)}`;
     queueMicrotask(() => this.#elements.contextTabList.querySelector<HTMLButtonElement>(selector)?.focus());
   }
 
@@ -3343,7 +3353,7 @@ class WorkspaceApp {
 
   #activeResourceTab(): ResearchResourceTab | undefined {
     return this.#contextState.tabs.find(
-      (tab): tab is ResearchResourceTab => tab.kind !== "preview" && tab.key === this.#contextState.activeKey,
+      (tab): tab is ResearchResourceTab => tab.kind !== "preview" && tab.kind !== "library" && tab.key === this.#contextState.activeKey,
     );
   }
 
@@ -4123,11 +4133,6 @@ function collectElements(): Elements {
     workspaceMemberList: requiredElement("workspace-member-list", HTMLElement),
     inviteMemberForm: requiredElement("invite-member-form", HTMLFormElement),
     inviteMemberEmail: requiredElement("invite-member-email", HTMLInputElement),
-    openReferenceLibrary: requiredElement("open-reference-library", HTMLButtonElement),
-    openReferenceLibraryShelf: requiredElement("open-reference-library-shelf", HTMLButtonElement),
-    browseReferenceLibrary: requiredElement("browse-reference-library", HTMLButtonElement),
-    referenceLibraryDialog: requiredElement("reference-library-dialog", HTMLDialogElement),
-    closeReferenceLibrary: requiredElement("close-reference-library", HTMLButtonElement),
     referenceLibraryList: requiredElement("reference-library-list", HTMLElement),
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
@@ -4205,6 +4210,7 @@ function collectElements(): Elements {
     openSourceCitation: requiredElement("open-source-citation", HTMLButtonElement),
     contextTabList: requiredElement("context-tab-list", HTMLElement),
     contextPreviewTab: requiredElement("context-preview-tab", HTMLButtonElement),
+    contextLibraryTab: requiredElement("context-library-tab", HTMLButtonElement),
     contextResourceTabs: requiredElement("context-resource-tabs", HTMLElement),
     pinActiveContext: requiredElement("pin-active-context", HTMLButtonElement),
     closeActiveContext: requiredElement("close-active-context", HTMLButtonElement),
@@ -4212,6 +4218,8 @@ function collectElements(): Elements {
     pdfContextControls: requiredElement("pdf-context-controls", HTMLElement),
     contextPreviewPanel: requiredElement("context-preview-panel", HTMLElement),
     previewScroll: requiredElement("preview-scroll", HTMLElement),
+    contextLibraryPanel: requiredElement("context-library-panel", HTMLElement),
+    contextLibraryScroll: requiredElement("context-library-scroll", HTMLElement),
     contextPublicationPanel: requiredElement("context-publication-panel", HTMLElement),
     contextPublicationBody: requiredElement("context-publication-body", HTMLElement),
     contextPdfPanel: requiredElement("context-pdf-panel", HTMLElement),

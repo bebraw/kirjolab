@@ -44,6 +44,9 @@ memory and makes citation aliases compete with stable source identity.
   assertions between stable reference UUIDs. Confirmed, extracted, inferred,
   and conflicting derived states remain distinct from project manuscript
   `cites` links; researcher review never erases captured provenance.
+- The library is a permanent, non-closable tab beside Preview in the project's
+  research-context pane. Activating it refreshes the authorized owner snapshot
+  without opening a modal or mutating project state.
 
 ### API Contracts
 
@@ -89,6 +92,8 @@ memory and makes citation aliases compete with stable source identity.
 - Do not delete a library source because one project unlinks it.
 - Do not flatten provider, extraction, model, or manual citation evidence into
   one trusted boolean edge.
+- Do not cover authoring with a modal for the primary library workflow or
+  duplicate its permanent tab with generic header and rail launchers.
 
 ### Validation
 
@@ -104,6 +109,6 @@ memory and makes citation aliases compete with stable source identity.
   private PDFs and identification, notes/tags/highlights/reading state, archive
   and tombstone deletion, project aliases/snapshots, derived cited-only BibTeX,
   versioned web captures, provenance-bearing citation assertions and network,
-  and separate closed-by-default library UI.
+  and a permanent owner-private Library context tab.
 - Superseded: workspace BibTeX authority and workspace-scoped publication
   projection described by ADR-044, ADR-051, and ADR-055.

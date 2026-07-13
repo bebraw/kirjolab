@@ -24,8 +24,9 @@ mode for authenticated hosted collaboration.
   task surface.
 - **Primary surfaces:** The authoring editor remains visible beside a tabbed
   research-context pane on desktop. The pane permanently hosts manuscript
-  Preview and can host publication, PDF, and model-candidate resources without
-  making local tab, pin, scroll, or reading-position state collaborative.
+  Preview and the owner-private Library, and can host publication, PDF, and
+  model-candidate resources without making local tab, pin, scroll, or
+  reading-position state collaborative.
   The collapsed Writing assistant entry point remains inside the desktop
   viewport instead of extending the primary workspace below the fold.
   Layouts narrower than the split pane's declared minimum width switch between
