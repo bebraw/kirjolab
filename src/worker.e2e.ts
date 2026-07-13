@@ -499,6 +499,39 @@ test("uploads a bounded PDF batch with partial success and retry", async ({ page
   expect(requestedFiles).toHaveLength(4);
 });
 
+test("resolves an exact PDF repeat and reveals its archived Library source", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Exact PDF identity");
+  const bytes = createEvidencePdf("Canonical duplicate evidence.");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await page.getByRole("tab", { name: "Library" }).click();
+  await page.locator("#library-pdf-upload").setInputFiles({
+    name: "canonical_repeat.pdf",
+    mimeType: "application/pdf",
+    buffer: bytes,
+  });
+
+  const libraryList = page.locator("#reference-library-list");
+  const card = libraryList.locator(".resource-card").filter({ hasText: "canonical repeat" });
+  await expect(card).toBeVisible();
+  await card.getByText("Metadata and research").click();
+  await card.getByRole("button", { name: "Archive" }).click();
+  await expect(card).toHaveCount(0);
+
+  await page.locator("#library-pdf-upload").setInputFiles({
+    name: "selected_again.pdf",
+    mimeType: "application/pdf",
+    buffer: bytes,
+  });
+  const status = page.locator("#library-pdf-upload-status");
+  await expect(status.locator('[data-upload-state="existing"]')).toContainText(/Already in library · sourceundatedcanonical/u);
+  await expect(status.getByRole("button", { name: /Show sourceundatedcanonical in Library/u })).toBeVisible();
+  await status.getByRole("button", { name: /Show sourceundatedcanonical in Library/u }).click();
+
+  await expect(page.locator("#show-archived-references")).toHaveAttribute("aria-pressed", "true");
+  await expect(libraryList.locator(".resource-card").filter({ hasText: "canonical repeat" })).toContainText("Private · archived");
+  await expect(page.locator("#reference-filter-query")).toHaveValue("sourceundatedcanonical");
+});
+
 test("reviews bounded PDF metadata before enriching a library record", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "PDF metadata review");
   await page.goto(`/workspaces/${workspaceId}`);

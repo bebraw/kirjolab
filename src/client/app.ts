@@ -26,6 +26,7 @@ import { publicationWordStatistics, type PublicationWordStatistics } from "../do
 import {
   crossrefMetadataFields,
   isMetadataRefinementPreview,
+  isPdfDraftResult,
   isReferenceLibrarySnapshot,
   type BibliographicRecord,
   type CrossrefMetadataField,
@@ -70,7 +71,7 @@ import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } fr
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { adjustSelectionRects } from "./pdf-selection";
-import { uploadPdfBatch, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
+import { uploadPdfBatch, type ExistingPdfUpload, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
 import { maximumModelEvidenceItems, OpenAICompatibleBrowserProvider, type ModelEvidenceItem } from "./model-provider";
 import {
   activateResearchTab,
@@ -2089,18 +2090,33 @@ class WorkspaceApp {
             credentials: "same-origin",
           });
           await expectOk(response);
+          const value: unknown = await response.json();
+          if (!isPdfDraftResult(value)) throw new Error("PDF intake returned an invalid result");
+          return value.created
+            ? { disposition: "created" }
+            : {
+                disposition: "existing",
+                referenceId: value.reference.id,
+                referenceKey: value.reference.referenceKey,
+                archived: value.reference.archivedAt !== null,
+              };
         },
         (snapshot) => this.#renderLibraryPdfUpload(snapshot, false),
       );
       this.#failedLibraryPdfUploads = result.failed;
-      if (result.added.length > 0) await this.#refreshReferenceLibrary();
+      if (result.added.length > 0 || result.existing.length > 0) await this.#refreshReferenceLibrary();
       this.#renderLibraryPdfUpload(
         { items: result.items, completed: result.items.length, total: result.items.length },
         result.failed.length > 0,
       );
       const addedLabel = `${result.added.length} PDF${result.added.length === 1 ? "" : "s"} added`;
+      const existingLabel = `${result.existing.length} already in library`;
       this.#showToast(
-        result.failed.length === 0 ? `${addedLabel}. Add metadata when ready.` : `${addedLabel}; ${result.failed.length} failed.`,
+        result.failed.length === 0
+          ? result.existing.length > 0
+            ? `${addedLabel}; ${existingLabel}.`
+            : `${addedLabel}. Add metadata when ready.`
+          : `${addedLabel}; ${existingLabel}; ${result.failed.length} failed.`,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "PDF intake failed";
@@ -2131,8 +2147,22 @@ class WorkspaceApp {
       name.title = item.file.name;
       const state = document.createElement("span");
       state.className = `shrink-0 ${item.state === "failed" ? "text-app-error" : "text-app-text-soft"}`;
-      state.textContent = item.state === "failed" ? `Failed · ${item.error ?? "Upload failed"}` : uploadStateLabel(item.state);
-      row.append(name, state);
+      state.textContent =
+        item.state === "failed"
+          ? `Failed · ${item.error ?? "Upload failed"}`
+          : item.state === "existing" && item.existing
+            ? `Already in library · ${item.existing.referenceKey}`
+            : uploadStateLabel(item.state);
+      const outcome = document.createElement("span");
+      outcome.className = "flex shrink-0 items-center gap-2";
+      outcome.append(state);
+      if (item.state === "existing" && item.existing) {
+        const existing = item.existing;
+        const reveal = actionButton("Show", "button-secondary", () => void this.#revealExistingPdfReference(existing));
+        reveal.setAttribute("aria-label", `Show ${existing.referenceKey} in Library`);
+        outcome.append(reveal);
+      }
+      row.append(name, outcome);
       list.append(row);
     }
     const content: Node[] = [resourceLabel("PDF intake"), summary, list];
@@ -2143,6 +2173,29 @@ class WorkspaceApp {
       content.push(retry);
     }
     container.replaceChildren(...content);
+  }
+
+  async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
+    if (existing.archived && !this.#showArchivedReferences) {
+      this.#showArchivedReferences = true;
+      this.#elements.showArchivedReferences.setAttribute("aria-pressed", "true");
+      await this.#refreshReferenceLibrary();
+    }
+    this.#elements.referenceFilterQuery.value = existing.referenceKey;
+    this.#elements.referenceFilterType.value = "";
+    this.#elements.referenceFilterReading.value = "all";
+    this.#elements.referenceFilterOrganization.value = "";
+    this.#elements.referenceFilterLinkage.value = "all";
+    this.#elements.referenceFilterCompleteness.value = "all";
+    this.#renderReferenceLibrary();
+    const card = this.#elements.referenceLibraryList.querySelector<HTMLElement>(`[data-reference-id="${existing.referenceId}"]`);
+    if (!card) {
+      this.#showToast(`Library source ${existing.referenceKey} is not available.`);
+      return;
+    }
+    card.tabIndex = -1;
+    card.scrollIntoView({ block: "nearest" });
+    card.focus({ preventScroll: true });
   }
 
   async #refinePdfMetadata(reference: BibliographicRecord, artifact: LibraryPdfArtifact, container: HTMLElement): Promise<void> {
@@ -5200,6 +5253,7 @@ function statusText(value: string): HTMLParagraphElement {
 function uploadStateLabel(state: PdfUploadQueueSnapshot["items"][number]["state"]): string {
   if (state === "queued") return "Queued";
   if (state === "uploading") return "Uploading";
+  if (state === "existing") return "Already in library";
   return "Added";
 }
 

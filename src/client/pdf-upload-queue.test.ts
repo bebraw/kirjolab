@@ -18,6 +18,7 @@ describe("PDF upload queue", () => {
         await Promise.resolve();
         active -= 1;
         if (file.name === "broken.pdf") throw new Error("Invalid PDF");
+        return { disposition: "created" };
       },
       (snapshot) => snapshots.push(snapshot),
     );
@@ -26,6 +27,7 @@ describe("PDF upload queue", () => {
     expect(maximumActive).toBe(1);
     expect(result.added.map((file) => file.name)).toEqual(["first.pdf", "third.pdf"]);
     expect(result.failed.map((file) => file.name)).toEqual(["broken.pdf"]);
+    expect(result.existing).toEqual([]);
     expect(result.items.map(({ state, error }) => ({ state, error }))).toEqual([
       { state: "added", error: undefined },
       { state: "failed", error: "Invalid PDF" },
@@ -49,8 +51,27 @@ describe("PDF upload queue", () => {
     expect(result.items[0]).toMatchObject({ state: "failed", error: "Upload failed" });
   });
 
+  it("treats an existing source as a completed non-retryable outcome", async () => {
+    const snapshots: PdfUploadQueueSnapshot[] = [];
+    const result = await uploadPdfBatch(
+      [pdf("repeat.pdf")],
+      async () => ({ disposition: "existing", referenceId: "reference-1", referenceKey: "doe2026", archived: true }),
+      (snapshot) => snapshots.push(snapshot),
+    );
+
+    expect(snapshots.map((snapshot) => snapshot.items[0]?.state)).toEqual(["queued", "uploading", "existing"]);
+    expect(snapshots.at(-1)).toMatchObject({ completed: 1, total: 1 });
+    expect(result.added).toEqual([]);
+    expect(result.failed).toEqual([]);
+    expect(result.existing).toEqual([{ referenceId: "reference-1", referenceKey: "doe2026", archived: true }]);
+    expect(result.items[0]).toMatchObject({
+      state: "existing",
+      existing: { referenceId: "reference-1", referenceKey: "doe2026", archived: true },
+    });
+  });
+
   it("rejects an oversized batch before publishing or uploading", async () => {
-    const upload = vi.fn<(file: File) => Promise<void>>().mockResolvedValue(undefined);
+    const upload = vi.fn<(file: File) => Promise<{ disposition: "created" }>>().mockResolvedValue({ disposition: "created" });
     const update = vi.fn<(snapshot: PdfUploadQueueSnapshot) => void>();
     const files = Array.from({ length: maximumPdfBatchFiles + 1 }, (_, index) => pdf(`${index}.pdf`));
 

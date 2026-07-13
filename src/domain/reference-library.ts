@@ -481,10 +481,7 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
 
 export function isPdfDraftResult(value: unknown): value is PdfDraftResult {
   return (
-    isRecord(value) &&
-    isBibliographicRecord(value.reference) &&
-    isLibraryPdfArtifact(value.artifact) &&
-    typeof value.created === "boolean"
+    isRecord(value) && isBibliographicRecord(value.reference) && isLibraryPdfArtifact(value.artifact) && typeof value.created === "boolean"
   );
 }
 
