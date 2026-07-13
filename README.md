@@ -49,8 +49,8 @@ Local development in this repo targets macOS. Other platforms may need script an
 - Start Kirjolab with `npm run dev`, then open `http://127.0.0.1:8787`.
 - `npm run build` generates the Tailwind stylesheet, typed browser bundle, version-matched PDF.js worker, and Satteri browser assets under the ignored `.generated/` directory.
 - Local Wrangler automatically emulates the Durable Object and R2 bindings.
-- Before a production deployment, create the configured bucket with `npx wrangler r2 bucket create kirjolab-papers`.
-- Local `AUTH_MODE=local` is deliberately rejected away from loopback. For hosting, protect the application hostname with Cloudflare Access and configure `AUTH_MODE=access`, `ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com`, and the application's `ACCESS_AUD` value through environment-specific Wrangler configuration or dashboard variables. Keep unprotected direct hostnames disabled.
+- Before a production deployment, follow the fail-closed [production runbook](./docs/operations/production.md). It creates the configured bucket, protects an exact custom hostname with Cloudflare Access, runs a strict dry run, verifies the release, and records rollback evidence.
+- Local `AUTH_MODE=local` is deliberately rejected away from loopback. `npm run deploy` supplies the complete hosted Access configuration only after its production preflight succeeds; do not use a raw Wrangler deploy for production.
 - Set optional `CROSSREF_MAILTO=you@example.org` in deployment configuration to identify metadata enrichment requests to Crossref's polite pool. BibTeX import itself is local and needs no credentials.
 
 ## Verification
