@@ -1,5 +1,5 @@
-export function createEvidencePdf(): Buffer {
-  return createPdf(["Knowledge grows through inspectable evidence."]);
+export function createEvidencePdf(text = "Knowledge grows through inspectable evidence."): Buffer {
+  return createPdf([text]);
 }
 
 export function createTwoPageEvidencePdf(): Buffer {

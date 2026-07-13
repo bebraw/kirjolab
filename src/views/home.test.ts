@@ -132,6 +132,18 @@ describe("renderHomePage", () => {
     expect(html.indexOf('id="publication-intake"')).toBeLessThan(html.indexOf('id="annotation-composer-title"'));
   });
 
+  it("renders accessible bounded batch PDF intake in the Library", () => {
+    const html = renderHomePage(exampleRoutes);
+
+    expect(html).toContain('id="library-pdf-dropzone" for="library-pdf-upload"');
+    expect(html).toContain("Choose or drop up to 20 PDFs. Each source is added independently.");
+    expect(html).toContain(
+      'id="library-pdf-upload" type="file" accept="application/pdf" multiple aria-describedby="library-pdf-upload-help"',
+    );
+    expect(html).toContain('id="library-pdf-upload-status" aria-live="polite"');
+    expect(html).not.toContain('id="library-pdf-upload-status" role="dialog"');
+  });
+
   it("renders an accessible, focused passage-revision review in research context", () => {
     const html = renderHomePage(exampleRoutes);
 

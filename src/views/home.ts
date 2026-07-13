@@ -223,9 +223,12 @@ export function renderHomePage(
             </div>
             <section class="mt-5 border-y border-app-line py-4" aria-labelledby="library-add-heading">
               <p class="eyebrow" id="library-add-heading">Add source</p>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <label class="button-primary">Upload PDF<input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf"></label>
-              </div>
+              <label class="mt-3 block cursor-pointer rounded-sm border border-dashed border-app-line bg-app-surface/50 px-4 py-3 transition-colors hover:border-app-accent data-[dragging=true]:border-app-accent data-[dragging=true]:bg-app-accent-ghost" id="library-pdf-dropzone" for="library-pdf-upload">
+                <span class="font-sans text-sm font-semibold text-app-text">Upload PDFs</span>
+                <span class="mt-1 block text-xs leading-5 text-app-text-soft" id="library-pdf-upload-help">Choose or drop up to 20 PDFs. Each source is added independently.</span>
+                <input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf" multiple aria-describedby="library-pdf-upload-help">
+              </label>
+              <section class="mt-3 hidden border-l-2 border-app-accent pl-3" id="library-pdf-upload-status" aria-live="polite"></section>
               <form class="mt-3 grid gap-3 md:grid-cols-[1fr_auto]" id="web-source-form">
                 <label class="field-label">Website URL<input class="field" id="web-source-url" type="url" maxlength="4096" required placeholder="https://example.org/article"></label>
                 <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Add website</button></div>

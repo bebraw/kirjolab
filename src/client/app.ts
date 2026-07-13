@@ -70,6 +70,7 @@ import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } fr
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { adjustSelectionRects } from "./pdf-selection";
+import { uploadPdfBatch, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
 import { maximumModelEvidenceItems, OpenAICompatibleBrowserProvider, type ModelEvidenceItem } from "./model-provider";
 import {
   activateResearchTab,
@@ -131,6 +132,8 @@ interface Elements {
   libraryCslUpload: HTMLInputElement;
   libraryArchiveUpload: HTMLInputElement;
   libraryPdfUpload: HTMLInputElement;
+  libraryPdfDropzone: HTMLElement;
+  libraryPdfUploadStatus: HTMLElement;
   showArchivedReferences: HTMLButtonElement;
   referenceFilterQuery: HTMLInputElement;
   referenceFilterType: HTMLSelectElement;
@@ -388,6 +391,8 @@ class WorkspaceApp {
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
+  #libraryPdfUploadBusy = false;
+  #failedLibraryPdfUploads: readonly File[] = [];
   #showArchivedReferences = false;
   #citationNetwork: CitationNetwork | null = null;
   #filterProjectCitations = false;
@@ -478,7 +483,27 @@ class WorkspaceApp {
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
     this.#elements.libraryArchiveUpload.addEventListener("change", () => void this.#importLibraryArchive());
-    this.#elements.libraryPdfUpload.addEventListener("change", () => void this.#uploadLibraryPdf());
+    this.#elements.libraryPdfUpload.addEventListener("change", () => {
+      void this.#uploadLibraryPdfs(Array.from(this.#elements.libraryPdfUpload.files ?? []));
+    });
+    this.#elements.libraryPdfDropzone.addEventListener("dragover", (event) => {
+      if (this.#libraryPdfUploadBusy || !event.dataTransfer?.types.includes("Files")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      this.#elements.libraryPdfDropzone.dataset.dragging = "true";
+    });
+    this.#elements.libraryPdfDropzone.addEventListener("dragleave", () => {
+      delete this.#elements.libraryPdfDropzone.dataset.dragging;
+    });
+    this.#elements.libraryPdfDropzone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      delete this.#elements.libraryPdfDropzone.dataset.dragging;
+      if (this.#libraryPdfUploadBusy) {
+        this.#showToast("Finish the current PDF batch before adding another.");
+        return;
+      }
+      void this.#uploadLibraryPdfs(Array.from(event.dataTransfer?.files ?? []));
+    });
     this.#elements.webSourceForm.addEventListener("submit", (event) => void this.#captureWebSource(event));
     this.#elements.openCitationNetwork.addEventListener("click", () => void this.#openCitationNetwork());
     this.#elements.exploreResearchGraph.addEventListener(
@@ -2041,19 +2066,83 @@ class WorkspaceApp {
     this.#showToast("Portable library metadata restored.");
   }
 
-  async #uploadLibraryPdf(): Promise<void> {
-    const file = this.#elements.libraryPdfUpload.files?.[0];
-    if (!file) return;
-    const response = await fetch("/api/library/pdfs", {
-      method: "POST",
-      headers: { "content-type": "application/pdf", "content-length": String(file.size), "x-file-name": encodeURIComponent(file.name) },
-      body: file,
-      credentials: "same-origin",
-    });
-    await expectOk(response);
+  async #uploadLibraryPdfs(files: readonly File[]): Promise<void> {
+    if (files.length === 0 || this.#libraryPdfUploadBusy) return;
     this.#elements.libraryPdfUpload.value = "";
-    await this.#refreshReferenceLibrary();
-    this.#showToast("PDF added with a stable reference ID. Add metadata when ready.");
+    this.#elements.libraryPdfUpload.disabled = true;
+    this.#elements.libraryPdfUploadStatus.setAttribute("aria-busy", "true");
+    this.#elements.libraryPdfDropzone.dataset.busy = "true";
+    this.#libraryPdfUploadBusy = true;
+    this.#failedLibraryPdfUploads = [];
+    try {
+      const result = await uploadPdfBatch(
+        files,
+        async (file) => {
+          const response = await fetch("/api/library/pdfs", {
+            method: "POST",
+            headers: {
+              "content-type": "application/pdf",
+              "content-length": String(file.size),
+              "x-file-name": encodeURIComponent(file.name),
+            },
+            body: file,
+            credentials: "same-origin",
+          });
+          await expectOk(response);
+        },
+        (snapshot) => this.#renderLibraryPdfUpload(snapshot, false),
+      );
+      this.#failedLibraryPdfUploads = result.failed;
+      if (result.added.length > 0) await this.#refreshReferenceLibrary();
+      this.#renderLibraryPdfUpload(
+        { items: result.items, completed: result.items.length, total: result.items.length },
+        result.failed.length > 0,
+      );
+      const addedLabel = `${result.added.length} PDF${result.added.length === 1 ? "" : "s"} added`;
+      this.#showToast(
+        result.failed.length === 0 ? `${addedLabel}. Add metadata when ready.` : `${addedLabel}; ${result.failed.length} failed.`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "PDF intake failed";
+      this.#elements.libraryPdfUploadStatus.classList.remove("hidden");
+      this.#elements.libraryPdfUploadStatus.replaceChildren(resourceLabel("PDF intake"), statusText(message));
+      this.#showToast(message);
+    } finally {
+      this.#libraryPdfUploadBusy = false;
+      this.#elements.libraryPdfUpload.disabled = false;
+      this.#elements.libraryPdfUploadStatus.removeAttribute("aria-busy");
+      delete this.#elements.libraryPdfDropzone.dataset.busy;
+    }
+  }
+
+  #renderLibraryPdfUpload(snapshot: PdfUploadQueueSnapshot, retryFailed: boolean): void {
+    const container = this.#elements.libraryPdfUploadStatus;
+    container.classList.remove("hidden");
+    const summary = statusText(`${snapshot.completed} of ${snapshot.total} processed`);
+    const list = document.createElement("ol");
+    list.className = "mt-2 grid gap-1 font-sans text-xs";
+    for (const item of snapshot.items) {
+      const row = document.createElement("li");
+      row.className = "flex items-start justify-between gap-3";
+      row.dataset.uploadState = item.state;
+      const name = document.createElement("span");
+      name.className = "min-w-0 truncate text-app-text";
+      name.textContent = item.file.name;
+      name.title = item.file.name;
+      const state = document.createElement("span");
+      state.className = `shrink-0 ${item.state === "failed" ? "text-app-error" : "text-app-text-soft"}`;
+      state.textContent = item.state === "failed" ? `Failed · ${item.error ?? "Upload failed"}` : uploadStateLabel(item.state);
+      row.append(name, state);
+      list.append(row);
+    }
+    const content: Node[] = [resourceLabel("PDF intake"), summary, list];
+    if (retryFailed) {
+      const retry = actionButton("Retry failed", "button-secondary mt-3", () => {
+        void this.#uploadLibraryPdfs(this.#failedLibraryPdfUploads);
+      });
+      content.push(retry);
+    }
+    container.replaceChildren(...content);
   }
 
   async #refinePdfMetadata(reference: BibliographicRecord, artifact: LibraryPdfArtifact, container: HTMLElement): Promise<void> {
@@ -4779,6 +4868,8 @@ function collectElements(): Elements {
     libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
     libraryArchiveUpload: requiredElement("library-archive-upload", HTMLInputElement),
     libraryPdfUpload: requiredElement("library-pdf-upload", HTMLInputElement),
+    libraryPdfDropzone: requiredElement("library-pdf-dropzone", HTMLElement),
+    libraryPdfUploadStatus: requiredElement("library-pdf-upload-status", HTMLElement),
     showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
     referenceFilterQuery: requiredElement("reference-filter-query", HTMLInputElement),
     referenceFilterType: requiredElement("reference-filter-type", HTMLSelectElement),
@@ -5104,6 +5195,12 @@ function statusText(value: string): HTMLParagraphElement {
   paragraph.className = "mt-2 text-xs leading-5 text-app-text-soft";
   paragraph.textContent = value;
   return paragraph;
+}
+
+function uploadStateLabel(state: PdfUploadQueueSnapshot["items"][number]["state"]): string {
+  if (state === "queued") return "Queued";
+  if (state === "uploading") return "Uploading";
+  return "Added";
 }
 
 function formatCalendarDate(value: string): string {

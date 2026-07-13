@@ -449,6 +449,56 @@ test("keeps private library research separate from project citations", async ({ 
   await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("writer2026");
 });
 
+test("uploads a bounded PDF batch with partial success and retry", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Batch PDF intake");
+  const requestedFiles: string[] = [];
+  let failBetaOnce = true;
+  await page.route("**/api/library/pdfs", async (route) => {
+    const encodedName = route.request().headers()["x-file-name"] ?? "";
+    const name = decodeURIComponent(encodedName);
+    requestedFiles.push(name);
+    if (name === "batch_beta.pdf" && failBetaOnce) {
+      failBetaOnce = false;
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Temporary upload failure" }) });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await page.getByRole("tab", { name: "Library" }).click();
+  await page.locator("#library-pdf-upload").setInputFiles([
+    { name: "batch_alpha.pdf", mimeType: "application/pdf", buffer: createEvidencePdf("Batch alpha evidence.") },
+    { name: "batch_beta.pdf", mimeType: "application/pdf", buffer: createEvidencePdf("Batch beta evidence.") },
+    { name: "batch_gamma.pdf", mimeType: "application/pdf", buffer: createEvidencePdf("Batch gamma evidence.") },
+  ]);
+
+  const status = page.locator("#library-pdf-upload-status");
+  await expect(status).toContainText("3 of 3 processed");
+  await expect(status.locator('[data-upload-state="added"]')).toHaveCount(2);
+  await expect(status.locator('[data-upload-state="failed"]')).toContainText("Temporary upload failure");
+  await expect(page.locator("#reference-library-list .resource-card").filter({ hasText: "batch alpha" })).toBeVisible();
+  await expect(page.locator("#reference-library-list .resource-card").filter({ hasText: "batch gamma" })).toBeVisible();
+  await expect(page.locator("#reference-library-list .resource-card").filter({ hasText: "batch beta" })).toHaveCount(0);
+
+  await status.getByRole("button", { name: "Retry failed" }).click();
+  await expect(status).toContainText("1 of 1 processed");
+  await expect(status.locator('[data-upload-state="added"]')).toContainText("batch_beta.pdf");
+  await expect(status.getByRole("button", { name: "Retry failed" })).toHaveCount(0);
+  await expect(page.locator("#reference-library-list .resource-card").filter({ hasText: "batch beta" })).toBeVisible();
+  expect(requestedFiles).toEqual(["batch_alpha.pdf", "batch_beta.pdf", "batch_gamma.pdf", "batch_beta.pdf"]);
+
+  const oversizedBatch = Array.from({ length: 21 }, (_, index) => ({
+    name: `overflow_${index}.pdf`,
+    mimeType: "application/pdf",
+    buffer: createEvidencePdf(`Overflow evidence ${index}.`),
+  }));
+  await page.locator("#library-pdf-upload").setInputFiles(oversizedBatch);
+  await expect(page.locator("#toast")).toHaveText("Choose at most 20 PDFs per batch.");
+  expect(requestedFiles).toHaveLength(4);
+});
+
 test("reviews bounded PDF metadata before enriching a library record", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "PDF metadata review");
   await page.goto(`/workspaces/${workspaceId}`);
