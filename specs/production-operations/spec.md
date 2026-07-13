@@ -34,21 +34,21 @@ rollback workflow without adding a second identity system.
 
 ### Definition of Done
 
-- [ ] Production deployment refuses local auth, blank Access configuration,
+- [x] Production deployment refuses local auth, blank Access configuration,
       placeholder values, and a non-HTTPS or Access-team hostname.
-- [ ] The production command performs a strict Wrangler dry run before upload.
-- [ ] A daily scheduled handler invokes the backup coordinator.
-- [ ] Authenticated owners are registered idempotently for scheduled backup.
-- [ ] An unchanged owner state produces no new manifest or binary write.
-- [ ] A changed owner state produces one stable, versioned manifest after all
+- [x] The production command performs a strict Wrangler dry run before upload.
+- [x] A daily scheduled handler invokes the backup coordinator.
+- [x] Authenticated owners are registered idempotently for scheduled backup.
+- [x] An unchanged owner state produces no new manifest or binary write.
+- [x] A changed owner state produces one stable, versioned manifest after all
       referenced binary backup objects are available.
-- [ ] Backup status is available only to the authenticated owner and is
+- [x] Backup status is available only to the authenticated owner and is
       non-cacheable.
-- [ ] Durable Object recovery bookmarks are included for every backed-up
+- [x] Durable Object recovery bookmarks are included for every backed-up
       catalog, library, access object, and document room.
-- [ ] A recovery drill restores logical data into isolated identities and
+- [x] A recovery drill restores logical data into isolated identities and
       verifies the manifest digest without overwriting production.
-- [ ] Production logs, smoke checks, versions, and rollback commands are
+- [x] Production logs, smoke checks, versions, and rollback commands are
       documented.
 - [ ] Full quality gate, local Agent CI, generated type check, startup check,
       and production dry run pass.

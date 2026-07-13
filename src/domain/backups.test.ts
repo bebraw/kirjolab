@@ -5,6 +5,7 @@ import {
   ownerBackupDigest,
   ownerBackupManifestJson,
   ownerBackupManifestKey,
+  parseOwnerBackupManifest,
   referencedBinaryKeys,
   type BackupBinaryReferences,
   type BackupBinaryObject,
@@ -101,5 +102,9 @@ describe("owner backup projection", () => {
     expect(serialized.endsWith("\n")).toBe(true);
     expect(JSON.parse(serialized)).toEqual(manifest);
     expect(serialized).toContain('"binaries"');
+    expect(parseOwnerBackupManifest(serialized)).toEqual(manifest);
+    expect(() => parseOwnerBackupManifest("not json")).toThrow("Owner backup manifest is invalid");
+    expect(() => parseOwnerBackupManifest('{"schemaVersion":"unknown"}')).toThrow("Owner backup manifest is invalid");
+    expect(() => parseOwnerBackupManifest(`${" ".repeat(10 * 1024 * 1024)}x`)).toThrow("Owner backup manifest exceeds 10 MiB");
   });
 });

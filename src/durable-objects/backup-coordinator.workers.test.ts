@@ -62,6 +62,33 @@ describe("BackupCoordinator in the Workers runtime", () => {
     expect(changed.digest).not.toBe(created.digest);
     expect(changed.manifestKey).not.toBe(created.manifestKey);
 
+    const drill = await coordinator.runRecoveryDrill(ownerKey);
+    expect(drill).toMatchObject({
+      outcome: "verified",
+      digest: changed.digest,
+      manifestKey: changed.manifestKey,
+      binariesChecked: 1,
+      error: null,
+    });
+    expect(drill.recoveryIdentity).toMatch(new RegExp(`^drill:${ownerKey}:`, "u"));
+    const recovery = env.BACKUP_RECOVERIES.getByName(drill.recoveryIdentity!);
+    expect(await recovery.getRestoredManifest()).toContain(`"digest":"${changed.digest}"`);
+    const chunkedManifest = JSON.stringify({
+      ...manifest,
+      state: { ...manifest.state, library: { ...manifest.state.library, recoveryPadding: `${"x".repeat(300_000)}😀` } },
+    });
+    await recovery.restoreManifest(chunkedManifest);
+    expect(await recovery.getRestoredManifest()).toBe(chunkedManifest);
+
+    await env.PAPERS.delete(manifest.binaries[0]!.backupKey);
+    expect(await coordinator.runRecoveryDrill(ownerKey)).toMatchObject({
+      outcome: "failed",
+      digest: changed.digest,
+      manifestKey: changed.manifestKey,
+      binariesChecked: 0,
+      error: "A backup binary is unavailable or has the wrong size",
+    });
+
     await env.PAPERS.delete(sourceKey);
     const failed = await coordinator.runOwnerBackup(ownerKey, ownerEmail);
     expect(failed).toMatchObject({

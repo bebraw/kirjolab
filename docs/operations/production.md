@@ -67,6 +67,63 @@ Tail error logs with:
 npx wrangler tail kirjolab --status error
 ```
 
+## Backup Check and Recovery Drill
+
+After the first authenticated request has registered the owner, use the signed-in
+browser console to create and inspect the first backup:
+
+```js
+await fetch("/api/backups", { method: "POST" }).then((response) => response.json());
+await fetch("/api/backups").then((response) => response.json());
+```
+
+The first response must report `created`. A second `POST` without an intervening
+data change must report `unchanged` with the same `digest` and `manifestKey`.
+The daily Cron Trigger runs at 02:17 UTC and applies the same check to every
+registered hosted owner. A failed scheduled owner causes an error log rather
+than advancing its last known-good manifest.
+
+Run the non-destructive recovery drill from the same signed-in console:
+
+```js
+await fetch("/api/backups/drill", { method: "POST" }).then((response) => response.json());
+```
+
+The result must report `verified`, the latest backup digest, an isolated
+`recoveryIdentity`, and the number of immutable binary copies checked. The drill
+restores the logical manifest into a dedicated recovery Durable Object and
+reads it back before comparing the digest. It never addresses canonical
+catalog, library, access, or document Durable Objects.
+
+`GET /api/backups/latest` downloads the authenticated owner's latest manifest.
+All backup and drill endpoints are authenticated, owner-scoped, same-origin for
+mutations, and returned with `Cache-Control: no-store`.
+
+## Exact Point-in-Time Recovery
+
+Each hosted manifest records a Durable Object PITR bookmark for the owner
+catalog, private library, and every included workspace access and document
+object. Cloudflare retains these bookmarks for 30 days. PITR is unavailable in
+local development.
+
+An exact restore is an incident operation, not a normal browser workflow:
+
+1. Stop application writes and download the latest known-good manifest.
+2. Identify the affected object and its bookmark in `recovery`.
+3. Preserve the current manifest and R2 objects before changing state.
+4. Use a reviewed, temporary operator-only Worker revision to call
+   `storage.onNextSessionRestoreBookmark(bookmark)` inside that exact Durable
+   Object, record the undo bookmark returned by Cloudflare, then call
+   `ctx.abort()` to complete the restart.
+5. Verify the restored object and its linked R2 bytes, then remove the temporary
+   recovery revision before resuming writes.
+6. If verification fails, repeat the operation with the recorded undo bookmark.
+
+Do not expose PITR as an authenticated application endpoint and do not apply a
+bookmark to a differently named object. Cloudflare documents the exact
+next-session and undo behavior in its
+[SQLite Durable Object PITR API](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/#pitr-point-in-time-recovery-api).
+
 ## Versions and Rollback
 
 Inspect releases:

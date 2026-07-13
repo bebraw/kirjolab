@@ -8,12 +8,13 @@ import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
 import { WorkspaceAccess } from "./durable-objects/workspace-access";
 import { ReferenceLibrary } from "./durable-objects/reference-library";
 import { BackupCoordinator } from "./durable-objects/backup-coordinator";
+import { BackupRecovery } from "./durable-objects/backup-recovery";
 import { authenticateRequest, isSameOriginMutation, type AuthIdentity } from "./security/auth";
 import { renderHomePage } from "./views/home";
 import { renderNotFoundPage } from "./views/not-found";
 import { cssResponse, htmlResponse, scriptResponse } from "./views/shared";
 
-export { BackupCoordinator, DocumentRoom, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
+export { BackupCoordinator, BackupRecovery, DocumentRoom, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
 
 export default {
   async fetch(request: Request, env?: Env, ctx?: ExecutionContext): Promise<Response> {

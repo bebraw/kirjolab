@@ -1,6 +1,6 @@
 # ADR-089: Require a Fail-Closed Production Release
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-13
 

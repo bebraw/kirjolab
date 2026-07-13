@@ -55,6 +55,17 @@ export interface OwnerBackupStatus {
   readonly error: string | null;
 }
 
+export interface OwnerBackupDrillStatus {
+  readonly ownerKey: string;
+  readonly outcome: "never" | "verified" | "failed";
+  readonly digest: string | null;
+  readonly manifestKey: string | null;
+  readonly recoveryIdentity: string | null;
+  readonly checkedAt: string | null;
+  readonly binariesChecked: number;
+  readonly error: string | null;
+}
+
 export interface BackupBinaryReferences {
   readonly library: {
     readonly artifacts: readonly { readonly objectKey: string }[];
@@ -90,6 +101,18 @@ export function ownerBackupManifestKey(ownerKey: string, createdAt: string, dige
 
 export function ownerBackupManifestJson(manifest: OwnerBackupManifest): string {
   return `${canonicalJson(manifest)}\n`;
+}
+
+export function parseOwnerBackupManifest(json: string): OwnerBackupManifest {
+  if (new TextEncoder().encode(json).byteLength > maximumOwnerBackupBytes) throw new Error("Owner backup manifest exceeds 10 MiB");
+  let value: unknown;
+  try {
+    value = JSON.parse(json);
+  } catch {
+    throw new Error("Owner backup manifest is invalid");
+  }
+  if (!isOwnerBackupManifest(value)) throw new Error("Owner backup manifest is invalid");
+  return value;
 }
 
 export function referencedBinaryKeys(state: BackupBinaryReferences): string[] {
@@ -129,4 +152,36 @@ function canonicalValue(value: unknown): unknown {
 async function sha256Hex(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function isOwnerBackupManifest(value: unknown): value is OwnerBackupManifest {
+  if (!isRecord(value) || value.schemaVersion !== ownerBackupSchemaVersion) return false;
+  if (typeof value.createdAt !== "string" || !isDigest(value.digest)) return false;
+  if (
+    !isRecord(value.state) ||
+    !isDigest(value.state.ownerKey) ||
+    !Array.isArray(value.state.catalog) ||
+    !Array.isArray(value.state.workspaces)
+  ) {
+    return false;
+  }
+  if (!isRecord(value.state.library) || !Array.isArray(value.binaries) || !isRecord(value.recovery)) return false;
+  return value.binaries.every(
+    (binary) =>
+      isRecord(binary) &&
+      typeof binary.sourceKey === "string" &&
+      typeof binary.sourceEtag === "string" &&
+      Number.isSafeInteger(binary.size) &&
+      Number(binary.size) >= 0 &&
+      typeof binary.uploadedAt === "string" &&
+      typeof binary.backupKey === "string",
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isDigest(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
 }

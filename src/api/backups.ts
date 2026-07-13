@@ -1,9 +1,11 @@
-import type { OwnerBackupStatus } from "../domain/backups";
+import type { OwnerBackupDrillStatus, OwnerBackupStatus } from "../domain/backups";
 import type { AuthIdentity } from "../security/auth";
 
 interface BackupCoordinatorApi {
   getStatus(ownerKey: string): Promise<OwnerBackupStatus>;
   runOwnerBackup(ownerKey: string, email: string): Promise<OwnerBackupStatus>;
+  getRecoveryDrillStatus(ownerKey: string): Promise<OwnerBackupDrillStatus>;
+  runRecoveryDrill(ownerKey: string): Promise<OwnerBackupDrillStatus>;
 }
 
 interface BackupApiEnvironment {
@@ -32,6 +34,13 @@ export async function handleBackupApi(request: Request, env: BackupApiEnvironmen
       "cache-control": "no-store",
     });
     return new Response(manifest.body, { headers });
+  }
+  if (path === "/api/backups/drill" && request.method === "GET") {
+    return Response.json(await coordinator.getRecoveryDrillStatus(identity.ownerKey), noStore());
+  }
+  if (path === "/api/backups/drill" && request.method === "POST") {
+    const status = await coordinator.runRecoveryDrill(identity.ownerKey);
+    return Response.json(status, { status: status.outcome === "failed" ? 503 : 200, ...noStore() });
   }
   return jsonError("Backup route not found", 404);
 }

@@ -1,6 +1,6 @@
 # ADR-090: Combine PITR with Change-Aware R2 Backups
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-13
 
@@ -41,6 +41,12 @@ PITR is the exact 30-day recovery path. Logical manifests and binary copies are
 the longer-lived application recovery path. Recovery drills must use isolated
 recovery identities; no scheduled or browser action may overwrite canonical
 state automatically.
+
+The drill restores the complete versioned logical manifest into a dedicated
+`BackupRecovery` Durable Object, reads it back, recomputes its digest, and
+checks each referenced immutable binary. Exact PITR remains an explicit
+operator incident procedure because Cloudflare applies a bookmark to the
+canonical object on its next session.
 
 ## Trigger
 
