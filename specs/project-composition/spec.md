@@ -22,8 +22,17 @@ collaborative, and unambiguous about what preview and export mean.
 - The pure composition engine returns composed Markdown, diagnostics,
   dependencies, and source-map spans containing stable file ids, source ranges,
   output ranges, and include chains.
-- Composition stops on cycles, unsafe paths, more than 32 levels, more than 512
-  distinct files, or more than 2 MiB of output.
+- Recursive expansion tracks the active include chain by stable file identity.
+  When an include targets an identity already on that chain, composition omits
+  only that cyclic edge from expansion, emits a navigable diagnostic with the
+  complete route, and continues valid surrounding and sibling content for
+  preview and recovery. The authored dependency edge remains recorded, and the
+  same file may be expanded again outside the active chain.
+- Any composition diagnostic—including a cycle, invalid, duplicate, or missing
+  path, or resource-limit violation—invalidates normal publication exports. A
+  depth violation terminates that branch; more than 512 distinct files or more
+  than 2 MiB of output stops composition globally. The active include chain may
+  contain at most 32 files.
 - Rename updates every inbound include path in the same revision. Delete is
   rejected while an inbound include remains. `main.md` cannot be renamed or
   deleted.
@@ -72,8 +81,10 @@ collaborative, and unambiguous about what preview and export mean.
 
 ### Validation
 
-- Pure tests cover nested relative includes, frontmatter, source maps, cycles,
-  missing paths, path normalization, inbound rewrite, and resource bounds.
+- Pure tests cover nested relative includes, frontmatter, source maps, direct
+  and indirect cycles, valid repeated and diamond includes, missing paths, path
+  normalization, inbound rewrite, resource bounds, and export refusal for
+  invalid composition.
 - Workers tests cover migration, stable entry identity, project-wide
   persistence, composition, atomic rename, guarded deletion, and file-qualified
   anchors in a real `workerd` runtime. Project-history tests cover retained

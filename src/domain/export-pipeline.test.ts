@@ -92,6 +92,31 @@ describe("source-mapped export pipeline", () => {
     ).not.toThrow();
   });
 
+  it("refuses publication artifacts for cyclic composition", () => {
+    const bundle = buildExportBundle({
+      title: "Cyclic",
+      files: [
+        file("main", "main.md", "Before\n::include[chapter.md]\nAfter\n"),
+        file("chapter", "chapter.md", "Chapter\n::include[main.md]\n"),
+      ],
+      entryFileId: "main",
+      bibliography: "",
+    });
+
+    expect(bundle.intermediate.markdown).toBe("Before\nChapter\nAfter\n");
+    expect(bundle.intermediate.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "cycle",
+        fileId: "chapter",
+        path: "chapter.md",
+        line: 2,
+        severity: "error",
+        includeChain: ["main", "chapter"],
+      }),
+    ]);
+    expect(() => assertExportable(bundle.intermediate)).toThrow("Project composition must be fixed before export");
+  });
+
   it("materializes the complete maintained LaTeX vocabulary and pinned manifest", () => {
     const source = [
       "prefix # not-a-heading",

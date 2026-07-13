@@ -60,6 +60,75 @@ describe("project composition", () => {
     expect(result.diagnostics.map(({ code }) => code)).toEqual(["cycle", "missing-file"]);
   });
 
+  it("terminates direct and indirect cycles at the offending include edge", () => {
+    const indirect = composeProject(
+      [
+        file("main", "main.md", "start\n::include[a.md]\n::include[shared.md]\nend\n"),
+        file("a", "a.md", "A\n::include[b.md]\nA end\n"),
+        file("b", "b.md", "B\n::include[a.md]\nB end\n"),
+        file("shared", "shared.md", "Shared\n"),
+      ],
+      "main",
+    );
+
+    expect(indirect.content).toBe("start\nA\nB\nB end\nA end\nShared\nend\n");
+    expect(indirect.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "cycle",
+        message: "Include cycle: main.md → a.md → b.md → a.md",
+        fileId: "b",
+        path: "b.md",
+        from: 12,
+        to: 16,
+        includeChain: ["main", "a", "b"],
+      }),
+    ]);
+    expect(indirect.dependencies).toEqual({
+      a: ["b"],
+      b: ["a"],
+      main: ["a", "shared"],
+    });
+
+    const direct = composeProject([file("main", "main.md", "before\n::include[main.md]\nafter\n")], "main");
+
+    expect(direct.content).toBe("before\nafter\n");
+    expect(direct.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "cycle",
+        message: "Include cycle: main.md → main.md",
+        fileId: "main",
+        from: 17,
+        to: 24,
+        includeChain: ["main"],
+      }),
+    ]);
+    expect(direct.dependencies).toEqual({ main: ["main"] });
+  });
+
+  it("allows the same file through separate non-cyclic include branches", () => {
+    const result = composeProject(
+      [
+        file("main", "main.md", "top\n::include[left.md]\n::include[right.md]\n"),
+        file("left", "left.md", "left\n::include[shared.md]\n"),
+        file("right", "right.md", "right\n::include[shared.md]\n"),
+        file("shared", "shared.md", "shared\n"),
+      ],
+      "main",
+    );
+
+    expect(result.content).toBe("top\nleft\nshared\nright\nshared\n");
+    expect(result.diagnostics).toEqual([]);
+    expect(result.dependencies).toEqual({
+      left: ["shared"],
+      main: ["left", "right"],
+      right: ["shared"],
+    });
+    expect(result.sourceMap.filter(({ fileId }) => fileId === "shared").map(({ includeChain }) => includeChain)).toEqual([
+      ["main", "left", "shared"],
+      ["main", "right", "shared"],
+    ]);
+  });
+
   it("enforces entry point and resource bounds", () => {
     expect(() => composeProject([file("intro", "intro.md", "Hello")], "intro")).toThrow(/main\.md/u);
     const result = composeProject([file("main", "main.md", "12345")], "main", { maximumOutputBytes: 4 });

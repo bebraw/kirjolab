@@ -28,10 +28,16 @@ Markdown files are editable and previewable but do not become independent
 top-level documents or publication targets.
 
 Kirjolab will use the block directive `::include[path]` for transclusion. Paths
-resolve relative to the including file. Includes may recurse, retain source
-provenance, reject cycles, and stop at explicit depth and resource bounds.
-Frontmatter applies only from root `main.md`; included headings remain authored
-content rather than being rewritten by the composition engine.
+resolve relative to the including file. Includes may recurse and retain source
+provenance. Expansion tracks the active include chain by stable file identity;
+when a target already appears on that chain, the authored dependency remains
+recorded, but that edge is omitted from expansion and receives a navigable cycle
+diagnostic. Valid surrounding and sibling content continues composing for
+preview and recovery, while any composition diagnostic blocks normal
+publication exports. The same file may be expanded again through a separate
+non-cyclic branch. Explicit depth and resource bounds provide independent
+termination. Frontmatter applies only from root `main.md`; included headings
+remain authored content rather than being rewritten by the composition engine.
 
 Files will have stable internal identities and mutable project-relative paths.
 Authored include paths remain canonical Markdown. Rename and move operations
@@ -70,6 +76,8 @@ transclusion.
   include maintenance.
 - Recursive composition needs cycle detection, resource bounds, and useful
   multi-file diagnostics.
+- A broken composition may return bounded partial content for diagnosis, so
+  publication paths must reject it rather than treating it as a complete paper.
 
 **Neutral:**
 
