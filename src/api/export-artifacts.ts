@@ -201,6 +201,7 @@ function pdfInlineText(
   return replacePublicationFootnoteReferences(directives, structure.footnotesById, (footnote) => `[${footnote.number}]`)
     .replace(/!\[(?<alt>[^\]]*)\]\([^\s)]+\)/gu, "$<alt>")
     .replace(/\[(?<label>[^\]]+)\]\([^\s)]+\)/gu, "$<label>")
+    .replace(/\$(?<math>[^$\r\n]+)\$/gu, "$<math>")
     .replace(/[*_`~]/gu, "")
     .replace(/\{#[^}\r\n]+\}/gu, "")
     .trim();
@@ -279,7 +280,7 @@ class PdfTextRenderer {
     this.#drawRule();
     for (const row of rows) this.#drawTableRow(row, alignments, columnWidth, this.#regular);
     this.#drawRule();
-    this.#y -= 6;
+    this.#y -= 12;
   }
 
   finish(): void {
@@ -290,10 +291,10 @@ class PdfTextRenderer {
       const noteLines = notes.flatMap((note) =>
         wrapPdfText(`[${note.number}] ${note.text}`, this.#regular, size, width).map((text) => ({ text, note })),
       );
-      let y = this.#margin + noteLines.length * leading;
+      let y = this.#margin + Math.max(0, noteLines.length - 1) * leading;
       page.drawLine({
-        start: { x: this.#margin, y: y + 4 },
-        end: { x: this.#margin + Math.min(72, width), y: y + 4 },
+        start: { x: this.#margin, y: y + leading + 4 },
+        end: { x: this.#margin + Math.min(72, width), y: y + leading + 4 },
         thickness: 0.6,
       });
       for (const { text } of noteLines) {

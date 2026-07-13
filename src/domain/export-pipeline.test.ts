@@ -505,7 +505,7 @@ describe("source-mapped export pipeline", () => {
       "Evidence[1] and repeated evidence[1] (Source, 2026).",
       "[1] Note with emphasis. Continued note.",
       "Listed result",
-      "Math $x1$.",
+      "Math x1.",
       "| Literal | table |",
       "[^literal]: literal note",
       "See Findings.",
