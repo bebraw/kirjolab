@@ -33,6 +33,7 @@ import {
 } from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
+import { highlightMarkdown } from "./markdown-highlighting";
 import {
   isModelCandidate,
   isWorkspaceSnapshot,
@@ -183,6 +184,7 @@ interface Elements {
   projectHistoryInspector: HTMLElement;
   projectHistoryList: HTMLElement;
   source: HTMLTextAreaElement;
+  sourceHighlight: HTMLElement;
   editorInsertMenu: HTMLDetailsElement;
   includeProjectFileList: HTMLElement;
   bibliography: HTMLTextAreaElement;
@@ -488,7 +490,7 @@ class WorkspaceApp {
     ]) {
       control.addEventListener("input", () => this.#renderReferenceLibrary());
     }
-    this.#unbindSourceEditor = bindYText(this.#elements.source, this.#source, this.#document);
+    this.#unbindSourceEditor = bindYText(this.#elements.source, this.#source, this.#document, this.#elements.sourceHighlight);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
     this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
@@ -1155,7 +1157,7 @@ class WorkspaceApp {
     this.#activeFileId = fileId;
     this.#activeFileText = this.#document.getText(fileId === snapshot.entryFileId ? "source" : `file:${fileId}`);
     this.#elements.source.value = this.#activeFileText.toString();
-    this.#unbindSourceEditor = bindYText(this.#elements.source, this.#activeFileText, this.#document);
+    this.#unbindSourceEditor = bindYText(this.#elements.source, this.#activeFileText, this.#document, this.#elements.sourceHighlight);
     this.#authoringSelection = null;
     this.#renderProjectFiles();
     this.#updateModelAvailability();
@@ -4123,8 +4125,29 @@ class WorkspaceApp {
   }
 }
 
-function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y.Doc): () => void {
+function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y.Doc, highlight?: HTMLElement): () => void {
+  const renderHighlight = (): void => {
+    if (!highlight) return;
+    const fragment = document.createDocumentFragment();
+    for (const segment of highlightMarkdown(textarea.value)) {
+      if (segment.kind === null) {
+        fragment.append(document.createTextNode(segment.text));
+        continue;
+      }
+      const token = document.createElement("span");
+      token.className = `markdown-token-${segment.kind}`;
+      token.textContent = segment.text;
+      fragment.append(token);
+    }
+    highlight.replaceChildren(fragment);
+  };
+  const syncHighlightScroll = (): void => {
+    if (!highlight) return;
+    highlight.scrollTop = textarea.scrollTop;
+    highlight.scrollLeft = textarea.scrollLeft;
+  };
   const handleInput = (): void => {
+    renderHighlight();
     const splice = calculateTextSplice(text.toString(), textarea.value);
     if (!splice) return;
     documentModel.transact(() => {
@@ -4138,11 +4161,17 @@ function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y
     const end = textarea.selectionEnd;
     textarea.value = text.toString();
     textarea.setSelectionRange(Math.min(start, textarea.value.length), Math.min(end, textarea.value.length));
+    renderHighlight();
+    syncHighlightScroll();
   };
   textarea.addEventListener("input", handleInput);
+  textarea.addEventListener("scroll", syncHighlightScroll, { passive: true });
   text.observe(handleText);
+  renderHighlight();
+  syncHighlightScroll();
   return () => {
     textarea.removeEventListener("input", handleInput);
+    textarea.removeEventListener("scroll", syncHighlightScroll);
     text.unobserve(handleText);
   };
 }
@@ -4287,6 +4316,7 @@ function collectElements(): Elements {
     projectHistoryInspector: requiredElement("project-history-inspector", HTMLElement),
     projectHistoryList: requiredElement("project-history-list", HTMLElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
+    sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),
     editorInsertMenu: requiredElement("editor-insert-menu", HTMLDetailsElement),
     includeProjectFileList: requiredElement("include-project-file-list", HTMLElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),

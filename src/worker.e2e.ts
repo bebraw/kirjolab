@@ -65,6 +65,49 @@ test("keeps the workspace within a compact desktop viewport", async ({ page }) =
   ).toMatchObject({ clientWidth: 1100, scrollWidth: 1100 });
 });
 
+test("highlights Markdown without replacing the native editor", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Highlighted source");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  const source = [
+    "## Findings {#findings}",
+    "",
+    "Use :cite[smith2024], **careful emphasis**, and [context](https://example.test).",
+    '<img src=x onerror="document.body.dataset.injected=true">',
+    ...Array.from({ length: 80 }, (_, index) => `- Supporting line ${index + 1}`),
+  ].join("\n");
+  const editor = page.locator("#source-editor");
+  const highlight = page.locator("#source-editor-highlight");
+  await editor.fill(source);
+
+  await expect(highlight).toHaveText(source);
+  await expect(highlight.locator(".markdown-token-heading")).toContainText("Findings");
+  await expect(highlight.locator(".markdown-token-directive")).toContainText(":cite[smith2024]");
+  await expect(highlight.locator(".markdown-token-link")).toContainText("[context](https://example.test)");
+  await expect(highlight.locator("img")).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.dataset.injected)).toBeUndefined();
+  expect(
+    await page.locator(".source-editor-shell").evaluate((shell) => {
+      const textarea = shell.querySelector<HTMLTextAreaElement>("#source-editor")!;
+      const mirror = shell.querySelector<HTMLElement>("#source-editor-highlight")!;
+      const inputStyle = getComputedStyle(textarea);
+      const mirrorStyle = getComputedStyle(mirror);
+      return {
+        sameWidth: textarea.clientWidth === mirror.clientWidth,
+        font: inputStyle.font === mirrorStyle.font,
+        padding: inputStyle.padding === mirrorStyle.padding,
+        whiteSpace: mirrorStyle.whiteSpace,
+      };
+    }),
+  ).toEqual({ sameWidth: true, font: true, padding: true, whiteSpace: "pre-wrap" });
+  const scroll = await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.scrollTop = 240;
+    element.dispatchEvent(new Event("scroll"));
+    return element.scrollTop;
+  });
+  await expect.poll(async () => await highlight.evaluate((element) => element.scrollTop)).toBe(scroll);
+});
+
 test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Live WYSIWYM workspace");
   const api = `/api/workspaces/${workspaceId}`;
@@ -721,10 +764,12 @@ test("converges source edits across two writers", async ({ page, context }) => {
   const sharedSource = "## Shared evidence {#shared-evidence}\n\nThe first writer contributes a claim.\n";
   await page.locator("#source-editor").fill(sharedSource);
   await expect(collaborator.locator("#source-editor")).toHaveValue(sharedSource);
+  await expect(collaborator.locator("#source-editor-highlight")).toHaveText(sharedSource);
 
   const expandedSource = `${sharedSource}\nThe second writer connects the evidence.\n`;
   await collaborator.locator("#source-editor").fill(expandedSource);
   await expect(page.locator("#source-editor")).toHaveValue(expandedSource);
+  await expect(page.locator("#source-editor-highlight")).toHaveText(expandedSource);
 
   const selectedText = "second writer";
   await page.locator("#source-editor").evaluate((element: HTMLTextAreaElement, text: string) => {
@@ -1161,6 +1206,10 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await page.locator("#editor-insert-menu summary").click();
   await page.locator("#include-project-file-list [data-include-file-id]").click();
   await expect(source).toHaveValue(/::include\[chapters\/method\.md\]\n$/u);
+  await page.locator("#project-file-switcher").selectOption({ label: "chapters/method.md" });
+  await source.fill("## Method\n\nDescribe the procedure.\n");
+  await expect(page.locator("#source-editor-highlight")).toHaveText("## Method\n\nDescribe the procedure.\n");
+  await expect(page.locator("#source-editor-highlight .markdown-token-heading")).toContainText("Method");
 });
 
 test("isolates clients that send unsupported collaboration frames", async ({ page }) => {

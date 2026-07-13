@@ -127,6 +127,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - After synchronization, derive browser editor text from Yjs and its displayed
   revision from collaboration controls; REST resource refreshes must not write
   either value.
+- Keep the native textarea as the only manuscript input surface. Derive syntax
+  highlighting into an inert, text-identical presentation layer so styling
+  cannot change canonical Markdown, selection offsets, or collaboration.
 - Keep collaborator selections ephemeral. Accept only bounded, versioned
   selection metadata for the current file revision, replace client identity
   with a server-assigned socket identity, and never persist selection state.

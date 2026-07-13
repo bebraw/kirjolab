@@ -48,6 +48,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="derived-project-bibliography"');
     expect(html).toContain('class="bibliography-editor rail-bibliography-editor" id="bibliography-editor"');
     expect(html).toContain('class="button-secondary hidden" id="open-source-citation"');
+    expect(html).toContain('class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"');
+    expect(html).toContain('class="source-editor" id="source-editor" spellcheck="true"');
     expect(html).toContain('id="open-project-history"');
     expect(html).toContain('id="project-history-dialog"');
     expect(html).toContain("Browse, compare, restore, or branch from saved versions.");

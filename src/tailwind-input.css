@@ -1021,16 +1021,96 @@
   }
 
   .source-editor {
+    position: relative;
+    z-index: 1;
     min-height: 34rem;
+    color: transparent;
+    caret-color: var(--color-app-ink);
+    -webkit-text-fill-color: transparent;
+  }
+
+  .source-editor-shell {
+    position: relative;
+    min-height: 34rem;
+  }
+
+  .source-editor,
+  .source-editor-highlight {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
     padding: 2rem clamp(1.25rem, 4vw, 3rem);
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  .source-editor-highlight {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    border: 0;
+    color: var(--color-app-ink);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9rem;
+    line-height: 1.85;
+    pointer-events: none;
+    tab-size: 2;
+  }
+
+  .source-editor-shell:focus-within {
+    background: rgb(255 255 255 / 0.28);
+  }
+
+  .markdown-token-heading {
+    color: var(--color-app-ink);
+    font-weight: 750;
+  }
+
+  .markdown-token-heading-marker,
+  .markdown-token-directive,
+  .markdown-token-link {
+    color: var(--color-app-accent);
+  }
+
+  .markdown-token-frontmatter,
+  .markdown-token-metadata-key,
+  .markdown-token-list-marker,
+  .markdown-token-quote-marker {
+    color: var(--color-app-accent-strong);
+    font-weight: 650;
+  }
+
+  .markdown-token-code {
+    color: var(--color-app-error);
+  }
+
+  .markdown-token-markup {
+    color: var(--color-app-text-soft);
   }
 
   @media (min-width: 72rem) {
-    .source-editor {
+    .source-editor-shell {
       height: auto;
       min-height: 0;
       flex: 1;
+    }
+
+    .source-editor {
+      height: 100%;
+      min-height: 0;
       resize: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .source-editor {
+      color: CanvasText;
+      -webkit-text-fill-color: CanvasText;
+    }
+
+    .source-editor-highlight {
+      display: none;
     }
   }
 
@@ -1053,6 +1133,9 @@
   .source-editor:focus,
   .bibliography-editor:focus {
     outline: none;
+  }
+
+  .bibliography-editor:focus {
     background: rgb(255 255 255 / 0.28);
   }
 

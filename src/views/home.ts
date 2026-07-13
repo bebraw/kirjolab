@@ -173,7 +173,10 @@ export function renderHomePage(
           </div>
         </div>
         <label class="sr-only" for="source-editor">Markdown source</label>
-        <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
+        <div class="source-editor-shell">
+          <pre class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"></pre>
+          <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
+        </div>
         <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation.</p>
       </section>
 
