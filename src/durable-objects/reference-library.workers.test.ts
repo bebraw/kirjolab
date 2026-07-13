@@ -197,17 +197,38 @@ describe("ReferenceLibrary in the Workers runtime", () => {
         year: { method: "pdf-metadata" },
       },
     });
+    await expect(library.getPdfMetadataContext(first.reference.id, first.artifact.id)).resolves.toMatchObject({
+      reference: { id: first.reference.id },
+      artifact: { id: first.artifact.id, referenceId: first.reference.id },
+    });
+    const dataCiteEnriched = await library.applyReviewedProviderMetadata(
+      first.reference.id,
+      {
+        type: "article",
+        title: "Climate adaptation pathways",
+        authors: ["Smith, Jane"],
+        year: "2027",
+        venue: "Data archive",
+        doi: "10.5555/climate",
+        url: "https://doi.org/10.5555/climate",
+        abstract: "Archived dataset metadata",
+      },
+      ["year"],
+      "datacite",
+      "owner@example.test",
+    );
+    expect(dataCiteEnriched).toMatchObject({ year: "2027", provenance: { year: { method: "datacite" } } });
     await library.registerProjectDependency("project-a", first.reference.id);
     expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("final");
     const finalized = await library.updateReferenceMetadata(
       first.reference.id,
-      { ...crossrefEnriched, year: "2027" },
+      { ...dataCiteEnriched, year: "2027" },
       "owner@example.test",
     );
-    expect(finalized.referenceKey).toBe("smith2025");
+    expect(finalized.referenceKey).toBe("smith2027");
     await library.unregisterProjectDependency("project-a", first.reference.id);
     const unlinked = await library.updateReferenceMetadata(first.reference.id, { ...finalized, year: "2028" }, "owner@example.test");
-    expect(unlinked.referenceKey).toBe("smith2025");
+    expect(unlinked.referenceKey).toBe("smith2027");
     expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("final");
     await runInDurableObject(library, (instance: ReferenceLibrary) => {
       expect(() =>

@@ -117,6 +117,7 @@ None.
 | [ADR-082](./implemented/ADR-082-capture-private-library-pdf-highlights.md)            | Implemented          | Capture explicit page-and-quote highlights while reading an owner-private library PDF.                       |
 | [ADR-083](./implemented/ADR-083-finalize-provisional-reference-keys.md)               | Implemented          | Improve private PDF keys until their first project link permanently finalizes them.                          |
 | [ADR-084](./implemented/ADR-084-separate-source-capture-from-refinement.md)           | Implemented          | Keep initial PDF and website collection separate from later metadata refinement.                             |
+| [ADR-085](./implemented/ADR-085-unify-reviewed-metadata-refinement.md)                | Implemented          | Unify local PDF hints, bounded provider matching, and selective acceptance in one refinement flow.           |
 
 ## Creating A New ADR
 

@@ -13,8 +13,9 @@ authoritative metadata provider without silently overwriting reviewed fields.
   singleton-work adapter. It is non-mutating.
 - Preview returns mapped metadata and a SHA-256 fingerprint over every bounded
   provider field.
-- The permanent Library tab shows an inline current-versus-Crossref comparison
-  with independently selectable fields.
+- The permanent Library tab exposes this comparison through the unified
+  **Refine metadata** flow defined in
+  [`specs/metadata-refinement/spec.md`](../metadata-refinement/spec.md).
 - Acceptance sends the selected field names and preview fingerprint, not trusted provider values.
 - The Worker refetches Crossref metadata and rejects a changed fingerprint before mutation.
 - The owner-keyed library authority verifies DOI stability and uniqueness, then
@@ -43,7 +44,7 @@ authoritative metadata provider without silently overwriting reviewed fields.
 
 ### Definition of Done
 
-- [x] DOI-backed records expose inline Crossref lookup and comparison.
+- [x] DOI-backed PDF records expose inline provider lookup and comparison.
 - [x] Preview is bounded and non-mutating.
 - [x] Acceptance refetches and verifies the preview fingerprint.
 - [x] Only selected fields change with Crossref provenance.

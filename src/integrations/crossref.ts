@@ -6,6 +6,12 @@ type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Re
 
 const maximumCrossrefBytes = 1_000_000;
 const maximumCitationCandidates = 128;
+const maximumMetadataMatches = 5;
+
+export interface CrossrefMetadataMatch {
+  readonly metadata: PublicationEnrichment;
+  readonly score: number | null;
+}
 
 export interface CrossrefCitationCandidate {
   readonly doi: string;
@@ -40,7 +46,43 @@ export async function fetchCrossrefWork(doiValue: string, mailto: string, fetche
   if (!response.ok) throw new Error(response.status === 404 ? "Crossref has no record for this DOI" : "Crossref metadata request failed");
   const body = await readBoundedJson(response);
   if (!isRecord(body) || !isRecord(body.message)) throw new Error("Crossref returned invalid metadata");
-  const message = body.message;
+  return mapCrossrefMessage(body.message, doi);
+}
+
+export async function searchCrossrefWorks(
+  query: { readonly title: string; readonly authors: readonly string[]; readonly year: string },
+  mailto: string,
+  fetcher: Fetcher = fetch,
+): Promise<readonly CrossrefMetadataMatch[]> {
+  const bibliographicQuery = [query.title.trim(), query.authors[0]?.trim() ?? "", query.year.trim()].filter(Boolean).join(" ");
+  if (!bibliographicQuery) return [];
+  const url = new URL("https://api.crossref.org/works");
+  url.searchParams.set("query.bibliographic", bibliographicQuery.slice(0, 4_000));
+  url.searchParams.set("rows", String(maximumMetadataMatches));
+  const contact = mailto.trim().toLowerCase();
+  if (contact) url.searchParams.set("mailto", contact);
+  const response = await fetcher(url, { headers: crossrefHeaders(contact) });
+  if (!response.ok) throw new Error("Crossref metadata search failed");
+  const body = await readBoundedJson(response);
+  if (!isRecord(body) || !isRecord(body.message) || !Array.isArray(body.message.items)) {
+    throw new Error("Crossref returned invalid search metadata");
+  }
+  const seen = new Set<string>();
+  return body.message.items.slice(0, maximumMetadataMatches).flatMap((item): CrossrefMetadataMatch[] => {
+    if (!isRecord(item) || typeof item.DOI !== "string" || !isValidDoi(item.DOI)) return [];
+    const doi = normalizePublicationDoi(item.DOI);
+    if (seen.has(doi)) return [];
+    try {
+      const metadata = mapCrossrefMessage(item, doi);
+      seen.add(doi);
+      return [{ metadata, score: typeof item.score === "number" && Number.isFinite(item.score) ? item.score : null }];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function mapCrossrefMessage(message: Record<string, unknown>, fallbackDoi: string): PublicationEnrichment {
   const title = firstString(message.title);
   if (!title) throw new Error("Crossref record has no title");
   return {
@@ -49,8 +91,8 @@ export async function fetchCrossrefWork(doiValue: string, mailto: string, fetche
     authors: Array.isArray(message.author) ? message.author.slice(0, 100).map(formatAuthor).filter(Boolean) : [],
     year: extractYear(message),
     venue: bound(firstString(message["container-title"]), 2_000),
-    doi: normalizeDoi(typeof message.DOI === "string" ? message.DOI : doi),
-    url: bound(typeof message.URL === "string" ? message.URL : `https://doi.org/${doi}`, 2_000),
+    doi: normalizeDoi(typeof message.DOI === "string" ? message.DOI : fallbackDoi),
+    url: bound(typeof message.URL === "string" ? message.URL : `https://doi.org/${fallbackDoi}`, 2_000),
     abstract: bound(typeof message.abstract === "string" ? stripMarkup(message.abstract) : "", 20_000),
   };
 }
@@ -190,6 +232,13 @@ function mapEntryType(value: unknown): string {
 
 function bound(value: string, maximumLength: number): string {
   return value.slice(0, maximumLength);
+}
+
+function crossrefHeaders(contact: string): Record<string, string> {
+  return {
+    accept: "application/vnd.crossref-api-message+json",
+    "user-agent": contact ? `Kirjolab/0.1 (mailto:${contact})` : "Kirjolab/0.1",
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

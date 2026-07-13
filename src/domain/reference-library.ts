@@ -2,7 +2,8 @@ import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "./bibl
 
 export type ReferenceMetadataField = "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract";
 export type CrossrefMetadataField = ReferenceMetadataField;
-export type MetadataProvenanceMethod = "bibtex" | "crossref" | "filename" | "manual" | "pdf-metadata" | "web" | "migration";
+export type ScholarlyMetadataProvider = "crossref" | "datacite";
+export type MetadataProvenanceMethod = "bibtex" | ScholarlyMetadataProvider | "filename" | "manual" | "pdf-metadata" | "web" | "migration";
 
 export const crossrefMetadataFields = ["type", "title", "authors", "year", "venue", "doi", "url", "abstract"] as const;
 
@@ -29,6 +30,20 @@ export interface CrossrefLibraryPreview {
   readonly doi: string;
   readonly metadata: CrossrefMetadata;
   readonly metadataFingerprint: string;
+}
+
+export interface MetadataRefinementCandidate {
+  readonly provider: ScholarlyMetadataProvider;
+  readonly match: "doi" | "bibliographic";
+  readonly score: number | null;
+  readonly metadata: CrossrefMetadata;
+  readonly metadataFingerprint: string;
+}
+
+export interface MetadataRefinementPreview {
+  readonly referenceId: string;
+  readonly artifactId: string;
+  readonly candidates: readonly MetadataRefinementCandidate[];
 }
 
 export interface MetadataFieldProvenance {
@@ -463,6 +478,29 @@ export function isCrossrefLibraryPreview(value: unknown): value is CrossrefLibra
     isRecord(value) &&
     typeof value.referenceId === "string" &&
     typeof value.doi === "string" &&
+    isCrossrefMetadata(value.metadata) &&
+    typeof value.metadataFingerprint === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.metadataFingerprint)
+  );
+}
+
+export function isMetadataRefinementPreview(value: unknown): value is MetadataRefinementPreview {
+  return (
+    isRecord(value) &&
+    typeof value.referenceId === "string" &&
+    typeof value.artifactId === "string" &&
+    Array.isArray(value.candidates) &&
+    value.candidates.length <= 5 &&
+    value.candidates.every(isMetadataRefinementCandidate)
+  );
+}
+
+function isMetadataRefinementCandidate(value: unknown): value is MetadataRefinementCandidate {
+  return (
+    isRecord(value) &&
+    (value.provider === "crossref" || value.provider === "datacite") &&
+    (value.match === "doi" || value.match === "bibliographic") &&
+    (value.score === null || (typeof value.score === "number" && Number.isFinite(value.score))) &&
     isCrossrefMetadata(value.metadata) &&
     typeof value.metadataFingerprint === "string" &&
     /^[a-f0-9]{64}$/u.test(value.metadataFingerprint)

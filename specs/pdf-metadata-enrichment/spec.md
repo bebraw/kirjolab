@@ -14,7 +14,8 @@ should be easy to review and reuse later without becoming canonical silently.
   retains at most 64 KiB of normalized text, and returns bounded title, author,
   year, and DOI suggestions plus diagnostics.
 - Suggestions are ephemeral local UI state. Opening, cancelling, or failing extraction does not mutate the library.
-- Review is inline in the permanent Library tab rather than modal.
+- Review is the local half of the inline **Refine metadata** flow defined in
+  [`specs/metadata-refinement/spec.md`](../metadata-refinement/spec.md).
 - Each suggested field can be selected independently. Applying suggestions sends only selected fields and the artifact id to the owner-private route.
 - The library verifies the artifact/reference relationship, bounds every value,
   updates only selected fields, and records `pdf-metadata` provenance for those fields.
@@ -39,7 +40,7 @@ should be easy to review and reuse later without becoming canonical silently.
 
 ### Definition of Done
 
-- [x] A PDF-backed Library record exposes inline metadata review.
+- [x] A PDF-backed Library record exposes inline metadata review through **Refine metadata**.
 - [x] Embedded metadata and bounded opening-page text produce useful candidates.
 - [x] The user can apply individual fields and leave the rest untouched.
 - [x] Accepted fields record PDF-specific provenance and preserve finalized keys.

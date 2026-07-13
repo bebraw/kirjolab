@@ -462,7 +462,14 @@ test("reviews bounded PDF metadata before enriching a library record", async ({ 
   const draft = page.locator("#reference-library-list .resource-card").filter({ hasText: "metadata review" });
   await expect(draft).toContainText("sourceundatedmetadata");
   await draft.getByText("Metadata and research").click();
-  await draft.getByRole("button", { name: "Review PDF metadata" }).click();
+  await page.route("**/api/library/references/*/metadata-refinement/preview", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ referenceId: "local-review", artifactId: "local-pdf", candidates: [] }),
+    });
+  });
+  await draft.getByRole("button", { name: "Refine metadata" }).click();
   await expect
     .poll(async () => await draft.locator("input").evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value)))
     .toEqual(expect.arrayContaining(["Metadata Review in Practice", "Doe, Jane; Roe, Alex", "2025", "10.5555/metadata.review"]));
@@ -481,60 +488,63 @@ test("reviews bounded PDF metadata before enriching a library record", async ({ 
   });
 });
 
-test("reviews selected Crossref fields inline before library enrichment", async ({ page }) => {
-  const workspaceId = await createWorkspace(page, "Crossref library review");
+test("reviews a selected provider match and fields during PDF metadata refinement", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Provider metadata refinement");
   await page.goto(`/workspaces/${workspaceId}`);
   await page.getByRole("tab", { name: "Library" }).click();
-  await page.locator("#library-bibliography-upload").setInputFiles({
-    name: "crossref-review.bib",
-    mimeType: "application/x-bibtex",
-    buffer: Buffer.from(`@article{doe2025,
-      title = {Current title},
-      author = {Doe, Jane},
-      year = {2025},
-      journal = {Current Journal},
-      doi = {10.5555/crossref-review}
-    }`),
+  await page.locator("#library-pdf-upload").setInputFiles({
+    name: "provider_review.pdf",
+    mimeType: "application/pdf",
+    buffer: createMetadataEvidencePdf(),
   });
   const library = (await (await page.request.get("/api/library")).json()) as {
     references: Array<{ id: string; title: string }>;
+    artifacts: Array<{ id: string; referenceId: string }>;
   };
-  const reference = library.references.find((item) => item.title === "Current title");
-  if (!reference) throw new Error("Expected DOI-backed library reference");
+  const reference = library.references.find((item) => item.title === "provider review");
+  const artifact = library.artifacts.find((item) => item.referenceId === reference?.id);
+  if (!reference || !artifact) throw new Error("Expected PDF-backed library reference");
   const preview = {
     referenceId: reference.id,
-    doi: "10.5555/crossref-review",
-    metadata: {
-      type: "article",
-      title: "Crossref reviewed title",
-      authors: ["Doe, Jane", "Roe, Alex"],
-      year: "2026",
-      venue: "Provider Journal",
-      doi: "10.5555/crossref-review",
-      url: "https://doi.org/10.5555/crossref-review",
-      abstract: "Provider abstract",
-    },
-    metadataFingerprint: "b".repeat(64),
+    artifactId: artifact.id,
+    candidates: [
+      {
+        provider: "crossref",
+        match: "bibliographic",
+        score: 91,
+        metadata: {
+          type: "article",
+          title: "Crossref reviewed title",
+          authors: ["Doe, Jane", "Roe, Alex"],
+          year: "2026",
+          venue: "Provider Journal",
+          doi: "10.5555/crossref-review",
+          url: "https://doi.org/10.5555/crossref-review",
+          abstract: "Provider abstract",
+        },
+        metadataFingerprint: "b".repeat(64),
+      },
+    ],
   };
-  await page.route("**/api/library/references/*/crossref/preview", async (route) => {
+  await page.route("**/api/library/references/*/metadata-refinement/preview", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(preview) });
   });
   let acceptedFields: unknown;
-  await page.route("**/api/library/references/*/crossref/accept", async (route) => {
+  await page.route("**/api/library/references/*/metadata-refinement/accept", async (route) => {
     const body: unknown = route.request().postDataJSON();
     acceptedFields = isRecord(body) ? body.fields : undefined;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(reference) });
   });
 
-  const card = page.locator("#reference-library-list .resource-card").filter({ hasText: "Current title" });
+  const card = page.locator("#reference-library-list .resource-card").filter({ hasText: "provider review" });
   await card.getByText("Metadata and research").click();
-  await card.getByRole("button", { name: "Look up Crossref metadata" }).click();
+  await card.getByRole("button", { name: "Refine metadata" }).click();
   await expect(card).toContainText("Crossref: Crossref reviewed title");
-  await expect(card).toContainText("Current: Current title");
-  await card.locator("label", { hasText: "authors" }).locator('input[type="checkbox"]').uncheck();
+  await expect(card).toContainText("Current: provider review");
+  await card.locator("label", { hasText: "Crossref: Doe, Jane; Roe, Alex" }).locator('input[type="checkbox"]').uncheck();
   await card.getByRole("button", { name: "Apply selected Crossref metadata" }).click();
-  await expect(page.locator("#toast")).toHaveText("Selected Crossref metadata applied with provenance.");
-  expect(acceptedFields).toEqual(["title", "year", "venue", "url", "abstract"]);
+  await expect(page.locator("#toast")).toHaveText("Selected provider metadata applied with provenance.");
+  expect(acceptedFields).toEqual(["type", "title", "year", "venue", "doi", "url", "abstract"]);
 });
 
 test("round-trips CSL JSON and portable library metadata", async ({ page }) => {

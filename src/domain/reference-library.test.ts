@@ -6,6 +6,7 @@ import {
   extractWebDocument,
   isCrossrefLibraryPreview,
   isCrossrefMetadata,
+  isMetadataRefinementPreview,
   isReferenceLibrarySnapshot,
   likelyReferenceIdentity,
   memorableReferenceKey,
@@ -117,6 +118,32 @@ describe("shared reference library", () => {
     expect(isCrossrefMetadata({ ...metadata, authors: ["Doe, Jane", 1] })).toBe(false);
     expect(isCrossrefMetadata({ ...metadata, authors: ["Doe, Jane", { length: 1 }] })).toBe(false);
     expect(isCrossrefMetadata({ ...metadata, authors: ["Doe, Jane", "x".repeat(501)] })).toBe(false);
+  });
+
+  it("accepts only bounded provider refinement candidates", () => {
+    const candidate = {
+      provider: "datacite",
+      match: "doi",
+      score: null,
+      metadata: {
+        type: "misc",
+        title: "Dataset",
+        authors: ["Doe, Jane"],
+        year: "2026",
+        venue: "Archive",
+        doi: "10.5438/data",
+        url: "https://doi.org/10.5438/data",
+        abstract: "",
+      },
+      metadataFingerprint: "a".repeat(64),
+    };
+    const preview = { referenceId: "reference-1", artifactId: "artifact-1", candidates: [candidate] };
+    expect(isMetadataRefinementPreview(preview)).toBe(true);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: Array.from({ length: 6 }, () => candidate) })).toBe(false);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, provider: "unknown" }] })).toBe(false);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, match: "guess" }] })).toBe(false);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, score: Number.NaN }] })).toBe(false);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, metadataFingerprint: "stale" }] })).toBe(false);
   });
 
   it("derives memorable reference keys from available metadata", () => {

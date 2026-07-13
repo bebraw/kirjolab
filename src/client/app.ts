@@ -25,13 +25,14 @@ import { composeProject, relativeProjectPath, type CompositionSourceSpan, type P
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
 import {
   crossrefMetadataFields,
-  isCrossrefLibraryPreview,
+  isMetadataRefinementPreview,
   isReferenceLibrarySnapshot,
   type BibliographicRecord,
-  type CrossrefLibraryPreview,
   type CrossrefMetadataField,
   type LibraryHighlight,
   type LibraryPdfArtifact,
+  type MetadataRefinementCandidate,
+  type MetadataRefinementPreview,
   type ReferenceLibrarySnapshot,
   type WebSnapshot,
   type WebSnapshotComparison,
@@ -1790,18 +1791,6 @@ class WorkspaceApp {
       abstract,
       actionButton("Save details", "button-primary mt-2", () => void this.#saveReferenceMetadata(reference.id, metadataFields)),
     );
-    if (reference.doi) {
-      const crossrefReview = document.createElement("section");
-      crossrefReview.className = "hidden mt-3 border-t border-app-line pt-3";
-      metadataEditor.append(
-        actionButton(
-          "Look up Crossref metadata",
-          "button-secondary mt-3",
-          () => void this.#previewCrossrefMetadata(reference, crossrefReview),
-        ),
-        crossrefReview,
-      );
-    }
     const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
     const projectRow = document.createElement("div");
     projectRow.className = "mt-3 flex flex-wrap items-center gap-2";
@@ -1901,7 +1890,7 @@ class WorkspaceApp {
       row.append(
         actionButton("Open PDF", "button-secondary mt-2", () => void this.#openLibraryPdf(artifact)),
         rights,
-        actionButton("Review PDF metadata", "button-secondary mt-2", () => void this.#reviewPdfMetadata(reference, artifact, review)),
+        actionButton("Refine metadata", "button-secondary mt-2", () => void this.#refinePdfMetadata(reference, artifact, review)),
         review,
       );
       resources.append(row);
@@ -2067,54 +2056,107 @@ class WorkspaceApp {
     this.#showToast("PDF added with a stable reference ID. Add metadata when ready.");
   }
 
-  async #reviewPdfMetadata(reference: BibliographicRecord, artifact: LibraryPdfArtifact, container: HTMLElement): Promise<void> {
+  async #refinePdfMetadata(reference: BibliographicRecord, artifact: LibraryPdfArtifact, container: HTMLElement): Promise<void> {
     container.classList.remove("hidden");
-    container.replaceChildren(resourceLabel("PDF metadata"), statusText("Reading embedded metadata and opening pages…"));
+    container.replaceChildren(resourceLabel("Refine metadata"), statusText("Step 1 of 2 · Reading embedded metadata and opening pages…"));
     try {
       const candidates = await extractPdfMetadata(`/api/library/pdfs/${encodeURIComponent(artifact.id)}`);
-      this.#renderPdfMetadataReview(reference, artifact, candidates, container);
-    } catch (error) {
-      container.replaceChildren(
-        resourceLabel("PDF metadata"),
-        statusText(error instanceof Error ? `Metadata could not be read: ${error.message}` : "Metadata could not be read."),
-      );
-    }
-  }
-
-  async #previewCrossrefMetadata(reference: BibliographicRecord, container: HTMLElement): Promise<void> {
-    container.classList.remove("hidden");
-    container.replaceChildren(resourceLabel("Crossref metadata"), statusText("Looking up the current DOI…"));
-    try {
-      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(reference.id)}/crossref/preview`, {});
-      if (response.status === 409) {
-        const conflict: unknown = await response.json();
-        const duplicate = isUnknownRecord(conflict) && isUnknownRecord(conflict.duplicateReference) ? conflict.duplicateReference : null;
-        container.replaceChildren(resourceLabel("Crossref metadata"), statusText("This DOI already belongs to another library record."));
-        if (duplicate && typeof duplicate.id === "string") {
-          container.append(
-            actionButton("Show existing record", "button-secondary mt-2", () => this.#showLibraryReference(duplicate.id as string)),
-          );
-        }
-        return;
+      container.replaceChildren(resourceLabel("Refine metadata"), statusText("Step 2 of 2 · Searching scholarly metadata…"));
+      try {
+        const response = await jsonFetch(`/api/library/references/${encodeURIComponent(reference.id)}/metadata-refinement/preview`, {
+          artifactId: artifact.id,
+          candidates: {
+            ...(candidates.title ? { title: candidates.title } : {}),
+            ...(candidates.authors.length > 0 ? { authors: candidates.authors } : {}),
+            ...(candidates.year ? { year: candidates.year } : {}),
+            ...(candidates.doi ? { doi: candidates.doi } : {}),
+          },
+        });
+        await expectOk(response);
+        const preview: unknown = await response.json();
+        if (!isMetadataRefinementPreview(preview)) throw new Error("Metadata providers returned an invalid preview");
+        this.#renderMetadataRefinement(reference, artifact, candidates, preview, container);
+      } catch (error) {
+        this.#renderMetadataRefinement(
+          reference,
+          artifact,
+          candidates,
+          { referenceId: reference.id, artifactId: artifact.id, candidates: [] },
+          container,
+          error instanceof Error ? error.message : "Provider lookup failed.",
+        );
       }
-      await expectOk(response);
-      const preview: unknown = await response.json();
-      if (!isCrossrefLibraryPreview(preview)) throw new Error("Crossref returned an invalid metadata preview");
-      this.#renderCrossrefMetadataReview(reference, preview, container);
     } catch (error) {
       container.replaceChildren(
-        resourceLabel("Crossref metadata"),
-        statusText(error instanceof Error ? error.message : "Crossref metadata could not be loaded."),
+        resourceLabel("Refine metadata"),
+        statusText(error instanceof Error ? `Metadata could not be refined: ${error.message}` : "Metadata could not be refined."),
       );
     }
   }
 
-  #renderCrossrefMetadataReview(reference: BibliographicRecord, preview: CrossrefLibraryPreview, container: HTMLElement): void {
-    container.replaceChildren(resourceLabel(`Crossref metadata · doi:${preview.doi}`));
+  #renderMetadataRefinement(
+    reference: BibliographicRecord,
+    artifact: LibraryPdfArtifact,
+    local: PdfMetadataCandidates,
+    preview: MetadataRefinementPreview,
+    container: HTMLElement,
+    providerError = "",
+  ): void {
+    container.replaceChildren(
+      resourceLabel(`Refine metadata · ${local.pagesScanned} PDF page${local.pagesScanned === 1 ? "" : "s"} scanned`),
+    );
+    const localSection = document.createElement("section");
+    localSection.className = "mt-3 border-t border-app-line pt-3";
+    this.#renderPdfMetadataReview(reference, artifact, local, localSection);
+    container.append(localSection);
+    const providerSection = document.createElement("section");
+    providerSection.className = "mt-3 border-t border-app-line pt-3";
+    providerSection.append(resourceLabel("Scholarly metadata matches"));
+    if (preview.candidates.length === 0) {
+      providerSection.append(
+        statusText(
+          providerError
+            ? `Provider lookup failed: ${providerError} You can still apply the PDF suggestions or edit details manually.`
+            : "No provider matches were found. You can still apply the PDF suggestions or edit details manually.",
+        ),
+      );
+      container.append(providerSection);
+      return;
+    }
+    const candidateSelect = document.createElement("select");
+    candidateSelect.className = "field mt-2";
+    candidateSelect.setAttribute("aria-label", `Metadata match for ${reference.title}`);
+    for (const [index, candidate] of preview.candidates.entries()) {
+      const label = `${candidate.provider === "crossref" ? "Crossref" : "DataCite"} · ${candidate.metadata.title}${candidate.metadata.year ? ` · ${candidate.metadata.year}` : ""}`;
+      candidateSelect.append(new Option(label, String(index)));
+    }
+    const comparison = document.createElement("div");
+    const renderSelected = (): void => {
+      const candidate = preview.candidates[Number(candidateSelect.value)];
+      if (candidate) this.#renderProviderMetadataReview(reference, candidate, comparison);
+    };
+    candidateSelect.addEventListener("change", renderSelected);
+    providerSection.append(candidateSelect, comparison);
+    container.append(providerSection);
+    renderSelected();
+  }
+
+  #renderProviderMetadataReview(reference: BibliographicRecord, candidate: MetadataRefinementCandidate, container: HTMLElement): void {
+    container.replaceChildren(
+      statusText(
+        [
+          candidate.match === "doi" ? "Exact DOI match" : "Bibliographic match",
+          `doi:${candidate.metadata.doi}`,
+          candidate.score === null ? "" : `provider score ${candidate.score.toFixed(1)}`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      ),
+    );
     const selected = new Map<CrossrefMetadataField, HTMLInputElement>();
     for (const field of crossrefMetadataFields) {
       const current = field === "authors" ? reference.authors.join("; ") : reference[field];
-      const proposed = field === "authors" ? preview.metadata.authors.join("; ") : preview.metadata[field];
+      const proposed = field === "authors" ? candidate.metadata.authors.join("; ") : candidate.metadata[field];
       if (!proposed || proposed === current) continue;
       const label = document.createElement("label");
       label.className = "mt-2 grid grid-cols-[auto_1fr] items-start gap-2 text-xs";
@@ -2128,7 +2170,7 @@ class WorkspaceApp {
       name.textContent = field;
       const provider = document.createElement("span");
       provider.className = "block break-words text-app-text";
-      provider.textContent = `Crossref: ${proposed}`;
+      provider.textContent = `${candidate.provider === "crossref" ? "Crossref" : "DataCite"}: ${proposed}`;
       const existing = document.createElement("span");
       existing.className = "block break-words text-app-text-soft";
       existing.textContent = `Current: ${current || "—"}`;
@@ -2138,41 +2180,38 @@ class WorkspaceApp {
       selected.set(field, checkbox);
     }
     if (selected.size === 0) {
-      container.append(statusText("Crossref matches the current library metadata."));
+      container.append(statusText("This provider record matches the current library metadata."));
       return;
     }
+    const providerName = candidate.provider === "crossref" ? "Crossref" : "DataCite";
     container.append(
       actionButton(
-        "Apply selected Crossref metadata",
+        `Apply selected ${providerName} metadata`,
         "button-primary mt-3",
-        () => void this.#applyCrossrefMetadata(reference.id, preview.metadataFingerprint, selected),
+        () => void this.#applyProviderMetadata(reference.id, candidate, selected),
       ),
     );
   }
 
-  async #applyCrossrefMetadata(
+  async #applyProviderMetadata(
     referenceId: string,
-    metadataFingerprint: string,
+    candidate: MetadataRefinementCandidate,
     selected: ReadonlyMap<CrossrefMetadataField, HTMLInputElement>,
   ): Promise<void> {
     const fields = [...selected].filter(([, checkbox]) => checkbox.checked).map(([field]) => field);
     if (fields.length === 0) {
-      this.#showToast("Select at least one Crossref metadata field to apply.");
+      this.#showToast("Select at least one provider metadata field to apply.");
       return;
     }
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/crossref/accept`, {
-      metadataFingerprint,
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/metadata-refinement/accept`, {
+      provider: candidate.provider,
+      doi: candidate.metadata.doi,
+      metadataFingerprint: candidate.metadataFingerprint,
       fields,
     });
     await expectOk(response);
     await this.#refreshReferenceLibrary();
-    this.#showToast("Selected Crossref metadata applied with provenance.");
-  }
-
-  #showLibraryReference(referenceId: string): void {
-    const card = document.querySelector<HTMLElement>(`[data-reference-id="${CSS.escape(referenceId)}"]`);
-    card?.querySelector("details")?.setAttribute("open", "");
-    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+    this.#showToast("Selected provider metadata applied with provenance.");
   }
 
   #renderPdfMetadataReview(

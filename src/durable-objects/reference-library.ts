@@ -28,6 +28,7 @@ import {
   type ReferenceKeyState,
   type ResearchShareKind,
   type ResearchShareSnapshot,
+  type ScholarlyMetadataProvider,
   type WebCaptureRegistration,
   type WebSnapshot,
   type WebSource,
@@ -986,6 +987,13 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return this.#reference(referenceId);
   }
 
+  getPdfMetadataContext(referenceId: string, artifactId: string): { reference: BibliographicRecord; artifact: LibraryPdfArtifact } {
+    const reference = this.#reference(referenceId);
+    const row = this.ctx.storage.sql.exec<ArtifactRow>("SELECT * FROM artifacts WHERE id = ?", artifactId).toArray()[0];
+    if (!row || row.reference_id !== referenceId) throw new Error("PDF artifact does not belong to this reference");
+    return { reference, artifact: artifactFromRow(row) };
+  }
+
   applyReviewedCrossrefMetadata(
     referenceId: string,
     expectedDoiValue: string,
@@ -1007,10 +1015,35 @@ export class ReferenceLibrary extends DurableObject<Env> {
     ) {
       throw new Error("Reviewed Crossref metadata is invalid");
     }
+    return this.applyReviewedProviderMetadata(referenceId, metadata, fields, "crossref", actor);
+  }
+
+  applyReviewedProviderMetadata(
+    referenceId: string,
+    metadata: CrossrefMetadata,
+    fields: readonly CrossrefMetadataField[],
+    provider: ScholarlyMetadataProvider,
+    actor: string,
+  ): BibliographicRecord {
+    const current = this.#reference(referenceId);
+    const providerDoi = normalizeDoi(metadata.doi);
+    const currentDoi = normalizeDoi(current.doi);
+    if ((provider !== "crossref" && provider !== "datacite") || !providerDoi || (currentDoi && currentDoi !== providerDoi)) {
+      throw new Error("Reference DOI changed; review provider metadata again");
+    }
+    if (
+      fields.length === 0 ||
+      fields.length > crossrefMetadataFields.length ||
+      new Set(fields).size !== fields.length ||
+      fields.some((field) => !crossrefMetadataFields.includes(field)) ||
+      !isCrossrefMetadata(metadata)
+    ) {
+      throw new Error("Reviewed provider metadata is invalid");
+    }
     const duplicate = this.ctx.storage.sql
       .exec<ReferenceRow>(
         "SELECT * FROM library_references WHERE LOWER(doi) = ? AND id <> ? AND deleted_at IS NULL LIMIT 1",
-        expectedDoi,
+        providerDoi,
         referenceId,
       )
       .toArray()[0];
@@ -1018,7 +1051,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const updatedAt = new Date().toISOString();
     const provenance = { ...current.provenance };
     for (const field of fields) {
-      provenance[field] = { method: "crossref", capturedAt: updatedAt, actor };
+      provenance[field] = { method: provider, capturedAt: updatedAt, actor };
     }
     const selected: Partial<CrossrefMetadata> = {
       ...(fields.includes("type") ? { type: metadata.type } : {}),
@@ -1026,7 +1059,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       ...(fields.includes("authors") ? { authors: metadata.authors } : {}),
       ...(fields.includes("year") ? { year: metadata.year } : {}),
       ...(fields.includes("venue") ? { venue: metadata.venue } : {}),
-      ...(fields.includes("doi") ? { doi: expectedDoi } : {}),
+      ...(fields.includes("doi") ? { doi: providerDoi } : {}),
       ...(fields.includes("url") ? { url: metadata.url } : {}),
       ...(fields.includes("abstract") ? { abstract: metadata.abstract } : {}),
     };
@@ -1583,6 +1616,7 @@ function parseProvenance(value: string): BibliographicRecord["provenance"] {
         "actor" in item &&
         (item.method === "bibtex" ||
           item.method === "crossref" ||
+          item.method === "datacite" ||
           item.method === "filename" ||
           item.method === "manual" ||
           item.method === "pdf-metadata" ||

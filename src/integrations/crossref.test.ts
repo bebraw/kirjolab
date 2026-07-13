@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchCrossrefReferences, fetchCrossrefWork, fingerprintPublicationMetadata } from "./crossref";
+import { fetchCrossrefReferences, fetchCrossrefWork, fingerprintPublicationMetadata, searchCrossrefWorks } from "./crossref";
 
 describe("Crossref metadata integration", () => {
   it("maps a DOI singleton response into bounded publication metadata", async () => {
@@ -154,6 +154,52 @@ describe("Crossref metadata integration", () => {
     await expect(fetchCrossrefWork("10.6000/body-limit", "", async () => new Response("x".repeat(1_000_001)))).rejects.toThrow("too large");
     await expect(fetchCrossrefWork("10.6000/malformed", "", async () => new Response("{"))).rejects.toThrow("invalid metadata");
     await expect(fetchCrossrefWork("10.6000/empty", "", async () => new Response(null))).rejects.toThrow("invalid metadata");
+  });
+
+  it("returns up to five unique bibliographic matches for title, author, and year", async () => {
+    let observedUrl = "";
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
+      observedUrl = String(input);
+      return Response.json({
+        message: {
+          items: [
+            {
+              DOI: "10.7000/FIRST",
+              type: "journal-article",
+              title: ["First match"],
+              author: [{ family: "Doe", given: "Jane" }],
+              issued: { "date-parts": [[2026]] },
+              score: 91.5,
+            },
+            { DOI: "10.7000/first", title: ["Duplicate"] },
+            { DOI: "not-a-doi", title: ["Invalid"] },
+            { DOI: "10.7000/no-title", title: [] },
+            { DOI: "10.7000/second", title: ["Second match"] },
+            { DOI: "10.7000/beyond-limit", title: ["Beyond limit"] },
+          ],
+        },
+      });
+    });
+
+    await expect(searchCrossrefWorks({ title: " Evidence ", authors: [" Doe, Jane "], year: " 2026 " }, "", fetcher)).resolves.toEqual([
+      {
+        metadata: expect.objectContaining({ title: "First match", authors: ["Doe, Jane"], doi: "10.7000/first" }),
+        score: 91.5,
+      },
+      { metadata: expect.objectContaining({ title: "Second match", doi: "10.7000/second" }), score: null },
+    ]);
+    const url = new URL(observedUrl);
+    expect(url.origin + url.pathname).toBe("https://api.crossref.org/works");
+    expect(url.searchParams.get("query.bibliographic")).toBe("Evidence Doe, Jane 2026");
+    expect(url.searchParams.get("rows")).toBe("5");
+    await expect(searchCrossrefWorks({ title: "", authors: [], year: "" }, "", fetcher)).resolves.toEqual([]);
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("rejects failed and malformed Crossref bibliographic searches", async () => {
+    const query = { title: "Evidence", authors: [] as string[], year: "" };
+    await expect(searchCrossrefWorks(query, "", async () => new Response(null, { status: 500 }))).rejects.toThrow("search failed");
+    await expect(searchCrossrefWorks(query, "", async () => Response.json({ message: null }))).rejects.toThrow("invalid search metadata");
   });
 
   it("fingerprints normalized metadata stably and detects material changes", async () => {

@@ -1,6 +1,6 @@
 # ADR-080: Review Crossref Metadata in the Private Library
 
-**Status:** Partially superseded by [ADR-083](./ADR-083-finalize-provisional-reference-keys.md)
+**Status:** Partially superseded by [ADR-083](./ADR-083-finalize-provisional-reference-keys.md) and [ADR-085](./ADR-085-unify-reviewed-metadata-refinement.md)
 
 **Date:** 2026-07-13
 

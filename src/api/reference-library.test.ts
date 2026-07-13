@@ -553,6 +553,120 @@ describe("reference library API", () => {
     expect(fixture.library.applyReviewedCrossrefMetadata).not.toHaveBeenCalled();
   });
 
+  it("previews bounded Crossref title matches and refetches the selected candidate before applying fields", async () => {
+    const fixture = apiFixture();
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      return url.searchParams.has("query.bibliographic")
+        ? Response.json({
+            message: {
+              items: [
+                {
+                  type: "journal-article",
+                  title: ["Matched paper"],
+                  author: [{ family: "Doe", given: "Jane" }],
+                  issued: { "date-parts": [[2026]] },
+                  "container-title": ["Open Research"],
+                  DOI: "10.5555/match",
+                  URL: "https://doi.org/10.5555/match",
+                  abstract: "<jats:p>Crossref abstract</jats:p>",
+                  score: 88,
+                },
+              ],
+            },
+          })
+        : crossrefResponse("10.5555/match", "Matched paper");
+    });
+    const route = `/api/library/references/${reference.id}/metadata-refinement`;
+    const previewResponse = await handleReferenceLibraryApi(
+      jsonRequest(`${route}/preview`, {
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        candidates: { title: "Matched paper", authors: ["Doe, Jane"], year: "2026" },
+      }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    expect(previewResponse.status).toBe(200);
+    const preview = (await previewResponse.json()) as {
+      candidates: Array<{ provider: string; match: string; score: number; metadataFingerprint: string }>;
+    };
+    expect(preview.candidates).toEqual([
+      expect.objectContaining({
+        provider: "crossref",
+        match: "bibliographic",
+        score: 88,
+        metadataFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      }),
+    ]);
+    expect(fixture.library.getPdfMetadataContext).toHaveBeenCalledWith(reference.id, "22222222-2222-4222-8222-222222222222");
+    expect(fixture.library.applyReviewedProviderMetadata).not.toHaveBeenCalled();
+
+    const accepted = await handleReferenceLibraryApi(
+      jsonRequest(`${route}/accept`, {
+        provider: "crossref",
+        doi: "10.5555/match",
+        metadataFingerprint: preview.candidates[0]!.metadataFingerprint,
+        fields: ["title", "authors", "doi"],
+      }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    expect(accepted.status).toBe(200);
+    expect(fixture.library.applyReviewedProviderMetadata).toHaveBeenCalledWith(
+      reference.id,
+      expect.objectContaining({ title: "Matched paper", doi: "10.5555/match" }),
+      ["title", "authors", "doi"],
+      "crossref",
+      identity.email,
+    );
+    expect(fetchExternal).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to DataCite for a DOI and rejects stale provider acceptance", async () => {
+    const fixture = apiFixture();
+    const previewFetch = vi
+      .fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(dataCiteResponse());
+    const route = `/api/library/references/${reference.id}/metadata-refinement`;
+    const previewResponse = await handleReferenceLibraryApi(
+      jsonRequest(`${route}/preview`, {
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        candidates: { doi: "10.5438/data" },
+      }),
+      fixture.env,
+      identity,
+      previewFetch,
+    );
+    expect(previewResponse.status).toBe(200);
+    await expect(previewResponse.json()).resolves.toMatchObject({
+      candidates: [
+        {
+          provider: "datacite",
+          match: "doi",
+          metadata: { title: "DataCite record", doi: "10.5438/data" },
+        },
+      ],
+    });
+    expect(previewFetch).toHaveBeenCalledTimes(2);
+
+    const stale = await handleReferenceLibraryApi(
+      jsonRequest(`${route}/accept`, {
+        provider: "datacite",
+        doi: "10.5438/data",
+        metadataFingerprint: "a".repeat(64),
+        fields: ["title"],
+      }),
+      fixture.env,
+      identity,
+      async () => dataCiteResponse(),
+    );
+    expect(stale.status).toBe(409);
+    expect(fixture.library.applyReviewedProviderMetadata).not.toHaveBeenCalled();
+  });
+
   it("routes citation assertions, review, project filtering, and explicit Crossref expansion", async () => {
     const fixture = apiFixture();
     const createBody = {
@@ -681,6 +795,8 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     updateReferenceMetadata: vi.fn(async () => ({ ...reference, updatedAt: now })),
     applyReviewedPdfMetadata: vi.fn(async () => ({ ...reference, title: "Reviewed PDF", updatedAt: now })),
     applyReviewedCrossrefMetadata: vi.fn(async () => ({ ...reference, title: "Crossref title", updatedAt: now })),
+    applyReviewedProviderMetadata: vi.fn(async () => ({ ...reference, title: "Provider title", updatedAt: now })),
+    getPdfMetadataContext: vi.fn(async () => ({ reference, artifact })),
     setTags: vi.fn(async (_referenceId: string, tags: readonly string[]) => tags),
     setCollections: vi.fn(async (_referenceId: string, collections: readonly string[]) => collections),
     createNote: vi.fn(async (referenceId: string, body: string) => ({ id: "note", referenceId, body, createdAt: now, updatedAt: now })),
@@ -744,17 +860,34 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
   };
 }
 
-function crossrefResponse(): Response {
+function crossrefResponse(doi = "10.5555/current", title = "Crossref title"): Response {
   return Response.json({
     message: {
       type: "journal-article",
-      title: ["Crossref title"],
+      title: [title],
       author: [{ family: "Doe", given: "Jane" }],
       issued: { "date-parts": [[2026]] },
       "container-title": ["Open Research"],
-      DOI: "10.5555/current",
-      URL: "https://doi.org/10.5555/current",
+      DOI: doi,
+      URL: `https://doi.org/${doi}`,
       abstract: "<jats:p>Crossref abstract</jats:p>",
+    },
+  });
+}
+
+function dataCiteResponse(): Response {
+  return Response.json({
+    data: {
+      attributes: {
+        doi: "10.5438/data",
+        url: "https://doi.org/10.5438/data",
+        titles: [{ title: "DataCite record" }],
+        creators: [{ familyName: "Doe", givenName: "Jane" }],
+        publicationYear: 2026,
+        publisher: "Data archive",
+        types: { bibtex: "misc" },
+        descriptions: [],
+      },
     },
   });
 }

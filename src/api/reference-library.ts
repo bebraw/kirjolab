@@ -13,6 +13,7 @@ import {
   type ReadingState,
   type ReferenceLibrarySnapshot,
   type ReviewedPdfMetadata,
+  type ScholarlyMetadataProvider,
   type WebCaptureRegistration,
   type WebSnapshot,
 } from "../domain/reference-library";
@@ -25,7 +26,10 @@ import {
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
 import type { PdfDraftItem, ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
-import { fetchCrossrefReferences, fetchCrossrefWork, fingerprintPublicationMetadata } from "../integrations/crossref";
+import { normalizeDoi } from "../domain/bibliography";
+import { isValidDoi } from "../domain/publication-intake";
+import { fetchCrossrefReferences, fetchCrossrefWork, fingerprintPublicationMetadata, searchCrossrefWorks } from "../integrations/crossref";
+import { fetchDataCiteWork } from "../integrations/datacite";
 import type { AuthIdentity } from "../security/auth";
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from "fflate";
 import {
@@ -70,6 +74,14 @@ interface ReferenceLibraryApi {
     fields: readonly CrossrefMetadataField[],
     actor: string,
   ): Promise<BibliographicRecord>;
+  applyReviewedProviderMetadata(
+    referenceId: string,
+    metadata: CrossrefMetadata,
+    fields: readonly CrossrefMetadataField[],
+    provider: ScholarlyMetadataProvider,
+    actor: string,
+  ): Promise<BibliographicRecord>;
+  getPdfMetadataContext(referenceId: string, artifactId: string): Promise<{ reference: BibliographicRecord; artifact: LibraryPdfArtifact }>;
   setTags(referenceId: string, tags: readonly string[]): Promise<readonly string[]>;
   setCollections(referenceId: string, collections: readonly string[]): Promise<readonly string[]>;
   createNote(referenceId: string, body: string): Promise<LibraryNote>;
@@ -208,6 +220,12 @@ export async function handleReferenceLibraryApi(
       return crossrefMatch[2] === "preview"
         ? await previewCrossrefMetadata(crossrefMatch[1], env, library, fetchExternal)
         : await acceptCrossrefMetadata(request, crossrefMatch[1], identity, env, library, fetchExternal);
+    }
+    const refinementMatch = /^\/references\/([0-9a-f-]{36})\/metadata-refinement\/(preview|accept)$/iu.exec(suffix);
+    if (refinementMatch?.[1] && refinementMatch[2] && request.method === "POST") {
+      return refinementMatch[2] === "preview"
+        ? await previewMetadataRefinement(request, refinementMatch[1], env, library, fetchExternal)
+        : await acceptMetadataRefinement(request, refinementMatch[1], identity, env, library, fetchExternal);
     }
     const referenceMatch =
       /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|reading|deletion-impact|web-snapshots|citation-expansions|pdf-metadata))?$/iu.exec(
@@ -376,6 +394,92 @@ async function acceptCrossrefMetadata(
   );
 }
 
+async function previewMetadataRefinement(
+  request: Request,
+  referenceId: string,
+  env: ReferenceLibraryApiEnv,
+  library: ReferenceLibraryApi,
+  fetchExternal: ExternalFetch,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isMetadataRefinementPreviewInput(body)) return jsonError("Invalid metadata refinement preview", 400);
+  const { reference } = await library.getPdfMetadataContext(referenceId, body.artifactId);
+  const query = {
+    title: body.candidates.title?.trim() || reference.title,
+    authors: body.candidates.authors ?? reference.authors,
+    year: body.candidates.year?.trim() || reference.year,
+  };
+  const doi = normalizeDoi(body.candidates.doi?.trim() || reference.doi);
+  const matches = doi
+    ? [
+        {
+          provider: await doiMetadataProvider(doi, env.CROSSREF_MAILTO, fetchExternal),
+          match: "doi" as const,
+          score: null,
+        },
+      ]
+    : (await searchCrossrefWorks(query, env.CROSSREF_MAILTO, fetchExternal)).map((match) => ({
+        provider: { name: "crossref" as const, metadata: match.metadata },
+        match: "bibliographic" as const,
+        score: match.score,
+      }));
+  const candidates = await Promise.all(
+    matches.map(async ({ provider, match, score }) => {
+      const metadata: CrossrefMetadata = { ...provider.metadata, type: provider.metadata.type ?? "misc" };
+      return {
+        provider: provider.name,
+        match,
+        score,
+        metadata,
+        metadataFingerprint: await fingerprintPublicationMetadata(metadata),
+      };
+    }),
+  );
+  return Response.json({ referenceId, artifactId: body.artifactId, candidates }, noStore());
+}
+
+async function acceptMetadataRefinement(
+  request: Request,
+  referenceId: string,
+  identity: AuthIdentity,
+  env: ReferenceLibraryApiEnv,
+  library: ReferenceLibraryApi,
+  fetchExternal: ExternalFetch,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isMetadataRefinementAcceptanceInput(body)) return jsonError("Invalid metadata refinement acceptance", 400);
+  const reference = await libraryReference(referenceId, library);
+  const doi = normalizeDoi(body.doi);
+  if (reference.doi && normalizeDoi(reference.doi) !== doi) return jsonError("Reference DOI changed; refine metadata again", 409);
+  const conflict = await duplicateDoiValueResponse(reference, doi, library);
+  if (conflict) return conflict;
+  const metadataValue =
+    body.provider === "crossref"
+      ? await fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal)
+      : await fetchDataCiteWork(doi, env.CROSSREF_MAILTO, fetchExternal);
+  const metadata: CrossrefMetadata = { ...metadataValue, type: metadataValue.type ?? "misc" };
+  if ((await fingerprintPublicationMetadata(metadata)) !== body.metadataFingerprint) {
+    return jsonError("Provider metadata changed; review it again", 409);
+  }
+  return Response.json(
+    await library.applyReviewedProviderMetadata(referenceId, metadata, body.fields, body.provider, identity.email),
+    noStore(),
+  );
+}
+
+async function doiMetadataProvider(
+  doi: string,
+  mailto: string,
+  fetchExternal: ExternalFetch,
+): Promise<{ name: ScholarlyMetadataProvider; metadata: Awaited<ReturnType<typeof fetchCrossrefWork>> }> {
+  try {
+    return { name: "crossref", metadata: await fetchCrossrefWork(doi, mailto, fetchExternal) };
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "Crossref has no record for this DOI") throw error;
+    return { name: "datacite", metadata: await fetchDataCiteWork(doi, mailto, fetchExternal) };
+  }
+}
+
 async function libraryReference(referenceId: string, library: ReferenceLibraryApi): Promise<BibliographicRecord> {
   const reference = (await library.getReferences([referenceId]))[0];
   if (!reference) throw new Error("Reference not found");
@@ -384,7 +488,15 @@ async function libraryReference(referenceId: string, library: ReferenceLibraryAp
 
 async function duplicateDoiResponse(reference: BibliographicRecord, library: ReferenceLibraryApi): Promise<Response | null> {
   if (!reference.doi) return null;
-  const duplicate = (await library.findReferencesByDois([reference.doi])).find((candidate) => candidate.id !== reference.id);
+  return duplicateDoiValueResponse(reference, reference.doi, library);
+}
+
+async function duplicateDoiValueResponse(
+  reference: BibliographicRecord,
+  doi: string,
+  library: ReferenceLibraryApi,
+): Promise<Response | null> {
+  const duplicate = (await library.findReferencesByDois([doi])).find((candidate) => candidate.id !== reference.id);
   return duplicate
     ? Response.json(
         {
@@ -411,12 +523,36 @@ function isCrossrefAcceptanceInput(value: unknown): value is { metadataFingerpri
   return new Set(value.fields).size === value.fields.length;
 }
 
+function isMetadataRefinementPreviewInput(value: unknown): value is { artifactId: string; candidates: ReviewedPdfMetadata } {
+  if (!isRecord(value) || typeof value.artifactId !== "string" || !/^[0-9a-f-]{36}$/iu.test(value.artifactId)) return false;
+  return isPdfMetadataFields(value.candidates, true);
+}
+
+function isMetadataRefinementAcceptanceInput(value: unknown): value is {
+  provider: ScholarlyMetadataProvider;
+  doi: string;
+  metadataFingerprint: string;
+  fields: CrossrefMetadataField[];
+} {
+  return (
+    isRecord(value) &&
+    (value.provider === "crossref" || value.provider === "datacite") &&
+    typeof value.doi === "string" &&
+    isValidDoi(value.doi) &&
+    isCrossrefAcceptanceInput(value)
+  );
+}
+
 function isReviewedPdfMetadataInput(value: unknown): value is { artifactId: string; fields: ReviewedPdfMetadata } {
   if (!isRecord(value) || typeof value.artifactId !== "string" || !/^[0-9a-f-]{36}$/iu.test(value.artifactId)) return false;
-  if (!isRecord(value.fields)) return false;
-  const keys = Object.keys(value.fields);
-  if (keys.length === 0 || keys.some((key) => !["title", "authors", "year", "doi"].includes(key))) return false;
-  const { title, authors, year, doi } = value.fields;
+  return isPdfMetadataFields(value.fields, false);
+}
+
+function isPdfMetadataFields(value: unknown, allowEmpty: boolean): value is ReviewedPdfMetadata {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  if ((!allowEmpty && keys.length === 0) || keys.some((key) => !["title", "authors", "year", "doi"].includes(key))) return false;
+  const { title, authors, year, doi } = value;
   return (
     (title === undefined || (typeof title === "string" && title.trim().length > 0 && title.length <= 2_000)) &&
     (authors === undefined ||
