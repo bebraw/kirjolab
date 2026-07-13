@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   bibliographicSnapshot,
   compareWebSnapshotText,
+  crossrefMetadataFields,
   extractWebDocument,
+  isCrossrefLibraryPreview,
+  isCrossrefMetadata,
   isReferenceLibrarySnapshot,
   likelyReferenceIdentity,
   memorableReferenceKey,
@@ -37,6 +40,85 @@ const capturedWebSnapshot = {
 } as const;
 
 describe("shared reference library", () => {
+  it("accepts only bounded, fingerprinted Crossref library previews", () => {
+    const preview = {
+      referenceId: "reference-1",
+      doi: "10.5555/example",
+      metadata: {
+        type: "article",
+        title: "Inspectable evidence",
+        authors: ["Doe, Jane"],
+        year: "2026",
+        venue: "Open Research",
+        doi: "10.5555/example",
+        url: "https://doi.org/10.5555/example",
+        abstract: "Evidence",
+      },
+      metadataFingerprint: "a".repeat(64),
+    };
+    expect(isCrossrefLibraryPreview(preview)).toBe(true);
+    for (const metadataFingerprint of ["stale", "a".repeat(63), "a".repeat(65), "A".repeat(64)]) {
+      expect(isCrossrefLibraryPreview({ ...preview, metadataFingerprint })).toBe(false);
+    }
+    expect(isCrossrefLibraryPreview({ ...preview, referenceId: 1 })).toBe(false);
+    expect(isCrossrefLibraryPreview({ ...preview, doi: null })).toBe(false);
+    expect(isCrossrefLibraryPreview({ ...preview, metadata: null })).toBe(false);
+
+    expect(crossrefMetadataFields).toEqual(["type", "title", "authors", "year", "venue", "doi", "url", "abstract"]);
+    const atBounds = {
+      type: "x".repeat(100),
+      title: "x".repeat(2_000),
+      authors: Array.from({ length: 100 }, () => "x".repeat(500)),
+      year: "x".repeat(100),
+      venue: "x".repeat(2_000),
+      doi: "x".repeat(500),
+      url: "x".repeat(2_000),
+      abstract: "x".repeat(20_000),
+    };
+    expect(isCrossrefMetadata(atBounds)).toBe(true);
+    for (const metadata of [
+      { ...atBounds, type: "" },
+      { ...atBounds, type: "x".repeat(101) },
+      { ...atBounds, type: null },
+      { ...atBounds, title: "" },
+      { ...atBounds, title: "x".repeat(2_001) },
+      { ...atBounds, title: null },
+      { ...atBounds, authors: "Doe, Jane" },
+      { ...atBounds, authors: Array.from({ length: 101 }, () => "Doe, Jane") },
+      { ...atBounds, authors: [1] },
+      { ...atBounds, authors: ["x".repeat(501)] },
+      { ...atBounds, year: "x".repeat(101) },
+      { ...atBounds, year: null },
+      { ...atBounds, venue: "x".repeat(2_001) },
+      { ...atBounds, venue: null },
+      { ...atBounds, doi: "" },
+      { ...atBounds, doi: "x".repeat(501) },
+      { ...atBounds, doi: null },
+      { ...atBounds, url: "x".repeat(2_001) },
+      { ...atBounds, url: null },
+      { ...atBounds, abstract: "x".repeat(20_001) },
+      { ...atBounds, abstract: null },
+    ]) {
+      expect(isCrossrefMetadata(metadata)).toBe(false);
+    }
+  });
+
+  it("rejects Crossref author arrays when any provider name is invalid", () => {
+    const metadata = {
+      type: "article",
+      title: "Evidence",
+      authors: ["Doe, Jane"],
+      year: "2026",
+      venue: "Journal",
+      doi: "10.5555/evidence",
+      url: "https://doi.org/10.5555/evidence",
+      abstract: "",
+    };
+    expect(isCrossrefMetadata({ ...metadata, authors: ["Doe, Jane", 1] })).toBe(false);
+    expect(isCrossrefMetadata({ ...metadata, authors: ["Doe, Jane", { length: 1 }] })).toBe(false);
+    expect(isCrossrefMetadata({ ...metadata, authors: ["Doe, Jane", "x".repeat(501)] })).toBe(false);
+  });
+
   it("derives memorable reference keys from available metadata", () => {
     expect(memorableReferenceKey({ title: "Climate adaptation pathways", authors: ["Smith, Jane"], year: "2024" })).toBe("smith2024");
     expect(memorableReferenceKey({ title: "Climate adaptation pathways", authors: ["Jane Smith"], year: "2024" }, true)).toBe(

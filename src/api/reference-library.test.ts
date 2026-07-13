@@ -423,6 +423,99 @@ describe("reference library API", () => {
     expect(fixture.library.applyReviewedPdfMetadata).not.toHaveBeenCalled();
   });
 
+  it("previews Crossref metadata without mutation and applies only a reviewed fingerprint", async () => {
+    const fixture = apiFixture();
+    const doiReference = { ...reference, doi: "10.5555/current" };
+    fixture.library.getReferences.mockResolvedValue([doiReference]);
+    const fetchCrossref = vi.fn(async () => crossrefResponse());
+    const previewResponse = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/crossref/preview`, {}),
+      fixture.env,
+      identity,
+      fetchCrossref,
+    );
+    expect(previewResponse.status).toBe(200);
+    const preview = (await previewResponse.json()) as { metadataFingerprint: string };
+    expect(preview.metadataFingerprint).toMatch(/^[a-f0-9]{64}$/u);
+    expect(fixture.library.applyReviewedCrossrefMetadata).not.toHaveBeenCalled();
+
+    const acceptResponse = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/crossref/accept`, {
+        metadataFingerprint: preview.metadataFingerprint,
+        fields: ["title", "authors"],
+      }),
+      fixture.env,
+      identity,
+      fetchCrossref,
+    );
+    expect(acceptResponse.status).toBe(200);
+    expect(fixture.library.applyReviewedCrossrefMetadata).toHaveBeenCalledWith(
+      reference.id,
+      "10.5555/current",
+      expect.objectContaining({ title: "Crossref title", authors: ["Doe, Jane"], doi: "10.5555/current" }),
+      ["title", "authors"],
+      identity.email,
+    );
+    expect(fetchCrossref).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects stale Crossref reviews and reports an existing DOI owner before lookup", async () => {
+    const fixture = apiFixture();
+    const doiReference = { ...reference, doi: "10.5555/current" };
+    fixture.library.getReferences.mockResolvedValue([doiReference]);
+    const fetchCrossref = vi.fn(async () => crossrefResponse());
+    const stale = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/crossref/accept`, {
+        metadataFingerprint: "a".repeat(64),
+        fields: ["title"],
+      }),
+      fixture.env,
+      identity,
+      fetchCrossref,
+    );
+    expect(stale.status).toBe(409);
+    expect(fixture.library.applyReviewedCrossrefMetadata).not.toHaveBeenCalled();
+
+    const duplicate = { ...reference, id: "99999999-9999-4999-8999-999999999999", referenceKey: "doe2026", doi: doiReference.doi };
+    fixture.library.findReferencesByDois.mockResolvedValue([duplicate]);
+    fetchCrossref.mockClear();
+    const conflict = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/crossref/preview`, {}),
+      fixture.env,
+      identity,
+      fetchCrossref,
+    );
+    expect(conflict.status).toBe(409);
+    await expect(conflict.json()).resolves.toMatchObject({ duplicateReference: { id: duplicate.id, referenceKey: "doe2026" } });
+    expect(fetchCrossref).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid Crossref acceptance and provider failure without mutation", async () => {
+    const fixture = apiFixture();
+    fixture.library.getReferences.mockResolvedValue([{ ...reference, doi: "10.5555/current" }]);
+    const fetchCrossref = vi.fn(async () => crossrefResponse());
+    const route = `/api/library/references/${reference.id}/crossref/accept`;
+    for (const body of [
+      { metadataFingerprint: "short", fields: ["title"] },
+      { metadataFingerprint: "a".repeat(64), fields: [] },
+      { metadataFingerprint: "a".repeat(64), fields: ["title", "title"] },
+      { metadataFingerprint: "a".repeat(64), fields: ["publisher"] },
+    ]) {
+      expect((await handleReferenceLibraryApi(jsonRequest(route, body), fixture.env, identity, fetchCrossref)).status).toBe(400);
+    }
+    expect(fetchCrossref).not.toHaveBeenCalled();
+    fetchCrossref.mockRejectedValueOnce(new Error("Crossref unavailable"));
+    const unavailable = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/crossref/preview`, {}),
+      fixture.env,
+      identity,
+      fetchCrossref,
+    );
+    expect(unavailable.status).toBe(400);
+    await expect(unavailable.json()).resolves.toEqual({ error: "Crossref unavailable" });
+    expect(fixture.library.applyReviewedCrossrefMetadata).not.toHaveBeenCalled();
+  });
+
   it("routes citation assertions, review, project filtering, and explicit Crossref expansion", async () => {
     const fixture = apiFixture();
     const createBody = {
@@ -550,6 +643,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     archiveReference: vi.fn(async () => ({ ...reference, archivedAt: now })),
     updateReferenceMetadata: vi.fn(async () => ({ ...reference, updatedAt: now })),
     applyReviewedPdfMetadata: vi.fn(async () => ({ ...reference, title: "Reviewed PDF", updatedAt: now })),
+    applyReviewedCrossrefMetadata: vi.fn(async () => ({ ...reference, title: "Crossref title", updatedAt: now })),
     setTags: vi.fn(async (_referenceId: string, tags: readonly string[]) => tags),
     setCollections: vi.fn(async (_referenceId: string, collections: readonly string[]) => collections),
     createNote: vi.fn(async (referenceId: string, body: string) => ({ id: "note", referenceId, body, createdAt: now, updatedAt: now })),
@@ -611,6 +705,21 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       CROSSREF_MAILTO: "",
     },
   };
+}
+
+function crossrefResponse(): Response {
+  return Response.json({
+    message: {
+      type: "journal-article",
+      title: ["Crossref title"],
+      author: [{ family: "Doe", given: "Jane" }],
+      issued: { "date-parts": [[2026]] },
+      "container-title": ["Open Research"],
+      DOI: "10.5555/current",
+      URL: "https://doi.org/10.5555/current",
+      abstract: "<jats:p>Crossref abstract</jats:p>",
+    },
+  });
 }
 
 class MemoryR2Bucket implements Pick<R2Bucket, "put" | "get" | "delete"> {

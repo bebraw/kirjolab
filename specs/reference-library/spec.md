@@ -42,6 +42,9 @@ memory and makes citation aliases compete with stable source identity.
   the private artifact atomically. Researchers may enrich metadata later;
   automatic services may suggest values but never fabricate or silently accept
   them.
+- DOI-backed records may preview bounded Crossref metadata inline. Acceptance
+  refetches and verifies the provider fingerprint, then changes only the fields
+  the researcher selected while preserving the immutable reference key.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - Web sources are stable records keyed by normalized canonical URL. Every
@@ -76,6 +79,9 @@ memory and makes citation aliases compete with stable source identity.
 - Citation assertion, review, bounded network, and explicit Crossref reference
   expansion routes remain within the same owner-private API. A project id only
   filters the projection; it does not grant library access.
+- Crossref enrichment preview and acceptance routes are owner-private,
+  non-cacheable, and fail without mutation on stale metadata or duplicate DOI
+  ownership.
 - `POST /api/workspaces/{id}/references` links a source snapshot and local
   alias. Patch renames the alias; sync refreshes metadata; delete unlinks only
   after its citations are removed.
@@ -113,10 +119,11 @@ memory and makes citation aliases compete with stable source identity.
 ### Validation
 
 - Pure tests cover type requirements, per-field provenance, DOI normalization,
-  duplicate identity, and portable snapshots.
+  duplicate identity, portable snapshots, and bounded Crossref preview shapes.
 - Real-`workerd` tests cover stable upsert, private state, PDF identification,
   project dependency impact, archive, tombstone deletion, project aliases,
-  derived bibliography, cited-only filtering, and alias rewrites.
+  derived bibliography, cited-only filtering, alias rewrites, and selective
+  Crossref provenance.
 - Key tests cover surname/year generation, sparse fallbacks, topical and numeric
   collision suffixes and immutability through enrichment.
 
@@ -127,6 +134,7 @@ memory and makes citation aliases compete with stable source identity.
   legacy identification, notes/tags/highlights/reading state, archive
   and tombstone deletion, project aliases/snapshots, derived cited-only BibTeX,
   versioned web captures, provenance-bearing citation assertions and network,
-  and a permanent owner-private Library context tab.
+  reviewed Crossref enrichment, and a permanent owner-private Library context
+  tab.
 - Superseded: workspace BibTeX authority and workspace-scoped publication
   projection described by ADR-044, ADR-051, and ADR-055.

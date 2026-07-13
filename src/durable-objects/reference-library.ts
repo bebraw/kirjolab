@@ -10,10 +10,14 @@ import {
 } from "../domain/citation-assertions";
 import {
   likelyReferenceIdentity,
+  crossrefMetadataFields,
+  isCrossrefMetadata,
   memorableReferenceKey,
   missingRequiredBibliographicFields,
   referenceFromBibTeX,
   type BibliographicRecord,
+  type CrossrefMetadata,
+  type CrossrefMetadataField,
   type LibraryHighlight,
   type LibraryNote,
   type LibraryPdfArtifact,
@@ -953,6 +957,56 @@ export class ReferenceLibrary extends DurableObject<Env> {
     for (const [field] of entries) provenance[field] = { method: "pdf-metadata", capturedAt: updatedAt, actor };
     const next = { ...current, ...normalized, provenance, updatedAt };
     if (!next.title.trim()) throw new Error("Reference title is required");
+    this.#writeReference(next, likelyReferenceIdentity(next), false);
+    return this.#reference(referenceId);
+  }
+
+  applyReviewedCrossrefMetadata(
+    referenceId: string,
+    expectedDoiValue: string,
+    metadata: CrossrefMetadata,
+    fields: readonly CrossrefMetadataField[],
+    actor: string,
+  ): BibliographicRecord {
+    const current = this.#reference(referenceId);
+    const expectedDoi = normalizeDoi(expectedDoiValue);
+    if (!expectedDoi || normalizeDoi(current.doi) !== expectedDoi || normalizeDoi(metadata.doi) !== expectedDoi) {
+      throw new Error("Reference DOI changed; review Crossref metadata again");
+    }
+    if (
+      fields.length === 0 ||
+      fields.length > crossrefMetadataFields.length ||
+      new Set(fields).size !== fields.length ||
+      fields.some((field) => !crossrefMetadataFields.includes(field)) ||
+      !isCrossrefMetadata(metadata)
+    ) {
+      throw new Error("Reviewed Crossref metadata is invalid");
+    }
+    const duplicate = this.ctx.storage.sql
+      .exec<ReferenceRow>(
+        "SELECT * FROM library_references WHERE LOWER(doi) = ? AND id <> ? AND deleted_at IS NULL LIMIT 1",
+        expectedDoi,
+        referenceId,
+      )
+      .toArray()[0];
+    if (duplicate) throw new Error("DOI already belongs to another library record");
+    const updatedAt = new Date().toISOString();
+    const provenance = { ...current.provenance };
+    for (const field of fields) {
+      provenance[field] = { method: "crossref", capturedAt: updatedAt, actor };
+    }
+    const selected: Partial<CrossrefMetadata> = {
+      ...(fields.includes("type") ? { type: metadata.type } : {}),
+      ...(fields.includes("title") ? { title: metadata.title } : {}),
+      ...(fields.includes("authors") ? { authors: metadata.authors } : {}),
+      ...(fields.includes("year") ? { year: metadata.year } : {}),
+      ...(fields.includes("venue") ? { venue: metadata.venue } : {}),
+      ...(fields.includes("doi") ? { doi: expectedDoi } : {}),
+      ...(fields.includes("url") ? { url: metadata.url } : {}),
+      ...(fields.includes("abstract") ? { abstract: metadata.abstract } : {}),
+    };
+    const next: BibliographicRecord = { ...current, ...selected, provenance, updatedAt };
+    if (!next.title.trim() || !next.type.trim()) throw new Error("Reference type and title are required");
     this.#writeReference(next, likelyReferenceIdentity(next), false);
     return this.#reference(referenceId);
   }

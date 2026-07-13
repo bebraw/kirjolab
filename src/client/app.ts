@@ -24,8 +24,12 @@ import {
 import { composeProject, relativeProjectPath, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
 import {
+  crossrefMetadataFields,
+  isCrossrefLibraryPreview,
   isReferenceLibrarySnapshot,
   type BibliographicRecord,
+  type CrossrefLibraryPreview,
+  type CrossrefMetadataField,
   type LibraryPdfArtifact,
   type ReferenceLibrarySnapshot,
   type WebSnapshot,
@@ -1725,6 +1729,7 @@ class WorkspaceApp {
   #referenceLibraryCard(reference: BibliographicRecord): HTMLElement {
     const card = document.createElement("article");
     card.className = "resource-card";
+    card.dataset.referenceId = reference.id;
     const privacy = reference.archivedAt ? "Private · archived" : "Private library";
     card.append(resourceLabel(`${reference.referenceKey} · ${privacy} · ${reference.type}`), resourceTitle(reference.title));
     const details = document.createElement("p");
@@ -1764,6 +1769,18 @@ class WorkspaceApp {
       abstract,
       actionButton("Save details", "button-primary mt-2", () => void this.#saveReferenceMetadata(reference.id, metadataFields)),
     );
+    if (reference.doi) {
+      const crossrefReview = document.createElement("section");
+      crossrefReview.className = "hidden mt-3 border-t border-app-line pt-3";
+      metadataEditor.append(
+        actionButton(
+          "Look up Crossref metadata",
+          "button-secondary mt-3",
+          () => void this.#previewCrossrefMetadata(reference, crossrefReview),
+        ),
+        crossrefReview,
+      );
+    }
     const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
     const projectRow = document.createElement("div");
     projectRow.className = "mt-3 flex flex-wrap items-center gap-2";
@@ -2040,6 +2057,100 @@ class WorkspaceApp {
         statusText(error instanceof Error ? `Metadata could not be read: ${error.message}` : "Metadata could not be read."),
       );
     }
+  }
+
+  async #previewCrossrefMetadata(reference: BibliographicRecord, container: HTMLElement): Promise<void> {
+    container.classList.remove("hidden");
+    container.replaceChildren(resourceLabel("Crossref metadata"), statusText("Looking up the current DOI…"));
+    try {
+      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(reference.id)}/crossref/preview`, {});
+      if (response.status === 409) {
+        const conflict: unknown = await response.json();
+        const duplicate = isUnknownRecord(conflict) && isUnknownRecord(conflict.duplicateReference) ? conflict.duplicateReference : null;
+        container.replaceChildren(resourceLabel("Crossref metadata"), statusText("This DOI already belongs to another library record."));
+        if (duplicate && typeof duplicate.id === "string") {
+          container.append(
+            actionButton("Show existing record", "button-secondary mt-2", () => this.#showLibraryReference(duplicate.id as string)),
+          );
+        }
+        return;
+      }
+      await expectOk(response);
+      const preview: unknown = await response.json();
+      if (!isCrossrefLibraryPreview(preview)) throw new Error("Crossref returned an invalid metadata preview");
+      this.#renderCrossrefMetadataReview(reference, preview, container);
+    } catch (error) {
+      container.replaceChildren(
+        resourceLabel("Crossref metadata"),
+        statusText(error instanceof Error ? error.message : "Crossref metadata could not be loaded."),
+      );
+    }
+  }
+
+  #renderCrossrefMetadataReview(reference: BibliographicRecord, preview: CrossrefLibraryPreview, container: HTMLElement): void {
+    container.replaceChildren(resourceLabel(`Crossref metadata · doi:${preview.doi}`));
+    const selected = new Map<CrossrefMetadataField, HTMLInputElement>();
+    for (const field of crossrefMetadataFields) {
+      const current = field === "authors" ? reference.authors.join("; ") : reference[field];
+      const proposed = field === "authors" ? preview.metadata.authors.join("; ") : preview.metadata[field];
+      if (!proposed || proposed === current) continue;
+      const label = document.createElement("label");
+      label.className = "mt-2 grid grid-cols-[auto_1fr] items-start gap-2 text-xs";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = true;
+      checkbox.className = "mt-1";
+      const comparison = document.createElement("span");
+      const name = document.createElement("span");
+      name.className = "block font-medium";
+      name.textContent = field;
+      const provider = document.createElement("span");
+      provider.className = "block break-words text-app-text";
+      provider.textContent = `Crossref: ${proposed}`;
+      const existing = document.createElement("span");
+      existing.className = "block break-words text-app-text-soft";
+      existing.textContent = `Current: ${current || "—"}`;
+      comparison.append(name, provider, existing);
+      label.append(checkbox, comparison);
+      container.append(label);
+      selected.set(field, checkbox);
+    }
+    if (selected.size === 0) {
+      container.append(statusText("Crossref matches the current library metadata."));
+      return;
+    }
+    container.append(
+      actionButton(
+        "Apply selected Crossref metadata",
+        "button-primary mt-3",
+        () => void this.#applyCrossrefMetadata(reference.id, preview.metadataFingerprint, selected),
+      ),
+    );
+  }
+
+  async #applyCrossrefMetadata(
+    referenceId: string,
+    metadataFingerprint: string,
+    selected: ReadonlyMap<CrossrefMetadataField, HTMLInputElement>,
+  ): Promise<void> {
+    const fields = [...selected].filter(([, checkbox]) => checkbox.checked).map(([field]) => field);
+    if (fields.length === 0) {
+      this.#showToast("Select at least one Crossref metadata field to apply.");
+      return;
+    }
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/crossref/accept`, {
+      metadataFingerprint,
+      fields,
+    });
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Selected Crossref metadata applied with provenance.");
+  }
+
+  #showLibraryReference(referenceId: string): void {
+    const card = document.querySelector<HTMLElement>(`[data-reference-id="${CSS.escape(referenceId)}"]`);
+    card?.querySelector("details")?.setAttribute("open", "");
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   #renderPdfMetadataReview(

@@ -1,13 +1,34 @@
 import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "./bibliography";
 
 export type ReferenceMetadataField = "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract";
+export type CrossrefMetadataField = ReferenceMetadataField;
 export type MetadataProvenanceMethod = "bibtex" | "crossref" | "filename" | "manual" | "pdf-metadata" | "web" | "migration";
+
+export const crossrefMetadataFields = ["type", "title", "authors", "year", "venue", "doi", "url", "abstract"] as const;
 
 export interface ReviewedPdfMetadata {
   readonly title?: string;
   readonly authors?: readonly string[];
   readonly year?: string;
   readonly doi?: string;
+}
+
+export interface CrossrefMetadata {
+  readonly type: string;
+  readonly title: string;
+  readonly authors: string[];
+  readonly year: string;
+  readonly venue: string;
+  readonly doi: string;
+  readonly url: string;
+  readonly abstract: string;
+}
+
+export interface CrossrefLibraryPreview {
+  readonly referenceId: string;
+  readonly doi: string;
+  readonly metadata: CrossrefMetadata;
+  readonly metadataFingerprint: string;
 }
 
 export interface MetadataFieldProvenance {
@@ -429,6 +450,43 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
         (item.priority === "low" || item.priority === "normal" || item.priority === "high") &&
         typeof item.updatedAt === "string",
     )
+  );
+}
+
+export function isCrossrefLibraryPreview(value: unknown): value is CrossrefLibraryPreview {
+  return (
+    isRecord(value) &&
+    typeof value.referenceId === "string" &&
+    typeof value.doi === "string" &&
+    isCrossrefMetadata(value.metadata) &&
+    typeof value.metadataFingerprint === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.metadataFingerprint)
+  );
+}
+
+export function isCrossrefMetadata(value: unknown): value is CrossrefMetadata {
+  return (
+    isRecord(value) &&
+    typeof value.type === "string" &&
+    value.type.length > 0 &&
+    value.type.length <= 100 &&
+    typeof value.title === "string" &&
+    value.title.length > 0 &&
+    value.title.length <= 2_000 &&
+    Array.isArray(value.authors) &&
+    value.authors.length <= 100 &&
+    value.authors.every((author) => typeof author === "string" && author.length <= 500) &&
+    typeof value.year === "string" &&
+    value.year.length <= 100 &&
+    typeof value.venue === "string" &&
+    value.venue.length <= 2_000 &&
+    typeof value.doi === "string" &&
+    value.doi.length > 0 &&
+    value.doi.length <= 500 &&
+    typeof value.url === "string" &&
+    value.url.length <= 2_000 &&
+    typeof value.abstract === "string" &&
+    value.abstract.length <= 20_000
   );
 }
 

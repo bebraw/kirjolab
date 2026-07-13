@@ -42,12 +42,12 @@ authoritative metadata provider without silently overwriting reviewed fields.
 
 ### Definition of Done
 
-- [ ] DOI-backed records expose inline Crossref lookup and comparison.
-- [ ] Preview is bounded and non-mutating.
-- [ ] Acceptance refetches and verifies the preview fingerprint.
-- [ ] Only selected fields change with Crossref provenance.
-- [ ] Duplicate, stale, invalid, and provider-failure paths fail without mutation.
-- [ ] Unit, Workers-runtime, and browser tests cover the complete flow.
+- [x] DOI-backed records expose inline Crossref lookup and comparison.
+- [x] Preview is bounded and non-mutating.
+- [x] Acceptance refetches and verifies the preview fingerprint.
+- [x] Only selected fields change with Crossref provenance.
+- [x] Duplicate, stale, invalid, and provider-failure paths fail without mutation.
+- [x] Unit, Workers-runtime, and browser tests cover the complete flow.
 
 ### Regression Guardrails
 

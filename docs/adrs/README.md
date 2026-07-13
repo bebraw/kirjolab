@@ -27,9 +27,7 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                               | Status   | Summary                                                                                            |
-| ----------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
-| [ADR-080](./accepted/ADR-080-review-library-crossref-metadata.md) | Accepted | Preview and selectively accept refetched Crossref metadata for DOI-backed private-library records. |
+None.
 
 ## Implemented ADRs
 
@@ -114,6 +112,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-077](./implemented/ADR-077-layer-markdown-editor-highlighting.md)                | Implemented          | Layer derived Markdown highlighting behind the native collaborative textarea.                                |
 | [ADR-078](./implemented/ADR-078-add-bounded-vim-textarea-keymap.md)                   | Implemented          | Add an opt-in bounded Vim keymap over the native collaborative textarea.                                     |
 | [ADR-079](./implemented/ADR-079-review-bounded-pdf-metadata.md)                       | Implemented          | Extract bounded PDF metadata as ephemeral browser suggestions and apply only explicitly reviewed fields.     |
+| [ADR-080](./implemented/ADR-080-review-library-crossref-metadata.md)                  | Implemented          | Preview and selectively accept refetched Crossref metadata for DOI-backed private-library records.           |
 
 ## Creating A New ADR
 

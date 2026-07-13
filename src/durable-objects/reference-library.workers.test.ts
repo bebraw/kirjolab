@@ -161,6 +161,57 @@ describe("ReferenceLibrary in the Workers runtime", () => {
         doi: { method: "pdf-metadata", actor: "owner@example.test" },
       },
     });
+    const crossrefEnriched = await library.applyReviewedCrossrefMetadata(
+      first.reference.id,
+      "10.5555/climate",
+      {
+        type: "article",
+        title: "Climate adaptation pathways",
+        authors: ["Smith, Jane", "Doe, Alex"],
+        year: "2026",
+        venue: "Crossref Journal",
+        doi: "10.5555/climate",
+        url: "https://doi.org/10.5555/climate",
+        abstract: "Provider abstract",
+      },
+      ["title", "venue", "abstract"],
+      "owner@example.test",
+    );
+    expect(crossrefEnriched).toMatchObject({
+      referenceKey: "sourceundatedclimate",
+      title: "Climate adaptation pathways",
+      authors: ["Smith, Jane"],
+      year: "2025",
+      venue: "Crossref Journal",
+      abstract: "Provider abstract",
+      provenance: {
+        title: { method: "crossref", actor: "owner@example.test" },
+        venue: { method: "crossref", actor: "owner@example.test" },
+        abstract: { method: "crossref", actor: "owner@example.test" },
+        authors: { method: "pdf-metadata" },
+        year: { method: "pdf-metadata" },
+      },
+    });
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() =>
+        instance.applyReviewedCrossrefMetadata(
+          first.reference.id,
+          "10.5555/changed",
+          {
+            type: "article",
+            title: "Stale",
+            authors: [],
+            year: "",
+            venue: "",
+            doi: "10.5555/changed",
+            url: "",
+            abstract: "",
+          },
+          ["title"],
+          "owner@example.test",
+        ),
+      ).toThrow("DOI changed");
+    });
     await runInDurableObject(library, (instance: ReferenceLibrary) => {
       expect(() =>
         instance.applyReviewedPdfMetadata(first.reference.id, second.artifact.id, { title: "Wrong artifact" }, "owner@example.test"),

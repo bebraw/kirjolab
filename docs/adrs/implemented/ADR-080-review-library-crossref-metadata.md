@@ -1,6 +1,6 @@
 # ADR-080: Review Crossref Metadata in the Private Library
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-13
 
