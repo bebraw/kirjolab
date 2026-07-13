@@ -27,7 +27,9 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-None. Accepted decisions move here only until their implementation is verified.
+| ADR                                                               | Status   | Summary                                                                                            |
+| ----------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
+| [ADR-080](./accepted/ADR-080-review-library-crossref-metadata.md) | Accepted | Preview and selectively accept refetched Crossref metadata for DOI-backed private-library records. |
 
 ## Implemented ADRs
 
