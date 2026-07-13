@@ -43,15 +43,15 @@ database constraint as an upload failure.
 
 ### Definition of Done
 
-- [ ] Exact repeat uploads resolve to the existing owner-private source.
-- [ ] The redundant R2 object is deleted before the duplicate response returns.
-- [ ] New and existing results have distinct HTTP and typed domain outcomes.
-- [ ] Batch progress shows a terminal **Already in library** state and stable
+- [x] Exact repeat uploads resolve to the existing owner-private source.
+- [x] The redundant R2 object is deleted before the duplicate response returns.
+- [x] New and existing results have distinct HTTP and typed domain outcomes.
+- [x] Batch progress shows a terminal **Already in library** state and stable
       reference key.
-- [ ] Researchers can reveal active or archived matching records.
-- [ ] Automated coverage protects Durable Object identity, API cleanup, queue
+- [x] Researchers can reveal active or archived matching records.
+- [x] Automated coverage protects Durable Object identity, API cleanup, queue
       semantics, and browser behavior.
-- [ ] The ADR is marked implemented after all quality gates pass.
+- [x] The ADR is marked implemented after all quality gates pass.
 
 ### Regression Guardrails
 

@@ -1,6 +1,6 @@
 # ADR-087: Reconcile Exact PDF Duplicates During Intake
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-13
 
