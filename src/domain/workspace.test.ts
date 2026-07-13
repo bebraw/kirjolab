@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isAddAnnotationFragmentInput,
   isCreateAnnotationInput,
   isCreateAnnotationLinkInput,
   isCreateCandidateInput,
@@ -9,12 +10,15 @@ import {
   isCreatePublicationPdfLinkInput,
   isAcceptPublicationIntakeInput,
   isPreviewPublicationIntakeInput,
+  isProjectPublicationProfile,
   isPublicationIntakePreview,
   isCreateWorkspaceInput,
   isInviteWorkspaceMemberInput,
   isImportBibliographyInput,
   isModelCandidate,
   isUpsertClaimInput,
+  isUpdateAnnotationFragmentInput,
+  isUpdateAnnotationInput,
   isWorkspaceSnapshot,
   isWorkspaceMembers,
   isWorkspaceSummaries,
@@ -223,6 +227,55 @@ describe("workspace input guards", () => {
     ]) {
       expect(isCreateAnnotationInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
     }
+  });
+
+  it("enforces annotation fragment and update boundaries", () => {
+    const fragment = {
+      page: 1,
+      quote: "evidence",
+      prefix: "before",
+      suffix: "after",
+      rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+    };
+
+    expect(isAddAnnotationFragmentInput(fragment)).toBe(true);
+    expect(isUpdateAnnotationFragmentInput(fragment)).toBe(true);
+    expect(isUpdateAnnotationInput({ comment: "note" })).toBe(true);
+    expect(isUpdateAnnotationInput({ comment: "" })).toBe(true);
+
+    for (const change of [
+      { page: 0 },
+      { page: 1.5 },
+      { page: "1" },
+      { quote: "" },
+      { quote: "x".repeat(20_001) },
+      { prefix: 1 },
+      { prefix: "x".repeat(2_001) },
+      { suffix: 1 },
+      { suffix: "x".repeat(2_001) },
+      { rects: null },
+      { rects: [] },
+      { rects: Array.from({ length: 65 }, () => ({ x: 0, y: 0, width: 0.1, height: 0.1 })) },
+      { rects: [{ x: -0.1, y: 0, width: 0.1, height: 0.1 }] },
+      { rects: [{ x: 0, y: -0.1, width: 0.1, height: 0.1 }] },
+      { rects: [{ x: 0, y: 0, width: 0, height: 0.1 }] },
+      { rects: [{ x: 0, y: 0, width: 0.1, height: 0 }] },
+      { rects: [{ x: 0.95, y: 0, width: 0.1, height: 0.1 }] },
+      { rects: [{ x: 0, y: 0.95, width: 0.1, height: 0.1 }] },
+    ]) {
+      expect(isAddAnnotationFragmentInput({ ...fragment, ...change }), JSON.stringify(change)).toBe(false);
+      if (!("page" in change)) {
+        expect(isUpdateAnnotationFragmentInput({ ...fragment, ...change }), JSON.stringify(change)).toBe(false);
+      }
+    }
+
+    expect(isAddAnnotationFragmentInput(null)).toBe(false);
+    expect(isUpdateAnnotationFragmentInput(null)).toBe(false);
+    expect(isUpdateAnnotationInput(null)).toBe(false);
+    expect(isUpdateAnnotationInput({ comment: 1 })).toBe(false);
+    expect(isUpdateAnnotationInput({ comment: "x".repeat(4_001) })).toBe(false);
+    expect(isAddAnnotationFragmentInput({ ...fragment, rects: Array.from({ length: 64 }, () => fragment.rects[0]) })).toBe(true);
+    expect(isUpdateAnnotationFragmentInput({ ...fragment, rects: Array.from({ length: 64 }, () => fragment.rects[0]) })).toBe(true);
   });
 
   it("enforces every passage-link boundary", () => {
@@ -686,6 +739,81 @@ describe("workspace input guards", () => {
         candidates: [{ id: "legacy", provider: "local", model: "model", sourceIds: [], proposedSource: "document" }],
       }),
     ).toBe(false);
+
+    const profile = valid.publicationProfile;
+    for (const citationStyle of ["apa", "chicago-author-date", "ieee"]) {
+      expect(isProjectPublicationProfile({ ...profile, citationStyle })).toBe(true);
+    }
+    for (const locale of ["en-US", "en-GB", "fi-FI"]) {
+      expect(isProjectPublicationProfile({ ...profile, locale })).toBe(true);
+    }
+    for (const submissionTemplate of ["article", "preprint", "anonymous-review", "journal-two-column"]) {
+      expect(isProjectPublicationProfile({ ...profile, submissionTemplate })).toBe(true);
+    }
+    for (const paperSize of ["a4", "letter"]) {
+      expect(isProjectPublicationProfile({ ...profile, paperSize })).toBe(true);
+    }
+    for (const change of [
+      { citationStyle: "mla" },
+      { locale: "sv-SE" },
+      { submissionTemplate: "book" },
+      { paperSize: "legal" },
+      { extra: true },
+    ]) {
+      expect(isProjectPublicationProfile({ ...profile, ...change }), JSON.stringify(change)).toBe(false);
+    }
+    expect(isProjectPublicationProfile(null)).toBe(false);
+
+    const projectReference = {
+      id: "project-reference",
+      referenceId: "reference",
+      citationAlias: "doe2026",
+      snapshot: { title: "Inspectable evidence" },
+      createdAt: "created",
+      updatedAt: "updated",
+    };
+    expect(isWorkspaceSnapshot({ ...valid, projectReferences: [projectReference] })).toBe(true);
+    for (const change of [
+      { id: "" },
+      { referenceId: "" },
+      { citationAlias: "" },
+      { snapshot: null },
+      { createdAt: "" },
+      { updatedAt: "" },
+      { extra: true },
+    ]) {
+      expect(isWorkspaceSnapshot({ ...valid, projectReferences: [{ ...projectReference, ...change }] }), JSON.stringify(change)).toBe(
+        false,
+      );
+    }
+
+    const researchShare = {
+      id: "share",
+      projectId: "demo",
+      referenceId: "reference",
+      resourceId: "resource",
+      kind: "artifact",
+      content: { title: "Shared resource" },
+      createdAt: "created",
+      revokedAt: null,
+    };
+    for (const kind of ["artifact", "note", "highlight", "web-snapshot"]) {
+      expect(isWorkspaceSnapshot({ ...valid, researchShares: [{ ...researchShare, kind }] })).toBe(true);
+    }
+    expect(isWorkspaceSnapshot({ ...valid, researchShares: [{ ...researchShare, revokedAt: "revoked" }] })).toBe(true);
+    for (const change of [
+      { id: "" },
+      { projectId: "" },
+      { referenceId: "" },
+      { resourceId: "" },
+      { kind: "unknown" },
+      { content: null },
+      { createdAt: "" },
+      { revokedAt: "" },
+      { extra: true },
+    ]) {
+      expect(isWorkspaceSnapshot({ ...valid, researchShares: [{ ...researchShare, ...change }] }), JSON.stringify(change)).toBe(false);
+    }
   });
 });
 

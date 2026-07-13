@@ -25,4 +25,41 @@ describe("calculateTextSplice", () => {
       }
     }
   });
+
+  it("keeps complete Unicode code points at prefix and suffix boundaries", () => {
+    for (const codePoint of [0x1_0000, 0x1_03ff, 0x10_fc00, 0x10_ffff]) {
+      const character = String.fromCodePoint(codePoint);
+      expect(calculateTextSplice(`${character}old`, `${character}new`)).toEqual({
+        start: 2,
+        deleteCount: 3,
+        insert: "new",
+      });
+      expect(calculateTextSplice(`old${character}`, `new${character}`)).toEqual({
+        start: 0,
+        deleteCount: 3,
+        insert: "new",
+      });
+    }
+  });
+
+  it("treats unpaired surrogate code units as individual text", () => {
+    for (const codeUnit of [0xd7_ff, 0xd8_00, 0xdb_ff, 0xdc_00, 0xdf_ff, 0xe0_00]) {
+      const character = String.fromCharCode(codeUnit);
+      expect(calculateTextSplice(`${character}a`, `${character}b`)).toEqual({ start: 1, deleteCount: 1, insert: "b" });
+      expect(calculateTextSplice(`a${character}`, `b${character}`)).toEqual({ start: 0, deleteCount: 1, insert: "b" });
+    }
+  });
+
+  it("returns the smallest splice across empty prefix and suffix edges", () => {
+    const cases = [
+      ["a", "ba", { start: 0, deleteCount: 0, insert: "b" }],
+      ["ba", "a", { start: 0, deleteCount: 1, insert: "" }],
+      ["a", "ab", { start: 1, deleteCount: 0, insert: "b" }],
+      ["ab", "a", { start: 1, deleteCount: 1, insert: "" }],
+      ["aba", "aca", { start: 1, deleteCount: 1, insert: "c" }],
+      ["aaaa", "aa", { start: 2, deleteCount: 2, insert: "" }],
+      ["aa", "aaaa", { start: 2, deleteCount: 0, insert: "aa" }],
+    ] as const;
+    for (const [previous, next, expected] of cases) expect(calculateTextSplice(previous, next)).toEqual(expected);
+  });
 });
