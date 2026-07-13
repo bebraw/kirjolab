@@ -2,7 +2,7 @@ export const RESEARCH_PREVIEW_KEY = "preview" as const;
 export const RESEARCH_LIBRARY_KEY = "library" as const;
 export const RESEARCH_ASSISTANT_KEY = "assistant" as const;
 
-export type ResearchResourceKind = "publication" | "pdf" | "candidate";
+export type ResearchResourceKind = "publication" | "pdf" | "library-pdf" | "candidate";
 export type ResearchResourceKey = `${ResearchResourceKind}:${string}`;
 export type ResearchContextKey =
   | typeof RESEARCH_PREVIEW_KEY
@@ -49,7 +49,7 @@ export interface CandidateResearchTab extends ResourceResearchTab {
 }
 
 export interface PdfResearchTab extends ResourceResearchTab {
-  readonly kind: "pdf";
+  readonly kind: "pdf" | "library-pdf";
   readonly page: number;
   readonly focusedAnnotationId: string | null;
 }
@@ -66,6 +66,7 @@ export interface ResearchContextState {
 export interface ResearchContextAuthorization {
   readonly publicationIds: ReadonlySet<string>;
   readonly pdfIds: ReadonlySet<string>;
+  readonly libraryPdfIds: ReadonlySet<string>;
   readonly candidateIds: ReadonlySet<string>;
 }
 
@@ -156,7 +157,7 @@ export function setResearchTabScroll(state: ResearchContextState, key: string, s
 export function setPdfResearchLocation(state: ResearchContextState, key: string, location: PdfResearchLocation): ResearchContextState {
   const targetIndex = state.tabs.findIndex((tab) => tab.key === key);
   const target = state.tabs[targetIndex];
-  if (!target || target.kind !== "pdf") return state;
+  if (!target || (target.kind !== "pdf" && target.kind !== "library-pdf")) return state;
 
   const page = location.page === undefined ? target.page : normalizePage(location.page);
   const focusedAnnotationId = location.focusedAnnotationId === undefined ? target.focusedAnnotationId : location.focusedAnnotationId;
@@ -180,7 +181,9 @@ export function reconcileResearchContext(state: ResearchContextState, authorizat
 
 function createResourceTab(target: ResearchResourceTarget, key: ResearchResourceKey): ResearchResourceTab {
   const common = { id: target.id, key, pinned: false, scrollTop: 0 };
-  if (target.kind === "pdf") return { ...common, kind: "pdf", page: 1, focusedAnnotationId: null };
+  if (target.kind === "pdf" || target.kind === "library-pdf") {
+    return { ...common, kind: target.kind, page: 1, focusedAnnotationId: null };
+  }
   return target.kind === "publication" ? { ...common, kind: "publication" } : { ...common, kind: "candidate" };
 }
 
@@ -199,7 +202,8 @@ function normalizePage(page: number): number {
 function isAuthorized(tab: ResearchContextTab, authorization: ResearchContextAuthorization): boolean {
   if (isPermanentTab(tab)) return true;
   if (tab.kind === "publication") return authorization.publicationIds.has(tab.id);
-  return tab.kind === "pdf" ? authorization.pdfIds.has(tab.id) : authorization.candidateIds.has(tab.id);
+  if (tab.kind === "pdf") return authorization.pdfIds.has(tab.id);
+  return tab.kind === "library-pdf" ? authorization.libraryPdfIds.has(tab.id) : authorization.candidateIds.has(tab.id);
 }
 
 function isPermanentTab(tab: ResearchContextTab): tab is PreviewResearchTab | LibraryResearchTab | AssistantResearchTab {

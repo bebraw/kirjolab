@@ -278,6 +278,7 @@ interface Elements {
   connectionCount: HTMLElement;
   knowledgeConnectionList: HTMLElement;
   annotationForm: HTMLFormElement;
+  annotationComposer: HTMLElement;
   annotationPdf: HTMLSelectElement;
   annotationPage: HTMLInputElement;
   annotationQuote: HTMLTextAreaElement;
@@ -361,6 +362,7 @@ class WorkspaceApp {
   #highlightTool: "paint" | "erase" = "paint";
   #lastHighlightStroke: { annotationId: string; fragmentId: string } | null = null;
   #renderedPdfId: string | undefined;
+  #renderedPdfContextKey: ResearchContextKey | undefined;
   #editingClaimId: string | undefined;
   #contextState: ResearchContextState = createResearchContext();
   #authoringSelection: RelativeEditorSelection | null = null;
@@ -705,10 +707,14 @@ class WorkspaceApp {
     if (persist) localStorage.setItem(`kirjolab:layout:${workspaceId}`, layout);
     if (layout === "pdf") {
       const active = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
-      if (active?.kind !== "pdf") {
+      if (active?.kind !== "pdf" && active?.kind !== "library-pdf") {
         const pdf = this.#snapshot?.pdfs[0];
         if (pdf) await this.#showPaper(pdf);
-        else this.#showToast("Add or open a PDF before using PDF-only view.");
+        else {
+          const artifact = this.#librarySnapshot?.artifacts[0];
+          if (artifact) await this.#openLibraryPdf(artifact);
+          else this.#showToast("Add or open a PDF before using PDF-only view.");
+        }
       }
     }
     window.dispatchEvent(new Event("resize"));
@@ -1449,8 +1455,11 @@ class WorkspaceApp {
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
+    this.#captureActiveContextState();
     this.#librarySnapshot = value;
+    this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
     this.#renderReferenceLibrary();
+    this.#renderResearchContext();
   }
 
   #renderReferenceLibrary(): void {
@@ -1878,6 +1887,7 @@ class WorkspaceApp {
       const review = document.createElement("section");
       review.className = "hidden mt-3 border-t border-app-line pt-3";
       row.append(
+        actionButton("Open PDF", "button-secondary mt-2", () => void this.#openLibraryPdf(artifact)),
         rights,
         actionButton("Review PDF metadata", "button-secondary mt-2", () => void this.#reviewPdfMetadata(reference, artifact, review)),
         review,
@@ -2454,11 +2464,7 @@ class WorkspaceApp {
   #renderResources(): void {
     if (!this.#snapshot) return;
     this.#captureActiveContextState();
-    this.#contextState = reconcileResearchContext(this.#contextState, {
-      publicationIds: new Set(this.#snapshot.publications.map((publication) => publication.id)),
-      pdfIds: new Set(this.#snapshot.pdfs.map((pdf) => pdf.id)),
-      candidateIds: new Set(this.#snapshot.candidates.map((candidate) => candidate.id)),
-    });
+    this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
     const validModelEvidence = new Set([
       ...this.#snapshot.annotations.map((annotation) => modelEvidenceKey("annotation", annotation.id)),
       ...this.#snapshot.claims.map((claim) => modelEvidenceKey("claim", claim.id)),
@@ -2477,6 +2483,20 @@ class WorkspaceApp {
     );
     this.#renderResearchContext();
     this.#updateModelAvailability();
+  }
+
+  #researchContextAuthorization(): {
+    publicationIds: Set<string>;
+    pdfIds: Set<string>;
+    libraryPdfIds: Set<string>;
+    candidateIds: Set<string>;
+  } {
+    return {
+      publicationIds: new Set(this.#snapshot?.publications.map((publication) => publication.id) ?? []),
+      pdfIds: new Set(this.#snapshot?.pdfs.map((pdf) => pdf.id) ?? []),
+      libraryPdfIds: new Set(this.#librarySnapshot?.artifacts.map((artifact) => artifact.id) ?? []),
+      candidateIds: new Set(this.#snapshot?.candidates.map((candidate) => candidate.id) ?? []),
+    };
   }
 
   #renderPdfs(pdfs: PdfResource[]): void {
@@ -3227,10 +3247,10 @@ class WorkspaceApp {
           ? this.#elements.contextCandidateScroll.scrollTop
           : this.#elements.paperReader.scrollTop;
     this.#contextState = setResearchTabScroll(this.#contextState, key, scrollTop);
-    if (tab.kind === "pdf" && tab.id === this.#renderedPdfId) {
+    if ((tab.kind === "pdf" || tab.kind === "library-pdf") && tab.key === this.#renderedPdfContextKey) {
       this.#contextState = setPdfResearchLocation(this.#contextState, key, {
         page: this.#pdfViewer.currentPage,
-        focusedAnnotationId: this.#pdfViewer.focusedAnnotationId,
+        ...(tab.kind === "pdf" ? { focusedAnnotationId: this.#pdfViewer.focusedAnnotationId } : {}),
       });
     }
   }
@@ -3291,10 +3311,14 @@ class WorkspaceApp {
     this.#elements.contextLibraryPanel.hidden = activeKey !== RESEARCH_LIBRARY_KEY;
     this.#elements.contextAssistantPanel.hidden = activeKey !== RESEARCH_ASSISTANT_KEY;
     this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
-    this.#elements.contextPdfPanel.hidden = activeTab?.kind !== "pdf";
+    const activePdf = activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf";
+    const activeLibraryPdf = activeTab?.kind === "library-pdf";
+    this.#elements.contextPdfPanel.hidden = !activePdf;
+    this.#elements.contextPdfPanel.dataset.libraryPdf = String(activeLibraryPdf);
+    this.#elements.annotationComposer.hidden = activeLibraryPdf;
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
-    this.#elements.pdfContextControls.hidden = activeTab?.kind !== "pdf";
+    this.#elements.pdfContextControls.hidden = !activePdf;
     const activePdfPublications =
       activeTab?.kind === "pdf" ? (this.#snapshot?.publicationPdfLinks.filter((link) => link.pdfId === activeTab.id) ?? []) : [];
     this.#elements.citeActivePdf.disabled = activePdfPublications.length !== 1;
@@ -3356,7 +3380,7 @@ class WorkspaceApp {
       this.#elements.contextCandidateScroll.scrollTop = activeTab.scrollTop;
       return;
     }
-    this.#renderPublicationIntake(activeTab.id);
+    if (activeTab.kind === "pdf") this.#renderPublicationIntake(activeTab.id);
     if (loadPdf) void this.#loadActivePdf(false);
   }
 
@@ -3627,6 +3651,9 @@ class WorkspaceApp {
       return this.#snapshot?.publications.find((publication) => publication.id === tab.id)?.title ?? "Reference";
     }
     if (tab.kind === "pdf") return this.#snapshot?.pdfs.find((pdf) => pdf.id === tab.id)?.name ?? "Paper";
+    if (tab.kind === "library-pdf") {
+      return this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === tab.id)?.name ?? "Private PDF";
+    }
     const candidate = this.#snapshot?.candidates.find((item) => item.id === tab.id);
     return candidate ? `Revision · ${candidate.model} · ${candidate.id.slice(0, 4)}` : "Revision";
   }
@@ -3834,30 +3861,41 @@ class WorkspaceApp {
 
   async #loadActivePdf(force: boolean): Promise<void> {
     const tab = this.#activeResourceTab();
-    if (tab?.kind !== "pdf") return;
-    const pdf = this.#snapshot?.pdfs.find((item) => item.id === tab.id);
-    if (!pdf) return;
-    this.#elements.annotationPdf.value = pdf.id;
-    const annotations = this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === pdf.id) ?? [];
+    if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return;
+    const workspacePdf = tab.kind === "pdf" ? this.#snapshot?.pdfs.find((item) => item.id === tab.id) : undefined;
+    const libraryPdf = tab.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
+    if (!workspacePdf && !libraryPdf) return;
+    if (workspacePdf) this.#elements.annotationPdf.value = workspacePdf.id;
+    const annotations = workspacePdf
+      ? (this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === workspacePdf.id) ?? [])
+      : [];
+    const pdfUrl = workspacePdf
+      ? `${apiBase}/pdfs/${encodeURIComponent(workspacePdf.id)}`
+      : libraryPdf
+        ? `/api/library/pdfs/${encodeURIComponent(libraryPdf.id)}`
+        : null;
+    if (!pdfUrl) return;
     this.#pdfViewer.updateAnnotations(annotations);
-    if (!force && this.#renderedPdfId === pdf.id) {
+    if (!force && this.#renderedPdfContextKey === tab.key) {
       this.#elements.paperReader.scrollTop = tab.scrollTop;
       return;
     }
     try {
       const opened = await this.#pdfViewer.open({
-        url: `${apiBase}/pdfs/${pdf.id}`,
+        url: pdfUrl,
         annotations,
         page: tab.page,
         ...(tab.focusedAnnotationId ? { focusAnnotationId: tab.focusedAnnotationId } : {}),
+        mode: workspacePdf ? "evidence" : "read-only",
       });
       const active = this.#activeResourceTab();
-      if (!opened || active?.kind !== "pdf" || active.id !== pdf.id) return;
-      this.#renderedPdfId = pdf.id;
+      if (!opened || active?.key !== tab.key) return;
+      this.#renderedPdfContextKey = tab.key;
+      this.#renderedPdfId = workspacePdf?.id;
       this.#elements.paperReader.scrollTop = tab.scrollTop;
     } catch (error) {
       const active = this.#activeResourceTab();
-      if (active?.kind === "pdf" && active.id === pdf.id) {
+      if (active?.key === tab.key) {
         this.#elements.paperStatus.textContent = error instanceof Error ? error.message : "Could not render this PDF";
       }
     }
@@ -4161,7 +4199,18 @@ class WorkspaceApp {
     await this.#loadActivePdf(page !== undefined || focusAnnotationId !== undefined);
   }
 
+  async #openLibraryPdf(artifact: LibraryPdfArtifact): Promise<void> {
+    this.#captureActiveContextState();
+    this.#contextState = openResearchResource(this.#contextState, { kind: "library-pdf", id: artifact.id });
+    const key = researchResourceKey({ kind: "library-pdf", id: artifact.id });
+    this.#renderResearchContext(false);
+    this.#showWorkspaceSurface("context");
+    this.#focusContextTab(key);
+    await this.#loadActivePdf(false);
+  }
+
   #capturePdfSelection(capture: PdfSelectionCapture): void {
+    if (this.#activeResourceTab()?.kind !== "pdf") return;
     if (this.#renderedPdfId) this.#elements.annotationPdf.value = this.#renderedPdfId;
     this.#elements.annotationPage.value = String(capture.page);
     this.#elements.annotationQuote.value = capture.quote;
@@ -4671,6 +4720,7 @@ function collectElements(): Elements {
     connectionCount: requiredElement("connection-count", HTMLElement),
     knowledgeConnectionList: requiredElement("knowledge-connection-list", HTMLElement),
     annotationForm: requiredElement("annotation-form", HTMLFormElement),
+    annotationComposer: requiredElement("annotation-composer", HTMLElement),
     annotationPdf: requiredElement("annotation-pdf", HTMLSelectElement),
     annotationPage: requiredElement("annotation-page", HTMLInputElement),
     annotationQuote: requiredElement("annotation-quote", HTMLTextAreaElement),

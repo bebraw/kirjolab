@@ -76,6 +76,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-assistant-panel" role="tabpanel"');
     expect(html).toContain('id="context-publication-panel" role="tabpanel"');
     expect(html).toContain('id="context-pdf-panel" role="tabpanel"');
+    expect(html).toContain('id="annotation-composer"');
     expect(html).toContain('id="context-candidate-panel" role="tabpanel"');
     expect(html).toContain('id="context-publication-panel" role="tabpanel" aria-label="Publication context" tabindex="0" hidden');
     expect(html).toContain('id="context-pdf-panel" role="tabpanel" aria-label="PDF context" tabindex="0" hidden');

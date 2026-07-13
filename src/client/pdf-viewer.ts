@@ -28,6 +28,7 @@ interface OpenPdfOptions {
   annotations: AnnotationResource[];
   page?: number;
   focusAnnotationId?: string;
+  mode?: "evidence" | "read-only";
 }
 
 export class PdfEvidenceViewer {
@@ -41,6 +42,7 @@ export class PdfEvidenceViewer {
   #pageText = "";
   #focusedAnnotationId: string | undefined;
   #draftSelection: PdfSelectionCapture | null = null;
+  #mode: "evidence" | "read-only" = "evidence";
   #renderVersion = 0;
   #openVersion = 0;
 
@@ -76,6 +78,7 @@ export class PdfEvidenceViewer {
     this.#annotations = options.annotations;
     this.#focusedAnnotationId = options.focusAnnotationId;
     this.#draftSelection = null;
+    this.#mode = options.mode ?? "evidence";
     this.#elements.status.textContent = "Loading PDF…";
     const loadingTask = getDocument({ url: options.url });
     this.#loadingTask = loadingTask;
@@ -165,10 +168,11 @@ export class PdfEvidenceViewer {
     this.#elements.pageIndicator.textContent = `${this.#pageNumber} / ${documentModel.numPages}`;
     this.#elements.previousPage.disabled = this.#pageNumber === 1;
     this.#elements.nextPage.disabled = this.#pageNumber === documentModel.numPages;
-    this.#elements.status.textContent = "Select text to capture evidence";
+    this.#elements.status.textContent = this.#mode === "read-only" ? "Private library PDF · read only" : "Select text to capture evidence";
   }
 
   #captureSelection(): void {
+    if (this.#mode === "read-only") return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);

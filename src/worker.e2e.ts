@@ -340,11 +340,40 @@ test("keeps private library research separate from project citations", async ({ 
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "climate_adaptation.pdf",
     mimeType: "application/pdf",
-    buffer: createEvidencePdf(),
+    buffer: createTwoPageEvidencePdf(),
   });
   const pdfCard = page.locator("#reference-library-list .resource-card").filter({ hasText: "climate adaptation" });
   await expect(pdfCard).toContainText("sourceundatedclimate");
   await expect(page.locator("#unidentified-pdf-section")).toBeHidden();
+
+  const beforePrivateReading = await readWorkspaceSnapshot(page, api);
+  await pdfCard.getByText("Metadata and research").click();
+  await pdfCard.getByRole("button", { name: "Open PDF" }).click();
+  await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#paper-status")).toHaveText("Private library PDF · read only");
+  await expect(page.locator("#annotation-composer")).toBeHidden();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#paper-text-layer").evaluate((layer) => {
+    const span = layer.querySelector("span");
+    if (!span?.firstChild) throw new Error("Expected private PDF text");
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+  });
+  await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(0);
+  await expect(page.locator("#paper-status")).toHaveText("Private library PDF · read only");
+  await page.locator("#next-paper-page").click();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
+  await page.getByRole("tab", { name: "Library" }).click();
+  const refreshedPdfCard = page.locator("#reference-library-list .resource-card").filter({ hasText: "climate adaptation" });
+  await refreshedPdfCard.getByText("Metadata and research").click();
+  await refreshedPdfCard.getByRole("button", { name: "Open PDF" }).click();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.getByRole("tab", { name: "Library" }).click();
 
   await card.getByText("Metadata and research").click();
   const tags = card.getByLabel("Private tags for Private Research Guide");

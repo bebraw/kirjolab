@@ -10,7 +10,7 @@ side of the workspace is therefore a research-context surface, not a preview
 component with an unrelated PDF workflow elsewhere.
 
 The feature implements the interface boundary chosen in ADR-053 and extended by
-ADR-055, ADR-056, ADR-071, and ADR-073. It hosts semantic preview, the
+ADR-055, ADR-056, ADR-071, ADR-073, and ADR-081. It hosts semantic preview, the
 owner-private reference library, the selected-passage Writing assistant,
 publication/PDF research resources, and grounded-revision review without
 changing their canonical data, selector, authorization, or rendering contracts.
@@ -25,8 +25,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   than duplicating the permanent private Library destination.
 - The context tab model uses a discriminated target keyed by stable identity:
   the singleton manuscript Preview, singleton owner Library, singleton Writing
-  assistant, a publication UUID, a PDF UUID, or a model-candidate UUID. One
-  target can have at most one open tab.
+  assistant, a publication UUID, a workspace PDF UUID, a private library PDF
+  UUID, or a model-candidate UUID. One target can have at most one open tab.
 - Preview is the initial permanent tab, followed by Library and Writing
   assistant. None can be closed or replaced, and each retains its own scroll
   position when another context becomes active.
@@ -45,6 +45,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Each PDF tab retains its page, within-page scroll, and focused annotation.
   Reopening or focusing an existing PDF target restores that local reading
   context rather than loading a duplicate tab.
+- Private library PDFs use distinct `library-pdf:` identities, retain local
+  page and scroll state, and reuse the reader in read-only mode. Project intake,
+  citation, highlighting, and annotation controls are unavailable in that mode.
 - The semantic preview and `PdfEvidenceViewer` remain independent views behind
   one context-pane controller. Switching tabs must not recreate a resource
   identity or mutate the manuscript, PDF, or annotation records.
@@ -66,6 +69,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Local tab state is scoped to the current workspace. Switching workspaces
   reconciles it against the new authorized snapshot so a stale tab cannot show
   a resource from another workspace.
+- Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
+  `library-pdf:` tabs from the current owner-library snapshot; neither scope
+  grants the other.
 - Publications, PDFs, annotations, claims, model candidates, and typed
   relationships remain shared durable resources behind the existing workspace
   authorization boundary. Context navigation addresses them by stable resource
@@ -168,6 +174,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Do not reload a PDF from page one merely because another tab was viewed.
 - Do not create a library record, citation, annotation, claim, or relationship
   as a side effect of opening or switching context.
+- Do not expose project evidence controls or selection capture while a private
+  library PDF is active.
 - Do not assume every publication has exactly one PDF.
 - Do not infer a publication/PDF association from citation key, DOI, title,
   author, filename, or search similarity.
@@ -214,6 +222,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
       keyboard behavior, mutation boundaries, and responsive switching.
 - [x] An unlinked PDF can be identified by reviewed DOI metadata and connected
       to stable publication context without citing the manuscript.
+- [x] An owner can open a private library PDF in a distinct read-only resource
+      tab, restore its local page, and leave project state unchanged.
 
 ### Regression Guardrails
 
@@ -239,6 +249,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Workspace authorization still applies to every publication and candidate
   representation, PDF stream, annotation mutation, relationship action, and
   candidate apply/reject action.
+- Owner-library authorization applies independently to every private PDF tab
+  and stream; a private artifact id never becomes workspace authorization.
 - Publication/PDF links must reference existing resources in the same
   workspace, reject duplicate pairs, and never depend on metadata matching.
 - Removing a publication/PDF link must leave both endpoint resources and all
@@ -328,3 +340,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - When: the researcher switches from Authoring to Context and back
 - Then: only one primary surface is shown at a time and both surfaces retain
   their selections and reading state
+
+**Scenario: Private library PDF remains private while reading**
+
+- Given: an owner-private library record has an attached PDF
+- When: the owner opens it, changes page, visits Library, and opens it again
+- Then: one `library-pdf:` tab restores the page without exposing project
+  evidence controls or changing the project snapshot

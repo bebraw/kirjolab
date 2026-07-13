@@ -113,6 +113,7 @@ None.
 | [ADR-078](./implemented/ADR-078-add-bounded-vim-textarea-keymap.md)                   | Implemented          | Add an opt-in bounded Vim keymap over the native collaborative textarea.                                     |
 | [ADR-079](./implemented/ADR-079-review-bounded-pdf-metadata.md)                       | Implemented          | Extract bounded PDF metadata as ephemeral browser suggestions and apply only explicitly reviewed fields.     |
 | [ADR-080](./implemented/ADR-080-review-library-crossref-metadata.md)                  | Implemented          | Preview and selectively accept refetched Crossref metadata for DOI-backed private-library records.           |
+| [ADR-081](./implemented/ADR-081-read-private-library-pdfs-in-context.md)              | Implemented          | Open owner-private library PDFs in kind-qualified read-only context tabs with local reading position.        |
 
 ## Creating A New ADR
 

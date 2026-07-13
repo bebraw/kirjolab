@@ -409,6 +409,48 @@ describe("reference library API", () => {
     expect(missing.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("streams only an owner-library PDF inline without cacheable access", async () => {
+    const bucket = new MemoryR2Bucket();
+    await bucket.put("libraries/owner/guide.pdf", new Uint8Array([37, 80, 68, 70]), {
+      httpMetadata: { contentType: "application/pdf" },
+    });
+    const fixture = apiFixture(bucket);
+    fixture.library.getSnapshot.mockResolvedValue({
+      ...snapshot,
+      artifacts: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          referenceId: reference.id,
+          name: "guide.pdf",
+          contentType: "application/pdf",
+          size: 4,
+          objectKey: "libraries/owner/guide.pdf",
+          fingerprint: "r2-etag:guide",
+          rights: "private",
+          createdAt: now,
+        },
+      ],
+    });
+    const response = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/pdfs/22222222-2222-4222-8222-222222222222"),
+      fixture.env,
+      identity,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("content-disposition")).toBe("inline");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([37, 80, 68, 70]));
+
+    const foreign = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/pdfs/99999999-9999-4999-8999-999999999999"),
+      fixture.env,
+      identity,
+    );
+    expect(foreign.status).toBe(404);
+    expect(await foreign.json()).toEqual({ error: "PDF artifact not found" });
+  });
+
   it("rejects empty, unknown, and over-limit PDF metadata fields", async () => {
     const fixture = apiFixture();
     const route = `/api/library/references/${reference.id}/pdf-metadata`;

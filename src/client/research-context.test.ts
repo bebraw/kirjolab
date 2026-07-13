@@ -26,6 +26,7 @@ describe("research context", () => {
     });
     expect(researchResourceKey({ kind: "publication", id: "pub:1" })).toBe("publication:pub:1");
     expect(researchResourceKey({ kind: "candidate", id: "candidate:1" })).toBe("candidate:candidate:1");
+    expect(researchResourceKey({ kind: "library-pdf", id: "artifact:1" })).toBe("library-pdf:artifact:1");
   });
 
   it("uses one replaceable resource slot until a tab is pinned", () => {
@@ -262,6 +263,7 @@ describe("research context", () => {
     const reconciled = reconcileResearchContext(state, {
       publicationIds: new Set(["allowed-publication"]),
       pdfIds: new Set(),
+      libraryPdfIds: new Set(),
       candidateIds: new Set(),
     });
 
@@ -271,6 +273,7 @@ describe("research context", () => {
       reconcileResearchContext(reconciled, {
         publicationIds: new Set(["allowed-publication"]),
         pdfIds: new Set(),
+        libraryPdfIds: new Set(),
         candidateIds: new Set(),
       }),
     ).toBe(reconciled);
@@ -285,6 +288,7 @@ describe("research context", () => {
     const reconciled = reconcileResearchContext(state, {
       publicationIds: new Set(),
       pdfIds: new Set(["allowed-pdf"]),
+      libraryPdfIds: new Set(),
       candidateIds: new Set(),
     });
 
@@ -300,6 +304,7 @@ describe("research context", () => {
     const activeRevoked = reconcileResearchContext(state, {
       publicationIds: new Set(),
       pdfIds: new Set(),
+      libraryPdfIds: new Set(),
       candidateIds: new Set(["allowed-candidate"]),
     });
 
@@ -309,9 +314,29 @@ describe("research context", () => {
     const activeAllowed = reconcileResearchContext(activateResearchTab(state, "candidate:allowed-candidate"), {
       publicationIds: new Set(),
       pdfIds: new Set(),
+      libraryPdfIds: new Set(),
       candidateIds: new Set(["allowed-candidate"]),
     });
     expect(activeAllowed.activeKey).toBe("candidate:allowed-candidate");
     expect(activeAllowed.tabs.map((tab) => tab.key)).toEqual(["preview", "library", "assistant", "candidate:allowed-candidate"]);
+  });
+
+  it("keeps private library PDFs kind-qualified, readable, and independently authorized", () => {
+    let state = openResearchResource(createResearchContext(), { kind: "pdf", id: "shared-id" });
+    state = setResearchTabPinned(state, "pdf:shared-id", true);
+    state = openResearchResource(state, { kind: "library-pdf", id: "shared-id" });
+    state = setPdfResearchLocation(state, "library-pdf:shared-id", { page: 6 });
+
+    expect(state.tabs.map((tab) => tab.key)).toEqual(["preview", "library", "assistant", "pdf:shared-id", "library-pdf:shared-id"]);
+    expect(state.tabs.at(-1)).toMatchObject({ kind: "library-pdf", page: 6, focusedAnnotationId: null });
+
+    const reconciled = reconcileResearchContext(state, {
+      publicationIds: new Set(),
+      pdfIds: new Set(),
+      libraryPdfIds: new Set(["shared-id"]),
+      candidateIds: new Set(),
+    });
+    expect(reconciled.activeKey).toBe("library-pdf:shared-id");
+    expect(reconciled.tabs.map((tab) => tab.key)).toEqual(["preview", "library", "assistant", "library-pdf:shared-id"]);
   });
 });

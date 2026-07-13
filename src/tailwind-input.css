@@ -745,6 +745,10 @@
     overflow: hidden;
   }
 
+  .context-pdf-panel[data-library-pdf="true"] .context-pdf-body {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
   .annotation-composer {
     overflow: auto;
     border-top: 1px solid var(--color-app-line);

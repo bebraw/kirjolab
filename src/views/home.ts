@@ -365,7 +365,7 @@ export function renderHomePage(
                 <div class="textLayer" id="paper-text-layer"></div>
               </div>
             </div>
-            <aside class="annotation-composer" aria-labelledby="annotation-composer-title">
+            <aside class="annotation-composer" id="annotation-composer" aria-labelledby="annotation-composer-title">
               <details class="publication-intake" id="publication-intake">
                 <summary><span id="publication-intake-heading">Identify reference</span><span class="count-badge">Optional</span></summary>
                 <div class="publication-intake-body">
