@@ -46,8 +46,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   Reopening or focusing an existing PDF target restores that local reading
   context rather than loading a duplicate tab.
 - Private library PDFs use distinct `library-pdf:` identities, retain local
-  page and scroll state, and reuse the reader in read-only mode. Project intake,
-  citation, highlighting, and annotation controls are unavailable in that mode.
+  page and scroll state, and reuse the reader in private-highlight mode. Project
+  intake, citation, highlighting, and annotation controls are unavailable in
+  that mode. A selection remains ephemeral until the owner explicitly saves a
+  page, quote, and optional comment to the private library.
 - The semantic preview and `PdfEvidenceViewer` remain independent views behind
   one context-pane controller. Switching tabs must not recreate a resource
   identity or mutate the manuscript, PDF, or annotation records.
@@ -174,8 +176,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Do not reload a PDF from page one merely because another tab was viewed.
 - Do not create a library record, citation, annotation, claim, or relationship
   as a side effect of opening or switching context.
-- Do not expose project evidence controls or selection capture while a private
-  library PDF is active.
+- Do not expose project evidence controls or treat private PDF selection as a
+  durable mutation while a private library PDF is active.
 - Do not assume every publication has exactly one PDF.
 - Do not infer a publication/PDF association from citation key, DOI, title,
   author, filename, or search similarity.
@@ -222,8 +224,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
       keyboard behavior, mutation boundaries, and responsive switching.
 - [x] An unlinked PDF can be identified by reviewed DOI metadata and connected
       to stable publication context without citing the manuscript.
-- [x] An owner can open a private library PDF in a distinct read-only resource
+- [x] An owner can open a private library PDF in a distinct private resource
       tab, restore its local page, and leave project state unchanged.
+- [x] An owner can explicitly save a selected private PDF quotation, revisit
+      its page, and keep that highlight outside project evidence state.
 
 ### Regression Guardrails
 
@@ -341,9 +345,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Then: only one primary surface is shown at a time and both surfaces retain
   their selections and reading state
 
-**Scenario: Private library PDF remains private while reading**
+**Scenario: Private library PDF remains private while highlighting**
 
 - Given: an owner-private library record has an attached PDF
-- When: the owner opens it, changes page, visits Library, and opens it again
-- Then: one `library-pdf:` tab restores the page without exposing project
-  evidence controls or changing the project snapshot
+- When: the owner selects text, explicitly saves a private highlight, revisits
+  its page, visits Library, and opens the PDF again
+- Then: one `library-pdf:` tab retains private reading context without exposing
+  project evidence controls or changing the project snapshot

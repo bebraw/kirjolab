@@ -1,6 +1,6 @@
 # ADR-081: Read Private Library PDFs in Context
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-082](./ADR-082-capture-private-library-pdf-highlights.md)
 
 **Date:** 2026-07-13
 

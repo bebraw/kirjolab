@@ -76,9 +76,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owner-private by default. A project citation receives only its local alias
   and bibliographic snapshot; sharing any additional resource must be a
   separate explicit, rights-checked action pinned into a project revision.
-- Let the owner read a private library PDF through a kind-qualified read-only
-  context tab and the owner-private stream. Opening or navigating it must not
-  import, share, annotate, cite, or otherwise mutate project or library state.
+- Let the owner read a private library PDF through a kind-qualified private
+  context tab and the owner-private stream. Opening, navigation, and selection
+  do not mutate state; only an explicit save may create a page-and-quote
+  highlight in the owner library. Private capture may not expose project
+  evidence controls, import, share, or cite the artifact.
 - Treat CSL JSON and portable library ZIPs as bounded interchange adapters,
   not canonical storage. Metadata archives omit private binary artifacts unless
   a future explicit rights-aware contract says otherwise.

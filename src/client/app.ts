@@ -30,6 +30,7 @@ import {
   type BibliographicRecord,
   type CrossrefLibraryPreview,
   type CrossrefMetadataField,
+  type LibraryHighlight,
   type LibraryPdfArtifact,
   type ReferenceLibrarySnapshot,
   type WebSnapshot,
@@ -279,6 +280,16 @@ interface Elements {
   knowledgeConnectionList: HTMLElement;
   annotationForm: HTMLFormElement;
   annotationComposer: HTMLElement;
+  libraryHighlightComposer: HTMLElement;
+  libraryHighlightForm: HTMLFormElement;
+  libraryHighlightStatus: HTMLElement;
+  libraryHighlightPage: HTMLInputElement;
+  libraryHighlightQuote: HTMLTextAreaElement;
+  libraryHighlightComment: HTMLInputElement;
+  saveLibraryHighlight: HTMLButtonElement;
+  cancelLibraryHighlight: HTMLButtonElement;
+  libraryHighlightCount: HTMLElement;
+  libraryHighlightList: HTMLElement;
   annotationPdf: HTMLSelectElement;
   annotationPage: HTMLInputElement;
   annotationQuote: HTMLTextAreaElement;
@@ -542,6 +553,8 @@ class WorkspaceApp {
     this.#elements.bibliographyUpload.addEventListener("change", () => void this.#importBibliography());
     this.#elements.knowledgeSearchForm.addEventListener("submit", (event) => void this.#searchKnowledge(event));
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
+    this.#elements.libraryHighlightForm.addEventListener("submit", (event) => void this.#saveLibraryHighlight(event));
+    this.#elements.cancelLibraryHighlight.addEventListener("click", () => this.#clearLibraryHighlightDraft());
     this.#elements.highlightPaintTool.addEventListener("click", () => this.#setHighlightTool("paint"));
     this.#elements.highlightEraserTool.addEventListener("click", () => this.#setHighlightTool("erase"));
     this.#elements.undoHighlight.addEventListener("click", () => void this.#undoLastHighlightStroke());
@@ -3316,6 +3329,10 @@ class WorkspaceApp {
     this.#elements.contextPdfPanel.hidden = !activePdf;
     this.#elements.contextPdfPanel.dataset.libraryPdf = String(activeLibraryPdf);
     this.#elements.annotationComposer.hidden = activeLibraryPdf;
+    this.#elements.libraryHighlightComposer.hidden = !activeLibraryPdf;
+    this.#renderLibraryHighlightComposer(
+      activeTab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id) : undefined,
+    );
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.pdfContextControls.hidden = !activePdf;
@@ -3886,7 +3903,7 @@ class WorkspaceApp {
         annotations,
         page: tab.page,
         ...(tab.focusedAnnotationId ? { focusAnnotationId: tab.focusedAnnotationId } : {}),
-        mode: workspacePdf ? "evidence" : "read-only",
+        mode: workspacePdf ? "evidence" : "private-highlight",
       });
       const active = this.#activeResourceTab();
       if (!opened || active?.key !== tab.key) return;
@@ -4199,18 +4216,31 @@ class WorkspaceApp {
     await this.#loadActivePdf(page !== undefined || focusAnnotationId !== undefined);
   }
 
-  async #openLibraryPdf(artifact: LibraryPdfArtifact): Promise<void> {
+  async #openLibraryPdf(artifact: LibraryPdfArtifact, page?: number): Promise<void> {
     this.#captureActiveContextState();
     this.#contextState = openResearchResource(this.#contextState, { kind: "library-pdf", id: artifact.id });
     const key = researchResourceKey({ kind: "library-pdf", id: artifact.id });
+    if (page !== undefined) this.#contextState = setPdfResearchLocation(this.#contextState, key, { page });
     this.#renderResearchContext(false);
     this.#showWorkspaceSurface("context");
     this.#focusContextTab(key);
-    await this.#loadActivePdf(false);
+    await this.#loadActivePdf(page !== undefined);
   }
 
   #capturePdfSelection(capture: PdfSelectionCapture): void {
-    if (this.#activeResourceTab()?.kind !== "pdf") return;
+    const activeTab = this.#activeResourceTab();
+    if (activeTab?.kind === "library-pdf") {
+      const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === activeTab.id);
+      if (!artifact) return;
+      this.#elements.libraryHighlightComposer.dataset.artifactId = artifact.id;
+      this.#elements.libraryHighlightPage.value = String(capture.page);
+      this.#elements.libraryHighlightQuote.value = capture.quote;
+      this.#elements.saveLibraryHighlight.disabled = false;
+      this.#elements.cancelLibraryHighlight.disabled = false;
+      this.#elements.libraryHighlightStatus.textContent = `Selection ready from page ${capture.page}. Add an optional comment, then save it privately.`;
+      return;
+    }
+    if (activeTab?.kind !== "pdf") return;
     if (this.#renderedPdfId) this.#elements.annotationPdf.value = this.#renderedPdfId;
     this.#elements.annotationPage.value = String(capture.page);
     this.#elements.annotationQuote.value = capture.quote;
@@ -4221,6 +4251,77 @@ class WorkspaceApp {
         ? "Erasing overlapping highlight strokes…"
         : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "fragment" : "fragments"} from page ${capture.page}. Saving automatically…`;
     void this.#persistPdfSelection(capture);
+  }
+
+  #renderLibraryHighlightComposer(artifact: LibraryPdfArtifact | undefined): void {
+    if (!artifact || !this.#librarySnapshot) return;
+    if (this.#elements.libraryHighlightComposer.dataset.artifactId !== artifact.id) {
+      this.#elements.libraryHighlightComposer.dataset.artifactId = artifact.id;
+      this.#elements.libraryHighlightPage.value = "1";
+      this.#elements.libraryHighlightQuote.value = "";
+      this.#elements.libraryHighlightComment.value = "";
+      this.#elements.saveLibraryHighlight.disabled = true;
+      this.#elements.cancelLibraryHighlight.disabled = true;
+      this.#elements.libraryHighlightStatus.textContent = "Select text in the PDF. Nothing is saved until you confirm.";
+    }
+    const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
+    this.#elements.libraryHighlightCount.textContent = String(highlights.length);
+    this.#elements.libraryHighlightList.replaceChildren();
+    if (highlights.length === 0) {
+      this.#elements.libraryHighlightList.append(emptyState("Saved private highlights for this PDF appear here."));
+      return;
+    }
+    for (const highlight of highlights) {
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "resource-card block w-full text-left";
+      open.append(resourceLabel(`Page ${highlight.page}`), resourceTitle(highlight.quote));
+      if (highlight.comment) {
+        const comment = document.createElement("span");
+        comment.className = "mt-2 block font-sans text-xs leading-5 text-app-text-soft";
+        comment.textContent = highlight.comment;
+        open.append(comment);
+      }
+      open.addEventListener("click", () => void this.#openLibraryHighlight(highlight));
+      this.#elements.libraryHighlightList.append(open);
+    }
+  }
+
+  async #saveLibraryHighlight(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const tab = this.#activeResourceTab();
+    if (tab?.kind !== "library-pdf") return;
+    const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id);
+    const quote = this.#elements.libraryHighlightQuote.value.trim();
+    if (!artifact?.referenceId || !quote) return;
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/highlights`, {
+      artifactId: artifact.id,
+      page: Number(this.#elements.libraryHighlightPage.value),
+      quote,
+      comment: this.#elements.libraryHighlightComment.value,
+    });
+    await expectOk(response);
+    this.#clearLibraryHighlightDraft("Private highlight saved. It remains outside the project until explicitly shared.");
+    await this.#refreshReferenceLibrary();
+    this.#elements.libraryHighlightStatus.textContent = "Private highlight saved. Select another passage to continue.";
+    this.#showToast("Private highlight saved to your library.");
+  }
+
+  #clearLibraryHighlightDraft(message = "Selection cancelled. Nothing was saved."): void {
+    this.#elements.libraryHighlightPage.value = String(this.#pdfViewer.currentPage);
+    this.#elements.libraryHighlightQuote.value = "";
+    this.#elements.libraryHighlightComment.value = "";
+    this.#elements.saveLibraryHighlight.disabled = true;
+    this.#elements.cancelLibraryHighlight.disabled = true;
+    this.#elements.libraryHighlightStatus.textContent = message;
+    this.#pdfViewer.clearDraftSelection();
+  }
+
+  async #openLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
+    const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === highlight.artifactId);
+    if (!artifact) return;
+    await this.#openLibraryPdf(artifact, highlight.page);
+    this.#elements.libraryHighlightStatus.textContent = `Showing saved private highlight on page ${highlight.page}.`;
   }
 
   async #persistPdfSelection(capture: PdfSelectionCapture): Promise<void> {
@@ -4721,6 +4822,16 @@ function collectElements(): Elements {
     knowledgeConnectionList: requiredElement("knowledge-connection-list", HTMLElement),
     annotationForm: requiredElement("annotation-form", HTMLFormElement),
     annotationComposer: requiredElement("annotation-composer", HTMLElement),
+    libraryHighlightComposer: requiredElement("library-highlight-composer", HTMLElement),
+    libraryHighlightForm: requiredElement("library-highlight-form", HTMLFormElement),
+    libraryHighlightStatus: requiredElement("library-highlight-status", HTMLElement),
+    libraryHighlightPage: requiredElement("library-highlight-page", HTMLInputElement),
+    libraryHighlightQuote: requiredElement("library-highlight-quote", HTMLTextAreaElement),
+    libraryHighlightComment: requiredElement("library-highlight-comment", HTMLInputElement),
+    saveLibraryHighlight: requiredElement("save-library-highlight", HTMLButtonElement),
+    cancelLibraryHighlight: requiredElement("cancel-library-highlight", HTMLButtonElement),
+    libraryHighlightCount: requiredElement("library-highlight-count", HTMLElement),
+    libraryHighlightList: requiredElement("library-highlight-list", HTMLElement),
     annotationPdf: requiredElement("annotation-pdf", HTMLSelectElement),
     annotationPage: requiredElement("annotation-page", HTMLInputElement),
     annotationQuote: requiredElement("annotation-quote", HTMLTextAreaElement),

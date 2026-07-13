@@ -350,8 +350,9 @@ test("keeps private library research separate from project citations", async ({ 
   await pdfCard.getByText("Metadata and research").click();
   await pdfCard.getByRole("button", { name: "Open PDF" }).click();
   await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#paper-status")).toHaveText("Private library PDF · read only");
+  await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.locator("#annotation-composer")).toBeHidden();
+  await expect(page.locator("#library-highlight-composer")).toBeVisible();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
@@ -363,8 +364,16 @@ test("keeps private library research separate from project citations", async ({ 
     selection?.addRange(range);
     layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
   });
+  await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(1);
+  await expect(page.locator("#paper-status")).toHaveText("Private selection captured from page 1");
+  await expect(page.locator("#library-highlight-quote")).not.toHaveValue("");
+  await page.locator("#library-highlight-comment").fill("Private reading insight");
+  await page.getByRole("button", { name: "Save privately" }).click();
+  await expect(page.locator("#toast")).toHaveText("Private highlight saved to your library.");
+  await expect(page.locator("#library-highlight-count")).toHaveText("1");
+  await expect(page.locator("#library-highlight-list")).toContainText("Private reading insight");
   await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(0);
-  await expect(page.locator("#paper-status")).toHaveText("Private library PDF · read only");
+  expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
   await page.locator("#next-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
@@ -373,6 +382,9 @@ test("keeps private library research separate from project citations", async ({ 
   await refreshedPdfCard.getByText("Metadata and research").click();
   await refreshedPdfCard.getByRole("button", { name: "Open PDF" }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.locator("#library-highlight-list").getByRole("button").click();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await expect(page.locator("#library-highlight-status")).toHaveText("Showing saved private highlight on page 1.");
   await page.getByRole("tab", { name: "Library" }).click();
 
   await card.getByText("Metadata and research").click();

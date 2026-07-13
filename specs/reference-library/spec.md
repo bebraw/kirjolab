@@ -61,9 +61,11 @@ memory and makes citation aliases compete with stable source identity.
 - The default Library view gives PDF upload and website URL capture first-class
   actions, keeps search visible, and folds filters, interchange, graph, metadata,
   organization, and reading controls into progressive disclosure.
-- An attached private PDF opens from its library record in a read-only,
-  kind-qualified context tab. Reading uses the owner-private stream and local
-  page state without adding, sharing, or annotating the artifact in a project.
+- An attached private PDF opens from its library record in a kind-qualified
+  context tab. Reading uses the owner-private stream and local page state. Text
+  selection creates only an ephemeral private-highlight draft; an explicit save
+  records its artifact, page, quote, and optional comment in the owner library
+  without adding, sharing, or annotating the artifact in a project.
 
 ### API Contracts
 
@@ -132,9 +134,10 @@ memory and makes citation aliases compete with stable source identity.
   Crossref provenance.
 - Key tests cover surname/year generation, sparse fallbacks, topical and numeric
   collision suffixes and immutability through enrichment.
-- Browser coverage opens a private artifact, restores its page, keeps project
-  evidence controls unavailable, and proves that reading does not mutate the
-  workspace snapshot.
+- Browser coverage opens a private artifact, saves and revisits a private
+  page-and-quote highlight, restores reading state, keeps project evidence
+  controls unavailable, and proves that capture does not mutate the workspace
+  snapshot.
 
 ## Current Milestone
 
@@ -143,7 +146,7 @@ memory and makes citation aliases compete with stable source identity.
   legacy identification, notes/tags/highlights/reading state, archive
   and tombstone deletion, project aliases/snapshots, derived cited-only BibTeX,
   versioned web captures, provenance-bearing citation assertions and network,
-  reviewed Crossref enrichment, read-only private PDF context, and a permanent
-  owner-private Library context tab.
+  reviewed Crossref enrichment, explicit private PDF highlights in Context,
+  and a permanent owner-private Library context tab.
 - Superseded: workspace BibTeX authority and workspace-scoped publication
   projection described by ADR-044, ADR-051, and ADR-055.

@@ -434,6 +434,37 @@ export function renderHomePage(
                 </div>
               </form>
             </aside>
+            <aside class="annotation-composer" id="library-highlight-composer" aria-labelledby="library-highlight-title" hidden>
+              <div>
+                <p class="eyebrow">Private research</p>
+                <h2 class="mt-1 text-lg font-semibold tracking-[-0.035em]" id="library-highlight-title">Highlight this PDF</h2>
+                <p class="mt-2 text-xs leading-5 text-app-text-soft" id="library-highlight-status" role="status" aria-live="polite">Select text in the PDF. Nothing is saved until you confirm.</p>
+              </div>
+              <form class="mt-3 grid gap-3 sm:grid-cols-2" id="library-highlight-form">
+                <label class="field-label">Page
+                  <input class="field" id="library-highlight-page" type="number" min="1" value="1" required readonly>
+                </label>
+                <label class="field-label">Private comment
+                  <input class="field" id="library-highlight-comment" type="text" maxlength="8000" placeholder="Why this matters">
+                </label>
+                <label class="field-label sm:col-span-2">Exact quotation
+                  <textarea class="field min-h-20" id="library-highlight-quote" maxlength="20000" required readonly placeholder="Select a passage in the PDF"></textarea>
+                </label>
+                <div class="grid gap-2 sm:col-span-2 sm:grid-cols-2">
+                  <button class="button-primary justify-center" id="save-library-highlight" type="submit" disabled>Save privately</button>
+                  <button class="button-secondary justify-center" id="cancel-library-highlight" type="button" disabled>Cancel selection</button>
+                </div>
+              </form>
+              <section class="mt-4 border-t border-app-line pt-4" aria-labelledby="library-highlight-list-title">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="eyebrow" id="library-highlight-list-title">Saved highlights</h3>
+                  <span class="count-badge" id="library-highlight-count">0</span>
+                </div>
+                <div class="mt-2 space-y-2" id="library-highlight-list">
+                  <p class="empty-state">Saved private highlights for this PDF appear here.</p>
+                </div>
+              </section>
+            </aside>
           </div>
         </section>
 

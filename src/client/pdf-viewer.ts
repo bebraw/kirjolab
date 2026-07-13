@@ -28,7 +28,7 @@ interface OpenPdfOptions {
   annotations: AnnotationResource[];
   page?: number;
   focusAnnotationId?: string;
-  mode?: "evidence" | "read-only";
+  mode?: "evidence" | "private-highlight";
 }
 
 export class PdfEvidenceViewer {
@@ -42,7 +42,7 @@ export class PdfEvidenceViewer {
   #pageText = "";
   #focusedAnnotationId: string | undefined;
   #draftSelection: PdfSelectionCapture | null = null;
-  #mode: "evidence" | "read-only" = "evidence";
+  #mode: "evidence" | "private-highlight" = "evidence";
   #renderVersion = 0;
   #openVersion = 0;
 
@@ -168,11 +168,11 @@ export class PdfEvidenceViewer {
     this.#elements.pageIndicator.textContent = `${this.#pageNumber} / ${documentModel.numPages}`;
     this.#elements.previousPage.disabled = this.#pageNumber === 1;
     this.#elements.nextPage.disabled = this.#pageNumber === documentModel.numPages;
-    this.#elements.status.textContent = this.#mode === "read-only" ? "Private library PDF · read only" : "Select text to capture evidence";
+    this.#elements.status.textContent =
+      this.#mode === "private-highlight" ? "Private library PDF · select text to highlight" : "Select text to capture evidence";
   }
 
   #captureSelection(): void {
-    if (this.#mode === "read-only") return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
@@ -183,7 +183,10 @@ export class PdfEvidenceViewer {
     this.#draftSelection = { page: this.#pageNumber, ...context, rects };
     this.#renderHighlights();
     this.#onSelection(this.#draftSelection);
-    this.#elements.status.textContent = `${rects.length} ${rects.length === 1 ? "fragment" : "fragments"} captured from page ${this.#pageNumber}`;
+    this.#elements.status.textContent =
+      this.#mode === "private-highlight"
+        ? `Private selection captured from page ${this.#pageNumber}`
+        : `${rects.length} ${rects.length === 1 ? "fragment" : "fragments"} captured from page ${this.#pageNumber}`;
     selection.removeAllRanges();
   }
 

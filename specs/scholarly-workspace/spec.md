@@ -98,9 +98,10 @@ mode for authenticated hosted collaboration.
   highlights, or reading state. Additional research enters a project only by
   explicit rights-checked snapshot sharing and forward-only revocation.
 - **Private PDF reading:** Owner-library PDF artifacts may reuse the context
-  PDF renderer through distinct read-only `library-pdf:` tabs. Their bytes and
-  tab authorization remain owner-private, and navigation never creates project
-  evidence or sharing state.
+  PDF renderer through distinct private `library-pdf:` tabs. Their bytes and tab
+  authorization remain owner-private. Selection creates only an ephemeral
+  draft; explicit save may create a library-owned page-and-quote highlight,
+  while navigation never creates project evidence or sharing state.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and
