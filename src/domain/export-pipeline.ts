@@ -11,11 +11,18 @@ import {
   publicationReferenceLabels,
   replacePublicationTextDirectives,
 } from "./scholarly-export";
+import {
+  projectPublicationStructure,
+  replacePublicationFootnoteReferences,
+  type PublicationFootnote,
+  type PublicationStructure,
+  type PublicationTable,
+} from "./publication-structure";
 
 export { countPublicationWords, publicationWordStatistics } from "./publication-statistics";
 
 export const exportSchemaVersion = "kirjolab-export-v1" as const;
-export const exportTemplateVersion = "kirjolab-article-v1" as const;
+export const exportTemplateVersion = "kirjolab-article-v2" as const;
 export const exportPdfEngine = "kirjolab-pdf-lib@1.17.1" as const;
 export const exportZipEngine = "fflate@0.8.3" as const;
 
@@ -198,11 +205,22 @@ function materializeLatex(
   const sourceMap: GeneratedSourceSpan[] = [];
   const references = publicationReferenceLabels(intermediate.markdown);
   const citations = publicationCitationEntries(intermediate.bibliography);
+  const structure = projectPublicationStructure(intermediate.markdown);
+  const emittedFootnotes = new Set<string>();
   let fencedCode = false;
   let outputOffset = 0;
-  for (const markdownLine of intermediate.markdown.split(/\r?\n/u)) {
+  for (const [lineIndex, markdownLine] of intermediate.markdown.split(/\r?\n/u).entries()) {
     const fence = /^[ \t]*```/u.test(markdownLine);
-    const generated = latexLine(markdownLine, intermediate.publicationProfile, references, citations, fencedCode);
+    const generated = latexLine(
+      markdownLine,
+      lineIndex,
+      intermediate.publicationProfile,
+      references,
+      citations,
+      structure,
+      emittedFootnotes,
+      fencedCode,
+    );
     if (fence) fencedCode = !fencedCode;
     const generatedLineStart = lines.length + 1;
     lines.push(...generated);
@@ -230,32 +248,86 @@ function materializeLatex(
 
 function latexLine(
   line: string,
+  lineIndex: number,
   publicationProfile: ProjectPublicationProfile,
   references: ReadonlyMap<string, string>,
   citations: ReturnType<typeof publicationCitationEntries>,
+  structure: PublicationStructure,
+  emittedFootnotes: Set<string>,
   literal: boolean,
 ): string[] {
   if (/^[ \t]*```/u.test(line)) return [`% fenced code boundary`];
   if (literal) return [escapeLatex(line), ""];
+  const table = structure.tablesByStartLine.get(lineIndex);
+  if (table) return latexTable(table, publicationProfile, references, citations, structure, emittedFootnotes);
+  if (structure.tableLines.has(lineIndex)) return ["% structured table continuation"];
+  if (structure.footnoteDefinitionLines.has(lineIndex)) return ["% structured footnote definition"];
   if (isPublicationReferenceDeclaration(line)) return ["% scholarly reference declaration"];
   const heading = headingLine.exec(line);
   if (heading?.groups?.marks && heading.groups.title) {
     const commands = ["section", "subsection", "subsubsection", "paragraph", "subparagraph", "subparagraph"];
     const command = commands[heading.groups.marks.length - 1] ?? "paragraph";
-    return [`\\${command}{${inlineLatex(heading.groups.title, publicationProfile, references, citations)}}`];
+    return [`\\${command}{${inlineLatex(heading.groups.title, publicationProfile, references, citations, structure, emittedFootnotes)}}`];
   }
   const bullet = /^[ \t]*[-*+][ \t]+(?<text>.+)$/u.exec(line);
   if (bullet?.groups?.text)
-    return [`\\begin{itemize}`, `\\item ${inlineLatex(bullet.groups.text, publicationProfile, references, citations)}`, `\\end{itemize}`];
+    return [
+      `\\begin{itemize}`,
+      `\\item ${inlineLatex(bullet.groups.text, publicationProfile, references, citations, structure, emittedFootnotes)}`,
+      `\\end{itemize}`,
+    ];
   const numbered = /^[ \t]*\d+[.)][ \t]+(?<text>.+)$/u.exec(line);
   if (numbered?.groups?.text)
     return [
       `\\begin{enumerate}`,
-      `\\item ${inlineLatex(numbered.groups.text, publicationProfile, references, citations)}`,
+      `\\item ${inlineLatex(numbered.groups.text, publicationProfile, references, citations, structure, emittedFootnotes)}`,
       `\\end{enumerate}`,
     ];
   if (/^[ \t]*$/u.test(line)) return [""];
-  return [inlineLatex(line, publicationProfile, references, citations), ""];
+  return [inlineLatex(line, publicationProfile, references, citations, structure, emittedFootnotes), ""];
+}
+
+function latexTable(
+  table: PublicationTable,
+  publicationProfile: ProjectPublicationProfile,
+  references: ReadonlyMap<string, string>,
+  citations: ReturnType<typeof publicationCitationEntries>,
+  structure: PublicationStructure,
+  emittedFootnotes: Set<string>,
+): string[] {
+  const tableFootnoteIds = new Set<string>();
+  const renderRow = (cells: readonly string[]): string =>
+    `${cells
+      .map((cell) => inlineLatex(cell, publicationProfile, references, citations, structure, emittedFootnotes, "table", tableFootnoteIds))
+      .join(" & ")} \\\\`;
+  const columns = table.alignments.map((alignment) => ({ left: "l", center: "c", right: "r" })[alignment]).join("");
+  const lines = [
+    "\\begin{table}[htbp]",
+    "\\centering",
+    `\\begin{tabular}{${columns}}`,
+    "\\toprule",
+    renderRow(table.header.map((cell) => `**${cell}**`)),
+    "\\midrule",
+    ...table.rows.map(renderRow),
+    "\\bottomrule",
+    "\\end{tabular}",
+    "\\end{table}",
+  ];
+  for (const id of tableFootnoteIds) {
+    const footnote = structure.footnotesById.get(id);
+    if (!footnote) continue;
+    lines.push(
+      `\\footnotetext[${footnote.number}]{${inlineLatex(
+        footnote.content,
+        publicationProfile,
+        references,
+        citations,
+        structure,
+        emittedFootnotes,
+      )}}`,
+    );
+  }
+  return lines;
 }
 
 function inlineLatex(
@@ -263,6 +335,10 @@ function inlineLatex(
   publicationProfile: ProjectPublicationProfile,
   references: ReadonlyMap<string, string>,
   citations: ReturnType<typeof publicationCitationEntries>,
+  structure: PublicationStructure,
+  emittedFootnotes: Set<string>,
+  footnoteContext: "text" | "table" = "text",
+  tableFootnoteIds?: Set<string>,
 ): string {
   const tokens: string[] = [];
   const token = (replacement: string): string => {
@@ -287,7 +363,12 @@ function inlineLatex(
         ? `\\${command}[${locator}]{${keys.join(",")}}`
         : `\\${command}{${keys.join(",")}}${locator ? `, ${locator}` : ""}`;
     return token(`${prefix}${citation}${suffix}`);
-  })
+  });
+  protectedValue = replacePublicationFootnoteReferences(protectedValue, structure.footnotesById, (footnote) =>
+    token(
+      latexFootnote(footnote, publicationProfile, references, citations, structure, emittedFootnotes, footnoteContext, tableFootnoteIds),
+    ),
+  )
     .replace(/\$(?<math>[^$\r\n]+)\$/gu, (_match, ...values: unknown[]) => {
       const groups = values.at(-1);
       return token(`$${isStringRecord(groups) ? (groups.math ?? "") : ""}$`);
@@ -309,6 +390,25 @@ function inlineLatex(
     const index = Number(isStringRecord(groups) ? groups.index : Number.NaN);
     return tokens[index] ?? "";
   });
+}
+
+function latexFootnote(
+  footnote: PublicationFootnote,
+  publicationProfile: ProjectPublicationProfile,
+  references: ReadonlyMap<string, string>,
+  citations: ReturnType<typeof publicationCitationEntries>,
+  structure: PublicationStructure,
+  emittedFootnotes: Set<string>,
+  context: "text" | "table",
+  tableFootnoteIds?: Set<string>,
+): string {
+  if (emittedFootnotes.has(footnote.id)) return `\\footnotemark[${footnote.number}]`;
+  emittedFootnotes.add(footnote.id);
+  if (context === "table") {
+    tableFootnoteIds?.add(footnote.id);
+    return "\\footnotemark";
+  }
+  return `\\footnote{${inlineLatex(footnote.content, publicationProfile, references, citations, structure, emittedFootnotes)}}`;
 }
 
 function escapeLatex(value: string): string {

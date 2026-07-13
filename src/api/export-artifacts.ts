@@ -10,6 +10,14 @@ import {
   publicationReferenceLabels,
   replacePublicationTextDirectives,
 } from "../domain/scholarly-export";
+import {
+  projectPublicationStructure,
+  publicationFootnoteReferences,
+  replacePublicationFootnoteReferences,
+  type PublicationFootnote,
+  type PublicationStructure,
+  type PublicationTableAlignment,
+} from "../domain/publication-structure";
 import { resolveSubmissionTemplate, submissionPageSize } from "../domain/submission-templates";
 import type { ProjectPublicationProfile } from "../domain/workspace";
 
@@ -61,10 +69,12 @@ export async function renderExportPdf(bundle: MaterializedExportBundle): Promise
   const renderer = new PdfTextRenderer(document, regular, bold, bundle.intermediate.publicationProfile);
   renderer.heading(bundle.intermediate.title, 22, 18);
   for (const line of pdfLines(bundle.intermediate.markdown, bundle.intermediate.bibliography, bundle.intermediate.publicationProfile)) {
-    if (line.kind === "heading") renderer.heading(line.text, Math.max(12, 20 - line.depth * 1.5), 8);
+    if (line.kind === "heading") renderer.heading(line.text, Math.max(12, 20 - line.depth * 1.5), 8, line.footnotes);
     else if (line.kind === "blank") renderer.blank();
-    else renderer.paragraph(line.text, line.kind === "code" ? 9 : 10.5, line.kind === "bullet" ? 14 : 0);
+    else if (line.kind === "table") renderer.table(line.header, line.rows, line.alignments, line.footnotes);
+    else renderer.paragraph(line.text, line.kind === "code" ? 9 : 10.5, line.kind === "bullet" ? 14 : 0, line.footnotes);
   }
+  renderer.finish();
   return await document.save({ useObjectStreams: false, addDefaultPage: false, updateFieldAppearances: false });
 }
 
@@ -102,30 +112,63 @@ function stripInlineMarkdown(value: string): string {
 
 type PdfLine =
   | { readonly kind: "blank"; readonly text: ""; readonly depth: 0 }
-  | { readonly kind: "body" | "bullet" | "code"; readonly text: string; readonly depth: 0 }
-  | { readonly kind: "heading"; readonly text: string; readonly depth: number };
+  | { readonly kind: "body" | "bullet" | "code"; readonly text: string; readonly depth: 0; readonly footnotes: readonly PdfNote[] }
+  | { readonly kind: "heading"; readonly text: string; readonly depth: number; readonly footnotes: readonly PdfNote[] }
+  | {
+      readonly kind: "table";
+      readonly header: readonly string[];
+      readonly rows: readonly (readonly string[])[];
+      readonly alignments: readonly PublicationTableAlignment[];
+      readonly footnotes: readonly PdfNote[];
+    };
+
+interface PdfNote {
+  readonly id: string;
+  readonly number: number;
+  readonly text: string;
+}
 
 function pdfLines(markdown: string, bibliography: string, publicationProfile: ProjectPublicationProfile): PdfLine[] {
   const lines: PdfLine[] = [];
   const references = publicationReferenceLabels(markdown);
   const citations = publicationCitationEntries(bibliography);
+  const structure = projectPublicationStructure(markdown);
+  const sourceLines = markdown.split(/\r?\n/u);
   let code = false;
-  for (const sourceLine of markdown.split(/\r?\n/u)) {
+  for (const [lineIndex, sourceLine] of sourceLines.entries()) {
     if (/^[ \t]*```/u.test(sourceLine)) {
       code = !code;
       continue;
     }
     if (code) {
-      lines.push({ kind: "code", text: printablePdfText(sourceLine), depth: 0 });
+      lines.push({ kind: "code", text: printablePdfText(sourceLine), depth: 0, footnotes: [] });
       continue;
     }
+    const table = structure.tablesByStartLine.get(lineIndex);
+    if (table) {
+      const rawCells = [...table.header, ...table.rows.flat()];
+      lines.push({
+        kind: "table",
+        header: table.header.map((cell) => printablePdfText(pdfInlineText(cell, publicationProfile, references, citations, structure))),
+        rows: table.rows.map((row) =>
+          row.map((cell) => printablePdfText(pdfInlineText(cell, publicationProfile, references, citations, structure))),
+        ),
+        alignments: table.alignments,
+        footnotes: pdfNotes(rawCells, publicationProfile, references, citations, structure),
+      });
+      continue;
+    }
+    if (structure.tableLines.has(lineIndex) || structure.footnoteDefinitionLines.has(lineIndex)) continue;
     if (isPublicationReferenceDeclaration(sourceLine)) continue;
     const heading = headingLine.exec(sourceLine);
     if (heading?.groups?.marks && heading.groups.title) {
       lines.push({
         kind: "heading",
-        text: printablePdfText(stripInlineMarkdown(heading.groups.title)),
+        text: printablePdfText(
+          pdfInlineText(stripInlineMarkdown(heading.groups.title), publicationProfile, references, citations, structure),
+        ),
         depth: heading.groups.marks.length,
+        footnotes: pdfNotes([heading.groups.title], publicationProfile, references, citations, structure),
       });
       continue;
     }
@@ -133,7 +176,12 @@ function pdfLines(markdown: string, bibliography: string, publicationProfile: Pr
     if (!bullet) lines.push({ kind: "blank", text: "", depth: 0 });
     else {
       const kind = /^[ \t]*[-*+][ \t]+/u.test(sourceLine) ? "bullet" : "body";
-      lines.push({ kind, text: printablePdfText(pdfInlineText(bullet, publicationProfile, references, citations)), depth: 0 });
+      lines.push({
+        kind,
+        text: printablePdfText(pdfInlineText(bullet, publicationProfile, references, citations, structure)),
+        depth: 0,
+        footnotes: pdfNotes([bullet], publicationProfile, references, citations, structure),
+      });
     }
   }
   return lines;
@@ -144,16 +192,36 @@ function pdfInlineText(
   publicationProfile: ProjectPublicationProfile,
   references: ReadonlyMap<string, string>,
   citations: ReturnType<typeof publicationCitationEntries>,
+  structure: PublicationStructure,
 ): string {
-  return replacePublicationTextDirectives(value, (directive) => {
+  const directives = replacePublicationTextDirectives(value, (directive) => {
     if (directive.kind === "ref") return publicationReferenceLabel(directive, references);
     return publicationCitationText(directive, citations, publicationProfile.citationStyle);
-  })
+  });
+  return replacePublicationFootnoteReferences(directives, structure.footnotesById, (footnote) => `[${footnote.number}]`)
     .replace(/!\[(?<alt>[^\]]*)\]\([^\s)]+\)/gu, "$<alt>")
     .replace(/\[(?<label>[^\]]+)\]\([^\s)]+\)/gu, "$<label>")
     .replace(/[*_`~]/gu, "")
     .replace(/\{#[^}\r\n]+\}/gu, "")
     .trim();
+}
+
+function pdfNotes(
+  values: readonly string[],
+  publicationProfile: ProjectPublicationProfile,
+  references: ReadonlyMap<string, string>,
+  citations: ReturnType<typeof publicationCitationEntries>,
+  structure: PublicationStructure,
+): PdfNote[] {
+  const notes = new Map<string, PublicationFootnote>();
+  for (const value of values) {
+    for (const note of publicationFootnoteReferences(value, structure.footnotesById)) notes.set(note.id, note);
+  }
+  return [...notes.values()].map((note) => ({
+    id: note.id,
+    number: note.number,
+    text: printablePdfText(pdfInlineText(note.content, publicationProfile, references, citations, structure)),
+  }));
 }
 
 function printablePdfText(value: string): string {
@@ -169,6 +237,9 @@ class PdfTextRenderer {
   readonly #spacing: number;
   #page: PDFPage;
   #y = 0;
+  #reservedNoteHeight = 0;
+  readonly #notesByPage = new Map<PDFPage, PdfNote[]>();
+  readonly #placedNoteIds = new Set<string>();
 
   constructor(document: PDFDocument, regular: PDFFont, bold: PDFFont, profile: ProjectPublicationProfile) {
     this.#document = document;
@@ -181,18 +252,106 @@ class PdfTextRenderer {
     this.#page = this.#newPage();
   }
 
-  heading(text: string, size: number, spaceBefore: number): void {
+  heading(text: string, size: number, spaceBefore: number, footnotes: readonly PdfNote[] = []): void {
+    this.#reserveFootnotes(footnotes);
     this.#y -= spaceBefore;
     this.#drawWrapped(printablePdfText(text), this.#bold, size, 0, size * 1.25);
     this.#y -= 4;
   }
 
-  paragraph(text: string, size: number, indent: number): void {
+  paragraph(text: string, size: number, indent: number, footnotes: readonly PdfNote[] = []): void {
+    this.#reserveFootnotes(footnotes);
     this.#drawWrapped(printablePdfText(text), this.#regular, size, indent, size * 1.45);
+  }
+
+  table(
+    header: readonly string[],
+    rows: readonly (readonly string[])[],
+    alignments: readonly PublicationTableAlignment[],
+    footnotes: readonly PdfNote[],
+  ): void {
+    this.#reserveFootnotes(footnotes);
+    const availableWidth = this.#page.getWidth() - this.#margin * 2;
+    const columnWidth = availableWidth / header.length;
+    this.#ensureSpace(18);
+    this.#drawRule();
+    this.#drawTableRow(header, alignments, columnWidth, this.#bold);
+    this.#drawRule();
+    for (const row of rows) this.#drawTableRow(row, alignments, columnWidth, this.#regular);
+    this.#drawRule();
+    this.#y -= 6;
+  }
+
+  finish(): void {
+    for (const [page, notes] of this.#notesByPage) {
+      const size = 8;
+      const leading = 10;
+      const width = page.getWidth() - this.#margin * 2;
+      const noteLines = notes.flatMap((note) =>
+        wrapPdfText(`[${note.number}] ${note.text}`, this.#regular, size, width).map((text) => ({ text, note })),
+      );
+      let y = this.#margin + noteLines.length * leading;
+      page.drawLine({
+        start: { x: this.#margin, y: y + 4 },
+        end: { x: this.#margin + Math.min(72, width), y: y + 4 },
+        thickness: 0.6,
+      });
+      for (const { text } of noteLines) {
+        page.drawText(text, { x: this.#margin, y, size, font: this.#regular });
+        y -= leading;
+      }
+    }
   }
 
   blank(): void {
     this.#y -= 7;
+  }
+
+  #drawTableRow(cells: readonly string[], alignments: readonly PublicationTableAlignment[], columnWidth: number, font: PDFFont): void {
+    const size = 9;
+    const leading = 11;
+    const padding = 4;
+    const wrapped = cells.map((cell) => wrapPdfText(cell, font, size, columnWidth - padding * 2));
+    const rowHeight = Math.max(...wrapped.map((cell) => cell.length)) * leading + padding * 2;
+    this.#ensureSpace(rowHeight);
+    for (const [column, cellLines] of wrapped.entries()) {
+      for (const [lineIndex, text] of cellLines.entries()) {
+        const textWidth = font.widthOfTextAtSize(text, size);
+        const left = this.#margin + column * columnWidth + padding;
+        const alignment = alignments[column] ?? "left";
+        const x =
+          alignment === "right"
+            ? left + columnWidth - padding * 2 - textWidth
+            : alignment === "center"
+              ? left + (columnWidth - padding * 2 - textWidth) / 2
+              : left;
+        this.#page.drawText(text, { x, y: this.#y - padding - size - lineIndex * leading, size, font });
+      }
+    }
+    this.#y -= rowHeight;
+  }
+
+  #drawRule(): void {
+    this.#page.drawLine({
+      start: { x: this.#margin, y: this.#y },
+      end: { x: this.#page.getWidth() - this.#margin, y: this.#y },
+      thickness: 0.7,
+    });
+  }
+
+  #reserveFootnotes(footnotes: readonly PdfNote[]): void {
+    const additions = footnotes.filter((note) => !this.#placedNoteIds.has(note.id));
+    if (additions.length === 0) return;
+    const width = this.#page.getWidth() - this.#margin * 2;
+    const height =
+      additions.reduce((total, note) => total + wrapPdfText(`[${note.number}] ${note.text}`, this.#regular, 8, width).length * 10, 0) +
+      (this.#reservedNoteHeight === 0 ? 8 : 0);
+    if (this.#y - height < this.#margin + this.#reservedNoteHeight) this.#page = this.#newPage();
+    this.#reservedNoteHeight += height;
+    const pageNotes = this.#notesByPage.get(this.#page) ?? [];
+    pageNotes.push(...additions);
+    this.#notesByPage.set(this.#page, pageNotes);
+    for (const note of additions) this.#placedNoteIds.add(note.id);
   }
 
   #drawWrapped(text: string, font: PDFFont, size: number, indent: number, leading: number): void {
@@ -205,13 +364,14 @@ class PdfTextRenderer {
   }
 
   #ensureSpace(height: number): void {
-    if (this.#y - height >= this.#margin) return;
+    if (this.#y - height >= this.#margin + this.#reservedNoteHeight) return;
     this.#page = this.#newPage();
   }
 
   #newPage(): PDFPage {
     const page = this.#document.addPage([...this.#pageSize]);
     this.#y = page.getHeight() - this.#margin;
+    this.#reservedNoteHeight = 0;
     return page;
   }
 }

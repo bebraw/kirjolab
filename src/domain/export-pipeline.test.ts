@@ -127,7 +127,7 @@ describe("source-mapped export pipeline", () => {
     expect(bundle.intermediate.citationKeys).toEqual(["valid"]);
     expect(bundle.manifest).toEqual({
       schemaVersion: "kirjolab-export-v1",
-      templateVersion: "kirjolab-article-v1",
+      templateVersion: "kirjolab-article-v2",
       pdfEngine: "kirjolab-pdf-lib@1.17.1",
       zipEngine: "fflate@0.8.3",
       entrypoint: "main.tex",
@@ -439,6 +439,81 @@ describe("source-mapped export pipeline", () => {
     });
     const reviewDocument = await PDFDocument.load(await renderExportPdf(review), { updateMetadata: false });
     expect(reviewDocument.getPage(0).getSize()).toEqual({ width: 612, height: 792 });
+  });
+
+  it("projects a composed publication conformance fixture into structured LaTeX and PDF", async () => {
+    const source = [
+      "| Measure | Value | Meaning |",
+      "| :--- | ---: | :---: |",
+      "| **Effect** | `12` | A \\| B |",
+      "",
+      "Evidence[^method] and repeated evidence[^method] :cite[source].",
+      "[^method]: Note with *emphasis*.",
+      "  Continued note.",
+      "",
+      "- Listed result",
+      "Math $x_1$.",
+      "```md",
+      "| Literal | table |",
+      "| --- | --- |",
+      "[^literal]: literal note",
+      "```",
+    ].join("\n");
+    const bundle = buildExportBundle({
+      title: "Conformance study",
+      files: [
+        file("main", "main.md", "# Findings {#findings}\nSee :ref[findings].\n::include[results.md]"),
+        file("results", "results.md", source),
+      ],
+      entryFileId: "main",
+      bibliography: "@article{source, author={Source, Sam}, title={Evidence}, year={2026}}",
+    });
+
+    expect(bundle.intermediate.markdown).toContain("| :--- | ---: | :---: |");
+    expect(bundle.intermediate.markdown).toContain("[^method]: Note with *emphasis*.");
+    for (const expected of [
+      "\\begin{tabular}{lrc}",
+      "\\toprule",
+      "\\textbf{Measure} & \\textbf{Value} & \\textbf{Meaning}",
+      "\\textbf{Effect} & \\texttt{12} & A | B",
+      "\\footnote{Note with \\emph{emphasis}. Continued note.}",
+      "\\footnotemark[1]",
+      "\\citep{source}",
+      "See Findings.",
+      "Math $x_1$.",
+      "| Literal | table |",
+      "[\\textasciicircum{}literal]: literal note",
+    ]) {
+      expect(bundle.mainTex, expected).toContain(expected);
+    }
+    expect(bundle.mainTex).not.toContain("| :--- | ---: | :---: |");
+    expect(bundle.mainTex).not.toContain("[^method]:");
+    expect(bundle.generatedSourceMap).toHaveLength(bundle.intermediate.markdown.split("\n").length);
+
+    const bytes = await renderExportPdf(bundle);
+    const loadingTask = getDocument({ data: bytes });
+    const pdf = await loadingTask.promise;
+    const text = (await (await pdf.getPage(1)).getTextContent()).items.map((item) => ("str" in item ? item.str : "")).join(" ");
+    await loadingTask.destroy();
+    for (const expected of [
+      "Measure",
+      "Value",
+      "Meaning",
+      "Effect",
+      "12",
+      "A | B",
+      "Evidence[1] and repeated evidence[1] (Source, 2026).",
+      "[1] Note with emphasis. Continued note.",
+      "Listed result",
+      "Math $x1$.",
+      "| Literal | table |",
+      "[^literal]: literal note",
+      "See Findings.",
+    ]) {
+      expect(text, expected).toContain(expected);
+    }
+    expect(text).not.toContain("| :--- | ---: | :---: |");
+    expect(text).not.toContain("[^method]:");
   });
 
   it("keeps scholarly-looking text literal inside fenced code", () => {

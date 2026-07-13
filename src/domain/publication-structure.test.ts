@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectPublicationStructure, replacePublicationFootnoteReferences } from "./publication-structure";
+import { projectPublicationStructure, publicationFootnoteReferences, replacePublicationFootnoteReferences } from "./publication-structure";
 
 describe("publication structure projection", () => {
   it("projects aligned pipe tables, escaped pipes, and short rows", () => {
@@ -42,6 +42,10 @@ describe("publication structure projection", () => {
         String(note.number),
       ),
     ).toBe("Known2, unknown[^missing], escaped \\[^first].");
+    expect(publicationFootnoteReferences("Again[^first], then[^later], again[^first].", structure.footnotesById)).toEqual([
+      structure.footnotes[1],
+      structure.footnotes[0],
+    ]);
   });
 
   it("keeps structures inside fences literal and rejects malformed table delimiters", () => {

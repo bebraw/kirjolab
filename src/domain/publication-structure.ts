@@ -101,6 +101,19 @@ export function replacePublicationFootnoteReferences(
   });
 }
 
+export function publicationFootnoteReferences(value: string, footnotes: ReadonlyMap<string, PublicationFootnote>): PublicationFootnote[] {
+  const references: PublicationFootnote[] = [];
+  const seen = new Set<string>();
+  for (const match of value.matchAll(footnoteReference)) {
+    const id = match.groups?.id;
+    const note = id ? footnotes.get(id) : undefined;
+    if (!note || seen.has(note.id)) continue;
+    seen.add(note.id);
+    references.push(note);
+  }
+  return references;
+}
+
 function fencedLiteralLines(lines: readonly string[]): Set<number> {
   const literalLines = new Set<number>();
   let literal = false;
