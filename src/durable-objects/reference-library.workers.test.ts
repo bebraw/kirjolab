@@ -264,6 +264,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(second.reference.id).toBe(first.reference.id);
     expect(second.created).toBe(false);
     expect(second.reference).toMatchObject({ title: "Example source", url: "https://example.com/article", year: "2026" });
+    expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("provisional");
     expect(await library.getWebSnapshots(first.reference.id)).toMatchObject([
       { id: "capture-2", contentHash: "sha256:second" },
       { id: "capture-1", contentHash: "sha256:first" },
@@ -271,6 +272,8 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect((await library.getSnapshot()).webSources).toEqual([
       expect.objectContaining({ referenceId: first.reference.id, canonicalUrl: "https://example.com/article" }),
     ]);
+    await library.registerProjectDependency("project-a", first.reference.id);
+    expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("final");
     const share = await library.shareResearch("project-a", first.reference.id, "web-snapshot", first.snapshot.id);
     expect(share).toMatchObject({
       kind: "web-snapshot",

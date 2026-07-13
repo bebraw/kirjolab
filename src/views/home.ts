@@ -229,17 +229,8 @@ export function renderHomePage(
               <form class="mt-3 grid gap-3 md:grid-cols-[1fr_auto]" id="web-source-form">
                 <label class="field-label">Website URL<input class="field" id="web-source-url" type="url" maxlength="4096" required placeholder="https://example.org/article"></label>
                 <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Add website</button></div>
-                <details class="md:col-span-2">
-                  <summary class="cursor-pointer font-sans text-xs text-app-text-soft">Optional metadata overrides</summary>
-                  <div class="mt-3 grid gap-3 md:grid-cols-2">
-                <label class="field-label">Title override<input class="field" id="web-source-title" maxlength="1000" placeholder="Fetched automatically when available"></label>
-                <label class="field-label">Author or organization<input class="field" id="web-source-author" maxlength="500"></label>
-                <label class="field-label">Publisher<input class="field" id="web-source-publisher" maxlength="500"></label>
-                <label class="field-label">Publication date<input class="field" id="web-source-published-at" maxlength="100" placeholder="YYYY-MM-DD"></label>
-                  </div>
-                </details>
               </form>
-              <p class="mt-3 text-xs leading-5 text-app-text-soft">New sources receive a unique, memorable citation ID. Add or correct metadata later.</p>
+              <p class="mt-3 text-xs leading-5 text-app-text-soft">Add the source now; review its title, authors, year, and citation ID from the library record later.</p>
             </section>
             <div class="mt-4 grid gap-3 border-b border-app-line pb-4 md:grid-cols-[1fr_auto]">
               <label class="field-label">Search library<input class="field" id="reference-filter-query" type="search" maxlength="200" placeholder="Title, author, reference ID, DOI, or URL"></label>

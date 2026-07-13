@@ -161,16 +161,16 @@ describe("reference library API", () => {
     expect(restored.status).toBe(201);
   });
 
-  it("rejects private web destinations and records a bounded failed capture when metadata identifies the source", async () => {
+  it("rejects private web destinations and keeps failed URL-only captures refinable", async () => {
     const fixture = apiFixture();
+    const override = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/web-sources", { url: "https://example.com/article", title: "Intake override" }),
+      fixture.env,
+      identity,
+    );
+    expect(override.status).toBe(400);
     const invalid = await handleReferenceLibraryApi(
-      jsonRequest("/api/library/web-sources", {
-        url: "http://127.0.0.1/private",
-        title: "Private",
-        authors: [],
-        publisher: "",
-        publishedAt: "",
-      }),
+      jsonRequest("/api/library/web-sources", { url: "http://127.0.0.1/private" }),
       fixture.env,
       identity,
     );
@@ -180,13 +180,7 @@ describe("reference library API", () => {
       throw new Error("offline");
     });
     const captured = await handleReferenceLibraryApi(
-      jsonRequest("/api/library/web-sources", {
-        url: "https://example.com/article#section",
-        title: "Private Guide",
-        authors: ["Ada Writer"],
-        publisher: "Example",
-        publishedAt: "2026-07-12",
-      }),
+      jsonRequest("/api/library/web-sources", { url: "https://example.com/article#section" }),
       fixture.env,
       identity,
       fetchWeb,
@@ -197,7 +191,13 @@ describe("reference library API", () => {
       expect.objectContaining({
         canonicalUrl: "https://example.com/article",
         actor: identity.email,
-        snapshot: expect.objectContaining({ complete: false, status: 0, title: "Private Guide" }),
+        snapshot: expect.objectContaining({
+          complete: false,
+          status: 0,
+          title: "https://example.com/article",
+          authors: [],
+          diagnostics: expect.arrayContaining(["Page title unavailable; using its URL until metadata is refined."]),
+        }),
       }),
     );
   });
@@ -216,13 +216,7 @@ describe("reference library API", () => {
         ),
       );
     const response = await handleReferenceLibraryApi(
-      jsonRequest("/api/library/web-sources", {
-        url: "https://example.com/start",
-        title: "",
-        authors: [],
-        publisher: "",
-        publishedAt: "",
-      }),
+      jsonRequest("/api/library/web-sources", { url: "https://example.com/start" }),
       fixture.env,
       identity,
       fetchWeb,

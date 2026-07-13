@@ -1,6 +1,6 @@
 # ADR-060: Capture Versioned Web Sources
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-084](./ADR-084-separate-source-capture-from-refinement.md)
 
 **Date:** 2026-07-11
 

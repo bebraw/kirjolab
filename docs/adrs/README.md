@@ -92,7 +92,7 @@ None.
 | [ADR-057](./implemented/ADR-057-compose-projects-from-main.md)                        | Implemented          | Compose one project from root `main.md` through bounded, source-mapped transclusion.                         |
 | [ADR-058](./implemented/ADR-058-use-a-shared-reference-library.md)                    | Implemented          | Make a user-scoped reference library authoritative and derive project bibliography snapshots.                |
 | [ADR-059](./implemented/ADR-059-separate-private-research-from-projects.md)           | Implemented          | Keep personal research private by default and share pinned snapshots into projects explicitly.               |
-| [ADR-060](./implemented/ADR-060-capture-versioned-web-sources.md)                     | Implemented          | Preserve timestamped web-source snapshots for reproducible citations and evidence.                           |
+| [ADR-060](./implemented/ADR-060-capture-versioned-web-sources.md)                     | Partially superseded | Preserve timestamped web-source snapshots for reproducible citations and evidence.                           |
 | [ADR-061](./implemented/ADR-061-preserve-project-revisions-and-milestones.md)         | Implemented          | Keep atomic project revisions, immutable milestones, non-destructive restore, and diffs.                     |
 | [ADR-062](./implemented/ADR-062-use-one-source-mapped-export-pipeline.md)             | Implemented          | Derive publication targets and statistics from one pinned, source-mapped export intermediate.                |
 | [ADR-063](./implemented/ADR-063-model-citation-assertions-with-provenance.md)         | Implemented          | Represent library citation relationships as bounded provenance-bearing assertions.                           |
@@ -116,6 +116,7 @@ None.
 | [ADR-081](./implemented/ADR-081-read-private-library-pdfs-in-context.md)              | Partially superseded | Open owner-private library PDFs in kind-qualified context tabs with local reading position.                  |
 | [ADR-082](./implemented/ADR-082-capture-private-library-pdf-highlights.md)            | Implemented          | Capture explicit page-and-quote highlights while reading an owner-private library PDF.                       |
 | [ADR-083](./implemented/ADR-083-finalize-provisional-reference-keys.md)               | Implemented          | Improve private PDF keys until their first project link permanently finalizes them.                          |
+| [ADR-084](./implemented/ADR-084-separate-source-capture-from-refinement.md)           | Implemented          | Keep initial PDF and website collection separate from later metadata refinement.                             |
 
 ## Creating A New ADR
 

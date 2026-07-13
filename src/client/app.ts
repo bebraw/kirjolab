@@ -151,10 +151,6 @@ interface Elements {
   citationNetworkList: HTMLElement;
   webSourceForm: HTMLFormElement;
   webSourceUrl: HTMLInputElement;
-  webSourceTitle: HTMLInputElement;
-  webSourceAuthor: HTMLInputElement;
-  webSourcePublisher: HTMLInputElement;
-  webSourcePublishedAt: HTMLInputElement;
   webSnapshotComparison: HTMLElement;
   unidentifiedPdfCount: HTMLElement;
   unidentifiedPdfList: HTMLElement;
@@ -1925,7 +1921,7 @@ class WorkspaceApp {
       const recapture = actionButton(
         "Capture current version",
         "button-secondary mt-3",
-        () => void this.#recaptureWebSource(reference, webSource.canonicalUrl),
+        () => void this.#captureWebSourceInput(webSource.canonicalUrl),
       );
       metadataEditor.append(recapture);
       for (const [index, snapshot] of webSnapshots.entries()) {
@@ -2258,34 +2254,12 @@ class WorkspaceApp {
 
   async #captureWebSource(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    await this.#captureWebSourceInput({
-      url: this.#elements.webSourceUrl.value,
-      title: this.#elements.webSourceTitle.value,
-      authors: this.#elements.webSourceAuthor.value.trim() ? [this.#elements.webSourceAuthor.value] : [],
-      publisher: this.#elements.webSourcePublisher.value,
-      publishedAt: this.#elements.webSourcePublishedAt.value,
-    });
+    await this.#captureWebSourceInput(this.#elements.webSourceUrl.value);
     this.#elements.webSourceForm.reset();
   }
 
-  async #recaptureWebSource(reference: BibliographicRecord, url: string): Promise<void> {
-    await this.#captureWebSourceInput({
-      url,
-      title: reference.title,
-      authors: [...reference.authors],
-      publisher: reference.venue,
-      publishedAt: reference.year,
-    });
-  }
-
-  async #captureWebSourceInput(input: {
-    readonly url: string;
-    readonly title: string;
-    readonly authors: readonly string[];
-    readonly publisher: string;
-    readonly publishedAt: string;
-  }): Promise<void> {
-    const response = await jsonFetch("/api/library/web-sources", input);
+  async #captureWebSourceInput(url: string): Promise<void> {
+    const response = await jsonFetch("/api/library/web-sources", { url });
     await expectOk(response);
     await this.#refreshReferenceLibrary();
     this.#showToast("Web source captured privately with an immutable access timestamp.");
@@ -4787,10 +4761,6 @@ function collectElements(): Elements {
     citationNetworkList: requiredElement("citation-network-list", HTMLElement),
     webSourceForm: requiredElement("web-source-form", HTMLFormElement),
     webSourceUrl: requiredElement("web-source-url", HTMLInputElement),
-    webSourceTitle: requiredElement("web-source-title", HTMLInputElement),
-    webSourceAuthor: requiredElement("web-source-author", HTMLInputElement),
-    webSourcePublisher: requiredElement("web-source-publisher", HTMLInputElement),
-    webSourcePublishedAt: requiredElement("web-source-published-at", HTMLInputElement),
     webSnapshotComparison: requiredElement("web-snapshot-comparison", HTMLElement),
     unidentifiedPdfCount: requiredElement("unidentified-pdf-count", HTMLElement),
     unidentifiedPdfList: requiredElement("unidentified-pdf-list", HTMLElement),

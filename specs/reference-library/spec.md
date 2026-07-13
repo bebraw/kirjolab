@@ -63,8 +63,9 @@ memory and makes citation aliases compete with stable source identity.
   research-context pane. Activating it refreshes the authorized owner snapshot
   without opening a modal or mutating project state.
 - The default Library view gives PDF upload and website URL capture first-class
-  actions, keeps search visible, and folds filters, interchange, graph, metadata,
-  organization, and reading controls into progressive disclosure.
+  actions without intake-time metadata overrides. Metadata refinement belongs
+  to the resulting record. Search stays visible, while filters, interchange,
+  graph, metadata, organization, and reading controls use progressive disclosure.
 - An attached private PDF opens from its library record in a kind-qualified
   context tab. Reading uses the owner-private stream and local page state. Text
   selection creates only an ephemeral private-highlight draft; an explicit save

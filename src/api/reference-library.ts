@@ -495,12 +495,12 @@ async function captureWebSource(
   const snapshotId = crypto.randomUUID();
   const retrieval = await retrieveWebSource(requestedUrl, fetchWeb);
   const extraction = extractWebDocument(retrieval.sourceText, retrieval.contentType);
-  const title = body.title.trim() || extraction.title;
-  if (!title) return jsonError("Enter a title because this page did not expose one", 422);
-  const authors = body.authors.length > 0 ? body.authors.map((author) => author.trim()).filter(Boolean) : extraction.authors;
-  const publisher = body.publisher.trim() || extraction.publisher;
-  const publishedAt = body.publishedAt.trim() || extraction.publishedAt;
+  const title = extraction.title || retrieval.finalUrl;
+  const authors = extraction.authors;
+  const publisher = extraction.publisher;
+  const publishedAt = extraction.publishedAt;
   const diagnostics = [...retrieval.diagnostics, ...extraction.diagnostics];
+  if (!extraction.title) diagnostics.push("Page title unavailable; using its URL until metadata is refined.");
   const readable = boundedUtf8(extraction.readableText, maximumWebReadableBytes);
   if (readable.truncated) diagnostics.push("Readable text exceeded 1 MiB and was truncated.");
   const baseKey = `libraries/${identity.ownerKey}/web/${snapshotId}`;
@@ -786,22 +786,9 @@ function isReadingStatus(value: unknown): value is ReadingState["status"] {
 
 function isWebCaptureBody(value: unknown): value is {
   readonly url: string;
-  readonly title: string;
-  readonly authors: readonly string[];
-  readonly publisher: string;
-  readonly publishedAt: string;
 } {
-  if (!isRecord(value) || typeof value.url !== "string" || value.url.length === 0 || value.url.length > 4096) return false;
   return (
-    typeof value.title === "string" &&
-    value.title.length <= 1000 &&
-    Array.isArray(value.authors) &&
-    value.authors.length <= 32 &&
-    value.authors.every((author) => typeof author === "string" && author.length <= 500) &&
-    typeof value.publisher === "string" &&
-    value.publisher.length <= 500 &&
-    typeof value.publishedAt === "string" &&
-    value.publishedAt.length <= 100
+    isRecord(value) && Object.keys(value).length === 1 && typeof value.url === "string" && value.url.length > 0 && value.url.length <= 4096
   );
 }
 

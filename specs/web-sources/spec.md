@@ -44,14 +44,17 @@ event and captured content that supported the paper at that time.
 - Oversized responses retain only their bounded prefix and are marked
   incomplete. Unsupported media, non-success status, network failure, sparse
   readable extraction, and truncation remain explicit diagnostics.
-- A failed or unsupported retrieval may still become a citable snapshot when
-  the owner supplies enough identifying metadata. A missing title cannot be
-  silently fabricated.
+- A failed, unsupported, or titleless retrieval still becomes a refinable
+  snapshot. Its normalized final URL is the explicit placeholder title, and a
+  diagnostic distinguishes that locator from extracted bibliographic metadata.
+- A new web source has a provisional reference key. Recapture or later reviewed
+  metadata may improve it while the source remains private-only; its first
+  project link permanently finalizes it.
 
 ### API Contracts
 
-- `POST /api/library/web-sources` captures a URL with optional reviewed title,
-  author/organization, publisher, and publication-date overrides.
+- `POST /api/library/web-sources` accepts one bounded public URL. Bibliographic
+  metadata is extracted when available and refined later on the Library record.
 - `GET /api/library/references/{referenceId}/web-snapshots` lists that source's
   immutable capture metadata.
 - `GET /api/library/web-snapshots/{snapshotId}` returns one owner-private
@@ -84,13 +87,14 @@ event and captured content that supported the paper at that time.
   successful HTTP status alone.
 - Do not make citation creation implicitly share raw/readable content.
 - Do not auto-update a project from one web snapshot to another.
+- Do not turn source collection into a second metadata-editing surface.
 
 ### Validation
 
 - Pure tests cover URL safety, metadata/readable extraction, HTML removal, and
   neutral text comparison.
-- API tests cover owner routing, private-destination rejection, bounded failed
-  captures, and non-cacheable responses.
+- API tests cover URL-only intake, owner routing, private-destination rejection,
+  refinable bounded failures, and non-cacheable responses.
 - Real-`workerd` tests cover append-only capture rows, stable source identity,
   explicit web sharing, project pin preservation, repinning, migration, and
   derived access-date bibliography.

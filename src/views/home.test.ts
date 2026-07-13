@@ -69,6 +69,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="close-active-context" type="button" disabled hidden');
     expect(html).toContain('id="pdf-context-controls" hidden');
     expect(html).toContain('id="context-preview-tab" type="button" role="tab"');
+    expect(html).toContain('id="web-source-url"');
+    expect(html).not.toContain("Optional metadata overrides");
+    expect(html).not.toContain('id="web-source-title"');
     expect(html).toContain('aria-controls="context-preview-panel" aria-selected="true"');
     expect(html).toContain('id="context-preview-panel" role="tabpanel"');
     expect(html).toContain('id="context-assistant-tab" type="button" role="tab"');

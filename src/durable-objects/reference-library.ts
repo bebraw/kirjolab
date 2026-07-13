@@ -602,7 +602,11 @@ export class ReferenceLibrary extends DurableObject<Env> {
     if (count >= 512) throw new Error("A web source may retain at most 512 captures");
     const now = registration.snapshot.accessedAt;
     const referenceId = existingSource?.reference_id ?? crypto.randomUUID();
-    const existingReference = existingSource ? this.#reference(referenceId, true) : null;
+    const existingReferenceRow = existingSource
+      ? this.ctx.storage.sql.exec<ReferenceRow>("SELECT * FROM library_references WHERE id = ?", referenceId).one()
+      : null;
+    const existingReference = existingReferenceRow ? referenceFromRow(existingReferenceRow) : null;
+    const referenceKeyState = existingReferenceRow ? referenceKeyStateFromRow(existingReferenceRow) : "provisional";
     const snapshot: WebSnapshot = { ...registration.snapshot, referenceId };
     const provenance: MetadataFieldProvenance = { method: "web", capturedAt: now, actor: registration.actor };
     const reference: BibliographicRecord = {
@@ -630,7 +634,10 @@ export class ReferenceLibrary extends DurableObject<Env> {
       createdAt: existingReference?.createdAt ?? now,
       updatedAt: now,
     };
-    const keyedReference = reference.referenceKey ? reference : { ...reference, referenceKey: this.#allocateReferenceKey(reference) };
+    const keyedReference =
+      referenceKeyState === "provisional" || !reference.referenceKey
+        ? { ...reference, referenceKey: this.#allocateReferenceKey(reference) }
+        : reference;
     const source: WebSource = {
       referenceId,
       canonicalUrl: registration.canonicalUrl,
@@ -638,7 +645,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       updatedAt: now,
     };
     this.ctx.storage.transactionSync(() => {
-      this.#writeReference(keyedReference, `web:${registration.canonicalUrl}`, !existingSource);
+      this.#writeReference(keyedReference, `web:${registration.canonicalUrl}`, !existingSource, referenceKeyState);
       this.ctx.storage.sql.exec(
         `INSERT INTO web_sources (reference_id, canonical_url, created_at, updated_at) VALUES (?, ?, ?, ?)
          ON CONFLICT(reference_id) DO UPDATE SET canonical_url = excluded.canonical_url, updated_at = excluded.updated_at`,
