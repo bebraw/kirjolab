@@ -35,7 +35,13 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="workspace-surfaces" data-active-surface="authoring"');
     expect(html).toContain('id="show-authoring-surface"');
     expect(html).toContain('id="show-context-surface"');
-    expect(html).toContain('id="show-comments-rail" type="button" role="tab"');
+    expect(html).toContain('id="show-files-rail" type="button" role="tab" aria-label="Files"');
+    expect(html).toContain('id="show-research-rail" type="button" role="tab" aria-label="Research"');
+    expect(html).toContain('id="show-comments-rail" type="button" role="tab" aria-label="Comments"');
+    expect(html).toContain('aria-selected="false" title="Files"');
+    expect(html).toContain('aria-selected="true" title="Research"');
+    expect(html).toContain('aria-selected="false" title="Comments"');
+    expect(html).toContain('class="count-badge rail-mode-count" id="manuscript-comment-count"');
     expect(html).toContain('id="comments-rail-panel" role="tabpanel"');
     expect(html).toContain('id="manuscript-comment-form"');
     expect(html).not.toContain('id="manuscript-comments"');

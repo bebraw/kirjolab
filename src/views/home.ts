@@ -60,9 +60,16 @@ export function renderHomePage(
       </nav>
       <aside class="source-rail border-b border-app-line bg-app-paper min-[72rem]:border-r min-[72rem]:border-b-0">
         <div class="rail-mode-switcher" role="tablist" aria-label="Project navigation">
-          <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-controls="files-rail-panel" aria-selected="false">Files</button>
-          <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-controls="research-rail-panel" aria-selected="true">Research</button>
-          <button class="rail-mode" id="show-comments-rail" type="button" role="tab" aria-controls="comments-rail-panel" aria-selected="false"><span>Comments</span><span class="count-badge" id="manuscript-comment-count">0</span></button>
+          <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-label="Files" aria-controls="files-rail-panel" aria-selected="false" title="Files">
+            <svg class="rail-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.75h6l2 2h9v9.5h-17z"></path></svg>
+          </button>
+          <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-label="Research" aria-controls="research-rail-panel" aria-selected="true" title="Research">
+            <svg class="rail-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.25A2.75 2.75 0 0 1 13 8.25v10.25a3.25 3.25 0 0 0-3.25-3.25H5z"></path><path d="M19 5.5h-3.25A2.75 2.75 0 0 0 13 8.25v10.25a3.25 3.25 0 0 1 3.25-3.25H19z"></path></svg>
+          </button>
+          <button class="rail-mode" id="show-comments-rail" type="button" role="tab" aria-label="Comments" aria-describedby="manuscript-comment-count" aria-controls="comments-rail-panel" aria-selected="false" title="Comments">
+            <svg class="rail-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.25h16v11.5H9l-5 3z"></path></svg>
+            <span class="count-badge rail-mode-count" id="manuscript-comment-count">0</span>
+          </button>
         </div>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail" hidden>

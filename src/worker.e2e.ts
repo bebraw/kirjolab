@@ -73,6 +73,12 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Sources & evidence" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
+  const railModes = page.locator(".rail-mode-switcher");
+  await expect(railModes.locator(".rail-mode-icon")).toHaveCount(3);
+  await expect(page.getByRole("tab", { name: "Files" })).toHaveAttribute("title", "Files");
+  await expect(page.getByRole("tab", { name: "Research" })).toHaveAttribute("title", "Research");
+  await expect(page.getByRole("tab", { name: "Comments" })).toHaveAttribute("title", "Comments");
+  expect(await railModes.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await expect(page.locator("#save-status")).toHaveText("Saved");
   const assistantTab = page.getByRole("tab", { name: "Writing assistant" });
   await expect(assistantTab).toBeVisible();

@@ -34,7 +34,8 @@ mode for authenticated hosted collaboration.
   modes. Comments contains the selected-passage composer and durable comment
   history without taking vertical space from the manuscript editor. Files owns
   the collapsed read-only project bibliography projection beside the authored
-  file list.
+  file list. Their persistent switcher uses compact icons with accessible names,
+  native hover titles, and a visible open-comment count.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
   Infrequent project-management and file-mutation actions stay grouped in
@@ -282,6 +283,8 @@ mode for authenticated hosted collaboration.
       drawer or modal.
 - [x] The derived project bibliography is inspectable as secondary Files-rail
       context without shortening the manuscript editor.
+- [x] Crowded left-rail navigation remains identifiable through labelled icons,
+      hover titles, selected state, and the visible comment count.
 - [x] Server state establishes synchronization before the browser sends queued
       updates, and each client update receives a durable acknowledgement.
 - [x] Reconnect replays only unacknowledged updates; an already integrated

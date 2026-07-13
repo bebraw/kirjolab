@@ -121,6 +121,7 @@
   }
 
   .rail-mode {
+    position: relative;
     display: flex;
     min-height: 2.25rem;
     border: 1px solid transparent;
@@ -134,6 +135,26 @@
     gap: 0.35rem;
     letter-spacing: 0.09em;
     text-transform: uppercase;
+  }
+
+  .rail-mode-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+  }
+
+  .rail-mode-count {
+    position: absolute;
+    top: 0.2rem;
+    right: 0.25rem;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    padding-inline: 0.2rem;
+    font-size: 0.55rem;
   }
 
   .rail-mode[aria-selected="true"] {
