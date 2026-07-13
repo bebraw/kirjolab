@@ -168,6 +168,12 @@ export interface LibraryPdfArtifact {
   readonly createdAt: string;
 }
 
+export interface PdfDraftResult {
+  readonly reference: BibliographicRecord;
+  readonly artifact: LibraryPdfArtifact;
+  readonly created: boolean;
+}
+
 export interface LibraryNote {
   readonly id: string;
   readonly referenceId: string;
@@ -473,6 +479,15 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
   );
 }
 
+export function isPdfDraftResult(value: unknown): value is PdfDraftResult {
+  return (
+    isRecord(value) &&
+    isBibliographicRecord(value.reference) &&
+    isLibraryPdfArtifact(value.artifact) &&
+    typeof value.created === "boolean"
+  );
+}
+
 export function isCrossrefLibraryPreview(value: unknown): value is CrossrefLibraryPreview {
   return (
     isRecord(value) &&
@@ -607,6 +622,23 @@ function isBibliographicRecord(value: unknown): value is BibliographicRecord {
     (value.deletedAt === null || typeof value.deletedAt === "string") &&
     typeof value.createdAt === "string" &&
     typeof value.updatedAt === "string"
+  );
+}
+
+function isLibraryPdfArtifact(value: unknown): value is LibraryPdfArtifact {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    (value.referenceId === null || typeof value.referenceId === "string") &&
+    typeof value.name === "string" &&
+    value.contentType === "application/pdf" &&
+    typeof value.size === "number" &&
+    Number.isFinite(value.size) &&
+    value.size >= 0 &&
+    typeof value.objectKey === "string" &&
+    typeof value.fingerprint === "string" &&
+    (value.rights === "private" || value.rights === "shareable" || value.rights === "unknown") &&
+    typeof value.createdAt === "string"
   );
 }
 

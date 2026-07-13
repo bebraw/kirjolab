@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { unzipSync } from "fflate";
 import type { CitationAssertion, CitationNetwork } from "../domain/citation-assertions";
 import type { BibliographicRecord, ReferenceLibrarySnapshot, WebSnapshot } from "../domain/reference-library";
@@ -76,6 +76,8 @@ const citationAssertion: CitationAssertion = {
   createdAt: now,
 };
 const citationNetwork: CitationNetwork = { projectId: null, nodes: [], edges: [], truncated: false };
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("reference library API", () => {
   it("returns only the selected owner library and supports archived navigation", async () => {
@@ -446,6 +448,45 @@ describe("reference library API", () => {
     expect(await foreign.json()).toEqual({ error: "PDF artifact not found" });
   });
 
+  it("returns an existing PDF draft and deletes the redundant R2 object", async () => {
+    vi.stubGlobal("FixedLengthStream", TestFixedLengthStream);
+    const bucket = new MemoryR2Bucket();
+    const fixture = apiFixture(bucket);
+    fixture.library.createPdfDraft.mockResolvedValueOnce({
+      reference,
+      artifact: {
+        id: "22222222-2222-4222-8222-222222222222",
+        referenceId: reference.id,
+        name: "guide.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: "libraries/owner/guide.pdf",
+        fingerprint: "r2-etag:guide",
+        rights: "private",
+        createdAt: now,
+      },
+      created: false,
+    });
+    const response = await handleReferenceLibraryApi(pdfUploadRequest("repeat.pdf"), fixture.env, identity);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ created: false, reference: { referenceKey: "guide" } });
+    expect(bucket.size).toBe(0);
+    expect(fixture.library.createPdfDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "repeat.pdf", fingerprint: "r2-etag:test-etag" }),
+      identity.email,
+    );
+  });
+
+  it("keeps the canonical R2 object for a newly created PDF draft", async () => {
+    vi.stubGlobal("FixedLengthStream", TestFixedLengthStream);
+    const bucket = new MemoryR2Bucket();
+    const fixture = apiFixture(bucket);
+    const response = await handleReferenceLibraryApi(pdfUploadRequest("new.pdf"), fixture.env, identity);
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({ created: true });
+    expect(bucket.size).toBe(1);
+  });
+
   it("rejects empty, unknown, and over-limit PDF metadata fields", async () => {
     const fixture = apiFixture();
     const route = `/api/library/references/${reference.id}/pdf-metadata`;
@@ -788,7 +829,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     getSnapshot: vi.fn(async () => snapshot),
     importBibTeX: vi.fn(async () => [{ reference, suggestedAlias: "guide", created: true }]),
     registerPdf: vi.fn(async () => artifact),
-    createPdfDraft: vi.fn(async () => ({ reference, artifact })),
+    createPdfDraft: vi.fn(async () => ({ reference, artifact, created: true })),
     identifyPdf: vi.fn(async () => artifact),
     setArtifactRights: vi.fn(async () => ({ ...artifact, rights: "shareable" as const })),
     archiveReference: vi.fn(async () => ({ ...reference, archivedAt: now })),
@@ -898,6 +939,10 @@ class MemoryR2Bucket implements Pick<R2Bucket, "put" | "get" | "delete"> {
     { bytes: Uint8Array; httpMetadata: R2HTTPMetadata | undefined; customMetadata: Record<string, string> | undefined }
   >();
 
+  get size(): number {
+    return this.#objects.size;
+  }
+
   async put(
     key: string,
     value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob,
@@ -916,6 +961,12 @@ class MemoryR2Bucket implements Pick<R2Bucket, "put" | "get" | "delete"> {
 
   async delete(keys: string | string[]): Promise<void> {
     for (const key of typeof keys === "string" ? [keys] : keys) this.#objects.delete(key);
+  }
+}
+
+class TestFixedLengthStream extends TransformStream<Uint8Array, Uint8Array> {
+  constructor(_expectedLength: number) {
+    super();
   }
 }
 
@@ -984,5 +1035,13 @@ function jsonRequest(path: string, body: object, method = "POST"): Request {
     method,
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+  });
+}
+
+function pdfUploadRequest(name: string): Request {
+  return new Request("https://example.test/api/library/pdfs", {
+    method: "POST",
+    headers: { "content-length": "4", "content-type": "application/pdf", "x-file-name": encodeURIComponent(name) },
+    body: new Blob([new Uint8Array([37, 80, 68, 70])]),
   });
 }

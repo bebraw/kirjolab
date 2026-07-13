@@ -264,6 +264,42 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect(longSecond.reference.referenceKey).toBe(`${longFirst.reference.referenceKey.slice(0, 79)}2`);
   });
 
+  it("resolves exact PDF repeats to the canonical active or archived source", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`exact-pdf-${crypto.randomUUID()}`);
+    const artifact = (id: string): LibraryPdfArtifact => ({
+      id,
+      referenceId: null,
+      name: `${id}.pdf`,
+      contentType: "application/pdf",
+      size: 100,
+      objectKey: `libraries/owner/${id}.pdf`,
+      fingerprint: "r2-etag:identical",
+      rights: "private",
+      createdAt: "2026-07-13T10:00:00.000Z",
+    });
+    const first = await library.createPdfDraft(artifact(crypto.randomUUID()), "owner@example.test");
+    const repeated = await library.createPdfDraft(artifact(crypto.randomUUID()), "owner@example.test");
+    expect(first.created).toBe(true);
+    expect(repeated).toEqual({ ...first, created: false });
+    expect((await library.getSnapshot()).references).toHaveLength(1);
+    expect((await library.getSnapshot()).artifacts).toHaveLength(1);
+
+    await library.archiveReference(first.reference.id, true);
+    const archivedRepeat = await library.createPdfDraft(artifact(crypto.randomUUID()), "owner@example.test");
+    expect(archivedRepeat).toMatchObject({
+      created: false,
+      reference: { id: first.reference.id, archivedAt: expect.any(String) },
+      artifact: { id: first.artifact.id },
+    });
+
+    await library.permanentlyDeleteReference(first.reference.id, []);
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() => instance.createPdfDraft(artifact(crypto.randomUUID()), "owner@example.test")).toThrow(
+        "deleted library source already owns this PDF",
+      );
+    });
+  });
+
   it("distinguishes project unlink dependencies, archive, and confirmed permanent deletion", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`deletion-library-${crypto.randomUUID()}`);
     const [item] = await library.importBibTeX("@manual{guide, title={Field Guide}}", "owner@example.test");

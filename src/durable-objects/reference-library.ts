@@ -22,6 +22,7 @@ import {
   type LibraryNote,
   type LibraryPdfArtifact,
   type MetadataFieldProvenance,
+  type PdfDraftResult,
   type ReadingState,
   type ReviewedPdfMetadata,
   type ReferenceLibrarySnapshot,
@@ -191,11 +192,6 @@ export interface WebCaptureItem {
   readonly source: WebSource;
   readonly snapshot: WebSnapshot;
   readonly created: boolean;
-}
-
-export interface PdfDraftItem {
-  readonly reference: BibliographicRecord;
-  readonly artifact: LibraryPdfArtifact;
 }
 
 const migrations = [
@@ -724,8 +720,21 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return artifact;
   }
 
-  createPdfDraft(artifact: LibraryPdfArtifact, actor: string): PdfDraftItem {
+  createPdfDraft(artifact: LibraryPdfArtifact, actor: string): PdfDraftResult {
     if (artifact.referenceId !== null) throw new Error("A new PDF draft must not already identify a reference");
+    const identityKey = `pdf:${artifact.fingerprint}`;
+    const existingRow = this.ctx.storage.sql
+      .exec<ReferenceRow>("SELECT * FROM library_references WHERE identity_key = ? LIMIT 1", identityKey)
+      .toArray()[0];
+    if (existingRow) {
+      const reference = referenceFromRow(existingRow);
+      if (reference.deletedAt) throw new Error("A deleted library source already owns this PDF");
+      const artifactRow = this.ctx.storage.sql
+        .exec<ArtifactRow>("SELECT * FROM artifacts WHERE reference_id = ? AND fingerprint = ? LIMIT 1", reference.id, artifact.fingerprint)
+        .toArray()[0];
+      if (!artifactRow) throw new Error("The library source for this PDF no longer has its artifact");
+      return { reference, artifact: artifactFromRow(artifactRow), created: false };
+    }
     const now = artifact.createdAt;
     const titleProvenance: MetadataFieldProvenance = { method: "filename", capturedAt: now, actor };
     const typeProvenance: MetadataFieldProvenance = { method: "migration", capturedAt: now, actor };
@@ -754,7 +763,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const reference = { ...draft, referenceKey: this.#allocateReferenceKey(draft) };
     const identified = { ...artifact, referenceId: reference.id };
     this.ctx.storage.transactionSync(() => {
-      this.#writeReference(reference, `pdf:${artifact.fingerprint}`, true, "provisional");
+      this.#writeReference(reference, identityKey, true, "provisional");
       this.ctx.storage.sql.exec(
         `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, fingerprint, rights, created_at)
          VALUES (?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?)`,
@@ -768,7 +777,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
         identified.createdAt,
       );
     });
-    return { reference, artifact: identified };
+    return { reference, artifact: identified, created: true };
   }
 
   identifyPdf(artifactId: string, referenceId: string): LibraryPdfArtifact {

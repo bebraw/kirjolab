@@ -10,6 +10,7 @@ import {
   type LibraryHighlight,
   type LibraryNote,
   type LibraryPdfArtifact,
+  type PdfDraftResult,
   type ReadingState,
   type ReferenceLibrarySnapshot,
   type ReviewedPdfMetadata,
@@ -25,7 +26,7 @@ import {
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
-import type { PdfDraftItem, ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
+import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
 import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi } from "../domain/publication-intake";
 import { fetchCrossrefReferences, fetchCrossrefWork, fingerprintPublicationMetadata, searchCrossrefWorks } from "../integrations/crossref";
@@ -52,7 +53,7 @@ interface ReferenceLibraryApi {
   getSnapshot(includeArchived?: boolean): Promise<ReferenceLibrarySnapshot>;
   importBibTeX(source: string, actor: string): Promise<ReferenceImportItem[]>;
   registerPdf(artifact: LibraryPdfArtifact): Promise<LibraryPdfArtifact>;
-  createPdfDraft(artifact: LibraryPdfArtifact, actor: string): Promise<PdfDraftItem>;
+  createPdfDraft(artifact: LibraryPdfArtifact, actor: string): Promise<PdfDraftResult>;
   identifyPdf(artifactId: string, referenceId: string): Promise<LibraryPdfArtifact>;
   setArtifactRights(artifactId: string, rights: LibraryPdfArtifact["rights"]): Promise<LibraryPdfArtifact>;
   archiveReference(referenceId: string, archived: boolean): Promise<BibliographicRecord>;
@@ -892,13 +893,15 @@ async function uploadLibraryPdf(
     rights: "private",
     createdAt: new Date().toISOString(),
   };
+  let draft: PdfDraftResult;
   try {
-    const draft = await library.createPdfDraft(artifact, actor);
-    return Response.json(draft, { status: 201, ...noStore() });
+    draft = await library.createPdfDraft(artifact, actor);
   } catch (error) {
     await env.PAPERS.delete(objectKey);
     throw error;
   }
+  if (!draft.created) await env.PAPERS.delete(objectKey);
+  return Response.json(draft, { status: draft.created ? 201 : 200, ...noStore() });
 }
 
 async function downloadLibraryPdf(artifactId: string, env: ReferenceLibraryApiEnv, library: ReferenceLibraryApi): Promise<Response> {

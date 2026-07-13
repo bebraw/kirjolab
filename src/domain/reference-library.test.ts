@@ -7,6 +7,7 @@ import {
   isCrossrefLibraryPreview,
   isCrossrefMetadata,
   isMetadataRefinementPreview,
+  isPdfDraftResult,
   isReferenceLibrarySnapshot,
   likelyReferenceIdentity,
   memorableReferenceKey,
@@ -41,6 +42,39 @@ const capturedWebSnapshot = {
 } as const;
 
 describe("shared reference library", () => {
+  it("accepts only complete PDF draft results", () => {
+    const reference = referenceFromBibTeX(
+      { type: "misc", citationKey: "guide", fields: { title: "Private Guide" } },
+      "reference-1",
+      provenance,
+    );
+    const artifact = {
+      id: "artifact-1",
+      referenceId: reference.id,
+      name: "guide.pdf",
+      contentType: "application/pdf",
+      size: 100,
+      objectKey: "libraries/owner/guide.pdf",
+      fingerprint: "r2-etag:guide",
+      rights: "private",
+      createdAt: "2026-07-13T10:00:00.000Z",
+    };
+    const result = { reference, artifact, created: false };
+    expect(isPdfDraftResult(result)).toBe(true);
+    for (const candidate of [
+      null,
+      { ...result, reference: null },
+      { ...result, artifact: null },
+      { ...result, created: "false" },
+      { ...result, artifact: { ...artifact, referenceId: 1 } },
+      { ...result, artifact: { ...artifact, contentType: "text/plain" } },
+      { ...result, artifact: { ...artifact, size: -1 } },
+      { ...result, artifact: { ...artifact, rights: "public" } },
+    ]) {
+      expect(isPdfDraftResult(candidate)).toBe(false);
+    }
+  });
+
   it("accepts only bounded, fingerprinted Crossref library previews", () => {
     const preview = {
       referenceId: "reference-1",
