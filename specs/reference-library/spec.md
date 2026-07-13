@@ -66,6 +66,10 @@ memory and makes citation aliases compete with stable source identity.
   selection creates only an ephemeral private-highlight draft; an explicit save
   records its artifact, page, quote, and optional comment in the owner library
   without adding, sharing, or annotating the artifact in a project.
+- The private reader exposes a staged current-project handoff without changing
+  those defaults: first add the bibliographic record, then explicitly review
+  artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
+  highlight retains a separate share or revoke action.
 
 ### API Contracts
 
@@ -123,6 +127,8 @@ memory and makes citation aliases compete with stable source identity.
   one trusted boolean edge.
 - Do not cover authoring with a modal for the primary library workflow or
   duplicate its permanent tab with generic header and rail launchers.
+- Do not combine project reference linkage, an artifact-rights declaration,
+  PDF sharing, or highlight sharing into one ambiguous action.
 
 ### Validation
 
@@ -138,6 +144,8 @@ memory and makes citation aliases compete with stable source identity.
   page-and-quote highlight, restores reading state, keeps project evidence
   controls unavailable, and proves that capture does not mutate the workspace
   snapshot.
+- Browser coverage advances the reader's project-use states explicitly and
+  proves PDF and highlight sharing can be revoked independently.
 
 ## Current Milestone
 

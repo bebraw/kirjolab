@@ -50,6 +50,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   intake, citation, highlighting, and annotation controls are unavailable in
   that mode. A selection remains ephemeral until the owner explicitly saves a
   page, quote, and optional comment to the private library.
+- A private PDF context may expose the existing project-reference and private-
+  research sharing commands as a staged project-use section. Reference linkage,
+  rights review, PDF sharing, highlight sharing, and revocation remain distinct
+  commands whose current state is derived from authorized snapshots.
 - The semantic preview and `PdfEvidenceViewer` remain independent views behind
   one context-pane controller. Switching tabs must not recreate a resource
   identity or mutate the manuscript, PDF, or annotation records.
@@ -178,6 +182,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   as a side effect of opening or switching context.
 - Do not expose project evidence controls or treat private PDF selection as a
   durable mutation while a private library PDF is active.
+- Do not present project handoff as one action that silently links a reference,
+  changes artifact rights, or shares more than the selected resource.
 - Do not assume every publication has exactly one PDF.
 - Do not infer a publication/PDF association from citation key, DOI, title,
   author, filename, or search similarity.
@@ -228,6 +234,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
       tab, restore its local page, and leave project state unchanged.
 - [x] An owner can explicitly save a selected private PDF quotation, revisit
       its page, and keep that highlight outside project evidence state.
+- [x] An owner can explicitly link a private PDF's reference, review rights,
+      share or revoke its PDF snapshot, and independently share or revoke a
+      saved highlight from the reader.
 
 ### Regression Guardrails
 
@@ -352,3 +361,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
   its page, visits Library, and opens the PDF again
 - Then: one `library-pdf:` tab retains private reading context without exposing
   project evidence controls or changing the project snapshot
+
+**Scenario: Private research enters a project explicitly**
+
+- Given: a private PDF reference is not linked and its artifact is not marked
+  shareable
+- When: the owner links the reference, records shareable rights, shares the PDF,
+  and separately shares one saved highlight
+- Then: each state advances only after its own command, PDF and highlight shares
+  can be revoked independently, and no citation is inserted into the manuscript

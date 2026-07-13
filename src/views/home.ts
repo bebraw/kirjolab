@@ -455,6 +455,12 @@ export function renderHomePage(
                   <button class="button-secondary justify-center" id="cancel-library-highlight" type="button" disabled>Cancel selection</button>
                 </div>
               </form>
+              <section class="mt-4 border-t border-app-line pt-4" aria-labelledby="library-project-use-title">
+                <h3 class="eyebrow" id="library-project-use-title">Use in current project</h3>
+                <div class="mt-2" id="library-project-use">
+                  <p class="empty-state">Project-use options appear for the active private PDF.</p>
+                </div>
+              </section>
               <section class="mt-4 border-t border-app-line pt-4" aria-labelledby="library-highlight-list-title">
                 <div class="flex items-center justify-between gap-3">
                   <h3 class="eyebrow" id="library-highlight-list-title">Saved highlights</h3>

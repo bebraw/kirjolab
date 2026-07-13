@@ -21,6 +21,13 @@ into a collaborative paper.
 - Sharing is a separate owner action naming one project, reference, resource,
   and kind. The library captures an immutable bounded snapshot; the project
   pins it in a new project revision.
+- A private PDF reader presents project use as explicit sequential states:
+  link the bibliographic reference, record an artifact-rights decision, then
+  share or revoke the immutable PDF snapshot. It never collapses those actions
+  into one implicit mutation.
+- Saved private highlights expose their own share or revoke action only after
+  the bibliographic reference is linked. Sharing the PDF does not share its
+  highlights, and sharing a highlight does not share the PDF.
 - Artifact sharing requires explicit `shareable` rights. Unknown and private
   rights fail closed.
 - Active shares expose their pinned representation to authorized project
@@ -51,6 +58,8 @@ into a collaborative paper.
 ### Anti-Patterns
 
 - Do not infer sharing from citing, opening, linking, or annotating a source.
+- Do not infer redistribution rights from upload, possession, bibliographic
+  linkage, or a private highlight.
 - Do not expose owner library APIs to project members.
 - Do not allow revocation to rewrite an immutable historical revision.
 - Do not assume possession of a PDF grants redistribution rights.
@@ -60,6 +69,9 @@ into a collaborative paper.
 - Workers tests prove privacy separation, rights checks, explicit snapshot
   pinning, project revision changes, revocation, dependency revalidation, and
   tombstone preservation in a real Durable Object runtime.
+- Browser coverage proves the reader advances only after each explicit action,
+  fails closed before a shareable rights decision, keeps PDF and highlight
+  shares independent, and exposes forward-only revocation.
 
 ## Current Milestone
 
@@ -69,4 +81,6 @@ into a collaborative paper.
   tombstones.
 - Implemented: manual metadata editing with provenance, collections, reading
   status, priority, and rating.
+- Implemented: a staged private-PDF project-use workflow with independent PDF
+  and highlight sharing and revocation.
 - Revision/milestone retention consumes the pinned rows under ADR-061.

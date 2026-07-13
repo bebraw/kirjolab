@@ -382,9 +382,30 @@ test("keeps private library research separate from project citations", async ({ 
   await refreshedPdfCard.getByText("Metadata and research").click();
   await refreshedPdfCard.getByRole("button", { name: "Open PDF" }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
-  await page.locator("#library-highlight-list").getByRole("button").click();
+  await page.getByRole("button", { name: "Open page 1" }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await expect(page.locator("#library-highlight-status")).toHaveText("Showing saved private highlight on page 1.");
+
+  const projectUse = page.locator("#library-project-use");
+  await expect(projectUse).toContainText("Step 1 of 3 · Reference");
+  await expect(projectUse.getByRole("button", { name: "Share PDF with project" })).toHaveCount(0);
+  await projectUse.getByRole("button", { name: "Add reference to project" }).click();
+  await expect(projectUse).toContainText("Step 2 of 3 · Rights");
+  await expect(page.getByRole("button", { name: "Share highlight with project" })).toBeEnabled();
+  await projectUse.getByLabel("PDF sharing rights").selectOption("shareable");
+  await projectUse.getByRole("button", { name: "Save rights decision" }).click();
+  await expect(page.locator("#toast")).toHaveText("PDF rights decision saved.");
+  await expect(projectUse).toContainText("Step 3 of 3 · PDF snapshot");
+  await projectUse.getByRole("button", { name: "Share PDF with project" }).click();
+  await expect(projectUse).toContainText("Shared with current project");
+  await page.getByRole("button", { name: "Share highlight with project" }).click();
+  await expect(page.getByRole("button", { name: "Revoke highlight share" })).toBeVisible();
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).researchShares.length).toBe(2);
+  await page.getByRole("button", { name: "Revoke highlight share" }).click();
+  await expect(page.getByRole("button", { name: "Share highlight with project" })).toBeVisible();
+  await projectUse.getByRole("button", { name: "Revoke PDF share" }).click();
+  await expect(projectUse).toContainText("Step 3 of 3 · PDF snapshot");
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).researchShares.length).toBe(0);
   await page.getByRole("tab", { name: "Library" }).click();
 
   await card.getByText("Metadata and research").click();

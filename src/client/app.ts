@@ -288,6 +288,7 @@ interface Elements {
   libraryHighlightComment: HTMLInputElement;
   saveLibraryHighlight: HTMLButtonElement;
   cancelLibraryHighlight: HTMLButtonElement;
+  libraryProjectUse: HTMLElement;
   libraryHighlightCount: HTMLElement;
   libraryHighlightList: HTMLElement;
   annotationPdf: HTMLSelectElement;
@@ -4264,6 +4265,7 @@ class WorkspaceApp {
       this.#elements.cancelLibraryHighlight.disabled = true;
       this.#elements.libraryHighlightStatus.textContent = "Select text in the PDF. Nothing is saved until you confirm.";
     }
+    this.#renderLibraryProjectUse(artifact);
     const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
     this.#elements.libraryHighlightCount.textContent = String(highlights.length);
     this.#elements.libraryHighlightList.replaceChildren();
@@ -4272,19 +4274,109 @@ class WorkspaceApp {
       return;
     }
     for (const highlight of highlights) {
-      const open = document.createElement("button");
-      open.type = "button";
-      open.className = "resource-card block w-full text-left";
-      open.append(resourceLabel(`Page ${highlight.page}`), resourceTitle(highlight.quote));
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      card.append(resourceLabel(`Page ${highlight.page}`), resourceTitle(highlight.quote));
       if (highlight.comment) {
         const comment = document.createElement("span");
         comment.className = "mt-2 block font-sans text-xs leading-5 text-app-text-soft";
         comment.textContent = highlight.comment;
-        open.append(comment);
+        card.append(comment);
       }
-      open.addEventListener("click", () => void this.#openLibraryHighlight(highlight));
-      this.#elements.libraryHighlightList.append(open);
+      const actions = document.createElement("div");
+      actions.className = "mt-3 flex flex-wrap gap-2";
+      actions.append(actionButton(`Open page ${highlight.page}`, "button-secondary", () => void this.#openLibraryHighlight(highlight)));
+      const linked = this.#snapshot?.projectReferences.some((item) => item.referenceId === highlight.referenceId) ?? false;
+      const share = this.#snapshot?.researchShares.find((item) => item.kind === "highlight" && item.resourceId === highlight.id);
+      const shareAction = share
+        ? actionButton("Revoke highlight share", "button-secondary", () => void this.#revokePrivateResearch(share.id))
+        : actionButton(
+            "Share highlight with project",
+            "button-secondary",
+            () => void this.#sharePrivateResearch(highlight.referenceId, "highlight", highlight.id),
+          );
+      shareAction.disabled = !share && !linked;
+      shareAction.title = linked ? "" : "Add the bibliographic reference to this project first";
+      actions.append(shareAction);
+      card.append(actions);
+      this.#elements.libraryHighlightList.append(card);
     }
+  }
+
+  #renderLibraryProjectUse(artifact: LibraryPdfArtifact): void {
+    this.#elements.libraryProjectUse.replaceChildren();
+    const reference = this.#librarySnapshot?.references.find((item) => item.id === artifact.referenceId);
+    if (!reference) {
+      this.#elements.libraryProjectUse.append(emptyState("Identify this PDF before using it in a project."));
+      return;
+    }
+    const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
+    const alias = linked?.citationAlias ?? reference.referenceKey;
+    const citation = document.createElement("code");
+    citation.className = "mt-2 block truncate text-xs";
+    citation.textContent = `:cite[${alias}]`;
+    if (!linked) {
+      this.#elements.libraryProjectUse.append(
+        resourceLabel("Step 1 of 3 · Reference"),
+        projectUseDescription("Add the bibliographic record to this project's reference set. This does not insert a citation."),
+        citation,
+        actionButton(
+          "Add reference to project",
+          "button-primary mt-3",
+          () => void this.#linkLibraryReference(reference.id, reference.referenceKey),
+        ),
+      );
+      return;
+    }
+    if (artifact.rights !== "shareable") {
+      const rights = document.createElement("select");
+      rights.className = "field mt-3";
+      rights.setAttribute("aria-label", "PDF sharing rights");
+      rights.append(
+        new Option("Private — do not share", "private"),
+        new Option("Unknown — not reviewed", "unknown"),
+        new Option("Shareable — permission confirmed", "shareable"),
+      );
+      rights.value = artifact.rights;
+      this.#elements.libraryProjectUse.append(
+        resourceLabel("Step 2 of 3 · Rights"),
+        projectUseDescription(
+          "Confirm whether this PDF may be shared with project collaborators. Upload or ownership alone is not permission.",
+        ),
+        citation,
+        rights,
+        actionButton("Save rights decision", "button-primary mt-2", () => void this.#saveProjectUseRights(artifact.id, rights.value)),
+      );
+      return;
+    }
+    const share = this.#snapshot?.researchShares.find((item) => item.kind === "artifact" && item.resourceId === artifact.id);
+    this.#elements.libraryProjectUse.append(citation);
+    if (share) {
+      this.#elements.libraryProjectUse.prepend(
+        resourceLabel("Shared with current project"),
+        projectUseDescription("Authorized project members can open this immutable PDF snapshot. Private highlights remain separate."),
+      );
+      this.#elements.libraryProjectUse.append(
+        actionButton("Revoke PDF share", "button-secondary mt-3", () => void this.#revokePrivateResearch(share.id)),
+      );
+      return;
+    }
+    this.#elements.libraryProjectUse.prepend(
+      resourceLabel("Step 3 of 3 · PDF snapshot"),
+      projectUseDescription("Share this immutable PDF snapshot with the current project. Saved private highlights are not included."),
+    );
+    this.#elements.libraryProjectUse.append(
+      actionButton(
+        "Share PDF with project",
+        "button-primary mt-3",
+        () => void this.#sharePrivateResearch(reference.id, "artifact", artifact.id),
+      ),
+    );
+  }
+
+  async #saveProjectUseRights(artifactId: string, rights: string): Promise<void> {
+    await this.#setArtifactRights(artifactId, rights);
+    this.#showToast("PDF rights decision saved.");
   }
 
   async #saveLibraryHighlight(event: SubmitEvent): Promise<void> {
@@ -4830,6 +4922,7 @@ function collectElements(): Elements {
     libraryHighlightComment: requiredElement("library-highlight-comment", HTMLInputElement),
     saveLibraryHighlight: requiredElement("save-library-highlight", HTMLButtonElement),
     cancelLibraryHighlight: requiredElement("cancel-library-highlight", HTMLButtonElement),
+    libraryProjectUse: requiredElement("library-project-use", HTMLElement),
     libraryHighlightCount: requiredElement("library-highlight-count", HTMLElement),
     libraryHighlightList: requiredElement("library-highlight-list", HTMLElement),
     annotationPdf: requiredElement("annotation-pdf", HTMLSelectElement),
@@ -4894,6 +4987,13 @@ function resourceTitle(text: string): HTMLElement {
   title.className = "mt-1 block text-sm leading-5 text-app-text";
   title.textContent = text;
   return title;
+}
+
+function projectUseDescription(text: string): HTMLParagraphElement {
+  const description = document.createElement("p");
+  description.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
+  description.textContent = text;
+  return description;
 }
 
 function emptyState(text: string): HTMLElement {
