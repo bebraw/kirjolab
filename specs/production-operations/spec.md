@@ -50,7 +50,7 @@ rollback workflow without adding a second identity system.
       verifies the manifest digest without overwriting production.
 - [x] Production logs, smoke checks, versions, and rollback commands are
       documented.
-- [ ] Full quality gate, local Agent CI, generated type check, startup check,
+- [x] Full quality gate, local Agent CI, generated type check, startup check,
       and production dry run pass.
 
 ### Bounds

@@ -48,3 +48,17 @@ release commit:
 Cloudflare dashboard configuration remains operator evidence: the custom
 hostname must be covered by the matching Access self-hosted application, and an
 unprotected `workers.dev` route must not expose application data.
+
+## Pre-Deploy Evidence
+
+The 2026-07-13 release candidate passed the full quality gate (389 unit tests,
+40 Workers-runtime tests, 36 browser tests, 81.02% mutation score, and zero
+production dependency vulnerabilities), both local Agent CI jobs, generated
+binding type validation, Wrangler startup analysis, and a strict production dry
+run with non-secret test identifiers. No Worker was uploaded.
+
+The remaining evidence is necessarily hosted: create or verify the private R2
+bucket, custom hostname, and matching Access application; deploy with the real
+release inputs; then run the signed-out denial, signed-in owner smoke checks,
+first `created`/`unchanged` backup pair, and isolated recovery drill from the
+production runbook.
