@@ -1,7 +1,14 @@
 import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "./bibliography";
 
 export type ReferenceMetadataField = "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract";
-export type MetadataProvenanceMethod = "bibtex" | "crossref" | "filename" | "manual" | "web" | "migration";
+export type MetadataProvenanceMethod = "bibtex" | "crossref" | "filename" | "manual" | "pdf-metadata" | "web" | "migration";
+
+export interface ReviewedPdfMetadata {
+  readonly title?: string;
+  readonly authors?: readonly string[];
+  readonly year?: string;
+  readonly doi?: string;
+}
 
 export interface MetadataFieldProvenance {
   readonly method: MetadataProvenanceMethod;

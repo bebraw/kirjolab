@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
-import { createEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
+import { createEvidencePdf, createMetadataEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
 
 test("renames, archives, duplicates, and permanently deletes projects", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Lifecycle source");
@@ -385,6 +385,38 @@ test("keeps private library research separate from project citations", async ({ 
   await expect.poll(async () => await page.locator("#context-library-scroll").evaluate((element) => element.scrollTop)).toBe(160);
   await page.locator("#source-editor").fill("# Study\n\nThis uses the guide :cite[writer2026].\n");
   await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("writer2026");
+});
+
+test("reviews bounded PDF metadata before enriching a library record", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "PDF metadata review");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await page.getByRole("tab", { name: "Library" }).click();
+  await page.locator("#library-pdf-upload").setInputFiles({
+    name: "metadata_review.pdf",
+    mimeType: "application/pdf",
+    buffer: createMetadataEvidencePdf(),
+  });
+
+  const draft = page.locator("#reference-library-list .resource-card").filter({ hasText: "metadata review" });
+  await expect(draft).toContainText("sourceundatedmetadata");
+  await draft.getByText("Metadata and research").click();
+  await draft.getByRole("button", { name: "Review PDF metadata" }).click();
+  await expect
+    .poll(async () => await draft.locator("input").evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value)))
+    .toEqual(expect.arrayContaining(["Metadata Review in Practice", "Doe, Jane; Roe, Alex", "2025", "10.5555/metadata.review"]));
+
+  await draft.getByRole("button", { name: "Apply selected metadata" }).click();
+  const enriched = page.locator("#reference-library-list .resource-card").filter({ hasText: "Metadata Review in Practice" });
+  await expect(enriched).toContainText("sourceundatedmetadata");
+  const library = (await (await page.request.get("/api/library")).json()) as {
+    references: Array<{ title: string; provenance: Record<string, { method: string }> }>;
+  };
+  expect(library.references.find((reference) => reference.title === "Metadata Review in Practice")?.provenance).toMatchObject({
+    title: { method: "pdf-metadata" },
+    authors: { method: "pdf-metadata" },
+    year: { method: "pdf-metadata" },
+    doi: { method: "pdf-metadata" },
+  });
 });
 
 test("round-trips CSL JSON and portable library metadata", async ({ page }) => {

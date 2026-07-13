@@ -9,6 +9,7 @@ import {
   type LibraryPdfArtifact,
   type ReadingState,
   type ReferenceLibrarySnapshot,
+  type ReviewedPdfMetadata,
   type WebCaptureRegistration,
   type WebSnapshot,
 } from "../domain/reference-library";
@@ -51,6 +52,12 @@ interface ReferenceLibraryApi {
   updateReferenceMetadata(
     referenceId: string,
     fields: Pick<BibliographicRecord, "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract">,
+    actor: string,
+  ): Promise<BibliographicRecord>;
+  applyReviewedPdfMetadata(
+    referenceId: string,
+    artifactId: string,
+    fields: ReviewedPdfMetadata,
     actor: string,
   ): Promise<BibliographicRecord>;
   setTags(referenceId: string, tags: readonly string[]): Promise<readonly string[]>;
@@ -187,12 +194,17 @@ export async function handleReferenceLibraryApi(
       return Response.json(await library.setArtifactRights(pdfMatch[1], body.rights), noStore());
     }
     const referenceMatch =
-      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|reading|deletion-impact|web-snapshots|citation-expansions))?$/iu.exec(
+      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|reading|deletion-impact|web-snapshots|citation-expansions|pdf-metadata))?$/iu.exec(
         suffix,
       );
     if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
     const referenceId = referenceMatch[1];
     const action = referenceMatch[2];
+    if (action === "pdf-metadata" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isReviewedPdfMetadataInput(body)) return jsonError("Invalid reviewed PDF metadata", 400);
+      return Response.json(await library.applyReviewedPdfMetadata(referenceId, body.artifactId, body.fields, identity.email), noStore());
+    }
     if (!action && request.method === "PATCH") {
       const body: unknown = await request.json();
       if (!isRecord(body)) return jsonError("Invalid reference update", 400);
@@ -298,6 +310,23 @@ export async function handleReferenceLibraryApi(
     const status = /changed|already|before deleting|before identifying/iu.test(message) ? 409 : /not found/iu.test(message) ? 404 : 400;
     return jsonError(message, status);
   }
+}
+
+function isReviewedPdfMetadataInput(value: unknown): value is { artifactId: string; fields: ReviewedPdfMetadata } {
+  if (!isRecord(value) || typeof value.artifactId !== "string" || !/^[0-9a-f-]{36}$/iu.test(value.artifactId)) return false;
+  if (!isRecord(value.fields)) return false;
+  const keys = Object.keys(value.fields);
+  if (keys.length === 0 || keys.some((key) => !["title", "authors", "year", "doi"].includes(key))) return false;
+  const { title, authors, year, doi } = value.fields;
+  return (
+    (title === undefined || (typeof title === "string" && title.trim().length > 0 && title.length <= 2_000)) &&
+    (authors === undefined ||
+      (Array.isArray(authors) &&
+        authors.length <= 64 &&
+        authors.every((author) => typeof author === "string" && author.trim() && author.length <= 300))) &&
+    (year === undefined || (typeof year === "string" && (/^\d{4}$/u.test(year) || year === ""))) &&
+    (doi === undefined || (typeof doi === "string" && doi.length <= 500))
+  );
 }
 
 async function expandCitationReferences(

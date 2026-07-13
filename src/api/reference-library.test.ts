@@ -302,6 +302,18 @@ describe("reference library API", () => {
       (await handleReferenceLibraryApi(jsonRequest(`/api/library/references/${id}`, metadata, "PATCH"), fixture.env, identity)).status,
     ).toBe(200);
     expect(
+      (
+        await handleReferenceLibraryApi(
+          jsonRequest(`/api/library/references/${id}/pdf-metadata`, {
+            artifactId: "22222222-2222-4222-8222-222222222222",
+            fields: { title: "Reviewed PDF", authors: ["Doe, Jane"], year: "2025", doi: "10.5555/reviewed" },
+          }),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(200);
+    expect(
       (await handleReferenceLibraryApi(jsonRequest(`/api/library/references/${id}/notes`, { body: "Private note" }), fixture.env, identity))
         .status,
     ).toBe(201);
@@ -356,6 +368,12 @@ describe("reference library API", () => {
     expect(fixture.library.setReadingState).toHaveBeenCalledWith(id, "reading", 4, "high");
     expect(fixture.library.setCollections).toHaveBeenCalledWith(id, ["Dissertation"]);
     expect(fixture.library.updateReferenceMetadata).toHaveBeenCalledWith(id, metadata, identity.email);
+    expect(fixture.library.applyReviewedPdfMetadata).toHaveBeenCalledWith(
+      id,
+      "22222222-2222-4222-8222-222222222222",
+      { title: "Reviewed PDF", authors: ["Doe, Jane"], year: "2025", doi: "10.5555/reviewed" },
+      identity.email,
+    );
     expect(fixture.library.archiveReference).toHaveBeenCalledWith(id, true);
     expect(fixture.library.permanentlyDeleteReference).toHaveBeenCalledWith(id, ["project"]);
   });
@@ -389,6 +407,20 @@ describe("reference library API", () => {
     );
     expect(missing.status).toBe(404);
     expect(missing.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("rejects empty, unknown, and over-limit PDF metadata fields", async () => {
+    const fixture = apiFixture();
+    const route = `/api/library/references/${reference.id}/pdf-metadata`;
+    for (const body of [
+      { artifactId: "22222222-2222-4222-8222-222222222222", fields: {} },
+      { artifactId: "22222222-2222-4222-8222-222222222222", fields: { venue: "Not extracted" } },
+      { artifactId: "22222222-2222-4222-8222-222222222222", fields: { title: "x".repeat(2_001) } },
+      { artifactId: "not-an-id", fields: { title: "Paper" } },
+    ]) {
+      expect((await handleReferenceLibraryApi(jsonRequest(route, body), fixture.env, identity)).status).toBe(400);
+    }
+    expect(fixture.library.applyReviewedPdfMetadata).not.toHaveBeenCalled();
   });
 
   it("routes citation assertions, review, project filtering, and explicit Crossref expansion", async () => {
@@ -517,6 +549,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     setArtifactRights: vi.fn(async () => ({ ...artifact, rights: "shareable" as const })),
     archiveReference: vi.fn(async () => ({ ...reference, archivedAt: now })),
     updateReferenceMetadata: vi.fn(async () => ({ ...reference, updatedAt: now })),
+    applyReviewedPdfMetadata: vi.fn(async () => ({ ...reference, title: "Reviewed PDF", updatedAt: now })),
     setTags: vi.fn(async (_referenceId: string, tags: readonly string[]) => tags),
     setCollections: vi.fn(async (_referenceId: string, collections: readonly string[]) => collections),
     createNote: vi.fn(async (referenceId: string, body: string) => ({ id: "note", referenceId, body, createdAt: now, updatedAt: now })),

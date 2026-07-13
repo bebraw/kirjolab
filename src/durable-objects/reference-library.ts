@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { parseBibTeX } from "../domain/bibliography";
+import { normalizeDoi, parseBibTeX } from "../domain/bibliography";
 import {
   buildCitationNetwork,
   type CitationAssertion,
@@ -19,6 +19,7 @@ import {
   type LibraryPdfArtifact,
   type MetadataFieldProvenance,
   type ReadingState,
+  type ReviewedPdfMetadata,
   type ReferenceLibrarySnapshot,
   type ResearchShareKind,
   type ResearchShareSnapshot,
@@ -926,6 +927,36 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return this.#reference(referenceId);
   }
 
+  applyReviewedPdfMetadata(referenceId: string, artifactId: string, fields: ReviewedPdfMetadata, actor: string): BibliographicRecord {
+    const current = this.#reference(referenceId);
+    const artifact = this.ctx.storage.sql.exec<ArtifactRow>("SELECT * FROM artifacts WHERE id = ?", artifactId).toArray()[0];
+    if (!artifact || artifact.reference_id !== referenceId) throw new Error("PDF artifact does not belong to this reference");
+    const normalized: ReviewedPdfMetadata = {
+      ...(fields.title === undefined ? {} : { title: fields.title.trim() }),
+      ...(fields.authors === undefined ? {} : { authors: fields.authors.map((author) => author.trim()).filter(Boolean) }),
+      ...(fields.year === undefined ? {} : { year: fields.year.trim() }),
+      ...(fields.doi === undefined ? {} : { doi: normalizeDoi(fields.doi) }),
+    };
+    const entries = Object.entries(normalized) as [keyof ReviewedPdfMetadata, string | readonly string[]][];
+    if (entries.length === 0) throw new Error("Reviewed PDF metadata is empty");
+    if (
+      (normalized.title !== undefined && (!normalized.title || normalized.title.length > 2_000)) ||
+      (normalized.authors !== undefined &&
+        (normalized.authors.length > 64 || normalized.authors.some((author) => !author || author.length > 300))) ||
+      (normalized.year !== undefined && normalized.year !== "" && !/^\d{4}$/u.test(normalized.year)) ||
+      (normalized.doi !== undefined && normalized.doi.length > 500)
+    ) {
+      throw new Error("Reviewed PDF metadata is invalid");
+    }
+    const updatedAt = new Date().toISOString();
+    const provenance = { ...current.provenance };
+    for (const [field] of entries) provenance[field] = { method: "pdf-metadata", capturedAt: updatedAt, actor };
+    const next = { ...current, ...normalized, provenance, updatedAt };
+    if (!next.title.trim()) throw new Error("Reference title is required");
+    this.#writeReference(next, likelyReferenceIdentity(next), false);
+    return this.#reference(referenceId);
+  }
+
   archiveReference(referenceId: string, archived: boolean): BibliographicRecord {
     this.#reference(referenceId);
     const now = new Date().toISOString();
@@ -1457,6 +1488,7 @@ function parseProvenance(value: string): BibliographicRecord["provenance"] {
           item.method === "crossref" ||
           item.method === "filename" ||
           item.method === "manual" ||
+          item.method === "pdf-metadata" ||
           item.method === "web" ||
           item.method === "migration") &&
         typeof item.capturedAt === "string" &&

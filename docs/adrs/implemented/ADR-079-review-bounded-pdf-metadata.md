@@ -1,6 +1,6 @@
 # ADR-079: Review Bounded PDF Metadata Before Enrichment
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-13
 

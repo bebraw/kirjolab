@@ -6,7 +6,15 @@ export function createTwoPageEvidencePdf(): Buffer {
   return createPdf(["First page keeps its reading position.", "Second page verifies restored PDF context."]);
 }
 
-function createPdf(pageTexts: string[]): Buffer {
+export function createMetadataEvidencePdf(): Buffer {
+  return createPdf(["Reviewed paper DOI 10.5555/metadata.review"], {
+    Title: "Metadata Review in Practice",
+    Author: "Doe, Jane; Roe, Alex",
+    CreationDate: "D:20250713120000",
+  });
+}
+
+function createPdf(pageTexts: string[], information?: Readonly<Record<string, string>>): Buffer {
   const pageIds = pageTexts.map((_, index) => 3 + index);
   const fontId = 3 + pageTexts.length;
   const contentIds = pageTexts.map((_, index) => fontId + 1 + index);
@@ -23,6 +31,14 @@ function createPdf(pageTexts: string[]): Buffer {
       return `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`;
     }),
   ];
+  const informationId = information ? objects.length + 1 : null;
+  if (information) {
+    objects.push(
+      `<< ${Object.entries(information)
+        .map(([key, value]) => `/${key} (${escapePdfString(value)})`)
+        .join(" ")} >>`,
+    );
+  }
   let source = "%PDF-1.4\n";
   const offsets = [0];
   for (const [index, object] of objects.entries()) {
@@ -35,6 +51,10 @@ function createPdf(pageTexts: string[]): Buffer {
     .slice(1)
     .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
     .join("");
-  source += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  source += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R${informationId ? ` /Info ${informationId} 0 R` : ""} >>\nstartxref\n${xref}\n%%EOF\n`;
   return Buffer.from(source, "ascii");
+}
+
+function escapePdfString(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
 }

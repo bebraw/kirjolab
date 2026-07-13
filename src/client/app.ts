@@ -62,6 +62,7 @@ import {
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
 import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
+import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { adjustSelectionRects } from "./pdf-selection";
 import { maximumModelEvidenceItems, OpenAICompatibleBrowserProvider, type ModelEvidenceItem } from "./model-provider";
 import {
@@ -1857,7 +1858,13 @@ class WorkspaceApp {
       for (const value of ["private", "unknown", "shareable"] as const) rights.append(new Option(`Rights: ${value}`, value));
       rights.value = artifact.rights;
       rights.addEventListener("change", () => void this.#setArtifactRights(artifact.id, rights.value));
-      row.append(rights);
+      const review = document.createElement("section");
+      review.className = "hidden mt-3 border-t border-app-line pt-3";
+      row.append(
+        rights,
+        actionButton("Review PDF metadata", "button-secondary mt-2", () => void this.#reviewPdfMetadata(reference, artifact, review)),
+        review,
+      );
       resources.append(row);
     }
     for (const highlight of highlights) {
@@ -2019,6 +2026,97 @@ class WorkspaceApp {
     this.#elements.libraryPdfUpload.value = "";
     await this.#refreshReferenceLibrary();
     this.#showToast("PDF added with a stable reference ID. Add metadata when ready.");
+  }
+
+  async #reviewPdfMetadata(reference: BibliographicRecord, artifact: LibraryPdfArtifact, container: HTMLElement): Promise<void> {
+    container.classList.remove("hidden");
+    container.replaceChildren(resourceLabel("PDF metadata"), statusText("Reading embedded metadata and opening pages…"));
+    try {
+      const candidates = await extractPdfMetadata(`/api/library/pdfs/${encodeURIComponent(artifact.id)}`);
+      this.#renderPdfMetadataReview(reference, artifact, candidates, container);
+    } catch (error) {
+      container.replaceChildren(
+        resourceLabel("PDF metadata"),
+        statusText(error instanceof Error ? `Metadata could not be read: ${error.message}` : "Metadata could not be read."),
+      );
+    }
+  }
+
+  #renderPdfMetadataReview(
+    reference: BibliographicRecord,
+    artifact: LibraryPdfArtifact,
+    candidates: PdfMetadataCandidates,
+    container: HTMLElement,
+  ): void {
+    container.replaceChildren(
+      resourceLabel(`PDF metadata · ${candidates.pagesScanned} page${candidates.pagesScanned === 1 ? "" : "s"} scanned`),
+    );
+    const rows = [
+      ["title", candidates.title, reference.title],
+      ["authors", candidates.authors.join("; "), reference.authors.join("; ")],
+      ["year", candidates.year, reference.year],
+      ["doi", candidates.doi, reference.doi],
+    ] as const;
+    const selections = new Map<(typeof rows)[number][0], { checkbox: HTMLInputElement; input: HTMLInputElement }>();
+    for (const [field, suggested, current] of rows) {
+      if (!suggested || suggested === current) continue;
+      const label = document.createElement("label");
+      label.className = "mt-2 grid grid-cols-[auto_1fr] items-start gap-2 text-xs";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = true;
+      checkbox.className = "mt-3";
+      const content = document.createElement("span");
+      const caption = document.createElement("span");
+      caption.className = "block text-app-text-soft";
+      caption.textContent = `${field}${current ? ` · current: ${current}` : ""}`;
+      const input = document.createElement("input");
+      input.className = "field mt-1";
+      input.value = suggested;
+      input.maxLength = field === "title" ? 2_000 : field === "authors" ? 19_200 : 500;
+      content.append(caption, input);
+      label.append(checkbox, content);
+      container.append(label);
+      selections.set(field, { checkbox, input });
+    }
+    for (const diagnostic of candidates.diagnostics) container.append(statusText(diagnostic));
+    if (selections.size === 0) {
+      container.append(statusText("No new metadata suggestions are available."));
+      return;
+    }
+    container.append(
+      actionButton(
+        "Apply selected metadata",
+        "button-primary mt-3",
+        () => void this.#applyPdfMetadata(reference.id, artifact.id, selections),
+      ),
+    );
+  }
+
+  async #applyPdfMetadata(
+    referenceId: string,
+    artifactId: string,
+    selections: ReadonlyMap<string, { checkbox: HTMLInputElement; input: HTMLInputElement }>,
+  ): Promise<void> {
+    const fields: Record<string, string | string[]> = {};
+    for (const [field, selection] of selections) {
+      if (!selection.checkbox.checked) continue;
+      fields[field] =
+        field === "authors"
+          ? selection.input.value
+              .split(";")
+              .map((value) => value.trim())
+              .filter(Boolean)
+          : selection.input.value.trim();
+    }
+    if (Object.keys(fields).length === 0) {
+      this.#showToast("Select at least one PDF metadata field to apply.");
+      return;
+    }
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/pdf-metadata`, { artifactId, fields });
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Selected PDF metadata applied with provenance.");
   }
 
   async #captureWebSource(event: SubmitEvent): Promise<void> {
@@ -4616,6 +4714,13 @@ async function expectOk(response: Response): Promise<void> {
 
 function formatBytes(value: number): string {
   return value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function statusText(value: string): HTMLParagraphElement {
+  const paragraph = document.createElement("p");
+  paragraph.className = "mt-2 text-xs leading-5 text-app-text-soft";
+  paragraph.textContent = value;
+  return paragraph;
 }
 
 function formatCalendarDate(value: string): string {

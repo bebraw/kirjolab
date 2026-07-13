@@ -27,9 +27,7 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                          | Status   | Summary                                                                                                   |
-| ------------------------------------------------------------ | -------- | --------------------------------------------------------------------------------------------------------- |
-| [ADR-079](./accepted/ADR-079-review-bounded-pdf-metadata.md) | Accepted | Extract bounded PDF metadata as ephemeral browser suggestions and apply only explicitly reviewed fields. |
+None. Accepted decisions move here only until their implementation is verified.
 
 ## Implemented ADRs
 
@@ -113,6 +111,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-076](./implemented/ADR-076-assign-immutable-reference-keys.md)                   | Implemented          | Assign unique memorable keys once and create editable library drafts directly from PDF uploads.              |
 | [ADR-077](./implemented/ADR-077-layer-markdown-editor-highlighting.md)                | Implemented          | Layer derived Markdown highlighting behind the native collaborative textarea.                                |
 | [ADR-078](./implemented/ADR-078-add-bounded-vim-textarea-keymap.md)                   | Implemented          | Add an opt-in bounded Vim keymap over the native collaborative textarea.                                     |
+| [ADR-079](./implemented/ADR-079-review-bounded-pdf-metadata.md)                       | Implemented          | Extract bounded PDF metadata as ephemeral browser suggestions and apply only explicitly reviewed fields.     |
 
 ## Creating A New ADR
 

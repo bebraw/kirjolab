@@ -38,12 +38,12 @@ should be easy to review and reuse later without becoming canonical silently.
 
 ### Definition of Done
 
-- [ ] A PDF-backed Library record exposes inline metadata review.
-- [ ] Embedded metadata and bounded opening-page text produce useful candidates.
-- [ ] The user can apply individual fields and leave the rest untouched.
-- [ ] Accepted fields record PDF-specific provenance and keep the reference key.
-- [ ] Empty, malformed, or unlinked updates fail without mutation.
-- [ ] Unit, Workers-runtime, and browser tests cover extraction and review.
+- [x] A PDF-backed Library record exposes inline metadata review.
+- [x] Embedded metadata and bounded opening-page text produce useful candidates.
+- [x] The user can apply individual fields and leave the rest untouched.
+- [x] Accepted fields record PDF-specific provenance and keep the reference key.
+- [x] Empty, malformed, or unlinked updates fail without mutation.
+- [x] Unit, Workers-runtime, and browser tests cover extraction and review.
 
 ### Regression Guardrails
 

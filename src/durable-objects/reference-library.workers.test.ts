@@ -142,6 +142,30 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       "owner@example.test",
     );
     expect(edited.referenceKey).toBe("sourceundatedclimate");
+    const enriched = await library.applyReviewedPdfMetadata(
+      first.reference.id,
+      first.artifact.id,
+      { title: "Climate evidence", authors: ["Smith, Jane"], year: "2025", doi: "https://doi.org/10.5555/Climate" },
+      "owner@example.test",
+    );
+    expect(enriched).toMatchObject({
+      referenceKey: "sourceundatedclimate",
+      title: "Climate evidence",
+      authors: ["Smith, Jane"],
+      year: "2025",
+      doi: "10.5555/climate",
+      provenance: {
+        title: { method: "pdf-metadata", actor: "owner@example.test" },
+        authors: { method: "pdf-metadata", actor: "owner@example.test" },
+        year: { method: "pdf-metadata", actor: "owner@example.test" },
+        doi: { method: "pdf-metadata", actor: "owner@example.test" },
+      },
+    });
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() =>
+        instance.applyReviewedPdfMetadata(first.reference.id, second.artifact.id, { title: "Wrong artifact" }, "owner@example.test"),
+      ).toThrow("does not belong");
+    });
 
     const longName = `${"x".repeat(100)}.pdf`;
     const longArtifact = (id: string): LibraryPdfArtifact => ({ ...artifact(id), name: longName });
