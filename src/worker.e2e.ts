@@ -1122,6 +1122,36 @@ test("reports a deleted passage anchor as stale instead of guessing", async ({ p
   await collaborator.close();
 });
 
+test("creates and inserts transcluded project files", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Transclusion authoring");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.locator("#save-status")).toHaveText("Saved");
+  const source = page.locator("#source-editor");
+  await source.fill("Before\nAfter\n");
+  await source.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(7, 7);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+
+  const fileMenu = page.locator(".action-menu", { has: page.locator("#create-and-include-project-file") });
+  await fileMenu.locator("summary").click();
+  await page.locator("#create-and-include-project-file").click();
+  await page.locator("#project-file-path").fill("chapters/method.md");
+  await page.locator("#project-file-form").getByRole("button", { name: "Save file" }).click();
+  await expect(source).toHaveValue("Before\n\n::include[chapters/method.md]\nAfter\n");
+  await expect(page.locator("#project-file-list")).toContainText("chapters/method.md");
+
+  await source.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(element.value.length, element.value.length);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await page.locator("#editor-insert-menu summary").click();
+  await page.locator("#include-project-file-list [data-include-file-id]").click();
+  await expect(source).toHaveValue(/::include\[chapters\/method\.md\]\n$/u);
+});
+
 test("isolates clients that send unsupported collaboration frames", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();

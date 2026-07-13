@@ -21,7 +21,7 @@ import {
   isProjectRevisionSummaries,
   type ProjectRevisionSummary,
 } from "../domain/project-history";
-import { composeProject, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
+import { composeProject, relativeProjectPath, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
 import {
   isReferenceLibrarySnapshot,
@@ -161,6 +161,7 @@ interface Elements {
   projectFileList: HTMLElement;
   projectFileSwitcher: HTMLSelectElement;
   newProjectFile: HTMLButtonElement;
+  createAndIncludeProjectFile: HTMLButtonElement;
   renameProjectFile: HTMLButtonElement;
   deleteProjectFile: HTMLButtonElement;
   projectFileDialog: HTMLDialogElement;
@@ -183,6 +184,7 @@ interface Elements {
   projectHistoryList: HTMLElement;
   source: HTMLTextAreaElement;
   editorInsertMenu: HTMLDetailsElement;
+  includeProjectFileList: HTMLElement;
   bibliography: HTMLTextAreaElement;
   manuscriptCommentForm: HTMLFormElement;
   manuscriptCommentBody: HTMLTextAreaElement;
@@ -360,7 +362,9 @@ class WorkspaceApp {
   #activeFileId: string | null = null;
   #activeFileText = this.#source;
   #unbindSourceEditor: () => void = () => undefined;
-  #projectFileDialogMode: "create" | "rename" = "create";
+  #projectFileDialogMode: "create" | "create-and-include" | "rename" = "create";
+  #projectFileIncludeTarget: RelativeEditorSelection | null = null;
+  #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #showArchivedReferences = false;
   #citationNetwork: CitationNetwork | null = null;
@@ -489,6 +493,7 @@ class WorkspaceApp {
     this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
     this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.newProjectFileRail.addEventListener("click", () => this.#openProjectFileDialog("create"));
+    this.#elements.createAndIncludeProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create-and-include"));
     this.#elements.renameProjectFile.addEventListener("click", () => this.#openProjectFileDialog("rename"));
     this.#elements.deleteProjectFile.addEventListener("click", () => void this.#deleteProjectFile());
     this.#elements.cancelProjectFile.addEventListener("click", () => this.#elements.projectFileDialog.close());
@@ -1102,6 +1107,7 @@ class WorkspaceApp {
     );
     this.#elements.projectFileCount.textContent = String(snapshot.files.length);
     this.#elements.projectFileList.replaceChildren();
+    this.#elements.includeProjectFileList.replaceChildren();
     for (const file of [...snapshot.files].sort((left, right) => left.path.localeCompare(right.path))) {
       const button = document.createElement("button");
       button.type = "button";
@@ -1117,6 +1123,24 @@ class WorkspaceApp {
       button.append(path, kind);
       button.addEventListener("click", () => this.#selectProjectFile(file.id));
       this.#elements.projectFileList.append(button);
+      if (file.id !== this.#activeFileId) {
+        const include = document.createElement("button");
+        include.type = "button";
+        include.dataset.includeFileId = file.id;
+        const label = document.createElement("strong");
+        label.textContent = file.path;
+        const syntax = document.createElement("code");
+        const activeFile = snapshot.files.find((item) => item.id === this.#activeFileId);
+        syntax.textContent = `::include[${activeFile ? relativeProjectPath(activeFile.path, file.path) : file.path}]`;
+        include.append(label, syntax);
+        this.#elements.includeProjectFileList.append(include);
+      }
+    }
+    if (!this.#elements.includeProjectFileList.hasChildNodes()) {
+      const empty = document.createElement("span");
+      empty.className = "block px-3 py-2 text-xs text-app-text-soft";
+      empty.textContent = "Add another file to include it here.";
+      this.#elements.includeProjectFileList.append(empty);
     }
     const entryActive = this.#activeFileId === snapshot.entryFileId;
     this.#elements.renameProjectFile.disabled = entryActive;
@@ -1137,11 +1161,15 @@ class WorkspaceApp {
     this.#updateModelAvailability();
   }
 
-  #openProjectFileDialog(mode: "create" | "rename"): void {
+  #openProjectFileDialog(mode: "create" | "create-and-include" | "rename"): void {
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
     if (mode === "rename" && (!file || file.id === this.#snapshot?.entryFileId)) return;
     this.#projectFileDialogMode = mode;
-    this.#elements.projectFileDialogTitle.textContent = mode === "create" ? "Add Markdown file" : "Rename Markdown file";
+    this.#projectFileIncludeTarget =
+      mode === "create-and-include" ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : null;
+    this.#projectFileIncludeFromPath = mode === "create-and-include" ? (file?.path ?? null) : null;
+    this.#elements.projectFileDialogTitle.textContent =
+      mode === "create" ? "Add Markdown file" : mode === "create-and-include" ? "Create and include file" : "Rename Markdown file";
     this.#elements.projectFilePath.value = mode === "rename" ? (file?.path ?? "") : "";
     this.#elements.projectFileDialog.showModal();
     this.#elements.projectFilePath.focus();
@@ -1151,7 +1179,7 @@ class WorkspaceApp {
     event.preventDefault();
     const path = this.#elements.projectFilePath.value.trim();
     const activeId = this.#activeFileId;
-    const creating = this.#projectFileDialogMode === "create";
+    const creating = this.#projectFileDialogMode !== "rename";
     if (!creating && !activeId) return;
     const response = await jsonFetch(
       creating ? `${apiBase}/files` : `${apiBase}/files/${encodeURIComponent(activeId ?? "")}`,
@@ -1165,11 +1193,28 @@ class WorkspaceApp {
     this.#elements.projectFileDialog.close();
     this.#renderProjectFiles();
     const selected = value.files.find((file) => file.path === path);
-    if (selected) this.#selectProjectFile(selected.id);
+    if (this.#projectFileDialogMode === "create-and-include" && this.#projectFileIncludeTarget && this.#projectFileIncludeFromPath) {
+      const position = Y.createAbsolutePositionFromRelativePosition(this.#projectFileIncludeTarget.end, this.#document);
+      if (position?.type === this.#projectFileIncludeTarget.text) {
+        this.#insertProjectInclude(
+          this.#projectFileIncludeTarget.text,
+          position.index,
+          relativeProjectPath(this.#projectFileIncludeFromPath, path),
+        );
+      }
+    } else if (selected) {
+      this.#selectProjectFile(selected.id);
+    }
     this.#renderPreview();
     this.#showToast(
-      creating ? `Added ${path}. Include it from main.md when ready.` : `Renamed file to ${path}; inbound includes were updated.`,
+      this.#projectFileDialogMode === "create-and-include"
+        ? `Created ${path} and included it at the remembered caret.`
+        : creating
+          ? `Added ${path}.`
+          : `Renamed file to ${path}; inbound includes were updated.`,
     );
+    this.#projectFileIncludeTarget = null;
+    this.#projectFileIncludeFromPath = null;
   }
 
   async #deleteProjectFile(): Promise<void> {
@@ -3704,6 +3749,17 @@ class WorkspaceApp {
 
   #insertSourceSyntax(event: MouseEvent): void {
     const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-insert-syntax]") : null;
+    const includeTarget = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-include-file-id]") : null;
+    const includeFile = this.#snapshot?.files.find((file) => file.id === includeTarget?.dataset.includeFileId);
+    const activeFile = this.#snapshot?.files.find((file) => file.id === this.#activeFileId);
+    if (includeTarget && includeFile && activeFile) {
+      event.preventDefault();
+      const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
+      this.#insertProjectInclude(this.#activeFileText, caret, relativeProjectPath(activeFile.path, includeFile.path));
+      this.#elements.editorInsertMenu.open = false;
+      this.#showToast(`Included ${includeFile.path}.`);
+      return;
+    }
     const kind = target?.dataset.insertSyntax;
     if (!kind) return;
     event.preventDefault();
@@ -3714,7 +3770,6 @@ class WorkspaceApp {
       reference: { text: ":ref[target]", select: "target" },
       anchor: { text: "{#label}", select: "label" },
       footnote: { text: "[^note]", select: "note" },
-      include: { text: "\n::include[path]\n", select: "path" },
       link: { text: passage ? `[${passage.excerpt}](url)` : "[text](url)", select: passage ? "url" : "text" },
     };
     const template = templates[kind];
@@ -3731,6 +3786,17 @@ class WorkspaceApp {
     this.#rememberAuthoringSelection();
     this.#elements.editorInsertMenu.open = false;
     this.#showToast(`Inserted ${target.textContent?.trim() ?? "scholarly syntax"}.`);
+  }
+
+  #insertProjectInclude(text: Y.Text, index: number, path: string): void {
+    const directive = `\n::include[${path}]\n`;
+    this.#document.transact(() => text.insert(index, directive), this);
+    if (text === this.#activeFileText) {
+      const caret = index + directive.length;
+      this.#elements.source.focus();
+      this.#elements.source.setSelectionRange(caret, caret);
+      this.#rememberAuthoringSelection();
+    }
   }
 
   #setModelEvidenceSelected(key: string, selected: boolean): void {
@@ -4207,6 +4273,7 @@ function collectElements(): Elements {
     projectFileList: requiredElement("project-file-list", HTMLElement),
     projectFileSwitcher: requiredElement("project-file-switcher", HTMLSelectElement),
     newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
+    createAndIncludeProjectFile: requiredElement("create-and-include-project-file", HTMLButtonElement),
     renameProjectFile: requiredElement("rename-project-file", HTMLButtonElement),
     deleteProjectFile: requiredElement("delete-project-file", HTMLButtonElement),
     projectFileDialog: requiredElement("project-file-dialog", HTMLDialogElement),
@@ -4229,6 +4296,7 @@ function collectElements(): Elements {
     projectHistoryList: requiredElement("project-history-list", HTMLElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     editorInsertMenu: requiredElement("editor-insert-menu", HTMLDetailsElement),
+    includeProjectFileList: requiredElement("include-project-file-list", HTMLElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
     manuscriptCommentForm: requiredElement("manuscript-comment-form", HTMLFormElement),
     manuscriptCommentBody: requiredElement("manuscript-comment-body", HTMLTextAreaElement),

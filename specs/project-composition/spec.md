@@ -33,6 +33,10 @@ collaborative, and unambiguous about what preview and export mean.
   from research inventory. The entry file is visibly identified, supporting
   paths are sorted for scanning, and file creation is available from both the
   file navigator and the active-file toolbar.
+- The authoring toolbar inserts an existing file with a path relative to the
+  active file. **Create and include** creates a supporting file and inserts its
+  directive at the remembered collaborative caret, so authors do not have to
+  type or repair project-relative paths by hand.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.
@@ -72,6 +76,9 @@ collaborative, and unambiguous about what preview and export mean.
   anchors in a real `workerd` runtime. Project-history tests cover retained
   file identity across rename, composed diffs, non-destructive restore, and
   revision seeds.
+- Browser coverage verifies that authors can insert an existing file and create
+  a new file at a remembered caret without changing the `main.md` composition
+  root.
 
 ## Current Milestone
 
