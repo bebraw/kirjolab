@@ -24,6 +24,13 @@ files.
   identity.
 - Generated LaTeX spans identify `main.tex` line ranges and their authored
   file ID, path, source range, line, and include chain.
+- LaTeX and direct PDF share one scholarly-syntax projection. Reference
+  declarations are non-printing, cross-references resolve to their visible
+  heading or anchor labels, and citation attributes are consumed completely.
+  Directive-looking content inside fenced code remains literal.
+- Direct PDF citations resolve cited bibliography metadata through the selected
+  APA, Chicago author-date, or IEEE profile instead of exposing project aliases.
+  LaTeX uses the corresponding citation commands and bibliography style.
 - The maintained `kirjolab-article-v1` LaTeX template is the reproducible
   default. The ZIP records template and engine versions in
   `export-manifest.json` and includes `source-map.json` plus the complete
@@ -41,6 +48,10 @@ files.
   `main.md`. The source bundle additionally retains the authored folder tree
   and project-shared metadata; it does not silently embed private library
   artifacts or imported research PDFs.
+- Composed Markdown and canonical files intentionally retain portable Kirjolab
+  extensions. Publication-facing LaTeX and PDF must never print supported
+  `::include`, `::alias`, `::anchor`, `:ref`, or `:cite` syntax or its attribute
+  block as prose.
 
 ## User Interface
 
@@ -130,9 +141,9 @@ journal uses the same counting policy.
 
 ## Verification
 
-- Pure and adapter tests inspect citation scope, statistics, source maps,
-  diagnostics, deterministic ZIP entries, PDF metadata, and archive traversal
-  handling.
+- Pure and adapter tests inspect citation scope and formatting, scholarly
+  directive projection, statistics, source maps, diagnostics, deterministic ZIP
+  entries, extracted PDF text, PDF metadata, and archive traversal handling.
 - Browser tests exercise the unified dialog and all primary artifact routes
   through local `workerd`.
 - Project-history tests cover revision word deltas.

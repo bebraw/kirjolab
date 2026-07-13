@@ -2,11 +2,18 @@ import { strToU8, zipSync, type Zippable } from "fflate";
 import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
 import { assertExportable, exportPdfEngine, type MaterializedExportBundle } from "../domain/export-pipeline";
 import type { ProjectFile } from "../domain/project-files";
+import {
+  isPublicationReferenceDeclaration,
+  publicationCitationEntries,
+  publicationCitationText,
+  publicationReferenceLabel,
+  publicationReferenceLabels,
+  replacePublicationTextDirectives,
+} from "../domain/scholarly-export";
 import { resolveSubmissionTemplate, submissionPageSize } from "../domain/submission-templates";
 import type { ProjectPublicationProfile } from "../domain/workspace";
 
 const reproducibleTimestamp = new Date("1980-01-01T00:00:00.000Z");
-const citationDirective = /:cite\[(?<keys>[^\]\r\n]+)\]/gu;
 const headingLine = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*(?:\{#[^}\r\n]+\})?[ \t]*$/u;
 
 export function latexArchive(bundle: MaterializedExportBundle): Uint8Array {
@@ -53,7 +60,7 @@ export async function renderExportPdf(bundle: MaterializedExportBundle): Promise
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
   const renderer = new PdfTextRenderer(document, regular, bold, bundle.intermediate.publicationProfile);
   renderer.heading(bundle.intermediate.title, 22, 18);
-  for (const line of pdfLines(bundle.intermediate.markdown)) {
+  for (const line of pdfLines(bundle.intermediate.markdown, bundle.intermediate.bibliography, bundle.intermediate.publicationProfile)) {
     if (line.kind === "heading") renderer.heading(line.text, Math.max(12, 20 - line.depth * 1.5), 8);
     else if (line.kind === "blank") renderer.blank();
     else renderer.paragraph(line.text, line.kind === "code" ? 9 : 10.5, line.kind === "bullet" ? 14 : 0);
@@ -98,8 +105,10 @@ type PdfLine =
   | { readonly kind: "body" | "bullet" | "code"; readonly text: string; readonly depth: 0 }
   | { readonly kind: "heading"; readonly text: string; readonly depth: number };
 
-function pdfLines(markdown: string): PdfLine[] {
+function pdfLines(markdown: string, bibliography: string, publicationProfile: ProjectPublicationProfile): PdfLine[] {
   const lines: PdfLine[] = [];
+  const references = publicationReferenceLabels(markdown);
+  const citations = publicationCitationEntries(bibliography);
   let code = false;
   for (const sourceLine of markdown.split(/\r?\n/u)) {
     if (/^[ \t]*```/u.test(sourceLine)) {
@@ -110,6 +119,7 @@ function pdfLines(markdown: string): PdfLine[] {
       lines.push({ kind: "code", text: printablePdfText(sourceLine), depth: 0 });
       continue;
     }
+    if (isPublicationReferenceDeclaration(sourceLine)) continue;
     const heading = headingLine.exec(sourceLine);
     if (heading?.groups?.marks && heading.groups.title) {
       lines.push({
@@ -123,23 +133,22 @@ function pdfLines(markdown: string): PdfLine[] {
     if (!bullet) lines.push({ kind: "blank", text: "", depth: 0 });
     else {
       const kind = /^[ \t]*[-*+][ \t]+/u.test(sourceLine) ? "bullet" : "body";
-      lines.push({ kind, text: printablePdfText(pdfInlineText(bullet)), depth: 0 });
+      lines.push({ kind, text: printablePdfText(pdfInlineText(bullet, publicationProfile, references, citations)), depth: 0 });
     }
   }
   return lines;
 }
 
-function pdfInlineText(value: string): string {
-  return value
-    .replace(citationDirective, (_directive, ...values: unknown[]) => {
-      const groups = values.at(-1);
-      return isStringRecord(groups)
-        ? `(${(groups.keys ?? "")
-            .split(",")
-            .map((key) => key.trim())
-            .join("; ")})`
-        : "";
-    })
+function pdfInlineText(
+  value: string,
+  publicationProfile: ProjectPublicationProfile,
+  references: ReadonlyMap<string, string>,
+  citations: ReturnType<typeof publicationCitationEntries>,
+): string {
+  return replacePublicationTextDirectives(value, (directive) => {
+    if (directive.kind === "ref") return publicationReferenceLabel(directive, references);
+    return publicationCitationText(directive, citations, publicationProfile.citationStyle);
+  })
     .replace(/!\[(?<alt>[^\]]*)\]\([^\s)]+\)/gu, "$<alt>")
     .replace(/\[(?<label>[^\]]+)\]\([^\s)]+\)/gu, "$<label>")
     .replace(/[*_`~]/gu, "")
@@ -221,8 +230,4 @@ function wrapPdfText(value: string, font: PDFFont, size: number, maximumWidth: n
   }
   if (current) lines.push(current);
   return lines;
-}
-
-function isStringRecord(value: unknown): value is Record<string, string | undefined> {
-  return typeof value === "object" && value !== null;
 }

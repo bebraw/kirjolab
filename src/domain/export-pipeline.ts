@@ -3,6 +3,14 @@ import { composeProject, type CompositionDiagnostic, type CompositionSourceSpan,
 import { publicationWordStatistics, type PublicationWordStatistics } from "./publication-statistics";
 import { defaultProjectPublicationProfile, type ProjectPublicationProfile } from "./workspace";
 import { resolveSubmissionTemplate } from "./submission-templates";
+import {
+  isPublicationReferenceDeclaration,
+  publicationCitationEntries,
+  publicationCitationText,
+  publicationReferenceLabel,
+  publicationReferenceLabels,
+  replacePublicationTextDirectives,
+} from "./scholarly-export";
 
 export { countPublicationWords, publicationWordStatistics } from "./publication-statistics";
 
@@ -188,9 +196,14 @@ function materializeLatex(
     ...(template.titlePage ? ["\\end{titlepage}"] : []),
   ];
   const sourceMap: GeneratedSourceSpan[] = [];
+  const references = publicationReferenceLabels(intermediate.markdown);
+  const citations = publicationCitationEntries(intermediate.bibliography);
+  let fencedCode = false;
   let outputOffset = 0;
   for (const markdownLine of intermediate.markdown.split(/\r?\n/u)) {
-    const generated = latexLine(markdownLine, intermediate.publicationProfile);
+    const fence = /^[ \t]*```/u.test(markdownLine);
+    const generated = latexLine(markdownLine, intermediate.publicationProfile, references, citations, fencedCode);
+    if (fence) fencedCode = !fencedCode;
     const generatedLineStart = lines.length + 1;
     lines.push(...generated);
     const location = sourceLocationAt(intermediate.sourceMap, files, outputOffset, markdownLine.length);
@@ -215,41 +228,66 @@ function materializeLatex(
   return { source: lines.join("\n"), sourceMap };
 }
 
-function latexLine(line: string, publicationProfile: ProjectPublicationProfile): string[] {
+function latexLine(
+  line: string,
+  publicationProfile: ProjectPublicationProfile,
+  references: ReadonlyMap<string, string>,
+  citations: ReturnType<typeof publicationCitationEntries>,
+  literal: boolean,
+): string[] {
+  if (/^[ \t]*```/u.test(line)) return [`% fenced code boundary`];
+  if (literal) return [escapeLatex(line), ""];
+  if (isPublicationReferenceDeclaration(line)) return ["% scholarly reference declaration"];
   const heading = headingLine.exec(line);
   if (heading?.groups?.marks && heading.groups.title) {
     const commands = ["section", "subsection", "subsubsection", "paragraph", "subparagraph", "subparagraph"];
     const command = commands[heading.groups.marks.length - 1] ?? "paragraph";
-    return [`\\${command}{${inlineLatex(heading.groups.title, publicationProfile)}}`];
+    return [`\\${command}{${inlineLatex(heading.groups.title, publicationProfile, references, citations)}}`];
   }
   const bullet = /^[ \t]*[-*+][ \t]+(?<text>.+)$/u.exec(line);
-  if (bullet?.groups?.text) return [`\\begin{itemize}`, `\\item ${inlineLatex(bullet.groups.text, publicationProfile)}`, `\\end{itemize}`];
+  if (bullet?.groups?.text)
+    return [`\\begin{itemize}`, `\\item ${inlineLatex(bullet.groups.text, publicationProfile, references, citations)}`, `\\end{itemize}`];
   const numbered = /^[ \t]*\d+[.)][ \t]+(?<text>.+)$/u.exec(line);
   if (numbered?.groups?.text)
-    return [`\\begin{enumerate}`, `\\item ${inlineLatex(numbered.groups.text, publicationProfile)}`, `\\end{enumerate}`];
+    return [
+      `\\begin{enumerate}`,
+      `\\item ${inlineLatex(numbered.groups.text, publicationProfile, references, citations)}`,
+      `\\end{enumerate}`,
+    ];
   if (/^[ \t]*$/u.test(line)) return [""];
-  if (/^[ \t]*```/u.test(line)) return [`% fenced code boundary`];
-  return [inlineLatex(line, publicationProfile), ""];
+  return [inlineLatex(line, publicationProfile, references, citations), ""];
 }
 
-function inlineLatex(value: string, publicationProfile: ProjectPublicationProfile): string {
+function inlineLatex(
+  value: string,
+  publicationProfile: ProjectPublicationProfile,
+  references: ReadonlyMap<string, string>,
+  citations: ReturnType<typeof publicationCitationEntries>,
+): string {
   const tokens: string[] = [];
   const token = (replacement: string): string => {
     const index = tokens.push(replacement) - 1;
     return `\u0000${index}\u0000`;
   };
-  let protectedValue = value
-    .replace(citationDirective, (_directive, ...values: unknown[]) => {
-      const groups = values.at(-1);
-      const keys = isStringRecord(groups)
-        ? (groups.keys ?? "")
-            .split(",")
-            .map((key) => key.trim())
-            .filter((key) => /^[a-z0-9:._+-]{1,200}$/iu.test(key))
-        : [];
-      const command = publicationProfile.citationStyle === "ieee" ? "cite" : "citep";
-      return keys.length > 0 ? token(`\\${command}{${keys.join(",")}}`) : "";
-    })
+  let protectedValue = replacePublicationTextDirectives(value, (directive) => {
+    if (directive.kind === "ref") return token(escapeLatex(publicationReferenceLabel(directive, references)));
+    const keys = directive.content
+      .split(",")
+      .map((key) => key.trim())
+      .filter((key) => /^[a-z0-9:._+-]{1,200}$/iu.test(key));
+    if (keys.length === 0) return "";
+    const prefix = escapeLatex(directive.attributes.get("prefix") ?? "");
+    const suffix = escapeLatex(directive.attributes.get("suffix") ?? "");
+    const locator = escapeLatex(directive.attributes.get("locator") ?? "");
+    const mode = directive.attributes.get("mode") ?? "parenthetical";
+    if (mode === "full") return token(escapeLatex(publicationCitationText(directive, citations, publicationProfile.citationStyle)));
+    const command = publicationProfile.citationStyle === "ieee" ? "cite" : mode === "textual" ? "citet" : "citep";
+    const citation =
+      locator && publicationProfile.citationStyle !== "ieee" && mode !== "textual"
+        ? `\\${command}[${locator}]{${keys.join(",")}}`
+        : `\\${command}{${keys.join(",")}}${locator ? `, ${locator}` : ""}`;
+    return token(`${prefix}${citation}${suffix}`);
+  })
     .replace(/\$(?<math>[^$\r\n]+)\$/gu, (_match, ...values: unknown[]) => {
       const groups = values.at(-1);
       return token(`$${isStringRecord(groups) ? (groups.math ?? "") : ""}$`);

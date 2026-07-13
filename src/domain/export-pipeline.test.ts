@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { strFromU8, unzipSync } from "fflate";
 import { PDFDocument } from "pdf-lib";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { archivalSourceBundle, latexArchive, renderExportPdf } from "../api/export-artifacts";
 import {
   assertExportable,
@@ -383,10 +384,29 @@ describe("source-mapped export pipeline", () => {
   it("renders the same materialized bundle through the pinned bounded PDF engine", async () => {
     const bundle = buildExportBundle({
       title: "PDF study",
-      files: [file("main", "main.md", "# Result\nA printable paragraph with :cite[source].\n\n- One finding")],
+      files: [
+        file(
+          "main",
+          "main.md",
+          [
+            '::alias[Legacy result]{target="sec:legacy" slug="result"}',
+            "# Result {#result}",
+            "::anchor[Table one]{target=table:one}",
+            'See :ref[sec:legacy] and :ref[custom table]{target="table:one"} before :cite[source]{mode=textual prefix="See " locator="p. 4" suffix="."}',
+            "",
+            "- One finding",
+          ].join("\n"),
+        ),
+      ],
       entryFileId: "main",
-      bibliography: "@article{source,\n title = {Source}\n}\n",
+      bibliography: "@article{source,\n author = {Source, Sam},\n title = {Source title},\n year = {2026}\n}\n",
     });
+
+    expect(bundle.mainTex).toContain("See Result and custom table before See \\citet{source}, p. 4.");
+    expect(bundle.mainTex.match(/% scholarly reference declaration/gu)).toHaveLength(2);
+    for (const leaked of ["::alias", "::anchor", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
+      expect(bundle.mainTex, leaked).not.toContain(leaked);
+    }
 
     const first = await renderExportPdf(bundle);
     const second = await renderExportPdf(bundle);
@@ -396,6 +416,14 @@ describe("source-mapped export pipeline", () => {
     expect(document.getPageCount()).toBe(1);
     expect(document.getTitle()).toBe("PDF study");
     expect(document.getProducer()).toBe("kirjolab-pdf-lib@1.17.1");
+    const loadingTask = getDocument({ data: first });
+    const pdf = await loadingTask.promise;
+    const text = (await (await pdf.getPage(1)).getTextContent()).items.map((item) => ("str" in item ? item.str : "")).join(" ");
+    await loadingTask.destroy();
+    expect(text).toContain("See Result and custom table before See Source (2026), p. 4.");
+    for (const leaked of ["::alias", "::anchor", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
+      expect(text, leaked).not.toContain(leaked);
+    }
 
     const review = buildExportBundle({
       title: "Review copy",
@@ -411,6 +439,18 @@ describe("source-mapped export pipeline", () => {
     });
     const reviewDocument = await PDFDocument.load(await renderExportPdf(review), { updateMetadata: false });
     expect(reviewDocument.getPage(0).getSize()).toEqual({ width: 612, height: 792 });
+  });
+
+  it("keeps scholarly-looking text literal inside fenced code", () => {
+    const bundle = buildExportBundle({
+      title: "Literal directives",
+      files: [file("main", "main.md", '```text\n:ref[literal]{target="section"}\n::anchor[Literal]{target=literal}\n```')],
+      entryFileId: "main",
+      bibliography: "",
+    });
+
+    expect(bundle.mainTex).toContain(':ref[literal]\\{target="section"\\}');
+    expect(bundle.mainTex).toContain("::anchor[Literal]\\{target=literal\\}");
   });
 });
 
