@@ -110,6 +110,7 @@ None. Accepted decisions move here only until their implementation is verified.
 | [ADR-075](./implemented/ADR-075-host-derived-bibliography-in-files-rail.md)           | Implemented          | Keep derived project BibTeX as collapsed secondary context in the Files rail.                                |
 | [ADR-076](./implemented/ADR-076-assign-immutable-reference-keys.md)                   | Implemented          | Assign unique memorable keys once and create editable library drafts directly from PDF uploads.              |
 | [ADR-077](./implemented/ADR-077-layer-markdown-editor-highlighting.md)                | Implemented          | Layer derived Markdown highlighting behind the native collaborative textarea.                                |
+| [ADR-078](./implemented/ADR-078-add-bounded-vim-textarea-keymap.md)                   | Implemented          | Add an opt-in bounded Vim keymap over the native collaborative textarea.                                     |
 
 ## Creating A New ADR
 

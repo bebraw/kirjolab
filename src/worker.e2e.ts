@@ -108,6 +108,50 @@ test("highlights Markdown without replacing the native editor", async ({ page })
   await expect.poll(async () => await highlight.evaluate((element) => element.scrollTop)).toBe(scroll);
 });
 
+test("offers opt-in Vim editing over the collaborative textarea", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Vim source editing");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  const editor = page.locator("#source-editor");
+  const toggle = page.locator("#vim-toggle");
+  const mode = page.locator("#vim-mode-status");
+  await editor.fill("one two\nthree");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(mode).toHaveText("NORMAL");
+  await expect(editor).toBeFocused();
+
+  await editor.press("g");
+  await editor.press("g");
+  await editor.press("w");
+  expect(await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart)).toBe(4);
+  await editor.press("i");
+  await expect(mode).toHaveText("INSERT");
+  await editor.pressSequentially("new ");
+  await editor.press("Escape");
+  await expect(mode).toHaveText("NORMAL");
+  await expect(editor).toHaveValue("one new two\nthree");
+
+  await editor.press("0");
+  await editor.press("d");
+  await editor.press("d");
+  await expect(editor).toHaveValue("three");
+  await editor.press("q");
+  await expect(editor).toHaveValue("three");
+  await expect(page.locator("#source-editor-highlight")).toHaveText("three");
+  await expect(page.locator("#save-status")).toHaveText("Saved");
+
+  await page.reload();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(mode).toHaveText("NORMAL");
+  await toggle.click();
+  await expect(mode).toBeHidden();
+  await editor.press("End");
+  await editor.press("q");
+  await expect(editor).toHaveValue("threeq");
+});
+
 test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Live WYSIWYM workspace");
   const api = `/api/workspaces/${workspaceId}`;

@@ -146,6 +146,8 @@ export function renderHomePage(
             <span class="count-badge" id="revision-badge">r0</span>
             <button class="count-badge" id="word-count-badge" type="button" title="Open publication statistics">… words</button>
             <button class="button-secondary" id="open-project-history" type="button">History</button>
+            <button class="editor-mode-toggle" id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings">Vim</button>
+            <span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span>
           </div>
           <div class="flex items-center gap-2">
             <details class="action-menu" id="editor-insert-menu" data-action-menu>
@@ -173,7 +175,7 @@ export function renderHomePage(
           </div>
         </div>
         <label class="sr-only" for="source-editor">Markdown source</label>
-        <div class="source-editor-shell">
+        <div class="source-editor-shell" id="source-editor-shell" data-vim-mode="off">
           <pre class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"></pre>
           <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
         </div>

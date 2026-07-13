@@ -34,6 +34,7 @@ import {
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 import { highlightMarkdown } from "./markdown-highlighting";
+import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
   isModelCandidate,
   isWorkspaceSnapshot,
@@ -185,6 +186,9 @@ interface Elements {
   projectHistoryList: HTMLElement;
   source: HTMLTextAreaElement;
   sourceHighlight: HTMLElement;
+  sourceEditorShell: HTMLElement;
+  vimModeStatus: HTMLElement;
+  vimToggle: HTMLButtonElement;
   editorInsertMenu: HTMLDetailsElement;
   includeProjectFileList: HTMLElement;
   bibliography: HTMLTextAreaElement;
@@ -491,6 +495,7 @@ class WorkspaceApp {
       control.addEventListener("input", () => this.#renderReferenceLibrary());
     }
     this.#unbindSourceEditor = bindYText(this.#elements.source, this.#source, this.#document, this.#elements.sourceHighlight);
+    bindVimTextarea(this.#elements.source, this.#elements.sourceEditorShell, this.#elements.vimToggle, this.#elements.vimModeStatus);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
     this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
@@ -4176,6 +4181,59 @@ function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y
   };
 }
 
+function bindVimTextarea(textarea: HTMLTextAreaElement, shell: HTMLElement, toggle: HTMLButtonElement, status: HTMLElement): void {
+  const storageKey = "kirjolab:vim-keybindings";
+  let enabled = localStorage.getItem(storageKey) === "true";
+  let session: VimSession = createVimSession();
+  const renderMode = (): void => {
+    toggle.setAttribute("aria-pressed", String(enabled));
+    toggle.title = enabled ? "Disable Vim keybindings" : "Enable Vim keybindings";
+    status.hidden = !enabled;
+    status.textContent = session.mode.toUpperCase();
+    shell.dataset.vimMode = enabled ? session.mode : "off";
+  };
+  const snapshot = () => ({
+    value: textarea.value,
+    selectionStart: textarea.selectionStart,
+    selectionEnd: textarea.selectionEnd,
+    selectionDirection: textarea.selectionDirection,
+  });
+
+  toggle.addEventListener("click", () => {
+    enabled = !enabled;
+    localStorage.setItem(storageKey, String(enabled));
+    session = createVimSession();
+    if (enabled) {
+      textarea.focus();
+      textarea.setSelectionRange(textarea.selectionStart, textarea.selectionStart);
+    }
+    renderMode();
+  });
+  textarea.addEventListener("keydown", (event) => {
+    if (!enabled || event.isComposing) return;
+    const controlBracket = event.ctrlKey && !event.altKey && !event.metaKey && event.key === "[";
+    if ((event.altKey || event.ctrlKey || event.metaKey) && !controlBracket) return;
+    const command = handleVimKey(session, snapshot(), controlBracket ? "Ctrl-[" : event.key);
+    if (!command.handled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    session = command.session;
+    if (command.changed) textarea.value = command.value;
+    textarea.setSelectionRange(command.selectionStart, command.selectionEnd, command.selectionDirection);
+    if (command.changed) textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+    renderMode();
+  });
+  textarea.addEventListener("mouseup", () => {
+    if (!enabled) return;
+    session =
+      textarea.selectionStart === textarea.selectionEnd
+        ? { ...session, mode: "normal", pending: null, count: "" }
+        : visualVimSession(session);
+    renderMode();
+  });
+  renderMode();
+}
+
 function captureRelativeSelection(textarea: HTMLTextAreaElement, text: Y.Text): RelativeEditorSelection {
   const collapsed = textarea.selectionStart === textarea.selectionEnd;
   return {
@@ -4317,6 +4375,9 @@ function collectElements(): Elements {
     projectHistoryList: requiredElement("project-history-list", HTMLElement),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),
+    sourceEditorShell: requiredElement("source-editor-shell", HTMLElement),
+    vimModeStatus: requiredElement("vim-mode-status", HTMLElement),
+    vimToggle: requiredElement("vim-toggle", HTMLButtonElement),
     editorInsertMenu: requiredElement("editor-insert-menu", HTMLDetailsElement),
     includeProjectFileList: requiredElement("include-project-file-list", HTMLElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),

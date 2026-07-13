@@ -1062,6 +1062,42 @@
     background: rgb(255 255 255 / 0.28);
   }
 
+  .editor-mode-toggle,
+  .editor-mode-status {
+    min-height: 1.65rem;
+    border: 1px solid var(--color-app-line);
+    border-radius: 0.2rem;
+    padding: 0.25rem 0.45rem;
+    font-family: var(--font-sans);
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .editor-mode-toggle {
+    color: var(--color-app-text-soft);
+  }
+
+  .editor-mode-toggle:hover,
+  .editor-mode-toggle[aria-pressed="true"] {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+  }
+
+  .editor-mode-status {
+    display: inline-flex;
+    align-items: center;
+    border-color: transparent;
+    color: var(--color-app-accent-strong);
+  }
+
+  .editor-mode-status[hidden] {
+    display: none;
+  }
+
   .markdown-token-heading {
     color: var(--color-app-ink);
     font-weight: 750;

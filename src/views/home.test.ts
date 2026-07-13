@@ -50,6 +50,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('class="button-secondary hidden" id="open-source-citation"');
     expect(html).toContain('class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"');
     expect(html).toContain('class="source-editor" id="source-editor" spellcheck="true"');
+    expect(html).toContain('id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"');
+    expect(html).toContain('id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span>');
     expect(html).toContain('id="open-project-history"');
     expect(html).toContain('id="project-history-dialog"');
     expect(html).toContain("Browse, compare, restore, or branch from saved versions.");
