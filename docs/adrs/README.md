@@ -34,6 +34,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)             | Implemented | Use semantic light/dark tokens with a browser-local system-aware preference.           |
 | [ADR-092](./implemented/ADR-092-prewarm-agent-ci-dependencies-explicitly.md)  | Implemented | Prewarm dependencies once and give parallel local CI jobs isolated writable views.     |
 | [ADR-093](./implemented/ADR-093-scope-prettier-to-owned-files.md)             | Implemented | Keep duplicated and vendored skill references outside the Prettier ownership boundary. |
+| [ADR-094](./implemented/ADR-094-cache-prettier-checks-by-content.md)          | Implemented | Cache successful Prettier checks by file content under ignored local state.            |
 
 ## Implemented ADRs
 

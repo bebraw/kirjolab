@@ -20,6 +20,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep duplicated `.github/skills/` content and vendored
   `.codex/skills/**/references/` material outside the Prettier baseline.
   Continue formatting project-owned skill entrypoints, specs, ADRs, and docs.
+- Cache successful Prettier checks by file content under ignored
+  `.cache/prettier`; do not trust file timestamps or restore this local cache in
+  remote CI.
 
 ## Kirjolab Product Architecture
 

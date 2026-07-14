@@ -32,7 +32,8 @@
       "2026-07-13-agent-ci-progress",
       "2026-07-13-agent-ci-progress-events",
       "2026-07-14-agent-ci-cache-isolation",
-      "2026-07-14-scope-prettier-to-owned-files"
+      "2026-07-14-scope-prettier-to-owned-files",
+      "2026-07-14-prettier-content-cache"
     ]
   },
   "scripts": {
@@ -53,7 +54,7 @@
     "e2e": "playwright test --pass-with-no-tests",
     "e2e:server": "node ./scripts/run-e2e-server.mjs",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --check . --cache --cache-strategy content --cache-location .cache/prettier",
     "lighthouse": "node ./scripts/run-lighthouse.mjs",
     "model:companion": "npm run build:model-companion && node ./.generated/model-companion.mjs",
     "mutation": "stryker run",

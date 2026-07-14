@@ -45,6 +45,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Codebase diagnostics config:** `.fallowrc.json`
 - **Formatting ownership exclusions:** duplicated `.github/skills/` content and
   vendored `.codex/skills/**/references/`
+- **Formatting cache:** content-based results under ignored `.cache/prettier`
 - **Mutation config:** `stryker.config.mjs`
 - **Readiness baseline:** `npm run quality:gate` and `npm run ci:local` for non-documentation changes
 - **Documentation-only exception:** documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests
@@ -88,6 +89,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - Formatting must continue to cover project-owned source, configuration, skill
   entrypoints, specs, ADRs, and docs while excluding duplicated or vendored
   skill reference trees.
+- `npm run format:check` must use content-based cache invalidation under ignored
+  `.cache/prettier`; correctness must not depend on that cache existing.
 - `npm run quality:affected` must avoid full-repo work when affected files make a narrower check sufficient.
 - `npm run test:affected` must avoid full coverage work when affected runtime or unit test files can be checked through related or direct Vitest runs.
 - `npm run quality:gate` must continue to represent the local baseline verification path.
@@ -191,6 +194,14 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - When: the contributor runs `npm run format:check`
 - Then: Prettier checks project-owned files without spending the formatting
   budget on externally owned reference trees
+
+**Scenario: Contributor repeats an unchanged formatting check**
+
+- Given: a successful content cache exists under `.cache/prettier`
+- When: the contributor runs `npm run format:check` again without changing a
+  checked file
+- Then: Prettier reuses valid content results and still fails for any changed,
+  incorrectly formatted file
 
 **Scenario: Full verification before landing code changes**
 

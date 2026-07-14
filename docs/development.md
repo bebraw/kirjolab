@@ -80,6 +80,11 @@ entrypoints, specs, ADRs, and documentation. It excludes duplicated
 `.github/skills/` content and vendored `.codex/skills/**/references/` material,
 whose source projects own their formatting.
 
+The formatting check caches successful results by content under
+`.cache/prettier`. Repeated local gates can skip unchanged files without
+trusting timestamps across branch switches. The cache is disposable and
+ignored; clean CI runners perform a cold check rather than restoring it.
+
 The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.61.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The full `quality-mutation` workflow job is reserved for GitHub Actions with a `github.server_url` guard, so local Agent CI runs skip it; use `npm run quality:gate` or `npm run mutation` when local mutation feedback is needed. Dependency installation uses plain `npm ci`. Local Agent CI 0.17.1 explicitly prewarms through the fast job's stable `install` step, then gives concurrent jobs isolated writable dependency views. The local wrapper consumes Agent CI's versioned JSON events and reports each job and step with elapsed time, including a heartbeat every 15 seconds; it does not duplicate, reorder, or omit workflow checks.
 
 The starter UI now follows the same Tailwind v4 baseline shape as `thesis-journey-tracker`: Tailwind input lives in `src/tailwind-input.css`, generated CSS is written to `.generated/styles.css`, and Wrangler runs `npm run build:css` automatically before local development.
@@ -149,7 +154,7 @@ Template update packs live under `.template/updates/`. Use them to port later te
 
 ## Write Boundaries
 
-Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`; generated Satteri WASM and helper-worker deployment assets belong in `.generated/assets/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; the committed README screenshot belongs in `docs/screenshots/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
+Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`; generated Satteri WASM and helper-worker deployment assets belong in `.generated/assets/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
 
 When adding a new tool or workflow that writes files, document the target path in the same change and prefer ignored local output unless the artifact is intentionally reviewed.
 

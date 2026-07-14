@@ -18,7 +18,7 @@ Add or merge these scripts:
 {
   "scripts": {
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --check . --cache --cache-strategy content --cache-location .cache/prettier",
     "quality:gate": "npm run quality:gate:fast",
     "quality:gate:fast": "npm run format:check && npm run typecheck && npm run security:audit && npm run test:coverage",
     "security:audit": "npm audit --omit=dev --audit-level high",
