@@ -20,9 +20,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - The desktop workspace has two primary document surfaces: an authoring editor
   on the left and a tabbed research-context pane on the right. A compact
   resource-navigation rail may remain ancillary to those surfaces.
-- The ancillary rail separates project files from research. Research is the
-  default mode and presents bounded collapsible project collections rather
-  than duplicating the permanent private Library destination.
+- The ancillary rail separates project files from research. Files is the
+  initial mode; Research presents bounded collapsible project collections
+  rather than duplicating the permanent private Library destination.
 - The context tab model uses a discriminated target keyed by stable identity:
   the singleton manuscript Preview, singleton owner Library, singleton Writing
   assistant, a publication UUID, a workspace PDF UUID, a private library PDF

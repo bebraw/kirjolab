@@ -39,9 +39,13 @@ collaborative, and unambiguous about what preview and export mean.
 - Preview and Markdown export always compose from `main.md`; selecting a
   supporting file changes the editor, not the publication root.
 - The workspace exposes project files as a dedicated navigation mode, separate
-  from research inventory. The entry file is visibly identified, supporting
-  paths are sorted for scanning, and file creation is available from both the
-  file navigator and the active-file toolbar.
+  from research inventory. Files is the default rail mode so the workspace
+  opens with its authored structure visible. The file navigator uses one
+  direct heading and omits redundant list counts, sort labels, and extension
+  badges; the entry file remains visibly identified because it defines the
+  composition root. Supporting paths are sorted for scanning, and file
+  creation is available from both the file navigator and the active-file
+  toolbar.
 - A fresh starter project includes one supporting Markdown file transcluded
   from `main.md`, making the portable include syntax and composed result
   discoverable without changing existing projects during migration.
@@ -92,7 +96,7 @@ collaborative, and unambiguous about what preview and export mean.
   revision seeds.
 - Browser coverage verifies that authors can insert an existing file and create
   a new file at a remembered caret without changing the `main.md` composition
-  root.
+  root, and that Files is the initial rail mode.
 - Workers coverage verifies that a fresh project exposes the transclusion demo
   as a real supporting file and composes it without diagnostics.
 

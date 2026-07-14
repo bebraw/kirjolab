@@ -434,13 +434,16 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page.goto(`/workspaces/${workspaceId}`);
 
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1, name: "Sources & evidence" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Files" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   const railModes = page.locator(".rail-mode-switcher");
   await expect(railModes.locator(".rail-mode-icon")).toHaveCount(3);
   await expect(page.getByRole("tab", { name: "Files" })).toHaveAttribute("title", "Files");
   await expect(page.getByRole("tab", { name: "Research" })).toHaveAttribute("title", "Research");
   await expect(page.getByRole("tab", { name: "Comments" })).toHaveAttribute("title", "Comments");
+  await expect(page.getByRole("tab", { name: "Files" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#files-rail-panel")).toBeVisible();
+  await expect(page.locator("#research-rail-panel")).toBeHidden();
   expect(await railModes.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await expect(page.locator("#save-status")).toHaveText("Saved");
   const assistantTab = page.getByRole("tab", { name: "Writing assistant" });
@@ -993,6 +996,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   const api = `/api/workspaces/${workspaceId}`;
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await openResearchRail(page);
 
   await page.locator("#preview .semantic-citation[data-citation='merton1942']").evaluate((element: HTMLButtonElement) => element.click());
   await expect(page.locator("#insert-context-citation")).toBeDisabled();
@@ -1164,6 +1168,7 @@ test("reviews DOI metadata before adding and connecting an imported paper", asyn
   const api = `/api/workspaces/${workspaceId}`;
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await openResearchRail(page);
 
   await page.locator("#pdf-upload").setInputFiles({
     name: "identified-paper.pdf",
@@ -1258,6 +1263,7 @@ test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({
   const api = `/api/workspaces/${workspaceId}`;
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await openResearchRail(page);
   await page.locator("#pdf-upload").setInputFiles({
     name: "editable-highlights.pdf",
     mimeType: "application/pdf",
@@ -1791,7 +1797,10 @@ test("creates and inserts transcluded project files", async ({ page }) => {
     element.dispatchEvent(new Event("select", { bubbles: true }));
   });
   await page.locator("#editor-insert-menu summary").click();
-  await page.getByRole("button", { name: /chapters\/method\.md/u }).click();
+  await page
+    .locator("#include-project-file-list")
+    .getByRole("button", { name: /chapters\/method\.md/u })
+    .click();
   await expect(source).toHaveValue(/::include\[chapters\/method\.md\]\n$/u);
   await page.locator("#project-file-switcher").selectOption({ label: "chapters/method.md" });
   await source.fill("## Method\n\nDescribe the procedure.\n");
@@ -2044,8 +2053,8 @@ test("derives collaborative project bibliography from shared-library aliases", a
 
   await Promise.all([page.getByRole("tab", { name: "Files" }).click(), collaborator.getByRole("tab", { name: "Files" }).click()]);
   await Promise.all([
-    page.locator("summary").filter({ hasText: "Derived project bibliography" }).click(),
-    collaborator.locator("summary").filter({ hasText: "Derived project bibliography" }).click(),
+    page.locator("summary").filter({ hasText: "Bibliography" }).click(),
+    collaborator.locator("summary").filter({ hasText: "Bibliography" }).click(),
   ]);
   await expect(page.locator("#bibliography-editor")).toHaveAttribute("readonly", "");
   await expect(collaborator.locator("#bibliography-editor")).toHaveValue(/@article\{collaborative2026/u);
@@ -2380,6 +2389,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
 
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible({ timeout: 10_000 });
+  await openResearchRail(page);
   const initialSource =
     "## Evidence becomes prose {#sec-evidence}\n\nKirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942].\n\n## Return to the source {#sec-source}\n\nThe preview resolves a link back to :ref[sec-evidence].\n";
   await page.locator("#source-editor").fill(initialSource);
@@ -2786,10 +2796,17 @@ async function expectCollaboratorCaretAligned(caretLocator: Locator): Promise<vo
 }
 
 async function openResearchCollection(page: Page, name: string): Promise<void> {
+  await openResearchRail(page);
   const collection = page.locator(".rail-collection").filter({ has: page.getByText(name, { exact: true }) });
   await collection.evaluate((element: HTMLDetailsElement) => {
     element.open = true;
   });
+}
+
+async function openResearchRail(page: Page): Promise<void> {
+  const tab = page.getByRole("tab", { name: "Research" });
+  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
+  await expect(page.locator("#research-rail-panel")).toBeVisible();
 }
 
 async function openWritingAssistant(page: Page, includeSettings = false): Promise<void> {

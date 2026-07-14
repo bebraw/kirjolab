@@ -64,10 +64,10 @@ export function renderHomePage(
       </nav>
       <aside class="source-rail border-b border-app-line bg-app-paper min-[72rem]:border-r min-[72rem]:border-b-0">
         <div class="rail-mode-switcher" role="tablist" aria-label="Project navigation">
-          <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-label="Files" aria-controls="files-rail-panel" aria-selected="false" title="Files">
+          <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-label="Files" aria-controls="files-rail-panel" aria-selected="true" title="Files">
             <svg class="rail-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.75h6l2 2h9v9.5h-17z"></path></svg>
           </button>
-          <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-label="Research" aria-controls="research-rail-panel" aria-selected="true" title="Research">
+          <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-label="Research" aria-controls="research-rail-panel" aria-selected="false" title="Research">
             <svg class="rail-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.25A2.75 2.75 0 0 1 13 8.25v10.25a3.25 3.25 0 0 0-3.25-3.25H5z"></path><path d="M19 5.5h-3.25A2.75 2.75 0 0 0 13 8.25v10.25a3.25 3.25 0 0 1 3.25-3.25H19z"></path></svg>
           </button>
           <button class="rail-mode" id="show-comments-rail" type="button" role="tab" aria-label="Comments" aria-describedby="manuscript-comment-count" aria-controls="comments-rail-panel" aria-selected="false" title="Comments">
@@ -76,24 +76,23 @@ export function renderHomePage(
           </button>
         </div>
 
-        <section class="rail-panel px-4 py-5 lg:px-5" id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail" hidden>
-          <div class="flex items-end justify-between gap-3">
-            <div><p class="eyebrow">Project files</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Writing</h1></div>
+        <section class="rail-panel px-4 py-5 lg:px-5" id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail">
+          <div class="flex items-center justify-between gap-3">
+            <h1 class="text-xl font-semibold tracking-[-0.035em]">Files</h1>
             <button class="button-secondary" id="new-project-file-rail" type="button">Add file</button>
           </div>
-          <div class="mt-4 flex items-center justify-between gap-3"><p class="eyebrow">Files · A–Z</p><span class="count-badge" id="project-file-count">1</span></div>
-          <div class="mt-3 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
+          <div class="mt-4 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
           <details class="rail-collection mt-4" id="derived-project-bibliography">
-            <summary><span>Derived project bibliography</span></summary>
+            <summary><span>Bibliography</span></summary>
             <div class="pb-4">
-              <p class="mb-3 text-xs leading-5 text-app-text-soft">Read-only BibTeX generated from references linked to this project.</p>
+              <p class="mb-3 text-xs leading-5 text-app-text-soft">Generated BibTeX from project references. Read only.</p>
               <label class="sr-only" for="bibliography-editor">Derived project BibTeX</label>
               <textarea class="bibliography-editor rail-bibliography-editor" id="bibliography-editor" spellcheck="false" readonly></textarea>
             </div>
           </details>
         </section>
 
-        <section class="rail-panel px-4 py-5 lg:px-5" id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail">
+        <section class="rail-panel px-4 py-5 lg:px-5" id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail" hidden>
           <div><p class="eyebrow">Research</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Sources &amp; evidence</h1></div>
           <form class="mt-4 flex gap-2" id="knowledge-search-form" role="search">
             <label class="sr-only" for="knowledge-search-input">Filter project research</label>

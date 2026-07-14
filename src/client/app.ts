@@ -179,7 +179,6 @@ interface Elements {
   researchRailPanel: HTMLElement;
   commentsRailPanel: HTMLElement;
   newProjectFileRail: HTMLButtonElement;
-  projectFileCount: HTMLElement;
   projectFileList: HTMLElement;
   projectFileSwitcher: HTMLSelectElement;
   newProjectFile: HTMLButtonElement;
@@ -1304,7 +1303,6 @@ class WorkspaceApp {
         return option;
       }),
     );
-    this.#elements.projectFileCount.textContent = String(snapshot.files.length);
     this.#elements.projectFileList.replaceChildren();
     this.#elements.includeProjectFileList.replaceChildren();
     for (const file of [...snapshot.files].sort((left, right) => left.path.localeCompare(right.path))) {
@@ -1316,10 +1314,13 @@ class WorkspaceApp {
       const path = document.createElement("span");
       path.className = "truncate";
       path.textContent = file.path;
-      const kind = document.createElement("span");
-      kind.className = "project-file-kind";
-      kind.textContent = file.id === snapshot.entryFileId ? "entry" : "md";
-      button.append(path, kind);
+      button.append(path);
+      if (file.id === snapshot.entryFileId) {
+        const kind = document.createElement("span");
+        kind.className = "project-file-kind";
+        kind.textContent = "entry";
+        button.append(kind);
+      }
       button.addEventListener("click", () => this.#selectProjectFile(file.id));
       this.#elements.projectFileList.append(button);
       if (file.id !== this.#activeFileId) {
@@ -5156,7 +5157,6 @@ function collectElements(): Elements {
     researchRailPanel: requiredElement("research-rail-panel", HTMLElement),
     commentsRailPanel: requiredElement("comments-rail-panel", HTMLElement),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
-    projectFileCount: requiredElement("project-file-count", HTMLElement),
     projectFileList: requiredElement("project-file-list", HTMLElement),
     projectFileSwitcher: requiredElement("project-file-switcher", HTMLSelectElement),
     newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
