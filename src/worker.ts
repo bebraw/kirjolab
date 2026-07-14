@@ -1,5 +1,6 @@
 import { createHealthResponse } from "./api/health";
 import { handleBackupApi } from "./api/backups";
+import { handleEditShareRequest } from "./api/edit-share";
 import { renderExportPdf } from "./api/export-artifacts";
 import { handleWorkspaceApi } from "./api/workspace";
 import { handleReferenceLibraryApi } from "./api/reference-library";
@@ -15,7 +16,7 @@ import { authenticateRequest, isSameOriginMutation, type AuthIdentity } from "./
 import { renderHomePage } from "./views/home";
 import { renderNotFoundPage } from "./views/not-found";
 import { renderReadOnlySharePage } from "./views/read-only-share";
-import { cssResponse, htmlResponse, scriptResponse } from "./views/shared";
+import { cssResponse, htmlResponse, pdfResponse, scriptResponse } from "./views/shared";
 
 export { BackupCoordinator, BackupRecovery, DocumentRoom, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
 
@@ -41,6 +42,10 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
 
   if (url.pathname === "/read-only-share.js") {
     return scriptResponse(await loadReadOnlyShareScript());
+  }
+
+  if (url.pathname === "/edit-share.js") {
+    return scriptResponse(await loadEditShareScript());
   }
 
   if (url.pathname === "/pdf.worker.js") {
@@ -72,13 +77,16 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
       return await room.fetch(new Request(request, { headers }));
     }
     const snapshot = await room.getSnapshot(target.workspaceId);
-    if (readOnlyShare[3]) return sharedPdfResponse(await renderExportPdf(buildExportBundle(snapshot)));
+    if (readOnlyShare[3]) return pdfResponse(await renderExportPdf(buildExportBundle(snapshot)));
     const sharePath = `/share/${locator}.${readOnlyShare[2]}`;
     return htmlResponse(renderReadOnlySharePage(snapshot, sharePath, url.searchParams.get("view")), 200, url, {
       allowSameOriginFrames: true,
       crossOriginIsolated: false,
     });
   }
+
+  const editShareResponse = await handleEditShareRequest(request, env);
+  if (editShareResponse) return editShareResponse;
 
   let identity: AuthIdentity = { subject: "test", email: "local@kirjolab.invalid", ownerKey: "local", mode: "local" };
   if (env) {
@@ -124,22 +132,6 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
 }
 
-function sharedPdfResponse(body: Uint8Array): Response {
-  const bytes = new Uint8Array(body);
-  return new Response(bytes, {
-    headers: {
-      "content-type": "application/pdf",
-      "content-length": String(bytes.byteLength),
-      "content-disposition": 'inline; filename="kirjolab-document.pdf"',
-      "cache-control": "no-store",
-      "content-security-policy": "frame-ancestors 'self'",
-      "cross-origin-resource-policy": "same-origin",
-      "referrer-policy": "no-referrer",
-      "x-content-type-options": "nosniff",
-    },
-  });
-}
-
 export async function runScheduledBackups(env: Env): Promise<void> {
   const summary = await env.BACKUP_COORDINATOR.getByName("primary").runScheduledBackups();
   console.log(JSON.stringify({ event: "scheduled-backup", ...summary }));
@@ -179,6 +171,18 @@ async function loadReadOnlyShareScript(): Promise<string> {
   }
 
   const script = await import("./client/read-only-share.txt");
+  return script.default;
+}
+
+async function loadEditShareScript(): Promise<string> {
+  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
+  if (typeof WebSocketPair === "undefined") {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    return await readFile(fileURLToPath(new URL("./client/edit-share.txt", import.meta.url).href), "utf8");
+  }
+
+  const script = await import("./client/edit-share.txt");
   return script.default;
 }
 

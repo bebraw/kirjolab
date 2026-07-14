@@ -25,8 +25,11 @@ Owners need a minimal way to grant access to a known collaborator.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
 - `POST /api/workspaces/{id}/share-link` lets only the owner create or rotate
-  one read-only bearer link; `DELETE` revokes it and `GET` reports status
-  without returning the secret again.
+  one read-only bearer link; `DELETE` revokes it and `GET` returns the active
+  link to the owner with `Cache-Control: no-store`.
+- `POST /api/workspaces/{id}/edit-link` lets only the owner create or rotate
+  one edit bearer link; `DELETE` revokes it and `GET` returns the active link
+  to the owner with `Cache-Control: no-store`.
 - Each project uses an opaque public share locator. Globally unique workspace
   ids remain their own locators for link compatibility, while owner-scoped
   starter projects receive a persisted random UUID mapped to their internal
@@ -49,9 +52,15 @@ Owners need a minimal way to grant access to a known collaborator.
 - The small read-only share client reloads the selected server-rendered view
   after a short quiet period when a newer revision notice arrives. It does not
   load or reuse the authenticated authoring client.
-- Read-only link secrets contain 256 random bits. Only their SHA-256 hashes are
-  persisted, rotating a link invalidates its predecessor, and HTML responses
-  use `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
+- Share-link secrets contain 256 random bits. Their active plaintext value is
+  persisted only so an authenticated owner can retrieve the same URL later;
+  validation still uses the stored SHA-256 hash. Rotating a link invalidates
+  its predecessor, and link/status responses use `Cache-Control: no-store` and
+  `Referrer-Policy: no-referrer` where applicable.
+- A valid `/edit/{locator}.{secret}` page exposes authored Markdown files and
+  the canonical PDF only. Each file replacement revalidates the capability,
+  requires an exact same-origin `Origin`, enforces the 2 MB content bound, and
+  rejects a stale expected revision instead of overwriting concurrent work.
 - Authorized members may inspect project history and comparisons. Only the
   owner may name milestones, restore a retained state, or seed a new project
   from one.
@@ -59,7 +68,8 @@ Owners need a minimal way to grant access to a known collaborator.
   duplication, and permanent deletion. Lifecycle changes are mirrored into
   every member catalog.
 - Permanent deletion first unregisters shared-library dependencies and removes
-  project-owned R2 objects, then erases document, access, and catalog state.
+  project-owned R2 objects and revokes both public capabilities, then erases
+  document, access, and catalog state.
   It never deletes canonical private-library references.
 - An exact same-origin `Origin` is required for browser mutations and
   WebSocket upgrades, including authenticated `GET` upgrade requests.
@@ -76,8 +86,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - `ACCESS_AUD=<application audience tag>`
 - The application hostname must be protected by a Cloudflare Access self-hosted
   application and direct unprotected hostnames should be disabled. The
-  `/share/*` path needs a deliberate Access bypass policy so bearer-link
-  readers can reach the Worker's independent token check.
+  `/share/*` and `/edit/*` paths need deliberate Access bypass policies so
+  bearer-link holders can reach the Worker's independent token checks.
 
 ### Anti-Patterns
 
@@ -87,8 +97,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - Do not pass Access tokens into browser JavaScript or logs.
 - Do not use plaintext emails as Durable Object or R2 storage keys.
 - Do not let members invite additional members in this slice.
-- Do not persist plaintext read-only link secrets or reuse them as general API
-  credentials.
+- Do not return plaintext share-link secrets to members, unauthenticated status
+  callers, cacheable responses, logs, or general workspace APIs.
 
 ## Contract
 
@@ -100,6 +110,10 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Workspace creation initializes an owner role.
 - [x] Owners can invite a normalized collaborator email.
 - [x] Owners can create, rotate, and revoke a read-only bearer link.
+- [x] Owners can return to the Share control and copy the same active read-only
+      or edit link without rotating it.
+- [x] An edit-link holder can update authored Markdown without gaining member,
+      private-research, administration, or general API access.
 - [x] Owner-scoped starter projects can be shared without exposing an owner
       storage key or colliding with another owner's starter project.
 - [x] A read-only link exposes only the current rendered PDF, composed Markdown,
@@ -143,6 +157,14 @@ Owners need a minimal way to grant access to a known collaborator.
 - Read-only link lookup must validate a fixed-shape random secret against its
   stored hash before touching document state; invalid and revoked links return
   the same not-found response.
+- Only an authenticated owner may retrieve an active read-only or edit URL.
+  Status responses must be non-cacheable and must not expose a separate token
+  field.
+- Edit-link reads and writes must independently validate the current bearer
+  token. Writes require an exact same-origin `Origin`, bounded content, and the
+  current project revision.
+- Permanent project deletion must revoke both locator-scoped capabilities before
+  erasing the document room.
 - Public share locators must not expose owner-derived storage keys, and target
   mappings must not be returned before bearer-token validation succeeds.
 - Every shared PDF request must independently validate the current bearer token
@@ -202,3 +224,16 @@ Owners need a minimal way to grant access to a known collaborator.
 - When: the owner replaces or revokes it
 - Then: the prior URL immediately returns the same not-found response as an
   unknown link
+
+**Scenario: Owner returns to copy an active link**
+
+- Given: the owner previously created a read-only or edit link
+- When: they reopen the Share control later
+- Then: Kirjolab returns the same active URL without rotating or revoking it
+
+**Scenario: External writer follows an edit link**
+
+- Given: the owner created a current edit link
+- When: its holder saves an authored Markdown file at the current revision
+- Then: Kirjolab updates the live project and rendered output without exposing
+  project membership, administration, private research, or general APIs

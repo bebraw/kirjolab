@@ -32,6 +32,8 @@ describe("supporting Durable Objects in the Workers runtime", () => {
       { version: 2, name: "assign-stable-person-identities" },
       { version: 3, name: "create-read-only-share" },
       { version: 4, name: "map-read-only-share-targets" },
+      { version: 5, name: "create-edit-share" },
+      { version: 6, name: "retain-active-share-tokens" },
     ]);
 
     const demoLocator = await catalog.getOrCreateShareLocator("demo");
@@ -39,13 +41,13 @@ describe("supporting Durable Objects in the Workers runtime", () => {
     expect(await catalog.getOrCreateShareLocator("demo")).toBe(demoLocator);
     expect(await catalog.getOrCreateShareLocator(registered.id)).toBe(registered.id);
 
-    expect(await access.getReadOnlyShareStatus(owner.email)).toEqual({ active: false, createdAt: null });
+    expect(await access.getReadOnlyShareStatus(owner.email)).toEqual({ active: false, createdAt: null, token: null });
     const share = await access.createReadOnlyShare(owner.email);
     expect(share.token).toMatch(/^[A-Za-z0-9_-]{43}$/u);
     expect(await access.validateReadOnlyShare(share.token)).toBe(true);
     const changedToken = `${share.token.slice(0, -1)}${share.token.endsWith("x") ? "y" : "x"}`;
     expect(await access.validateReadOnlyShare(changedToken)).toBe(false);
-    expect(await access.getReadOnlyShareStatus(owner.email)).toEqual({ active: true, createdAt: share.createdAt });
+    expect(await access.getReadOnlyShareStatus(owner.email)).toEqual({ active: true, createdAt: share.createdAt, token: share.token });
     expect(await access.resolveReadOnlyShare(share.token)).toEqual({ valid: true, target: null });
 
     const mapped = await access.createMappedReadOnlyShare("owner-key:demo", "demo");
@@ -53,7 +55,24 @@ describe("supporting Durable Objects in the Workers runtime", () => {
       valid: true,
       target: { storageKey: "owner-key:demo", workspaceId: "demo" },
     });
-    expect(await access.getMappedReadOnlyShareStatus()).toEqual({ active: true, createdAt: mapped.createdAt });
+    expect(await access.getMappedReadOnlyShareStatus()).toEqual({ active: true, createdAt: mapped.createdAt, token: mapped.token });
+    await runInDurableObject(access, (_instance: WorkspaceAccess, state) => {
+      state.storage.sql.exec("UPDATE read_only_share SET token = NULL WHERE singleton = 1");
+    });
+    expect(await access.getMappedReadOnlyShareStatus()).toEqual({ active: true, createdAt: mapped.createdAt, token: null });
+    expect(await access.resolveReadOnlyShare(mapped.token)).toEqual({
+      valid: true,
+      target: { storageKey: "owner-key:demo", workspaceId: "demo" },
+    });
+
+    expect(await access.getMappedEditShareStatus()).toEqual({ active: false, createdAt: null, token: null });
+    const editShare = await access.createMappedEditShare("owner-key:demo", "demo");
+    expect(editShare.token).toMatch(/^[A-Za-z0-9_-]{43}$/u);
+    expect(await access.resolveEditShare(editShare.token)).toEqual({
+      valid: true,
+      target: { storageKey: "owner-key:demo", workspaceId: "demo" },
+    });
+    expect(await access.getMappedEditShareStatus()).toEqual({ active: true, createdAt: editShare.createdAt, token: editShare.token });
 
     expect((await catalog.updateWorkspace(registered.id, "Renamed workspace", true)).archivedAt).not.toBeNull();
     expect((await catalog.updateWorkspace(registered.id, registered.title, false)).archivedAt).toBeNull();
@@ -87,11 +106,21 @@ describe("supporting Durable Objects in the Workers runtime", () => {
       valid: true,
       target: { storageKey: "owner-key:demo", workspaceId: "demo" },
     });
+    expect(await access.resolveEditShare(editShare.token)).toEqual({
+      valid: true,
+      target: { storageKey: "owner-key:demo", workspaceId: "demo" },
+    });
     expect(await runInDurableObject(catalog, (_instance: WorkspaceCatalog, state) => ledgerRows(state))).toEqual(catalogLedger);
     expect(await runInDurableObject(access, (_instance: WorkspaceAccess, state) => ledgerRows(state))).toEqual(accessLedger);
 
     await access.revokeMappedReadOnlyShare();
     expect(await access.resolveReadOnlyShare(mapped.token)).toEqual({ valid: false, target: null });
+    await access.revokeMappedEditShare();
+    expect(await access.resolveEditShare(editShare.token)).toEqual({ valid: false, target: null });
+    await access.deleteWorkspaceAccess(owner.email);
+    expect(await access.getRole(owner.email)).toBeNull();
+    expect(await access.getMappedReadOnlyShareStatus()).toEqual({ active: false, createdAt: null, token: null });
+    expect(await access.getMappedEditShareStatus()).toEqual({ active: false, createdAt: null, token: null });
   });
 });
 

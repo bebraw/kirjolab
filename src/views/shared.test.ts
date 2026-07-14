@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cssResponse, escapeHtml, htmlResponse, scriptResponse } from "./shared";
+import { cssResponse, escapeHtml, htmlResponse, pdfResponse, scriptResponse } from "./shared";
 
 describe("htmlResponse", () => {
   it("returns no-store HTML responses", () => {
@@ -44,6 +44,18 @@ describe("scriptResponse", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+});
+
+describe("pdfResponse", () => {
+  it("returns a non-cacheable same-origin inline PDF", async () => {
+    const response = pdfResponse(new Uint8Array([37, 80, 68, 70]));
+
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("content-disposition")).toContain("inline");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cross-origin-resource-policy")).toBe("same-origin");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([37, 80, 68, 70]));
   });
 });
 

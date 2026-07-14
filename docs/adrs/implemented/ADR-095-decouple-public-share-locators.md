@@ -27,7 +27,7 @@ Continue using the existing globally unique workspace id as the locator for
 ordinary projects so issued links remain compatible.
 
 Store the locator's validated target `{ storageKey, workspaceId }` beside its
-hashed bearer token in the locator-keyed `WorkspaceAccess` Durable Object. The
+bearer token record in the locator-keyed `WorkspaceAccess` Durable Object. The
 unauthenticated share route validates the token before returning or touching
 the target mapping, then reads the mapped `DocumentRoom`. A missing mapping on
 an already-issued ordinary-project link falls back to the legacy rule where

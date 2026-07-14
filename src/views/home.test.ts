@@ -25,6 +25,10 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="create-read-only-share" type="button">Create link</button>');
     expect(html).toContain('id="read-only-share-link" type="text" readonly');
     expect(html).toContain('id="revoke-read-only-share" type="button">Revoke read-only link</button>');
+    expect(html).toContain('id="edit-share-heading"');
+    expect(html).toContain('id="create-edit-share" type="button">Create link</button>');
+    expect(html).toContain('id="edit-share-link" type="text" readonly');
+    expect(html).toContain('id="revoke-edit-share" type="button">Revoke edit link</button>');
     expect(html).toContain('id="diagnostic-summary"');
     expect(html).toContain('id="authoring-context-resizer" role="separator"');
     expect(html).toContain("Annotate this paper");

@@ -987,6 +987,23 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.getSnapshot(workspaceId);
   }
 
+  replaceProjectFileContent(workspaceId: string, fileId: string, content: string, expectedRevision: number): WorkspaceSnapshot {
+    if (content.length > 2_000_000) throw new Error("Project file exceeds 2 MB");
+    const previous = this.#workspaceRow();
+    if (previous.revision !== expectedRevision) throw new Error("Project changed since this edit loaded");
+    const { text } = this.#projectText(fileId);
+    const splice = calculateTextSplice(text.toString(), content);
+    if (!splice) return this.getSnapshot(workspaceId);
+
+    const stateVector = Y.encodeStateVector(this.#document);
+    if (splice.deleteCount > 0) text.delete(splice.start, splice.deleteCount);
+    if (splice.insert) text.insert(splice.start, splice.insert);
+    const persisted = this.#persistDocument(previous, {}, undefined, "edit-link-file-replace");
+    this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    return this.getSnapshot(workspaceId);
+  }
+
   renameProjectFile(workspaceId: string, fileId: string, pathValue: string): WorkspaceSnapshot {
     const nextPath = normalizeProjectPath(pathValue);
     if (!nextPath || nextPath !== pathValue.trim() || !nextPath.endsWith(".md") || nextPath === projectEntryPath) {

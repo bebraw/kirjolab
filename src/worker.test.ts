@@ -38,7 +38,16 @@ describe("worker", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       name: "kirjolab",
-      routes: ["/", "/workspaces/:id", "/share/:token", "/api/workspaces", "/api/workspaces/demo", "/api/session", "/api/health"],
+      routes: [
+        "/",
+        "/workspaces/:id",
+        "/share/:token",
+        "/edit/:token",
+        "/api/workspaces",
+        "/api/workspaces/demo",
+        "/api/session",
+        "/api/health",
+      ],
     });
   });
 
@@ -118,6 +127,14 @@ describe("worker", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/javascript");
     expect(await response.text()).toContain("new WebSocket");
+  });
+
+  it("serves the lightweight edit-share client", async () => {
+    const response = await handleRequest(new Request("http://example.com/edit-share.js"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/javascript");
+    expect(await response.text()).toContain('method: "PATCH"');
   });
 
   it("serves the generated PDF worker", async () => {

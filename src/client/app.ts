@@ -135,6 +135,12 @@ interface Elements {
   readOnlyShareLink: HTMLInputElement;
   copyReadOnlyShare: HTMLButtonElement;
   revokeReadOnlyShare: HTMLButtonElement;
+  editShareStatus: HTMLElement;
+  createEditShare: HTMLButtonElement;
+  editShareLinkRow: HTMLElement;
+  editShareLink: HTMLInputElement;
+  copyEditShare: HTMLButtonElement;
+  revokeEditShare: HTMLButtonElement;
   referenceLibraryList: HTMLElement;
   libraryBibliographyUpload: HTMLInputElement;
   libraryCslUpload: HTMLInputElement;
@@ -491,6 +497,9 @@ class WorkspaceApp {
     this.#elements.createReadOnlyShare.addEventListener("click", () => void this.#createReadOnlyShare());
     this.#elements.copyReadOnlyShare.addEventListener("click", () => void this.#copyReadOnlyShare());
     this.#elements.revokeReadOnlyShare.addEventListener("click", () => void this.#revokeReadOnlyShare());
+    this.#elements.createEditShare.addEventListener("click", () => void this.#createEditShare());
+    this.#elements.copyEditShare.addEventListener("click", () => void this.#copyEditShare());
+    this.#elements.revokeEditShare.addEventListener("click", () => void this.#revokeEditShare());
     this.#elements.contextLibraryTab.addEventListener("click", () => void this.#openReferenceLibrary());
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
@@ -824,7 +833,7 @@ class WorkspaceApp {
 
   async #openSharing(): Promise<void> {
     this.#elements.shareWorkspaceDialog.showModal();
-    await Promise.all([this.#refreshMembers(), this.#refreshReadOnlyShare()]);
+    await Promise.all([this.#refreshMembers(), this.#refreshReadOnlyShare(), this.#refreshEditShare()]);
   }
 
   async #refreshReadOnlyShare(): Promise<void> {
@@ -836,15 +845,23 @@ class WorkspaceApp {
     }
     await expectOk(response);
     const status: unknown = await response.json();
-    if (!isRecord(status) || typeof status.active !== "boolean" || (status.createdAt !== null && typeof status.createdAt !== "string")) {
+    if (
+      !isRecord(status) ||
+      typeof status.active !== "boolean" ||
+      (status.createdAt !== null && typeof status.createdAt !== "string") ||
+      (status.href !== null && typeof status.href !== "string")
+    ) {
       throw new Error("Read-only link status returned invalid data");
     }
+    this.#setShareLink(this.#elements.readOnlyShareLink, this.#elements.readOnlyShareLinkRow, status.href);
     this.#elements.createReadOnlyShare.hidden = false;
     this.#elements.createReadOnlyShare.textContent = status.active ? "Replace link" : "Create link";
     this.#elements.revokeReadOnlyShare.classList.toggle("hidden", !status.active);
-    this.#elements.readOnlyShareStatus.textContent = status.active
-      ? "Anyone with the current link can inspect the live manuscript and project source. Create a replacement to invalidate it."
-      : "Create a bearer link for people who should inspect, but not edit, this project.";
+    this.#elements.readOnlyShareStatus.textContent = status.href
+      ? "Anyone with this link can inspect the live manuscript and project source. You can copy it again at any time."
+      : status.active
+        ? "This older link remains active, but its secret cannot be recovered. Replace it once to make the new link available here."
+        : "Create a bearer link for people who should inspect, but not edit, this project.";
   }
 
   async #createReadOnlyShare(): Promise<void> {
@@ -856,7 +873,7 @@ class WorkspaceApp {
     this.#elements.readOnlyShareLinkRow.classList.remove("hidden");
     this.#elements.readOnlyShareLinkRow.classList.add("grid");
     await this.#refreshReadOnlyShare();
-    this.#showToast("Read-only link created. Copy it before closing this dialog.");
+    this.#showToast("Read-only link created. You can return here to copy it again.");
   }
 
   async #copyReadOnlyShare(): Promise<void> {
@@ -866,11 +883,67 @@ class WorkspaceApp {
 
   async #revokeReadOnlyShare(): Promise<void> {
     await expectOk(await fetch(`${apiBase}/share-link`, { method: "DELETE", credentials: "same-origin" }));
-    this.#elements.readOnlyShareLink.value = "";
-    this.#elements.readOnlyShareLinkRow.classList.add("hidden");
-    this.#elements.readOnlyShareLinkRow.classList.remove("grid");
+    this.#setShareLink(this.#elements.readOnlyShareLink, this.#elements.readOnlyShareLinkRow, null);
     await this.#refreshReadOnlyShare();
     this.#showToast("Read-only link revoked.");
+  }
+
+  async #refreshEditShare(): Promise<void> {
+    const response = await fetch(`${apiBase}/edit-link`, { credentials: "same-origin" });
+    if (response.status === 403) {
+      this.#elements.editShareStatus.textContent = "Only the project owner can manage edit links.";
+      this.#elements.createEditShare.hidden = true;
+      return;
+    }
+    await expectOk(response);
+    const status: unknown = await response.json();
+    if (
+      !isRecord(status) ||
+      typeof status.active !== "boolean" ||
+      (status.createdAt !== null && typeof status.createdAt !== "string") ||
+      (status.href !== null && typeof status.href !== "string")
+    ) {
+      throw new Error("Edit link status returned invalid data");
+    }
+    this.#setShareLink(this.#elements.editShareLink, this.#elements.editShareLinkRow, status.href);
+    this.#elements.createEditShare.hidden = false;
+    this.#elements.createEditShare.textContent = status.active ? "Replace link" : "Create link";
+    this.#elements.revokeEditShare.classList.toggle("hidden", !status.active);
+    this.#elements.editShareStatus.textContent = status.href
+      ? "Anyone with this link can change authored project files. You can copy it again at any time."
+      : status.active
+        ? "This older link remains active, but its secret cannot be recovered. Replace it once to make the new link available here."
+        : "Create a separate bearer link for someone who may edit authored Markdown without private project access.";
+  }
+
+  async #createEditShare(): Promise<void> {
+    const response = await fetch(`${apiBase}/edit-link`, { method: "POST", credentials: "same-origin" });
+    await expectOk(response);
+    const share: unknown = await response.json();
+    if (!isRecord(share) || typeof share.href !== "string") throw new Error("Edit link returned invalid data");
+    this.#elements.editShareLink.value = new URL(share.href, location.origin).href;
+    this.#elements.editShareLinkRow.classList.remove("hidden");
+    this.#elements.editShareLinkRow.classList.add("grid");
+    await this.#refreshEditShare();
+    this.#showToast("Edit link created. You can return here to copy it again.");
+  }
+
+  async #copyEditShare(): Promise<void> {
+    await navigator.clipboard.writeText(this.#elements.editShareLink.value);
+    this.#showToast("Edit link copied.");
+  }
+
+  async #revokeEditShare(): Promise<void> {
+    await expectOk(await fetch(`${apiBase}/edit-link`, { method: "DELETE", credentials: "same-origin" }));
+    this.#setShareLink(this.#elements.editShareLink, this.#elements.editShareLinkRow, null);
+    await this.#refreshEditShare();
+    this.#showToast("Edit link revoked.");
+  }
+
+  #setShareLink(input: HTMLInputElement, row: HTMLElement, href: string | null): void {
+    input.value = href ? new URL(href, location.origin).href : "";
+    row.classList.toggle("hidden", !href);
+    row.classList.toggle("grid", Boolean(href));
   }
 
   async #refreshMembers(): Promise<void> {
@@ -5039,6 +5112,12 @@ function collectElements(): Elements {
     readOnlyShareLink: requiredElement("read-only-share-link", HTMLInputElement),
     copyReadOnlyShare: requiredElement("copy-read-only-share", HTMLButtonElement),
     revokeReadOnlyShare: requiredElement("revoke-read-only-share", HTMLButtonElement),
+    editShareStatus: requiredElement("edit-share-status", HTMLElement),
+    createEditShare: requiredElement("create-edit-share", HTMLButtonElement),
+    editShareLinkRow: requiredElement("edit-share-link-row", HTMLElement),
+    editShareLink: requiredElement("edit-share-link", HTMLInputElement),
+    copyEditShare: requiredElement("copy-edit-share", HTMLButtonElement),
+    revokeEditShare: requiredElement("revoke-edit-share", HTMLButtonElement),
     referenceLibraryList: requiredElement("reference-library-list", HTMLElement),
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),

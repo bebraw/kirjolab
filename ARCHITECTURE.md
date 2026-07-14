@@ -124,12 +124,18 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat project unlink, library archive, share revocation, and permanent owner
   deletion as distinct operations. Revocation is forward-only; deletion keeps
   only the tombstoned provenance needed by historical project revisions.
-- Treat a read-only project URL as a revocable bearer capability. Persist only
-  its secret hash, expose only the live composed Markdown, authored project
-  source, and an on-demand rendering of the canonical PDF output, and keep
-  member identity, private research, general APIs and exports, and
+- Treat a read-only project URL as a revocable bearer capability. Persist its
+  active secret and validation hash only in the locator access object so an
+  authenticated owner can retrieve the same no-store URL later. Expose only
+  the live composed Markdown, authored project source, and an on-demand
+  rendering of the canonical PDF output, and keep member identity, private
+  research, general APIs and exports, and
   mutation-capable collaboration channels behind authenticated workspace
   authorization.
+- Treat an edit URL as a separate revocable bearer capability. Let it read and
+  replace authored Markdown files through revision-checked, same-origin
+  mutations, but do not expose membership, administration, private research,
+  history, general APIs, or the authenticated collaboration protocol.
 - Keep public read-only viewers outside cross-origin embedder isolation so
   browser-native PDF extension frames can render their share-scoped,
   independently authorized same-origin PDF response. Keep authoring pages

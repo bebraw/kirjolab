@@ -1,6 +1,6 @@
 # ADR-094: Use Revocable Read-Only Share Links
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-096](./ADR-096-recover-and-scope-share-links.md)
 
 **Date:** 2026-07-14
 
@@ -15,10 +15,11 @@ hard to contain.
 ## Decision
 
 Give each project at most one active read-only bearer link. The link contains
-an opaque public locator and a 256-bit random secret. Store only the
-secret's SHA-256 hash in the project `WorkspaceAccess` Durable Object. Creating
-a replacement atomically invalidates the previous link; revocation deletes the
-hash.
+an opaque public locator and a 256-bit random secret. Store the secret's
+SHA-256 hash in the project `WorkspaceAccess` Durable Object. Creating a
+replacement atomically invalidates the previous link; revocation deletes the
+hash. ADR-096 supersedes the hash-only storage and one-time-return constraints
+so owners can retrieve active links later.
 
 ADR-095 refines locator routing for owner-scoped workspace identities while
 preserving this token, rendering, and revocation contract.
@@ -31,10 +32,10 @@ subroute that independently revalidates the bearer secret and sends inline,
 no-store, same-origin-only headers. Keep same-origin frame restrictions on the
 viewer, but omit cross-origin embedder isolation there because Chromium's
 native PDF viewer runs in an extension frame that isolation blocks. Keep the
-authenticated authoring application isolated. Do not load the authenticated client
-application or expose member identities, private-library material, stored PDFs,
-comments, history, other exports, API access, or a writable collaboration
-WebSocket.
+authenticated authoring application isolated. Do not load the authenticated
+client application or expose member identities, private-library material,
+stored PDFs, comments, history, other exports, API access, or a writable
+collaboration WebSocket.
 
 Keep an open viewer current through a separate share-scoped WebSocket. Validate
 the bearer secret and exact same-origin `Origin` before connecting it to the
@@ -43,10 +44,8 @@ never Yjs state or collaboration metadata, and reject all inbound frames. The
 small share client reloads its selected server-rendered view after changes
 settle. Rotation and revocation actively disconnect established readers.
 
-Return the link only when it is created. Later status reads reveal whether a
-link is active and when it was created, but cannot recover the secret. Send the
-page with `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Invalid,
-rotated, and revoked links all return the ordinary not-found response.
+Send the page with `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
+Invalid, rotated, and revoked links all return the ordinary not-found response.
 
 Hosted deployments must deliberately allow `/share/*` through Cloudflare
 Access so the Worker can perform the bearer-token check while the rest of the
@@ -64,7 +63,6 @@ collaboration.
 - Reviewers can inspect the rendered result, composed Markdown, and its authored
   sources without gaining edit capability.
 - Rotation and revocation contain forwarded or accidentally disclosed links.
-- A storage leak does not reveal usable share URLs.
 - The public surface stays small and independent from the authenticated app;
   navigation uses ordinary server-rendered GET requests.
 - Open reviewers see settled live edits without joining the writable
@@ -73,8 +71,6 @@ collaboration.
 **Negative:**
 
 - Anyone holding the current URL can read the shared manuscript and source.
-- The owner must copy a newly created URL before closing the dialog because the
-  plaintext secret cannot be recovered later.
 - Hosted routing needs a narrow Cloudflare Access bypass policy for the share
   path.
 - Opening the shared viewer renders the PDF through an additional authenticated
@@ -98,8 +94,10 @@ depend on every client control being disabled correctly.
 
 ### Persist the plaintext token so the link can always be copied
 
-This improves convenience but turns an application-storage disclosure directly
-into active share URLs. Rotation is a small, explicit recovery flow.
+This was initially rejected because it turns an application-storage disclosure
+directly into active share URLs. ADR-096 later accepts that trade-off for
+owner-recoverable links while retaining a validation hash and narrow retrieval
+boundary.
 
 ### Publish a permanent public workspace URL
 

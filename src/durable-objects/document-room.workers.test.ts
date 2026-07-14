@@ -239,11 +239,23 @@ describe("DocumentRoom in the Workers runtime", () => {
     const created = await stub.createProjectFile(workspaceId, "chapters/01_intro.md", "## Introduction\n\nEvidence.\n");
     const supporting = created.files.find((file) => file.path === "chapters/01_intro.md");
     expect(supporting).toBeDefined();
+    const replaced = await stub.replaceProjectFileContent(
+      workspaceId,
+      supporting!.id,
+      "## Revised\n\nCurrent evidence.\n",
+      created.revision,
+    );
+    expect(replaced.files.find((file) => file.id === supporting!.id)?.content).toBe("## Revised\n\nCurrent evidence.\n");
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.replaceProjectFileContent(workspaceId, supporting!.id, "stale overwrite", created.revision)).toThrow(
+        "Project changed since this edit loaded",
+      );
+    });
     await applyAuthoredSource(stub, "# Study\n\n::include[chapters/01_intro.md]\n");
 
     const composed = await stub.getSnapshot(workspaceId);
     expect(composed.entryFileId).toBe(initial.entryFileId);
-    expect(composed.composition.content).toBe("# Study\n\n## Introduction\n\nEvidence.\n");
+    expect(composed.composition.content).toBe("# Study\n\n## Revised\n\nCurrent evidence.\n");
     expect(composed.composition.sourceMap.some((span) => span.fileId === supporting?.id)).toBe(true);
 
     const renamed = await stub.renameProjectFile(workspaceId, supporting!.id, "sections/introduction.md");

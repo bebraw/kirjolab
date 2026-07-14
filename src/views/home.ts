@@ -617,6 +617,21 @@ export function renderHomePage(
           </div>
           <button class="mt-3 hidden font-sans text-xs font-bold text-app-error" id="revoke-read-only-share" type="button">Revoke read-only link</button>
         </section>
+        <section class="border-b border-app-line py-4" aria-labelledby="edit-share-heading">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="font-sans text-xs font-bold" id="edit-share-heading">Edit link</h3>
+              <p class="mt-1 font-sans text-xs leading-5 text-app-text-soft" id="edit-share-status">Checking link access…</p>
+            </div>
+            <button class="button-secondary shrink-0" id="create-edit-share" type="button">Create link</button>
+          </div>
+          <div class="mt-3 hidden gap-2 sm:grid-cols-[1fr_auto]" id="edit-share-link-row">
+            <label class="sr-only" for="edit-share-link">Editable share link</label>
+            <input class="field" id="edit-share-link" type="text" readonly>
+            <button class="button-secondary" id="copy-edit-share" type="button">Copy link</button>
+          </div>
+          <button class="mt-3 hidden font-sans text-xs font-bold text-app-error" id="revoke-edit-share" type="button">Revoke edit link</button>
+        </section>
         <div class="mt-4 space-y-2" id="workspace-member-list"><div class="empty-state">Loading members…</div></div>
         <form class="mt-5 border-t border-app-line pt-5" id="invite-member-form">
           <label class="field-label">Invite by email

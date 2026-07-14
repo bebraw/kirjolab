@@ -6,16 +6,24 @@ import { createEvidencePdf, createMetadataEvidencePdf, createTwoPageEvidencePdf 
 test("creates, rotates, and revokes a read-only project link", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Link review");
   const api = `/api/workspaces/${workspaceId}/share-link`;
-  const headers = { origin: "http://127.0.0.1:8788" };
+  const origin = "http://127.0.0.1:8788";
+  const headers = { origin };
 
-  expect(await (await page.request.get(api)).json()).toEqual({ active: false, createdAt: null });
+  expect(await (await page.request.get(api)).json()).toEqual({ active: false, createdAt: null, href: null });
   const created = await page.request.post(api, { headers });
   expect(created.status()).toBe(201);
   const first = (await created.json()) as { href: string };
   const activeStatus = (await (await page.request.get(api)).json()) as Record<string, unknown>;
-  expect(activeStatus).toMatchObject({ active: true, createdAt: expect.any(String) });
-  expect(activeStatus).not.toHaveProperty("href");
+  expect(activeStatus).toMatchObject({ active: true, createdAt: expect.any(String), href: first.href });
   expect(activeStatus).not.toHaveProperty("token");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await page.locator("#share-workspace").click();
+  await expect(page.locator("#read-only-share-link")).toHaveValue(`${origin}${first.href}`);
+  await page.locator("#close-share-workspace").click();
+  await page.reload();
+  await page.locator("#share-workspace").click();
+  await expect(page.locator("#read-only-share-link")).toHaveValue(`${origin}${first.href}`);
+  await page.locator("#close-share-workspace").click();
   const shared = await page.request.get(first.href);
   expect(shared.status()).toBe(200);
   expect(shared.headers()["referrer-policy"]).toBe("no-referrer");
@@ -68,6 +76,79 @@ test("shares the owner-scoped demo through an opaque public locator", async ({ p
   const shared = await page.request.get(share.href);
   expect(shared.status()).toBe(200);
   expect(await shared.text()).toContain("Evidence becomes prose");
+});
+
+test("creates, edits through, rotates, and revokes a scoped edit link", async ({ page, browser }) => {
+  const workspaceId = await createWorkspace(page, "External editor");
+  const api = `/api/workspaces/${workspaceId}/edit-link`;
+  const origin = "http://127.0.0.1:8788";
+  expect(await (await page.request.get(api)).json()).toEqual({ active: false, createdAt: null, href: null });
+
+  const created = await page.request.post(api, { headers: { origin } });
+  expect(created.status()).toBe(201);
+  const first = (await created.json()) as { href: string };
+  expect(first.href).toMatch(/^\/edit\/[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$/u);
+  const activeStatusResponse = await page.request.get(api);
+  expect(activeStatusResponse.headers()["cache-control"]).toBe("no-store");
+  const activeStatus = (await activeStatusResponse.json()) as Record<string, unknown>;
+  expect(activeStatus).toMatchObject({ active: true, createdAt: expect.any(String), href: first.href });
+  expect(activeStatus).not.toHaveProperty("token");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await page.locator("#share-workspace").click();
+  await expect(page.locator("#edit-share-link")).toHaveValue(`${origin}${first.href}`);
+  await page.locator("#close-share-workspace").click();
+  await page.reload();
+  await page.locator("#share-workspace").click();
+  await expect(page.locator("#edit-share-link")).toHaveValue(`${origin}${first.href}`);
+  await page.locator("#close-share-workspace").click();
+
+  const editSnapshotResponse = await page.request.get(`${first.href}/snapshot`);
+  expect(editSnapshotResponse.status()).toBe(200);
+  const editSnapshot = (await editSnapshotResponse.json()) as {
+    revision: number;
+    files: Array<{ id: string; path: string; content: string }>;
+  };
+  expect(editSnapshot).toMatchObject({ revision: expect.any(Number), files: expect.any(Array) });
+  expect(editSnapshot).not.toHaveProperty("pdfs");
+  expect(editSnapshot).not.toHaveProperty("projectReferences");
+  const main = editSnapshot.files.find((file) => file.path === "main.md");
+  expect(main).toBeDefined();
+
+  const denied = await page.request.patch(`${first.href}/files/${main!.id}`, {
+    headers: { origin: "https://attacker.example" },
+    data: { content: "hostile overwrite", revision: editSnapshot.revision },
+  });
+  expect(denied.status()).toBe(403);
+  const oversized = await page.request.patch(`${first.href}/files/${main!.id}`, {
+    headers: { origin },
+    data: { content: "x".repeat(2_000_001), revision: editSnapshot.revision },
+  });
+  expect(oversized.status()).toBe(400);
+
+  const editorContext = await browser.newContext();
+  const editor = await editorContext.newPage();
+  await editor.goto(first.href);
+  await expect(editor.locator("#edit-save-status")).toContainText("Saved · revision");
+  await editor.locator("#edit-source").fill("# Edited externally\n\nA scoped link update.\n");
+  await expect(editor.locator("#edit-save-status")).toHaveText(`Saved · revision ${editSnapshot.revision + 1}`);
+
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.locator("#source-editor")).toHaveValue("# Edited externally\n\nA scoped link update.\n");
+  const stale = await page.request.patch(`${first.href}/files/${main!.id}`, {
+    headers: { origin },
+    data: { content: "stale overwrite", revision: editSnapshot.revision },
+  });
+  expect(stale.status()).toBe(409);
+
+  const rotated = await page.request.post(api, { headers: { origin } });
+  expect(rotated.status()).toBe(201);
+  const second = (await rotated.json()) as { href: string };
+  expect((await page.request.get(first.href)).status()).toBe(404);
+  expect((await page.request.get(second.href)).status()).toBe(200);
+
+  expect((await page.request.delete(api, { headers: { origin } })).status()).toBe(204);
+  expect((await page.request.get(second.href)).status()).toBe(404);
+  await editorContext.close();
 });
 
 test("refreshes a read-only project after live document edits", async ({ page, browser }) => {
@@ -155,8 +236,12 @@ test("renames, archives, duplicates, and permanently deletes projects", async ({
   expect(await (await page.request.get(`/api/workspaces/${duplicate.id}`)).json()).toMatchObject({
     publicationProfile: { citationStyle: "ieee", locale: "fi-FI", submissionTemplate: "anonymous-review", paperSize: "letter" },
   });
+  const readLink = (await (await page.request.post(`${api}/share-link`, { headers })).json()) as { href: string };
+  const editLink = (await (await page.request.post(`${api}/edit-link`, { headers })).json()) as { href: string };
   expect((await page.request.delete(`${api}/settings`, { headers })).status()).toBe(204);
   expect((await page.request.get(api)).status()).toBe(404);
+  expect((await page.request.get(readLink.href)).status()).toBe(404);
+  expect((await page.request.get(editLink.href)).status()).toBe(404);
   expect((await page.request.get(`/api/workspaces/${duplicate.id}`)).ok()).toBe(true);
 });
 
@@ -2548,7 +2633,16 @@ test("serves stable health and browser assets", async ({ request }) => {
   await expect(response.json()).resolves.toEqual({
     ok: true,
     name: "kirjolab",
-    routes: ["/", "/workspaces/:id", "/share/:token", "/api/workspaces", "/api/workspaces/demo", "/api/session", "/api/health"],
+    routes: [
+      "/",
+      "/workspaces/:id",
+      "/share/:token",
+      "/edit/:token",
+      "/api/workspaces",
+      "/api/workspaces/demo",
+      "/api/session",
+      "/api/health",
+    ],
   });
 
   const [styles, client] = await Promise.all([request.get("/styles.css"), request.get("/app.js")]);

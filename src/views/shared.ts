@@ -71,6 +71,22 @@ export function scriptResponse(body: string): Response {
   });
 }
 
+export function pdfResponse(body: Uint8Array): Response {
+  const bytes = new Uint8Array(body);
+  return new Response(bytes, {
+    headers: {
+      "content-type": "application/pdf",
+      "content-length": String(bytes.byteLength),
+      "content-disposition": 'inline; filename="kirjolab-document.pdf"',
+      "cache-control": "no-store",
+      "content-security-policy": "frame-ancestors 'self'",
+      "cross-origin-resource-policy": "same-origin",
+      "referrer-policy": "no-referrer",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
 export function escapeHtml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }

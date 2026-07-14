@@ -80,7 +80,8 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix === "/share-link" && request.method === "GET") {
       if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
       const locator = await catalog.getOrCreateShareLocator(workspaceId);
-      return Response.json(await env.WORKSPACE_ACCESS.getByName(locator).getMappedReadOnlyShareStatus());
+      const status = await env.WORKSPACE_ACCESS.getByName(locator).getMappedReadOnlyShareStatus();
+      return shareLinkStatusResponse(status, `/share/${locator}.`);
     }
     if (suffix === "/share-link" && request.method === "POST") {
       if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
@@ -97,6 +98,27 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       const locator = await catalog.getOrCreateShareLocator(workspaceId);
       await env.WORKSPACE_ACCESS.getByName(locator).revokeMappedReadOnlyShare();
       await room.disconnectReadOnlySockets();
+      return new Response(null, { status: 204 });
+    }
+    if (suffix === "/edit-link" && request.method === "GET") {
+      if (role !== "owner") return jsonError("Only the workspace owner can manage edit links", 403);
+      const locator = await catalog.getOrCreateShareLocator(workspaceId);
+      const status = await env.WORKSPACE_ACCESS.getByName(locator).getMappedEditShareStatus();
+      return shareLinkStatusResponse(status, `/edit/${locator}.`);
+    }
+    if (suffix === "/edit-link" && request.method === "POST") {
+      if (role !== "owner") return jsonError("Only the workspace owner can manage edit links", 403);
+      const locator = await catalog.getOrCreateShareLocator(workspaceId);
+      const share = await env.WORKSPACE_ACCESS.getByName(locator).createMappedEditShare(storageKey, workspaceId);
+      return Response.json(
+        { href: `/edit/${locator}.${share.token}`, createdAt: share.createdAt },
+        { status: 201, headers: { "cache-control": "no-store" } },
+      );
+    }
+    if (suffix === "/edit-link" && request.method === "DELETE") {
+      if (role !== "owner") return jsonError("Only the workspace owner can manage edit links", 403);
+      const locator = await catalog.getOrCreateShareLocator(workspaceId);
+      await env.WORKSPACE_ACCESS.getByName(locator).revokeMappedEditShare();
       return new Response(null, { status: 204 });
     }
     if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);
@@ -265,6 +287,9 @@ async function permanentlyDeleteWorkspace(
     if (page.objects.length) await env.PAPERS.delete(page.objects.map((object) => object.key));
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
+  const locator = await catalog.getOrCreateShareLocator(workspaceId);
+  const publicAccess = env.WORKSPACE_ACCESS.getByName(locator);
+  await Promise.all([publicAccess.revokeMappedReadOnlyShare(), publicAccess.revokeMappedEditShare()]);
   for (const member of members) await env.WORKSPACE_CATALOGS.getByName(await ownerKeyForEmail(member.email)).removeWorkspace(workspaceId);
   await room.deleteWorkspaceData();
   await access.deleteWorkspaceAccess(identity.email);
@@ -872,6 +897,17 @@ function privateJsonResponse(value: unknown, filename?: string): Response {
   const headers = new Headers({ "cache-control": "no-store" });
   if (filename) headers.set("content-disposition", `attachment; filename="${filename}"`);
   return Response.json(value, { headers });
+}
+
+function shareLinkStatusResponse(status: import("../durable-objects/workspace-access").ReadOnlyShareStatus, hrefPrefix: string): Response {
+  return Response.json(
+    {
+      active: status.active,
+      createdAt: status.createdAt,
+      href: status.token ? `${hrefPrefix}${status.token}` : null,
+    },
+    { headers: { "cache-control": "no-store" } },
+  );
 }
 
 function jsonError(error: string, status: number): Response {

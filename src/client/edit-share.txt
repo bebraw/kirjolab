@@ -1,0 +1,87 @@
+const root = document.body;
+const editor = document.querySelector("#edit-source");
+const status = document.querySelector("#edit-save-status");
+const pdf = document.querySelector("#edit-pdf-viewer");
+const savePath = root.dataset.editSavePath;
+const snapshotPath = root.dataset.editSnapshotPath;
+let revision = Number(root.dataset.editRevision ?? "0");
+let savedContent = editor?.value ?? "";
+let saveTimer;
+let saving = false;
+let pending = false;
+let blocked = false;
+
+const setStatus = (value) => {
+  if (status) status.textContent = value;
+};
+
+const save = async () => {
+  if (!editor || !savePath || saving || editor.value === savedContent) return;
+  saving = true;
+  pending = false;
+  setStatus("Saving…");
+  try {
+    const content = editor.value;
+    const response = await fetch(savePath, {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content, revision }),
+    });
+    if (response.status === 409) {
+      setStatus("Newer project changes exist · reload before editing further");
+      blocked = true;
+      editor.disabled = true;
+      return;
+    }
+    if (response.status === 404) {
+      setStatus("Edit access ended");
+      blocked = true;
+      editor.disabled = true;
+      return;
+    }
+    if (!response.ok) throw new Error("Save failed");
+    const snapshot = await response.json();
+    if (!Number.isSafeInteger(snapshot.revision)) throw new Error("Invalid save response");
+    revision = snapshot.revision;
+    savedContent = content;
+    root.dataset.editRevision = String(revision);
+    setStatus(`Saved · revision ${revision}`);
+    if (pdf instanceof HTMLIFrameElement) pdf.src = `${pdf.src.split("?")[0]}?revision=${revision}`;
+  } catch {
+    setStatus("Could not save · retrying after the next change");
+  } finally {
+    saving = false;
+    if (!blocked && pending) scheduleSave();
+  }
+};
+
+const scheduleSave = () => {
+  if (blocked) return;
+  pending = true;
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => void save(), 500);
+};
+
+editor?.addEventListener("input", () => {
+  setStatus("Unsaved changes");
+  scheduleSave();
+});
+
+window.setInterval(async () => {
+  if (!snapshotPath || saving || editor?.value !== savedContent) return;
+  try {
+    const response = await fetch(snapshotPath, { credentials: "same-origin" });
+    if (response.status === 404) {
+      setStatus("Edit access ended");
+      blocked = true;
+      if (editor) editor.disabled = true;
+      return;
+    }
+    if (!response.ok) return;
+    const snapshot = await response.json();
+    if (Number.isSafeInteger(snapshot.revision) && snapshot.revision > revision) location.reload();
+  } catch {
+    // A later poll or local save will restore status.
+  }
+}, 2_000);
