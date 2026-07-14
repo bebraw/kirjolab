@@ -323,6 +323,7 @@ interface Elements {
   libraryDrawWidth: HTMLInputElement;
   libraryDrawWidthValue: HTMLOutputElement;
   undoLibraryDrawing: HTMLButtonElement;
+  exportLibraryAnnotatedPdf: HTMLButtonElement;
   annotationPdf: HTMLSelectElement;
   annotationPage: HTMLInputElement;
   annotationQuote: HTMLTextAreaElement;
@@ -638,6 +639,7 @@ class WorkspaceApp {
     this.#elements.libraryNoteForm.addEventListener("submit", (event) => void this.#saveLibraryPdfNote(event));
     this.#elements.cancelLibraryNote.addEventListener("click", () => this.#clearLibraryPdfNoteDraft());
     this.#elements.undoLibraryDrawing.addEventListener("click", () => void this.#undoLibraryDrawing());
+    this.#elements.exportLibraryAnnotatedPdf.addEventListener("click", () => this.#downloadAnnotatedPdf());
     this.#elements.paperMarkups.addEventListener("pointerdown", (event) => this.#startLibraryPdfMarkup(event));
     this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfDrawing(event));
     this.#elements.paperMarkups.addEventListener("pointerup", (event) => void this.#finishLibraryPdfDrawing(event));
@@ -4759,6 +4761,7 @@ class WorkspaceApp {
     this.#renderLibraryProjectUse(artifact);
     const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
     const markups = (this.#librarySnapshot.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id);
+    this.#elements.exportLibraryAnnotatedPdf.disabled = highlights.length + markups.length === 0;
     this.#elements.libraryHighlightCount.textContent = String(highlights.length + markups.length);
     this.#elements.libraryHighlightList.replaceChildren();
     if (highlights.length === 0 && markups.length === 0) {
@@ -5115,6 +5118,16 @@ class WorkspaceApp {
     await expectOk(response);
     await this.#refreshReferenceLibrary();
     this.#showToast("Private annotation deleted.");
+  }
+
+  #downloadAnnotatedPdf(): void {
+    const artifact = this.#activeLibraryPdf();
+    if (!artifact) return;
+    const link = document.createElement("a");
+    link.href = `/api/library/pdfs/${encodeURIComponent(artifact.id)}/annotated`;
+    link.download = artifact.name.replace(/\.pdf$/iu, "") + "-annotated.pdf";
+    link.click();
+    this.#showToast("Preparing annotated PDF…");
   }
 
   async #openLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
@@ -5709,6 +5722,7 @@ function collectElements(): Elements {
     libraryDrawWidth: requiredElement("library-draw-width", HTMLInputElement),
     libraryDrawWidthValue: requiredElement("library-draw-width-value", HTMLOutputElement),
     undoLibraryDrawing: requiredElement("undo-library-drawing", HTMLButtonElement),
+    exportLibraryAnnotatedPdf: requiredElement("export-library-annotated-pdf", HTMLButtonElement),
     annotationPdf: requiredElement("annotation-pdf", HTMLSelectElement),
     annotationPage: requiredElement("annotation-page", HTMLInputElement),
     annotationQuote: requiredElement("annotation-quote", HTMLTextAreaElement),

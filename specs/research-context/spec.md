@@ -54,6 +54,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   needs input. Page-anchored note pins open lightweight cards in place, while
   freehand strokes accept mouse, pen, and touch input. Both persist in the
   owner library using normalized page coordinates and rerender on page change.
+- The same compact row exposes annotated export only after a private annotation
+  exists. Export downloads an owner-authorized derived copy and does not change
+  the context tab, source artifact, project state, or research-share state.
 - A private PDF context may expose the existing project-reference and private-
   research sharing commands as a staged project-use section. Reference linkage,
   rights review, PDF sharing, highlight sharing, and revocation remain distinct

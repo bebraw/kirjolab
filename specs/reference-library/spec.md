@@ -89,6 +89,11 @@ memory and makes citation aliases compete with stable source identity.
   touch strokes with red as the default color and an adjustable 1–24 pixel
   width. Notes and strokes use normalized page coordinates so they remain
   aligned when the page is resized. Saved annotations are collapsed by default.
+- Once the PDF has a saved text highlight, page note, or drawing, **Export
+  annotated** downloads a derived PDF without changing the stored source.
+  Freehand strokes are flattened at their normalized page coordinates. Page
+  notes become printable sticky-note annotations; legacy text highlights become
+  page-level comments because their stored records predate selection geometry.
 - The private reader exposes a staged current-project handoff without changing
   those defaults: first add the bibliographic record, then explicitly review
   artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
@@ -107,6 +112,10 @@ memory and makes citation aliases compete with stable source identity.
 - `GET /api/library/pdfs/{id}` streams an artifact only when it occurs in the
   authenticated owner's library snapshot, with inline, private, non-cacheable
   response headers.
+- `GET /api/library/pdfs/{id}/annotated` applies only that artifact's private
+  annotations and returns an attachment with private, non-cacheable headers.
+  It uses the same authenticated-owner lookup as the original PDF stream, reads
+  at most the existing 25 MB source limit, and never persists the derived copy.
 - Reference tag, note, highlight, reading, archive, deletion-impact, and
   confirmed deletion routes mutate only the authenticated owner's library.
 - `POST /api/library/references/{referenceId}/pdf-markups` creates an

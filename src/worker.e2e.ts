@@ -719,6 +719,7 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#library-highlight-composer")).not.toContainText("Highlight this PDF");
   await expect(page.locator("#library-highlight-form")).toBeHidden();
   await expect(page.locator("#library-draw-color")).toHaveValue("#d33f49");
+  await expect(page.getByRole("button", { name: "Export annotated" })).toBeDisabled();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   expect(failedPdfWorkerRequests).toEqual([]);
   await page.locator("#paper-text-layer").evaluate((layer) => {
@@ -739,6 +740,10 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#toast")).toHaveText("Private highlight saved to your library.");
   await expect(page.locator("#library-highlight-count")).toHaveText("1");
   await expect(page.locator("#library-highlight-list")).toContainText("Private reading insight");
+  await expect(page.getByRole("button", { name: "Export annotated" })).toBeEnabled();
+  const annotatedDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export annotated" }).click();
+  await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("climate_adaptation-annotated.pdf");
   await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(0);
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
   await page.locator("#next-paper-page").click();

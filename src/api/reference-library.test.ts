@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { unzipSync } from "fflate";
+import { PDFDocument } from "pdf-lib";
 import type { CitationAssertion, CitationNetwork } from "../domain/citation-assertions";
 import type { BibliographicRecord, ReferenceLibrarySnapshot, WebSnapshot } from "../domain/reference-library";
 import type { AuthIdentity } from "../security/auth";
@@ -446,6 +447,56 @@ describe("reference library API", () => {
     );
     expect(foreign.status).toBe(404);
     expect(await foreign.json()).toEqual({ error: "PDF artifact not found" });
+  });
+
+  it("downloads an owner-only derived PDF with private annotations", async () => {
+    const source = await PDFDocument.create({ updateMetadata: false });
+    source.addPage([600, 800]);
+    const sourceBytes = await source.save({ useObjectStreams: false });
+    const bucket = new MemoryR2Bucket();
+    await bucket.put("libraries/owner/guide.pdf", sourceBytes, { httpMetadata: { contentType: "application/pdf" } });
+    const fixture = apiFixture(bucket);
+    fixture.library.getSnapshot.mockResolvedValue({
+      ...snapshot,
+      artifacts: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          referenceId: reference.id,
+          name: 'guide\r\n".pdf',
+          contentType: "application/pdf",
+          size: sourceBytes.byteLength,
+          objectKey: "libraries/owner/guide.pdf",
+          fingerprint: "r2-etag:guide",
+          rights: "private",
+          createdAt: now,
+        },
+      ],
+      pdfMarkups: [
+        {
+          id: "pdf-note",
+          kind: "note",
+          referenceId: reference.id,
+          artifactId: "22222222-2222-4222-8222-222222222222",
+          page: 1,
+          x: 0.5,
+          y: 0.5,
+          body: "Private note",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+    const response = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/pdfs/22222222-2222-4222-8222-222222222222/annotated"),
+      fixture.env,
+      identity,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("content-disposition")).toBe('attachment; filename="guide-annotated.pdf"');
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const exported = await PDFDocument.load(await response.arrayBuffer(), { updateMetadata: false });
+    expect(exported.getPage(0).node.Annots()?.size()).toBe(1);
   });
 
   it("returns an existing PDF draft and deletes the redundant R2 object", async () => {

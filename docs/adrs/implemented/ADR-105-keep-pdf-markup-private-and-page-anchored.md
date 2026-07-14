@@ -21,13 +21,19 @@ The owner-scoped Reference Library Durable Object stores these markups in its
 SQLite schema. Existing authenticated private-library routes create and delete
 them. They are deliberately excluded from project research-share kinds.
 
+An explicit annotated export may derive a transient PDF from the owner-only R2
+source. It flattens ink and adds printable PDF note annotations, returns the
+result as a non-cacheable attachment, and never stores the derived copy.
+
 ## Consequences
 
 The PDF remains the dominant surface, notes stay attached through responsive
 resizing, and touch or pen drawing works without a separate canvas document.
 Normalized paths are compact and portable but do not encode pressure, tilt, or
 editable vector shapes. Sharing a PDF or quotation never shares personal note
-pins or ink implicitly.
+pins or ink implicitly. Export is the deliberate boundary for producing a copy
+that contains them; legacy quote captures export as page-level comments because
+their records do not contain exact geometry.
 
 ## Alternatives Considered
 

@@ -464,6 +464,7 @@ export function renderHomePage(
                   <label class="library-width-control" title="Ink width"><span class="sr-only">Ink width</span><input id="library-draw-width" type="range" min="1" max="24" value="4"><output id="library-draw-width-value">4</output></label>
                   <button class="button-secondary" id="undo-library-drawing" type="button" disabled title="Remove the latest drawing on this page">Undo</button>
                 </div>
+                <button class="button-secondary" id="export-library-annotated-pdf" type="button" disabled title="Download a copy with private notes and ink">Export annotated</button>
                 <p class="library-pdf-status" id="library-highlight-status" role="status" aria-live="polite">Select text to highlight.</p>
               </div>
               <form class="library-context-composer" id="library-highlight-form" hidden>

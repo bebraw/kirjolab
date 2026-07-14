@@ -49,6 +49,7 @@ import {
   portableResearch,
   referenceToCslJson,
 } from "../domain/library-interchange";
+import { renderAnnotatedPdf } from "./annotated-pdf";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumWebRawBytes = 2 * 1024 * 1024;
@@ -225,9 +226,12 @@ export async function handleReferenceLibraryApi(
     }
     if (suffix === "/pdfs" && request.method === "POST")
       return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
-    const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})(?:\/(identify|rights))?$/iu.exec(suffix);
+    const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})(?:\/(identify|rights|annotated))?$/iu.exec(suffix);
     if (pdfMatch?.[1] && request.method === "GET" && !pdfMatch[2]) {
       return await downloadLibraryPdf(pdfMatch[1], env, library);
+    }
+    if (pdfMatch?.[1] && pdfMatch[2] === "annotated" && request.method === "GET") {
+      return await downloadAnnotatedLibraryPdf(pdfMatch[1], env, library);
     }
     if (pdfMatch?.[1] && pdfMatch[2] === "identify" && request.method === "POST") {
       const body: unknown = await request.json();
@@ -1068,6 +1072,45 @@ async function downloadLibraryPdf(artifactId: string, env: ReferenceLibraryApiEn
   headers.set("cache-control", "private, no-store");
   headers.set("content-disposition", "inline");
   return new Response(object.body, { headers });
+}
+
+async function downloadAnnotatedLibraryPdf(
+  artifactId: string,
+  env: ReferenceLibraryApiEnv,
+  library: ReferenceLibraryApi,
+): Promise<Response> {
+  const snapshot = await library.getSnapshot(true);
+  if (!isReferenceLibrarySnapshot(snapshot)) throw new Error("Reference library returned an invalid snapshot");
+  const artifact = snapshot.artifacts.find((item) => item.id === artifactId);
+  if (!artifact) return jsonError("PDF artifact not found", 404);
+  const object = await env.PAPERS.get(artifact.objectKey);
+  if (!object) return jsonError("PDF artifact not found", 404);
+  if (object.size > maximumPdfBytes) return jsonError("Stored PDF exceeds the 25 MB limit", 413);
+  const bytes = await renderAnnotatedPdf(new Uint8Array(await object.arrayBuffer()), {
+    markups: (snapshot.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id),
+    highlights: snapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id),
+  });
+  const filename = annotatedPdfFilename(artifact.name);
+  return new Response(bytes, {
+    headers: {
+      "cache-control": "private, no-store",
+      "content-disposition": `attachment; filename="${filename}"`,
+      "content-type": "application/pdf",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
+function annotatedPdfFilename(value: string): string {
+  const stem = value
+    .replace(/\.pdf$/iu, "")
+    .normalize("NFKD")
+    .replaceAll(/[^\x20-\x7e]/gu, "")
+    .replaceAll(/[^a-z0-9 .()_-]+/giu, "-")
+    .replaceAll(/-+/gu, "-")
+    .replaceAll(/^[-.\s]+|[-.\s]+$/gu, "")
+    .slice(0, 180);
+  return `${stem || "paper"}-annotated.pdf`;
 }
 
 function isReadingStatus(value: unknown): value is ReadingState["status"] {
