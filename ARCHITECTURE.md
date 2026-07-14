@@ -130,6 +130,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   member identity, private research, general APIs and exports, and
   mutation-capable collaboration channels behind authenticated workspace
   authorization.
+- Keep public read-only viewers outside cross-origin embedder isolation so
+  browser-native PDF extension frames can render their share-scoped,
+  independently authorized same-origin PDF response. Keep authoring pages
+  cross-origin isolated.
 - Refresh open read-only project views through a bearer-authenticated,
   same-origin WebSocket that emits revision/reset notices only. Never send Yjs
   state, presence, selections, resource events, or accept client messages on a

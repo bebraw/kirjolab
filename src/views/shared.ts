@@ -2,18 +2,20 @@ export function htmlResponse(
   body: string,
   status = 200,
   requestUrl?: URL,
-  options: { readonly allowSameOriginFrames?: boolean } = {},
+  options: { readonly allowSameOriginFrames?: boolean; readonly crossOriginIsolated?: boolean } = {},
 ): Response {
+  const headers: Record<string, string> = {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-store",
+    "referrer-policy": "no-referrer",
+    "content-security-policy": contentSecurityPolicy(requestUrl, options.allowSameOriginFrames === true),
+    "cross-origin-opener-policy": "same-origin",
+  };
+  if (options.crossOriginIsolated !== false) headers["cross-origin-embedder-policy"] = "require-corp";
+
   return new Response(body, {
     status,
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-      "cache-control": "no-store",
-      "referrer-policy": "no-referrer",
-      "content-security-policy": contentSecurityPolicy(requestUrl, options.allowSameOriginFrames === true),
-      "cross-origin-opener-policy": "same-origin",
-      "cross-origin-embedder-policy": "require-corp",
-    },
+    headers,
   });
 }
 
@@ -26,8 +28,6 @@ function contentSecurityPolicy(requestUrl?: URL, allowSameOriginFrames = false):
     "https://127.0.0.1:*",
     "http://localhost:*",
     "https://localhost:*",
-    "http://[::1]:*",
-    "https://[::1]:*",
   ]
     .filter(Boolean)
     .join(" ");

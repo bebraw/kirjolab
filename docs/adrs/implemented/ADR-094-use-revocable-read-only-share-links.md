@@ -28,7 +28,10 @@ server-side project viewer from the current project snapshot. Default to the
 canonical bounded PDF rendering and provide explicit navigation to the composed
 Markdown and each authored project file. Serve the PDF from a share-scoped
 subroute that independently revalidates the bearer secret and sends inline,
-no-store, same-origin-only headers. Do not load the authenticated client
+no-store, same-origin-only headers. Keep same-origin frame restrictions on the
+viewer, but omit cross-origin embedder isolation there because Chromium's
+native PDF viewer runs in an extension frame that isolation blocks. Keep the
+authenticated authoring application isolated. Do not load the authenticated client
 application or expose member identities, private-library material, stored PDFs,
 comments, history, other exports, API access, or a writable collaboration
 WebSocket.

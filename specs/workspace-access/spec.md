@@ -39,6 +39,9 @@ Owners need a minimal way to grant access to a known collaborator.
 - `GET /share/{workspace-id}.{secret}/document.pdf` revalidates the same bearer
   secret before reading the mapped document and renders the canonical bounded
   PDF on demand with inline, no-store, same-origin-only response headers.
+- The public viewer keeps its same-origin frame CSP but omits cross-origin
+  embedder isolation so browser-native PDF viewers can load the share-scoped
+  document. Authenticated authoring pages remain cross-origin isolated.
 - `GET /share/{workspace-id}.{secret}/socket` requires an exact same-origin
   WebSocket upgrade and revalidates the bearer secret before joining the mapped
   document room as a reader. Reader sockets receive revision/reset notices

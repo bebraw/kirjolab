@@ -20,6 +20,7 @@ test("creates, rotates, and revokes a read-only project link", async ({ page }) 
   expect(shared.status()).toBe(200);
   expect(shared.headers()["referrer-policy"]).toBe("no-referrer");
   expect(shared.headers()["content-security-policy"]).toContain("frame-src 'self'");
+  expect(shared.headers()["cross-origin-embedder-policy"]).toBeUndefined();
   const sharedHtml = await shared.text();
   expect(sharedHtml).toContain("Link review");
   expect(sharedHtml).toContain(`id="shared-pdf-viewer" src="${first.href}/document.pdf"`);
@@ -28,6 +29,7 @@ test("creates, rotates, and revokes a read-only project link", async ({ page }) 
   expect(pdf.status()).toBe(200);
   expect(pdf.headers()["content-type"]).toContain("application/pdf");
   expect(pdf.headers()["content-disposition"]).toContain("inline");
+  expect(pdf.headers()["cross-origin-resource-policy"]).toBe("same-origin");
   expect((await pdf.body()).toString("ascii", 0, 4)).toBe("%PDF");
 
   const markdown = await page.request.get(`${first.href}?view=markdown`);

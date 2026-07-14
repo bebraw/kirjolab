@@ -76,6 +76,7 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     const sharePath = `/share/${locator}.${readOnlyShare[2]}`;
     return htmlResponse(renderReadOnlySharePage(snapshot, sharePath, url.searchParams.get("view")), 200, url, {
       allowSameOriginFrames: true,
+      crossOriginIsolated: false,
     });
   }
 
