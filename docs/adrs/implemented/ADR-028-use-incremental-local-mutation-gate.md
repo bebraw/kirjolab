@@ -6,7 +6,7 @@
 
 **Amends:** [ADR-022](./ADR-022-add-mutation-testing-gate.md)
 
-**Amended by:** [ADR-030](./ADR-030-reserve-full-mutation-ci-for-github.md)
+**Amended by:** [ADR-030](./ADR-030-reserve-full-mutation-ci-for-github.md), [ADR-098](./ADR-098-ignore-static-mutants-locally.md)
 
 ## Context
 

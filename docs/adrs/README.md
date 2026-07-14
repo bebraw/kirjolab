@@ -129,6 +129,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-086](./implemented/ADR-086-coordinate-batch-pdf-intake-in-browser.md)            | Implemented          | Coordinate bounded sequential PDF intake and retry state in the browser.                                     |
 | [ADR-087](./implemented/ADR-087-reconcile-exact-pdf-duplicates.md)                    | Implemented          | Resolve exact owner-library PDF repeats to their canonical source and remove redundant stored bytes.         |
 | [ADR-088](./implemented/ADR-088-project-structured-publication-markdown.md)           | Implemented          | Project bounded tables and footnotes once for deterministic LaTeX and PDF publication exports.               |
+| [ADR-098](./implemented/ADR-098-ignore-static-mutants-locally.md)                     | Implemented          | Ignore costly static mutants locally while retaining them in clean GitHub mutation runs.                     |
 
 ## Creating A New ADR
 

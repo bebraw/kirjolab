@@ -1,0 +1,12 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -60,7 +60,7 @@
+     "lint": "oxlint --max-warnings 0",
+     "model:companion": "npm run build:model-companion && node ./.generated/model-companion.mjs",
+     "mutation": "stryker run",
+-    "mutation:incremental": "stryker run --incremental",
++    "mutation:incremental": "stryker run --incremental --ignoreStatic",
+     "playwright:install": "playwright install chromium",
+     "prepare": "node ./scripts/setup-git-hooks.mjs",
+     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
