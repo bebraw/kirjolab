@@ -77,6 +77,7 @@ export function parseCslJson(value: unknown): CslJsonItem[] {
       !item.id ||
       item.id.length > 200 ||
       typeof item.type !== "string" ||
+      !item.type ||
       item.type.length > 64 ||
       typeof item.title !== "string" ||
       !item.title ||
@@ -165,6 +166,7 @@ function isIssued(value: unknown): boolean {
   return (
     isRecord(value) &&
     Array.isArray(value["date-parts"]) &&
+    value["date-parts"].length > 0 &&
     value["date-parts"].length <= 4 &&
     value["date-parts"].every(
       (part) =>

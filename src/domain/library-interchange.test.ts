@@ -68,6 +68,9 @@ describe("library interchange", () => {
     });
     expect(referenceToCslJson(makeReference("book"))).toEqual({ id: "book", type: "book", title: "book" });
     expect(referenceToCslJson(makeReference("misc"))).toEqual({ id: "misc", type: "document", title: "misc" });
+    expect(referenceToCslJson(makeReference("article", ["Doe, Jane, Alex"]))).toMatchObject({
+      author: [{ family: "Doe", given: "Jane, Alex" }],
+    });
   });
 
   it("serializes CSL types, names, duplicate keys, and optional fields", () => {
@@ -102,33 +105,42 @@ describe("library interchange", () => {
 
   it("rejects malformed and oversized CSL JSON fields", () => {
     const valid = { id: "id", type: "article-journal", title: "Title" };
-    for (const invalid of [
-      null,
-      [],
-      Array.from({ length: 2_001 }, () => valid),
-      {},
+    for (const invalid of [null, [], Array.from({ length: 2_001 }, () => valid)]) {
+      expect(() => parseCslJson(invalid)).toThrowError("CSL JSON");
+    }
+    for (const invalidItem of [
+      { type: valid.type, title: valid.title },
+      { ...valid, id: 1 },
       { ...valid, id: "" },
       { ...valid, id: "x".repeat(201) },
+      { id: valid.id, title: valid.title },
       { ...valid, type: 1 },
+      { ...valid, type: "" },
       { ...valid, type: "x".repeat(65) },
+      { id: valid.id, type: valid.type },
+      { ...valid, title: 1 },
       { ...valid, title: "" },
       { ...valid, title: "x".repeat(2_001) },
       { ...valid, author: {} },
       { ...valid, author: [{}] },
       { ...valid, author: [{ literal: "x".repeat(501) }] },
       { ...valid, author: [{ literal: "ok", family: 1 }] },
+      { ...valid, author: [{ literal: "ok" }, {}] },
       { ...valid, issued: null },
       { ...valid, issued: { "date-parts": [] } },
       { ...valid, issued: { "date-parts": Array.from({ length: 5 }, () => [2026]) } },
       { ...valid, issued: { "date-parts": [[]] } },
       { ...valid, issued: { "date-parts": [[2026, 1, 1, 1]] } },
       { ...valid, issued: { "date-parts": [[Number.NaN]] } },
+      { ...valid, issued: { "date-parts": [[2026], []] } },
+      { ...valid, issued: { "date-parts": [[2026, Number.NaN]] } },
+      { ...valid, issued: { "date-parts": [[{ length: 1 }]] } },
       { ...valid, issued: { "date-parts": [["x".repeat(21)]] } },
       { ...valid, DOI: 1 },
       { ...valid, URL: "x".repeat(4_097) },
       { ...valid, abstract: "x".repeat(20_001) },
     ]) {
-      expect(() => parseCslJson(invalid)).toThrowError("CSL JSON");
+      expect(() => parseCslJson([invalidItem])).toThrowError("CSL JSON");
     }
     expect(parseCslJson([{ ...valid, author: [{ given: "Ada" }], issued: { "date-parts": [["2026", 2, 3]] } }])).toHaveLength(1);
   });
@@ -147,6 +159,8 @@ describe("library interchange", () => {
     };
     expect(parseCslJson([boundary])).toEqual([boundary]);
     expect(parseCslJson(Array.from({ length: 2_000 }, () => ({ id: "id", type: "document", title: "Title" })))).toHaveLength(2_000);
+    const longId = "i".repeat(130);
+    expect(cslJsonToBibTeX(parseCslJson([{ id: longId, type: "document", title: "Bounded key" }]))).toContain(`@misc{${"i".repeat(120)},`);
   });
 
   it("validates portable research metadata without conflating tags and collections", () => {

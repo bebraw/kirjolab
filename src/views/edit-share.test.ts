@@ -54,6 +54,13 @@ describe("editable project viewer", () => {
     expect(html).not.toContain("# Main <source>");
     expect(html).toContain('id="edit-pdf-viewer" src="/edit/locator.secret/document.pdf"');
     expect(html.indexOf("main.md")).toBeLessThan(html.indexOf("sections/results.md"));
+    expect(html).toContain(
+      '<a class="project-file-row bg-app-accent-ghost text-app-accent-strong" href="?file=main-file" aria-current="page"><span class="min-w-0 truncate">main.md</span><span class="project-file-kind">Editing</span></a>',
+    );
+    expect(html).toContain(
+      '<a class="project-file-row" href="?file=section-file"><span class="min-w-0 truncate">sections/results.md</span></a>',
+    );
+    expect(html).toContain('</a><a class="project-file-row"');
   });
 
   it("selects a requested authored file and falls back to the entry file", () => {
@@ -61,6 +68,10 @@ describe("editable project viewer", () => {
     expect(resolveEditShareFile(snapshot, "missing").id).toBe("main-file");
     const html = renderEditSharePage(snapshot, "/edit/locator.secret", "section-file");
     expect(html).toContain('href="?file=section-file" aria-current="page"');
+    expect(html).toContain(
+      '<a class="project-file-row bg-app-accent-ghost text-app-accent-strong" href="?file=section-file" aria-current="page"><span class="min-w-0 truncate">sections/results.md</span><span class="project-file-kind">Editing</span></a>',
+    );
+    expect(html).toContain('<a class="project-file-row" href="?file=main-file"><span class="min-w-0 truncate">main.md</span></a>');
     expect(html).toContain("Results &amp; discussion");
   });
 });

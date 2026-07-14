@@ -104,7 +104,38 @@ describe("owner backup projection", () => {
     expect(serialized).toContain('"binaries"');
     expect(parseOwnerBackupManifest(serialized)).toEqual(manifest);
     expect(() => parseOwnerBackupManifest("not json")).toThrow("Owner backup manifest is invalid");
-    expect(() => parseOwnerBackupManifest('{"schemaVersion":"unknown"}')).toThrow("Owner backup manifest is invalid");
+    for (const invalidManifest of [
+      { ...manifest, schemaVersion: "unknown" },
+      { ...manifest, createdAt: 1 },
+      { ...manifest, digest: "invalid" },
+      { ...manifest, state: null },
+      { ...manifest, state: { ...manifest.state, ownerKey: "invalid" } },
+      { ...manifest, state: { ...manifest.state, catalog: null } },
+      { ...manifest, state: { ...manifest.state, workspaces: null } },
+      { ...manifest, state: { ...manifest.state, library: null } },
+      { ...manifest, binaries: null },
+      { ...manifest, recovery: null },
+    ]) {
+      expect(() => parseOwnerBackupManifest(JSON.stringify(invalidManifest))).toThrow("Owner backup manifest is invalid");
+    }
+    for (const invalidBinary of [
+      null,
+      { ...binary, sourceKey: 1 },
+      { ...binary, sourceEtag: 1 },
+      { ...binary, size: "42" },
+      { ...binary, size: -1 },
+      { ...binary, size: 1.5 },
+      { ...binary, uploadedAt: 1 },
+      { ...binary, backupKey: 1 },
+    ]) {
+      expect(() => parseOwnerBackupManifest(JSON.stringify({ ...manifest, binaries: [invalidBinary] }))).toThrow(
+        "Owner backup manifest is invalid",
+      );
+    }
+    expect(() => parseOwnerBackupManifest(JSON.stringify({ ...manifest, binaries: [binary, { ...binary, sourceKey: 1 }] }))).toThrow(
+      "Owner backup manifest is invalid",
+    );
+    expect(parseOwnerBackupManifest(JSON.stringify({ ...manifest, binaries: [{ ...binary, size: 0 }] })).binaries[0]?.size).toBe(0);
     expect(() => parseOwnerBackupManifest(`${" ".repeat(10 * 1024 * 1024)}x`)).toThrow("Owner backup manifest exceeds 10 MiB");
   });
 });

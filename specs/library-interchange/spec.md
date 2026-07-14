@@ -21,7 +21,9 @@ move Kirjolab research organization.
 
 ### Security and Validation
 
-- CSL JSON accepts at most 2,000 bounded identified items.
+- CSL JSON accepts at most 2,000 bounded items with non-empty identifiers,
+  types, and titles. Optional issued dates contain one to four non-empty,
+  bounded date-part arrays.
 - Portable ZIP input is at most 5 MB and extracts only two exact metadata file
   names needed for import.
 - Metadata arrays, labels, notes, ratings, priorities, and timestamps are
