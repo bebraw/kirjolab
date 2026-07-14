@@ -51,6 +51,20 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 4,
+    name: "map-read-only-share-targets",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE read_only_share_target (
+          singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+          storage_key TEXT NOT NULL,
+          workspace_id TEXT NOT NULL
+        );
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface MemberRow extends Record<string, SqlStorageValue> {
@@ -65,6 +79,11 @@ interface ReadOnlyShareRow extends Record<string, SqlStorageValue> {
   created_at: string;
 }
 
+interface ReadOnlyShareTargetRow extends Record<string, SqlStorageValue> {
+  storage_key: string;
+  workspace_id: string;
+}
+
 export interface ReadOnlyShareStatus {
   active: boolean;
   createdAt: string | null;
@@ -73,6 +92,11 @@ export interface ReadOnlyShareStatus {
 export interface CreatedReadOnlyShare {
   token: string;
   createdAt: string;
+}
+
+export interface ResolvedReadOnlyShare {
+  readonly valid: boolean;
+  readonly target: { readonly storageKey: string; readonly workspaceId: string } | null;
 }
 
 export class WorkspaceAccess extends DurableObject<Env> {
@@ -147,6 +171,26 @@ export class WorkspaceAccess extends DurableObject<Env> {
     return { token, createdAt };
   }
 
+  async createMappedReadOnlyShare(storageKey: string, workspaceId: string): Promise<CreatedReadOnlyShare> {
+    assertShareTarget(storageKey, workspaceId);
+    const token = randomToken();
+    const createdAt = new Date().toISOString();
+    const tokenHash = await hashToken(token);
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO read_only_share_target (singleton, storage_key, workspace_id) VALUES (1, ?, ?) ON CONFLICT(singleton) DO UPDATE SET storage_key = excluded.storage_key, workspace_id = excluded.workspace_id",
+        storageKey,
+        workspaceId,
+      );
+      this.ctx.storage.sql.exec(
+        "INSERT INTO read_only_share (singleton, token_hash, created_at) VALUES (1, ?, ?) ON CONFLICT(singleton) DO UPDATE SET token_hash = excluded.token_hash, created_at = excluded.created_at",
+        tokenHash,
+        createdAt,
+      );
+    });
+    return { token, createdAt };
+  }
+
   getReadOnlyShareStatus(requesterEmail: string): ReadOnlyShareStatus {
     if (this.getRole(requesterEmail) !== "owner") throw new Error("Only the workspace owner can manage read-only links");
     const row = this.ctx.storage.sql
@@ -164,6 +208,27 @@ export class WorkspaceAccess extends DurableObject<Env> {
     return row?.token_hash === tokenHash;
   }
 
+  async resolveReadOnlyShare(token: string): Promise<ResolvedReadOnlyShare> {
+    if (!(await this.validateReadOnlyShare(token))) return { valid: false, target: null };
+    const row = this.ctx.storage.sql
+      .exec<ReadOnlyShareTargetRow>("SELECT storage_key, workspace_id FROM read_only_share_target WHERE singleton = 1")
+      .toArray()[0];
+    if (!row) return { valid: true, target: null };
+    assertShareTarget(row.storage_key, row.workspace_id);
+    return { valid: true, target: { storageKey: row.storage_key, workspaceId: row.workspace_id } };
+  }
+
+  getMappedReadOnlyShareStatus(): ReadOnlyShareStatus {
+    return readOnlyShareStatus(this.ctx.storage.sql);
+  }
+
+  revokeMappedReadOnlyShare(): void {
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("DELETE FROM read_only_share");
+      this.ctx.storage.sql.exec("DELETE FROM read_only_share_target");
+    });
+  }
+
   revokeReadOnlyShare(requesterEmail: string): void {
     if (this.getRole(requesterEmail) !== "owner") throw new Error("Only the workspace owner can manage read-only links");
     this.ctx.storage.sql.exec("DELETE FROM read_only_share WHERE singleton = 1");
@@ -172,6 +237,17 @@ export class WorkspaceAccess extends DurableObject<Env> {
   async deleteWorkspaceAccess(requesterEmail: string): Promise<void> {
     if (this.getRole(requesterEmail) !== "owner") throw new Error("Only the workspace owner can delete workspace access");
     await this.ctx.storage.deleteAll();
+  }
+}
+
+function readOnlyShareStatus(sql: SqlStorage): ReadOnlyShareStatus {
+  const row = sql.exec<ReadOnlyShareRow>("SELECT token_hash, created_at FROM read_only_share WHERE singleton = 1").toArray()[0];
+  return { active: row !== undefined, createdAt: row?.created_at ?? null };
+}
+
+function assertShareTarget(storageKey: string, workspaceId: string): void {
+  if (!/^[a-z0-9:-]{1,128}$/iu.test(storageKey) || !/^[a-z0-9-]{1,64}$/iu.test(workspaceId)) {
+    throw new TypeError("Read-only share target is invalid");
   }
 }
 

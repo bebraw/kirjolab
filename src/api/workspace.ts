@@ -79,20 +79,22 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     }
     if (suffix === "/share-link" && request.method === "GET") {
       if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
-      return Response.json(await access.getReadOnlyShareStatus(identity.email));
+      const locator = await catalog.getOrCreateShareLocator(workspaceId);
+      return Response.json(await env.WORKSPACE_ACCESS.getByName(locator).getMappedReadOnlyShareStatus());
     }
     if (suffix === "/share-link" && request.method === "POST") {
       if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
-      if (workspaceId === demoWorkspaceId) return jsonError("The demo project cannot be shared by link", 409);
-      const share = await access.createReadOnlyShare(identity.email);
+      const locator = await catalog.getOrCreateShareLocator(workspaceId);
+      const share = await env.WORKSPACE_ACCESS.getByName(locator).createMappedReadOnlyShare(storageKey, workspaceId);
       return Response.json(
-        { href: `/share/${workspaceId}.${share.token}`, createdAt: share.createdAt },
+        { href: `/share/${locator}.${share.token}`, createdAt: share.createdAt },
         { status: 201, headers: { "cache-control": "no-store" } },
       );
     }
     if (suffix === "/share-link" && request.method === "DELETE") {
       if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
-      await access.revokeReadOnlyShare(identity.email);
+      const locator = await catalog.getOrCreateShareLocator(workspaceId);
+      await env.WORKSPACE_ACCESS.getByName(locator).revokeMappedReadOnlyShare();
       return new Response(null, { status: 204 });
     }
     if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);

@@ -33,6 +33,19 @@ test("creates, rotates, and revokes a read-only project link", async ({ page }) 
   expect((await page.request.get(second.href)).status()).toBe(404);
 });
 
+test("shares the owner-scoped demo through an opaque public locator", async ({ page }) => {
+  await page.goto("/");
+  const response = await page.request.post("/api/workspaces/demo/share-link", {
+    headers: { origin: "http://127.0.0.1:8788" },
+  });
+  expect(response.status()).toBe(201);
+  const share = (await response.json()) as { href: string };
+  expect(share.href).toMatch(/^\/share\/(?!demo\.)[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$/u);
+  const shared = await page.request.get(share.href);
+  expect(shared.status()).toBe(200);
+  expect(await shared.text()).toContain("Evidence becomes prose");
+});
+
 test("renames, archives, duplicates, and permanently deletes projects", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Lifecycle source");
   const api = `/api/workspaces/${workspaceId}`;

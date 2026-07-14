@@ -14,11 +14,14 @@ hard to contain.
 
 ## Decision
 
-Give each non-demo project at most one active read-only bearer link. The link
-contains the opaque workspace id and a 256-bit random secret. Store only the
+Give each project at most one active read-only bearer link. The link contains
+an opaque public locator and a 256-bit random secret. Store only the
 secret's SHA-256 hash in the project `WorkspaceAccess` Durable Object. Creating
 a replacement atomically invalidates the previous link; revocation deletes the
 hash.
+
+ADR-095 refines locator routing for owner-scoped workspace identities while
+preserving this token, rendering, and revocation contract.
 
 Resolve valid links before identity authentication, then render a dedicated
 server-side page from the current project snapshot. Expose only the composed

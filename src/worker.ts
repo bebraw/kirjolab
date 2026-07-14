@@ -54,9 +54,11 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   if (readOnlyShare?.[1] && readOnlyShare[2]) {
     if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    const access = env.WORKSPACE_ACCESS.getByName(readOnlyShare[1]);
-    if (!(await access.validateReadOnlyShare(readOnlyShare[2]))) return htmlResponse(renderNotFoundPage("/share"), 404, url);
-    const snapshot = await env.DOCUMENT_ROOMS.getByName(readOnlyShare[1]).getSnapshot(readOnlyShare[1]);
+    const locator = readOnlyShare[1];
+    const resolved = await env.WORKSPACE_ACCESS.getByName(locator).resolveReadOnlyShare(readOnlyShare[2]);
+    if (!resolved.valid) return htmlResponse(renderNotFoundPage("/share"), 404, url);
+    const target = resolved.target ?? { storageKey: locator, workspaceId: locator };
+    const snapshot = await env.DOCUMENT_ROOMS.getByName(target.storageKey).getSnapshot(target.workspaceId);
     return htmlResponse(renderReadOnlySharePage(snapshot), 200, url);
   }
 

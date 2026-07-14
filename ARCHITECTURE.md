@@ -138,6 +138,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   platform storage behavior.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
 - Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
+- Address public read-only shares through opaque, persisted locators that map
+  to validated workspace storage targets only after bearer-token verification;
+  never require a browser workspace id to be globally routable.
 - Establish collaboration through a server-led Yjs handshake: send current
   binary state before a versioned synchronization control message, and never
   send speculative browser state on connection open.

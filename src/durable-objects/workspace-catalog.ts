@@ -35,6 +35,20 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 3,
+    name: "add-public-share-locators",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE workspace_share_locators (
+          workspace_id TEXT PRIMARY KEY,
+          locator TEXT NOT NULL UNIQUE,
+          created_at TEXT NOT NULL
+        );
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface WorkspaceCatalogRow extends Record<string, SqlStorageValue> {
@@ -82,6 +96,23 @@ export class WorkspaceCatalog extends DurableObject<Env> {
   getWorkspace(id: string): WorkspaceSummary | null {
     const row = this.ctx.storage.sql.exec<WorkspaceCatalogRow>("SELECT * FROM workspaces WHERE id = ?", id).toArray()[0];
     return row ? summaryFromRow(row) : null;
+  }
+
+  getOrCreateShareLocator(workspaceId: string): string {
+    if (!this.getWorkspace(workspaceId)) throw new Error("Workspace not found");
+    if (workspaceId !== demoWorkspaceId) return workspaceId;
+    const existing = this.ctx.storage.sql
+      .exec<{ locator: string }>("SELECT locator FROM workspace_share_locators WHERE workspace_id = ?", workspaceId)
+      .toArray()[0];
+    if (existing) return existing.locator;
+    const locator = crypto.randomUUID();
+    this.ctx.storage.sql.exec(
+      "INSERT INTO workspace_share_locators (workspace_id, locator, created_at) VALUES (?, ?, ?)",
+      workspaceId,
+      locator,
+      new Date().toISOString(),
+    );
+    return locator;
   }
 
   updateWorkspace(id: string, title: string | null, archived: boolean | null): WorkspaceSummary {

@@ -27,6 +27,10 @@ Owners need a minimal way to grant access to a known collaborator.
 - `POST /api/workspaces/{id}/share-link` lets only the owner create or rotate
   one read-only bearer link; `DELETE` revokes it and `GET` reports status
   without returning the secret again.
+- Each project uses an opaque public share locator. Globally unique workspace
+  ids remain their own locators for link compatibility, while owner-scoped
+  starter projects receive a persisted random UUID mapped to their internal
+  storage key. The mapping is returned only after bearer-token validation.
 - A valid `/share/{workspace-id}.{secret}` request bypasses identity login only
   for a server-rendered live manuscript view. The view includes composed
   Markdown and project source files, but no member identities, private research,
@@ -82,6 +86,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Workspace creation initializes an owner role.
 - [x] Owners can invite a normalized collaborator email.
 - [x] Owners can create, rotate, and revoke a read-only bearer link.
+- [x] Owner-scoped starter projects can be shared without exposing an owner
+      storage key or colliding with another owner's starter project.
 - [x] A read-only link exposes only composed Markdown and project source files.
 - [x] Owner and member records retain stable opaque person identities across
       Durable Object reconstruction.
@@ -120,6 +126,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - Read-only link lookup must validate a fixed-shape random secret against its
   stored hash before touching document state; invalid and revoked links return
   the same not-found response.
+- Public share locators must not expose owner-derived storage keys, and target
+  mappings must not be returned before bearer-token validation succeeds.
 - Read-only link pages must not load the authenticated application client or
   expose a workspace API, WebSocket, private research, or mutation control.
 

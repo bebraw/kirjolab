@@ -27,14 +27,15 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                                           | Status      | Summary                                                                                |
-| ----------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------- |
-| [ADR-089](./implemented/ADR-089-require-a-fail-closed-production-release.md)  | Implemented | Require production identity, hostname, dry-run, smoke, version, and rollback evidence. |
-| [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md) | Implemented | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.    |
-| [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)             | Implemented | Use semantic light/dark tokens with a browser-local system-aware preference.           |
-| [ADR-092](./implemented/ADR-092-prewarm-agent-ci-dependencies-explicitly.md)  | Implemented | Prewarm dependencies once and give parallel local CI jobs isolated writable views.     |
-| [ADR-093](./implemented/ADR-093-scope-prettier-to-owned-files.md)             | Implemented | Keep duplicated and vendored skill references outside the Prettier ownership boundary. |
-| [ADR-094](./implemented/ADR-094-cache-prettier-checks-by-content.md)          | Implemented | Cache successful Prettier checks by file content under ignored local state.            |
+| ADR                                                                           | Status      | Summary                                                                                         |
+| ----------------------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------- |
+| [ADR-089](./implemented/ADR-089-require-a-fail-closed-production-release.md)  | Implemented | Require production identity, hostname, dry-run, smoke, version, and rollback evidence.          |
+| [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md) | Implemented | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.             |
+| [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)             | Implemented | Use semantic light/dark tokens with a browser-local system-aware preference.                    |
+| [ADR-092](./implemented/ADR-092-prewarm-agent-ci-dependencies-explicitly.md)  | Implemented | Prewarm dependencies once and give parallel local CI jobs isolated writable views.              |
+| [ADR-093](./implemented/ADR-093-scope-prettier-to-owned-files.md)             | Implemented | Keep duplicated and vendored skill references outside the Prettier ownership boundary.          |
+| [ADR-094](./implemented/ADR-094-cache-prettier-checks-by-content.md)          | Implemented | Cache successful Prettier checks by file content under ignored local state.                     |
+| [ADR-095](./implemented/ADR-095-decouple-public-share-locators.md)            | Implemented | Route public shares through opaque locators instead of requiring globally unique workspace ids. |
 
 ## Implemented ADRs
 
