@@ -2012,6 +2012,7 @@ class WorkspaceApp {
     card.dataset.referenceId = reference.id;
     const keyState = this.#librarySnapshot?.referenceKeyStates[reference.id] ?? "final";
     const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
+    const artifacts = this.#librarySnapshot?.artifacts.filter((artifact) => artifact.referenceId === reference.id) ?? [];
     const main = document.createElement("div");
     main.className = "library-reference-main";
     const title = document.createElement("h3");
@@ -2035,6 +2036,12 @@ class WorkspaceApp {
     main.append(title, details);
     const actions = document.createElement("div");
     actions.className = "library-reference-actions";
+    const primaryArtifact = artifacts[0];
+    if (primaryArtifact) {
+      const openPdf = actionButton("PDF", "button-secondary", () => void this.#openLibraryPdf(primaryArtifact));
+      openPdf.title = `Open ${primaryArtifact.name}`;
+      actions.append(openPdf);
+    }
     if (linked) {
       const remove = actionButton("Linked", "button-secondary", () => void this.#unlinkProjectReference(reference.id));
       remove.title = `Remove :cite[${linked.citationAlias}] from this project`;
@@ -2147,7 +2154,6 @@ class WorkspaceApp {
     const resources = document.createElement("div");
     resources.className = "mt-3 space-y-2 border-t border-app-line pt-3";
     const notes = this.#librarySnapshot?.notes.filter((note) => note.referenceId === reference.id) ?? [];
-    const artifacts = this.#librarySnapshot?.artifacts.filter((artifact) => artifact.referenceId === reference.id) ?? [];
     const highlights = this.#librarySnapshot?.highlights.filter((highlight) => highlight.referenceId === reference.id) ?? [];
     const webSource = this.#librarySnapshot?.webSources.find((source) => source.referenceId === reference.id);
     const webSnapshots = [...(this.#librarySnapshot?.webSnapshots.filter((snapshot) => snapshot.referenceId === reference.id) ?? [])].sort(

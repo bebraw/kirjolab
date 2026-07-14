@@ -74,7 +74,10 @@ memory and makes citation aliases compete with stable source identity.
   visible; filters and maintenance tools use separate compact menus. References
   render as dense two-line rows suitable for large collections, while metadata,
   organization, reading state, and attached research remain available through
-  per-reference progressive disclosure.
+  per-reference progressive disclosure. A reference with an attached PDF
+  exposes a compact row-level **PDF** action so opening the private reader never
+  depends on expanding metadata details; references without an artifact omit
+  the action.
 - An attached private PDF opens from its library record in a kind-qualified
   context tab. Reading uses the owner-private stream and local page state. Text
   selection creates only an ephemeral private-highlight draft; an explicit save
@@ -160,7 +163,8 @@ memory and makes citation aliases compete with stable source identity.
 - Browser coverage opens a private artifact, saves and revisits a private
   page-and-quote highlight, restores reading state, keeps project evidence
   controls unavailable, and proves that capture does not mutate the workspace
-  snapshot.
+  snapshot. It opens attached PDFs directly from collapsed library rows and
+  verifies that references without artifacts expose no PDF action.
 - Browser coverage proves bounded batch progress, partial success, and retry
   without resubmitting successful PDFs.
 - Browser coverage advances the reader's project-use states explicitly and

@@ -680,6 +680,7 @@ test("keeps private library research separate from project citations", async ({ 
   const card = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Private Research Guide" });
   await expect(card).toBeVisible();
   await expect(card).toContainText("writer2026");
+  await expect(card.getByRole("button", { name: "PDF", exact: true })).toHaveCount(0);
   await expect(page.locator("#publication-list")).not.toContainText("Private Research Guide");
 
   await card.getByRole("button", { name: "Add" }).click();
@@ -694,8 +695,8 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#unidentified-pdf-section")).toBeHidden();
 
   const beforePrivateReading = await readWorkspaceSnapshot(page, api);
-  await openLibraryReferenceDetails(pdfCard);
-  await pdfCard.getByRole("button", { name: "Open PDF" }).click();
+  await expect(pdfCard.locator(".library-reference-details")).not.toHaveAttribute("open", "");
+  await pdfCard.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.locator("#annotation-composer")).toBeHidden();
@@ -727,8 +728,7 @@ test("keeps private library research separate from project citations", async ({ 
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
   await page.getByRole("tab", { name: "Library" }).click();
   const refreshedPdfCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "climate adaptation" });
-  await openLibraryReferenceDetails(refreshedPdfCard);
-  await refreshedPdfCard.getByRole("button", { name: "Open PDF" }).click();
+  await refreshedPdfCard.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.getByRole("button", { name: "Open page 1" }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
