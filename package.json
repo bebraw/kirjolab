@@ -33,7 +33,8 @@
       "2026-07-13-agent-ci-progress-events",
       "2026-07-14-agent-ci-cache-isolation",
       "2026-07-14-scope-prettier-to-owned-files",
-      "2026-07-14-prettier-content-cache"
+      "2026-07-14-prettier-content-cache",
+      "2026-07-14-oxlint-correctness-gate"
     ]
   },
   "scripts": {
@@ -56,6 +57,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check . --cache --cache-strategy content --cache-location .cache/prettier",
     "lighthouse": "node ./scripts/run-lighthouse.mjs",
+    "lint": "oxlint --max-warnings 0",
     "model:companion": "npm run build:model-companion && node ./.generated/model-companion.mjs",
     "mutation": "stryker run",
     "mutation:incremental": "stryker run --incremental",
@@ -63,7 +65,7 @@
     "prepare": "node ./scripts/setup-git-hooks.mjs",
     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
     "quality:gate": "npm run quality:gate:fast && npm run e2e && npm run mutation:incremental",
-    "quality:gate:fast": "npm run format:check && npm run typecheck && npm run worker:client-guard && npm run security:audit && npm run test:coverage && npm run test:workers",
+    "quality:gate:fast": "npm run format:check && npm run lint && npm run typecheck && npm run worker:client-guard && npm run security:audit && npm run test:coverage && npm run test:workers",
     "security:audit": "npm audit --omit=dev --audit-level high",
     "test": "vitest run --passWithNoTests",
     "test:affected": "node ./scripts/run-affected-tests.mjs",
@@ -87,6 +89,7 @@
     "esbuild": "0.28.1",
     "fallow": "2.97.0",
     "lighthouse": "13.4.0",
+    "oxlint": "1.74.0",
     "prettier": "3.8.4",
     "tailwindcss": "4.3.1",
     "typescript": "npm:@typescript/typescript6@6.0.2",

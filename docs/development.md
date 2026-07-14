@@ -60,6 +60,7 @@ If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` t
 - Run Lighthouse with `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`.
 - Format the repo with `npm run format`.
 - Check formatting with `npm run format:check`.
+- Run default Oxlint correctness checks with `npm run lint`.
 - If a run pauses on failure, fix the issue and resume with `npm run ci:local:retry -- --name <runner-name>`.
 
 Use targeted checks while iterating, then run the full readiness path before proposing or landing a change:
@@ -84,6 +85,10 @@ The formatting check caches successful results by content under
 `.cache/prettier`. Repeated local gates can skip unchanged files without
 trusting timestamps across branch switches. The cache is disposable and
 ignored; clean CI runners perform a cold check rather than restoring it.
+
+`npm run lint` applies Oxlint's default correctness rules with warnings treated
+as failures. It complements Prettier's formatting ownership and TypeScript's
+type checking instead of replacing either tool.
 
 The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.61.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The full `quality-mutation` workflow job is reserved for GitHub Actions with a `github.server_url` guard, so local Agent CI runs skip it; use `npm run quality:gate` or `npm run mutation` when local mutation feedback is needed. Dependency installation uses plain `npm ci`. Local Agent CI 0.17.1 explicitly prewarms through the fast job's stable `install` step, then gives concurrent jobs isolated writable dependency views. The local wrapper consumes Agent CI's versioned JSON events and reports each job and step with elapsed time, including a heartbeat every 15 seconds; it does not duplicate, reorder, or omit workflow checks.
 

@@ -42,6 +42,7 @@ copying unrelated starter structure.
   - `2026-07-14-agent-ci-cache-isolation`
   - `2026-07-14-scope-prettier-to-owned-files`
   - `2026-07-14-prettier-content-cache`
+  - `2026-07-14-oxlint-correctness-gate`
 
 ### Anti-Patterns
 

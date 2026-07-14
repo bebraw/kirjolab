@@ -1,10 +1,11 @@
 {
   "name": "quality-gate",
-  "description": "Add a fast local verification baseline with formatting, type checking, audit, unit tests, and coverage.",
+  "description": "Add a fast local verification baseline with formatting, correctness linting, type checking, audit, unit tests, and coverage.",
   "requires": ["typescript-setup"],
   "dependencies": {
     "dev": {
       "@vitest/coverage-v8": "4.1.5",
+      "oxlint": "1.74.0",
       "prettier": "3.8.3",
       "vitest": "4.1.5"
     },
@@ -15,8 +16,9 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check . --cache --cache-strategy content --cache-location .cache/prettier",
+    "lint": "oxlint --max-warnings 0",
     "quality:gate": "npm run quality:gate:fast",
-    "quality:gate:fast": "npm run format:check && npm run typecheck && npm run security:audit && npm run test:coverage",
+    "quality:gate:fast": "npm run format:check && npm run lint && npm run typecheck && npm run security:audit && npm run test:coverage",
     "security:audit": "npm audit --omit=dev --audit-level high",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "node ./scripts/run-coverage-gate.mjs"
@@ -54,6 +56,7 @@
   ],
   "docs": [
     "Document the fast gate as the normal local iteration check.",
+    "Document that Oxlint runs its default correctness rules and complements rather than replaces Prettier and TypeScript.",
     "Document that the fast gate expects a typecheck script from typescript-setup or an equivalent target-project contract.",
     "Document that coverage is required when src/ runtime code exists.",
     "Record any target-project quality gate contract in durable docs."

@@ -9,7 +9,7 @@ Apply `.capabilities/typescript-setup/` first unless the target repo already has
 Add the fast-gate dependencies:
 
 ```bash
-npm install --save-dev prettier@3.8.3 vitest@4.1.5 @vitest/coverage-v8@4.1.5
+npm install --save-dev --save-exact oxlint@1.74.0 prettier@3.8.3 vitest@4.1.5 @vitest/coverage-v8@4.1.5
 ```
 
 Add or merge these scripts:
@@ -19,8 +19,9 @@ Add or merge these scripts:
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check . --cache --cache-strategy content --cache-location .cache/prettier",
+    "lint": "oxlint --max-warnings 0",
     "quality:gate": "npm run quality:gate:fast",
-    "quality:gate:fast": "npm run format:check && npm run typecheck && npm run security:audit && npm run test:coverage",
+    "quality:gate:fast": "npm run format:check && npm run lint && npm run typecheck && npm run security:audit && npm run test:coverage",
     "security:audit": "npm audit --omit=dev --audit-level high",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "node ./scripts/run-coverage-gate.mjs"
@@ -36,6 +37,9 @@ Copy or merge:
 - `files/vitest.config.ts` to `vitest.config.ts`
 
 Adapt `src/` globs if the target repo uses a different source directory.
+
+Oxlint intentionally uses its default correctness rules. Keep Prettier as the
+formatting authority and TypeScript as the type-system authority.
 
 ## Optional Browser Gate
 
