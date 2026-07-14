@@ -451,7 +451,7 @@ function webCapture(id: string, accessedAt: string, contentHash: string, readabl
       complete: true,
       diagnostics: [],
       redirectChain: [],
-      etag: `\"${id}\"`,
+      etag: `"${id}"`,
       lastModified: accessedAt,
     },
   };

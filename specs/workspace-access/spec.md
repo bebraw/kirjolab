@@ -24,6 +24,16 @@ Owners need a minimal way to grant access to a known collaborator.
 - `GET /api/session` exposes only the current email and authentication mode.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
+- `POST /api/workspaces/{id}/share-link` lets only the owner create or rotate
+  one read-only bearer link; `DELETE` revokes it and `GET` reports status
+  without returning the secret again.
+- A valid `/share/{workspace-id}.{secret}` request bypasses identity login only
+  for a server-rendered live manuscript view. The view includes composed
+  Markdown and project source files, but no member identities, private research,
+  project APIs, exports, PDFs, history, comments, or collaboration channel.
+- Read-only link secrets contain 256 random bits. Only their SHA-256 hashes are
+  persisted, rotating a link invalidates its predecessor, and HTML responses
+  use `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
 - Authorized members may inspect project history and comparisons. Only the
   owner may name milestones, restore a retained state, or seed a new project
   from one.
@@ -47,7 +57,9 @@ Owners need a minimal way to grant access to a known collaborator.
 - `ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com`
 - `ACCESS_AUD=<application audience tag>`
 - The application hostname must be protected by a Cloudflare Access self-hosted
-  application and direct unprotected hostnames should be disabled.
+  application and direct unprotected hostnames should be disabled. The
+  `/share/*` path needs a deliberate Access bypass policy so bearer-link
+  readers can reach the Worker's independent token check.
 
 ### Anti-Patterns
 
@@ -57,6 +69,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - Do not pass Access tokens into browser JavaScript or logs.
 - Do not use plaintext emails as Durable Object or R2 storage keys.
 - Do not let members invite additional members in this slice.
+- Do not persist plaintext read-only link secrets or reuse them as general API
+  credentials.
 
 ## Contract
 
@@ -67,6 +81,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Access JWT verification covers signature, issuer, audience, and time.
 - [x] Workspace creation initializes an owner role.
 - [x] Owners can invite a normalized collaborator email.
+- [x] Owners can create, rotate, and revoke a read-only bearer link.
+- [x] A read-only link exposes only composed Markdown and project source files.
 - [x] Owner and member records retain stable opaque person identities across
       Durable Object reconstruction.
 - [x] Invited collaborators discover and open the shared workspace.
@@ -101,6 +117,11 @@ Owners need a minimal way to grant access to a known collaborator.
   metadata must be ignored rather than persisted or rebroadcast.
 - Identity tokens and signing material must never be persisted in application
   storage or returned by `/api/session`.
+- Read-only link lookup must validate a fixed-shape random secret against its
+  stored hash before touching document state; invalid and revoked links return
+  the same not-found response.
+- Read-only link pages must not load the authenticated application client or
+  expose a workspace API, WebSocket, private research, or mutation control.
 
 ### Scenarios
 
@@ -124,3 +145,17 @@ Owners need a minimal way to grant access to a known collaborator.
 - When: it requests the workspace API
 - Then: Kirjolab returns no workspace representation and touches no document or
   PDF state
+
+**Scenario: Reviewer follows a read-only link**
+
+- Given: the owner has created a current read-only link
+- When: a reviewer follows it without a Kirjolab identity
+- Then: Kirjolab renders the live composed Markdown and project source with
+  no editing, collaboration, export, member, or private-research capability
+
+**Scenario: Owner rotates or revokes a read-only link**
+
+- Given: a read-only link has been shared
+- When: the owner replaces or revokes it
+- Then: the prior URL immediately returns the same not-found response as an
+  unknown link

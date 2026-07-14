@@ -3,6 +3,36 @@ import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/kn
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf, createMetadataEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
 
+test("creates, rotates, and revokes a read-only project link", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Link review");
+  const api = `/api/workspaces/${workspaceId}/share-link`;
+  const headers = { origin: "http://127.0.0.1:8788" };
+
+  expect(await (await page.request.get(api)).json()).toEqual({ active: false, createdAt: null });
+  const created = await page.request.post(api, { headers });
+  expect(created.status()).toBe(201);
+  const first = (await created.json()) as { href: string };
+  const activeStatus = (await (await page.request.get(api)).json()) as Record<string, unknown>;
+  expect(activeStatus).toMatchObject({ active: true, createdAt: expect.any(String) });
+  expect(activeStatus).not.toHaveProperty("href");
+  expect(activeStatus).not.toHaveProperty("token");
+  const shared = await page.request.get(first.href);
+  expect(shared.status()).toBe(200);
+  expect(shared.headers()["referrer-policy"]).toBe("no-referrer");
+  expect(await shared.text()).toContain("Link review");
+
+  const rotated = await page.request.post(api, { headers });
+  expect(rotated.status()).toBe(201);
+  const invalidated = await page.request.get(first.href);
+  expect(invalidated.status()).toBe(404);
+  expect(await invalidated.text()).not.toContain(first.href);
+  const second = (await rotated.json()) as { href: string };
+  expect((await page.request.get(second.href)).status()).toBe(200);
+
+  expect((await page.request.delete(api, { headers })).status()).toBe(204);
+  expect((await page.request.get(second.href)).status()).toBe(404);
+});
+
 test("renames, archives, duplicates, and permanently deletes projects", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Lifecycle source");
   const api = `/api/workspaces/${workspaceId}`;
@@ -2370,7 +2400,7 @@ test("serves stable health and browser assets", async ({ request }) => {
   await expect(response.json()).resolves.toEqual({
     ok: true,
     name: "kirjolab",
-    routes: ["/", "/workspaces/:id", "/api/workspaces", "/api/workspaces/demo", "/api/session", "/api/health"],
+    routes: ["/", "/workspaces/:id", "/share/:token", "/api/workspaces", "/api/workspaces/demo", "/api/session", "/api/health"],
   });
 
   const [styles, client] = await Promise.all([request.get("/styles.css"), request.get("/app.js")]);

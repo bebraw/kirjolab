@@ -18,6 +18,7 @@ is supported on macOS.
 - Write Markdown and BibTeX collaboratively with live Yjs synchronization.
 - Organize several isolated writing projects under stable URLs.
 - Invite collaborators with owner or member access through Cloudflare Access.
+- Create revocable read-only links for manuscript reviewers without edit access.
 - Preview standard Markdown, GFM, and scientific-writing syntax through
   Satteri.
 - Import PDFs, highlight passages, and link evidence back to manuscript text.

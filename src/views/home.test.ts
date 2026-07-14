@@ -21,6 +21,10 @@ describe("renderHomePage", () => {
     expect(html).toContain('<p class="eyebrow">New project</p>');
     expect(html).toContain('type="submit">Create project</button>');
     expect(html).toContain('id="workspace-catalog-filter"');
+    expect(html).toContain('id="read-only-share-heading"');
+    expect(html).toContain('id="create-read-only-share" type="button">Create link</button>');
+    expect(html).toContain('id="read-only-share-link" type="text" readonly');
+    expect(html).toContain('id="revoke-read-only-share" type="button">Revoke read-only link</button>');
     expect(html).toContain('id="diagnostic-summary"');
     expect(html).toContain('id="authoring-context-resizer" role="separator"');
     expect(html).toContain("Annotate this paper");
@@ -108,7 +112,7 @@ describe("renderHomePage", () => {
     expect(html).toContain("Authenticated identity");
     expect(html).toContain("JSON health endpoint for tooling and smoke tests");
     expect(html).not.toContain("Stryker was here!");
-    expect(renderHomePage(exampleRoutes, "workspace", `person\"@example.org`)).toContain("person&quot;@example.org");
+    expect(renderHomePage(exampleRoutes, "workspace", `person"@example.org`)).toContain("person&quot;@example.org");
   });
 
   it("renders an inline, review-first DOI intake before evidence capture", () => {

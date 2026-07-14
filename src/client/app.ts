@@ -129,6 +129,12 @@ interface Elements {
   workspaceMemberList: HTMLElement;
   inviteMemberForm: HTMLFormElement;
   inviteMemberEmail: HTMLInputElement;
+  readOnlyShareStatus: HTMLElement;
+  createReadOnlyShare: HTMLButtonElement;
+  readOnlyShareLinkRow: HTMLElement;
+  readOnlyShareLink: HTMLInputElement;
+  copyReadOnlyShare: HTMLButtonElement;
+  revokeReadOnlyShare: HTMLButtonElement;
   referenceLibraryList: HTMLElement;
   libraryBibliographyUpload: HTMLInputElement;
   libraryCslUpload: HTMLInputElement;
@@ -481,6 +487,9 @@ class WorkspaceApp {
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
+    this.#elements.createReadOnlyShare.addEventListener("click", () => void this.#createReadOnlyShare());
+    this.#elements.copyReadOnlyShare.addEventListener("click", () => void this.#copyReadOnlyShare());
+    this.#elements.revokeReadOnlyShare.addEventListener("click", () => void this.#revokeReadOnlyShare());
     this.#elements.contextLibraryTab.addEventListener("click", () => void this.#openReferenceLibrary());
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
@@ -814,7 +823,53 @@ class WorkspaceApp {
 
   async #openSharing(): Promise<void> {
     this.#elements.shareWorkspaceDialog.showModal();
-    await this.#refreshMembers();
+    await Promise.all([this.#refreshMembers(), this.#refreshReadOnlyShare()]);
+  }
+
+  async #refreshReadOnlyShare(): Promise<void> {
+    const response = await fetch(`${apiBase}/share-link`, { credentials: "same-origin" });
+    if (response.status === 403) {
+      this.#elements.readOnlyShareStatus.textContent = "Only the project owner can manage read-only links.";
+      this.#elements.createReadOnlyShare.hidden = true;
+      return;
+    }
+    await expectOk(response);
+    const status: unknown = await response.json();
+    if (!isRecord(status) || typeof status.active !== "boolean" || (status.createdAt !== null && typeof status.createdAt !== "string")) {
+      throw new Error("Read-only link status returned invalid data");
+    }
+    this.#elements.createReadOnlyShare.hidden = false;
+    this.#elements.createReadOnlyShare.textContent = status.active ? "Replace link" : "Create link";
+    this.#elements.revokeReadOnlyShare.classList.toggle("hidden", !status.active);
+    this.#elements.readOnlyShareStatus.textContent = status.active
+      ? "Anyone with the current link can inspect the live manuscript and project source. Create a replacement to invalidate it."
+      : "Create a bearer link for people who should inspect, but not edit, this project.";
+  }
+
+  async #createReadOnlyShare(): Promise<void> {
+    const response = await fetch(`${apiBase}/share-link`, { method: "POST", credentials: "same-origin" });
+    await expectOk(response);
+    const share: unknown = await response.json();
+    if (!isRecord(share) || typeof share.href !== "string") throw new Error("Read-only link returned invalid data");
+    this.#elements.readOnlyShareLink.value = new URL(share.href, location.origin).href;
+    this.#elements.readOnlyShareLinkRow.classList.remove("hidden");
+    this.#elements.readOnlyShareLinkRow.classList.add("grid");
+    await this.#refreshReadOnlyShare();
+    this.#showToast("Read-only link created. Copy it before closing this dialog.");
+  }
+
+  async #copyReadOnlyShare(): Promise<void> {
+    await navigator.clipboard.writeText(this.#elements.readOnlyShareLink.value);
+    this.#showToast("Read-only link copied.");
+  }
+
+  async #revokeReadOnlyShare(): Promise<void> {
+    await expectOk(await fetch(`${apiBase}/share-link`, { method: "DELETE", credentials: "same-origin" }));
+    this.#elements.readOnlyShareLink.value = "";
+    this.#elements.readOnlyShareLinkRow.classList.add("hidden");
+    this.#elements.readOnlyShareLinkRow.classList.remove("grid");
+    await this.#refreshReadOnlyShare();
+    this.#showToast("Read-only link revoked.");
   }
 
   async #refreshMembers(): Promise<void> {
@@ -4917,6 +4972,12 @@ function collectElements(): Elements {
     workspaceMemberList: requiredElement("workspace-member-list", HTMLElement),
     inviteMemberForm: requiredElement("invite-member-form", HTMLFormElement),
     inviteMemberEmail: requiredElement("invite-member-email", HTMLInputElement),
+    readOnlyShareStatus: requiredElement("read-only-share-status", HTMLElement),
+    createReadOnlyShare: requiredElement("create-read-only-share", HTMLButtonElement),
+    readOnlyShareLinkRow: requiredElement("read-only-share-link-row", HTMLElement),
+    readOnlyShareLink: requiredElement("read-only-share-link", HTMLInputElement),
+    copyReadOnlyShare: requiredElement("copy-read-only-share", HTMLButtonElement),
+    revokeReadOnlyShare: requiredElement("revoke-read-only-share", HTMLButtonElement),
     referenceLibraryList: requiredElement("reference-library-list", HTMLElement),
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
@@ -5221,7 +5282,7 @@ function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function jsonFetch(url: string, body: object, method = "POST"): Promise<Response> {
+async function jsonFetch(url: string, body: object, method: "POST" | "PUT" | "PATCH" = "POST"): Promise<Response> {
   return await fetch(url, {
     method,
     credentials: "same-origin",

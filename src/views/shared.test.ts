@@ -8,6 +8,7 @@ describe("htmlResponse", () => {
     expect(response.status).toBe(201);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(response.headers.get("content-security-policy")).toBe(
       "default-src 'self'; base-uri 'none'; connect-src 'self' wss://app.example http://127.0.0.1:* https://127.0.0.1:* http://localhost:* https://localhost:* http://[::1]:* https://[::1]:*; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' http: https:; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; style-src-attr 'unsafe-inline'; worker-src 'self'",
     );

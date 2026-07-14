@@ -385,7 +385,8 @@ function inlineLatex(
   protectedValue = escapeLatex(protectedValue)
     .replace(/\*\*(?<text>.+?)\*\*/gu, "\\textbf{$<text>}")
     .replace(/(?<!\*)\*(?<text>[^*]+)\*(?!\*)/gu, "\\emph{$<text>}");
-  return protectedValue.replace(/\u0000(?<index>\d+)\u0000/gu, (_match, ...values: unknown[]) => {
+  const protectedTokenPattern = new RegExp(String.raw`\u0000(?<index>\d+)\u0000`, "gu");
+  return protectedValue.replace(protectedTokenPattern, (_match, ...values: unknown[]) => {
     const groups = values.at(-1);
     const index = Number(isStringRecord(groups) ? groups.index : Number.NaN);
     return tokens[index] ?? "";

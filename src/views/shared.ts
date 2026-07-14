@@ -4,6 +4,7 @@ export function htmlResponse(body: string, status = 200, requestUrl?: URL): Resp
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
+      "referrer-policy": "no-referrer",
       "content-security-policy": contentSecurityPolicy(requestUrl),
       "cross-origin-opener-policy": "same-origin",
       "cross-origin-embedder-policy": "require-corp",

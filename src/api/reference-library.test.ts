@@ -1030,7 +1030,7 @@ function memoryR2Object(
   };
 }
 
-function jsonRequest(path: string, body: object, method = "POST"): Request {
+function jsonRequest(path: string, body: object, method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST"): Request {
   return new Request(`https://example.test${path}`, {
     method,
     headers: { "content-type": "application/json" },

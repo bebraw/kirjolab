@@ -1269,7 +1269,7 @@ function webSnapshot(referenceId: string, id: string, accessedAt: string, conten
     complete: true,
     diagnostics: [],
     redirectChain: [],
-    etag: `\"${id}\"`,
+    etag: `"${id}"`,
     lastModified: accessedAt,
   } as const;
 }

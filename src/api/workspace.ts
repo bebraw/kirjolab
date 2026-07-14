@@ -77,6 +77,24 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix === "/members" && request.method === "POST") {
       return await inviteWorkspaceMember(request, env, identity, workspaceId, summary.title, access);
     }
+    if (suffix === "/share-link" && request.method === "GET") {
+      if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
+      return Response.json(await access.getReadOnlyShareStatus(identity.email));
+    }
+    if (suffix === "/share-link" && request.method === "POST") {
+      if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
+      if (workspaceId === demoWorkspaceId) return jsonError("The demo project cannot be shared by link", 409);
+      const share = await access.createReadOnlyShare(identity.email);
+      return Response.json(
+        { href: `/share/${workspaceId}.${share.token}`, createdAt: share.createdAt },
+        { status: 201, headers: { "cache-control": "no-store" } },
+      );
+    }
+    if (suffix === "/share-link" && request.method === "DELETE") {
+      if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
+      await access.revokeReadOnlyShare(identity.email);
+      return new Response(null, { status: 204 });
+    }
     if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);
     if (suffix === "/files" && request.method === "POST") return await createProjectFile(request, workspaceId, room);
     if (suffix.startsWith("/files/") && (request.method === "PATCH" || request.method === "DELETE")) {

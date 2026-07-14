@@ -683,13 +683,12 @@ function htmlMetadata(source: string): Omit<WebDocumentExtraction, "readableText
   const title =
     valueFor("og:title", "twitter:title", "citation_title") ||
     normalizeReadableText(decodeHtmlEntities(titleTag.replaceAll(/<[^>]+>/gu, " ")));
-  const authors = [
-    ...metas
-      .filter((attributes) =>
-        ["author", "article:author", "citation_author"].includes((attributes.property ?? attributes.name ?? "").toLocaleLowerCase()),
-      )
-      .map((attributes) => normalizeReadableText(decodeHtmlEntities(attributes.content ?? ""))),
-  ].filter(Boolean);
+  const authors = metas
+    .filter((attributes) =>
+      ["author", "article:author", "citation_author"].includes((attributes.property ?? attributes.name ?? "").toLocaleLowerCase()),
+    )
+    .map((attributes) => normalizeReadableText(decodeHtmlEntities(attributes.content ?? "")))
+    .filter(Boolean);
   return {
     title,
     authors: [...new Set(authors)],

@@ -66,9 +66,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
   });
 
   it("invokes the browser fetch function without binding the provider as its receiver", async () => {
-    let receiver: unknown;
     const browserFetch = vi.fn(function (this: unknown) {
-      receiver = this;
       if (this !== undefined) throw new TypeError("Illegal invocation");
       return Promise.resolve(completionResponse("replacement"));
     }) as typeof fetch;
@@ -81,7 +79,6 @@ describe("OpenAICompatibleBrowserProvider", () => {
 
     await expect(provider.reviseSelection(operation)).resolves.toMatchObject({ replacement: "replacement" });
     expect(browserFetch).toHaveBeenCalledOnce();
-    expect(receiver).toBeUndefined();
   });
 
   it("requires browser fetch to reject redirects outside the validated endpoint", async () => {

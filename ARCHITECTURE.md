@@ -124,6 +124,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat project unlink, library archive, share revocation, and permanent owner
   deletion as distinct operations. Revocation is forward-only; deletion keeps
   only the tombstoned provenance needed by historical project revisions.
+- Treat a read-only project URL as a revocable bearer capability. Persist only
+  its secret hash, expose only the live composed Markdown and project source,
+  and keep member identity, private research, APIs, exports, and collaboration
+  channels behind authenticated workspace authorization.
 - Evolve every SQLite-backed Durable Object through an ordered, named,
   append-only migration ledger. Apply each pending schema or data migration and
   its ledger record in one synchronous transaction; fail closed if applied

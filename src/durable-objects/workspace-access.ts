@@ -37,6 +37,20 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 3,
+    name: "create-read-only-share",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE read_only_share (
+          singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+          token_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface MemberRow extends Record<string, SqlStorageValue> {
@@ -44,6 +58,21 @@ interface MemberRow extends Record<string, SqlStorageValue> {
   email: string;
   role: string;
   added_at: string;
+}
+
+interface ReadOnlyShareRow extends Record<string, SqlStorageValue> {
+  token_hash: string;
+  created_at: string;
+}
+
+export interface ReadOnlyShareStatus {
+  active: boolean;
+  createdAt: string | null;
+}
+
+export interface CreatedReadOnlyShare {
+  token: string;
+  createdAt: string;
 }
 
 export class WorkspaceAccess extends DurableObject<Env> {
@@ -105,6 +134,41 @@ export class WorkspaceAccess extends DurableObject<Env> {
     return member;
   }
 
+  async createReadOnlyShare(requesterEmail: string): Promise<CreatedReadOnlyShare> {
+    if (this.getRole(requesterEmail) !== "owner") throw new Error("Only the workspace owner can manage read-only links");
+    const token = randomToken();
+    const createdAt = new Date().toISOString();
+    const tokenHash = await hashToken(token);
+    this.ctx.storage.sql.exec(
+      "INSERT INTO read_only_share (singleton, token_hash, created_at) VALUES (1, ?, ?) ON CONFLICT(singleton) DO UPDATE SET token_hash = excluded.token_hash, created_at = excluded.created_at",
+      tokenHash,
+      createdAt,
+    );
+    return { token, createdAt };
+  }
+
+  getReadOnlyShareStatus(requesterEmail: string): ReadOnlyShareStatus {
+    if (this.getRole(requesterEmail) !== "owner") throw new Error("Only the workspace owner can manage read-only links");
+    const row = this.ctx.storage.sql
+      .exec<ReadOnlyShareRow>("SELECT token_hash, created_at FROM read_only_share WHERE singleton = 1")
+      .toArray()[0];
+    return { active: row !== undefined, createdAt: row?.created_at ?? null };
+  }
+
+  async validateReadOnlyShare(token: string): Promise<boolean> {
+    if (!/^[A-Za-z0-9_-]{43}$/u.test(token)) return false;
+    const tokenHash = await hashToken(token);
+    const row = this.ctx.storage.sql
+      .exec<ReadOnlyShareRow>("SELECT token_hash, created_at FROM read_only_share WHERE singleton = 1")
+      .toArray()[0];
+    return row?.token_hash === tokenHash;
+  }
+
+  revokeReadOnlyShare(requesterEmail: string): void {
+    if (this.getRole(requesterEmail) !== "owner") throw new Error("Only the workspace owner can manage read-only links");
+    this.ctx.storage.sql.exec("DELETE FROM read_only_share WHERE singleton = 1");
+  }
+
   async deleteWorkspaceAccess(requesterEmail: string): Promise<void> {
     if (this.getRole(requesterEmail) !== "owner") throw new Error("Only the workspace owner can delete workspace access");
     await this.ctx.storage.deleteAll();
@@ -117,4 +181,17 @@ function memberFromRow(row: MemberRow): WorkspaceMember {
 
 function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function randomToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+}
+
+async function hashToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
 }

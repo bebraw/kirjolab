@@ -38,7 +38,7 @@ describe("worker", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       name: "kirjolab",
-      routes: ["/", "/workspaces/:id", "/api/workspaces", "/api/workspaces/demo", "/api/session", "/api/health"],
+      routes: ["/", "/workspaces/:id", "/share/:token", "/api/workspaces", "/api/workspaces/demo", "/api/session", "/api/health"],
     });
   });
 

@@ -624,7 +624,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       url: registration.canonicalUrl,
       abstract: existingReference?.abstract ?? "",
       provenance: {
-        ...(existingReference?.provenance ?? {}),
+        ...existingReference?.provenance,
         type: provenance,
         title: provenance,
         authors: provenance,

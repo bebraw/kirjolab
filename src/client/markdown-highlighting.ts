@@ -22,7 +22,7 @@ interface HighlightRange {
 }
 
 const inlineSyntax =
-  /`[^`\r\n]+`|!?\[[^\]\r\n]*\]\([^\)\r\n]*\)|:(?:cite|ref)\[[^\]\r\n]*\]|\[\^[^\]\r\n]+\]|\{#[a-zA-Z0-9:_-]+\}|\*\*[^*\r\n]+\*\*|__[^_\r\n]+__|\*[^*\r\n]+\*|_[^_\r\n]+_/gu;
+  /`[^`\r\n]+`|!?\[[^\]\r\n]*\]\([^)\r\n]*\)|:(?:cite|ref)\[[^\]\r\n]*\]|\[\^[^\]\r\n]+\]|\{#[a-zA-Z0-9:_-]+\}|\*\*[^*\r\n]+\*\*|__[^_\r\n]+__|\*[^*\r\n]+\*|_[^_\r\n]+_/gu;
 
 export function highlightMarkdown(source: string): readonly MarkdownHighlightSegment[] {
   const segments: MarkdownHighlightSegment[] = [];

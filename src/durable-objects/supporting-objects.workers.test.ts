@@ -29,7 +29,16 @@ describe("supporting Durable Objects in the Workers runtime", () => {
     expect(accessLedger).toEqual([
       { version: 1, name: "create-workspace-access" },
       { version: 2, name: "assign-stable-person-identities" },
+      { version: 3, name: "create-read-only-share" },
     ]);
+
+    expect(await access.getReadOnlyShareStatus(owner.email)).toEqual({ active: false, createdAt: null });
+    const share = await access.createReadOnlyShare(owner.email);
+    expect(share.token).toMatch(/^[A-Za-z0-9_-]{43}$/u);
+    expect(await access.validateReadOnlyShare(share.token)).toBe(true);
+    const changedToken = `${share.token.slice(0, -1)}${share.token.endsWith("x") ? "y" : "x"}`;
+    expect(await access.validateReadOnlyShare(changedToken)).toBe(false);
+    expect(await access.getReadOnlyShareStatus(owner.email)).toEqual({ active: true, createdAt: share.createdAt });
 
     expect((await catalog.updateWorkspace(registered.id, "Renamed workspace", true)).archivedAt).not.toBeNull();
     expect((await catalog.updateWorkspace(registered.id, registered.title, false)).archivedAt).toBeNull();
@@ -59,8 +68,12 @@ describe("supporting Durable Objects in the Workers runtime", () => {
       memberRole: await access.getRole(member.email),
       members: await access.listMembers(owner.email),
     }).toEqual(acceptedAccessState);
+    expect(await access.validateReadOnlyShare(share.token)).toBe(true);
     expect(await runInDurableObject(catalog, (_instance: WorkspaceCatalog, state) => ledgerRows(state))).toEqual(catalogLedger);
     expect(await runInDurableObject(access, (_instance: WorkspaceAccess, state) => ledgerRows(state))).toEqual(accessLedger);
+
+    await access.revokeReadOnlyShare(owner.email);
+    expect(await access.validateReadOnlyShare(share.token)).toBe(false);
   });
 });
 

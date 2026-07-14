@@ -30,7 +30,7 @@ export interface PublicationWordStatistics {
 
 const citationDirective = /:cite\[(?<keys>[^\]\r\n]+)\]/gu;
 const headingLine = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*(?:\{#[^}\r\n]+\})?[ \t]*$/u;
-const wordPattern = /[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu;
+const wordPattern = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
 
 export function publicationWordStatistics(
   composition: Pick<ProjectComposition, "content" | "sourceMap">,
