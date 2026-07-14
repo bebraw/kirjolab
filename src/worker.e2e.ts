@@ -569,6 +569,10 @@ test("maps broken export composition back to authored source without losing reco
 });
 
 test("keeps private library research separate from project citations", async ({ page }) => {
+  const failedPdfWorkerRequests: string[] = [];
+  page.on("requestfailed", (request) => {
+    if (new URL(request.url()).pathname === "/pdf.worker.js") failedPdfWorkerRequests.push(request.failure()?.errorText ?? "failed");
+  });
   const workspaceId = await createWorkspace(page, "Private library boundary");
   const api = `/api/workspaces/${workspaceId}`;
   await page.goto(`/workspaces/${workspaceId}`);
@@ -610,6 +614,7 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#annotation-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-composer")).toBeVisible();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  expect(failedPdfWorkerRequests).toEqual([]);
   await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected private PDF text");

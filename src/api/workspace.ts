@@ -622,9 +622,10 @@ async function mutateProjectReference(
   if (!match?.[1]) return jsonError("Project reference route not found", 404);
   const referenceId = match[1];
   if (request.method === "DELETE" && !match[2]) {
-    const snapshot = await room.unlinkProjectReference(workspaceId, referenceId);
+    const result = await room.unlinkProjectReference(workspaceId, referenceId);
+    if (!result.ok) return jsonError(result.error, result.code === "citation-alias-in-use" ? 409 : 400);
     await library.unregisterProjectDependency(workspaceId, referenceId);
-    return Response.json(snapshot);
+    return Response.json(result.value);
   }
   if (request.method === "POST" && match[2] === "sync") {
     const reference = (await library.getReferences([referenceId]))[0];
@@ -818,7 +819,8 @@ async function mutateClaim(
   }
   const body: unknown = await request.json();
   if (!isUpsertClaimInput(body)) return jsonError("Invalid claim", 400);
-  return Response.json(await room.updateClaim(match[1], body));
+  const result = await room.updateClaim(match[1], body);
+  return result.ok ? Response.json(result.value) : jsonError(result.error, 400);
 }
 
 async function createClaimPassageLink(
@@ -856,7 +858,9 @@ async function createCandidate(
 ): Promise<Response> {
   const body: unknown = await request.json();
   if (!isCreateCandidateInput(body)) return jsonError("Invalid model candidate", 400);
-  return Response.json(await room.createCandidate(body), { status: 201 });
+  const result = await room.createCandidate(body);
+  if (result.ok) return Response.json(result.value, { status: 201 });
+  return jsonError(result.error, result.code === "source-stale" || result.code === "evidence-stale" ? 409 : 400);
 }
 
 async function updateCandidate(

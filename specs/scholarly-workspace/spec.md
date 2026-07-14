@@ -410,6 +410,16 @@ mode for authenticated hosted collaboration.
   `workerd` against real per-test Durable Object SQLite storage.
 - `cloudflare:test` may seed and inspect private Durable Object state for these
   platform contracts; Node substitutes must not be their only verification.
+- Revision-conflicted edit-link writes, guarded reference unlinking, invalid
+  claim evidence, and stale model-candidate creation must cross the
+  `DocumentRoom` RPC boundary as typed negative results and keep their existing
+  HTTP `4xx` responses without emitting uncaught Durable Object exceptions.
+- Collaboration WebSocket sends may suppress a closed connection or the
+  runtime's confirmed disconnect error. Unexpected send failures must still
+  escape for error telemetry and test failure.
+- `/pdf.worker.js` must load as a real same-origin module worker from the
+  cross-origin-isolated authoring page without a blocked request or fake-worker
+  fallback.
 - PDF uploads must require `application/pdf`, a known positive content length,
   and the 25 MB size limit.
 - Annotation creation must require a known PDF, positive page number, exact

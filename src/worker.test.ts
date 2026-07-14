@@ -118,6 +118,8 @@ describe("worker", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/javascript");
+    expect(response.headers.get("cross-origin-resource-policy")).toBe("same-origin");
+    expect(response.headers.get("cross-origin-embedder-policy")).toBe("require-corp");
     await expect(response.text()).resolves.toBe("export {};");
   });
 

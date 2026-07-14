@@ -3,7 +3,7 @@ import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { type CreateCandidateInput, type PublicationEnrichment, type WorkspaceSnapshot } from "../domain/workspace";
-import { DocumentRoom } from "./document-room";
+import { DocumentRoom, sendWebSocketMessage, type DocumentRoomOperationResult } from "./document-room";
 
 interface WorkspaceStateRow extends Record<string, SqlStorageValue> {
   y_state: ArrayBuffer;
@@ -29,7 +29,53 @@ const acceptedMetadata = {
   abstract: "Metadata accepted from the explicit enrichment flow.",
 } satisfies PublicationEnrichment;
 
+function operationValue<Value, Code extends string>(result: DocumentRoomOperationResult<Value, Code>): Value {
+  expect(result.ok).toBe(true);
+  if (!result.ok) throw new Error(result.error);
+  return result.value;
+}
+
 describe("DocumentRoom in the Workers runtime", () => {
+  it("suppresses only WebSocket disconnect send failures", () => {
+    let closedSendCalled = false;
+    expect(
+      sendWebSocketMessage(
+        {
+          readyState: WebSocket.CLOSED,
+          send: () => {
+            closedSendCalled = true;
+          },
+        },
+        "closed",
+      ),
+    ).toBe(false);
+    expect(closedSendCalled).toBe(false);
+
+    expect(
+      sendWebSocketMessage(
+        {
+          readyState: WebSocket.OPEN,
+          send: () => {
+            throw new Error("Network connection lost.");
+          },
+        },
+        "disconnecting",
+      ),
+    ).toBe(false);
+
+    expect(() =>
+      sendWebSocketMessage(
+        {
+          readyState: WebSocket.OPEN,
+          send: () => {
+            throw new Error("Unexpected serialization failure");
+          },
+        },
+        "broken",
+      ),
+    ).toThrow("Unexpected serialization failure");
+  });
+
   it("versions publication profiles and restores them with project history", async () => {
     const workspaceId = "publication-profile";
     const stub = roomStub(workspaceId);
@@ -93,6 +139,13 @@ describe("DocumentRoom in the Workers runtime", () => {
       note: "Milestone evidence",
       evidence: [{ annotationId: linked.annotation.id, relation: "supports" }],
     });
+    expect(
+      await stub.updateClaim(claim.id, {
+        text: "This update must not persist.",
+        note: "",
+        evidence: [{ annotationId: crypto.randomUUID(), relation: "supports" }],
+      }),
+    ).toEqual({ ok: false, code: "annotation-not-found", error: "Annotation not found" });
     await stub.createClaimPassageLink({
       claimId: claim.id,
       fileId: initial.entryFileId,
@@ -239,17 +292,14 @@ describe("DocumentRoom in the Workers runtime", () => {
     const created = await stub.createProjectFile(workspaceId, "chapters/01_intro.md", "## Introduction\n\nEvidence.\n");
     const supporting = created.files.find((file) => file.path === "chapters/01_intro.md");
     expect(supporting).toBeDefined();
-    const replaced = await stub.replaceProjectFileContent(
-      workspaceId,
-      supporting!.id,
-      "## Revised\n\nCurrent evidence.\n",
-      created.revision,
+    const replaced = operationValue(
+      await stub.replaceProjectFileContent(workspaceId, supporting!.id, "## Revised\n\nCurrent evidence.\n", created.revision),
     );
     expect(replaced.files.find((file) => file.id === supporting!.id)?.content).toBe("## Revised\n\nCurrent evidence.\n");
-    await runInDurableObject(stub, (instance: DocumentRoom) => {
-      expect(() => instance.replaceProjectFileContent(workspaceId, supporting!.id, "stale overwrite", created.revision)).toThrow(
-        "Project changed since this edit loaded",
-      );
+    expect(await stub.replaceProjectFileContent(workspaceId, supporting!.id, "stale overwrite", created.revision)).toEqual({
+      ok: false,
+      code: "revision-conflict",
+      error: "Project changed since this edit loaded",
     });
     await applyAuthoredSource(stub, "# Study\n\n::include[chapters/01_intro.md]\n");
 
@@ -301,11 +351,13 @@ describe("DocumentRoom in the Workers runtime", () => {
     const renamed = await stub.renameProjectReferenceAlias(workspaceId, reference.id, "sharedMemory");
     expect(renamed.source).toContain(":cite[sharedMemory]");
     expect(renamed.bibliography).toContain("@article{sharedMemory");
-    await runInDurableObject(stub, (instance: DocumentRoom) => {
-      expect(() => instance.unlinkProjectReference(workspaceId, reference.id)).toThrow("Remove citations");
+    expect(await stub.unlinkProjectReference(workspaceId, reference.id)).toEqual({
+      ok: false,
+      code: "citation-alias-in-use",
+      error: "Remove citations using this alias before unlinking the reference",
     });
     await applyAuthoredSource(stub, initial.source);
-    expect((await stub.unlinkProjectReference(workspaceId, reference.id)).projectReferences).toEqual([]);
+    expect(operationValue(await stub.unlinkProjectReference(workspaceId, reference.id)).projectReferences).toEqual([]);
   });
 
   it("pins an exact web capture and changes it only through explicit repinning", async () => {
@@ -879,7 +931,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const fixture = await modelCandidateFixture(stub, workspaceId);
     const before = await stub.getSnapshot(workspaceId);
 
-    const candidate = await stub.createCandidate(fixture.input);
+    const candidate = operationValue(await stub.createCandidate(fixture.input));
 
     expect(candidate).toMatchObject({
       operation: "revise-selection",
@@ -932,38 +984,34 @@ describe("DocumentRoom in the Workers runtime", () => {
     const claimEvidence = fixture.input.evidence[1];
     if (!annotationEvidence || !claimEvidence) throw new Error("Expected model evidence references");
 
-    await runInDurableObject(stub, (instance: DocumentRoom) => {
-      expect(() =>
-        instance.createCandidate({
-          ...fixture.input,
-          evidence: [{ ...annotationEvidence, version: "stale-annotation-version" }],
-        }),
-      ).toThrow("Model evidence is stale");
-      expect(() =>
-        instance.createCandidate({
-          ...fixture.input,
-          evidence: [{ ...claimEvidence, version: "stale-claim-version" }],
-        }),
-      ).toThrow("Model evidence is stale");
-      expect(() =>
-        instance.createCandidate({
-          ...fixture.input,
-          evidence: [{ kind: "annotation", id: crypto.randomUUID(), version: "missing" }],
-        }),
-      ).toThrow("Model evidence annotation not found");
-      expect(() =>
-        instance.createCandidate({
-          ...fixture.input,
-          target: { ...fixture.input.target, excerpt: "The target no longer matches." },
-        }),
-      ).toThrow("Candidate source is stale");
-      expect(() =>
-        instance.createCandidate({
-          ...fixture.input,
-          target: { ...fixture.input.target, sourceRevision: fixture.input.target.sourceRevision + 1 },
-        }),
-      ).toThrow("Candidate source is stale");
-    });
+    for (const result of [
+      await stub.createCandidate({
+        ...fixture.input,
+        evidence: [{ ...annotationEvidence, version: "stale-annotation-version" }],
+      }),
+      await stub.createCandidate({
+        ...fixture.input,
+        evidence: [{ ...claimEvidence, version: "stale-claim-version" }],
+      }),
+    ]) {
+      expect(result).toEqual({ ok: false, code: "evidence-stale", error: "Model evidence is stale; generate a new revision" });
+    }
+    expect(
+      await stub.createCandidate({
+        ...fixture.input,
+        evidence: [{ kind: "annotation", id: crypto.randomUUID(), version: "missing" }],
+      }),
+    ).toEqual({ ok: false, code: "evidence-not-found", error: "Model evidence annotation not found" });
+    for (const target of [
+      { ...fixture.input.target, excerpt: "The target no longer matches." },
+      { ...fixture.input.target, sourceRevision: fixture.input.target.sourceRevision + 1 },
+    ]) {
+      expect(await stub.createCandidate({ ...fixture.input, target })).toEqual({
+        ok: false,
+        code: "source-stale",
+        error: "Candidate source is stale; generate a new revision",
+      });
+    }
 
     expect((await stub.getSnapshot(workspaceId)).candidates).toEqual([]);
     expect(await runInDurableObject(stub, (_instance: DocumentRoom, state) => candidateRowCount(state))).toBe(0);
@@ -993,7 +1041,7 @@ describe("DocumentRoom in the Workers runtime", () => {
       excerpt: afterAnchorText,
       sourceRevision: fixture.snapshot.revision,
     });
-    const candidate = await stub.createCandidate(fixture.input);
+    const candidate = operationValue(await stub.createCandidate(fixture.input));
     const expectedSource = `${fixture.snapshot.source.slice(0, fixture.start)}${fixture.replacement}${fixture.snapshot.source.slice(
       fixture.start + fixture.excerpt.length,
     )}`;
@@ -1026,7 +1074,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const workspaceId = "targeted-candidate-stale-apply";
     const stub = roomStub(workspaceId);
     const fixture = await modelCandidateFixture(stub, workspaceId);
-    const candidate = await stub.createCandidate(fixture.input);
+    const candidate = operationValue(await stub.createCandidate(fixture.input));
     const remotelyEditedSource = `${fixture.snapshot.source}\nA collaborator changes unrelated prose.\n`;
     await applyAuthoredSource(stub, remotelyEditedSource);
     const afterRemoteEdit = await stub.getSnapshot(workspaceId);
@@ -1052,7 +1100,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const workspaceId = "targeted-candidate-no-op";
     const stub = roomStub(workspaceId);
     const fixture = await modelCandidateFixture(stub, workspaceId);
-    const candidate = await stub.createCandidate({ ...fixture.input, proposedReplacement: fixture.excerpt });
+    const candidate = operationValue(await stub.createCandidate({ ...fixture.input, proposedReplacement: fixture.excerpt }));
 
     const applied = await stub.applyCandidate(workspaceId, candidate.id);
 
@@ -1067,7 +1115,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const workspaceId = "targeted-candidate-rollback";
     const stub = roomStub(workspaceId);
     const fixture = await modelCandidateFixture(stub, workspaceId);
-    const candidate = await stub.createCandidate(fixture.input);
+    const candidate = operationValue(await stub.createCandidate(fixture.input));
     const beforeApply = await stub.getSnapshot(workspaceId);
     await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
       state.storage.sql.exec(`

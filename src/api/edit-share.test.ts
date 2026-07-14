@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceSnapshot } from "../domain/workspace";
+import type { ProjectFileReplaceResult } from "../durable-objects/document-room";
 import type { ResolvedEditShare } from "../durable-objects/workspace-access";
 import { handleEditShareRequest, type EditShareEnv } from "./edit-share";
 
@@ -83,7 +84,7 @@ describe("edit share API", () => {
   });
 
   it("applies bounded same-origin edits at the expected revision", async () => {
-    const replacement = vi.fn(async () => ({ ...snapshot, revision: 5 }));
+    const replacement = vi.fn(async (): Promise<ProjectFileReplaceResult> => ({ ok: true, value: { ...snapshot, revision: 5 } }));
     const env = editEnv(undefined, replacement);
     const denied = await handleEditShareRequest(
       jsonRequest(`${editPath}/files/${fileId}`, { content: "hostile", revision: 4 }, "https://attacker.example"),
@@ -122,13 +123,12 @@ describe("edit share API", () => {
     const invalid = await handleEditShareRequest(jsonRequest(`${editPath}/files/${fileId}`, { content: "missing revision" }), env);
     expect(invalid?.status).toBe(400);
 
-    for (const [message, status] of [
-      ["Project changed since this edit loaded", 409],
-      ["Project file not found", 404],
+    for (const [code, message, status] of [
+      ["revision-conflict", "Project changed since this edit loaded", 409],
+      ["file-not-found", "Project file not found", 404],
+      ["content-too-large", "Project file exceeds 2 MB", 400],
     ] as const) {
-      const failing = editEnv(undefined, async () => {
-        throw new Error(message);
-      });
+      const failing = editEnv(undefined, async () => ({ ok: false, code, error: message }));
       const response = await handleEditShareRequest(
         jsonRequest(`${editPath}/files/${fileId}`, { content: "# Edit\n", revision: 4 }),
         failing,
@@ -146,7 +146,7 @@ function editEnv(
     requestedFileId: string,
     content: string,
     revision: number,
-  ) => Promise<WorkspaceSnapshot> = async () => ({ ...snapshot, revision: 5 }),
+  ) => Promise<ProjectFileReplaceResult> = async () => ({ ok: true, value: { ...snapshot, revision: 5 } }),
 ): EditShareEnv {
   return {
     WORKSPACE_ACCESS: { getByName: () => ({ resolveEditShare: async () => resolved }) },

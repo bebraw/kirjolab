@@ -153,6 +153,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   an isolated real `workerd` runtime through the dedicated Cloudflare Vitest
   project. Node tests may cover shared pure logic but must not stand in for
   platform storage behavior.
+- Return anticipated client conflicts from new or modified Durable Object RPC
+  methods as typed, serializable result values. Reserve thrown RPC exceptions
+  for unexpected or infrastructure failures so routine `4xx` responses do not
+  pollute error telemetry or poison a reusable stub.
+- Send collaboration frames through one guarded boundary that ignores closed
+  sockets and confirmed disconnect races while rethrowing every other send
+  failure.
+- Serve browser scripts with explicit same-origin resource and embedder policies
+  so module workers remain loadable from cross-origin-isolated application
+  pages.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
 - Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
 - Address public read-only shares through opaque, persisted locators that map

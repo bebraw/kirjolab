@@ -67,6 +67,8 @@ export function scriptResponse(body: string): Response {
     headers: {
       "content-type": "text/javascript; charset=utf-8",
       "cache-control": "no-store",
+      "cross-origin-resource-policy": "same-origin",
+      "cross-origin-embedder-policy": "require-corp",
     },
   });
 }

@@ -1,5 +1,6 @@
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { buildExportBundle } from "../domain/export-pipeline";
+import type { ProjectFileReplaceResult } from "../durable-objects/document-room";
 import type { ResolvedEditShare } from "../durable-objects/workspace-access";
 import { isSameOriginMutation } from "../security/auth";
 import { renderEditSharePage } from "../views/edit-share";
@@ -15,7 +16,12 @@ interface EditShareAccessApi {
 
 interface EditShareRoomApi {
   getSnapshot(workspaceId: string): Promise<WorkspaceSnapshot>;
-  replaceProjectFileContent(workspaceId: string, fileId: string, content: string, expectedRevision: number): Promise<WorkspaceSnapshot>;
+  replaceProjectFileContent(
+    workspaceId: string,
+    fileId: string,
+    content: string,
+    expectedRevision: number,
+  ): Promise<ProjectFileReplaceResult>;
 }
 
 export interface EditShareEnv {
@@ -79,17 +85,10 @@ async function editProjectFile(request: Request, room: EditShareRoomApi, workspa
   ) {
     return Response.json({ error: "Invalid project file edit" }, { status: 400 });
   }
-  try {
-    return editShareSnapshotResponse(await room.replaceProjectFileContent(workspaceId, fileId, body.content, body.revision));
-  } catch (error) {
-    if (error instanceof Error && error.message === "Project changed since this edit loaded") {
-      return Response.json({ error: error.message }, { status: 409 });
-    }
-    if (error instanceof Error && error.message === "Project file not found") {
-      return Response.json({ error: error.message }, { status: 404 });
-    }
-    throw error;
-  }
+  const result = await room.replaceProjectFileContent(workspaceId, fileId, body.content, body.revision);
+  if (result.ok) return editShareSnapshotResponse(result.value);
+  const status = result.code === "revision-conflict" ? 409 : result.code === "file-not-found" ? 404 : 400;
+  return Response.json({ error: result.error }, { status });
 }
 
 function editShareSnapshotResponse(snapshot: WorkspaceSnapshot): Response {

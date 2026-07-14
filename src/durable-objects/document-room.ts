@@ -90,6 +90,22 @@ import {
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
+export type DocumentRoomOperationResult<Value, Code extends string> = { ok: true; value: Value } | { ok: false; code: Code; error: string };
+
+export type ProjectFileReplaceResult = DocumentRoomOperationResult<
+  WorkspaceSnapshot,
+  "content-too-large" | "revision-conflict" | "file-not-found"
+>;
+
+export type ProjectReferenceUnlinkResult = DocumentRoomOperationResult<WorkspaceSnapshot, "reference-not-linked" | "citation-alias-in-use">;
+
+export type ClaimUpdateResult = DocumentRoomOperationResult<ClaimResource, "claim-not-found" | "annotation-not-found">;
+
+export type CandidateCreationResult = DocumentRoomOperationResult<
+  ModelCandidate,
+  "invalid-input" | "target-not-found" | "source-stale" | "evidence-not-found" | "evidence-stale" | "evidence-too-large"
+>;
+
 interface WorkspaceRow extends Record<string, SqlStorageValue> {
   title: string;
   y_state: ArrayBuffer;
@@ -474,10 +490,13 @@ export class DocumentRoom extends DurableObject<Env> {
     );
     this.ctx.acceptWebSocket(server);
     if (readOnly) {
-      server.send(encodeServerCollaborationMessage({ type: "revision", revision: this.#workspaceRow().revision }));
+      sendWebSocketMessage(server, encodeServerCollaborationMessage({ type: "revision", revision: this.#workspaceRow().revision }));
     } else {
-      server.send(Y.encodeStateAsUpdate(this.#document));
-      server.send(encodeServerCollaborationMessage({ type: "sync", protocol: 1, revision: this.#workspaceRow().revision }));
+      sendWebSocketMessage(server, Y.encodeStateAsUpdate(this.#document));
+      sendWebSocketMessage(
+        server,
+        encodeServerCollaborationMessage({ type: "sync", protocol: 1, revision: this.#workspaceRow().revision }),
+      );
       this.#broadcastPresence();
     }
     return new Response(null, { status: 101, webSocket: client });
@@ -544,7 +563,7 @@ export class DocumentRoom extends DurableObject<Env> {
     }
 
     if (!applied) {
-      socket.send(encodeServerCollaborationMessage({ type: "ack", revision: previous.revision }));
+      sendWebSocketMessage(socket, encodeServerCollaborationMessage({ type: "ack", revision: previous.revision }));
       return;
     }
 
@@ -555,7 +574,7 @@ export class DocumentRoom extends DurableObject<Env> {
       socket.close(1011, "Document update could not be persisted");
       return;
     }
-    socket.send(encodeServerCollaborationMessage({ type: "ack", revision: persisted.revision }));
+    sendWebSocketMessage(socket, encodeServerCollaborationMessage({ type: "ack", revision: persisted.revision }));
     this.#broadcast(message, socket);
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }), socket);
     if (persisted.resourcesChanged) this.#broadcastResources();
@@ -878,18 +897,18 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.getSnapshot(workspaceId);
   }
 
-  unlinkProjectReference(workspaceId: string, referenceId: string): WorkspaceSnapshot {
+  unlinkProjectReference(workspaceId: string, referenceId: string): ProjectReferenceUnlinkResult {
     const rows = this.#projectReferenceRows();
     const row = rows.find((item) => item.reference_id === referenceId);
-    if (!row) throw new Error("Reference is not linked to this project");
+    if (!row) return { ok: false, code: "reference-not-linked", error: "Reference is not linked to this project" };
     if (projectUsesCitationAlias(this.#projectFiles(), row.citation_alias)) {
-      throw new Error("Remove citations using this alias before unlinking the reference");
+      return { ok: false, code: "citation-alias-in-use", error: "Remove citations using this alias before unlinking the reference" };
     }
     const next = rows.filter((item) => item.reference_id !== referenceId).map(projectReferenceFromRow);
     this.#replaceBibliography(projectReferenceBibliography(next), "project-reference-unlink", {}, () => {
       this.ctx.storage.sql.exec("DELETE FROM project_references WHERE reference_id = ?", referenceId);
     });
-    return this.getSnapshot(workspaceId);
+    return { ok: true, value: this.getSnapshot(workspaceId) };
   }
 
   pinResearchShare(workspaceId: string, share: ResearchShareSnapshot): WorkspaceSnapshot {
@@ -987,13 +1006,23 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.getSnapshot(workspaceId);
   }
 
-  replaceProjectFileContent(workspaceId: string, fileId: string, content: string, expectedRevision: number): WorkspaceSnapshot {
-    if (content.length > 2_000_000) throw new Error("Project file exceeds 2 MB");
+  replaceProjectFileContent(workspaceId: string, fileId: string, content: string, expectedRevision: number): ProjectFileReplaceResult {
+    if (content.length > 2_000_000) return { ok: false, code: "content-too-large", error: "Project file exceeds 2 MB" };
     const previous = this.#workspaceRow();
-    if (previous.revision !== expectedRevision) throw new Error("Project changed since this edit loaded");
-    const { text } = this.#projectText(fileId);
+    if (previous.revision !== expectedRevision) {
+      return { ok: false, code: "revision-conflict", error: "Project changed since this edit loaded" };
+    }
+    let text: Y.Text;
+    try {
+      ({ text } = this.#projectText(fileId));
+    } catch (error) {
+      if (error instanceof Error && error.message === "Project file not found") {
+        return { ok: false, code: "file-not-found", error: error.message };
+      }
+      throw error;
+    }
     const splice = calculateTextSplice(text.toString(), content);
-    if (!splice) return this.getSnapshot(workspaceId);
+    if (!splice) return { ok: true, value: this.getSnapshot(workspaceId) };
 
     const stateVector = Y.encodeStateVector(this.#document);
     if (splice.deleteCount > 0) text.delete(splice.start, splice.deleteCount);
@@ -1001,7 +1030,7 @@ export class DocumentRoom extends DurableObject<Env> {
     const persisted = this.#persistDocument(previous, {}, undefined, "edit-link-file-replace");
     this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
-    return this.getSnapshot(workspaceId);
+    return { ok: true, value: this.getSnapshot(workspaceId) };
   }
 
   renameProjectFile(workspaceId: string, fileId: string, pathValue: string): WorkspaceSnapshot {
@@ -1581,9 +1610,20 @@ export class DocumentRoom extends DurableObject<Env> {
     return claim;
   }
 
-  updateClaim(claimId: string, input: UpsertClaimInput): ClaimResource {
-    const existing = this.#claim(claimId);
-    this.#assertEvidenceAnnotations(input.evidence);
+  updateClaim(claimId: string, input: UpsertClaimInput): ClaimUpdateResult {
+    let existing: ClaimResource;
+    try {
+      existing = this.#claim(claimId);
+      this.#assertEvidenceAnnotations(input.evidence);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Claim not found") {
+        return { ok: false, code: "claim-not-found", error: error.message };
+      }
+      if (error instanceof Error && error.message === "Annotation not found") {
+        return { ok: false, code: "annotation-not-found", error: error.message };
+      }
+      throw error;
+    }
     const updatedAt = new Date().toISOString();
     this.#persistResourceRevision("claim-update", () => {
       this.ctx.storage.sql.exec(
@@ -1596,7 +1636,7 @@ export class DocumentRoom extends DurableObject<Env> {
       this.ctx.storage.sql.exec("DELETE FROM claim_evidence_links WHERE claim_id = ?", claimId);
       this.#insertClaimEvidence(claimId, input.evidence, updatedAt);
     });
-    return { ...existing, text: input.text.trim(), note: input.note.trim(), updatedAt };
+    return { ok: true, value: { ...existing, text: input.text.trim(), note: input.note.trim(), updatedAt } };
   }
 
   deleteClaim(claimId: string): void {
@@ -1696,23 +1736,45 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.#comment(commentId);
   }
 
-  createCandidate(input: CreateCandidateInput): ModelCandidate {
-    if (!isCreateCandidateInput(input)) throw new Error("Model candidate input is invalid");
+  createCandidate(input: CreateCandidateInput): CandidateCreationResult {
+    if (!isCreateCandidateInput(input)) return { ok: false, code: "invalid-input", error: "Model candidate input is invalid" };
     const workspace = this.#workspaceRow();
-    const target = this.#projectText(input.target.fileId);
+    let target: { file: ProjectFile; text: Y.Text };
+    try {
+      target = this.#projectText(input.target.fileId);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Project file not found") {
+        return { ok: false, code: "target-not-found", error: error.message };
+      }
+      throw error;
+    }
     const sourceValue = target.text.toString();
     if (input.target.sourceRevision !== workspace.revision) {
-      throw new Error("Candidate source is stale; generate a new revision");
+      return { ok: false, code: "source-stale", error: "Candidate source is stale; generate a new revision" };
     }
     if (
       sourceValue !== target.file.content ||
       input.target.end > sourceValue.length ||
       sourceValue.slice(input.target.start, input.target.end) !== input.target.excerpt
     ) {
-      throw new Error("Candidate source is stale; generate a new revision");
+      return { ok: false, code: "source-stale", error: "Candidate source is stale; generate a new revision" };
     }
 
-    const evidence = this.#captureModelEvidence(input.evidence);
+    let evidence: ModelEvidence[];
+    try {
+      evidence = this.#captureModelEvidence(input.evidence);
+    } catch (error) {
+      if (error instanceof Error && /Model evidence (annotation|claim) not found/u.test(error.message)) {
+        return { ok: false, code: "evidence-not-found", error: error.message };
+      }
+      if (error instanceof Error && error.message === "Model evidence is stale; generate a new revision") {
+        return { ok: false, code: "evidence-stale", error: error.message };
+      }
+      if (error instanceof Error && error.message === "Model evidence exceeds the operation limit") {
+        return { ok: false, code: "evidence-too-large", error: error.message };
+      }
+      throw error;
+    }
     const anchor = createManuscriptAnchor(
       this.#document,
       input.target.start,
@@ -1750,7 +1812,7 @@ export class DocumentRoom extends DurableObject<Env> {
       createdAt,
     );
     this.#broadcastResources();
-    return this.#candidate(id);
+    return { ok: true, value: this.#candidate(id) };
   }
 
   applyCandidate(workspaceId: string, candidateId: string): ApplyCandidateResult {
@@ -2850,10 +2912,10 @@ export class DocumentRoom extends DurableObject<Env> {
       if (socket === except || socket.readyState !== WebSocket.OPEN) continue;
       const attachment = collaborationSocketAttachment(socket);
       if (attachment?.mode === "reader") {
-        if (visibleToReaders) socket.send(message);
+        if (visibleToReaders) sendWebSocketMessage(socket, message);
         continue;
       }
-      socket.send(message);
+      sendWebSocketMessage(socket, message);
     }
   }
 
@@ -2874,6 +2936,27 @@ function collaborationSocketAttachment(socket: WebSocket): CollaborationSocketAt
   return typeof value.collaboratorId === "string" && value.collaboratorId.length <= 128
     ? { mode: "writer", collaboratorId: value.collaboratorId }
     : null;
+}
+
+export interface WebSocketMessageTarget {
+  readonly readyState: number;
+  send(message: string | ArrayBuffer | ArrayBufferView): void;
+}
+
+export function sendWebSocketMessage(target: WebSocketMessageTarget, message: string | ArrayBuffer | ArrayBufferView): boolean {
+  if (target.readyState !== WebSocket.OPEN) return false;
+  try {
+    target.send(message);
+    return true;
+  } catch (error) {
+    if (target.readyState !== WebSocket.OPEN || isWebSocketDisconnect(error)) return false;
+    throw error;
+  }
+}
+
+function isWebSocketDisconnect(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.name === "InvalidStateError" || error.message === "Network connection lost.";
 }
 
 function projectRevisionContent(revision: number, state: StoredProjectRevision): ProjectRevisionContent {
