@@ -434,6 +434,12 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page.goto(`/workspaces/${workspaceId}`);
 
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
+  const accountSummary = page.locator("#account-menu summary");
+  await expect(accountSummary).toHaveAttribute("aria-label", "Account for local@kirjolab.invalid");
+  await accountSummary.click();
+  await expect(page.locator("#account-menu")).toContainText("Local mode has no login session.");
+  await expect(page.locator("#log-out")).toHaveCount(0);
+  await accountSummary.click();
   await expect(page.getByRole("heading", { level: 1, name: "Files" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   const railModes = page.locator(".rail-mode-switcher");

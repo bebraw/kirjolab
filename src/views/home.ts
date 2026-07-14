@@ -4,6 +4,7 @@ export function renderHomePage(
   routes: Array<{ path: string; purpose: string }>,
   workspaceId = "demo",
   identityEmail = "local@kirjolab.invalid",
+  identityMode: "local" | "access" = "local",
 ): string {
   const escapedWorkspaceId = escapeHtml(workspaceId);
   const escapedIdentityEmail = escapeHtml(identityEmail);
@@ -45,7 +46,17 @@ export function renderHomePage(
               <option value="context">Context only</option><option value="pdf">PDF only</option>
             </select>
           </label>
-          <span class="hidden max-w-44 truncate font-sans text-xs text-app-text-soft 2xl:inline" title="${escapedIdentityEmail}">${escapedIdentityEmail}</span>
+          <details class="action-menu" id="account-menu" data-action-menu>
+            <summary class="button-secondary shrink-0" aria-label="Account for ${escapedIdentityEmail}">Account</summary>
+            <div class="editor-command-menu account-menu" aria-label="Account actions">
+              <div class="account-menu-identity"><strong title="${escapedIdentityEmail}">${escapedIdentityEmail}</strong><span>${identityMode === "access" ? "Cloudflare Access" : "Local development"}</span></div>
+              ${
+                identityMode === "access"
+                  ? '<a id="log-out" href="/cdn-cgi/access/logout"><strong>Log out</strong><span>All Access apps</span></a>'
+                  : '<p class="account-menu-note">Local mode has no login session.</p>'
+              }
+            </div>
+          </details>
           <div class="flex items-center gap-2 text-xs text-app-text-soft" aria-live="polite">
             <span class="h-2 w-2 rounded-full bg-app-warn" id="connection-dot"></span>
             <span id="connection-status">Connecting</span>

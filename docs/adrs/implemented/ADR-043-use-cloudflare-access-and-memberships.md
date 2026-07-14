@@ -36,6 +36,11 @@ workspace summary to that identity's catalog. Only owners may add members.
 Keep an explicit `local` mode for loopback development. It accepts an optional
 local-user header solely on loopback hosts and fails closed on deployed hosts.
 
+The authenticated shell delegates hosted user logout to Cloudflare Access's
+application-domain `/cdn-cgi/access/logout` endpoint and labels its account-wide
+effect. Local mode exposes no logout action because it has no browser login
+session to invalidate.
+
 ## Trigger
 
 The third roadmap slice makes multi-workspace collaboration safe to host and

@@ -111,12 +111,12 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   }
 
   if (url.pathname === "/") {
-    return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email), 200, url);
+    return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email, identity.mode), 200, url);
   }
 
   const workspacePage = /^\/workspaces\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
   if (workspacePage?.[1]) {
-    return htmlResponse(renderHomePage(exampleRoutes, workspacePage[1], identity.email), 200, url);
+    return htmlResponse(renderHomePage(exampleRoutes, workspacePage[1], identity.email, identity.mode), 200, url);
   }
 
   if (url.pathname === "/api/workspaces" || url.pathname.startsWith("/api/workspaces/")) {

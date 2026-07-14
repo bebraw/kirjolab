@@ -418,7 +418,7 @@
     box-shadow: 0 0.75rem 2rem var(--color-app-shadow);
   }
 
-  .editor-command-menu button {
+  .editor-command-menu :is(button, a) {
     display: grid;
     width: 100%;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -430,8 +430,44 @@
     text-align: left;
   }
 
-  .editor-command-menu button:hover {
+  .editor-command-menu :is(button, a):hover {
     background: var(--color-app-accent-ghost);
+  }
+
+  .editor-command-menu :is(button, a) > :is(code, span) {
+    color: var(--color-app-text-soft);
+  }
+
+  .account-menu {
+    width: 15rem;
+  }
+
+  .account-menu-identity {
+    display: grid;
+    gap: 0.15rem;
+    overflow: hidden;
+    border-bottom: 1px solid var(--color-app-line);
+    padding: 0.55rem;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+  }
+
+  .account-menu-identity strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .account-menu-identity span,
+  .account-menu-note {
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+  }
+
+  .account-menu-note {
+    padding: 0.55rem;
+    line-height: 1.45;
   }
 
   .editor-command-menu code {

@@ -22,6 +22,11 @@ Owners need a minimal way to grant access to a known collaborator.
 - Workspace catalog, access, document-room, and R2 lookups use opaque or hashed
   storage identities rather than plaintext hosted email values.
 - `GET /api/session` exposes only the current email and authentication mode.
+- The authenticated shell exposes the current identity under **Account**.
+  Hosted Access identities receive a native link to the application-domain
+  `/cdn-cgi/access/logout` endpoint, which ends the user's shared Cloudflare
+  Access session. Local mode states that no login session exists and does not
+  render a non-functional logout action.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
 - `POST /api/workspaces/{id}/share-link` lets only the owner create or rotate
@@ -100,6 +105,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - Do not allow `AUTH_MODE=local` away from a loopback hostname.
 - Do not expose workspace existence before catalog and role authorization.
 - Do not pass Access tokens into browser JavaScript or logs.
+- Do not create an application-owned logout endpoint, expose a hosted logout in
+  local mode, or imply that Cloudflare Access logout is scoped only to Kirjolab.
 - Do not use plaintext emails as Durable Object or R2 storage keys.
 - Do not let members invite additional members in this slice.
 - Do not return plaintext share-link secrets to members, unauthenticated status

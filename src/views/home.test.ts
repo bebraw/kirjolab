@@ -15,6 +15,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('aria-label="Project view"');
     expect(html).toContain('<meta name="color-scheme" content="light dark">');
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
+    expect(html).toContain('id="account-menu" data-action-menu');
+    expect(html).toContain("Local mode has no login session.");
+    expect(html).not.toContain('id="log-out"');
     expect(html).toContain(
       '<option value="system">Theme: System</option><option value="light">Theme: Light</option><option value="dark">Theme: Dark</option>',
     );
@@ -126,6 +129,17 @@ describe("renderHomePage", () => {
     expect(html).toContain("JSON health endpoint for tooling and smoke tests");
     expect(html).not.toContain("Stryker was here!");
     expect(renderHomePage(exampleRoutes, "workspace", `person"@example.org`)).toContain("person&quot;@example.org");
+  });
+
+  it("offers Cloudflare Access identities a native logout control", () => {
+    const html = renderHomePage(exampleRoutes, "workspace", "person@example.org", "access");
+
+    expect(html).toContain('aria-label="Account for person@example.org"');
+    expect(html).toContain(
+      '<div class="account-menu-identity"><strong title="person@example.org">person@example.org</strong><span>Cloudflare Access</span></div>',
+    );
+    expect(html).toContain('<a id="log-out" href="/cdn-cgi/access/logout"><strong>Log out</strong><span>All Access apps</span></a>');
+    expect(html).not.toContain("Local mode has no login session.");
   });
 
   it("renders an inline, review-first DOI intake before evidence capture", () => {
