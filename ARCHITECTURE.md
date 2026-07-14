@@ -251,7 +251,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - The repo-managed `pre-push` Git hook should run affected-file guardrails before code is pushed.
 - Formatting, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Browser tests launch Wrangler with a fresh operating-system temporary persistence directory and remove it on shutdown. Test workspaces must never accumulate in the interactive development catalog.
-- Local Agent CI jobs are serialized while its npm warm cache is a shared mutable bind mount. GitHub Actions jobs remain parallel; restore local parallelism only when the runner can distinguish a completed npm install from a partial cache containing npm's early lockfile sentinel.
+- Local Agent CI must explicitly prewarm through one deterministic install step
+  before parallel jobs receive isolated writable dependency views. Do not
+  restore shared mutable dependency mounts or repo-local install locks.
 - Keep Node Vitest responsible for fast pure-domain coverage and mutation
   feedback; keep the separate Workers Vitest project responsible for real
   Durable Object and SQLite integration behavior.

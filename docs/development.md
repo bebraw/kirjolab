@@ -37,7 +37,7 @@ If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` t
 ### Commands
 
 - Run the local workflow with job and step progress, 15-second heartbeats during
-  long operations, one-job execution, and pause-on-failure using
+  long operations, isolated parallel jobs, and pause-on-failure using
   `npm run ci:local`.
 - Rebuild the generated stylesheet manually with `npm run build:css`.
 - Rebuild the pinned Satteri WASM and helper-worker deployment assets with `npm run build:satteri-assets`.
@@ -75,7 +75,7 @@ Use targeted checks while iterating, then run the full readiness path before pro
 
 The template now ships with a minimal Worker stub in `src/worker.ts`. `npm run dev` starts it on `http://127.0.0.1:8787`, and Playwright uses `npm run e2e:server` on `http://127.0.0.1:8788` so browser tests can run without extra setup. The e2e launcher forces Chokidar polling mode to avoid file-watcher exhaustion in macOS-hosted local runs and gives Wrangler a fresh operating-system temporary persistence directory that it removes on shutdown. Browser-created workspaces therefore cannot accumulate in the interactive `npm run dev` catalog. API modules live under `src/api/`, view modules live under `src/views/`, and tests are colocated under `src/`.
 
-The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.61.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The full `quality-mutation` workflow job is reserved for GitHub Actions with a `github.server_url` guard, so local Agent CI runs skip it; use `npm run quality:gate` or `npm run mutation` when local mutation feedback is needed. Dependency installation uses plain `npm ci`. Local Agent CI 0.16.2 runs jobs one at a time because its lockfile-keyed `node_modules` bind mount can otherwise be mutated by concurrent npm installs after an interrupted warm-up. This local workaround does not change GitHub Actions concurrency and can be removed after Agent CI validates completed npm installs atomically. The local wrapper consumes Agent CI's versioned JSON events and reports each job and step with elapsed time, including a heartbeat every 15 seconds; it does not duplicate, reorder, or omit workflow checks.
+The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.61.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The full `quality-mutation` workflow job is reserved for GitHub Actions with a `github.server_url` guard, so local Agent CI runs skip it; use `npm run quality:gate` or `npm run mutation` when local mutation feedback is needed. Dependency installation uses plain `npm ci`. Local Agent CI 0.17.1 explicitly prewarms through the fast job's stable `install` step, then gives concurrent jobs isolated writable dependency views. The local wrapper consumes Agent CI's versioned JSON events and reports each job and step with elapsed time, including a heartbeat every 15 seconds; it does not duplicate, reorder, or omit workflow checks.
 
 The starter UI now follows the same Tailwind v4 baseline shape as `thesis-journey-tracker`: Tailwind input lives in `src/tailwind-input.css`, generated CSS is written to `.generated/styles.css`, and Wrangler runs `npm run build:css` automatically before local development.
 
@@ -171,8 +171,8 @@ gate includes both Node coverage and `npm run test:workers`, so the baseline and
 local Agent CI cannot omit real Durable Object persistence verification. GitHub
 Actions runs separate fast, browser, and full mutation jobs, with
 repository-shape validation included in the fast job. Local Agent CI runs
-should go through `npm run ci:local`, which executes the same workflow one job
-at a time, reports structured job and step progress, and prints a heartbeat
+should go through `npm run ci:local`, which executes the same workflow with
+isolated parallel jobs, reports structured job and step progress, and prints a heartbeat
 during long-running steps. The command preserves Agent CI's pause-on-failure
 exit behavior and retry command. Local browser installation should go through
 the pinned `npm run playwright:install` script.

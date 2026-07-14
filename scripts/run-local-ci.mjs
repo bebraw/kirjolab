@@ -4,10 +4,23 @@ import process from "node:process";
 const heartbeatIntervalMs = 15_000;
 const activeSteps = new Map();
 const command = process.platform === "win32" ? "agent-ci.cmd" : "agent-ci";
-const child = spawn(command, ["run", "--quiet", "--json", "--jobs", "1", "--pause-on-failure", "--workflow", ".github/workflows/ci.yml"], {
-  stdio: ["inherit", "pipe", "inherit"],
-  env: process.env,
-});
+const child = spawn(
+  command,
+  [
+    "run",
+    "--quiet",
+    "--json",
+    "--pause-on-failure",
+    "--workflow",
+    ".github/workflows/ci.yml",
+    "--prewarm-through",
+    ".github/workflows/ci.yml:quality-fast:install",
+  ],
+  {
+    stdio: ["inherit", "pipe", "inherit"],
+    env: process.env,
+  },
+);
 
 let buffer = "";
 let runStartedAt = Date.now();

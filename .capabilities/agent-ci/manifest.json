@@ -3,11 +3,11 @@
   "description": "Add local GitHub Actions execution through Agent CI.",
   "dependencies": {
     "dev": {
-      "@redwoodjs/agent-ci": "0.16.2"
+      "@redwoodjs/agent-ci": "0.17.1"
     }
   },
   "scripts": {
-    "ci:local": "agent-ci run --quiet --pause-on-failure --workflow .github/workflows/ci.yml",
+    "ci:local": "agent-ci run --quiet --json --pause-on-failure --workflow .github/workflows/ci.yml --prewarm-through .github/workflows/ci.yml:quality-fast:install",
     "ci:local:retry": "agent-ci retry"
   },
   "files": [
@@ -37,7 +37,7 @@
   ],
   "verify": ["npm run ci:local"],
   "notes": [
-    "Use current Agent CI warm-cache serialization instead of forcing --jobs 1 or adding repo-local install locks.",
+    "Use Agent CI 0.17.1 or later with one explicit prewarm step and isolated writable dependency views instead of forcing --jobs 1 or adding repo-local install locks.",
     "Keep the target repo's package manager and workflow names unless there is a documented reason to change them."
   ]
 }

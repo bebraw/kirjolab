@@ -39,6 +39,7 @@ copying unrelated starter structure.
   - `2026-07-13-agent-ci-progress`
   - `2026-07-13-agent-ci-progress-events` (implemented by the stronger local
     progress formatter and heartbeat contract)
+  - `2026-07-14-agent-ci-cache-isolation`
 
 ### Anti-Patterns
 

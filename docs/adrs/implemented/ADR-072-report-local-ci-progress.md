@@ -1,6 +1,6 @@
 # ADR-072: Report Local CI Progress
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-092](./ADR-092-prewarm-agent-ci-dependencies-explicitly.md)
 
 **Date:** 2026-07-13
 
@@ -24,7 +24,7 @@ run, job, and step boundaries, include durations, and print a heartbeat at least
 every 15 seconds while work remains active.
 
 The wrapper will continue to use `.github/workflows/ci.yml`, quiet agent mode,
-one-job execution, and pause-on-failure. It will surface Agent CI's retry
+and pause-on-failure. It will surface Agent CI's retry
 command, remain attached for retry, and preserve the final child-process exit
 code.
 
@@ -52,7 +52,8 @@ progress.
 
 **Neutral:**
 
-- Local jobs remain sequential until the separate warm-install race is resolved.
+- ADR-092 replaces the temporary sequential-job constraint with explicit
+  prewarming and isolated parallel dependency views.
 - Retry continues through `npm run ci:local:retry -- --name <runner-name>`.
 
 ## Alternatives Considered

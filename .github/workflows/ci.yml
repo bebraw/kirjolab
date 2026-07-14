@@ -46,6 +46,7 @@ jobs:
           package-manager-cache: false
 
       - name: Install dependencies
+        id: install
         shell: bash
         run: npm ci
 

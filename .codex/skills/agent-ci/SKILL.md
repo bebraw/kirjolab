@@ -15,7 +15,7 @@ Run the full CI pipeline locally before pushing. CI was green before you started
 ## Run
 
 ```bash
-npx @redwoodjs/agent-ci run --quiet --all --pause-on-failure
+npm run ci:local
 ```
 
 Pipes are safe — pause-on-failure works through `| tee log`, `> log.txt`, etc. When stdout isn't a TTY the launcher detaches the run and the foreground process exits **77** the moment a step pauses, freeing the pipe while the container stays paused for `retry`.
@@ -25,13 +25,13 @@ Pipes are safe — pause-on-failure works through `| tee log`, `> log.txt`, etc.
 When a step fails, the run pauses automatically. Fix the issue, then retry:
 
 ```bash
-npx @redwoodjs/agent-ci retry --name <runner-name>
+npm run ci:local:retry -- --name <runner-name>
 ```
 
 To re-run from an earlier step:
 
 ```bash
-npx @redwoodjs/agent-ci retry --name <runner-name> --from-step <N>
+npm run ci:local:retry -- --name <runner-name> --from-step <N>
 ```
 
 Repeat until all jobs pass. Do not push to trigger remote CI when agent-ci can run it locally.

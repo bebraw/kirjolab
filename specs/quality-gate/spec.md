@@ -25,7 +25,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Local workflow formatter:** `scripts/run-local-ci.mjs`
 - **Local workflow progress source:** Agent CI versioned NDJSON events
 - **Local workflow heartbeat:** every 15 seconds while the workflow is active
-- **Local workflow concurrency:** one Agent CI job at a time
+- **Local workflow concurrency:** parallel Agent CI jobs with isolated writable dependency views
+- **Local dependency prewarm:** `.github/workflows/ci.yml:quality-fast:install`
 - **Local workflow failure mode:** pause failed Agent CI runners for retry
 - **Retry command:** `npm run ci:local:retry -- --name <runner-name>`
 - **Remote workflow:** `.github/workflows/ci.yml`
@@ -115,8 +116,9 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The affected test path must run full unit coverage when affected runtime files have no related tests and no affected unit test files were supplied.
 - The affected guardrail path may fall back to project-level type checking or coverage when a safe per-file check is not available.
 - The repo's local CI scripts should use the repo-pinned `agent-ci` binary directly instead of carrying repo-specific runtime patching or install locking.
-- The canonical local CI script must keep one-job execution until Agent CI
-  validates atomic completed npm warm installs for the interrupted warm-up case.
+- The canonical local CI script must explicitly prewarm through the stable fast
+  job install step before concurrent jobs receive isolated writable dependency
+  views.
 - The canonical local CI script should use pause-on-failure so agents can fix and retry a failed runner without restarting the whole workflow.
 - The local CI formatter must consume Agent CI's versioned JSON event stream
   instead of matching human log text.
