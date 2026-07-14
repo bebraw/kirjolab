@@ -1,117 +1,136 @@
 # Kirjolab
 
-Kirjolab is a collaborative scholarly workspace that connects meaningful Markdown, publications, PDF annotations, and grounded local-model suggestions. The first vertical slice runs as a Cloudflare Worker with a Yjs-backed Durable Object and R2 PDF storage.
+Kirjolab is a collaborative workspace for scientific writing. It brings
+Markdown manuscripts, references, PDF annotations, and evidence-aware writing
+suggestions into one place while keeping the underlying `.md` and `.bib` files
+portable.
 
-The current product surface intentionally proves one path: import evidence, annotate it, connect it to manuscript text, review a model-proposed revision, and export portable Markdown and BibTeX.
+The current version is an early but working vertical slice. You can import
+research material, annotate it, connect evidence to a manuscript, review a
+locally generated revision, collaborate with other writers, and export your
+work again.
 
-The repo vendors ASDLC reference material in `.asdlc/` as local guidance instead of recreating it per project. Repo-specific truth lives in `ARCHITECTURE.md`, `specs/`, and `docs/adrs/`: generated code still needs to match those documents, and passing CI alone is not enough.
+Kirjolab runs on Cloudflare Workers, Durable Objects, and R2. Local development
+is supported on macOS.
 
-Local development in this repo targets macOS. Other platforms may need script and tooling adjustments before the baseline workflow works as documented.
+## What You Can Do
 
-## Documentation
+- Write Markdown and BibTeX collaboratively with live Yjs synchronization.
+- Organize several isolated writing projects under stable URLs.
+- Invite collaborators with owner or member access through Cloudflare Access.
+- Preview standard Markdown, GFM, and scientific-writing syntax through
+  Satteri.
+- Import PDFs, highlight passages, and link evidence back to manuscript text.
+- Import BibTeX, enrich references through Crossref, and review DOI metadata
+  before associating it with a PDF.
+- Ask a local model to revise a selected passage using selected evidence, then
+  accept or reject the proposed change.
+- Export portable Markdown and BibTeX files.
 
-- Product and architectural direction: `VISION.md`
-- Implemented scholarly-workspace contract: `specs/scholarly-workspace/spec.md`
-- Implemented PDF evidence-capture contract: `specs/pdf-evidence-capture/spec.md`
-- Implemented workspace catalog contract: `specs/workspace-catalog/spec.md`
-- Implemented workspace access contract: `specs/workspace-access/spec.md`
-- Implemented reference-library contract: `specs/reference-library/spec.md`
-- Implemented DOI-intake contract: `specs/publication-intake/spec.md`
-- Implemented grounded model-operation contract: `specs/model-operations/spec.md`
-- Implemented collaborative-comment contract: `specs/manuscript-comments/spec.md`
-- Implemented research-context contract: `specs/research-context/spec.md`
-- Implemented scientific-Markdown contract: `specs/scientific-markdown/spec.md`
-- Development setup and local CI: `docs/development.md`
-- Architecture decisions: `docs/adrs/README.md`
-- Feature and architecture specs: `specs/README.md`
-- Agent behavior and project rules: `AGENTS.md`
-- Partial-upgrade capability kits: `.capabilities/`
-- Template maintenance update packs: `.template/updates/`
+## Run It Locally
 
-## Runtime
+You need [nvm](https://github.com/nvm-sh/nvm) and the project-pinned Node.js
+version. The local workflow uses Wrangler's Durable Object and R2 emulation, so
+you do not need a Cloudflare deployment to get started.
 
-- Run `nvm use` before `npm install` or any other development command so your shell picks up the repo-pinned Node.js version from `.nvmrc` and stays close to the expected npm baseline.
-- Install dependencies with `npm install`.
-- `npm install` also configures the repo-managed `pre-push` hook so `git push` runs affected guardrails before code leaves your machine.
-- The exact project Node.js version is pinned in `package.json` and mirrored in `.nvmrc` for `nvm` users, and CI reads the `package.json` value directly.
-- npm is constrained to the supported npm 11 range in `package.json`; local development is expected to use `nvm use`, and CI uses the npm release bundled with the pinned Node setup as long as it satisfies that range.
-- The current local slice needs no model key. The selected passage, revision
-  instruction, chosen evidence, and model identifier go directly from the
-  browser to a credential-free loopback OpenAI-compatible endpoint; no other
-  manuscript text is sent by the selection-revision operation.
-- If the provider cannot be reached directly from the browser, set
-  `KIRJOLAB_MODEL_UPSTREAM` to its credential-free loopback completion URL,
-  optionally set `KIRJOLAB_MODEL_COMPANION_ORIGIN`, run
-  `npm run model:companion`, and choose **Local companion** in the model lab.
-  The companion listens only on `127.0.0.1:8790` by default and never routes
-  through the hosted Worker.
-- Use repo-pinned CLI tools through `npx`, including `npx wrangler` for Cloudflare-based experiments.
-- Start Kirjolab with `npm run dev`, then open `http://127.0.0.1:8787`.
-- `npm run build` generates the Tailwind stylesheet, typed browser bundle, version-matched PDF.js worker, and Satteri browser assets under the ignored `.generated/` directory.
-- Local Wrangler automatically emulates the Durable Object and R2 bindings.
-- Before a production deployment, follow the fail-closed [production runbook](./docs/operations/production.md). It creates the configured bucket, protects an exact custom hostname with Cloudflare Access, runs a strict dry run, verifies the release, and records rollback evidence.
-- Local `AUTH_MODE=local` is deliberately rejected away from loopback. `npm run deploy` supplies the complete hosted Access configuration only after its production preflight succeeds; do not use a raw Wrangler deploy for production.
-- Set optional `CROSSREF_MAILTO=you@example.org` in deployment configuration to identify metadata enrichment requests to Crossref's polite pool. BibTeX import itself is local and needs no credentials.
+```bash
+nvm use
+npm install
+npm run dev
+```
 
-## Verification
+Open <http://127.0.0.1:8787>.
 
-- Run the fast local gate with `npm run quality:gate:fast` during normal iteration.
-- Run the baseline repo gate with `npm run quality:gate`.
-- Run the containerized local workflow with `npm run ci:local`; it uses Agent CI parallelism with warm-cache serialization and pauses failed runners for retry.
-- Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
-- The repo-managed `pre-push` hook runs `npm run quality:affected` automatically after `npm install`.
-- If local Agent CI warns about `No such remote 'origin'`, set `GITHUB_REPO=owner/repo` in `.env.agent-ci`.
-- Retry a paused local CI run with `npm run ci:local:retry -- --name <runner-name>`.
-- Install the pinned Playwright browser with `npm run playwright:install`.
-- Run unit tests from colocated `src/**/*.test.ts` files with `npm test`.
-- Run browser tests from colocated `src/**/*.e2e.ts` files with `npm run e2e`.
-- Run mutation tests against runtime `src/**/*.ts` files with `npm run mutation`.
+`npm install` also configures the repository's pre-push hook. Generated browser
+assets are written to the ignored `.generated/` directory.
 
-## Capability Kits
+## Use a Local Writing Model
 
-Use `.capabilities/` when another project needs one template practice without adopting the whole starter. Each kit is a reviewable partial-upgrade guide with a README, manifest, package-manager recipe, copyable files, and validation checks.
+Kirjolab does not require a model API key. A revision request contains only the
+selected passage, your instruction, the evidence you selected, and the model
+identifier. It is sent directly from the browser to a credential-free,
+OpenAI-compatible service running on your computer.
 
-To apply a kit to another repo:
+If the browser cannot reach that service directly, use the optional local
+companion:
 
-1. Pick the smallest matching kit from `.capabilities/README.md`.
-2. Read the kit README and `manifest.json`.
-3. Follow the target package-manager recipe under `recipes/`.
-4. Copy or merge files from `files/` without overwriting target-project conventions.
-5. Ask before applying optional adjacent setup such as creating a GitHub Actions workflow.
-6. Run the kit checks and the target repo's normal quality gate.
+```bash
+export KIRJOLAB_MODEL_UPSTREAM=http://127.0.0.1:YOUR_PORT/v1/chat/completions
+npm run model:companion
+```
 
-For existing projects where the right kit set is unclear, start with the negotiation prompt in `.capabilities/README.md`. It asks an agent to inspect the target repo, present a checkbox-style capability pull plan, and wait for approval before editing files.
+Then choose **Local companion** in the model lab. The companion listens on
+`127.0.0.1:8790` by default and never sends model requests through the hosted
+Worker. Set `KIRJOLAB_MODEL_COMPANION_ORIGIN` if you need to allow a different
+local Kirjolab origin.
 
-## Template Update Packs
+## Deploy to Cloudflare
 
-Use `.template/updates/` to sync later maintenance changes into projects that already use this template or one of its capability kits. Each update pack has metadata, a short migration guide, and a focused patch to try before porting the change manually.
+Production uses Cloudflare Access for authentication. Do not deploy production
+with a bare `wrangler deploy`: the repository defaults to loopback-only local
+authentication and will reject a public hostname.
 
-For cross-repo agent work, tell the agent:
+Follow the [production runbook](./docs/operations/production.md) to create the
+R2 bucket, configure Cloudflare Access, validate the deployment, release it,
+and test recovery. Once the required production variables are set, deploy with:
 
-> Look at `vibe-template/.template/updates/AGENT_SYNC.md` for latest template updates.
+```bash
+npm run deploy:dry-run
+npm run deploy
+```
 
-## Current Vertical Slice
+For Cloudflare Git builds, set the production deploy command to
+`npm run deploy` and provide the `KIRJOLAB_PRODUCTION_URL`,
+`KIRJOLAB_ACCESS_TEAM_DOMAIN`, and `KIRJOLAB_ACCESS_AUD` build variables.
+`KIRJOLAB_CROSSREF_MAILTO` is optional.
 
-- Collaborative Markdown and BibTeX editing through Yjs WebSockets.
-- Multiple isolated workspaces with stable URLs and identity-scoped navigation.
-- Cloudflare Access JWT verification plus owner/member workspace sharing.
-- Satteri-powered standard Markdown, GFM, and scientific-writing preview with semantic validation.
-- Streamed single and batch PDF import, selectable single-page rendering, resilient highlights, and bidirectional manuscript links.
-- BibTeX import, explicit Crossref enrichment, and reviewed DOI-to-PDF intake
-  with stable publication resources.
-- Browser-direct or explicit local-companion, selection-scoped model revisions
-  with typed evidence, focused Context review, and targeted apply/reject.
-- Portable `.md` and `.bib` exports.
+## Development and Tests
 
-## Source Layout
+Use the smallest useful check while working, then run the baseline gate before
+considering a change ready.
 
+| Command                        | Purpose                                    |
+| ------------------------------ | ------------------------------------------ |
+| `npm run quality:affected`     | Check files affected by the current change |
+| `npm run quality:gate:fast`    | Run the fast local verification gate       |
+| `npm run quality:gate`         | Run the full baseline quality gate         |
+| `npm run ci:local`             | Run the GitHub Actions workflow locally    |
+| `npm test`                     | Run unit tests                             |
+| `npm run e2e`                  | Run browser tests                          |
+| `npm run mutation`             | Run mutation tests                         |
+| `npm run diagnostics:codebase` | Report advisory readability diagnostics    |
+
+Install the pinned Playwright browser with `npm run playwright:install`. If a
+local CI run pauses after a failure, fix the problem and resume it with
+`npm run ci:local:retry -- --name <runner-name>`. More setup and troubleshooting
+details are in [docs/development.md](./docs/development.md).
+
+## Project Guide
+
+- [VISION.md](./VISION.md) explains the product direction.
+- [ARCHITECTURE.md](./ARCHITECTURE.md) records global technical constraints.
+- [specs/](./specs/) contains implemented feature contracts.
+- [docs/adrs/](./docs/adrs/) contains architecture decisions and their status.
+- [docs/operations/](./docs/operations/) contains production runbooks.
 - `src/worker.ts` is the Worker entry point and top-level router.
-- `src/durable-objects/` holds document coordination and persistent metadata.
-- `src/domain/` holds portable resource contracts and Markdown semantics.
-- `vendor/satteri-wasm32-wasi/` pins the reviewed browser binding needed for deterministic Satteri previews.
-- `src/api/` holds health and scholarly-workspace routes.
-- `src/client/` holds the typed browser client and local-model operations.
-- `src/model-companion.ts` holds the optional loopback-only local-provider
-  bridge and its strict request boundary.
-- `src/views/` holds the server-rendered workspace shell.
+- `src/durable-objects/` contains coordination and persistent metadata.
+- `src/domain/` contains portable resource contracts and Markdown semantics.
+- `src/api/` contains the HTTP API routes.
+- `src/client/` contains the browser application and local-model operations.
+- `src/views/` contains the server-rendered workspace shell.
 - Tests live next to the code they exercise under `src/`.
+
+## Template Maintenance
+
+This repository also retains reusable tooling from its starter-template roots:
+
+- [`.capabilities/`](./.capabilities/) contains focused upgrade kits that can
+  be applied to other projects without copying the entire repository.
+- [`.template/updates/`](./.template/updates/) contains maintenance packs for
+  projects already based on this template.
+- [`.asdlc/`](./.asdlc/) contains the vendored ASDLC reference material used by
+  maintainers.
+- [AGENTS.md](./AGENTS.md) contains project rules for coding agents.
+
+These directories are not required for running Kirjolab. They exist to keep
+maintenance practices explicit and portable.
