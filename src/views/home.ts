@@ -5,6 +5,7 @@ export function renderHomePage(
   workspaceId = "demo",
   identityEmail = "local@kirjolab.invalid",
   identityMode: "local" | "access" = "local",
+  appMode: "workspace" | "library" = "workspace",
 ): string {
   const escapedWorkspaceId = escapeHtml(workspaceId);
   const escapedIdentityEmail = escapeHtml(identityEmail);
@@ -19,12 +20,13 @@ export function renderHomePage(
     <link rel="stylesheet" href="/styles.css">
     <script type="module" src="/app.js"></script>
   </head>
-  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-workspace-id="${escapedWorkspaceId}" data-identity-email="${escapedIdentityEmail}">
+  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-app-mode="${appMode}" data-workspace-id="${escapedWorkspaceId}" data-identity-email="${escapedIdentityEmail}">
     <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur">
       <div class="flex min-h-16 items-center justify-between gap-4 px-4 lg:px-6">
         <div class="flex min-w-0 items-center gap-3">
           <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
           <span class="hidden h-4 w-px bg-app-line sm:block"></span>
+          <a class="header-library-link" href="/library"${appMode === "library" ? ' aria-current="page"' : ""}>Library</a>
           <label class="sr-only" for="workspace-switcher">Current project</label>
           <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading project…</option></select>
           <details class="action-menu header-action-menu" data-action-menu>
@@ -41,7 +43,7 @@ export function renderHomePage(
           <select class="workspace-switcher" id="theme-preference" aria-label="Appearance">
             <option value="system">Theme: System</option><option value="light">Theme: Light</option><option value="dark">Theme: Dark</option>
           </select>
-          <label class="hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
+          <label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
             <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
               <option value="split">Split</option><option value="editor">Editor only</option>
               <option value="context">Context only</option><option value="pdf">PDF only</option>

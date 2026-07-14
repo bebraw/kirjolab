@@ -107,6 +107,7 @@ import { editorPresenceSegments, type EditorPresenceRange } from "./editor-prese
 
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
+const appMode = readAppMode();
 const catalogBase = "/api/workspaces";
 const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
@@ -486,6 +487,13 @@ class WorkspaceApp {
   async start(): Promise<void> {
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
+    if (appMode === "library") {
+      this.#elements.workspaceSurfaces.dataset.activeSurface = "context";
+      this.#elements.workspaceSurfaces.dataset.layout = "context";
+      this.#setConnection("Private library", true);
+      await this.#openReferenceLibrary();
+      return;
+    }
     this.#restoreWorkspaceLayout();
     this.#setEditorsEnabled(false);
     void loadMarkdownRuntime().catch(() => undefined);
@@ -2173,14 +2181,16 @@ class WorkspaceApp {
       openPdf.title = `Open ${primaryArtifact.name}`;
       actions.append(openPdf);
     }
-    if (linked) {
-      const remove = actionButton("Linked", "button-secondary", () => void this.#unlinkProjectReference(reference.id));
-      remove.title = `Remove :cite[${linked.citationAlias}] from this project`;
-      actions.append(remove);
-    } else {
-      const add = actionButton("Add", "button-primary", () => void this.#linkLibraryReference(reference.id, reference.referenceKey));
-      add.title = `Add :cite[${reference.referenceKey}] to this project`;
-      actions.append(add);
+    if (appMode === "workspace") {
+      if (linked) {
+        const remove = actionButton("Linked", "button-secondary", () => void this.#unlinkProjectReference(reference.id));
+        remove.title = `Remove :cite[${linked.citationAlias}] from this project`;
+        actions.append(remove);
+      } else {
+        const add = actionButton("Add", "button-primary", () => void this.#linkLibraryReference(reference.id, reference.referenceKey));
+        add.title = `Add :cite[${reference.referenceKey}] to this project`;
+        actions.append(add);
+      }
     }
     const metadataEditor = document.createElement("details");
     metadataEditor.className = "library-reference-details";
@@ -4883,7 +4893,7 @@ class WorkspaceApp {
           );
       shareAction.disabled = !share && !linked;
       shareAction.title = linked ? "" : "Add the bibliographic reference to this project first";
-      actions.append(shareAction);
+      if (appMode === "workspace") actions.append(shareAction);
       card.append(actions);
       this.#elements.libraryHighlightList.append(card);
     }
@@ -6186,6 +6196,10 @@ function readIdentityEmail(): string {
   const value = document.body.dataset.identityEmail;
   if (!value || value.length > 320) throw new Error("Invalid offline identity");
   return value;
+}
+
+function readAppMode(): "workspace" | "library" {
+  return document.body.dataset.appMode === "library" ? "library" : "workspace";
 }
 
 class WorkspaceAccessError extends Error {}

@@ -31,6 +31,16 @@ describe("worker", () => {
     expect(body).toContain("/api/workspaces/abc-123/export/document.md");
   });
 
+  it("renders the private library without a workspace resource", async () => {
+    const response = await handleRequest(new Request("http://example.com/library"));
+
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(body).toContain('data-app-mode="library"');
+    expect(body).toContain('href="/library" aria-current="page"');
+    expect(body).toContain('id="export-library-annotated-pdf"');
+  });
+
   it("returns a JSON health response", async () => {
     const response = await handleRequest(new Request("http://example.com/api/health"));
 
@@ -41,6 +51,7 @@ describe("worker", () => {
       name: "kirjolab",
       routes: [
         "/",
+        "/library",
         "/workspaces/:id",
         "/share/:token",
         "/edit/:token",

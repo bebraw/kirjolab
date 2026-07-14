@@ -87,6 +87,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owner-private by default. A project citation receives only its local alias
   and bibliographic snapshot; sharing any additional resource must be a
   separate explicit, rights-checked action pinned into a project revision.
+- Let the owner open the private Library at `/library` without resolving a
+  workspace. Standalone library bootstrap must not create or load project
+  state, connect collaboration, or expose project linkage and sharing actions.
 - Let the owner read a private library PDF through a kind-qualified private
   context tab and the owner-private stream. Opening, navigation, and selection
   do not mutate state; only an explicit save may create a page-and-quote

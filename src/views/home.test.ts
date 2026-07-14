@@ -7,7 +7,7 @@ describe("renderHomePage", () => {
     const html = renderHomePage(exampleRoutes);
 
     expect(html).toContain("KIRJOLAB");
-    expect(html).toContain('data-workspace-id="demo" data-identity-email="local@kirjolab.invalid"');
+    expect(html).toContain('data-app-mode="workspace" data-workspace-id="demo" data-identity-email="local@kirjolab.invalid"');
     expect(html).toContain('class="action-menu header-action-menu" data-action-menu');
     expect(html).toContain('id="manage-workspaces" type="button"><strong>Open projects</strong></button>');
     expect(html).toContain('aria-label="File actions"');
@@ -137,6 +137,16 @@ describe("renderHomePage", () => {
     expect(html).toContain("JSON health endpoint for tooling and smoke tests");
     expect(html).not.toContain("Stryker was here!");
     expect(renderHomePage(exampleRoutes, "workspace", `person"@example.org`)).toContain("person&quot;@example.org");
+  });
+
+  it("renders a project-free library shell", () => {
+    const html = renderHomePage(exampleRoutes, "demo", "person@example.org", "local", "library");
+
+    expect(html).toContain('data-app-mode="library"');
+    expect(html).toContain('<a class="header-library-link" href="/library" aria-current="page">Library</a>');
+    expect(html).toContain('id="library-pdf-upload"');
+    expect(html).toContain('id="library-highlight-composer"');
+    expect(html).toContain('id="export-library-annotated-pdf"');
   });
 
   it("offers Cloudflare Access identities a native logout control", () => {

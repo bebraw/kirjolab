@@ -121,6 +121,10 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email, identity.mode), 200, url);
   }
 
+  if (url.pathname === "/library") {
+    return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email, identity.mode, "library"), 200, url);
+  }
+
   const workspacePage = /^\/workspaces\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
   if (workspacePage?.[1]) {
     return htmlResponse(renderHomePage(exampleRoutes, workspacePage[1], identity.email, identity.mode), 200, url);

@@ -69,6 +69,11 @@ memory and makes citation aliases compete with stable source identity.
 - The library is a permanent, non-closable tab beside Preview in the project's
   research-context pane. Activating it refreshes the authorized owner snapshot
   without opening a modal or mutating project state.
+- `/library` exposes the same private Library and kind-qualified PDF reader
+  without opening a project. This mode must not fetch a workspace snapshot,
+  connect a collaboration socket, restore manuscript state, or expose project
+  linkage and sharing actions. A PDF can be imported, privately annotated, and
+  exported from this surface through the existing owner-library contracts.
 - The default Library view keeps one **Add reference** control for PDF, website,
   BibTeX, and CSL intake without intake-time metadata overrides. Search stays
   visible; filters and maintenance tools use separate compact menus. References
@@ -169,6 +174,7 @@ memory and makes citation aliases compete with stable source identity.
   duplicate its permanent tab with generic header and rail launchers.
 - Do not combine project reference linkage, an artifact-rights declaration,
   PDF sharing, or highlight sharing into one ambiguous action.
+- Do not create a temporary or hidden project to host standalone library work.
 
 ### Validation
 
@@ -189,6 +195,8 @@ memory and makes citation aliases compete with stable source identity.
   without resubmitting successful PDFs.
 - Browser coverage advances the reader's project-use states explicitly and
   proves PDF and highlight sharing can be revoked independently.
+- Shell and browser coverage prove `/library` starts from the owner-library API
+  alone and retains PDF import, annotation, and annotated-export controls.
 
 ## Current Milestone
 

@@ -3,6 +3,24 @@ import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/kn
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf, createMetadataEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
 
+test("opens the private library without bootstrapping a project", async ({ page }) => {
+  const workspaceRequests: string[] = [];
+  page.on("request", (request) => {
+    const pathname = new URL(request.url()).pathname;
+    if (pathname.startsWith("/api/workspaces")) workspaceRequests.push(pathname);
+  });
+  const libraryResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/library");
+
+  await page.goto("/library");
+  expect((await libraryResponse).status()).toBe(200);
+  await expect(page.locator("body")).toHaveAttribute("data-app-mode", "library");
+  await expect(page.locator("#context-library-panel")).toBeVisible();
+  await expect(page.locator("#authoring-surface")).toBeHidden();
+  await expect(page.getByText("Add reference", { exact: true })).toBeVisible();
+  await expect(page.getByTitle(/^Add :cite/u)).toHaveCount(0);
+  expect(workspaceRequests).toEqual([]);
+});
+
 test("creates, rotates, and revokes a read-only project link", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Link review");
   const api = `/api/workspaces/${workspaceId}/share-link`;

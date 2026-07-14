@@ -77,6 +77,40 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .header-library-link {
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+
+  .header-library-link:hover,
+  .header-library-link[aria-current="page"] {
+    color: var(--color-app-accent-strong);
+  }
+
+  body[data-app-mode="library"] #workspace-switcher,
+  body[data-app-mode="library"] .project-view-control,
+  body[data-app-mode="library"] .header-action-menu,
+  body[data-app-mode="library"] #share-workspace,
+  body[data-app-mode="library"] #open-export,
+  body[data-app-mode="library"] #connection-dot,
+  body[data-app-mode="library"] #connection-status,
+  body[data-app-mode="library"] .surface-switcher,
+  body[data-app-mode="library"] #context-preview-tab,
+  body[data-app-mode="library"] #context-assistant-tab,
+  body[data-app-mode="library"] #filter-project-citations,
+  body[data-app-mode="library"] .library-project-details {
+    display: none;
+  }
+
+  body[data-app-mode="library"] .source-rail,
+  body[data-app-mode="library"] #authoring-surface,
+  body[data-app-mode="library"] .authoring-context-resizer {
+    display: none;
+  }
+
   .authoring-context-resizer {
     display: none;
   }

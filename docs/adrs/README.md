@@ -135,6 +135,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-101](./implemented/ADR-101-split-browser-runtimes.md)                            | Partially superseded | Minify the app and lazy-load PDF.js; ADR-102 replaces its Satteri runtime decision.                          |
 | [ADR-102](./implemented/ADR-102-use-javascript-for-live-markdown-preview.md)          | Implemented          | Replace Satteri WASM with a local unified/remark preview runtime.                                            |
 | [ADR-103](./implemented/ADR-103-compose-metadata-from-several-providers.md)           | Implemented          | Choose each metadata field from one of several same-work providers and apply the review atomically.          |
+| [ADR-107](./implemented/ADR-107-open-library-without-a-project.md)                    | Implemented          | Bootstrap the private Library at `/library` without opening or creating a project.                           |
 
 ## Creating A New ADR
 
