@@ -72,6 +72,7 @@ import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { adjustSelectionRects } from "./pdf-selection";
 import { uploadPdfBatch, type ExistingPdfUpload, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
+import { bindThemePreference } from "./theme";
 import { maximumModelEvidenceItems, OpenAICompatibleBrowserProvider, type ModelEvidenceItem } from "./model-provider";
 import {
   activateResearchTab,
@@ -1677,8 +1678,8 @@ class WorkspaceApp {
       circle.setAttribute("cx", String(position.x));
       circle.setAttribute("cy", String(position.y));
       circle.setAttribute("r", node.inProject ? "19" : "15");
-      circle.setAttribute("fill", node.inProject ? "#0c7655" : "#e8e2d6");
-      circle.setAttribute("stroke", "#26312d");
+      circle.setAttribute("fill", node.inProject ? "var(--color-app-accent)" : "var(--color-app-paper)");
+      circle.setAttribute("stroke", "var(--color-app-ink)");
       const text = document.createElementNS(namespace, "text");
       text.setAttribute("x", String(position.x));
       text.setAttribute("y", String(position.y + 34));
@@ -5274,10 +5275,10 @@ function formatTimestamp(value: string): string {
 }
 
 function citationStateColor(state: CitationNetwork["edges"][number]["state"]): string {
-  if (state === "confirmed") return "#0c7655";
-  if (state === "extracted") return "#4e6b61";
-  if (state === "conflicting") return "#b34835";
-  return "#9b7b3d";
+  if (state === "confirmed") return "var(--color-app-graph-confirmed)";
+  if (state === "extracted") return "var(--color-app-graph-extracted)";
+  if (state === "conflicting") return "var(--color-app-graph-conflicting)";
+  return "var(--color-app-graph-inferred)";
 }
 
 function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
@@ -5331,6 +5332,7 @@ function readWorkspaceId(): string {
 }
 
 if (typeof document !== "undefined") {
+  bindThemePreference(document.documentElement, requiredElement("theme-preference", HTMLSelectElement), localStorage);
   const app = new WorkspaceApp();
   void app.start().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : "Kirjolab failed to start";

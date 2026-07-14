@@ -50,6 +50,24 @@ test("switches and remembers focused workspace views", async ({ page }) => {
   await expect(page.locator("#context-surface")).toBeVisible();
 });
 
+test("follows and remembers the selected appearance", async ({ page }) => {
+  await page.goto("/");
+  const appearance = page.locator("#theme-preference");
+
+  await expect(appearance).toHaveValue("system");
+  await appearance.selectOption("dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe("dark");
+
+  await page.reload();
+  await expect(appearance).toHaveValue("dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  await appearance.selectOption("system");
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe("light dark");
+});
+
 test("keeps the workspace within a compact desktop viewport", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 });
   const workspaceId = await createWorkspace(page, "Compact desktop");

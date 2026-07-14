@@ -31,6 +31,7 @@ ADRs are grouped by lifecycle status:
 | ----------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------- |
 | [ADR-089](./implemented/ADR-089-require-a-fail-closed-production-release.md)  | Implemented | Require production identity, hostname, dry-run, smoke, version, and rollback evidence. |
 | [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md) | Implemented | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.    |
+| [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)             | Implemented | Use semantic light/dark tokens with a browser-local system-aware preference.           |
 
 ## Implemented ADRs
 

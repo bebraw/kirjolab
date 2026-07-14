@@ -13,6 +13,11 @@ describe("renderHomePage", () => {
     expect(html).not.toContain('role="menu"');
     expect(html).not.toContain('role="menuitem"');
     expect(html).toContain('aria-label="Project view"');
+    expect(html).toContain('<meta name="color-scheme" content="light dark">');
+    expect(html).toContain('id="theme-preference" aria-label="Appearance"');
+    expect(html).toContain(
+      '<option value="system">Theme: System</option><option value="light">Theme: Light</option><option value="dark">Theme: Dark</option>',
+    );
     expect(html).toContain('<p class="eyebrow">New project</p>');
     expect(html).toContain('type="submit">Create project</button>');
     expect(html).toContain('id="workspace-catalog-filter"');

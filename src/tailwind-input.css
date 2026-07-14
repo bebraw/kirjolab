@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
 @theme {
-  --color-app-canvas: #e8e5dd;
-  --color-app-paper: #f8f6ef;
-  --color-app-surface: #efede6;
-  --color-app-ink: #121b18;
-  --color-app-text: #202724;
-  --color-app-text-soft: #5f6762;
-  --color-app-accent: #0b6b51;
-  --color-app-accent-strong: #064737;
-  --color-app-accent-ghost: rgb(11 107 81 / 0.09);
-  --color-app-review-base: rgb(18 27 24 / 0.035);
-  --color-app-review-proposal: rgb(11 107 81 / 0.055);
-  --color-app-warn: #c07b28;
-  --color-app-error: #a33a32;
-  --color-app-line: rgb(18 27 24 / 0.14);
+  --color-app-canvas: light-dark(#e8e5dd, #151a18);
+  --color-app-paper: light-dark(#f8f6ef, #1c2320);
+  --color-app-surface: light-dark(#efede6, #181e1b);
+  --color-app-ink: light-dark(#121b18, #f2efe6);
+  --color-app-text: light-dark(#202724, #deddd6);
+  --color-app-text-soft: light-dark(#5f6762, #a4aca6);
+  --color-app-accent: light-dark(#0b6b51, #62c5a4);
+  --color-app-accent-strong: light-dark(#064737, #8bdbbe);
+  --color-app-accent-ghost: light-dark(rgb(11 107 81 / 0.09), rgb(98 197 164 / 0.12));
+  --color-app-review-base: light-dark(rgb(18 27 24 / 0.035), rgb(242 239 230 / 0.045));
+  --color-app-review-proposal: light-dark(rgb(11 107 81 / 0.055), rgb(98 197 164 / 0.08));
+  --color-app-warn: light-dark(#c07b28, #d7a45e);
+  --color-app-error: light-dark(#a33a32, #e0786e);
+  --color-app-line: light-dark(rgb(18 27 24 / 0.14), rgb(232 239 234 / 0.15));
+  --color-app-raised: light-dark(rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.06));
+  --color-app-raised-strong: light-dark(rgb(255 255 255 / 0.42), rgb(255 255 255 / 0.09));
+  --color-app-canvas-overlay: light-dark(rgb(232 229 221 / 0.96), rgb(21 26 24 / 0.96));
+  --color-app-shadow: light-dark(rgb(18 27 24 / 0.2), rgb(0 0 0 / 0.42));
+  --color-app-backdrop: light-dark(rgb(18 27 24 / 0.62), rgb(0 0 0 / 0.72));
+  --color-app-on-accent: light-dark(white, #07130f);
+  --color-app-pdf-surround: light-dark(#d8d4ca, #0f1311);
+  --color-app-graph-confirmed: light-dark(#0c7655, #75d3b3);
+  --color-app-graph-extracted: light-dark(#4e6b61, #a5b9b2);
+  --color-app-graph-conflicting: light-dark(#b34835, #ed8274);
+  --color-app-graph-inferred: light-dark(#9b7b3d, #ddb66b);
   --font-sans: "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
 }
 
 @layer base {
   html {
     background: var(--color-app-canvas);
+    color-scheme: light dark;
+  }
+
+  html[data-theme="light"] {
+    color-scheme: light;
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
   }
 
   body {
@@ -47,7 +67,7 @@
   }
 
   ::selection {
-    background: rgb(11 107 81 / 0.2);
+    background: color-mix(in srgb, var(--color-app-accent) 22%, transparent);
   }
 }
 
@@ -69,7 +89,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.25rem;
     border-bottom: 1px solid var(--color-app-line);
-    background: rgb(232 229 221 / 0.96);
+    background: var(--color-app-canvas-overlay);
     padding: 0.5rem 1rem;
     backdrop-filter: blur(0.5rem);
   }
@@ -372,7 +392,7 @@
     border-radius: 0.25rem;
     background: var(--color-app-paper);
     padding: 0.35rem;
-    box-shadow: 0 0.75rem 2rem rgb(18 27 24 / 0.12);
+    box-shadow: 0 0.75rem 2rem var(--color-app-shadow);
   }
 
   .editor-command-menu button {
@@ -519,7 +539,7 @@
   }
 
   .context-tab[aria-selected="true"] {
-    background: rgb(255 255 255 / 0.42);
+    background: var(--color-app-raised-strong);
     color: var(--color-app-ink);
   }
 
@@ -963,14 +983,14 @@
 
   .workspace-switcher:hover {
     border-color: var(--color-app-line);
-    background: rgb(255 255 255 / 0.28);
+    background: var(--color-app-raised);
   }
 
   .button-primary {
     min-height: 2.35rem;
     padding: 0.55rem 0.85rem;
     background: var(--color-app-accent);
-    color: white;
+    color: var(--color-app-on-accent);
   }
 
   .button-primary:hover {
@@ -982,7 +1002,7 @@
     min-height: 2.35rem;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--color-app-line);
-    background: rgb(255 255 255 / 0.35);
+    background: var(--color-app-raised);
   }
 
   .button-secondary:hover:not(:disabled) {
@@ -1059,7 +1079,7 @@
   }
 
   .source-editor-shell:focus-within {
-    background: rgb(255 255 255 / 0.28);
+    background: var(--color-app-raised);
   }
 
   .editor-mode-toggle,
@@ -1172,7 +1192,7 @@
   }
 
   .bibliography-editor:focus {
-    background: rgb(255 255 255 / 0.28);
+    background: var(--color-app-raised);
   }
 
   .preview-scroll {
@@ -1365,7 +1385,7 @@
   .resource-card {
     border: 1px solid var(--color-app-line);
     border-radius: 0.2rem;
-    background: rgb(255 255 255 / 0.36);
+    background: var(--color-app-raised);
     padding: 0.8rem;
   }
 
@@ -1379,11 +1399,11 @@
     padding: 0;
     border: 1px solid var(--color-app-line);
     background: var(--color-app-paper);
-    box-shadow: 0 2rem 6rem rgb(18 27 24 / 0.28);
+    box-shadow: 0 2rem 6rem var(--color-app-shadow);
   }
 
   .new-workspace-dialog::backdrop {
-    background: rgb(18 27 24 / 0.62);
+    background: var(--color-app-backdrop);
   }
 
   .reference-library-dialog {
@@ -1393,17 +1413,17 @@
     overflow: auto;
     border: 1px solid var(--color-app-line);
     background: var(--color-app-paper);
-    box-shadow: 0 2rem 6rem rgb(18 27 24 / 0.28);
+    box-shadow: 0 2rem 6rem var(--color-app-shadow);
   }
 
   .reference-library-dialog::backdrop {
-    background: rgb(18 27 24 / 0.62);
+    background: var(--color-app-backdrop);
   }
 
   .pdf-reader {
     min-height: 0;
     overflow: auto;
-    background: #d8d4ca;
+    background: var(--color-app-pdf-surround);
     padding: clamp(1rem, 3vw, 2rem);
   }
 
@@ -1412,7 +1432,7 @@
     margin-inline: auto;
     overflow: hidden;
     background: white;
-    box-shadow: 0 1.2rem 3rem rgb(18 27 24 / 0.2);
+    box-shadow: 0 1.2rem 3rem var(--color-app-shadow);
   }
 
   .pdf-highlights,
@@ -1511,7 +1531,7 @@
     border-radius: 0.2rem;
     background: var(--color-app-ink);
     padding: 0.8rem 1rem;
-    color: white;
+    color: var(--color-app-on-accent);
     font-family: var(--font-sans);
     font-size: 0.78rem;
     transition: transform 180ms ease;

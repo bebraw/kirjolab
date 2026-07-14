@@ -22,6 +22,10 @@ mode for authenticated hosted collaboration.
   `.generated/app.txt`. Persistent interface copy names the user's next action
   and keeps implementation detail in feature documentation rather than the
   task surface.
+- **Appearance:** The shell uses one semantic `app-*` token palette with light
+  and dark values. Appearance follows the operating-system color scheme by
+  default; a browser-local System, Light, or Dark preference may override it
+  without entering project, collaboration, or server state.
 - **Primary surfaces:** The authoring editor remains visible beside a tabbed
   research-context pane on desktop. The pane permanently hosts manuscript
   Preview, the owner-private Library, and Writing assistant, and can host
@@ -316,6 +320,8 @@ mode for authenticated hosted collaboration.
       consistent user-facing noun.
 - [x] Normal-sized secondary text maintains at least 4.5:1 contrast across the
       canvas, paper, and editor surfaces.
+- [x] The complete workspace follows the system light/dark scheme by default
+      and restores an explicit browser-local appearance override when chosen.
 - [x] Contextual toolbar actions stay out of the persistent chrome until the
       active citation or resource makes them usable.
 - [x] Action popovers expose ordinary button-list keyboard semantics, close on
@@ -367,6 +373,11 @@ mode for authenticated hosted collaboration.
 - [x] Unit coverage and browser tests exercise the critical workflow.
 
 ### Regression Guardrails
+
+- Light and dark appearance must continue to derive from the shared `app-*`
+  semantic tokens rather than component-specific parallel palettes.
+- Appearance preference must remain browser-local and must not enter workspace,
+  Yjs, Durable Object, or collaboration state.
 
 - Binary Yjs state must arrive before the versioned `sync` control on every
   connection, and the browser must not send queued state before that boundary.

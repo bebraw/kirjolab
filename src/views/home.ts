@@ -12,7 +12,7 @@ export function renderHomePage(
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light">
+    <meta name="color-scheme" content="light dark">
     <title>Kirjolab · Evidence becomes prose</title>
     <link rel="stylesheet" href="/styles.css">
     <script type="module" src="/app.js"></script>
@@ -35,6 +35,10 @@ export function renderHomePage(
           </details>
         </div>
         <div class="flex items-center gap-3">
+          <label class="sr-only" for="theme-preference">Appearance</label>
+          <select class="workspace-switcher" id="theme-preference" aria-label="Appearance">
+            <option value="system">Theme: System</option><option value="light">Theme: Light</option><option value="dark">Theme: Dark</option>
+          </select>
           <label class="hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
             <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
               <option value="split">Split</option><option value="editor">Editor only</option>
