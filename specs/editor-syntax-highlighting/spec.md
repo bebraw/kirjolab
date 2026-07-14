@@ -20,6 +20,9 @@ preserving the native collaborative textarea and exact source text.
   textarea scroll position.
 - **Semantics:** unified/remark preview parsing and validation remain authoritative;
   highlight classes are visual hints only.
+- **Edit history:** each project file owns a browser-local Yjs undo manager.
+  Standard platform shortcuts and history input events undo only this client's
+  edits in the active file; remote collaborator changes are never captured.
 
 ### Highlighted Syntax
 
@@ -53,6 +56,8 @@ preserving the native collaborative textarea and exact source text.
 - [x] Forced-colors mode falls back to visible native textarea text.
 - [x] Unit and browser tests cover classification, safe mirrored rendering,
       scroll synchronization, editing, and collaborative updates.
+- [x] Standard undo and redo survive Yjs synchronization and file switching
+      without reverting collaborators' changes.
 
 ### Regression Guardrails
 
@@ -61,6 +66,8 @@ preserving the native collaborative textarea and exact source text.
 - The mirror must stay text-identical and aligned during scrolling and
   wrapping; line-number decoration must not enter its text content.
 - Unsupported or incomplete syntax remains readable as ordinary source.
+- Undo history is ephemeral, scoped per file, and never enters project or
+  collaboration state.
 
 ### Scenarios
 
@@ -77,6 +84,13 @@ preserving the native collaborative textarea and exact source text.
 - When: a remote update changes the source
 - Then: the textarea and highlighting mirror converge without changing the
   current local selection bounds
+
+**Scenario: Researcher undoes an edit**
+
+- Given: local and remote edits have converged in a project file
+- When: the researcher invokes the platform undo shortcut
+- Then: the latest local edit is reversed while the collaborator's text remains
+- And: redo restores the local edit through the same collaborative Yjs path
 
 **Scenario: High-contrast rendering is active**
 

@@ -70,6 +70,7 @@ import {
 } from "../domain/workspace";
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
 import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
+import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHistoryAction } from "./editor-history";
 import { loadMarkdownRuntime } from "./markdown-runtime";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
@@ -421,6 +422,7 @@ class WorkspaceApp {
   #candidateDecision: { id: string; action: "apply" | "reject" } | null = null;
   #activeFileId: string | null = null;
   #activeFileText = this.#source;
+  readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
   #unbindSourceEditor: () => void = () => undefined;
   #projectFileDialogMode: "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder" = "create";
   #projectFolderId: string | null = null;
@@ -1208,8 +1210,18 @@ class WorkspaceApp {
   }
 
   #bindSourceEditor(text: Y.Text): void {
-    const binding = bindYText(this.#elements.source, text, this.#document, this.#elements.sourceHighlight, () =>
-      this.#activeEditorPresence(),
+    let undoManager = this.#editorUndoManagers.get(text);
+    if (!undoManager) {
+      undoManager = new Y.UndoManager(text, { trackedOrigins: new Set([this.#elements.source, this]) });
+      this.#editorUndoManagers.set(text, undoManager);
+    }
+    const binding = bindYText(
+      this.#elements.source,
+      text,
+      this.#document,
+      this.#elements.sourceHighlight,
+      () => this.#activeEditorPresence(),
+      undoManager,
     );
     this.#unbindSourceEditor = binding.destroy;
     this.#renderSourceEditorHighlight = binding.renderHighlight;
@@ -5313,6 +5325,7 @@ function bindYText(
   documentModel: Y.Doc,
   highlight?: HTMLElement,
   presence: () => readonly EditorPresenceRange[] = () => [],
+  undoManager?: Y.UndoManager,
 ): YTextBinding {
   const renderHighlight = (): void => {
     if (!highlight) return;
@@ -5377,7 +5390,31 @@ function bindYText(
     renderHighlight();
     syncHighlightScroll();
   };
+  const applyHistory = (action: EditorHistoryAction): void => {
+    if (!undoManager) return;
+    undoManager.stopCapturing();
+    if (action === "undo") undoManager.undo();
+    else undoManager.redo();
+    textarea.focus();
+    textarea.dispatchEvent(new Event("select", { bubbles: true }));
+  };
+  const handleHistoryKey = (event: KeyboardEvent): void => {
+    if (event.isComposing) return;
+    const action = editorHistoryActionForKey(event);
+    if (!action || !undoManager) return;
+    event.preventDefault();
+    event.stopPropagation();
+    applyHistory(action);
+  };
+  const handleBeforeInput = (event: InputEvent): void => {
+    const action = editorHistoryActionForInput(event.inputType);
+    if (!action || !undoManager) return;
+    event.preventDefault();
+    applyHistory(action);
+  };
   textarea.addEventListener("input", handleInput);
+  textarea.addEventListener("keydown", handleHistoryKey);
+  textarea.addEventListener("beforeinput", handleBeforeInput);
   textarea.addEventListener("scroll", syncHighlightScroll, { passive: true });
   text.observe(handleText);
   renderHighlight();
@@ -5385,6 +5422,8 @@ function bindYText(
   return {
     destroy: () => {
       textarea.removeEventListener("input", handleInput);
+      textarea.removeEventListener("keydown", handleHistoryKey);
+      textarea.removeEventListener("beforeinput", handleBeforeInput);
       textarea.removeEventListener("scroll", syncHighlightScroll);
       text.unobserve(handleText);
     },

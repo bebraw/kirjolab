@@ -431,6 +431,57 @@ test("highlights Markdown without replacing the native editor", async ({ page })
   await page.emulateMedia({ forcedColors: "none" });
 });
 
+test("undoes local Markdown edits without reverting collaborators", async ({ page, context }) => {
+  const workspaceId = await createWorkspace(page, "Undoable source editing");
+  const path = `/workspaces/${workspaceId}`;
+  await page.goto(path);
+  const collaborator = await context.newPage();
+  await collaborator.goto(path);
+  await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
+
+  const editor = page.locator("#source-editor");
+  const collaboratorEditor = collaborator.locator("#source-editor");
+  const shared = "# Shared draft\n";
+  await editor.fill(shared);
+  await expect(collaboratorEditor).toHaveValue(shared);
+
+  await collaboratorEditor.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(element.value.length, element.value.length);
+  });
+  await collaboratorEditor.pressSequentially("Remote note.\n");
+  const remotelyEdited = `${shared}Remote note.\n`;
+  await expect(editor).toHaveValue(remotelyEdited);
+
+  await page.waitForTimeout(550);
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(element.value.length, element.value.length);
+  });
+  await editor.pressSequentially("Local note.\n");
+  const locallyEdited = `${remotelyEdited}Local note.\n`;
+  await expect(collaboratorEditor).toHaveValue(locallyEdited);
+
+  await editor.press("ControlOrMeta+z");
+  await expect(editor).toHaveValue(remotelyEdited);
+  await expect(collaboratorEditor).toHaveValue(remotelyEdited);
+  await editor.press("ControlOrMeta+Shift+z");
+  await expect(editor).toHaveValue(locallyEdited);
+  await expect(collaboratorEditor).toHaveValue(locallyEdited);
+
+  await page.locator("#new-project-file-rail").click();
+  await page.locator("#project-file-path").fill("notes.md");
+  await page.locator("#project-file-form").getByRole("button", { name: "Save file" }).click();
+  await editor.fill("File-specific history\n");
+  await page.locator(".project-file-row", { hasText: "main.md" }).click();
+  await page.locator(".project-file-row", { hasText: "notes.md" }).click();
+  await editor.press("ControlOrMeta+z");
+  await expect(editor).toHaveValue("");
+  await collaborator.locator(".project-file-row", { hasText: "notes.md" }).click();
+  await expect(collaboratorEditor).toHaveValue("");
+  await collaborator.close();
+});
+
 test("offers opt-in Vim editing over the collaborative textarea", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Vim source editing");
   await page.goto(`/workspaces/${workspaceId}`);

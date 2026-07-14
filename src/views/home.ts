@@ -196,7 +196,7 @@ export function renderHomePage(
           <pre class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"></pre>
           <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
         </div>
-        <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation.</p>
+        <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation. Undo with Command-Z or Control-Z; redo with Command-Shift-Z, Control-Shift-Z, or Control-Y.</p>
       </section>
 
       <div class="authoring-context-resizer" id="authoring-context-resizer" role="separator" aria-label="Resize authoring and context panes" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" tabindex="0"></div>
