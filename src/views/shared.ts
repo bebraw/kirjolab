@@ -1,18 +1,23 @@
-export function htmlResponse(body: string, status = 200, requestUrl?: URL): Response {
+export function htmlResponse(
+  body: string,
+  status = 200,
+  requestUrl?: URL,
+  options: { readonly allowSameOriginFrames?: boolean } = {},
+): Response {
   return new Response(body, {
     status,
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
       "referrer-policy": "no-referrer",
-      "content-security-policy": contentSecurityPolicy(requestUrl),
+      "content-security-policy": contentSecurityPolicy(requestUrl, options.allowSameOriginFrames === true),
       "cross-origin-opener-policy": "same-origin",
       "cross-origin-embedder-policy": "require-corp",
     },
   });
 }
 
-function contentSecurityPolicy(requestUrl?: URL): string {
+function contentSecurityPolicy(requestUrl?: URL, allowSameOriginFrames = false): string {
   const webSocketOrigin = requestUrl ? `${requestUrl.protocol === "https:" ? "wss:" : "ws:"}//${requestUrl.host}` : undefined;
   const connectSources = [
     "'self'",
@@ -34,7 +39,7 @@ function contentSecurityPolicy(requestUrl?: URL): string {
     "font-src 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "frame-src 'none'",
+    `frame-src ${allowSameOriginFrames ? "'self'" : "'none'"}`,
     "img-src 'self' http: https:",
     "manifest-src 'none'",
     "media-src 'none'",

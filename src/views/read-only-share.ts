@@ -1,13 +1,34 @@
-import type { WorkspaceSnapshot } from "../domain/workspace";
+import type { ProjectFile, WorkspaceSnapshot } from "../domain/workspace";
 import { escapeHtml } from "./shared";
 
-export function renderReadOnlySharePage(snapshot: WorkspaceSnapshot): string {
-  const files = snapshot.files
+export type ReadOnlyShareView =
+  | { readonly kind: "pdf" }
+  | { readonly kind: "markdown" }
+  | { readonly kind: "file"; readonly file: ProjectFile };
+
+export function resolveReadOnlyShareView(snapshot: WorkspaceSnapshot, requestedView: string | null): ReadOnlyShareView {
+  if (requestedView === "markdown") return { kind: "markdown" };
+  if (requestedView?.startsWith("file:")) {
+    const file = snapshot.files.find((candidate) => candidate.id === requestedView.slice("file:".length));
+    if (file) return { kind: "file", file };
+  }
+  return { kind: "pdf" };
+}
+
+export function renderReadOnlySharePage(snapshot: WorkspaceSnapshot, sharePath: string, requestedView: string | null): string {
+  const view = resolveReadOnlyShareView(snapshot, requestedView);
+  const files = [...snapshot.files].sort((left, right) => left.path.localeCompare(right.path));
+  const pdfPath = `${sharePath}/document.pdf`;
+  const selectedValue = view.kind === "file" ? `file:${view.file.id}` : view.kind;
+  const fileOptions = files
     .map(
-      (file) => `<details class="border-b border-app-line py-3">
-        <summary class="cursor-pointer font-sans text-xs font-bold text-app-ink">${escapeHtml(file.path)}</summary>
-        <pre class="mt-3 overflow-x-auto whitespace-pre-wrap bg-app-surface p-4 text-xs leading-5"><code>${escapeHtml(file.content)}</code></pre>
-      </details>`,
+      (file) =>
+        `<option value="file:${escapeHtml(file.id)}"${selectedValue === `file:${file.id}` ? " selected" : ""}>${escapeHtml(file.path)}</option>`,
+    )
+    .join("");
+  const fileLinks = files
+    .map((file) =>
+      navigationLink(`?view=${encodeURIComponent(`file:${file.id}`)}`, file.path, view.kind === "file" && view.file.id === file.id),
     )
     .join("");
 
@@ -22,25 +43,76 @@ export function renderReadOnlySharePage(snapshot: WorkspaceSnapshot): string {
   </head>
   <body class="min-h-screen bg-app-canvas text-app-text antialiased">
     <header class="border-b border-app-line bg-app-canvas">
-      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
+      <div class="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5">
         <span class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink">KIRJOLAB</span>
         <span class="count-badge">Read-only link</span>
       </div>
     </header>
-    <main class="mx-auto grid max-w-6xl gap-8 px-5 py-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
-      <article class="min-w-0 border border-app-line bg-app-paper p-6 shadow-sm sm:p-10">
-        <p class="eyebrow">Shared manuscript</p>
-        <h1 class="mt-2 text-3xl font-semibold tracking-[-0.04em] text-app-ink">${escapeHtml(snapshot.title)}</h1>
-        <p class="mt-2 font-sans text-xs text-app-text-soft">Live view · revision ${snapshot.revision}</p>
-        <pre class="mt-8 whitespace-pre-wrap font-serif text-base leading-7 text-app-text"><code>${escapeHtml(snapshot.composition.content)}</code></pre>
-      </article>
+    <main class="mx-auto grid max-w-7xl gap-6 px-5 py-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-8 lg:py-8">
       <aside class="min-w-0 lg:sticky lg:top-6 lg:self-start">
-        <p class="eyebrow">Project source</p>
-        <h2 class="mt-1 text-lg font-semibold text-app-ink">Files</h2>
-        <p class="mt-2 font-sans text-xs leading-5 text-app-text-soft">You can inspect the composed Markdown and its source files, but this link cannot edit them or access private research.</p>
-        <div class="mt-4">${files}</div>
+        <p class="eyebrow">Shared project</p>
+        <h1 class="mt-1 text-2xl font-semibold tracking-[-0.04em] text-app-ink">${escapeHtml(snapshot.title)}</h1>
+        <p class="mt-2 font-sans text-xs leading-5 text-app-text-soft">Live view · revision ${snapshot.revision} · No editing or private research access</p>
+
+        <form class="mt-5 flex gap-2 lg:hidden" method="get">
+          <label class="sr-only" for="shared-view-switcher">Shared project view</label>
+          <select class="workspace-switcher min-w-0 flex-1" id="shared-view-switcher" name="view">
+            <optgroup label="Output">
+              <option value="pdf"${selectedValue === "pdf" ? " selected" : ""}>Rendered PDF</option>
+              <option value="markdown"${selectedValue === "markdown" ? " selected" : ""}>Composed Markdown</option>
+            </optgroup>
+            <optgroup label="Project files">${fileOptions}</optgroup>
+          </select>
+          <button class="button-secondary shrink-0" type="submit">View</button>
+        </form>
+
+        <nav class="mt-6 hidden border-t border-app-line lg:block" aria-label="Shared project files">
+          <p class="eyebrow py-3">Output</p>
+          <div class="grid gap-1">
+            ${navigationLink("?view=pdf", "Rendered PDF", view.kind === "pdf")}
+            ${navigationLink("?view=markdown", "Composed Markdown", view.kind === "markdown")}
+          </div>
+          <div class="mt-5 flex items-center justify-between border-t border-app-line py-3">
+            <p class="eyebrow">Project files</p>
+            <span class="count-badge">${files.length}</span>
+          </div>
+          <div class="grid gap-1">${fileLinks}</div>
+        </nav>
       </aside>
+
+      <section class="min-w-0 overflow-hidden border border-app-line bg-app-paper shadow-sm" aria-live="polite">
+        <header class="flex min-h-16 items-center justify-between gap-4 border-b border-app-line px-5 py-3">
+          <div class="min-w-0">
+            <p class="eyebrow">${view.kind === "file" ? "Project file" : "Output"}</p>
+            <h2 class="mt-1 truncate text-lg font-semibold text-app-ink">${escapeHtml(viewTitle(view))}</h2>
+          </div>
+          ${view.kind === "pdf" ? `<a class="button-secondary shrink-0" href="${escapeHtml(pdfPath)}" target="_blank" rel="noreferrer">Open PDF</a>` : ""}
+        </header>
+        ${renderSharedContent(view, snapshot, pdfPath)}
+      </section>
     </main>
   </body>
 </html>`;
+}
+
+function navigationLink(href: string, label: string, active: boolean): string {
+  return `<a class="project-file-row${active ? " bg-app-accent-ghost text-app-accent-strong" : ""}" href="${escapeHtml(href)}"${active ? ' aria-current="page"' : ""}><span class="min-w-0 truncate">${escapeHtml(label)}</span>${active ? '<span class="project-file-kind">Viewing</span>' : ""}</a>`;
+}
+
+function viewTitle(view: ReadOnlyShareView): string {
+  if (view.kind === "pdf") return "Rendered PDF";
+  if (view.kind === "markdown") return "Composed Markdown";
+  return view.file.path;
+}
+
+function renderSharedContent(view: ReadOnlyShareView, snapshot: WorkspaceSnapshot, pdfPath: string): string {
+  if (view.kind === "pdf") {
+    return `<div class="bg-app-pdf-surround p-3 sm:p-5">
+      <iframe class="h-[75vh] min-h-[36rem] w-full border border-app-line bg-app-paper" id="shared-pdf-viewer" src="${escapeHtml(pdfPath)}" title="Rendered PDF for ${escapeHtml(snapshot.title)}">
+        <p class="p-5 font-sans text-sm">Your browser cannot display this PDF. <a class="text-app-accent-strong underline" href="${escapeHtml(pdfPath)}">Open the rendered PDF</a>.</p>
+      </iframe>
+    </div>`;
+  }
+  const content = view.kind === "markdown" ? snapshot.composition.content : view.file.content;
+  return `<pre class="min-h-[36rem] overflow-x-auto whitespace-pre-wrap p-5 font-serif text-sm leading-7 text-app-text sm:p-8"><code>${escapeHtml(content)}</code></pre>`;
 }

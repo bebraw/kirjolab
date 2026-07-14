@@ -32,9 +32,13 @@ Owners need a minimal way to grant access to a known collaborator.
   starter projects receive a persisted random UUID mapped to their internal
   storage key. The mapping is returned only after bearer-token validation.
 - A valid `/share/{workspace-id}.{secret}` request bypasses identity login only
-  for a server-rendered live manuscript view. The view includes composed
-  Markdown and project source files, but no member identities, private research,
-  project APIs, exports, PDFs, history, comments, or collaboration channel.
+  for a server-rendered live project viewer. Its navigator exposes the current
+  rendered PDF output by default, composed Markdown, and individual authored
+  project files. It includes no member identities, private research, project
+  APIs, stored PDFs, other exports, history, comments, or collaboration channel.
+- `GET /share/{workspace-id}.{secret}/document.pdf` revalidates the same bearer
+  secret before reading the mapped document and renders the canonical bounded
+  PDF on demand with inline, no-store, same-origin-only response headers.
 - Read-only link secrets contain 256 random bits. Only their SHA-256 hashes are
   persisted, rotating a link invalidates its predecessor, and HTML responses
   use `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
@@ -88,7 +92,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Owners can create, rotate, and revoke a read-only bearer link.
 - [x] Owner-scoped starter projects can be shared without exposing an owner
       storage key or colliding with another owner's starter project.
-- [x] A read-only link exposes only composed Markdown and project source files.
+- [x] A read-only link exposes only the current rendered PDF, composed Markdown,
+      and individual authored project files through clear output/file navigation.
 - [x] Owner and member records retain stable opaque person identities across
       Durable Object reconstruction.
 - [x] Invited collaborators discover and open the shared workspace.
@@ -128,6 +133,9 @@ Owners need a minimal way to grant access to a known collaborator.
   the same not-found response.
 - Public share locators must not expose owner-derived storage keys, and target
   mappings must not be returned before bearer-token validation succeeds.
+- Every shared PDF request must independently validate the current bearer token
+  before reading document state or rendering output; rotation and revocation
+  invalidate both the viewer and PDF URL.
 - Read-only link pages must not load the authenticated application client or
   expose a workspace API, WebSocket, private research, or mutation control.
 
@@ -158,8 +166,9 @@ Owners need a minimal way to grant access to a known collaborator.
 
 - Given: the owner has created a current read-only link
 - When: a reviewer follows it without a Kirjolab identity
-- Then: Kirjolab renders the live composed Markdown and project source with
-  no editing, collaboration, export, member, or private-research capability
+- Then: Kirjolab opens the current rendered PDF and lets the reviewer navigate
+  to composed Markdown or individual project files with no editing,
+  collaboration, general export, member, or private-research capability
 
 **Scenario: Owner rotates or revokes a read-only link**
 

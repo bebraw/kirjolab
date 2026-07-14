@@ -24,10 +24,13 @@ ADR-095 refines locator routing for owner-scoped workspace identities while
 preserving this token, rendering, and revocation contract.
 
 Resolve valid links before identity authentication, then render a dedicated
-server-side page from the current project snapshot. Expose only the composed
-Markdown and authored project files. Do not load the authenticated
-client application or expose member identities, private-library material,
-project PDFs, comments, history, exports, API access, or a WebSocket.
+server-side project viewer from the current project snapshot. Default to the
+canonical bounded PDF rendering and provide explicit navigation to the composed
+Markdown and each authored project file. Serve the PDF from a share-scoped
+subroute that independently revalidates the bearer secret and sends inline,
+no-store, same-origin-only headers. Do not load the authenticated client
+application or expose member identities, private-library material, stored PDFs,
+comments, history, other exports, API access, or a WebSocket.
 
 Return the link only when it is created. Later status reads reveal whether a
 link is active and when it was created, but cannot recover the secret. Send the
@@ -47,10 +50,12 @@ collaboration.
 
 **Positive:**
 
-- Reviewers can inspect live composed Markdown without gaining edit capability.
+- Reviewers can inspect the rendered result, composed Markdown, and its authored
+  sources without gaining edit capability.
 - Rotation and revocation contain forwarded or accidentally disclosed links.
 - A storage leak does not reveal usable share URLs.
-- The public surface stays small and independent from the authenticated app.
+- The public surface stays small and independent from the authenticated app;
+  navigation uses ordinary server-rendered GET requests.
 
 **Negative:**
 
@@ -59,6 +64,8 @@ collaboration.
   plaintext secret cannot be recovered later.
 - Hosted routing needs a narrow Cloudflare Access bypass policy for the share
   path.
+- Opening the shared viewer renders the PDF through an additional authenticated
+  share request and incurs its bounded generation cost.
 
 **Neutral:**
 

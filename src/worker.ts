@@ -1,8 +1,10 @@
 import { createHealthResponse } from "./api/health";
 import { handleBackupApi } from "./api/backups";
+import { renderExportPdf } from "./api/export-artifacts";
 import { handleWorkspaceApi } from "./api/workspace";
 import { handleReferenceLibraryApi } from "./api/reference-library";
 import { exampleRoutes } from "./app-routes";
+import { buildExportBundle } from "./domain/export-pipeline";
 import { DocumentRoom } from "./durable-objects/document-room";
 import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
 import { WorkspaceAccess } from "./durable-objects/workspace-access";
@@ -50,7 +52,7 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return createHealthResponse(exampleRoutes.map((route) => route.path));
   }
 
-  const readOnlyShare = /^\/share\/([a-z0-9-]{1,64})\.([A-Za-z0-9_-]{43})$/u.exec(url.pathname);
+  const readOnlyShare = /^\/share\/([a-z0-9-]{1,64})\.([A-Za-z0-9_-]{43})(\/document\.pdf)?$/u.exec(url.pathname);
   if (readOnlyShare?.[1] && readOnlyShare[2]) {
     if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
@@ -59,7 +61,11 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     if (!resolved.valid) return htmlResponse(renderNotFoundPage("/share"), 404, url);
     const target = resolved.target ?? { storageKey: locator, workspaceId: locator };
     const snapshot = await env.DOCUMENT_ROOMS.getByName(target.storageKey).getSnapshot(target.workspaceId);
-    return htmlResponse(renderReadOnlySharePage(snapshot), 200, url);
+    if (readOnlyShare[3]) return sharedPdfResponse(await renderExportPdf(buildExportBundle(snapshot)));
+    const sharePath = `/share/${locator}.${readOnlyShare[2]}`;
+    return htmlResponse(renderReadOnlySharePage(snapshot, sharePath, url.searchParams.get("view")), 200, url, {
+      allowSameOriginFrames: true,
+    });
   }
 
   let identity: AuthIdentity = { subject: "test", email: "local@kirjolab.invalid", ownerKey: "local", mode: "local" };
@@ -104,6 +110,22 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   }
 
   return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+}
+
+function sharedPdfResponse(body: Uint8Array): Response {
+  const bytes = new Uint8Array(body);
+  return new Response(bytes, {
+    headers: {
+      "content-type": "application/pdf",
+      "content-length": String(bytes.byteLength),
+      "content-disposition": 'inline; filename="kirjolab-document.pdf"',
+      "cache-control": "no-store",
+      "content-security-policy": "frame-ancestors 'self'",
+      "cross-origin-resource-policy": "same-origin",
+      "referrer-policy": "no-referrer",
+      "x-content-type-options": "nosniff",
+    },
+  });
 }
 
 export async function runScheduledBackups(env: Env): Promise<void> {

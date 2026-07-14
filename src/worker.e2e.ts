@@ -19,13 +19,35 @@ test("creates, rotates, and revokes a read-only project link", async ({ page }) 
   const shared = await page.request.get(first.href);
   expect(shared.status()).toBe(200);
   expect(shared.headers()["referrer-policy"]).toBe("no-referrer");
-  expect(await shared.text()).toContain("Link review");
+  expect(shared.headers()["content-security-policy"]).toContain("frame-src 'self'");
+  const sharedHtml = await shared.text();
+  expect(sharedHtml).toContain("Link review");
+  expect(sharedHtml).toContain(`id="shared-pdf-viewer" src="${first.href}/document.pdf"`);
+
+  const pdf = await page.request.get(`${first.href}/document.pdf`);
+  expect(pdf.status()).toBe(200);
+  expect(pdf.headers()["content-type"]).toContain("application/pdf");
+  expect(pdf.headers()["content-disposition"]).toContain("inline");
+  expect((await pdf.body()).toString("ascii", 0, 4)).toBe("%PDF");
+
+  const markdown = await page.request.get(`${first.href}?view=markdown`);
+  expect(markdown.status()).toBe(200);
+  expect(await markdown.text()).toContain('href="?view=markdown" aria-current="page"');
+  const project = (await (await page.request.get(`/api/workspaces/${workspaceId}`)).json()) as {
+    files: Array<{ id: string; path: string }>;
+  };
+  const mainFile = project.files.find((file) => file.path === "main.md");
+  expect(mainFile).toBeDefined();
+  const source = await page.request.get(`${first.href}?view=${encodeURIComponent(`file:${mainFile!.id}`)}`);
+  expect(source.status()).toBe(200);
+  expect(await source.text()).toContain(`href="?view=file%3A${mainFile!.id}" aria-current="page"`);
 
   const rotated = await page.request.post(api, { headers });
   expect(rotated.status()).toBe(201);
   const invalidated = await page.request.get(first.href);
   expect(invalidated.status()).toBe(404);
   expect(await invalidated.text()).not.toContain(first.href);
+  expect((await page.request.get(`${first.href}/document.pdf`)).status()).toBe(404);
   const second = (await rotated.json()) as { href: string };
   expect((await page.request.get(second.href)).status()).toBe(200);
 
