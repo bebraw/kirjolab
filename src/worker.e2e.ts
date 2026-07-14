@@ -3,7 +3,7 @@ import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/kn
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf, createMetadataEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
 
-test("opens the private library without bootstrapping a project", async ({ page }) => {
+test("imports, annotates, and exports a private PDF without a project", async ({ page }) => {
   const workspaceRequests: string[] = [];
   page.on("request", (request) => {
     const pathname = new URL(request.url()).pathname;
@@ -18,6 +18,36 @@ test("opens the private library without bootstrapping a project", async ({ page 
   await expect(page.locator("#authoring-surface")).toBeHidden();
   await expect(page.getByText("Add reference", { exact: true })).toBeVisible();
   await expect(page.getByTitle(/^Add :cite/u)).toHaveCount(0);
+
+  await page.locator("#library-pdf-upload").setInputFiles({
+    name: "student_submission.pdf",
+    mimeType: "application/pdf",
+    buffer: createEvidencePdf(),
+  });
+  const studentPdf = page.locator("#reference-library-list .library-reference-row").filter({ hasText: /student submission/iu });
+  await expect(studentPdf).toBeVisible();
+  await studentPdf.getByRole("button", { name: "PDF", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "student_submission.pdf" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
+  await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
+  await expect(page.getByRole("button", { name: "Export annotated" })).toBeDisabled();
+  await page.locator("#paper-text-layer").evaluate((layer) => {
+    const span = layer.querySelector("span");
+    if (!span?.firstChild) throw new Error("Expected rendered student PDF text");
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+  });
+  await page.locator("#library-highlight-comment").fill("Student feedback");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator("#library-highlight-list")).toContainText("Student feedback");
+  await expect(page.getByRole("button", { name: "Export annotated" })).toBeEnabled();
+  const annotatedDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export annotated" }).click();
+  await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("student_submission-annotated.pdf");
   expect(workspaceRequests).toEqual([]);
 });
 
