@@ -1134,16 +1134,20 @@
   }
 
   .collaborator-caret {
+    display: inline-block;
     position: relative;
+    width: 0;
+    height: 1.2em;
+    vertical-align: -0.2em;
   }
 
   .collaborator-caret::before {
     position: absolute;
     z-index: 2;
-    inset-block-start: -1.42em;
+    inset-block-start: 0;
     inset-inline-start: -1px;
     width: 2px;
-    height: 1.65em;
+    height: 100%;
     border-radius: 2px;
     background: var(--collaborator-color);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-app-paper) 55%, transparent);
@@ -1153,7 +1157,7 @@
   .collaborator-caret::after {
     position: absolute;
     z-index: 2;
-    inset-block-start: -1.42em;
+    inset-block-start: 0;
     inset-inline-start: -2px;
     width: 0.38rem;
     height: 0.2rem;

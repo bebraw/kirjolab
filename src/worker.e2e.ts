@@ -137,7 +137,7 @@ test("creates, edits through, rotates, and revokes a scoped edit link", async ({
     textarea.setSelectionRange(2, 2);
     textarea.dispatchEvent(new Event("select", { bubbles: true }));
   });
-  await expect(page.locator("#source-editor-highlight .collaborator-caret")).toHaveCount(1);
+  await expectCollaboratorCaretAligned(page.locator("#source-editor-highlight .collaborator-caret"));
 
   await page.locator("#source-editor").evaluate((element) => {
     const textarea = element as HTMLTextAreaElement;
@@ -145,7 +145,7 @@ test("creates, edits through, rotates, and revokes a scoped edit link", async ({
     textarea.setSelectionRange(4, 4);
     textarea.dispatchEvent(new Event("select", { bubbles: true }));
   });
-  await expect(editor.locator("#edit-source-highlight .collaborator-caret")).toHaveCount(1);
+  await expectCollaboratorCaretAligned(editor.locator("#edit-source-highlight .collaborator-caret"));
 
   await editor.locator("#edit-source").fill("# Edited externally\n\nA scoped link update.\n");
   await expect(editor.locator("#edit-save-status")).toHaveText(`Saved · revision ${editSnapshot.revision + 1}`);
@@ -1357,14 +1357,8 @@ test("converges source edits across two writers", async ({ page, context }) => {
     element.dispatchEvent(new Event("select", { bubbles: true }));
   }, selectedText);
   const remoteCaret = collaborator.locator("#source-editor-highlight .collaborator-caret");
-  await expect(remoteCaret).toHaveCount(1);
   await expect(remoteCaret).toHaveAttribute("data-collaborator-color", /^[0-3]$/u);
-  expect(
-    await remoteCaret.evaluate((element) => {
-      const style = getComputedStyle(element, "::before");
-      return parseFloat(style.height) > 20 && style.width === "2px" && style.backgroundColor !== "rgba(0, 0, 0, 0)";
-    }),
-  ).toBe(true);
+  await expectCollaboratorCaretAligned(remoteCaret);
 
   await page.locator("#source-editor").evaluate((element: HTMLTextAreaElement, text: string) => {
     const start = element.value.indexOf(text);
@@ -2758,6 +2752,37 @@ async function expectEditorSelection(editor: Locator, start: number, text: strin
         })),
     )
     .toEqual({ start, end: start + text.length, text });
+}
+
+async function expectCollaboratorCaretAligned(caretLocator: Locator): Promise<void> {
+  await expect(caretLocator).toHaveCount(1);
+  const geometry = await caretLocator.evaluate((element) => {
+    const style = getComputedStyle(element, "::before");
+    const line = element.parentElement!;
+    const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+    let adjacentText: Text | null = null;
+    while (walker.nextNode()) {
+      const text = walker.currentNode as Text;
+      if (text.length > 0 && element.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING) {
+        adjacentText = text;
+        break;
+      }
+    }
+    if (!adjacentText) throw new Error("Expected rendered text after collaborator caret");
+    const glyphRange = document.createRange();
+    glyphRange.setStart(adjacentText, 0);
+    glyphRange.setEnd(adjacentText, 1);
+    const caret = element.getBoundingClientRect();
+    const glyph = glyphRange.getBoundingClientRect();
+    return {
+      visible: parseFloat(style.height) > 14 && style.width === "2px" && style.backgroundColor !== "rgba(0, 0, 0, 0)",
+      caret: { top: caret.top, bottom: caret.bottom },
+      glyph: { top: glyph.top, bottom: glyph.bottom },
+    };
+  });
+  expect(geometry.visible).toBe(true);
+  expect(Math.abs(geometry.caret.top - geometry.glyph.top)).toBeLessThanOrEqual(3);
+  expect(Math.abs(geometry.caret.bottom - geometry.glyph.bottom)).toBeLessThanOrEqual(3);
 }
 
 async function openResearchCollection(page: Page, name: string): Promise<void> {

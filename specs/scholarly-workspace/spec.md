@@ -290,6 +290,8 @@ mode for authenticated hosted collaboration.
       presence within the editor without entering canonical source or durable
       project state; equivalent location text remains available to assistive
       technology.
+- [x] Collaborator carets align with the adjacent mirrored glyph box instead of
+      extending into the leading between visual editor rows.
 - [x] Collaborators can create, navigate, and resolve attributed range-anchored
       comments without mutating Markdown.
 - [x] Comments use a dedicated left-rail mode instead of an editor-bottom
