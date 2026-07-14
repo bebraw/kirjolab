@@ -103,7 +103,7 @@ unfinished`;
     expect(renderWorkspaceMarkdown("", "")).toEqual({ html: "", diagnostics: [] });
   });
 
-  it("renders the documented GFM surface through Satteri", () => {
+  it("renders the documented GFM surface through the JavaScript pipeline", () => {
     const source = `---
 title: Hidden frontmatter
 ---
@@ -163,9 +163,9 @@ content
       "",
     );
 
-    expect(rendered.html).toContain('&lt;img src=x onerror="alert(1)"&gt;');
+    expect(rendered.html).toContain('&#x3C;img src=x onerror="alert(1)">');
     expect(rendered.html).not.toContain("<img src=x onerror");
-    expect(rendered.html).toContain('&lt;button type="button" onclick="alert(1)"&gt;authored&lt;/button&gt;');
+    expect(rendered.html).toContain('&#x3C;button type="button" onclick="alert(1)">authored&#x3C;/button>');
     expect(rendered.html).not.toContain('<button type="button" onclick=');
     expect(rendered.html).not.toContain("javascript:");
     expect(rendered.html).not.toContain("data:image");

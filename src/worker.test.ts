@@ -12,9 +12,10 @@ describe("worker", () => {
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin");
-    expect(response.headers.get("cross-origin-embedder-policy")).toBe("require-corp");
+    expect(response.headers.get("cross-origin-embedder-policy")).toBeNull();
     expect(response.headers.get("content-security-policy")).toContain("connect-src 'self' ws://example.com");
-    expect(response.headers.get("content-security-policy")).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(response.headers.get("content-security-policy")).toContain("script-src 'self'");
+    expect(response.headers.get("content-security-policy")).not.toContain("wasm-unsafe-eval");
 
     const body = await response.text();
     expect(body).toContain("KIRJOLAB");
@@ -158,13 +159,6 @@ describe("worker", () => {
     await expect(response.text()).resolves.toBe("export {};");
   });
 
-  it("requires runtime assets for Satteri browser modules", async () => {
-    const response = await handleRequest(new Request("http://example.com/satteri_napi.wasm32-wasi.wasm"));
-
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
-  });
-
   it("requires runtime assets for the lazy PDF.js module", async () => {
     const response = await handleRequest(new Request("http://example.com/pdfjs-module-6.1.200.js"));
 
@@ -173,7 +167,7 @@ describe("worker", () => {
   });
 
   it("requires runtime assets for the lazy Markdown module", async () => {
-    const response = await handleRequest(new Request("http://example.com/markdown-module-0.9.5.js"));
+    const response = await handleRequest(new Request("http://example.com/markdown-module-1.js"));
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });

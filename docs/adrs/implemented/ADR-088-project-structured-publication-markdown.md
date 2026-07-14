@@ -6,15 +6,15 @@
 
 ## Context
 
-Kirjolab keeps portable Markdown canonical and uses Satteri as the browser
-preview parser. Publication export instead runs inside a bounded Worker and
+Kirjolab keeps portable Markdown canonical and uses a dedicated browser preview
+parser. Publication export instead runs inside a bounded Worker and
 currently converts the composed manuscript one line at a time. That path
 correctly consumes Kirjolab citations, references, and transclusion directives,
 but prints supported Markdown tables and footnote definitions as source syntax.
 
 Export needs deterministic table and footnote semantics without introducing a
-second canonical document model, executing authored TeX, or requiring Satteri's
-threaded browser runtime in the Worker.
+second canonical document model, executing authored TeX, or requiring the
+browser preview pipeline in the Worker.
 
 ## Decision
 
@@ -54,8 +54,8 @@ preserved by independent line substitutions.
 
 - LaTeX and PDF agree on which tables and footnotes exist and how they are
   numbered.
-- Canonical Markdown stays portable and preview parsing remains owned by
-  Satteri.
+- Canonical Markdown stays portable and preview parsing remains owned by the
+  browser pipeline.
 - The Worker renderer remains deterministic, network-free, and unable to run
   authored TeX.
 
@@ -75,9 +75,9 @@ preserved by independent line substitutions.
 
 ### Run the browser preview parser in the Worker
 
-Satteri remains the preview oracle, but its current threaded WASM runtime is not
-available in the Worker export path. Replatforming it would couple this focused
-fidelity fix to a larger runtime decision.
+The live preview pipeline remains a browser boundary and is not part of the
+Worker export path. Reusing it here would couple this focused fidelity fix to a
+larger runtime decision.
 
 ### Maintain independent LaTeX and PDF recognizers
 

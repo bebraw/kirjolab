@@ -19,8 +19,8 @@ is supported on macOS.
 - Organize several isolated writing projects under stable URLs.
 - Invite collaborators with owner or member access through Cloudflare Access.
 - Create separate revocable review and edit links for external manuscript collaborators.
-- Preview standard Markdown, GFM, and scientific-writing syntax through
-  Satteri.
+- Preview standard Markdown, GFM, and scientific-writing syntax through a
+  local pure-JavaScript pipeline.
 - Import PDFs, highlight passages, and link evidence back to manuscript text.
 - Import BibTeX, enrich references through Crossref, and review DOI metadata
   before associating it with a PDF.

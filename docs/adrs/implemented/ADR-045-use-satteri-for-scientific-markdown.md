@@ -1,6 +1,6 @@
 # ADR-045: Use Satteri for Scientific Markdown
 
-**Status:** Implemented
+**Status:** Superseded by [ADR-102](./ADR-102-use-javascript-for-live-markdown-preview.md)
 
 **Date:** 2026-07-10
 

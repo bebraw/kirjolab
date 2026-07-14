@@ -2,7 +2,7 @@ export function htmlResponse(
   body: string,
   status = 200,
   requestUrl?: URL,
-  options: { readonly allowSameOriginFrames?: boolean; readonly crossOriginIsolated?: boolean } = {},
+  options: { readonly allowSameOriginFrames?: boolean } = {},
 ): Response {
   const headers: Record<string, string> = {
     "content-type": "text/html; charset=utf-8",
@@ -11,8 +11,6 @@ export function htmlResponse(
     "content-security-policy": contentSecurityPolicy(requestUrl, options.allowSameOriginFrames === true),
     "cross-origin-opener-policy": "same-origin",
   };
-  if (options.crossOriginIsolated !== false) headers["cross-origin-embedder-policy"] = "require-corp";
-
   return new Response(body, {
     status,
     headers,
@@ -44,7 +42,7 @@ function contentSecurityPolicy(requestUrl?: URL, allowSameOriginFrames = false):
     "manifest-src 'none'",
     "media-src 'none'",
     "object-src 'none'",
-    "script-src 'self' 'wasm-unsafe-eval'",
+    "script-src 'self'",
     "style-src 'self'",
     "style-src-attr 'unsafe-inline'",
     "worker-src 'self'",

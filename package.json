@@ -38,14 +38,13 @@
     ]
   },
   "scripts": {
-    "build": "npm run build:css && npm run build:client && npm run build:markdown-runtime && npm run build:pdf-runtime && npm run build:pdf-worker && npm run build:satteri-assets",
+    "build": "npm run build:css && npm run build:client && npm run build:markdown-runtime && npm run build:pdf-runtime && npm run build:pdf-worker",
     "build:client": "mkdir -p ./.generated && esbuild src/client/app.ts --bundle --format=esm --target=es2022 --minify --outfile=.generated/app.txt",
     "build:css": "mkdir -p ./.generated && tailwindcss -i ./src/tailwind-input.css -o ./.generated/styles.css --minify",
     "build:model-companion": "mkdir -p ./.generated && esbuild src/model-companion.ts --bundle --platform=node --format=esm --target=node24 --outfile=.generated/model-companion.mjs",
-    "build:markdown-runtime": "mkdir -p ./.generated/assets && esbuild src/domain/markdown.ts --bundle --format=esm --target=es2022 --minify --outfile=.generated/assets/markdown-module-0.9.5.js",
+    "build:markdown-runtime": "mkdir -p ./.generated/assets && rm -f ./.generated/assets/markdown-module-0.9.5.js ./.generated/assets/satteri_napi.wasm32-wasi.wasm ./.generated/assets/satteri-wasi-worker.mjs && esbuild src/domain/markdown.ts --bundle --format=esm --target=es2022 --minify --outfile=.generated/assets/markdown-module-1.js",
     "build:pdf-runtime": "mkdir -p ./.generated/assets && esbuild node_modules/pdfjs-dist/build/pdf.mjs --bundle --format=esm --target=es2022 --minify --outfile=.generated/assets/pdfjs-module-6.1.200.js",
     "build:pdf-worker": "mkdir -p ./.generated && esbuild node_modules/pdfjs-dist/build/pdf.worker.mjs --bundle --format=esm --target=es2022 --minify --outfile=.generated/pdf-worker.txt",
-    "build:satteri-assets": "mkdir -p ./.generated/assets && cp vendor/satteri-wasm32-wasi/satteri_napi.wasm32-wasi.wasm ./.generated/assets/satteri_napi.wasm32-wasi.wasm && esbuild vendor/satteri-wasm32-wasi/wasi-worker-browser.mjs --bundle --platform=browser --format=esm --target=es2022 --minify --outfile=.generated/assets/satteri-wasi-worker.mjs",
     "ci:local": "node ./scripts/run-local-ci.mjs",
     "ci:local:retry": "agent-ci retry",
     "deploy": "node ./scripts/deploy-production.mjs",
@@ -72,7 +71,7 @@
     "test": "vitest run --passWithNoTests",
     "test:affected": "node ./scripts/run-affected-tests.mjs",
     "test:coverage": "node ./scripts/run-coverage-gate.mjs",
-    "test:workers": "npm run build:satteri-assets && vitest run --config vitest.workers.config.mts",
+    "test:workers": "vitest run --config vitest.workers.config.mts",
     "typecheck": "node ./node_modules/typescript-7/bin/tsc --noEmit && node ./node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.client.json && npm run typecheck:workers",
     "typecheck:workers": "node ./node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.workers-test.json",
     "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs"
@@ -100,14 +99,18 @@
     "wrangler": "4.100.0"
   },
   "dependencies": {
-    "@bruits/satteri-wasm32-wasi": "file:vendor/satteri-wasm32-wasi",
-    "@emnapi/core": "1.11.1",
-    "@emnapi/runtime": "1.11.1",
-    "@napi-rs/wasm-runtime": "1.1.6",
     "fflate": "0.8.3",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.1.200",
-    "satteri": "0.9.5",
+    "rehype-sanitize": "6.0.0",
+    "rehype-stringify": "10.0.1",
+    "remark-directive": "4.0.0",
+    "remark-frontmatter": "5.0.0",
+    "remark-gfm": "4.0.1",
+    "remark-parse": "11.0.0",
+    "remark-rehype": "11.1.2",
+    "unified": "11.0.5",
+    "unist-util-visit": "5.0.0",
     "yjs": "13.6.31"
   }
 }

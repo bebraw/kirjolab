@@ -40,7 +40,7 @@ If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` t
   long operations, isolated parallel jobs, and pause-on-failure using
   `npm run ci:local`.
 - Rebuild the generated stylesheet manually with `npm run build:css`.
-- Rebuild the pinned Satteri WASM and helper-worker deployment assets with `npm run build:satteri-assets`.
+- Rebuild the versioned JavaScript Markdown runtime with `npm run build:markdown-runtime`.
 - Run the fast local gate with `npm run quality:gate:fast`.
 - Run the baseline quality gate with `npm run quality:gate`.
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
@@ -123,9 +123,8 @@ so the template remains usable before a project adds its first test file.
 Durable Object integration tests use the separate
 `vitest.workers.config.mts`, select `src/**/*.workers.test.ts`, and receive their
 test-only types through `tsconfig.workers-test.json`. Run them with
-`npm run test:workers`; the command first rebuilds the Satteri deployment assets
-referenced by `wrangler.jsonc` before the Cloudflare Vitest integration starts a
-local `workerd` runtime. The project pins
+`npm run test:workers`; the Cloudflare Vitest integration starts a local
+`workerd` runtime. The project pins
 `@cloudflare/vitest-pool-workers` 0.18.4 alongside Vitest 4.1.8. Each test gets
 isolated local storage and can use `cloudflare:test` to inspect private Durable
 Object SQLite state or evict an instance while retaining persisted storage.
@@ -139,8 +138,8 @@ is useful for fast feedback but is not sufficient evidence for those platform
 contracts.
 
 `npm run quality:affected` treats Worker-reachable non-client source,
-Workers-test files and configuration, and Satteri deployment-asset inputs as
-Workers test inputs and routes them to `npm run test:workers`. The Node
+Workers-test files and configuration as Workers test inputs and routes them to
+`npm run test:workers`. The Node
 related-test and coverage selectors explicitly exclude `*.workers.test.ts`, so
 an affected run never executes a platform test under the wrong runtime. The
 full readiness gates still run both projects.
@@ -159,7 +158,7 @@ Template update packs live under `.template/updates/`. Use them to port later te
 
 ## Write Boundaries
 
-Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`; generated Satteri WASM and helper-worker deployment assets belong in `.generated/assets/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
+Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`, including versioned Markdown and PDF runtime assets under `.generated/assets/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
 
 When adding a new tool or workflow that writes files, document the target path in the same change and prefer ignored local output unless the artifact is intentionally reviewed.
 

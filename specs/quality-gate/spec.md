@@ -117,8 +117,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The affected guardrail path must run package audit only when package metadata or lockfiles change.
 - The affected guardrail path must skip unit tests when no runtime or unit test files are affected.
 - The affected guardrail path must route Worker-reachable non-client source,
-  Workers test/configuration files, and Satteri deployment-asset inputs to
-  `npm run test:workers`.
+  Workers test files, and Workers test configuration to `npm run test:workers`.
 - The Node affected-test path must never execute `*.workers.test.ts`; those files
   belong exclusively to the Workers runtime project.
 - The affected test path must run full unit coverage when package metadata, TypeScript config, Vitest config, coverage-gate logic, or affected-test logic changes.

@@ -10,16 +10,15 @@ describe("htmlResponse", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(response.headers.get("content-security-policy")).toBe(
-      "default-src 'self'; base-uri 'none'; connect-src 'self' wss://app.example http://127.0.0.1:* https://127.0.0.1:* http://localhost:* https://localhost:*; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' http: https:; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; style-src-attr 'unsafe-inline'; worker-src 'self'",
+      "default-src 'self'; base-uri 'none'; connect-src 'self' wss://app.example http://127.0.0.1:* https://127.0.0.1:* http://localhost:* https://localhost:*; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' http: https:; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; worker-src 'self'",
     );
     expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin");
-    expect(response.headers.get("cross-origin-embedder-policy")).toBe("require-corp");
+    expect(response.headers.get("cross-origin-embedder-policy")).toBeNull();
   });
 
-  it("can omit embedder isolation for browser-native same-origin frames", () => {
+  it("allows browser-native same-origin frames without cross-origin isolation", () => {
     const response = htmlResponse("<iframe></iframe>", 200, new URL("https://app.example/share/token"), {
       allowSameOriginFrames: true,
-      crossOriginIsolated: false,
     });
 
     expect(response.headers.get("content-security-policy")).toContain("frame-src 'self'");

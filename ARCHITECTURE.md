@@ -59,8 +59,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   deltas, and disclose excluded syntax rather than implying a universal
   publisher policy.
 - Treat parsed syntax, previews, Yjs updates, indexes, and model candidates as supporting representations.
-- Parse standard and scientific-writing Markdown through pinned Satteri plugins; keep its syntax tree and HTML derived.
-- Run the current threaded Satteri WASM binding in the cross-origin-isolated browser, not inside a Cloudflare Worker isolate.
+- Parse standard and scientific-writing Markdown through a pinned unified/remark browser pipeline; keep its syntax tree and HTML derived.
+- Keep live preview local and pure JavaScript; do not add request-per-edit Worker rendering without measured revision, network, and CPU evidence.
 - Escape authored raw HTML and sanitize the final preview tree after all syntax plugins; allow only the elements, properties, and URL protocols required by the scientific-writing vocabulary before inserting output into the DOM.
 - Return a restrictive Content Security Policy on application HTML as an independent browser-execution boundary; do not permit inline or evaluated scripts.
 - Coordinate each collaborative composed project through its own SQLite-backed Durable Object.
@@ -165,9 +165,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Send collaboration frames through one guarded boundary that ignores closed
   sockets and confirmed disconnect races while rethrowing every other send
   failure.
-- Serve browser scripts with explicit same-origin resource and embedder policies
-  so module workers remain loadable from cross-origin-isolated application
-  pages.
+- Serve browser scripts with explicit same-origin resource policies so module
+  workers remain loadable without cross-origin fallback behavior.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
 - Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
 - Address public read-only shares through opaque, persisted locators that map
@@ -306,9 +305,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Fallow codebase diagnostics are advisory readability checks for complexity, duplication, dependency hygiene, and cleanup evidence; they do not replace the baseline quality gate.
 - Affected-file guardrails should scope checks to changed files when the underlying tool supports it and fall back to project-level checks only when needed.
 - Affected-file guardrails must route Worker-reachable non-client sources,
-  Workers tests and configuration, and Satteri deployment-asset inputs to the
-  Workers-runtime suite, while keeping `*.workers.test.ts` out of the Node
-  Vitest project.
+  Workers tests, and Workers configuration to the Workers-runtime suite, while
+  keeping `*.workers.test.ts` out of the Node Vitest project.
 - The fast quality gate should fail when Worker/view runtime files contain inline script blocks without a `src`, inline event-handler attributes, or `javascript:` URLs. External scripts must point to an explicit typed client build.
 - Unit coverage for `src/` code should stay high enough that the coverage gate remains green.
 - Local CI should validate the same baseline checks before non-documentation changes are proposed or merged.

@@ -59,7 +59,6 @@ export async function handleEditShareRequest(request: Request, env?: EditShareEn
   if (!match[3] && request.method === "GET") {
     return htmlResponse(renderEditSharePage(snapshot, editPath, url.searchParams.get("file")), 200, url, {
       allowSameOriginFrames: true,
-      crossOriginIsolated: false,
     });
   }
   if (match[3] === "snapshot" && request.method === "GET") return editShareSnapshotResponse(snapshot);

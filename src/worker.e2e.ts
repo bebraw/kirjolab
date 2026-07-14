@@ -479,7 +479,7 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page.getByRole("button", { name: "Project settings" }).click();
   await expect(page.locator("#workspace-settings-dialog")).toBeVisible();
   await page.locator("#close-workspace-settings").click();
-  expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
+  expect(await page.evaluate(() => crossOriginIsolated)).toBe(false);
   await expect(page.locator("#source-editor")).toHaveValue(/## Evidence becomes prose/);
 
   await page.getByRole("tab", { name: "Files" }).click();
@@ -531,13 +531,13 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page
     .locator("#source-editor")
     .fill(
-      "## Evidence becomes prose {#sec-evidence}\n\nA live collaborative note cites prior work :cite[merton1942].[^live]\n\n| State | Result |\n| --- | --- |\n| Shared | **Visible** |\n\n[^live]: Rendered by Satteri.\n",
+      "## Evidence becomes prose {#sec-evidence}\n\nA live collaborative note cites prior work :cite[merton1942].[^live]\n\n| State | Result |\n| --- | --- |\n| Shared | **Visible** |\n\n[^live]: Rendered by Kirjolab.\n",
     );
   await expect(page.locator("#preview")).toContainText("Merton, 1942");
   await expect(page.locator("#diagnostic-summary")).toHaveText("No syntax errors");
   await expect(page.locator("#preview")).toContainText("A live collaborative note cites prior work");
   await expect(page.locator("#preview table")).toContainText("Visible");
-  await expect(page.locator("#preview .footnotes")).toContainText("Rendered by Satteri");
+  await expect(page.locator("#preview .footnotes")).toContainText("Rendered by Kirjolab");
   await expect(page.locator("#preview .section-number").first()).toBeVisible();
   await expect(page.locator("#revision-badge")).not.toHaveText("r0");
 
@@ -2728,22 +2728,12 @@ test("serves stable health and browser assets", async ({ request }) => {
   expect(styles.headers()["content-type"]).toContain("text/css");
   expect(client.headers()["content-type"]).toContain("text/javascript");
 
-  const satteriWasm = await request.get("/satteri_napi.wasm32-wasi.wasm");
-  expect(satteriWasm.ok()).toBe(true);
-  expect(satteriWasm.headers()["content-type"]).toContain("application/wasm");
-  expect(satteriWasm.headers()["cross-origin-resource-policy"]).toBe("same-origin");
-
-  const satteriWorker = await request.get("/satteri-wasi-worker.mjs");
-  expect(satteriWorker.ok()).toBe(true);
-  expect(satteriWorker.headers()["content-type"]).toContain("javascript");
-  expect(await satteriWorker.text()).toContain("MessageHandler");
-
   const pdfRuntime = await request.get("/pdfjs-module-6.1.200.js");
   expect(pdfRuntime.ok()).toBe(true);
   expect(pdfRuntime.headers()["content-type"]).toContain("javascript");
   expect(pdfRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
 
-  const markdownRuntime = await request.get("/markdown-module-0.9.5.js");
+  const markdownRuntime = await request.get("/markdown-module-1.js");
   expect(markdownRuntime.ok()).toBe(true);
   expect(markdownRuntime.headers()["content-type"]).toContain("javascript");
   expect(markdownRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");

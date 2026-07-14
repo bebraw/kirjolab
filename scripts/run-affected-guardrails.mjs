@@ -144,12 +144,7 @@ function affectsUnitCoverage(file) {
 }
 
 function affectsWorkersTests(file) {
-  return (
-    affectsWorkersTestEnvironment(file) ||
-    file.endsWith(".workers.test.ts") ||
-    isWorkersRuntimeSource(file) ||
-    file.startsWith("vendor/satteri-wasm32-wasi/")
-  );
+  return affectsWorkersTestEnvironment(file) || file.endsWith(".workers.test.ts") || isWorkersRuntimeSource(file);
 }
 
 function isWorkersRuntimeSource(file) {

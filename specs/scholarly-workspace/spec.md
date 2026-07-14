@@ -23,10 +23,11 @@ mode for authenticated hosted collaboration.
   and keeps implementation detail in feature documentation rather than the
   task surface.
 - **Browser runtime loading:** The generated application module is minified and
-  excludes Satteri and PDF.js. The immutable versioned
-  `/markdown-module-0.9.5.js` runtime loads concurrently with workspace data;
-  PDF viewing and metadata extraction load `/pdfjs-module-6.1.200.js` on first
-  use. Consumers share each cached module thereafter.
+  excludes the Markdown pipeline and PDF.js. The immutable versioned
+  `/markdown-module-1.js` pure-JavaScript runtime loads concurrently with
+  workspace data; PDF viewing and metadata extraction load
+  `/pdfjs-module-6.1.200.js` on first use. Consumers share each cached module
+  thereafter.
 - **Appearance:** The shell uses one semantic `app-*` token palette with light
   and dark values. Appearance follows the operating-system color scheme by
   default; a browser-local System, Light, or Dark preference may override it
@@ -66,9 +67,10 @@ mode for authenticated hosted collaboration.
   dedicated Cloudflare Vitest project in a real local `workerd` runtime with
   isolated per-test storage. It owns Durable Object migration, transaction,
   RPC, and eviction contracts; Node tests own shared pure-domain behavior.
-- **Document semantics:** Satteri parses standard Markdown and GFM while
-  `src/domain/markdown.ts` adds headings, citations, references, aliases,
-  anchors, validation, and preview security from the scientific-writing syntax.
+- **Document semantics:** A pinned unified/remark pipeline parses standard
+  Markdown and GFM while `src/domain/markdown.ts` adds headings, citations,
+  references, aliases, anchors, validation, and allowlist preview security from
+  the scientific-writing syntax.
 - **Project composition:** One stable root `main.md` composes user-named
   supporting Markdown files through bounded relative `::include[path]`
   directives. Preview and export use the composed source while diagnostics and
@@ -287,8 +289,8 @@ mode for authenticated hosted collaboration.
 - Do not write annotation data into imported PDFs.
 - Do not deploy with local authentication or without a protected Cloudflare
   Access hostname and matching JWT configuration.
-- Do not claim CSL-complete bibliography formatting or direct Worker-side
-  Satteri execution in this slice.
+- Do not claim CSL-complete bibliography formatting or move live Markdown
+  preview to a request-per-edit Worker path without measured justification.
 
 ## Contract
 
@@ -431,8 +433,7 @@ mode for authenticated hosted collaboration.
   runtime's confirmed disconnect error. Unexpected send failures must still
   escape for error telemetry and test failure.
 - `/pdf.worker.js` must load as a real same-origin module worker from the
-  cross-origin-isolated authoring page without a blocked request or fake-worker
-  fallback.
+  authoring page without a blocked request or fake-worker fallback.
 - PDF uploads must require `application/pdf`, a known positive content length,
   and the 25 MB size limit.
 - Annotation creation must require a known PDF, positive page number, exact

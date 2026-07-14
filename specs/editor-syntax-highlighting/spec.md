@@ -18,7 +18,7 @@ preserving the native collaborative textarea and exact source text.
   behind the transparent textarea glyphs. It uses safe text nodes, shows a
   line-number gutter whose rows follow wrapped logical lines, and follows the
   textarea scroll position.
-- **Semantics:** Satteri preview parsing and validation remain authoritative;
+- **Semantics:** unified/remark preview parsing and validation remain authoritative;
   highlight classes are visual hints only.
 
 ### Highlighted Syntax

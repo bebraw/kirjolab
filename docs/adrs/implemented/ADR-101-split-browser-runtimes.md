@@ -1,6 +1,6 @@
 # ADR-101: Split Optional Browser Runtimes
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-102](./ADR-102-use-javascript-for-live-markdown-preview.md)
 
 **Date:** 2026-07-14
 

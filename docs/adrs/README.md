@@ -85,7 +85,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-042](./implemented/ADR-042-use-per-owner-workspace-catalogs.md)                  | Implemented          | Discover isolated document rooms through a separate SQLite catalog per owner identity.                       |
 | [ADR-043](./implemented/ADR-043-use-cloudflare-access-and-memberships.md)             | Implemented          | Verify Cloudflare Access JWTs and authorize document access through owner/member roles.                      |
 | [ADR-044](./implemented/ADR-044-model-publications-separately-from-bibtex.md)         | Implemented          | Keep BibTeX canonical while materializing stable publications and explicit DOI enrichment.                   |
-| [ADR-045](./implemented/ADR-045-use-satteri-for-scientific-markdown.md)               | Implemented          | Parse scientific Markdown with Satteri in an isolated browser WASM runtime.                                  |
+| [ADR-045](./implemented/ADR-045-use-satteri-for-scientific-markdown.md)               | Superseded           | Previously parsed scientific Markdown with Satteri in an isolated browser WASM runtime.                      |
 | [ADR-046](./implemented/ADR-046-derive-bounded-knowledge-navigation.md)               | Implemented          | Derive bounded search and typed navigation projections from authorized workspace state.                      |
 | [ADR-047](./implemented/ADR-047-model-evidence-backed-claims.md)                      | Implemented          | Store claims and their evidence and manuscript usage as explicit typed resources.                            |
 | [ADR-048](./implemented/ADR-048-secure-browser-collaboration-boundary.md)             | Implemented          | Sanitize preview output and validate same-origin, bounded collaboration traffic.                             |
@@ -132,7 +132,8 @@ ADRs are grouped by lifecycle status:
 | [ADR-098](./implemented/ADR-098-ignore-static-mutants-locally.md)                     | Implemented          | Ignore costly static mutants locally while retaining them in clean GitHub mutation runs.                     |
 | [ADR-099](./implemented/ADR-099-persist-project-folders-and-atomic-tree-moves.md)     | Implemented          | Persist empty folders and move project subtrees with atomic include rewrites.                                |
 | [ADR-100](./implemented/ADR-100-order-reviewed-scholarly-metadata-providers.md)       | Implemented          | Try reviewed OpenAlex discovery first and retain Crossref, DataCite, and Semantic Scholar coverage.          |
-| [ADR-101](./implemented/ADR-101-split-browser-runtimes.md)                            | Implemented          | Minify the app, lazy-load PDF.js, and retain Satteri browser rendering.                                      |
+| [ADR-101](./implemented/ADR-101-split-browser-runtimes.md)                            | Partially superseded | Minify the app and lazy-load PDF.js; ADR-102 replaces its Satteri runtime decision.                          |
+| [ADR-102](./implemented/ADR-102-use-javascript-for-live-markdown-preview.md)          | Implemented          | Replace Satteri WASM with a local unified/remark preview runtime.                                            |
 
 ## Creating A New ADR
 

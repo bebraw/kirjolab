@@ -56,12 +56,7 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return scriptResponse(await loadPdfWorkerScript());
   }
 
-  if (
-    url.pathname === "/markdown-module-0.9.5.js" ||
-    url.pathname === "/pdfjs-module-6.1.200.js" ||
-    url.pathname === "/satteri_napi.wasm32-wasi.wasm" ||
-    url.pathname === "/satteri-wasi-worker.mjs"
-  ) {
+  if (url.pathname === "/markdown-module-1.js" || url.pathname === "/pdfjs-module-6.1.200.js") {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await loadBrowserRuntimeAsset(request, env);
   }
@@ -90,7 +85,6 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     const sharePath = `/share/${locator}.${readOnlyShare[2]}`;
     return htmlResponse(renderReadOnlySharePage(snapshot, sharePath, url.searchParams.get("view")), 200, url, {
       allowSameOriginFrames: true,
-      crossOriginIsolated: false,
     });
   }
 

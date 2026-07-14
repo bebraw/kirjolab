@@ -12,7 +12,7 @@ chosen by another workspace member into a researcher's authenticated browser
 session.
 
 Escaping authored raw HTML and filtering unsafe URL schemes is necessary but
-not sufficient. Satteri heading attributes can reach the final hast tree, so an
+not sufficient. Parsed heading attributes can reach the final hast tree, so an
 event-handler attribute could otherwise survive parsing and execute when the
 preview is inserted into the DOM. The application also needs a browser security
 policy that limits the impact of a future sanitizer regression.
@@ -30,7 +30,7 @@ before being rejected cleanly.
 Treat preview output and collaborative WebSocket traffic as one secure browser
 collaboration boundary.
 
-Sanitize the final Satteri hast representation after all semantic and heading
+Sanitize the final hast representation after all semantic and heading
 plugins have run. Keep an explicit tag/property allowlist for the generated
 preview vocabulary, preserve only the safe identity, presentation, semantic,
 and accessibility properties the syntax needs, and remove event handlers,
@@ -62,7 +62,7 @@ WebSocket protocol status.
 
 ## Trigger
 
-A strict review of the first collaborative slices found executable Satteri
+A strict review of the first collaborative slices found executable parser
 heading attributes, a same-origin check that did not cover WebSocket upgrades,
 and an untyped text-frame path through the document room.
 
@@ -82,7 +82,7 @@ and an untyped text-frame path through the document room.
 
 **Negative:**
 
-- New Satteri output elements or properties must be added deliberately to the
+- New preview output elements or properties must be added deliberately to the
   sanitizer vocabulary.
 - New browser-hosted resources and model connection modes may require an
   intentional Content Security Policy update.

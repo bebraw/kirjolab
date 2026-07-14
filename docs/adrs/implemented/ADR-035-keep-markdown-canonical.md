@@ -66,9 +66,9 @@ Markdown while preserving work independently of Kirjolab.
   authored project representation. Supporting file identities and source-map
   spans keep diagnostics, navigation, and exports tied to authored ranges.
 - Yjs coordinates current text, while every causally new update materializes
-  readable Markdown. Synchronization state, Satteri syntax trees, rendered HTML,
+  readable Markdown. Synchronization state, parser syntax trees, rendered HTML,
   previews, indexes, statistics, and publication artifacts remain derived.
-- The pinned Satteri pipeline parses and validates standard and scholarly
+- The pinned scientific Markdown pipeline parses and validates standard and scholarly
   Markdown. Preview sanitization and CSP boundaries prevent derived rendering
   from becoming an execution or persistence authority.
 - The single export pipeline consumes the composed Markdown tree once and

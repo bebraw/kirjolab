@@ -53,8 +53,8 @@ color so the browser and operating system retain control of contrast.
 
 **Neutral:**
 
-- Satteri remains authoritative for preview parsing and validation; editor
-  highlighting is only a presentation hint.
+- The scientific Markdown preview pipeline remains authoritative for parsing
+  and validation; editor highlighting is only a presentation hint.
 
 ## Alternatives Considered
 

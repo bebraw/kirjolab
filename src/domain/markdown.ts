@@ -1,4 +1,16 @@
-import { defineHastPlugin, defineMdastPlugin, markdownToHtml } from "satteri";
+import type { Element as HastElement, ElementContent as HastElementContent, Root as HastRoot, RootContent as HastRootContent } from "hast";
+import type { Schema } from "hast-util-sanitize";
+import type { Directives } from "mdast-util-directive";
+import type { Heading, Html, Root as MdastRoot, RootContent as MdastRootContent } from "mdast";
+import rehypeSanitize from "rehype-sanitize";
+import rehypeStringify from "rehype-stringify";
+import remarkDirective from "remark-directive";
+import remarkFrontmatter from "remark-frontmatter";
+import remarkGfm from "remark-gfm";
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import { unified } from "unified";
+import { SKIP, visit } from "unist-util-visit";
 import { parseBibTeX } from "./bibliography";
 import type { CitationStyle } from "./workspace";
 
@@ -34,7 +46,7 @@ export interface RenderedDocument {
   diagnostics: Diagnostic[];
 }
 
-// Stryker disable Regex: Satteri owns Markdown parsing; these expressions only locate the small semantic-directive validation surface.
+// Stryker disable Regex: unified owns Markdown parsing; these expressions only locate the small semantic-directive validation surface.
 const directivePattern = /(?<!:):([a-z][a-z-]*)\[([^\]]*)\](?:\{([^}]*)\})?/giu;
 const attributePattern = /([a-z][a-z-]*)=(?:"([^"]*)"|([^\s}]+))/giu;
 const headingPattern = /^(#{2,4})\s+(.+?)(?:\s+\{#([a-zA-Z0-9:_-]+)\})?\s*$/gmu;
@@ -43,7 +55,7 @@ const anchorPattern = /^::anchor\[([^\]]*)\]\{([^}]*)\}\s*$/gmu;
 const safeTableAlignmentPattern = /^text-align: (?:center|left|right)$/u;
 
 // Stryker disable all: The static sanitizer vocabulary is covered by the complete rendered-output test; static mutants cannot isolate its module initialization reliably.
-const safeElements = new Set([
+const safeElements = [
   "a",
   "b",
   "blockquote",
@@ -75,29 +87,35 @@ const safeElements = new Set([
   "thead",
   "tr",
   "ul",
-]);
+];
 
-const safePropertiesByElement: Readonly<Record<string, ReadonlySet<string>>> = {
-  a: new Set(["ariaDescribedBy", "ariaLabel", "className", "dataFootnoteBackref", "dataFootnoteRef", "href", "id", "title"]),
-  button: new Set(["ariaLabel", "className", "dataCitation", "type"]),
-  code: new Set(["className"]),
-  h1: new Set(["className", "id"]),
-  h2: new Set(["className", "id"]),
-  h3: new Set(["className", "id"]),
-  h5: new Set(["className", "id"]),
-  h6: new Set(["className", "id"]),
-  img: new Set(["alt", "src", "title"]),
-  input: new Set(["checked", "disabled", "type"]),
-  li: new Set(["className", "id"]),
-  ol: new Set(["start"]),
-  section: new Set(["className", "dataFootnotes"]),
-  span: new Set(["ariaLabel", "class", "className", "dataCitation", "id"]),
-  td: new Set(["style"]),
-  th: new Set(["style"]),
-  ul: new Set(["className"]),
+const previewSchema: Schema = {
+  tagNames: safeElements,
+  attributes: {
+    a: ["ariaDescribedBy", "ariaLabel", "className", "dataFootnoteBackref", "dataFootnoteRef", "href", "id", "title"],
+    button: ["ariaLabel", "className", "dataCitation", ["type", "button"]],
+    code: ["className"],
+    h1: ["className", "id"],
+    h2: ["className", "id"],
+    h3: ["className", "id"],
+    h5: ["className", "id"],
+    h6: ["className", "id"],
+    img: ["alt", "src", "title"],
+    input: ["checked", "disabled", ["type", "checkbox"]],
+    li: ["className", "id"],
+    ol: ["start"],
+    section: ["className", "dataFootnotes"],
+    span: ["ariaLabel", "className", "dataCitation", "id"],
+    td: [["style", safeTableAlignmentPattern]],
+    th: [["style", safeTableAlignmentPattern]],
+    ul: ["className"],
+  },
+  clobber: [],
+  clobberPrefix: "",
+  protocols: { href: ["http", "https", "mailto"], src: ["http", "https"] },
+  required: { input: { disabled: true, type: "checkbox" } },
 };
 // Stryker restore all
-const noSafeProperties = new Set<string>();
 
 export function renderWorkspaceMarkdown(
   source: string,
@@ -110,12 +128,21 @@ export function renderWorkspaceMarkdown(
   const diagnostics = validateSyntax(normalized, bibliography, references);
 
   try {
-    const result = markdownToHtml(normalized, {
-      features: { directive: true, frontmatter: true, gfm: true, headingAttributes: true },
-      mdastPlugins: [createSemanticPlugin(bibliography, references, citationStyle)],
-      hastPlugins: [createHeadingPlugin(), createSecurityPlugin()],
-    });
-    return { html: result.html, diagnostics };
+    const result = unified()
+      .use(remarkParse)
+      .use(remarkGfm)
+      .use(remarkFrontmatter, ["yaml", "toml"])
+      .use(remarkDirective)
+      .use(escapeAuthoredHtml)
+      .use(readHeadingAttributes)
+      .use(renderSemanticDirectives, { bibliography, references, citationStyle })
+      .use(remarkRehype)
+      .use(renderNumberedHeadings)
+      .use(normalizeTableAlignment)
+      .use(rehypeSanitize, previewSchema)
+      .use(rehypeStringify)
+      .processSync(normalized);
+    return { html: String(result), diagnostics };
   } catch (error) {
     return {
       html: `<pre><code>${escapeHtml(normalized)}</code></pre>`,
@@ -123,7 +150,7 @@ export function renderWorkspaceMarkdown(
         ...diagnostics,
         {
           severity: "error",
-          message: error instanceof Error ? error.message : "Satteri could not parse this document",
+          message: error instanceof Error ? error.message : "The Markdown renderer could not parse this document",
           from: 0,
           to: normalized.length,
         },
@@ -154,114 +181,198 @@ export function slugify(value: string): string {
     .replaceAll(/^-|-$/gu, "");
 }
 
-function createSemanticPlugin(
-  bibliography: Map<string, BibliographyEntry>,
-  references: Map<string, ReferenceEntry>,
-  citationStyle: CitationStyle,
-) {
-  return defineMdastPlugin({
-    name: "kirjolab-scientific-writing-semantics",
-    html(node) {
-      return { type: "text", value: node.value };
-    },
-    textDirective(node, context) {
-      const content = context.textContent(node).trim();
-      if (node.name === "cite") {
-        const locator = attributeValue(node.attributes?.locator);
-        const prefix = attributeValue(node.attributes?.prefix);
-        const suffix = attributeValue(node.attributes?.suffix);
+function escapeAuthoredHtml() {
+  return (tree: MdastRoot): void => {
+    visit(tree, "html", (node: Html, index, parent) => {
+      if (index === undefined || !parent) return;
+      parent.children[index] = { type: "text", value: node.value };
+    });
+  };
+}
+
+function readHeadingAttributes() {
+  return (tree: MdastRoot, file: { value: unknown }): void => {
+    const source = String(file.value);
+    visit(tree, "heading", (node: Heading) => {
+      const from = node.position?.start.offset;
+      const to = node.position?.end.offset;
+      if (from === undefined || to === undefined) return;
+      const headingSource = source.slice(from, to);
+      const match = /\s+\{([^{}]*)\}\s*$/u.exec(headingSource);
+      if (!match) return;
+      const attributeStart = from + match.index;
+      node.children = node.children.flatMap((child) => {
+        const childFrom = child.position?.start.offset;
+        const childTo = child.position?.end.offset;
+        if (childFrom === undefined || childTo === undefined || childTo <= attributeStart) return [child];
+        if (childFrom >= attributeStart || child.type !== "text") return [];
+        return [{ ...child, value: child.value.slice(0, attributeStart - childFrom) }];
+      });
+      const attributes = match[1] ?? "";
+      const id = /(?:^|\s)#([a-zA-Z0-9:_-]+)/u.exec(attributes)?.[1];
+      const className = [...attributes.matchAll(/(?:^|\s)\.([a-zA-Z0-9_-]+)/gu)]
+        .map((item) => item[1])
+        .filter((value): value is string => value !== undefined);
+      node.data = {
+        ...node.data,
+        hProperties: {
+          ...(id ? { id } : {}),
+          ...(className.length > 0 ? { className } : {}),
+        },
+      };
+    });
+  };
+}
+
+interface SemanticOptions {
+  bibliography: Map<string, BibliographyEntry>;
+  references: Map<string, ReferenceEntry>;
+  citationStyle: CitationStyle;
+}
+
+function renderSemanticDirectives(options: SemanticOptions) {
+  return (tree: MdastRoot): void => {
+    visit(tree, (node, index, parent) => {
+      if (node.type !== "textDirective" && node.type !== "leafDirective" && node.type !== "containerDirective") return;
+      if (index === undefined || !parent) return;
+      const directive: Directives = node;
+      const content = mdastText(directive).trim();
+      if (directive.type === "textDirective" && directive.name === "cite") {
+        const locator = attributeValue(directive.attributes?.locator);
+        const prefix = attributeValue(directive.attributes?.prefix);
+        const suffix = attributeValue(directive.attributes?.suffix);
         const citation = {
           ids: splitIds(content),
-          mode: attributeValue(node.attributes?.mode) ?? "parenthetical",
+          mode: attributeValue(directive.attributes?.mode) ?? "parenthetical",
           ...(locator ? { locator } : {}),
           ...(prefix ? { prefix } : {}),
           ...(suffix ? { suffix } : {}),
         } satisfies Citation;
-        return { type: "html", value: renderCitation(citation, bibliography, citationStyle) };
-      }
-      if (node.name === "ref") {
-        const target = attributeValue(node.attributes?.target) ?? content;
-        const reference = references.get(target);
-        const customText = attributeValue(node.attributes?.text) ?? (node.attributes?.target ? content : undefined);
-        const label = customText || reference?.title || target;
-        return {
-          type: "html",
-          value: `<a class="semantic-reference" href="#${escapeHtml(reference?.slug ?? slugify(target))}">${escapeHtml(label)}</a>`,
+        directive.children = [];
+        directive.data = {
+          ...directive.data,
+          hName: "span",
+          hProperties: { className: ["semantic-citation-group"] },
+          hChildren: citationChildren(citation, options.bibliography, options.citationStyle),
         };
+        return;
       }
-      return { type: "text", value: context.textContent(node) };
-    },
-    leafDirective(node, context) {
-      const title = context.textContent(node).trim();
-      if (node.name !== "alias" && node.name !== "anchor") return { type: "text", value: title };
-      if (node.name === "alias") return { type: "html", value: "" };
-      const target = attributeValue(node.attributes?.target) ?? "";
-      const slug = attributeValue(node.attributes?.slug) ?? slugify(target);
-      return { type: "html", value: `<span class="semantic-anchor" id="${escapeHtml(slug)}" aria-label="${escapeHtml(title)}"></span>` };
-    },
-    containerDirective(node, context) {
-      return { type: "text", value: context.textContent(node) };
-    },
-  });
+      if (directive.type === "textDirective" && directive.name === "ref") {
+        const target = attributeValue(directive.attributes?.target) ?? content;
+        const reference = options.references.get(target);
+        const customText = attributeValue(directive.attributes?.text) ?? (directive.attributes?.target ? content : undefined);
+        const label = customText || reference?.title || target;
+        directive.children = [];
+        directive.data = {
+          ...directive.data,
+          hName: "a",
+          hProperties: { className: ["semantic-reference"], href: `#${reference?.slug ?? slugify(target)}` },
+          hChildren: [{ type: "text", value: label }],
+        };
+        return;
+      }
+      if (directive.type === "leafDirective" && directive.name === "alias") {
+        parent.children.splice(index, 1);
+        return [SKIP, index];
+      }
+      if (directive.type === "leafDirective" && directive.name === "anchor") {
+        const target = attributeValue(directive.attributes?.target) ?? "";
+        const slug = attributeValue(directive.attributes?.slug) ?? slugify(target);
+        directive.children = [];
+        directive.data = {
+          ...directive.data,
+          hName: "span",
+          hProperties: { ariaLabel: content, className: ["semantic-anchor"], id: slug },
+          hChildren: [],
+        };
+        return;
+      }
+      parent.children[index] = { type: "text", value: content };
+    });
+  };
 }
 
-function createSecurityPlugin() {
-  return defineHastPlugin({
-    name: "kirjolab-preview-security",
-    element: {
-      filter: [],
-      visit(node, context) {
-        if (!safeElements.has(node.tagName)) {
-          context.removeNode(node);
-          return;
-        }
+function renderNumberedHeadings() {
+  return (tree: HastRoot): void => {
+    const counters = { h2: 0, h3: 0 };
+    const foundIds: Record<string, number> = {};
+    visit(tree, "element", (node: HastElement, index, parent) => {
+      if (node.tagName !== "h2" && node.tagName !== "h3" && node.tagName !== "h4") return;
+      if (node.tagName === "h4") {
+        if (index !== undefined && parent) parent.children[index] = { ...node, tagName: "b", properties: {} };
+        return;
+      }
+      const raw = hastText(node);
+      const explicitId = typeof node.properties.id === "string" ? node.properties.id : undefined;
+      const slug = explicitId ?? getUniqueSlug(raw, foundIds);
+      const number = getHeadingNumber(node.tagName, counters);
+      node.properties.id = slug;
+      node.children.unshift({
+        type: "element",
+        tagName: "span",
+        properties: { className: ["section-number"] },
+        children: [{ type: "text", value: `${number} ` }],
+      });
+    });
+  };
+}
 
-        const safeProperties = safePropertiesByElement[node.tagName] ?? noSafeProperties;
-        for (const property of Object.keys(node.properties ?? {})) {
-          if (!safeProperties.has(property)) context.setProperty(node, property, null);
-        }
+function normalizeTableAlignment() {
+  return (tree: HastRoot): void => {
+    visit(tree, "element", (node: HastElement) => {
+      if (node.tagName !== "th" && node.tagName !== "td") return;
+      const alignment = node.properties.align;
+      delete node.properties.align;
+      if (alignment === "center" || alignment === "left" || alignment === "right") {
+        node.properties.style = `text-align: ${alignment}`;
+      }
+    });
+  };
+}
 
-        const href = typeof node.properties?.href === "string" ? node.properties.href : "";
-        if (href && !isSafeUrl(href, false)) context.setProperty(node, "href", null);
-
-        const source = typeof node.properties?.src === "string" ? node.properties.src : "";
-        if (source && !isSafeUrl(source, true)) context.setProperty(node, "src", null);
-
-        const style = typeof node.properties?.style === "string" ? node.properties.style : "";
-        if (style && !safeTableAlignmentPattern.test(style)) context.setProperty(node, "style", null);
+function citationChildren(
+  citation: Citation,
+  bibliography: Map<string, BibliographyEntry>,
+  citationStyle: CitationStyle,
+): HastElementContent[] {
+  const entries = citation.ids.map((id) => bibliography.get(id) ?? { id, author: id, title: id, year: "n.d." });
+  const separator = citationStyle === "ieee" || citation.mode === "textual" ? ", " : "; ";
+  const children: HastElementContent[] = [];
+  if (citation.prefix) children.push({ type: "text", value: citation.prefix });
+  if (citation.mode === "parenthetical") children.push({ type: "text", value: citationStyle === "ieee" ? "[" : "(" });
+  for (const [index, entry] of entries.entries()) {
+    if (index > 0) children.push({ type: "text", value: separator });
+    children.push({
+      type: "element",
+      tagName: "button",
+      properties: {
+        type: "button",
+        className: ["semantic-citation"],
+        dataCitation: entry.id,
+        ariaLabel: `Open reference ${entry.title || entry.id}`,
       },
-    },
-  });
-}
-
-function createHeadingPlugin() {
-  const counters = { h2: 0, h3: 0 };
-  const foundIds: Record<string, number> = {};
-  return defineHastPlugin({
-    name: "kirjolab-scientific-writing-headings",
-    element: [
-      {
-        filter: ["h2", "h3", "h4"],
-        visit(node, context) {
-          const raw = context.textContent(node);
-          if (node.tagName === "h4") {
-            context.replaceNode(node, { type: "element", tagName: "b", properties: {}, children: node.children });
-            return;
-          }
-          const explicitId = typeof node.properties?.id === "string" ? node.properties.id : undefined;
-          const slug = explicitId ?? getUniqueSlug(raw, foundIds);
-          const number = getHeadingNumber(node.tagName, counters);
-          context.setProperty(node, "id", slug);
-          context.prependChild(node, {
-            type: "element",
-            tagName: "span",
-            properties: { class: "section-number" },
-            children: [{ type: "text", value: `${number} ` }],
-          });
+      children: [
+        {
+          type: "text",
+          value: formatCitation(entry, citation.mode, citationStyle, [...bibliography.keys()].indexOf(entry.id) + 1),
         },
-      },
-    ],
-  });
+      ],
+    });
+  }
+  if (citation.mode === "parenthetical") children.push({ type: "text", value: citationStyle === "ieee" ? "]" : ")" });
+  if (citation.locator) children.push({ type: "text", value: `, ${citation.locator}` });
+  if (citation.suffix) children.push({ type: "text", value: citation.suffix });
+  return children;
+}
+
+function mdastText(node: MdastRoot | MdastRootContent): string {
+  if ("value" in node && typeof node.value === "string") return node.value;
+  return "children" in node ? node.children.map((child) => mdastText(child)).join("") : "";
+}
+
+function hastText(node: HastRoot | HastRootContent): string {
+  if ("value" in node && typeof node.value === "string") return node.value;
+  return "children" in node ? node.children.map((child) => hastText(child)).join("") : "";
 }
 
 function collectReferences(source: string): Map<string, ReferenceEntry> {
@@ -359,20 +470,6 @@ function validateReferenceDeclarations(source: string): Diagnostic[] {
   return diagnostics;
 }
 
-function renderCitation(citation: Citation, bibliography: Map<string, BibliographyEntry>, citationStyle: CitationStyle): string {
-  const entries = citation.ids.map((id) => bibliography.get(id) ?? { id, author: id, title: id, year: "n.d." });
-  const separator = citationStyle === "ieee" || citation.mode === "textual" ? ", " : "; ";
-  const value = entries
-    .map(
-      (entry) =>
-        `<button type="button" class="semantic-citation" data-citation="${escapeHtml(entry.id)}" aria-label="Open reference ${escapeHtml(entry.title || entry.id)}">${escapeHtml(formatCitation(entry, citation.mode, citationStyle, [...bibliography.keys()].indexOf(entry.id) + 1))}</button>`,
-    )
-    .join(separator);
-  const wrapped = citation.mode === "parenthetical" ? (citationStyle === "ieee" ? `[${value}]` : `(${value})`) : value;
-  const locator = citation.locator ? `, ${escapeHtml(citation.locator)}` : "";
-  return `<span class="semantic-citation-group">${escapeHtml(citation.prefix ?? "")}${wrapped}${locator}${escapeHtml(citation.suffix ?? "")}</span>`;
-}
-
 function formatCitation(entry: BibliographyEntry, mode: string, citationStyle: CitationStyle, number: number): string {
   const author = entry.author.split(",", 1)[0]?.trim() || entry.id;
   if (citationStyle === "ieee") return mode === "textual" ? `${author} [${number}]` : String(number);
@@ -426,11 +523,6 @@ function toDiagnostic(message: string, match: RegExpMatchArray): Diagnostic {
 
 function capitalize(value: string): string {
   return `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
-}
-
-function isSafeUrl(value: string, image: boolean): boolean {
-  if (/^(?:https?:|\/|\.\/|\.\.\/|#)/iu.test(value)) return true;
-  return !image && /^mailto:/iu.test(value);
 }
 
 function escapeHtml(value: string): string {

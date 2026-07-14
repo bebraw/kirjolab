@@ -11,28 +11,20 @@ second Markdown dialect.
 
 ### Architecture
 
-- Satteri 0.9.5 parses standard Markdown with GFM, footnotes, frontmatter,
-  directives, and heading attributes enabled.
-- `src/domain/markdown.ts` supplies synchronous mdast and hast plugins for
-  citations, references, aliases, anchors, heading numbering, and preview
-  security.
-- Browser WASM is pinned under `vendor/satteri-wasm32-wasi/` and copied to
-  `.generated/assets/` during builds.
-- Satteri executes in the browser. The Worker serves its static assets but does
-  not parse canonical documents or require WASM threads.
-- The current Satteri artifact remains browser-side because its threaded WASI
-  binding, browser Worker dependency, and 250 MiB initial shared memory are not
-  compatible with the Cloudflare Workers execution model.
-- Browser application and Satteri helper JavaScript are minified for production;
-  moving rendering to the edge requires a measured, non-threaded upstream
-  binding rather than a request-per-edit proxy.
-- Satteri's Markdown JavaScript runtime loads as a versioned browser module in
-  parallel with workspace data. Preview renders discard stale asynchronous
-  results and fall back to authored source when the runtime cannot load.
-- HTML responses opt into cross-origin isolation. Satteri assets are same-origin
-  and carry a same-origin resource policy.
-- Remote images remain valid Markdown but browsers may block their preview
-  unless the remote server opts into compatible cross-origin loading.
+- A pinned unified/remark pipeline parses standard Markdown with GFM,
+  footnotes, frontmatter, directives, and heading attributes enabled.
+- `src/domain/markdown.ts` supplies synchronous mdast and hast transforms for
+  citations, references, aliases, anchors, heading numbering, table alignment,
+  authored-HTML escaping, and final allowlist sanitization.
+- The pure-JavaScript renderer executes in the browser as the versioned
+  `/markdown-module-1.js` runtime. The Worker serves that immutable asset but
+  does not parse canonical documents or proxy request-per-edit preview work.
+- The runtime loads in parallel with workspace data. Preview renders discard
+  stale asynchronous results and fall back to authored source when the runtime
+  cannot load.
+- Markdown preview no longer requires WebAssembly, a helper Web Worker, shared
+  memory, or cross-origin isolation. Remote HTTP(S) images remain subject to the
+  browser and source server's ordinary security policy.
 - Markdown and BibTeX remain canonical; preview HTML is disposable.
 
 ### Supported Syntax
@@ -67,48 +59,50 @@ second Markdown dialect.
 - Semantic HTML escapes bibliography, directive, and heading values.
 - Only the typed client inserts preview HTML into the DOM.
 - HTML responses apply a restrictive Content Security Policy. Same-origin
-  scripts, workers, and WebAssembly remain available for the typed client and
-  Satteri, while browser connections are limited to the workspace origin and
-  loopback local-model endpoints.
+  scripts and workers remain available for the typed client and renderer,
+  without allowing WebAssembly evaluation; browser connections are limited to
+  the workspace origin and loopback local-model endpoints.
 
 ### Anti-Patterns
 
-- Do not add syntax through pre-render string replacement ahead of Satteri.
-- Do not treat preview HTML or a Satteri syntax tree as canonical state.
-- Do not run the current threaded binding inside a Cloudflare Worker isolate.
-- Do not update the vendored WASM without matching version, license, and hashes.
-- Do not relax cross-origin isolation while the binding uses shared memory.
+- Do not add syntax through pre-render string replacement ahead of the parser.
+- Do not treat preview HTML or a unified syntax tree as canonical state.
+- Do not move live preview to request-per-edit edge rendering without measuring
+  revision coordination, network cost, and Worker CPU on bounded manuscripts.
 - Do not pass authored raw HTML through to `innerHTML`.
 
 ## Contract
 
 ### Definition of Done
 
-- [x] The documented standard Markdown and GFM examples render through Satteri.
+- [x] The documented standard Markdown and GFM examples render through the
+      pinned JavaScript pipeline.
 - [x] Citation modes, multiple ids, locators, prefixes, and suffixes render.
 - [x] Rendered citation buttons open stable publication context without
       mutating canonical Markdown or the bibliography.
 - [x] Heading, alias, anchor, and custom reference targets resolve.
 - [x] Invalid ids, modes, directives, duplicates, and alias targets diagnose.
-- [x] Browser preview uses the Satteri WASM binding under cross-origin isolation.
-- [x] WASM and helper assets are available through local Wrangler and static
-      assets.
+- [x] Browser preview uses one versioned JavaScript runtime without WASM or a
+      helper worker.
 - [x] Raw HTML and unsafe URL protocols cannot execute in the preview.
 - [x] Authored heading attributes cannot introduce executable or unreviewed
       HTML properties.
 - [x] HTML responses enforce the preview's browser security boundary with CSP.
-- [x] Unit tests cover syntax semantics and a browser test proves WASM startup.
+- [x] Unit tests cover syntax semantics and a browser test proves runtime
+      startup.
 
 ### Regression Guardrails
 
-- Keep Satteri pinned to the same reviewed version as the source book unless a
-  compatibility change is intentional and documented.
-- Browser startup must prove `crossOriginIsolated === true`.
+- Keep every parser and transform dependency pinned; upgrades require the full
+  syntax and security parity suite.
+- Browser startup must not require cross-origin isolation for Markdown preview.
 - Source editing and export must remain usable independently of preview HTML.
 - A parser exception must become a bounded diagnostic and escaped source
   fallback, never an application crash or source mutation.
-- Standard Markdown should be delegated to Satteri rather than reimplemented.
-- Satteri asset routes must remain same-origin, immutable, and content-typed.
+- Standard Markdown should be delegated to unified/remark rather than
+  reimplemented.
+- The Markdown runtime route must remain same-origin, immutable, versioned, and
+  content-typed.
 - Citation activation may navigate local research context but must never cite,
   import, enrich, or link a resource as an implicit side effect.
 
@@ -118,8 +112,8 @@ second Markdown dialect.
 
 - Given: headings, a table, a footnote, citations, and a reference
 - When: the source changes
-- Then: Satteri produces numbered semantic HTML and Kirjolab reports unresolved
-  scholarly targets without changing Markdown
+- Then: the JavaScript pipeline produces numbered semantic HTML and Kirjolab
+  reports unresolved scholarly targets without changing Markdown
 
 **Scenario: Reference uses a legacy LaTeX label**
 
