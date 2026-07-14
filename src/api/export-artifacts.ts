@@ -67,7 +67,6 @@ export async function renderExportPdf(bundle: MaterializedExportBundle): Promise
   const regular = await document.embedFont(StandardFonts.Helvetica);
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
   const renderer = new PdfTextRenderer(document, regular, bold, bundle.intermediate.publicationProfile);
-  renderer.heading(bundle.intermediate.title, 22, 18);
   for (const line of pdfLines(bundle.intermediate.markdown, bundle.intermediate.bibliography, bundle.intermediate.publicationProfile)) {
     if (line.kind === "heading") renderer.heading(line.text, Math.max(12, 20 - line.depth * 1.5), 8, line.footnotes);
     else if (line.kind === "blank") renderer.blank();

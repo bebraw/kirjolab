@@ -42,12 +42,16 @@ files.
 - Direct PDF citations resolve cited bibliography metadata through the selected
   APA, Chicago author-date, or IEEE profile instead of exposing project aliases.
   LaTeX uses the corresponding citation commands and bibliography style.
-- The maintained `kirjolab-article-v2` LaTeX template is the reproducible
+- Authored Markdown headings are the only visible document titles in direct PDF
+  and compiled LaTeX output. The project-settings title remains artifact
+  metadata and a non-printing LaTeX declaration; export never prepends it as a
+  heading or calls `\maketitle`.
+- The maintained `kirjolab-article-v3` LaTeX template is the reproducible
   default. The ZIP records template and engine versions in
   `export-manifest.json` and includes `source-map.json` plus the complete
   intermediate.
-- The initial bounded Worker PDF renderer is
-  `kirjolab-pdf-lib@1.17.1`. It reads the same materialized intermediate as the
+- The bounded Worker PDF renderer is
+  `kirjolab-pdf-lib-v2@1.17.1`. It reads the same materialized intermediate as the
   LaTeX target, uses only embedded standard fonts, fixes metadata timestamps,
   performs no network access, and executes no authored TeX. The LaTeX ZIP is
   the exact publisher-facing project for full TeX compilation; arbitrary
@@ -149,6 +153,13 @@ journal uses the same counting policy.
 - Given the same logical project state and pinned versions
 - When LaTeX ZIP or bounded PDF generation runs twice
 - Then both byte sequences are identical.
+
+### Authored title ownership
+
+- Given the project-settings title differs from the manuscript's Markdown H1
+- When direct PDF or LaTeX output is generated
+- Then the H1 is the visible title and the settings title appears only as
+  metadata, never as an additional heading or title page.
 
 ### Structured publication fidelity
 

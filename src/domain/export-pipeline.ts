@@ -22,8 +22,8 @@ import {
 export { countPublicationWords, publicationWordStatistics } from "./publication-statistics";
 
 export const exportSchemaVersion = "kirjolab-export-v1" as const;
-export const exportTemplateVersion = "kirjolab-article-v2" as const;
-export const exportPdfEngine = "kirjolab-pdf-lib@1.17.1" as const;
+export const exportTemplateVersion = "kirjolab-article-v3" as const;
+export const exportPdfEngine = "kirjolab-pdf-lib-v2@1.17.1" as const;
 export const exportZipEngine = "fflate@0.8.3" as const;
 
 export interface ExportPipelineInput {
@@ -198,9 +198,6 @@ function materializeLatex(
     template.anonymize ? `\\author{Anonymous}` : `\\author{}`,
     `\\date{}`,
     `\\begin{document}`,
-    ...(template.titlePage ? ["\\begin{titlepage}"] : []),
-    `\\maketitle`,
-    ...(template.titlePage ? ["\\end{titlepage}"] : []),
   ];
   const sourceMap: GeneratedSourceSpan[] = [];
   const references = publicationReferenceLabels(intermediate.markdown);

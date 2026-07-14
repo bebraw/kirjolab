@@ -4,6 +4,8 @@
 
 **Date:** 2026-07-11
 
+**Amended:** 2026-07-14 — keep project identity out of visible publication titles
+
 ## Context
 
 Kirjolab currently exports canonical Markdown and BibTeX separately. The
@@ -46,22 +48,30 @@ must be pinned at each reproducible export boundary. Arbitrary project-authored
 TeX must not execute in the hosted Worker without a separately isolated,
 resource-bounded engine.
 
+The project-settings title identifies the project and remains PDF metadata plus
+a non-printing LaTeX declaration. It is not publication body content. Direct
+PDF must begin with the composed Markdown blocks, and generated LaTeX must not
+call `\maketitle`; an authored Markdown H1 therefore owns the visible document
+title without a duplicate settings-derived heading.
+
 ## Implementation
 
 The implemented `kirjolab-export-v1` intermediate drives all export endpoints,
 the live `kirjolab-prose-v1` statistics projection, and revision word deltas.
-It materializes `kirjolab-article-v1`, citation-scoped BibTeX, generated-line
+It materializes `kirjolab-article-v3`, citation-scoped BibTeX, generated-line
 source maps, and pinned manifests. `fflate@0.8.3` produces byte-reproducible
 LaTeX and archival ZIPs.
 
-The initial hosted PDF boundary is `kirjolab-pdf-lib@1.17.1`. It is a bounded,
+The hosted PDF boundary is `kirjolab-pdf-lib-v2@1.17.1`. It is a bounded,
 deterministic renderer over the same intermediate and performs no network
-access or authored-code execution. It deliberately supports a smaller layout
-vocabulary than full TeX. The LaTeX ZIP is the publisher-facing representation
-for full external compilation. Attaching and executing arbitrary custom
-publication templates remains deferred until Kirjolab has a suitable isolated
-TeX runtime; adding it must extend this pipeline rather than create a second
-composition path.
+access or authored-code execution. Version 2 removes the settings-derived
+visible title while retaining PDF metadata. It deliberately supports a smaller
+layout vocabulary than full TeX. The LaTeX ZIP is the publisher-facing
+representation for full external compilation. Its `kirjolab-article-v3`
+template likewise retains a non-printing title declaration without invoking
+`\maketitle`. Attaching and executing arbitrary custom publication templates
+remains deferred until Kirjolab has a suitable isolated TeX runtime; adding it
+must extend this pipeline rather than create a second composition path.
 
 ## Trigger
 
@@ -77,6 +87,8 @@ LaTeX targets, and no coherent definition of what each export contains.
   opaque generated output.
 - Pinned templates and toolchains make milestone exports reproducible.
 - One pipeline centralizes include, citation, asset, and export-scope rules.
+- Authored Markdown, rather than project administration metadata, owns the
+  visible publication title.
 
 **Negative:**
 

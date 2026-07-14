@@ -44,6 +44,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Derive every publication target from one versioned, source-mapped export
   intermediate. Markdown, cited BibTeX, LaTeX, PDF, statistics, and archives
   must not independently resolve includes or citation reachability.
+- Treat authored Markdown headings as the only visible publication titles.
+  Project-settings titles may identify artifacts and PDF metadata but must not
+  be injected into PDF or LaTeX body content.
 - Pin export schemas, maintained templates, PDF rendering, and ZIP encoding at
   reproducible boundaries. Keep Markdown canonical; generated LaTeX and PDF
   are publication targets and never write back into authored files.
