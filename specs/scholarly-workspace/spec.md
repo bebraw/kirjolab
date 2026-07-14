@@ -76,7 +76,9 @@ mode for authenticated hosted collaboration.
 - **Collaborator selections:** A client may send only an exact-key, bounded
   `protocol: 1` selection message for the current file and revision. The room
   supplies its socket identity, validates the range, broadcasts it only to
-  peers, and never persists it. Disconnect emits a server-owned clear control.
+  peers, and never persists it. Edit-link holders join this presence exchange
+  without receiving or sending binary Yjs state. Disconnect emits a
+  server-owned clear control.
 - **Revision boundary:** Causally new Yjs state materializes Yjs, Markdown, and
   BibTeX together and advances the revision once. Duplicate or replayed updates
   receive an `ack` at the current revision without persistence, rebroadcast, or

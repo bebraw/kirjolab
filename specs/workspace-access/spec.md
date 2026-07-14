@@ -61,6 +61,11 @@ Owners need a minimal way to grant access to a known collaborator.
   the canonical PDF only. Each file replacement revalidates the capability,
   requires an exact same-origin `Origin`, enforces the 2 MB content bound, and
   rejects a stale expected revision instead of overwriting concurrent work.
+- `GET /edit/{locator}.{secret}/socket` revalidates the edit capability and
+  exact same-origin `Origin` before joining writer presence. The socket receives
+  and sends current-revision caret/selection controls but never receives Yjs
+  state and closes if it sends a binary document update. Rotation or revocation
+  immediately disconnects every socket using the prior edit capability.
 - Authorized members may inspect project history and comparisons. Only the
   owner may name milestones, restore a retained state, or seed a new project
   from one.
@@ -114,6 +119,8 @@ Owners need a minimal way to grant access to a known collaborator.
       or edit link without rotating it.
 - [x] An edit-link holder can update authored Markdown without gaining member,
       private-research, administration, or general API access.
+- [x] Edit-link and member editors exchange live caret and selection presence
+      without exposing Yjs state or retaining access after link invalidation.
 - [x] Owner-scoped starter projects can be shared without exposing an owner
       storage key or colliding with another owner's starter project.
 - [x] A read-only link exposes only the current rendered PDF, composed Markdown,
@@ -237,3 +244,11 @@ Owners need a minimal way to grant access to a known collaborator.
 - When: its holder saves an authored Markdown file at the current revision
 - Then: Kirjolab updates the live project and rendered output without exposing
   project membership, administration, private research, or general APIs
+
+**Scenario: External and member writers exchange caret presence**
+
+- Given: a member and a valid edit-link holder have the same project revision
+  open
+- When: either writer moves their caret or selects authored Markdown
+- Then: the other editor shows that ephemeral colored presence until the
+  selection changes, its revision becomes stale, or the socket disconnects

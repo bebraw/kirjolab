@@ -135,7 +135,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat an edit URL as a separate revocable bearer capability. Let it read and
   replace authored Markdown files through revision-checked, same-origin
   mutations, but do not expose membership, administration, private research,
-  history, general APIs, or the authenticated collaboration protocol.
+  history, general APIs, or Yjs state. Its same-origin presence socket may
+  exchange only validated, ephemeral caret and selection metadata, and must be
+  disconnected when the capability rotates or is revoked.
 - Keep public read-only viewers outside cross-origin embedder isolation so
   browser-native PDF extension frames can render their share-scoped,
   independently authorized same-origin PDF response. Keep authoring pages

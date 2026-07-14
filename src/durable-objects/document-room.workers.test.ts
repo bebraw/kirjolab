@@ -76,6 +76,39 @@ describe("DocumentRoom in the Workers runtime", () => {
     ).toThrow("Unexpected serialization failure");
   });
 
+  it("limits edit-link sockets to ephemeral collaboration metadata", async () => {
+    const workspaceId = "edit-link-presence";
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+
+    await runInDurableObject(stub, async (instance: DocumentRoom) => {
+      const response = await instance.fetch(
+        new Request("http://example.com/socket", {
+          headers: { upgrade: "websocket", "x-kirjolab-edit-presence": "1" },
+        }),
+      );
+      const client = response.webSocket;
+      expect(client).not.toBeNull();
+      if (!client) throw new Error("Expected edit-link WebSocket");
+      const initialMessages = new Promise<unknown[]>((resolve) => {
+        const messages: unknown[] = [];
+        client.addEventListener("message", (event) => {
+          messages.push(event.data);
+          if (messages.length === 2) resolve(messages);
+        });
+      });
+      client.accept();
+      const messages = await initialMessages;
+      expect(messages.every((message) => typeof message === "string")).toBe(true);
+      expect(messages.map((message) => JSON.parse(String(message)).type).sort()).toEqual(["presence", "sync"]);
+
+      const closed = new Promise<CloseEvent>((resolve) => client.addEventListener("close", resolve, { once: true }));
+      client.send(new Uint8Array([1, 2, 3]));
+      await expect(closed).resolves.toMatchObject({ code: 1008 });
+      expect(instance.getSnapshot(workspaceId).source).toContain("Evidence becomes prose");
+    });
+  });
+
   it("versions publication profiles and restores them with project history", async () => {
     const workspaceId = "publication-profile";
     const stub = roomStub(workspaceId);

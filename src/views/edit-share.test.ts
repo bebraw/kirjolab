@@ -42,8 +42,12 @@ describe("editable project viewer", () => {
     expect(resolveEditShareFile(snapshot, null).id).toBe("main-file");
     expect(html).toContain('<script type="module" src="/edit-share.js"></script>');
     expect(html).toContain('data-edit-revision="9"');
+    expect(html).toContain('data-edit-file-id="main-file"');
+    expect(html).toContain('data-edit-socket-path="/edit/locator.secret/socket"');
     expect(html).toContain('data-edit-save-path="/edit/locator.secret/files/main-file"');
+    expect(html).toContain('id="edit-source-highlight"');
     expect(html).toContain('id="edit-source" maxlength="2000000"');
+    expect(html).toContain('id="edit-collaborator-selections" aria-live="polite"');
     expect(html).toContain("# Main &lt;source&gt;");
     expect(html).not.toContain("# Main <source>");
     expect(html).toContain('id="edit-pdf-viewer" src="/edit/locator.secret/document.pdf"');

@@ -129,6 +129,24 @@ test("creates, edits through, rotates, and revokes a scoped edit link", async ({
   const editor = await editorContext.newPage();
   await editor.goto(first.href);
   await expect(editor.locator("#edit-save-status")).toContainText("Saved · revision");
+  await expect(editor.locator("#edit-live-status")).toHaveText("Live · 2 writers");
+
+  await editor.locator("#edit-source").evaluate((element) => {
+    const textarea = element as HTMLTextAreaElement;
+    textarea.focus();
+    textarea.setSelectionRange(2, 2);
+    textarea.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await expect(page.locator("#source-editor-highlight .collaborator-caret")).toHaveCount(1);
+
+  await page.locator("#source-editor").evaluate((element) => {
+    const textarea = element as HTMLTextAreaElement;
+    textarea.focus();
+    textarea.setSelectionRange(4, 4);
+    textarea.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await expect(editor.locator("#edit-source-highlight .collaborator-caret")).toHaveCount(1);
+
   await editor.locator("#edit-source").fill("# Edited externally\n\nA scoped link update.\n");
   await expect(editor.locator("#edit-save-status")).toHaveText(`Saved · revision ${editSnapshot.revision + 1}`);
 
@@ -143,6 +161,8 @@ test("creates, edits through, rotates, and revokes a scoped edit link", async ({
   const rotated = await page.request.post(api, { headers: { origin } });
   expect(rotated.status()).toBe(201);
   const second = (await rotated.json()) as { href: string };
+  await expect(editor.locator("#edit-live-status")).toHaveText("Edit access ended");
+  await expect(editor.locator("#edit-source")).toBeDisabled();
   expect((await page.request.get(first.href)).status()).toBe(404);
   expect((await page.request.get(second.href)).status()).toBe(200);
 

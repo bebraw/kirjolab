@@ -83,6 +83,27 @@ describe("edit share API", () => {
     expect(unsupported?.status).toBe(404);
   });
 
+  it("opens only a same-origin presence socket for a valid edit capability", async () => {
+    const roomFetch = vi.fn(async (_request: Request) => new Response(null, { status: 204 }));
+    const env = editEnv(undefined, undefined, roomFetch);
+    const denied = await handleEditShareRequest(
+      new Request(`http://example.com${editPath}/socket`, {
+        headers: { origin: "https://attacker.example", upgrade: "websocket" },
+      }),
+      env,
+    );
+    expect(denied?.status).toBe(403);
+    expect(roomFetch).not.toHaveBeenCalled();
+
+    const opened = await handleEditShareRequest(
+      new Request(`http://example.com${editPath}/socket`, { headers: { origin: "http://example.com", upgrade: "websocket" } }),
+      env,
+    );
+    expect(opened?.status).toBe(204);
+    expect(roomFetch).toHaveBeenCalledOnce();
+    expect(roomFetch.mock.calls[0]?.[0].headers.get("x-kirjolab-edit-presence")).toBe("1");
+  });
+
   it("applies bounded same-origin edits at the expected revision", async () => {
     const replacement = vi.fn(async (): Promise<ProjectFileReplaceResult> => ({ ok: true, value: { ...snapshot, revision: 5 } }));
     const env = editEnv(undefined, replacement);
@@ -147,11 +168,12 @@ function editEnv(
     content: string,
     revision: number,
   ) => Promise<ProjectFileReplaceResult> = async () => ({ ok: true, value: { ...snapshot, revision: 5 } }),
+  fetch: (request: Request) => Promise<Response> = async () => new Response(null, { status: 204 }),
 ): EditShareEnv {
   return {
     WORKSPACE_ACCESS: { getByName: () => ({ resolveEditShare: async () => resolved }) },
     DOCUMENT_ROOMS: {
-      getByName: () => ({ getSnapshot: async () => snapshot, replaceProjectFileContent }),
+      getByName: () => ({ fetch, getSnapshot: async () => snapshot, replaceProjectFileContent }),
     },
   };
 }

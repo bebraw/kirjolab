@@ -4,6 +4,8 @@
 
 **Date:** 2026-07-14
 
+**Amended:** 2026-07-14 — add presence-only edit-link sockets
+
 **Partially supersedes:** [ADR-094](./ADR-094-use-revocable-read-only-share-links.md)
 
 ## Context
@@ -38,7 +40,14 @@ snapshot, and replace one authored file. Each mutation revalidates the token,
 requires an exact same-origin `Origin`, enforces the existing 2 MB file bound,
 and compares the expected revision before applying a Yjs splice. It exposes no
 authenticated application client, member management, private research,
-history, general API, or writable collaboration socket.
+history, general API, or writable Yjs collaboration socket.
+
+Let a valid edit capability open one same-origin, presence-only WebSocket. It
+receives the normal versioned synchronization control without binary Yjs state,
+may send only current-revision caret/selection metadata, and receives peer
+presence metadata. Binary frames close the connection without touching the
+document. Rotation and revocation close every presence socket authorized by the
+old edit capability so the standing connection cannot outlive the URL.
 Permanent project deletion revokes both locator-scoped capabilities before
 erasing the document room.
 
@@ -65,6 +74,8 @@ rights need the same create, retrieve, rotate, and revoke lifecycle.
   workaround.
 - External writers receive a small, explicit editing surface instead of broad
   membership or the authenticated application.
+- External and member writers can see each other's live caret and selection
+  positions without widening the edit capability to the Yjs document channel.
 - Revision checks prevent a link editor from silently overwriting concurrent
   project changes.
 

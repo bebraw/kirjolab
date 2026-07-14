@@ -110,6 +110,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       if (role !== "owner") return jsonError("Only the workspace owner can manage edit links", 403);
       const locator = await catalog.getOrCreateShareLocator(workspaceId);
       const share = await env.WORKSPACE_ACCESS.getByName(locator).createMappedEditShare(storageKey, workspaceId);
+      await room.disconnectEditPresenceSockets();
       return Response.json(
         { href: `/edit/${locator}.${share.token}`, createdAt: share.createdAt },
         { status: 201, headers: { "cache-control": "no-store" } },
@@ -119,6 +120,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       if (role !== "owner") return jsonError("Only the workspace owner can manage edit links", 403);
       const locator = await catalog.getOrCreateShareLocator(workspaceId);
       await env.WORKSPACE_ACCESS.getByName(locator).revokeMappedEditShare();
+      await room.disconnectEditPresenceSockets();
       return new Response(null, { status: 204 });
     }
     if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);

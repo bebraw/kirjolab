@@ -289,7 +289,10 @@ interface PersistedDocumentUpdate {
   readonly revision: number;
 }
 
-type CollaborationSocketAttachment = { readonly mode: "writer"; readonly collaboratorId: string } | { readonly mode: "reader" };
+type CollaborationSocketAttachment =
+  | { readonly mode: "writer"; readonly collaboratorId: string }
+  | { readonly mode: "edit-presence"; readonly collaboratorId: string }
+  | { readonly mode: "reader" };
 
 interface ProjectionOptions {
   readonly acceptedCrossref?: {
@@ -483,16 +486,20 @@ export class DocumentRoom extends DurableObject<Env> {
     const client = pair[0];
     const server = pair[1];
     const readOnly = request.headers.get("x-kirjolab-read-only") === "1";
+    const editPresence = request.headers.get("x-kirjolab-edit-presence") === "1";
     server.serializeAttachment(
       readOnly
         ? ({ mode: "reader" } satisfies CollaborationSocketAttachment)
-        : ({ mode: "writer", collaboratorId: crypto.randomUUID() } satisfies CollaborationSocketAttachment),
+        : ({
+            mode: editPresence ? "edit-presence" : "writer",
+            collaboratorId: crypto.randomUUID(),
+          } satisfies CollaborationSocketAttachment),
     );
     this.ctx.acceptWebSocket(server);
     if (readOnly) {
       sendWebSocketMessage(server, encodeServerCollaborationMessage({ type: "revision", revision: this.#workspaceRow().revision }));
     } else {
-      sendWebSocketMessage(server, Y.encodeStateAsUpdate(this.#document));
+      if (!editPresence) sendWebSocketMessage(server, Y.encodeStateAsUpdate(this.#document));
       sendWebSocketMessage(
         server,
         encodeServerCollaborationMessage({ type: "sync", protocol: 1, revision: this.#workspaceRow().revision }),
@@ -521,7 +528,7 @@ export class DocumentRoom extends DurableObject<Env> {
         return;
       }
       const attachment = collaborationSocketAttachment(socket);
-      if (!attachment || attachment.mode !== "writer") {
+      if (!attachment || (attachment.mode !== "writer" && attachment.mode !== "edit-presence")) {
         socket.close(1011, "Collaboration identity is unavailable");
         return;
       }
@@ -536,6 +543,11 @@ export class DocumentRoom extends DurableObject<Env> {
         }),
         socket,
       );
+      return;
+    }
+
+    if (collaborationSocketAttachment(socket)?.mode === "edit-presence") {
+      socket.close(1008, "Edit links may send only collaborator selections");
       return;
     }
 
@@ -582,7 +594,7 @@ export class DocumentRoom extends DurableObject<Env> {
 
   override webSocketClose(socket: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
     const attachment = collaborationSocketAttachment(socket);
-    if (attachment?.mode === "writer") {
+    if (attachment?.mode === "writer" || attachment?.mode === "edit-presence") {
       this.#broadcast(encodeServerCollaborationMessage({ type: "selection-clear", collaboratorId: attachment.collaboratorId }), socket);
       this.#broadcastPresence();
     }
@@ -591,6 +603,12 @@ export class DocumentRoom extends DurableObject<Env> {
   disconnectReadOnlySockets(): void {
     for (const socket of this.ctx.getWebSockets()) {
       if (collaborationSocketAttachment(socket)?.mode === "reader") socket.close(1008, "Read-only link changed");
+    }
+  }
+
+  disconnectEditPresenceSockets(): void {
+    for (const socket of this.ctx.getWebSockets()) {
+      if (collaborationSocketAttachment(socket)?.mode === "edit-presence") socket.close(1008, "Edit link changed");
     }
   }
 
@@ -2915,6 +2933,7 @@ export class DocumentRoom extends DurableObject<Env> {
         if (visibleToReaders) sendWebSocketMessage(socket, message);
         continue;
       }
+      if (attachment?.mode === "edit-presence" && typeof message !== "string") continue;
       sendWebSocketMessage(socket, message);
     }
   }
@@ -2933,9 +2952,14 @@ function collaborationSocketAttachment(socket: WebSocket): CollaborationSocketAt
   const value: unknown = socket.deserializeAttachment();
   if (!isRecordValue(value)) return null;
   if (value.mode === "reader") return { mode: "reader" };
-  return typeof value.collaboratorId === "string" && value.collaboratorId.length <= 128
-    ? { mode: "writer", collaboratorId: value.collaboratorId }
-    : null;
+  if (
+    (value.mode === "writer" || value.mode === "edit-presence") &&
+    typeof value.collaboratorId === "string" &&
+    value.collaboratorId.length <= 128
+  ) {
+    return { mode: value.mode, collaboratorId: value.collaboratorId };
+  }
+  return null;
 }
 
 export interface WebSocketMessageTarget {

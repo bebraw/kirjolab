@@ -15,6 +15,7 @@ interface EditShareAccessApi {
 }
 
 interface EditShareRoomApi {
+  fetch(request: Request): Promise<Response>;
   getSnapshot(workspaceId: string): Promise<WorkspaceSnapshot>;
   replaceProjectFileContent(
     workspaceId: string,
@@ -31,7 +32,7 @@ export interface EditShareEnv {
 
 export async function handleEditShareRequest(request: Request, env?: EditShareEnv): Promise<Response | null> {
   const url = new URL(request.url);
-  const match = /^\/edit\/([a-z0-9-]{1,64})\.([A-Za-z0-9_-]{43})(?:\/(snapshot|document\.pdf|files\/([0-9a-f-]{36})))?$/u.exec(
+  const match = /^\/edit\/([a-z0-9-]{1,64})\.([A-Za-z0-9_-]{43})(?:\/(snapshot|document\.pdf|socket|files\/([0-9a-f-]{36})))?$/u.exec(
     url.pathname,
   );
   if (!match?.[1] || !match[2]) return null;
@@ -47,8 +48,14 @@ export async function handleEditShareRequest(request: Request, env?: EditShareEn
   }
 
   const room = env.DOCUMENT_ROOMS.getByName(resolved.target.storageKey);
-  const snapshot = await room.getSnapshot(resolved.target.workspaceId);
   const editPath = `/edit/${locator}.${token}`;
+  if (match[3] === "socket" && request.method === "GET") {
+    if (!isSameOriginMutation(request)) return Response.json({ error: "Cross-origin WebSocket denied" }, { status: 403 });
+    const headers = new Headers(request.headers);
+    headers.set("x-kirjolab-edit-presence", "1");
+    return await room.fetch(new Request(request, { headers }));
+  }
+  const snapshot = await room.getSnapshot(resolved.target.workspaceId);
   if (!match[3] && request.method === "GET") {
     return htmlResponse(renderEditSharePage(snapshot, editPath, url.searchParams.get("file")), 200, url, {
       allowSameOriginFrames: true,

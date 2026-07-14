@@ -1,18 +1,198 @@
 const root = document.body;
 const editor = document.querySelector("#edit-source");
+const highlight = document.querySelector("#edit-source-highlight");
+const collaboratorSelections = document.querySelector("#edit-collaborator-selections");
 const status = document.querySelector("#edit-save-status");
+const liveStatus = document.querySelector("#edit-live-status");
 const pdf = document.querySelector("#edit-pdf-viewer");
 const savePath = root.dataset.editSavePath;
 const snapshotPath = root.dataset.editSnapshotPath;
+const socketPath = root.dataset.editSocketPath;
+const fileId = root.dataset.editFileId;
 let revision = Number(root.dataset.editRevision ?? "0");
 let savedContent = editor?.value ?? "";
 let saveTimer;
 let saving = false;
 let pending = false;
 let blocked = false;
+let socket;
+let socketSynced = false;
+let reconnectDelay = 500;
+let reconnectTimer;
+let selectionBroadcastTimer;
+const remoteSelections = new Map();
 
 const setStatus = (value) => {
   if (status) status.textContent = value;
+};
+
+const setLiveStatus = (value) => {
+  if (liveStatus) liveStatus.textContent = value;
+};
+
+const collaboratorColor = (collaboratorId) => {
+  let hash = 0;
+  for (const character of collaboratorId) hash = (hash * 31 + character.codePointAt(0)) >>> 0;
+  return hash % 4;
+};
+
+const renderPresence = () => {
+  if (!editor || !highlight) return;
+  const ranges = [...remoteSelections.values()]
+    .filter((selection) => selection.fileId === fileId && selection.revision === revision && selection.end <= editor.value.length)
+    .map((selection) => ({ ...selection, color: collaboratorColor(selection.collaboratorId) }));
+  const fragment = document.createDocumentFragment();
+  let lineNumber = 1;
+  let lineStart = 0;
+  const appendLine = (lineEnd) => {
+    const line = document.createElement("span");
+    line.className = "source-editor-line";
+    line.dataset.lineNumber = String(lineNumber);
+    const boundaries = new Set([lineStart, lineEnd]);
+    for (const range of ranges) {
+      if (range.start >= lineStart && range.start <= lineEnd) boundaries.add(range.start);
+      if (range.end >= lineStart && range.end <= lineEnd) boundaries.add(range.end);
+    }
+    const ordered = [...boundaries].sort((left, right) => left - right);
+    for (let index = 0; index < ordered.length; index += 1) {
+      const start = ordered[index];
+      for (const range of ranges.filter((candidate) => candidate.start === start && candidate.end === start)) {
+        const caret = document.createElement("span");
+        caret.className = "collaborator-caret";
+        caret.dataset.collaboratorColor = String(range.color);
+        line.append(caret);
+      }
+      const end = ordered[index + 1];
+      if (end === undefined || end === start) continue;
+      const text = editor.value.slice(start, end);
+      const selected = ranges.find((range) => range.start < end && range.end > start);
+      if (!selected) {
+        line.append(document.createTextNode(text));
+        continue;
+      }
+      const mark = document.createElement("span");
+      mark.className = "collaborator-selection";
+      mark.dataset.collaboratorColor = String(selected.color);
+      mark.textContent = text;
+      line.append(mark);
+    }
+    fragment.append(line);
+    lineNumber += 1;
+  };
+  for (const match of editor.value.matchAll(/\r\n|\r|\n/gu)) {
+    appendLine(match.index);
+    lineStart = match.index + match[0].length;
+  }
+  appendLine(editor.value.length);
+  highlight.replaceChildren(fragment);
+  if (collaboratorSelections) {
+    collaboratorSelections.textContent = ranges
+      .map((selection) =>
+        selection.start === selection.end
+          ? `Collaborator caret at ${selection.start}.`
+          : `Collaborator selection from ${selection.start} to ${selection.end}.`,
+      )
+      .join(" ");
+  }
+};
+
+const syncHighlightScroll = () => {
+  if (!editor || !highlight) return;
+  highlight.scrollTop = editor.scrollTop;
+  highlight.scrollLeft = editor.scrollLeft;
+};
+
+const scheduleSelectionBroadcast = () => {
+  window.clearTimeout(selectionBroadcastTimer);
+  selectionBroadcastTimer = window.setTimeout(() => {
+    if (!editor || !fileId || !socketSynced || socket?.readyState !== WebSocket.OPEN) return;
+    socket.send(
+      JSON.stringify({
+        type: "selection",
+        protocol: 1,
+        fileId,
+        start: editor.selectionStart,
+        end: editor.selectionEnd,
+        revision,
+      }),
+    );
+  }, 80);
+};
+
+const isRemoteSelection = (value) =>
+  value &&
+  value.type === "selection" &&
+  typeof value.collaboratorId === "string" &&
+  value.collaboratorId.length > 0 &&
+  value.collaboratorId.length <= 128 &&
+  typeof value.fileId === "string" &&
+  Number.isSafeInteger(value.start) &&
+  Number.isSafeInteger(value.end) &&
+  value.start >= 0 &&
+  value.end >= value.start &&
+  Number.isSafeInteger(value.revision) &&
+  value.revision >= 0;
+
+const connect = () => {
+  if (!socketPath || blocked) return;
+  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  socket = new WebSocket(`${protocol}//${location.host}${socketPath}`);
+  socket.addEventListener("open", () => {
+    reconnectDelay = 500;
+    setLiveStatus("Joining live project…");
+  });
+  socket.addEventListener("message", (event) => {
+    if (typeof event.data !== "string") return;
+    let message;
+    try {
+      message = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+    if (message.type === "sync" && message.protocol === 1 && Number.isSafeInteger(message.revision)) {
+      socketSynced = true;
+      setLiveStatus("Live");
+      if (message.revision > revision && !saving && editor?.value === savedContent) location.reload();
+      else scheduleSelectionBroadcast();
+      return;
+    }
+    if (message.type === "presence" && Number.isSafeInteger(message.collaborators)) {
+      setLiveStatus(`Live · ${message.collaborators} ${message.collaborators === 1 ? "writer" : "writers"}`);
+      return;
+    }
+    if (isRemoteSelection(message)) {
+      if (message.revision === revision) remoteSelections.set(message.collaboratorId, message);
+      renderPresence();
+      return;
+    }
+    if (message.type === "selection-clear" && typeof message.collaboratorId === "string") {
+      remoteSelections.delete(message.collaboratorId);
+      renderPresence();
+      return;
+    }
+    if ((message.type === "revision" || message.type === "reset") && Number.isSafeInteger(message.revision) && message.revision > revision) {
+      remoteSelections.clear();
+      renderPresence();
+      if (!saving && editor?.value === savedContent) location.reload();
+    }
+  });
+  socket.addEventListener("close", (event) => {
+    socketSynced = false;
+    remoteSelections.clear();
+    renderPresence();
+    if (event.code === 1008) {
+      blocked = true;
+      if (editor) editor.disabled = true;
+      setLiveStatus("Edit access ended");
+      setStatus("Edit access ended");
+      return;
+    }
+    setLiveStatus("Reconnecting…");
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = window.setTimeout(connect, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 5_000);
+  });
+  socket.addEventListener("error", () => socket?.close());
 };
 
 const save = async () => {
@@ -46,6 +226,8 @@ const save = async () => {
     revision = snapshot.revision;
     savedContent = content;
     root.dataset.editRevision = String(revision);
+    remoteSelections.clear();
+    renderPresence();
     setStatus(`Saved · revision ${revision}`);
     if (pdf instanceof HTMLIFrameElement) pdf.src = `${pdf.src.split("?")[0]}?revision=${revision}`;
   } catch {
@@ -64,9 +246,15 @@ const scheduleSave = () => {
 };
 
 editor?.addEventListener("input", () => {
+  renderPresence();
   setStatus("Unsaved changes");
   scheduleSave();
 });
+
+for (const eventName of ["focus", "input", "keyup", "select"]) {
+  editor?.addEventListener(eventName, scheduleSelectionBroadcast);
+}
+editor?.addEventListener("scroll", syncHighlightScroll);
 
 window.setInterval(async () => {
   if (!snapshotPath || saving || editor?.value !== savedContent) return;
@@ -85,3 +273,6 @@ window.setInterval(async () => {
     // A later poll or local save will restore status.
   }
 }, 2_000);
+
+renderPresence();
+connect();

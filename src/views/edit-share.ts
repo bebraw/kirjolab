@@ -30,7 +30,7 @@ export function renderEditSharePage(snapshot: WorkspaceSnapshot, editPath: strin
     <link rel="stylesheet" href="/styles.css">
     <script type="module" src="/edit-share.js"></script>
   </head>
-  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-edit-revision="${snapshot.revision}" data-edit-save-path="${escapeHtml(savePath)}" data-edit-snapshot-path="${escapeHtml(`${editPath}/snapshot`)}">
+  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-edit-revision="${snapshot.revision}" data-edit-file-id="${escapeHtml(activeFile.id)}" data-edit-save-path="${escapeHtml(savePath)}" data-edit-snapshot-path="${escapeHtml(`${editPath}/snapshot`)}" data-edit-socket-path="${escapeHtml(`${editPath}/socket`)}">
     <header class="border-b border-app-line bg-app-canvas">
       <div class="mx-auto flex min-h-16 max-w-[96rem] items-center justify-between gap-4 px-5">
         <span class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink">KIRJOLAB</span>
@@ -56,10 +56,17 @@ export function renderEditSharePage(snapshot: WorkspaceSnapshot, editPath: strin
               <p class="eyebrow">Editing</p>
               <h2 class="mt-1 truncate text-lg font-semibold text-app-ink">${escapeHtml(activeFile.path)}</h2>
             </div>
-            <span class="font-sans text-xs font-bold text-app-text-soft" id="edit-save-status" role="status">Saved · revision ${snapshot.revision}</span>
+            <div class="grid shrink-0 justify-items-end gap-1 font-sans text-xs font-bold text-app-text-soft">
+              <span id="edit-live-status">Connecting…</span>
+              <span id="edit-save-status" role="status">Saved · revision ${snapshot.revision}</span>
+            </div>
           </header>
           <label class="sr-only" for="edit-source">${escapeHtml(activeFile.path)} Markdown source</label>
-          <textarea class="min-h-[70vh] w-full resize-y bg-app-paper p-5 font-mono text-sm leading-7 text-app-ink outline-none sm:p-7" id="edit-source" maxlength="2000000" spellcheck="true">${escapeHtml(activeFile.content)}</textarea>
+          <div class="source-editor-shell min-h-[70vh]" id="edit-source-shell">
+            <pre class="source-editor-highlight" id="edit-source-highlight" aria-hidden="true"></pre>
+            <textarea class="source-editor min-h-[70vh]" id="edit-source" maxlength="2000000" spellcheck="true" aria-describedby="edit-collaborator-selections">${escapeHtml(activeFile.content)}</textarea>
+          </div>
+          <div class="sr-only" id="edit-collaborator-selections" aria-live="polite"></div>
         </div>
 
         <div class="min-w-0 overflow-hidden border border-app-line bg-app-paper shadow-sm">
