@@ -33,6 +33,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md) | Implemented | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.    |
 | [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)             | Implemented | Use semantic light/dark tokens with a browser-local system-aware preference.           |
 | [ADR-092](./implemented/ADR-092-prewarm-agent-ci-dependencies-explicitly.md)  | Implemented | Prewarm dependencies once and give parallel local CI jobs isolated writable views.     |
+| [ADR-093](./implemented/ADR-093-scope-prettier-to-owned-files.md)             | Implemented | Keep duplicated and vendored skill references outside the Prettier ownership boundary. |
 
 ## Implemented ADRs
 

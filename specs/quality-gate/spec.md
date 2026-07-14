@@ -43,6 +43,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Coverage gate logic:** `scripts/run-coverage-gate.mjs`
 - **Worker client-code guard:** `scripts/assert-no-worker-client-scripts.mjs`
 - **Codebase diagnostics config:** `.fallowrc.json`
+- **Formatting ownership exclusions:** duplicated `.github/skills/` content and
+  vendored `.codex/skills/**/references/`
 - **Mutation config:** `stryker.config.mjs`
 - **Readiness baseline:** `npm run quality:gate` and `npm run ci:local` for non-documentation changes
 - **Documentation-only exception:** documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests
@@ -83,6 +85,9 @@ The template needs a verification baseline that stays strict enough for end-to-e
 ### Regression Guardrails
 
 - `npm run quality:gate:fast` must remain a useful faster signal than the full gate.
+- Formatting must continue to cover project-owned source, configuration, skill
+  entrypoints, specs, ADRs, and docs while excluding duplicated or vendored
+  skill reference trees.
 - `npm run quality:affected` must avoid full-repo work when affected files make a narrower check sufficient.
 - `npm run test:affected` must avoid full coverage work when affected runtime or unit test files can be checked through related or direct Vitest runs.
 - `npm run quality:gate` must continue to represent the local baseline verification path.
@@ -179,6 +184,13 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - Given: a change that does not need immediate browser verification
 - When: the contributor runs `npm run quality:gate:fast`
 - Then: formatting, typing, audit, unit coverage, and isolated Workers-runtime tests run without waiting for Playwright
+
+**Scenario: Formatting skips vendored skill material**
+
+- Given: duplicated or vendored skill references are present in the repository
+- When: the contributor runs `npm run format:check`
+- Then: Prettier checks project-owned files without spending the formatting
+  budget on externally owned reference trees
 
 **Scenario: Full verification before landing code changes**
 

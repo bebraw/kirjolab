@@ -17,6 +17,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep workflow writes explicit. New generated output, local state, cache, archive, or tool-artifact paths should be documented in the same change that introduces them.
 - Do not place executable browser code inline in Worker-rendered HTML. Client behavior should live in typed TypeScript modules before it is served to browsers.
 - Keep application appearance behind shared semantic color tokens. Light and dark modes may vary token values, but components must not grow separate theme-specific palettes.
+- Keep duplicated `.github/skills/` content and vendored
+  `.codex/skills/**/references/` material outside the Prettier baseline.
+  Continue formatting project-owned skill entrypoints, specs, ADRs, and docs.
 
 ## Kirjolab Product Architecture
 

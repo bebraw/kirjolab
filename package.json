@@ -31,7 +31,8 @@
       "2026-07-12-remove-readme-screenshot",
       "2026-07-13-agent-ci-progress",
       "2026-07-13-agent-ci-progress-events",
-      "2026-07-14-agent-ci-cache-isolation"
+      "2026-07-14-agent-ci-cache-isolation",
+      "2026-07-14-scope-prettier-to-owned-files"
     ]
   },
   "scripts": {

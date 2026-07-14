@@ -4,6 +4,8 @@ node_modules
 .npm
 .wrangler
 .asdlc
+.github/skills
+.codex/skills/**/references
 playwright-report
 reports
 test-results
