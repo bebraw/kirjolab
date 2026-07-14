@@ -44,6 +44,10 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return scriptResponse(await loadClientScript());
   }
 
+  if (url.pathname === "/service-worker.js") {
+    return scriptResponse(await loadServiceWorkerScript());
+  }
+
   if (url.pathname === "/read-only-share.js") {
     return scriptResponse(await loadReadOnlyShareScript());
   }
@@ -162,6 +166,18 @@ async function loadClientScript(): Promise<string> {
   }
 
   const script = await import("../.generated/app.txt");
+  return script.default;
+}
+
+async function loadServiceWorkerScript(): Promise<string> {
+  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
+  if (typeof WebSocketPair === "undefined") {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    return await readFile(fileURLToPath(new URL("../.generated/service-worker.txt", import.meta.url).href), "utf8");
+  }
+
+  const script = await import("../.generated/service-worker.txt");
   return script.default;
 }
 

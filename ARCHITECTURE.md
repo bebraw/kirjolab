@@ -178,6 +178,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   send speculative browser state on connection open.
 - Retain ordered browser updates until the document room acknowledges durable
   handling; after reconnect, replay only updates that were not acknowledged.
+- Keep a validated, identity-and-workspace-scoped browser copy of the latest
+  authorized snapshot, full Yjs document state, and acknowledged server state
+  vector so existing Markdown files remain editable offline. Reconstruct only
+  the state-vector delta on restart, send it after the normal server-led sync,
+  and clear local copies on reset and hosted logout.
+- Cache only authenticated workspace navigation and the allowlisted authoring
+  shell for offline fallback. Never service-worker-cache project/library APIs,
+  WebSockets, exports, model requests, or private PDF bytes.
 - Materialize every causally new collaborative update into readable Markdown
   and bibliography text, but acknowledge duplicate or replayed Yjs state at the
   current revision without persistence, rebroadcast, or a revision increase.

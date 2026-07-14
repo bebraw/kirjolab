@@ -38,13 +38,14 @@
     ]
   },
   "scripts": {
-    "build": "npm run build:css && npm run build:client && npm run build:markdown-runtime && npm run build:pdf-runtime && npm run build:pdf-worker",
+    "build": "npm run build:css && npm run build:client && npm run build:service-worker && npm run build:markdown-runtime && npm run build:pdf-runtime && npm run build:pdf-worker",
     "build:client": "mkdir -p ./.generated && esbuild src/client/app.ts --bundle --format=esm --target=es2022 --minify --outfile=.generated/app.txt",
     "build:css": "mkdir -p ./.generated && tailwindcss -i ./src/tailwind-input.css -o ./.generated/styles.css --minify",
     "build:model-companion": "mkdir -p ./.generated && esbuild src/model-companion.ts --bundle --platform=node --format=esm --target=node24 --outfile=.generated/model-companion.mjs",
     "build:markdown-runtime": "mkdir -p ./.generated/assets && rm -f ./.generated/assets/markdown-module-0.9.5.js ./.generated/assets/satteri_napi.wasm32-wasi.wasm ./.generated/assets/satteri-wasi-worker.mjs && esbuild src/domain/markdown.ts --bundle --format=esm --target=es2022 --minify --outfile=.generated/assets/markdown-module-1.js",
     "build:pdf-runtime": "mkdir -p ./.generated/assets && esbuild node_modules/pdfjs-dist/build/pdf.mjs --bundle --format=esm --target=es2022 --minify --outfile=.generated/assets/pdfjs-module-6.1.200.js",
     "build:pdf-worker": "mkdir -p ./.generated && esbuild node_modules/pdfjs-dist/build/pdf.worker.mjs --bundle --format=esm --target=es2022 --minify --outfile=.generated/pdf-worker.txt",
+    "build:service-worker": "mkdir -p ./.generated && esbuild src/client/service-worker.ts --bundle --format=iife --target=es2022 --minify --outfile=.generated/service-worker.txt",
     "ci:local": "node ./scripts/run-local-ci.mjs",
     "ci:local:retry": "agent-ci retry",
     "deploy": "node ./scripts/deploy-production.mjs",

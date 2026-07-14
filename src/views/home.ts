@@ -19,7 +19,7 @@ export function renderHomePage(
     <link rel="stylesheet" href="/styles.css">
     <script type="module" src="/app.js"></script>
   </head>
-  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-workspace-id="${escapedWorkspaceId}">
+  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-workspace-id="${escapedWorkspaceId}" data-identity-email="${escapedIdentityEmail}">
     <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur">
       <div class="flex min-h-16 items-center justify-between gap-4 px-4 lg:px-6">
         <div class="flex min-w-0 items-center gap-3">

@@ -482,6 +482,40 @@ test("undoes local Markdown edits without reverting collaborators", async ({ pag
   await collaborator.close();
 });
 
+test("restores offline manuscript edits and synchronizes them after reconnect", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Offline train draft");
+  const path = `/workspaces/${workspaceId}`;
+  await page.goto(path);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await expect.poll(async () => await page.locator("body").getAttribute("data-offline-ready")).toBe("true");
+  await expect.poll(async () => await page.locator("body").getAttribute("data-offline-saved-at")).not.toBeNull();
+
+  const editor = page.locator("#source-editor");
+  const onlineSource = "# Train draft\n\nThe connection may disappear.\n";
+  const previousOfflineSave = await page.locator("body").getAttribute("data-offline-saved-at");
+  await editor.fill(onlineSource);
+  await expect(page.locator("#save-status")).toHaveText("Saved");
+  await expect.poll(async () => await page.locator("body").getAttribute("data-offline-saved-at")).not.toBe(previousOfflineSave);
+
+  await page.context().setOffline(true);
+  await page.reload();
+  await expect(editor).toHaveValue(onlineSource);
+  await expect(editor).toBeEnabled();
+  await expect(page.locator("#connection-status")).toContainText("Offline");
+
+  const offlineSource = `${onlineSource}\nWritten between stations.\n`;
+  await editor.fill(offlineSource);
+  await expect(page.locator("#save-status")).toHaveText("Saved offline");
+  await page.reload();
+  await expect(editor).toHaveValue(offlineSource);
+  await expect(page.locator("#save-status")).toHaveText("Saved offline");
+
+  await page.context().setOffline(false);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await expect(page.locator("#save-status")).toHaveText("Saved");
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, `/api/workspaces/${workspaceId}`)).source).toBe(offlineSource);
+});
+
 test("offers opt-in Vim editing over the collaborative textarea", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Vim source editing");
   await page.goto(`/workspaces/${workspaceId}`);

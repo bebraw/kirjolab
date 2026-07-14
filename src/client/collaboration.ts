@@ -43,10 +43,11 @@ export class PendingUpdateQueue {
     update.state = "sent";
   }
 
-  acknowledge(): void {
+  acknowledge(): PendingUpdate {
     const update = this.#updates[0];
     if (!update || update.state !== "sent") throw new Error("No sent collaboration update is awaiting acknowledgement");
     this.#updates.shift();
+    return copyUpdate(update);
   }
 
   resetForReconnect(): void {

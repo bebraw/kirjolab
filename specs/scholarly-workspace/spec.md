@@ -86,6 +86,12 @@ mode for authenticated hosted collaboration.
   `Y.Text`; server collaboration controls own the displayed revision. REST
   workspace refreshes cannot assign those values. The editor reports `Saved`
   once initial synchronization completes with no queued local updates.
+- **Offline authoring:** A service worker retains the allowlisted authoring
+  shell and previously authorized workspace navigation. IndexedDB stores the
+  current Yjs document, last acknowledged server vector, and last authorized
+  workspace snapshot per identity and project. Existing Markdown files remain
+  editable offline; restart derives one pending Yjs delta and sends it only
+  after the ordinary server-led `sync` boundary.
 - **Collaborator selections:** A client may send only an exact-key, bounded
   `protocol: 1` selection message for the current file and revision. The room
   supplies its socket identity, validates the range, broadcasts it only to
@@ -258,6 +264,10 @@ mode for authenticated hosted collaboration.
   representation.
 - Do not send browser Yjs state speculatively when a socket opens or treat a
   sent frame as durable before its acknowledgement.
+- Do not cache API responses, WebSockets, exports, model operations, library
+  state, or PDF bytes as part of offline authoring.
+- Do not treat the offline browser copy as project history, a portable backup,
+  or authorization for server-side mutations.
 - Do not let a REST metadata refresh assign source, bibliography, or displayed
   revision after Yjs synchronization.
 - Do not move the source concurrency revision for resource-only history events,
@@ -317,6 +327,10 @@ mode for authenticated hosted collaboration.
       updates, and each client update receives a durable acknowledgement.
 - [x] Reconnect replays only unacknowledged updates; an already integrated
       replay is acknowledged without advancing the revision.
+- [x] A previously opened project reloads offline, retains edits across another
+      offline reload, and converges those edits after reconnection.
+- [x] Hosted logout clears Kirjolab's offline workspace database and shell
+      caches before leaving the application.
 - [x] Yjs owns live editor text after synchronization while coalesced resource
       refreshes update only non-editor workspace state.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.
@@ -409,6 +423,14 @@ mode for authenticated hosted collaboration.
 - A client update must remain queued until its `ack`; replaying already
   integrated state must return the current revision without persistence,
   rebroadcast, or revision advancement.
+- Offline records must be keyed by authenticated identity and workspace,
+  validate their snapshot and bounded binary state before use, and never be
+  written before the first authoritative server synchronization.
+- Exercise service-worker startup and fallback in the browser suite; keep its
+  separately testable registration and cache-policy helpers in the unit and
+  mutation suites.
+- A reset must clear the project browser copy before reload so restored history
+  cannot merge with cached newer CRDT state.
 - After synchronization, `Y.Text` and server controls must remain the only
   browser writers for editor text and displayed revision respectively.
 - Resource invalidation refreshes must be coalesced and must never write editor
@@ -520,6 +542,31 @@ mode for authenticated hosted collaboration.
   resource metadata
 - Then: refresh requests are coalesced, non-editor resources update, and the
   REST response cannot replace Yjs-owned source or collaboration revision
+
+**Scenario: Researcher writes through a poor connection**
+
+- Given: the researcher has previously opened and synchronized a project on
+  this browser
+- When: connectivity disappears and the project is reloaded
+- Then: the cached authoring shell opens the existing Markdown files, edits are
+  stored locally, and the editor reports that they are saved offline
+- And: after connectivity returns, only the state absent from the last
+  acknowledged server vector is queued after `sync` and durably acknowledged
+
+**Scenario: Offline support has no authorized local copy**
+
+- Given: a project has never completed synchronization in this browser for the
+  current identity
+- When: the researcher opens it without a network
+- Then: Kirjolab explains that one online visit is required and does not invent
+  an empty editable project
+
+**Scenario: Researcher logs out of hosted Kirjolab**
+
+- Given: this browser contains offline project copies
+- When: the researcher activates the Cloudflare Access logout control
+- Then: Kirjolab clears its IndexedDB workspace records and service-worker
+  caches before following the logout URL
 
 **Scenario: Evidence becomes linked working memory**
 

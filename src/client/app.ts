@@ -73,6 +73,13 @@ import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } fr
 import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHistoryAction } from "./editor-history";
 import { loadMarkdownRuntime } from "./markdown-runtime";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
+import { cacheOfflineNavigation, clearOfflineShellCaches, registerOfflineServiceWorker } from "./offline-service-worker";
+import {
+  clearAllOfflineWorkspaces,
+  createOfflineWorkspaceStore,
+  offlineDocumentDelta,
+  type OfflineWorkspaceStore,
+} from "./offline-workspace";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { adjustSelectionRects } from "./pdf-selection";
@@ -99,9 +106,11 @@ import {
 import { editorPresenceSegments, type EditorPresenceRange } from "./editor-presence";
 
 const workspaceId = readWorkspaceId();
+const identityEmail = readIdentityEmail();
 const catalogBase = "/api/workspaces";
 const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
+const offlineOrigin = Symbol("offline");
 
 interface Elements {
   collaboratorSelections: HTMLElement;
@@ -393,10 +402,17 @@ class WorkspaceApp {
   readonly #source = this.#document.getText("source");
   readonly #bibliography = this.#document.getText("bibliography");
   readonly #pendingUpdates = new PendingUpdateQueue();
+  readonly #offlineStore: OfflineWorkspaceStore | null = createOfflineWorkspaceStore(
+    typeof indexedDB === "undefined" ? undefined : indexedDB,
+    identityEmail,
+    workspaceId,
+  );
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
   #snapshot: WorkspaceSnapshot | null = null;
   #revision = 0;
   #socket: WebSocket | null = null;
+  #serverDocument: Y.Doc | null = null;
+  #serverStateVector = Y.encodeStateVector(this.#document);
   #socketSynced = false;
   #awaitingRemoteRevision = false;
   #reconnectTimer: number | undefined;
@@ -444,6 +460,10 @@ class WorkspaceApp {
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
   #previewRenderVersion = 0;
+  #hasOfflineSnapshot = false;
+  #offlineSaveTimer: number | undefined;
+  #offlineSaveVersion = 0;
+  #offlineSaveChain: Promise<void> = Promise.resolve();
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -469,12 +489,42 @@ class WorkspaceApp {
     this.#restoreWorkspaceLayout();
     this.#setEditorsEnabled(false);
     void loadMarkdownRuntime().catch(() => undefined);
-    await this.#refreshCatalog();
-    await this.#resourceRefresh.request();
+    void this.#prepareOfflineShell();
+    const restored = await this.#restoreOfflineWorkspace();
+    try {
+      await this.#refreshCatalog();
+    } catch (error) {
+      if (!restored) throw new Error("Open Kirjolab online once before using it offline", { cause: error });
+    }
+    try {
+      await this.#resourceRefresh.request();
+    } catch (error) {
+      if (error instanceof WorkspaceAccessError) {
+        await this.#offlineStore?.clear();
+        throw error;
+      }
+      if (!restored) throw new Error("Open this project online once before editing it offline", { cause: error });
+      this.#setConnection("Offline · changes stay on this device", false);
+      this.#setEditorsEnabled(true);
+    }
     this.#connect();
   }
 
   #bindUi(): void {
+    window.addEventListener("online", () => this.#connect());
+    window.addEventListener("offline", () => {
+      this.#setConnection("Offline · changes stay on this device", false);
+      if (this.#hasOfflineSnapshot) this.#setEditorsEnabled(true);
+    });
+    window.addEventListener("pagehide", () => this.#scheduleOfflineSave(0));
+    const logOut = document.querySelector<HTMLAnchorElement>("#log-out");
+    logOut?.addEventListener("click", (event) => {
+      event.preventDefault();
+      const href = logOut.href;
+      void this.#clearOfflineBrowserData()
+        .then(() => location.assign(href))
+        .catch((error: unknown) => this.#showToast(error instanceof Error ? error.message : "Could not clear offline data"));
+    });
     document.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
       for (const menu of document.querySelectorAll<HTMLDetailsElement>("details[data-action-menu][open]")) {
@@ -619,9 +669,10 @@ class WorkspaceApp {
     this.#source.observe(() => void this.#renderPreview());
     this.#bibliography.observe(() => void this.#renderPreview());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
-      if (origin === remoteOrigin) return;
+      this.#scheduleOfflineSave();
+      if (origin === remoteOrigin || origin === offlineOrigin) return;
       this.#pendingUpdates.enqueue(update);
-      this.#elements.saveStatus.textContent = "Saving…";
+      this.#elements.saveStatus.textContent = this.#socketSynced ? "Saving…" : "Saving offline…";
       this.#updateModelAvailability();
       void this.#renderPreview();
       this.#flushPendingUpdates();
@@ -696,6 +747,9 @@ class WorkspaceApp {
 
   async #refreshSnapshot(): Promise<void> {
     const response = await fetch(apiBase);
+    if (response.status === 401 || response.status === 403 || response.status === 404) {
+      throw new WorkspaceAccessError("Project access is no longer available");
+    }
     if (!response.ok) throw new Error("Could not load the project");
     const value: unknown = await response.json();
     if (!isWorkspaceSnapshot(value)) throw new Error("Project returned an invalid snapshot");
@@ -713,6 +767,7 @@ class WorkspaceApp {
     }
     this.#renderProjectFiles();
     this.#renderResources();
+    this.#scheduleOfflineSave();
   }
 
   #resolveSnapshotAnchors(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
@@ -1025,8 +1080,15 @@ class WorkspaceApp {
 
   #connect(): void {
     if (this.#socket && this.#socket.readyState < WebSocket.CLOSING) return;
+    if (!navigator.onLine) {
+      this.#setConnection("Offline · changes stay on this device", false);
+      if (this.#hasOfflineSnapshot) this.#setEditorsEnabled(true);
+      return;
+    }
     window.clearTimeout(this.#reconnectTimer);
     this.#reconnectTimer = undefined;
+    this.#serverDocument?.destroy();
+    this.#serverDocument = new Y.Doc();
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(`${protocol}//${location.host}${apiBase}/socket`);
     socket.binaryType = "arraybuffer";
@@ -1048,13 +1110,15 @@ class WorkspaceApp {
       this.#pendingUpdates.resetForReconnect();
       this.#remoteSelections.clear();
       this.#renderRemoteSelections();
-      this.#setConnection("Reconnecting", false);
-      this.#setEditorsEnabled(false);
+      this.#setConnection(navigator.onLine ? "Reconnecting" : "Offline · changes stay on this device", false);
+      this.#setEditorsEnabled(this.#hasOfflineSnapshot);
       this.#updateModelAvailability();
-      this.#reconnectTimer ??= window.setTimeout(() => {
-        this.#reconnectTimer = undefined;
-        this.#connect();
-      }, 1200);
+      if (navigator.onLine) {
+        this.#reconnectTimer ??= window.setTimeout(() => {
+          this.#reconnectTimer = undefined;
+          this.#connect();
+        }, 1200);
+      }
     });
     socket.addEventListener("error", () => socket.close());
   }
@@ -1064,7 +1128,12 @@ class WorkspaceApp {
       const selections = this.#captureEditorSelections();
       if (this.#socketSynced) this.#awaitingRemoteRevision = true;
       try {
-        Y.applyUpdate(this.#document, new Uint8Array(message), remoteOrigin);
+        const update = new Uint8Array(message);
+        if (this.#serverDocument) {
+          Y.applyUpdate(this.#serverDocument, update, remoteOrigin);
+          this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
+        }
+        Y.applyUpdate(this.#document, update, remoteOrigin);
       } catch {
         socket.close(1007, "Invalid collaboration update");
         return;
@@ -1089,19 +1158,27 @@ class WorkspaceApp {
         this.#awaitingRemoteRevision = false;
         this.#setConnection("Live", true);
         this.#setEditorsEnabled(true);
+        this.#hasOfflineSnapshot = true;
+        if (this.#serverDocument) this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
         this.#setRevision(value.revision);
         this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
+        this.#scheduleOfflineSave();
         this.#flushPendingUpdates();
         break;
       case "ack":
         try {
-          this.#pendingUpdates.acknowledge();
+          const acknowledged = this.#pendingUpdates.acknowledge();
+          if (this.#serverDocument) {
+            Y.applyUpdate(this.#serverDocument, new Uint8Array(acknowledged.payload), remoteOrigin);
+            this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
+          }
         } catch {
           socket.close(1002, "Unexpected collaboration acknowledgement");
           return;
         }
         this.#setRevision(value.revision);
         this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
+        this.#scheduleOfflineSave();
         this.#flushPendingUpdates();
         break;
       case "revision":
@@ -1110,7 +1187,7 @@ class WorkspaceApp {
         break;
       case "reset":
         this.#socketSynced = false;
-        window.location.reload();
+        void Promise.resolve(this.#offlineStore?.clear()).finally(() => window.location.reload());
         return;
       case "presence":
         this.#elements.connectionStatus.textContent = `Live · ${value.collaborators} ${value.collaborators === 1 ? "writer" : "writers"}`;
@@ -1165,6 +1242,7 @@ class WorkspaceApp {
     }
     this.#renderRemoteSelections();
     this.#updateRevision();
+    this.#scheduleOfflineSave();
     const active = this.#activeResourceTab();
     if (active?.kind === "candidate") this.#renderCandidateContext(active);
   }
@@ -5292,6 +5370,97 @@ class WorkspaceApp {
     );
   }
 
+  async #restoreOfflineWorkspace(): Promise<boolean> {
+    if (!this.#offlineStore) return false;
+    let record;
+    try {
+      record = await this.#offlineStore.load();
+    } catch {
+      return false;
+    }
+    if (!record) return false;
+    if (!isWorkspaceSnapshot(record.snapshot) || record.snapshot.id !== workspaceId) {
+      await this.#offlineStore.clear();
+      return false;
+    }
+    try {
+      Y.applyUpdate(this.#document, new Uint8Array(record.documentUpdate), offlineOrigin);
+    } catch {
+      await this.#offlineStore.clear();
+      return false;
+    }
+    this.#serverStateVector = new Uint8Array(record.serverStateVector);
+    const pending = offlineDocumentDelta(this.#document, this.#serverStateVector);
+    if (pending) this.#pendingUpdates.enqueue(pending);
+    this.#snapshot = this.#resolveSnapshotAnchors(record.snapshot);
+    this.#hasBootstrapSnapshot = true;
+    this.#hasOfflineSnapshot = true;
+    this.#revision = record.snapshot.revision;
+    this.#renderWorkspaceCatalog([
+      {
+        id: record.snapshot.id,
+        title: record.snapshot.title,
+        href: `/workspaces/${encodeURIComponent(record.snapshot.id)}`,
+        createdAt: record.savedAt,
+        updatedAt: record.savedAt,
+        archivedAt: null,
+      },
+    ]);
+    this.#renderProjectFiles();
+    this.#renderResources();
+    this.#updateRevision();
+    this.#setEditorsEnabled(true);
+    this.#elements.saveStatus.textContent = pending ? "Saved offline" : "Saved";
+    void this.#renderPreview();
+    return true;
+  }
+
+  #scheduleOfflineSave(delay = 120): void {
+    if (!this.#offlineStore || !this.#snapshot || !this.#hasOfflineSnapshot) return;
+    const version = ++this.#offlineSaveVersion;
+    window.clearTimeout(this.#offlineSaveTimer);
+    this.#offlineSaveTimer = window.setTimeout(() => {
+      this.#offlineSaveTimer = undefined;
+      this.#offlineSaveChain = this.#offlineSaveChain
+        .catch(() => undefined)
+        .then(async () => await this.#persistOfflineWorkspace())
+        .then(() => {
+          if (version !== this.#offlineSaveVersion) return;
+          document.body.dataset.offlineCached = "true";
+          document.body.dataset.offlineSavedAt = String(version);
+          if (!this.#socketSynced) this.#elements.saveStatus.textContent = "Saved offline";
+        });
+      void this.#offlineSaveChain.catch((error: unknown) => {
+        if (!this.#socketSynced) this.#elements.saveStatus.textContent = "Offline save failed";
+        this.#showToast(error instanceof Error ? error.message : "Could not save the manuscript offline");
+      });
+    }, delay);
+  }
+
+  async #persistOfflineWorkspace(): Promise<void> {
+    if (!this.#offlineStore || !this.#snapshot || !this.#hasOfflineSnapshot) return;
+    await this.#offlineStore.save(this.#snapshot, Y.encodeStateAsUpdate(this.#document), this.#serverStateVector);
+  }
+
+  async #prepareOfflineShell(): Promise<void> {
+    try {
+      const registered = await registerOfflineServiceWorker(navigator.serviceWorker);
+      if (!registered || typeof caches === "undefined") return;
+      if (await cacheOfflineNavigation(caches, fetch, location.href)) document.body.dataset.offlineReady = "true";
+    } catch {
+      // The online application remains fully usable when offline APIs are unavailable.
+    }
+  }
+
+  async #clearOfflineBrowserData(): Promise<void> {
+    window.clearTimeout(this.#offlineSaveTimer);
+    await this.#offlineSaveChain.catch(() => undefined);
+    await Promise.all([
+      clearAllOfflineWorkspaces(typeof indexedDB === "undefined" ? undefined : indexedDB),
+      clearOfflineShellCaches(typeof caches === "undefined" ? undefined : caches),
+    ]);
+  }
+
   #setConnection(label: string, connected: boolean): void {
     this.#elements.connectionStatus.textContent = label;
     this.#elements.connectionDot.className = `h-2 w-2 rounded-full ${connected ? "bg-app-accent" : "bg-app-warn"}`;
@@ -6012,6 +6181,14 @@ function readWorkspaceId(): string {
   if (!value || !/^[a-z0-9-]{1,64}$/iu.test(value)) throw new Error("Invalid project identity");
   return value;
 }
+
+function readIdentityEmail(): string {
+  const value = document.body.dataset.identityEmail;
+  if (!value || value.length > 320) throw new Error("Invalid offline identity");
+  return value;
+}
+
+class WorkspaceAccessError extends Error {}
 
 if (typeof document !== "undefined") {
   bindThemePreference(document.documentElement, requiredElement("theme-preference", HTMLSelectElement), localStorage);

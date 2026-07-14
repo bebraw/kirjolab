@@ -77,6 +77,28 @@ Tail error logs with:
 npx wrangler tail kirjolab --status error
 ```
 
+## Offline Authoring Check
+
+Offline authoring is prepared after a signed-in project completes its first
+Yjs synchronization. The browser stores authenticated project metadata and
+manuscript state locally; use a trusted device. PDFs, Library mutations,
+project-tree changes, sharing, model operations, and exports still require the
+Worker.
+
+For each browser family used in production:
+
+1. Open a project online and wait for `Saved`.
+2. Disable the network, reload the same project, and confirm the existing
+   Markdown files remain editable and report `Saved offline`.
+3. Reload once more while offline and confirm the edit remains.
+4. Restore the network and confirm the status returns to `Live` and `Saved`.
+5. Reload from the server and confirm the offline edit was synchronized.
+6. Use the application logout control and confirm the next disconnected visit
+   no longer opens the cached project.
+
+Browser storage is a recoverability aid, not a backup. It may be evicted and is
+not included in server history until reconnection completes.
+
 ## Backup Check and Recovery Drill
 
 After the first authenticated request has registered the owner, use the signed-in

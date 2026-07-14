@@ -32,10 +32,10 @@ describe("PendingUpdateQueue", () => {
     queue.markSent(first);
     queue.markSent(second);
     expect(queue.nextUnsent()).toBeUndefined();
-    queue.acknowledge();
+    expect(bytes(queue.acknowledge().payload)).toEqual([1]);
     expect(queue.size).toBe(1);
     expect(queue.sentCount).toBe(1);
-    queue.acknowledge();
+    expect(bytes(queue.acknowledge().payload)).toEqual([2]);
     expect(queue.size).toBe(0);
     expect(() => queue.markSent(first)).toThrow("No unsent collaboration update");
   });

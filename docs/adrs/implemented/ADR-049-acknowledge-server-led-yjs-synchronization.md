@@ -106,8 +106,9 @@ request completed.
   grow.
 - A candidate produced during active collaboration is rejected more often,
   requiring the researcher to regenerate it from a current base.
-- The in-memory outbound queue improves reconnect handling but does not by
-  itself provide durable offline editing across a tab or browser restart.
+- The in-memory outbound queue alone does not survive a tab or browser restart;
+  ADR-106 layers an identity-scoped browser copy and acknowledged-state-vector
+  replay over this protocol for offline authoring.
 
 **Neutral:**
 

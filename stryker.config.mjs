@@ -20,6 +20,7 @@ const config = {
     "!src/client/markdown-runtime.ts",
     "!src/client/pdfjs-runtime.ts",
     "!src/client/pdf-viewer.ts",
+    "!src/client/service-worker.ts",
     "!src/api/**",
     "!src/durable-objects/**",
   ],

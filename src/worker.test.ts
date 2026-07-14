@@ -135,6 +135,14 @@ describe("worker", () => {
     await expect(response.text()).resolves.toBe("export {};");
   });
 
+  it("serves the generated offline service worker", async () => {
+    const response = await handleRequest(new Request("http://example.com/service-worker.js"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/javascript");
+    await expect(response.text()).resolves.toContain("addEventListener");
+  });
+
   it("serves the lightweight read-only share client", async () => {
     const response = await handleRequest(new Request("http://example.com/read-only-share.js"));
 
