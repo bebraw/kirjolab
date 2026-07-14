@@ -2137,6 +2137,16 @@ test("derives collaborative project bibliography from shared-library aliases", a
   ]);
   await expect(page.locator("#bibliography-editor")).toHaveAttribute("readonly", "");
   await expect(collaborator.locator("#bibliography-editor")).toHaveValue(/@article\{collaborative2026/u);
+  await page.getByRole("tab", { name: "Library" }).click();
+  const referenceCard = page
+    .locator("#reference-library-list .library-reference-row")
+    .filter({ hasText: "Collaborative Reference Projection" });
+  await openLibraryReferenceDetails(referenceCard);
+  await referenceCard.getByLabel("title for Collaborative Reference Projection").fill("Updated Collaborative Reference Projection");
+  await referenceCard.getByRole("button", { name: "Save details" }).click();
+  await expect(page.locator("#toast")).toHaveText("Bibliographic details saved with manual provenance.");
+  await expect(page.locator("#bibliography-editor")).toHaveValue(/title = \{Updated Collaborative Reference Projection\}/u);
+  await expect(collaborator.locator("#bibliography-editor")).toHaveValue(/title = \{Updated Collaborative Reference Projection\}/u);
   const source = "# Shared source\n\nThe project cites :cite[collaborative2026].\n";
   await page.locator("#source-editor").fill(source);
   await expect(collaborator.locator("#source-editor")).toHaveValue(source);

@@ -467,6 +467,9 @@ mode for authenticated hosted collaboration.
   checks.
 - Derived project bibliography and alias rewrites must commit with their
   project revision and retain the linked bibliographic snapshot.
+- Saving canonical metadata from an active project must immediately refresh
+  every linked snapshot in that project, its derived BibTeX, and connected
+  collaborators without requiring a reload.
 - Browser code must remain external to Worker-rendered HTML and pass both strict
   worker and client TypeScript configurations.
 

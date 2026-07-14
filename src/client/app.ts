@@ -2642,7 +2642,7 @@ class WorkspaceApp {
       }),
     });
     await expectOk(response);
-    await this.#refreshReferenceLibrary();
+    await this.#refreshBibliographicMetadata();
     this.#showToast("Scholarly metadata applied with field-level provenance.");
   }
 
@@ -2719,7 +2719,7 @@ class WorkspaceApp {
     }
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/pdf-metadata`, { artifactId, fields });
     await expectOk(response);
-    await this.#refreshReferenceLibrary();
+    await this.#refreshBibliographicMetadata();
     this.#showToast("Selected PDF metadata applied with provenance.");
   }
 
@@ -2844,8 +2844,13 @@ class WorkspaceApp {
       "PATCH",
     );
     await expectOk(response);
-    await this.#refreshReferenceLibrary();
+    await this.#refreshBibliographicMetadata();
     this.#showToast("Bibliographic details saved with manual provenance.");
+  }
+
+  async #refreshBibliographicMetadata(): Promise<void> {
+    await this.#refreshReferenceLibrary();
+    await this.#refreshSnapshot();
   }
 
   async #saveReadingState(referenceId: string, status: string, rating: string, priority: string): Promise<void> {
