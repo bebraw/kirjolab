@@ -112,6 +112,14 @@ describe("worker", () => {
     await expect(response.text()).resolves.toBe("export {};");
   });
 
+  it("serves the lightweight read-only share client", async () => {
+    const response = await handleRequest(new Request("http://example.com/read-only-share.js"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/javascript");
+    expect(await response.text()).toContain("new WebSocket");
+  });
+
   it("serves the generated PDF worker", async () => {
     const response = await handleRequest(new Request("http://example.com/pdf.worker.js"));
 

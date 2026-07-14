@@ -40,8 +40,9 @@ export function renderReadOnlySharePage(snapshot: WorkspaceSnapshot, sharePath: 
     <meta name="color-scheme" content="light dark">
     <title>${escapeHtml(snapshot.title)} · Read-only · Kirjolab</title>
     <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/read-only-share.js"></script>
   </head>
-  <body class="min-h-screen bg-app-canvas text-app-text antialiased">
+  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-share-revision="${snapshot.revision}" data-share-socket-path="${escapeHtml(`${sharePath}/socket`)}">
     <header class="border-b border-app-line bg-app-canvas">
       <div class="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5">
         <span class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink">KIRJOLAB</span>
@@ -52,7 +53,7 @@ export function renderReadOnlySharePage(snapshot: WorkspaceSnapshot, sharePath: 
       <aside class="min-w-0 lg:sticky lg:top-6 lg:self-start">
         <p class="eyebrow">Shared project</p>
         <h1 class="mt-1 text-2xl font-semibold tracking-[-0.04em] text-app-ink">${escapeHtml(snapshot.title)}</h1>
-        <p class="mt-2 font-sans text-xs leading-5 text-app-text-soft">Live view · revision ${snapshot.revision} · No editing or private research access</p>
+        <p class="mt-2 font-sans text-xs leading-5 text-app-text-soft"><span id="shared-live-status">Connecting · revision ${snapshot.revision}</span> · No editing or private research access</p>
 
         <form class="mt-5 flex gap-2 lg:hidden" method="get">
           <label class="sr-only" for="shared-view-switcher">Shared project view</label>

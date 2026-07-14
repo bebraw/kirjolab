@@ -86,6 +86,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
       const locator = await catalog.getOrCreateShareLocator(workspaceId);
       const share = await env.WORKSPACE_ACCESS.getByName(locator).createMappedReadOnlyShare(storageKey, workspaceId);
+      await room.disconnectReadOnlySockets();
       return Response.json(
         { href: `/share/${locator}.${share.token}`, createdAt: share.createdAt },
         { status: 201, headers: { "cache-control": "no-store" } },
@@ -95,6 +96,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       if (role !== "owner") return jsonError("Only the workspace owner can manage read-only links", 403);
       const locator = await catalog.getOrCreateShareLocator(workspaceId);
       await env.WORKSPACE_ACCESS.getByName(locator).revokeMappedReadOnlyShare();
+      await room.disconnectReadOnlySockets();
       return new Response(null, { status: 204 });
     }
     if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);

@@ -39,6 +39,10 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return scriptResponse(await loadClientScript());
   }
 
+  if (url.pathname === "/read-only-share.js") {
+    return scriptResponse(await loadReadOnlyShareScript());
+  }
+
   if (url.pathname === "/pdf.worker.js") {
     return scriptResponse(await loadPdfWorkerScript());
   }
@@ -52,7 +56,7 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return createHealthResponse(exampleRoutes.map((route) => route.path));
   }
 
-  const readOnlyShare = /^\/share\/([a-z0-9-]{1,64})\.([A-Za-z0-9_-]{43})(\/document\.pdf)?$/u.exec(url.pathname);
+  const readOnlyShare = /^\/share\/([a-z0-9-]{1,64})\.([A-Za-z0-9_-]{43})(\/document\.pdf|\/socket)?$/u.exec(url.pathname);
   if (readOnlyShare?.[1] && readOnlyShare[2]) {
     if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
@@ -60,7 +64,14 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     const resolved = await env.WORKSPACE_ACCESS.getByName(locator).resolveReadOnlyShare(readOnlyShare[2]);
     if (!resolved.valid) return htmlResponse(renderNotFoundPage("/share"), 404, url);
     const target = resolved.target ?? { storageKey: locator, workspaceId: locator };
-    const snapshot = await env.DOCUMENT_ROOMS.getByName(target.storageKey).getSnapshot(target.workspaceId);
+    const room = env.DOCUMENT_ROOMS.getByName(target.storageKey);
+    if (readOnlyShare[3] === "/socket") {
+      if (!isSameOriginMutation(request)) return Response.json({ error: "Cross-origin WebSocket denied" }, { status: 403 });
+      const headers = new Headers(request.headers);
+      headers.set("x-kirjolab-read-only", "1");
+      return await room.fetch(new Request(request, { headers }));
+    }
+    const snapshot = await room.getSnapshot(target.workspaceId);
     if (readOnlyShare[3]) return sharedPdfResponse(await renderExportPdf(buildExportBundle(snapshot)));
     const sharePath = `/share/${locator}.${readOnlyShare[2]}`;
     return htmlResponse(renderReadOnlySharePage(snapshot, sharePath, url.searchParams.get("view")), 200, url, {
@@ -155,6 +166,18 @@ async function loadClientScript(): Promise<string> {
   }
 
   const script = await import("../.generated/app.txt");
+  return script.default;
+}
+
+async function loadReadOnlyShareScript(): Promise<string> {
+  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
+  if (typeof WebSocketPair === "undefined") {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    return await readFile(fileURLToPath(new URL("./client/read-only-share.txt", import.meta.url).href), "utf8");
+  }
+
+  const script = await import("./client/read-only-share.txt");
   return script.default;
 }
 

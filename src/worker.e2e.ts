@@ -68,6 +68,69 @@ test("shares the owner-scoped demo through an opaque public locator", async ({ p
   expect(await shared.text()).toContain("Evidence becomes prose");
 });
 
+test("refreshes a read-only project after live document edits", async ({ page, browser }) => {
+  const workspaceId = await createWorkspace(page, "Live read-only review");
+  const shareResponse = await page.request.post(`/api/workspaces/${workspaceId}/share-link`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+  });
+  const share = (await shareResponse.json()) as { href: string };
+  const readerContext = await browser.newContext();
+  const reader = await readerContext.newPage();
+
+  await reader.goto(`${share.href}?view=markdown`);
+  await expect(reader.locator("#shared-live-status")).toContainText("Live · revision");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.locator("#save-status")).toHaveText("Saved");
+  await page.locator("#source-editor").fill("# Live review\n\nUpdated for the reader without a manual reload.\n");
+  await expect(page.locator("#save-status")).toHaveText("Saved");
+  await expect(reader.locator("pre")).toContainText("Updated for the reader without a manual reload.");
+
+  const beforeHostileFrameValue: unknown = await (await page.request.get(`/api/workspaces/${workspaceId}`)).json();
+  if (!isWorkspaceSnapshot(beforeHostileFrameValue)) throw new Error("Expected a workspace snapshot before a hostile reader frame");
+  const rejected = await reader.evaluate(
+    async () =>
+      await new Promise<{ code: number; reason: string }>((resolve, reject) => {
+        const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+        const socket = new WebSocket(`${protocol}//${location.host}${location.pathname}/socket`);
+        const timeout = window.setTimeout(() => reject(new Error("Read-only socket accepted an authored update")), 5_000);
+        socket.addEventListener("open", () => socket.send(new Uint8Array([1]).buffer));
+        socket.addEventListener("close", (event) => {
+          window.clearTimeout(timeout);
+          resolve({ code: event.code, reason: event.reason });
+        });
+      }),
+  );
+  expect(rejected).toEqual({ code: 1008, reason: "Read-only project connections cannot send messages" });
+  const afterHostileFrameValue: unknown = await (await page.request.get(`/api/workspaces/${workspaceId}`)).json();
+  if (!isWorkspaceSnapshot(afterHostileFrameValue)) throw new Error("Expected a workspace snapshot after a hostile reader frame");
+  expect(afterHostileFrameValue.revision).toBe(beforeHostileFrameValue.revision);
+  expect(afterHostileFrameValue.source).toBe(beforeHostileFrameValue.source);
+
+  const disconnected = reader.evaluate(
+    async () =>
+      await new Promise<{ code: number; reason: string }>((resolve) => {
+        const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+        const socket = new WebSocket(`${protocol}//${location.host}${location.pathname}/socket`);
+        socket.addEventListener("open", () => {
+          document.body.dataset.testSocketOpen = "true";
+        });
+        socket.addEventListener("close", (event) => resolve({ code: event.code, reason: event.reason }));
+      }),
+  );
+  await expect(reader.locator("body")).toHaveAttribute("data-test-socket-open", "true");
+  expect(
+    (
+      await page.request.post(`/api/workspaces/${workspaceId}/share-link`, {
+        headers: { origin: "http://127.0.0.1:8788" },
+      })
+    ).status(),
+  ).toBe(201);
+  expect(await disconnected).toEqual({ code: 1008, reason: "Read-only link changed" });
+  await expect(reader.locator("#shared-live-status")).toHaveText("Live access ended");
+
+  await readerContext.close();
+});
+
 test("renames, archives, duplicates, and permanently deletes projects", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Lifecycle source");
   const api = `/api/workspaces/${workspaceId}`;

@@ -30,7 +30,15 @@ Markdown and each authored project file. Serve the PDF from a share-scoped
 subroute that independently revalidates the bearer secret and sends inline,
 no-store, same-origin-only headers. Do not load the authenticated client
 application or expose member identities, private-library material, stored PDFs,
-comments, history, other exports, API access, or a WebSocket.
+comments, history, other exports, API access, or a writable collaboration
+WebSocket.
+
+Keep an open viewer current through a separate share-scoped WebSocket. Validate
+the bearer secret and exact same-origin `Origin` before connecting it to the
+document room as a reader. Reader sockets receive revision/reset controls only,
+never Yjs state or collaboration metadata, and reject all inbound frames. The
+small share client reloads its selected server-rendered view after changes
+settle. Rotation and revocation actively disconnect established readers.
 
 Return the link only when it is created. Later status reads reveal whether a
 link is active and when it was created, but cannot recover the secret. Send the
@@ -56,6 +64,8 @@ collaboration.
 - A storage leak does not reveal usable share URLs.
 - The public surface stays small and independent from the authenticated app;
   navigation uses ordinary server-rendered GET requests.
+- Open reviewers see settled live edits without joining the writable
+  collaboration protocol.
 
 **Negative:**
 
@@ -66,12 +76,14 @@ collaboration.
   path.
 - Opening the shared viewer renders the PDF through an additional authenticated
   share request and incurs its bounded generation cost.
+- Each open viewer maintains one hibernatable reader WebSocket and reloads its
+  selected output after a short editing quiet period.
 
 **Neutral:**
 
 - The page is a live view rather than a pinned project revision.
-- Link readers do not appear as collaborators or receive live WebSocket pushes;
-  reloading fetches the latest state.
+- Link readers do not appear as collaborators and receive only revision/reset
+  notices; each refresh fetches the latest state through the bearer URL.
 
 ## Alternatives Considered
 

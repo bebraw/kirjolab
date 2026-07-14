@@ -1,0 +1,51 @@
+const root = document.body;
+const socketPath = root.dataset.shareSocketPath;
+const status = document.querySelector("#shared-live-status");
+let revision = Number(root.dataset.shareRevision ?? "0");
+let reconnectDelay = 500;
+let reconnectTimer;
+let refreshTimer;
+
+const setStatus = (value) => {
+  if (status) status.textContent = value;
+};
+
+const connect = () => {
+  if (!socketPath) return;
+  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(`${protocol}//${location.host}${socketPath}`);
+
+  socket.addEventListener("open", () => {
+    reconnectDelay = 500;
+    setStatus(`Live · revision ${revision}`);
+  });
+  socket.addEventListener("message", (event) => {
+    if (typeof event.data !== "string") return;
+    let message;
+    try {
+      message = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+    if ((message.type !== "revision" && message.type !== "reset") || !Number.isSafeInteger(message.revision)) return;
+    if (message.revision <= revision) return;
+    revision = message.revision;
+    setStatus(`Changes received · updating to revision ${revision}`);
+    window.clearTimeout(refreshTimer);
+    refreshTimer = window.setTimeout(() => location.reload(), 350);
+  });
+  socket.addEventListener("close", (event) => {
+    window.clearTimeout(refreshTimer);
+    if (event.code === 1008) {
+      setStatus("Live access ended");
+      return;
+    }
+    setStatus("Reconnecting to live project…");
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = window.setTimeout(connect, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 5_000);
+  });
+  socket.addEventListener("error", () => socket.close());
+};
+
+connect();

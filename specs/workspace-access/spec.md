@@ -39,6 +39,13 @@ Owners need a minimal way to grant access to a known collaborator.
 - `GET /share/{workspace-id}.{secret}/document.pdf` revalidates the same bearer
   secret before reading the mapped document and renders the canonical bounded
   PDF on demand with inline, no-store, same-origin-only response headers.
+- `GET /share/{workspace-id}.{secret}/socket` requires an exact same-origin
+  WebSocket upgrade and revalidates the bearer secret before joining the mapped
+  document room as a reader. Reader sockets receive revision/reset notices
+  only, reject every inbound frame, and are excluded from writer presence.
+- The small read-only share client reloads the selected server-rendered view
+  after a short quiet period when a newer revision notice arrives. It does not
+  load or reuse the authenticated authoring client.
 - Read-only link secrets contain 256 random bits. Only their SHA-256 hashes are
   persisted, rotating a link invalidates its predecessor, and HTML responses
   use `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
@@ -94,6 +101,8 @@ Owners need a minimal way to grant access to a known collaborator.
       storage key or colliding with another owner's starter project.
 - [x] A read-only link exposes only the current rendered PDF, composed Markdown,
       and individual authored project files through clear output/file navigation.
+- [x] An open read-only view refreshes after live project edits without a manual
+      reload or access to mutable collaboration state.
 - [x] Owner and member records retain stable opaque person identities across
       Durable Object reconstruction.
 - [x] Invited collaborators discover and open the shared workspace.
@@ -136,8 +145,15 @@ Owners need a minimal way to grant access to a known collaborator.
 - Every shared PDF request must independently validate the current bearer token
   before reading document state or rendering output; rotation and revocation
   invalidate both the viewer and PDF URL.
+- Shared WebSocket upgrades must independently validate the bearer token and
+  exact same-origin `Origin` before touching document state. Reader sockets must
+  receive only validated revision/reset control messages and close with a policy
+  violation if they send text or binary data.
+- Link rotation and revocation must actively disconnect established reader
+  sockets so they cannot observe later project activity.
 - Read-only link pages must not load the authenticated application client or
-  expose a workspace API, WebSocket, private research, or mutation control.
+  expose a workspace API, writable collaboration channel, private research, or
+  mutation control.
 
 ### Scenarios
 
@@ -169,6 +185,13 @@ Owners need a minimal way to grant access to a known collaborator.
 - Then: Kirjolab opens the current rendered PDF and lets the reviewer navigate
   to composed Markdown or individual project files with no editing,
   collaboration, general export, member, or private-research capability
+
+**Scenario: Writer changes an open read-only project**
+
+- Given: a reviewer has an open current read-only link
+- When: a writer persists a newer project revision
+- Then: the reviewer receives only its revision notice and the selected
+  server-rendered output refreshes after the edit settles
 
 **Scenario: Owner rotates or revokes a read-only link**
 

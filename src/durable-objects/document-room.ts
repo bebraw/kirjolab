@@ -10,7 +10,12 @@ import {
   type BibTeXEntry,
   type BibTeXPublicationProjection,
 } from "../domain/bibliography";
-import { applyYjsUpdateOnce, encodeServerCollaborationMessage, parseClientSelectionMessage } from "../domain/collaboration";
+import {
+  applyYjsUpdateOnce,
+  encodeServerCollaborationMessage,
+  parseClientSelectionMessage,
+  parseServerCollaborationMessage,
+} from "../domain/collaboration";
 import {
   createManuscriptAnchor,
   resolveManuscriptAnchor,
@@ -268,9 +273,7 @@ interface PersistedDocumentUpdate {
   readonly revision: number;
 }
 
-interface CollaborationSocketAttachment {
-  readonly collaboratorId: string;
-}
+type CollaborationSocketAttachment = { readonly mode: "writer"; readonly collaboratorId: string } | { readonly mode: "reader" };
 
 interface ProjectionOptions {
   readonly acceptedCrossref?: {
@@ -463,15 +466,28 @@ export class DocumentRoom extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
-    server.serializeAttachment({ collaboratorId: crypto.randomUUID() } satisfies CollaborationSocketAttachment);
+    const readOnly = request.headers.get("x-kirjolab-read-only") === "1";
+    server.serializeAttachment(
+      readOnly
+        ? ({ mode: "reader" } satisfies CollaborationSocketAttachment)
+        : ({ mode: "writer", collaboratorId: crypto.randomUUID() } satisfies CollaborationSocketAttachment),
+    );
     this.ctx.acceptWebSocket(server);
-    server.send(Y.encodeStateAsUpdate(this.#document));
-    server.send(encodeServerCollaborationMessage({ type: "sync", protocol: 1, revision: this.#workspaceRow().revision }));
-    this.#broadcastPresence();
+    if (readOnly) {
+      server.send(encodeServerCollaborationMessage({ type: "revision", revision: this.#workspaceRow().revision }));
+    } else {
+      server.send(Y.encodeStateAsUpdate(this.#document));
+      server.send(encodeServerCollaborationMessage({ type: "sync", protocol: 1, revision: this.#workspaceRow().revision }));
+      this.#broadcastPresence();
+    }
     return new Response(null, { status: 101, webSocket: client });
   }
 
   override webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
+    if (collaborationSocketAttachment(socket)?.mode === "reader") {
+      socket.close(1008, "Read-only project connections cannot send messages");
+      return;
+    }
     if (typeof message === "string") {
       const selection = parseClientSelectionMessage(message);
       if (!selection) {
@@ -486,7 +502,7 @@ export class DocumentRoom extends DurableObject<Env> {
         return;
       }
       const attachment = collaborationSocketAttachment(socket);
-      if (!attachment) {
+      if (!attachment || attachment.mode !== "writer") {
         socket.close(1011, "Collaboration identity is unavailable");
         return;
       }
@@ -547,10 +563,16 @@ export class DocumentRoom extends DurableObject<Env> {
 
   override webSocketClose(socket: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
     const attachment = collaborationSocketAttachment(socket);
-    if (attachment) {
+    if (attachment?.mode === "writer") {
       this.#broadcast(encodeServerCollaborationMessage({ type: "selection-clear", collaboratorId: attachment.collaboratorId }), socket);
+      this.#broadcastPresence();
     }
-    this.#broadcastPresence();
+  }
+
+  disconnectReadOnlySockets(): void {
+    for (const socket of this.ctx.getWebSockets()) {
+      if (collaborationSocketAttachment(socket)?.mode === "reader") socket.close(1008, "Read-only link changed");
+    }
   }
 
   getSnapshot(workspaceId: string): WorkspaceSnapshot {
@@ -2805,13 +2827,22 @@ export class DocumentRoom extends DurableObject<Env> {
   }
 
   #broadcast(message: string | ArrayBuffer | ArrayBufferView, except?: WebSocket): void {
+    const control = typeof message === "string" ? parseServerCollaborationMessage(message) : null;
+    const visibleToReaders = control?.type === "revision" || control?.type === "reset";
     for (const socket of this.ctx.getWebSockets()) {
-      if (socket !== except && socket.readyState === WebSocket.OPEN) socket.send(message);
+      if (socket === except || socket.readyState !== WebSocket.OPEN) continue;
+      const attachment = collaborationSocketAttachment(socket);
+      if (attachment?.mode === "reader") {
+        if (visibleToReaders) socket.send(message);
+        continue;
+      }
+      socket.send(message);
     }
   }
 
   #broadcastPresence(): void {
-    this.#broadcast(encodeServerCollaborationMessage({ type: "presence", collaborators: this.ctx.getWebSockets().length }));
+    const collaborators = this.ctx.getWebSockets().filter((socket) => collaborationSocketAttachment(socket)?.mode !== "reader").length;
+    this.#broadcast(encodeServerCollaborationMessage({ type: "presence", collaborators }));
   }
 
   #broadcastResources(): void {
@@ -2821,8 +2852,10 @@ export class DocumentRoom extends DurableObject<Env> {
 
 function collaborationSocketAttachment(socket: WebSocket): CollaborationSocketAttachment | null {
   const value: unknown = socket.deserializeAttachment();
-  return isRecordValue(value) && typeof value.collaboratorId === "string" && value.collaboratorId.length <= 128
-    ? { collaboratorId: value.collaboratorId }
+  if (!isRecordValue(value)) return null;
+  if (value.mode === "reader") return { mode: "reader" };
+  return typeof value.collaboratorId === "string" && value.collaboratorId.length <= 128
+    ? { mode: "writer", collaboratorId: value.collaboratorId }
     : null;
 }
 

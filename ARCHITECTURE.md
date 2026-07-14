@@ -128,7 +128,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   its secret hash, expose only the live composed Markdown, authored project
   source, and an on-demand rendering of the canonical PDF output, and keep
   member identity, private research, general APIs and exports, and
-  collaboration channels behind authenticated workspace authorization.
+  mutation-capable collaboration channels behind authenticated workspace
+  authorization.
+- Refresh open read-only project views through a bearer-authenticated,
+  same-origin WebSocket that emits revision/reset notices only. Never send Yjs
+  state, presence, selections, resource events, or accept client messages on a
+  reader connection; disconnect readers when the capability rotates or is
+  revoked.
 - Evolve every SQLite-backed Durable Object through an ordered, named,
   append-only migration ledger. Apply each pending schema or data migration and
   its ledger record in one synchronous transaction; fail closed if applied
