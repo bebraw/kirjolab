@@ -173,6 +173,8 @@ describe("shared reference library", () => {
     };
     const preview = { referenceId: "reference-1", artifactId: "artifact-1", candidates: [candidate] };
     expect(isMetadataRefinementPreview(preview)).toBe(true);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, provider: "openalex" }] })).toBe(true);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, provider: "semantic-scholar" }] })).toBe(true);
     expect(isMetadataRefinementPreview({ ...preview, candidates: Array.from({ length: 6 }, () => candidate) })).toBe(false);
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, provider: "unknown" }] })).toBe(false);
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, match: "guess" }] })).toBe(false);

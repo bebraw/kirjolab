@@ -18,9 +18,11 @@ enough to overwrite canonical metadata without review.
   (title, authors, year, and DOI) to the owner-private Worker route.
 - The library authority verifies the artifact/reference relationship before any
   provider lookup.
-- A DOI triggers an exact Crossref lookup with a DataCite fallback when Crossref
-  has no record. Without a DOI, a bounded Crossref `query.bibliographic` search
-  returns at most five unique DOI-backed candidates.
+- When its key is configured, OpenAlex is the first exact-DOI and bibliographic
+  discovery source. Crossref follows; an exact DOI falls back to DataCite when
+  Crossref has no record. Configured Semantic Scholar lookup is the final
+  complementary source. Bibliographic results fill one provider-ordered,
+  DOI-deduplicated list of at most five candidates.
 - The inline result separates editable PDF suggestions from provider candidates.
   The researcher chooses a provider record and approves fields independently.
 - Provider preview is non-mutating. Acceptance sends provider name, DOI,
@@ -28,7 +30,8 @@ enough to overwrite canonical metadata without review.
 - The Worker refetches the exact provider DOI, verifies the fingerprint and DOI
   uniqueness, and delegates one atomic selected-field mutation to the library.
 - Accepted local fields record `pdf-metadata` provenance. Accepted provider
-  fields record `crossref` or `datacite` provenance.
+  fields record `openalex`, `crossref`, `datacite`, or `semantic-scholar`
+  provenance.
 - UUIDs, PDF bytes, unselected values, and finalized reference keys remain
   unchanged. Reviewed values may improve a private-only provisional key.
 
@@ -39,7 +42,8 @@ enough to overwrite canonical metadata without review.
   five provider candidates with provider, match method, bounded metadata, score
   when supplied, and a 64-character hexadecimal fingerprint.
 - `POST /api/library/references/{referenceId}/metadata-refinement/accept`
-  accepts `crossref` or `datacite`, one valid DOI, the preview fingerprint, and
+  accepts `openalex`, `crossref`, `datacite`, or `semantic-scholar`, one valid
+  DOI, the preview fingerprint, and
   a non-empty unique list drawn from `type`, `title`, `authors`, `year`, `venue`,
   `doi`, `url`, and `abstract`.
 - The existing PDF metadata and Crossref routes remain compatible trust
@@ -50,8 +54,8 @@ enough to overwrite canonical metadata without review.
 ### Privacy Contract
 
 - Private PDF bytes and extracted page text never leave Kirjolab.
-- Crossref and DataCite receive only DOI values or bounded extracted
-  bibliographic text.
+- OpenAlex, Crossref, DataCite, and Semantic Scholar receive only DOI values or
+  bounded extracted bibliographic text.
 - Provider responses are bounded to 1 MB and rendered through text properties.
 
 ### Anti-Patterns
@@ -69,8 +73,9 @@ enough to overwrite canonical metadata without review.
 
 - [x] One inline action reports local-extraction and provider-search progress.
 - [x] PDF suggestions remain usable when provider lookup fails or finds no match.
-- [x] DOI lookup covers Crossref and DataCite without API credentials.
-- [x] DOI-less PDFs receive at most five Crossref bibliographic matches.
+- [x] DOI lookup retains credential-free Crossref and DataCite coverage.
+- [x] Configured OpenAlex runs first and configured Semantic Scholar runs last.
+- [x] DOI-less PDFs receive at most five ordered, DOI-deduplicated provider matches.
 - [x] Candidate and field selection precede any provider mutation.
 - [x] Acceptance refetches and verifies provider metadata before applying it.
 - [x] Selected fields retain provider-specific provenance across durable storage.
@@ -96,7 +101,7 @@ enough to overwrite canonical metadata without review.
 
 - Given: a linked PDF yields a title, author, and year but no DOI
 - When: the researcher refines metadata
-- Then: up to five Crossref matches appear for explicit candidate and field review
+- Then: up to five provider-ordered matches appear for explicit candidate and field review
 
 **Scenario: Provider metadata changes after preview**
 
@@ -107,5 +112,5 @@ enough to overwrite canonical metadata without review.
 **Scenario: Provider lookup is unavailable**
 
 - Given: browser extraction has already produced local suggestions
-- When: Crossref or DataCite fails
+- When: one or more scholarly providers fail
 - Then: the local suggestions remain reviewable and canonical metadata remains unchanged

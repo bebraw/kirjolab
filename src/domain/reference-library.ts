@@ -2,7 +2,7 @@ import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "./bibl
 
 export type ReferenceMetadataField = "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract";
 export type CrossrefMetadataField = ReferenceMetadataField;
-export type ScholarlyMetadataProvider = "crossref" | "datacite";
+export type ScholarlyMetadataProvider = "openalex" | "crossref" | "datacite" | "semantic-scholar";
 export type MetadataProvenanceMethod = "bibtex" | ScholarlyMetadataProvider | "filename" | "manual" | "pdf-metadata" | "web" | "migration";
 
 export const crossrefMetadataFields = ["type", "title", "authors", "year", "venue", "doi", "url", "abstract"] as const;
@@ -510,7 +510,7 @@ export function isMetadataRefinementPreview(value: unknown): value is MetadataRe
 function isMetadataRefinementCandidate(value: unknown): value is MetadataRefinementCandidate {
   return (
     isRecord(value) &&
-    (value.provider === "crossref" || value.provider === "datacite") &&
+    ["openalex", "crossref", "datacite", "semantic-scholar"].includes(String(value.provider)) &&
     (value.match === "doi" || value.match === "bibliographic") &&
     (value.score === null || (typeof value.score === "number" && Number.isFinite(value.score))) &&
     isCrossrefMetadata(value.metadata) &&

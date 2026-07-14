@@ -708,6 +708,138 @@ describe("reference library API", () => {
     expect(fixture.library.applyReviewedProviderMetadata).not.toHaveBeenCalled();
   });
 
+  it("tries configured OpenAlex first and refetches an accepted OpenAlex candidate", async () => {
+    const fixture = apiFixture();
+    const env = { ...fixture.env, OPENALEX_API_KEY: "openalex-key" };
+    const fetchExternal = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) => openAlexResponse());
+    const route = `/api/library/references/${reference.id}/metadata-refinement`;
+    const previewResponse = await handleReferenceLibraryApi(
+      jsonRequest(`${route}/preview`, {
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        candidates: { doi: "10.5555/openalex" },
+      }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    const preview = (await previewResponse.json()) as { candidates: Array<{ provider: string; metadataFingerprint: string }> };
+    expect(previewResponse.status).toBe(200);
+    expect(preview.candidates).toEqual([
+      expect.objectContaining({ provider: "openalex", metadataFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u) }),
+    ]);
+    expect(String(fetchExternal.mock.calls[0]?.[0])).toContain("api.openalex.org/works/doi:");
+
+    const accepted = await handleReferenceLibraryApi(
+      jsonRequest(`${route}/accept`, {
+        provider: "openalex",
+        doi: "10.5555/openalex",
+        metadataFingerprint: preview.candidates[0]!.metadataFingerprint,
+        fields: ["title", "authors"],
+      }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    expect(accepted.status).toBe(200);
+    expect(fixture.library.applyReviewedProviderMetadata).toHaveBeenCalledWith(
+      reference.id,
+      expect.objectContaining({ title: "OpenAlex record", doi: "10.5555/openalex" }),
+      ["title", "authors"],
+      "openalex",
+      identity.email,
+    );
+  });
+
+  it("combines configured discovery providers in order while deduplicating DOIs", async () => {
+    const fixture = apiFixture();
+    const env = { ...fixture.env, OPENALEX_API_KEY: "openalex-key", SEMANTIC_SCHOLAR_API_KEY: "semantic-key" };
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.hostname === "api.openalex.org") {
+        return Response.json({
+          results: [openAlexWork(), openAlexWork({ doi: "https://doi.org/10.5555/shared", title: "OpenAlex shared" })],
+        });
+      }
+      if (url.hostname === "api.crossref.org") {
+        return Response.json({
+          message: {
+            items: [
+              { DOI: "10.5555/shared", title: ["Crossref duplicate"] },
+              { DOI: "10.5555/crossref", title: ["Crossref record"] },
+            ],
+          },
+        });
+      }
+      return Response.json({ data: [semanticScholarPaper()] });
+    });
+    const response = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/metadata-refinement/preview`, {
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        candidates: { title: "Evidence", authors: ["Doe, Jane"], year: "2026" },
+      }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    const body = (await response.json()) as { candidates: Array<{ provider: string; metadata: { doi: string } }> };
+    expect(response.status).toBe(200);
+    expect(body.candidates.map((candidate) => [candidate.provider, candidate.metadata.doi])).toEqual([
+      ["openalex", "10.5555/openalex"],
+      ["openalex", "10.5555/shared"],
+      ["crossref", "10.5555/crossref"],
+      ["semantic-scholar", "10.5555/semantic"],
+    ]);
+    expect(fetchExternal).toHaveBeenCalledTimes(3);
+  });
+
+  it("uses Semantic Scholar after both DOI registries report no record", async () => {
+    const fixture = apiFixture();
+    const env = { ...fixture.env, SEMANTIC_SCHOLAR_API_KEY: "semantic-key" };
+    const fetchExternal = vi
+      .fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(Response.json(semanticScholarPaper()))
+      .mockResolvedValueOnce(Response.json(semanticScholarPaper()));
+    const response = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/metadata-refinement/preview`, {
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        candidates: { doi: "10.5555/semantic" },
+      }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    expect(response.status).toBe(200);
+    const preview = (await response.json()) as {
+      candidates: Array<{ metadataFingerprint: string; metadata: { doi: string }; provider: string }>;
+    };
+    expect(preview).toMatchObject({
+      candidates: [{ provider: "semantic-scholar", match: "doi", metadata: { doi: "10.5555/semantic" } }],
+    });
+    const accepted = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/metadata-refinement/accept`, {
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        provider: "semantic-scholar",
+        doi: "10.5555/semantic",
+        metadataFingerprint: preview.candidates[0]?.metadataFingerprint,
+        fields: ["title", "abstract"],
+      }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    expect(accepted.status).toBe(200);
+    expect(fixture.library.applyReviewedProviderMetadata).toHaveBeenCalledWith(
+      reference.id,
+      expect.objectContaining({ title: "Semantic Scholar record", doi: "10.5555/semantic" }),
+      ["title", "abstract"],
+      "semantic-scholar",
+      identity.email,
+    );
+    expect(fetchExternal).toHaveBeenCalledTimes(4);
+  });
+
   it("routes citation assertions, review, project filtering, and explicit Crossref expansion", async () => {
     const fixture = apiFixture();
     const createBody = {
@@ -931,6 +1063,37 @@ function dataCiteResponse(): Response {
       },
     },
   });
+}
+
+function openAlexWork(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    doi: "https://doi.org/10.5555/openalex",
+    title: "OpenAlex record",
+    publication_year: 2026,
+    type: "article",
+    authorships: [{ author: { display_name: "Jane Doe" } }],
+    primary_location: { source: { display_name: "Open Research" } },
+    abstract_inverted_index: { Open: [0], abstract: [1] },
+    relevance_score: 90,
+    ...overrides,
+  };
+}
+
+function openAlexResponse(): Response {
+  return Response.json(openAlexWork());
+}
+
+function semanticScholarPaper(): Record<string, unknown> {
+  return {
+    paperId: "semantic-paper",
+    externalIds: { DOI: "10.5555/semantic" },
+    title: "Semantic Scholar record",
+    abstract: "Semantic abstract",
+    authors: [{ name: "Jane Doe" }],
+    year: 2026,
+    venue: "Open Research",
+    publicationTypes: ["JournalArticle"],
+  };
 }
 
 class MemoryR2Bucket implements Pick<R2Bucket, "put" | "get" | "delete"> {

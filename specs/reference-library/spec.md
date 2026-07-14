@@ -49,10 +49,11 @@ memory and makes citation aliases compete with stable source identity.
   same atomic upload endpoint. Per-file failure does not stop later uploads;
   only failed files remain in an ephemeral retry queue. Batch intake performs no
   metadata extraction or provider lookup.
-- DOI-backed records may preview bounded Crossref metadata inline. Acceptance
-  refetches and verifies the provider fingerprint, then changes only the fields
-  the researcher selected. This may improve a private-only provisional key but
-  never changes a finalized key.
+- Linked PDF records may preview bounded, DOI-deduplicated OpenAlex, Crossref,
+  DataCite, and Semantic Scholar candidates inline according to configured
+  provider order. Acceptance refetches and verifies the named provider
+  fingerprint, then changes only the fields the researcher selected. This may
+  improve a private-only provisional key but never changes a finalized key.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - Web sources are stable records keyed by normalized canonical URL. Every
@@ -143,11 +144,11 @@ memory and makes citation aliases compete with stable source identity.
 ### Validation
 
 - Pure tests cover type requirements, per-field provenance, DOI normalization,
-  duplicate identity, portable snapshots, and bounded Crossref preview shapes.
+  duplicate identity, portable snapshots, and bounded provider preview shapes.
 - Real-`workerd` tests cover stable upsert, private state, PDF identification,
   project dependency impact, archive, tombstone deletion, project aliases,
   derived bibliography, cited-only filtering, alias rewrites, and selective
-  Crossref provenance.
+  provider-specific provenance.
 - Key tests cover surname/year generation, sparse fallbacks, topical and numeric
   collision suffixes, provisional improvement, and permanent first-link finalization.
 - Browser coverage opens a private artifact, saves and revisits a private
@@ -167,7 +168,7 @@ memory and makes citation aliases compete with stable source identity.
   notes/tags/highlights/reading state, archive
   and tombstone deletion, project aliases/snapshots, derived cited-only BibTeX,
   versioned web captures, provenance-bearing citation assertions and network,
-  reviewed Crossref enrichment, explicit private PDF highlights in Context,
+  reviewed multi-provider metadata enrichment, explicit private PDF highlights in Context,
   and a permanent owner-private Library context tab.
 - Superseded: workspace BibTeX authority and workspace-scoped publication
   projection described by ADR-044, ADR-051, and ADR-055.

@@ -218,6 +218,25 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       "owner@example.test",
     );
     expect(dataCiteEnriched).toMatchObject({ year: "2027", provenance: { year: { method: "datacite" } } });
+    const openAlexEnriched = await library.applyReviewedProviderMetadata(
+      first.reference.id,
+      { ...dataCiteEnriched, authors: [...dataCiteEnriched.authors], abstract: "OpenAlex abstract" },
+      ["abstract"],
+      "openalex",
+      "owner@example.test",
+    );
+    expect(openAlexEnriched).toMatchObject({ abstract: "OpenAlex abstract", provenance: { abstract: { method: "openalex" } } });
+    const semanticScholarEnriched = await library.applyReviewedProviderMetadata(
+      first.reference.id,
+      { ...openAlexEnriched, authors: [...openAlexEnriched.authors], venue: "Semantic Scholar venue" },
+      ["venue"],
+      "semantic-scholar",
+      "owner@example.test",
+    );
+    expect(semanticScholarEnriched).toMatchObject({
+      venue: "Semantic Scholar venue",
+      provenance: { venue: { method: "semantic-scholar" } },
+    });
     await library.registerProjectDependency("project-a", first.reference.id);
     expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("final");
     const finalized = await library.updateReferenceMetadata(

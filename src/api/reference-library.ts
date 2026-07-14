@@ -31,6 +31,8 @@ import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi } from "../domain/publication-intake";
 import { fetchCrossrefReferences, fetchCrossrefWork, fingerprintPublicationMetadata, searchCrossrefWorks } from "../integrations/crossref";
 import { fetchDataCiteWork } from "../integrations/datacite";
+import { fetchOpenAlexWork, searchOpenAlexWorks } from "../integrations/openalex";
+import { fetchSemanticScholarWork, searchSemanticScholarWorks } from "../integrations/semantic-scholar";
 import type { AuthIdentity } from "../security/auth";
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from "fflate";
 import {
@@ -110,6 +112,8 @@ interface ReferenceLibraryApiEnv {
   readonly REFERENCE_LIBRARIES: { getByName(name: string): ReferenceLibraryApi };
   readonly PAPERS: Pick<R2Bucket, "put" | "get" | "delete">;
   readonly CROSSREF_MAILTO: string;
+  readonly OPENALEX_API_KEY?: string;
+  readonly SEMANTIC_SCHOLAR_API_KEY?: string;
 }
 
 export async function handleReferenceLibraryApi(
@@ -414,16 +418,12 @@ async function previewMetadataRefinement(
   const matches = doi
     ? [
         {
-          provider: await doiMetadataProvider(doi, env.CROSSREF_MAILTO, fetchExternal),
+          provider: await doiMetadataProvider(doi, env, fetchExternal),
           match: "doi" as const,
           score: null,
         },
       ]
-    : (await searchCrossrefWorks(query, env.CROSSREF_MAILTO, fetchExternal)).map((match) => ({
-        provider: { name: "crossref" as const, metadata: match.metadata },
-        match: "bibliographic" as const,
-        score: match.score,
-      }));
+    : await searchMetadataProviders(query, env, fetchExternal);
   const candidates = await Promise.all(
     matches.map(async ({ provider, match, score }) => {
       const metadata: CrossrefMetadata = { ...provider.metadata, type: provider.metadata.type ?? "misc" };
@@ -454,10 +454,7 @@ async function acceptMetadataRefinement(
   if (reference.doi && normalizeDoi(reference.doi) !== doi) return jsonError("Reference DOI changed; refine metadata again", 409);
   const conflict = await duplicateDoiValueResponse(reference, doi, library);
   if (conflict) return conflict;
-  const metadataValue =
-    body.provider === "crossref"
-      ? await fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal)
-      : await fetchDataCiteWork(doi, env.CROSSREF_MAILTO, fetchExternal);
+  const metadataValue = await fetchProviderWork(body.provider, doi, env, fetchExternal);
   const metadata: CrossrefMetadata = { ...metadataValue, type: metadataValue.type ?? "misc" };
   if ((await fingerprintPublicationMetadata(metadata)) !== body.metadataFingerprint) {
     return jsonError("Provider metadata changed; review it again", 409);
@@ -470,15 +467,96 @@ async function acceptMetadataRefinement(
 
 async function doiMetadataProvider(
   doi: string,
-  mailto: string,
+  env: ReferenceLibraryApiEnv,
   fetchExternal: ExternalFetch,
 ): Promise<{ name: ScholarlyMetadataProvider; metadata: Awaited<ReturnType<typeof fetchCrossrefWork>> }> {
+  if (env.OPENALEX_API_KEY?.trim()) {
+    try {
+      return { name: "openalex", metadata: await fetchOpenAlexWork(doi, env.OPENALEX_API_KEY, fetchExternal) };
+    } catch {
+      // OpenAlex is an optional discovery layer; registry lookup remains authoritative when it is unavailable.
+    }
+  }
   try {
-    return { name: "crossref", metadata: await fetchCrossrefWork(doi, mailto, fetchExternal) };
+    return { name: "crossref", metadata: await fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal) };
   } catch (error) {
     if (!(error instanceof Error) || error.message !== "Crossref has no record for this DOI") throw error;
-    return { name: "datacite", metadata: await fetchDataCiteWork(doi, mailto, fetchExternal) };
   }
+  try {
+    return { name: "datacite", metadata: await fetchDataCiteWork(doi, env.CROSSREF_MAILTO, fetchExternal) };
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "DataCite has no record for this DOI" || !env.SEMANTIC_SCHOLAR_API_KEY?.trim())
+      throw error;
+    return { name: "semantic-scholar", metadata: await fetchSemanticScholarWork(doi, env.SEMANTIC_SCHOLAR_API_KEY, fetchExternal) };
+  }
+}
+
+async function searchMetadataProviders(
+  query: { readonly title: string; readonly authors: readonly string[]; readonly year: string },
+  env: ReferenceLibraryApiEnv,
+  fetchExternal: ExternalFetch,
+): Promise<
+  Array<{
+    provider: { name: ScholarlyMetadataProvider; metadata: Awaited<ReturnType<typeof fetchCrossrefWork>> };
+    match: "bibliographic";
+    score: number | null;
+  }>
+> {
+  const results: Array<{
+    provider: { name: ScholarlyMetadataProvider; metadata: Awaited<ReturnType<typeof fetchCrossrefWork>> };
+    match: "bibliographic";
+    score: number | null;
+  }> = [];
+  const seen = new Set<string>();
+  let lastError: unknown;
+  const append = (
+    provider: ScholarlyMetadataProvider,
+    matches: readonly { metadata: Awaited<ReturnType<typeof fetchCrossrefWork>>; score: number | null }[],
+  ) => {
+    for (const match of matches) {
+      const doi = normalizeDoi(match.metadata.doi);
+      if (!doi || seen.has(doi) || results.length >= 5) continue;
+      seen.add(doi);
+      results.push({ provider: { name: provider, metadata: match.metadata }, match: "bibliographic", score: match.score });
+    }
+  };
+  if (env.OPENALEX_API_KEY?.trim()) {
+    try {
+      append("openalex", await searchOpenAlexWorks(query, env.OPENALEX_API_KEY, fetchExternal));
+    } catch (error) {
+      lastError = error;
+      // Continue to registry-backed discovery when the optional OpenAlex layer is unavailable.
+    }
+  }
+  if (results.length < 5) {
+    try {
+      append("crossref", await searchCrossrefWorks(query, env.CROSSREF_MAILTO, fetchExternal));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (results.length < 5 && env.SEMANTIC_SCHOLAR_API_KEY?.trim()) {
+    try {
+      append("semantic-scholar", await searchSemanticScholarWorks(query, env.SEMANTIC_SCHOLAR_API_KEY, fetchExternal));
+    } catch (error) {
+      lastError = error;
+      // Crossref results remain reviewable when the optional final provider is unavailable.
+    }
+  }
+  if (results.length === 0 && lastError) throw lastError;
+  return results;
+}
+
+function fetchProviderWork(
+  provider: ScholarlyMetadataProvider,
+  doi: string,
+  env: ReferenceLibraryApiEnv,
+  fetchExternal: ExternalFetch,
+): Promise<Awaited<ReturnType<typeof fetchCrossrefWork>>> {
+  if (provider === "openalex") return fetchOpenAlexWork(doi, env.OPENALEX_API_KEY ?? "", fetchExternal);
+  if (provider === "crossref") return fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal);
+  if (provider === "datacite") return fetchDataCiteWork(doi, env.CROSSREF_MAILTO, fetchExternal);
+  return fetchSemanticScholarWork(doi, env.SEMANTIC_SCHOLAR_API_KEY ?? "", fetchExternal);
 }
 
 async function libraryReference(referenceId: string, library: ReferenceLibraryApi): Promise<BibliographicRecord> {
@@ -537,7 +615,7 @@ function isMetadataRefinementAcceptanceInput(value: unknown): value is {
 } {
   return (
     isRecord(value) &&
-    (value.provider === "crossref" || value.provider === "datacite") &&
+    ["openalex", "crossref", "datacite", "semantic-scholar"].includes(String(value.provider)) &&
     typeof value.doi === "string" &&
     isValidDoi(value.doi) &&
     isCrossrefAcceptanceInput(value)

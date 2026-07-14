@@ -2496,7 +2496,7 @@ class WorkspaceApp {
     candidateSelect.className = "field mt-2";
     candidateSelect.setAttribute("aria-label", `Metadata match for ${reference.title}`);
     for (const [index, candidate] of preview.candidates.entries()) {
-      const label = `${candidate.provider === "crossref" ? "Crossref" : "DataCite"} · ${candidate.metadata.title}${candidate.metadata.year ? ` · ${candidate.metadata.year}` : ""}`;
+      const label = `${scholarlyProviderLabel(candidate.provider)} · ${candidate.metadata.title}${candidate.metadata.year ? ` · ${candidate.metadata.year}` : ""}`;
       candidateSelect.append(new Option(label, String(index)));
     }
     const comparison = document.createElement("div");
@@ -2539,7 +2539,7 @@ class WorkspaceApp {
       name.textContent = field;
       const provider = document.createElement("span");
       provider.className = "block break-words text-app-text";
-      provider.textContent = `${candidate.provider === "crossref" ? "Crossref" : "DataCite"}: ${proposed}`;
+      provider.textContent = `${scholarlyProviderLabel(candidate.provider)}: ${proposed}`;
       const existing = document.createElement("span");
       existing.className = "block break-words text-app-text-soft";
       existing.textContent = `Current: ${current || "—"}`;
@@ -2552,7 +2552,7 @@ class WorkspaceApp {
       container.append(statusText("This provider record matches the current library metadata."));
       return;
     }
-    const providerName = candidate.provider === "crossref" ? "Crossref" : "DataCite";
+    const providerName = scholarlyProviderLabel(candidate.provider);
     container.append(
       actionButton(
         `Apply selected ${providerName} metadata`,
@@ -5154,6 +5154,13 @@ function statisticsGroup(title: string, items: readonly { label: string; words: 
   }
   section.append(heading, list);
   return section;
+}
+
+function scholarlyProviderLabel(provider: MetadataRefinementCandidate["provider"]): string {
+  if (provider === "openalex") return "OpenAlex";
+  if (provider === "crossref") return "Crossref";
+  if (provider === "datacite") return "DataCite";
+  return "Semantic Scholar";
 }
 
 function collectElements(): Elements {

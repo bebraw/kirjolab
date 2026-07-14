@@ -1043,7 +1043,11 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const current = this.#reference(referenceId);
     const providerDoi = normalizeDoi(metadata.doi);
     const currentDoi = normalizeDoi(current.doi);
-    if ((provider !== "crossref" && provider !== "datacite") || !providerDoi || (currentDoi && currentDoi !== providerDoi)) {
+    if (
+      !(["openalex", "crossref", "datacite", "semantic-scholar"] as const).includes(provider) ||
+      !providerDoi ||
+      (currentDoi && currentDoi !== providerDoi)
+    ) {
       throw new Error("Reference DOI changed; review provider metadata again");
     }
     if (
@@ -1632,6 +1636,8 @@ function parseProvenance(value: string): BibliographicRecord["provenance"] {
         (item.method === "bibtex" ||
           item.method === "crossref" ||
           item.method === "datacite" ||
+          item.method === "openalex" ||
+          item.method === "semantic-scholar" ||
           item.method === "filename" ||
           item.method === "manual" ||
           item.method === "pdf-metadata" ||
