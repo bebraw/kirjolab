@@ -321,6 +321,35 @@ test("keeps the workspace within a compact desktop viewport", async ({ page }) =
   ).toMatchObject({ clientWidth: 1100, scrollWidth: 1100 });
 });
 
+test("keeps editor controls visible at a compact split width", async ({ page }) => {
+  await page.setViewportSize({ width: 1197, height: 800 });
+  const workspaceId = await createWorkspace(page, "Compact split toolbar");
+  await page.goto(`/workspaces/${workspaceId}`);
+
+  await expect(page.locator("#project-file-switcher")).toHaveCount(0);
+  await expect(page.locator("#files-rail-panel")).toBeVisible();
+  const toolbarFit = await page.locator(".editor-toolbar").evaluate((toolbar) => {
+    const toolbarBounds = toolbar.getBoundingClientRect();
+    const visibleControls = [
+      ...toolbar.querySelectorAll(":scope > .editor-toolbar-group > button, :scope > .editor-toolbar-group > details > summary"),
+    ].filter((control): control is HTMLElement => control instanceof HTMLElement && control.offsetParent !== null);
+    const clippedControls = visibleControls.flatMap((control) => {
+      const bounds = control.getBoundingClientRect();
+      const fits =
+        bounds.left >= toolbarBounds.left &&
+        bounds.right <= toolbarBounds.right &&
+        bounds.top >= toolbarBounds.top &&
+        bounds.bottom <= toolbarBounds.bottom;
+      return fits ? [] : [control.textContent?.trim() ?? control.tagName];
+    });
+    return {
+      pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      clippedControls,
+    };
+  });
+  expect(toolbarFit).toEqual({ pageOverflows: false, clippedControls: [] });
+});
+
 test("highlights Markdown without replacing the native editor", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Highlighted source");
   await page.goto(`/workspaces/${workspaceId}`);
@@ -1871,7 +1900,7 @@ test("creates and inserts transcluded project files", async ({ page }) => {
     .getByRole("button", { name: /chapters\/method\.md/u })
     .click();
   await expect(source).toHaveValue(/::include\[chapters\/method\.md\]\n$/u);
-  await page.locator("#project-file-switcher").selectOption({ label: "chapters/method.md" });
+  await page.locator(".project-file-row", { hasText: "method.md" }).click();
   await source.fill("## Method\n\nDescribe the procedure.\n");
   await expect(page.locator("#source-editor-highlight")).toHaveText("## Method\n\nDescribe the procedure.\n");
   await expect(page.locator("#source-editor-highlight .markdown-token-heading")).toContainText("Method");

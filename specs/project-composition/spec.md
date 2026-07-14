@@ -49,11 +49,12 @@ collaborative, and unambiguous about what preview and export mean.
   opens with its authored structure visible. The file navigator uses one
   direct heading and omits redundant list counts, sort labels, and extension
   badges; the entry file remains visibly identified because it defines the
-  composition root. Supporting paths render as a compact hierarchy, and file
-  creation is available from both the file navigator and the active-file
-  toolbar. The navigator directly exposes folder creation and contextual
-  folder move, rename, and empty-delete actions. The file toolbar labels its
-  editable path action as **Move or rename file**.
+  composition root. Supporting paths render as a compact hierarchy. File
+  selection lives in this default-visible navigator instead of a duplicate
+  authoring-toolbar dropdown. File creation remains available from both the
+  navigator and the active-file toolbar. The navigator directly exposes folder
+  creation and contextual folder move, rename, and empty-delete actions. The
+  file toolbar labels its editable path action as **Move or rename file**.
 - A fresh starter project includes one supporting Markdown file transcluded
   from `main.md`, making the portable include syntax and composed result
   discoverable without changing existing projects during migration.
@@ -109,8 +110,10 @@ collaborative, and unambiguous about what preview and export mean.
   file identity across rename, composed diffs, non-destructive restore, and
   revision seeds.
 - Browser coverage verifies that authors can insert an existing file and create
-  a new file at a remembered caret without changing the `main.md` composition
-  root, and that Files is the initial rail mode.
+  a new file at a remembered caret, select it through the file tree without
+  changing the `main.md` composition root, and that Files is the initial rail
+  mode. Compact split-width coverage verifies that toolbar controls remain
+  fully visible without a duplicate file dropdown.
 - Workers coverage verifies that a fresh project exposes the transclusion demo
   as a real supporting file and composes it without diagnostics.
 

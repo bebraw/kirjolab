@@ -159,8 +159,6 @@ export function renderHomePage(
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
         <div class="editor-toolbar">
           <div class="editor-toolbar-group">
-            <label class="sr-only" for="project-file-switcher">Project file</label>
-            <select class="workspace-switcher" id="project-file-switcher" aria-label="Project file"><option>main.md</option></select>
             <span class="count-badge" id="revision-badge">r0</span>
             <button class="count-badge" id="word-count-badge" type="button" title="Open publication statistics">… words</button>
             <button class="button-secondary" id="open-project-history" type="button">History</button>

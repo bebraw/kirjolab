@@ -44,6 +44,8 @@ mode for authenticated hosted collaboration.
 - **Editor toolbar:** Persistent editor actions keep their labels on one line.
   At constrained authoring widths, complete control groups wrap onto another
   toolbar row instead of shrinking individual buttons or overflowing the page.
+  File navigation remains in the default-visible project tree rather than
+  consuming toolbar width with a duplicate selector.
 - **Left project rail:** Files, Research, and Comments are peer local navigation
   modes. Comments contains the selected-passage composer and durable comment
   history without taking vertical space from the manuscript editor. Files owns
@@ -331,6 +333,8 @@ mode for authenticated hosted collaboration.
       `Opening…` to `Saved` when no local update is pending.
 - [x] Persistent toolbars group infrequent project and file mutations without
       hiding them behind unexplained glyphs.
+- [x] The editor toolbar omits duplicate file navigation and keeps its visible
+      controls fully contained at a 1197 px split-workspace width.
 - [x] Permanent helper and empty-state copy stays concise, action-oriented, and
       free of architecture terminology that does not change the user's choice.
 - [x] Project creation, navigation, access, search, and errors use one

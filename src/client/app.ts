@@ -182,7 +182,6 @@ interface Elements {
   newProjectFileRail: HTMLButtonElement;
   newProjectFolderRail: HTMLButtonElement;
   projectFileList: HTMLElement;
-  projectFileSwitcher: HTMLSelectElement;
   newProjectFile: HTMLButtonElement;
   createAndIncludeProjectFile: HTMLButtonElement;
   renameProjectFile: HTMLButtonElement;
@@ -567,7 +566,6 @@ class WorkspaceApp {
     this.#bindSourceEditor(this.#source);
     bindVimTextarea(this.#elements.source, this.#elements.sourceEditorShell, this.#elements.vimToggle, this.#elements.vimModeStatus);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
-    this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
     this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.newProjectFileRail.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.newProjectFolderRail.addEventListener("click", () => this.#openProjectFileDialog("create-folder"));
@@ -1320,15 +1318,6 @@ class WorkspaceApp {
       this.#activeFileId = snapshot.entryFileId;
       this.#activeFileText = this.#source;
     }
-    this.#elements.projectFileSwitcher.replaceChildren(
-      ...snapshot.files.map((file) => {
-        const option = document.createElement("option");
-        option.value = file.id;
-        option.textContent = file.path;
-        option.selected = file.id === this.#activeFileId;
-        return option;
-      }),
-    );
     this.#elements.projectFileList.replaceChildren();
     this.#elements.includeProjectFileList.replaceChildren();
     const items = [
@@ -5317,7 +5306,6 @@ function collectElements(): Elements {
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     projectFileList: requiredElement("project-file-list", HTMLElement),
-    projectFileSwitcher: requiredElement("project-file-switcher", HTMLSelectElement),
     newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
     createAndIncludeProjectFile: requiredElement("create-and-include-project-file", HTMLButtonElement),
     renameProjectFile: requiredElement("rename-project-file", HTMLButtonElement),
