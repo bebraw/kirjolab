@@ -61,7 +61,9 @@ collaborative, and unambiguous about what preview and export mean.
 - The authoring toolbar inserts an existing file with a path relative to the
   active file. **Create and include** creates a supporting file and inserts its
   directive at the remembered collaborative caret, so authors do not have to
-  type or repair project-relative paths by hand.
+  type or repair project-relative paths by hand. Existing-file actions pair a
+  safely truncated path with the compact `::include[…]` hint; the complete path
+  and inserted directive remain available through native titles.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.
@@ -113,7 +115,8 @@ collaborative, and unambiguous about what preview and export mean.
   a new file at a remembered caret, select it through the file tree without
   changing the `main.md` composition root, and that Files is the initial rail
   mode. Compact split-width coverage verifies that toolbar controls remain
-  fully visible without a duplicate file dropdown.
+  fully visible without a duplicate file dropdown and that include-action help
+  cannot overlap its file path.
 - Workers coverage verifies that a fresh project exposes the transclusion demo
   as a real supporting file and composes it without diagnostics.
 

@@ -335,6 +335,8 @@ mode for authenticated hosted collaboration.
       hiding them behind unexplained glyphs.
 - [x] The editor toolbar omits duplicate file navigation and keeps its visible
       controls fully contained at a 1197 px split-workspace width.
+- [x] Insert-menu file paths truncate safely beside compact syntax help instead
+      of overlapping at constrained authoring widths.
 - [x] Permanent helper and empty-state copy stays concise, action-oriented, and
       free of architecture terminology that does not change the user's choice.
 - [x] Project creation, navigation, access, search, and errors use one

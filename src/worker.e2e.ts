@@ -348,6 +348,21 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
     };
   });
   expect(toolbarFit).toEqual({ pageOverflows: false, clippedControls: [] });
+
+  await page.locator("#editor-insert-menu summary").click();
+  const includeAction = page.locator("#include-project-file-list [data-include-file-id]").first();
+  await expect(includeAction.locator("code")).toHaveText("::include[…]");
+  const includeActionFit = await includeAction.evaluate((button) => {
+    const label = button.querySelector("strong")?.getBoundingClientRect();
+    const help = button.querySelector("code")?.getBoundingClientRect();
+    const menu = button.closest(".editor-command-menu")?.getBoundingClientRect();
+    if (!label || !help || !menu) throw new Error("Expected include action geometry");
+    return {
+      textOverlaps: label.right > help.left,
+      actionFits: label.left >= menu.left && help.right <= menu.right,
+    };
+  });
+  expect(includeActionFit).toEqual({ textOverlaps: false, actionFits: true });
 });
 
 test("highlights Markdown without replacing the native editor", async ({ page }) => {

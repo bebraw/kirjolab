@@ -1415,9 +1415,12 @@ class WorkspaceApp {
         include.dataset.includeFileId = file.id;
         const label = document.createElement("strong");
         label.textContent = file.path;
+        label.title = file.path;
         const syntax = document.createElement("code");
         const activeFile = snapshot.files.find((item) => item.id === this.#activeFileId);
-        syntax.textContent = `::include[${activeFile ? relativeProjectPath(activeFile.path, file.path) : file.path}]`;
+        const relativePath = activeFile ? relativeProjectPath(activeFile.path, file.path) : file.path;
+        syntax.textContent = "::include[…]";
+        include.title = `Insert ::include[${relativePath}]`;
         include.append(label, syntax);
         this.#elements.includeProjectFileList.append(include);
       }

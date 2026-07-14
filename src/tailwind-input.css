@@ -462,6 +462,17 @@
     color: var(--color-app-text-soft);
   }
 
+  .editor-command-menu [data-include-file-id] > strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .editor-command-menu [data-include-file-id] > code {
+    white-space: nowrap;
+  }
+
   .account-menu {
     width: 15rem;
   }
