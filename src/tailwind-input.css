@@ -363,6 +363,29 @@
     flex-direction: column;
   }
 
+  .editor-toolbar {
+    display: flex;
+    min-height: 3rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem 1rem;
+    border-bottom: 1px solid var(--color-app-line);
+    padding: 0.35rem 1rem;
+  }
+
+  .editor-toolbar-group {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+  }
+
+  .editor-toolbar-group:last-child {
+    margin-left: auto;
+  }
+
   .action-menu {
     position: relative;
   }

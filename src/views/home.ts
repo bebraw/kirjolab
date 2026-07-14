@@ -142,8 +142,8 @@ export function renderHomePage(
       </aside>
 
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
-        <div class="flex h-12 items-center justify-between border-b border-app-line px-4">
-          <div class="flex items-center gap-2">
+        <div class="editor-toolbar">
+          <div class="editor-toolbar-group">
             <label class="sr-only" for="project-file-switcher">Project file</label>
             <select class="workspace-switcher" id="project-file-switcher" aria-label="Project file"><option>main.md</option></select>
             <span class="count-badge" id="revision-badge">r0</span>
@@ -152,7 +152,7 @@ export function renderHomePage(
             <button class="editor-mode-toggle" id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings">Vim</button>
             <span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="editor-toolbar-group">
             <details class="action-menu" id="editor-insert-menu" data-action-menu>
               <summary class="button-secondary">Insert</summary>
               <div class="editor-command-menu">

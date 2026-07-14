@@ -68,6 +68,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="derived-project-bibliography"');
     expect(html).toContain('class="bibliography-editor rail-bibliography-editor" id="bibliography-editor"');
     expect(html).toContain('class="button-secondary hidden" id="open-source-citation"');
+    expect(html).toContain('class="editor-toolbar"');
+    expect(html.match(/class="editor-toolbar-group"/gu)).toHaveLength(2);
     expect(html).toContain('class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"');
     expect(html).toContain('class="source-editor" id="source-editor" spellcheck="true"');
     expect(html).toContain('id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"');

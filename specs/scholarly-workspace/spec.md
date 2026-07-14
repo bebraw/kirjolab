@@ -34,6 +34,9 @@ mode for authenticated hosted collaboration.
   Layouts narrower than the split pane's declared minimum width switch between
   one Authoring or Context surface while preserving both states and without
   introducing horizontal page overflow.
+- **Editor toolbar:** Persistent editor actions keep their labels on one line.
+  At constrained authoring widths, complete control groups wrap onto another
+  toolbar row instead of shrinking individual buttons or overflowing the page.
 - **Left project rail:** Files, Research, and Comments are peer local navigation
   modes. Comments contains the selected-passage composer and durable comment
   history without taking vertical space from the manuscript editor. Files owns

@@ -539,6 +539,22 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
     element.dispatchEvent(new Event("select", { bubbles: true }));
   });
   await expect(page.locator("#open-source-citation")).toBeVisible();
+  for (let step = 0; step < 10; step += 1) await paneResizer.press("ArrowLeft");
+  const citedSourceFit = await page.locator("#open-source-citation").evaluate((button) => {
+    const toolbar = button.closest(".editor-toolbar");
+    if (!(toolbar instanceof HTMLElement)) throw new Error("Expected editor toolbar");
+    const buttonBounds = button.getBoundingClientRect();
+    const toolbarBounds = toolbar.getBoundingClientRect();
+    const labelRange = document.createRange();
+    labelRange.selectNodeContents(button);
+    return {
+      labelLines: labelRange.getClientRects().length,
+      whiteSpace: getComputedStyle(button).whiteSpace,
+      insideToolbar: buttonBounds.top >= toolbarBounds.top && buttonBounds.bottom <= toolbarBounds.bottom,
+      pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+  expect(citedSourceFit).toEqual({ labelLines: 1, whiteSpace: "nowrap", insideToolbar: true, pageOverflows: false });
 
   const exported = await page.request.get(`${api}/export/document.md`);
   expect(exported.ok()).toBe(true);
