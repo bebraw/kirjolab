@@ -86,7 +86,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-043](./implemented/ADR-043-use-cloudflare-access-and-memberships.md)             | Implemented          | Verify Cloudflare Access JWTs and authorize document access through owner/member roles.                      |
 | [ADR-044](./implemented/ADR-044-model-publications-separately-from-bibtex.md)         | Implemented          | Keep BibTeX canonical while materializing stable publications and explicit DOI enrichment.                   |
 | [ADR-045](./implemented/ADR-045-use-satteri-for-scientific-markdown.md)               | Superseded           | Previously parsed scientific Markdown with Satteri in an isolated browser WASM runtime.                      |
-| [ADR-046](./implemented/ADR-046-derive-bounded-knowledge-navigation.md)               | Implemented          | Derive bounded search and typed navigation projections from authorized workspace state.                      |
+| [ADR-046](./implemented/ADR-046-derive-bounded-knowledge-navigation.md)               | Partially superseded | Derive bounded search and typed navigation projections from authorized workspace state.                      |
 | [ADR-047](./implemented/ADR-047-model-evidence-backed-claims.md)                      | Implemented          | Store claims and their evidence and manuscript usage as explicit typed resources.                            |
 | [ADR-048](./implemented/ADR-048-secure-browser-collaboration-boundary.md)             | Implemented          | Sanitize preview output and validate same-origin, bounded collaboration traffic.                             |
 | [ADR-049](./implemented/ADR-049-acknowledge-server-led-yjs-synchronization.md)        | Implemented          | Synchronize from server state and acknowledge durable, idempotent Yjs updates.                               |
@@ -136,6 +136,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-102](./implemented/ADR-102-use-javascript-for-live-markdown-preview.md)          | Implemented          | Replace Satteri WASM with a local unified/remark preview runtime.                                            |
 | [ADR-103](./implemented/ADR-103-compose-metadata-from-several-providers.md)           | Implemented          | Choose each metadata field from one of several same-work providers and apply the review atomically.          |
 | [ADR-107](./implemented/ADR-107-open-library-without-a-project.md)                    | Implemented          | Bootstrap the private Library at `/library` without opening or creating a project.                           |
+| [ADR-108](./implemented/ADR-108-host-project-map-as-authoring-mode.md)                | Implemented          | Move project search and graph navigation from Research into a peer authoring Map mode.                       |
 
 ## Creating A New ADR
 

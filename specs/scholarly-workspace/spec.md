@@ -46,12 +46,19 @@ mode for authenticated hosted collaboration.
   toolbar row instead of shrinking individual buttons or overflowing the page.
   File navigation remains in the default-visible project tree rather than
   consuming toolbar width with a duplicate selector.
+- **Authoring modality:** Write and Map are peer views of the current project.
+  Write retains the native collaborative Markdown textarea. Map replaces it
+  with a read-only derived evidence graph, bounded project search, and an
+  accessible typed-connection list. Navigation into manuscript source returns
+  to Write; changing modes never changes canonical or collaborative state.
 - **Left project rail:** Files, Research, and Comments are peer local navigation
   modes. Comments contains the selected-passage composer and durable comment
   history without taking vertical space from the manuscript editor. Files owns
   the collapsed read-only project bibliography projection beside the authored
   file list. Their persistent switcher uses compact icons with accessible names,
   native hover titles, and a visible open-comment count.
+  Research is limited to the actionable Project evidence, Claims, and
+  References inventories; project search and graph controls belong to Map.
 - **Legacy project evidence:** Project-owned PDFs and their annotations remain
   available for existing projects without advertising the superseded upload
   path. Research hides the collection when both are absent; otherwise one
@@ -143,7 +150,8 @@ mode for authenticated hosted collaboration.
   explicit owner action.
 - **Knowledge navigation:** Bounded workspace search and typed connection
   representations expose documents, sections, publications, PDFs, and
-  annotations as navigable resources without making an index authoritative.
+  annotations as navigable resources in the authoring Map without making an
+  index or visual layout authoritative.
 - **Claims:** Human-authored propositions connect annotations to manuscript
   passages through explicit `supports`, `contradicts`, `extends`, and `used-in`
   relationships.

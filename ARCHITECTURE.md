@@ -220,7 +220,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Give workspace people opaque stored identities independent of email. Derive
   project membership, shared-note provenance, and model-candidate evidence as
   typed hypermedia links without making the projection authoritative.
-- Derive bounded workspace search and hypermedia projections from canonical state until scale measurements justify a persisted index; treat visual graph layouts as optional views, not the navigation model.
+- Derive bounded workspace search and hypermedia projections from canonical state until scale measurements justify a persisted index. Host the project evidence map as a read-only authoring modality paired with ordinary resource actions; never make its visual layout authoritative or the only navigation model.
 - Invalidate browser resource views with a server-owned control message and a
   coalesced authorized metadata refresh rather than replacing live editor
   state from a workspace snapshot.

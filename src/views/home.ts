@@ -111,12 +111,6 @@ export function renderHomePage(
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail" hidden>
           <div><p class="eyebrow">Research</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Sources &amp; evidence</h1></div>
-          <form class="mt-4 flex gap-2" id="knowledge-search-form" role="search">
-            <label class="sr-only" for="knowledge-search-input">Filter project research</label>
-            <input class="field min-w-0" id="knowledge-search-input" type="search" maxlength="200" placeholder="Filter project research">
-            <button class="button-secondary shrink-0" type="submit">Search</button>
-          </form>
-          <div class="mt-3 hidden space-y-2" id="knowledge-search-results" aria-live="polite"></div>
           <div class="research-inventory" id="research-inventory">
             <details class="rail-collection" id="project-evidence" hidden>
               <summary><span>Project evidence</span><span class="count-badge" id="project-evidence-count">0</span></summary>
@@ -133,11 +127,6 @@ export function renderHomePage(
             <details class="rail-collection">
               <summary><span>References</span><span class="count-badge" id="publication-count">0</span></summary>
               <div class="rail-collection-body" id="publication-list"><div class="empty-state">No project references yet.</div></div>
-            </details>
-            <details class="rail-collection">
-              <summary><span>Project graph</span><span class="count-badge" id="connection-count">0</span></summary>
-              <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="explore-research-graph" type="button">Explore citation network</button></div>
-              <div class="rail-collection-body" id="knowledge-connection-list"><div class="empty-state">No connections yet.</div></div>
             </details>
           </div>
           <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf">
@@ -160,13 +149,17 @@ export function renderHomePage(
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
         <div class="editor-toolbar">
           <div class="editor-toolbar-group">
+            <div class="authoring-mode-switcher" role="group" aria-label="Authoring mode">
+              <button class="authoring-mode" id="show-write-mode" type="button" aria-pressed="true">Write</button>
+              <button class="authoring-mode" id="show-map-mode" type="button" aria-pressed="false">Map</button>
+            </div>
             <span class="count-badge" id="revision-badge">r0</span>
             <button class="count-badge" id="word-count-badge" type="button" title="Open publication statistics">… words</button>
             <button class="button-secondary" id="open-project-history" type="button">History</button>
+          </div>
+          <div class="editor-toolbar-group" id="editor-write-actions">
             <button class="editor-mode-toggle" id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings">Vim</button>
             <span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span>
-          </div>
-          <div class="editor-toolbar-group">
             <details class="action-menu" id="editor-insert-menu" data-action-menu>
               <summary class="button-secondary">Insert</summary>
               <div class="editor-command-menu">
@@ -197,6 +190,35 @@ export function renderHomePage(
           <pre class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"></pre>
           <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
         </div>
+        <section class="project-map" id="project-map" aria-labelledby="project-map-heading" hidden>
+          <header class="project-map-header">
+            <div>
+              <p class="eyebrow">Project structure</p>
+              <h2 class="project-map-title" id="project-map-heading">Evidence map</h2>
+              <p class="project-map-description">Follow the typed links between the manuscript, evidence, claims, and references.</p>
+            </div>
+            <span class="project-map-total" id="project-map-total">0 resources</span>
+          </header>
+          <form class="project-map-search" id="knowledge-search-form" role="search">
+            <label class="sr-only" for="knowledge-search-input">Find a project resource</label>
+            <input class="field min-w-0" id="knowledge-search-input" type="search" maxlength="200" placeholder="Find a resource in this project">
+            <button class="button-secondary shrink-0" type="submit">Find</button>
+          </form>
+          <div class="hidden space-y-2" id="knowledge-search-results" aria-live="polite"></div>
+          <div id="project-map-overview">
+            <div class="project-map-canvas" id="project-map-canvas">
+              <svg id="project-map-graph" viewBox="0 0 1000 600" role="img" aria-label="Project evidence graph"></svg>
+              <div class="project-map-nodes" id="project-map-nodes"></div>
+            </div>
+            <section class="project-map-connections" aria-labelledby="project-map-connections-heading">
+              <div class="project-map-connections-header">
+                <h3 id="project-map-connections-heading">Connections</h3>
+                <span class="count-badge" id="connection-count">0</span>
+              </div>
+              <div class="project-map-connection-list" id="knowledge-connection-list"><div class="empty-state">No connections yet.</div></div>
+            </section>
+          </div>
+        </section>
         <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation. Undo with Command-Z or Control-Z; redo with Command-Shift-Z, Control-Shift-Z, or Control-Y.</p>
       </section>
 

@@ -1,6 +1,6 @@
 # ADR-046: Derive Bounded Knowledge Navigation
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-108](./ADR-108-host-project-map-as-authoring-mode.md)
 
 **Date:** 2026-07-10
 

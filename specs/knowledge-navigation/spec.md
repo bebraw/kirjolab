@@ -25,8 +25,13 @@ connection without reconstructing identity from a citation key or filename.
 - `GET /api/workspaces/{id}/search?q={query}` returns at most fifty ranked
   resources for at most ten query tokens.
 - `GET /api/workspaces/{id}/graph` returns the current nodes and typed edges.
-- The editorial rail renders search results and connections as ordinary
-  keyboard-operable resource actions.
+- The authoring surface offers peer `Write` and `Map` modes. `Map` renders the
+  derived project graph, workspace search, and typed connections while keeping
+  every node and connection available as an ordinary keyboard-operable resource
+  action.
+- The Research rail remains a compact inventory of project evidence, claims,
+  and references. It does not duplicate search, project graph, or library
+  citation-network controls.
 - The projection is derived state. It is not stored or synchronized as an
   authoritative representation.
 
@@ -52,6 +57,10 @@ connection without reconstructing identity from a citation key or filename.
 - [x] Claim evidence and manuscript usage become typed, navigable connections.
 - [x] Repeated citations produce one connection per publication.
 - [x] Both search results and connection endpoints navigate to their resource.
+- [x] Write and Map are peer authoring modes, with editor-directed navigation
+      returning to Write.
+- [x] The project map pairs its visual projection with searchable resource cards
+      and a typed connection list.
 - [x] Explicit publication/PDF associations project as navigable
       `has-artifact` connections.
 - [x] Project membership, shared-note provenance, and model evidence project as
@@ -105,3 +114,10 @@ connection without reconstructing identity from a citation key or filename.
 - When: the knowledge projection is derived
 - Then: the candidate is an addressable resource with a `derived-from` edge to
   each captured evidence resource and a `used-in` edge to its manuscript
+
+**Scenario: Researcher changes authoring modality**
+
+- Given: the project contains manuscript, evidence, claim, and reference nodes
+- When: the researcher switches from Write to Map
+- Then: the editor is replaced by a derived project map with resource search
+  and typed connection actions, while canonical Markdown remains unchanged

@@ -48,6 +48,12 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="publication-list"');
     expect(html).toContain('id="knowledge-search-form"');
     expect(html).toContain('id="knowledge-connection-list"');
+    expect(html).toContain('id="show-write-mode" type="button" aria-pressed="true">Write</button>');
+    expect(html).toContain('id="show-map-mode" type="button" aria-pressed="false">Map</button>');
+    expect(html).toContain('id="project-map" aria-labelledby="project-map-heading" hidden');
+    expect(html).toContain('id="project-map-graph" viewBox="0 0 1000 600" role="img"');
+    expect(html).not.toContain("<summary><span>Project graph</span>");
+    expect(html).not.toContain('id="explore-research-graph"');
     expect(html).toContain('id="claim-list"');
     expect(html).toContain('id="claim-form"');
     expect(html).toContain('id="project-evidence" hidden');

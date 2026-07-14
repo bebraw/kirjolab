@@ -2769,12 +2769,19 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await claimCard.getByRole("button", { name: "Link selected prose" }).click();
   await expect(claimCard.getByRole("button", { name: "Open linked passage" })).toBeVisible();
 
+  await page.getByRole("button", { name: "Map", exact: true }).click();
+  await expect(page.locator("#source-editor-shell")).toBeHidden();
+  await expect(page.locator("#project-map")).toBeVisible();
+  await expect.poll(async () => page.locator("#project-map-nodes .project-map-node").count()).toBeGreaterThan(4);
+  await expect(page.locator("#project-map-nodes")).toContainText("Inspectable evidence keeps scholarly claims accountable.");
+  await expect(page.locator("#knowledge-connection-list")).toContainText("supports");
+
   await page.locator("#knowledge-search-input").fill("human synthesis accountable");
-  await page.locator("#knowledge-search-form").getByRole("button", { name: "Search" }).click();
+  await page.locator("#knowledge-search-form").getByRole("button", { name: "Find" }).click();
   await expect(page.locator("#knowledge-search-results")).toContainText("Inspectable evidence keeps scholarly claims accountable.");
 
   await page.locator("#knowledge-search-input").fill("Grounding revision");
-  await page.locator("#knowledge-search-form").getByRole("button", { name: "Search" }).click();
+  await page.locator("#knowledge-search-form").getByRole("button", { name: "Find" }).click();
   await expect(page.locator("#knowledge-search-results")).toContainText("Grounding for the revision");
   await expect(page.locator("#knowledge-connection-list")).toContainText("annotates");
   await expect(page.locator("#knowledge-connection-list")).toContainText("used-in");
@@ -2796,8 +2803,9 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   );
 
   await page.locator("#knowledge-search-input").fill("");
-  await page.locator("#knowledge-search-form").getByRole("button", { name: "Search" }).click();
+  await page.locator("#knowledge-search-form").getByRole("button", { name: "Find" }).click();
   await claimCard.getByRole("button", { name: "Open linked passage" }).click();
+  await expect(page.locator("#project-map")).toBeHidden();
   await expect(editor).toBeFocused();
 
   await openResearchCollection(page, "Project evidence");

@@ -224,6 +224,14 @@ interface Elements {
   source: HTMLTextAreaElement;
   sourceHighlight: HTMLElement;
   sourceEditorShell: HTMLElement;
+  showWriteMode: HTMLButtonElement;
+  showMapMode: HTMLButtonElement;
+  editorWriteActions: HTMLElement;
+  projectMap: HTMLElement;
+  projectMapTotal: HTMLElement;
+  projectMapGraph: SVGSVGElement;
+  projectMapNodes: HTMLElement;
+  projectMapOverview: HTMLElement;
   vimModeStatus: HTMLElement;
   vimToggle: HTMLButtonElement;
   editorInsertMenu: HTMLDetailsElement;
@@ -291,8 +299,6 @@ interface Elements {
   knowledgeSearchForm: HTMLFormElement;
   knowledgeSearchInput: HTMLInputElement;
   knowledgeSearchResults: HTMLElement;
-  researchInventory: HTMLElement;
-  exploreResearchGraph: HTMLButtonElement;
   publicationCount: HTMLElement;
   publicationList: HTMLElement;
   annotationList: HTMLElement;
@@ -619,10 +625,6 @@ class WorkspaceApp {
     });
     this.#elements.webSourceForm.addEventListener("submit", (event) => void this.#captureWebSource(event));
     this.#elements.openCitationNetwork.addEventListener("click", () => void this.#openCitationNetwork());
-    this.#elements.exploreResearchGraph.addEventListener(
-      "click",
-      () => void this.#openReferenceLibrary().then(() => this.#openCitationNetwork()),
-    );
     this.#elements.closeCitationNetwork.addEventListener("click", () => {
       this.#elements.citationNetwork.classList.add("hidden");
     });
@@ -660,6 +662,8 @@ class WorkspaceApp {
     this.#elements.cancelProjectFile.addEventListener("click", () => this.#elements.projectFileDialog.close());
     this.#elements.projectFileForm.addEventListener("submit", (event) => void this.#saveProjectFile(event));
     this.#elements.editorInsertMenu.addEventListener("click", (event) => this.#insertSourceSyntax(event));
+    this.#elements.showWriteMode.addEventListener("click", () => this.#setAuthoringMode("write"));
+    this.#elements.showMapMode.addEventListener("click", () => this.#setAuthoringMode("map"));
     this.#elements.openProjectHistory.addEventListener("click", () => void this.#openProjectHistory());
     for (const button of [this.#elements.openExport, this.#elements.wordCountBadge]) {
       button.addEventListener("click", () => this.#openExport());
@@ -1852,6 +1856,7 @@ class WorkspaceApp {
 
   #focusProjectRange(fileId: string, from: number, to: number): void {
     if (fileId) this.#selectProjectFile(fileId);
+    this.#setAuthoringMode("write");
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(from, Math.max(from, to));
     this.#rememberAuthoringSelection();
@@ -3657,7 +3662,7 @@ class WorkspaceApp {
     if (!query) {
       this.#elements.knowledgeSearchResults.replaceChildren();
       this.#elements.knowledgeSearchResults.classList.add("hidden");
-      this.#elements.researchInventory.classList.remove("hidden");
+      this.#elements.projectMapOverview.classList.remove("hidden");
       return;
     }
     try {
@@ -3668,7 +3673,7 @@ class WorkspaceApp {
       this.#renderKnowledgeSearchResults(value);
     } catch (error) {
       this.#elements.knowledgeSearchResults.classList.remove("hidden");
-      this.#elements.researchInventory.classList.add("hidden");
+      this.#elements.projectMapOverview.classList.add("hidden");
       this.#elements.knowledgeSearchResults.replaceChildren(emptyState(error instanceof Error ? error.message : "Project search failed"));
     }
   }
@@ -3676,7 +3681,7 @@ class WorkspaceApp {
   #renderKnowledgeSearchResults(results: KnowledgeSearchResult[]): void {
     this.#elements.knowledgeSearchResults.replaceChildren();
     this.#elements.knowledgeSearchResults.classList.remove("hidden");
-    this.#elements.researchInventory.classList.add("hidden");
+    this.#elements.projectMapOverview.classList.add("hidden");
     if (results.length === 0) {
       this.#elements.knowledgeSearchResults.append(emptyState("No matching project resources."));
       return;
@@ -3699,6 +3704,8 @@ class WorkspaceApp {
 
   #renderKnowledgeGraph(graph: WorkspaceKnowledgeGraph): void {
     this.#elements.connectionCount.textContent = String(graph.edges.length);
+    this.#elements.projectMapTotal.textContent = `${graph.nodes.length} ${graph.nodes.length === 1 ? "resource" : "resources"}`;
+    this.#renderProjectMap(graph);
     this.#elements.knowledgeConnectionList.replaceChildren();
     if (graph.edges.length === 0) {
       this.#elements.knowledgeConnectionList.append(emptyState("Citations and evidence links appear here as typed connections."));
@@ -3726,6 +3733,53 @@ class WorkspaceApp {
     }
   }
 
+  #renderProjectMap(graph: WorkspaceKnowledgeGraph): void {
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    this.#elements.projectMapGraph.replaceChildren();
+    this.#elements.projectMapNodes.replaceChildren();
+    if (graph.nodes.length === 0) return;
+
+    const points = new Map<string, { x: number; y: number }>();
+    const orbit = graph.nodes.filter((node) => node.kind !== "project" && node.kind !== "document");
+    for (const node of graph.nodes) {
+      if (node.kind === "project") points.set(node.id, { x: 500, y: 300 });
+      else if (node.kind === "document") points.set(node.id, { x: 500, y: 205 });
+    }
+    orbit.forEach((node, index) => {
+      const angle = -Math.PI / 2 + (index * Math.PI * 2) / Math.max(orbit.length, 1);
+      points.set(node.id, { x: 500 + Math.cos(angle) * 405, y: 310 + Math.sin(angle) * 235 });
+    });
+
+    for (const edge of graph.edges) {
+      const from = points.get(edge.from);
+      const to = points.get(edge.to);
+      if (!from || !to) continue;
+      const line = document.createElementNS(svgNamespace, "line");
+      line.setAttribute("x1", String(from.x));
+      line.setAttribute("y1", String(from.y));
+      line.setAttribute("x2", String(to.x));
+      line.setAttribute("y2", String(to.y));
+      line.setAttribute("data-relation", edge.relation);
+      this.#elements.projectMapGraph.append(line);
+    }
+
+    for (const node of graph.nodes) {
+      const point = points.get(node.id);
+      if (!point) continue;
+      const button = actionButton(node.label, "project-map-node", () => this.#focusKnowledgeResource(node.id));
+      button.style.left = `${point.x / 10}%`;
+      button.style.top = `${point.y / 6}%`;
+      button.dataset.kind = node.kind;
+      button.title = `${node.kind}: ${node.label}`;
+      const kind = document.createElement("span");
+      kind.textContent = node.kind;
+      const label = document.createElement("strong");
+      label.textContent = node.label;
+      button.replaceChildren(kind, label);
+      this.#elements.projectMapNodes.append(button);
+    }
+  }
+
   #knowledgeLink(node: KnowledgeGraphNode): HTMLButtonElement {
     return actionButton(node.label, "font-bold text-app-accent-strong underline decoration-app-border underline-offset-4", () =>
       this.#focusKnowledgeResource(node.id),
@@ -3739,6 +3793,7 @@ class WorkspaceApp {
     const id = resourceId.slice(separator + 1);
     if (kind === "document") {
       this.#showWorkspaceSurface("authoring");
+      this.#setAuthoringMode("write");
       this.#elements.source.focus();
       this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
@@ -3789,6 +3844,17 @@ class WorkspaceApp {
       const publication = this.#snapshot?.publications.find((item) => item.id === id);
       if (publication) this.#openPublicationContext(publication);
     }
+  }
+
+  #setAuthoringMode(mode: "write" | "map"): void {
+    const writing = mode === "write";
+    this.#elements.sourceEditorShell.hidden = !writing;
+    this.#elements.projectMap.hidden = writing;
+    this.#elements.editorWriteActions.hidden = !writing;
+    this.#elements.showWriteMode.setAttribute("aria-pressed", String(writing));
+    this.#elements.showMapMode.setAttribute("aria-pressed", String(!writing));
+    if (writing) this.#elements.source.focus();
+    else this.#elements.projectMap.querySelector<HTMLButtonElement>(".project-map-node")?.focus();
   }
 
   #showWorkspaceSurface(surface: "authoring" | "context"): void {
@@ -4496,6 +4562,7 @@ class WorkspaceApp {
     }
     this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
     this.#showWorkspaceSurface("authoring");
+    this.#setAuthoringMode("write");
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
     this.#rememberAuthoringSelection();
@@ -5436,6 +5503,7 @@ class WorkspaceApp {
       return;
     }
     this.#showWorkspaceSurface("authoring");
+    this.#setAuthoringMode("write");
     this.#selectProjectFile(anchor.fileId);
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(resolution.start, resolution.end);
@@ -5896,6 +5964,14 @@ function collectElements(): Elements {
     source: requiredElement("source-editor", HTMLTextAreaElement),
     sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),
     sourceEditorShell: requiredElement("source-editor-shell", HTMLElement),
+    showWriteMode: requiredElement("show-write-mode", HTMLButtonElement),
+    showMapMode: requiredElement("show-map-mode", HTMLButtonElement),
+    editorWriteActions: requiredElement("editor-write-actions", HTMLElement),
+    projectMap: requiredElement("project-map", HTMLElement),
+    projectMapTotal: requiredElement("project-map-total", HTMLElement),
+    projectMapGraph: requiredElement("project-map-graph", SVGSVGElement),
+    projectMapNodes: requiredElement("project-map-nodes", HTMLElement),
+    projectMapOverview: requiredElement("project-map-overview", HTMLElement),
     vimModeStatus: requiredElement("vim-mode-status", HTMLElement),
     vimToggle: requiredElement("vim-toggle", HTMLButtonElement),
     editorInsertMenu: requiredElement("editor-insert-menu", HTMLDetailsElement),
@@ -5963,8 +6039,6 @@ function collectElements(): Elements {
     knowledgeSearchForm: requiredElement("knowledge-search-form", HTMLFormElement),
     knowledgeSearchInput: requiredElement("knowledge-search-input", HTMLInputElement),
     knowledgeSearchResults: requiredElement("knowledge-search-results", HTMLElement),
-    researchInventory: requiredElement("research-inventory", HTMLElement),
-    exploreResearchGraph: requiredElement("explore-research-graph", HTMLButtonElement),
     publicationCount: requiredElement("publication-count", HTMLElement),
     publicationList: requiredElement("publication-list", HTMLElement),
     annotationList: requiredElement("annotation-list", HTMLElement),
