@@ -67,10 +67,12 @@ memory and makes citation aliases compete with stable source identity.
 - The library is a permanent, non-closable tab beside Preview in the project's
   research-context pane. Activating it refreshes the authorized owner snapshot
   without opening a modal or mutating project state.
-- The default Library view gives PDF upload and website URL capture first-class
-  actions without intake-time metadata overrides. Metadata refinement belongs
-  to the resulting record. Search stays visible, while filters, interchange,
-  graph, metadata, organization, and reading controls use progressive disclosure.
+- The default Library view keeps one **Add reference** control for PDF, website,
+  BibTeX, and CSL intake without intake-time metadata overrides. Search stays
+  visible; filters and maintenance tools use separate compact menus. References
+  render as dense two-line rows suitable for large collections, while metadata,
+  organization, reading state, and attached research remain available through
+  per-reference progressive disclosure.
 - An attached private PDF opens from its library record in a kind-qualified
   context tab. Reading uses the owner-private stream and local page state. Text
   selection creates only an ephemeral private-highlight draft; an explicit save

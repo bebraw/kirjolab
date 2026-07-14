@@ -174,12 +174,25 @@ describe("renderHomePage", () => {
     const html = renderHomePage(exampleRoutes);
 
     expect(html).toContain('id="library-pdf-dropzone" for="library-pdf-upload"');
-    expect(html).toContain("Choose or drop up to 20 PDFs. Each source is added independently.");
+    expect(html).toContain("Add reference");
+    expect(html).toContain("Upload up to 20");
     expect(html).toContain(
       'id="library-pdf-upload" type="file" accept="application/pdf" multiple aria-describedby="library-pdf-upload-help"',
     );
     expect(html).toContain('id="library-pdf-upload-status" aria-live="polite"');
     expect(html).not.toContain('id="library-pdf-upload-status" role="dialog"');
+  });
+
+  it("keeps Library intake, discovery, and tools compact", () => {
+    const html = renderHomePage(exampleRoutes);
+
+    expect(html).toContain('<summary class="button-primary">Add reference</summary>');
+    expect(html).toContain('placeholder="Search references…"');
+    expect(html).toContain('title="Filter and sort references">Filter</summary>');
+    expect(html).toContain('aria-label="Library tools" title="Library tools">•••</summary>');
+    expect(html).not.toContain("Private research memory");
+    expect(html).not.toContain("Filters and library tools");
+    expect(html).not.toContain("Add the source now");
   });
 
   it("renders an accessible, focused passage-revision review in research context", () => {

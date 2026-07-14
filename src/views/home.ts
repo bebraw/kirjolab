@@ -233,50 +233,56 @@ export function renderHomePage(
 
         <section class="context-panel context-library-panel" id="context-library-panel" role="tabpanel" aria-labelledby="context-library-tab" tabindex="0" hidden>
           <div class="context-library-scroll p-5" id="context-library-scroll">
-            <div>
-              <p class="eyebrow">Private research memory</p>
-              <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Reference library</h2>
-              <p class="mt-2 max-w-xl text-sm leading-6 text-app-text-soft">Your library is private. Adding a source to a project shares its citation details only.</p>
-            </div>
-            <section class="mt-5 border-y border-app-line py-4" aria-labelledby="library-add-heading">
-              <p class="eyebrow" id="library-add-heading">Add source</p>
-              <label class="mt-3 block cursor-pointer rounded-sm border border-dashed border-app-line bg-app-surface/50 px-4 py-3 transition-colors hover:border-app-accent data-[dragging=true]:border-app-accent data-[dragging=true]:bg-app-accent-ghost" id="library-pdf-dropzone" for="library-pdf-upload">
-                <span class="font-sans text-sm font-semibold text-app-text">Upload PDFs</span>
-                <span class="mt-1 block text-xs leading-5 text-app-text-soft" id="library-pdf-upload-help">Choose or drop up to 20 PDFs. Each source is added independently.</span>
-                <input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf" multiple aria-describedby="library-pdf-upload-help">
-              </label>
-              <section class="mt-3 hidden border-l-2 border-app-accent pl-3" id="library-pdf-upload-status" aria-live="polite"></section>
-              <form class="mt-3 grid gap-3 md:grid-cols-[1fr_auto]" id="web-source-form">
-                <label class="field-label">Website URL<input class="field" id="web-source-url" type="url" maxlength="4096" required placeholder="https://example.org/article"></label>
-                <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Add website</button></div>
-              </form>
-              <p class="mt-3 text-xs leading-5 text-app-text-soft">Add the source now; review its title, authors, year, and citation ID from the library record later.</p>
-            </section>
-            <div class="mt-4 grid gap-3 border-b border-app-line pb-4 md:grid-cols-[1fr_auto]">
-              <label class="field-label">Search library<input class="field" id="reference-filter-query" type="search" maxlength="200" placeholder="Title, author, reference ID, DOI, or URL"></label>
-              <p class="self-end pb-2 font-sans text-xs text-app-text-soft" id="reference-filter-count" aria-live="polite">0 references</p>
-            </div>
-            <details class="mt-4 border-b border-app-line pb-4">
-              <summary class="cursor-pointer font-sans text-xs font-semibold">Filters and library tools</summary>
-              <section class="mt-3 grid gap-3 md:grid-cols-3" aria-label="Filter reference library">
-                <label class="field-label">Type<select class="field" id="reference-filter-type"><option value="">All types</option></select></label>
-                <label class="field-label">Reading<select class="field" id="reference-filter-reading"><option value="all">Any status</option><option value="unread">Unread</option><option value="reading">Reading</option><option value="read">Read</option></select></label>
-                <label class="field-label">Tag or collection<input class="field" id="reference-filter-organization" maxlength="80" placeholder="Filter labels"></label>
-                <label class="field-label">Project link<select class="field" id="reference-filter-linkage"><option value="all">Linked or unlinked</option><option value="linked">Linked to this project</option><option value="unlinked">Not linked</option></select></label>
-                <label class="field-label">Metadata<select class="field" id="reference-filter-completeness"><option value="all">Any completeness</option><option value="complete">Complete core fields</option><option value="incomplete">Needs metadata</option></select></label>
-                <label class="field-label">Sort<select class="field" id="reference-filter-sort"><option value="updated">Recently updated</option><option value="title">Title</option><option value="year">Year</option><option value="priority">Reading priority</option></select></label>
-              </section>
-              <div class="mt-3 flex flex-wrap gap-2 border-t border-app-line pt-3">
-                <label class="button-secondary">Import BibTeX<input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
-                <label class="button-secondary">Import CSL JSON<input class="sr-only" id="library-csl-upload" type="file" accept=".json,application/json"></label>
-                <label class="button-secondary">Restore archive<input class="sr-only" id="library-archive-upload" type="file" accept=".zip,application/zip"></label>
-                <a class="button-secondary" href="/api/library/export/csl.json">Export CSL JSON</a>
-                <a class="button-secondary" href="/api/library/export/library.zip">Export library</a>
-                <button class="button-secondary" id="open-citation-network" type="button">Citation network</button>
-                <button class="button-secondary" id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
+            <header class="library-header">
+              <h2 title="Private references and research material">Library</h2>
+              <details class="action-menu library-add-menu" data-action-menu>
+                <summary class="button-primary">Add reference</summary>
+                <div class="library-menu library-add-reference-menu">
+                  <label class="library-menu-action" id="library-pdf-dropzone" for="library-pdf-upload" title="Choose or drop up to 20 PDF files">
+                    <span><strong>PDF files</strong><small id="library-pdf-upload-help">Upload up to 20</small></span><span aria-hidden="true">↑</span>
+                    <input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf" multiple aria-describedby="library-pdf-upload-help">
+                  </label>
+                  <form class="library-url-form" id="web-source-form">
+                    <label class="sr-only" for="web-source-url">Website URL</label>
+                    <input class="field" id="web-source-url" type="url" maxlength="4096" required placeholder="https://…" title="Add a website by URL">
+                    <button class="button-primary justify-center" type="submit">Add URL</button>
+                  </form>
+                  <div class="library-menu-divider"></div>
+                  <label class="library-menu-action" title="Import references from a BibTeX file"><span>Import BibTeX</span><input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
+                  <label class="library-menu-action" title="Import references from a CSL JSON file"><span>Import CSL JSON</span><input class="sr-only" id="library-csl-upload" type="file" accept=".json,application/json"></label>
+                </div>
+              </details>
+            </header>
+            <section class="hidden library-upload-status" id="library-pdf-upload-status" aria-live="polite"></section>
+            <div class="library-toolbar">
+              <div class="library-search">
+                <label class="sr-only" for="reference-filter-query">Search library</label>
+                <input class="field" id="reference-filter-query" type="search" maxlength="200" placeholder="Search references…" title="Search title, author, reference ID, DOI, or URL">
+                <span id="reference-filter-count" aria-live="polite">0 references</span>
               </div>
-            </details>
-            <div class="mt-5 grid gap-3" id="reference-library-list"><div class="empty-state">Loading private library…</div></div>
+              <details class="action-menu library-filter-menu" data-action-menu>
+                <summary class="button-secondary" title="Filter and sort references">Filter</summary>
+                <section class="library-menu library-filter-fields" aria-label="Filter reference library">
+                  <label class="field-label">Type<select class="field" id="reference-filter-type"><option value="">All types</option></select></label>
+                  <label class="field-label">Reading<select class="field" id="reference-filter-reading"><option value="all">Any status</option><option value="unread">Unread</option><option value="reading">Reading</option><option value="read">Read</option></select></label>
+                  <label class="field-label">Tag or collection<input class="field" id="reference-filter-organization" maxlength="80" placeholder="Any label"></label>
+                  <label class="field-label">Project<select class="field" id="reference-filter-linkage"><option value="all">Linked or unlinked</option><option value="linked">Linked</option><option value="unlinked">Not linked</option></select></label>
+                  <label class="field-label">Metadata<select class="field" id="reference-filter-completeness"><option value="all">Any completeness</option><option value="complete">Complete</option><option value="incomplete">Needs metadata</option></select></label>
+                  <label class="field-label">Sort<select class="field" id="reference-filter-sort"><option value="updated">Recently updated</option><option value="title">Title</option><option value="year">Year</option><option value="priority">Reading priority</option></select></label>
+                </section>
+              </details>
+              <details class="action-menu library-tools-menu" data-action-menu>
+                <summary class="button-secondary library-more-button" aria-label="Library tools" title="Library tools">•••</summary>
+                <div class="library-menu library-tools-list">
+                  <label class="library-menu-action" title="Restore a Kirjolab library archive"><span>Restore archive</span><input class="sr-only" id="library-archive-upload" type="file" accept=".zip,application/zip"></label>
+                  <a href="/api/library/export/csl.json">Export CSL JSON</a>
+                  <a href="/api/library/export/library.zip">Export library</a>
+                  <button id="open-citation-network" type="button">Citation network</button>
+                  <button id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
+                </div>
+              </details>
+            </div>
+            <div class="reference-library-list" id="reference-library-list"><div class="empty-state">Loading library…</div></div>
             <section class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></section>
             <section class="mt-6 hidden border-t border-app-line pt-5" id="citation-network" aria-labelledby="citation-network-heading">
               <div class="flex flex-wrap items-start justify-between gap-3">

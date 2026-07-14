@@ -409,6 +409,7 @@ class WorkspaceApp {
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
+  readonly #expandedLibraryReferences = new Set<string>();
   #libraryPdfUploadBusy = false;
   #failedLibraryPdfUploads: readonly File[] = [];
   #showArchivedReferences = false;
@@ -1756,15 +1757,12 @@ class WorkspaceApp {
     const filters = this.#referenceLibraryFilters();
     const linked = new Set(this.#snapshot?.projectReferences.map((reference) => reference.referenceId) ?? []);
     const references = filterReferenceLibrary(library, linked, filters);
-    this.#elements.referenceFilterCount.textContent = `${references.length} of ${library.references.length} references`;
+    this.#elements.referenceFilterCount.textContent = `${references.length} / ${library.references.length}`;
+    this.#elements.referenceFilterCount.title = `${references.length} of ${library.references.length} references shown`;
     this.#elements.referenceLibraryList.replaceChildren();
     if (references.length === 0) {
       this.#elements.referenceLibraryList.append(
-        emptyState(
-          library.references.length === 0
-            ? "No references yet. Import BibTeX or add a PDF to begin."
-            : "No references match these filters.",
-        ),
+        emptyState(library.references.length === 0 ? "No references. Use Add reference to begin." : "No matching references."),
       );
     }
     for (const reference of references) this.#elements.referenceLibraryList.append(this.#referenceLibraryCard(reference));
@@ -2020,22 +2018,56 @@ class WorkspaceApp {
 
   #referenceLibraryCard(reference: BibliographicRecord): HTMLElement {
     const card = document.createElement("article");
-    card.className = "resource-card";
+    card.className = "library-reference-row";
     card.dataset.referenceId = reference.id;
-    const privacy = reference.archivedAt ? "Private · archived" : "Private library";
     const keyState = this.#librarySnapshot?.referenceKeyStates[reference.id] ?? "final";
-    const keyLabel = keyState === "provisional" ? "provisional ID" : "reference ID";
-    card.append(resourceLabel(`${reference.referenceKey} · ${keyLabel} · ${privacy} · ${reference.type}`), resourceTitle(reference.title));
+    const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
+    const main = document.createElement("div");
+    main.className = "library-reference-main";
+    const title = document.createElement("h3");
+    title.className = "library-reference-title";
+    title.textContent = reference.title || "Untitled reference";
+    title.title = reference.title || "Untitled reference";
     const details = document.createElement("p");
-    details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
-    details.textContent = [reference.authors.join("; "), reference.year, reference.venue].filter(Boolean).join(" · ");
-    card.append(details);
+    details.className = "library-reference-meta";
+    details.textContent = [
+      reference.authors.join("; "),
+      reference.year,
+      reference.venue,
+      reference.referenceKey,
+      keyState === "provisional" ? "provisional" : "",
+      reference.type,
+      reference.archivedAt ? "archived" : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    details.title = details.textContent;
+    main.append(title, details);
+    const actions = document.createElement("div");
+    actions.className = "library-reference-actions";
+    if (linked) {
+      const remove = actionButton("Linked", "button-secondary", () => void this.#unlinkProjectReference(reference.id));
+      remove.title = `Remove :cite[${linked.citationAlias}] from this project`;
+      actions.append(remove);
+    } else {
+      const add = actionButton("Add", "button-primary", () => void this.#linkLibraryReference(reference.id, reference.referenceKey));
+      add.title = `Add :cite[${reference.referenceKey}] to this project`;
+      actions.append(add);
+    }
     const metadataEditor = document.createElement("details");
-    metadataEditor.className = "mt-3 border-t border-app-line pt-3";
+    metadataEditor.className = "library-reference-details";
+    metadataEditor.open = this.#expandedLibraryReferences.has(reference.id);
+    metadataEditor.addEventListener("toggle", () => {
+      if (metadataEditor.open) this.#expandedLibraryReferences.add(reference.id);
+      else this.#expandedLibraryReferences.delete(reference.id);
+    });
     const metadataSummary = document.createElement("summary");
-    metadataSummary.className = "button-secondary w-fit cursor-pointer";
-    metadataSummary.textContent = "Metadata and research";
+    metadataSummary.textContent = "Details";
+    metadataSummary.title = "Edit metadata, organization, reading state, and attached research";
     metadataEditor.append(metadataSummary);
+    const metadataBody = document.createElement("div");
+    metadataBody.className = "library-reference-detail-body";
+    metadataEditor.append(metadataBody);
     const metadataFields = new Map<string, HTMLInputElement | HTMLTextAreaElement>();
     for (const [name, value] of [
       ["type", reference.type],
@@ -2052,44 +2084,28 @@ class WorkspaceApp {
       input.placeholder = name;
       input.setAttribute("aria-label", `${name} for ${reference.title}`);
       metadataFields.set(name, input);
-      metadataEditor.append(input);
+      metadataBody.append(input);
     }
     const abstract = document.createElement("textarea");
     abstract.className = "field mt-2 min-h-20";
     abstract.value = reference.abstract;
     abstract.placeholder = "abstract";
     metadataFields.set("abstract", abstract);
-    metadataEditor.append(
+    metadataBody.append(
       abstract,
       actionButton("Save details", "button-primary mt-2", () => void this.#saveReferenceMetadata(reference.id, metadataFields)),
     );
-    const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
-    const projectRow = document.createElement("div");
-    projectRow.className = "mt-3 flex flex-wrap items-center gap-2";
-    const citation = document.createElement("code");
-    citation.className = "min-w-0 flex-1 truncate text-xs";
-    citation.textContent = `:cite[${linked?.citationAlias ?? reference.referenceKey}]`;
-    projectRow.append(citation);
-    if (linked) {
-      projectRow.append(actionButton("Remove", "button-secondary", () => void this.#unlinkProjectReference(reference.id)));
-    } else {
-      projectRow.append(
-        actionButton("Add to project", "button-primary", () => void this.#linkLibraryReference(reference.id, reference.referenceKey)),
-      );
-    }
-    card.append(projectRow);
-
     const tags = document.createElement("input");
     tags.className = "field mt-3";
     tags.value = (this.#librarySnapshot?.tags[reference.id] ?? []).join(", ");
     tags.placeholder = "Private tags, comma separated";
     tags.setAttribute("aria-label", `Private tags for ${reference.title}`);
-    metadataEditor.append(tags);
+    metadataBody.append(tags);
     const collections = document.createElement("input");
     collections.className = "field mt-2";
     collections.value = (this.#librarySnapshot?.collections[reference.id] ?? []).join(", ");
     collections.placeholder = "Collections, comma separated";
-    metadataEditor.append(collections);
+    metadataBody.append(collections);
     const privateActions = document.createElement("div");
     privateActions.className = "mt-2 flex flex-wrap gap-2";
     privateActions.append(
@@ -2101,7 +2117,7 @@ class WorkspaceApp {
         () => void this.#setReferenceArchived(reference.id, reference.archivedAt === null),
       ),
     );
-    metadataEditor.append(privateActions);
+    metadataBody.append(privateActions);
     const reading = this.#librarySnapshot?.reading.find((item) => item.referenceId === reference.id);
     const readingStatus = document.createElement("select");
     readingStatus.className = "field mt-3";
@@ -2116,7 +2132,7 @@ class WorkspaceApp {
     rating.append(new Option("No rating", ""));
     for (let value = 1; value <= 5; value += 1) rating.append(new Option(`${value} star${value === 1 ? "" : "s"}`, String(value)));
     rating.value = reading?.rating === null || reading?.rating === undefined ? "" : String(reading.rating);
-    metadataEditor.append(
+    metadataBody.append(
       readingStatus,
       priority,
       rating,
@@ -2136,7 +2152,7 @@ class WorkspaceApp {
       "button-secondary mt-2",
       () => void this.#createReferenceNote(reference.id, noteInput.value),
     );
-    metadataEditor.append(noteInput, addNote);
+    metadataBody.append(noteInput, addNote);
 
     const resources = document.createElement("div");
     resources.className = "mt-3 space-y-2 border-t border-app-line pt-3";
@@ -2184,7 +2200,7 @@ class WorkspaceApp {
         "button-secondary mt-3",
         () => void this.#captureWebSourceInput(webSource.canonicalUrl),
       );
-      metadataEditor.append(recapture);
+      metadataBody.append(recapture);
       for (const [index, snapshot] of webSnapshots.entries()) {
         const status = snapshot.complete ? "complete" : "incomplete";
         const row = this.#privateResearchRow(
@@ -2222,8 +2238,8 @@ class WorkspaceApp {
         resources.append(row);
       }
     }
-    if (notes.length + artifacts.length + highlights.length + webSnapshots.length > 0) metadataEditor.append(resources);
-    card.append(metadataEditor);
+    if (notes.length + artifacts.length + highlights.length + webSnapshots.length > 0) metadataBody.append(resources);
+    card.append(main, actions, metadataEditor);
     return card;
   }
 

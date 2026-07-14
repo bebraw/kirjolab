@@ -638,24 +638,24 @@ test("keeps private library research separate from project citations", async ({ 
       year = {2026}
     }`),
   });
-  const card = page.locator("#reference-library-list .resource-card").filter({ hasText: "Private Research Guide" });
+  const card = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Private Research Guide" });
   await expect(card).toBeVisible();
   await expect(card).toContainText("writer2026");
   await expect(page.locator("#publication-list")).not.toContainText("Private Research Guide");
 
-  await card.getByRole("button", { name: "Add to project" }).click();
+  await card.getByRole("button", { name: "Add" }).click();
   await expect(page.locator("#publication-list")).toContainText("Private Research Guide");
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "climate_adaptation.pdf",
     mimeType: "application/pdf",
     buffer: createTwoPageEvidencePdf(),
   });
-  const pdfCard = page.locator("#reference-library-list .resource-card").filter({ hasText: "climate adaptation" });
+  const pdfCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "climate adaptation" });
   await expect(pdfCard).toContainText("sourceundatedclimate");
   await expect(page.locator("#unidentified-pdf-section")).toBeHidden();
 
   const beforePrivateReading = await readWorkspaceSnapshot(page, api);
-  await pdfCard.getByText("Metadata and research").click();
+  await openLibraryReferenceDetails(pdfCard);
   await pdfCard.getByRole("button", { name: "Open PDF" }).click();
   await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
@@ -687,8 +687,8 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
   await page.getByRole("tab", { name: "Library" }).click();
-  const refreshedPdfCard = page.locator("#reference-library-list .resource-card").filter({ hasText: "climate adaptation" });
-  await refreshedPdfCard.getByText("Metadata and research").click();
+  const refreshedPdfCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "climate adaptation" });
+  await openLibraryReferenceDetails(refreshedPdfCard);
   await refreshedPdfCard.getByRole("button", { name: "Open PDF" }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.getByRole("button", { name: "Open page 1" }).click();
@@ -717,27 +717,27 @@ test("keeps private library research separate from project citations", async ({ 
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).researchShares.length).toBe(0);
   await page.getByRole("tab", { name: "Library" }).click();
 
-  await card.getByText("Metadata and research").click();
+  await openLibraryReferenceDetails(card);
   const tags = card.getByLabel("Private tags for Private Research Guide");
   await tags.fill("methods, revisit");
   await card.getByRole("button", { name: "Save tags" }).click();
   await expect(page.locator("#toast")).toHaveText("Private tags saved.");
   await expect(card.getByLabel("Private tags for Private Research Guide")).toHaveValue("methods, revisit");
-  await page.getByText("Filters and library tools").click();
+  await page.getByText("Filter", { exact: true }).click();
   await page.locator("#reference-filter-organization").fill("methods");
-  await expect(page.locator("#reference-filter-count")).toHaveText(/1 of \d+ references/u);
+  await expect(page.locator("#reference-filter-count")).toHaveText(/1 \/ \d+/u);
   await page.locator("#reference-filter-linkage").selectOption("linked");
   await expect(card).toBeVisible();
   await page.locator("#reference-filter-query").fill("no matching reference");
-  await expect(page.locator("#reference-library-list")).toContainText("No references match these filters.");
+  await expect(page.locator("#reference-library-list")).toContainText("No matching references.");
   await page.locator("#reference-filter-query").fill("");
   await page.locator("#reference-filter-organization").fill("");
-  await card.getByText("Metadata and research").click();
+  await openLibraryReferenceDetails(card);
   await card.getByPlaceholder("Add a private note").fill("Only share this interpretation deliberately.");
   await card.getByRole("button", { name: "Save private note" }).click();
   await expect(page.locator("#toast")).toHaveText("Private note saved. It is not visible to project collaborators.");
   await expect(card).toContainText("Only share this interpretation deliberately.");
-  await card.getByText("Metadata and research").click();
+  await openLibraryReferenceDetails(card);
   await card
     .locator(".rounded-sm")
     .filter({ hasText: "Only share this interpretation deliberately." })
@@ -748,6 +748,7 @@ test("keeps private library research separate from project citations", async ({ 
 
   const uncitedExport = await page.request.get(`${api}/export/bibliography.bib`);
   expect(await uncitedExport.text()).not.toContain("writer2026");
+  await openLibraryReferenceDetails(card);
   await page.locator("#context-library-scroll").evaluate((element) => {
     element.scrollTop = 160;
   });
@@ -787,15 +788,15 @@ test("uploads a bounded PDF batch with partial success and retry", async ({ page
   await expect(status).toContainText("3 of 3 processed");
   await expect(status.locator('[data-upload-state="added"]')).toHaveCount(2);
   await expect(status.locator('[data-upload-state="failed"]')).toContainText("Temporary upload failure");
-  await expect(page.locator("#reference-library-list .resource-card").filter({ hasText: "batch alpha" })).toBeVisible();
-  await expect(page.locator("#reference-library-list .resource-card").filter({ hasText: "batch gamma" })).toBeVisible();
-  await expect(page.locator("#reference-library-list .resource-card").filter({ hasText: "batch beta" })).toHaveCount(0);
+  await expect(page.locator("#reference-library-list .library-reference-row").filter({ hasText: "batch alpha" })).toBeVisible();
+  await expect(page.locator("#reference-library-list .library-reference-row").filter({ hasText: "batch gamma" })).toBeVisible();
+  await expect(page.locator("#reference-library-list .library-reference-row").filter({ hasText: "batch beta" })).toHaveCount(0);
 
   await status.getByRole("button", { name: "Retry failed" }).click();
   await expect(status).toContainText("1 of 1 processed");
   await expect(status.locator('[data-upload-state="added"]')).toContainText("batch_beta.pdf");
   await expect(status.getByRole("button", { name: "Retry failed" })).toHaveCount(0);
-  await expect(page.locator("#reference-library-list .resource-card").filter({ hasText: "batch beta" })).toBeVisible();
+  await expect(page.locator("#reference-library-list .library-reference-row").filter({ hasText: "batch beta" })).toBeVisible();
   expect(requestedFiles).toEqual(["batch_alpha.pdf", "batch_beta.pdf", "batch_gamma.pdf", "batch_beta.pdf"]);
 
   const oversizedBatch = Array.from({ length: 21 }, (_, index) => ({
@@ -820,9 +821,9 @@ test("resolves an exact PDF repeat and reveals its archived Library source", asy
   });
 
   const libraryList = page.locator("#reference-library-list");
-  const card = libraryList.locator(".resource-card").filter({ hasText: "canonical repeat" });
+  const card = libraryList.locator(".library-reference-row").filter({ hasText: "canonical repeat" });
   await expect(card).toBeVisible();
-  await card.getByText("Metadata and research").click();
+  await openLibraryReferenceDetails(card);
   await card.getByRole("button", { name: "Archive" }).click();
   await expect(card).toHaveCount(0);
 
@@ -837,7 +838,7 @@ test("resolves an exact PDF repeat and reveals its archived Library source", asy
   await status.getByRole("button", { name: /Show sourceundatedcanonical in Library/u }).click();
 
   await expect(page.locator("#show-archived-references")).toHaveAttribute("aria-pressed", "true");
-  await expect(libraryList.locator(".resource-card").filter({ hasText: "canonical repeat" })).toContainText("Private · archived");
+  await expect(libraryList.locator(".library-reference-row").filter({ hasText: "canonical repeat" })).toContainText("archived");
   await expect(page.locator("#reference-filter-query")).toHaveValue("sourceundatedcanonical");
 });
 
@@ -851,9 +852,9 @@ test("reviews bounded PDF metadata before enriching a library record", async ({ 
     buffer: createMetadataEvidencePdf(),
   });
 
-  const draft = page.locator("#reference-library-list .resource-card").filter({ hasText: "metadata review" });
+  const draft = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "metadata review" });
   await expect(draft).toContainText("sourceundatedmetadata");
-  await draft.getByText("Metadata and research").click();
+  await openLibraryReferenceDetails(draft);
   await page.route("**/api/library/references/*/metadata-refinement/preview", async (route) => {
     await route.fulfill({
       status: 200,
@@ -867,8 +868,8 @@ test("reviews bounded PDF metadata before enriching a library record", async ({ 
     .toEqual(expect.arrayContaining(["Metadata Review in Practice", "Doe, Jane; Roe, Alex", "2025", "10.5555/metadata.review"]));
 
   await draft.getByRole("button", { name: "Apply selected metadata" }).click();
-  const enriched = page.locator("#reference-library-list .resource-card").filter({ hasText: "Metadata Review in Practice" });
-  await expect(enriched).toContainText("doe2025 · provisional ID");
+  const enriched = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Metadata Review in Practice" });
+  await expect(enriched).toContainText("doe2025 · provisional");
   const library = (await (await page.request.get("/api/library")).json()) as {
     references: Array<{ title: string; provenance: Record<string, { method: string }> }>;
   };
@@ -889,6 +890,8 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
     mimeType: "application/pdf",
     buffer: createMetadataEvidencePdf(),
   });
+  const card = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "provider review" });
+  await expect(card).toBeVisible();
   const library = (await (await page.request.get("/api/library")).json()) as {
     references: Array<{ id: string; title: string }>;
     artifacts: Array<{ id: string; referenceId: string }>;
@@ -928,8 +931,7 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(reference) });
   });
 
-  const card = page.locator("#reference-library-list .resource-card").filter({ hasText: "provider review" });
-  await card.getByText("Metadata and research").click();
+  await openLibraryReferenceDetails(card);
   await card.getByRole("button", { name: "Refine metadata" }).click();
   await expect(card).toContainText("Crossref: Crossref reviewed title");
   await expect(card).toContainText("Current: provider review");
@@ -989,11 +991,11 @@ test("records and reviews source citation assertions in an accessible shared net
       doi = {10.1000/network-beta}
     }`),
   });
-  const alpha = page.locator("#reference-library-list .resource-card").filter({ hasText: "Network Alpha Study" });
+  const alpha = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Network Alpha Study" });
   await expect(alpha).toBeVisible();
-  await alpha.getByRole("button", { name: "Add to project" }).click();
+  await alpha.getByRole("button", { name: "Add" }).click();
 
-  await page.getByText("Filters and library tools").click();
+  await page.locator('summary[aria-label="Library tools"]').click();
   await page.locator("#open-citation-network").click();
   await expect(page.locator("#citation-network")).toBeVisible();
   await page.locator("#citation-assertion-citing").selectOption({ label: "Network Alpha Study" });
@@ -2857,6 +2859,13 @@ async function openResearchCollection(page: Page, name: string): Promise<void> {
   await collection.evaluate((element: HTMLDetailsElement) => {
     element.open = true;
   });
+}
+
+async function openLibraryReferenceDetails(reference: Locator): Promise<void> {
+  const details = reference.locator(".library-reference-details");
+  if (!(await details.evaluate((element: HTMLDetailsElement) => element.open))) {
+    await reference.getByText("Details", { exact: true }).click();
+  }
 }
 
 async function openResearchRail(page: Page): Promise<void> {
