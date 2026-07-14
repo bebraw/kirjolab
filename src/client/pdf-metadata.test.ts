@@ -7,6 +7,7 @@ const pdfjs = vi.hoisted(() => ({
 }));
 
 vi.mock("pdfjs-dist", () => pdfjs);
+vi.mock("./pdfjs-runtime", () => ({ loadPdfJsRuntime: vi.fn().mockResolvedValue(pdfjs) }));
 
 beforeEach(() => {
   pdfjs.getDocument.mockReset();

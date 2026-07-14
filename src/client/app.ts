@@ -14,7 +14,6 @@ import {
   type ServerCollaborationMessage,
 } from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
-import { renderWorkspaceMarkdown } from "../domain/markdown";
 import {
   isProjectRevisionContent,
   isProjectRevisionDiff,
@@ -67,6 +66,7 @@ import {
 } from "../domain/workspace";
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
 import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
+import { loadMarkdownRuntime } from "./markdown-runtime";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { adjustSelectionRects } from "./pdf-selection";
@@ -417,6 +417,7 @@ class WorkspaceApp {
   #projectHistory: ProjectRevisionSummary[] = [];
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
+  #previewRenderVersion = 0;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -437,8 +438,10 @@ class WorkspaceApp {
 
   async start(): Promise<void> {
     this.#bindUi();
+    this.#elements.workspaceSurfaces.dataset.ready = "true";
     this.#restoreWorkspaceLayout();
     this.#setEditorsEnabled(false);
+    void loadMarkdownRuntime().catch(() => undefined);
     await this.#refreshCatalog();
     await this.#resourceRefresh.request();
     this.#connect();
@@ -587,14 +590,14 @@ class WorkspaceApp {
         this.#updateModelAvailability();
       });
     }
-    this.#source.observe(() => this.#renderPreview());
-    this.#bibliography.observe(() => this.#renderPreview());
+    this.#source.observe(() => void this.#renderPreview());
+    this.#bibliography.observe(() => void this.#renderPreview());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
       if (origin === remoteOrigin) return;
       this.#pendingUpdates.enqueue(update);
       this.#elements.saveStatus.textContent = "Saving…";
       this.#updateModelAvailability();
-      this.#renderPreview();
+      void this.#renderPreview();
       this.#flushPendingUpdates();
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
@@ -663,10 +666,10 @@ class WorkspaceApp {
       this.#revision = snapshot.revision;
       this.#elements.source.value = snapshot.source;
       this.#elements.bibliography.value = snapshot.bibliography;
-      this.#renderPreview(snapshot.source, snapshot.bibliography);
+      void this.#renderPreview(snapshot.source, snapshot.bibliography);
       this.#updateRevision();
     } else {
-      this.#renderPreview();
+      void this.#renderPreview();
     }
     this.#renderProjectFiles();
     this.#renderResources();
@@ -1207,7 +1210,8 @@ class WorkspaceApp {
     });
   }
 
-  #renderPreview(source?: string, bibliography = this.#bibliography.toString()): void {
+  async #renderPreview(source?: string, bibliography = this.#bibliography.toString()): Promise<void> {
+    const renderVersion = ++this.#previewRenderVersion;
     const composition =
       source === undefined && this.#snapshot ? composeProject(this.#liveProjectFiles(), this.#snapshot.entryFileId) : null;
     const renderedSource = source ?? composition?.content ?? this.#source.toString();
@@ -1225,7 +1229,22 @@ class WorkspaceApp {
       );
       this.#renderExportStatistics();
     }
-    const rendered = renderWorkspaceMarkdown(renderedSource, bibliography, this.#snapshot?.publicationProfile.citationStyle);
+    let runtime;
+    try {
+      runtime = await loadMarkdownRuntime();
+    } catch (error) {
+      if (renderVersion !== this.#previewRenderVersion) return;
+      this.#elements.preview.textContent = renderedSource;
+      this.#elements.diagnostics.replaceChildren();
+      this.#elements.diagnosticSummary.textContent = "Preview unavailable";
+      const item = document.createElement("p");
+      item.className = "resource-card mb-2 font-sans text-xs";
+      item.textContent = error instanceof Error ? error.message : "The Markdown renderer could not be loaded";
+      this.#elements.diagnostics.append(item);
+      return;
+    }
+    if (renderVersion !== this.#previewRenderVersion) return;
+    const rendered = runtime.renderWorkspaceMarkdown(renderedSource, bibliography, this.#snapshot?.publicationProfile.citationStyle);
     this.#elements.preview.innerHTML = rendered.html;
     this.#elements.diagnostics.replaceChildren();
     const diagnosticCount = rendered.diagnostics.length + (composition?.diagnostics.length ?? 0);
@@ -1470,7 +1489,7 @@ class WorkspaceApp {
     } else if (selected) {
       this.#selectProjectFile(selected.id);
     }
-    this.#renderPreview();
+    void this.#renderPreview();
     this.#showToast(
       folderMode
         ? creating
@@ -1499,7 +1518,7 @@ class WorkspaceApp {
     this.#activeFileId = null;
     this.#selectProjectFile(value.entryFileId);
     this.#renderProjectFiles();
-    this.#renderPreview();
+    void this.#renderPreview();
     this.#showToast(`Deleted ${file.path}.`);
   }
 
@@ -2856,7 +2875,7 @@ class WorkspaceApp {
     this.#snapshot = value;
     this.#renderResources();
     this.#renderProjectFiles();
-    this.#renderPreview();
+    void this.#renderPreview();
   }
 
   #renderResources(): void {

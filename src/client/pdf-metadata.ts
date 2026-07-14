@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { normalizeDoi } from "../domain/bibliography";
+import { loadPdfJsRuntime } from "./pdfjs-runtime";
 
 export interface PdfMetadataCandidates {
   readonly title: string;
@@ -14,7 +15,7 @@ const maximumPages = 3;
 const maximumTextLength = 65_536;
 
 export async function extractPdfMetadata(url: string): Promise<PdfMetadataCandidates> {
-  const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+  const { getDocument, GlobalWorkerOptions } = await loadPdfJsRuntime();
   GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
   const loadingTask = getDocument({ url });
   let documentModel: PDFDocumentProxy | null = null;

@@ -22,6 +22,11 @@ mode for authenticated hosted collaboration.
   `.generated/app.txt`. Persistent interface copy names the user's next action
   and keeps implementation detail in feature documentation rather than the
   task surface.
+- **Browser runtime loading:** The generated application module is minified and
+  excludes Satteri and PDF.js. The immutable versioned
+  `/markdown-module-0.9.5.js` runtime loads concurrently with workspace data;
+  PDF viewing and metadata extraction load `/pdfjs-module-6.1.200.js` on first
+  use. Consumers share each cached module thereafter.
 - **Appearance:** The shell uses one semantic `app-*` token palette with light
   and dark values. Appearance follows the operating-system color scheme by
   default; a browser-local System, Light, or Dark preference may override it

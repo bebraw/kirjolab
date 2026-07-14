@@ -154,6 +154,20 @@ describe("worker", () => {
     await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
   });
 
+  it("requires runtime assets for the lazy PDF.js module", async () => {
+    const response = await handleRequest(new Request("http://example.com/pdfjs-module-6.1.200.js"));
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
+  });
+
+  it("requires runtime assets for the lazy Markdown module", async () => {
+    const response = await handleRequest(new Request("http://example.com/markdown-module-0.9.5.js"));
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
+  });
+
   it("rejects workspace API requests without runtime bindings", async () => {
     const response = await handleRequest(new Request("http://example.com/api/workspaces/demo"));
 

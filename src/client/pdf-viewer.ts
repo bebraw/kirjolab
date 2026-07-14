@@ -1,8 +1,7 @@
-import { getDocument, GlobalWorkerOptions, TextLayer, type PDFDocumentLoadingTask, type PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type { AnnotationResource, PdfSelectionRect } from "../domain/workspace";
 import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
-
-GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
+import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
 
 export interface PdfSelectionCapture {
   page: number;
@@ -37,6 +36,7 @@ export class PdfEvidenceViewer {
   readonly #onHighlight: (annotationId: string, fragmentId: string) => void;
   #document: PDFDocumentProxy | null = null;
   #loadingTask: PDFDocumentLoadingTask | null = null;
+  #runtime: PdfJsRuntime | null = null;
   #annotations: AnnotationResource[] = [];
   #pageNumber = 1;
   #pageText = "";
@@ -80,7 +80,11 @@ export class PdfEvidenceViewer {
     this.#draftSelection = null;
     this.#mode = options.mode ?? "evidence";
     this.#elements.status.textContent = "Loading PDF…";
-    const loadingTask = getDocument({ url: options.url });
+    const runtime = await loadPdfJsRuntime();
+    if (openVersion !== this.#openVersion) return false;
+    this.#runtime = runtime;
+    runtime.GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
+    const loadingTask = runtime.getDocument({ url: options.url });
     this.#loadingTask = loadingTask;
     let documentModel: PDFDocumentProxy;
     try {
@@ -129,7 +133,8 @@ export class PdfEvidenceViewer {
 
   async #renderPage(): Promise<void> {
     const documentModel = this.#document;
-    if (!documentModel) return;
+    const runtime = this.#runtime;
+    if (!documentModel || !runtime) return;
     const version = ++this.#renderVersion;
     this.#elements.status.textContent = `Rendering page ${this.#pageNumber}…`;
     const page = await documentModel.getPage(this.#pageNumber);
@@ -154,7 +159,7 @@ export class PdfEvidenceViewer {
       .filter(Boolean)
       .join(" ");
     this.#elements.textLayer.replaceChildren();
-    const textLayer = new TextLayer({ textContentSource: textContent, container: this.#elements.textLayer, viewport });
+    const textLayer = new runtime.TextLayer({ textContentSource: textContent, container: this.#elements.textLayer, viewport });
     await Promise.all([
       page.render({
         canvas: this.#elements.canvas,

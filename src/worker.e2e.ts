@@ -268,8 +268,10 @@ test("renames, archives, duplicates, and permanently deletes projects", async ({
 test("switches and remembers focused workspace views", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Focus modes");
   await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   const layout = page.locator("#workspace-layout");
   await layout.selectOption("editor");
+  await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-layout", "editor");
   await expect(page.locator("#authoring-surface")).toBeVisible();
   await expect(page.locator("#context-surface")).toBeHidden();
   await layout.selectOption("context");
@@ -287,6 +289,7 @@ test("switches and remembers focused workspace views", async ({ page }) => {
 
 test("follows and remembers the selected appearance", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   const appearance = page.locator("#theme-preference");
 
   await expect(appearance).toHaveValue("system");
@@ -2732,6 +2735,16 @@ test("serves stable health and browser assets", async ({ request }) => {
   expect(satteriWorker.ok()).toBe(true);
   expect(satteriWorker.headers()["content-type"]).toContain("javascript");
   expect(await satteriWorker.text()).toContain("MessageHandler");
+
+  const pdfRuntime = await request.get("/pdfjs-module-6.1.200.js");
+  expect(pdfRuntime.ok()).toBe(true);
+  expect(pdfRuntime.headers()["content-type"]).toContain("javascript");
+  expect(pdfRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
+
+  const markdownRuntime = await request.get("/markdown-module-0.9.5.js");
+  expect(markdownRuntime.ok()).toBe(true);
+  expect(markdownRuntime.headers()["content-type"]).toContain("javascript");
+  expect(markdownRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -52,9 +52,14 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return scriptResponse(await loadPdfWorkerScript());
   }
 
-  if (url.pathname === "/satteri_napi.wasm32-wasi.wasm" || url.pathname === "/satteri-wasi-worker.mjs") {
+  if (
+    url.pathname === "/markdown-module-0.9.5.js" ||
+    url.pathname === "/pdfjs-module-6.1.200.js" ||
+    url.pathname === "/satteri_napi.wasm32-wasi.wasm" ||
+    url.pathname === "/satteri-wasi-worker.mjs"
+  ) {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await loadSatteriAsset(request, env);
+    return await loadBrowserRuntimeAsset(request, env);
   }
 
   if (url.pathname === "/api/health") {
@@ -198,7 +203,7 @@ async function loadPdfWorkerScript(): Promise<string> {
   return script.default;
 }
 
-async function loadSatteriAsset(request: Request, env: Env): Promise<Response> {
+async function loadBrowserRuntimeAsset(request: Request, env: Env): Promise<Response> {
   const asset = await env.ASSETS.fetch(request);
   const headers = new Headers(asset.headers);
   headers.set("cross-origin-resource-policy", "same-origin");

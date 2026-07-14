@@ -20,6 +20,15 @@ second Markdown dialect.
   `.generated/assets/` during builds.
 - Satteri executes in the browser. The Worker serves its static assets but does
   not parse canonical documents or require WASM threads.
+- The current Satteri artifact remains browser-side because its threaded WASI
+  binding, browser Worker dependency, and 250 MiB initial shared memory are not
+  compatible with the Cloudflare Workers execution model.
+- Browser application and Satteri helper JavaScript are minified for production;
+  moving rendering to the edge requires a measured, non-threaded upstream
+  binding rather than a request-per-edit proxy.
+- Satteri's Markdown JavaScript runtime loads as a versioned browser module in
+  parallel with workspace data. Preview renders discard stale asynchronous
+  results and fall back to authored source when the runtime cannot load.
 - HTML responses opt into cross-origin isolation. Satteri assets are same-origin
   and carry a same-origin resource policy.
 - Remote images remain valid Markdown but browsers may block their preview

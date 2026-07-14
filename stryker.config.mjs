@@ -17,6 +17,8 @@ const config = {
     "!src/test-support.ts",
     "!src/test-support/**",
     "!src/client/app.ts",
+    "!src/client/markdown-runtime.ts",
+    "!src/client/pdfjs-runtime.ts",
     "!src/client/pdf-viewer.ts",
     "!src/api/**",
     "!src/durable-objects/**",

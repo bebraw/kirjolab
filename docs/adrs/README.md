@@ -132,6 +132,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-098](./implemented/ADR-098-ignore-static-mutants-locally.md)                     | Implemented          | Ignore costly static mutants locally while retaining them in clean GitHub mutation runs.                     |
 | [ADR-099](./implemented/ADR-099-persist-project-folders-and-atomic-tree-moves.md)     | Implemented          | Persist empty folders and move project subtrees with atomic include rewrites.                                |
 | [ADR-100](./implemented/ADR-100-order-reviewed-scholarly-metadata-providers.md)       | Implemented          | Try reviewed OpenAlex discovery first and retain Crossref, DataCite, and Semantic Scholar coverage.          |
+| [ADR-101](./implemented/ADR-101-split-browser-runtimes.md)                            | Implemented          | Minify the app, lazy-load PDF.js, and retain Satteri browser rendering.                                      |
 
 ## Creating A New ADR
 

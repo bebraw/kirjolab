@@ -47,6 +47,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
   vendored `.codex/skills/**/references/`
 - **Formatting cache:** content-based results under ignored `.cache/prettier`
 - **Mutation config:** `stryker.config.mjs`
+- **Mutation heap ceiling:** 8 GiB for TypeScript-aware Stryker instrumentation
 - **Readiness baseline:** `npm run quality:gate` and `npm run ci:local` for non-documentation changes
 - **Documentation-only exception:** documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests
 
@@ -150,6 +151,12 @@ The template needs a verification baseline that stays strict enough for end-to-e
   test support, HTTP adapters covered by route plus end-to-end tests, and
   browser-runtime orchestration modules covered by Playwright. Pure domain and
   security logic called by those adapters remains in mutation scope.
+- Mutation testing must exclude dynamic browser runtime loaders because their
+  versioned module boundaries are exercised by Playwright and expanding
+  third-party runtime types during Stryker instrumentation exceeds Node's
+  default heap.
+- The mutation scripts must raise Node's heap ceiling enough for TypeScript-aware
+  instrumentation without changing Stryker's score threshold or concurrency.
 - Mutation testing must use the Vitest runner's per-test coverage analysis and related-test narrowing rather than an ad hoc minimization wrapper.
 - Mutation testing must set Stryker worker concurrency as a percentage of available parallelism instead of a fixed worker count.
 - GitHub Actions must run the full mutation gate instead of the incremental mutation gate.
