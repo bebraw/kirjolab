@@ -125,15 +125,16 @@ ADRs are grouped by lifecycle status:
 | [ADR-082](./implemented/ADR-082-capture-private-library-pdf-highlights.md)            | Implemented          | Capture explicit page-and-quote highlights while reading an owner-private library PDF.                       |
 | [ADR-083](./implemented/ADR-083-finalize-provisional-reference-keys.md)               | Implemented          | Improve private PDF keys until their first project link permanently finalizes them.                          |
 | [ADR-084](./implemented/ADR-084-separate-source-capture-from-refinement.md)           | Implemented          | Keep initial PDF and website collection separate from later metadata refinement.                             |
-| [ADR-085](./implemented/ADR-085-unify-reviewed-metadata-refinement.md)                | Implemented          | Unify local PDF hints, bounded provider matching, and selective acceptance in one refinement flow.           |
+| [ADR-085](./implemented/ADR-085-unify-reviewed-metadata-refinement.md)                | Partially superseded | Unify local PDF hints, bounded provider matching, and selective acceptance in one refinement flow.           |
 | [ADR-086](./implemented/ADR-086-coordinate-batch-pdf-intake-in-browser.md)            | Implemented          | Coordinate bounded sequential PDF intake and retry state in the browser.                                     |
 | [ADR-087](./implemented/ADR-087-reconcile-exact-pdf-duplicates.md)                    | Implemented          | Resolve exact owner-library PDF repeats to their canonical source and remove redundant stored bytes.         |
 | [ADR-088](./implemented/ADR-088-project-structured-publication-markdown.md)           | Implemented          | Project bounded tables and footnotes once for deterministic LaTeX and PDF publication exports.               |
 | [ADR-098](./implemented/ADR-098-ignore-static-mutants-locally.md)                     | Implemented          | Ignore costly static mutants locally while retaining them in clean GitHub mutation runs.                     |
 | [ADR-099](./implemented/ADR-099-persist-project-folders-and-atomic-tree-moves.md)     | Implemented          | Persist empty folders and move project subtrees with atomic include rewrites.                                |
-| [ADR-100](./implemented/ADR-100-order-reviewed-scholarly-metadata-providers.md)       | Implemented          | Try reviewed OpenAlex discovery first and retain Crossref, DataCite, and Semantic Scholar coverage.          |
+| [ADR-100](./implemented/ADR-100-order-reviewed-scholarly-metadata-providers.md)       | Partially superseded | Try reviewed OpenAlex discovery first and retain Crossref, DataCite, and Semantic Scholar coverage.          |
 | [ADR-101](./implemented/ADR-101-split-browser-runtimes.md)                            | Partially superseded | Minify the app and lazy-load PDF.js; ADR-102 replaces its Satteri runtime decision.                          |
 | [ADR-102](./implemented/ADR-102-use-javascript-for-live-markdown-preview.md)          | Implemented          | Replace Satteri WASM with a local unified/remark preview runtime.                                            |
+| [ADR-103](./implemented/ADR-103-compose-metadata-from-several-providers.md)           | Implemented          | Choose each metadata field from one of several same-work providers and apply the review atomically.          |
 
 ## Creating A New ADR
 

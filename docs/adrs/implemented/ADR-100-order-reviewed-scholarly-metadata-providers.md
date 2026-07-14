@@ -1,6 +1,6 @@
 # ADR-100: Order Reviewed Scholarly Metadata Providers
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-103](./ADR-103-compose-metadata-from-several-providers.md)
 
 **Date:** 2026-07-14
 

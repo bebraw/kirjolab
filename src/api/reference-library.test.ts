@@ -750,7 +750,7 @@ describe("reference library API", () => {
     );
   });
 
-  it("combines configured discovery providers in order while deduplicating DOIs", async () => {
+  it("combines configured discovery providers while retaining provider variants for one DOI", async () => {
     const fixture = apiFixture();
     const env = { ...fixture.env, OPENALEX_API_KEY: "openalex-key", SEMANTIC_SCHOLAR_API_KEY: "semantic-key" };
     const fetchExternal = vi.fn(async (input: string | URL | Request) => {
@@ -786,10 +786,82 @@ describe("reference library API", () => {
     expect(body.candidates.map((candidate) => [candidate.provider, candidate.metadata.doi])).toEqual([
       ["openalex", "10.5555/openalex"],
       ["openalex", "10.5555/shared"],
+      ["crossref", "10.5555/shared"],
       ["crossref", "10.5555/crossref"],
       ["semantic-scholar", "10.5555/semantic"],
     ]);
     expect(fetchExternal).toHaveBeenCalledTimes(3);
+  });
+
+  it("refetches and atomically applies fields selected from several providers", async () => {
+    const fixture = apiFixture();
+    const env = { ...fixture.env, OPENALEX_API_KEY: "openalex-key" };
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      const hostname = new URL(String(input)).hostname;
+      if (hostname === "api.openalex.org") return openAlexResponse("10.5555/shared", "OpenAlex title");
+      if (hostname === "api.crossref.org") return crossrefResponse("10.5555/shared", "Crossref title");
+      return dataCiteResponse("10.5555/shared", "DataCite title");
+    });
+    const route = `/api/library/references/${reference.id}/metadata-refinement`;
+    const previewResponse = await handleReferenceLibraryApi(
+      jsonRequest(`${route}/preview`, {
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        candidates: { doi: "10.5555/shared" },
+      }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    const preview = (await previewResponse.json()) as {
+      candidates: Array<{ provider: "openalex" | "crossref" | "datacite"; metadataFingerprint: string }>;
+    };
+    expect(preview.candidates.map(({ provider }) => provider)).toEqual(["openalex", "crossref", "datacite"]);
+
+    fetchExternal.mockClear();
+    const accepted = await handleReferenceLibraryApi(
+      jsonRequest(`${route}/accept`, {
+        selections: [
+          { ...preview.candidates[0], doi: "10.5555/shared", fields: ["title", "abstract"] },
+          { ...preview.candidates[1], doi: "10.5555/shared", fields: ["authors", "venue", "doi"] },
+        ],
+      }),
+      env,
+      identity,
+      fetchExternal,
+    );
+
+    expect(accepted.status).toBe(200);
+    expect(fixture.library.applyReviewedProviderMetadataBatch).toHaveBeenCalledWith(
+      reference.id,
+      [
+        expect.objectContaining({ provider: "openalex", fields: ["title", "abstract"] }),
+        expect.objectContaining({ provider: "crossref", fields: ["authors", "venue", "doi"] }),
+      ],
+      identity.email,
+    );
+    expect(fetchExternal).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects mixed-work, duplicate-source, and overlapping-field provider batches before refetch", async () => {
+    const fixture = apiFixture();
+    const route = `/api/library/references/${reference.id}/metadata-refinement/accept`;
+    const base = {
+      provider: "crossref",
+      doi: "10.5555/shared",
+      metadataFingerprint: "a".repeat(64),
+      fields: ["title"],
+    };
+    const fetchExternal = vi.fn(async () => crossrefResponse("10.5555/shared"));
+    for (const selections of [
+      [base, { ...base, provider: "openalex", doi: "10.5555/other", fields: ["authors"] }],
+      [base, { ...base, fields: ["authors"] }],
+      [base, { ...base, provider: "openalex" }],
+    ]) {
+      const response = await handleReferenceLibraryApi(jsonRequest(route, { selections }), fixture.env, identity, fetchExternal);
+      expect(response.status).toBe(400);
+    }
+    expect(fetchExternal).not.toHaveBeenCalled();
+    expect(fixture.library.applyReviewedProviderMetadataBatch).not.toHaveBeenCalled();
   });
 
   it("uses Semantic Scholar after both DOI registries report no record", async () => {
@@ -969,6 +1041,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     applyReviewedPdfMetadata: vi.fn(async () => ({ ...reference, title: "Reviewed PDF", updatedAt: now })),
     applyReviewedCrossrefMetadata: vi.fn(async () => ({ ...reference, title: "Crossref title", updatedAt: now })),
     applyReviewedProviderMetadata: vi.fn(async () => ({ ...reference, title: "Provider title", updatedAt: now })),
+    applyReviewedProviderMetadataBatch: vi.fn(async () => ({ ...reference, title: "Combined provider title", updatedAt: now })),
     getPdfMetadataContext: vi.fn(async () => ({ reference, artifact })),
     setTags: vi.fn(async (_referenceId: string, tags: readonly string[]) => tags),
     setCollections: vi.fn(async (_referenceId: string, collections: readonly string[]) => collections),
@@ -1048,13 +1121,13 @@ function crossrefResponse(doi = "10.5555/current", title = "Crossref title"): Re
   });
 }
 
-function dataCiteResponse(): Response {
+function dataCiteResponse(doi = "10.5438/data", title = "DataCite record"): Response {
   return Response.json({
     data: {
       attributes: {
-        doi: "10.5438/data",
-        url: "https://doi.org/10.5438/data",
-        titles: [{ title: "DataCite record" }],
+        doi,
+        url: `https://doi.org/${doi}`,
+        titles: [{ title }],
         creators: [{ familyName: "Doe", givenName: "Jane" }],
         publicationYear: 2026,
         publisher: "Data archive",
@@ -1079,8 +1152,8 @@ function openAlexWork(overrides: Record<string, unknown> = {}): Record<string, u
   };
 }
 
-function openAlexResponse(): Response {
-  return Response.json(openAlexWork());
+function openAlexResponse(doi?: string, title?: string): Response {
+  return Response.json(openAlexWork({ ...(doi ? { doi: `https://doi.org/${doi}` } : {}), ...(title ? { title } : {}) }));
 }
 
 function semanticScholarPaper(): Record<string, unknown> {

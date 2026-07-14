@@ -3,6 +3,7 @@ import {
   crossrefMetadataFields,
   extractWebDocument,
   isReferenceLibrarySnapshot,
+  maximumMetadataRefinementCandidates,
   normalizeWebSourceUrl,
   type BibliographicRecord,
   type CrossrefMetadata,
@@ -14,6 +15,7 @@ import {
   type ReadingState,
   type ReferenceLibrarySnapshot,
   type ReviewedPdfMetadata,
+  type ReviewedProviderMetadataSelection,
   type ScholarlyMetadataProvider,
   type WebCaptureRegistration,
   type WebSnapshot,
@@ -82,6 +84,11 @@ interface ReferenceLibraryApi {
     metadata: CrossrefMetadata,
     fields: readonly CrossrefMetadataField[],
     provider: ScholarlyMetadataProvider,
+    actor: string,
+  ): Promise<BibliographicRecord>;
+  applyReviewedProviderMetadataBatch(
+    referenceId: string,
+    selections: readonly ReviewedProviderMetadataSelection[],
     actor: string,
   ): Promise<BibliographicRecord>;
   getPdfMetadataContext(referenceId: string, artifactId: string): Promise<{ reference: BibliographicRecord; artifact: LibraryPdfArtifact }>;
@@ -416,13 +423,7 @@ async function previewMetadataRefinement(
   };
   const doi = normalizeDoi(body.candidates.doi?.trim() || reference.doi);
   const matches = doi
-    ? [
-        {
-          provider: await doiMetadataProvider(doi, env, fetchExternal),
-          match: "doi" as const,
-          score: null,
-        },
-      ]
+    ? (await doiMetadataProviders(doi, env, fetchExternal)).map((provider) => ({ provider, match: "doi" as const, score: null }))
     : await searchMetadataProviders(query, env, fetchExternal);
   const candidates = await Promise.all(
     matches.map(async ({ provider, match, score }) => {
@@ -448,47 +449,59 @@ async function acceptMetadataRefinement(
   fetchExternal: ExternalFetch,
 ): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isMetadataRefinementAcceptanceInput(body)) return jsonError("Invalid metadata refinement acceptance", 400);
+  if (!isMetadataRefinementAcceptanceInput(body) && !isMetadataRefinementBatchAcceptanceInput(body)) {
+    return jsonError("Invalid metadata refinement acceptance", 400);
+  }
   const reference = await libraryReference(referenceId, library);
-  const doi = normalizeDoi(body.doi);
+  const requestedSelections = "selections" in body ? body.selections : [body];
+  const doi = normalizeDoi(requestedSelections[0]!.doi);
   if (reference.doi && normalizeDoi(reference.doi) !== doi) return jsonError("Reference DOI changed; refine metadata again", 409);
   const conflict = await duplicateDoiValueResponse(reference, doi, library);
   if (conflict) return conflict;
-  const metadataValue = await fetchProviderWork(body.provider, doi, env, fetchExternal);
-  const metadata: CrossrefMetadata = { ...metadataValue, type: metadataValue.type ?? "misc" };
-  if ((await fingerprintPublicationMetadata(metadata)) !== body.metadataFingerprint) {
-    return jsonError("Provider metadata changed; review it again", 409);
+  const selections: ReviewedProviderMetadataSelection[] = [];
+  for (const selection of requestedSelections) {
+    const metadataValue = await fetchProviderWork(selection.provider, doi, env, fetchExternal);
+    const metadata: CrossrefMetadata = { ...metadataValue, type: metadataValue.type ?? "misc" };
+    if ((await fingerprintPublicationMetadata(metadata)) !== selection.metadataFingerprint) {
+      return jsonError("Provider metadata changed; review it again", 409);
+    }
+    selections.push({ provider: selection.provider, metadata, fields: selection.fields });
   }
-  return Response.json(
-    await library.applyReviewedProviderMetadata(referenceId, metadata, body.fields, body.provider, identity.email),
-    noStore(),
-  );
+  const updated =
+    selections.length === 1 && !("selections" in body)
+      ? await library.applyReviewedProviderMetadata(
+          referenceId,
+          selections[0]!.metadata,
+          selections[0]!.fields,
+          selections[0]!.provider,
+          identity.email,
+        )
+      : await library.applyReviewedProviderMetadataBatch(referenceId, selections, identity.email);
+  return Response.json(updated, noStore());
 }
 
-async function doiMetadataProvider(
+async function doiMetadataProviders(
   doi: string,
   env: ReferenceLibraryApiEnv,
   fetchExternal: ExternalFetch,
-): Promise<{ name: ScholarlyMetadataProvider; metadata: Awaited<ReturnType<typeof fetchCrossrefWork>> }> {
-  if (env.OPENALEX_API_KEY?.trim()) {
+): Promise<Array<{ name: ScholarlyMetadataProvider; metadata: Awaited<ReturnType<typeof fetchCrossrefWork>> }>> {
+  const providers: Array<{ name: ScholarlyMetadataProvider; metadata: Awaited<ReturnType<typeof fetchCrossrefWork>> }> = [];
+  let lastError: unknown;
+  const collect = async (name: ScholarlyMetadataProvider): Promise<void> => {
     try {
-      return { name: "openalex", metadata: await fetchOpenAlexWork(doi, env.OPENALEX_API_KEY, fetchExternal) };
-    } catch {
-      // OpenAlex is an optional discovery layer; registry lookup remains authoritative when it is unavailable.
+      providers.push({ name, metadata: await fetchProviderWork(name, doi, env, fetchExternal) });
+    } catch (error) {
+      lastError = error;
     }
+  };
+  if (env.OPENALEX_API_KEY?.trim()) {
+    await collect("openalex");
   }
-  try {
-    return { name: "crossref", metadata: await fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal) };
-  } catch (error) {
-    if (!(error instanceof Error) || error.message !== "Crossref has no record for this DOI") throw error;
-  }
-  try {
-    return { name: "datacite", metadata: await fetchDataCiteWork(doi, env.CROSSREF_MAILTO, fetchExternal) };
-  } catch (error) {
-    if (!(error instanceof Error) || error.message !== "DataCite has no record for this DOI" || !env.SEMANTIC_SCHOLAR_API_KEY?.trim())
-      throw error;
-    return { name: "semantic-scholar", metadata: await fetchSemanticScholarWork(doi, env.SEMANTIC_SCHOLAR_API_KEY, fetchExternal) };
-  }
+  await collect("crossref");
+  await collect("datacite");
+  if (env.SEMANTIC_SCHOLAR_API_KEY?.trim()) await collect("semantic-scholar");
+  if (providers.length === 0 && lastError) throw lastError;
+  return providers;
 }
 
 async function searchMetadataProviders(
@@ -515,8 +528,9 @@ async function searchMetadataProviders(
   ) => {
     for (const match of matches) {
       const doi = normalizeDoi(match.metadata.doi);
-      if (!doi || seen.has(doi) || results.length >= 5) continue;
-      seen.add(doi);
+      const identity = `${provider}:${doi}`;
+      if (!doi || seen.has(identity) || results.length >= maximumMetadataRefinementCandidates) continue;
+      seen.add(identity);
       results.push({ provider: { name: provider, metadata: match.metadata }, match: "bibliographic", score: match.score });
     }
   };
@@ -528,14 +542,14 @@ async function searchMetadataProviders(
       // Continue to registry-backed discovery when the optional OpenAlex layer is unavailable.
     }
   }
-  if (results.length < 5) {
+  if (results.length < maximumMetadataRefinementCandidates) {
     try {
       append("crossref", await searchCrossrefWorks(query, env.CROSSREF_MAILTO, fetchExternal));
     } catch (error) {
       lastError = error;
     }
   }
-  if (results.length < 5 && env.SEMANTIC_SCHOLAR_API_KEY?.trim()) {
+  if (results.length < maximumMetadataRefinementCandidates && env.SEMANTIC_SCHOLAR_API_KEY?.trim()) {
     try {
       append("semantic-scholar", await searchSemanticScholarWorks(query, env.SEMANTIC_SCHOLAR_API_KEY, fetchExternal));
     } catch (error) {
@@ -620,6 +634,22 @@ function isMetadataRefinementAcceptanceInput(value: unknown): value is {
     isValidDoi(value.doi) &&
     isCrossrefAcceptanceInput(value)
   );
+}
+
+function isMetadataRefinementBatchAcceptanceInput(value: unknown): value is {
+  selections: Array<{
+    provider: ScholarlyMetadataProvider;
+    doi: string;
+    metadataFingerprint: string;
+    fields: CrossrefMetadataField[];
+  }>;
+} {
+  if (!isRecord(value) || !Array.isArray(value.selections) || value.selections.length === 0 || value.selections.length > 4) return false;
+  if (!value.selections.every(isMetadataRefinementAcceptanceInput)) return false;
+  const dois = new Set(value.selections.map((selection) => normalizeDoi(selection.doi)));
+  const sources = new Set(value.selections.map((selection) => `${selection.provider}:${normalizeDoi(selection.doi)}`));
+  const fields = value.selections.flatMap((selection) => selection.fields);
+  return dois.size === 1 && sources.size === value.selections.length && new Set(fields).size === fields.length;
 }
 
 function isReviewedPdfMetadataInput(value: unknown): value is { artifactId: string; fields: ReviewedPdfMetadata } {

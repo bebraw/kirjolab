@@ -49,11 +49,13 @@ memory and makes citation aliases compete with stable source identity.
   same atomic upload endpoint. Per-file failure does not stop later uploads;
   only failed files remain in an ephemeral retry queue. Batch intake performs no
   metadata extraction or provider lookup.
-- Linked PDF records may preview bounded, DOI-deduplicated OpenAlex, Crossref,
+- Linked PDF records may preview bounded, provider-specific OpenAlex, Crossref,
   DataCite, and Semantic Scholar candidates inline according to configured
-  provider order. Acceptance refetches and verifies the named provider
-  fingerprint, then changes only the fields the researcher selected. This may
-  improve a private-only provisional key but never changes a finalized key.
+  provider order. Records are grouped by normalized DOI before the researcher
+  chooses one source per field. Acceptance refetches and verifies every selected
+  provider, then commits the mixed fields once with provider-specific
+  provenance. This may improve a private-only provisional key but never changes
+  a finalized key.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - Web sources are stable records keyed by normalized canonical URL. Every
@@ -103,9 +105,11 @@ memory and makes citation aliases compete with stable source identity.
 - Citation assertion, review, bounded network, and explicit Crossref reference
   expansion routes remain within the same owner-private API. A project id only
   filters the projection; it does not grant library access.
-- Crossref enrichment preview and acceptance routes are owner-private,
-  non-cacheable, and fail without mutation on stale metadata or duplicate DOI
-  ownership.
+- Metadata refinement preview and acceptance routes are owner-private and
+  non-cacheable. A one-to-four-provider batch must describe one normalized DOI,
+  assign every field once, and fail without mutation on invalid, stale, mixed,
+  unavailable, or duplicate-DOI input. Legacy Crossref enrichment remains
+  compatible.
 - `POST /api/workspaces/{id}/references` links a source snapshot and local
   alias. Patch renames the alias; sync refreshes metadata; delete unlinks only
   after its citations are removed.

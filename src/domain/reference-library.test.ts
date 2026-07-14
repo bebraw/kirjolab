@@ -175,7 +175,8 @@ describe("shared reference library", () => {
     expect(isMetadataRefinementPreview(preview)).toBe(true);
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, provider: "openalex" }] })).toBe(true);
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, provider: "semantic-scholar" }] })).toBe(true);
-    expect(isMetadataRefinementPreview({ ...preview, candidates: Array.from({ length: 6 }, () => candidate) })).toBe(false);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: Array.from({ length: 12 }, () => candidate) })).toBe(true);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: Array.from({ length: 13 }, () => candidate) })).toBe(false);
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, provider: "unknown" }] })).toBe(false);
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, match: "guess" }] })).toBe(false);
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, score: Number.NaN }] })).toBe(false);

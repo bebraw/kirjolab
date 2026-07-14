@@ -237,6 +237,44 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       venue: "Semantic Scholar venue",
       provenance: { venue: { method: "semantic-scholar" } },
     });
+    const combined = await library.applyReviewedProviderMetadataBatch(
+      first.reference.id,
+      [
+        {
+          provider: "crossref",
+          metadata: { ...semanticScholarEnriched, authors: ["Crossref Author"], title: "Registry title" },
+          fields: ["title", "authors"],
+        },
+        {
+          provider: "openalex",
+          metadata: { ...semanticScholarEnriched, authors: [...semanticScholarEnriched.authors], abstract: "Index abstract" },
+          fields: ["abstract"],
+        },
+      ],
+      "owner@example.test",
+    );
+    expect(combined).toMatchObject({
+      title: "Registry title",
+      authors: ["Crossref Author"],
+      abstract: "Index abstract",
+      provenance: {
+        title: { method: "crossref" },
+        authors: { method: "crossref" },
+        abstract: { method: "openalex" },
+      },
+    });
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() =>
+        instance.applyReviewedProviderMetadataBatch(
+          first.reference.id,
+          [
+            { provider: "crossref", metadata: { ...combined, authors: [...combined.authors] }, fields: ["title"] },
+            { provider: "openalex", metadata: { ...combined, authors: [...combined.authors] }, fields: ["title"] },
+          ],
+          "owner@example.test",
+        ),
+      ).toThrow("invalid");
+    });
     await library.registerProjectDependency("project-a", first.reference.id);
     expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("final");
     const finalized = await library.updateReferenceMetadata(

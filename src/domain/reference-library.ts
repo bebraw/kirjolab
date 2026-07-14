@@ -6,6 +6,7 @@ export type ScholarlyMetadataProvider = "openalex" | "crossref" | "datacite" | "
 export type MetadataProvenanceMethod = "bibtex" | ScholarlyMetadataProvider | "filename" | "manual" | "pdf-metadata" | "web" | "migration";
 
 export const crossrefMetadataFields = ["type", "title", "authors", "year", "venue", "doi", "url", "abstract"] as const;
+export const maximumMetadataRefinementCandidates = 12;
 
 export interface ReviewedPdfMetadata {
   readonly title?: string;
@@ -44,6 +45,12 @@ export interface MetadataRefinementPreview {
   readonly referenceId: string;
   readonly artifactId: string;
   readonly candidates: readonly MetadataRefinementCandidate[];
+}
+
+export interface ReviewedProviderMetadataSelection {
+  readonly provider: ScholarlyMetadataProvider;
+  readonly metadata: CrossrefMetadata;
+  readonly fields: readonly CrossrefMetadataField[];
 }
 
 export interface MetadataFieldProvenance {
@@ -502,7 +509,7 @@ export function isMetadataRefinementPreview(value: unknown): value is MetadataRe
     typeof value.referenceId === "string" &&
     typeof value.artifactId === "string" &&
     Array.isArray(value.candidates) &&
-    value.candidates.length <= 5 &&
+    value.candidates.length <= maximumMetadataRefinementCandidates &&
     value.candidates.every(isMetadataRefinementCandidate)
   );
 }

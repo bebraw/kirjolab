@@ -19,16 +19,20 @@ enough to overwrite canonical metadata without review.
 - The library authority verifies the artifact/reference relationship before any
   provider lookup.
 - When its key is configured, OpenAlex is the first exact-DOI and bibliographic
-  discovery source. Crossref follows; an exact DOI falls back to DataCite when
-  Crossref has no record. Configured Semantic Scholar lookup is the final
-  complementary source. Bibliographic results fill one provider-ordered,
-  DOI-deduplicated list of at most five candidates.
-- The inline result separates editable PDF suggestions from provider candidates.
-  The researcher chooses a provider record and approves fields independently.
-- Provider preview is non-mutating. Acceptance sends provider name, DOI,
-  selected field names, and a SHA-256 fingerprint rather than trusted metadata.
-- The Worker refetches the exact provider DOI, verifies the fingerprint and DOI
-  uniqueness, and delegates one atomic selected-field mutation to the library.
+  discovery source. Crossref, DataCite exact-DOI lookup, and configured Semantic
+  Scholar complement it. Provider-specific records are retained so several
+  sources for one DOI can contribute fields. A preview contains at most twelve
+  bounded candidates.
+- The inline result separates editable PDF suggestions from scholarly records.
+  It groups scholarly records by normalized DOI, requires one work group, and
+  offers a compact source selector for every differing field.
+- Provider preview is non-mutating. Acceptance sends one to four provider, DOI,
+  selected-field, and SHA-256 fingerprint selections rather than trusted
+  metadata. A field may occur in only one selection.
+- The Worker refetches every selected provider record, verifies every
+  fingerprint and the shared DOI, rechecks DOI uniqueness, and delegates one
+  atomic mixed-provider mutation to the library. Any failure leaves every field
+  unchanged.
 - Accepted local fields record `pdf-metadata` provenance. Accepted provider
   fields record `openalex`, `crossref`, `datacite`, or `semantic-scholar`
   provenance.
@@ -39,13 +43,13 @@ enough to overwrite canonical metadata without review.
 
 - `POST /api/library/references/{referenceId}/metadata-refinement/preview`
   accepts a linked `artifactId` and bounded PDF candidates. It returns zero to
-  five provider candidates with provider, match method, bounded metadata, score
-  when supplied, and a 64-character hexadecimal fingerprint.
+  twelve provider candidates with provider, match method, bounded metadata,
+  score when supplied, and a 64-character hexadecimal fingerprint.
 - `POST /api/library/references/{referenceId}/metadata-refinement/accept`
-  accepts `openalex`, `crossref`, `datacite`, or `semantic-scholar`, one valid
-  DOI, the preview fingerprint, and
-  a non-empty unique list drawn from `type`, `title`, `authors`, `year`, `venue`,
-  `doi`, `url`, and `abstract`.
+  accepts a legacy single selection or a batch of one to four unique providers
+  for one valid DOI. Each includes its preview fingerprint and a non-empty
+  unique field list drawn from `type`, `title`, `authors`, `year`, `venue`,
+  `doi`, `url`, and `abstract`; fields must also be unique across the batch.
 - The existing PDF metadata and Crossref routes remain compatible trust
   boundaries for existing callers.
 - Missing ownership, invalid input, duplicate DOI ownership, a changed DOI or
@@ -64,7 +68,9 @@ enough to overwrite canonical metadata without review.
 - Do not send PDF bytes or opening-page text to a metadata provider.
 - Do not mutate during preview, trust provider values echoed by the browser, or
   apply every provider field by default without individual controls.
-- Do not merge duplicate records or move private research as a refinement side effect.
+- Do not combine candidates with different normalized DOIs, partially apply a
+  multi-provider review, merge duplicate records, or move private research as a
+  refinement side effect.
 - Do not persist ephemeral candidate lists or change finalized reference keys.
 
 ## Contract
@@ -75,9 +81,10 @@ enough to overwrite canonical metadata without review.
 - [x] PDF suggestions remain usable when provider lookup fails or finds no match.
 - [x] DOI lookup retains credential-free Crossref and DataCite coverage.
 - [x] Configured OpenAlex runs first and configured Semantic Scholar runs last.
-- [x] DOI-less PDFs receive at most five ordered, DOI-deduplicated provider matches.
-- [x] Candidate and field selection precede any provider mutation.
+- [x] DOI-less PDFs receive at most twelve provider-specific matches grouped by DOI.
+- [x] Work, per-field source, and field selection precede any provider mutation.
 - [x] Acceptance refetches and verifies provider metadata before applying it.
+- [x] Fields from several providers apply atomically with distinct provenance.
 - [x] Selected fields retain provider-specific provenance across durable storage.
 - [x] Unit, API, and Workers-runtime tests cover matching, fallback, bounds, and review.
 
@@ -108,6 +115,12 @@ enough to overwrite canonical metadata without review.
 - Given: a provider candidate and fingerprint are visible
 - When: the exact provider record changes before acceptance
 - Then: acceptance reports a conflict and no library field changes
+
+**Scenario: Several providers complement one DOI**
+
+- Given: OpenAlex, Crossref, and DataCite return different useful fields for one DOI
+- When: the researcher chooses a source independently for each field and applies the review
+- Then: Kirjolab refetches every selected source and commits all chosen values once with field-level provenance
 
 **Scenario: Provider lookup is unavailable**
 

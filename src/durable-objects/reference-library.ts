@@ -25,6 +25,7 @@ import {
   type PdfDraftResult,
   type ReadingState,
   type ReviewedPdfMetadata,
+  type ReviewedProviderMetadataSelection,
   type ReferenceLibrarySnapshot,
   type ReferenceKeyState,
   type ResearchShareKind,
@@ -1040,23 +1041,37 @@ export class ReferenceLibrary extends DurableObject<Env> {
     provider: ScholarlyMetadataProvider,
     actor: string,
   ): BibliographicRecord {
+    return this.applyReviewedProviderMetadataBatch(referenceId, [{ metadata, fields, provider }], actor);
+  }
+
+  applyReviewedProviderMetadataBatch(
+    referenceId: string,
+    selections: readonly ReviewedProviderMetadataSelection[],
+    actor: string,
+  ): BibliographicRecord {
     const current = this.#reference(referenceId);
-    const providerDoi = normalizeDoi(metadata.doi);
+    const providerDoi = normalizeDoi(selections[0]?.metadata.doi ?? "");
     const currentDoi = normalizeDoi(current.doi);
-    if (
-      !(["openalex", "crossref", "datacite", "semantic-scholar"] as const).includes(provider) ||
-      !providerDoi ||
-      (currentDoi && currentDoi !== providerDoi)
-    ) {
+    if (selections.length === 0 || selections.length > 4 || !providerDoi || (currentDoi && currentDoi !== providerDoi)) {
       throw new Error("Reference DOI changed; review provider metadata again");
     }
-    if (
-      fields.length === 0 ||
-      fields.length > crossrefMetadataFields.length ||
-      new Set(fields).size !== fields.length ||
-      fields.some((field) => !crossrefMetadataFields.includes(field)) ||
-      !isCrossrefMetadata(metadata)
-    ) {
+    const allFields = selections.flatMap(({ fields }) => fields);
+    const sources = new Set<string>();
+    const valid = selections.every(({ metadata, fields, provider }) => {
+      const source = `${provider}:${normalizeDoi(metadata.doi)}`;
+      if (sources.has(source)) return false;
+      sources.add(source);
+      return (
+        (["openalex", "crossref", "datacite", "semantic-scholar"] as const).includes(provider) &&
+        normalizeDoi(metadata.doi) === providerDoi &&
+        fields.length > 0 &&
+        fields.length <= crossrefMetadataFields.length &&
+        new Set(fields).size === fields.length &&
+        fields.every((field) => crossrefMetadataFields.includes(field)) &&
+        isCrossrefMetadata(metadata)
+      );
+    });
+    if (!valid || allFields.length > crossrefMetadataFields.length || new Set(allFields).size !== allFields.length) {
       throw new Error("Reviewed provider metadata is invalid");
     }
     const duplicate = this.ctx.storage.sql
@@ -1069,19 +1084,20 @@ export class ReferenceLibrary extends DurableObject<Env> {
     if (duplicate) throw new Error("DOI already belongs to another library record");
     const updatedAt = new Date().toISOString();
     const provenance = { ...current.provenance };
-    for (const field of fields) {
-      provenance[field] = { method: provider, capturedAt: updatedAt, actor };
+    const selected: Partial<CrossrefMetadata> = {};
+    for (const { metadata, fields, provider } of selections) {
+      for (const field of fields) provenance[field] = { method: provider, capturedAt: updatedAt, actor };
+      Object.assign(selected, {
+        ...(fields.includes("type") ? { type: metadata.type } : {}),
+        ...(fields.includes("title") ? { title: metadata.title } : {}),
+        ...(fields.includes("authors") ? { authors: metadata.authors } : {}),
+        ...(fields.includes("year") ? { year: metadata.year } : {}),
+        ...(fields.includes("venue") ? { venue: metadata.venue } : {}),
+        ...(fields.includes("doi") ? { doi: providerDoi } : {}),
+        ...(fields.includes("url") ? { url: metadata.url } : {}),
+        ...(fields.includes("abstract") ? { abstract: metadata.abstract } : {}),
+      });
     }
-    const selected: Partial<CrossrefMetadata> = {
-      ...(fields.includes("type") ? { type: metadata.type } : {}),
-      ...(fields.includes("title") ? { title: metadata.title } : {}),
-      ...(fields.includes("authors") ? { authors: metadata.authors } : {}),
-      ...(fields.includes("year") ? { year: metadata.year } : {}),
-      ...(fields.includes("venue") ? { venue: metadata.venue } : {}),
-      ...(fields.includes("doi") ? { doi: providerDoi } : {}),
-      ...(fields.includes("url") ? { url: metadata.url } : {}),
-      ...(fields.includes("abstract") ? { abstract: metadata.abstract } : {}),
-    };
     const next: BibliographicRecord = { ...current, ...selected, provenance, updatedAt };
     if (!next.title.trim() || !next.type.trim()) throw new Error("Reference type and title are required");
     this.#writeEnrichedReference(next);

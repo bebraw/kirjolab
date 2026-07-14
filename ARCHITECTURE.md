@@ -80,8 +80,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical library changes per field after the library authority verifies the
   artifact/reference relationship; never change the immutable reference key.
 - Enrich DOI-backed library records only through a non-mutating provider preview
-  and fingerprint-verified refetch. Apply explicitly selected Crossref fields
-  with provider provenance after rechecking DOI ownership.
+  and fingerprint-verified refetch. Group records by normalized DOI before
+  field review, never mix different works, and apply selections from one or
+  more providers in one atomic library update with provenance per field.
 - Keep library PDFs, web captures, notes, highlights, tags, and reading state
   owner-private by default. A project citation receives only its local alias
   and bibliographic snapshot; sharing any additional resource must be a
@@ -224,10 +225,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep adding a publication to working memory, citing it in canonical source,
   and connecting evidence to prose as distinct explicit actions. Opening,
   switching, pinning, or closing research context must not imply any of them.
-- Keep external metadata preview non-mutating. Refetch and remap external
-  metadata on acceptance into the owner library with per-field provenance;
-  reuse stable likely-duplicate identity only after normalized identifier or
-  reviewed bibliographic matching.
+- Keep external metadata preview non-mutating. Refetch and remap every selected
+  provider on acceptance into the owner library with per-field provenance and
+  no partial batch update; reuse stable likely-duplicate identity only after
+  normalized identifier or reviewed bibliographic matching.
 - Persist publication-to-PDF associations as explicit library-owned links.
   Never infer the canonical association from citation aliases, titles,
   authors, or filenames; an unidentified PDF remains private intake until its

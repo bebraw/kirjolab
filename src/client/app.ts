@@ -67,6 +67,7 @@ import {
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
 import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
 import { loadMarkdownRuntime } from "./markdown-runtime";
+import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { adjustSelectionRects } from "./pdf-selection";
@@ -2527,95 +2528,122 @@ class WorkspaceApp {
       container.append(providerSection);
       return;
     }
-    const candidateSelect = document.createElement("select");
-    candidateSelect.className = "field mt-2";
-    candidateSelect.setAttribute("aria-label", `Metadata match for ${reference.title}`);
-    for (const [index, candidate] of preview.candidates.entries()) {
-      const label = `${scholarlyProviderLabel(candidate.provider)} · ${candidate.metadata.title}${candidate.metadata.year ? ` · ${candidate.metadata.year}` : ""}`;
-      candidateSelect.append(new Option(label, String(index)));
+    const groups = groupMetadataCandidates(preview.candidates);
+    const workSelect = document.createElement("select");
+    workSelect.className = "field mt-2";
+    workSelect.setAttribute("aria-label", `Scholarly work for ${reference.title}`);
+    for (const [index, group] of groups.entries()) {
+      const first = group.candidates[0]!;
+      const sourceCount = group.candidates.length;
+      const label = `${first.metadata.title}${first.metadata.year ? ` · ${first.metadata.year}` : ""} · ${group.doi} · ${sourceCount} source${sourceCount === 1 ? "" : "s"}`;
+      workSelect.append(new Option(label, String(index)));
     }
     const comparison = document.createElement("div");
     const renderSelected = (): void => {
-      const candidate = preview.candidates[Number(candidateSelect.value)];
-      if (candidate) this.#renderProviderMetadataReview(reference, candidate, comparison);
+      const group = groups[Number(workSelect.value)];
+      if (group) this.#renderProviderMetadataReview(reference, group.candidates, comparison);
     };
-    candidateSelect.addEventListener("change", renderSelected);
-    providerSection.append(candidateSelect, comparison);
+    workSelect.addEventListener("change", renderSelected);
+    if (groups.length > 1) providerSection.append(workSelect);
+    providerSection.append(comparison);
     container.append(providerSection);
     renderSelected();
   }
 
-  #renderProviderMetadataReview(reference: BibliographicRecord, candidate: MetadataRefinementCandidate, container: HTMLElement): void {
-    container.replaceChildren(
-      statusText(
-        [
-          candidate.match === "doi" ? "Exact DOI match" : "Bibliographic match",
-          `doi:${candidate.metadata.doi}`,
-          candidate.score === null ? "" : `provider score ${candidate.score.toFixed(1)}`,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      ),
-    );
-    const selected = new Map<CrossrefMetadataField, HTMLInputElement>();
+  #renderProviderMetadataReview(
+    reference: BibliographicRecord,
+    candidates: readonly MetadataRefinementCandidate[],
+    container: HTMLElement,
+  ): void {
+    const doi = candidates[0]?.metadata.doi ?? "";
+    const sourceNames = candidates.map(({ provider }) => scholarlyProviderLabel(provider));
+    container.replaceChildren(statusText(`${doi} · compare ${sourceNames.join(", ")}`));
+    const selected = new Map<CrossrefMetadataField, HTMLSelectElement>();
     for (const field of crossrefMetadataFields) {
-      const current = field === "authors" ? reference.authors.join("; ") : reference[field];
-      const proposed = field === "authors" ? candidate.metadata.authors.join("; ") : candidate.metadata[field];
-      if (!proposed || proposed === current) continue;
-      const label = document.createElement("label");
-      label.className = "mt-2 grid grid-cols-[auto_1fr] items-start gap-2 text-xs";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = true;
-      checkbox.className = "mt-1";
-      const comparison = document.createElement("span");
+      const current = metadataFieldValue(reference, field);
+      const options = candidates.flatMap((candidate, index) => {
+        const proposed = metadataFieldValue(candidate.metadata, field);
+        return proposed && proposed !== current ? [{ candidate, index, proposed }] : [];
+      });
+      if (options.length === 0) continue;
+      const row = document.createElement("div");
+      row.className = "mt-2 grid gap-1 border-t border-app-line pt-2 text-xs sm:grid-cols-[8rem_minmax(0,1fr)]";
       const name = document.createElement("span");
-      name.className = "block font-medium";
+      name.className = "font-medium capitalize";
       name.textContent = field;
-      const provider = document.createElement("span");
-      provider.className = "block break-words text-app-text";
-      provider.textContent = `${scholarlyProviderLabel(candidate.provider)}: ${proposed}`;
+      const choice = document.createElement("span");
+      const source = document.createElement("select");
+      source.className = "field py-1.5";
+      source.setAttribute("aria-label", `Source for ${field}`);
+      source.append(new Option("Keep current", ""));
+      for (const option of options) source.append(new Option(scholarlyProviderLabel(option.candidate.provider), String(option.index)));
+      source.value = String(options[0]!.index);
+      const value = document.createElement("span");
+      value.className = "mt-1 block break-words text-app-text";
       const existing = document.createElement("span");
-      existing.className = "block break-words text-app-text-soft";
+      existing.className = "mt-1 block break-words text-app-text-soft";
       existing.textContent = `Current: ${current || "—"}`;
-      comparison.append(name, provider, existing);
-      label.append(checkbox, comparison);
-      container.append(label);
-      selected.set(field, checkbox);
+      const renderValue = (): void => {
+        const candidate = source.value ? candidates[Number(source.value)] : undefined;
+        value.textContent = candidate ? metadataFieldValue(candidate.metadata, field) : current || "—";
+      };
+      source.addEventListener("change", renderValue);
+      renderValue();
+      choice.append(source, value, existing);
+      row.append(name, choice);
+      container.append(row);
+      selected.set(field, source);
     }
     if (selected.size === 0) {
-      container.append(statusText("This provider record matches the current library metadata."));
+      container.append(statusText("These provider records match the current library metadata."));
       return;
     }
-    const providerName = scholarlyProviderLabel(candidate.provider);
-    container.append(
-      actionButton(
-        `Apply selected ${providerName} metadata`,
-        "button-primary mt-3",
-        () => void this.#applyProviderMetadata(reference.id, candidate, selected),
-      ),
+    const apply = actionButton(
+      "Apply scholarly metadata",
+      "button-primary mt-3",
+      () => void this.#applyProviderMetadata(reference.id, candidates, selected),
     );
+    const updateSourceCount = (): void => {
+      const count = new Set([...selected.values()].map(({ value }) => value).filter(Boolean)).size;
+      apply.disabled = count === 0;
+      apply.textContent = count === 0 ? "Keep current metadata" : `Apply from ${count} source${count === 1 ? "" : "s"}`;
+    };
+    for (const source of selected.values()) source.addEventListener("change", updateSourceCount);
+    updateSourceCount();
+    container.append(apply);
   }
 
   async #applyProviderMetadata(
     referenceId: string,
-    candidate: MetadataRefinementCandidate,
-    selected: ReadonlyMap<CrossrefMetadataField, HTMLInputElement>,
+    candidates: readonly MetadataRefinementCandidate[],
+    selected: ReadonlyMap<CrossrefMetadataField, HTMLSelectElement>,
   ): Promise<void> {
-    const fields = [...selected].filter(([, checkbox]) => checkbox.checked).map(([field]) => field);
-    if (fields.length === 0) {
+    const fieldsByCandidate = new Map<number, CrossrefMetadataField[]>();
+    for (const [field, source] of selected) {
+      if (!source.value) continue;
+      const index = Number(source.value);
+      const fields = fieldsByCandidate.get(index);
+      if (fields) fields.push(field);
+      else fieldsByCandidate.set(index, [field]);
+    }
+    if (fieldsByCandidate.size === 0) {
       this.#showToast("Select at least one provider metadata field to apply.");
       return;
     }
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/metadata-refinement/accept`, {
-      provider: candidate.provider,
-      doi: candidate.metadata.doi,
-      metadataFingerprint: candidate.metadataFingerprint,
-      fields,
+      selections: [...fieldsByCandidate].map(([index, fields]) => {
+        const candidate = candidates[index]!;
+        return {
+          provider: candidate.provider,
+          doi: candidate.metadata.doi,
+          metadataFingerprint: candidate.metadataFingerprint,
+          fields,
+        };
+      }),
     });
     await expectOk(response);
     await this.#refreshReferenceLibrary();
-    this.#showToast("Selected provider metadata applied with provenance.");
+    this.#showToast("Scholarly metadata applied with field-level provenance.");
   }
 
   #renderPdfMetadataReview(

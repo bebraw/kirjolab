@@ -904,6 +904,22 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
     artifactId: artifact.id,
     candidates: [
       {
+        provider: "openalex",
+        match: "bibliographic",
+        score: 94,
+        metadata: {
+          type: "article",
+          title: "OpenAlex reviewed title",
+          authors: ["Jane Doe"],
+          year: "2026",
+          venue: "OpenAlex venue",
+          doi: "10.5555/shared-review",
+          url: "https://openalex.org/work",
+          abstract: "OpenAlex abstract",
+        },
+        metadataFingerprint: "a".repeat(64),
+      },
+      {
         provider: "crossref",
         match: "bibliographic",
         score: 91,
@@ -913,8 +929,8 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
           authors: ["Doe, Jane", "Roe, Alex"],
           year: "2026",
           venue: "Provider Journal",
-          doi: "10.5555/crossref-review",
-          url: "https://doi.org/10.5555/crossref-review",
+          doi: "10.5555/shared-review",
+          url: "https://doi.org/10.5555/shared-review",
           abstract: "Provider abstract",
         },
         metadataFingerprint: "b".repeat(64),
@@ -924,21 +940,36 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
   await page.route("**/api/library/references/*/metadata-refinement/preview", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(preview) });
   });
-  let acceptedFields: unknown;
+  let acceptedSelections: unknown;
   await page.route("**/api/library/references/*/metadata-refinement/accept", async (route) => {
     const body: unknown = route.request().postDataJSON();
-    acceptedFields = isRecord(body) ? body.fields : undefined;
+    acceptedSelections = isRecord(body) ? body.selections : undefined;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(reference) });
   });
 
   await openLibraryReferenceDetails(card);
   await card.getByRole("button", { name: "Refine metadata" }).click();
-  await expect(card).toContainText("Crossref: Crossref reviewed title");
+  await expect(card).toContainText("compare OpenAlex, Crossref");
+  await expect(card).toContainText("OpenAlex reviewed title");
   await expect(card).toContainText("Current: provider review");
-  await card.locator("label", { hasText: "Crossref: Doe, Jane; Roe, Alex" }).locator('input[type="checkbox"]').uncheck();
-  await card.getByRole("button", { name: "Apply selected Crossref metadata" }).click();
-  await expect(page.locator("#toast")).toHaveText("Selected provider metadata applied with provenance.");
-  expect(acceptedFields).toEqual(["type", "title", "year", "venue", "doi", "url", "abstract"]);
+  await card.getByLabel("Source for authors").selectOption({ label: "Crossref" });
+  await card.getByLabel("Source for venue").selectOption({ label: "Crossref" });
+  await card.getByRole("button", { name: "Apply from 2 sources" }).click();
+  await expect(page.locator("#toast")).toHaveText("Scholarly metadata applied with field-level provenance.");
+  expect(acceptedSelections).toEqual([
+    {
+      provider: "openalex",
+      doi: "10.5555/shared-review",
+      metadataFingerprint: "a".repeat(64),
+      fields: ["type", "title", "year", "doi", "url", "abstract"],
+    },
+    {
+      provider: "crossref",
+      doi: "10.5555/shared-review",
+      metadataFingerprint: "b".repeat(64),
+      fields: ["authors", "venue"],
+    },
+  ]);
 });
 
 test("round-trips CSL JSON and portable library metadata", async ({ page }) => {
