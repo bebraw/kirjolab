@@ -284,8 +284,10 @@ mode for authenticated hosted collaboration.
 ### Definition of Done
 
 - [x] Two browser sessions converge on one collaborative Markdown document.
-- [x] Current collaborator carets and selections are visible without entering
-      canonical source or durable project state.
+- [x] Current collaborator carets and selections appear as colored inline
+      presence within the editor without entering canonical source or durable
+      project state; equivalent location text remains available to assistive
+      technology.
 - [x] Collaborators can create, navigate, and resolve attributed range-anchored
       comments without mutating Markdown.
 - [x] Comments use a dedicated left-rail mode instead of an editor-bottom

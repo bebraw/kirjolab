@@ -1113,7 +1113,32 @@ test("converges source edits across two writers", async ({ page, context }) => {
     element.setSelectionRange(start, start + text.length);
     element.dispatchEvent(new Event("select", { bubbles: true }));
   }, selectedText);
-  await expect(collaborator.locator("#collaborator-selections")).toContainText(`“${selectedText}”`);
+  const remoteSelection = collaborator.locator("#source-editor-highlight .collaborator-selection");
+  await expect(remoteSelection).toHaveText(selectedText);
+  await expect(remoteSelection).toHaveAttribute("data-collaborator-color", /^[0-3]$/u);
+  await expect(collaborator.locator("#source-editor-highlight")).toHaveText(expandedSource);
+
+  await page.locator("#source-editor").evaluate((element: HTMLTextAreaElement, text: string) => {
+    const caret = element.value.indexOf(text);
+    element.setSelectionRange(caret, caret);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  }, selectedText);
+  const remoteCaret = collaborator.locator("#source-editor-highlight .collaborator-caret");
+  await expect(remoteCaret).toHaveCount(1);
+  await expect(remoteCaret).toHaveAttribute("data-collaborator-color", /^[0-3]$/u);
+  expect(
+    await remoteCaret.evaluate((element) => {
+      const style = getComputedStyle(element, "::before");
+      return parseFloat(style.height) > 20 && style.width === "2px" && style.backgroundColor !== "rgba(0, 0, 0, 0)";
+    }),
+  ).toBe(true);
+
+  await page.locator("#source-editor").evaluate((element: HTMLTextAreaElement, text: string) => {
+    const start = element.value.indexOf(text);
+    element.setSelectionRange(start, start + text.length);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  }, selectedText);
+  await expect(remoteSelection).toHaveText(selectedText);
 
   const sourceBeforeComment = await page.locator("#source-editor").inputValue();
   await page.getByRole("tab", { name: /Comments/ }).click();

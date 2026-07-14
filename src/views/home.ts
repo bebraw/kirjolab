@@ -54,7 +54,7 @@ export function renderHomePage(
           <button class="button-primary" id="open-export" type="button">Export</button>
         </div>
       </div>
-      <div class="hidden border-t border-app-line px-4 py-2 font-sans text-xs text-app-text-soft lg:px-6" id="collaborator-selections" aria-live="polite"></div>
+      <div class="sr-only" id="collaborator-selections" aria-live="polite"></div>
     </header>
 
     <main class="workspace-grid min-h-[calc(100vh-4rem-1px)]" id="workspace-surfaces" data-active-surface="authoring" data-layout="split">

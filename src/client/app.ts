@@ -40,7 +40,6 @@ import {
 } from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
-import { highlightMarkdown } from "./markdown-highlighting";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
   isModelCandidate,
@@ -91,6 +90,7 @@ import {
   type ResearchContextState,
   type ResearchResourceTab,
 } from "./research-context";
+import { editorPresenceSegments, type EditorPresenceRange } from "./editor-presence";
 
 const workspaceId = readWorkspaceId();
 const catalogBase = "/api/workspaces";
@@ -375,6 +375,7 @@ class WorkspaceApp {
   #reconnectTimer: number | undefined;
   #selectionBroadcastTimer: number | undefined;
   readonly #remoteSelections = new Map<string, RemoteCollaboratorSelection>();
+  #renderSourceEditorHighlight: () => void = () => undefined;
   #modelBusy = false;
   #hasBootstrapSnapshot = false;
   #toastTimer: number | undefined;
@@ -546,7 +547,7 @@ class WorkspaceApp {
     ]) {
       control.addEventListener("input", () => this.#renderReferenceLibrary());
     }
-    this.#unbindSourceEditor = bindYText(this.#elements.source, this.#source, this.#document, this.#elements.sourceHighlight);
+    this.#bindSourceEditor(this.#source);
     bindVimTextarea(this.#elements.source, this.#elements.sourceEditorShell, this.#elements.vimToggle, this.#elements.vimModeStatus);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
@@ -1070,7 +1071,6 @@ class WorkspaceApp {
   #renderRemoteSelections(): void {
     this.#elements.collaboratorSelections.replaceChildren();
     const selections = [...this.#remoteSelections.values()].filter((selection) => selection.revision === this.#revision);
-    this.#elements.collaboratorSelections.classList.toggle("hidden", selections.length === 0);
     for (const selection of selections) {
       const file = this.#liveProjectFiles().find((candidate) => candidate.id === selection.fileId);
       const selected = file?.content.slice(selection.start, selection.end).replaceAll(/\s+/gu, " ").trim() ?? "";
@@ -1080,6 +1080,21 @@ class WorkspaceApp {
       item.textContent = `Collaborator · ${file?.path ?? "project file"} · ${range}${selected ? ` · “${accessibleEvidenceExcerpt(selected)}”` : ""}`;
       this.#elements.collaboratorSelections.append(item);
     }
+    this.#renderSourceEditorHighlight();
+  }
+
+  #activeEditorPresence(): readonly EditorPresenceRange[] {
+    return [...this.#remoteSelections.values()].filter(
+      (selection) => selection.revision === this.#revision && selection.fileId === this.#activeFileId,
+    );
+  }
+
+  #bindSourceEditor(text: Y.Text): void {
+    const binding = bindYText(this.#elements.source, text, this.#document, this.#elements.sourceHighlight, () =>
+      this.#activeEditorPresence(),
+    );
+    this.#unbindSourceEditor = binding.destroy;
+    this.#renderSourceEditorHighlight = binding.renderHighlight;
   }
 
   #hasStableDocumentBase(): boolean {
@@ -1266,7 +1281,7 @@ class WorkspaceApp {
     this.#activeFileId = fileId;
     this.#activeFileText = this.#document.getText(fileId === snapshot.entryFileId ? "source" : `file:${fileId}`);
     this.#elements.source.value = this.#activeFileText.toString();
-    this.#unbindSourceEditor = bindYText(this.#elements.source, this.#activeFileText, this.#document, this.#elements.sourceHighlight);
+    this.#bindSourceEditor(this.#activeFileText);
     this.#authoringSelection = null;
     this.#renderProjectFiles();
     this.#updateModelAvailability();
@@ -4794,19 +4809,39 @@ class WorkspaceApp {
   }
 }
 
-function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y.Doc, highlight?: HTMLElement): () => void {
+interface YTextBinding {
+  readonly destroy: () => void;
+  readonly renderHighlight: () => void;
+}
+
+function bindYText(
+  textarea: HTMLTextAreaElement,
+  text: Y.Text,
+  documentModel: Y.Doc,
+  highlight?: HTMLElement,
+  presence: () => readonly EditorPresenceRange[] = () => [],
+): YTextBinding {
   const renderHighlight = (): void => {
     if (!highlight) return;
     const fragment = document.createDocumentFragment();
-    for (const segment of highlightMarkdown(textarea.value)) {
-      if (segment.kind === null) {
-        fragment.append(document.createTextNode(segment.text));
-        continue;
+    for (const segment of editorPresenceSegments(textarea.value, presence())) {
+      for (const color of segment.caretColors) {
+        const caret = document.createElement("span");
+        caret.className = "collaborator-caret";
+        caret.dataset.collaboratorColor = String(color);
+        fragment.append(caret);
       }
-      const token = document.createElement("span");
-      token.className = `markdown-token-${segment.kind}`;
-      token.textContent = segment.text;
-      fragment.append(token);
+      if (!segment.text) continue;
+      if (segment.kind === null && segment.selectionColor === null) {
+        fragment.append(document.createTextNode(segment.text));
+      } else {
+        const token = document.createElement("span");
+        token.classList.toggle(`markdown-token-${segment.kind}`, segment.kind !== null);
+        token.classList.toggle("collaborator-selection", segment.selectionColor !== null);
+        if (segment.selectionColor !== null) token.dataset.collaboratorColor = String(segment.selectionColor);
+        token.textContent = segment.text;
+        fragment.append(token);
+      }
     }
     highlight.replaceChildren(fragment);
   };
@@ -4838,10 +4873,13 @@ function bindYText(textarea: HTMLTextAreaElement, text: Y.Text, documentModel: Y
   text.observe(handleText);
   renderHighlight();
   syncHighlightScroll();
-  return () => {
-    textarea.removeEventListener("input", handleInput);
-    textarea.removeEventListener("scroll", syncHighlightScroll);
-    text.unobserve(handleText);
+  return {
+    destroy: () => {
+      textarea.removeEventListener("input", handleInput);
+      textarea.removeEventListener("scroll", syncHighlightScroll);
+      text.unobserve(handleText);
+    },
+    renderHighlight,
   };
 }
 
