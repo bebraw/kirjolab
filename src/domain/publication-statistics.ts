@@ -61,6 +61,7 @@ export function countPublicationWords(markdown: string): number {
     .replace(/\$\$[\s\S]*?\$\$/gu, " ")
     .replace(/\$[^$\r\n]*\$/gu, " ")
     .replace(citationDirective, " ")
+    .replace(/^[ \t]*::bibliography\[\][ \t]*$/gmu, " ")
     .replace(/!\[(?<alt>[^\]]*)\]\([^\s)]+(?:\s+"[^"]*")?\)/gu, " $<alt> ")
     .replace(/\[(?<label>[^\]]+)\]\([^\s)]+(?:\s+"[^"]*")?\)/gu, " $<label> ")
     .replace(/<https?:\/\/[^>]+>/giu, " ")

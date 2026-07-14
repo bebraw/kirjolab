@@ -47,6 +47,7 @@ import type { ResearchShareSnapshot } from "../domain/reference-library";
 import {
   defaultBibliography,
   defaultSource,
+  legacyDefaultSource,
   defaultTransclusionPath,
   defaultTransclusionSource,
   isCreateCandidateInput,
@@ -2491,6 +2492,21 @@ export class DocumentRoom extends DurableObject<Env> {
             snapshot.tables.project_folders = [];
             sql.exec("UPDATE project_revisions SET snapshot_json = ? WHERE revision = ?", JSON.stringify(snapshot), revision.revision);
           }
+          return undefined;
+        },
+      },
+      {
+        version: 19,
+        name: "add-starter-bibliography-marker",
+        apply: (sql): undefined => {
+          const source = this.#document.getText("source");
+          if (source.toString() !== legacyDefaultSource) return undefined;
+          source.insert(source.length, defaultSource.slice(legacyDefaultSource.length));
+          const nextSource = source.toString();
+          const state = new Uint8Array(Y.encodeStateAsUpdate(this.#document)).buffer;
+          const now = new Date().toISOString();
+          sql.exec("UPDATE workspace SET y_state = ?, source = ? WHERE id = 1", state, nextSource);
+          sql.exec("UPDATE project_files SET content = ?, updated_at = ? WHERE y_text_name = 'source'", nextSource, now);
           return undefined;
         },
       },

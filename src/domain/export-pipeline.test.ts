@@ -152,8 +152,8 @@ describe("source-mapped export pipeline", () => {
     expect(bundle.intermediate.citationKeys).toEqual(["valid"]);
     expect(bundle.manifest).toEqual({
       schemaVersion: "kirjolab-export-v1",
-      templateVersion: "kirjolab-article-v3",
-      pdfEngine: "kirjolab-pdf-lib-v2@1.17.1",
+      templateVersion: "kirjolab-article-v4",
+      pdfEngine: "kirjolab-pdf-lib-v3@1.17.1",
       zipEngine: "fflate@0.8.3",
       entrypoint: "main.tex",
       canonicalSource: "main.md",
@@ -286,6 +286,7 @@ describe("source-mapped export pipeline", () => {
       ["block equation", "Before$$\nx + hidden = y\n$$After", 2],
       ["inline equation", "Before$x + hidden$After", 2],
       ["citation", "Before:cite[hiddenKey]After", 2],
+      ["bibliography marker", "Before\n::bibliography[]\nAfter", 2],
       ["image", 'Before![descriptive alt text](image-long.png "Long image title")After', 5],
       ["empty image", "Before![](image.png)After", 2],
       ["link", 'Before[visible link label](https://example.test/long-path "Long link title")After', 5],
@@ -373,7 +374,7 @@ describe("source-mapped export pipeline", () => {
       "main.tex",
       "source-map.json",
     ]);
-    expect(strFromU8(latexFiles["export-manifest.json"] ?? new Uint8Array())).toContain('"pdfEngine": "kirjolab-pdf-lib-v2@1.17.1"');
+    expect(strFromU8(latexFiles["export-manifest.json"] ?? new Uint8Array())).toContain('"pdfEngine": "kirjolab-pdf-lib-v3@1.17.1"');
 
     const archive = archivalSourceBundle(bundle, files, { title: "Archive" }, { "../unsafe/paper.pdf": new Uint8Array([1, 2, 3]) });
     const archiveFiles = unzipSync(archive);
@@ -420,6 +421,11 @@ describe("source-mapped export pipeline", () => {
             'See :ref[sec:legacy] and :ref[custom table]{target="table:one"} before :cite[source]{mode=textual prefix="See " locator="p. 4" suffix="."}',
             "",
             "- One finding",
+            "",
+            "## References",
+            "::bibliography[]",
+            "## Closing",
+            "After the reference list.",
           ].join("\n"),
         ),
       ],
@@ -428,8 +434,9 @@ describe("source-mapped export pipeline", () => {
     });
 
     expect(bundle.mainTex).toContain("See Result and custom table before See \\citet{source}, p. 4.");
+    expect(bundle.mainTex.indexOf("\\bibliography{bibliography}")).toBeLessThan(bundle.mainTex.indexOf("\\subsection{Closing}"));
     expect(bundle.mainTex.match(/% scholarly reference declaration/gu)).toHaveLength(2);
-    for (const leaked of ["::alias", "::anchor", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
+    for (const leaked of ["::alias", "::anchor", "::bibliography", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
       expect(bundle.mainTex, leaked).not.toContain(leaked);
     }
 
@@ -440,7 +447,7 @@ describe("source-mapped export pipeline", () => {
     const document = await PDFDocument.load(first, { updateMetadata: false });
     expect(document.getPageCount()).toBe(1);
     expect(document.getTitle()).toBe("PDF study");
-    expect(document.getProducer()).toBe("kirjolab-pdf-lib-v2@1.17.1");
+    expect(document.getProducer()).toBe("kirjolab-pdf-lib-v3@1.17.1");
     const loadingTask = getDocument({ data: first });
     const pdf = await loadingTask.promise;
     const text = (await (await pdf.getPage(1)).getTextContent()).items.map((item) => ("str" in item ? item.str : "")).join(" ");
@@ -448,7 +455,9 @@ describe("source-mapped export pipeline", () => {
     expect(text.trim().startsWith("Result")).toBe(true);
     expect(text).not.toContain("PDF study");
     expect(text).toContain("See Result and custom table before See Source (2026), p. 4.");
-    for (const leaked of ["::alias", "::anchor", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
+    expect(text).toContain("Source, Sam (2026). Source title.");
+    expect(text.indexOf("Source, Sam (2026). Source title.")).toBeLessThan(text.indexOf("Closing"));
+    for (const leaked of ["::alias", "::anchor", "::bibliography", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
       expect(text, leaked).not.toContain(leaked);
     }
 

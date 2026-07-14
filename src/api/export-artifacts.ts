@@ -3,7 +3,9 @@ import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib"
 import { assertExportable, exportPdfEngine, type MaterializedExportBundle } from "../domain/export-pipeline";
 import type { ProjectFile } from "../domain/project-files";
 import {
+  isPublicationBibliographyDirective,
   isPublicationReferenceDeclaration,
+  publicationBibliographyText,
   publicationCitationEntries,
   publicationCitationText,
   publicationReferenceLabel,
@@ -159,6 +161,17 @@ function pdfLines(markdown: string, bibliography: string, publicationProfile: Pr
     }
     if (structure.tableLines.has(lineIndex) || structure.footnoteDefinitionLines.has(lineIndex)) continue;
     if (isPublicationReferenceDeclaration(sourceLine)) continue;
+    if (isPublicationBibliographyDirective(sourceLine)) {
+      for (const entry of citations.values()) {
+        lines.push({
+          kind: "body",
+          text: printablePdfText(publicationBibliographyText(entry, publicationProfile.citationStyle)),
+          depth: 0,
+          footnotes: [],
+        });
+      }
+      continue;
+    }
     const heading = headingLine.exec(sourceLine);
     if (heading?.groups?.marks && heading.groups.title) {
       lines.push({

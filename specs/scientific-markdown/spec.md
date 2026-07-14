@@ -39,6 +39,8 @@ second Markdown dialect.
 - `:ref` accepts bracket targets, custom `text`, and legacy `target` attributes.
 - `:cite` accepts multiple ids, `parenthetical`, `textual`, and `full` modes,
   plus `locator`, `prefix`, and `suffix`.
+- `::bibliography[]` places the cited-reference list at that exact manuscript
+  location. Researchers author any surrounding heading as ordinary Markdown.
 - Each rendered citation id is an accessible sanitized button keyed by its
   citation alias, so grouped citations can open one publication at a time.
 - The authoring toolbar exposes labelled insertion templates for citations,
@@ -81,6 +83,8 @@ second Markdown dialect.
 - [x] Rendered citation buttons open stable publication context without
       mutating canonical Markdown or the bibliography.
 - [x] Heading, alias, anchor, and custom reference targets resolve.
+- [x] An explicit bibliography marker renders cited references in preview and
+      publication outputs without printing directive syntax.
 - [x] Invalid ids, modes, directives, duplicates, and alias targets diagnose.
 - [x] Browser preview uses one versioned JavaScript runtime without WASM or a
       helper worker.
@@ -120,6 +124,13 @@ second Markdown dialect.
 - Given: an alias or anchor whose target contains a colon
 - When: the researcher uses `:ref[text]{target="legacy:label"}`
 - Then: the link resolves to the public slug while preserving the stable target
+
+**Scenario: Researcher places the bibliography**
+
+- Given: the manuscript cites project references
+- When: the researcher writes a heading followed by `::bibliography[]`
+- Then: preview, direct PDF, and LaTeX place the cited-reference list there
+  without inventing a heading or printing the marker
 
 **Scenario: Collaborator enters unsafe HTML**
 

@@ -11,7 +11,7 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 import { SKIP, visit } from "unist-util-visit";
-import { parseBibTeX } from "./bibliography";
+import { publicationBibliographyText, publicationCitationEntries, type PublicationCitationEntry } from "./scholarly-export";
 import type { CitationStyle } from "./workspace";
 
 export interface Diagnostic {
@@ -21,12 +21,7 @@ export interface Diagnostic {
   to: number;
 }
 
-interface BibliographyEntry {
-  id: string;
-  author: string;
-  title: string;
-  year: string;
-}
+type BibliographyEntry = PublicationCitationEntry;
 
 interface ReferenceEntry {
   title: string;
@@ -103,7 +98,7 @@ const previewSchema: Schema = {
     img: ["alt", "src", "title"],
     input: ["checked", "disabled", ["type", "checkbox"]],
     li: ["className", "id"],
-    ol: ["start"],
+    ol: ["className", "start"],
     section: ["className", "dataFootnotes"],
     span: ["ariaLabel", "className", "dataCitation", "id"],
     td: [["style", safeTableAlignmentPattern]],
@@ -124,6 +119,7 @@ export function renderWorkspaceMarkdown(
 ): RenderedDocument {
   const normalized = source.replaceAll("\r\n", "\n");
   const bibliography = parseBibliography(bibliographySource);
+  const citedIds = collectCitationIds(normalized);
   const references = collectReferences(normalized);
   const diagnostics = validateSyntax(normalized, bibliography, references);
 
@@ -135,7 +131,7 @@ export function renderWorkspaceMarkdown(
       .use(remarkDirective)
       .use(escapeAuthoredHtml)
       .use(readHeadingAttributes)
-      .use(renderSemanticDirectives, { bibliography, references, citationStyle })
+      .use(renderSemanticDirectives, { bibliography, citedIds, references, citationStyle })
       .use(remarkRehype)
       .use(renderNumberedHeadings)
       .use(normalizeTableAlignment)
@@ -160,16 +156,7 @@ export function renderWorkspaceMarkdown(
 }
 
 export function parseBibliography(source: string): Map<string, BibliographyEntry> {
-  const entries = new Map<string, BibliographyEntry>();
-  for (const entry of parseBibTeX(source)) {
-    entries.set(entry.citationKey, {
-      id: entry.citationKey,
-      author: entry.fields.author ?? "",
-      title: entry.fields.title ?? "",
-      year: entry.fields.year ?? "",
-    });
-  }
-  return entries;
+  return new Map(publicationCitationEntries(source));
 }
 
 export function slugify(value: string): string {
@@ -226,6 +213,7 @@ function readHeadingAttributes() {
 
 interface SemanticOptions {
   bibliography: Map<string, BibliographyEntry>;
+  citedIds: ReadonlySet<string>;
   references: Map<string, ReferenceEntry>;
   citationStyle: CitationStyle;
 }
@@ -287,6 +275,22 @@ function renderSemanticDirectives(options: SemanticOptions) {
         };
         return;
       }
+      if (directive.type === "leafDirective" && directive.name === "bibliography") {
+        const entries = [...options.bibliography.values()].filter((entry) => options.citedIds.has(entry.id));
+        directive.children = [];
+        directive.data = {
+          ...directive.data,
+          hName: "ol",
+          hProperties: { className: ["semantic-bibliography"] },
+          hChildren: entries.map((entry) => ({
+            type: "element",
+            tagName: "li",
+            properties: {},
+            children: [{ type: "text", value: publicationBibliographyText(entry, options.citationStyle) }],
+          })),
+        };
+        return;
+      }
       parent.children[index] = { type: "text", value: content };
     });
   };
@@ -335,7 +339,7 @@ function citationChildren(
   bibliography: Map<string, BibliographyEntry>,
   citationStyle: CitationStyle,
 ): HastElementContent[] {
-  const entries = citation.ids.map((id) => bibliography.get(id) ?? { id, author: id, title: id, year: "n.d." });
+  const entries = citation.ids.map((id) => bibliography.get(id) ?? { id, author: id, title: id, year: "n.d.", number: 0 });
   const separator = citationStyle === "ieee" || citation.mode === "textual" ? ", " : "; ";
   const children: HastElementContent[] = [];
   if (citation.prefix) children.push({ type: "text", value: citation.prefix });
@@ -406,6 +410,15 @@ function collectReferences(source: string): Map<string, ReferenceEntry> {
   return references;
 }
 
+function collectCitationIds(source: string): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const match of source.matchAll(directivePattern)) {
+    if (match[1]?.toLowerCase() !== "cite") continue;
+    for (const id of splitIds(match[2] ?? "")) ids.add(id);
+  }
+  return ids;
+}
+
 function validateSyntax(
   source: string,
   bibliography: Map<string, BibliographyEntry>,
@@ -438,9 +451,15 @@ function validateSyntax(
 function validateReferenceDeclarations(source: string): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const declarations: Array<{ target: string; match: RegExpMatchArray }> = [];
-  for (const match of source.matchAll(/^::([a-z][a-z-]*)\[[^\]]*\](?:\{[^}]*\})?\s*$/gimu)) {
+  let bibliographyMarkers = 0;
+  for (const match of source.matchAll(/^::([a-z][a-z-]*)\[([^\]]*)\](?:\{([^}]*)\})?\s*$/gimu)) {
     const kind = match[1]?.toLowerCase() ?? "";
-    if (kind !== "alias" && kind !== "anchor") diagnostics.push(toDiagnostic(`Unsupported leaf directive: ::${kind}`, match));
+    if (kind === "bibliography") {
+      bibliographyMarkers += 1;
+      if ((match[2]?.trim() ?? "") || (match[3]?.trim() ?? "")) {
+        diagnostics.push(toDiagnostic("Bibliography marker must be exactly ::bibliography[]", match));
+      } else if (bibliographyMarkers > 1) diagnostics.push(toDiagnostic("Duplicate bibliography marker", match));
+    } else if (kind !== "alias" && kind !== "anchor") diagnostics.push(toDiagnostic(`Unsupported leaf directive: ::${kind}`, match));
   }
   for (const match of source.matchAll(/^:::([a-z][a-z-]*)\b.*$/gimu)) {
     diagnostics.push(toDiagnostic(`Unsupported container directive: :::${match[1]?.toLowerCase() ?? ""}`, match));

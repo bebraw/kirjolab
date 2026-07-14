@@ -95,6 +95,31 @@ unfinished`;
     expect(rendered.html).toContain('<h2 id="notes"><span class="section-number">1 </span>Notes</h2>');
   });
 
+  it("renders cited references at an explicit bibliography marker", () => {
+    const sources = `${bibliography}\n@article{unused, author={Unused, Una}, year={2025}, title={Unused work}}`;
+    const rendered = renderWorkspaceMarkdown("Evidence :cite[merton1942].\n\n## References\n\n::bibliography[]", sources);
+
+    expect(rendered.diagnostics).toEqual([]);
+    expect(rendered.html).toContain(
+      '<ol class="semantic-bibliography"><li>Merton, Robert K. (1942). The Normative Structure of Science.</li></ol>',
+    );
+    expect(rendered.html).not.toContain("Unused work");
+  });
+
+  it("diagnoses malformed and duplicate bibliography markers", () => {
+    const messages = renderWorkspaceMarkdown(
+      "::bibliography[all]\n::bibliography[]{scope=project}\n::bibliography[]\n::bibliography[]",
+      bibliography,
+    ).diagnostics.map((diagnostic) => diagnostic.message);
+
+    expect(messages).toEqual([
+      "Bibliography marker must be exactly ::bibliography[]",
+      "Bibliography marker must be exactly ::bibliography[]",
+      "Duplicate bibliography marker",
+      "Duplicate bibliography marker",
+    ]);
+  });
+
   it("normalizes CRLF, joins paragraph lines, and renders heading levels", () => {
     const html = renderWorkspaceMarkdown("### Three\r\n\r\nline one\r\nline two\r\n\r\n#### Four", "").html;
     expect(html).toContain('<h3 id="three"><span class="section-number">0.1 </span>Three</h3>');

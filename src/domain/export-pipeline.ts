@@ -4,6 +4,7 @@ import { publicationWordStatistics, type PublicationWordStatistics } from "./pub
 import { defaultProjectPublicationProfile, type ProjectPublicationProfile } from "./workspace";
 import { resolveSubmissionTemplate } from "./submission-templates";
 import {
+  isPublicationBibliographyDirective,
   isPublicationReferenceDeclaration,
   publicationCitationEntries,
   publicationCitationText,
@@ -22,8 +23,8 @@ import {
 export { countPublicationWords, publicationWordStatistics } from "./publication-statistics";
 
 export const exportSchemaVersion = "kirjolab-export-v1" as const;
-export const exportTemplateVersion = "kirjolab-article-v3" as const;
-export const exportPdfEngine = "kirjolab-pdf-lib-v2@1.17.1" as const;
+export const exportTemplateVersion = "kirjolab-article-v4" as const;
+export const exportPdfEngine = "kirjolab-pdf-lib-v3@1.17.1" as const;
 export const exportZipEngine = "fflate@0.8.3" as const;
 
 export interface ExportPipelineInput {
@@ -205,9 +206,11 @@ function materializeLatex(
   const structure = projectPublicationStructure(intermediate.markdown);
   const emittedFootnotes = new Set<string>();
   let fencedCode = false;
+  let bibliographyPlaced = false;
   let outputOffset = 0;
   for (const [lineIndex, markdownLine] of intermediate.markdown.split(/\r?\n/u).entries()) {
     const fence = /^[ \t]*```/u.test(markdownLine);
+    if (!fencedCode && isPublicationBibliographyDirective(markdownLine)) bibliographyPlaced = true;
     const generated = latexLine(
       markdownLine,
       lineIndex,
@@ -230,15 +233,7 @@ function materializeLatex(
     });
     outputOffset += markdownLine.length + 1;
   }
-  if (intermediate.bibliography) {
-    const bibliographyStyle =
-      intermediate.publicationProfile.citationStyle === "apa"
-        ? "apalike"
-        : intermediate.publicationProfile.citationStyle === "ieee"
-          ? "unsrt"
-          : "plainnat";
-    lines.push(`\\bibliographystyle{${bibliographyStyle}}`, "\\bibliography{bibliography}");
-  }
+  if (intermediate.bibliography && !bibliographyPlaced) lines.push(...latexBibliography(intermediate.publicationProfile));
   lines.push("\\end{document}", "");
   return { source: lines.join("\n"), sourceMap };
 }
@@ -260,6 +255,7 @@ function latexLine(
   if (structure.tableLines.has(lineIndex)) return ["% structured table continuation"];
   if (structure.footnoteDefinitionLines.has(lineIndex)) return ["% structured footnote definition"];
   if (isPublicationReferenceDeclaration(line)) return ["% scholarly reference declaration"];
+  if (isPublicationBibliographyDirective(line)) return citations.size > 0 ? latexBibliography(publicationProfile) : [];
   const heading = headingLine.exec(line);
   if (heading?.groups?.marks && heading.groups.title) {
     const commands = ["section", "subsection", "subsubsection", "paragraph", "subparagraph", "subparagraph"];
@@ -282,6 +278,12 @@ function latexLine(
     ];
   if (/^[ \t]*$/u.test(line)) return [""];
   return [inlineLatex(line, publicationProfile, references, citations, structure, emittedFootnotes), ""];
+}
+
+function latexBibliography(publicationProfile: ProjectPublicationProfile): string[] {
+  const bibliographyStyle =
+    publicationProfile.citationStyle === "apa" ? "apalike" : publicationProfile.citationStyle === "ieee" ? "unsrt" : "plainnat";
+  return [`\\bibliographystyle{${bibliographyStyle}}`, "\\bibliography{bibliography}"];
 }
 
 function latexTable(

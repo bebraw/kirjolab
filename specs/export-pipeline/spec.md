@@ -42,16 +42,20 @@ files.
 - Direct PDF citations resolve cited bibliography metadata through the selected
   APA, Chicago author-date, or IEEE profile instead of exposing project aliases.
   LaTeX uses the corresponding citation commands and bibliography style.
+- `::bibliography[]` places cited references at the authored location in both
+  direct PDF and LaTeX. Direct PDF formats readable entries itself; LaTeX emits
+  its bibliography commands at the marker. LaTeX retains its historical
+  end-of-document fallback when a manuscript has citations but no marker.
 - Authored Markdown headings are the only visible document titles in direct PDF
   and compiled LaTeX output. The project-settings title remains artifact
   metadata and a non-printing LaTeX declaration; export never prepends it as a
   heading or calls `\maketitle`.
-- The maintained `kirjolab-article-v3` LaTeX template is the reproducible
+- The maintained `kirjolab-article-v4` LaTeX template is the reproducible
   default. The ZIP records template and engine versions in
   `export-manifest.json` and includes `source-map.json` plus the complete
   intermediate.
 - The bounded Worker PDF renderer is
-  `kirjolab-pdf-lib-v2@1.17.1`. It reads the same materialized intermediate as the
+  `kirjolab-pdf-lib-v3@1.17.1`. It reads the same materialized intermediate as the
   LaTeX target, uses only embedded standard fonts, fixes metadata timestamps,
   performs no network access, and executes no authored TeX. The LaTeX ZIP is
   the exact publisher-facing project for full TeX compilation; arbitrary
@@ -65,8 +69,8 @@ files.
   artifacts or imported research PDFs.
 - Composed Markdown and canonical files intentionally retain portable Kirjolab
   extensions. Publication-facing LaTeX and PDF must never print supported
-  `::include`, `::alias`, `::anchor`, `:ref`, or `:cite` syntax or its attribute
-  block as prose.
+  `::include`, `::alias`, `::anchor`, `::bibliography`, `:ref`, or `:cite`
+  syntax or its attribute block as prose.
 
 ## User Interface
 
@@ -107,7 +111,8 @@ examined and recovered.
 `kirjolab-prose-v1` counts Unicode letter/number words in the composed
 document. It includes heading and visible link-label text. It excludes YAML
 front matter, fenced and inline code, equations, citation keys, link
-destinations, HTML tags, and explicit heading identifiers. Repeated
+destinations, HTML tags, explicit heading identifiers, and bibliography
+placement markers. Repeated
 transclusion is counted each time it appears in the composed paper.
 
 Per-file counts attribute each composed source span to its stable file ID.
@@ -160,6 +165,13 @@ journal uses the same counting policy.
 - When direct PDF or LaTeX output is generated
 - Then the H1 is the visible title and the settings title appears only as
   metadata, never as an additional heading or title page.
+
+### Authored bibliography placement
+
+- Given cited project references and an authored `::bibliography[]` marker
+- When preview, direct PDF, or LaTeX output is generated
+- Then only cited references render at that location, the marker itself is not
+  visible, and the application does not invent a bibliography heading.
 
 ### Structured publication fidelity
 

@@ -4481,12 +4481,13 @@ class WorkspaceApp {
     event.preventDefault();
     const passage = this.#selectedAuthoringPassage();
     const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
-    const templates: Record<string, { text: string; select: string }> = {
+    const templates: Record<string, { text: string; select?: string }> = {
       citation: { text: ":cite[key]", select: "key" },
       reference: { text: ":ref[target]", select: "target" },
       anchor: { text: "{#label}", select: "label" },
       footnote: { text: "[^note]", select: "note" },
       link: { text: passage ? `[${passage.excerpt}](url)` : "[text](url)", select: passage ? "url" : "text" },
+      bibliography: { text: "::bibliography[]" },
     };
     const template = templates[kind];
     if (!template) return;
@@ -4496,9 +4497,9 @@ class WorkspaceApp {
       if (end > start) this.#activeFileText.delete(start, end - start);
       this.#activeFileText.insert(start, template.text);
     }, this);
-    const selectionStart = start + template.text.indexOf(template.select);
+    const selectionStart = template.select ? start + template.text.indexOf(template.select) : start + template.text.length;
     this.#elements.source.focus();
-    this.#elements.source.setSelectionRange(selectionStart, selectionStart + template.select.length);
+    this.#elements.source.setSelectionRange(selectionStart, selectionStart + (template.select?.length ?? 0));
     this.#rememberAuthoringSelection();
     this.#elements.editorInsertMenu.open = false;
     this.#showToast(`Inserted ${target.textContent?.trim() ?? "scholarly syntax"}.`);

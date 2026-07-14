@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { type CreateCandidateInput, type PublicationEnrichment, type WorkspaceSnapshot } from "../domain/workspace";
+import { legacyDefaultSource, type CreateCandidateInput, type PublicationEnrichment, type WorkspaceSnapshot } from "../domain/workspace";
 import { DocumentRoom, sendWebSocketMessage, type DocumentRoomOperationResult } from "./document-room";
 
 interface WorkspaceStateRow extends Record<string, SqlStorageValue> {
@@ -406,6 +406,30 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect((await stub.getSnapshot(workspaceId)).folders.map((folder) => folder.path)).toEqual(["sections"]);
     expect((await stub.getRevision(0)).folders).toEqual([]);
     expect(await migrationVersion(stub, 18)).toEqual({ version: 18, name: "persist-project-folders" });
+  });
+
+  it("adds bibliography placement to an unchanged starter manuscript", async () => {
+    const workspaceId = "starter-bibliography-migration";
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      const row = state.storage.sql.exec<WorkspaceStateRow>("SELECT y_state FROM workspace WHERE id = 1").one();
+      const document = new Y.Doc();
+      Y.applyUpdate(document, new Uint8Array(row.y_state), "test-bootstrap");
+      const source = document.getText("source");
+      source.delete(0, source.length);
+      source.insert(0, legacyDefaultSource);
+      const persistedState = Y.encodeStateAsUpdate(document);
+      state.storage.sql.exec("UPDATE workspace SET y_state = ?, source = ? WHERE id = 1", persistedState, legacyDefaultSource);
+      state.storage.sql.exec("UPDATE project_files SET content = ? WHERE y_text_name = 'source'", legacyDefaultSource);
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 19");
+    });
+
+    await evictDurableObject(stub);
+    const migrated = await stub.getSnapshot(workspaceId);
+    expect(migrated.source).toContain("## References {#references}\n\n::bibliography[]");
+    expect(migrated.files.find((file) => file.path === "main.md")?.content).toBe(migrated.source);
+    expect(await migrationVersion(stub, 19)).toEqual({ version: 19, name: "add-starter-bibliography-marker" });
   });
 
   it("derives project aliases and bibliography from shared reference snapshots", async () => {

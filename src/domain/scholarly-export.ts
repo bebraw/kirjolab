@@ -17,6 +17,7 @@ export interface PublicationCitationEntry {
 
 const textDirective = /(?<!:):(?<kind>cite|ref)\[(?<content>[^\]\r\n]*)\](?:\{(?<attributes>[^}\r\n]*)\})?/giu;
 const declaration = /^[ \t]*::(?<kind>alias|anchor)\[(?<title>[^\]\r\n]*)\]\{(?<attributes>[^}\r\n]*)\}[ \t]*$/iu;
+const bibliographyDirective = /^[ \t]*::bibliography\[\][ \t]*$/iu;
 const attribute = /(?<name>[a-z][a-z-]*)=(?:"(?<quoted>[^"]*)"|(?<bare>[^\s}]+))/giu;
 const heading = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*(?:\{#(?<id>[^}\r\n]+)\})?[ \t]*$/u;
 
@@ -34,6 +35,10 @@ export function replacePublicationTextDirectives(value: string, replacement: (di
 
 export function isPublicationReferenceDeclaration(line: string): boolean {
   return declaration.test(line);
+}
+
+export function isPublicationBibliographyDirective(line: string): boolean {
+  return bibliographyDirective.test(line);
 }
 
 export function publicationReferenceLabels(markdown: string): ReadonlyMap<string, string> {
@@ -97,6 +102,15 @@ export function publicationCitationText(
   const wrapped = mode === "parenthetical" ? (citationStyle === "ieee" ? `[${value}]` : `(${value})`) : value;
   const locator = directive.attributes.get("locator");
   return `${directive.attributes.get("prefix") ?? ""}${wrapped}${locator ? `, ${locator}` : ""}${directive.attributes.get("suffix") ?? ""}`;
+}
+
+export function publicationBibliographyText(entry: PublicationCitationEntry, citationStyle: CitationStyle): string {
+  const author = entry.author.trim() || entry.id;
+  const title = entry.title.trim() || entry.id;
+  const year = entry.year.trim() || "n.d.";
+  if (citationStyle === "ieee") return `[${entry.number}] ${author}, “${title},” ${year}.`;
+  if (citationStyle === "chicago-author-date") return `${author}. ${year}. ${title}.`;
+  return `${author} (${year}). ${title}.`;
 }
 
 function directiveAttributes(value: string): ReadonlyMap<string, string> {

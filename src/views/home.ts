@@ -176,6 +176,7 @@ export function renderHomePage(
                 <button type="button" data-insert-syntax="anchor"><strong>Anchor</strong><code>{#label}</code></button>
                 <button type="button" data-insert-syntax="footnote"><strong>Footnote</strong><code>[^note]</code></button>
                 <button type="button" data-insert-syntax="link"><strong>Link</strong><code>[text](url)</code></button>
+                <button type="button" data-insert-syntax="bibliography"><strong>Bibliography</strong><code>::bibliography[]</code></button>
                 <div class="border-t border-app-line pt-1" id="include-project-file-list" aria-label="Include project file"></div>
               </div>
             </details>

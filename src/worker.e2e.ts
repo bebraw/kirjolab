@@ -540,6 +540,16 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.locator("#preview .footnotes")).toContainText("Rendered by Kirjolab");
   await expect(page.locator("#preview .section-number").first()).toBeVisible();
   await expect(page.locator("#revision-badge")).not.toHaveText("r0");
+  await page.locator("#source-editor").evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(element.value.length, element.value.length);
+  });
+  await page.locator("#editor-insert-menu summary").click();
+  await page.locator('[data-insert-syntax="bibliography"]').click();
+  await expect(page.locator("#source-editor")).toHaveValue(/::bibliography\[\]$/u);
+  await expect(page.locator("#preview .semantic-bibliography")).toContainText(
+    "Merton, Robert K. (1942). The Normative Structure of Science.",
+  );
 
   await page.locator("#source-editor").evaluate((element: HTMLTextAreaElement) => {
     const citation = element.value.indexOf(":cite[merton1942]");

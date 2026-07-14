@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  isPublicationBibliographyDirective,
   isPublicationReferenceDeclaration,
+  publicationBibliographyText,
   publicationCitationEntries,
   publicationCitationText,
   publicationReferenceLabel,
@@ -66,6 +68,19 @@ describe("scholarly publication projection", () => {
     for (const line of ["prefix ::anchor[Table]{target=table:one}", "::include[file.md]", "::unknown[value]{target=x}", "::anchor[x]"]) {
       expect(isPublicationReferenceDeclaration(line), line).toBe(false);
     }
+  });
+
+  it("recognizes and formats explicit bibliography placement", () => {
+    expect(isPublicationBibliographyDirective("::bibliography[]")).toBe(true);
+    expect(isPublicationBibliographyDirective("  ::bibliography[]  ")).toBe(true);
+    for (const line of ["::bibliography", "::bibliography[all]", "prefix ::bibliography[]", "::bibliography[]{scope=all}"]) {
+      expect(isPublicationBibliographyDirective(line), line).toBe(false);
+    }
+    const entry = publicationCitationEntries("@article{doe2026, author={Doe, Jane}, title={Methods}, year={2026}}").get("doe2026")!;
+    expect(publicationBibliographyText(entry, "apa")).toBe("Doe, Jane (2026). Methods.");
+    expect(publicationBibliographyText(entry, "chicago-author-date")).toBe("Doe, Jane. 2026. Methods.");
+    expect(publicationBibliographyText(entry, "ieee")).toBe("[1] Doe, Jane, “Methods,” 2026.");
+    expect(publicationBibliographyText({ ...entry, author: "", title: "", year: "" }, "apa")).toBe("doe2026 (n.d.). doe2026.");
   });
 
   it("renders citation metadata through each bounded publication profile", () => {

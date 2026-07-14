@@ -16,7 +16,7 @@ export type { ResearchShareSnapshot } from "./reference-library";
 export const demoWorkspaceId = "demo";
 export const localOwnerId = "local";
 
-export const defaultSource = `## Evidence becomes prose {#sec-evidence}
+export const legacyDefaultSource = `## Evidence becomes prose {#sec-evidence}
 
 Kirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942]{locator="p. 270"}.
 
@@ -25,6 +25,12 @@ Kirjolab keeps the path from an annotation to a claim and into cited prose visib
 ## Return to the source {#sec-source}
 
 The preview resolves a link back to :ref[sec-evidence]. Select this paragraph, attach a PDF annotation, and ask a local model to propose a grounded revision.
+`;
+
+export const defaultSource = `${legacyDefaultSource}
+## References {#references}
+
+::bibliography[]
 `;
 
 export const defaultTransclusionPath = "sections/transclusion.md";

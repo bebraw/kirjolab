@@ -127,6 +127,9 @@ describe("renderHomePage", () => {
     expect(html).toContain("Collaborative scholarly workspace");
     expect(html).toContain("Portable workspace resource");
     expect(html).toContain("Stable workspace resource");
+    expect(html).toContain(
+      '<button type="button" data-insert-syntax="bibliography"><strong>Bibliography</strong><code>::bibliography[]</code></button>',
+    );
     expect(html).toContain("Workspace catalog");
     expect(html).toContain("Authenticated identity");
     expect(html).toContain("JSON health endpoint for tooling and smoke tests");
