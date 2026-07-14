@@ -1050,6 +1050,8 @@
   }
 
   .source-editor-shell {
+    --source-editor-gutter: clamp(2.5rem, 8vw, 3.25rem);
+    --source-editor-inline-padding: clamp(1.25rem, 4vw, 3rem);
     position: relative;
     min-height: 34rem;
   }
@@ -1059,7 +1061,7 @@
     box-sizing: border-box;
     width: 100%;
     margin: 0;
-    padding: 2rem clamp(1.25rem, 4vw, 3rem);
+    padding: 2rem var(--source-editor-inline-padding) 2rem calc(var(--source-editor-inline-padding) + var(--source-editor-gutter));
     overflow-wrap: break-word;
     white-space: pre-wrap;
   }
@@ -1076,6 +1078,32 @@
     line-height: 1.85;
     pointer-events: none;
     tab-size: 2;
+  }
+
+  .source-editor-line {
+    position: relative;
+    display: block;
+    min-height: 1lh;
+  }
+
+  .source-editor-line::before {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: calc(-1 * var(--source-editor-gutter));
+    box-sizing: border-box;
+    width: calc(var(--source-editor-gutter) - 0.75rem);
+    padding-inline-end: 0.65rem;
+    border-inline-end: 1px solid var(--color-app-line);
+    color: var(--color-app-text-soft);
+    content: attr(data-line-number);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 2.38;
+    text-align: end;
+  }
+
+  .source-editor-newline {
+    display: none;
   }
 
   .collaborator-selection,
@@ -1222,7 +1250,19 @@
     }
 
     .source-editor-highlight {
-      display: none;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .source-editor-highlight [class^="markdown-token-"] {
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .source-editor-line::before {
+      border-color: GrayText;
+      color: GrayText;
+      -webkit-text-fill-color: GrayText;
     }
   }
 

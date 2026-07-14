@@ -132,6 +132,16 @@ test("highlights Markdown without replacing the native editor", async ({ page })
   await expect(highlight.locator(".markdown-token-heading")).toContainText("Findings");
   await expect(highlight.locator(".markdown-token-directive")).toContainText(":cite[smith2024]");
   await expect(highlight.locator(".markdown-token-link")).toContainText("[context](https://example.test)");
+  const sourceLines = highlight.locator(".source-editor-line");
+  await expect(sourceLines).toHaveCount(source.split("\n").length);
+  await expect(sourceLines.first()).toHaveAttribute("data-line-number", "1");
+  await expect(sourceLines.last()).toHaveAttribute("data-line-number", String(source.split("\n").length));
+  expect(
+    await sourceLines.first().evaluate((line) => {
+      const style = getComputedStyle(line, "::before");
+      return style.content.includes("1") && style.color !== "rgba(0, 0, 0, 0)";
+    }),
+  ).toBe(true);
   await expect(highlight.locator("img")).toHaveCount(0);
   expect(await page.evaluate(() => document.body.dataset.injected)).toBeUndefined();
   expect(
@@ -144,16 +154,29 @@ test("highlights Markdown without replacing the native editor", async ({ page })
         sameWidth: textarea.clientWidth === mirror.clientWidth,
         font: inputStyle.font === mirrorStyle.font,
         padding: inputStyle.padding === mirrorStyle.padding,
+        wrappedLineNumberStaysAligned: [...mirror.querySelectorAll<HTMLElement>(".source-editor-line")].some(
+          (line) => line.getBoundingClientRect().height > parseFloat(mirrorStyle.lineHeight) * 1.5,
+        ),
         whiteSpace: mirrorStyle.whiteSpace,
       };
     }),
-  ).toEqual({ sameWidth: true, font: true, padding: true, whiteSpace: "pre-wrap" });
+  ).toEqual({ sameWidth: true, font: true, padding: true, wrappedLineNumberStaysAligned: true, whiteSpace: "pre-wrap" });
   const scroll = await editor.evaluate((element: HTMLTextAreaElement) => {
     element.scrollTop = 240;
     element.dispatchEvent(new Event("scroll"));
     return element.scrollTop;
   });
   await expect.poll(async () => await highlight.evaluate((element) => element.scrollTop)).toBe(scroll);
+
+  await page.emulateMedia({ forcedColors: "active" });
+  expect(
+    await sourceLines.first().evaluate((line) => {
+      const gutter = getComputedStyle(line, "::before");
+      const editor = getComputedStyle(document.querySelector("#source-editor")!);
+      return gutter.color !== "rgba(0, 0, 0, 0)" && editor.color !== "rgba(0, 0, 0, 0)";
+    }),
+  ).toBe(true);
+  await page.emulateMedia({ forcedColors: "none" });
 });
 
 test("offers opt-in Vim editing over the collaborative textarea", async ({ page }) => {

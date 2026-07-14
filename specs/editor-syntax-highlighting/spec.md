@@ -15,8 +15,9 @@ preserving the native collaborative textarea and exact source text.
 - **Projection:** `src/client/markdown-highlighting.ts` classifies bounded
   lexical ranges without changing, omitting, or normalizing source characters.
 - **Presentation:** `#source-editor-highlight` is an inert, `aria-hidden` mirror
-  behind the transparent textarea glyphs. It uses safe text nodes and follows
-  the textarea scroll position.
+  behind the transparent textarea glyphs. It uses safe text nodes, shows a
+  line-number gutter whose rows follow wrapped logical lines, and follows the
+  textarea scroll position.
 - **Semantics:** Satteri preview parsing and validation remain authoritative;
   highlight classes are visual hints only.
 
@@ -47,6 +48,8 @@ preserving the native collaborative textarea and exact source text.
 - [x] Headings and core scholarly syntax receive restrained token styling.
 - [x] Local input, remote Yjs updates, file switches, and editor scrolling
       refresh the mirrored presentation.
+- [x] Visible line numbers stay aligned with logical lines as prose wraps and
+      scroll with the manuscript.
 - [x] Forced-colors mode falls back to visible native textarea text.
 - [x] Unit and browser tests cover classification, safe mirrored rendering,
       scroll synchronization, editing, and collaborative updates.
@@ -55,7 +58,8 @@ preserving the native collaborative textarea and exact source text.
 
 - The textarea value, selection offsets, and Yjs state remain authoritative.
 - Highlight output must never execute or interpret authored HTML.
-- The mirror must stay text-identical and aligned during scrolling and wrapping.
+- The mirror must stay text-identical and aligned during scrolling and
+  wrapping; line-number decoration must not enter its text content.
 - Unsupported or incomplete syntax remains readable as ordinary source.
 
 ### Scenarios

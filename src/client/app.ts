@@ -4824,23 +4824,39 @@ function bindYText(
   const renderHighlight = (): void => {
     if (!highlight) return;
     const fragment = document.createDocumentFragment();
+    let lineNumber = 1;
+    let line = sourceEditorLine(lineNumber);
+    fragment.append(line);
     for (const segment of editorPresenceSegments(textarea.value, presence())) {
       for (const color of segment.caretColors) {
         const caret = document.createElement("span");
         caret.className = "collaborator-caret";
         caret.dataset.collaboratorColor = String(color);
-        fragment.append(caret);
+        line.append(caret);
       }
       if (!segment.text) continue;
-      if (segment.kind === null && segment.selectionColor === null) {
-        fragment.append(document.createTextNode(segment.text));
-      } else {
-        const token = document.createElement("span");
-        token.classList.toggle(`markdown-token-${segment.kind}`, segment.kind !== null);
-        token.classList.toggle("collaborator-selection", segment.selectionColor !== null);
-        if (segment.selectionColor !== null) token.dataset.collaboratorColor = String(segment.selectionColor);
-        token.textContent = segment.text;
-        fragment.append(token);
+      for (const part of segment.text.split(/(\r\n|\r|\n)/u)) {
+        if (!part) continue;
+        if (/^(?:\r\n|\r|\n)$/u.test(part)) {
+          const newline = document.createElement("span");
+          newline.className = "source-editor-newline";
+          newline.textContent = part;
+          line.append(newline);
+          lineNumber += 1;
+          line = sourceEditorLine(lineNumber);
+          fragment.append(line);
+          continue;
+        }
+        if (segment.kind === null && segment.selectionColor === null) {
+          line.append(document.createTextNode(part));
+        } else {
+          const token = document.createElement("span");
+          token.classList.toggle(`markdown-token-${segment.kind}`, segment.kind !== null);
+          token.classList.toggle("collaborator-selection", segment.selectionColor !== null);
+          if (segment.selectionColor !== null) token.dataset.collaboratorColor = String(segment.selectionColor);
+          token.textContent = part;
+          line.append(token);
+        }
       }
     }
     highlight.replaceChildren(fragment);
@@ -4881,6 +4897,13 @@ function bindYText(
     },
     renderHighlight,
   };
+}
+
+function sourceEditorLine(lineNumber: number): HTMLSpanElement {
+  const line = document.createElement("span");
+  line.className = "source-editor-line";
+  line.dataset.lineNumber = String(lineNumber);
+  return line;
 }
 
 function bindVimTextarea(textarea: HTMLTextAreaElement, shell: HTMLElement, toggle: HTMLButtonElement, status: HTMLElement): void {
