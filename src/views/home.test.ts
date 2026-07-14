@@ -50,6 +50,12 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="knowledge-connection-list"');
     expect(html).toContain('id="claim-list"');
     expect(html).toContain('id="claim-form"');
+    expect(html).toContain('id="project-evidence" hidden');
+    expect(html).toContain(
+      '<summary><span>Project evidence</span><span class="count-badge" id="project-evidence-count">0</span></summary>',
+    );
+    expect(html).not.toContain("<summary><span>Papers</span>");
+    expect(html).not.toContain("<summary><span>Highlights</span>");
     expect(html).toContain('id="workspace-surfaces" data-active-surface="authoring"');
     expect(html).toContain('id="show-authoring-surface"');
     expect(html).toContain('id="show-context-surface"');

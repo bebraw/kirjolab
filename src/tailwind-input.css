@@ -337,6 +337,94 @@
     padding: 0.25rem 0.1rem 0.85rem;
   }
 
+  .project-evidence-list {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .project-evidence-paper {
+    border: 1px solid var(--color-app-line);
+    background: var(--color-app-raised);
+  }
+
+  #project-evidence[hidden],
+  .project-evidence-highlights[hidden],
+  .project-evidence-orphans[hidden] {
+    display: none;
+  }
+
+  .project-evidence-paper-row {
+    display: flex;
+    align-items: stretch;
+  }
+
+  .project-evidence-paper-open {
+    min-width: 0;
+    flex: 1;
+    padding: 0.7rem 0.75rem;
+    text-align: left;
+  }
+
+  .project-evidence-paper-open:hover {
+    background: var(--color-app-accent-ghost);
+  }
+
+  .project-evidence-remove {
+    flex: none;
+    border-left: 1px solid var(--color-app-line);
+    padding: 0.65rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+  }
+
+  .project-evidence-remove:hover {
+    color: var(--color-app-danger);
+  }
+
+  .project-evidence-highlights {
+    border-top: 1px solid var(--color-app-line);
+  }
+
+  .project-evidence-highlights > summary {
+    display: flex;
+    min-height: 2.4rem;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0 0.75rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .project-evidence-highlights > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .project-evidence-highlights > summary > :first-child::before {
+    content: "+ ";
+  }
+
+  .project-evidence-highlights[open] > summary > :first-child::before {
+    content: "− ";
+  }
+
+  .project-evidence-highlight-list,
+  .project-evidence-orphans {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0 0.5rem 0.5rem;
+  }
+
+  .project-evidence-highlight-list .resource-card,
+  .project-evidence-orphans .resource-card {
+    padding: 0.65rem;
+  }
+
   @media (min-width: 72rem) {
     .workspace-grid {
       grid-template-columns: 17rem minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(28rem, 1.05fr);

@@ -1222,6 +1222,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await openResearchRail(page);
+  await expect(page.locator("#project-evidence")).toBeHidden();
 
   await page.locator("#preview .semantic-citation[data-citation='merton1942']").evaluate((element: HTMLButtonElement) => element.click());
   await expect(page.locator("#insert-context-citation")).toBeDisabled();
@@ -1242,6 +1243,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
     mimeType: "application/pdf",
     buffer: createTwoPageEvidencePdf(),
   });
+  await expect(page.locator("#project-evidence")).toBeVisible();
   await expect(page.locator("#pdf-list")).toContainText("context-paper.pdf");
   await page.locator("#pdf-upload").setInputFiles({
     name: "current-paper.pdf",
@@ -1342,6 +1344,9 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   });
   expect(refreshAnnotation.status()).toBe(201);
   await expect(page.locator("#annotation-list")).toContainText("Refresh must preserve reading positions");
+  await expect(page.locator(`[data-pdf-resource-id="${delayedPdf.id}"] [data-pdf-annotations]`)).toContainText(
+    "Refresh must preserve reading positions",
+  );
   expect(await previewScroll.evaluate((element) => element.scrollTop)).toBe(previewPosition);
   contextMutations.length = 0;
   await page.getByRole("tab", { name: "context-paper.pdf" }).click();
@@ -1534,7 +1539,7 @@ test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({
   await page.locator("#paper-highlights .pdf-highlight[data-fragment-id]").last().click();
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).annotations[0]?.fragments.length).toBe(1);
 
-  await openResearchCollection(page, "Highlights");
+  await openResearchCollection(page, "Project evidence");
   let annotationCard = page.locator("#annotation-list .resource-card").first();
   await annotationCard.getByText("Adjust 1 stroke").click();
   await annotationCard.getByLabel("Text for highlight stroke 1").fill("Corrected touch selection idea");
@@ -1805,7 +1810,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
   expectResolvedPassage(annotationLink, annotationStart, annotationExcerpt);
   expectResolvedPassage(claimLink, claimStart, claimExcerpt);
 
-  await openResearchCollection(page, "Highlights");
+  await openResearchCollection(page, "Project evidence");
   await openResearchCollection(page, "Claims");
   const annotationCard = page.locator("#annotation-list article").filter({ hasText: "Durable annotation anchor" });
   const claimCard = page.locator("#claim-list article").filter({ hasText: "Durable anchors keep claims connected" });
@@ -2574,7 +2579,7 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
     element.focus();
     element.setSelectionRange(start, start + "This paragraph is grounded in visible evidence.".length);
   });
-  await openResearchCollection(page, "Highlights");
+  await openResearchCollection(page, "Project evidence");
   await page.locator("[data-annotation-id]").first().check();
   await openWritingAssistant(page, true);
   await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
@@ -2765,7 +2770,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await claimCard.getByRole("button", { name: "Open linked passage" }).click();
   await expect(editor).toBeFocused();
 
-  await openResearchCollection(page, "Highlights");
+  await openResearchCollection(page, "Project evidence");
   await annotationCard.getByRole("button", { name: "Open evidence" }).click();
   await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
   await page.getByRole("tab", { name: "Preview" }).click();
@@ -2920,6 +2925,7 @@ test("serves stable health and browser assets", async ({ request }) => {
     name: "kirjolab",
     routes: [
       "/",
+      "/library",
       "/workspaces/:id",
       "/share/:token",
       "/edit/:token",
@@ -3057,6 +3063,11 @@ async function openResearchCollection(page: Page, name: string): Promise<void> {
   await collection.evaluate((element: HTMLDetailsElement) => {
     element.open = true;
   });
+  if (name === "Project evidence") {
+    await collection.locator(".project-evidence-highlights").evaluateAll((elements: HTMLDetailsElement[]) => {
+      for (const element of elements) element.open = true;
+    });
+  }
 }
 
 async function openLibraryReferenceDetails(reference: Locator): Promise<void> {

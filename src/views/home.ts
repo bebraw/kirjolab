@@ -118,13 +118,12 @@ export function renderHomePage(
           </form>
           <div class="mt-3 hidden space-y-2" id="knowledge-search-results" aria-live="polite"></div>
           <div class="research-inventory" id="research-inventory">
-            <details class="rail-collection" open>
-              <summary><span>Papers</span><span class="count-badge" id="pdf-count">0</span></summary>
-              <div class="rail-collection-body" id="pdf-list"><div class="empty-state">No paper imported yet.</div></div>
-            </details>
-            <details class="rail-collection">
-              <summary><span>Highlights</span><span class="count-badge" id="annotation-count">0</span></summary>
-              <div class="rail-collection-body" id="annotation-list"><div class="empty-state">No highlights yet.</div></div>
+            <details class="rail-collection" id="project-evidence" hidden>
+              <summary><span>Project evidence</span><span class="count-badge" id="project-evidence-count">0</span></summary>
+              <div class="rail-collection-body" id="annotation-list">
+                <div class="project-evidence-list" id="pdf-list"></div>
+                <div class="project-evidence-orphans" id="unassigned-annotation-list" hidden></div>
+              </div>
             </details>
             <details class="rail-collection">
               <summary><span>Claims</span><span class="count-badge" id="claim-count">0</span></summary>

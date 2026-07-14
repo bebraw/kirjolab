@@ -284,7 +284,8 @@ interface Elements {
   saveStatus: HTMLElement;
   revisionBadge: HTMLElement;
   pdfUpload: HTMLInputElement;
-  pdfCount: HTMLElement;
+  projectEvidence: HTMLDetailsElement;
+  projectEvidenceCount: HTMLElement;
   pdfList: HTMLElement;
   bibliographyUpload: HTMLInputElement;
   knowledgeSearchForm: HTMLFormElement;
@@ -294,8 +295,8 @@ interface Elements {
   exploreResearchGraph: HTMLButtonElement;
   publicationCount: HTMLElement;
   publicationList: HTMLElement;
-  annotationCount: HTMLElement;
   annotationList: HTMLElement;
+  unassignedAnnotationList: HTMLElement;
   claimCount: HTMLElement;
   claimList: HTMLElement;
   newClaim: HTMLButtonElement;
@@ -3102,33 +3103,72 @@ class WorkspaceApp {
   }
 
   #renderPdfs(pdfs: PdfResource[]): void {
-    this.#elements.pdfCount.textContent = String(pdfs.length);
+    const expandedHighlights = new Set(
+      [...this.#elements.pdfList.querySelectorAll<HTMLDetailsElement>("[data-pdf-annotation-group]")]
+        .filter((group) => group.open)
+        .flatMap((group) => (group.dataset.pdfAnnotationGroup ? [group.dataset.pdfAnnotationGroup] : [])),
+    );
     this.#elements.pdfList.replaceChildren();
     this.#elements.annotationPdf.replaceChildren();
     this.#elements.annotationPdf.disabled = true;
     if (pdfs.length === 0) {
-      this.#elements.pdfList.append(emptyState("No paper imported yet."));
       this.#elements.annotationPdf.append(new Option("Import a PDF first", ""));
+      this.#updateProjectEvidenceVisibility(0, this.#snapshot?.annotations.length ?? 0);
       return;
     }
     for (const pdf of pdfs) {
       const card = document.createElement("article");
-      card.className = "resource-card";
+      card.className = "project-evidence-paper";
+      card.dataset.pdfResourceId = pdf.id;
+      const row = document.createElement("div");
+      row.className = "project-evidence-paper-row";
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "block w-full text-left";
+      button.className = "project-evidence-paper-open";
       button.dataset.pdfId = pdf.id;
       button.append(resourceLabel("PDF · " + formatBytes(pdf.size)), resourceTitle(pdf.name));
       button.addEventListener("click", () => {
         this.#elements.annotationPdf.value = pdf.id;
         void this.#showPaper(pdf);
       });
-      const remove = actionButton("Remove from project", "button-secondary mt-3 w-full justify-center", () => void this.#removePdf(pdf));
-      card.append(button, remove);
+      const remove = actionButton("Remove", "project-evidence-remove", () => void this.#removePdf(pdf));
+      remove.setAttribute("aria-label", "Remove from project");
+      remove.title = "Remove this legacy project PDF";
+      row.append(button, remove);
+      const highlights = document.createElement("details");
+      highlights.className = "project-evidence-highlights";
+      highlights.dataset.pdfAnnotationGroup = pdf.id;
+      highlights.hidden = true;
+      highlights.open = expandedHighlights.has(pdf.id);
+      const highlightsSummary = document.createElement("summary");
+      const highlightsLabel = document.createElement("span");
+      highlightsLabel.textContent = "Highlights";
+      const highlightsCount = document.createElement("span");
+      highlightsCount.className = "count-badge";
+      highlightsCount.dataset.pdfAnnotationCount = pdf.id;
+      highlightsCount.textContent = "0";
+      highlightsSummary.append(highlightsLabel, highlightsCount);
+      const annotationList = document.createElement("div");
+      annotationList.className = "project-evidence-highlight-list";
+      annotationList.dataset.pdfAnnotations = pdf.id;
+      highlights.append(highlightsSummary, annotationList);
+      card.append(row, highlights);
       this.#elements.pdfList.append(card);
       this.#elements.annotationPdf.append(new Option(pdf.name, pdf.id));
     }
     if (this.#renderedPdfId) this.#elements.annotationPdf.value = this.#renderedPdfId;
+    this.#updateProjectEvidenceVisibility(pdfs.length, this.#snapshot?.annotations.length ?? 0);
+  }
+
+  #updateProjectEvidenceVisibility(pdfCount: number, annotationCount: number): void {
+    const total = pdfCount + annotationCount;
+    const reveal = this.#elements.projectEvidence.hidden && total > 0;
+    this.#elements.projectEvidence.hidden = total === 0;
+    if (reveal) this.#elements.projectEvidence.open = true;
+    this.#elements.projectEvidenceCount.textContent = String(total);
+    this.#elements.projectEvidenceCount.title = `${pdfCount} ${pdfCount === 1 ? "paper" : "papers"}, ${annotationCount} ${
+      annotationCount === 1 ? "highlight" : "highlights"
+    }`;
   }
 
   async #removePdf(pdf: PdfResource): Promise<void> {
@@ -3185,12 +3225,25 @@ class WorkspaceApp {
   }
 
   #renderAnnotations(annotations: AnnotationResource[], links: PassageLink[]): void {
-    this.#elements.annotationCount.textContent = String(annotations.length);
-    this.#elements.annotationList.replaceChildren();
+    const targets = new Map<string, HTMLElement>();
+    for (const target of this.#elements.pdfList.querySelectorAll<HTMLElement>("[data-pdf-annotations]")) {
+      target.replaceChildren();
+      const pdfId = target.dataset.pdfAnnotations;
+      if (pdfId) targets.set(pdfId, target);
+    }
+    for (const group of this.#elements.pdfList.querySelectorAll<HTMLDetailsElement>("[data-pdf-annotation-group]")) {
+      group.hidden = true;
+    }
+    for (const count of this.#elements.pdfList.querySelectorAll<HTMLElement>("[data-pdf-annotation-count]")) {
+      count.textContent = "0";
+    }
+    this.#elements.unassignedAnnotationList.replaceChildren();
+    this.#elements.unassignedAnnotationList.hidden = true;
     if (annotations.length === 0) {
-      this.#elements.annotationList.append(emptyState("Annotations appear here with their source context."));
+      this.#updateProjectEvidenceVisibility(this.#snapshot?.pdfs.length ?? 0, 0);
       return;
     }
+    const annotationCounts = new Map<string, number>();
     for (const annotation of annotations) {
       const card = document.createElement("article");
       card.className = "resource-card";
@@ -3310,8 +3363,21 @@ class WorkspaceApp {
         actions.append(openPassage);
       }
       card.append(label, actions, strokeEditor);
-      this.#elements.annotationList.append(card);
+      const target = targets.get(annotation.pdfId);
+      if (target) {
+        target.append(card);
+        const count = (annotationCounts.get(annotation.pdfId) ?? 0) + 1;
+        annotationCounts.set(annotation.pdfId, count);
+        const group = target.closest<HTMLDetailsElement>("[data-pdf-annotation-group]");
+        if (group) group.hidden = false;
+        const badge = group?.querySelector<HTMLElement>("[data-pdf-annotation-count]");
+        if (badge) badge.textContent = String(count);
+      } else {
+        this.#elements.unassignedAnnotationList.hidden = false;
+        this.#elements.unassignedAnnotationList.append(card);
+      }
     }
+    this.#updateProjectEvidenceVisibility(this.#snapshot?.pdfs.length ?? 0, annotations.length);
   }
 
   async #deleteAnnotation(annotation: AnnotationResource): Promise<void> {
@@ -5890,7 +5956,8 @@ function collectElements(): Elements {
     saveStatus: requiredElement("save-status", HTMLElement),
     revisionBadge: requiredElement("revision-badge", HTMLElement),
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
-    pdfCount: requiredElement("pdf-count", HTMLElement),
+    projectEvidence: requiredElement("project-evidence", HTMLDetailsElement),
+    projectEvidenceCount: requiredElement("project-evidence-count", HTMLElement),
     pdfList: requiredElement("pdf-list", HTMLElement),
     bibliographyUpload: requiredElement("bibliography-upload", HTMLInputElement),
     knowledgeSearchForm: requiredElement("knowledge-search-form", HTMLFormElement),
@@ -5900,8 +5967,8 @@ function collectElements(): Elements {
     exploreResearchGraph: requiredElement("explore-research-graph", HTMLButtonElement),
     publicationCount: requiredElement("publication-count", HTMLElement),
     publicationList: requiredElement("publication-list", HTMLElement),
-    annotationCount: requiredElement("annotation-count", HTMLElement),
     annotationList: requiredElement("annotation-list", HTMLElement),
+    unassignedAnnotationList: requiredElement("unassigned-annotation-list", HTMLElement),
     claimCount: requiredElement("claim-count", HTMLElement),
     claimList: requiredElement("claim-list", HTMLElement),
     newClaim: requiredElement("new-claim", HTMLButtonElement),
