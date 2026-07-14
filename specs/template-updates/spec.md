@@ -37,6 +37,8 @@ copying unrelated starter structure.
   - `2026-07-08-typescript-7-typecheck`
   - `2026-07-10-playwright-1-61-ci-image`
   - `2026-07-13-agent-ci-progress`
+  - `2026-07-13-agent-ci-progress-events` (implemented by the stronger local
+    progress formatter and heartbeat contract)
 
 ### Anti-Patterns
 
