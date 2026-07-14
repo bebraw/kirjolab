@@ -1,5 +1,5 @@
 import { compareWebSnapshotText, type WebSnapshotDiffHunk } from "./reference-library";
-import { composeProject, type ProjectFile } from "./project-files";
+import { composeProject, type ProjectFile, type ProjectFolder } from "./project-files";
 import { countPublicationWords } from "./publication-statistics";
 import type {
   AnnotationResource,
@@ -42,6 +42,7 @@ export interface ProjectRevisionContent {
   readonly source: string;
   readonly bibliography: string;
   readonly files: readonly ProjectFile[];
+  readonly folders: readonly ProjectFolder[];
   readonly projectReferences: readonly ProjectReferenceLink[];
   readonly researchShares: readonly ResearchShareSnapshot[];
   readonly pdfs: readonly PdfResource[];
@@ -188,6 +189,15 @@ export function isProjectRevisionContent(value: unknown): value is ProjectRevisi
         typeof file.content === "string" &&
         typeof file.createdAt === "string" &&
         typeof file.updatedAt === "string",
+    ) &&
+    Array.isArray(value.folders) &&
+    value.folders.every(
+      (folder) =>
+        isRecord(folder) &&
+        typeof folder.id === "string" &&
+        typeof folder.path === "string" &&
+        typeof folder.createdAt === "string" &&
+        typeof folder.updatedAt === "string",
     ) &&
     Array.isArray(value.projectReferences) &&
     Array.isArray(value.researchShares) &&

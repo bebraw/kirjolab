@@ -8,6 +8,7 @@ import {
   resolveProjectPath,
   rewriteProjectCitationAlias,
   rewriteInboundProjectIncludes,
+  rewriteProjectIncludesForMoves,
   type ProjectFile,
 } from "./project-files";
 
@@ -172,6 +173,22 @@ describe("project composition", () => {
     ).toBe("::include[../text/intro.md]\n");
     expect(relativeProjectPath("chapters/peer.md", "chapters/intro.md")).toBe("intro.md");
     expect(relativeProjectPath("main.md", "chapters/intro.md")).toBe("chapters/intro.md");
+  });
+
+  it("keeps includes valid when containing folders move", () => {
+    const moves = new Map([
+      ["drafts/section.md", "chapters/section.md"],
+      ["drafts/notes/detail.md", "chapters/notes/detail.md"],
+    ]);
+    expect(rewriteProjectIncludesForMoves(file("main", "main.md", "::include[drafts/section.md]\n"), moves)).toBe(
+      "::include[chapters/section.md]\n",
+    );
+    expect(rewriteProjectIncludesForMoves(file("section", "drafts/section.md", "::include[notes/detail.md]\n"), moves)).toBe(
+      "::include[notes/detail.md]\n",
+    );
+    expect(rewriteProjectIncludesForMoves(file("detail", "drafts/notes/detail.md", "::include[../section.md]\n"), moves)).toBe(
+      "::include[../section.md]\n",
+    );
   });
 
   it("reports invalid and duplicate stored paths while preserving valid composition", () => {

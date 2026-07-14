@@ -353,6 +353,61 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(deleted.files.map((file) => file.id)).not.toContain(supporting!.id);
   });
 
+  it("persists empty folders and moves folder trees atomically", async () => {
+    const workspaceId = "foldered-project";
+    const stub = roomStub(workspaceId);
+    const createdFolder = await stub.createProjectFolder(workspaceId, "drafts/notes");
+    const drafts = createdFolder.folders.find((folder) => folder.path === "drafts");
+    expect(createdFolder.folders.map((folder) => folder.path)).toEqual(["drafts", "drafts/notes", "sections"]);
+    expect(drafts).toBeDefined();
+
+    const withFile = await stub.createProjectFile(workspaceId, "drafts/notes/detail.md", "Detail\n");
+    await applyAuthoredSource(stub, "::include[drafts/notes/detail.md]\n");
+    const moved = await stub.renameProjectFolder(workspaceId, drafts!.id, "chapters");
+    expect(moved.folders.map((folder) => folder.path)).toEqual(["chapters", "chapters/notes", "sections"]);
+    expect(moved.files.some((file) => file.path === "chapters/notes/detail.md")).toBe(true);
+    expect(moved.source).toBe("::include[chapters/notes/detail.md]\n");
+    expect(moved.composition.diagnostics).toEqual([]);
+
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.deleteProjectFolder(workspaceId, drafts!.id)).toThrow("empty folders");
+    });
+    const detail = withFile.files.find((file) => file.path === "drafts/notes/detail.md");
+    await applyAuthoredSource(stub, "");
+    await stub.deleteProjectFile(workspaceId, detail!.id);
+    const nested = (await stub.getSnapshot(workspaceId)).folders.find((folder) => folder.path === "chapters/notes");
+    await stub.deleteProjectFolder(workspaceId, nested!.id);
+    const cleaned = await stub.deleteProjectFolder(workspaceId, drafts!.id);
+    expect(cleaned.folders.map((folder) => folder.path)).toEqual(["sections"]);
+  });
+
+  it("materializes existing path prefixes when folder migration is pending", async () => {
+    const workspaceId = "project-folder-migration";
+    const stub = roomStub(workspaceId);
+    await stub.getSnapshot(workspaceId);
+    await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      const revisions = state.storage.sql
+        .exec<{ revision: number; snapshot_json: string }>("SELECT revision, snapshot_json FROM project_revisions")
+        .toArray();
+      for (const revision of revisions) {
+        const snapshot = JSON.parse(revision.snapshot_json) as { tables: Record<string, unknown> };
+        delete snapshot.tables.project_folders;
+        state.storage.sql.exec(
+          "UPDATE project_revisions SET snapshot_json = ? WHERE revision = ?",
+          JSON.stringify(snapshot),
+          revision.revision,
+        );
+      }
+      state.storage.sql.exec("DROP TABLE project_folders");
+      state.storage.sql.exec("DELETE FROM _kirjolab_migrations WHERE version >= 18");
+    });
+
+    await evictDurableObject(stub);
+    expect((await stub.getSnapshot(workspaceId)).folders.map((folder) => folder.path)).toEqual(["sections"]);
+    expect((await stub.getRevision(0)).folders).toEqual([]);
+    expect(await migrationVersion(stub, 18)).toEqual({ version: 18, name: "persist-project-folders" });
+  });
+
   it("derives project aliases and bibliography from shared reference snapshots", async () => {
     const workspaceId = "shared-reference-project";
     const stub = roomStub(workspaceId);

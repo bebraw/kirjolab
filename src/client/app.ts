@@ -179,6 +179,7 @@ interface Elements {
   researchRailPanel: HTMLElement;
   commentsRailPanel: HTMLElement;
   newProjectFileRail: HTMLButtonElement;
+  newProjectFolderRail: HTMLButtonElement;
   projectFileList: HTMLElement;
   projectFileSwitcher: HTMLSelectElement;
   newProjectFile: HTMLButtonElement;
@@ -188,7 +189,9 @@ interface Elements {
   projectFileDialog: HTMLDialogElement;
   projectFileForm: HTMLFormElement;
   projectFileDialogTitle: HTMLElement;
+  projectFileDialogHelp: HTMLElement;
   projectFilePath: HTMLInputElement;
+  saveProjectFile: HTMLButtonElement;
   cancelProjectFile: HTMLButtonElement;
   openProjectHistory: HTMLButtonElement;
   openExport: HTMLButtonElement;
@@ -401,7 +404,8 @@ class WorkspaceApp {
   #activeFileId: string | null = null;
   #activeFileText = this.#source;
   #unbindSourceEditor: () => void = () => undefined;
-  #projectFileDialogMode: "create" | "create-and-include" | "rename" = "create";
+  #projectFileDialogMode: "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder" = "create";
+  #projectFolderId: string | null = null;
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
@@ -561,6 +565,7 @@ class WorkspaceApp {
     this.#elements.projectFileSwitcher.addEventListener("change", () => this.#selectProjectFile(this.#elements.projectFileSwitcher.value));
     this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.newProjectFileRail.addEventListener("click", () => this.#openProjectFileDialog("create"));
+    this.#elements.newProjectFolderRail.addEventListener("click", () => this.#openProjectFileDialog("create-folder"));
     this.#elements.createAndIncludeProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create-and-include"));
     this.#elements.renameProjectFile.addEventListener("click", () => this.#openProjectFileDialog("rename"));
     this.#elements.deleteProjectFile.addEventListener("click", () => void this.#deleteProjectFile());
@@ -1305,15 +1310,50 @@ class WorkspaceApp {
     );
     this.#elements.projectFileList.replaceChildren();
     this.#elements.includeProjectFileList.replaceChildren();
-    for (const file of [...snapshot.files].sort((left, right) => left.path.localeCompare(right.path))) {
+    const items = [
+      ...snapshot.folders.map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
+      ...snapshot.files.map((file) => ({ kind: "file" as const, path: file.path, file })),
+    ].sort((left, right) => left.path.localeCompare(right.path) || left.kind.localeCompare(right.kind));
+    for (const item of items) {
+      const depth = item.path.split("/").length - 1;
+      if (item.kind === "folder") {
+        const row = document.createElement("div");
+        row.className = "project-folder-row";
+        row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
+        const label = document.createElement("span");
+        label.className = "min-w-0 truncate";
+        label.textContent = `${item.path.split("/").at(-1)}/`;
+        const actions = document.createElement("details");
+        actions.className = "action-menu project-tree-actions";
+        const summary = document.createElement("summary");
+        summary.setAttribute("aria-label", `Actions for ${item.path}`);
+        summary.textContent = "•••";
+        const menu = document.createElement("div");
+        menu.className = "editor-command-menu";
+        const rename = document.createElement("button");
+        rename.type = "button";
+        rename.textContent = "Move or rename";
+        rename.addEventListener("click", () => this.#openProjectFileDialog("rename-folder", item.folder.id));
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "Delete empty folder";
+        remove.addEventListener("click", () => void this.#deleteProjectFolder(item.folder.id));
+        menu.append(rename, remove);
+        actions.append(summary, menu);
+        row.append(label, actions);
+        this.#elements.projectFileList.append(row);
+        continue;
+      }
+      const file = item.file;
       const button = document.createElement("button");
       button.type = "button";
       button.className = "project-file-row";
+      button.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
       button.dataset.active = String(file.id === this.#activeFileId);
       button.setAttribute("aria-current", file.id === this.#activeFileId ? "page" : "false");
       const path = document.createElement("span");
       path.className = "truncate";
-      path.textContent = file.path;
+      path.textContent = file.path.split("/").at(-1) ?? file.path;
       button.append(path);
       if (file.id === snapshot.entryFileId) {
         const kind = document.createElement("span");
@@ -1361,16 +1401,35 @@ class WorkspaceApp {
     this.#updateModelAvailability();
   }
 
-  #openProjectFileDialog(mode: "create" | "create-and-include" | "rename"): void {
+  #openProjectFileDialog(mode: "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder", folderId?: string): void {
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
+    const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
     if (mode === "rename" && (!file || file.id === this.#snapshot?.entryFileId)) return;
+    if (mode === "rename-folder" && !folder) return;
     this.#projectFileDialogMode = mode;
+    this.#projectFolderId = folder?.id ?? null;
     this.#projectFileIncludeTarget =
       mode === "create-and-include" ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : null;
     this.#projectFileIncludeFromPath = mode === "create-and-include" ? (file?.path ?? null) : null;
+    const folderMode = mode === "create-folder" || mode === "rename-folder";
     this.#elements.projectFileDialogTitle.textContent =
-      mode === "create" ? "Add Markdown file" : mode === "create-and-include" ? "Create and include file" : "Rename Markdown file";
-    this.#elements.projectFilePath.value = mode === "rename" ? (file?.path ?? "") : "";
+      mode === "create"
+        ? "Add Markdown file"
+        : mode === "create-and-include"
+          ? "Create and include file"
+          : mode === "rename"
+            ? "Move or rename file"
+            : mode === "create-folder"
+              ? "Add folder"
+              : "Move or rename folder";
+    this.#elements.projectFileDialogHelp.textContent = folderMode
+      ? "Use a relative path. Moving a folder also moves its files and keeps includes valid."
+      : mode === "rename"
+        ? "Change the folder or filename by editing this relative path. Inbound includes stay valid."
+        : "Compose this file from main.md with ::include[path].";
+    this.#elements.saveProjectFile.textContent = folderMode ? "Save folder" : "Save file";
+    this.#elements.projectFilePath.placeholder = folderMode ? "chapters" : "chapters/01_introduction.md";
+    this.#elements.projectFilePath.value = mode === "rename" ? (file?.path ?? "") : mode === "rename-folder" ? (folder?.path ?? "") : "";
     this.#elements.projectFileDialog.showModal();
     this.#elements.projectFilePath.focus();
   }
@@ -1379,10 +1438,16 @@ class WorkspaceApp {
     event.preventDefault();
     const path = this.#elements.projectFilePath.value.trim();
     const activeId = this.#activeFileId;
-    const creating = this.#projectFileDialogMode !== "rename";
-    if (!creating && !activeId) return;
+    const folderMode = this.#projectFileDialogMode === "create-folder" || this.#projectFileDialogMode === "rename-folder";
+    const creating =
+      this.#projectFileDialogMode === "create" ||
+      this.#projectFileDialogMode === "create-and-include" ||
+      this.#projectFileDialogMode === "create-folder";
+    const targetId = folderMode ? this.#projectFolderId : activeId;
+    if (!creating && !targetId) return;
+    const resource = folderMode ? "folders" : "files";
     const response = await jsonFetch(
-      creating ? `${apiBase}/files` : `${apiBase}/files/${encodeURIComponent(activeId ?? "")}`,
+      creating ? `${apiBase}/${resource}` : `${apiBase}/${resource}/${encodeURIComponent(targetId ?? "")}`,
       { path },
       creating ? "POST" : "PATCH",
     );
@@ -1407,14 +1472,19 @@ class WorkspaceApp {
     }
     this.#renderPreview();
     this.#showToast(
-      this.#projectFileDialogMode === "create-and-include"
-        ? `Created ${path} and included it at the remembered caret.`
-        : creating
+      folderMode
+        ? creating
           ? `Added ${path}.`
-          : `Renamed file to ${path}; inbound includes were updated.`,
+          : `Moved folder to ${path}; project paths and includes were updated.`
+        : this.#projectFileDialogMode === "create-and-include"
+          ? `Created ${path} and included it at the remembered caret.`
+          : creating
+            ? `Added ${path}.`
+            : `Renamed file to ${path}; inbound includes were updated.`,
     );
     this.#projectFileIncludeTarget = null;
     this.#projectFileIncludeFromPath = null;
+    this.#projectFolderId = null;
   }
 
   async #deleteProjectFile(): Promise<void> {
@@ -1431,6 +1501,18 @@ class WorkspaceApp {
     this.#renderProjectFiles();
     this.#renderPreview();
     this.#showToast(`Deleted ${file.path}.`);
+  }
+
+  async #deleteProjectFolder(folderId: string): Promise<void> {
+    const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
+    if (!folder) return;
+    const response = await fetch(`${apiBase}/folders/${encodeURIComponent(folder.id)}`, { method: "DELETE", credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWorkspaceSnapshot(value)) throw new Error("Project folder operation returned an invalid workspace");
+    this.#snapshot = value;
+    this.#renderProjectFiles();
+    this.#showToast(`Deleted ${folder.path}.`);
   }
 
   async #openProjectHistory(): Promise<void> {
@@ -5157,6 +5239,7 @@ function collectElements(): Elements {
     researchRailPanel: requiredElement("research-rail-panel", HTMLElement),
     commentsRailPanel: requiredElement("comments-rail-panel", HTMLElement),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
+    newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     projectFileList: requiredElement("project-file-list", HTMLElement),
     projectFileSwitcher: requiredElement("project-file-switcher", HTMLSelectElement),
     newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
@@ -5166,7 +5249,9 @@ function collectElements(): Elements {
     projectFileDialog: requiredElement("project-file-dialog", HTMLDialogElement),
     projectFileForm: requiredElement("project-file-form", HTMLFormElement),
     projectFileDialogTitle: requiredElement("project-file-dialog-title", HTMLElement),
+    projectFileDialogHelp: requiredElement("project-file-dialog-help", HTMLElement),
     projectFilePath: requiredElement("project-file-path", HTMLInputElement),
+    saveProjectFile: requiredElement("save-project-file", HTMLButtonElement),
     cancelProjectFile: requiredElement("cancel-project-file", HTMLButtonElement),
     openProjectHistory: requiredElement("open-project-history", HTMLButtonElement),
     openExport: requiredElement("open-export", HTMLButtonElement),

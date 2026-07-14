@@ -130,6 +130,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-087](./implemented/ADR-087-reconcile-exact-pdf-duplicates.md)                    | Implemented          | Resolve exact owner-library PDF repeats to their canonical source and remove redundant stored bytes.         |
 | [ADR-088](./implemented/ADR-088-project-structured-publication-markdown.md)           | Implemented          | Project bounded tables and footnotes once for deterministic LaTeX and PDF publication exports.               |
 | [ADR-098](./implemented/ADR-098-ignore-static-mutants-locally.md)                     | Implemented          | Ignore costly static mutants locally while retaining them in clean GitHub mutation runs.                     |
+| [ADR-099](./implemented/ADR-099-persist-project-folders-and-atomic-tree-moves.md)     | Implemented          | Persist empty folders and move project subtrees with atomic include rewrites.                                |
 
 ## Creating A New ADR
 

@@ -1811,7 +1811,8 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await page.locator("#project-file-path").fill("chapters/method.md");
   await page.locator("#project-file-form").getByRole("button", { name: "Save file" }).click();
   await expect(source).toHaveValue("Before\n\n::include[chapters/method.md]\nAfter\n");
-  await expect(page.locator("#project-file-list")).toContainText("chapters/method.md");
+  await expect(page.locator(".project-folder-row", { hasText: "chapters/" })).toBeVisible();
+  await expect(page.locator(".project-file-row", { hasText: "method.md" })).toBeVisible();
 
   await source.evaluate((element: HTMLTextAreaElement) => {
     element.focus();
@@ -1828,6 +1829,26 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await source.fill("## Method\n\nDescribe the procedure.\n");
   await expect(page.locator("#source-editor-highlight")).toHaveText("## Method\n\nDescribe the procedure.\n");
   await expect(page.locator("#source-editor-highlight .markdown-token-heading")).toContainText("Method");
+
+  await page.locator("#new-project-folder-rail").click();
+  await page.locator("#project-file-path").fill("notes");
+  await page.locator("#project-file-form").getByRole("button", { name: "Save folder" }).click();
+  const notesFolder = page.locator(".project-folder-row", { hasText: "notes/" });
+  await expect(notesFolder).toBeVisible();
+  await notesFolder.locator("summary").click();
+  await notesFolder.getByRole("button", { name: "Move or rename" }).click();
+  await page.locator("#project-file-path").fill("appendices/notes");
+  await page.locator("#project-file-form").getByRole("button", { name: "Save folder" }).click();
+  await expect(page.locator(".project-folder-row", { hasText: "appendices/" })).toBeVisible();
+  await expect(page.locator(".project-folder-row", { hasText: "notes/" })).toBeVisible();
+
+  await fileMenu.locator("summary").click();
+  await page.locator("#rename-project-file").click();
+  await page.locator("#project-file-path").fill("methods/method.md");
+  await page.locator("#project-file-form").getByRole("button", { name: "Save file" }).click();
+  const movedSnapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${workspaceId}`);
+  expect(movedSnapshot.source).toContain("::include[methods/method.md]");
+  expect(movedSnapshot.files.some((file) => file.path === "methods/method.md")).toBe(true);
 });
 
 test("isolates clients that send unsupported collaboration frames", async ({ page }) => {

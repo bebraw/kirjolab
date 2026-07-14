@@ -9,6 +9,13 @@ export interface ProjectFile {
   readonly updatedAt: string;
 }
 
+export interface ProjectFolder {
+  readonly id: string;
+  readonly path: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
 export interface CompositionSourceSpan {
   readonly outputStart: number;
   readonly outputEnd: number;
@@ -144,6 +151,21 @@ export function rewriteInboundProjectIncludes(file: ProjectFile, previousPath: s
     const requested = groups.path?.trim();
     if (!requested || resolveProjectPath(file.path, requested) !== previousPath) return directive;
     return directive.replace(requested, relativeProjectPath(file.path, nextPath));
+  });
+}
+
+export function rewriteProjectIncludesForMoves(file: ProjectFile, movedPaths: ReadonlyMap<string, string>): string {
+  const nextFilePath = movedPaths.get(file.path) ?? file.path;
+  return file.content.replace(includeLine, (directive, ...values: unknown[]) => {
+    const groups = values.at(-1);
+    if (!isStringRecord(groups)) return directive;
+    const requested = groups.path?.trim();
+    if (!requested) return directive;
+    const previousTargetPath = resolveProjectPath(file.path, requested);
+    if (!previousTargetPath) return directive;
+    const nextTargetPath = movedPaths.get(previousTargetPath) ?? previousTargetPath;
+    if (nextFilePath === file.path && nextTargetPath === previousTargetPath) return directive;
+    return directive.replace(requested, relativeProjectPath(nextFilePath, nextTargetPath));
   });
 }
 

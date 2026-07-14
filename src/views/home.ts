@@ -88,9 +88,12 @@ export function renderHomePage(
         </div>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail">
-          <div class="flex items-center justify-between gap-3">
+          <div class="grid gap-3">
             <h1 class="text-xl font-semibold tracking-[-0.035em]">Files</h1>
-            <button class="button-secondary" id="new-project-file-rail" type="button">Add file</button>
+            <div class="grid grid-cols-2 gap-1">
+              <button class="button-secondary justify-center" id="new-project-file-rail" type="button">Add file</button>
+              <button class="button-secondary justify-center" id="new-project-folder-rail" type="button">Add folder</button>
+            </div>
           </div>
           <div class="mt-4 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
           <details class="rail-collection mt-4" id="derived-project-bibliography">
@@ -180,7 +183,7 @@ export function renderHomePage(
               <div class="editor-command-menu" aria-label="File actions">
                 <button id="new-project-file" type="button"><strong>Add file</strong></button>
                 <button id="create-and-include-project-file" type="button"><strong>Create and include</strong><code>at the current caret</code></button>
-                <button id="rename-project-file" type="button"><strong>Rename file</strong></button>
+                <button id="rename-project-file" type="button"><strong>Move or rename file</strong></button>
                 <button id="delete-project-file" type="button"><strong>Delete file</strong></button>
               </div>
             </details>
@@ -662,10 +665,10 @@ export function renderHomePage(
         <label class="field-label mt-5">Relative path
           <input class="field" id="project-file-path" type="text" maxlength="1024" required placeholder="chapters/01_introduction.md">
         </label>
-        <p class="mt-2 text-xs leading-5 text-app-text-soft">Compose this file from main.md with <code>::include[path]</code>.</p>
+        <p class="mt-2 text-xs leading-5 text-app-text-soft" id="project-file-dialog-help">Compose this file from main.md with <code>::include[path]</code>.</p>
         <div class="mt-5 flex justify-end gap-2">
           <button class="button-secondary" id="cancel-project-file" type="button">Cancel</button>
-          <button class="button-primary" type="submit">Save file</button>
+          <button class="button-primary" id="save-project-file" type="submit">Save file</button>
         </div>
       </form>
     </dialog>

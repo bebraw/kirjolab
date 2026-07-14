@@ -17,6 +17,7 @@ const base: ProjectRevisionContent = {
     { id: "main", path: "main.md", mediaType: "text/markdown", content: "::include[chapters/a.md]\n", createdAt: "t1", updatedAt: "t1" },
     { id: "chapter", path: "chapters/a.md", mediaType: "text/markdown", content: "Old claim", createdAt: "t1", updatedAt: "t1" },
   ],
+  folders: [],
   projectReferences: [],
   researchShares: [],
   pdfs: [

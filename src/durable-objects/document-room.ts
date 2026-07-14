@@ -37,9 +37,10 @@ import {
   normalizeProjectPath,
   projectUsesCitationAlias,
   projectEntryPath,
-  rewriteInboundProjectIncludes,
+  rewriteProjectIncludesForMoves,
   rewriteProjectCitationAlias,
   type ProjectFile,
+  type ProjectFolder,
 } from "../domain/project-files";
 import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnapshot, type WebSnapshot } from "../domain/reference-library";
 import type { ResearchShareSnapshot } from "../domain/reference-library";
@@ -122,6 +123,13 @@ interface ProjectFileRow extends Record<string, SqlStorageValue> {
   media_type: string;
   y_text_name: string;
   content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ProjectFolderRow extends Record<string, SqlStorageValue> {
+  id: string;
+  path: string;
   created_at: string;
   updated_at: string;
 }
@@ -348,6 +356,7 @@ const revisionTables = [
   "manuscript_comments",
   "publication_pdf_links",
   "project_files",
+  "project_folders",
   "project_references",
   "project_research_shares",
   "project_reference_pdf_links",
@@ -426,6 +435,7 @@ const revisionTableColumns: Readonly<Record<RevisionTable, readonly string[]>> =
   ],
   publication_pdf_links: ["id", "publication_id", "pdf_id", "created_at"],
   project_files: ["id", "path", "media_type", "y_text_name", "content", "created_at", "updated_at"],
+  project_folders: ["id", "path", "created_at", "updated_at"],
   project_references: ["id", "reference_id", "citation_alias", "snapshot_json", "created_at", "updated_at"],
   project_research_shares: ["id", "project_id", "reference_id", "resource_id", "kind", "snapshot_json", "created_at", "revoked_at"],
   project_reference_pdf_links: ["id", "publication_id", "pdf_id", "created_at"],
@@ -444,6 +454,7 @@ const revisionDeleteOrder: readonly RevisionTable[] = [
   "annotations",
   "publications",
   "project_files",
+  "project_folders",
   "pdfs",
 ];
 
@@ -453,6 +464,7 @@ const revisionInsertOrder: readonly RevisionTable[] = [
   "publications",
   "claims",
   "project_files",
+  "project_folders",
   "project_references",
   "project_research_shares",
   "publication_pdf_links",
@@ -622,6 +634,7 @@ export class DocumentRoom extends DurableObject<Env> {
       title: workspace.title,
       entryFileId: workspace.entry_file_id,
       files,
+      folders: this.#projectFolders(),
       composition: composeProject(files, workspace.entry_file_id),
       source: workspace.source,
       bibliography: workspace.bibliography,
@@ -991,8 +1004,11 @@ export class DocumentRoom extends DurableObject<Env> {
       throw new Error("Project files require a unique relative .md path; main.md is reserved");
     }
     if (content.length > 2_000_000) throw new Error("Project file exceeds 2 MB");
-    if (this.ctx.storage.sql.exec<ProjectFileRow>("SELECT * FROM project_files WHERE path = ?", path).toArray()[0]) {
+    if (this.#projectFiles().some((file) => file.path === path || path.startsWith(`${file.path}/`))) {
       throw new Error("A project file already uses this path");
+    }
+    if (this.#projectFolders().some((folder) => folder.path === path || folder.path.startsWith(`${path}/`))) {
+      throw new Error("A project folder already uses this path");
     }
     const id = crypto.randomUUID();
     const yTextName = `file:${id}`;
@@ -1005,6 +1021,7 @@ export class DocumentRoom extends DurableObject<Env> {
       previous,
       {},
       () => {
+        this.#ensureProjectFolders(folderAncestors(path), now);
         this.ctx.storage.sql.exec(
           `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
          VALUES (?, ?, 'text/markdown', ?, ?, ?, ?)`,
@@ -1061,14 +1078,20 @@ export class DocumentRoom extends DurableObject<Env> {
     const files = this.#projectFiles();
     const target = files.find((file) => file.id === fileId);
     if (!target) throw new Error("Project file not found");
-    if (files.some((file) => file.id !== fileId && file.path === nextPath)) throw new Error("A project file already uses this path");
+    if (files.some((file) => file.id !== fileId && (file.path === nextPath || nextPath.startsWith(`${file.path}/`)))) {
+      throw new Error("A project file already uses this path");
+    }
+    if (this.#projectFolders().some((folder) => folder.path === nextPath || folder.path.startsWith(`${nextPath}/`))) {
+      throw new Error("A project folder already uses this path");
+    }
 
     const previous = workspace;
     const stateVector = Y.encodeStateVector(this.#document);
+    const movedPaths = new Map([[target.path, nextPath]]);
     const updates: Array<{ row: ProjectFileRow; content: string }> = [];
     for (const row of this.#projectFileRows()) {
       const current = projectFileFromRow(row);
-      const content = rewriteInboundProjectIncludes(current, target.path, nextPath);
+      const content = rewriteProjectIncludesForMoves(current, movedPaths);
       if (content === current.content) continue;
       const text = this.#document.getText(row.y_text_name);
       const splice = calculateTextSplice(text.toString(), content);
@@ -1083,6 +1106,7 @@ export class DocumentRoom extends DurableObject<Env> {
       {},
       () => {
         const now = new Date().toISOString();
+        this.#ensureProjectFolders(folderAncestors(nextPath), now);
         this.ctx.storage.sql.exec("UPDATE project_files SET path = ?, updated_at = ? WHERE id = ?", nextPath, now, fileId);
         for (const update of updates) {
           this.ctx.storage.sql.exec(
@@ -1096,6 +1120,129 @@ export class DocumentRoom extends DurableObject<Env> {
       "project-file-rename",
     );
     this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  createProjectFolder(workspaceId: string, pathValue: string): WorkspaceSnapshot {
+    const path = validFolderPath(pathValue);
+    if (this.#projectFolders().some((folder) => folder.path === path)) throw new Error("A project folder already uses this path");
+    if (this.#projectFiles().some((file) => file.path === path || path.startsWith(`${file.path}/`))) {
+      throw new Error("A project file already uses this path");
+    }
+    const previous = this.#workspaceRow();
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => this.#ensureProjectFolders([...folderAncestors(path), path], new Date().toISOString()),
+      "project-folder-create",
+    );
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  renameProjectFolder(workspaceId: string, folderId: string, pathValue: string): WorkspaceSnapshot {
+    const nextPath = validFolderPath(pathValue);
+    const folders = this.#projectFolders();
+    const target = folders.find((folder) => folder.id === folderId);
+    if (!target) throw new Error("Project folder not found");
+    if (nextPath === target.path) return this.getSnapshot(workspaceId);
+    if (nextPath.startsWith(`${target.path}/`)) throw new Error("A folder cannot be moved inside itself");
+    const movedFolders = folders.filter((folder) => folder.path === target.path || folder.path.startsWith(`${target.path}/`));
+    const movedFiles = this.#projectFiles().filter((file) => file.path.startsWith(`${target.path}/`));
+    const nextFolderPaths = new Map(movedFolders.map((folder) => [folder.path, replacePathPrefix(folder.path, target.path, nextPath)]));
+    const movedFilePaths = new Map(movedFiles.map((file) => [file.path, replacePathPrefix(file.path, target.path, nextPath)]));
+    const movingFolderIds = new Set(movedFolders.map((folder) => folder.id));
+    const movingFileIds = new Set(movedFiles.map((file) => file.id));
+    const destinations = [...nextFolderPaths.values()];
+    const fileDestinations = [...movedFilePaths.values()];
+    if (
+      folders.some(
+        (folder) =>
+          !movingFolderIds.has(folder.id) &&
+          (destinations.includes(folder.path) ||
+            fileDestinations.some((path) => folder.path === path || folder.path.startsWith(`${path}/`))),
+      ) ||
+      this.#projectFiles().some(
+        (file) =>
+          !movingFileIds.has(file.id) &&
+          (destinations.some((path) => file.path === path || path.startsWith(`${file.path}/`) || file.path.startsWith(`${path}/`)) ||
+            fileDestinations.some((path) => file.path === path || path.startsWith(`${file.path}/`))),
+      )
+    ) {
+      throw new Error("The destination already contains a project item with this path");
+    }
+    const previous = this.#workspaceRow();
+    const stateVector = Y.encodeStateVector(this.#document);
+    const updates: Array<{ row: ProjectFileRow; content: string }> = [];
+    for (const row of this.#projectFileRows()) {
+      const current = projectFileFromRow(row);
+      const content = rewriteProjectIncludesForMoves(current, movedFilePaths);
+      if (content === current.content) continue;
+      const text = this.#document.getText(row.y_text_name);
+      const splice = calculateTextSplice(text.toString(), content);
+      if (splice) {
+        if (splice.deleteCount > 0) text.delete(splice.start, splice.deleteCount);
+        if (splice.insert) text.insert(splice.start, splice.insert);
+      }
+      updates.push({ row, content });
+    }
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => {
+        const now = new Date().toISOString();
+        this.#ensureProjectFolders(folderAncestors(nextPath), now);
+        for (const folder of movedFolders) {
+          this.ctx.storage.sql.exec(
+            "UPDATE project_folders SET path = ?, updated_at = ? WHERE id = ?",
+            nextFolderPaths.get(folder.path),
+            now,
+            folder.id,
+          );
+        }
+        for (const file of movedFiles) {
+          this.ctx.storage.sql.exec(
+            "UPDATE project_files SET path = ?, updated_at = ? WHERE id = ?",
+            movedFilePaths.get(file.path),
+            now,
+            file.id,
+          );
+        }
+        for (const update of updates) {
+          this.ctx.storage.sql.exec(
+            "UPDATE project_files SET content = ?, updated_at = ? WHERE id = ?",
+            update.content,
+            now,
+            update.row.id,
+          );
+        }
+      },
+      "project-folder-rename",
+    );
+    this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  deleteProjectFolder(workspaceId: string, folderId: string): WorkspaceSnapshot {
+    const folder = this.#projectFolders().find((item) => item.id === folderId);
+    if (!folder) throw new Error("Project folder not found");
+    if (
+      this.#projectFolders().some((item) => item.id !== folderId && item.path.startsWith(`${folder.path}/`)) ||
+      this.#projectFiles().some((file) => file.path.startsWith(`${folder.path}/`))
+    ) {
+      throw new Error("Only empty folders can be deleted");
+    }
+    const persisted = this.#persistDocument(
+      this.#workspaceRow(),
+      {},
+      () => this.ctx.storage.sql.exec("DELETE FROM project_folders WHERE id = ?", folderId),
+      "project-folder-delete",
+    );
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
     return this.getSnapshot(workspaceId);
@@ -2314,6 +2461,39 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 18,
+        name: "persist-project-folders",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS project_folders (
+              id TEXT PRIMARY KEY,
+              path TEXT NOT NULL UNIQUE COLLATE NOCASE,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+          `);
+          const now = new Date().toISOString();
+          for (const file of sql.exec<{ path: string }>("SELECT path FROM project_files").toArray()) {
+            for (const path of folderAncestors(file.path)) {
+              sql.exec(
+                "INSERT OR IGNORE INTO project_folders (id, path, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                crypto.randomUUID(),
+                path,
+                now,
+                now,
+              );
+            }
+          }
+          for (const revision of sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions").toArray()) {
+            const snapshot: unknown = JSON.parse(revision.snapshot_json);
+            if (!isRecordValue(snapshot) || !isRecordValue(snapshot.tables) || "project_folders" in snapshot.tables) continue;
+            snapshot.tables.project_folders = [];
+            sql.exec("UPDATE project_revisions SET snapshot_json = ? WHERE revision = ?", JSON.stringify(snapshot), revision.revision);
+          }
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -2564,6 +2744,10 @@ export class DocumentRoom extends DurableObject<Env> {
         );
       }
     }
+    this.#ensureProjectFolders(
+      this.#projectFiles().flatMap((file) => folderAncestors(file.path)),
+      new Date().toISOString(),
+    );
   }
 
   #projectFileRows(): ProjectFileRow[] {
@@ -2572,6 +2756,25 @@ export class DocumentRoom extends DurableObject<Env> {
 
   #projectFiles(): ProjectFile[] {
     return this.#projectFileRows().map(projectFileFromRow);
+  }
+
+  #projectFolders(): ProjectFolder[] {
+    return this.ctx.storage.sql
+      .exec<ProjectFolderRow>("SELECT * FROM project_folders ORDER BY path COLLATE NOCASE, id")
+      .toArray()
+      .map(projectFolderFromRow);
+  }
+
+  #ensureProjectFolders(paths: readonly string[], now: string): void {
+    for (const path of paths) {
+      this.ctx.storage.sql.exec(
+        "INSERT OR IGNORE INTO project_folders (id, path, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        crypto.randomUUID(),
+        path,
+        now,
+        now,
+      );
+    }
   }
 
   #projectText(fileId: string): { file: ProjectFile; text: Y.Text } {
@@ -2996,6 +3199,14 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
       updatedAt: sqlString(row, "updated_at"),
     }),
   );
+  const folders = revisionRows(state, "project_folders").map(
+    (row): ProjectFolder => ({
+      id: sqlString(row, "id"),
+      path: sqlString(row, "path"),
+      createdAt: sqlString(row, "created_at"),
+      updatedAt: sqlString(row, "updated_at"),
+    }),
+  );
   const projectReferences = revisionRows(state, "project_references").map((row) =>
     projectReferenceFromRow({
       id: sqlString(row, "id"),
@@ -3091,6 +3302,7 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
     source: composition,
     bibliography: state.workspace.bibliography,
     files,
+    folders,
     projectReferences,
     researchShares,
     pdfs,
@@ -3362,6 +3574,30 @@ function projectFileFromRow(row: ProjectFileRow): ProjectFile {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function projectFolderFromRow(row: ProjectFolderRow): ProjectFolder {
+  return {
+    id: row.id,
+    path: row.path,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function validFolderPath(value: string): string {
+  const path = normalizeProjectPath(value);
+  if (!path || path !== value.trim() || path === projectEntryPath) throw new Error("Project folders require a unique relative path");
+  return path;
+}
+
+function folderAncestors(path: string): string[] {
+  const segments = path.split("/").slice(0, -1);
+  return segments.map((_, index) => segments.slice(0, index + 1).join("/"));
+}
+
+function replacePathPrefix(path: string, previousPrefix: string, nextPrefix: string): string {
+  return path === previousPrefix ? nextPrefix : `${nextPrefix}${path.slice(previousPrefix.length)}`;
 }
 
 function projectReferenceFromRow(row: ProjectReferenceRow): ProjectReferenceLink {

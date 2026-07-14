@@ -128,6 +128,10 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix.startsWith("/files/") && (request.method === "PATCH" || request.method === "DELETE")) {
       return await mutateProjectFile(request, workspaceId, suffix, room);
     }
+    if (suffix === "/folders" && request.method === "POST") return await createProjectFolder(request, workspaceId, room);
+    if (suffix.startsWith("/folders/") && (request.method === "PATCH" || request.method === "DELETE")) {
+      return await mutateProjectFolder(request, workspaceId, suffix, room);
+    }
     if (suffix.startsWith("/pdfs/") && request.method === "GET") {
       return await downloadPdf(storageKey, suffix.slice("/pdfs/".length), env);
     }
@@ -415,6 +419,30 @@ async function mutateProjectFile(
   const body: unknown = await request.json();
   if (!isRecord(body) || typeof body.path !== "string" || body.path.length > 1_024) return jsonError("Invalid project file", 400);
   return Response.json(await room.renameProjectFile(workspaceId, match[1], body.path));
+}
+
+async function createProjectFolder(
+  request: Request,
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.path !== "string" || body.path.length > 1_024) return jsonError("Invalid project folder", 400);
+  return Response.json(await room.createProjectFolder(workspaceId, body.path), { status: 201 });
+}
+
+async function mutateProjectFolder(
+  request: Request,
+  workspaceId: string,
+  suffix: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const match = /^\/folders\/([0-9a-f-]{36})$/iu.exec(suffix);
+  if (!match?.[1]) return jsonError("Project folder route not found", 404);
+  if (request.method === "DELETE") return Response.json(await room.deleteProjectFolder(workspaceId, match[1]));
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.path !== "string" || body.path.length > 1_024) return jsonError("Invalid project folder", 400);
+  return Response.json(await room.renameProjectFolder(workspaceId, match[1], body.path));
 }
 
 async function handleWorkspaceCatalog(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {

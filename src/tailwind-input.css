@@ -200,6 +200,30 @@
     text-align: left;
   }
 
+  .project-folder-row {
+    display: flex;
+    min-height: 2.25rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .project-tree-actions > summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 0.25rem;
+    color: var(--color-app-text-soft);
+    letter-spacing: 0.08em;
+  }
+
+  .project-tree-actions > summary::-webkit-details-marker {
+    display: none;
+  }
+
   .project-file-row:hover,
   .project-file-row[data-active="true"] {
     background: var(--color-app-accent-ghost);

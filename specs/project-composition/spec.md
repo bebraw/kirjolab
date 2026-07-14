@@ -13,6 +13,9 @@ collaborative, and unambiguous about what preview and export mean.
 - Every project has stable file identities and exactly one root entry file at
   `main.md`. Paths are mutable presentation data; file identities qualify
   evidence links and model targets.
+- Project folders also have stable identities and mutable project-relative
+  paths. Empty folders persist in snapshots and revision history. Creating a
+  file materializes missing ancestor folders.
 - Each Markdown file is a `Y.Text` inside the project's existing
   `DocumentRoom`. File content, the file tree, reference paths, and the project
   revision persist in one SQLite-backed coordination atom.
@@ -33,9 +36,12 @@ collaborative, and unambiguous about what preview and export mean.
   depth violation terminates that branch; more than 512 distinct files or more
   than 2 MiB of output stops composition globally. The active include chain may
   contain at most 32 files.
-- Rename updates every inbound include path in the same revision. Delete is
-  rejected while an inbound include remains. `main.md` cannot be renamed or
-  deleted.
+- A file move or rename updates affected include paths in the same revision. A
+  folder move atomically changes its descendant folder and file paths and
+  rewrites includes relative to both moved sources and targets. Destinations
+  cannot collide or sit inside the folder being moved. File deletion is
+  rejected while an inbound include remains; folder deletion is limited to
+  empty folders. `main.md` cannot be renamed, moved, or deleted.
 - Preview and Markdown export always compose from `main.md`; selecting a
   supporting file changes the editor, not the publication root.
 - The workspace exposes project files as a dedicated navigation mode, separate
@@ -43,9 +49,11 @@ collaborative, and unambiguous about what preview and export mean.
   opens with its authored structure visible. The file navigator uses one
   direct heading and omits redundant list counts, sort labels, and extension
   badges; the entry file remains visibly identified because it defines the
-  composition root. Supporting paths are sorted for scanning, and file
+  composition root. Supporting paths render as a compact hierarchy, and file
   creation is available from both the file navigator and the active-file
-  toolbar.
+  toolbar. The navigator directly exposes folder creation and contextual
+  folder move, rename, and empty-delete actions. The file toolbar labels its
+  editable path action as **Move or rename file**.
 - A fresh starter project includes one supporting Markdown file transcluded
   from `main.md`, making the portable include syntax and composed result
   discoverable without changing existing projects during migration.
@@ -62,7 +70,7 @@ collaborative, and unambiguous about what preview and export mean.
 
 ### API Contracts
 
-- `GET /api/workspaces/{id}` includes `entryFileId`, `files`, and the current
+- `GET /api/workspaces/{id}` includes `entryFileId`, `files`, `folders`, and the current
   `composition` alongside the compatibility `source` field for `main.md`.
 - `POST /api/workspaces/{id}/files` creates a supporting Markdown file from a
   bounded project-relative path and optional bounded content.
@@ -70,6 +78,11 @@ collaborative, and unambiguous about what preview and export mean.
   atomically rewrites inbound include directives.
 - `DELETE /api/workspaces/{id}/files/{fileId}` deletes only an unreferenced
   supporting file.
+- `POST /api/workspaces/{id}/folders` creates a durable folder and missing
+  ancestors from a bounded project-relative path.
+- `PATCH /api/workspaces/{id}/folders/{folderId}` moves or renames a folder
+  subtree and atomically rewrites affected include directives.
+- `DELETE /api/workspaces/{id}/folders/{folderId}` deletes only an empty folder.
 - Passage-link and model-candidate inputs carry `fileId`; persisted selectors
   retain it with their Yjs relative positions.
 
@@ -90,7 +103,8 @@ collaborative, and unambiguous about what preview and export mean.
   normalization, inbound rewrite, resource bounds, and export refusal for
   invalid composition.
 - Workers tests cover migration, stable entry identity, project-wide
-  persistence, composition, atomic rename, guarded deletion, and file-qualified
+  persistence, composition, atomic file and folder moves, durable empty
+  folders, guarded deletion, and file-qualified
   anchors in a real `workerd` runtime. Project-history tests cover retained
   file identity across rename, composed diffs, non-destructive restore, and
   revision seeds.
@@ -102,8 +116,8 @@ collaborative, and unambiguous about what preview and export mean.
 
 ## Current Milestone
 
-- Implemented: discoverable starter transclusion, Markdown file tree, canonical `main.md`, recursive composition,
+- Implemented: discoverable starter transclusion, durable Markdown folder tree, canonical `main.md`, recursive composition,
   source maps and diagnostics, file management API/UI, composed preview/export,
   project-wide revisions, and file-qualified manuscript/model anchors.
-- Deferred: binary asset management and a graphical folder tree. These do not
-  change the composition contract.
+- Deferred: binary asset management and drag-and-drop tree reordering. These do
+  not change the composition contract.

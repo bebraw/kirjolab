@@ -4,12 +4,12 @@ import {
   type ManuscriptAnchorResolution,
   type ManuscriptAnchorSelector,
 } from "./manuscript-anchor";
-import type { ProjectComposition, ProjectFile } from "./project-files";
+import type { ProjectComposition, ProjectFile, ProjectFolder } from "./project-files";
 import type { BibliographicSnapshot } from "./reference-library";
 import type { ResearchShareSnapshot } from "./reference-library";
 
 export type { ManuscriptAnchorResolution, ManuscriptAnchorSelector } from "./manuscript-anchor";
-export type { ProjectComposition, ProjectFile } from "./project-files";
+export type { ProjectComposition, ProjectFile, ProjectFolder } from "./project-files";
 export type { BibliographicSnapshot } from "./reference-library";
 export type { ResearchShareSnapshot } from "./reference-library";
 
@@ -254,6 +254,7 @@ export interface WorkspaceSnapshot {
   title: string;
   entryFileId: string;
   files: ProjectFile[];
+  folders: ProjectFolder[];
   composition: ProjectComposition;
   source: string;
   bibliography: string;
@@ -644,6 +645,8 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     isNonEmptyString(value.entryFileId) &&
     Array.isArray(value.files) &&
     value.files.every(isProjectFile) &&
+    Array.isArray(value.folders) &&
+    value.folders.every(isProjectFolder) &&
     isProjectComposition(value.composition) &&
     typeof value.source === "string" &&
     typeof value.bibliography === "string" &&
@@ -670,6 +673,16 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     value.comments.every(isManuscriptComment) &&
     Array.isArray(value.candidates) &&
     value.candidates.every(isModelCandidate)
+  );
+}
+
+function isProjectFolder(value: unknown): value is ProjectFolder {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.path) &&
+    isNonEmptyString(value.createdAt) &&
+    isNonEmptyString(value.updatedAt)
   );
 }
 

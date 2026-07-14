@@ -6,6 +6,7 @@ const snapshot: WorkspaceSnapshot = {
   id: "workspace-1",
   title: "Review <draft>",
   entryFileId: "main-file",
+  folders: [],
   files: [
     {
       id: "section-file",
