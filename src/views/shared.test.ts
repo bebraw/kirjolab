@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cssResponse, escapeHtml, htmlResponse, pdfResponse, scriptResponse } from "./shared";
+import { cssResponse, escapeHtml, faviconResponse, htmlResponse, pdfResponse, scriptResponse } from "./shared";
 
 describe("htmlResponse", () => {
   it("returns no-store HTML responses", () => {
@@ -46,6 +46,18 @@ describe("scriptResponse", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("cross-origin-resource-policy")).toBe("same-origin");
     expect(response.headers.get("cross-origin-embedder-policy")).toBe("require-corp");
+  });
+});
+
+describe("faviconResponse", () => {
+  it("returns a cacheable same-origin SVG icon", async () => {
+    const response = faviconResponse();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/svg+xml; charset=utf-8");
+    expect(response.headers.get("cache-control")).toBe("public, max-age=86400");
+    expect(response.headers.get("cross-origin-resource-policy")).toBe("same-origin");
+    await expect(response.text()).resolves.toContain("<svg");
   });
 });
 

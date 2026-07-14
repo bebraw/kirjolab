@@ -6,6 +6,7 @@ export function renderNotFoundPage(pathname: string): string {
   <head>
     <meta charset="utf-8">
     <title>Not Found</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   </head>
   <body>
     <h1>Not Found</h1>

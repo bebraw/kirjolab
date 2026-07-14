@@ -30,7 +30,8 @@ mode for authenticated hosted collaboration.
 - **Appearance:** The shell uses one semantic `app-*` token palette with light
   and dark values. Appearance follows the operating-system color scheme by
   default; a browser-local System, Light, or Dark preference may override it
-  without entering project, collaboration, or server state.
+  without entering project, collaboration, or server state. Every HTML surface
+  identifies Kirjolab with the same lightweight, Worker-served SVG favicon.
 - **Primary surfaces:** The authoring editor remains visible beside a tabbed
   research-context pane on desktop. The pane permanently hosts manuscript
   Preview, the owner-private Library, and Writing assistant, and can host

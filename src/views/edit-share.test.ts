@@ -41,6 +41,7 @@ describe("editable project viewer", () => {
     const html = renderEditSharePage(snapshot, "/edit/locator.secret", null);
 
     expect(resolveEditShareFile(snapshot, null).id).toBe("main-file");
+    expect(html).toContain('<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
     expect(html).toContain('<script type="module" src="/edit-share.js"></script>');
     expect(html).toContain('data-edit-revision="9"');
     expect(html).toContain('data-edit-file-id="main-file"');

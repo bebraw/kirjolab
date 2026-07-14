@@ -49,6 +49,7 @@ describe("read-only project viewer", () => {
     const html = renderReadOnlySharePage(snapshot, "/share/locator.secret", null);
 
     expect(resolveReadOnlyShareView(snapshot, null)).toEqual({ kind: "pdf" });
+    expect(html).toContain('<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
     expect(html).toContain('<script type="module" src="/read-only-share.js"></script>');
     expect(html).toContain('data-share-revision="7" data-share-socket-path="/share/locator.secret/socket"');
     expect(html).toContain('id="shared-live-status">Connecting · revision 7</span>');

@@ -113,6 +113,17 @@ describe("worker", () => {
     await expect(response.text()).resolves.toContain("--color-app-canvas:#f3eee6");
   });
 
+  it("serves the SVG favicon and legacy browser fallback", async () => {
+    for (const path of ["/favicon.svg", "/favicon.ico"]) {
+      const response = await handleRequest(new Request(`http://example.com${path}`));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("image/svg+xml");
+      expect(response.headers.get("cache-control")).toBe("public, max-age=86400");
+      await expect(response.text()).resolves.toContain('fill="#0b6b51"');
+    }
+  });
+
   it("serves the generated typed client", async () => {
     const response = await handleRequest(new Request("http://example.com/app.js"));
 

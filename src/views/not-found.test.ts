@@ -7,5 +7,6 @@ describe("renderNotFoundPage", () => {
 
     expect(html).toContain("Not Found");
     expect(html).toContain("/missing");
+    expect(html).toContain('<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
   });
 });

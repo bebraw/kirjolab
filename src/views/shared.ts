@@ -73,6 +73,20 @@ export function scriptResponse(body: string): Response {
   });
 }
 
+export function faviconResponse(): Response {
+  const body = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#0b6b51"/>
+  <path d="M14 17h13a7 7 0 0 1 7 7v25a8 8 0 0 0-8-8H14zm36 0H41a7 7 0 0 0-7 7v25a8 8 0 0 1 8-8h8z" fill="none" stroke="#f8f6ef" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+</svg>`;
+  return new Response(body, {
+    headers: {
+      "content-type": "image/svg+xml; charset=utf-8",
+      "cache-control": "public, max-age=86400",
+      "cross-origin-resource-policy": "same-origin",
+    },
+  });
+}
+
 export function pdfResponse(body: Uint8Array): Response {
   const bytes = new Uint8Array(body);
   return new Response(bytes, {

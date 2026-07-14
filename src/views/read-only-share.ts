@@ -39,6 +39,7 @@ export function renderReadOnlySharePage(snapshot: WorkspaceSnapshot, sharePath: 
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <title>${escapeHtml(snapshot.title)} · Read-only · Kirjolab</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/styles.css">
     <script type="module" src="/read-only-share.js"></script>
   </head>

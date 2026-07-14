@@ -16,7 +16,7 @@ import { authenticateRequest, isSameOriginMutation, type AuthIdentity } from "./
 import { renderHomePage } from "./views/home";
 import { renderNotFoundPage } from "./views/not-found";
 import { renderReadOnlySharePage } from "./views/read-only-share";
-import { cssResponse, htmlResponse, pdfResponse, scriptResponse } from "./views/shared";
+import { cssResponse, faviconResponse, htmlResponse, pdfResponse, scriptResponse } from "./views/shared";
 
 export { BackupCoordinator, BackupRecovery, DocumentRoom, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
 
@@ -34,6 +34,10 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
 
   if (url.pathname === "/styles.css") {
     return cssResponse(await loadStylesheet());
+  }
+
+  if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") {
+    return faviconResponse();
   }
 
   if (url.pathname === "/app.js") {
