@@ -483,6 +483,41 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       );
     });
   });
+
+  it("persists bounded private page notes and freehand drawings", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`pdf-markups-${crypto.randomUUID()}`);
+    const draft = await library.createPdfDraft(
+      {
+        id: crypto.randomUUID(),
+        referenceId: null,
+        name: "notes.pdf",
+        contentType: "application/pdf",
+        size: 128,
+        objectKey: "libraries/owner/notes.pdf",
+        fingerprint: "etag:notes",
+        rights: "private",
+        createdAt: "2026-07-14T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const note = await library.createPdfNote(draft.reference.id, draft.artifact.id, 2, 0.25, 0.4, "Check this claim");
+    const drawing = await library.createPdfDrawing(draft.reference.id, draft.artifact.id, 2, "#d33f49", 4, [
+      { x: 0.1, y: 0.2 },
+      { x: 0.3, y: 0.4 },
+    ]);
+    expect((await library.getSnapshot()).pdfMarkups).toEqual(expect.arrayContaining([note, drawing]));
+    await expect(library.deletePdfMarkup(draft.reference.id, note.id)).resolves.toEqual(note);
+    expect((await library.getSnapshot()).pdfMarkups).toEqual([drawing]);
+    await runInDurableObject(library, (instance: ReferenceLibrary, state) => {
+      expect(() => instance.createPdfNote(draft.reference.id, draft.artifact.id, 1, -0.1, 0.5, "Bad")).toThrow("Invalid");
+      expect(() => instance.createPdfDrawing(draft.reference.id, draft.artifact.id, 1, "red", 4, [{ x: 0, y: 0 }])).toThrow("Invalid");
+      expect(
+        state.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
+          .toArray(),
+      ).toContainEqual({ version: 8, name: "annotate-private-pdfs" });
+    });
+  });
 });
 
 function webCapture(id: string, accessedAt: string, contentHash: string, readableName: string): WebCaptureRegistration {

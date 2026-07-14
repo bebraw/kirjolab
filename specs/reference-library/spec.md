@@ -83,6 +83,12 @@ memory and makes citation aliases compete with stable source identity.
   selection creates only an ephemeral private-highlight draft; an explicit save
   records its artifact, page, quote, and optional comment in the owner library
   without adding, sharing, or annotating the artifact in a project.
+- The private reader stays focused on the page: its idle annotation surface is
+  a compact Text, Note, and Draw toolbar. Text selection opens a contextual
+  save row; Note places a page-anchored private note; Draw captures pointer or
+  touch strokes with red as the default color and an adjustable 1–24 pixel
+  width. Notes and strokes use normalized page coordinates so they remain
+  aligned when the page is resized. Saved annotations are collapsed by default.
 - The private reader exposes a staged current-project handoff without changing
   those defaults: first add the bibliographic record, then explicitly review
   artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
@@ -103,6 +109,11 @@ memory and makes citation aliases compete with stable source identity.
   response headers.
 - Reference tag, note, highlight, reading, archive, deletion-impact, and
   confirmed deletion routes mutate only the authenticated owner's library.
+- `POST /api/library/references/{referenceId}/pdf-markups` creates an
+  owner-private note or drawing for an identified artifact. Notes are limited
+  to 8,000 characters; colors use six-digit hex; widths are 1–24; drawings
+  contain 2–2,048 normalized points. `DELETE` of a markup requires the same
+  reference ownership boundary. PDF markups are not project-share resources.
 - Web-source capture, snapshot inspection, inert content download, and neutral
   snapshot comparison routes remain within the same owner-private API.
 - Citation assertion, review, bounded network, and explicit Crossref reference

@@ -34,6 +34,7 @@ export class PdfEvidenceViewer {
   readonly #elements: PdfViewerElements;
   readonly #onSelection: (capture: PdfSelectionCapture) => void;
   readonly #onHighlight: (annotationId: string, fragmentId: string) => void;
+  readonly #onPageChange: (page: number) => void;
   #document: PDFDocumentProxy | null = null;
   #loadingTask: PDFDocumentLoadingTask | null = null;
   #runtime: PdfJsRuntime | null = null;
@@ -50,10 +51,12 @@ export class PdfEvidenceViewer {
     elements: PdfViewerElements,
     onSelection: (capture: PdfSelectionCapture) => void,
     onHighlight: (annotationId: string, fragmentId: string) => void,
+    onPageChange: (page: number) => void = () => undefined,
   ) {
     this.#elements = elements;
     this.#onSelection = onSelection;
     this.#onHighlight = onHighlight;
+    this.#onPageChange = onPageChange;
     elements.previousPage.addEventListener("click", () => void this.#move(-1));
     elements.nextPage.addEventListener("click", () => void this.#move(1));
     elements.textLayer.addEventListener("pointerup", () => this.#captureSelection());
@@ -175,6 +178,7 @@ export class PdfEvidenceViewer {
     this.#elements.nextPage.disabled = this.#pageNumber === documentModel.numPages;
     this.#elements.status.textContent =
       this.#mode === "private-highlight" ? "Private library PDF · select text to highlight" : "Select text to capture evidence";
+    this.#onPageChange(this.#pageNumber);
   }
 
   #captureSelection(): void {

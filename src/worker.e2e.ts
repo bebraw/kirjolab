@@ -701,6 +701,9 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.locator("#annotation-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-composer")).toBeVisible();
+  await expect(page.locator("#library-highlight-composer")).not.toContainText("Highlight this PDF");
+  await expect(page.locator("#library-highlight-form")).toBeHidden();
+  await expect(page.locator("#library-draw-color")).toHaveValue("#d33f49");
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   expect(failedPdfWorkerRequests).toEqual([]);
   await page.locator("#paper-text-layer").evaluate((layer) => {
@@ -717,7 +720,7 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#paper-status")).toHaveText("Private selection captured from page 1");
   await expect(page.locator("#library-highlight-quote")).not.toHaveValue("");
   await page.locator("#library-highlight-comment").fill("Private reading insight");
-  await page.getByRole("button", { name: "Save privately" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator("#toast")).toHaveText("Private highlight saved to your library.");
   await expect(page.locator("#library-highlight-count")).toHaveText("1");
   await expect(page.locator("#library-highlight-list")).toContainText("Private reading insight");
@@ -730,11 +733,13 @@ test("keeps private library research separate from project citations", async ({ 
   const refreshedPdfCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "climate adaptation" });
   await refreshedPdfCard.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.getByText("Annotations", { exact: true }).click();
   await page.getByRole("button", { name: "Open page 1" }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await expect(page.locator("#library-highlight-status")).toHaveText("Showing saved private highlight on page 1.");
 
   const projectUse = page.locator("#library-project-use");
+  await page.getByText("Project sharing", { exact: true }).click();
   await expect(projectUse).toContainText("Step 1 of 3 · Reference");
   await expect(projectUse.getByRole("button", { name: "Share PDF with project" })).toHaveCount(0);
   await projectUse.getByRole("button", { name: "Add reference to project" }).click();

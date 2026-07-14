@@ -21,6 +21,10 @@ import {
   type LibraryHighlight,
   type LibraryNote,
   type LibraryPdfArtifact,
+  type LibraryPdfDrawing,
+  type LibraryPdfMarkup,
+  type LibraryPdfNote,
+  type LibraryPdfPoint,
   type MetadataFieldProvenance,
   type PdfDraftResult,
   type ReadingState,
@@ -120,6 +124,22 @@ interface HighlightRow extends Record<string, SqlStorageValue> {
   updated_at: string;
 }
 
+interface PdfMarkupRow extends Record<string, SqlStorageValue> {
+  id: string;
+  reference_id: string;
+  artifact_id: string;
+  page: number;
+  kind: string;
+  x: number | null;
+  y: number | null;
+  body: string;
+  color: string;
+  width: number | null;
+  points_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ReadingRow extends Record<string, SqlStorageValue> {
   reference_id: string;
   status: string;
@@ -186,6 +206,7 @@ export interface ReferenceDeletionImpact {
   readonly artifactCount: number;
   readonly noteCount: number;
   readonly highlightCount: number;
+  readonly pdfMarkupCount: number;
   readonly webSnapshotCount: number;
 }
 
@@ -421,6 +442,36 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 8,
+    name: "annotate-private-pdfs",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE pdf_markups (
+          id TEXT PRIMARY KEY,
+          reference_id TEXT NOT NULL REFERENCES library_references(id),
+          artifact_id TEXT NOT NULL REFERENCES artifacts(id),
+          page INTEGER NOT NULL CHECK (page > 0),
+          kind TEXT NOT NULL CHECK (kind IN ('note', 'drawing')),
+          x REAL,
+          y REAL,
+          body TEXT NOT NULL DEFAULT '',
+          color TEXT NOT NULL DEFAULT '',
+          width REAL,
+          points_json TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          CHECK (
+            (kind = 'note' AND x BETWEEN 0 AND 1 AND y BETWEEN 0 AND 1 AND body <> '') OR
+            (kind = 'drawing' AND width BETWEEN 1 AND 24 AND color <> '' AND points_json <> '[]')
+          )
+        );
+        CREATE INDEX pdf_markups_artifact ON pdf_markups(artifact_id, page, created_at, id);
+        CREATE INDEX pdf_markups_reference ON pdf_markups(reference_id);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -470,6 +521,11 @@ export class ReferenceLibrary extends DurableObject<Env> {
         .toArray()
         .filter((row) => referenceIds.has(row.reference_id))
         .map(highlightFromRow),
+      pdfMarkups: this.ctx.storage.sql
+        .exec<PdfMarkupRow>("SELECT * FROM pdf_markups ORDER BY updated_at DESC, id LIMIT 10000")
+        .toArray()
+        .filter((row) => referenceIds.has(row.reference_id))
+        .map(pdfMarkupFromRow),
       tags: this.#tags(referenceIds),
       collections: this.#collections(referenceIds),
       reading: this.ctx.storage.sql
@@ -865,6 +921,116 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return highlight;
   }
 
+  createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, bodyValue: string): LibraryPdfNote {
+    this.#reference(referenceId);
+    const artifact = this.#artifact(artifactId);
+    const body = bodyValue.trim();
+    if (
+      artifact.referenceId !== referenceId ||
+      !Number.isInteger(page) ||
+      page < 1 ||
+      !normalizedCoordinate(x) ||
+      !normalizedCoordinate(y) ||
+      !body ||
+      body.length > 8_000
+    ) {
+      throw new Error("Invalid private PDF note");
+    }
+    const now = new Date().toISOString();
+    const note: LibraryPdfNote = {
+      id: crypto.randomUUID(),
+      referenceId,
+      artifactId,
+      page,
+      kind: "note",
+      x,
+      y,
+      body,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.ctx.storage.sql.exec(
+      `INSERT INTO pdf_markups
+       (id, reference_id, artifact_id, page, kind, x, y, body, color, width, points_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'note', ?, ?, ?, '', NULL, '[]', ?, ?)`,
+      note.id,
+      referenceId,
+      artifactId,
+      page,
+      x,
+      y,
+      body,
+      now,
+      now,
+    );
+    return note;
+  }
+
+  createPdfDrawing(
+    referenceId: string,
+    artifactId: string,
+    page: number,
+    colorValue: string,
+    width: number,
+    points: readonly LibraryPdfPoint[],
+  ): LibraryPdfDrawing {
+    this.#reference(referenceId);
+    const artifact = this.#artifact(artifactId);
+    const color = colorValue.toLocaleLowerCase();
+    if (
+      artifact.referenceId !== referenceId ||
+      !Number.isInteger(page) ||
+      page < 1 ||
+      !/^#[0-9a-f]{6}$/u.test(color) ||
+      !Number.isFinite(width) ||
+      width < 1 ||
+      width > 24 ||
+      points.length < 2 ||
+      points.length > 2_048 ||
+      !points.every((point) => normalizedCoordinate(point.x) && normalizedCoordinate(point.y))
+    ) {
+      throw new Error("Invalid private PDF drawing");
+    }
+    const now = new Date().toISOString();
+    const drawing: LibraryPdfDrawing = {
+      id: crypto.randomUUID(),
+      referenceId,
+      artifactId,
+      page,
+      kind: "drawing",
+      color,
+      width,
+      points: points.map((point) => ({ x: point.x, y: point.y })),
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.ctx.storage.sql.exec(
+      `INSERT INTO pdf_markups
+       (id, reference_id, artifact_id, page, kind, x, y, body, color, width, points_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'drawing', NULL, NULL, '', ?, ?, ?, ?, ?)`,
+      drawing.id,
+      referenceId,
+      artifactId,
+      page,
+      color,
+      width,
+      JSON.stringify(drawing.points),
+      now,
+      now,
+    );
+    return drawing;
+  }
+
+  deletePdfMarkup(referenceId: string, markupId: string): LibraryPdfMarkup {
+    this.#reference(referenceId);
+    const row = this.ctx.storage.sql
+      .exec<PdfMarkupRow>("SELECT * FROM pdf_markups WHERE id = ? AND reference_id = ?", markupId, referenceId)
+      .toArray()[0];
+    if (!row) throw new Error("Private PDF annotation not found");
+    this.ctx.storage.sql.exec("DELETE FROM pdf_markups WHERE id = ?", markupId);
+    return pdfMarkupFromRow(row);
+  }
+
   setArtifactRights(artifactId: string, rights: LibraryPdfArtifact["rights"]): LibraryPdfArtifact {
     if (rights !== "private" && rights !== "shareable" && rights !== "unknown") throw new Error("Invalid artifact rights");
     const artifact = this.#artifact(artifactId);
@@ -1144,6 +1310,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
       artifactCount: this.#count("artifacts", referenceId),
       noteCount: this.#count("notes", referenceId),
       highlightCount: this.#count("highlights", referenceId),
+      pdfMarkupCount: this.#count("pdf_markups", referenceId),
       webSnapshotCount: this.ctx.storage.sql
         .exec<{ count: number }>("SELECT COUNT(*) AS count FROM web_snapshots WHERE reference_id = ?", referenceId)
         .one().count,
@@ -1158,6 +1325,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const previous = this.#reference(referenceId);
     const deletedAt = new Date().toISOString();
     this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("DELETE FROM pdf_markups WHERE reference_id = ?", referenceId);
       this.ctx.storage.sql.exec("DELETE FROM highlights WHERE reference_id = ?", referenceId);
       this.ctx.storage.sql.exec("DELETE FROM notes WHERE reference_id = ?", referenceId);
       this.ctx.storage.sql.exec("DELETE FROM reference_tags WHERE reference_id = ?", referenceId);
@@ -1363,7 +1531,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return collections;
   }
 
-  #count(table: "artifacts" | "notes" | "highlights", referenceId: string): number {
+  #count(table: "artifacts" | "notes" | "highlights" | "pdf_markups", referenceId: string): number {
     return this.ctx.storage.sql.exec<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table} WHERE reference_id = ?`, referenceId).one()
       .count;
   }
@@ -1495,6 +1663,54 @@ function highlightFromRow(row: HighlightRow): LibraryHighlight {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function pdfMarkupFromRow(row: PdfMarkupRow): LibraryPdfMarkup {
+  if (row.kind === "note" && row.x !== null && row.y !== null) {
+    return {
+      id: row.id,
+      referenceId: row.reference_id,
+      artifactId: row.artifact_id,
+      page: row.page,
+      kind: "note",
+      x: row.x,
+      y: row.y,
+      body: row.body,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+  const points = parsePdfPoints(row.points_json);
+  if (row.kind !== "drawing" || row.width === null || !points) {
+    throw new Error("Stored private PDF annotation is invalid");
+  }
+  return {
+    id: row.id,
+    referenceId: row.reference_id,
+    artifactId: row.artifact_id,
+    page: row.page,
+    kind: "drawing",
+    color: row.color,
+    width: row.width,
+    points,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function parsePdfPoints(value: string): LibraryPdfPoint[] | null {
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed) || parsed.length < 2 || parsed.length > 2_048) return null;
+  const points: LibraryPdfPoint[] = [];
+  for (const point of parsed) {
+    if (!isUnknownRecord(point) || !normalizedCoordinate(point.x) || !normalizedCoordinate(point.y)) return null;
+    points.push({ x: point.x, y: point.y });
+  }
+  return points;
+}
+
+function normalizedCoordinate(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
 
 function readingFromRow(row: ReadingRow): ReadingState {

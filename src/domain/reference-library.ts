@@ -200,6 +200,36 @@ export interface LibraryHighlight {
   readonly updatedAt: string;
 }
 
+export interface LibraryPdfPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+interface LibraryPdfMarkupBase {
+  readonly id: string;
+  readonly referenceId: string;
+  readonly artifactId: string;
+  readonly page: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface LibraryPdfNote extends LibraryPdfMarkupBase {
+  readonly kind: "note";
+  readonly x: number;
+  readonly y: number;
+  readonly body: string;
+}
+
+export interface LibraryPdfDrawing extends LibraryPdfMarkupBase {
+  readonly kind: "drawing";
+  readonly color: string;
+  readonly width: number;
+  readonly points: readonly LibraryPdfPoint[];
+}
+
+export type LibraryPdfMarkup = LibraryPdfNote | LibraryPdfDrawing;
+
 export interface ReadingState {
   readonly referenceId: string;
   readonly status: "unread" | "reading" | "read";
@@ -218,6 +248,7 @@ export interface ReferenceLibrarySnapshot {
   readonly webSnapshots: readonly WebSnapshot[];
   readonly notes: readonly LibraryNote[];
   readonly highlights: readonly LibraryHighlight[];
+  readonly pdfMarkups?: readonly LibraryPdfMarkup[];
   readonly tags: Readonly<Record<string, readonly string[]>>;
   readonly collections: Readonly<Record<string, readonly string[]>>;
   readonly reading: readonly ReadingState[];
@@ -470,6 +501,7 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
     value.webSnapshots.every(isWebSnapshot) &&
     Array.isArray(value.notes) &&
     Array.isArray(value.highlights) &&
+    (value.pdfMarkups === undefined || (Array.isArray(value.pdfMarkups) && value.pdfMarkups.every(isLibraryPdfMarkup))) &&
     isStringArrayRecord(value.tags) &&
     isStringArrayRecord(value.collections) &&
     Array.isArray(value.reading) &&
@@ -484,6 +516,42 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
         typeof item.updatedAt === "string",
     )
   );
+}
+
+export function isLibraryPdfMarkup(value: unknown): value is LibraryPdfMarkup {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.referenceId !== "string" ||
+    typeof value.artifactId !== "string" ||
+    typeof value.page !== "number" ||
+    !Number.isInteger(value.page) ||
+    value.page < 1 ||
+    typeof value.createdAt !== "string" ||
+    typeof value.updatedAt !== "string"
+  ) {
+    return false;
+  }
+  if (value.kind === "note") {
+    return normalizedCoordinate(value.x) && normalizedCoordinate(value.y) && typeof value.body === "string" && value.body.length <= 8_000;
+  }
+  return (
+    value.kind === "drawing" &&
+    typeof value.color === "string" &&
+    /^#[0-9a-f]{6}$/iu.test(value.color) &&
+    typeof value.width === "number" &&
+    Number.isFinite(value.width) &&
+    value.width >= 1 &&
+    value.width <= 24 &&
+    Array.isArray(value.points) &&
+    value.points.length >= 2 &&
+    value.points.length <= 2_048 &&
+    value.points.every((point) => isRecord(point) && normalizedCoordinate(point.x) && normalizedCoordinate(point.y))
+  );
+}
+
+function normalizedCoordinate(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
 
 export function isPdfDraftResult(value: unknown): value is PdfDraftResult {

@@ -30,6 +30,10 @@ import {
   type BibliographicRecord,
   type CrossrefMetadataField,
   type LibraryHighlight,
+  type LibraryPdfDrawing,
+  type LibraryPdfMarkup,
+  type LibraryPdfNote,
+  type LibraryPdfPoint,
   type LibraryPdfArtifact,
   type MetadataRefinementCandidate,
   type MetadataRefinementPreview,
@@ -302,11 +306,23 @@ interface Elements {
   libraryHighlightPage: HTMLInputElement;
   libraryHighlightQuote: HTMLTextAreaElement;
   libraryHighlightComment: HTMLInputElement;
+  libraryHighlightExcerpt: HTMLElement;
   saveLibraryHighlight: HTMLButtonElement;
   cancelLibraryHighlight: HTMLButtonElement;
   libraryProjectUse: HTMLElement;
   libraryHighlightCount: HTMLElement;
   libraryHighlightList: HTMLElement;
+  libraryNoteForm: HTMLFormElement;
+  libraryNoteBody: HTMLTextAreaElement;
+  cancelLibraryNote: HTMLButtonElement;
+  libraryTextTool: HTMLButtonElement;
+  libraryNoteTool: HTMLButtonElement;
+  libraryDrawTool: HTMLButtonElement;
+  libraryInkOptions: HTMLElement;
+  libraryDrawColor: HTMLInputElement;
+  libraryDrawWidth: HTMLInputElement;
+  libraryDrawWidthValue: HTMLOutputElement;
+  undoLibraryDrawing: HTMLButtonElement;
   annotationPdf: HTMLSelectElement;
   annotationPage: HTMLInputElement;
   annotationQuote: HTMLTextAreaElement;
@@ -325,6 +341,7 @@ interface Elements {
   paperPage: HTMLElement;
   paperTextLayer: HTMLElement;
   paperHighlights: HTMLElement;
+  paperMarkups: HTMLElement;
   paperPageIndicator: HTMLElement;
   paperReader: HTMLElement;
   previousPaperPage: HTMLButtonElement;
@@ -411,6 +428,11 @@ class WorkspaceApp {
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   readonly #expandedLibraryReferences = new Set<string>();
   #libraryPdfUploadBusy = false;
+  #libraryPdfTool: "text" | "note" | "draw" = "text";
+  #pendingPdfNote: { page: number; x: number; y: number } | null = null;
+  #pdfDrawingDraft: LibraryPdfPoint[] | null = null;
+  #pdfDrawingPointer: number | null = null;
+  #openPdfNoteId: string | null = null;
   #failedLibraryPdfUploads: readonly File[] = [];
   #showArchivedReferences = false;
   #citationNetwork: CitationNetwork | null = null;
@@ -434,6 +456,7 @@ class WorkspaceApp {
       },
       (capture) => this.#capturePdfSelection(capture),
       (annotationId, fragmentId) => void this.#activateHighlightFragment(annotationId, fragmentId),
+      () => this.#renderPdfMarkups(),
     );
   }
 
@@ -606,6 +629,19 @@ class WorkspaceApp {
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
     this.#elements.libraryHighlightForm.addEventListener("submit", (event) => void this.#saveLibraryHighlight(event));
     this.#elements.cancelLibraryHighlight.addEventListener("click", () => this.#clearLibraryHighlightDraft());
+    this.#elements.libraryTextTool.addEventListener("click", () => this.#setLibraryPdfTool("text"));
+    this.#elements.libraryNoteTool.addEventListener("click", () => this.#setLibraryPdfTool("note"));
+    this.#elements.libraryDrawTool.addEventListener("click", () => this.#setLibraryPdfTool("draw"));
+    this.#elements.libraryDrawWidth.addEventListener("input", () => {
+      this.#elements.libraryDrawWidthValue.value = this.#elements.libraryDrawWidth.value;
+    });
+    this.#elements.libraryNoteForm.addEventListener("submit", (event) => void this.#saveLibraryPdfNote(event));
+    this.#elements.cancelLibraryNote.addEventListener("click", () => this.#clearLibraryPdfNoteDraft());
+    this.#elements.undoLibraryDrawing.addEventListener("click", () => void this.#undoLibraryDrawing());
+    this.#elements.paperMarkups.addEventListener("pointerdown", (event) => this.#startLibraryPdfMarkup(event));
+    this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfDrawing(event));
+    this.#elements.paperMarkups.addEventListener("pointerup", (event) => void this.#finishLibraryPdfDrawing(event));
+    this.#elements.paperMarkups.addEventListener("pointercancel", () => this.#cancelLibraryPdfDrawing());
     this.#elements.highlightPaintTool.addEventListener("click", () => this.#setHighlightTool("paint"));
     this.#elements.highlightEraserTool.addEventListener("click", () => this.#setHighlightTool("erase"));
     this.#elements.undoHighlight.addEventListener("click", () => void this.#undoLastHighlightStroke());
@@ -4684,9 +4720,11 @@ class WorkspaceApp {
       this.#elements.libraryHighlightComposer.dataset.artifactId = artifact.id;
       this.#elements.libraryHighlightPage.value = String(capture.page);
       this.#elements.libraryHighlightQuote.value = capture.quote;
+      this.#elements.libraryHighlightExcerpt.textContent = `“${capture.quote}”`;
+      this.#elements.libraryHighlightForm.hidden = false;
       this.#elements.saveLibraryHighlight.disabled = false;
       this.#elements.cancelLibraryHighlight.disabled = false;
-      this.#elements.libraryHighlightStatus.textContent = `Selection ready from page ${capture.page}. Add an optional comment, then save it privately.`;
+      this.#elements.libraryHighlightStatus.textContent = `Page ${capture.page} selection ready.`;
       return;
     }
     if (activeTab?.kind !== "pdf") return;
@@ -4709,16 +4747,20 @@ class WorkspaceApp {
       this.#elements.libraryHighlightPage.value = "1";
       this.#elements.libraryHighlightQuote.value = "";
       this.#elements.libraryHighlightComment.value = "";
+      this.#elements.libraryHighlightExcerpt.textContent = "";
+      this.#elements.libraryHighlightForm.hidden = true;
       this.#elements.saveLibraryHighlight.disabled = true;
       this.#elements.cancelLibraryHighlight.disabled = true;
-      this.#elements.libraryHighlightStatus.textContent = "Select text in the PDF. Nothing is saved until you confirm.";
+      this.#elements.libraryHighlightStatus.textContent = "Select text to highlight.";
     }
     this.#renderLibraryProjectUse(artifact);
     const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
-    this.#elements.libraryHighlightCount.textContent = String(highlights.length);
+    const markups = (this.#librarySnapshot.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id);
+    this.#elements.libraryHighlightCount.textContent = String(highlights.length + markups.length);
     this.#elements.libraryHighlightList.replaceChildren();
-    if (highlights.length === 0) {
-      this.#elements.libraryHighlightList.append(emptyState("Saved private highlights for this PDF appear here."));
+    if (highlights.length === 0 && markups.length === 0) {
+      this.#elements.libraryHighlightList.append(emptyState("No private annotations yet."));
+      this.#renderPdfMarkups();
       return;
     }
     for (const highlight of highlights) {
@@ -4749,6 +4791,23 @@ class WorkspaceApp {
       card.append(actions);
       this.#elements.libraryHighlightList.append(card);
     }
+    for (const markup of markups) {
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      card.append(
+        resourceLabel(`Page ${markup.page} · ${markup.kind}`),
+        resourceTitle(markup.kind === "note" ? markup.body : "Freehand drawing"),
+      );
+      const actions = document.createElement("div");
+      actions.className = "mt-3 flex flex-wrap gap-2";
+      actions.append(
+        actionButton(`Open page ${markup.page}`, "button-secondary", () => void this.#openLibraryPdf(artifact, markup.page)),
+        actionButton("Delete", "button-secondary", () => void this.#deleteLibraryPdfMarkup(markup)),
+      );
+      card.append(actions);
+      this.#elements.libraryHighlightList.append(card);
+    }
+    this.#renderPdfMarkups();
   }
 
   #renderLibraryProjectUse(artifact: LibraryPdfArtifact): void {
@@ -4851,10 +4910,208 @@ class WorkspaceApp {
     this.#elements.libraryHighlightPage.value = String(this.#pdfViewer.currentPage);
     this.#elements.libraryHighlightQuote.value = "";
     this.#elements.libraryHighlightComment.value = "";
+    this.#elements.libraryHighlightExcerpt.textContent = "";
+    this.#elements.libraryHighlightForm.hidden = true;
     this.#elements.saveLibraryHighlight.disabled = true;
     this.#elements.cancelLibraryHighlight.disabled = true;
     this.#elements.libraryHighlightStatus.textContent = message;
     this.#pdfViewer.clearDraftSelection();
+  }
+
+  #setLibraryPdfTool(tool: "text" | "note" | "draw"): void {
+    this.#libraryPdfTool = tool;
+    this.#elements.paperMarkups.dataset.tool = tool;
+    this.#elements.paperTextLayer.style.pointerEvents = tool === "text" ? "auto" : "none";
+    for (const [button, value] of [
+      [this.#elements.libraryTextTool, "text"],
+      [this.#elements.libraryNoteTool, "note"],
+      [this.#elements.libraryDrawTool, "draw"],
+    ] as const)
+      button.setAttribute("aria-pressed", String(tool === value));
+    this.#elements.libraryInkOptions.hidden = tool !== "draw";
+    this.#elements.libraryHighlightStatus.textContent =
+      tool === "text"
+        ? "Select text to highlight."
+        : tool === "note"
+          ? "Tap the page to place a note."
+          : "Draw on the page with touch, pen, or mouse.";
+    if (tool !== "note") this.#clearLibraryPdfNoteDraft(false);
+  }
+
+  #startLibraryPdfMarkup(event: PointerEvent): void {
+    const note = (event.target as Element).closest<HTMLButtonElement>(".pdf-note-pin");
+    if (note) {
+      this.#openPdfNoteId = this.#openPdfNoteId === note.dataset.markupId ? null : (note.dataset.markupId ?? null);
+      this.#renderPdfMarkups();
+      return;
+    }
+    const point = this.#normalizedPdfPoint(event);
+    if (!point) return;
+    if (this.#libraryPdfTool === "note") {
+      this.#pendingPdfNote = { page: this.#pdfViewer.currentPage, ...point };
+      this.#elements.libraryNoteForm.hidden = false;
+      this.#elements.libraryNoteBody.focus();
+      return;
+    }
+    if (this.#libraryPdfTool !== "draw") return;
+    event.preventDefault();
+    this.#pdfDrawingPointer = event.pointerId;
+    this.#pdfDrawingDraft = [point];
+    this.#elements.paperMarkups.setPointerCapture(event.pointerId);
+    this.#renderPdfMarkups();
+  }
+
+  #continueLibraryPdfDrawing(event: PointerEvent): void {
+    if (this.#pdfDrawingPointer !== event.pointerId || !this.#pdfDrawingDraft) return;
+    const point = this.#normalizedPdfPoint(event);
+    const previous = this.#pdfDrawingDraft.at(-1);
+    if (!point || (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 0.002)) return;
+    this.#pdfDrawingDraft.push(point);
+    this.#renderPdfMarkups();
+  }
+
+  async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {
+    if (this.#pdfDrawingPointer !== event.pointerId || !this.#pdfDrawingDraft) return;
+    const points = this.#pdfDrawingDraft;
+    this.#cancelLibraryPdfDrawing();
+    const artifact = this.#activeLibraryPdf();
+    if (!artifact?.referenceId || points.length < 2) return this.#renderPdfMarkups();
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups`, {
+      kind: "drawing",
+      artifactId: artifact.id,
+      page: this.#pdfViewer.currentPage,
+      color: this.#elements.libraryDrawColor.value,
+      width: Number(this.#elements.libraryDrawWidth.value),
+      points,
+    });
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Drawing saved privately.");
+  }
+
+  #cancelLibraryPdfDrawing(): void {
+    this.#pdfDrawingPointer = null;
+    this.#pdfDrawingDraft = null;
+  }
+
+  async #saveLibraryPdfNote(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const artifact = this.#activeLibraryPdf();
+    const anchor = this.#pendingPdfNote;
+    const body = this.#elements.libraryNoteBody.value.trim();
+    if (!artifact?.referenceId || !anchor || !body) return;
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups`, {
+      kind: "note",
+      artifactId: artifact.id,
+      ...anchor,
+      body,
+    });
+    await expectOk(response);
+    this.#clearLibraryPdfNoteDraft();
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Note attached privately.");
+  }
+
+  #clearLibraryPdfNoteDraft(render = true): void {
+    this.#pendingPdfNote = null;
+    this.#elements.libraryNoteBody.value = "";
+    this.#elements.libraryNoteForm.hidden = true;
+    if (render) this.#renderPdfMarkups();
+  }
+
+  #activeLibraryPdf(): LibraryPdfArtifact | undefined {
+    const tab = this.#activeResourceTab();
+    return tab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
+  }
+
+  #normalizedPdfPoint(event: PointerEvent): LibraryPdfPoint | null {
+    const rect = this.#elements.paperMarkups.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    return {
+      x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+    };
+  }
+
+  #renderPdfMarkups(): void {
+    const artifact = this.#activeLibraryPdf();
+    const page = this.#pdfViewer.currentPage;
+    const markups = artifact
+      ? (this.#librarySnapshot?.pdfMarkups ?? []).filter((item) => item.artifactId === artifact.id && item.page === page)
+      : [];
+    this.#elements.paperMarkups.replaceChildren();
+    const drawings = markups.filter((item): item is LibraryPdfDrawing => item.kind === "drawing");
+    if (this.#pdfDrawingDraft)
+      drawings.push({
+        id: "draft",
+        kind: "drawing",
+        referenceId: artifact?.referenceId ?? "",
+        artifactId: artifact?.id ?? "",
+        page,
+        color: this.#elements.libraryDrawColor.value,
+        width: Number(this.#elements.libraryDrawWidth.value),
+        points: this.#pdfDrawingDraft,
+        createdAt: "",
+        updatedAt: "",
+      });
+    if (drawings.length) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.classList.add("pdf-ink-layer");
+      svg.setAttribute("viewBox", "0 0 1000 1000");
+      svg.setAttribute("preserveAspectRatio", "none");
+      for (const drawing of drawings) {
+        const line = document.createElementNS(svg.namespaceURI, "polyline");
+        line.setAttribute("points", drawing.points.map((point) => `${point.x * 1000},${point.y * 1000}`).join(" "));
+        line.setAttribute("fill", "none");
+        line.setAttribute("stroke", drawing.color);
+        line.setAttribute("stroke-width", String(drawing.width));
+        line.setAttribute("stroke-linecap", "round");
+        line.setAttribute("stroke-linejoin", "round");
+        line.setAttribute("vector-effect", "non-scaling-stroke");
+        svg.append(line);
+      }
+      this.#elements.paperMarkups.append(svg);
+    }
+    for (const note of markups.filter((item): item is LibraryPdfNote => item.kind === "note")) {
+      const pin = document.createElement("button");
+      pin.className = "pdf-note-pin";
+      pin.type = "button";
+      pin.dataset.markupId = note.id;
+      pin.style.left = `${note.x * 100}%`;
+      pin.style.top = `${note.y * 100}%`;
+      pin.setAttribute("aria-label", `Open note on page ${note.page}`);
+      this.#elements.paperMarkups.append(pin);
+      if (this.#openPdfNoteId === note.id) {
+        const card = document.createElement("aside");
+        card.className = "pdf-note-card";
+        card.style.left = `${Math.min(note.x * 100, 70)}%`;
+        card.style.top = `${Math.min(note.y * 100, 82)}%`;
+        card.textContent = note.body;
+        this.#elements.paperMarkups.append(card);
+      }
+    }
+    this.#elements.undoLibraryDrawing.disabled = !markups.some((item) => item.kind === "drawing");
+  }
+
+  async #undoLibraryDrawing(): Promise<void> {
+    const artifact = this.#activeLibraryPdf();
+    const drawing = (this.#librarySnapshot?.pdfMarkups ?? [])
+      .filter(
+        (item): item is LibraryPdfDrawing =>
+          item.kind === "drawing" && item.artifactId === artifact?.id && item.page === this.#pdfViewer.currentPage,
+      )
+      .at(-1);
+    if (drawing) await this.#deleteLibraryPdfMarkup(drawing);
+  }
+
+  async #deleteLibraryPdfMarkup(markup: LibraryPdfMarkup): Promise<void> {
+    const response = await fetch(
+      `/api/library/references/${encodeURIComponent(markup.referenceId)}/pdf-markups/${encodeURIComponent(markup.id)}`,
+      { method: "DELETE", credentials: "same-origin" },
+    );
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Private annotation deleted.");
   }
 
   async #openLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
@@ -5432,11 +5689,23 @@ function collectElements(): Elements {
     libraryHighlightPage: requiredElement("library-highlight-page", HTMLInputElement),
     libraryHighlightQuote: requiredElement("library-highlight-quote", HTMLTextAreaElement),
     libraryHighlightComment: requiredElement("library-highlight-comment", HTMLInputElement),
+    libraryHighlightExcerpt: requiredElement("library-highlight-excerpt", HTMLElement),
     saveLibraryHighlight: requiredElement("save-library-highlight", HTMLButtonElement),
     cancelLibraryHighlight: requiredElement("cancel-library-highlight", HTMLButtonElement),
     libraryProjectUse: requiredElement("library-project-use", HTMLElement),
     libraryHighlightCount: requiredElement("library-highlight-count", HTMLElement),
     libraryHighlightList: requiredElement("library-highlight-list", HTMLElement),
+    libraryNoteForm: requiredElement("library-note-form", HTMLFormElement),
+    libraryNoteBody: requiredElement("library-note-body", HTMLTextAreaElement),
+    cancelLibraryNote: requiredElement("cancel-library-note", HTMLButtonElement),
+    libraryTextTool: requiredElement("library-text-tool", HTMLButtonElement),
+    libraryNoteTool: requiredElement("library-note-tool", HTMLButtonElement),
+    libraryDrawTool: requiredElement("library-draw-tool", HTMLButtonElement),
+    libraryInkOptions: requiredElement("library-ink-options", HTMLElement),
+    libraryDrawColor: requiredElement("library-draw-color", HTMLInputElement),
+    libraryDrawWidth: requiredElement("library-draw-width", HTMLInputElement),
+    libraryDrawWidthValue: requiredElement("library-draw-width-value", HTMLOutputElement),
+    undoLibraryDrawing: requiredElement("undo-library-drawing", HTMLButtonElement),
     annotationPdf: requiredElement("annotation-pdf", HTMLSelectElement),
     annotationPage: requiredElement("annotation-page", HTMLInputElement),
     annotationQuote: requiredElement("annotation-quote", HTMLTextAreaElement),
@@ -5455,6 +5724,7 @@ function collectElements(): Elements {
     paperPage: requiredElement("paper-page", HTMLElement),
     paperTextLayer: requiredElement("paper-text-layer", HTMLElement),
     paperHighlights: requiredElement("paper-highlights", HTMLElement),
+    paperMarkups: requiredElement("paper-markups", HTMLElement),
     paperPageIndicator: requiredElement("paper-page-indicator", HTMLElement),
     paperReader: requiredElement("paper-reader", HTMLElement),
     previousPaperPage: requiredElement("previous-paper-page", HTMLButtonElement),

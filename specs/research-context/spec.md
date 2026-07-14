@@ -50,6 +50,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   intake, citation, highlighting, and annotation controls are unavailable in
   that mode. A selection remains ephemeral until the owner explicitly saves a
   page, quote, and optional comment to the private library.
+- Private library PDF tools occupy one compact row until a selection or note
+  needs input. Page-anchored note pins open lightweight cards in place, while
+  freehand strokes accept mouse, pen, and touch input. Both persist in the
+  owner library using normalized page coordinates and rerender on page change.
 - A private PDF context may expose the existing project-reference and private-
   research sharing commands as a staged project-use section. Reference linkage,
   rights review, PDF sharing, highlight sharing, and revocation remain distinct

@@ -380,6 +380,7 @@ export function renderHomePage(
                 <canvas class="block" id="paper-canvas"></canvas>
                 <div class="pdf-highlights" id="paper-highlights"></div>
                 <div class="textLayer" id="paper-text-layer"></div>
+                <div class="pdf-markups" id="paper-markups" data-tool="text" aria-label="Private PDF annotations"></div>
               </div>
             </div>
             <aside class="annotation-composer" id="annotation-composer" aria-labelledby="annotation-composer-title">
@@ -451,42 +452,43 @@ export function renderHomePage(
                 </div>
               </form>
             </aside>
-            <aside class="annotation-composer" id="library-highlight-composer" aria-labelledby="library-highlight-title" hidden>
-              <div>
-                <p class="eyebrow">Private research</p>
-                <h2 class="mt-1 text-lg font-semibold tracking-[-0.035em]" id="library-highlight-title">Highlight this PDF</h2>
-                <p class="mt-2 text-xs leading-5 text-app-text-soft" id="library-highlight-status" role="status" aria-live="polite">Select text in the PDF. Nothing is saved until you confirm.</p>
+            <aside class="annotation-composer library-pdf-tools" id="library-highlight-composer" aria-label="Private PDF tools" hidden>
+              <div class="library-pdf-toolbar" role="toolbar" aria-label="PDF annotation tool">
+                <div class="library-pdf-tool-group">
+                  <button class="button-secondary" id="library-text-tool" type="button" aria-pressed="true" title="Select text and save a quotation">Text</button>
+                  <button class="button-secondary" id="library-note-tool" type="button" aria-pressed="false" title="Tap the page to attach a private note">Note</button>
+                  <button class="button-secondary" id="library-draw-tool" type="button" aria-pressed="false" title="Draw directly on the page with a mouse, pen, or touch">Draw</button>
+                </div>
+                <div class="library-ink-options" id="library-ink-options" hidden>
+                  <label title="Ink color"><span class="sr-only">Ink color</span><input id="library-draw-color" type="color" value="#d33f49"></label>
+                  <label class="library-width-control" title="Ink width"><span class="sr-only">Ink width</span><input id="library-draw-width" type="range" min="1" max="24" value="4"><output id="library-draw-width-value">4</output></label>
+                  <button class="button-secondary" id="undo-library-drawing" type="button" disabled title="Remove the latest drawing on this page">Undo</button>
+                </div>
+                <p class="library-pdf-status" id="library-highlight-status" role="status" aria-live="polite">Select text to highlight.</p>
               </div>
-              <form class="mt-3 grid gap-3 sm:grid-cols-2" id="library-highlight-form">
-                <label class="field-label">Page
-                  <input class="field" id="library-highlight-page" type="number" min="1" value="1" required readonly>
-                </label>
-                <label class="field-label">Private comment
-                  <input class="field" id="library-highlight-comment" type="text" maxlength="8000" placeholder="Why this matters">
-                </label>
-                <label class="field-label sm:col-span-2">Exact quotation
-                  <textarea class="field min-h-20" id="library-highlight-quote" maxlength="20000" required readonly placeholder="Select a passage in the PDF"></textarea>
-                </label>
-                <div class="grid gap-2 sm:col-span-2 sm:grid-cols-2">
-                  <button class="button-primary justify-center" id="save-library-highlight" type="submit" disabled>Save privately</button>
-                  <button class="button-secondary justify-center" id="cancel-library-highlight" type="button" disabled>Cancel selection</button>
-                </div>
+              <form class="library-context-composer" id="library-highlight-form" hidden>
+                <input id="library-highlight-page" type="hidden" value="1">
+                <textarea id="library-highlight-quote" hidden maxlength="20000" required></textarea>
+                <blockquote class="library-selection-excerpt" id="library-highlight-excerpt"></blockquote>
+                <input class="field" id="library-highlight-comment" type="text" maxlength="8000" aria-label="Private comment" placeholder="Add a note (optional)">
+                <button class="button-primary" id="save-library-highlight" type="submit" disabled>Save</button>
+                <button class="button-secondary" id="cancel-library-highlight" type="button" disabled>Cancel</button>
               </form>
-              <section class="mt-4 border-t border-app-line pt-4" aria-labelledby="library-project-use-title">
-                <h3 class="eyebrow" id="library-project-use-title">Use in current project</h3>
-                <div class="mt-2" id="library-project-use">
-                  <p class="empty-state">Project-use options appear for the active private PDF.</p>
+              <form class="library-context-composer" id="library-note-form" hidden>
+                <textarea class="field" id="library-note-body" maxlength="8000" required aria-label="Private PDF note" placeholder="Write a private note…"></textarea>
+                <button class="button-primary" type="submit">Save note</button>
+                <button class="button-secondary" id="cancel-library-note" type="button">Cancel</button>
+              </form>
+              <details class="library-annotation-details">
+                <summary><span>Annotations</span><span class="count-badge" id="library-highlight-count">0</span></summary>
+                <div class="library-annotation-details-body">
+                  <div class="space-y-2" id="library-highlight-list"><p class="empty-state">No private annotations yet.</p></div>
+                  <details class="library-project-details">
+                    <summary>Project sharing</summary>
+                    <div class="mt-2" id="library-project-use"><p class="empty-state">Project-use options appear for the active private PDF.</p></div>
+                  </details>
                 </div>
-              </section>
-              <section class="mt-4 border-t border-app-line pt-4" aria-labelledby="library-highlight-list-title">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="eyebrow" id="library-highlight-list-title">Saved highlights</h3>
-                  <span class="count-badge" id="library-highlight-count">0</span>
-                </div>
-                <div class="mt-2 space-y-2" id="library-highlight-list">
-                  <p class="empty-state">Saved private highlights for this PDF appear here.</p>
-                </div>
-              </section>
+              </details>
             </aside>
           </div>
         </section>

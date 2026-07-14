@@ -1086,6 +1086,120 @@
     padding: 1rem;
   }
 
+  .context-pdf-panel[data-library-pdf="true"] .context-pdf-body {
+    grid-template-rows: minmax(19rem, 1fr) auto;
+  }
+
+  .library-pdf-tools {
+    max-height: min(21rem, 42vh);
+    padding: 0;
+  }
+
+  .library-pdf-toolbar,
+  .library-pdf-tool-group,
+  .library-ink-options,
+  .library-context-composer {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .library-pdf-toolbar {
+    min-height: 3.45rem;
+    flex-wrap: wrap;
+    padding: 0.55rem 0.75rem;
+  }
+
+  .library-pdf-tool-group button[aria-pressed="true"] {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+  }
+
+  .library-ink-options {
+    padding-left: 0.4rem;
+    border-left: 1px solid var(--color-app-line);
+  }
+
+  .library-ink-options input[type="color"] {
+    width: 2rem;
+    height: 2rem;
+    padding: 0.15rem;
+    border: 1px solid var(--color-app-line);
+    background: transparent;
+  }
+
+  .library-width-control {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font: 0.7rem var(--font-sans);
+    color: var(--color-app-text-soft);
+  }
+
+  .library-width-control input {
+    width: clamp(4rem, 8vw, 7rem);
+  }
+
+  .library-pdf-status {
+    min-width: 9rem;
+    flex: 1;
+    margin-left: auto;
+    color: var(--color-app-text-soft);
+    font: 0.72rem/1.4 var(--font-sans);
+    text-align: right;
+  }
+
+  .library-context-composer {
+    border-top: 1px solid var(--color-app-line);
+    padding: 0.65rem 0.75rem;
+  }
+
+  .library-context-composer[hidden] {
+    display: none;
+  }
+  .library-context-composer .field {
+    min-width: 10rem;
+    flex: 1;
+  }
+  .library-context-composer textarea.field {
+    min-height: 2.8rem;
+    max-height: 7rem;
+    resize: vertical;
+  }
+
+  .library-selection-excerpt {
+    max-width: min(27rem, 40vw);
+    overflow: hidden;
+    color: var(--color-app-text-soft);
+    font: italic 0.75rem/1.4 var(--font-serif);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .library-annotation-details {
+    border-top: 1px solid var(--color-app-line);
+  }
+  .library-annotation-details > summary,
+  .library-project-details > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.75rem;
+    cursor: pointer;
+    font: 600 0.72rem var(--font-sans);
+  }
+  .library-annotation-details-body {
+    padding: 0 0.75rem 0.75rem;
+  }
+  .library-project-details {
+    margin-top: 0.65rem;
+    border-top: 1px solid var(--color-app-line);
+  }
+  .library-project-details > summary {
+    padding-inline: 0;
+  }
+
   .highlight-tools {
     display: flex;
     flex-wrap: wrap;
@@ -1850,9 +1964,78 @@
   }
 
   .pdf-highlights,
+  .pdf-markups,
   .textLayer {
     position: absolute;
     inset: 0;
+  }
+
+  .pdf-markups {
+    z-index: 4;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .pdf-markups[data-tool="note"],
+  .pdf-markups[data-tool="draw"] {
+    pointer-events: auto;
+  }
+  .pdf-markups[data-tool="note"] {
+    cursor: crosshair;
+  }
+  .pdf-markups[data-tool="draw"] {
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .pdf-ink-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .pdf-note-pin {
+    position: absolute;
+    width: 1.45rem;
+    height: 1.45rem;
+    translate: -50% -50%;
+    border: 1px solid rgb(137 93 0 / 0.7);
+    border-radius: 0 0.25rem 0.25rem 0.25rem;
+    background: #ffd646;
+    box-shadow: 0 0.2rem 0.7rem rgb(0 0 0 / 0.2);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  .pdf-note-card {
+    position: absolute;
+    z-index: 2;
+    width: min(18rem, 72%);
+    translate: 0 0.8rem;
+    border: 1px solid rgb(137 93 0 / 0.45);
+    border-radius: 0.2rem;
+    background: #fff8d6;
+    padding: 0.7rem;
+    box-shadow: 0 0.8rem 2rem rgb(0 0 0 / 0.22);
+    color: #241f14;
+    font: 0.78rem/1.5 var(--font-sans);
+    pointer-events: auto;
+    white-space: pre-wrap;
+  }
+
+  @media (max-width: 640px) {
+    .library-pdf-status {
+      width: 100%;
+      text-align: left;
+    }
+    .library-context-composer {
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+    .library-selection-excerpt {
+      max-width: 100%;
+      flex-basis: 100%;
+    }
   }
 
   .pdf-highlights {

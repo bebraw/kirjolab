@@ -11,6 +11,10 @@ import {
   type LibraryHighlight,
   type LibraryNote,
   type LibraryPdfArtifact,
+  type LibraryPdfDrawing,
+  type LibraryPdfMarkup,
+  type LibraryPdfNote,
+  type LibraryPdfPoint,
   type PdfDraftResult,
   type ReadingState,
   type ReferenceLibrarySnapshot,
@@ -96,6 +100,16 @@ interface ReferenceLibraryApi {
   setCollections(referenceId: string, collections: readonly string[]): Promise<readonly string[]>;
   createNote(referenceId: string, body: string): Promise<LibraryNote>;
   createHighlight(referenceId: string, artifactId: string, page: number, quote: string, comment: string): Promise<LibraryHighlight>;
+  createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, body: string): Promise<LibraryPdfNote>;
+  createPdfDrawing(
+    referenceId: string,
+    artifactId: string,
+    page: number,
+    color: string,
+    width: number,
+    points: readonly LibraryPdfPoint[],
+  ): Promise<LibraryPdfDrawing>;
+  deletePdfMarkup(referenceId: string, markupId: string): Promise<LibraryPdfMarkup>;
   setReadingState(
     referenceId: string,
     status: ReadingState["status"],
@@ -239,8 +253,12 @@ export async function handleReferenceLibraryApi(
         ? await previewMetadataRefinement(request, refinementMatch[1], env, library, fetchExternal)
         : await acceptMetadataRefinement(request, refinementMatch[1], identity, env, library, fetchExternal);
     }
+    const pdfMarkupMatch = /^\/references\/([0-9a-f-]{36})\/pdf-markups\/([0-9a-f-]{36})$/iu.exec(suffix);
+    if (pdfMarkupMatch?.[1] && pdfMarkupMatch[2] && request.method === "DELETE") {
+      return Response.json(await library.deletePdfMarkup(pdfMarkupMatch[1], pdfMarkupMatch[2]), noStore());
+    }
     const referenceMatch =
-      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|reading|deletion-impact|web-snapshots|citation-expansions|pdf-metadata))?$/iu.exec(
+      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|pdf-metadata))?$/iu.exec(
         suffix,
       );
     if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
@@ -321,6 +339,31 @@ export async function handleReferenceLibraryApi(
         status: 201,
         ...noStore(),
       });
+    }
+    if (action === "pdf-markups" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isRecord(body) || typeof body.artifactId !== "string" || typeof body.page !== "number") {
+        return jsonError("Invalid private PDF annotation", 400);
+      }
+      if (body.kind === "note" && typeof body.x === "number" && typeof body.y === "number" && typeof body.body === "string") {
+        return Response.json(await library.createPdfNote(referenceId, body.artifactId, body.page, body.x, body.y, body.body), {
+          status: 201,
+          ...noStore(),
+        });
+      }
+      if (
+        body.kind === "drawing" &&
+        typeof body.color === "string" &&
+        typeof body.width === "number" &&
+        Array.isArray(body.points) &&
+        body.points.every((point) => isRecord(point) && typeof point.x === "number" && typeof point.y === "number")
+      ) {
+        return Response.json(await library.createPdfDrawing(referenceId, body.artifactId, body.page, body.color, body.width, body.points), {
+          status: 201,
+          ...noStore(),
+        });
+      }
+      return jsonError("Invalid private PDF annotation", 400);
     }
     if (action === "reading" && request.method === "PUT") {
       const body: unknown = await request.json();
