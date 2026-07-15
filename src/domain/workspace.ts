@@ -239,7 +239,7 @@ export interface ModelCandidateTarget {
   readonly resolution: ManuscriptAnchorResolution;
 }
 
-export interface ModelCandidate {
+export interface ModelRevisionCandidate {
   readonly id: string;
   readonly operation: "revise-selection";
   readonly promptVersion: "revise-selection-v1";
@@ -254,6 +254,24 @@ export interface ModelCandidate {
   readonly status: CandidateStatus;
   readonly createdAt: string;
 }
+
+export interface ModelClaimCandidate {
+  readonly id: string;
+  readonly operation: "draft-claim";
+  readonly promptVersion: "draft-claim-v1";
+  readonly providerAdapter: "openai-compatible";
+  readonly providerLabel: string;
+  readonly model: string;
+  readonly instruction: string;
+  readonly relation: ClaimEvidenceRelation;
+  readonly evidence: readonly ModelAnnotationEvidence[];
+  readonly proposedText: string;
+  readonly proposedNote: string;
+  readonly status: CandidateStatus;
+  readonly createdAt: string;
+}
+
+export type ModelCandidate = ModelRevisionCandidate | ModelClaimCandidate;
 
 export interface WorkspaceSnapshot {
   id: string;
@@ -415,6 +433,18 @@ export interface CreateCandidateInput {
   target: ManuscriptPassageInput;
   evidence: ModelEvidenceReference[];
   proposedReplacement: string;
+}
+
+export interface CreateClaimCandidateInput {
+  providerAdapter: "openai-compatible";
+  providerLabel: string;
+  model: string;
+  promptVersion: "draft-claim-v1";
+  instruction: string;
+  relation: ClaimEvidenceRelation;
+  evidence: Array<Extract<ModelEvidenceReference, { kind: "annotation" }>>;
+  proposedText: string;
+  proposedNote: string;
 }
 
 export function isCreateAnnotationInput(value: unknown): value is CreateAnnotationInput {
@@ -606,7 +636,43 @@ export function isCreateCandidateInput(value: unknown): value is CreateCandidate
   );
 }
 
+export function isCreateClaimCandidateInput(value: unknown): value is CreateClaimCandidateInput {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      "providerAdapter",
+      "providerLabel",
+      "model",
+      "promptVersion",
+      "instruction",
+      "relation",
+      "evidence",
+      "proposedText",
+      "proposedNote",
+    ])
+  ) {
+    return false;
+  }
+  return (
+    value.providerAdapter === "openai-compatible" &&
+    isStringWithin(value.providerLabel, 256, true) &&
+    isStringWithin(value.model, 256, true) &&
+    value.promptVersion === "draft-claim-v1" &&
+    isStringWithin(value.instruction, 4_000, true) &&
+    isClaimEvidenceRelation(value.relation) &&
+    isModelAnnotationEvidenceReferences(value.evidence) &&
+    isStringWithin(value.proposedText, 2_000, true) &&
+    isStringWithin(value.proposedNote, 8_000)
+  );
+}
+
 export function isModelCandidate(value: unknown): value is ModelCandidate {
+  if (!isRecord(value)) return false;
+  if (value.operation === "draft-claim") return isModelClaimCandidate(value);
+  return isModelRevisionCandidate(value);
+}
+
+function isModelRevisionCandidate(value: unknown): value is ModelRevisionCandidate {
   if (
     !isRecord(value) ||
     !hasExactKeys(value, [
@@ -641,6 +707,40 @@ export function isModelCandidate(value: unknown): value is ModelCandidate {
     return false;
   }
   return true;
+}
+
+function isModelClaimCandidate(value: unknown): value is ModelClaimCandidate {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, [
+      "id",
+      "operation",
+      "promptVersion",
+      "providerAdapter",
+      "providerLabel",
+      "model",
+      "instruction",
+      "relation",
+      "evidence",
+      "proposedText",
+      "proposedNote",
+      "status",
+      "createdAt",
+    ]) &&
+    isStringWithin(value.id, 128, true) &&
+    value.operation === "draft-claim" &&
+    value.promptVersion === "draft-claim-v1" &&
+    value.providerAdapter === "openai-compatible" &&
+    isStringWithin(value.providerLabel, 256, true) &&
+    isStringWithin(value.model, 256, true) &&
+    isStringWithin(value.instruction, 4_000, true) &&
+    isClaimEvidenceRelation(value.relation) &&
+    isModelAnnotationEvidenceSnapshots(value.evidence) &&
+    isStringWithin(value.proposedText, 2_000, true) &&
+    isStringWithin(value.proposedNote, 8_000) &&
+    isCandidateStatus(value.status) &&
+    isStringWithin(value.createdAt, 128, true)
+  );
 }
 
 export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot {
@@ -763,6 +863,16 @@ function isModelEvidenceReferences(value: unknown): value is ModelEvidenceRefere
   return hasUniqueModelEvidence(value, isModelEvidenceReference);
 }
 
+function isModelAnnotationEvidenceReferences(value: unknown): value is Array<Extract<ModelEvidenceReference, { kind: "annotation" }>> {
+  return (
+    Array.isArray(value) && value.length > 0 && value.length <= 12 && hasUniqueModelEvidence(value, isModelAnnotationEvidenceReference)
+  );
+}
+
+function isModelAnnotationEvidenceReference(value: unknown): value is Extract<ModelEvidenceReference, { kind: "annotation" }> {
+  return isModelEvidenceReference(value) && value.kind === "annotation";
+}
+
 function isModelEvidenceReference(value: unknown): value is ModelEvidenceReference {
   return (
     isRecord(value) &&
@@ -791,6 +901,10 @@ function isModelCandidateTarget(value: unknown, sourceRevision: number): value i
 function isModelEvidenceSnapshots(value: unknown): value is ModelEvidence[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > 12) return false;
   return hasUniqueModelEvidence(value, isModelEvidenceSnapshot);
+}
+
+function isModelAnnotationEvidenceSnapshots(value: unknown): value is ModelAnnotationEvidence[] {
+  return Array.isArray(value) && value.length > 0 && value.length <= 12 && hasUniqueModelEvidence(value, isModelAnnotationEvidence);
 }
 
 function hasUniqueModelEvidence<T extends ModelEvidenceReference | ModelEvidence>(

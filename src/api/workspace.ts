@@ -3,6 +3,7 @@ import {
   isCreateAnnotationInput,
   isCreateAnnotationLinkInput,
   isCreateCandidateInput,
+  isCreateClaimCandidateInput,
   isCreateClaimPassageLinkInput,
   isCreateManuscriptCommentInput,
   isCreatePassageLinkInput,
@@ -195,6 +196,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     }
     if (suffix.startsWith("/comments/") && request.method === "POST") return await resolveManuscriptComment(suffix, room);
     if (suffix === "/candidates" && request.method === "POST") return await createCandidate(request, room);
+    if (suffix === "/claim-candidates" && request.method === "POST") return await createClaimCandidate(request, room);
     if (suffix.startsWith("/candidates/") && request.method === "POST") return await updateCandidate(workspaceId, suffix, room);
     if (suffix === "/history" && request.method === "GET") return Response.json(await room.listRevisions());
     if (suffix === "/history/compare" && request.method === "GET") {
@@ -891,6 +893,17 @@ async function createCandidate(
   const result = await room.createCandidate(body);
   if (result.ok) return Response.json(result.value, { status: 201 });
   return jsonError(result.error, result.code === "source-stale" || result.code === "evidence-stale" ? 409 : 400);
+}
+
+async function createClaimCandidate(
+  request: Request,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isCreateClaimCandidateInput(body)) return jsonError("Invalid model claim candidate", 400);
+  const result = await room.createClaimCandidate(body);
+  if (result.ok) return Response.json(result.value, { status: 201 });
+  return jsonError(result.error, result.code === "evidence-stale" ? 409 : 400);
 }
 
 async function updateCandidate(

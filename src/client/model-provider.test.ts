@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   OpenAICompatibleBrowserProvider,
+  type DraftClaimRequest,
   type OpenAICompatibleBrowserProviderOptions,
   type ReviseSelectionRequest,
 } from "./model-provider";
@@ -14,6 +15,12 @@ const operation = {
   ],
 } as const satisfies ReviseSelectionRequest;
 
+const claimOperation = {
+  instruction: "State the supported proposition.",
+  relation: "supports",
+  evidence: [{ kind: "annotation", id: "annotation-1", label: "Page 4", content: "Quoted source evidence." }],
+} as const satisfies DraftClaimRequest;
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -21,6 +28,56 @@ afterEach(() => {
 });
 
 describe("OpenAICompatibleBrowserProvider", () => {
+  it("drafts one structured claim from annotation-only evidence", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse('{"text":"A grounded proposition.","note":"Working note"}'));
+    const draft = await createProvider({ fetcher }).draftClaim(claimOperation);
+
+    expect(draft).toEqual({
+      text: "A grounded proposition.",
+      note: "Working note",
+      adapter: "openai-compatible",
+      providerLabel: "Local test model",
+      model: "test-model",
+    });
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as { messages: Array<{ content: string }> };
+    expect(body.messages[0]?.content).toContain("exactly two string fields");
+    expect(JSON.parse(body.messages[1]?.content ?? "")).toEqual({
+      instruction: claimOperation.instruction,
+      evidenceRelation: "supports",
+      orderedAnnotations: [{ order: 1, id: "annotation-1", label: "Page 4", content: "Quoted source evidence." }],
+    });
+  });
+
+  it("rejects invalid claim requests and malformed structured drafts", async () => {
+    const idle = vi.fn<typeof fetch>();
+    const provider = createProvider({ fetcher: idle });
+    await expect(Reflect.apply(provider.draftClaim, provider, [{ ...claimOperation, relation: "related" }])).rejects.toThrow(
+      "relation is invalid",
+    );
+    await expect(
+      createProvider({ fetcher: idle }).draftClaim({ ...claimOperation, evidence: [evidence("claim", "claim-1")] }),
+    ).rejects.toThrow("require annotation evidence");
+    expect(idle).not.toHaveBeenCalled();
+
+    for (const content of [
+      "not json",
+      '{"text":"","note":""}',
+      '{"text":"Claim","note":1}',
+      '{"text":"Claim","note":"","extra":true}',
+      JSON.stringify({ text: "x".repeat(2_001), note: "" }),
+      JSON.stringify({ text: "Claim", note: "x".repeat(8_001) }),
+    ]) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).draftClaim(claimOperation),
+      ).rejects.toThrow();
+    }
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse('```json\n{"text":" Claim ","note":" Note "}\n```')),
+      }).draftClaim(claimOperation),
+    ).resolves.toMatchObject({ text: "Claim", note: "Note" });
+  });
+
   it("sends a bounded replacement-only operation without a complete document", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse("A more precise inline replacement."));
     const provider = createProvider({ fetcher });

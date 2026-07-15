@@ -51,6 +51,7 @@ import {
   defaultTransclusionPath,
   defaultTransclusionSource,
   isCreateCandidateInput,
+  isCreateClaimCandidateInput,
   isModelCandidate,
   isProjectPublicationProfile,
   defaultProjectPublicationProfile,
@@ -69,11 +70,13 @@ import {
   type UpdateAnnotationInput,
   type UpdateAnnotationFragmentInput,
   type CreateCandidateInput,
+  type CreateClaimCandidateInput,
   type CreateClaimPassageLinkInput,
   type CreateManuscriptCommentInput,
   type CreatePassageLinkInput,
   type CreatePublicationPdfLinkInput,
   type ModelCandidate,
+  type ModelClaimCandidate,
   type ModelEvidence,
   type ModelEvidenceReference,
   type PassageLink,
@@ -214,6 +217,22 @@ interface CandidateRow extends Record<string, SqlStorageValue> {
   project_file_id: string;
   evidence_json: string;
   proposed_replacement: string;
+  status: string;
+  created_at: string;
+}
+
+interface ClaimCandidateRow extends Record<string, SqlStorageValue> {
+  id: string;
+  operation: string;
+  prompt_version: string;
+  provider_adapter: string;
+  provider_label: string;
+  model: string;
+  instruction: string;
+  relation: string;
+  evidence_json: string;
+  proposed_text: string;
+  proposed_note: string;
   status: string;
   created_at: string;
 }
@@ -1981,8 +2000,52 @@ export class DocumentRoom extends DurableObject<Env> {
     return { ok: true, value: this.#candidate(id) };
   }
 
+  createClaimCandidate(input: CreateClaimCandidateInput): CandidateCreationResult {
+    if (!isCreateClaimCandidateInput(input)) return { ok: false, code: "invalid-input", error: "Model claim candidate input is invalid" };
+    let evidence: ModelClaimCandidate["evidence"];
+    try {
+      const captured = this.#captureModelEvidence(input.evidence);
+      if (!captured.every((item) => item.kind === "annotation")) throw new Error("Model claim evidence is invalid");
+      evidence = captured;
+    } catch (error) {
+      if (error instanceof Error && error.message === "Model evidence annotation not found") {
+        return { ok: false, code: "evidence-not-found", error: error.message };
+      }
+      if (error instanceof Error && error.message === "Model evidence is stale; generate a new revision") {
+        return { ok: false, code: "evidence-stale", error: error.message };
+      }
+      if (error instanceof Error && error.message === "Model evidence exceeds the operation limit") {
+        return { ok: false, code: "evidence-too-large", error: error.message };
+      }
+      throw error;
+    }
+
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    this.ctx.storage.sql.exec(
+      `INSERT INTO claim_candidates
+       (id, operation, prompt_version, provider_adapter, provider_label, model, instruction, relation,
+        evidence_json, proposed_text, proposed_note, status, created_at)
+       VALUES (?, 'draft-claim', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      id,
+      input.promptVersion,
+      input.providerAdapter,
+      input.providerLabel,
+      input.model,
+      input.instruction,
+      input.relation,
+      JSON.stringify(evidence),
+      input.proposedText,
+      input.proposedNote,
+      createdAt,
+    );
+    this.#broadcastResources();
+    return { ok: true, value: this.#candidate(id) };
+  }
+
   applyCandidate(workspaceId: string, candidateId: string): ApplyCandidateResult {
     const candidate = this.#candidate(candidateId);
+    if (candidate.operation === "draft-claim") return this.#applyClaimCandidate(workspaceId, candidate);
     const workspace = this.#workspaceRow();
     if (candidate.status !== "pending") return { ok: false, error: "Candidate is no longer pending" };
     if (candidate.sourceRevision !== workspace.revision) return { ok: false, error: "Candidate is stale; generate a new revision" };
@@ -2026,9 +2089,47 @@ export class DocumentRoom extends DurableObject<Env> {
   rejectCandidate(candidateId: string): ModelCandidate {
     const candidate = this.#candidate(candidateId);
     if (candidate.status !== "pending") throw new Error("Candidate is no longer pending");
-    this.ctx.storage.sql.exec("UPDATE candidates SET status = 'rejected' WHERE id = ?", candidateId);
+    const table = candidate.operation === "draft-claim" ? "claim_candidates" : "candidates";
+    this.ctx.storage.sql.exec(`UPDATE ${table} SET status = 'rejected' WHERE id = ?`, candidateId);
     this.#broadcastResources();
     return { ...candidate, status: "rejected" };
+  }
+
+  #applyClaimCandidate(workspaceId: string, candidate: ModelClaimCandidate): ApplyCandidateResult {
+    if (candidate.status !== "pending") return { ok: false, error: "Candidate is no longer pending" };
+    for (const evidence of candidate.evidence) {
+      const row = this.ctx.storage.sql.exec<AnnotationRow>("SELECT * FROM annotations WHERE id = ?", evidence.id).toArray()[0];
+      if (!row) return { ok: false, error: "Candidate evidence is unavailable; generate a new claim draft" };
+      if (annotationFromRow(row).updatedAt !== evidence.version) {
+        return { ok: false, error: "Candidate evidence is stale; generate a new claim draft" };
+      }
+    }
+
+    const now = new Date().toISOString();
+    const claim: ClaimResource = {
+      id: crypto.randomUUID(),
+      text: candidate.proposedText.trim(),
+      note: candidate.proposedNote.trim(),
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.#persistResourceRevision("model-claim-apply", () => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO claims (id, text, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        claim.id,
+        claim.text,
+        claim.note,
+        claim.createdAt,
+        claim.updatedAt,
+      );
+      this.#insertClaimEvidence(
+        claim.id,
+        candidate.evidence.map((evidence) => ({ annotationId: evidence.id, relation: candidate.relation })),
+        now,
+      );
+      this.ctx.storage.sql.exec("UPDATE claim_candidates SET status = 'accepted' WHERE id = ?", candidate.id);
+    });
+    return { ok: true, snapshot: this.getSnapshot(workspaceId) };
   }
 
   #schemaMigrations(): readonly SQLiteMigration[] {
@@ -2507,6 +2608,30 @@ export class DocumentRoom extends DurableObject<Env> {
           const now = new Date().toISOString();
           sql.exec("UPDATE workspace SET y_state = ?, source = ? WHERE id = 1", state, nextSource);
           sql.exec("UPDATE project_files SET content = ?, updated_at = ? WHERE y_text_name = 'source'", nextSource, now);
+          return undefined;
+        },
+      },
+      {
+        version: 20,
+        name: "persist-model-claim-candidates",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS claim_candidates (
+              id TEXT PRIMARY KEY,
+              operation TEXT NOT NULL CHECK (operation = 'draft-claim'),
+              prompt_version TEXT NOT NULL CHECK (prompt_version = 'draft-claim-v1'),
+              provider_adapter TEXT NOT NULL CHECK (provider_adapter = 'openai-compatible'),
+              provider_label TEXT NOT NULL,
+              model TEXT NOT NULL,
+              instruction TEXT NOT NULL,
+              relation TEXT NOT NULL CHECK (relation IN ('supports', 'contradicts', 'extends')),
+              evidence_json TEXT NOT NULL,
+              proposed_text TEXT NOT NULL,
+              proposed_note TEXT NOT NULL,
+              status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')),
+              created_at TEXT NOT NULL
+            );
+          `);
           return undefined;
         },
       },
@@ -3129,17 +3254,24 @@ export class DocumentRoom extends DurableObject<Env> {
   }
 
   #candidates(): ModelCandidate[] {
-    return this.ctx.storage.sql
+    const revisions = this.ctx.storage.sql
       .exec<CandidateRow>("SELECT * FROM candidates ORDER BY created_at DESC LIMIT 20")
       .toArray()
       .map((row) => candidateFromRow(this.#document, row));
+    const claims = this.ctx.storage.sql
+      .exec<ClaimCandidateRow>("SELECT * FROM claim_candidates ORDER BY created_at DESC LIMIT 20")
+      .toArray()
+      .map(claimCandidateFromRow);
+    return [...revisions, ...claims].sort((left, right) => right.createdAt.localeCompare(left.createdAt)).slice(0, 20);
   }
 
   #candidate(candidateId: string): ModelCandidate {
     const rows = this.ctx.storage.sql.exec<CandidateRow>("SELECT * FROM candidates WHERE id = ?", candidateId).toArray();
     const row = rows[0];
-    if (!row) throw new Error("Candidate not found");
-    return candidateFromRow(this.#document, row);
+    if (row) return candidateFromRow(this.#document, row);
+    const claimRow = this.ctx.storage.sql.exec<ClaimCandidateRow>("SELECT * FROM claim_candidates WHERE id = ?", candidateId).toArray()[0];
+    if (claimRow) return claimCandidateFromRow(claimRow);
+    throw new Error("Candidate not found");
   }
 
   #broadcast(message: string | ArrayBuffer | ArrayBufferView, except?: WebSocket): void {
@@ -3529,6 +3661,26 @@ function candidateFromRow(document: Y.Doc, row: CandidateRow): ModelCandidate {
     createdAt: row.created_at,
   };
   if (!isModelCandidate(candidate)) throw new Error("Stored model candidate is invalid");
+  return candidate;
+}
+
+function claimCandidateFromRow(row: ClaimCandidateRow): ModelClaimCandidate {
+  const candidate: unknown = {
+    id: row.id,
+    operation: row.operation,
+    promptVersion: row.prompt_version,
+    providerAdapter: row.provider_adapter,
+    providerLabel: row.provider_label,
+    model: row.model,
+    instruction: row.instruction,
+    relation: row.relation,
+    evidence: parseJson(row.evidence_json),
+    proposedText: row.proposed_text,
+    proposedNote: row.proposed_note,
+    status: row.status === "accepted" || row.status === "rejected" ? row.status : "pending",
+    createdAt: row.created_at,
+  };
+  if (!isModelCandidate(candidate) || candidate.operation !== "draft-claim") throw new Error("Stored model claim candidate is invalid");
   return candidate;
 }
 

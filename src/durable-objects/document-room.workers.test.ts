@@ -2,7 +2,13 @@ import { env } from "cloudflare:workers";
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { legacyDefaultSource, type CreateCandidateInput, type PublicationEnrichment, type WorkspaceSnapshot } from "../domain/workspace";
+import {
+  legacyDefaultSource,
+  type CreateCandidateInput,
+  type CreateClaimCandidateInput,
+  type PublicationEnrichment,
+  type WorkspaceSnapshot,
+} from "../domain/workspace";
 import { DocumentRoom, sendWebSocketMessage, type DocumentRoomOperationResult } from "./document-room";
 
 interface WorkspaceStateRow extends Record<string, SqlStorageValue> {
@@ -1071,6 +1077,8 @@ describe("DocumentRoom in the Workers runtime", () => {
         },
       },
     });
+    expect(candidate.operation).toBe("revise-selection");
+    if (candidate.operation !== "revise-selection") throw new Error("Expected revision candidate");
     expect(candidate.target.anchor.relativeStart).not.toBeNull();
     expect(candidate.target.anchor.relativeEnd).not.toBeNull();
     const { fragments: _fragments, updatedAt: annotationVersion, ...annotationEvidence } = fixture.annotation;
@@ -1086,6 +1094,60 @@ describe("DocumentRoom in the Workers runtime", () => {
 
     await evictDurableObject(stub);
     expect((await stub.getSnapshot(workspaceId)).candidates).toEqual([candidate]);
+  });
+
+  it("creates, applies, rejects, and stale-checks reviewed claim drafts", async () => {
+    const workspaceId = "reviewed-claim-drafts";
+    const stub = roomStub(workspaceId);
+    const pdf = pdfResource("claim-draft-evidence.pdf");
+    await stub.registerPdf(pdf);
+    const annotation = await stub.createAnnotation({
+      pdfId: pdf.id,
+      page: 2,
+      quote: "Repeated inspection improves the defensibility of a scholarly claim.",
+      prefix: "Evidence shows ",
+      suffix: " in practice.",
+      comment: "Use this as supporting evidence",
+      rects: [],
+    });
+    const input: CreateClaimCandidateInput = {
+      providerAdapter: "openai-compatible",
+      providerLabel: "Workers test provider",
+      model: "workers-test-model",
+      promptVersion: "draft-claim-v1",
+      instruction: "Draft one defensible proposition.",
+      relation: "supports",
+      evidence: [{ kind: "annotation", id: annotation.id, version: annotation.updatedAt }],
+      proposedText: "Repeated inspection improves claim defensibility.",
+      proposedNote: "Review before manuscript use.",
+    };
+
+    const acceptedCandidate = operationValue(await stub.createClaimCandidate(input));
+    expect(acceptedCandidate).toMatchObject({ ...input, operation: "draft-claim", status: "pending" });
+    expect((await stub.getSnapshot(workspaceId)).claims).toEqual([]);
+    const accepted = await stub.applyCandidate(workspaceId, acceptedCandidate.id);
+    expect(accepted.ok).toBe(true);
+    if (!accepted.ok) throw new Error(accepted.error);
+    expect(accepted.snapshot.claims).toContainEqual(expect.objectContaining({ text: input.proposedText, note: input.proposedNote }));
+    const createdClaim = accepted.snapshot.claims.find((claim) => claim.text === input.proposedText);
+    expect(accepted.snapshot.claimEvidenceLinks).toContainEqual(
+      expect.objectContaining({ claimId: createdClaim?.id, annotationId: annotation.id, relation: "supports" }),
+    );
+    expect(accepted.snapshot.candidates.find((candidate) => candidate.id === acceptedCandidate.id)?.status).toBe("accepted");
+
+    const rejectedCandidate = operationValue(await stub.createClaimCandidate({ ...input, proposedText: "Rejected proposition." }));
+    await stub.rejectCandidate(rejectedCandidate.id);
+    expect((await stub.getSnapshot(workspaceId)).claims).toHaveLength(1);
+
+    const staleCandidate = operationValue(await stub.createClaimCandidate({ ...input, proposedText: "Stale proposition." }));
+    await stub.updateAnnotation(annotation.id, { comment: "Evidence changed after drafting" });
+    await expect(stub.applyCandidate(workspaceId, staleCandidate.id)).resolves.toEqual({
+      ok: false,
+      error: "Candidate evidence is stale; generate a new claim draft",
+    });
+    expect((await stub.getSnapshot(workspaceId)).candidates.find((candidate) => candidate.id === staleCandidate.id)?.status).toBe(
+      "pending",
+    );
   });
 
   it("persists no candidate for stale evidence, target text, or revision", async () => {

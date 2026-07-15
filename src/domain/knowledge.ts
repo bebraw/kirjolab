@@ -132,7 +132,9 @@ export function searchWorkspaceKnowledge(
     ...snapshot.candidates.map((candidate) => ({
       resourceId: modelCandidateId(candidate.id),
       kind: "model-candidate" as const,
-      title: excerpt(candidate.proposedReplacement, 80) || "Model revision candidate",
+      title:
+        excerpt(candidate.operation === "draft-claim" ? candidate.proposedText : candidate.proposedReplacement, 80) ||
+        (candidate.operation === "draft-claim" ? "Model claim candidate" : "Model revision candidate"),
       excerpt: excerpt([candidate.operation, candidate.instruction, candidate.model, candidate.status].join(" · ")),
     })),
     ...members.map((member) => ({
@@ -257,7 +259,9 @@ export function buildWorkspaceKnowledgeGraph(
     nodes.push({
       id: resourceId,
       kind: "model-candidate",
-      label: excerpt(candidate.proposedReplacement, 80) || "Model revision candidate",
+      label:
+        excerpt(candidate.operation === "draft-claim" ? candidate.proposedText : candidate.proposedReplacement, 80) ||
+        (candidate.operation === "draft-claim" ? "Model claim candidate" : "Model revision candidate"),
     });
     for (const evidence of candidate.evidence) {
       edges.push({
@@ -268,13 +272,15 @@ export function buildWorkspaceKnowledgeGraph(
         label: evidence.kind,
       });
     }
-    edges.push({
-      id: `used-in:${candidate.id}`,
-      relation: "used-in",
-      from: resourceId,
-      to: documentResourceId,
-      label: excerpt(candidate.target.anchor.exact, 100),
-    });
+    if (candidate.operation === "revise-selection") {
+      edges.push({
+        id: `used-in:${candidate.id}`,
+        relation: "used-in",
+        from: resourceId,
+        to: documentResourceId,
+        label: excerpt(candidate.target.anchor.exact, 100),
+      });
+    }
   }
 
   const publicationsByKey = new Map(snapshot.publications.map((publication) => [publication.citationKey.toLowerCase(), publication]));

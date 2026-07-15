@@ -798,13 +798,17 @@ class WorkspaceApp {
         ...comment,
         resolution: resolveManuscriptAnchor(this.#document, comment.anchor),
       })),
-      candidates: snapshot.candidates.map((candidate) => ({
-        ...candidate,
-        target: {
-          ...candidate.target,
-          resolution: resolveManuscriptAnchor(this.#document, candidate.target.anchor),
-        },
-      })),
+      candidates: snapshot.candidates.map((candidate) =>
+        candidate.operation === "draft-claim"
+          ? candidate
+          : {
+              ...candidate,
+              target: {
+                ...candidate.target,
+                resolution: resolveManuscriptAnchor(this.#document, candidate.target.anchor),
+              },
+            },
+      ),
     };
   }
 
@@ -3645,11 +3649,11 @@ class WorkspaceApp {
       top.append(resourceLabel(`${candidate.model} · ${candidate.status}`));
       const stamp = document.createElement("span");
       stamp.className = "font-sans text-[0.65rem] text-app-text-soft";
-      stamp.textContent = `r${candidate.sourceRevision}`;
+      stamp.textContent = candidate.operation === "draft-claim" ? candidate.relation : `r${candidate.sourceRevision}`;
       top.append(stamp);
       const excerpt = document.createElement("p");
       excerpt.className = "mt-2 line-clamp-2 font-mono text-xs leading-5 text-app-text-soft";
-      excerpt.textContent = candidate.target.anchor.exact;
+      excerpt.textContent = candidate.operation === "draft-claim" ? candidate.proposedText : candidate.target.anchor.exact;
       const open = actionButton("Open review", "button-secondary mt-3 w-full justify-center", () => this.#openCandidateContext(candidate));
       card.append(top, excerpt, open);
       this.#elements.candidateList.append(card);
@@ -4289,24 +4293,35 @@ class WorkspaceApp {
     const candidate = this.#snapshot.candidates.find((item) => item.id === tab.id);
     if (!candidate) return;
 
-    this.#elements.contextCandidateTitle.textContent = "Revise selected passage";
+    const draftsClaim = candidate.operation === "draft-claim";
+    this.#elements.contextCandidateTitle.textContent = draftsClaim ? "Draft evidence-backed claim" : "Revise selected passage";
     this.#elements.contextCandidateMeta.textContent = [
       candidate.model,
       candidate.providerLabel,
       candidate.promptVersion,
-      `source r${candidate.sourceRevision}`,
+      draftsClaim ? candidate.relation : `source r${candidate.sourceRevision}`,
     ].join(" · ");
-    this.#elements.contextCandidateBefore.textContent = candidate.target.anchor.exact;
-    this.#elements.contextCandidateAfter.textContent = candidate.proposedReplacement;
+    this.#elements.contextCandidateBefore.textContent = draftsClaim ? candidate.instruction : candidate.target.anchor.exact;
+    this.#elements.contextCandidateAfter.textContent = draftsClaim
+      ? [candidate.proposedText, candidate.proposedNote].filter(Boolean).join("\n\n")
+      : candidate.proposedReplacement;
     const applicable = this.#candidateApplicable(candidate);
     this.#elements.contextCandidateStatus.textContent =
       candidate.status === "pending"
         ? applicable
-          ? "Pending review. Applying changes only this exact selected passage."
-          : "Pending but stale. Reject it or generate a new revision from current prose and evidence."
+          ? draftsClaim
+            ? "Pending review. Applying creates a claim linked to these annotation snapshots."
+            : "Pending review. Applying changes only this exact selected passage."
+          : draftsClaim
+            ? "Pending but stale. Reject it or draft again from current annotations."
+            : "Pending but stale. Reject it or generate a new revision from current prose and evidence."
         : candidate.status === "accepted"
-          ? "Accepted. The replacement was applied to canonical Markdown."
-          : "Rejected. Canonical Markdown was not changed by this candidate.";
+          ? draftsClaim
+            ? "Accepted. The proposal became an evidence-backed claim."
+            : "Accepted. The replacement was applied to canonical Markdown."
+          : draftsClaim
+            ? "Rejected. No claim was created."
+            : "Rejected. Canonical Markdown was not changed by this candidate.";
 
     this.#elements.contextCandidateEvidence.replaceChildren();
     for (const evidence of candidate.evidence) this.#elements.contextCandidateEvidence.append(this.#renderCandidateEvidence(evidence));
@@ -4317,10 +4332,13 @@ class WorkspaceApp {
     this.#elements.contextCandidateApply.dataset.candidateId = candidate.id;
     this.#elements.contextCandidateApply.dataset.candidateAction = "apply";
     this.#elements.contextCandidateApply.dataset.candidateApplicable = String(applicable);
-    this.#elements.contextCandidateApply.textContent = currentDecision?.action === "apply" ? "Applying…" : "Apply replacement";
-    this.#elements.contextCandidateApply.disabled = decisionBusy || !pending || !applicable || !this.#hasStableDocumentBase();
+    this.#elements.contextCandidateApply.textContent =
+      currentDecision?.action === "apply" ? "Applying…" : draftsClaim ? "Create claim" : "Apply replacement";
+    this.#elements.contextCandidateApply.disabled =
+      decisionBusy || !pending || !applicable || (!draftsClaim && !this.#hasStableDocumentBase());
     this.#elements.contextCandidateReject.dataset.candidateId = candidate.id;
-    this.#elements.contextCandidateReject.textContent = currentDecision?.action === "reject" ? "Rejecting…" : "Reject revision";
+    this.#elements.contextCandidateReject.textContent =
+      currentDecision?.action === "reject" ? "Rejecting…" : draftsClaim ? "Reject claim draft" : "Reject revision";
     this.#elements.contextCandidateReject.disabled = decisionBusy || !pending;
   }
 
@@ -4348,6 +4366,14 @@ class WorkspaceApp {
   }
 
   #candidateApplicable(candidate: ModelCandidate): boolean {
+    if (candidate.operation === "draft-claim") {
+      return (
+        candidate.status === "pending" &&
+        candidate.evidence.every((evidence) =>
+          this.#snapshot?.annotations.some((annotation) => annotation.id === evidence.id && annotation.updatedAt === evidence.version),
+        )
+      );
+    }
     return (
       candidate.status === "pending" &&
       candidate.sourceRevision === this.#revision &&

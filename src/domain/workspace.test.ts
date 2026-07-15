@@ -4,6 +4,7 @@ import {
   isCreateAnnotationInput,
   isCreateAnnotationLinkInput,
   isCreateCandidateInput,
+  isCreateClaimCandidateInput,
   isCreateClaimPassageLinkInput,
   isCreateManuscriptCommentInput,
   isCreatePassageLinkInput,
@@ -610,6 +611,46 @@ describe("workspace input guards", () => {
     expect(isModelCandidate({ ...valid, sourceIds: ["legacy"] })).toBe(false);
     expect(isModelCandidate({ ...valid, proposedSource: "legacy" })).toBe(false);
     expect(isModelCandidate(null)).toBe(false);
+  });
+
+  it("validates annotation-only claim draft inputs and candidates", () => {
+    const input = {
+      providerAdapter: "openai-compatible",
+      providerLabel: "Local model",
+      model: "test-model",
+      promptVersion: "draft-claim-v1",
+      instruction: "Synthesize one defensible proposition.",
+      relation: "supports",
+      evidence: [evidenceReference("annotation", "annotation-1")],
+      proposedText: "Inspectable evidence supports the proposition.",
+      proposedNote: "Working synthesis",
+    } as const;
+    expect(isCreateClaimCandidateInput(input)).toBe(true);
+    expect(isCreateClaimCandidateInput({ ...input, evidence: [evidenceReference("claim", "claim-1")] })).toBe(false);
+    expect(isCreateClaimCandidateInput({ ...input, relation: "related" })).toBe(false);
+    expect(isCreateClaimCandidateInput({ ...input, proposedText: "" })).toBe(false);
+    expect(isCreateClaimCandidateInput({ ...input, proposedNote: "x".repeat(8_001) })).toBe(false);
+    expect(isCreateClaimCandidateInput({ ...input, extra: true })).toBe(false);
+
+    const candidate = {
+      id: "candidate-claim-1",
+      operation: "draft-claim",
+      promptVersion: "draft-claim-v1",
+      providerAdapter: "openai-compatible",
+      providerLabel: "Local model",
+      model: "test-model",
+      instruction: input.instruction,
+      relation: "supports",
+      evidence: [annotationEvidence()],
+      proposedText: input.proposedText,
+      proposedNote: input.proposedNote,
+      status: "pending",
+      createdAt: "2026-07-11T08:02:00.000Z",
+    } as const;
+    expect(isModelCandidate(candidate)).toBe(true);
+    expect(isModelCandidate({ ...candidate, evidence: [claimEvidence()] })).toBe(false);
+    expect(isModelCandidate({ ...candidate, promptVersion: "draft-claim-v2" })).toBe(false);
+    expect(isModelCandidate({ ...candidate, proposedText: "x".repeat(2_001) })).toBe(false);
   });
 
   it("validates every annotation and claim evidence snapshot field", () => {
