@@ -113,6 +113,7 @@ describe("workspace input guards", () => {
         title: "Title",
         entryFileId: "main-file",
         folders: [],
+        assets: [],
         files: [{ id: "main-file", path: "main.md", mediaType: "text/markdown", content: "", createdAt: "now", updatedAt: "now" }],
         composition: { content: "", sourceMap: [], diagnostics: [], dependencies: {} },
         source: "",
@@ -720,6 +721,7 @@ describe("workspace input guards", () => {
       title: "Title",
       entryFileId: "main-file",
       folders: [],
+      assets: [],
       files: [{ id: "main-file", path: "main.md", mediaType: "text/markdown", content: "", createdAt: "now", updatedAt: "now" }],
       composition: { content: "", sourceMap: [], diagnostics: [], dependencies: {} },
       source: "",
@@ -746,6 +748,7 @@ describe("workspace input guards", () => {
       { bibliography: null },
       { revision: "0" },
       { folders: null },
+      { assets: null },
       { pdfs: null },
       { publications: null },
       { publicationPdfLinks: null },
@@ -763,6 +766,23 @@ describe("workspace input guards", () => {
     expect(isWorkspaceSnapshot({ ...valid, claims: [{ id: "claim" }] })).toBe(false);
     expect(isWorkspaceSnapshot({ ...valid, folders: [{ id: "folder", path: "chapters", createdAt: "now", updatedAt: "now" }] })).toBe(true);
     expect(isWorkspaceSnapshot({ ...valid, folders: [{ id: "", path: "chapters", createdAt: "now", updatedAt: "now" }] })).toBe(false);
+    expect(
+      isWorkspaceSnapshot({
+        ...valid,
+        assets: [
+          {
+            id: "asset",
+            path: "figures/chart.png",
+            mediaType: "image/png",
+            size: 42,
+            objectKey: "demo/assets/asset",
+            fingerprint: "etag",
+            createdAt: "now",
+            updatedAt: "now",
+          },
+        ],
+      }),
+    ).toBe(true);
     expect(isWorkspaceSnapshot({ ...valid, claimEvidenceLinks: [{ relation: "unknown" }] })).toBe(false);
     expect(isWorkspaceSnapshot({ ...valid, claimLinks: [{ anchor: null, resolution: null }] })).toBe(false);
     const validPublicationPdfLink = {

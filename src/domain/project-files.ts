@@ -16,6 +16,19 @@ export interface ProjectFolder {
   readonly updatedAt: string;
 }
 
+export type ProjectImageMediaType = "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/avif";
+
+export interface ProjectAsset {
+  readonly id: string;
+  readonly path: string;
+  readonly mediaType: ProjectImageMediaType;
+  readonly size: number;
+  readonly objectKey: string;
+  readonly fingerprint: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
 export interface CompositionSourceSpan {
   readonly outputStart: number;
   readonly outputEnd: number;
@@ -167,6 +180,26 @@ export function rewriteProjectIncludesForMoves(file: ProjectFile, movedPaths: Re
     if (nextFilePath === file.path && nextTargetPath === previousTargetPath) return directive;
     return directive.replace(requested, relativeProjectPath(nextFilePath, nextTargetPath));
   });
+}
+
+export function rewriteProjectImageReferencesForMoves(file: ProjectFile, movedPaths: ReadonlyMap<string, string>): string {
+  const nextFilePath = movedPaths.get(file.path) ?? file.path;
+  return file.content.replace(
+    /!\[[^\]\r\n]*\]\((?<target><[^>\r\n]+>|[^\s)\r\n]+)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)/gu,
+    (syntax, ...values: unknown[]) => {
+      const groups = values.at(-1);
+      if (!isStringRecord(groups) || !groups.target) return syntax;
+      const bracketed = groups.target.startsWith("<") && groups.target.endsWith(">");
+      const requested = bracketed ? groups.target.slice(1, -1) : groups.target;
+      if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return syntax;
+      const previousTargetPath = resolveProjectPath(file.path, requested);
+      if (!previousTargetPath) return syntax;
+      const nextTargetPath = movedPaths.get(previousTargetPath) ?? previousTargetPath;
+      if (nextFilePath === file.path && nextTargetPath === previousTargetPath) return syntax;
+      const nextReference = relativeProjectPath(nextFilePath, nextTargetPath);
+      return syntax.replace(groups.target, bracketed ? `<${nextReference}>` : nextReference);
+    },
+  );
 }
 
 export function relativeProjectPath(fromPath: string, toPath: string): string {

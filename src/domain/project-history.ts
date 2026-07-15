@@ -1,5 +1,5 @@
 import { compareWebSnapshotText, type WebSnapshotDiffHunk } from "./reference-library";
-import { composeProject, type ProjectFile, type ProjectFolder } from "./project-files";
+import { composeProject, type ProjectAsset, type ProjectFile, type ProjectFolder } from "./project-files";
 import { countPublicationWords } from "./publication-statistics";
 import type {
   AnnotationResource,
@@ -43,6 +43,7 @@ export interface ProjectRevisionContent {
   readonly bibliography: string;
   readonly files: readonly ProjectFile[];
   readonly folders: readonly ProjectFolder[];
+  readonly assets: readonly ProjectAsset[];
   readonly projectReferences: readonly ProjectReferenceLink[];
   readonly researchShares: readonly ResearchShareSnapshot[];
   readonly pdfs: readonly PdfResource[];
@@ -68,8 +69,8 @@ export interface ProjectFileDiff {
 export interface ProjectBinaryDiff {
   readonly id: string;
   readonly status: "added" | "removed" | "modified" | "unchanged";
-  readonly before: Pick<PdfResource, "name" | "contentType" | "size" | "fingerprint"> | null;
-  readonly after: Pick<PdfResource, "name" | "contentType" | "size" | "fingerprint"> | null;
+  readonly before: { readonly name: string; readonly contentType: string; readonly size: number; readonly fingerprint: string } | null;
+  readonly after: { readonly name: string; readonly contentType: string; readonly size: number; readonly fingerprint: string } | null;
 }
 
 export interface ProjectRevisionDiff {
@@ -85,6 +86,14 @@ export interface ProjectRevisionDiff {
     readonly hunks: readonly WebSnapshotDiffHunk[];
   };
   readonly binaries: readonly ProjectBinaryDiff[];
+}
+
+interface BinaryProjection {
+  readonly id: string;
+  readonly name: string;
+  readonly contentType: string;
+  readonly size: number;
+  readonly fingerprint: string;
 }
 
 export function compareProjectRevisions(before: ProjectRevisionContent, after: ProjectRevisionContent): ProjectRevisionDiff {
@@ -120,12 +129,14 @@ export function compareProjectRevisions(before: ProjectRevisionContent, after: P
   const composed = compareWebSnapshotText(beforeComposed, afterComposed);
   const beforeWords = countPublicationWords(beforeComposed);
   const afterWords = countPublicationWords(afterComposed);
+  const beforeBinaries = [...before.pdfs, ...before.assets.map(assetAsBinary)];
+  const afterBinaries = [...after.pdfs, ...after.assets.map(assetAsBinary)];
   const binaries = stableUnion(
-    before.pdfs.map((pdf) => pdf.id),
-    after.pdfs.map((pdf) => pdf.id),
+    beforeBinaries.map((binary) => binary.id),
+    afterBinaries.map((binary) => binary.id),
   ).map((id): ProjectBinaryDiff => {
-    const previous = before.pdfs.find((pdf) => pdf.id === id);
-    const next = after.pdfs.find((pdf) => pdf.id === id);
+    const previous = beforeBinaries.find((binary) => binary.id === id);
+    const next = afterBinaries.find((binary) => binary.id === id);
     const beforeIdentity = previous ? binaryIdentity(previous) : null;
     const afterIdentity = next ? binaryIdentity(next) : null;
     return {
@@ -199,6 +210,19 @@ export function isProjectRevisionContent(value: unknown): value is ProjectRevisi
         typeof folder.createdAt === "string" &&
         typeof folder.updatedAt === "string",
     ) &&
+    Array.isArray(value.assets) &&
+    value.assets.every(
+      (asset) =>
+        isRecord(asset) &&
+        typeof asset.id === "string" &&
+        typeof asset.path === "string" &&
+        typeof asset.mediaType === "string" &&
+        typeof asset.size === "number" &&
+        typeof asset.objectKey === "string" &&
+        typeof asset.fingerprint === "string" &&
+        typeof asset.createdAt === "string" &&
+        typeof asset.updatedAt === "string",
+    ) &&
     Array.isArray(value.projectReferences) &&
     Array.isArray(value.researchShares) &&
     Array.isArray(value.pdfs) &&
@@ -220,6 +244,16 @@ export function isProjectRevisionContent(value: unknown): value is ProjectRevisi
     Number.isSafeInteger(value.relationships.comments) &&
     value.relationships.comments >= 0
   );
+}
+
+function assetAsBinary(asset: ProjectAsset): BinaryProjection {
+  return {
+    id: asset.id,
+    name: asset.path,
+    contentType: asset.mediaType,
+    size: asset.size,
+    fingerprint: asset.fingerprint,
+  };
 }
 
 export function isProjectRevisionDiff(value: unknown): value is ProjectRevisionDiff {
@@ -254,11 +288,11 @@ function composedSource(value: ProjectRevisionContent): string {
   return value.files.some((file) => file.id === value.entryFileId) ? composeProject(value.files, value.entryFileId).content : value.source;
 }
 
-function binaryIdentity(value: PdfResource): Pick<PdfResource, "name" | "contentType" | "size" | "fingerprint"> {
+function binaryIdentity(value: BinaryProjection): Omit<BinaryProjection, "id"> {
   return { name: value.name, contentType: value.contentType, size: value.size, fingerprint: value.fingerprint };
 }
 
-function binaryEqual(left: PdfResource, right: PdfResource): boolean {
+function binaryEqual(left: BinaryProjection, right: BinaryProjection): boolean {
   return (
     left.name === right.name && left.contentType === right.contentType && left.size === right.size && left.fingerprint === right.fingerprint
   );

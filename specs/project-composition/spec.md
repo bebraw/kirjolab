@@ -16,6 +16,9 @@ collaborative, and unambiguous about what preview and export mean.
 - Project folders also have stable identities and mutable project-relative
   paths. Empty folders persist in snapshots and revision history. Creating a
   file materializes missing ancestor folders.
+- Project images have stable asset identities and project-relative paths under
+  the reserved durable `figures/` folder. SQLite versions their metadata while
+  R2 stores their bytes outside collaborative Yjs state.
 - Each Markdown file is a `Y.Text` inside the project's existing
   `DocumentRoom`. File content, the file tree, reference paths, and the project
   revision persist in one SQLite-backed coordination atom.
@@ -38,8 +41,8 @@ collaborative, and unambiguous about what preview and export mean.
   contain at most 32 files.
 - A file move or rename updates affected include paths in the same revision. A
   folder move atomically changes its descendant folder and file paths and
-  rewrites includes relative to both moved sources and targets. Destinations
-  cannot collide or sit inside the folder being moved. File deletion is
+  rewrites includes and project image references relative to both moved sources
+  and targets. Destinations cannot collide or sit inside the folder being moved. File deletion is
   rejected while an inbound include remains; folder deletion is limited to
   empty folders. `main.md` cannot be renamed, moved, or deleted.
 - Preview and Markdown export always compose from `main.md`; selecting a
@@ -57,7 +60,12 @@ collaborative, and unambiguous about what preview and export mean.
   file toolbar labels its editable path action as **Move or rename file**.
 - A fresh starter project includes one supporting Markdown file transcluded
   from `main.md`, making the portable include syntax and composed result
-  discoverable without changing existing projects during migration.
+  discoverable, plus an empty `figures/` folder that exposes the image
+  convention before the first upload.
+- The Files rail accepts multiple PNG, JPEG, GIF, WebP, or AVIF images of at
+  most 20 MiB each. It inserts a relative Markdown image reference at the
+  collaborative caret. Preview resolves that path relative to the originating
+  source-map span, including references authored in supporting files.
 - The authoring toolbar inserts an existing file with a path relative to the
   active file. **Create and include** creates a supporting file and inserts its
   directive at the remembered collaborative caret, so authors do not have to
@@ -86,6 +94,12 @@ collaborative, and unambiguous about what preview and export mean.
 - `PATCH /api/workspaces/{id}/folders/{folderId}` moves or renames a folder
   subtree and atomically rewrites affected include directives.
 - `DELETE /api/workspaces/{id}/folders/{folderId}` deletes only an empty folder.
+- `POST /api/workspaces/{id}/assets` accepts a bounded raster body and a
+  percent-encoded `X-File-Path` below `figures/`, returning the updated project.
+- `GET /api/workspaces/{id}/assets/{assetId}` authorizes through workspace
+  membership and serves the image with its stored media type and `nosniff`.
+- `DELETE /api/workspaces/{id}/assets/{assetId}` removes current metadata and
+  stored bytes. The `figures/` folder itself cannot be moved or deleted.
 - Passage-link and model-candidate inputs carry `fileId`; persisted selectors
   retain it with their Yjs relative positions.
 
@@ -125,5 +139,7 @@ collaborative, and unambiguous about what preview and export mean.
 - Implemented: discoverable starter transclusion, durable Markdown folder tree, canonical `main.md`, recursive composition,
   source maps and diagnostics, file management API/UI, composed preview/export,
   project-wide revisions, and file-qualified manuscript/model anchors.
-- Deferred: binary asset management and drag-and-drop tree reordering. These do
-  not change the composition contract.
+- Implemented: project image upload, durable `figures/` assets, Markdown
+  insertion, composed live preview, backup references, and source-archive bytes.
+- Deferred: drag-and-drop tree reordering, public-share image serving, and
+  publication PDF/LaTeX image embedding. These do not change text composition.

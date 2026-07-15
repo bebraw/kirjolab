@@ -16,6 +16,7 @@ const snapshot: WorkspaceSnapshot = {
   title: "Editable <draft>",
   entryFileId: "main-file",
   folders: [],
+  assets: [],
   files: [file("section-file", "sections/results.md", "Results & discussion"), file("main-file", "main.md", "# Main <source>")],
   composition: { content: "", sourceMap: [], diagnostics: [], dependencies: {} },
   source: "# Main <source>",

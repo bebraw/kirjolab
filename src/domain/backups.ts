@@ -75,7 +75,10 @@ export interface BackupBinaryReferences {
     }[];
   };
   readonly workspaces: readonly {
-    readonly snapshot: { readonly pdfs: readonly { readonly objectKey: string }[] };
+    readonly snapshot: {
+      readonly pdfs: readonly { readonly objectKey: string }[];
+      readonly assets?: readonly { readonly objectKey: string }[];
+    };
   }[];
 }
 
@@ -124,6 +127,7 @@ export function referencedBinaryKeys(state: BackupBinaryReferences): string[] {
   }
   for (const workspace of state.workspaces) {
     for (const pdf of workspace.snapshot.pdfs) keys.add(pdf.objectKey);
+    for (const asset of workspace.snapshot.assets ?? []) keys.add(asset.objectKey);
   }
   return [...keys].sort();
 }

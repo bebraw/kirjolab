@@ -272,6 +272,16 @@
     text-transform: uppercase;
   }
 
+  .project-asset-thumbnail {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: none;
+    border: 1px solid var(--color-app-line);
+    border-radius: 0.2rem;
+    background: var(--color-app-surface);
+    object-fit: cover;
+  }
+
   .project-catalog-row {
     display: flex;
     align-items: center;

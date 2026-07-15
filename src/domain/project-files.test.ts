@@ -9,6 +9,7 @@ import {
   rewriteProjectCitationAlias,
   rewriteInboundProjectIncludes,
   rewriteProjectIncludesForMoves,
+  rewriteProjectImageReferencesForMoves,
   type ProjectFile,
 } from "./project-files";
 
@@ -188,6 +189,22 @@ describe("project composition", () => {
     );
     expect(rewriteProjectIncludesForMoves(file("detail", "drafts/notes/detail.md", "::include[../section.md]\n"), moves)).toBe(
       "::include[../section.md]\n",
+    );
+  });
+
+  it("keeps image references valid when source files or assets move", () => {
+    const moves = new Map([
+      ["drafts/section.md", "chapters/section.md"],
+      ["figures/results/chart.png", "figures/final/chart.png"],
+    ]);
+    expect(
+      rewriteProjectImageReferencesForMoves(
+        file("section", "drafts/section.md", "![Chart](../figures/results/chart.png)\n![Remote](https://example.test/chart.png)\n"),
+        moves,
+      ),
+    ).toBe("![Chart](../figures/final/chart.png)\n![Remote](https://example.test/chart.png)\n");
+    expect(rewriteProjectImageReferencesForMoves(file("main", "main.md", '![Chart](<figures/results/chart.png> "Result")\n'), moves)).toBe(
+      '![Chart](<figures/final/chart.png> "Result")\n',
     );
   });
 

@@ -803,6 +803,42 @@ test("maps broken export composition back to authored source without losing reco
   await expect(page.locator("#preview")).toContainText("Broken");
 });
 
+test("uploads project images, inserts relative Markdown, and renders authorized bytes", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Illustrated project");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.locator("#project-file-list")).toContainText("figures/");
+
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+  await page.locator("#project-image-upload").setInputFiles({ name: "result chart.png", mimeType: "image/png", buffer: png });
+  const asset = page.locator(".project-asset-row", { hasText: "result chart.png" });
+  await expect(asset).toBeVisible();
+  await asset.locator("summary").click();
+  await asset.getByRole("button", { name: "Insert image" }).click();
+  await expect(page.locator("#source-editor")).toHaveValue(/!\[result chart\]\(<figures\/result chart\.png>\)/u);
+  const previewImage = page.locator("#preview img");
+  await expect(previewImage).toBeVisible();
+  await expect(previewImage).toHaveAttribute("src", /\/api\/workspaces\/[^/]+\/assets\//u);
+
+  const imageResponse = await page.request.get(await previewImage.getAttribute("src").then((value) => value ?? ""));
+  expect(imageResponse.ok()).toBe(true);
+  expect(imageResponse.headers()["content-type"]).toBe("image/png");
+  expect(imageResponse.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(await imageResponse.body()).toEqual(png);
+  const rejectedSvg = await page.request.post(`${api}/assets`, {
+    headers: {
+      "content-type": "image/svg+xml",
+      "x-file-path": encodeURIComponent("figures/active.svg"),
+      origin: new URL(page.url()).origin,
+    },
+    data: '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+  });
+  expect(rejectedSvg.status()).toBe(415);
+  const sourceBundle = await page.request.get(`${api}/export/source.zip`);
+  expect(sourceBundle.ok()).toBe(true);
+  expect((await sourceBundle.body()).subarray(0, 2).toString()).toBe("PK");
+});
+
 test("keeps private library research separate from project citations", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(Promise, "withResolvers", { configurable: true, value: undefined, writable: true });

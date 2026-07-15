@@ -20,7 +20,9 @@ import {
   demoWorkspaceId,
   localOwnerId,
   type PdfResource,
+  type ProjectAsset,
 } from "../domain/workspace";
+import { normalizeProjectPath } from "../domain/project-files";
 import { buildWorkspaceKnowledgeGraph, searchWorkspaceKnowledge } from "../domain/knowledge";
 import { archivalSourceBundle, latexArchive, renderExportPdf } from "./export-artifacts";
 import { assertExportable, buildExportBundle, ExportPipelineError } from "../domain/export-pipeline";
@@ -28,6 +30,14 @@ import { fetchCrossrefWork, fingerprintPublicationMetadata } from "../integratio
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
+const maximumImageBytes = 20 * 1024 * 1024;
+const imageExtensions: Readonly<Record<ProjectAsset["mediaType"], readonly string[]>> = {
+  "image/png": [".png"],
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/gif": [".gif"],
+  "image/webp": [".webp"],
+  "image/avif": [".avif"],
+};
 
 export async function handleWorkspaceApi(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
   const url = new URL(request.url);
@@ -125,6 +135,13 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return new Response(null, { status: 204 });
     }
     if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);
+    if (suffix === "/assets" && request.method === "POST") return await uploadProjectAsset(request, workspaceId, storageKey, env, room);
+    if (suffix.startsWith("/assets/") && request.method === "GET") {
+      return await downloadProjectAsset(suffix.slice("/assets/".length), env, room);
+    }
+    if (suffix.startsWith("/assets/") && request.method === "DELETE") {
+      return await deleteProjectAsset(workspaceId, suffix.slice("/assets/".length), env, room);
+    }
     if (suffix === "/files" && request.method === "POST") return await createProjectFile(request, workspaceId, room);
     if (suffix.startsWith("/files/") && (request.method === "PATCH" || request.method === "DELETE")) {
       return await mutateProjectFile(request, workspaceId, suffix, room);
@@ -208,7 +225,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix.startsWith("/history/")) {
       return await handleProjectHistory(request, suffix, workspaceId, env, identity, role, room, catalog);
     }
-    if (suffix.startsWith("/export/") && request.method === "GET") return await exportWorkspace(suffix, workspaceId, room);
+    if (suffix.startsWith("/export/") && request.method === "GET") return await exportWorkspace(suffix, workspaceId, room, env);
     return jsonError("Route not found", 404);
   } catch (error) {
     if (error instanceof ExportPipelineError) {
@@ -272,8 +289,24 @@ async function duplicateWorkspace(
     return jsonError("Invalid duplicate title", 400);
   const id = crypto.randomUUID();
   const storageKey = workspaceStorageKey(identity, id);
+  const snapshot = await room.getSnapshot(workspaceId);
+  const copiedAssets: Array<{ id: string; objectKey: string; fingerprint: string; updatedAt: string }> = [];
+  for (const asset of snapshot.assets) {
+    const source = await env.PAPERS.get(asset.objectKey);
+    if (!source) throw new Error(`Project image is unavailable: ${asset.path}`);
+    const objectKey = `${storageKey}/assets/${asset.id}`;
+    const stored = await env.PAPERS.put(objectKey, source.body, { httpMetadata: { contentType: asset.mediaType } });
+    copiedAssets.push({
+      id: asset.id,
+      objectKey,
+      fingerprint: `r2-etag:${stored.etag.replaceAll('"', "")}`,
+      updatedAt: new Date().toISOString(),
+    });
+  }
   await env.WORKSPACE_ACCESS.getByName(storageKey).initializeOwner(identity.email);
-  await env.DOCUMENT_ROOMS.getByName(storageKey).seedFromRevision(id, body.title.trim(), await room.getHeadRevisionSeed());
+  const duplicate = env.DOCUMENT_ROOMS.getByName(storageKey);
+  await duplicate.seedFromRevision(id, body.title.trim(), await room.getHeadRevisionSeed());
+  if (copiedAssets.length > 0) await duplicate.replaceProjectAssetObjects(id, copiedAssets);
   return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
 }
 
@@ -291,7 +324,7 @@ async function permanentlyDeleteWorkspace(
   for (const reference of snapshot.projectReferences) await library.unregisterProjectDependency(workspaceId, reference.referenceId);
   let cursor: string | undefined;
   do {
-    const page = await env.PAPERS.list({ prefix: `${workspaceId}/`, ...(cursor ? { cursor } : {}) });
+    const page = await env.PAPERS.list({ prefix: `${workspaceStorageKey(identity, workspaceId)}/`, ...(cursor ? { cursor } : {}) });
     if (page.objects.length) await env.PAPERS.delete(page.objects.map((object) => object.key));
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
@@ -309,6 +342,7 @@ async function exportWorkspace(
   suffix: string,
   workspaceId: string,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  env: Env,
 ): Promise<Response> {
   const snapshot = await room.getSnapshot(workspaceId);
   const bundle = buildExportBundle({
@@ -323,7 +357,13 @@ async function exportWorkspace(
   if (suffix === "/export/intermediate.json") return privateJsonResponse(bundle.intermediate, "kirjolab-intermediate.json");
   if (suffix === "/export/source.zip") {
     const { files: _files, composition: _composition, source: _source, candidates: _candidates, ...metadata } = snapshot;
-    return binaryDownload(archivalSourceBundle(bundle, snapshot.files, metadata), "application/zip", "kirjolab-source.zip");
+    const binaryFiles: Record<string, Uint8Array> = {};
+    for (const asset of snapshot.assets) {
+      const object = await env.PAPERS.get(asset.objectKey);
+      if (!object) throw new Error(`Project image is unavailable: ${asset.path}`);
+      binaryFiles[asset.path] = new Uint8Array(await object.arrayBuffer());
+    }
+    return binaryDownload(archivalSourceBundle(bundle, snapshot.files, metadata, binaryFiles), "application/zip", "kirjolab-source.zip");
   }
   assertExportable(bundle.intermediate);
   if (suffix === "/export/document.md") {
@@ -540,6 +580,107 @@ async function deletePdf(
   const pdf = await room.deletePdf(pdfId);
   await env.PAPERS.delete(pdf.objectKey || `${workspaceId}/${pdfId}.pdf`);
   return new Response(null, { status: 204 });
+}
+
+async function uploadProjectAsset(
+  request: Request,
+  workspaceId: string,
+  storageKey: string,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  const mediaType = request.headers.get("content-type")?.split(";", 1)[0] ?? "";
+  if (!isProjectImageMediaType(mediaType)) return jsonError("Only PNG, JPEG, GIF, WebP, and AVIF images are supported", 415);
+  if (!request.body) return jsonError("Image body is required", 400);
+  const size = Number(request.headers.get("content-length") ?? "0");
+  if (!Number.isSafeInteger(size) || size <= 0) return jsonError("Content-Length is required", 411);
+  if (size > maximumImageBytes) return jsonError("Image exceeds the 20 MB limit", 413);
+  const rawPath = decodeURIComponent(request.headers.get("x-file-path") ?? "");
+  const path = normalizeProjectPath(rawPath);
+  if (!path || path !== rawPath.trim() || !path.startsWith("figures/") || /[<>]/u.test(path)) {
+    return jsonError("Images require a relative figures/ path", 400);
+  }
+  const lowerPath = path.toLocaleLowerCase();
+  if (!imageExtensions[mediaType].some((extension) => lowerPath.endsWith(extension))) {
+    return jsonError("Image filename extension does not match its media type", 415);
+  }
+
+  const id = crypto.randomUUID();
+  const objectKey = `${storageKey}/assets/${id}`;
+  const fixedLengthBody = new FixedLengthStream(size);
+  const upload = env.PAPERS.put(objectKey, fixedLengthBody.readable, { httpMetadata: { contentType: mediaType } });
+  const pipeline = request.body.pipeTo(fixedLengthBody.writable);
+  const [stored] = await Promise.all([upload, pipeline]);
+  const headerObject = await env.PAPERS.get(objectKey, { range: { offset: 0, length: Math.min(size, 16) } });
+  const header = headerObject ? new Uint8Array(await headerObject.arrayBuffer()) : new Uint8Array();
+  if (!hasImageSignature(mediaType, header)) {
+    await env.PAPERS.delete(objectKey);
+    return jsonError("Image bytes do not match the declared media type", 415);
+  }
+  const now = new Date().toISOString();
+  const asset: ProjectAsset = {
+    id,
+    path,
+    mediaType,
+    size,
+    objectKey,
+    fingerprint: `r2-etag:${stored.etag.replaceAll('"', "")}`,
+    createdAt: now,
+    updatedAt: now,
+  };
+  try {
+    return Response.json(await room.registerProjectAsset(workspaceId, asset), { status: 201 });
+  } catch (error) {
+    await env.PAPERS.delete(objectKey);
+    throw error;
+  }
+}
+
+async function downloadProjectAsset(
+  assetId: string,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  if (!/^[0-9a-f-]{36}$/iu.test(assetId)) return jsonError("Project image not found", 404);
+  const asset = await room.getProjectAsset(assetId);
+  const object = await env.PAPERS.get(asset.objectKey);
+  if (!object) return jsonError("Project image not found", 404);
+  const headers = new Headers({
+    "content-type": asset.mediaType,
+    "content-length": String(asset.size),
+    "content-disposition": "inline",
+    "cache-control": "private, max-age=300",
+    "x-content-type-options": "nosniff",
+    etag: object.httpEtag,
+  });
+  return new Response(object.body, { headers });
+}
+
+async function deleteProjectAsset(
+  workspaceId: string,
+  assetId: string,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
+  if (!/^[0-9a-f-]{36}$/iu.test(assetId)) return jsonError("Project image not found", 404);
+  const asset = await room.getProjectAsset(assetId);
+  const snapshot = await room.deleteProjectAsset(workspaceId, assetId);
+  await env.PAPERS.delete(asset.objectKey);
+  return Response.json(snapshot);
+}
+
+function isProjectImageMediaType(value: string): value is ProjectAsset["mediaType"] {
+  return Object.hasOwn(imageExtensions, value);
+}
+
+function hasImageSignature(mediaType: ProjectAsset["mediaType"], bytes: Uint8Array): boolean {
+  const ascii = (start: number, end: number): string => new TextDecoder().decode(bytes.subarray(start, end));
+  if (mediaType === "image/png")
+    return bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => bytes[index] === byte);
+  if (mediaType === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (mediaType === "image/gif") return ascii(0, 6) === "GIF87a" || ascii(0, 6) === "GIF89a";
+  if (mediaType === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
+  return ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12));
 }
 
 async function createAnnotation(

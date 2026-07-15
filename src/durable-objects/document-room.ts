@@ -38,7 +38,9 @@ import {
   projectUsesCitationAlias,
   projectEntryPath,
   rewriteProjectIncludesForMoves,
+  rewriteProjectImageReferencesForMoves,
   rewriteProjectCitationAlias,
+  type ProjectAsset,
   type ProjectFile,
   type ProjectFolder,
 } from "../domain/project-files";
@@ -134,6 +136,17 @@ interface ProjectFileRow extends Record<string, SqlStorageValue> {
 interface ProjectFolderRow extends Record<string, SqlStorageValue> {
   id: string;
   path: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ProjectAssetRow extends Record<string, SqlStorageValue> {
+  id: string;
+  path: string;
+  media_type: string;
+  size: number;
+  object_key: string;
+  fingerprint: string;
   created_at: string;
   updated_at: string;
 }
@@ -377,6 +390,7 @@ const revisionTables = [
   "publication_pdf_links",
   "project_files",
   "project_folders",
+  "project_assets",
   "project_references",
   "project_research_shares",
   "project_reference_pdf_links",
@@ -456,6 +470,7 @@ const revisionTableColumns: Readonly<Record<RevisionTable, readonly string[]>> =
   publication_pdf_links: ["id", "publication_id", "pdf_id", "created_at"],
   project_files: ["id", "path", "media_type", "y_text_name", "content", "created_at", "updated_at"],
   project_folders: ["id", "path", "created_at", "updated_at"],
+  project_assets: ["id", "path", "media_type", "size", "object_key", "fingerprint", "created_at", "updated_at"],
   project_references: ["id", "reference_id", "citation_alias", "snapshot_json", "created_at", "updated_at"],
   project_research_shares: ["id", "project_id", "reference_id", "resource_id", "kind", "snapshot_json", "created_at", "revoked_at"],
   project_reference_pdf_links: ["id", "publication_id", "pdf_id", "created_at"],
@@ -474,6 +489,7 @@ const revisionDeleteOrder: readonly RevisionTable[] = [
   "annotations",
   "publications",
   "project_files",
+  "project_assets",
   "project_folders",
   "pdfs",
 ];
@@ -485,6 +501,7 @@ const revisionInsertOrder: readonly RevisionTable[] = [
   "claims",
   "project_files",
   "project_folders",
+  "project_assets",
   "project_references",
   "project_research_shares",
   "publication_pdf_links",
@@ -655,6 +672,7 @@ export class DocumentRoom extends DurableObject<Env> {
       entryFileId: workspace.entry_file_id,
       files,
       folders: this.#projectFolders(),
+      assets: this.#projectAssets(),
       composition: composeProject(files, workspace.entry_file_id),
       source: workspace.source,
       bibliography: workspace.bibliography,
@@ -1030,6 +1048,9 @@ export class DocumentRoom extends DurableObject<Env> {
     if (this.#projectFolders().some((folder) => folder.path === path || folder.path.startsWith(`${path}/`))) {
       throw new Error("A project folder already uses this path");
     }
+    if (this.#projectAssets().some((asset) => asset.path === path || path.startsWith(`${asset.path}/`))) {
+      throw new Error("A project asset already uses this path");
+    }
     const id = crypto.randomUUID();
     const yTextName = `file:${id}`;
     const now = new Date().toISOString();
@@ -1104,6 +1125,9 @@ export class DocumentRoom extends DurableObject<Env> {
     if (this.#projectFolders().some((folder) => folder.path === nextPath || folder.path.startsWith(`${nextPath}/`))) {
       throw new Error("A project folder already uses this path");
     }
+    if (this.#projectAssets().some((asset) => asset.path === nextPath || nextPath.startsWith(`${asset.path}/`))) {
+      throw new Error("A project asset already uses this path");
+    }
 
     const previous = workspace;
     const stateVector = Y.encodeStateVector(this.#document);
@@ -1111,7 +1135,10 @@ export class DocumentRoom extends DurableObject<Env> {
     const updates: Array<{ row: ProjectFileRow; content: string }> = [];
     for (const row of this.#projectFileRows()) {
       const current = projectFileFromRow(row);
-      const content = rewriteProjectIncludesForMoves(current, movedPaths);
+      const content = rewriteProjectImageReferencesForMoves(
+        { ...current, content: rewriteProjectIncludesForMoves(current, movedPaths) },
+        movedPaths,
+      );
       if (content === current.content) continue;
       const text = this.#document.getText(row.y_text_name);
       const splice = calculateTextSplice(text.toString(), content);
@@ -1151,6 +1178,9 @@ export class DocumentRoom extends DurableObject<Env> {
     if (this.#projectFiles().some((file) => file.path === path || path.startsWith(`${file.path}/`))) {
       throw new Error("A project file already uses this path");
     }
+    if (this.#projectAssets().some((asset) => asset.path === path || path.startsWith(`${asset.path}/`))) {
+      throw new Error("A project asset already uses this path");
+    }
     const previous = this.#workspaceRow();
     const persisted = this.#persistDocument(
       previous,
@@ -1168,28 +1198,39 @@ export class DocumentRoom extends DurableObject<Env> {
     const folders = this.#projectFolders();
     const target = folders.find((folder) => folder.id === folderId);
     if (!target) throw new Error("Project folder not found");
+    if (target.path === "figures") throw new Error("The figures folder is reserved for project images");
     if (nextPath === target.path) return this.getSnapshot(workspaceId);
     if (nextPath.startsWith(`${target.path}/`)) throw new Error("A folder cannot be moved inside itself");
     const movedFolders = folders.filter((folder) => folder.path === target.path || folder.path.startsWith(`${target.path}/`));
     const movedFiles = this.#projectFiles().filter((file) => file.path.startsWith(`${target.path}/`));
+    const movedAssets = this.#projectAssets().filter((asset) => asset.path.startsWith(`${target.path}/`));
     const nextFolderPaths = new Map(movedFolders.map((folder) => [folder.path, replacePathPrefix(folder.path, target.path, nextPath)]));
     const movedFilePaths = new Map(movedFiles.map((file) => [file.path, replacePathPrefix(file.path, target.path, nextPath)]));
+    const movedAssetPaths = new Map(movedAssets.map((asset) => [asset.path, replacePathPrefix(asset.path, target.path, nextPath)]));
     const movingFolderIds = new Set(movedFolders.map((folder) => folder.id));
     const movingFileIds = new Set(movedFiles.map((file) => file.id));
     const destinations = [...nextFolderPaths.values()];
     const fileDestinations = [...movedFilePaths.values()];
+    const assetDestinations = [...movedAssetPaths.values()];
     if (
       folders.some(
         (folder) =>
           !movingFolderIds.has(folder.id) &&
           (destinations.includes(folder.path) ||
-            fileDestinations.some((path) => folder.path === path || folder.path.startsWith(`${path}/`))),
+            [...fileDestinations, ...assetDestinations].some((path) => folder.path === path || folder.path.startsWith(`${path}/`))),
       ) ||
       this.#projectFiles().some(
         (file) =>
           !movingFileIds.has(file.id) &&
           (destinations.some((path) => file.path === path || path.startsWith(`${file.path}/`) || file.path.startsWith(`${path}/`)) ||
-            fileDestinations.some((path) => file.path === path || path.startsWith(`${file.path}/`))),
+            [...fileDestinations, ...assetDestinations].some((path) => file.path === path || path.startsWith(`${file.path}/`))),
+      ) ||
+      this.#projectAssets().some(
+        (asset) =>
+          !movedAssets.some((moved) => moved.id === asset.id) &&
+          [...destinations, ...fileDestinations, ...assetDestinations].some(
+            (path) => asset.path === path || path.startsWith(`${asset.path}/`) || asset.path.startsWith(`${path}/`),
+          ),
       )
     ) {
       throw new Error("The destination already contains a project item with this path");
@@ -1197,9 +1238,13 @@ export class DocumentRoom extends DurableObject<Env> {
     const previous = this.#workspaceRow();
     const stateVector = Y.encodeStateVector(this.#document);
     const updates: Array<{ row: ProjectFileRow; content: string }> = [];
+    const allMovedPaths = new Map([...movedFilePaths, ...movedAssetPaths]);
     for (const row of this.#projectFileRows()) {
       const current = projectFileFromRow(row);
-      const content = rewriteProjectIncludesForMoves(current, movedFilePaths);
+      const content = rewriteProjectImageReferencesForMoves(
+        { ...current, content: rewriteProjectIncludesForMoves(current, movedFilePaths) },
+        allMovedPaths,
+      );
       if (content === current.content) continue;
       const text = this.#document.getText(row.y_text_name);
       const splice = calculateTextSplice(text.toString(), content);
@@ -1231,6 +1276,14 @@ export class DocumentRoom extends DurableObject<Env> {
             file.id,
           );
         }
+        for (const asset of movedAssets) {
+          this.ctx.storage.sql.exec(
+            "UPDATE project_assets SET path = ?, updated_at = ? WHERE id = ?",
+            movedAssetPaths.get(asset.path),
+            now,
+            asset.id,
+          );
+        }
         for (const update of updates) {
           this.ctx.storage.sql.exec(
             "UPDATE project_files SET content = ?, updated_at = ? WHERE id = ?",
@@ -1251,9 +1304,11 @@ export class DocumentRoom extends DurableObject<Env> {
   deleteProjectFolder(workspaceId: string, folderId: string): WorkspaceSnapshot {
     const folder = this.#projectFolders().find((item) => item.id === folderId);
     if (!folder) throw new Error("Project folder not found");
+    if (folder.path === "figures") throw new Error("The figures folder is reserved for project images");
     if (
       this.#projectFolders().some((item) => item.id !== folderId && item.path.startsWith(`${folder.path}/`)) ||
-      this.#projectFiles().some((file) => file.path.startsWith(`${folder.path}/`))
+      this.#projectFiles().some((file) => file.path.startsWith(`${folder.path}/`)) ||
+      this.#projectAssets().some((asset) => asset.path.startsWith(`${folder.path}/`))
     ) {
       throw new Error("Only empty folders can be deleted");
     }
@@ -1262,6 +1317,97 @@ export class DocumentRoom extends DurableObject<Env> {
       {},
       () => this.ctx.storage.sql.exec("DELETE FROM project_folders WHERE id = ?", folderId),
       "project-folder-delete",
+    );
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  registerProjectAsset(workspaceId: string, asset: ProjectAsset): WorkspaceSnapshot {
+    const path = normalizeProjectPath(asset.path);
+    if (!path || path !== asset.path || !path.startsWith("figures/")) throw new Error("Project images must use a figures/ path");
+    if ([...this.#projectFiles(), ...this.#projectAssets()].some((item) => item.path.toLocaleLowerCase() === path.toLocaleLowerCase())) {
+      throw new Error("A project item already uses this path");
+    }
+    if (this.#projectFolders().some((folder) => folder.path === path || folder.path.startsWith(`${path}/`))) {
+      throw new Error("A project folder already uses this path");
+    }
+    const persisted = this.#persistDocument(
+      this.#workspaceRow(),
+      {},
+      () => {
+        this.#ensureProjectFolders(folderAncestors(path), asset.createdAt);
+        this.ctx.storage.sql.exec(
+          `INSERT INTO project_assets (id, path, media_type, size, object_key, fingerprint, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          asset.id,
+          asset.path,
+          asset.mediaType,
+          asset.size,
+          asset.objectKey,
+          asset.fingerprint,
+          asset.createdAt,
+          asset.updatedAt,
+        );
+      },
+      "project-asset-upload",
+    );
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  getProjectAsset(assetId: string): ProjectAsset {
+    const asset = this.#projectAssets().find((item) => item.id === assetId);
+    if (!asset) throw new Error("Project asset not found");
+    return asset;
+  }
+
+  deleteProjectAsset(workspaceId: string, assetId: string): WorkspaceSnapshot {
+    this.getProjectAsset(assetId);
+    const persisted = this.#persistDocument(
+      this.#workspaceRow(),
+      {},
+      () => this.ctx.storage.sql.exec("DELETE FROM project_assets WHERE id = ?", assetId),
+      "project-asset-delete",
+    );
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  replaceProjectAssetObjects(
+    workspaceId: string,
+    replacements: readonly { readonly id: string; readonly objectKey: string; readonly fingerprint: string; readonly updatedAt: string }[],
+  ): WorkspaceSnapshot {
+    const assets = this.#projectAssets();
+    if (
+      replacements.length !== assets.length ||
+      replacements.some(
+        (replacement) =>
+          !assets.some((asset) => asset.id === replacement.id) ||
+          !replacement.objectKey ||
+          !replacement.fingerprint ||
+          !replacement.updatedAt,
+      )
+    ) {
+      throw new Error("Project asset copy metadata is invalid");
+    }
+    const persisted = this.#persistDocument(
+      this.#workspaceRow(),
+      {},
+      () => {
+        for (const replacement of replacements) {
+          this.ctx.storage.sql.exec(
+            "UPDATE project_assets SET object_key = ?, fingerprint = ?, updated_at = ? WHERE id = ?",
+            replacement.objectKey,
+            replacement.fingerprint,
+            replacement.updatedAt,
+            replacement.id,
+          );
+        }
+      },
+      "project-assets-copy",
     );
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
@@ -2635,6 +2781,38 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 21,
+        name: "store-project-image-assets",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS project_assets (
+              id TEXT PRIMARY KEY,
+              path TEXT NOT NULL UNIQUE COLLATE NOCASE,
+              media_type TEXT NOT NULL CHECK (media_type IN ('image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif')),
+              size INTEGER NOT NULL CHECK (size > 0),
+              object_key TEXT NOT NULL UNIQUE,
+              fingerprint TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+          `);
+          const now = new Date().toISOString();
+          sql.exec(
+            "INSERT OR IGNORE INTO project_folders (id, path, created_at, updated_at) VALUES (?, 'figures', ?, ?)",
+            crypto.randomUUID(),
+            now,
+            now,
+          );
+          for (const revision of sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions").toArray()) {
+            const snapshot: unknown = JSON.parse(revision.snapshot_json);
+            if (!isRecordValue(snapshot) || !isRecordValue(snapshot.tables) || "project_assets" in snapshot.tables) continue;
+            snapshot.tables.project_assets = [];
+            sql.exec("UPDATE project_revisions SET snapshot_json = ? WHERE revision = ?", JSON.stringify(snapshot), revision.revision);
+          }
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -2904,6 +3082,13 @@ export class DocumentRoom extends DurableObject<Env> {
       .exec<ProjectFolderRow>("SELECT * FROM project_folders ORDER BY path COLLATE NOCASE, id")
       .toArray()
       .map(projectFolderFromRow);
+  }
+
+  #projectAssets(): ProjectAsset[] {
+    return this.ctx.storage.sql
+      .exec<ProjectAssetRow>("SELECT * FROM project_assets ORDER BY path COLLATE NOCASE, id")
+      .toArray()
+      .map(projectAssetFromRow);
   }
 
   #ensureProjectFolders(paths: readonly string[], now: string): void {
@@ -3355,6 +3540,18 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
       updatedAt: sqlString(row, "updated_at"),
     }),
   );
+  const assets = revisionRows(state, "project_assets").map(
+    (row): ProjectAsset => ({
+      id: sqlString(row, "id"),
+      path: sqlString(row, "path"),
+      mediaType: projectAssetMediaType(sqlString(row, "media_type")),
+      size: sqlNumber(row, "size"),
+      objectKey: sqlString(row, "object_key"),
+      fingerprint: sqlString(row, "fingerprint"),
+      createdAt: sqlString(row, "created_at"),
+      updatedAt: sqlString(row, "updated_at"),
+    }),
+  );
   const projectReferences = revisionRows(state, "project_references").map((row) =>
     projectReferenceFromRow({
       id: sqlString(row, "id"),
@@ -3451,6 +3648,7 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
     bibliography: state.workspace.bibliography,
     files,
     folders,
+    assets,
     projectReferences,
     researchShares,
     pdfs,
@@ -3751,6 +3949,26 @@ function projectFolderFromRow(row: ProjectFolderRow): ProjectFolder {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function projectAssetFromRow(row: ProjectAssetRow): ProjectAsset {
+  return {
+    id: row.id,
+    path: row.path,
+    mediaType: projectAssetMediaType(row.media_type),
+    size: row.size,
+    objectKey: row.object_key,
+    fingerprint: row.fingerprint,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function projectAssetMediaType(value: string): ProjectAsset["mediaType"] {
+  if (!["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"].includes(value)) {
+    throw new Error("Stored project asset has an unsupported media type");
+  }
+  return value as ProjectAsset["mediaType"];
 }
 
 function validFolderPath(value: string): string {

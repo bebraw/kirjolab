@@ -62,12 +62,20 @@ describe("owner backup projection", () => {
           { rawObjectKey: "libraries/owner/z.pdf", readableObjectKey: null },
         ],
       },
-      workspaces: [{ snapshot: { pdfs: [{ objectKey: "workspace/paper.pdf" }] } }],
+      workspaces: [
+        {
+          snapshot: {
+            pdfs: [{ objectKey: "workspace/paper.pdf" }],
+            assets: [{ objectKey: "workspace/assets/figure" }],
+          },
+        },
+      ],
     } satisfies BackupBinaryReferences;
     expect(referencedBinaryKeys(state)).toEqual([
       "libraries/owner/a/raw",
       "libraries/owner/a/readable.txt",
       "libraries/owner/z.pdf",
+      "workspace/assets/figure",
       "workspace/paper.pdf",
     ]);
   });

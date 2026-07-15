@@ -8,6 +8,7 @@ const snapshot: WorkspaceSnapshot = {
   publicationProfile: { citationStyle: "apa", locale: "en-US", submissionTemplate: "article", paperSize: "a4" },
   entryFileId: "main-file",
   folders: [],
+  assets: [],
   files: [
     {
       id: "main-file",

@@ -20,7 +20,14 @@ import {
   isProjectRevisionSummaries,
   type ProjectRevisionSummary,
 } from "../domain/project-history";
-import { composeProject, relativeProjectPath, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
+import {
+  composeProject,
+  relativeProjectPath,
+  resolveProjectPath,
+  type CompositionSourceSpan,
+  type ProjectAsset,
+  type ProjectFile,
+} from "../domain/project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
 import {
   crossrefMetadataFields,
@@ -196,6 +203,8 @@ interface Elements {
   commentsRailPanel: HTMLElement;
   newProjectFileRail: HTMLButtonElement;
   newProjectFolderRail: HTMLButtonElement;
+  uploadProjectImages: HTMLButtonElement;
+  projectImageUpload: HTMLInputElement;
   projectFileList: HTMLElement;
   newProjectFile: HTMLButtonElement;
   createAndIncludeProjectFile: HTMLButtonElement;
@@ -678,6 +687,8 @@ class WorkspaceApp {
     this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.newProjectFileRail.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.newProjectFolderRail.addEventListener("click", () => this.#openProjectFileDialog("create-folder"));
+    this.#elements.uploadProjectImages.addEventListener("click", () => this.#elements.projectImageUpload.click());
+    this.#elements.projectImageUpload.addEventListener("change", () => void this.#uploadProjectImages());
     this.#elements.createAndIncludeProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create-and-include"));
     this.#elements.renameProjectFile.addEventListener("click", () => this.#openProjectFileDialog("rename"));
     this.#elements.deleteProjectFile.addEventListener("click", () => void this.#deleteProjectFile());
@@ -1443,6 +1454,7 @@ class WorkspaceApp {
     if (renderVersion !== this.#previewRenderVersion) return;
     const rendered = runtime.renderWorkspaceMarkdown(renderedSource, bibliography, this.#snapshot?.publicationProfile.citationStyle);
     this.#elements.preview.innerHTML = rendered.html;
+    this.#resolveProjectPreviewImages(renderedSource, composition?.sourceMap ?? []);
     this.#elements.diagnostics.replaceChildren();
     const diagnosticCount = rendered.diagnostics.length + (composition?.diagnostics.length ?? 0);
     this.#elements.diagnosticSummary.textContent =
@@ -1520,6 +1532,7 @@ class WorkspaceApp {
     const items = [
       ...snapshot.folders.map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
       ...snapshot.files.map((file) => ({ kind: "file" as const, path: file.path, file })),
+      ...snapshot.assets.map((asset) => ({ kind: "asset" as const, path: asset.path, asset })),
     ].sort((left, right) => left.path.localeCompare(right.path) || left.kind.localeCompare(right.kind));
     for (const item of items) {
       const depth = item.path.split("/").length - 1;
@@ -1548,6 +1561,44 @@ class WorkspaceApp {
         menu.append(rename, remove);
         actions.append(summary, menu);
         row.append(label, actions);
+        this.#elements.projectFileList.append(row);
+        continue;
+      }
+      if (item.kind === "asset") {
+        const asset = item.asset;
+        const row = document.createElement("div");
+        row.className = "project-file-row project-asset-row";
+        row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
+        const preview = document.createElement("img");
+        preview.className = "project-asset-thumbnail";
+        preview.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
+        preview.alt = "";
+        const label = document.createElement("span");
+        label.className = "min-w-0 flex-1 truncate";
+        label.textContent = asset.path.split("/").at(-1) ?? asset.path;
+        const actions = document.createElement("details");
+        actions.className = "action-menu project-tree-actions";
+        const summary = document.createElement("summary");
+        summary.setAttribute("aria-label", `Actions for ${asset.path}`);
+        summary.textContent = "•••";
+        const menu = document.createElement("div");
+        menu.className = "editor-command-menu";
+        const insert = document.createElement("button");
+        insert.type = "button";
+        insert.textContent = "Insert image";
+        insert.addEventListener("click", () => this.#insertProjectImage(asset));
+        const open = document.createElement("a");
+        open.href = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
+        open.target = "_blank";
+        open.rel = "noopener";
+        open.textContent = "Open image";
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "Delete image";
+        remove.addEventListener("click", () => void this.#deleteProjectImage(asset));
+        menu.append(insert, open, remove);
+        actions.append(summary, menu);
+        row.append(preview, label, actions);
         this.#elements.projectFileList.append(row);
         continue;
       }
@@ -1723,6 +1774,80 @@ class WorkspaceApp {
     this.#snapshot = value;
     this.#renderProjectFiles();
     this.#showToast(`Deleted ${folder.path}.`);
+  }
+
+  async #uploadProjectImages(): Promise<void> {
+    const files = [...(this.#elements.projectImageUpload.files ?? [])];
+    this.#elements.projectImageUpload.value = "";
+    if (files.length === 0) return;
+    let uploaded = 0;
+    for (const file of files) {
+      const response = await fetch(`${apiBase}/assets`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": file.type, "x-file-path": encodeURIComponent(`figures/${file.name}`) },
+        body: file,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isWorkspaceSnapshot(value)) throw new Error("Image upload returned an invalid workspace");
+      this.#snapshot = value;
+      uploaded += 1;
+    }
+    this.#renderProjectFiles();
+    void this.#renderPreview();
+    this.#showToast(`Added ${uploaded} ${uploaded === 1 ? "image" : "images"} to figures/.`);
+  }
+
+  #insertProjectImage(asset: ProjectAsset): void {
+    const activeFile = this.#snapshot?.files.find((file) => file.id === this.#activeFileId);
+    if (!activeFile) return;
+    const path = relativeProjectPath(activeFile.path, asset.path);
+    const alt = (asset.path.split("/").at(-1) ?? "image")
+      .replace(/\.[^.]+$/u, "")
+      .replaceAll(/[-_]+/gu, " ")
+      .replaceAll("[", "")
+      .replaceAll("]", "");
+    const target = /[\s()]/u.test(path) ? `<${path}>` : path;
+    const syntax = `![${alt}](${target})`;
+    const start = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
+    this.#document.transact(() => this.#activeFileText.insert(start, syntax), this);
+    const caret = start + syntax.length;
+    this.#elements.source.focus();
+    this.#elements.source.setSelectionRange(caret, caret);
+    this.#rememberAuthoringSelection();
+    this.#showToast(`Inserted ${asset.path}.`);
+  }
+
+  async #deleteProjectImage(asset: ProjectAsset): Promise<void> {
+    const response = await fetch(`${apiBase}/assets/${encodeURIComponent(asset.id)}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWorkspaceSnapshot(value)) throw new Error("Image deletion returned an invalid workspace");
+    this.#snapshot = value;
+    this.#renderProjectFiles();
+    void this.#renderPreview();
+    this.#showToast(`Deleted ${asset.path}.`);
+  }
+
+  #resolveProjectPreviewImages(source: string, sourceMap: readonly CompositionSourceSpan[]): void {
+    const snapshot = this.#snapshot;
+    if (!snapshot || snapshot.assets.length === 0) return;
+    const matches = [...source.matchAll(/!\[[^\]\r\n]*\]\((?<path><[^>\r\n]+>|[^\s)\r\n]+)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)/gu)];
+    const images = this.#elements.preview.querySelectorAll<HTMLImageElement>("img");
+    images.forEach((image, index) => {
+      const match = matches[index];
+      const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
+      if (!requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return;
+      const span = sourceMap.length > 0 && match?.index !== undefined ? sourceSpanAt(sourceMap, match.index) : undefined;
+      const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "main.md";
+      const path = resolveProjectPath(fromPath, requested);
+      const asset = snapshot.assets.find((candidate) => candidate.path === path);
+      if (asset) image.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
+    });
   }
 
   async #openProjectHistory(): Promise<void> {
@@ -6176,6 +6301,8 @@ function collectElements(): Elements {
     commentsRailPanel: requiredElement("comments-rail-panel", HTMLElement),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
+    uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),
+    projectImageUpload: requiredElement("project-image-upload", HTMLInputElement),
     projectFileList: requiredElement("project-file-list", HTMLElement),
     newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
     createAndIncludeProjectFile: requiredElement("create-and-include-project-file", HTMLButtonElement),

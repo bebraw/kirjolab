@@ -25,6 +25,8 @@ rollback workflow without adding a second identity system.
 - Binary backup objects are immutable and content-addressed under a reserved
   `backups/` prefix. A manifest is committed only after every referenced binary
   is present in that prefix.
+- Authoritative project image asset keys are binary backup references alongside
+  workspace PDFs; their logical metadata remains in each workspace snapshot.
 - Recovery drills target isolated recovery Durable Object names and never
   mutate canonical owner or workspace identities.
 - Backup payloads and logs never contain Access tokens. R2 paths use opaque

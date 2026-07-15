@@ -18,6 +18,7 @@ const base: ProjectRevisionContent = {
     { id: "chapter", path: "chapters/a.md", mediaType: "text/markdown", content: "Old claim", createdAt: "t1", updatedAt: "t1" },
   ],
   folders: [],
+  assets: [],
   projectReferences: [],
   researchShares: [],
   pdfs: [
@@ -106,6 +107,29 @@ describe("project revision comparison", () => {
           after: { name: "paper.pdf", contentType: "application/pdf", size: 100, fingerprint: "old" },
         },
       ],
+    });
+  });
+
+  it("compares project images as binary identities", () => {
+    const image = {
+      id: "image-1",
+      path: "figures/result.png",
+      mediaType: "image/png" as const,
+      size: 12,
+      objectKey: "workspace/assets/image-1",
+      fingerprint: "old-image",
+      createdAt: "t1",
+      updatedAt: "t1",
+    };
+    const comparison = compareProjectRevisions(
+      { ...base, assets: [image] },
+      { ...base, revision: 4, assets: [{ ...image, size: 16, fingerprint: "new-image", updatedAt: "t2" }] },
+    );
+    expect(comparison.binaries).toContainEqual({
+      id: "image-1",
+      status: "modified",
+      before: { name: "figures/result.png", contentType: "image/png", size: 12, fingerprint: "old-image" },
+      after: { name: "figures/result.png", contentType: "image/png", size: 16, fingerprint: "new-image" },
     });
   });
 

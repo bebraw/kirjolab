@@ -137,6 +137,9 @@ ADRs are grouped by lifecycle status:
 | [ADR-103](./implemented/ADR-103-compose-metadata-from-several-providers.md)           | Implemented          | Choose each metadata field from one of several same-work providers and apply the review atomically.          |
 | [ADR-107](./implemented/ADR-107-open-library-without-a-project.md)                    | Implemented          | Bootstrap the private Library at `/library` without opening or creating a project.                           |
 | [ADR-108](./implemented/ADR-108-host-project-map-as-authoring-mode.md)                | Implemented          | Move project search and graph navigation from Research into a peer authoring Map mode.                       |
+| [ADR-109](./implemented/ADR-109-draft-reviewed-evidence-backed-claims.md)             | Implemented          | Draft reviewable claims from selected annotation evidence through the local model boundary.                  |
+| [ADR-110](./implemented/ADR-110-make-private-pdf-reading-routable-and-geometric.md)   | Implemented          | Make private PDF navigation routable and preserve geometric highlights and tablet gestures.                  |
+| [ADR-111](./implemented/ADR-111-store-project-images-as-assets.md)                    | Implemented          | Store bounded project images in R2 with durable paths, preview resolution, backups, and source export.       |
 
 ## Creating A New ADR
 

@@ -13,6 +13,7 @@ const snapshot: WorkspaceSnapshot = {
   title: "Shared draft",
   entryFileId: fileId,
   folders: [],
+  assets: [],
   files: [
     {
       id: fileId,

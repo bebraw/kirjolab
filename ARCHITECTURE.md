@@ -37,6 +37,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the file tree, all collaborative file texts, and their revision in one
   project-scoped `DocumentRoom`; qualify manuscript, evidence, and model
   anchors by file identity.
+- Store project image metadata beside the durable file tree and keep its bytes
+  as bounded, inert R2 objects under the reserved `figures/` path. Do not put
+  uploaded image bytes in Yjs or accept active same-origin image documents.
 - Require every composition result to retain source-map spans back to file
   identity, source range, output range, and include chain. Reject unsafe paths,
   cycles, missing files, and resource-limit violations with navigable

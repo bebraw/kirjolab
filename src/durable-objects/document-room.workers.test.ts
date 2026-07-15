@@ -364,13 +364,13 @@ describe("DocumentRoom in the Workers runtime", () => {
     const stub = roomStub(workspaceId);
     const createdFolder = await stub.createProjectFolder(workspaceId, "drafts/notes");
     const drafts = createdFolder.folders.find((folder) => folder.path === "drafts");
-    expect(createdFolder.folders.map((folder) => folder.path)).toEqual(["drafts", "drafts/notes", "sections"]);
+    expect(createdFolder.folders.map((folder) => folder.path)).toEqual(["drafts", "drafts/notes", "figures", "sections"]);
     expect(drafts).toBeDefined();
 
     const withFile = await stub.createProjectFile(workspaceId, "drafts/notes/detail.md", "Detail\n");
     await applyAuthoredSource(stub, "::include[drafts/notes/detail.md]\n");
     const moved = await stub.renameProjectFolder(workspaceId, drafts!.id, "chapters");
-    expect(moved.folders.map((folder) => folder.path)).toEqual(["chapters", "chapters/notes", "sections"]);
+    expect(moved.folders.map((folder) => folder.path)).toEqual(["chapters", "chapters/notes", "figures", "sections"]);
     expect(moved.files.some((file) => file.path === "chapters/notes/detail.md")).toBe(true);
     expect(moved.source).toBe("::include[chapters/notes/detail.md]\n");
     expect(moved.composition.diagnostics).toEqual([]);
@@ -384,7 +384,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const nested = (await stub.getSnapshot(workspaceId)).folders.find((folder) => folder.path === "chapters/notes");
     await stub.deleteProjectFolder(workspaceId, nested!.id);
     const cleaned = await stub.deleteProjectFolder(workspaceId, drafts!.id);
-    expect(cleaned.folders.map((folder) => folder.path)).toEqual(["sections"]);
+    expect(cleaned.folders.map((folder) => folder.path)).toEqual(["figures", "sections"]);
   });
 
   it("materializes existing path prefixes when folder migration is pending", async () => {
@@ -409,9 +409,35 @@ describe("DocumentRoom in the Workers runtime", () => {
     });
 
     await evictDurableObject(stub);
-    expect((await stub.getSnapshot(workspaceId)).folders.map((folder) => folder.path)).toEqual(["sections"]);
+    expect((await stub.getSnapshot(workspaceId)).folders.map((folder) => folder.path)).toEqual(["figures", "sections"]);
     expect((await stub.getRevision(0)).folders).toEqual([]);
     expect(await migrationVersion(stub, 18)).toEqual({ version: 18, name: "persist-project-folders" });
+  });
+
+  it("persists image assets in the reserved figures folder and project history", async () => {
+    const workspaceId = "project-images";
+    const stub = roomStub(workspaceId);
+    const now = new Date().toISOString();
+    const asset = {
+      id: crypto.randomUUID(),
+      path: "figures/result.png",
+      mediaType: "image/png" as const,
+      size: 128,
+      objectKey: `${workspaceId}/assets/result`,
+      fingerprint: "r2-etag:image",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const created = await stub.registerProjectAsset(workspaceId, asset);
+    expect(created.assets).toEqual([asset]);
+    expect(await stub.getProjectAsset(asset.id)).toEqual(asset);
+    expect((await stub.getRevision(created.revision)).assets).toEqual([asset]);
+    const figures = created.folders.find((folder) => folder.path === "figures");
+    await runInDurableObject(stub, (instance: DocumentRoom) => {
+      expect(() => instance.deleteProjectFolder(workspaceId, figures!.id)).toThrow("reserved");
+      expect(() => instance.registerProjectAsset(workspaceId, { ...asset, id: crypto.randomUUID() })).toThrow("already uses");
+    });
+    expect((await stub.deleteProjectAsset(workspaceId, asset.id)).assets).toEqual([]);
   });
 
   it("adds bibliography placement to an unchanged starter manuscript", async () => {

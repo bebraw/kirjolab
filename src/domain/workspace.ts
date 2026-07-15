@@ -4,12 +4,12 @@ import {
   type ManuscriptAnchorResolution,
   type ManuscriptAnchorSelector,
 } from "./manuscript-anchor";
-import type { ProjectComposition, ProjectFile, ProjectFolder } from "./project-files";
+import type { ProjectAsset, ProjectComposition, ProjectFile, ProjectFolder } from "./project-files";
 import type { BibliographicSnapshot } from "./reference-library";
 import type { ResearchShareSnapshot } from "./reference-library";
 
 export type { ManuscriptAnchorResolution, ManuscriptAnchorSelector } from "./manuscript-anchor";
-export type { ProjectComposition, ProjectFile, ProjectFolder } from "./project-files";
+export type { ProjectAsset, ProjectComposition, ProjectFile, ProjectFolder } from "./project-files";
 export type { BibliographicSnapshot } from "./reference-library";
 export type { ResearchShareSnapshot } from "./reference-library";
 
@@ -279,6 +279,7 @@ export interface WorkspaceSnapshot {
   entryFileId: string;
   files: ProjectFile[];
   folders: ProjectFolder[];
+  assets: ProjectAsset[];
   composition: ProjectComposition;
   source: string;
   bibliography: string;
@@ -753,6 +754,8 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     value.files.every(isProjectFile) &&
     Array.isArray(value.folders) &&
     value.folders.every(isProjectFolder) &&
+    Array.isArray(value.assets) &&
+    value.assets.every(isProjectAsset) &&
     isProjectComposition(value.composition) &&
     typeof value.source === "string" &&
     typeof value.bibliography === "string" &&
@@ -779,6 +782,21 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     value.comments.every(isManuscriptComment) &&
     Array.isArray(value.candidates) &&
     value.candidates.every(isModelCandidate)
+  );
+}
+
+function isProjectAsset(value: unknown): value is ProjectAsset {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.path) &&
+    ["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"].includes(String(value.mediaType)) &&
+    Number.isSafeInteger(value.size) &&
+    Number(value.size) > 0 &&
+    isNonEmptyString(value.objectKey) &&
+    isNonEmptyString(value.fingerprint) &&
+    isNonEmptyString(value.createdAt) &&
+    isNonEmptyString(value.updatedAt)
   );
 }
 
