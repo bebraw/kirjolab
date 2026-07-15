@@ -15,6 +15,11 @@ All mutation operations preserve a human review boundary.
 - One typed registry defines every assistant operation's presentation, target
   scopes, evidence requirement, action, and availability. The UI does not infer
   operation semantics from a generic prompt.
+- One browser-local XState actor coordinates generation, clarification input,
+  transient review, candidate persistence, and apply/reject decisions. Provider
+  clients, manuscript/Yjs data, persisted candidates, and DOM rendering remain
+  outside the actor. A change to the captured active manuscript file makes an
+  awaiting or reviewable transient result stale before it can continue.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.
@@ -197,6 +202,9 @@ All mutation operations preserve a human review boundary.
 - Apply and accepted status persist atomically and preserve surrounding Yjs
   identities through a range-only splice.
 - Provider errors and candidate rejection leave canonical Markdown unchanged.
+- Assistant generation and candidate decisions are mutually exclusive machine
+  states; stale, failed, or superseded transient results cannot continue their
+  prior operation.
 - The companion must require one exact origin and a fixed credential-free
   loopback upstream, and it must fail closed on invalid shape, size, route,
   method, media type, redirect, timeout, or network response.

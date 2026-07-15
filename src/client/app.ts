@@ -87,6 +87,7 @@ import {
   resolveAssistantTarget,
   type AssistantTargetScope,
 } from "./assistant-operations";
+import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
 import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHistoryAction } from "./editor-history";
 import { loadMarkdownRuntime } from "./markdown-runtime";
@@ -524,6 +525,7 @@ class WorkspaceApp {
   );
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
   readonly #pdfAnnotation = createPdfAnnotationActor();
+  readonly #assistantWorkflow = createAssistantWorkflowActor();
   #snapshot: WorkspaceSnapshot | null = null;
   #revision = 0;
   #socket: WebSocket | null = null;
@@ -535,7 +537,7 @@ class WorkspaceApp {
   #selectionBroadcastTimer: number | undefined;
   readonly #remoteSelections = new Map<string, RemoteCollaboratorSelection>();
   #renderSourceEditorHighlight: () => void = () => undefined;
-  #modelBusy = false;
+  #modelDiscoveryBusy = false;
   #hasBootstrapSnapshot = false;
   #toastTimer: number | undefined;
   #editingAnnotationId: string | null = null;
@@ -551,11 +553,11 @@ class WorkspaceApp {
   #publicationIntakeRequest = 0;
   #publicationIntakeBusy = false;
   #modelEvidenceSelection = new Set<string>();
-  #candidateDecision: { id: string; action: "apply" | "reject" } | null = null;
   #activeFileId: string | null = null;
   #activeFileText = this.#source;
   readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
   #unbindSourceEditor: () => void = () => undefined;
+  #unbindAssistantSourceStale: () => void = () => undefined;
   #projectFileDialogMode: "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder" = "create";
   #projectFolderId: string | null = null;
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
@@ -1735,6 +1737,10 @@ class WorkspaceApp {
   }
 
   #bindSourceEditor(text: Y.Text): void {
+    this.#unbindAssistantSourceStale();
+    const markAssistantResultStale = (): void => this.#assistantWorkflow.send({ type: "SOURCE_CHANGED" });
+    text.observe(markAssistantResultStale);
+    this.#unbindAssistantSourceStale = () => text.unobserve(markAssistantResultStale);
     let undoManager = this.#editorUndoManagers.get(text);
     if (!undoManager) {
       undoManager = new Y.UndoManager(text, { trackedOrigins: new Set([this.#elements.source, this]) });
@@ -1758,12 +1764,14 @@ class WorkspaceApp {
 
   #updateModelAvailability(): void {
     const stable = this.#hasStableDocumentBase();
-    this.#elements.generateCandidate.disabled = this.#modelBusy || (!this.#draftsClaim() && !stable) || !this.#canGenerateCandidate();
+    const assistant = this.#assistantWorkflow.getSnapshot();
+    this.#elements.generateCandidate.disabled =
+      this.#modelDiscoveryBusy || assistantWorkflowBusy(assistant) || (!this.#draftsClaim() && !stable) || !this.#canGenerateCandidate();
     for (const apply of document.querySelectorAll<HTMLButtonElement>('[data-candidate-action="apply"]')) {
       const candidate = this.#snapshot?.candidates.find((item) => item.id === apply.dataset.candidateId);
       const applicable = candidate ? this.#candidateApplicable(candidate) : false;
       apply.dataset.candidateApplicable = String(applicable);
-      apply.disabled = this.#candidateDecision !== null || (candidate?.operation !== "draft-claim" && !stable) || !applicable;
+      apply.disabled = assistant.context.candidateDecision !== null || (candidate?.operation !== "draft-claim" && !stable) || !applicable;
     }
   }
 
@@ -1926,8 +1934,8 @@ class WorkspaceApp {
   }
 
   async #discoverLlmModels(): Promise<void> {
-    if (this.#modelBusy) return;
-    this.#modelBusy = true;
+    if (this.#modelDiscoveryBusy || assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
+    this.#modelDiscoveryBusy = true;
     this.#elements.discoverLlmModels.disabled = true;
     this.#updateModelAvailability();
     this.#elements.modelStatus.textContent = "Checking the local provider for loaded models…";
@@ -1946,7 +1954,7 @@ class WorkspaceApp {
         error instanceof Error ? error.message : "Could not discover models from the local provider.";
       this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
     } finally {
-      this.#modelBusy = false;
+      this.#modelDiscoveryBusy = false;
       this.#elements.discoverLlmModels.disabled = false;
       this.#updateModelAvailability();
     }
@@ -5053,8 +5061,9 @@ class WorkspaceApp {
     for (const evidence of candidate.evidence) this.#elements.contextCandidateEvidence.append(this.#renderCandidateEvidence(evidence));
 
     const pending = candidate.status === "pending";
-    const currentDecision = this.#candidateDecision?.id === candidate.id ? this.#candidateDecision : null;
-    const decisionBusy = this.#candidateDecision !== null;
+    const candidateDecision = this.#assistantWorkflow.getSnapshot().context.candidateDecision;
+    const currentDecision = candidateDecision?.id === candidate.id ? candidateDecision : null;
+    const decisionBusy = candidateDecision !== null;
     this.#elements.contextCandidateApply.dataset.candidateId = candidate.id;
     this.#elements.contextCandidateApply.dataset.candidateAction = "apply";
     this.#elements.contextCandidateApply.dataset.candidateApplicable = String(applicable);
@@ -5667,6 +5676,7 @@ class WorkspaceApp {
   }
 
   async #generateCandidate(): Promise<void> {
+    if (assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
     const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
     const draftsClaim = operation.id === "draft-claim";
     if (!this.#snapshot || (!draftsClaim && !this.#hasStableDocumentBase())) {
@@ -5703,7 +5713,7 @@ class WorkspaceApp {
       return;
     }
     const instruction = this.#elements.modelInstruction.value;
-    this.#modelBusy = true;
+    this.#assistantWorkflow.send({ type: "START", operation: operation.id, sourceRevision: this.#revision });
     this.#updateModelAvailability();
     this.#elements.modelStatus.textContent = draftsClaim
       ? "Asking the local model for one grounded claim draft…"
@@ -5733,6 +5743,7 @@ class WorkspaceApp {
         await this.#resourceRefresh.request();
         this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
         this.#elements.modelStatus.textContent = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
+        this.#assistantWorkflow.send({ type: "COMPLETE" });
         return;
       }
       if (operation.id === "build-table") {
@@ -5751,6 +5762,7 @@ class WorkspaceApp {
         }
         this.#renderGeneratedTable(insertionTarget, sourceRevision, table);
         this.#elements.modelStatus.textContent = "Table syntax ready. Review it before inserting at the visible target.";
+        this.#assistantWorkflow.send({ type: "REVIEW" });
         return;
       }
       if (!passage) throw new Error("Select manuscript text first");
@@ -5769,12 +5781,14 @@ class WorkspaceApp {
         this.#elements.modelStatus.textContent = value.length
           ? `Found ${value.length} verifiable registry record${value.length === 1 ? "" : "s"}. Review before saving.`
           : "No verifiable registry records matched this query. Refine the search focus and try again.";
+        this.#assistantWorkflow.send({ type: "REVIEW" });
         return;
       }
       if (operation.id === "ideate") {
         const result = await provider.ideate({ selectedPassage: passage.excerpt, instruction, evidence: evidence.items });
         this.#renderIdeas({ passage, evidence, instruction, sourceRevision }, result);
         this.#elements.modelStatus.textContent = "Choose a direction to open its complete draft for exact review.";
+        this.#assistantWorkflow.send({ type: "REVIEW" });
         return;
       }
       if (operation.id === "clarity-drill") {
@@ -5785,6 +5799,7 @@ class WorkspaceApp {
         });
         this.#renderClarityQuestion({ provider, passage, evidence, instruction, sourceRevision, question });
         this.#elements.modelStatus.textContent = "Answer one focused question to make the intended meaning explicit.";
+        this.#assistantWorkflow.send({ type: "AWAIT_INPUT" });
         return;
       }
       const revision = await provider.reviseSelection({ selectedPassage: passage.excerpt, instruction, evidence: evidence.items });
@@ -5798,10 +5813,12 @@ class WorkspaceApp {
         model: revision.model,
       });
       this.#elements.modelStatus.textContent = "Candidate ready. Review its exact replacement and evidence in Context.";
+      this.#assistantWorkflow.send({ type: "COMPLETE" });
     } catch (error) {
-      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Local model request failed";
+      const message = error instanceof Error ? error.message : "Local model request failed";
+      this.#assistantWorkflow.send({ type: "FAIL", message });
+      this.#elements.modelStatus.textContent = message;
     } finally {
-      this.#modelBusy = false;
       this.#updateModelAvailability();
     }
   }
@@ -5827,13 +5844,19 @@ class WorkspaceApp {
 
   #insertGeneratedTable(target: AuthoringPassage, sourceRevision: number, markdown: string): void {
     const source = this.#activeFileText.toString();
-    if (!this.#hasStableDocumentBase() || this.#revision !== sourceRevision || source.slice(target.start, target.end) !== target.excerpt) {
+    if (
+      !this.#assistantWorkflow.getSnapshot().matches("reviewing") ||
+      !this.#hasStableDocumentBase() ||
+      this.#revision !== sourceRevision ||
+      source.slice(target.start, target.end) !== target.excerpt
+    ) {
       this.#elements.modelStatus.textContent = "The manuscript changed. Generate the table again for the current target.";
       return;
     }
     const prefix = target.start > 0 && source[target.start - 1] !== "\n" ? "\n\n" : "";
     const suffix = target.end < source.length && source[target.end] !== "\n" ? "\n\n" : "\n";
     const insertion = `${prefix}${markdown}${suffix}`;
+    this.#assistantWorkflow.send({ type: "COMPLETE" });
     this.#document.transact(() => {
       if (target.end > target.start) this.#activeFileText.delete(target.start, target.end - target.start);
       this.#activeFileText.insert(target.start, insertion);
@@ -5995,8 +6018,8 @@ class WorkspaceApp {
     providerLabel: string,
     model: string,
   ): Promise<void> {
-    if (this.#modelBusy) return;
-    this.#modelBusy = true;
+    if (!this.#assistantWorkflow.getSnapshot().matches("reviewing")) return;
+    this.#assistantWorkflow.send({ type: "CONTINUE" });
     this.#updateModelAvailability();
     try {
       const instruction = `${input.instruction}\nChosen direction: ${title}. ${direction}`.slice(0, 4_000);
@@ -6010,21 +6033,28 @@ class WorkspaceApp {
         model,
       });
       this.#elements.modelStatus.textContent = "Idea draft ready for exact before-and-after review.";
+      this.#assistantWorkflow.send({ type: "COMPLETE" });
     } catch (error) {
-      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Could not save the idea draft";
+      const message = error instanceof Error ? error.message : "Could not save the idea draft";
+      this.#assistantWorkflow.send({ type: "FAIL", message });
+      this.#elements.modelStatus.textContent = message;
     } finally {
-      this.#modelBusy = false;
       this.#updateModelAvailability();
     }
   }
 
   async #continueClarityDrill(input: ClarityDrillContext, rawAnswer: string): Promise<void> {
     const answer = rawAnswer.trim();
-    if (!answer || this.#modelBusy) {
-      this.#elements.modelStatus.textContent = answer ? "The local model is already working." : "Answer the clarity question first.";
+    const workflow = this.#assistantWorkflow.getSnapshot();
+    if (!answer || !workflow.matches("awaitingInput")) {
+      this.#elements.modelStatus.textContent = !answer
+        ? "Answer the clarity question first."
+        : workflow.matches("stale")
+          ? "The manuscript changed. Start the clarity drill again for the current target."
+          : "The local model is already working.";
       return;
     }
-    this.#modelBusy = true;
+    this.#assistantWorkflow.send({ type: "CONTINUE" });
     this.#updateModelAvailability();
     this.#elements.modelStatus.textContent = "Turning that meaning into a few precise alternatives…";
     try {
@@ -6038,10 +6068,12 @@ class WorkspaceApp {
       });
       this.#renderClarityRewrites(input, answer, result);
       this.#elements.modelStatus.textContent = "Choose the wording that best matches your meaning; it will still open for review.";
+      this.#assistantWorkflow.send({ type: "REVIEW" });
     } catch (error) {
-      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Local model request failed";
+      const message = error instanceof Error ? error.message : "Local model request failed";
+      this.#assistantWorkflow.send({ type: "FAIL", message });
+      this.#elements.modelStatus.textContent = message;
     } finally {
-      this.#modelBusy = false;
       this.#updateModelAvailability();
     }
   }
@@ -6082,8 +6114,8 @@ class WorkspaceApp {
     providerLabel: string,
     model: string,
   ): Promise<void> {
-    if (this.#modelBusy) return;
-    this.#modelBusy = true;
+    if (!this.#assistantWorkflow.getSnapshot().matches("reviewing")) return;
+    this.#assistantWorkflow.send({ type: "CONTINUE" });
     this.#updateModelAvailability();
     try {
       const instruction = `${input.instruction}\nClarification: ${answer}`.slice(0, 4_000);
@@ -6097,10 +6129,12 @@ class WorkspaceApp {
         model,
       });
       this.#elements.modelStatus.textContent = "Clarity revision ready for exact before-and-after review.";
+      this.#assistantWorkflow.send({ type: "COMPLETE" });
     } catch (error) {
-      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Could not save the clarity revision";
+      const message = error instanceof Error ? error.message : "Could not save the clarity revision";
+      this.#assistantWorkflow.send({ type: "FAIL", message });
+      this.#elements.modelStatus.textContent = message;
     } finally {
-      this.#modelBusy = false;
       this.#updateModelAvailability();
     }
   }
@@ -6132,13 +6166,13 @@ class WorkspaceApp {
   }
 
   async #updateCandidate(candidateId: string, action: "apply" | "reject"): Promise<void> {
-    if (this.#candidateDecision) return;
+    if (assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
     const candidate = this.#snapshot?.candidates.find((item) => item.id === candidateId);
     if (action === "apply" && candidate?.operation !== "draft-claim" && !this.#hasStableDocumentBase()) {
       this.#showToast("Wait for the manuscript to finish synchronizing before applying a candidate.");
       return;
     }
-    this.#candidateDecision = { id: candidateId, action };
+    this.#assistantWorkflow.send({ type: "DECIDE", id: candidateId, action });
     this.#renderResearchContext(false);
     this.#updateModelAvailability();
     let failure: string | null = null;
@@ -6161,7 +6195,7 @@ class WorkspaceApp {
       await this.#resourceRefresh.request().catch(() => undefined);
       this.#showToast(failure);
     } finally {
-      this.#candidateDecision = null;
+      this.#assistantWorkflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
       this.#renderResearchContext(false);
       this.#updateModelAvailability();
       if (!failure && action === "reject") this.#focusContextTab(RESEARCH_ASSISTANT_KEY);
