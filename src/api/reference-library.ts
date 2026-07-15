@@ -178,7 +178,9 @@ export async function handleReferenceLibraryApi(
       if (!isRecord(body) || typeof body.query !== "string" || !body.query.trim() || body.query.length > 4_000) {
         return jsonError("Invalid reference discovery query", 400);
       }
-      const matches = await searchMetadataProviders({ title: body.query.trim(), authors: [], year: "" }, env, fetchExternal);
+      const matches = await searchMetadataProviders({ title: body.query.trim(), authors: [], year: "" }, env, fetchExternal, {
+        usePublicSemanticScholar: true,
+      });
       return Response.json(
         matches.map(({ provider, score }) => ({ provider: provider.name, score, metadata: provider.metadata })),
         noStore(),
@@ -598,6 +600,7 @@ async function searchMetadataProviders(
   query: { readonly title: string; readonly authors: readonly string[]; readonly year: string },
   env: ReferenceLibraryApiEnv,
   fetchExternal: ExternalFetch,
+  options: { readonly usePublicSemanticScholar?: boolean } = {},
 ): Promise<
   Array<{
     provider: { name: ScholarlyMetadataProvider; metadata: Awaited<ReturnType<typeof fetchCrossrefWork>> };
@@ -639,12 +642,12 @@ async function searchMetadataProviders(
       lastError = error;
     }
   }
-  if (results.length < maximumMetadataRefinementCandidates && env.SEMANTIC_SCHOLAR_API_KEY?.trim()) {
+  if (results.length < maximumMetadataRefinementCandidates && (options.usePublicSemanticScholar || env.SEMANTIC_SCHOLAR_API_KEY?.trim())) {
     try {
-      append("semantic-scholar", await searchSemanticScholarWorks(query, env.SEMANTIC_SCHOLAR_API_KEY, fetchExternal));
+      append("semantic-scholar", await searchSemanticScholarWorks(query, env.SEMANTIC_SCHOLAR_API_KEY ?? "", fetchExternal));
     } catch (error) {
       lastError = error;
-      // Crossref results remain reviewable when the optional final provider is unavailable.
+      // Earlier provider results remain reviewable when the public Semantic Scholar pool is unavailable.
     }
   }
   if (results.length === 0 && lastError) throw lastError;

@@ -29,10 +29,12 @@ export KIRJOLAB_CROSSREF_MAILTO=you@example.org
 the preflight rejects blank, loopback, `workers.dev`, `pages.dev`, malformed,
 and placeholder values.
 
-For broader reviewed metadata discovery, configure the optional provider keys
-as Worker secrets. OpenAlex runs before Crossref when configured; Semantic
-Scholar supplies the final fallback. Do not pass these keys through deployment
-variables or commit them to `.dev.vars`.
+For broader reviewed metadata discovery, configure provider keys as Worker
+secrets. OpenAlex runs before Crossref when configured. Semantic Scholar uses
+its throttled public pool without a key and uses the configured key when one is
+available. A failed provider does not prevent another provider from returning
+reviewable results. Do not pass these keys through deployment variables or
+commit them to `.dev.vars`.
 
 ```bash
 npx wrangler secret put OPENALEX_API_KEY

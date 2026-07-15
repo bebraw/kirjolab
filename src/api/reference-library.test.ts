@@ -110,7 +110,7 @@ describe("reference library API", () => {
 
   it("discovers only provider-backed references for a bounded query", async () => {
     const fixture = apiFixture();
-    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+    const fetchExternal = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
       expect(new URL(input instanceof Request ? input.url : input.toString()).searchParams.get("query.bibliographic")).toBe(
         "visible evidence review time",
       );
@@ -131,6 +131,39 @@ describe("reference library API", () => {
       }),
     ]);
     expect((await handleReferenceLibraryApi(jsonRequest("/api/library/discovery", { query: "" }), fixture.env, identity)).status).toBe(400);
+  });
+
+  it("keeps discovery usable through OpenAlex and public Semantic Scholar when Crossref fails", async () => {
+    const fixture = apiFixture();
+    const env = { ...fixture.env, OPENALEX_API_KEY: "openalex-key" };
+    const fetchExternal = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.hostname === "api.openalex.org") return Response.json({ results: [openAlexWork()] });
+      if (url.hostname === "api.crossref.org") return new Response(null, { status: 503 });
+      if (url.hostname === "api.semanticscholar.org") return Response.json({ data: [semanticScholarPaper()] });
+      throw new Error(`Unexpected metadata provider: ${url.hostname}`);
+    });
+
+    const response = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/discovery", { query: "resilient scholarly discovery" }),
+      env,
+      identity,
+      fetchExternal,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([
+      expect.objectContaining({ provider: "openalex", metadata: expect.objectContaining({ doi: "10.5555/openalex" }) }),
+      expect.objectContaining({ provider: "semantic-scholar", metadata: expect.objectContaining({ doi: "10.5555/semantic" }) }),
+    ]);
+    expect(fetchExternal.mock.calls.map(([input]) => new URL(String(input)).hostname)).toEqual([
+      "api.openalex.org",
+      "api.crossref.org",
+      "api.semanticscholar.org",
+    ]);
+    expect(fetchExternal.mock.calls[2]?.[1]).toMatchObject({
+      headers: expect.not.objectContaining({ "x-api-key": expect.anything() }),
+    });
   });
 
   it("imports Zotero-compatible CSL JSON and round-trips portable library metadata", async () => {

@@ -21,13 +21,19 @@ The reviewed metadata workflow will use a bounded provider cascade:
 1. When `OPENALEX_API_KEY` is configured, query OpenAlex first for exact DOI and bibliographic discovery.
 2. Query Crossref next, retaining its DOI-registry mapping and bibliographic search.
 3. For an exact DOI that Crossref does not own, query DataCite.
-4. When `SEMANTIC_SCHOLAR_API_KEY` is configured, use Semantic Scholar as the final exact-DOI or bibliographic source.
+4. Use Semantic Scholar as the final bibliographic source through its public
+   pool, adding `SEMANTIC_SCHOLAR_API_KEY` when configured. Exact-DOI lookup
+   retains its key-gated rollout until that path is reviewed separately.
 
 Bibliographic discovery fills one ordered, DOI-deduplicated list of at most five candidates. Failure of an optional provider does not discard candidates from another provider. If every attempted provider fails, the workflow reports a provider failure and preserves local PDF suggestions.
 
 Every candidate names its provider. Acceptance sends only that name, DOI, selected fields, and preview fingerprint. The Worker refetches the DOI from the same provider, verifies the fingerprint and DOI uniqueness, and records `openalex`, `crossref`, `datacite`, or `semantic-scholar` provenance on selected fields.
 
-Provider responses remain capped at one megabyte and only selected response fields are requested. OpenAlex and Semantic Scholar keys are optional Worker secrets, never committed variables. Without those secrets, the existing Crossref-to-DataCite behavior remains intact.
+Provider responses remain capped at one megabyte and only selected response
+fields are requested. OpenAlex and Semantic Scholar keys are optional Worker
+secrets, never committed variables. Without those secrets, bibliographic
+discovery still combines Crossref with the throttled public Semantic Scholar
+pool; exact-DOI refinement retains the existing Crossref-to-DataCite behavior.
 
 ## Trigger
 
@@ -44,7 +50,8 @@ The metadata review identified OpenAlex as a broader first-pass scholarly index 
 
 **Negative:**
 
-- Full coverage requires operators to maintain two additional API-key secrets.
+- Full OpenAlex coverage requires an additional API-key secret; a Semantic
+  Scholar key is recommended for predictable hosted limits.
 - A refinement can make several sequential external requests before filling five candidates.
 - Aggregator metadata may differ from registry metadata and therefore still requires field-level review.
 
@@ -67,6 +74,9 @@ Parallel lookup reduces latency but spends provider quota even after five strong
 
 OpenAlex relevance is a discovery score, not an identity guarantee. Automatic acceptance would violate the reviewed metadata contract.
 
-### Enable Semantic Scholar without a key
+### Require a Semantic Scholar key for bibliographic discovery
 
-Public endpoints permit this, but unauthenticated calls share a global throttle and may be further limited during load. Requiring an operator-configured key makes hosted behavior more predictable.
+This makes hosted limits more predictable, but turns a useful public fallback
+off precisely when another provider is unavailable or not configured. The
+bounded public request is therefore allowed to fail independently, while a key
+remains recommended for hosted use.

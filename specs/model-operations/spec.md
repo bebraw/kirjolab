@@ -46,10 +46,13 @@ All mutation operations preserve a human review boundary.
   manuscript revision and target still match.
 - `find-references` lets the model formulate one bounded search query and a
   rationale from the visible claim, but never accepts model-authored citation
-  records. The query is executed against configured scholarly metadata
-  providers; only validated DOI-bearing provider results are displayed. Saving
-  imports reviewed CSL JSON into the private Library, after which ordinary
-  project-use and citation workflows apply.
+  records. The query is executed against configured OpenAlex, Crossref, and
+  Semantic Scholar metadata providers; Semantic Scholar also supplies its
+  throttled public pool when no key is configured. A provider failure does not
+  discard results returned by another provider. Only validated DOI-bearing
+  provider results are displayed. Saving imports reviewed CSL JSON into the
+  private Library, after which ordinary project-use and citation workflows
+  apply.
 - Model connection settings discover live model identifiers from the standard
   OpenAI-compatible `/models` route and populate an explicit model selector
   instead of hardcoding a catalog. Discovery is explicit, bounded,
