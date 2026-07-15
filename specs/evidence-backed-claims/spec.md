@@ -46,6 +46,8 @@ must show where a claim enters authored prose.
 - Do not accept a manuscript link whose excerpt no longer matches source.
 - Do not delete annotations or authored prose when deleting a claim.
 - Do not let a model create canonical claims without candidate review.
+- Do not let a model assign evidence relations; model-drafted claims use the
+  relation explicitly selected by the researcher before generation.
 
 ## Contract
 
@@ -62,6 +64,8 @@ must show where a claim enters authored prose.
 - [x] Guards reject missing, duplicate, excessive, or malformed evidence.
 - [x] Durable Object tests prove atomic replacement and cascade behavior.
 - [x] Browser coverage proves the annotation-to-claim-to-prose workflow.
+- [ ] A reviewed `draft-claim-v1` candidate can create one ordinary claim and
+      its evidence links from current annotation snapshots.
 
 ### Regression Guardrails
 
@@ -73,6 +77,9 @@ must show where a claim enters authored prose.
 - Snapshot and client guards validate claims and their links before rendering.
 - Claim mutations cannot modify annotation, PDF, or Markdown records as a side
   effect.
+- Applying a claim-draft candidate must revalidate each annotation version and
+  atomically create the claim, evidence links, project revision, and accepted
+  candidate state.
 
 ### Scenarios
 

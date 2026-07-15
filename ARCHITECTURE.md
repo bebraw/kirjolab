@@ -277,6 +277,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   instruction, typed versioned evidence snapshots, provider/model identity, and
   replacement text. Never model a selected-passage operation as a proposed
   whole-document replacement, and splice only the verified target on apply.
+- Persist claim-draft candidates separately from passage targets with one
+  bounded proposition, optional note, researcher-selected evidence relation,
+  typed annotation snapshots, and provider/model identity. Revalidate every
+  evidence version on apply, then atomically create the ordinary claim and its
+  evidence links; never let the model assign the scholarly relation or write a
+  canonical claim directly.
 - Keep local-model network access in the browser or the explicitly launched
   loopback companion so a hosted Worker never assumes it can reach localhost.
 - Configure the companion with one fixed credential-free loopback upstream and

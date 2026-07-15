@@ -5,8 +5,9 @@
 ### Context
 
 Kirjolab uses local-capable language models to propose inspectable scholarly
-changes. The first complete operation revises one selected manuscript passage
-using explicit annotations or claims while preserving a human review boundary.
+changes. One operation revises a selected manuscript passage using explicit
+annotations or claims. A second operation drafts one evidence-backed claim from
+selected annotations. Both preserve a human review boundary.
 
 ### Architecture
 
@@ -49,6 +50,17 @@ using explicit annotations or claims while preserving a human review boundary.
   authorized workspace state.
 - Apply requires a pending, current, exact candidate and splices only the target
   range; reject never changes canonical source.
+- `draft-claim` captures one to twelve current annotations, one bounded
+  instruction, and a researcher-selected `supports`, `contradicts`, or `extends`
+  relation before provider I/O.
+- The provider returns one bounded proposition and optional working note under
+  `draft-claim-v1`; it never chooses or changes the evidence relation.
+- A claim-draft candidate persists immutable annotation snapshots, provider and
+  model identity, instruction, relation, proposition, and note without a
+  manuscript target.
+- Applying a current claim draft revalidates every annotation version and
+  atomically creates an ordinary claim, its evidence links, a project revision,
+  and accepted candidate status. Rejection creates no claim.
 - The hosted Worker never attempts to reach a browser-local model endpoint.
 
 ### Anti-Patterns
@@ -58,6 +70,8 @@ using explicit annotations or claims while preserving a human review boundary.
 - Do not reconstruct candidate evidence from mutable current resources alone.
 - Do not apply stale, collapsed, or inexact targets.
 - Do not let provider-specific response shapes enter the domain API.
+- Do not draft a claim from another claim, infer its evidence relation, return a
+  batch of proposals in the first slice, or create a claim before review.
 - Do not let the browser choose or override the companion's upstream, expose
   the companion on a non-loopback interface, or allow wildcard origins.
 - Do not add chat, RAG, embeddings, automatic citations, or direct model writes
@@ -79,6 +93,13 @@ using explicit annotations or claims while preserving a human review boundary.
 - [x] Apply changes only the verified selected range; reject changes no source.
 - [x] Stale manuscript or evidence input creates or applies no candidate.
 - [x] Unit, Workers-runtime, and browser tests cover the reviewed lifecycle.
+- [ ] A researcher can draft one claim from selected annotations without a
+      manuscript selection.
+- [ ] Review shows the proposed proposition, working note, chosen relation, and
+      immutable source annotations.
+- [ ] Applying creates the normal claim and evidence links only when every
+      annotation version is current; rejecting creates no claim.
+- [ ] Unit, Workers-runtime, and browser tests cover the claim-draft lifecycle.
 
 ### Regression Guardrails
 
@@ -96,6 +117,12 @@ using explicit annotations or claims while preserving a human review boundary.
 - The companion must require one exact origin and a fixed credential-free
   loopback upstream, and it must fail closed on invalid shape, size, route,
   method, media type, redirect, timeout, or network response.
+- Claim drafts must use annotations only, contain one to twelve unique evidence
+  snapshots, and retain the researcher-selected relation unchanged.
+- Claim propositions are required and bounded to 2,000 characters; working
+  notes are optional and bounded to 8,000 characters.
+- Claim-draft acceptance must be atomic and must fail without changing candidate
+  or claim state when any source annotation is stale or missing.
 
 ### Scenarios
 
@@ -126,3 +153,24 @@ using explicit annotations or claims while preserving a human review boundary.
 - When: the browser sends the typed operation to the companion endpoint
 - Then: the companion validates and forwards only that bounded request and the
   normal candidate review/apply boundary remains unchanged
+
+**Scenario: Annotations become a reviewed claim draft**
+
+- Given: one or more current project annotations and a researcher-selected
+  evidence relation
+- When: the local provider returns one proposition and optional note
+- Then: Kirjolab stores a pending claim-draft candidate with immutable evidence
+  snapshots and creates no canonical claim
+
+**Scenario: Researcher accepts a current claim draft**
+
+- Given: a pending draft whose annotations still match their captured versions
+- When: the researcher applies it
+- Then: one normal claim and its evidence links are created atomically and the
+  candidate becomes accepted
+
+**Scenario: Claim evidence changes before acceptance**
+
+- Given: a pending claim draft
+- When: a selected annotation changes or disappears before apply
+- Then: acceptance fails as stale and neither claim nor evidence link is created
