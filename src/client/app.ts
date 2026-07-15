@@ -2950,7 +2950,7 @@ class WorkspaceApp {
       actionButton(
         reference.archivedAt ? "Restore" : "Archive",
         "button-secondary",
-        () => void this.#setReferenceArchived(reference.id, reference.archivedAt === null),
+        () => void this.#setReferenceArchived(reference.id, reference.archivedAt === null, reference.title),
       ),
     );
     metadataBody.append(privateActions);
@@ -3744,7 +3744,8 @@ class WorkspaceApp {
     this.#showToast("Share revoked for future project access; prior revision history remains intact.");
   }
 
-  async #setReferenceArchived(referenceId: string, archived: boolean): Promise<void> {
+  async #setReferenceArchived(referenceId: string, archived: boolean, title: string): Promise<void> {
+    if (archived && !window.confirm(`Archive “${title}”? It will be hidden from the active Library until you restore it.`)) return;
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}`, { archived }, "PATCH");
     await expectOk(response);
     await this.#refreshReferenceLibrary();

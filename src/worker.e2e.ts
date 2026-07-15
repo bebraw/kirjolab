@@ -1313,6 +1313,13 @@ test("resolves an exact PDF repeat and reveals its archived Library source", asy
   const card = libraryList.locator(".library-reference-row").filter({ hasText: "canonical repeat" });
   await expect(card).toBeVisible();
   await openLibraryReferenceDetails(card);
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toMatch(/Archive “canonical repeat”\?.*hidden from the active Library.*restore/iu);
+    void dialog.dismiss();
+  });
+  await card.getByRole("button", { name: "Archive" }).click();
+  await expect(card).toBeVisible();
+  page.once("dialog", (dialog) => void dialog.accept());
   await card.getByRole("button", { name: "Archive" }).click();
   await expect(card).toHaveCount(0);
 

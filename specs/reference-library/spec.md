@@ -59,6 +59,10 @@ memory and makes citation aliases compete with stable source identity.
   a finalized key.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
+- Archiving a reference requires explicit confirmation that names the target
+  and explains that it will leave the active Library until restored. Cancelling
+  confirmation performs no mutation; restoring an archived reference remains
+  immediate.
 - Web sources are stable records keyed by normalized canonical URL. Every
   access appends an immutable bounded snapshot with exact timestamp, content
   hash, retrieval metadata, diagnostics, and private raw/readable R2 objects.
