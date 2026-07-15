@@ -244,6 +244,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   reading position local to the browser and scoped to its authorized workspace.
   Never write routine reading navigation into Yjs, Durable Object resources, or
   collaboration control messages.
+- Project bounded, reconstructible workspace UI selections into query
+  parameters only after validating stable ids against authorized snapshots.
+  Push meaningful context-target navigation, replace incidental view and page
+  changes, preserve unrelated query parameters, and keep drafts, scroll,
+  selection, pane sizing, and inactive-tab session state out of URLs.
 - Keep adding a publication to working memory, citing it in canonical source,
   and connecting evidence to prose as distinct explicit actions. Opening,
   switching, pinning, or closing research context must not imply any of them.

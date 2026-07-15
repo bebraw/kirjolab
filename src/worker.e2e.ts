@@ -322,11 +322,25 @@ test("switches and remembers focused workspace views", async ({ page }) => {
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-layout", "editor");
   await expect(page.locator("#authoring-surface")).toBeVisible();
   await expect(page.locator("#context-surface")).toBeHidden();
+  await layout.selectOption("split");
+  await page.locator("#show-research-rail").click();
+  await page.locator("#show-map-mode").click();
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
   await layout.selectOption("context");
   await expect(page.locator("#authoring-surface")).toBeHidden();
   await expect(page.locator("#context-surface")).toBeVisible();
+  await expect
+    .poll(() => Object.fromEntries(new URL(page.url()).searchParams))
+    .toMatchObject({ rail: "research", mode: "map", surface: "context", layout: "context", context: "assistant" });
   await page.reload();
   await expect(layout).toHaveValue("context");
+  await expect(page.locator("#show-research-rail")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#show-map-mode")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#context-assistant-panel")).toBeVisible();
+  await page.getByRole("tab", { name: "Preview" }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("context")).toBeNull();
+  await page.goBack();
+  await expect(page.locator("#context-assistant-panel")).toBeVisible();
   await layout.selectOption("pdf");
   await expect(page.locator("#context-surface")).toBeVisible();
   await expect(page.locator("#toast")).toContainText("Add or open a PDF");

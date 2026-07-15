@@ -118,6 +118,15 @@ import {
   type ResearchContextState,
   type ResearchResourceTab,
 } from "./research-context";
+import {
+  readWorkspaceUiRoute,
+  researchTargetFromContextKey,
+  workspaceUiRouteUrl,
+  type AuthoringMode,
+  type WorkspaceLayout,
+  type WorkspaceRail,
+  type WorkspaceSurface,
+} from "./workspace-ui-route";
 import { editorPresenceSegments, type EditorPresenceRange } from "./editor-presence";
 
 const workspaceId = readWorkspaceId();
@@ -522,6 +531,7 @@ class WorkspaceApp {
   #offlineSaveTimer: number | undefined;
   #offlineSaveVersion = 0;
   #offlineSaveChain: Promise<void> = Promise.resolve();
+  #workspaceRouteReady = false;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -574,6 +584,7 @@ class WorkspaceApp {
       this.#setConnection("Offline · changes stay on this device", false);
       this.#setEditorsEnabled(true);
     }
+    await this.#restoreWorkspaceRoute();
     this.#connect();
   }
 
@@ -586,6 +597,10 @@ class WorkspaceApp {
     window.addEventListener("pagehide", () => this.#scheduleOfflineSave(0));
     window.addEventListener("popstate", () => {
       if (appMode === "library") void this.#restoreLibraryRoute();
+      else {
+        this.#workspaceRouteReady = false;
+        void this.#restoreWorkspaceRoute();
+      }
     });
     const logOut = document.querySelector<HTMLAnchorElement>("#log-out");
     logOut?.addEventListener("click", (event) => {
@@ -930,7 +945,7 @@ class WorkspaceApp {
     }
   }
 
-  #showRail(mode: "files" | "research" | "comments"): void {
+  #showRail(mode: WorkspaceRail): void {
     const files = mode === "files";
     const research = mode === "research";
     const comments = mode === "comments";
@@ -940,6 +955,7 @@ class WorkspaceApp {
     this.#elements.showFilesRail.setAttribute("aria-selected", String(files));
     this.#elements.showResearchRail.setAttribute("aria-selected", String(research));
     this.#elements.showCommentsRail.setAttribute("aria-selected", String(comments));
+    this.#syncWorkspaceRoute("replace");
   }
 
   #restoreWorkspaceLayout(): void {
@@ -948,7 +964,7 @@ class WorkspaceApp {
   }
 
   async #setWorkspaceLayout(value: string, persist = true): Promise<void> {
-    const layout = value === "editor" || value === "context" || value === "pdf" ? value : "split";
+    const layout: WorkspaceLayout = value === "editor" || value === "context" || value === "pdf" ? value : "split";
     this.#elements.workspaceLayout.value = layout;
     this.#elements.workspaceSurfaces.dataset.layout = layout;
     if (persist) localStorage.setItem(`kirjolab:layout:${workspaceId}`, layout);
@@ -965,6 +981,74 @@ class WorkspaceApp {
       }
     }
     window.dispatchEvent(new Event("resize"));
+    this.#syncWorkspaceRoute("replace");
+  }
+
+  async #restoreWorkspaceRoute(): Promise<void> {
+    const url = new URL(location.href);
+    const route = readWorkspaceUiRoute(url);
+    if (url.searchParams.has("rail")) this.#showRail(route.rail);
+    if (url.searchParams.has("mode")) this.#setAuthoringMode(route.mode);
+    if (route.fileId && this.#snapshot?.files.some((file) => file.id === route.fileId)) this.#selectProjectFile(route.fileId);
+
+    if (url.searchParams.has("context")) {
+      this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
+      try {
+        const target = researchTargetFromContextKey(route.contextKey);
+        if (!target) {
+          if (route.contextKey === RESEARCH_LIBRARY_KEY) await this.#openReferenceLibrary(false);
+          else this.#activateContext(route.contextKey);
+        } else if (target.kind === "publication") {
+          const publication = this.#snapshot?.publications.find((item) => item.id === target.id);
+          if (publication) this.#openPublicationContext(publication);
+        } else if (target.kind === "pdf") {
+          const pdf = this.#snapshot?.pdfs.find((item) => item.id === target.id);
+          if (pdf) await this.#showPaper(pdf, route.page, route.annotationId);
+        } else if (target.kind === "candidate") {
+          const candidate = this.#snapshot?.candidates.find((item) => item.id === target.id);
+          if (candidate) this.#openCandidateContext(candidate);
+        } else {
+          if (!this.#librarySnapshot) await this.#refreshReferenceLibrary();
+          const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === target.id);
+          if (artifact) await this.#openLibraryPdf(artifact, route.page, false);
+        }
+      } catch (error) {
+        this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
+        this.#renderResearchContext();
+        this.#showToast(error instanceof Error ? error.message : "Could not restore that context");
+      }
+    }
+
+    if (route.layout) await this.#setWorkspaceLayout(route.layout, false);
+    if (url.searchParams.has("surface")) this.#showWorkspaceSurface(route.surface);
+    this.#workspaceRouteReady = true;
+    this.#syncWorkspaceRoute("replace");
+  }
+
+  #syncWorkspaceRoute(mode: "push" | "replace"): void {
+    if (appMode !== "workspace" || !this.#workspaceRouteReady) return;
+    const activeTab = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
+    const rail: WorkspaceRail =
+      this.#elements.showResearchRail.getAttribute("aria-selected") === "true"
+        ? "research"
+        : this.#elements.showCommentsRail.getAttribute("aria-selected") === "true"
+          ? "comments"
+          : "files";
+    const current = new URL(location.href);
+    const next = workspaceUiRouteUrl(current, {
+      ...(this.#activeFileId && this.#activeFileId !== this.#snapshot?.entryFileId ? { fileId: this.#activeFileId } : {}),
+      rail,
+      mode: this.#elements.showMapMode.getAttribute("aria-pressed") === "true" ? "map" : "write",
+      surface: this.#elements.workspaceSurfaces.dataset.activeSurface === "context" ? "context" : "authoring",
+      layout: this.#elements.workspaceLayout.value as WorkspaceLayout,
+      contextKey: this.#contextState.activeKey,
+      ...(activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf" ? { page: activeTab.page } : {}),
+      ...(activeTab?.kind === "pdf" && activeTab.focusedAnnotationId ? { annotationId: activeTab.focusedAnnotationId } : {}),
+    });
+    const currentRelative = `${current.pathname}${current.search}${current.hash}`;
+    if (next === currentRelative) return;
+    if (mode === "push") history.pushState({ view: "workspace" }, "", next);
+    else history.replaceState(history.state, "", next);
   }
 
   async #createWorkspace(event: SubmitEvent): Promise<void> {
@@ -1875,6 +1959,7 @@ class WorkspaceApp {
     this.#updateModelAvailability();
     this.#elements.previewScroll.scrollTop = 0;
     void this.#renderPreview();
+    this.#syncWorkspaceRoute("replace");
   }
 
   #openProjectFileDialog(mode: "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder", folderId?: string): void {
@@ -2276,6 +2361,7 @@ class WorkspaceApp {
     this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
     this.#renderReferenceLibrary();
     this.#renderResearchContext();
+    this.#syncWorkspaceRoute("replace");
   }
 
   #renderReferenceLibrary(): void {
@@ -3488,6 +3574,7 @@ class WorkspaceApp {
     );
     this.#renderResearchContext();
     this.#updateModelAvailability();
+    this.#syncWorkspaceRoute("replace");
   }
 
   #researchContextAuthorization(): {
@@ -4243,7 +4330,7 @@ class WorkspaceApp {
     }
   }
 
-  #setAuthoringMode(mode: "write" | "map"): void {
+  #setAuthoringMode(mode: AuthoringMode): void {
     const writing = mode === "write";
     this.#elements.sourceEditorShell.hidden = !writing;
     this.#elements.projectMap.hidden = writing;
@@ -4252,12 +4339,14 @@ class WorkspaceApp {
     this.#elements.showMapMode.setAttribute("aria-pressed", String(!writing));
     if (writing) this.#elements.source.focus();
     else this.#elements.projectMap.querySelector<HTMLButtonElement>(".project-map-node")?.focus();
+    this.#syncWorkspaceRoute("replace");
   }
 
-  #showWorkspaceSurface(surface: "authoring" | "context"): void {
+  #showWorkspaceSurface(surface: WorkspaceSurface, syncRoute = true): void {
     this.#elements.workspaceSurfaces.dataset.activeSurface = surface;
     this.#elements.showAuthoringSurface.setAttribute("aria-pressed", String(surface === "authoring"));
     this.#elements.showContextSurface.setAttribute("aria-pressed", String(surface === "context"));
+    if (syncRoute) this.#syncWorkspaceRoute("replace");
   }
 
   #bindPaneResizer(): void {
@@ -4390,24 +4479,27 @@ class WorkspaceApp {
     this.#captureActiveContextState();
     this.#contextState = activateResearchTab(this.#contextState, key);
     this.#renderResearchContext();
-    this.#showWorkspaceSurface("context");
+    this.#showWorkspaceSurface("context", false);
     this.#focusContextTab(key);
+    this.#syncWorkspaceRoute("push");
   }
 
   #openPublicationContext(publication: PublicationResource): void {
     this.#captureActiveContextState();
     this.#contextState = openResearchResource(this.#contextState, { kind: "publication", id: publication.id });
     this.#renderResearchContext();
-    this.#showWorkspaceSurface("context");
+    this.#showWorkspaceSurface("context", false);
     this.#focusContextTab(researchResourceKey({ kind: "publication", id: publication.id }));
+    this.#syncWorkspaceRoute("push");
   }
 
   #openCandidateContext(candidate: ModelCandidate): void {
     this.#captureActiveContextState();
     this.#contextState = openResearchResource(this.#contextState, { kind: "candidate", id: candidate.id });
     this.#renderResearchContext();
-    this.#showWorkspaceSurface("context");
+    this.#showWorkspaceSurface("context", false);
     this.#focusContextTab(researchResourceKey({ kind: "candidate", id: candidate.id }));
+    this.#syncWorkspaceRoute("push");
   }
 
   #closeActiveContext(): void {
@@ -4796,6 +4888,7 @@ class WorkspaceApp {
     this.#contextState = closeResearchTab(this.#contextState, key);
     this.#renderResearchContext();
     this.#focusContextTab(this.#contextState.activeKey);
+    this.#syncWorkspaceRoute("replace");
   }
 
   #focusContextTab(key: ResearchContextKey): void {
@@ -5410,8 +5503,9 @@ class WorkspaceApp {
       });
     }
     this.#renderResearchContext(false);
-    this.#showWorkspaceSurface("context");
+    this.#showWorkspaceSurface("context", false);
     this.#focusContextTab(key);
+    this.#syncWorkspaceRoute("push");
     await this.#loadActivePdf(page !== undefined || focusAnnotationId !== undefined);
   }
 
@@ -5421,13 +5515,14 @@ class WorkspaceApp {
     const key = researchResourceKey({ kind: "library-pdf", id: artifact.id });
     if (page !== undefined) this.#contextState = setPdfResearchLocation(this.#contextState, key, { page });
     this.#renderResearchContext(false);
-    this.#showWorkspaceSurface("context");
+    this.#showWorkspaceSurface("context", false);
     this.#focusContextTab(key);
     if (appMode === "library" && updateHistory) {
       const active = this.#contextState.tabs.find((tab) => tab.key === key);
       const route = this.#libraryPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
       history.pushState({ view: "library-pdf", artifactId: artifact.id }, "", route);
     }
+    if (appMode === "workspace") this.#syncWorkspaceRoute("push");
     await this.#loadActivePdf(page !== undefined);
   }
 
@@ -5459,6 +5554,11 @@ class WorkspaceApp {
 
   #handlePdfPageChange(page: number): void {
     this.#renderPdfMarkups();
+    const active = this.#activeResourceTab();
+    if (active?.kind === "pdf" || active?.kind === "library-pdf") {
+      this.#contextState = setPdfResearchLocation(this.#contextState, active.key, { page });
+      this.#syncWorkspaceRoute("replace");
+    }
     const artifact = this.#activeLibraryPdf();
     if (appMode === "library" && artifact && location.pathname.startsWith("/library/pdfs/")) {
       history.replaceState(history.state, "", this.#libraryPdfRoute(artifact.id, page));

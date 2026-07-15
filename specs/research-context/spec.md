@@ -72,6 +72,18 @@ changing their canonical data, selector, authorization, or rendering contracts.
   PDF page, PDF scroll, and focused annotation are local browser state.
   They must not be written to Yjs, the workspace snapshot, Durable Object
   SQLite, or collaboration control messages.
+- Stable, reconstructible workspace selections are reflected in bounded query
+  parameters: active non-entry file, rail, authoring mode, narrow surface,
+  desktop layout, active context target, and the active PDF page or focused
+  annotation. Refresh and copied workspace URLs restore those selections only
+  after their ids are reconciled against the authorized snapshots.
+- Context-target changes push browser history. Incidental view changes and PDF
+  page turns replace the current history entry so Back follows meaningful
+  research navigation rather than replaying every local adjustment. Unknown
+  query parameters remain untouched.
+- Draft text, form contents, open/pinned inactive tabs, scroll offsets, pane
+  widths, selections, and dialog state do not enter the URL. They remain
+  ephemeral or use their existing browser-local storage contract.
 - On desktop, a pointer- and keyboard-operable separator resizes Authoring and
   Context while preserving readable minimum widths. The local authoring width
   is remembered per workspace and context kind. Preview, Library, and Writing
@@ -240,6 +252,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
       actions.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
+- [x] Refresh, copied URLs, and browser Back restore authorized file, view,
+      context, and PDF-location selections without persisting transient drafts.
 - [x] Browser coverage proves tab identity, reading-position restoration,
       keyboard behavior, mutation boundaries, and responsive switching.
 - [x] An unlinked PDF can be identified by reviewed DOI metadata and connected
@@ -266,6 +280,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   between PDFs.
 - Context tabs must be reconciled on workspace changes and must not retain a
   representation that is absent from the newly authorized snapshot.
+- Workspace query state must accept only bounded known values, omit defaults,
+  preserve parameters owned by other features, and fall back to Preview or the
+  entry file when a requested stable id is absent or unauthorized.
 - Candidate tabs must be authorized by candidate id and must not persist their
   local open, pin, active, or scroll state into candidate provenance.
 - PDF rendering remains single-active-page and uses the pinned matching PDF.js
