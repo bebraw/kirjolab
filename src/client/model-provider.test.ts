@@ -234,38 +234,75 @@ describe("OpenAICompatibleBrowserProvider", () => {
   it("rejects malformed contextual-operation requests and structured outputs", async () => {
     const idle = vi.fn<typeof fetch>();
     const provider = createProvider({ fetcher: idle });
-    for (const request of [
-      null,
-      { ...clarityOperation, selectedPassage: "" },
-      { ...clarityOperation, selectedPassage: "x".repeat(20_001) },
-      { ...clarityOperation, instruction: "" },
-      { ...clarityOperation, evidence: Array.from({ length: 13 }, (_, index) => evidence("annotation", String(index))) },
-    ]) {
-      await expect(provider.startClarityDrill(request as ClarityDrillRequest)).rejects.toThrow();
-    }
-    for (const request of [
-      { ...clarityOperation, issue: "", question: "Question?", answer: "Answer" },
-      { ...clarityOperation, issue: "Issue", question: "", answer: "Answer" },
-      { ...clarityOperation, issue: "Issue", question: "Question?", answer: "" },
-      { ...clarityOperation, issue: "x".repeat(2_001), question: "Question?", answer: "Answer" },
-      { ...clarityOperation, issue: "Issue", question: "x".repeat(2_001), answer: "Answer" },
-      { ...clarityOperation, issue: "Issue", question: "Question?", answer: "x".repeat(4_001) },
-    ]) {
-      await expect(provider.continueClarityDrill(request)).rejects.toThrow();
-    }
-    for (const request of [
-      { ...tableOperation, caption: "x".repeat(501) },
-      { ...tableOperation, columns: ["Only"] },
-      { ...tableOperation, columns: Array.from({ length: 9 }, (_, index) => `C${index}`), rows: [["x"]] },
-      { ...tableOperation, rows: [] },
-      { ...tableOperation, rows: Array.from({ length: 101 }, () => ["x", "y"]) },
-      { ...tableOperation, rows: [["one"]] },
-      { ...tableOperation, columns: ["", "Score"] },
-      { ...tableOperation, rows: [["", "0.6"]] },
-      { ...tableOperation, manuscriptContext: "x".repeat(20_001) },
-    ]) {
-      await expect(provider.buildTable(request)).rejects.toThrow();
-    }
+    await expect(Reflect.apply(provider.startClarityDrill, provider, [null])).rejects.toThrow("Clarity drill request must be an object");
+    await expect(provider.startClarityDrill({ ...clarityOperation, selectedPassage: "" })).rejects.toThrow("Selected passage is required");
+    await expect(provider.startClarityDrill({ ...clarityOperation, selectedPassage: "x".repeat(20_001) })).rejects.toThrow(
+      "Selected passage exceeds 20000 characters",
+    );
+    await expect(provider.startClarityDrill({ ...clarityOperation, instruction: "" })).rejects.toThrow("Instruction is required");
+    await expect(
+      provider.startClarityDrill({
+        ...clarityOperation,
+        evidence: Array.from({ length: 13 }, (_, index) => evidence("annotation", String(index))),
+      }),
+    ).rejects.toThrow("Evidence must contain at most 12 items");
+
+    await expect(
+      provider.continueClarityDrill({ ...clarityOperation, issue: "", question: "Question?", answer: "Answer" }),
+    ).rejects.toThrow("Clarity issue is required");
+    await expect(provider.continueClarityDrill({ ...clarityOperation, issue: "Issue", question: "", answer: "Answer" })).rejects.toThrow(
+      "Clarity question is required",
+    );
+    await expect(provider.continueClarityDrill({ ...clarityOperation, issue: "Issue", question: "Question?", answer: "" })).rejects.toThrow(
+      "Clarity answer is required",
+    );
+    await expect(
+      provider.continueClarityDrill({
+        ...clarityOperation,
+        issue: "x".repeat(2_001),
+        question: "Question?",
+        answer: "Answer",
+      }),
+    ).rejects.toThrow("Clarity issue exceeds 2000 characters");
+    await expect(
+      provider.continueClarityDrill({
+        ...clarityOperation,
+        issue: "Issue",
+        question: "x".repeat(2_001),
+        answer: "Answer",
+      }),
+    ).rejects.toThrow("Clarity question exceeds 2000 characters");
+    await expect(
+      provider.continueClarityDrill({
+        ...clarityOperation,
+        issue: "Issue",
+        question: "Question?",
+        answer: "x".repeat(4_001),
+      }),
+    ).rejects.toThrow("Clarity answer exceeds 4000 characters");
+
+    await expect(Reflect.apply(provider.buildTable, provider, [null])).rejects.toThrow("Table request must be an object");
+    await expect(provider.buildTable({ ...tableOperation, caption: "x".repeat(501) })).rejects.toThrow(
+      "Table caption exceeds 500 characters",
+    );
+    await expect(provider.buildTable({ ...tableOperation, columns: ["Only"] })).rejects.toThrow("Table must have between 2 and 8 columns");
+    await expect(
+      provider.buildTable({
+        ...tableOperation,
+        columns: Array.from({ length: 9 }, (_, index) => `C${index}`),
+        rows: [["x"]],
+      }),
+    ).rejects.toThrow("Table must have between 2 and 8 columns");
+    await expect(provider.buildTable({ ...tableOperation, rows: [] })).rejects.toThrow("Table must have between 1 and 100 rows");
+    await expect(provider.buildTable({ ...tableOperation, rows: Array.from({ length: 101 }, () => ["x", "y"]) })).rejects.toThrow(
+      "Table must have between 1 and 100 rows",
+    );
+    await expect(provider.buildTable({ ...tableOperation, rows: [["one"]] })).rejects.toThrow("Table row width must match its columns");
+    await expect(provider.buildTable({ ...tableOperation, columns: ["", "Score"] })).rejects.toThrow("Table column is required");
+    await expect(provider.buildTable({ ...tableOperation, rows: [["", "0.6"]] })).rejects.toThrow("Table cell is required");
+    await expect(provider.buildTable({ ...tableOperation, manuscriptContext: "x".repeat(20_001) })).rejects.toThrow(
+      "Table manuscript context exceeds 20000 characters",
+    );
     expect(idle).not.toHaveBeenCalled();
 
     const invalidQuestions = ["not json", "{}", '{"issue":"","question":"Why?"}', '{"issue":"Issue","question":"","extra":true}'];
