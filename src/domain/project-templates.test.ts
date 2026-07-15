@@ -59,13 +59,37 @@ describe("project templates", () => {
 
   it("rejects malformed, duplicate, entryless, and oversized seeds", () => {
     const seed = builtInProjectTemplate("builtin-guided")!.seed;
+    expect(isProjectTemplateSeed(null)).toBe(false);
+    expect(isProjectTemplateSeed([])).toBe(false);
+    expect(isProjectTemplateSeed({})).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, schemaVersion: 2 })).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, files: [] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, files: "main.md" })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, folders: "figures" })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, files: Array.from({ length: 513 }, () => seed.files[0]) })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, folders: Array.from({ length: 513 }, (_, index) => `folder-${index}`) })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, bibliography: 42 })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, publicationProfile: null })).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, files: [{ path: "notes.md", content: "notes" }] })).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, files: [...seed.files, { path: "MAIN.md", content: "duplicate" }] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, files: [null] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, files: [{ path: 42, content: "bad" }] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, files: [{ path: "main.md", content: 42 }] })).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, files: [{ path: "../main.md", content: "bad" }] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, files: [{ path: "main.txt", content: "bad" }] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, files: [{ path: "sections//main.md", content: "bad" }] })).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, folders: ["sections", "sections"] })).toBe(false);
-    expect(isProjectTemplateSeed({ ...seed, bibliography: "x".repeat(2 * 1024 * 1024 + 1) })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, folders: [42] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, folders: ["../figures"] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, folders: ["notes.md"] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, folders: ["Figures", "figures"] })).toBe(false);
+
+    const minimalSeed = { ...seed, files: [{ path: "main.md", content: "" }], folders: [] };
+    expect(isProjectTemplateSeed({ ...minimalSeed, bibliography: "x".repeat(2 * 1024 * 1024) })).toBe(true);
+    expect(isProjectTemplateSeed({ ...minimalSeed, bibliography: "x".repeat(2 * 1024 * 1024 + 1) })).toBe(false);
+    expect(() =>
+      projectTemplateSeed({ files: [], folders: [], bibliography: "", publicationProfile: defaultProjectPublicationProfile }),
+    ).toThrow("Project cannot be represented as a bounded template");
   });
 
   it("validates promotion inputs and personal ids", () => {
@@ -78,7 +102,29 @@ describe("project templates", () => {
     expect(isSaveProjectTemplateInput({ name: "Lab", templateId: "builtin-guided" })).toBe(false);
     expect(isPersonalProjectTemplateId(id)).toBe(true);
     expect(isPersonalProjectTemplateId("builtin-guided")).toBe(false);
+  });
+
+  it("strictly validates template list summaries", () => {
+    const summary = listBuiltInProjectTemplates()[0]!;
     expect(isProjectTemplateSummaries(listBuiltInProjectTemplates())).toBe(true);
-    expect(isProjectTemplateSummaries([{ ...listBuiltInProjectTemplates()[0], source: "foreign" }])).toBe(false);
+    expect(isProjectTemplateSummaries([])).toBe(true);
+    expect(isProjectTemplateSummaries(null)).toBe(false);
+    expect(isProjectTemplateSummaries({})).toBe(false);
+    expect(isProjectTemplateSummaries([null])).toBe(false);
+    expect(isProjectTemplateSummaries([[]])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, id: 42 }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, id: "" }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, id: "x".repeat(64) }])).toBe(true);
+    expect(isProjectTemplateSummaries([{ ...summary, id: "x".repeat(65) }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, source: "foreign" }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, name: 42 }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, name: " " }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, name: "x".repeat(121) }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, description: 42 }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, description: "x".repeat(501) }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, createdAt: "2026-07-15T00:00:00.000Z" }])).toBe(true);
+    expect(isProjectTemplateSummaries([{ ...summary, createdAt: 42 }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, updatedAt: "2026-07-15T00:00:00.000Z" }])).toBe(true);
+    expect(isProjectTemplateSummaries([{ ...summary, updatedAt: 42 }])).toBe(false);
   });
 });
