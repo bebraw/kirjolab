@@ -18,7 +18,10 @@ collaborative, and unambiguous about what preview and export mean.
   file materializes missing ancestor folders.
 - Project images have stable asset identities and project-relative paths under
   the reserved durable `figures/` folder. SQLite versions their metadata while
-  R2 stores their bytes outside collaborative Yjs state.
+  R2 stores their bytes outside collaborative Yjs state. SVG is accepted only
+  as bounded UTF-8 XML with an `<svg>` root and no DTD, entity, script,
+  embedded-document, event-handler, or external-resource constructs. SVG
+  responses carry a sandboxed no-network Content Security Policy.
 - Each Markdown file is a `Y.Text` inside the project's existing
   `DocumentRoom`. File content, the file tree, reference paths, and the project
   revision persist in one SQLite-backed coordination atom.
@@ -70,10 +73,11 @@ collaborative, and unambiguous about what preview and export mean.
   scholarly directives and their options, project composition, images, and a
   practical research workflow. The guide is visible in Files but remains out
   of manuscript preview and publication exports.
-- The Files rail accepts multiple PNG, JPEG, GIF, WebP, or AVIF images of at
-  most 20 MiB each. It inserts a relative Markdown image reference at the
-  collaborative caret. Preview resolves that path relative to the originating
-  source-map span, including references authored in supporting files.
+- The Files rail accepts multiple PNG, JPEG, GIF, WebP, AVIF, or constrained SVG
+  images of at most 20 MiB each. It inserts a relative Markdown image reference
+  at the collaborative caret. Preview resolves that path relative to the
+  originating source-map span, including references authored in supporting
+  files.
 - The authoring toolbar inserts an existing file with a path relative to the
   active file. **Create and include** creates a supporting file and inserts its
   directive at the remembered collaborative caret, so authors do not have to
@@ -102,8 +106,9 @@ collaborative, and unambiguous about what preview and export mean.
 - `PATCH /api/workspaces/{id}/folders/{folderId}` moves or renames a folder
   subtree and atomically rewrites affected include directives.
 - `DELETE /api/workspaces/{id}/folders/{folderId}` deletes only an empty folder.
-- `POST /api/workspaces/{id}/assets` accepts a bounded raster body and a
-  percent-encoded `X-File-Path` below `figures/`, returning the updated project.
+- `POST /api/workspaces/{id}/assets` accepts a bounded supported image body and
+  a percent-encoded `X-File-Path` below `figures/`, returning the updated
+  project. SVG must pass the active-content and external-resource validator.
 - `GET /api/workspaces/{id}/assets/{assetId}` authorizes through workspace
   membership and serves the image with its stored media type and `nosniff`.
 - `DELETE /api/workspaces/{id}/assets/{assetId}` removes current metadata and
@@ -143,6 +148,8 @@ collaborative, and unambiguous about what preview and export mean.
 - Workers and browser coverage verify that a fresh project exposes the syntax
   guide and transclusion demo as real supporting files while composing neither
   diagnostics nor guide prose into the paper.
+- Domain and browser coverage verify safe SVG acceptance, active or externally
+  referenced SVG rejection, sandboxed serving, preview, and source export.
 
 ## Current Milestone
 

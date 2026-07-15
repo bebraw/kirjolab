@@ -39,7 +39,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   anchors by file identity.
 - Store project image metadata beside the durable file tree and keep its bytes
   as bounded, inert R2 objects under the reserved `figures/` path. Do not put
-  uploaded image bytes in Yjs or accept active same-origin image documents.
+  uploaded image bytes in Yjs. Accept SVG only as validated UTF-8 image content
+  without active or external-resource constructs, and serve it under a
+  no-script, no-network sandbox policy.
 - Represent reusable project templates as versioned sanitized seeds containing
   only Markdown files, folders, portable BibTeX, and publication settings.
   Store personal templates in a separate owner-keyed authority; never use a

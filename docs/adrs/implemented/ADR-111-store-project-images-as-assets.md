@@ -1,6 +1,6 @@
 # ADR-111: Store Project Images as Assets
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-114](../accepted/ADR-114-accept-inert-svg-project-images.md)
 
 **Date:** 2026-07-15
 
