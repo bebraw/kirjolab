@@ -138,6 +138,117 @@ describe("OpenAICompatibleBrowserProvider", () => {
     });
   });
 
+  it("rejects malformed contextual-operation requests and structured outputs", async () => {
+    const idle = vi.fn<typeof fetch>();
+    const provider = createProvider({ fetcher: idle });
+    for (const request of [
+      null,
+      { ...clarityOperation, selectedPassage: "" },
+      { ...clarityOperation, selectedPassage: "x".repeat(20_001) },
+      { ...clarityOperation, instruction: "" },
+      { ...clarityOperation, evidence: Array.from({ length: 13 }, (_, index) => evidence("annotation", String(index))) },
+    ]) {
+      await expect(provider.startClarityDrill(request as ClarityDrillRequest)).rejects.toThrow();
+    }
+    for (const request of [
+      { ...clarityOperation, issue: "", question: "Question?", answer: "Answer" },
+      { ...clarityOperation, issue: "Issue", question: "", answer: "Answer" },
+      { ...clarityOperation, issue: "Issue", question: "Question?", answer: "" },
+      { ...clarityOperation, issue: "x".repeat(2_001), question: "Question?", answer: "Answer" },
+      { ...clarityOperation, issue: "Issue", question: "x".repeat(2_001), answer: "Answer" },
+      { ...clarityOperation, issue: "Issue", question: "Question?", answer: "x".repeat(4_001) },
+    ]) {
+      await expect(provider.continueClarityDrill(request)).rejects.toThrow();
+    }
+    for (const request of [
+      { ...tableOperation, caption: "x".repeat(501) },
+      { ...tableOperation, columns: ["Only"] },
+      { ...tableOperation, columns: Array.from({ length: 9 }, (_, index) => `C${index}`), rows: [["x"]] },
+      { ...tableOperation, rows: [] },
+      { ...tableOperation, rows: Array.from({ length: 101 }, () => ["x", "y"]) },
+      { ...tableOperation, rows: [["one"]] },
+      { ...tableOperation, columns: ["", "Score"] },
+      { ...tableOperation, rows: [["", "0.6"]] },
+      { ...tableOperation, manuscriptContext: "x".repeat(20_001) },
+    ]) {
+      await expect(provider.buildTable(request)).rejects.toThrow();
+    }
+    expect(idle).not.toHaveBeenCalled();
+
+    const invalidQuestions = ["not json", "{}", '{"issue":"","question":"Why?"}', '{"issue":"Issue","question":"","extra":true}'];
+    for (const content of invalidQuestions) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).startClarityDrill(
+          clarityOperation,
+        ),
+      ).rejects.toThrow();
+    }
+    const invalidRewrites = [
+      '{"rewrites":[]}',
+      '{"rewrites":[{"text":"One","rationale":"Why"}]}',
+      `{"rewrites":${JSON.stringify(Array.from({ length: 5 }, (_, index) => ({ text: String(index), rationale: "Why" })))}}`,
+      '{"rewrites":[null,null]}',
+      '{"rewrites":[{"text":"","rationale":"Why"},{"text":"Two","rationale":"Why"}]}',
+      '{"rewrites":[{"text":"One","rationale":""},{"text":"Two","rationale":"Why"}]}',
+      '{"rewrites":[{"text":"One","rationale":"Why","extra":true},{"text":"Two","rationale":"Why"}]}',
+    ];
+    for (const content of invalidRewrites) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).continueClarityDrill({
+          ...clarityOperation,
+          issue: "Issue",
+          question: "Why?",
+          answer: "Because.",
+        }),
+      ).rejects.toThrow();
+    }
+
+    const validIdeas = Array.from({ length: 3 }, (_, index) => ({ title: `Idea ${index}`, direction: "Direction", draft: "Draft" }));
+    for (const content of [
+      "not json",
+      '{"ideas":[]}',
+      JSON.stringify({ ideas: validIdeas.slice(0, 2) }),
+      JSON.stringify({ ideas: [...validIdeas, ...validIdeas] }),
+      JSON.stringify({ ideas: [null, ...validIdeas.slice(1)] }),
+      JSON.stringify({ ideas: [{ ...validIdeas[0], title: "" }, ...validIdeas.slice(1)] }),
+      JSON.stringify({ ideas: [{ ...validIdeas[0], direction: "" }, ...validIdeas.slice(1)] }),
+      JSON.stringify({ ideas: [{ ...validIdeas[0], draft: "", extra: true }, ...validIdeas.slice(1)] }),
+    ]) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).ideate(ideationOperation),
+      ).rejects.toThrow();
+    }
+
+    for (const content of [
+      "not json",
+      "{}",
+      '{"caption":"","columns":["Only"],"rows":[["x"]]}',
+      '{"caption":"","columns":["A","B"],"rows":[]}',
+      '{"caption":"","columns":["A","B"],"rows":[["x"]]}',
+      '{"caption":"","columns":["A","B"],"rows":[["x","y"]],"extra":true}',
+    ]) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).buildTable(tableOperation),
+      ).rejects.toThrow();
+    }
+
+    for (const content of [
+      "not json",
+      "{}",
+      '{"query":"","rationale":"Why"}',
+      '{"query":"terms","rationale":""}',
+      '{"query":"terms","rationale":"Why","title":"Invented"}',
+      JSON.stringify({ query: "x".repeat(4_001), rationale: "Why" }),
+      JSON.stringify({ query: "terms", rationale: "x".repeat(2_001) }),
+    ]) {
+      await expect(
+        createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).formulateReferenceQuery(
+          clarityOperation,
+        ),
+      ).rejects.toThrow();
+    }
+  });
+
   it("drafts one structured claim from annotation-only evidence", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse('{"text":"A grounded proposition.","note":"Working note"}'));
     const draft = await createProvider({ fetcher }).draftClaim(claimOperation);

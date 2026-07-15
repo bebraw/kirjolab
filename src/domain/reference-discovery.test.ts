@@ -24,5 +24,9 @@ describe("reference discovery results", () => {
   it("rejects invented or incomplete result shapes", () => {
     expect(isReferenceDiscoveryResults([{ ...result, provider: "model" }])).toBe(false);
     expect(isReferenceDiscoveryResults([{ ...result, metadata: { ...result.metadata, doi: "" } }])).toBe(false);
+    expect(isReferenceDiscoveryResults([{ ...result, score: Number.POSITIVE_INFINITY }])).toBe(false);
+    expect(isReferenceDiscoveryResults([{ ...result, metadata: { ...result.metadata, title: "" } }])).toBe(false);
+    expect(isReferenceDiscoveryResults(Array.from({ length: 13 }, () => result))).toBe(false);
+    expect(isReferenceDiscoveryResults(null)).toBe(false);
   });
 });
