@@ -455,8 +455,7 @@ interface Elements {
   publicationIntakeLinkedList: HTMLElement;
   llmEndpoint: HTMLInputElement;
   llmConnection: HTMLSelectElement;
-  llmModel: HTMLInputElement;
-  llmModelOptions: HTMLDataListElement;
+  llmModel: HTMLSelectElement;
   llmReasoningEffort: HTMLSelectElement;
   discoverLlmModels: HTMLButtonElement;
   modelOperation: HTMLSelectElement;
@@ -928,6 +927,12 @@ class WorkspaceApp {
           : "The browser will contact the configured loopback provider directly.";
       this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
       this.#saveModelPreferences();
+    });
+    this.#elements.llmModel.addEventListener("change", () => {
+      const model = this.#elements.llmModel.value;
+      const status = model ? `Using ${model} for new writing assistant requests.` : "Find a loaded model before using Writing assistant.";
+      this.#elements.modelStatus.textContent = status;
+      this.#elements.preferencesModelStatus.textContent = status;
     });
     this.#elements.discoverLlmModels.addEventListener("click", () => void this.#discoverLlmModels());
     this.#elements.openPreferencesFromAssistant.addEventListener("click", (event) => {
@@ -1850,7 +1855,7 @@ class WorkspaceApp {
       if (!isRecord(stored)) return;
       if (stored.connection === "direct" || stored.connection === "companion") this.#elements.llmConnection.value = stored.connection;
       if (typeof stored.endpoint === "string" && stored.endpoint.length <= 2_048) this.#elements.llmEndpoint.value = stored.endpoint;
-      if (typeof stored.model === "string" && stored.model.length <= 256) this.#elements.llmModel.value = stored.model;
+      if (typeof stored.model === "string" && stored.model.length <= 256) this.#setLlmModelOptions([], stored.model);
       if (typeof stored.reasoningEffort === "string") {
         this.#elements.llmReasoningEffort.value = readModelReasoningEffort(stored.reasoningEffort);
       }
@@ -1881,6 +1886,28 @@ class WorkspaceApp {
     });
   }
 
+  #setLlmModelOptions(models: readonly string[], selectedModel: string): void {
+    const selected = selectedModel.trim();
+    const available = [...new Set(models.map((model) => model.trim()).filter(Boolean))];
+    const optionModels = available.length === 0 && selected ? [selected] : available;
+    if (optionModels.length === 0) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Find loaded models";
+      this.#elements.llmModel.replaceChildren(option);
+      return;
+    }
+    this.#elements.llmModel.replaceChildren(
+      ...optionModels.map((model) => {
+        const option = document.createElement("option");
+        option.value = model;
+        option.textContent = available.length === 0 ? `${model} · saved` : model;
+        return option;
+      }),
+    );
+    this.#elements.llmModel.value = optionModels.includes(selected) ? selected : (optionModels[0] ?? "");
+  }
+
   async #discoverLlmModels(): Promise<void> {
     if (this.#modelBusy) return;
     this.#modelBusy = true;
@@ -1890,15 +1917,8 @@ class WorkspaceApp {
     this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
     try {
       const models = await discoverOpenAICompatibleModels(this.#elements.llmEndpoint.value);
-      this.#elements.llmModelOptions.replaceChildren(
-        ...models.map((model) => {
-          const option = document.createElement("option");
-          option.value = model;
-          return option;
-        }),
-      );
       const selectedModel = this.#elements.llmModel.value.trim();
-      if ((!selectedModel || !models.includes(selectedModel)) && models[0]) this.#elements.llmModel.value = models[0];
+      this.#setLlmModelOptions(models, models.includes(selectedModel) ? selectedModel : (models[0] ?? selectedModel));
       this.#elements.modelStatus.textContent = models.length
         ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.#elements.llmModel.value}.`
         : "The local provider is reachable but reports no loaded models.";
@@ -7729,8 +7749,7 @@ function collectElements(): Elements {
     publicationIntakeLinkedList: requiredElement("publication-intake-linked-list", HTMLElement),
     llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
     llmConnection: requiredElement("llm-connection", HTMLSelectElement),
-    llmModel: requiredElement("llm-model", HTMLInputElement),
-    llmModelOptions: requiredElement("llm-model-options", HTMLDataListElement),
+    llmModel: requiredElement("llm-model", HTMLSelectElement),
     llmReasoningEffort: requiredElement("llm-reasoning-effort", HTMLSelectElement),
     discoverLlmModels: requiredElement("discover-llm-models", HTMLButtonElement),
     modelOperation: requiredElement("model-operation", HTMLSelectElement),

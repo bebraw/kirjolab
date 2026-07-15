@@ -51,9 +51,12 @@ All mutation operations preserve a human review boundary.
   imports reviewed CSL JSON into the private Library, after which ordinary
   project-use and citation workflows apply.
 - Model connection settings discover live model identifiers from the standard
-  OpenAI-compatible `/models` route instead of hardcoding a catalog. Discovery
-  is explicit, bounded, credential-free, loopback-only, and available through
-  the same optional companion when provider CORS blocks direct browser access.
+  OpenAI-compatible `/models` route and populate an explicit model selector
+  instead of hardcoding a catalog. Discovery is explicit, bounded,
+  credential-free, loopback-only, and available through the same optional
+  companion when provider CORS blocks direct browser access. A saved local
+  choice remains visible before refresh; successful discovery replaces stale
+  choices with identifiers reported by the configured endpoint.
 - Generation requests use JSON Schema response formats for passage revisions
   and claim drafts. The adapter accepts plain replacement text as a
   compatibility fallback, but rejects malformed or unexpected JSON envelopes.

@@ -78,8 +78,9 @@ export function renderHomePage(
                     <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
                   </label>
                   <label class="field-label">Model
-                    <input class="field" id="llm-model" type="text" list="llm-model-options" maxlength="256" placeholder="Discover or enter a loaded model id">
-                    <datalist id="llm-model-options"></datalist>
+                    <select class="field" id="llm-model">
+                      <option value="">Find loaded models</option>
+                    </select>
                   </label>
                   <label class="field-label">Reasoning
                     <select class="field" id="llm-reasoning-effort">

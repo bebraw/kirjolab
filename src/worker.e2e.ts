@@ -3,6 +3,14 @@ import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/kn
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf, createMetadataEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
 
+async function selectLocalModel(page: Page, model: string): Promise<void> {
+  const selector = page.locator("#llm-model");
+  await selector.evaluate((element: HTMLSelectElement, value) => {
+    if (![...element.options].some((option) => option.value === value)) element.add(new Option(value, value));
+  }, model);
+  await selector.selectOption(model);
+}
+
 test("imports, annotates, and exports a private PDF without a project", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   const workspaceRequests: string[] = [];
@@ -2932,7 +2940,7 @@ test("selects the explicit local companion connection", async ({ page }) => {
   await page.locator("#llm-connection").selectOption("companion");
   await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:8790/v1/chat/completions");
   await expect(page.locator("#model-status")).toContainText("npm run dev");
-  await page.locator("#llm-model").fill("qwen-local");
+  await selectLocalModel(page, "qwen-local");
   await page.locator("#llm-reasoning-effort").selectOption("low");
   await page.reload();
   await page.locator("#preferences-menu > summary").click();
@@ -2957,8 +2965,11 @@ test("discovers loaded local models for the writing assistant", async ({ page })
   await page.getByRole("button", { name: "Find loaded models" }).click();
 
   await expect(page.locator("#llm-model")).toHaveValue("qwen/qwen3.5-9b");
-  await expect(page.locator("#llm-model-options option")).toHaveCount(2);
+  await expect(page.locator("#llm-model option")).toHaveCount(2);
+  await expect(page.locator("#llm-model")).toHaveText(/qwen\/qwen3\.5-9b.*gemma\/local/su);
   await expect(page.locator("#model-status")).toHaveText("Found 2 loaded models. Using qwen/qwen3.5-9b.");
+  await page.locator("#llm-model").selectOption("gemma/local");
+  await expect(page.locator("#model-status")).toHaveText("Using gemma/local for new writing assistant requests.");
 });
 
 test("rejects a delayed model candidate after a concurrent manuscript edit", async ({ page, context }) => {
@@ -3041,7 +3052,7 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
   await page.locator("[data-annotation-id]").first().check();
   await openWritingAssistant(page, true);
   await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
-  await page.locator("#llm-model").fill("delayed-local-model");
+  await selectLocalModel(page, "delayed-local-model");
   await expect(page.getByRole("button", { name: "Draft revision" })).toBeEnabled();
   await page.getByRole("button", { name: "Draft revision" }).click();
   await llmRequested;
@@ -3176,7 +3187,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await openWritingAssistant(page, true);
   await page.locator("#model-operation").selectOption("clarity-drill");
   await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
-  await page.locator("#llm-model").fill("clarity-test-model");
+  await selectLocalModel(page, "clarity-test-model");
   await expect(page.locator("#assistant-target-preview")).toContainText("This workflow is better for everyone.");
   await page.getByRole("button", { name: "Start drill" }).click();
   await expect(page.getByText("What improves, and for whom?")).toBeVisible();
@@ -3420,7 +3431,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   }, selectedPassage);
   await openWritingAssistant(page, true);
   await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
-  await page.locator("#llm-model").fill("test-local-model");
+  await selectLocalModel(page, "test-local-model");
   const sourceBeforeDraft = await editor.inputValue();
   await page.getByRole("button", { name: "Draft revision" }).click();
 

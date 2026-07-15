@@ -6,10 +6,10 @@
 
 ## Context
 
-Writing assistant accepts an OpenAI-compatible loopback endpoint and a manually
-entered model identifier. The starter value `local-model` is not normally a
-real loaded identifier, so the first operation can fail before the researcher
-knows which models the provider exposes. Direct browser discovery is also
+Writing assistant accepts an OpenAI-compatible loopback endpoint and needs a
+model identifier. A free-text field can retain a stale or mistyped identifier,
+so the first operation can fail before the researcher knows which models the
+provider exposes. Direct browser discovery is also
 unavailable when a local provider omits CORS headers, even though the existing
 companion can safely bridge completion requests.
 
@@ -29,7 +29,9 @@ without importing SlideOtter's server-owned provider stack.
 
 Writing assistant will discover live model identifiers from a standard
 OpenAI-compatible `/models` route derived from the configured
-`/chat/completions` endpoint. Discovery is an explicit user action, remains
+`/chat/completions` endpoint and populate an explicit selector. A saved choice
+remains visible before refresh, while a successful refresh replaces stale
+choices with the provider's current list. Discovery is an explicit user action, remains
 credential-free and loopback-only, rejects redirects, times out after ten
 seconds, reads at most 256 KiB, and accepts at most 256 unique bounded model
 identifiers. It does not persist model state into a project.
@@ -71,8 +73,8 @@ adapt instead of designing an unrelated provider workflow.
 
 **Negative:**
 
-- Providers without the standard `/models` or JSON Schema conventions may need
-  manual model entry and rely on the plain-text revision fallback.
+- Providers without the standard `/models` route cannot populate the selector;
+  JSON Schema support may still require the plain-text revision fallback.
 - Reasoning defaults favor latency for focused transformations; researchers
   must opt into deeper reasoning when it improves a task.
 - Model discovery adds one more route to the companion security boundary.
