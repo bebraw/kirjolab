@@ -64,7 +64,7 @@ must show where a claim enters authored prose.
 - [x] Guards reject missing, duplicate, excessive, or malformed evidence.
 - [x] Durable Object tests prove atomic replacement and cascade behavior.
 - [x] Browser coverage proves the annotation-to-claim-to-prose workflow.
-- [ ] A reviewed `draft-claim-v1` candidate can create one ordinary claim and
+- [x] A reviewed `draft-claim-v1` candidate can create one ordinary claim and
       its evidence links from current annotation snapshots.
 
 ### Regression Guardrails

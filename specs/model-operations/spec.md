@@ -93,13 +93,13 @@ selected annotations. Both preserve a human review boundary.
 - [x] Apply changes only the verified selected range; reject changes no source.
 - [x] Stale manuscript or evidence input creates or applies no candidate.
 - [x] Unit, Workers-runtime, and browser tests cover the reviewed lifecycle.
-- [ ] A researcher can draft one claim from selected annotations without a
+- [x] A researcher can draft one claim from selected annotations without a
       manuscript selection.
-- [ ] Review shows the proposed proposition, working note, chosen relation, and
+- [x] Review shows the proposed proposition, working note, chosen relation, and
       immutable source annotations.
-- [ ] Applying creates the normal claim and evidence links only when every
+- [x] Applying creates the normal claim and evidence links only when every
       annotation version is current; rejecting creates no claim.
-- [ ] Unit, Workers-runtime, and browser tests cover the claim-draft lifecycle.
+- [x] Unit, Workers-runtime, and browser tests cover the claim-draft lifecycle.
 
 ### Regression Guardrails
 

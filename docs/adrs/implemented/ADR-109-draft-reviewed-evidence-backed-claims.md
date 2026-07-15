@@ -1,6 +1,6 @@
 # ADR-109: Draft Reviewed Evidence-Backed Claims
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-15
 
