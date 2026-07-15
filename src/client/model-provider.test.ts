@@ -3,6 +3,7 @@ import {
   discoverOpenAICompatibleModels,
   OpenAICompatibleBrowserProvider,
   type DraftClaimRequest,
+  type ClarityDrillRequest,
   type OpenAICompatibleBrowserProviderOptions,
   type ReviseSelectionRequest,
 } from "./model-provider";
@@ -22,6 +23,12 @@ const claimOperation = {
   evidence: [{ kind: "annotation", id: "annotation-1", label: "Page 4", content: "Quoted source evidence." }],
 } as const satisfies DraftClaimRequest;
 
+const clarityOperation = {
+  selectedPassage: "This approach is better for everyone.",
+  instruction: "Make the claim concrete.",
+  evidence: [],
+} as const satisfies ClarityDrillRequest;
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -29,6 +36,43 @@ afterEach(() => {
 });
 
 describe("OpenAICompatibleBrowserProvider", () => {
+  it("asks one clarity question and returns bounded rewrite choices", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(completionResponse('{"issue":"Better is undefined.","question":"Which outcome improves, for whom?"}'))
+      .mockResolvedValueOnce(
+        completionResponse(
+          '{"rewrites":[{"text":"The approach reduces review time for editors.","rationale":"Names the outcome and group."},{"text":"Editors review drafts faster with this approach.","rationale":"Uses a direct comparison."}]}',
+        ),
+      );
+    const provider = createProvider({ fetcher });
+
+    const question = await provider.startClarityDrill(clarityOperation);
+    expect(question).toMatchObject({ issue: "Better is undefined.", question: "Which outcome improves, for whom?" });
+    await expect(
+      provider.continueClarityDrill({ ...clarityOperation, ...question, answer: "It reduces review time for editors." }),
+    ).resolves.toMatchObject({
+      rewrites: [
+        { text: "The approach reduces review time for editors.", rationale: "Names the outcome and group." },
+        { text: "Editors review drafts faster with this approach.", rationale: "Uses a direct comparison." },
+      ],
+    });
+
+    const firstBody = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+      messages: Array<{ content: string }>;
+    };
+    const secondBody = JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+      messages: Array<{ content: string }>;
+    };
+    expect(firstBody.response_format.json_schema.name).toBe("kirjolab_clarity_question");
+    expect(secondBody.response_format.json_schema.name).toBe("kirjolab_clarity_rewrites");
+    expect(JSON.parse(secondBody.messages[1]?.content ?? "")).toMatchObject({
+      researcherAnswer: "It reduces review time for editors.",
+    });
+  });
+
   it("drafts one structured claim from annotation-only evidence", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse('{"text":"A grounded proposition.","note":"Working note"}'));
     const draft = await createProvider({ fetcher }).draftClaim(claimOperation);

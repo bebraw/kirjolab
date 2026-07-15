@@ -436,7 +436,6 @@ describe("workspace input guards", () => {
       { note: 1 },
       { note: "x".repeat(8_001) },
       { evidence: null },
-      { evidence: [] },
       { evidence: Array.from({ length: 21 }, (_, index) => ({ annotationId: String(index), relation: "supports" })) },
       { evidence: [{ annotationId: "", relation: "supports" }] },
       { evidence: [{ annotationId: "x".repeat(129), relation: "supports" }] },
@@ -518,7 +517,6 @@ describe("workspace input guards", () => {
       { target: { ...valid.target, excerpt: "x".repeat(20_001) } },
       { target: { ...valid.target, sourceRevision: -1 } },
       { evidence: "annotation" },
-      { evidence: [] },
       { evidence: Array.from({ length: 13 }, (_, index) => evidenceReference("annotation", String(index))) },
       { evidence: [{ kind: "note", id: "note", version: "v1" }] },
       { evidence: [{ kind: "annotation", id: "", version: "v1" }] },
@@ -545,6 +543,7 @@ describe("workspace input guards", () => {
         evidence: [evidenceReference("annotation", "shared"), evidenceReference("claim", "shared")],
       }),
     ).toBe(true);
+    expect(isCreateCandidateInput({ ...valid, evidence: [] })).toBe(true);
     expect(
       isCreateCandidateInput({ ...valid, evidence: Array.from({ length: 12 }, (_, index) => evidenceReference("claim", String(index))) }),
     ).toBe(true);
@@ -594,7 +593,6 @@ describe("workspace input guards", () => {
         },
       },
       { target: { ...valid.target, resolution: { ...valid.target.resolution, exactMatch: false } } },
-      { evidence: [] },
       { evidence: Array.from({ length: 13 }, (_, index) => ({ ...annotationEvidence(), id: String(index) })) },
       { evidence: [{ ...annotationEvidence(), version: "different" }] },
       { evidence: [{ ...claimEvidence(), version: "different" }] },
@@ -612,6 +610,7 @@ describe("workspace input guards", () => {
     }
 
     expect(isModelCandidate({ ...valid, sourceIds: ["legacy"] })).toBe(false);
+    expect(isModelCandidate({ ...valid, evidence: [] })).toBe(true);
     expect(isModelCandidate({ ...valid, proposedSource: "legacy" })).toBe(false);
     expect(isModelCandidate(null)).toBe(false);
   });
@@ -629,6 +628,7 @@ describe("workspace input guards", () => {
       proposedNote: "Working synthesis",
     } as const;
     expect(isCreateClaimCandidateInput(input)).toBe(true);
+    expect(isCreateClaimCandidateInput({ ...input, evidence: [] })).toBe(false);
     expect(isCreateClaimCandidateInput({ ...input, evidence: [evidenceReference("claim", "claim-1")] })).toBe(false);
     expect(isCreateClaimCandidateInput({ ...input, relation: "related" })).toBe(false);
     expect(isCreateClaimCandidateInput({ ...input, proposedText: "" })).toBe(false);

@@ -105,6 +105,8 @@ import {
   discoverOpenAICompatibleModels,
   maximumModelEvidenceItems,
   OpenAICompatibleBrowserProvider,
+  type ModelClarityQuestion,
+  type ModelClarityRewrites,
   type ModelEvidenceItem,
   type ModelReasoningEffort,
 } from "./model-provider";
@@ -439,6 +441,7 @@ interface Elements {
   assistantTargetScope: HTMLSelectElement;
   assistantTargetScopeField: HTMLElement;
   assistantTargetPreview: HTMLElement;
+  assistantInteractiveResult: HTMLElement;
   modelClaimRelation: HTMLSelectElement;
   modelClaimRelationField: HTMLElement;
   assistantOperationEyebrow: HTMLElement;
@@ -472,6 +475,15 @@ interface AuthoringPassage {
 interface ResolvedAuthoringTarget {
   readonly start: number;
   readonly end: number;
+}
+
+interface ClarityDrillContext {
+  readonly provider: OpenAICompatibleBrowserProvider;
+  readonly passage: AuthoringPassage;
+  readonly evidence: { readonly items: ModelEvidenceItem[]; readonly references: ModelEvidenceReference[] };
+  readonly instruction: string;
+  readonly sourceRevision: number;
+  readonly question: ModelClarityQuestion;
 }
 
 class WorkspaceApp {
@@ -1727,6 +1739,7 @@ class WorkspaceApp {
     this.#elements.modelInstructionLabel.textContent = operation.instructionLabel;
     this.#elements.generateCandidate.textContent = operation.actionLabel;
     if (resetInstruction) this.#elements.modelInstruction.value = operation.defaultInstruction;
+    if (resetInstruction) this.#elements.assistantInteractiveResult.replaceChildren();
     this.#elements.modelStatus.textContent = draftsClaim
       ? "Select at least one annotation to ground the claim draft."
       : "Choose a target and the required evidence, then generate a reviewable draft.";
@@ -5489,7 +5502,8 @@ class WorkspaceApp {
   }
 
   async #generateCandidate(): Promise<void> {
-    const draftsClaim = this.#draftsClaim();
+    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
+    const draftsClaim = operation.id === "draft-claim";
     if (!this.#snapshot || (!draftsClaim && !this.#hasStableDocumentBase())) {
       this.#elements.modelStatus.textContent = "Wait for the manuscript to finish synchronizing before using the model.";
       return;
@@ -5499,10 +5513,16 @@ class WorkspaceApp {
     const evidence = this.#modelEvidence();
     const annotationItems = evidence.items.filter((item) => item.kind === "annotation");
     const annotationReferences = evidence.references.filter((item) => item.kind === "annotation");
-    if ((!draftsClaim && !passage) || (draftsClaim ? annotationItems.length === 0 : evidence.items.length === 0)) {
+    const evidenceMissing =
+      operation.evidence === "required"
+        ? evidence.items.length === 0
+        : operation.evidence === "annotations"
+          ? annotationItems.length === 0
+          : false;
+    if ((!draftsClaim && !passage) || evidenceMissing) {
       this.#elements.modelStatus.textContent = draftsClaim
         ? "Select at least one annotation first. Claims cannot ground a new claim draft."
-        : "Select manuscript text and at least one annotation or claim first.";
+        : "Choose a valid manuscript target and any required evidence first.";
       return;
     }
     let provider: OpenAICompatibleBrowserProvider;
@@ -5517,7 +5537,9 @@ class WorkspaceApp {
     this.#updateModelAvailability();
     this.#elements.modelStatus.textContent = draftsClaim
       ? "Asking the local model for one grounded claim draft…"
-      : "Asking the local model for a grounded candidate…";
+      : operation.id === "clarity-drill"
+        ? "Finding the single ambiguity that matters most…"
+        : "Asking the local model for a grounded candidate…";
     try {
       if (draftsClaim) {
         const relation = readClaimEvidenceRelation(this.#elements.modelClaimRelation.value);
@@ -5545,23 +5567,26 @@ class WorkspaceApp {
       }
       if (!passage) throw new Error("Select manuscript text first");
       const sourceRevision = this.#revision;
+      if (operation.id === "clarity-drill") {
+        const question = await provider.startClarityDrill({
+          selectedPassage: passage.excerpt,
+          instruction,
+          evidence: evidence.items,
+        });
+        this.#renderClarityQuestion({ provider, passage, evidence, instruction, sourceRevision, question });
+        this.#elements.modelStatus.textContent = "Answer one focused question to make the intended meaning explicit.";
+        return;
+      }
       const revision = await provider.reviseSelection({ selectedPassage: passage.excerpt, instruction, evidence: evidence.items });
-      const response = await jsonFetch(`${apiBase}/candidates`, {
-        providerAdapter: "openai-compatible",
+      await this.#persistRevisionCandidate({
+        passage,
+        evidence: evidence.references,
+        instruction,
+        sourceRevision,
+        replacement: revision.replacement,
         providerLabel: revision.providerLabel,
         model: revision.model,
-        promptVersion: "revise-selection-v1",
-        instruction,
-        target: { ...passage, sourceRevision },
-        evidence: evidence.references,
-        proposedReplacement: revision.replacement,
       });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isModelCandidate(value)) throw new Error("Candidate endpoint returned an invalid targeted revision");
-      await this.#resourceRefresh.request();
-      const candidate = this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value;
-      this.#openCandidateContext(candidate);
       this.#elements.modelStatus.textContent = "Candidate ready. Review its exact replacement and evidence in Context.";
     } catch (error) {
       this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Local model request failed";
@@ -5569,6 +5594,146 @@ class WorkspaceApp {
       this.#modelBusy = false;
       this.#updateModelAvailability();
     }
+  }
+
+  #renderClarityQuestion(input: ClarityDrillContext): void {
+    const card = document.createElement("section");
+    card.className = "resource-card";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = "One ambiguity";
+    const issue = document.createElement("p");
+    issue.className = "mt-2 text-sm text-app-text-soft";
+    issue.textContent = input.question.issue;
+    const question = document.createElement("h3");
+    question.className = "mt-3 text-base font-semibold";
+    question.textContent = input.question.question;
+    const answer = document.createElement("textarea");
+    answer.className = "field mt-3 w-full";
+    answer.rows = 3;
+    answer.maxLength = 4_000;
+    answer.placeholder = "State the concrete meaning you intend…";
+    const continueButton = document.createElement("button");
+    continueButton.className = "button-primary mt-3";
+    continueButton.type = "button";
+    continueButton.textContent = "Show precise rewrites";
+    continueButton.addEventListener("click", () => void this.#continueClarityDrill(input, answer.value));
+    card.append(eyebrow, issue, question, answer, continueButton);
+    this.#elements.assistantInteractiveResult.replaceChildren(card);
+    answer.focus();
+  }
+
+  async #continueClarityDrill(input: ClarityDrillContext, rawAnswer: string): Promise<void> {
+    const answer = rawAnswer.trim();
+    if (!answer || this.#modelBusy) {
+      this.#elements.modelStatus.textContent = answer ? "The local model is already working." : "Answer the clarity question first.";
+      return;
+    }
+    this.#modelBusy = true;
+    this.#updateModelAvailability();
+    this.#elements.modelStatus.textContent = "Turning that meaning into a few precise alternatives…";
+    try {
+      const result = await input.provider.continueClarityDrill({
+        selectedPassage: input.passage.excerpt,
+        instruction: input.instruction,
+        evidence: input.evidence.items,
+        issue: input.question.issue,
+        question: input.question.question,
+        answer,
+      });
+      this.#renderClarityRewrites(input, answer, result);
+      this.#elements.modelStatus.textContent = "Choose the wording that best matches your meaning; it will still open for review.";
+    } catch (error) {
+      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Local model request failed";
+    } finally {
+      this.#modelBusy = false;
+      this.#updateModelAvailability();
+    }
+  }
+
+  #renderClarityRewrites(input: ClarityDrillContext, answer: string, result: ModelClarityRewrites): void {
+    const list = document.createElement("div");
+    list.className = "grid gap-3";
+    for (const [index, rewrite] of result.rewrites.entries()) {
+      const card = document.createElement("section");
+      card.className = "resource-card";
+      const label = document.createElement("p");
+      label.className = "eyebrow";
+      label.textContent = `Option ${index + 1}`;
+      const text = document.createElement("p");
+      text.className = "mt-2 whitespace-pre-wrap text-sm";
+      text.textContent = rewrite.text;
+      const rationale = document.createElement("p");
+      rationale.className = "mt-2 text-xs text-app-text-soft";
+      rationale.textContent = rewrite.rationale;
+      const choose = document.createElement("button");
+      choose.className = "button-secondary mt-3";
+      choose.type = "button";
+      choose.textContent = "Review this revision";
+      choose.addEventListener(
+        "click",
+        () => void this.#chooseClarityRewrite(input, answer, rewrite.text, result.providerLabel, result.model),
+      );
+      card.append(label, text, rationale, choose);
+      list.append(card);
+    }
+    this.#elements.assistantInteractiveResult.replaceChildren(list);
+  }
+
+  async #chooseClarityRewrite(
+    input: ClarityDrillContext,
+    answer: string,
+    replacement: string,
+    providerLabel: string,
+    model: string,
+  ): Promise<void> {
+    if (this.#modelBusy) return;
+    this.#modelBusy = true;
+    this.#updateModelAvailability();
+    try {
+      const instruction = `${input.instruction}\nClarification: ${answer}`.slice(0, 4_000);
+      await this.#persistRevisionCandidate({
+        passage: input.passage,
+        evidence: input.evidence.references,
+        instruction,
+        sourceRevision: input.sourceRevision,
+        replacement,
+        providerLabel,
+        model,
+      });
+      this.#elements.modelStatus.textContent = "Clarity revision ready for exact before-and-after review.";
+    } catch (error) {
+      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Could not save the clarity revision";
+    } finally {
+      this.#modelBusy = false;
+      this.#updateModelAvailability();
+    }
+  }
+
+  async #persistRevisionCandidate(input: {
+    readonly passage: AuthoringPassage;
+    readonly evidence: readonly ModelEvidenceReference[];
+    readonly instruction: string;
+    readonly sourceRevision: number;
+    readonly replacement: string;
+    readonly providerLabel: string;
+    readonly model: string;
+  }): Promise<void> {
+    const response = await jsonFetch(`${apiBase}/candidates`, {
+      providerAdapter: "openai-compatible",
+      providerLabel: input.providerLabel,
+      model: input.model,
+      promptVersion: "revise-selection-v1",
+      instruction: input.instruction,
+      target: { ...input.passage, sourceRevision: input.sourceRevision },
+      evidence: input.evidence,
+      proposedReplacement: input.replacement,
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isModelCandidate(value)) throw new Error("Candidate endpoint returned an invalid targeted revision");
+    await this.#resourceRefresh.request();
+    this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
   }
 
   async #updateCandidate(candidateId: string, action: "apply" | "reject"): Promise<void> {
@@ -6959,6 +7124,7 @@ function collectElements(): Elements {
     assistantTargetScope: requiredElement("assistant-target-scope", HTMLSelectElement),
     assistantTargetScopeField: requiredElement("assistant-target-scope-field", HTMLElement),
     assistantTargetPreview: requiredElement("assistant-target-preview", HTMLElement),
+    assistantInteractiveResult: requiredElement("assistant-interactive-result", HTMLElement),
     modelClaimRelation: requiredElement("model-claim-relation", HTMLSelectElement),
     modelClaimRelationField: requiredElement("model-claim-relation-field", HTMLElement),
     assistantOperationEyebrow: requiredElement("assistant-operation-eyebrow", HTMLElement),

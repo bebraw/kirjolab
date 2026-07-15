@@ -364,6 +364,7 @@ export function renderHomePage(
               <button class="button-primary model-generate-action justify-center" id="generate-candidate" type="button">Draft revision</button>
             </div>
             <p class="mt-2 text-xs leading-5 text-app-text-soft" id="assistant-target-preview" aria-live="polite">Place the caret in a sentence or select the exact text to revise.</p>
+            <div class="mt-4" id="assistant-interactive-result" aria-live="polite"></div>
             <details class="assistant-settings" id="assistant-model-settings">
               <summary>Model connection</summary>
               <div class="assistant-settings-grid">

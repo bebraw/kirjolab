@@ -25,6 +25,14 @@ All mutation operations preserve a human review boundary.
   references before provider I/O.
 - A provider-neutral browser contract isolates operation semantics from the
   initial OpenAI-compatible HTTP adapter.
+- `clarity-drill` first returns one bounded ambiguity and one focused question.
+  Only after the researcher answers does a second typed request return two to
+  four bounded passage rewrites with short rationales. The drill is transient;
+  choosing an option creates an ordinary targeted revision candidate with the
+  captured source revision and evidence rather than changing prose directly.
+  Clarity candidates may have no research evidence because the researcher's
+  answer and captured prose are their provenance; ordinary grounded revision
+  continues to require selected evidence in the UI.
 - Model connection settings discover live model identifiers from the standard
   OpenAI-compatible `/models` route instead of hardcoding a catalog. Discovery
   is explicit, bounded, credential-free, loopback-only, and available through
@@ -132,6 +140,10 @@ All mutation operations preserve a human review boundary.
 - [x] Applying creates the normal claim and evidence links only when every
       annotation version is current; rejecting creates no claim.
 - [x] Unit, Workers-runtime, and browser tests cover the claim-draft lifecycle.
+- [x] A researcher can run a one-question clarity drill on the visible target,
+      answer in their own words, and choose among two to four precise rewrites.
+- [x] A chosen clarity rewrite enters the ordinary exact before/after candidate
+      review and cannot bypass stale-target validation or explicit apply.
 
 ### Regression Guardrails
 
@@ -140,6 +152,9 @@ All mutation operations preserve a human review boundary.
 - Provider output, instructions, identifiers, and evidence sets remain bounded.
 - Candidate provenance must be server-validated against known same-workspace
   resources and exact evidence versions.
+- Targeted revision evidence may be empty only for operation flows that declare
+  evidence optional; every supplied reference must still be typed, unique,
+  current, same-workspace, and captured immutably.
 - Candidate creation and application use conservative source-revision equality.
 - Target identity resolves only through its Yjs-relative anchor; offsets and
   quotes remain provenance rather than navigation fallback.
@@ -165,6 +180,9 @@ All mutation operations preserve a human review boundary.
   notes are optional and bounded to 8,000 characters.
 - Claim-draft acceptance must be atomic and must fail without changing candidate
   or claim state when any source annotation is stale or missing.
+- Clarity diagnosis must ask exactly one question and produce no rewrite. The
+  follow-up must contain the captured target, question, and bounded researcher
+  answer and return only two to four typed rewrites.
 
 ### Scenarios
 
@@ -216,3 +234,11 @@ All mutation operations preserve a human review boundary.
 - Given: a pending claim draft
 - When: a selected annotation changes or disappears before apply
 - Then: acceptance fails as stale and neither claim nor evidence link is created
+
+**Scenario: Fuzzy language becomes a reviewable revision**
+
+- Given: a visible sentence, paragraph, section, or explicit selection
+- When: the researcher answers the drill's single clarification question and
+  chooses one proposed wording
+- Then: Kirjolab opens an ordinary targeted candidate with the original passage,
+  chosen replacement, captured provenance, and no canonical source change

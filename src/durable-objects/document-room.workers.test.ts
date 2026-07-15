@@ -1148,6 +1148,17 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect((await stub.getSnapshot(workspaceId)).candidates).toEqual([candidate]);
   });
 
+  it("persists an evidence-optional writing candidate without inventing provenance", async () => {
+    const workspaceId = "evidence-optional-candidate";
+    const stub = roomStub(workspaceId);
+    const fixture = await modelCandidateFixture(stub, workspaceId);
+
+    const candidate = operationValue(await stub.createCandidate({ ...fixture.input, evidence: [] }));
+
+    expect(candidate).toMatchObject({ operation: "revise-selection", evidence: [], status: "pending" });
+    expect((await stub.getSnapshot(workspaceId)).candidates).toContainEqual(candidate);
+  });
+
   it("creates, applies, rejects, and stale-checks reviewed claim drafts", async () => {
     const workspaceId = "reviewed-claim-drafts";
     const stub = roomStub(workspaceId);

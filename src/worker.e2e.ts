@@ -2881,6 +2881,77 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
   await collaborator.close();
 });
 
+test("turns one clarity answer into a reviewable targeted revision", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Clarity drill");
+  const api = `/api/workspaces/${workspaceId}`;
+  const requests: unknown[] = [];
+  await page.route("http://127.0.0.1:1234/v1/chat/completions", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "POST, OPTIONS",
+          "access-control-allow-headers": "content-type",
+        },
+      });
+      return;
+    }
+    const body: unknown = route.request().postDataJSON();
+    requests.push(body);
+    const schemaName =
+      isRecord(body) && isRecord(body.response_format) && isRecord(body.response_format.json_schema)
+        ? body.response_format.json_schema.name
+        : null;
+    const content =
+      schemaName === "kirjolab_clarity_question"
+        ? JSON.stringify({ issue: "Better does not name an outcome.", question: "What improves, and for whom?" })
+        : JSON.stringify({
+            rewrites: [
+              { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
+              { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
+            ],
+          });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ choices: [{ message: { content } }] }),
+    });
+  });
+
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  const editor = page.locator("#source-editor");
+  const source = "# Review\n\nThis workflow is better for everyone.\n";
+  await editor.fill(source);
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(source);
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    const caret = element.value.indexOf("better") + 2;
+    element.focus();
+    element.setSelectionRange(caret, caret);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await openWritingAssistant(page, true);
+  await page.locator("#model-operation").selectOption("clarity-drill");
+  await page.locator("#llm-endpoint").fill("http://127.0.0.1:1234/v1/chat/completions");
+  await page.locator("#llm-model").fill("clarity-test-model");
+  await expect(page.locator("#assistant-target-preview")).toContainText("This workflow is better for everyone.");
+  await page.getByRole("button", { name: "Start drill" }).click();
+  await expect(page.getByText("What improves, and for whom?")).toBeVisible();
+  await page.locator("#assistant-interactive-result textarea").fill("It reduces the time editors spend reviewing a draft.");
+  await page.getByRole("button", { name: "Show precise rewrites" }).click();
+  await expect(page.getByText("The workflow cuts review time for editors.")).toBeVisible();
+  await page.getByRole("button", { name: "Review this revision" }).first().click();
+
+  await expect(page.locator("#context-candidate-before")).toHaveText("This workflow is better for everyone.");
+  await expect(page.locator("#context-candidate-after")).toHaveText("The workflow cuts review time for editors.");
+  await expect(editor).toHaveValue(source);
+  expect(requests).toHaveLength(2);
+  const snapshot = await readWorkspaceSnapshot(page, api);
+  expect(snapshot.candidates).toContainEqual(expect.objectContaining({ evidence: [], status: "pending" }));
+});
+
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Evidence to prose loop");
   const api = `/api/workspaces/${workspaceId}`;

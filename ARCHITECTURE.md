@@ -295,6 +295,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   visible non-empty selection exactly; otherwise expand the remembered caret
   deterministically to the requested sentence, paragraph, Markdown section, or
   insertion point, and preview that target before provider I/O.
+- Keep clarity drilling as a bounded two-stage exchange: diagnose one ambiguity
+  and ask one question, then use the researcher's answer to offer two to four
+  typed rewrites. Persist only the chosen rewrite, through the ordinary targeted
+  candidate review and stale-base checks.
 - Persist passage-revision candidates as a Yjs-relative target, bounded
   instruction, typed versioned evidence snapshots, provider/model identity, and
   replacement text. Never model a selected-passage operation as a proposed

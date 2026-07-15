@@ -1021,7 +1021,7 @@ function isProjectComposition(value: unknown): value is ProjectComposition {
 }
 
 function isModelEvidenceReferences(value: unknown): value is ModelEvidenceReference[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 12) return false;
+  if (!Array.isArray(value) || value.length > 12) return false;
   return hasUniqueModelEvidence(value, isModelEvidenceReference);
 }
 
@@ -1061,7 +1061,7 @@ function isModelCandidateTarget(value: unknown, sourceRevision: number): value i
 }
 
 function isModelEvidenceSnapshots(value: unknown): value is ModelEvidence[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 12) return false;
+  if (!Array.isArray(value) || value.length > 12) return false;
   return hasUniqueModelEvidence(value, isModelEvidenceSnapshot);
 }
 

@@ -65,7 +65,7 @@ const definitions: readonly AssistantOperationDefinition[] = [
     scopes: ["sentence", "paragraph", "section"],
     defaultScope: "sentence",
     evidence: "optional",
-    enabled: false,
+    enabled: true,
   },
   {
     id: "ideate",
