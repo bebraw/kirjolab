@@ -305,24 +305,35 @@ describe("OpenAICompatibleBrowserProvider", () => {
     );
     expect(idle).not.toHaveBeenCalled();
 
-    const invalidQuestions = ["not json", "{}", '{"issue":"","question":"Why?"}', '{"issue":"Issue","question":"","extra":true}'];
-    for (const content of invalidQuestions) {
+    const invalidQuestions = [
+      ["not json", "Local model returned malformed clarity question"],
+      ["{}", "Local model returned invalid clarity question"],
+      ['{"issue":"","question":"Why?"}', "Clarity issue is required"],
+      ['{"issue":"Issue","question":"","extra":true}', "Local model returned invalid clarity question"],
+    ] as const;
+    for (const [content, message] of invalidQuestions) {
       await expect(
         createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).startClarityDrill(
           clarityOperation,
         ),
-      ).rejects.toThrow();
+      ).rejects.toThrow(message);
     }
     const invalidRewrites = [
-      '{"rewrites":[]}',
-      '{"rewrites":[{"text":"One","rationale":"Why"}]}',
-      `{"rewrites":${JSON.stringify(Array.from({ length: 5 }, (_, index) => ({ text: String(index), rationale: "Why" })))}}`,
-      '{"rewrites":[null,null]}',
-      '{"rewrites":[{"text":"","rationale":"Why"},{"text":"Two","rationale":"Why"}]}',
-      '{"rewrites":[{"text":"One","rationale":""},{"text":"Two","rationale":"Why"}]}',
-      '{"rewrites":[{"text":"One","rationale":"Why","extra":true},{"text":"Two","rationale":"Why"}]}',
-    ];
-    for (const content of invalidRewrites) {
+      ['{"rewrites":[]}', "Clarity drill must return between 2 and 4 rewrites"],
+      ['{"rewrites":[{"text":"One","rationale":"Why"}]}', "Clarity drill must return between 2 and 4 rewrites"],
+      [
+        `{"rewrites":${JSON.stringify(Array.from({ length: 5 }, (_, index) => ({ text: String(index), rationale: "Why" })))}}`,
+        "Clarity drill must return between 2 and 4 rewrites",
+      ],
+      ['{"rewrites":[null,null]}', "Clarity rewrite must be an object"],
+      ['{"rewrites":[{"text":"","rationale":"Why"},{"text":"Two","rationale":"Why"}]}', "Clarity rewrite is required"],
+      ['{"rewrites":[{"text":"One","rationale":""},{"text":"Two","rationale":"Why"}]}', "Clarity rationale is required"],
+      [
+        '{"rewrites":[{"text":"One","rationale":"Why","extra":true},{"text":"Two","rationale":"Why"}]}',
+        "Local model returned invalid clarity rewrite",
+      ],
+    ] as const;
+    for (const [content, message] of invalidRewrites) {
       await expect(
         createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).continueClarityDrill({
           ...clarityOperation,
@@ -330,23 +341,26 @@ describe("OpenAICompatibleBrowserProvider", () => {
           question: "Why?",
           answer: "Because.",
         }),
-      ).rejects.toThrow();
+      ).rejects.toThrow(message);
     }
 
     const validIdeas = Array.from({ length: 3 }, (_, index) => ({ title: `Idea ${index}`, direction: "Direction", draft: "Draft" }));
-    for (const content of [
-      "not json",
-      '{"ideas":[]}',
-      JSON.stringify({ ideas: validIdeas.slice(0, 2) }),
-      JSON.stringify({ ideas: [...validIdeas, ...validIdeas] }),
-      JSON.stringify({ ideas: [null, ...validIdeas.slice(1)] }),
-      JSON.stringify({ ideas: [{ ...validIdeas[0], title: "" }, ...validIdeas.slice(1)] }),
-      JSON.stringify({ ideas: [{ ...validIdeas[0], direction: "" }, ...validIdeas.slice(1)] }),
-      JSON.stringify({ ideas: [{ ...validIdeas[0], draft: "", extra: true }, ...validIdeas.slice(1)] }),
-    ]) {
+    for (const [content, message] of [
+      ["not json", "Local model returned malformed ideas"],
+      ['{"ideas":[]}', "Ideation must return between 3 and 5 ideas"],
+      [JSON.stringify({ ideas: validIdeas.slice(0, 2) }), "Ideation must return between 3 and 5 ideas"],
+      [JSON.stringify({ ideas: [...validIdeas, ...validIdeas] }), "Ideation must return between 3 and 5 ideas"],
+      [JSON.stringify({ ideas: [null, ...validIdeas.slice(1)] }), "Idea must be an object"],
+      [JSON.stringify({ ideas: [{ ...validIdeas[0], title: "" }, ...validIdeas.slice(1)] }), "Idea title is required"],
+      [JSON.stringify({ ideas: [{ ...validIdeas[0], direction: "" }, ...validIdeas.slice(1)] }), "Idea direction is required"],
+      [
+        JSON.stringify({ ideas: [{ ...validIdeas[0], draft: "", extra: true }, ...validIdeas.slice(1)] }),
+        "Local model returned invalid idea",
+      ],
+    ] as const) {
       await expect(
         createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) }).ideate(ideationOperation),
-      ).rejects.toThrow();
+      ).rejects.toThrow(message);
     }
 
     for (const content of [
