@@ -30,7 +30,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.getByRole("tab", { name: "student_submission.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
-  await expect(page.getByRole("button", { name: "Export annotated" })).toBeDisabled();
+  await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
   await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected rendered student PDF text");
@@ -44,7 +44,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.locator("#library-highlight-comment").fill("Student feedback");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator("#library-highlight-list")).toContainText("Student feedback");
-  await expect(page.getByRole("button", { name: "Export annotated" })).toBeEnabled();
+  await expect(page.locator("#export-library-annotated-pdf")).toBeEnabled();
   const annotatedDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export annotated" }).click();
   await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("student_submission-annotated.pdf");
@@ -995,7 +995,7 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#library-highlight-composer")).not.toContainText("Highlight this PDF");
   await expect(page.locator("#library-highlight-form")).toBeHidden();
   await expect(page.locator("#library-draw-color")).toHaveValue("#d33f49");
-  await expect(page.getByRole("button", { name: "Export annotated" })).toBeDisabled();
+  await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   expect(failedPdfWorkerRequests).toEqual([]);
   await page.locator("#paper-text-layer").evaluate((layer) => {
@@ -1054,6 +1054,7 @@ test("keeps private library research separate from project citations", async ({ 
     layer.dispatchEvent(new PointerEvent("pointerdown", event));
     layer.dispatchEvent(new PointerEvent("pointerup", event));
   });
+  await expect(page.locator("#paper-markups .pdf-note-pin[data-draft='true']")).toHaveCount(1);
   await page.locator("#library-note-body").fill("Initial page note");
   await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
   await expect(page.locator("#library-highlight-count")).toHaveText("2");
@@ -1064,8 +1065,24 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#toast")).toHaveText("Private note updated.");
   await expect(page.locator("#library-highlight-list")).toContainText("Revised page note");
   await expect(page.locator("#library-highlight-list")).not.toContainText("Initial page note");
+  await page.getByRole("button", { name: "Draw", exact: true }).click();
+  await page.locator("#paper-markups").evaluate((layer) => {
+    const rect = layer.getBoundingClientRect();
+    const event = {
+      bubbles: true,
+      pointerId: 72,
+      pointerType: "touch",
+      clientX: rect.left + rect.width * 0.3,
+      clientY: rect.top + rect.height * 0.3,
+    };
+    layer.dispatchEvent(new PointerEvent("pointerdown", event));
+    layer.dispatchEvent(new PointerEvent("pointermove", { ...event, clientX: rect.left + rect.width * 0.4 }));
+    layer.dispatchEvent(new PointerEvent("pointerup", event));
+  });
+  await expect(page.locator("#paper-markups polyline")).toHaveCount(0);
+  await expect(page.locator("#library-highlight-status")).toContainText("touch gestures pan and zoom");
   await page.getByRole("button", { name: "Text", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Export annotated" })).toBeEnabled();
+  await expect(page.locator("#export-library-annotated-pdf")).toBeEnabled();
   const annotatedDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export annotated" }).click();
   await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("climate_adaptation-annotated.pdf");

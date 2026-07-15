@@ -1323,8 +1323,27 @@
 
   .library-pdf-toolbar {
     min-height: 3.45rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: visible;
     padding: 0.55rem 0.75rem;
+  }
+
+  .library-pdf-toolbar > * {
+    flex: none;
+  }
+
+  .library-pdf-toolbar .library-pdf-status {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .library-pdf-export {
+    min-width: 2.25rem;
+    justify-content: center;
+    padding-inline: 0.55rem;
   }
 
   .library-pdf-tool-group button[aria-pressed="true"] {
@@ -2502,7 +2521,7 @@
   }
   .pdf-markups[data-tool="draw"] {
     cursor: crosshair;
-    touch-action: none;
+    touch-action: pan-x pan-y;
   }
 
   .pdf-ink-layer {
@@ -2525,6 +2544,19 @@
     cursor: pointer;
     touch-action: none;
   }
+  .pdf-note-pin[data-draft="true"] {
+    border-style: dashed;
+    opacity: 0.82;
+    pointer-events: none;
+    animation: pdf-note-draft-pulse 1.4s ease-in-out infinite alternate;
+  }
+
+  @keyframes pdf-note-draft-pulse {
+    to {
+      scale: 1.12;
+      box-shadow: 0 0 0 0.35rem rgb(255 214 70 / 0.24);
+    }
+  }
   .pdf-note-card {
     position: absolute;
     z-index: 2;
@@ -2542,10 +2574,6 @@
   }
 
   @media (max-width: 640px) {
-    .library-pdf-status {
-      width: 100%;
-      text-align: left;
-    }
     .library-context-composer {
       align-items: stretch;
       flex-wrap: wrap;
@@ -2626,10 +2654,14 @@
       border-left: 1px solid var(--color-app-line);
     }
 
-    body[data-app-mode="library"] .library-pdf-toolbar,
     body[data-app-mode="library"] .library-context-composer {
       align-items: stretch;
       flex-direction: column;
+    }
+
+    body[data-app-mode="library"] .library-pdf-toolbar {
+      align-items: center;
+      flex-direction: row;
     }
 
     body[data-app-mode="library"] .library-pdf-status {

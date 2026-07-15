@@ -6449,10 +6449,15 @@ class WorkspaceApp {
     if (this.#libraryPdfTool === "note") {
       this.#pendingPdfNote = { page: this.#pdfViewer.currentPage, ...point };
       this.#elements.libraryNoteForm.hidden = false;
+      this.#renderPdfMarkups();
       this.#elements.libraryNoteBody.focus();
       return;
     }
     if (this.#libraryPdfTool !== "draw") return;
+    if (event.pointerType === "touch") {
+      this.#elements.libraryHighlightStatus.textContent = "Use Apple Pencil or a mouse to draw; touch gestures pan and zoom the page.";
+      return;
+    }
     event.preventDefault();
     this.#pdfDrawingPointer = event.pointerId;
     this.#pdfDrawingDraft = [point];
@@ -6622,6 +6627,16 @@ class WorkspaceApp {
         if (drawing.id === "draft") this.#pdfDrawingDraftLine = line;
       }
       this.#elements.paperMarkups.append(svg);
+    }
+    if (this.#pendingPdfNote?.page === page && !this.#editingLibraryPdfNoteId) {
+      const draftPin = document.createElement("span");
+      draftPin.className = "pdf-note-pin";
+      draftPin.dataset.draft = "true";
+      draftPin.style.left = `${this.#pendingPdfNote.x * 100}%`;
+      draftPin.style.top = `${this.#pendingPdfNote.y * 100}%`;
+      draftPin.setAttribute("aria-label", `New note location on page ${page}`);
+      draftPin.title = "New note location";
+      this.#elements.paperMarkups.append(draftPin);
     }
     for (const note of markups.filter((item): item is LibraryPdfNote => item.kind === "note")) {
       const pin = document.createElement("button");
