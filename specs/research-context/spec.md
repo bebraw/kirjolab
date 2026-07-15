@@ -30,6 +30,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Preview is the initial permanent tab, followed by Library and Writing
   assistant. None can be closed or replaced, and each retains its own scroll
   position when another context becomes active.
+- In standalone Library mode, the permanent Library tab, open private-resource
+  tabs, active PDF status/navigation, and resource actions share the global
+  header. The context panel begins directly below that single row. Workspace
+  mode retains its pane-local context strip because those tabs apply only to
+  the context side of the authoring split.
 - Writing assistant contains the selected-passage instruction, explicit model
   connection settings, request status, and draft inventory. Activating its tab
   never starts a model request; a generated candidate opens its resource-keyed
@@ -269,6 +274,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - [x] An owner can explicitly link a private PDF's reference, review rights,
       share or revoke its PDF snapshot, and independently share or revoke a
       saved highlight from the reader.
+- [x] Standalone Library tabs and active PDF controls occupy the global header
+      without reserving a second horizontal strip above the document.
 
 ### Regression Guardrails
 
@@ -396,6 +403,13 @@ changing their canonical data, selector, authorization, or rendering contracts.
   its page, visits Library, and opens the PDF again
 - Then: one `library-pdf:` tab retains private reading context without exposing
   project evidence controls or changing the project snapshot
+
+**Scenario: Standalone PDF uses one header row**
+
+- Given: an owner opens a private PDF from the standalone Library
+- When: its resource tab and page controls become active
+- Then: Library, the PDF tab, desktop page controls, and resource actions share
+  the global header while the document begins immediately below it
 
 **Scenario: Private research enters a project explicitly**
 

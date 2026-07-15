@@ -9,6 +9,28 @@ export function renderHomePage(
 ): string {
   const escapedWorkspaceId = escapeHtml(workspaceId);
   const escapedIdentityEmail = escapeHtml(identityEmail);
+  const contextTabs = `<div class="context-tabs" id="context-tabs">
+          <div class="context-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
+            <button class="context-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
+            <button class="context-tab" id="context-library-tab" type="button" role="tab" aria-controls="context-library-panel" aria-selected="false" tabindex="-1">Library</button>
+            <button class="context-tab" id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1">Writing assistant</button>
+            <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
+          </div>
+          <div class="context-tab-controls" aria-label="Active context actions">
+            <div class="context-mode-controls" id="preview-context-controls">
+              <span class="preview-file-context" id="preview-file-context" title="main.md · composed paper">main.md · composed paper</span>
+              <span id="diagnostic-summary">Validating…</span>
+            </div>
+            <div class="context-mode-controls" id="pdf-context-controls" hidden>
+              <span class="context-status" id="paper-status">Loading PDF…</span>
+              <button id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
+              <span class="context-page-indicator" id="paper-page-indicator">– / –</span>
+              <button id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
+            </div>
+            <button id="pin-active-context" type="button" disabled hidden>Pin</button>
+            <button id="close-active-context" type="button" disabled hidden>Close</button>
+          </div>
+        </div>`;
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -22,7 +44,7 @@ export function renderHomePage(
   </head>
   <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-app-mode="${appMode}" data-workspace-id="${escapedWorkspaceId}" data-identity-email="${escapedIdentityEmail}">
     <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur">
-      <div class="flex min-h-16 items-center justify-between gap-4 px-4 lg:px-6">
+      <div class="app-header-row flex min-h-16 items-center justify-between gap-4 px-4 lg:px-6">
         <div class="flex min-w-0 items-center gap-3">
           <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
           <details class="preferences-menu" id="preferences-menu" data-settings-menu>
@@ -87,6 +109,7 @@ export function renderHomePage(
             </div>
           </details>
         </div>
+        ${appMode === "library" ? `<div class="library-header-context">${contextTabs}</div>` : ""}
         <div class="flex items-center gap-3">
           <label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
             <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
@@ -277,28 +300,7 @@ export function renderHomePage(
       <div class="authoring-context-resizer" id="authoring-context-resizer" role="separator" aria-label="Resize authoring and context panes" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" tabindex="0"></div>
 
       <section class="context-column preview-column min-w-0 bg-app-paper" id="context-surface" aria-label="Research context">
-        <div class="context-tabs" id="context-tabs">
-          <div class="context-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
-            <button class="context-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
-            <button class="context-tab" id="context-library-tab" type="button" role="tab" aria-controls="context-library-panel" aria-selected="false" tabindex="-1">Library</button>
-            <button class="context-tab" id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1">Writing assistant</button>
-            <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
-          </div>
-          <div class="context-tab-controls" aria-label="Active context actions">
-            <div class="context-mode-controls" id="preview-context-controls">
-              <span class="preview-file-context" id="preview-file-context" title="main.md · composed paper">main.md · composed paper</span>
-              <span id="diagnostic-summary">Validating…</span>
-            </div>
-            <div class="context-mode-controls" id="pdf-context-controls" hidden>
-              <span class="context-status" id="paper-status">Loading PDF…</span>
-              <button id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
-              <span class="context-page-indicator" id="paper-page-indicator">– / –</span>
-              <button id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
-            </div>
-            <button id="pin-active-context" type="button" disabled hidden>Pin</button>
-            <button id="close-active-context" type="button" disabled hidden>Close</button>
-          </div>
-        </div>
+        ${appMode === "workspace" ? contextTabs : ""}
 
         <section class="context-panel context-preview-panel" id="context-preview-panel" role="tabpanel" aria-labelledby="context-preview-tab" tabindex="0">
           <div class="preview-scroll" id="preview-scroll">

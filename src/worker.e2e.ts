@@ -15,6 +15,9 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.goto("/library");
   expect((await libraryResponse).status()).toBe(200);
   await expect(page.locator("body")).toHaveAttribute("data-app-mode", "library");
+  await expect(page.locator("header #context-tabs")).toBeVisible();
+  await expect(page.locator("#context-surface > #context-tabs")).toHaveCount(0);
+  await expect(page.locator("header #context-library-tab")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#context-library-panel")).toBeVisible();
   await expect(page.locator("#authoring-surface")).toBeHidden();
   await expect(page.getByText("Add reference", { exact: true })).toBeVisible();
@@ -29,6 +32,11 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(studentPdf).toBeVisible();
   await studentPdf.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.getByRole("tab", { name: "student_submission.pdf" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("header").getByRole("tab", { name: "student_submission.pdf" })).toBeVisible();
+  await expect(page.locator("header #pdf-context-controls")).toBeAttached();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator("header #pdf-context-controls")).toBeVisible();
+  await page.setViewportSize({ width: 1024, height: 768 });
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.getByRole("toolbar", { name: "PDF annotation tools" })).toBeVisible();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
