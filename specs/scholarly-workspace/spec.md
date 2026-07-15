@@ -74,6 +74,12 @@ mode for authenticated hosted collaboration.
   labelled menus so the persistent chrome prioritizes authoring and export.
   User-facing copy calls the editable unit a project; workspace remains an
   implementation term for APIs, types, and coordination boundaries.
+- **Personal preferences:** A compact panel beside the Kirjolab heading owns
+  browser-local, cross-project choices that are normally configured once:
+  appearance, Vim editing, and the local model connection, endpoint, model,
+  and reasoning effort. Project layout, sharing, export, and publication
+  controls remain in their task-specific surfaces. Writing assistant links
+  back to the shared panel rather than duplicating model controls.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
 - **Schema lifecycle:** Every SQLite-backed document, catalog, and access
@@ -379,8 +385,13 @@ mode for authenticated hosted collaboration.
       hiding them behind unexplained glyphs.
 - [x] The editor toolbar omits duplicate file navigation and keeps its visible
       controls in one contained row at a 1197 px split-workspace width.
-- [x] Infrequent History, revision, Vim, and file actions remain labelled and
+- [x] Infrequent History, revision, and file actions remain labelled and
       keyboard-accessible from the editor's More menu.
+- [x] Header Preferences opens and closes with pointer or keyboard, keeps
+      personal appearance, Vim, and model settings together, and persists them
+      locally across projects and refreshes.
+- [x] Writing assistant opens the shared model preferences without duplicating
+      connection fields inside its task workflow.
 - [x] Insert-menu file paths truncate safely beside compact syntax help instead
       of overlapping at constrained authoring widths.
 - [x] Permanent helper and empty-state copy stays concise, action-oriented, and

@@ -25,6 +25,55 @@ export function renderHomePage(
       <div class="flex min-h-16 items-center justify-between gap-4 px-4 lg:px-6">
         <div class="flex min-w-0 items-center gap-3">
           <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
+          <details class="preferences-menu" id="preferences-menu" data-settings-menu>
+            <summary class="preferences-trigger" aria-label="Open preferences" title="Preferences">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19 13.5v-3l-2.1-.7a7.5 7.5 0 0 0-.7-1.7l1-2-2.1-2.1-2 1a7.5 7.5 0 0 0-1.7-.7L10.5 2h-3l-.7 2.1a7.5 7.5 0 0 0-1.7.7l-2-1L1 5.9l1 2a7.5 7.5 0 0 0-.7 1.7L-1 10.5v3l2.1.7a7.5 7.5 0 0 0 .7 1.7l-1 2L3 20l2-1a7.5 7.5 0 0 0 1.7.7l.8 2.3h3l.7-2.1a7.5 7.5 0 0 0 1.7-.7l2 1 2.1-2.1-1-2a7.5 7.5 0 0 0 .7-1.7z" transform="translate(2)"></path></svg>
+              <span class="hidden sm:inline">Settings</span>
+            </summary>
+            <div class="preferences-panel" aria-label="Preferences">
+              <header><p class="eyebrow">Personal preferences</p><h2>Settings</h2><p>Stored in this browser and reused across projects.</p></header>
+              <section class="preferences-section" aria-labelledby="appearance-preference-heading">
+                <div><h3 id="appearance-preference-heading">Appearance</h3><p>Follow your device or keep one theme.</p></div>
+                <label class="sr-only" for="theme-preference">Appearance</label>
+                <select class="field" id="theme-preference" aria-label="Appearance">
+                  <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
+                </select>
+              </section>
+              <section class="preferences-section" aria-labelledby="writing-preference-heading">
+                <div><h3 id="writing-preference-heading">Writing</h3><p>Use modal Vim keybindings in the source editor.</p></div>
+                <button class="preference-toggle" id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"><span>Vim mode</span><span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span></button>
+              </section>
+              <section class="preferences-model" aria-labelledby="model-preference-heading">
+                <div><h3 id="model-preference-heading">Local model</h3><p>Configure the OpenAI-compatible connection used by Writing assistant.</p></div>
+                <div class="preferences-model-grid">
+                  <label class="field-label">Connection
+                    <select class="field" id="llm-connection">
+                      <option value="direct">Direct browser connection</option>
+                      <option value="companion">Local companion</option>
+                    </select>
+                  </label>
+                  <label class="field-label preferences-endpoint">Endpoint
+                    <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
+                  </label>
+                  <label class="field-label">Model
+                    <input class="field" id="llm-model" type="text" list="llm-model-options" maxlength="256" placeholder="Discover or enter a loaded model id">
+                    <datalist id="llm-model-options"></datalist>
+                  </label>
+                  <label class="field-label">Reasoning
+                    <select class="field" id="llm-reasoning-effort">
+                      <option value="none">Off · fastest</option>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="provider-default">Provider default</option>
+                    </select>
+                  </label>
+                  <button class="button-secondary justify-center" id="discover-llm-models" type="button">Find loaded models</button>
+                </div>
+                <p class="preferences-model-status" id="preferences-model-status" role="status" aria-live="polite">Connection details stay on this device.</p>
+              </section>
+            </div>
+          </details>
           <span class="hidden h-4 w-px bg-app-line sm:block"></span>
           <a class="header-library-link" href="/library"${appMode === "library" ? ' aria-current="page"' : ""}>Library</a>
           <label class="sr-only" for="workspace-switcher">Current project</label>
@@ -39,10 +88,6 @@ export function renderHomePage(
           </details>
         </div>
         <div class="flex items-center gap-3">
-          <label class="sr-only" for="theme-preference">Appearance</label>
-          <select class="workspace-switcher" id="theme-preference" aria-label="Appearance">
-            <option value="system">Theme: System</option><option value="light">Theme: Light</option><option value="dark">Theme: Dark</option>
-          </select>
           <label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
             <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
               <option value="split">Split</option><option value="editor">Editor only</option>
@@ -166,7 +211,6 @@ export function renderHomePage(
               <summary class="button-secondary">More</summary>
               <div class="editor-command-menu" aria-label="More editor actions">
                 <button id="open-project-history" type="button"><strong>History</strong><code id="revision-badge">r0</code></button>
-                <button id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"><strong>Vim editing</strong><span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span></button>
                 <p class="editor-command-menu-label">File</p>
                 <button id="new-project-file" type="button"><strong>Add file</strong></button>
                 <button id="create-and-include-project-file" type="button"><strong>Create and include</strong><code>at the current caret</code></button>
@@ -381,34 +425,7 @@ export function renderHomePage(
             </div>
             <p class="mt-2 text-xs leading-5 text-app-text-soft" id="assistant-target-preview" aria-live="polite">Place the caret in a sentence or select the exact text to revise.</p>
             <div class="mt-4" id="assistant-interactive-result" aria-live="polite"></div>
-            <details class="assistant-settings" id="assistant-model-settings">
-              <summary>Model connection</summary>
-              <div class="assistant-settings-grid">
-                <label class="field-label">Connection
-                  <select class="field" id="llm-connection">
-                    <option value="direct">Direct browser connection</option>
-                    <option value="companion">Local companion</option>
-                  </select>
-                </label>
-                <label class="field-label">Endpoint
-                  <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
-                </label>
-                <label class="field-label">Model
-                  <input class="field" id="llm-model" type="text" list="llm-model-options" maxlength="256" placeholder="Discover or enter a loaded model id">
-                  <datalist id="llm-model-options"></datalist>
-                </label>
-                <label class="field-label">Reasoning
-                  <select class="field" id="llm-reasoning-effort">
-                    <option value="none">Off · fastest</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="provider-default">Provider default</option>
-                  </select>
-                </label>
-                <button class="button-secondary justify-center" id="discover-llm-models" type="button">Find loaded models</button>
-              </div>
-            </details>
+            <button class="assistant-connection-link" id="open-preferences-from-assistant" type="button">Connection settings</button>
             <p class="mt-3 text-sm text-app-text-soft" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
             <div class="mt-4" id="candidate-list">
               <div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>

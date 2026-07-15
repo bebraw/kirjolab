@@ -90,6 +90,167 @@
     color: var(--color-app-accent-strong);
   }
 
+  .preferences-menu {
+    position: relative;
+    flex: none;
+    font-family: var(--font-sans);
+  }
+
+  .preferences-trigger {
+    display: inline-flex;
+    min-height: 2.25rem;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    padding-inline: 0.55rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .preferences-trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  .preferences-trigger:hover,
+  .preferences-menu[open] .preferences-trigger {
+    border-color: var(--color-app-line);
+    background: var(--color-app-paper);
+    color: var(--color-app-accent-strong);
+  }
+
+  .preferences-trigger svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+  }
+
+  .preferences-panel {
+    position: absolute;
+    top: calc(100% + 0.65rem);
+    left: 0;
+    z-index: 40;
+    width: min(36rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 5.5rem);
+    overflow: auto;
+    border: 1px solid var(--color-app-line);
+    border-radius: 0.3rem;
+    background: var(--color-app-paper);
+    box-shadow: 0 1rem 3rem var(--color-app-shadow);
+  }
+
+  .preferences-panel > header,
+  .preferences-section,
+  .preferences-model {
+    padding: 1rem;
+  }
+
+  .preferences-panel > header,
+  .preferences-section {
+    border-bottom: 1px solid var(--color-app-line);
+  }
+
+  .preferences-panel > header h2 {
+    margin-top: 0.15rem;
+    color: var(--color-app-ink);
+    font-size: 1.25rem;
+    font-weight: 750;
+    letter-spacing: -0.035em;
+  }
+
+  .preferences-panel > header > p:last-child,
+  .preferences-section > div > p,
+  .preferences-model > div:first-child > p,
+  .preferences-model-status {
+    margin-top: 0.2rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.68rem;
+    line-height: 1.45;
+  }
+
+  .preferences-section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 0.5fr);
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .preferences-section h3,
+  .preferences-model h3 {
+    color: var(--color-app-text);
+    font-size: 0.75rem;
+    font-weight: 800;
+  }
+
+  .preference-toggle {
+    display: flex;
+    min-height: 2.45rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    border: 1px solid var(--color-app-line);
+    border-radius: 0.2rem;
+    padding-inline: 0.7rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.72rem;
+    font-weight: 750;
+  }
+
+  .preference-toggle[aria-pressed="true"] {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+  }
+
+  .preferences-model-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.8rem;
+  }
+
+  .preferences-endpoint {
+    grid-column: 1 / -1;
+  }
+
+  .assistant-connection-link {
+    margin-top: 0.75rem;
+    color: var(--color-app-accent-strong);
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-weight: 750;
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+  }
+
+  @media (max-width: 520px) {
+    .preferences-panel {
+      position: fixed;
+      top: 3.75rem;
+      right: 0.75rem;
+      left: 0.75rem;
+      width: auto;
+    }
+
+    .preferences-section,
+    .preferences-model-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .preferences-endpoint {
+      grid-column: auto;
+    }
+  }
+
   body[data-app-mode="library"] #workspace-switcher,
   body[data-app-mode="library"] .project-view-control,
   body[data-app-mode="library"] .header-action-menu,
@@ -1563,28 +1724,7 @@
     margin-top: 1rem;
   }
 
-  .assistant-settings {
-    margin-top: 1rem;
-    border: 1px solid var(--color-app-line);
-    padding: 0.75rem;
-  }
-
-  .assistant-settings > summary {
-    cursor: pointer;
-    font-family: var(--font-sans);
-    font-size: 0.68rem;
-    font-weight: 800;
-    text-transform: uppercase;
-  }
-
-  .assistant-settings-grid {
-    display: grid;
-    gap: 0.75rem;
-    padding-top: 0.75rem;
-  }
-
-  .context-assistant-panel .assistant-workflow,
-  .context-assistant-panel .assistant-settings-grid {
+  .context-assistant-panel .assistant-workflow {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -1618,10 +1758,6 @@
 
     .model-generate-action {
       grid-column: 2;
-    }
-
-    .assistant-settings-grid {
-      grid-template-columns: minmax(9rem, 0.45fr) minmax(0, 1fr) minmax(10rem, 0.55fr);
     }
   }
 

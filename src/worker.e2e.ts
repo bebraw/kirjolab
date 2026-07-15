@@ -353,6 +353,12 @@ test("follows and remembers the selected appearance", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   const appearance = page.locator("#theme-preference");
+  await page.locator("#preferences-menu > summary").click();
+  await expect(page.locator("#preferences-menu")).toHaveAttribute("open", "");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#preferences-menu")).not.toHaveAttribute("open", "");
+  await expect(page.locator("#preferences-menu > summary")).toBeFocused();
+  await page.locator("#preferences-menu > summary").click();
 
   await expect(appearance).toHaveValue("system");
   await appearance.selectOption("dark");
@@ -360,6 +366,7 @@ test("follows and remembers the selected appearance", async ({ page }) => {
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe("dark");
 
   await page.reload();
+  await page.locator("#preferences-menu > summary").click();
   await expect(appearance).toHaveValue("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
@@ -419,7 +426,7 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
   await page.locator("#editor-more-menu summary").click();
   const moreMenu = page.locator("#editor-more-menu .editor-command-menu");
   await expect(moreMenu.getByRole("button", { name: /History/ })).toBeVisible();
-  await expect(moreMenu.getByRole("button", { name: /Vim editing/ })).toBeVisible();
+  await expect(moreMenu.getByRole("button", { name: /Vim editing/ })).toHaveCount(0);
   await expect(moreMenu.getByRole("button", { name: "Move or rename file" })).toBeVisible();
   await page.locator("#editor-more-menu summary").click();
 
@@ -624,7 +631,7 @@ test("offers opt-in Vim editing over the collaborative textarea", async ({ page 
   const mode = page.locator("#vim-mode-status");
   await editor.fill("one two\nthree");
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
-  await page.locator("#editor-more-menu summary").click();
+  await page.locator("#preferences-menu > summary").click();
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(mode).toHaveText("NORMAL");
@@ -653,7 +660,7 @@ test("offers opt-in Vim editing over the collaborative textarea", async ({ page 
   await page.reload();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(mode).toHaveText("NORMAL");
-  await page.locator("#editor-more-menu summary").click();
+  await page.locator("#preferences-menu > summary").click();
   await toggle.click();
   await expect(mode).toBeHidden();
   await editor.press("End");
@@ -2869,8 +2876,14 @@ test("selects the explicit local companion connection", async ({ page }) => {
   await page.locator("#llm-connection").selectOption("companion");
   await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:8790/v1/chat/completions");
   await expect(page.locator("#model-status")).toContainText("npm run dev");
-  await page.locator("#llm-connection").selectOption("direct");
-  await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:1234/v1/chat/completions");
+  await page.locator("#llm-model").fill("qwen-local");
+  await page.locator("#llm-reasoning-effort").selectOption("low");
+  await page.reload();
+  await page.locator("#preferences-menu > summary").click();
+  await expect(page.locator("#llm-connection")).toHaveValue("companion");
+  await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:8790/v1/chat/completions");
+  await expect(page.locator("#llm-model")).toHaveValue("qwen-local");
+  await expect(page.locator("#llm-reasoning-effort")).toHaveValue("low");
 });
 
 test("discovers loaded local models for the writing assistant", async ({ page }) => {
@@ -3689,8 +3702,7 @@ async function openWritingAssistant(page: Page, includeSettings = false): Promis
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await expect(page.locator("#context-assistant-panel")).toBeVisible();
   if (includeSettings) {
-    await page.locator("#assistant-model-settings").evaluate((element: HTMLDetailsElement) => {
-      element.open = true;
-    });
+    await page.locator("#open-preferences-from-assistant").click();
+    await expect(page.locator("#preferences-menu")).toHaveAttribute("open", "");
   }
 }

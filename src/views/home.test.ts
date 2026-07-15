@@ -19,12 +19,12 @@ describe("renderHomePage", () => {
     expect(html).toContain('<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
     expect(html).toContain('accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml"');
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
+    expect(html).toContain('id="preferences-menu" data-settings-menu');
+    expect(html).toContain('aria-label="Open preferences" title="Preferences"');
     expect(html).toContain('id="account-menu" data-action-menu');
     expect(html).toContain("Local mode has no login session.");
     expect(html).not.toContain('id="log-out"');
-    expect(html).toContain(
-      '<option value="system">Theme: System</option><option value="light">Theme: Light</option><option value="dark">Theme: Dark</option>',
-    );
+    expect(html).toContain('<option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>');
     expect(html).toContain('<p class="eyebrow">New project</p>');
     expect(html).toContain('id="new-workspace-template-list"');
     expect(html).toContain('id="save-workspace-template"');
@@ -297,10 +297,11 @@ describe("renderHomePage", () => {
     expect(html).toContain('<select class="field" id="llm-reasoning-effort">');
     expect(html).toContain('<option value="none">Off · fastest</option>');
     expect(html).toContain('id="discover-llm-models" type="button">Find loaded models</button>');
+    expect(html).toContain('id="open-preferences-from-assistant" type="button">Connection settings</button>');
 
-    expect(html.indexOf('id="model-instruction"')).toBeLessThan(html.indexOf('id="assistant-model-settings"'));
-    expect(html.indexOf('id="assistant-model-settings"')).toBeLessThan(html.indexOf('id="llm-endpoint"'));
-    expect(html.indexOf('id="assistant-model-settings"')).toBeLessThan(html.indexOf('id="llm-model"'));
+    expect(html.indexOf('id="preferences-menu"')).toBeLessThan(html.indexOf('id="llm-endpoint"'));
+    expect(html.indexOf('id="llm-endpoint"')).toBeLessThan(html.indexOf('id="model-instruction"'));
+    expect(html).not.toContain('id="assistant-model-settings"');
     expect(html.indexOf('id="model-instruction"')).toBeLessThan(html.indexOf('id="generate-candidate"'));
   });
 });

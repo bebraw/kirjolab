@@ -150,8 +150,12 @@ const catalogBase = "/api/workspaces";
 const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
+const modelPreferencesStorageKey = "kirjolab:model-preferences";
 
 interface Elements {
+  preferencesMenu: HTMLDetailsElement;
+  preferencesModelStatus: HTMLElement;
+  openPreferencesFromAssistant: HTMLButtonElement;
   collaboratorSelections: HTMLElement;
   workspaceSwitcher: HTMLSelectElement;
   workspaceLayout: HTMLSelectElement;
@@ -644,6 +648,7 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
+    this.#restoreModelPreferences();
     window.addEventListener("online", () => this.#connect());
     window.addEventListener("offline", () => {
       this.#setConnection("Offline · changes stay on this device", false);
@@ -670,10 +675,14 @@ class WorkspaceApp {
       for (const menu of document.querySelectorAll<HTMLDetailsElement>("details[data-action-menu][open]")) {
         if (!menu.contains(event.target) || event.target.closest("button, a")) menu.open = false;
       }
+      const settings = document.querySelector<HTMLDetailsElement>("details[data-settings-menu][open]");
+      if (settings && !settings.contains(event.target)) settings.open = false;
     });
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
-      const openMenus = Array.from(document.querySelectorAll<HTMLDetailsElement>("details[data-action-menu][open]"));
+      const openMenus = Array.from(
+        document.querySelectorAll<HTMLDetailsElement>("details[data-action-menu][open], details[data-settings-menu][open]"),
+      );
       const menu = openMenus.at(-1);
       if (!menu) return;
       menu.open = false;
@@ -895,6 +904,14 @@ class WorkspaceApp {
     ]) {
       input.addEventListener("input", () => this.#updateModelAvailability());
     }
+    for (const input of [
+      this.#elements.llmConnection,
+      this.#elements.llmEndpoint,
+      this.#elements.llmModel,
+      this.#elements.llmReasoningEffort,
+    ]) {
+      input.addEventListener("input", () => this.#saveModelPreferences());
+    }
     this.#elements.llmConnection.addEventListener("change", () => {
       this.#elements.llmEndpoint.value =
         this.#elements.llmConnection.value === "companion"
@@ -904,8 +921,15 @@ class WorkspaceApp {
         this.#elements.llmConnection.value === "companion"
           ? "The local companion starts with npm run dev; select manuscript text and grounding evidence."
           : "The browser will contact the configured loopback provider directly.";
+      this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
+      this.#saveModelPreferences();
     });
     this.#elements.discoverLlmModels.addEventListener("click", () => void this.#discoverLlmModels());
+    this.#elements.openPreferencesFromAssistant.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this.#elements.preferencesMenu.open = true;
+      this.#elements.llmConnection.focus();
+    });
     this.#renderModelOperationOptions();
     this.#elements.modelOperation.addEventListener("change", () => this.#updateModelTask(true));
     this.#elements.assistantTargetScope.addEventListener("change", () => {
@@ -1815,6 +1839,33 @@ class WorkspaceApp {
     this.#elements.assistantTargetPreview.textContent = `${assistantTargetScopeLabel(scope)} · “${excerpt.slice(0, 180)}${excerpt.length > 180 ? "…" : ""}”`;
   }
 
+  #restoreModelPreferences(): void {
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem(modelPreferencesStorageKey) ?? "null");
+      if (!isRecord(stored)) return;
+      if (stored.connection === "direct" || stored.connection === "companion") this.#elements.llmConnection.value = stored.connection;
+      if (typeof stored.endpoint === "string" && stored.endpoint.length <= 2_048) this.#elements.llmEndpoint.value = stored.endpoint;
+      if (typeof stored.model === "string" && stored.model.length <= 256) this.#elements.llmModel.value = stored.model;
+      if (typeof stored.reasoningEffort === "string") {
+        this.#elements.llmReasoningEffort.value = readModelReasoningEffort(stored.reasoningEffort);
+      }
+    } catch {
+      localStorage.removeItem(modelPreferencesStorageKey);
+    }
+  }
+
+  #saveModelPreferences(): void {
+    localStorage.setItem(
+      modelPreferencesStorageKey,
+      JSON.stringify({
+        connection: this.#elements.llmConnection.value,
+        endpoint: this.#elements.llmEndpoint.value,
+        model: this.#elements.llmModel.value,
+        reasoningEffort: readModelReasoningEffort(this.#elements.llmReasoningEffort.value),
+      }),
+    );
+  }
+
   #modelProvider(): OpenAICompatibleBrowserProvider {
     return new OpenAICompatibleBrowserProvider({
       endpoint: this.#elements.llmEndpoint.value,
@@ -1831,6 +1882,7 @@ class WorkspaceApp {
     this.#elements.discoverLlmModels.disabled = true;
     this.#updateModelAvailability();
     this.#elements.modelStatus.textContent = "Checking the local provider for loaded models…";
+    this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
     try {
       const models = await discoverOpenAICompatibleModels(this.#elements.llmEndpoint.value);
       this.#elements.llmModelOptions.replaceChildren(
@@ -1845,9 +1897,12 @@ class WorkspaceApp {
       this.#elements.modelStatus.textContent = models.length
         ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.#elements.llmModel.value}.`
         : "The local provider is reachable but reports no loaded models.";
+      this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
+      this.#saveModelPreferences();
     } catch (error) {
       this.#elements.modelStatus.textContent =
         error instanceof Error ? error.message : "Could not discover models from the local provider.";
+      this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
     } finally {
       this.#modelBusy = false;
       this.#elements.discoverLlmModels.disabled = false;
@@ -7336,6 +7391,9 @@ function scholarlyProviderLabel(provider: MetadataRefinementCandidate["provider"
 
 function collectElements(): Elements {
   return {
+    preferencesMenu: requiredElement("preferences-menu", HTMLDetailsElement),
+    preferencesModelStatus: requiredElement("preferences-model-status", HTMLElement),
+    openPreferencesFromAssistant: requiredElement("open-preferences-from-assistant", HTMLButtonElement),
     collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
     workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
     workspaceLayout: requiredElement("workspace-layout", HTMLSelectElement),
