@@ -29,6 +29,9 @@ identity and downstream work.
 - An unzoomed PDF accumulates horizontally dominant Mac trackpad wheel input
   into one previous/next page action. Vertical scroll remains native, while
   zoomed pages retain horizontal panning instead of changing page.
+- Trackpad and touch pinch zoom transform the current page immediately, then
+  debounce rendering and atomically replace the live canvas and text layer only
+  after the new frame is complete.
 - Updating a stroke advances annotation version and project history without
   mutating imported PDF bytes.
 - Citation, claim, and manuscript-link actions remain separate from annotation
@@ -49,6 +52,8 @@ identity and downstream work.
       required.
 - [x] Two-finger horizontal Mac trackpad swipes turn one page per gesture
       without capturing vertical scroll or zoomed-page panning.
+- [x] Mac trackpad pinch zoom keeps the previous page frame visible until its
+      replacement is ready.
 - [x] Pure, Workers-runtime, and browser tests cover adjustment.
 
 ### Regression Guardrails

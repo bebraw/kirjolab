@@ -59,6 +59,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   gestures change one page at a time. Two-finger pinch gestures scale only the
   PDF, zoomed pages retain native panning, and pen input updates the active path
   without rebuilding saved markup.
+- PDF zoom transforms the committed page during active touch or trackpad input.
+  Rendering is debounced and buffered offscreen; canvas, text layer, geometry,
+  and zoom state commit together only after the complete frame is ready.
 - The same compact row exposes annotated export only after a private annotation
   exists. Export downloads an owner-authorized derived copy and does not change
   the context tab, source artifact, project state, or research-share state.

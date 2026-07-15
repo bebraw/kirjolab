@@ -34,6 +34,15 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
+  const fittedCanvasWidth = Number(await page.locator("#paper-canvas").getAttribute("width"));
+  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -6, deltaMode: 0 });
+  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -6, deltaMode: 0 });
+  await expect(page.locator("#paper-canvas")).toHaveAttribute("width", String(fittedCanvasWidth));
+  await expect(page.locator("#paper-page")).toHaveAttribute("style", /transform: scale/u);
+  await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBeGreaterThan(fittedCanvasWidth);
+  await expect(page.locator("#paper-page")).not.toHaveAttribute("style", /transform: scale/u);
+  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: 12, deltaMode: 0 });
+  await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBe(fittedCanvasWidth);
   await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected rendered student PDF text");

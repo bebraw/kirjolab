@@ -148,6 +148,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-119](./implemented/ADR-119-model-writing-as-typed-contextual-operations.md)      | Implemented          | Define assistant capabilities and deterministic caret-based targets through one typed registry.              |
 | [ADR-124](./implemented/ADR-124-host-private-pdf-tools-in-the-left-rail.md)           | Implemented          | Keep private PDF tools in a left icon rail and reveal editing controls only in a transient inspector.        |
 | [ADR-125](./implemented/ADR-125-turn-pdf-pages-with-trackpad-gestures.md)             | Implemented          | Turn unzoomed PDF pages with bounded horizontal trackpad gestures while preserving scroll and pan.           |
+| [ADR-126](./implemented/ADR-126-buffer-pdf-zoom-rendering.md)                         | Implemented          | Keep the committed PDF frame visible while debouncing and buffering zoom renders offscreen.                  |
 
 ## Creating A New ADR
 

@@ -60,6 +60,7 @@ export class PdfEvidenceViewer {
   #pinchStart: { distance: number; zoom: number } | null = null;
   #swipeStart: { x: number; y: number; startedAt: number } | null = null;
   #wheelPagingState: PdfWheelPagingState = initialPdfWheelPagingState();
+  #wheelZoomRenderTimer: number | undefined;
   #selectionCaptureTimer: number | undefined;
 
   constructor(
@@ -89,8 +90,14 @@ export class PdfEvidenceViewer {
       (event) => {
         if (event.ctrlKey) {
           event.preventDefault();
+          this.#renderVersion += 1;
           this.#zoom = clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4);
-          void this.#renderPage();
+          this.#elements.page.style.transform = `scale(${this.#zoom / this.#renderedZoom})`;
+          window.clearTimeout(this.#wheelZoomRenderTimer);
+          this.#wheelZoomRenderTimer = window.setTimeout(() => {
+            this.#wheelZoomRenderTimer = undefined;
+            void this.#renderPage();
+          }, 140);
           return;
         }
         if (!this.#document || this.#zoom > 1.01) {
@@ -132,6 +139,8 @@ export class PdfEvidenceViewer {
     this.#privateHighlights = options.privateHighlights ?? [];
     this.#focusedAnnotationId = options.focusAnnotationId;
     window.clearTimeout(this.#selectionCaptureTimer);
+    window.clearTimeout(this.#wheelZoomRenderTimer);
+    this.#wheelZoomRenderTimer = undefined;
     this.#clearNativeSelection();
     this.#draftSelection = null;
     this.#mode = options.mode ?? "evidence";
@@ -191,6 +200,8 @@ export class PdfEvidenceViewer {
   }
 
   async resize(): Promise<void> {
+    window.clearTimeout(this.#wheelZoomRenderTimer);
+    this.#wheelZoomRenderTimer = undefined;
     await this.#renderPage();
   }
 
@@ -201,6 +212,8 @@ export class PdfEvidenceViewer {
     this.#pageNumber = next;
     this.#focusedAnnotationId = undefined;
     this.#draftSelection = null;
+    window.clearTimeout(this.#wheelZoomRenderTimer);
+    this.#wheelZoomRenderTimer = undefined;
     await this.#renderPage();
   }
 
@@ -215,35 +228,49 @@ export class PdfEvidenceViewer {
 
     const unscaled = page.getViewport({ scale: 1 });
     const availableWidth = Math.max(320, Math.min(900, this.#elements.page.parentElement?.clientWidth ?? 760) - 32);
-    const viewport = page.getViewport({ scale: (availableWidth / unscaled.width) * this.#zoom });
-    this.#elements.page.style.removeProperty("transform");
-    this.#renderedZoom = this.#zoom;
+    const renderedZoom = this.#zoom;
+    const viewport = page.getViewport({ scale: (availableWidth / unscaled.width) * renderedZoom });
     const outputScale = window.devicePixelRatio || 1;
-    this.#elements.page.style.width = `${viewport.width}px`;
-    this.#elements.page.style.height = `${viewport.height}px`;
-    this.#elements.page.style.setProperty("--total-scale-factor", String(viewport.scale));
-    this.#elements.canvas.width = Math.floor(viewport.width * outputScale);
-    this.#elements.canvas.height = Math.floor(viewport.height * outputScale);
-    this.#elements.canvas.style.width = `${viewport.width}px`;
-    this.#elements.canvas.style.height = `${viewport.height}px`;
+    const renderedCanvas = document.createElement("canvas");
+    renderedCanvas.width = Math.floor(viewport.width * outputScale);
+    renderedCanvas.height = Math.floor(viewport.height * outputScale);
+    const renderedTextLayer = document.createElement("div");
+    renderedTextLayer.className = "textLayer";
+    renderedTextLayer.style.setProperty("--total-scale-factor", String(viewport.scale));
 
     const textContent = await readPdfTextContent(page);
     if (version !== this.#renderVersion) return;
-    this.#pageText = textContent.items
+    const pageText = textContent.items
       .map((item) => ("str" in item ? item.str : ""))
       .filter(Boolean)
       .join(" ");
-    this.#elements.textLayer.replaceChildren();
-    const textLayer = new runtime.TextLayer({ textContentSource: textContent, container: this.#elements.textLayer, viewport });
+    const textLayer = new runtime.TextLayer({ textContentSource: textContent, container: renderedTextLayer, viewport });
     await Promise.all([
       page.render({
-        canvas: this.#elements.canvas,
+        canvas: renderedCanvas,
         viewport,
         transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
       }).promise,
       textLayer.render(),
     ]);
     if (version !== this.#renderVersion) return;
+    const canvasContext = this.#elements.canvas.getContext("2d");
+    if (!canvasContext) return;
+    this.#elements.canvas.width = renderedCanvas.width;
+    this.#elements.canvas.height = renderedCanvas.height;
+    canvasContext.drawImage(renderedCanvas, 0, 0);
+    this.#elements.canvas.style.width = `${viewport.width}px`;
+    this.#elements.canvas.style.height = `${viewport.height}px`;
+    const textLayerPointerEvents = this.#elements.textLayer.style.pointerEvents;
+    this.#elements.textLayer.style.cssText = renderedTextLayer.style.cssText;
+    this.#elements.textLayer.style.pointerEvents = textLayerPointerEvents;
+    this.#elements.textLayer.replaceChildren(...renderedTextLayer.childNodes);
+    this.#elements.page.style.width = `${viewport.width}px`;
+    this.#elements.page.style.height = `${viewport.height}px`;
+    this.#elements.page.style.setProperty("--total-scale-factor", String(viewport.scale));
+    this.#elements.page.style.removeProperty("transform");
+    this.#renderedZoom = renderedZoom;
+    this.#pageText = pageText;
     this.#renderHighlights();
     for (const indicator of this.#elements.pageIndicators) indicator.textContent = `${this.#pageNumber} / ${documentModel.numPages}`;
     for (const button of this.#elements.previousPages) button.disabled = this.#pageNumber === 1;
@@ -342,6 +369,9 @@ export class PdfEvidenceViewer {
   #startTouchGesture(event: TouchEvent): void {
     if (event.touches.length === 2) {
       event.preventDefault();
+      window.clearTimeout(this.#wheelZoomRenderTimer);
+      this.#wheelZoomRenderTimer = undefined;
+      this.#renderVersion += 1;
       this.#pinchStart = { distance: touchDistance(event.touches), zoom: this.#zoom };
       this.#swipeStart = null;
       return;
