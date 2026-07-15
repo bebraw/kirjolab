@@ -5590,7 +5590,7 @@ class WorkspaceApp {
     this.#elements.annotationSelectionStatus.textContent =
       this.#highlightTool === "erase"
         ? "Erasing overlapping highlight strokes…"
-        : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "fragment" : "fragments"} from page ${capture.page}. Saving automatically…`;
+        : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "line" : "lines"} from page ${capture.page}. Saving automatically…`;
     void this.#persistPdfSelection(capture);
   }
 

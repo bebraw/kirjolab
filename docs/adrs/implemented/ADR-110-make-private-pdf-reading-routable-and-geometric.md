@@ -27,11 +27,17 @@ artifact.
   current location, and browser Back restores the Library.
 - New private highlights retain bounded normalized selection rectangles in
   addition to artifact, page, quote, and comment. Existing rows migrate with
-  empty geometry and remain readable.
+  empty geometry and remain readable. Selection capture waits briefly for
+  native iPad selection handles to settle and coalesces adjacent PDF.js DOM
+  fragments into one rectangle per visual line, following Zotero's line-based
+  highlight model. Private capture retains up to the library's 512-rectangle
+  bound instead of inheriting the project annotation limit.
 - The viewer paints saved private geometry. Annotated export emits standard PDF
-  highlight annotations when geometry exists and keeps legacy quote-only rows
-  as page comments. Text notes include explicit popup relationships so readers
-  can open their contents.
+  highlight annotations when geometry exists. Every saved multi-line highlight
+  becomes one annotation whose `QuadPoints` contain all visual lines, rather
+  than one annotation per DOM fragment. Legacy quote-only rows remain page
+  comments. Text notes include explicit popup relationships so readers can open
+  their contents.
 - Page note anchors remain normalized and can be moved through an owner-private
   update route. Drawing undo selects the newest stroke explicitly by creation
   time and stable id.
@@ -46,6 +52,9 @@ artifact.
 
 - Saved highlights remain visually inspectable in the app and interoperable in
   exported PDFs.
+- Multi-line selection no longer silently loses later lines when a browser
+  exposes many small rectangles, and exported highlights have one continuous
+  line band and one comment target per saved selection.
 - Deep links and browser navigation become reliable standalone-library
   contracts without persisting reading state collaboratively.
 - Old highlights cannot recover geometry retroactively and therefore retain

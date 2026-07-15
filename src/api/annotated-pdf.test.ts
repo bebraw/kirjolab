@@ -1,4 +1,4 @@
-import { PDFDocument, degrees } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFName, degrees } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import type { LibraryHighlight, LibraryPdfMarkup } from "../domain/reference-library";
 import { normalizedPointOnPage, renderAnnotatedPdf } from "./annotated-pdf";
@@ -48,7 +48,10 @@ describe("annotated PDF export", () => {
         page: 1,
         quote: "Quoted evidence",
         comment: "Useful context",
-        rects: [{ x: 0.2, y: 0.3, width: 0.25, height: 0.03 }],
+        rects: [
+          { x: 0.2, y: 0.3, width: 0.25, height: 0.03 },
+          { x: 0.2, y: 0.34, width: 0.4, height: 0.03 },
+        ],
         createdAt,
         updatedAt: createdAt,
       },
@@ -58,7 +61,11 @@ describe("annotated PDF export", () => {
     const exported = await PDFDocument.load(result, { updateMetadata: false });
     expect(exported.getPageCount()).toBe(2);
     expect(exported.getProducer()).toBe("Kirjolab annotated PDF");
-    expect(exported.getPage(0).node.Annots()?.size()).toBe(3);
+    const annotations = exported.getPage(0).node.Annots();
+    expect(annotations?.size()).toBe(3);
+    if (!annotations) throw new Error("Expected exported annotations");
+    const highlight = exported.context.lookup(annotations.get(2), PDFDict);
+    expect(highlight.lookup(PDFName.of("QuadPoints"), PDFArray).size()).toBe(16);
     expect(result.byteLength).toBeGreaterThan(sourceBytes.byteLength);
   });
 

@@ -222,7 +222,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
 - Model a mutable PDF highlight as one stable annotation with ordered, provenance-bearing selection strokes. Auto-save paint strokes, address undo and erasing by stroke identity, and keep claim-dependent annotation deletion guarded.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
-- Keep standalone private PDF locations routable in browser history, store new private highlight geometry in normalized page coordinates, and export interoperable PDF annotations without mutating source bytes.
+- Keep standalone private PDF locations routable in browser history, coalesce selected PDF text into normalized visual-line rectangles, and export each saved highlight as one interoperable multi-quad PDF annotation without mutating source bytes.
 - Keep citation style and locale as versioned project publication settings consumed by preview and export; never rewrite canonical Markdown or shared bibliographic records when they change.
 - Resolve project submission layouts from bounded versioned presets; never execute uploaded TeX, scripts, remote assets, or arbitrary template paths in the export pipeline.
 - Keep reference-library search, facets, and sorting as ephemeral local projections over the authorized private snapshot; never persist private search intent into project or collaboration state.

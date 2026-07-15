@@ -89,29 +89,33 @@ function addNote(document: PDFDocument, page: PDFPage, normalized: LibraryPdfPoi
 }
 
 function addHighlight(document: PDFDocument, page: PDFPage, rects: readonly LibraryPdfRect[], body: string): void {
+  const quadPoints: number[] = [];
+  const xs: number[] = [];
+  const ys: number[] = [];
   for (const rect of rects) {
     const topLeft = normalizedPointOnPage(page, rect);
     const topRight = normalizedPointOnPage(page, { x: rect.x + rect.width, y: rect.y });
     const bottomLeft = normalizedPointOnPage(page, { x: rect.x, y: rect.y + rect.height });
     const bottomRight = normalizedPointOnPage(page, { x: rect.x + rect.width, y: rect.y + rect.height });
-    const xs = [topLeft.x, topRight.x, bottomLeft.x, bottomRight.x];
-    const ys = [topLeft.y, topRight.y, bottomLeft.y, bottomRight.y];
-    const annotation = document.context.obj({
-      Type: "Annot",
-      Subtype: "Highlight",
-      Rect: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)],
-      QuadPoints: [topLeft.x, topLeft.y, topRight.x, topRight.y, bottomLeft.x, bottomLeft.y, bottomRight.x, bottomRight.y],
-      Contents: PDFHexString.fromText(body),
-      T: PDFHexString.fromText("Kirjolab highlight"),
-      C: [1, 0.78, 0.16],
-      CA: 0.34,
-      F: 4,
-      P: page.ref,
-      NM: PDFHexString.fromText(crypto.randomUUID()),
-      M: PDFHexString.fromText(pdfDate(new Date())),
-    });
-    page.node.addAnnot(document.context.register(annotation));
+    xs.push(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+    ys.push(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
+    quadPoints.push(topLeft.x, topLeft.y, topRight.x, topRight.y, bottomLeft.x, bottomLeft.y, bottomRight.x, bottomRight.y);
   }
+  const annotation = document.context.obj({
+    Type: "Annot",
+    Subtype: "Highlight",
+    Rect: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)],
+    QuadPoints: quadPoints,
+    Contents: PDFHexString.fromText(body),
+    T: PDFHexString.fromText("Kirjolab highlight"),
+    C: [1, 0.83, 0.25],
+    CA: 0.34,
+    F: 4,
+    P: page.ref,
+    NM: PDFHexString.fromText(crypto.randomUUID()),
+    M: PDFHexString.fromText(pdfDate(new Date())),
+  });
+  page.node.addAnnot(document.context.register(annotation));
 }
 
 function pdfDate(value: Date): string {

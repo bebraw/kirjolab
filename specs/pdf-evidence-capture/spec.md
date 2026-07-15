@@ -14,7 +14,9 @@ with an authored passage.
 - `src/client/pdf-viewer.ts` owns single-page PDF.js canvas and text-layer
   rendering, page navigation, stored highlights, and browser selection capture.
 - `src/client/pdf-selection.ts` normalizes selection geometry and derives quote
-  context independently of the viewer runtime.
+  context independently of the viewer runtime. Fragmented browser client
+  rectangles are clipped and coalesced into continuous visual-line rectangles
+  before the project bound is applied.
 - `AnnotationResource.fragments` retains ordered, independently identified
   highlight strokes. Each stroke stores at most 64 normalized top-left page
   rectangles plus exact quote, prefix, suffix, and creation time. The resource
@@ -66,6 +68,8 @@ with an authored passage.
 
 - Geometry values must be finite, positive in size, and remain within page
   bounds after normalization.
+- Adjacent or duplicate browser rectangles on one visual line must coalesce;
+  separated columns and distinct lines must remain separate.
 - A selection may contain at most 64 geometry fragments.
 - PDF.js display and worker assets must come from the same pinned package.
 - PDF.js display and worker assets must use the package's compatibility builds

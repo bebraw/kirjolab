@@ -90,9 +90,11 @@ memory and makes citation aliases compete with stable source identity.
   the action.
 - An attached private PDF opens from its library record in a kind-qualified
   context tab. Reading uses the owner-private stream and local page state. Text
-  selection creates only an ephemeral private-highlight draft; an explicit save
-  records its artifact, page, quote, optional comment, and bounded normalized
-  selection rectangles in the owner library
+  selection creates only an ephemeral private-highlight draft. Selection
+  changes settle briefly so iPad handles can establish the complete range, and
+  fragmented browser rectangles coalesce into continuous visual-line geometry.
+  An explicit save records its artifact, page, quote, optional comment, and
+  bounded normalized selection rectangles in the owner library
   without adding, sharing, or annotating the artifact in a project.
 - The private reader stays focused on the page: its idle annotation surface is
   a compact Text, Note, and Draw toolbar. Text selection opens a contextual
@@ -112,8 +114,10 @@ memory and makes citation aliases compete with stable source identity.
   annotated** downloads a derived PDF without changing the stored source.
   Freehand strokes are flattened at their normalized page coordinates. Page
   notes become interactive sticky-note annotations with popup contents; text
-  highlights with geometry become standard PDF highlight annotations. Legacy
-  quote-only highlights become page-level comments.
+  highlights with geometry become one standard multi-quad PDF highlight
+  annotation per saved highlight, preserving continuous line backgrounds and
+  one interactive comment target. Legacy quote-only highlights become
+  page-level comments.
 - The private reader exposes a staged current-project handoff without changing
   those defaults: first add the bibliographic record, then explicitly review
   artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
@@ -209,8 +213,10 @@ memory and makes citation aliases compete with stable source identity.
 - Browser coverage opens a private artifact, saves and revisits a private
   page-and-quote highlight, restores reading state, keeps project evidence
   controls unavailable, and proves that capture does not mutate the workspace
-  snapshot. It opens attached PDFs directly from collapsed library rows and
-  verifies that references without artifacts expose no PDF action.
+  snapshot. Pure tests prove fragmented DOM rectangles become visual lines and
+  exported multi-line highlights remain one multi-quad annotation. Browser
+  coverage opens attached PDFs directly from collapsed library rows and verifies
+  that references without artifacts expose no PDF action.
 - Browser coverage proves bounded batch progress, partial success, and retry
   without resubmitting successful PDFs.
 - Browser coverage advances the reader's project-use states explicitly and

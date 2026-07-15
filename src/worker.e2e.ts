@@ -971,12 +971,14 @@ test("keeps private library research separate from project citations", async ({ 
   });
   await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(1);
   await expect(page.locator("#paper-status")).toHaveText("Private selection captured from page 1");
+  await expect.poll(async () => await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
   await expect(page.locator("#library-highlight-quote")).not.toHaveValue("");
   await page.locator("#library-highlight-comment").fill("Private reading insight");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator("#toast")).toHaveText("Private highlight saved to your library.");
   await expect(page.locator("#library-highlight-count")).toHaveText("1");
   await expect(page.locator("#library-highlight-list")).toContainText("Private reading insight");
+  await expect.poll(async () => await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(true);
   await expect(page.getByRole("button", { name: "Export annotated" })).toBeEnabled();
   const annotatedDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export annotated" }).click();

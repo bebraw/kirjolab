@@ -55,6 +55,7 @@ export class PdfEvidenceViewer {
   #renderedZoom = 1;
   #pinchStart: { distance: number; zoom: number } | null = null;
   #swipeStart: { x: number; y: number; startedAt: number } | null = null;
+  #selectionCaptureTimer: number | undefined;
 
   constructor(
     elements: PdfViewerElements,
@@ -68,7 +69,10 @@ export class PdfEvidenceViewer {
     this.#onPageChange = onPageChange;
     for (const button of elements.previousPages) button.addEventListener("click", () => void this.#move(-1));
     for (const button of elements.nextPages) button.addEventListener("click", () => void this.#move(1));
-    elements.textLayer.addEventListener("pointerup", () => this.#captureSelection());
+    elements.textLayer.addEventListener("pointerup", () => this.#queueSelectionCapture());
+    document.addEventListener("selectionchange", () => {
+      if (this.#mode === "private-highlight") this.#queueSelectionCapture();
+    });
     elements.reader.addEventListener("touchstart", (event) => this.#startTouchGesture(event), { passive: false });
     elements.reader.addEventListener("touchmove", (event) => this.#continueTouchGesture(event), { passive: false });
     elements.reader.addEventListener("touchend", (event) => void this.#finishTouchGesture(event), { passive: true });
@@ -104,6 +108,8 @@ export class PdfEvidenceViewer {
     this.#annotations = options.annotations;
     this.#privateHighlights = options.privateHighlights ?? [];
     this.#focusedAnnotationId = options.focusAnnotationId;
+    window.clearTimeout(this.#selectionCaptureTimer);
+    this.#clearNativeSelection();
     this.#draftSelection = null;
     this.#mode = options.mode ?? "evidence";
     this.#zoom = 1;
@@ -143,6 +149,8 @@ export class PdfEvidenceViewer {
   }
 
   clearDraftSelection(): void {
+    window.clearTimeout(this.#selectionCaptureTimer);
+    this.#clearNativeSelection();
     this.#draftSelection = null;
     this.#renderHighlights();
   }
@@ -214,22 +222,36 @@ export class PdfEvidenceViewer {
     this.#onPageChange(this.#pageNumber);
   }
 
+  #queueSelectionCapture(): void {
+    window.clearTimeout(this.#selectionCaptureTimer);
+    this.#selectionCaptureTimer = window.setTimeout(() => this.#captureSelection(), 80);
+  }
+
   #captureSelection(): void {
+    this.#selectionCaptureTimer = undefined;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
     if (!this.#elements.textLayer.contains(range.commonAncestorContainer)) return;
-    const rects = normalizeSelectionRects(range.getClientRects(), this.#elements.page.getBoundingClientRect());
+    const maximumRects = this.#mode === "private-highlight" ? 512 : 64;
+    const rects = normalizeSelectionRects(range.getClientRects(), this.#elements.page.getBoundingClientRect(), maximumRects);
     const context = deriveTextQuoteContext(this.#pageText, selection.toString());
     if (!context.quote || rects.length === 0) return;
-    this.#draftSelection = { page: this.#pageNumber, ...context, rects };
+    const capture = { page: this.#pageNumber, ...context, rects };
+    if (sameSelectionCapture(capture, this.#draftSelection)) return;
+    this.#draftSelection = capture;
     this.#renderHighlights();
     this.#onSelection(this.#draftSelection);
     this.#elements.status.textContent =
       this.#mode === "private-highlight"
         ? `Private selection captured from page ${this.#pageNumber}`
-        : `${rects.length} ${rects.length === 1 ? "fragment" : "fragments"} captured from page ${this.#pageNumber}`;
-    selection.removeAllRanges();
+        : `${rects.length} ${rects.length === 1 ? "line" : "lines"} captured from page ${this.#pageNumber}`;
+    if (this.#mode === "evidence") selection.removeAllRanges();
+  }
+
+  #clearNativeSelection(): void {
+    const selection = window.getSelection();
+    if (selection?.anchorNode && this.#elements.textLayer.contains(selection.anchorNode)) selection.removeAllRanges();
   }
 
   #renderHighlights(): void {
@@ -330,6 +352,25 @@ function touchDistance(touches: TouchList): number {
   const first = touches[0];
   const second = touches[1];
   return first && second ? Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY) : 1;
+}
+
+function sameSelectionCapture(left: PdfSelectionCapture, right: PdfSelectionCapture | null): boolean {
+  return (
+    right !== null &&
+    left.page === right.page &&
+    left.quote === right.quote &&
+    left.rects.length === right.rects.length &&
+    left.rects.every((rect, index) => {
+      const candidate = right.rects[index];
+      return (
+        candidate !== undefined &&
+        rect.x === candidate.x &&
+        rect.y === candidate.y &&
+        rect.width === candidate.width &&
+        rect.height === candidate.height
+      );
+    })
+  );
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

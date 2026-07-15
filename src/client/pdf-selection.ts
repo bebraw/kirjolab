@@ -37,26 +37,57 @@ export interface TextQuoteContext {
   suffix: string;
 }
 
-export function normalizeSelectionRects(rects: Iterable<RectLike>, page: RectLike): PdfSelectionRect[] {
+export function normalizeSelectionRects(rects: Iterable<RectLike>, page: RectLike, maximumRects = 64): PdfSelectionRect[] {
   const pageWidth = page.right - page.left;
   const pageHeight = page.bottom - page.top;
   if (pageWidth <= 0 || pageHeight <= 0) return [];
 
-  const normalized: PdfSelectionRect[] = [];
+  const clipped: RectLike[] = [];
   for (const rect of rects) {
     const left = clamp(rect.left, page.left, page.right);
     const top = clamp(rect.top, page.top, page.bottom);
     const right = clamp(rect.right, page.left, page.right);
     const bottom = clamp(rect.bottom, page.top, page.bottom);
     if (right <= left || bottom <= top) continue;
-    normalized.push({
-      x: round((left - page.left) / pageWidth),
-      y: round((top - page.top) / pageHeight),
-      width: round((right - left) / pageWidth),
-      height: round((bottom - top) / pageHeight),
-    });
+    clipped.push({ left, top, right, bottom });
   }
-  return normalized.slice(0, 64);
+
+  return mergeLineRects(clipped)
+    .slice(0, clamp(Math.floor(maximumRects), 1, 512))
+    .map(
+      (rect) =>
+        ({
+          x: round((rect.left - page.left) / pageWidth),
+          y: round((rect.top - page.top) / pageHeight),
+          width: round((rect.right - rect.left) / pageWidth),
+          height: round((rect.bottom - rect.top) / pageHeight),
+        }) satisfies PdfSelectionRect,
+    );
+}
+
+function mergeLineRects(rects: readonly RectLike[]): RectLike[] {
+  const lines: RectLike[] = [];
+  const ordered = [...rects].sort((left, right) => left.top - right.top || left.left - right.left);
+  for (const rect of ordered) {
+    const match = lines.find((line) => belongsToSameLine(line, rect));
+    if (!match) {
+      lines.push({ ...rect });
+      continue;
+    }
+    match.left = Math.min(match.left, rect.left);
+    match.top = Math.min(match.top, rect.top);
+    match.right = Math.max(match.right, rect.right);
+    match.bottom = Math.max(match.bottom, rect.bottom);
+  }
+  return lines.sort((left, right) => left.top - right.top || left.left - right.left);
+}
+
+function belongsToSameLine(left: RectLike, right: RectLike): boolean {
+  const overlap = Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top);
+  const minimumHeight = Math.min(left.bottom - left.top, right.bottom - right.top);
+  if (overlap < minimumHeight * 0.5) return false;
+  const gap = Math.max(left.left, right.left) - Math.min(left.right, right.right);
+  return gap <= Math.max(2, minimumHeight * 1.5);
 }
 
 export function deriveTextQuoteContext(pageText: string, selectedText: string, contextLength = 160): TextQuoteContext {
