@@ -23,7 +23,9 @@ Settings, and open private PDF tabs follow Library. Each document tab contains
 its own labelled close icon; tabs remain open until that icon is activated.
 Omit private PDF help text and page navigation from this header because the
 annotation inspector provides contextual feedback and the persistent left rail
-already owns page navigation.
+already owns page navigation. Omit the project layout selector as well: the
+standalone Library already gives its context surface the full content area, so
+"PDF only" does not offer another meaningful layout.
 
 Do not render a second context strip inside the standalone context surface.
 Keep the existing pane-local strip unchanged in workspace mode. At tablet

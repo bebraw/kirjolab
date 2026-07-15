@@ -29,6 +29,8 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#context-library-panel")).toBeVisible();
   await expect(page.locator("#authoring-surface")).toBeHidden();
   await expect(page.getByText("Add reference", { exact: true })).toBeVisible();
+  await expect(page.getByText("View", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Project view")).toHaveCount(0);
   await expect(page.getByTitle(/^Add :cite/u)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Share project" })).toBeHidden();
   await expect(page.locator("#share-workspace")).toHaveAttribute("hidden", "");
@@ -49,6 +51,19 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("header #pdf-context-controls")).toBeHidden();
   await page.setViewportSize({ width: 1024, height: 768 });
   await expect(page.getByRole("toolbar", { name: "PDF annotation tools" })).toBeVisible();
+  const compactRail = await page.locator(".library-pdf-page-rail").evaluate((rail) => {
+    const railBounds = rail.getBoundingClientRect();
+    const buttons = [...rail.querySelectorAll<HTMLElement>(".library-pdf-annotation-tools .library-pdf-rail-button")].map((button) =>
+      button.getBoundingClientRect(),
+    );
+    return {
+      columns: new Set(buttons.map((button) => Math.round(button.left))).size,
+      lastToolBottom: Math.max(...buttons.map((button) => button.bottom)),
+      visibleRailBottom: Math.min(railBounds.bottom, window.innerHeight),
+    };
+  });
+  expect(compactRail.columns).toBe(2);
+  expect(compactRail.lastToolBottom).toBeLessThanOrEqual(compactRail.visibleRailBottom);
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();

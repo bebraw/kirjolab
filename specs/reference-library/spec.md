@@ -118,10 +118,12 @@ memory and makes citation aliases compete with stable source identity.
   quote-only highlights remain valid but cannot recover geometry. Note pins can
   be dragged to a new normalized anchor; drawing undo deletes the newest stroke
   on the active page by creation time and stable id.
-- At tablet widths, page navigation occupies a left rail and annotation tools
-  a right rail so the page retains vertical space. A horizontal swipe begun in
-  the page surround changes page, while a two-finger gesture zooms the PDF
-  rather than the application. Live ink updates one draft path between saves.
+- At tablet widths, page navigation and annotation tools share one left rail so
+  the page retains vertical and horizontal space. Short landscape viewports use
+  two columns without shrinking touch targets; taller viewports use one. A
+  horizontal swipe begun in the page surround changes page, while a two-finger
+  gesture zooms the PDF rather than the application. Live ink updates one draft
+  path between saves.
 - Once the PDF has a saved text highlight, page note, or drawing, **Export
   annotated** downloads a derived PDF without changing the stored source.
   Freehand strokes are flattened at their normalized page coordinates. Page

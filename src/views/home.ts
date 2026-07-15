@@ -9,6 +9,16 @@ export function renderHomePage(
 ): string {
   const escapedWorkspaceId = escapeHtml(workspaceId);
   const escapedIdentityEmail = escapeHtml(identityEmail);
+  const workspaceLayoutOptions = `<option value="split">Split</option><option value="editor">Editor only</option>
+              <option value="context">Context only</option><option value="pdf">PDF only</option>`;
+  const workspaceLayoutControl =
+    appMode === "library"
+      ? `<select id="workspace-layout" hidden aria-hidden="true" tabindex="-1">${workspaceLayoutOptions}</select>`
+      : `<label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
+            <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
+              ${workspaceLayoutOptions}
+            </select>
+          </label>`;
   const contextTabs = `<div class="context-tabs" id="context-tabs">
           <div class="context-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
             <button class="context-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
@@ -110,12 +120,7 @@ export function renderHomePage(
         </div>
         ${appMode === "library" ? `<div class="library-header-context">${contextTabs}</div>` : ""}
         <div class="flex items-center gap-3">
-          <label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
-            <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
-              <option value="split">Split</option><option value="editor">Editor only</option>
-              <option value="context">Context only</option><option value="pdf">PDF only</option>
-            </select>
-          </label>
+          ${workspaceLayoutControl}
           <details class="action-menu" id="account-menu" data-action-menu>
             <summary class="button-secondary shrink-0" aria-label="Account for ${escapedIdentityEmail}">Account</summary>
             <div class="editor-command-menu account-menu" aria-label="Account actions">

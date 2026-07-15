@@ -21,6 +21,11 @@ tooltip, pressed state where applicable, keyboard focus treatment, and a
 touch-sized target. Draw color, width, and undo appear contextually beside the
 Draw icon.
 
+On short tablet and desktop viewports, widen the rail just enough to arrange
+page navigation and annotation actions in two columns. This preserves every
+touch target and keeps the full toolbar within the reader; taller viewports
+retain the narrow single-column rail.
+
 Replace the permanent right sidebar with a transient annotation inspector that
 overlays the page. Text capture, note placement, and selecting an existing
 highlight, line, or note open the inspector automatically. The annotation-list

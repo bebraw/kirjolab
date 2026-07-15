@@ -66,6 +66,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   a transient inspector only when requested or required. Page-anchored note
   pins and freehand strokes persist in the owner library using normalized page
   coordinates and rerender on page change.
+- On short tablet and desktop viewports, the private PDF rail uses two columns
+  for its unchanged touch-sized controls so no tool extends beyond the reader.
+  Taller viewports retain the narrower single-column rail.
 - Touch surround swipes and unzoomed, horizontally dominant Mac trackpad
   gestures change one page at a time. Two-finger pinch gestures scale only the
   PDF. The fitted page uses the reader's actual content width without exposing
@@ -105,9 +108,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   is remembered per workspace and context kind. Preview, Library, and Writing
   assistant share one stable proportion, while a wide PDF reading layout does
   not force that proportion onto the permanent tabs.
-- A desktop view control switches among Split, Editor only, Context only, and
-  PDF only. The choice is local per workspace, survives reload, never enters
-  collaborative state, and triggers PDF rerendering after geometry changes.
+- In workspace mode, a desktop view control switches among Split, Editor only,
+  Context only, and PDF only. The standalone Library does not expose this
+  project-layout control because its reader already owns the full content area.
+  The workspace choice is local, survives reload, never enters collaborative
+  state, and triggers PDF rerendering after geometry changes.
 - PDF only activates an open PDF or the first project PDF when available; an
   empty project explains that a PDF must be added instead of showing a broken
   viewer.
