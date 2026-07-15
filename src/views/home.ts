@@ -464,10 +464,44 @@ export function renderHomePage(
 
         <section class="context-panel context-pdf-panel" id="context-pdf-panel" role="tabpanel" aria-label="PDF context" tabindex="0" hidden>
           <div class="context-pdf-body">
-            <nav class="library-pdf-page-rail" aria-label="PDF page navigation">
-              <button id="previous-library-paper-page" type="button" aria-label="Previous PDF page">↑</button>
-              <span id="library-paper-page-indicator">–<span class="sr-only"> PDF page</span></span>
-              <button id="next-library-paper-page" type="button" aria-label="Next PDF page">↓</button>
+            <nav class="library-pdf-page-rail" aria-label="Private PDF controls">
+              <div class="library-pdf-page-controls" aria-label="PDF page navigation">
+                <button class="library-pdf-rail-button" id="previous-library-paper-page" type="button" aria-label="Previous PDF page" title="Previous page">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 14 5-5 5 5"/></svg>
+                </button>
+                <span id="library-paper-page-indicator">–<span class="sr-only"> PDF page</span></span>
+                <button class="library-pdf-rail-button" id="next-library-paper-page" type="button" aria-label="Next PDF page" title="Next page">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg>
+                </button>
+              </div>
+              <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF annotation tools">
+                <button class="library-pdf-rail-button" id="library-select-tool" type="button" aria-pressed="false" title="Select, edit, move, or delete an existing annotation">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 3 11 9-6 1.5L9 19Z"/></svg><span class="sr-only">Select</span>
+                </button>
+                <button class="library-pdf-rail-button" id="library-text-tool" type="button" aria-pressed="true" title="Select text and save a quotation">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 6h14M12 6v12M8.5 18h7"/><path class="library-pdf-icon-accent" d="M5 20h14"/></svg><span class="sr-only">Text</span>
+                </button>
+                <button class="library-pdf-rail-button" id="library-note-tool" type="button" aria-pressed="false" title="Tap the page to attach a private note">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h14v12H9l-4 4Z"/><path d="M9 8h6M9 12h4"/></svg><span class="sr-only">Note</span>
+                </button>
+                <div class="library-draw-rail-control">
+                  <button class="library-pdf-rail-button" id="library-draw-tool" type="button" aria-pressed="false" title="Draw directly on the page with Apple Pencil or a mouse">
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 19 3.5-.8L18 8.7 15.3 6 5.8 15.5Z"/><path d="m13.8 7.5 2.7 2.7"/></svg><span class="sr-only">Draw</span>
+                  </button>
+                  <div class="library-ink-options" id="library-ink-options" aria-label="Drawing style" hidden>
+                    <label title="Ink color"><span class="sr-only">Ink color</span><input id="library-draw-color" type="color" value="#d33f49"></label>
+                    <label class="library-width-control" title="Ink width"><span class="sr-only">Ink width</span><input id="library-draw-width" type="range" min="1" max="24" value="4"><output id="library-draw-width-value">4</output></label>
+                    <button class="button-secondary" id="undo-library-drawing" type="button" disabled title="Remove the latest drawing on this page">Undo</button>
+                  </div>
+                </div>
+                <span class="library-pdf-rail-divider" aria-hidden="true"></span>
+                <button class="library-pdf-rail-button" id="export-library-annotated-pdf" type="button" disabled title="Download a copy with private notes and ink">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v11m-4-4 4 4 4-4M5 19h14"/></svg><span class="sr-only">Export annotated</span>
+                </button>
+                <button class="library-pdf-rail-button library-pdf-annotations-button" id="open-library-pdf-inspector" type="button" aria-label="Annotations" aria-expanded="false" aria-controls="library-highlight-composer" title="Open annotations">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5h14v11H9l-4 4Z"/><path d="M9 9h6M9 12.5h4"/></svg><span class="sr-only">Annotations</span><span class="count-badge" id="library-highlight-count">0</span>
+                </button>
+              </div>
             </nav>
             <div class="pdf-reader" id="paper-reader">
               <div class="pdf-page" id="paper-page">
@@ -546,22 +580,14 @@ export function renderHomePage(
                 </div>
               </form>
             </aside>
-            <aside class="annotation-composer library-pdf-tools" id="library-highlight-composer" aria-label="Private PDF tools" hidden>
-              <div class="library-pdf-toolbar" role="toolbar" aria-label="PDF annotation tool">
-                <div class="library-pdf-tool-group">
-                  <button class="button-secondary" id="library-select-tool" type="button" aria-pressed="false" title="Select, edit, move, or delete an existing annotation">Select</button>
-                  <button class="button-secondary" id="library-text-tool" type="button" aria-pressed="true" title="Select text and save a quotation">Text</button>
-                  <button class="button-secondary" id="library-note-tool" type="button" aria-pressed="false" title="Tap the page to attach a private note">Note</button>
-                  <button class="button-secondary" id="library-draw-tool" type="button" aria-pressed="false" title="Draw directly on the page with a mouse, pen, or touch">Draw</button>
+            <aside class="annotation-composer library-pdf-tools" id="library-highlight-composer" aria-label="PDF annotation inspector" data-inspector-open="false" hidden>
+              <header class="library-pdf-inspector-header">
+                <div>
+                  <p class="eyebrow">PDF annotations</p>
+                  <p class="library-pdf-status" id="library-highlight-status" role="status" aria-live="polite">Select text to highlight.</p>
                 </div>
-                <div class="library-ink-options" id="library-ink-options" hidden>
-                  <label title="Ink color"><span class="sr-only">Ink color</span><input id="library-draw-color" type="color" value="#d33f49"></label>
-                  <label class="library-width-control" title="Ink width"><span class="sr-only">Ink width</span><input id="library-draw-width" type="range" min="1" max="24" value="4"><output id="library-draw-width-value">4</output></label>
-                  <button class="button-secondary" id="undo-library-drawing" type="button" disabled title="Remove the latest drawing on this page">Undo</button>
-                </div>
-                <button class="button-secondary library-pdf-export" id="export-library-annotated-pdf" type="button" disabled aria-label="Export annotated" title="Download a copy with private notes and ink"><span aria-hidden="true">⇩</span><span class="sr-only">Export annotated</span></button>
-                <p class="library-pdf-status" id="library-highlight-status" role="status" aria-live="polite">Select text to highlight.</p>
-              </div>
+                <button class="library-pdf-inspector-close" id="close-library-pdf-inspector" type="button" aria-label="Close annotation inspector" title="Close annotation inspector">×</button>
+              </header>
               <form class="library-context-composer" id="library-highlight-form" hidden>
                 <input id="library-highlight-page" type="hidden" value="1">
                 <textarea id="library-highlight-quote" hidden maxlength="20000" required></textarea>
@@ -586,8 +612,8 @@ export function renderHomePage(
                 <button class="button-secondary" id="delete-selected-library-markup" type="button">Delete</button>
                 <button class="button-secondary" id="cancel-library-markup-selection" type="button">Done</button>
               </form>
-              <details class="library-annotation-details">
-                <summary><span>Annotations</span><span class="count-badge" id="library-highlight-count">0</span></summary>
+              <details class="library-annotation-details" id="library-annotation-details">
+                <summary><span>Annotations</span></summary>
                 <div class="library-annotation-details-body">
                   <div class="space-y-2" id="library-highlight-list"><p class="empty-state">No private annotations yet.</p></div>
                   <details class="library-project-details">

@@ -4,6 +4,7 @@ import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf, createMetadataEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
 
 test("imports, annotates, and exports a private PDF without a project", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
   const workspaceRequests: string[] = [];
   page.on("request", (request) => {
     const pathname = new URL(request.url()).pathname;
@@ -29,6 +30,8 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await studentPdf.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.getByRole("tab", { name: "student_submission.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
+  await expect(page.getByRole("toolbar", { name: "PDF annotation tools" })).toBeVisible();
+  await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
   await page.locator("#paper-text-layer").evaluate((layer) => {
@@ -998,8 +1001,19 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.locator("#annotation-composer")).toBeHidden();
-  await expect(page.locator("#library-highlight-composer")).toBeVisible();
+  await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-composer")).not.toContainText("Highlight this PDF");
+  await expect(page.getByRole("toolbar", { name: "PDF annotation tools" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Select", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Text", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Note", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Draw", exact: true })).toBeVisible();
+  await expect(page.locator("#context-pdf-panel .context-pdf-body")).toHaveCSS("grid-template-columns", /\d+(?:\.\d+)?px \d+(?:\.\d+)?px/);
+  await page.getByRole("button", { name: "Annotations", exact: true }).click();
+  await expect(page.locator("#library-highlight-composer")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Annotations", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "Close annotation inspector" }).click();
+  await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-form")).toBeHidden();
   await expect(page.locator("#library-draw-color")).toHaveValue("#d33f49");
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
@@ -1017,6 +1031,7 @@ test("keeps private library research separate from project citations", async ({ 
   });
   await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(1);
   await expect(page.locator("#paper-status")).toHaveText("Private selection captured from page 1");
+  await expect(page.locator("#library-highlight-composer")).toBeVisible();
   await expect.poll(async () => await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
   await expect(page.locator("#library-highlight-quote")).not.toHaveValue("");
   await page.locator("#library-highlight-comment").fill("Private reading insight");
@@ -1025,9 +1040,7 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#library-highlight-count")).toHaveText("1");
   await expect(page.locator("#library-highlight-list")).toContainText("Private reading insight");
   await expect.poll(async () => await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(true);
-  await page.locator(".library-annotation-details").evaluate((details: HTMLDetailsElement) => {
-    details.open = true;
-  });
+  await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected private PDF text");
@@ -1132,9 +1145,7 @@ test("keeps private library research separate from project citations", async ({ 
   const refreshedPdfCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "climate adaptation" });
   await refreshedPdfCard.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
-  await page.locator(".library-annotation-details").evaluate((details: HTMLDetailsElement) => {
-    details.open = true;
-  });
+  await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await page
     .locator("#library-highlight-list article")
     .filter({ hasText: "Revised reading insight" })

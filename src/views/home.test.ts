@@ -132,6 +132,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-pdf-panel" role="tabpanel"');
     expect(html).toContain('id="annotation-composer"');
     expect(html).toContain('id="library-highlight-composer"');
+    expect(html).toContain('id="open-library-pdf-inspector"');
+    expect(html).toContain('id="close-library-pdf-inspector"');
+    expect(html).toContain('role="toolbar" aria-label="PDF annotation tools"');
     expect(html).toContain('id="library-highlight-form"');
     expect(html).toContain('id="library-project-use"');
     expect(html).toContain('id="context-candidate-panel" role="tabpanel"');

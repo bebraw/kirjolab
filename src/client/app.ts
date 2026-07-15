@@ -380,6 +380,9 @@ interface Elements {
   annotationForm: HTMLFormElement;
   annotationComposer: HTMLElement;
   libraryHighlightComposer: HTMLElement;
+  openLibraryPdfInspector: HTMLButtonElement;
+  closeLibraryPdfInspector: HTMLButtonElement;
+  libraryAnnotationDetails: HTMLDetailsElement;
   libraryHighlightForm: HTMLFormElement;
   libraryHighlightStatus: HTMLElement;
   libraryHighlightPage: HTMLInputElement;
@@ -842,6 +845,8 @@ class WorkspaceApp {
     this.#elements.libraryTextTool.addEventListener("click", () => this.#setLibraryPdfTool("text"));
     this.#elements.libraryNoteTool.addEventListener("click", () => this.#setLibraryPdfTool("note"));
     this.#elements.libraryDrawTool.addEventListener("click", () => this.#setLibraryPdfTool("draw"));
+    this.#elements.openLibraryPdfInspector.addEventListener("click", () => this.#setLibraryPdfInspector(true, true));
+    this.#elements.closeLibraryPdfInspector.addEventListener("click", () => this.#closeLibraryPdfInspector());
     this.#elements.libraryDrawWidth.addEventListener("input", () => {
       this.#elements.libraryDrawWidthValue.value = this.#elements.libraryDrawWidth.value;
     });
@@ -4744,6 +4749,7 @@ class WorkspaceApp {
     this.#elements.contextPdfPanel.dataset.libraryPdf = String(activeLibraryPdf);
     this.#elements.annotationComposer.hidden = activeLibraryPdf;
     this.#elements.libraryHighlightComposer.hidden = !activeLibraryPdf;
+    if (!activeLibraryPdf) this.#setLibraryPdfInspector(false);
     this.#renderLibraryHighlightComposer(
       activeTab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id) : undefined,
     );
@@ -6241,6 +6247,7 @@ class WorkspaceApp {
       this.#elements.saveLibraryHighlight.disabled = false;
       this.#elements.cancelLibraryHighlight.disabled = false;
       this.#elements.libraryHighlightStatus.textContent = `Page ${capture.page} selection ready.`;
+      this.#setLibraryPdfInspector(true);
       return;
     }
     if (activeTab?.kind !== "pdf") return;
@@ -6271,6 +6278,7 @@ class WorkspaceApp {
       this.#elements.saveLibraryHighlight.disabled = true;
       this.#elements.cancelLibraryHighlight.disabled = true;
       this.#elements.libraryHighlightStatus.textContent = "Select text to highlight.";
+      this.#setLibraryPdfInspector(false);
     }
     this.#renderLibraryProjectUse(artifact);
     const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
@@ -6492,7 +6500,22 @@ class WorkspaceApp {
     this.#elements.saveLibraryHighlight.textContent = "Save note";
     this.#elements.cancelLibraryHighlight.disabled = false;
     this.#elements.libraryHighlightStatus.textContent = `Editing the note for page ${highlight.page}.`;
+    this.#setLibraryPdfInspector(true);
     this.#elements.libraryHighlightComment.focus();
+  }
+
+  #setLibraryPdfInspector(open: boolean, showAnnotations = false): void {
+    this.#elements.libraryHighlightComposer.dataset.inspectorOpen = String(open);
+    this.#elements.openLibraryPdfInspector.setAttribute("aria-expanded", String(open));
+    if (showAnnotations) this.#elements.libraryAnnotationDetails.open = true;
+  }
+
+  #closeLibraryPdfInspector(): void {
+    if (!this.#elements.libraryHighlightForm.hidden) this.#clearLibraryHighlightDraft();
+    if (!this.#elements.libraryNoteForm.hidden) this.#clearLibraryPdfNoteDraft();
+    if (!this.#elements.libraryMarkupSelection.hidden) this.#clearLibraryPdfMarkupSelection();
+    this.#setLibraryPdfInspector(false);
+    this.#elements.openLibraryPdfInspector.focus();
   }
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
@@ -6518,6 +6541,8 @@ class WorkspaceApp {
             : "Draw with Apple Pencil or a mouse. Touch gestures pan and zoom.";
     if (tool !== "note") this.#clearLibraryPdfNoteDraft(false);
     if (tool !== "select") this.#clearLibraryPdfMarkupSelection(false);
+    if (this.#elements.libraryHighlightForm.hidden && this.#elements.libraryNoteForm.hidden && this.#elements.libraryMarkupSelection.hidden)
+      this.#setLibraryPdfInspector(false);
   }
 
   #startLibraryPdfMarkup(event: PointerEvent): void {
@@ -6541,6 +6566,7 @@ class WorkspaceApp {
     if (this.#libraryPdfTool === "note") {
       this.#pendingPdfNote = { page: this.#pdfViewer.currentPage, ...point };
       this.#elements.libraryNoteForm.hidden = false;
+      this.#setLibraryPdfInspector(true);
       this.#renderPdfMarkups();
       this.#elements.libraryNoteBody.focus();
       return;
@@ -6634,6 +6660,7 @@ class WorkspaceApp {
       await expectOk(response);
       this.#clearLibraryPdfNoteDraft();
       await this.#refreshReferenceLibrary();
+      this.#setLibraryPdfInspector(false);
       this.#showToast("Private note updated.");
       return;
     }
@@ -6646,6 +6673,7 @@ class WorkspaceApp {
     await expectOk(response);
     this.#clearLibraryPdfNoteDraft();
     await this.#refreshReferenceLibrary();
+    this.#setLibraryPdfInspector(false);
     this.#showToast("Note attached privately.");
   }
 
@@ -6663,6 +6691,7 @@ class WorkspaceApp {
     this.#elements.libraryNoteBody.value = note.body;
     this.#elements.libraryNoteForm.hidden = false;
     this.#elements.libraryHighlightStatus.textContent = `Editing the note on page ${note.page}.`;
+    this.#setLibraryPdfInspector(true);
     this.#elements.libraryNoteBody.focus();
   }
 
@@ -6694,6 +6723,7 @@ class WorkspaceApp {
       markup.kind === "note"
         ? "Note selected. Drag the pin to move it, or edit its text below."
         : "Line selected. Adjust its style or delete it.";
+    this.#setLibraryPdfInspector(true);
     this.#renderPdfMarkups();
   }
 
@@ -7618,6 +7648,9 @@ function collectElements(): Elements {
     annotationForm: requiredElement("annotation-form", HTMLFormElement),
     annotationComposer: requiredElement("annotation-composer", HTMLElement),
     libraryHighlightComposer: requiredElement("library-highlight-composer", HTMLElement),
+    openLibraryPdfInspector: requiredElement("open-library-pdf-inspector", HTMLButtonElement),
+    closeLibraryPdfInspector: requiredElement("close-library-pdf-inspector", HTMLButtonElement),
+    libraryAnnotationDetails: requiredElement("library-annotation-details", HTMLDetailsElement),
     libraryHighlightForm: requiredElement("library-highlight-form", HTMLFormElement),
     libraryHighlightStatus: requiredElement("library-highlight-status", HTMLElement),
     libraryHighlightPage: requiredElement("library-highlight-page", HTMLInputElement),
