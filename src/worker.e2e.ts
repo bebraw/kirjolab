@@ -407,9 +407,21 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
     return {
       pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       clippedControls,
+      rowCount: new Set(
+        [...toolbar.querySelectorAll(":scope > .editor-toolbar-group")]
+          .filter((group): group is HTMLElement => group instanceof HTMLElement && group.offsetParent !== null)
+          .map((group) => Math.round(group.getBoundingClientRect().top)),
+      ).size,
     };
   });
-  expect(toolbarFit).toEqual({ pageOverflows: false, clippedControls: [] });
+  expect(toolbarFit).toEqual({ pageOverflows: false, clippedControls: [], rowCount: 1 });
+
+  await page.locator("#editor-more-menu summary").click();
+  const moreMenu = page.locator("#editor-more-menu .editor-command-menu");
+  await expect(moreMenu.getByRole("button", { name: /History/ })).toBeVisible();
+  await expect(moreMenu.getByRole("button", { name: /Vim editing/ })).toBeVisible();
+  await expect(moreMenu.getByRole("button", { name: "Move or rename file" })).toBeVisible();
+  await page.locator("#editor-more-menu summary").click();
 
   await page.locator("#editor-insert-menu summary").click();
   const includeAction = page.locator("#include-project-file-list [data-include-file-id]").first();
@@ -612,6 +624,7 @@ test("offers opt-in Vim editing over the collaborative textarea", async ({ page 
   const mode = page.locator("#vim-mode-status");
   await editor.fill("one two\nthree");
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await page.locator("#editor-more-menu summary").click();
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(mode).toHaveText("NORMAL");
@@ -640,6 +653,7 @@ test("offers opt-in Vim editing over the collaborative textarea", async ({ page 
   await page.reload();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(mode).toHaveText("NORMAL");
+  await page.locator("#editor-more-menu summary").click();
   await toggle.click();
   await expect(mode).toBeHidden();
   await editor.press("End");
@@ -2518,7 +2532,8 @@ test("names, compares, restores, and branches immutable project revisions", asyn
     files: expect.arrayContaining([expect.objectContaining({ status: "added", afterPath: "appendix/reviewer-notes.md" })]),
   });
 
-  await page.getByRole("button", { name: "History" }).click();
+  await page.locator("#editor-more-menu summary").click();
+  await page.getByRole("button", { name: /History/ }).click();
   await expect(page.locator("#project-history-dialog")).toBeVisible();
   await expect(page.locator("#project-history-list")).toContainText("review draft");
   await expect(page.locator("#project-history-list")).toContainText("project-file-create");

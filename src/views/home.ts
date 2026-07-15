@@ -161,13 +161,21 @@ export function renderHomePage(
               <button class="authoring-mode" id="show-write-mode" type="button" aria-pressed="true">Write</button>
               <button class="authoring-mode" id="show-map-mode" type="button" aria-pressed="false">Map</button>
             </div>
-            <span class="count-badge" id="revision-badge">r0</span>
             <button class="count-badge" id="word-count-badge" type="button" title="Open publication statistics">… words</button>
-            <button class="button-secondary" id="open-project-history" type="button">History</button>
+            <details class="action-menu" id="editor-more-menu" data-action-menu>
+              <summary class="button-secondary">More</summary>
+              <div class="editor-command-menu" aria-label="More editor actions">
+                <button id="open-project-history" type="button"><strong>History</strong><code id="revision-badge">r0</code></button>
+                <button id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"><strong>Vim editing</strong><span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span></button>
+                <p class="editor-command-menu-label">File</p>
+                <button id="new-project-file" type="button"><strong>Add file</strong></button>
+                <button id="create-and-include-project-file" type="button"><strong>Create and include</strong><code>at the current caret</code></button>
+                <button id="rename-project-file" type="button"><strong>Move or rename file</strong></button>
+                <button id="delete-project-file" type="button"><strong>Delete file</strong></button>
+              </div>
+            </details>
           </div>
           <div class="editor-toolbar-group" id="editor-write-actions">
-            <button class="editor-mode-toggle" id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings">Vim</button>
-            <span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span>
             <details class="action-menu" id="editor-insert-menu" data-action-menu>
               <summary class="button-secondary">Insert</summary>
               <div class="editor-command-menu">
@@ -178,15 +186,6 @@ export function renderHomePage(
                 <button type="button" data-insert-syntax="link"><strong>Link</strong><code>[text](url)</code></button>
                 <button type="button" data-insert-syntax="bibliography"><strong>Bibliography</strong><code>::bibliography[]</code></button>
                 <div class="border-t border-app-line pt-1" id="include-project-file-list" aria-label="Include project file"></div>
-              </div>
-            </details>
-            <details class="action-menu" data-action-menu>
-              <summary class="button-secondary">File</summary>
-              <div class="editor-command-menu" aria-label="File actions">
-                <button id="new-project-file" type="button"><strong>Add file</strong></button>
-                <button id="create-and-include-project-file" type="button"><strong>Create and include</strong><code>at the current caret</code></button>
-                <button id="rename-project-file" type="button"><strong>Move or rename file</strong></button>
-                <button id="delete-project-file" type="button"><strong>Delete file</strong></button>
               </div>
             </details>
             <button class="button-secondary hidden" id="open-source-citation" type="button" title="View the citation at the caret" disabled>View cited source</button>

@@ -5183,7 +5183,9 @@ class WorkspaceApp {
     const target = this.#resolvedAuthoringTarget();
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
     if (!target) {
-      this.#elements.editorTargetStatus.textContent = `${file?.path ?? "Manuscript"} · no target`;
+      const status = `${file?.path ?? "Manuscript"} · no target`;
+      this.#elements.editorTargetStatus.textContent = status;
+      this.#elements.editorTargetStatus.title = status;
       this.#renderSourceEditorHighlight();
       this.#renderAssistantTargetPreview();
       return;
@@ -5193,7 +5195,9 @@ class WorkspaceApp {
     const endLine = lineNumberAt(source, target.end);
     const location = startLine === endLine ? `line ${startLine}` : `lines ${startLine}–${endLine}`;
     const selection = target.start === target.end ? "caret" : `${target.end - target.start} characters selected`;
-    this.#elements.editorTargetStatus.textContent = `${file?.path ?? "Manuscript"} · ${location} · ${selection}`;
+    const status = `${file?.path ?? "Manuscript"} · ${location} · ${selection}`;
+    this.#elements.editorTargetStatus.textContent = status;
+    this.#elements.editorTargetStatus.title = status;
     this.#renderSourceEditorHighlight();
     this.#renderAssistantTargetPreview();
   }

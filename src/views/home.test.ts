@@ -10,7 +10,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('data-app-mode="workspace" data-workspace-id="demo" data-identity-email="local@kirjolab.invalid"');
     expect(html).toContain('class="action-menu header-action-menu" data-action-menu');
     expect(html).toContain('id="manage-workspaces" type="button"><strong>Open projects</strong></button>');
-    expect(html).toContain('aria-label="File actions"');
+    expect(html).toContain('id="editor-more-menu" data-action-menu');
+    expect(html).toContain('aria-label="More editor actions"');
     expect(html).not.toContain('role="menu"');
     expect(html).not.toContain('role="menuitem"');
     expect(html).toContain('aria-label="Project view"');

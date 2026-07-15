@@ -42,8 +42,12 @@ mode for authenticated hosted collaboration.
   one Authoring or Context surface while preserving both states and without
   introducing horizontal page overflow.
 - **Editor toolbar:** Persistent editor actions keep their labels on one line.
-  At constrained authoring widths, complete control groups wrap onto another
-  toolbar row instead of shrinking individual buttons or overflowing the page.
+  The toolbar never wraps: Write/Map, word count, Insert, current target, and
+  save state retain one horizontal hierarchy. Lower-frequency History, revision,
+  Vim, and file mutations live in one labelled More menu. Target text may
+  truncate with its complete value retained as a native title, and word count
+  yields at the narrowest container widths instead of increasing toolbar height
+  or overflowing the page.
   File navigation remains in the default-visible project tree rather than
   consuming toolbar width with a duplicate selector.
 - **Authoring modality:** Write and Map are peer views of the current project.
@@ -364,7 +368,9 @@ mode for authenticated hosted collaboration.
 - [x] Persistent toolbars group infrequent project and file mutations without
       hiding them behind unexplained glyphs.
 - [x] The editor toolbar omits duplicate file navigation and keeps its visible
-      controls fully contained at a 1197 px split-workspace width.
+      controls in one contained row at a 1197 px split-workspace width.
+- [x] Infrequent History, revision, Vim, and file actions remain labelled and
+      keyboard-accessible from the editor's More menu.
 - [x] Insert-menu file paths truncate safely beside compact syntax help instead
       of overlapping at constrained authoring widths.
 - [x] Permanent helper and empty-state copy stays concise, action-oriented, and
