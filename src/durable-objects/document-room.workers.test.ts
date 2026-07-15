@@ -146,7 +146,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const stub = roomStub(workspaceId);
     const initial = await stub.getSnapshot(workspaceId);
     expect(await stub.listRevisions()).toEqual([
-      expect.objectContaining({ revision: 0, reason: "history-adoption", fileCount: 2, milestones: [] }),
+      expect.objectContaining({ revision: 0, reason: "history-adoption", fileCount: 3, milestones: [] }),
     ]);
 
     const historicalPdf = pdfResource("historical.pdf");
@@ -234,7 +234,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     const beforeRestore = await stub.getSnapshot(workspaceId);
     const restored = await stub.restoreRevision(workspaceId, 0);
     expect(restored.revision).toBe(beforeRestore.revision + 1);
-    expect(restored.files).toHaveLength(2);
+    expect(restored.files).toHaveLength(3);
     expect(restored.pdfs).toEqual([]);
     const afterRestore = await stub.listRevisions();
     expect(afterRestore[0]).toMatchObject({ reason: "restore:r0" });
@@ -357,6 +357,20 @@ describe("DocumentRoom in the Workers runtime", () => {
     await applyAuthoredSource(stub, "# Study\n");
     const deleted = await stub.deleteProjectFile(workspaceId, supporting!.id);
     expect(deleted.files.map((file) => file.id)).not.toContain(supporting!.id);
+  });
+
+  it("documents a new starter project outside the composed manuscript", async () => {
+    const workspaceId = "documented-starter";
+    const stub = roomStub(workspaceId);
+    const snapshot = await stub.getSnapshot(workspaceId);
+    const guide = snapshot.files.find((file) => file.path === "KIRJOLAB.md");
+
+    expect(guide?.content).toContain("## Kirjolab guide");
+    expect(guide?.content).toContain(":cite[<key>]{mode=textual");
+    expect(guide?.content).toContain("::include[sections/methods.md]");
+    expect(snapshot.composition.content).not.toContain("Kirjolab guide");
+    expect(snapshot.composition.diagnostics).toEqual([]);
+    expect(await migrationVersion(stub, 22)).toEqual({ version: 22, name: "document-new-starter-projects" });
   });
 
   it("persists empty folders and moves folder trees atomically", async () => {

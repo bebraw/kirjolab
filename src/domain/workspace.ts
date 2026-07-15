@@ -40,6 +40,145 @@ export const defaultTransclusionSource = `## Included from another file {#sec-tr
 This section lives in \`${defaultTransclusionPath}\`. Edit that file from the Files rail and the composed preview will update here.
 `;
 
+export const defaultGuidePath = "KIRJOLAB.md";
+
+export const defaultGuideSource = `## Kirjolab guide
+
+Kirjolab is a project-based writing environment for research. It keeps manuscript files, references, evidence, comments, history, preview, and publication exports together without replacing portable Markdown and BibTeX as the source material.
+
+This guide is part of the starter project but is not included in \`main.md\`, so it does not appear in the manuscript or publication exports. Delete it when you no longer need it.
+
+### How a project fits together
+
+- \`main.md\` is the publication root. Preview and export always begin there.
+- Supporting Markdown files can live in folders and enter the paper through \`::include[path]\`.
+- \`figures/\` holds uploaded project images.
+- The Files rail changes the file being edited. Research holds project evidence, claims, and references; Comments holds manuscript discussion.
+- Preview shows the composed paper. Library stores private references and PDFs. Writing assistant can propose a revision to a selected passage for you to accept or reject.
+- Export can produce PDF, a LaTeX project, composed Markdown, cited BibTeX, or an archival source bundle.
+
+The starter paper demonstrates an include, citation, cross-reference, and bibliography. Edit those examples freely.
+
+### Standard Markdown
+
+Kirjolab supports ordinary Markdown plus GitHub-Flavored Markdown: headings, emphasis, links, images, block quotes, ordered and unordered lists, task lists, fenced code, tables, strikethrough, autolinks, and named footnotes.
+
+~~~markdown
+## A section
+
+Text can be **strong**, *emphasized*, or linked to [a source](https://example.com).
+
+| Method | Result |
+| --- | ---: |
+| A | 42 |
+
+A claim with a note.[^detail]
+
+[^detail]: Supporting detail.
+~~~
+
+YAML or TOML frontmatter is accepted at the beginning of \`main.md\` and hidden from preview. Frontmatter in included files is ignored during composition.
+
+### Citations
+
+Citation keys come from references linked to the project. Separate multiple keys with commas.
+
+~~~markdown
+:cite[<reference-key>]
+:cite[<first-key>, <second-key>]
+~~~
+
+The citation forms and options are:
+
+| Form | Meaning |
+| --- | --- |
+| \`:cite[<key>]\` | Parenthetical citation by default |
+| \`:citet[<key>]\` | Textual citation, such as “Merton (1942)” |
+| \`:citep[<key>]\` | Parenthetical citation, such as “(Merton, 1942)” |
+| \`mode=parenthetical\` | Author and year in parentheses |
+| \`mode=textual\` | Author in the sentence, year in parentheses |
+| \`mode=full\` | Full inline bibliographic description |
+| \`locator="p. 270"\` | Page, chapter, section, or other locator |
+| \`prefix="See "\` | Text before the rendered citation |
+| \`suffix=" for context"\` | Text after the rendered citation |
+
+Options go in braces after the citation. An explicit \`mode\` overrides the default of \`:citet\` or \`:citep\`.
+
+~~~markdown
+:cite[<key>]{mode=textual locator="p. 270" prefix="See " suffix=" for context"}
+~~~
+
+Place the cited-reference list exactly where it should appear with:
+
+~~~markdown
+## References {#references}
+
+::bibliography[]
+~~~
+
+The bibliography marker takes no options and should appear only once in the composed paper.
+
+### Sections, anchors, and cross-references
+
+Headings receive generated link targets. Add an explicit identifier when you want a stable target:
+
+~~~markdown
+## Methods {#sec-methods}
+
+See :ref[sec-methods].
+See :ref[the methods section]{target="sec-methods"}.
+~~~
+
+The bracket value is the target by default. To show custom link text, put the text in brackets and the target in \`{target="..."}\`.
+
+Use an anchor for a named target that is not a heading:
+
+~~~markdown
+::anchor[Primary result]{target="result:primary" slug="primary-result"}
+
+See :ref[result:primary].
+~~~
+
+The optional \`slug\` controls the public HTML target. \`::alias\` maps a legacy target to an existing heading slug:
+
+~~~markdown
+::alias[Methods]{target="sec:legacy-methods" slug="methods"}
+
+## Methods
+
+See :ref[sec:legacy-methods].
+~~~
+
+### Files and includes
+
+An include must occupy its own line. Its path is relative to the file containing it, and nested includes are allowed. The exact form is \`::include[sections/methods.md]\`.
+
+From \`sections/discussion.md\`, a sibling is \`::include[conclusion.md]\`; a root-level file is \`::include[../appendix.md]\`. Kirjolab updates inbound include paths when files or folders move.
+
+Only \`main.md\` defines the publication root. Opening another file changes the editor, not what gets exported.
+
+### Images
+
+Upload PNG, JPEG, GIF, WebP, or AVIF images through the Files rail. Kirjolab stores them below \`figures/\` and inserts a path relative to the active Markdown file.
+
+~~~markdown
+![Descriptive alternative text](figures/result.png)
+~~~
+
+From a file below \`sections/\`, the same image path is normally \`../figures/result.png\`. Moving folders updates project image references. Images appear in live preview and archival source exports; publication PDF and LaTeX image embedding is not yet supported.
+
+### A useful working loop
+
+1. Add papers and PDFs in Library, then link the references you cite to the project.
+2. Organize the draft in \`main.md\` and supporting files.
+3. Use Preview and diagnostics to check citations, references, and composition.
+4. Capture PDF highlights or notes and connect evidence to claims or manuscript passages.
+5. Use comments, milestones, and history before larger revisions.
+6. Choose the publication profile and inspect an export before submission.
+
+The toolbar can insert citations, references, anchors, footnotes, links, and includes, so you do not have to remember every form in this guide.
+`;
+
 export const defaultBibliography = `@article{merton1942,
   author = {Merton, Robert K.},
   title = {The Normative Structure of Science},

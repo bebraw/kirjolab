@@ -48,6 +48,8 @@ import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnap
 import type { ResearchShareSnapshot } from "../domain/reference-library";
 import {
   defaultBibliography,
+  defaultGuidePath,
+  defaultGuideSource,
   defaultSource,
   legacyDefaultSource,
   defaultTransclusionPath,
@@ -2810,6 +2812,38 @@ export class DocumentRoom extends DurableObject<Env> {
             snapshot.tables.project_assets = [];
             sql.exec("UPDATE project_revisions SET snapshot_json = ? WHERE revision = ?", JSON.stringify(snapshot), revision.revision);
           }
+          return undefined;
+        },
+      },
+      {
+        version: 22,
+        name: "document-new-starter-projects",
+        apply: (sql): undefined => {
+          const revisions = sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_revisions").toArray()[0]?.count ?? 0;
+          if (revisions > 0 || this.#workspaceRow().source !== defaultSource) return undefined;
+          const files = sql.exec<ProjectFileRow>("SELECT * FROM project_files ORDER BY path COLLATE NOCASE, id").toArray();
+          if (
+            files.length !== 2 ||
+            !files.some((file) => file.path === projectEntryPath && file.content === defaultSource) ||
+            !files.some((file) => file.path === defaultTransclusionPath && file.content === defaultTransclusionSource)
+          )
+            return undefined;
+          const guideId = crypto.randomUUID();
+          const guideYTextName = `file:${guideId}`;
+          this.#document.getText(guideYTextName).insert(0, defaultGuideSource);
+          const now = new Date().toISOString();
+          sql.exec(
+            `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
+             VALUES (?, ?, 'text/markdown', ?, ?, ?, ?)`,
+            guideId,
+            defaultGuidePath,
+            guideYTextName,
+            defaultGuideSource,
+            now,
+            now,
+          );
+          const state = new Uint8Array(Y.encodeStateAsUpdate(this.#document)).buffer;
+          sql.exec("UPDATE workspace SET y_state = ? WHERE id = 1", state);
           return undefined;
         },
       },

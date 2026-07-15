@@ -61,7 +61,11 @@ collaborative, and unambiguous about what preview and export mean.
 - A fresh starter project includes one supporting Markdown file transcluded
   from `main.md`, making the portable include syntax and composed result
   discoverable, plus an empty `figures/` folder that exposes the image
-  convention before the first upload.
+  convention before the first upload. It also includes an untranscluded
+  `KIRJOLAB.md` guide describing the tool, standard Markdown surface, custom
+  scholarly directives and their options, project composition, images, and a
+  practical research workflow. The guide is visible in Files but remains out
+  of manuscript preview and publication exports.
 - The Files rail accepts multiple PNG, JPEG, GIF, WebP, or AVIF images of at
   most 20 MiB each. It inserts a relative Markdown image reference at the
   collaborative caret. Preview resolves that path relative to the originating
@@ -131,12 +135,13 @@ collaborative, and unambiguous about what preview and export mean.
   mode. Compact split-width coverage verifies that toolbar controls remain
   fully visible without a duplicate file dropdown and that include-action help
   cannot overlap its file path.
-- Workers coverage verifies that a fresh project exposes the transclusion demo
-  as a real supporting file and composes it without diagnostics.
+- Workers and browser coverage verify that a fresh project exposes the syntax
+  guide and transclusion demo as real supporting files while composing neither
+  diagnostics nor guide prose into the paper.
 
 ## Current Milestone
 
-- Implemented: discoverable starter transclusion, durable Markdown folder tree, canonical `main.md`, recursive composition,
+- Implemented: starter syntax guide, discoverable starter transclusion, durable Markdown folder tree, canonical `main.md`, recursive composition,
   source maps and diagnostics, file management API/UI, composed preview/export,
   project-wide revisions, and file-qualified manuscript/model anchors.
 - Implemented: project image upload, durable `figures/` assets, Markdown

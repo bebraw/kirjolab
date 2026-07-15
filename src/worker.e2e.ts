@@ -2353,7 +2353,7 @@ test("projects the default canonical bibliography into a fresh workspace", async
   });
 });
 
-test("starts a fresh project with a discoverable transclusion example", async ({ page }) => {
+test("starts a fresh project with a syntax guide and discoverable transclusion example", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Transclusion starter");
   const snapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${workspaceId}`);
 
@@ -2361,9 +2361,15 @@ test("starts a fresh project with a discoverable transclusion example", async ({
     expect.arrayContaining([
       expect.objectContaining({ path: "main.md", content: expect.stringContaining("::include[sections/transclusion.md]") }),
       expect.objectContaining({ path: "sections/transclusion.md", content: expect.stringContaining("Included from another file") }),
+      expect.objectContaining({
+        path: "KIRJOLAB.md",
+        content: expect.stringMatching(/:citet\[<key>\].*::bibliography\[\].*::include\[sections\/methods\.md\]/su),
+      }),
     ]),
   );
+  expect(snapshot.source).not.toContain("Kirjolab guide");
   expect(snapshot.composition.content).toContain("This section lives in `sections/transclusion.md`");
+  expect(snapshot.composition.content).not.toContain("Kirjolab guide");
   expect(snapshot.composition.diagnostics).toEqual([]);
 });
 
