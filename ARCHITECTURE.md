@@ -22,6 +22,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   domain data, Yjs state, and compact pure reducers in their existing
   authorities; XState is not a global application store.
 - Keep application appearance behind shared semantic color tokens. Light and dark modes may vary token values, but components must not grow separate theme-specific palettes.
+- Keep the interface design system thin and source-local under `src/ui/`: foundations, visual primitives, shared state contracts, typed icons, and small markup helpers only. Domain components compose it without moving application behavior or state into a second UI architecture.
 - Keep duplicated `.github/skills/` content and vendored
   `.codex/skills/**/references/` material outside the Prettier baseline.
   Continue formatting project-owned skill entrypoints, specs, ADRs, and docs.

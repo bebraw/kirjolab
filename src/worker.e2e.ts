@@ -3,6 +3,21 @@ import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/kn
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import { createEvidencePdf, createMetadataEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
 
+test("renders shared primitive states in the local UI inventory", async ({ page }) => {
+  await page.goto("/__ui");
+
+  await expect(page.locator("[data-ui-inventory]")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Primary action" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Selected example" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Working" })).toHaveAttribute("aria-busy", "true");
+  await expect(page.getByRole("button", { name: "Remove" })).toHaveAttribute("data-destructive", "true");
+  await expect(page.getByRole("button", { name: "Unavailable" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Close example" })).toHaveAttribute("data-touch-target", "true");
+  await expect(page.getByLabel("Field label")).toHaveValue("Inspectable value");
+  await expect(page.locator(".ui-status[data-tone='error']")).toContainText("Could not save");
+  await expect(page.getByRole("group", { name: "Static dialog example" })).toBeVisible();
+});
+
 async function selectLocalModel(page: Page, model: string): Promise<void> {
   const selector = page.locator("#llm-model");
   await selector.evaluate((element: HTMLSelectElement, value) => {

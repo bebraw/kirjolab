@@ -1,0 +1,64 @@
+import { escapeHtml } from "../views/shared";
+import { renderIcon, type IconName } from "./icons";
+
+type CommonButtonOptions = {
+  readonly id?: string;
+  readonly className?: string;
+  readonly tone?: "primary" | "secondary" | "icon";
+  readonly type?: "button" | "submit" | "reset";
+  readonly title?: string;
+  readonly disabled?: boolean;
+  readonly busy?: boolean;
+  readonly pressed?: boolean;
+  readonly compact?: boolean;
+  readonly destructive?: boolean;
+  readonly touchTarget?: boolean;
+};
+
+type LabelledButtonOptions = CommonButtonOptions & {
+  readonly label: string;
+  readonly icon?: IconName;
+  readonly ariaLabel?: string;
+};
+
+type IconButtonOptions = CommonButtonOptions & {
+  readonly icon: IconName;
+  readonly ariaLabel: string;
+  readonly label?: never;
+};
+
+export type ButtonOptions = LabelledButtonOptions | IconButtonOptions;
+
+export function renderButton(options: ButtonOptions): string {
+  const tone = options.tone ?? "secondary";
+  const classes = [`button-${tone}`, options.className].filter(Boolean).join(" ");
+  const attributes = [
+    attribute("class", classes),
+    attribute("id", options.id),
+    attribute("type", options.type ?? "button"),
+    attribute("aria-label", options.ariaLabel),
+    attribute("title", options.title),
+    attribute("aria-busy", options.busy === undefined ? undefined : String(options.busy)),
+    attribute("aria-pressed", options.pressed === undefined ? undefined : String(options.pressed)),
+    booleanAttribute("disabled", options.disabled),
+    dataAttribute("compact", options.compact),
+    dataAttribute("destructive", options.destructive),
+    dataAttribute("touch-target", options.touchTarget),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const content = `${options.icon ? renderIcon(options.icon) : ""}${"label" in options && options.label ? `<span>${escapeHtml(options.label)}</span>` : ""}`;
+  return `<button ${attributes}>${content}</button>`;
+}
+
+function attribute(name: string, value: string | undefined): string {
+  return value === undefined ? "" : `${name}="${escapeHtml(value)}"`;
+}
+
+function booleanAttribute(name: string, value: boolean | undefined): string {
+  return value ? name : "";
+}
+
+function dataAttribute(name: string, value: boolean | undefined): string {
+  return value ? `data-${name}="true"` : "";
+}

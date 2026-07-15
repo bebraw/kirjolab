@@ -5,6 +5,13 @@ import { ensureGeneratedStylesheet } from "./test-support";
 ensureGeneratedStylesheet();
 
 describe("worker", () => {
+  it("renders the local design-system inventory", async () => {
+    const response = await handleRequest(new Request("http://example.com/__ui"));
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("data-ui-inventory");
+  });
+
   it("renders the Kirjolab workspace", async () => {
     const response = await handleRequest(new Request("http://example.com/"));
 

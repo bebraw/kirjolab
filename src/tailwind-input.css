@@ -1,75 +1,6 @@
 @import "tailwindcss";
-
-@theme {
-  --color-app-canvas: light-dark(#e8e5dd, #151a18);
-  --color-app-paper: light-dark(#f8f6ef, #1c2320);
-  --color-app-surface: light-dark(#efede6, #181e1b);
-  --color-app-ink: light-dark(#121b18, #f2efe6);
-  --color-app-text: light-dark(#202724, #deddd6);
-  --color-app-text-soft: light-dark(#5f6762, #a4aca6);
-  --color-app-accent: light-dark(#0b6b51, #62c5a4);
-  --color-app-accent-strong: light-dark(#064737, #8bdbbe);
-  --color-app-accent-ghost: light-dark(rgb(11 107 81 / 0.09), rgb(98 197 164 / 0.12));
-  --color-app-review-base: light-dark(rgb(18 27 24 / 0.035), rgb(242 239 230 / 0.045));
-  --color-app-review-proposal: light-dark(rgb(11 107 81 / 0.055), rgb(98 197 164 / 0.08));
-  --color-app-warn: light-dark(#c07b28, #d7a45e);
-  --color-app-error: light-dark(#a33a32, #e0786e);
-  --color-app-line: light-dark(rgb(18 27 24 / 0.14), rgb(232 239 234 / 0.15));
-  --color-app-raised: light-dark(rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.06));
-  --color-app-raised-strong: light-dark(rgb(255 255 255 / 0.42), rgb(255 255 255 / 0.09));
-  --color-app-canvas-overlay: light-dark(rgb(232 229 221 / 0.96), rgb(21 26 24 / 0.96));
-  --color-app-shadow: light-dark(rgb(18 27 24 / 0.2), rgb(0 0 0 / 0.42));
-  --color-app-backdrop: light-dark(rgb(18 27 24 / 0.62), rgb(0 0 0 / 0.72));
-  --color-app-on-accent: light-dark(white, #07130f);
-  --color-app-pdf-surround: light-dark(#d8d4ca, #0f1311);
-  --color-app-graph-confirmed: light-dark(#0c7655, #75d3b3);
-  --color-app-graph-extracted: light-dark(#4e6b61, #a5b9b2);
-  --color-app-graph-conflicting: light-dark(#b34835, #ed8274);
-  --color-app-graph-inferred: light-dark(#9b7b3d, #ddb66b);
-  --font-sans: "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
-}
-
-@layer base {
-  html {
-    background: var(--color-app-canvas);
-    color-scheme: light dark;
-  }
-
-  html[data-theme="light"] {
-    color-scheme: light;
-  }
-
-  html[data-theme="dark"] {
-    color-scheme: dark;
-  }
-
-  body {
-    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-    text-rendering: optimizeLegibility;
-  }
-
-  button,
-  input,
-  textarea,
-  select,
-  summary {
-    font: inherit;
-  }
-
-  button:focus-visible,
-  a:focus-visible,
-  input:focus-visible,
-  textarea:focus-visible,
-  select:focus-visible,
-  summary:focus-visible {
-    outline: 2px solid var(--color-app-accent);
-    outline-offset: 2px;
-  }
-
-  ::selection {
-    background: color-mix(in srgb, var(--color-app-accent) 22%, transparent);
-  }
-}
+@import "./ui/tokens.css";
+@import "./ui/primitives.css";
 
 @layer components {
   .workspace-grid {
@@ -2008,32 +1939,6 @@
     }
   }
 
-  .eyebrow {
-    font-family: var(--font-sans);
-    font-size: 0.65rem;
-    font-weight: 800;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--color-app-text-soft);
-  }
-
-  .button-primary,
-  .button-secondary,
-  .button-icon {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 0.25rem;
-    font-family: var(--font-sans);
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.025em;
-    transition:
-      background 140ms ease,
-      color 140ms ease,
-      border-color 140ms ease,
-      transform 140ms ease;
-  }
-
   .workspace-switcher {
     max-width: min(18rem, 32vw);
     min-height: 2.1rem;
@@ -2050,45 +1955,6 @@
   .workspace-switcher:hover {
     border-color: var(--color-app-line);
     background: var(--color-app-raised);
-  }
-
-  .button-primary {
-    min-height: 2.35rem;
-    padding: 0.55rem 0.85rem;
-    background: var(--color-app-accent);
-    color: var(--color-app-on-accent);
-  }
-
-  .button-primary:hover {
-    background: var(--color-app-accent-strong);
-    transform: translateY(-1px);
-  }
-
-  .button-secondary {
-    min-height: 2.35rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--color-app-line);
-    background: var(--color-app-raised);
-  }
-
-  .button-secondary:hover:not(:disabled) {
-    border-color: var(--color-app-accent);
-    color: var(--color-app-accent-strong);
-  }
-
-  .button-primary:disabled,
-  .button-secondary:disabled {
-    cursor: not-allowed;
-    opacity: 0.45;
-  }
-
-  .button-icon {
-    height: 2.1rem;
-    width: 2.1rem;
-    cursor: pointer;
-    justify-content: center;
-    border: 1px solid var(--color-app-line);
-    font-size: 1rem;
   }
 
   .source-editor,
@@ -2709,67 +2575,6 @@
     border-top: 1px solid var(--color-app-line);
     padding-top: 1rem;
     font-size: 0.88rem;
-  }
-
-  .field-label {
-    display: grid;
-    gap: 0.4rem;
-    font-family: var(--font-sans);
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-app-text-soft);
-  }
-
-  .field {
-    min-height: 2.5rem;
-    width: 100%;
-    border: 1px solid var(--color-app-line);
-    border-radius: 0.2rem;
-    background: var(--color-app-paper);
-    padding: 0.55rem 0.65rem;
-    color: var(--color-app-text);
-    font-family: var(--font-sans);
-    font-size: 0.82rem;
-    font-weight: 500;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  .count-badge {
-    display: inline-flex;
-    min-width: 1.55rem;
-    height: 1.3rem;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--color-app-line);
-    border-radius: 999px;
-    padding-inline: 0.4rem;
-    font-family: var(--font-sans);
-    font-size: 0.62rem;
-    color: var(--color-app-text-soft);
-  }
-
-  .empty-state {
-    border: 1px dashed var(--color-app-line);
-    padding: 0.9rem;
-    color: var(--color-app-text-soft);
-    font-family: var(--font-sans);
-    font-size: 0.75rem;
-    line-height: 1.5;
-  }
-
-  .resource-card {
-    border: 1px solid var(--color-app-line);
-    border-radius: 0.2rem;
-    background: var(--color-app-raised);
-    padding: 0.8rem;
-  }
-
-  .resource-card:focus-visible {
-    outline: 2px solid var(--color-app-accent);
-    outline-offset: 2px;
   }
 
   .new-workspace-dialog {

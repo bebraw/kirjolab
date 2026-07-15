@@ -19,6 +19,7 @@ import { renderHomePage } from "./views/home";
 import { renderNotFoundPage } from "./views/not-found";
 import { renderReadOnlySharePage } from "./views/read-only-share";
 import { cssResponse, faviconResponse, htmlResponse, pdfResponse, scriptResponse } from "./views/shared";
+import { renderUiInventoryPage } from "./views/ui-inventory";
 
 export { BackupCoordinator, BackupRecovery, DocumentRoom, ProjectTemplateCatalog, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
 
@@ -69,6 +70,13 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
 
   if (url.pathname === "/api/health") {
     return createHealthResponse(exampleRoutes.map((route) => route.path));
+  }
+
+  if (url.pathname === "/__ui") {
+    const authMode: string | undefined = env?.AUTH_MODE;
+    return authMode === "access"
+      ? htmlResponse(renderNotFoundPage(url.pathname), 404, url)
+      : htmlResponse(renderUiInventoryPage(), 200, url);
   }
 
   const readOnlyShare = /^\/share\/([a-z0-9-]{1,64})\.([A-Za-z0-9_-]{43})(\/document\.pdf|\/socket)?$/u.exec(url.pathname);

@@ -1,0 +1,86 @@
+@theme {
+  --color-app-canvas: light-dark(#e8e5dd, #151a18);
+  --color-app-paper: light-dark(#f8f6ef, #1c2320);
+  --color-app-surface: light-dark(#efede6, #181e1b);
+  --color-app-ink: light-dark(#121b18, #f2efe6);
+  --color-app-text: light-dark(#202724, #deddd6);
+  --color-app-text-soft: light-dark(#5f6762, #a4aca6);
+  --color-app-accent: light-dark(#0b6b51, #62c5a4);
+  --color-app-accent-strong: light-dark(#064737, #8bdbbe);
+  --color-app-accent-ghost: light-dark(rgb(11 107 81 / 0.09), rgb(98 197 164 / 0.12));
+  --color-app-review-base: light-dark(rgb(18 27 24 / 0.035), rgb(242 239 230 / 0.045));
+  --color-app-review-proposal: light-dark(rgb(11 107 81 / 0.055), rgb(98 197 164 / 0.08));
+  --color-app-warn: light-dark(#c07b28, #d7a45e);
+  --color-app-error: light-dark(#a33a32, #e0786e);
+  --color-app-line: light-dark(rgb(18 27 24 / 0.14), rgb(232 239 234 / 0.15));
+  --color-app-raised: light-dark(rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.06));
+  --color-app-raised-strong: light-dark(rgb(255 255 255 / 0.42), rgb(255 255 255 / 0.09));
+  --color-app-canvas-overlay: light-dark(rgb(232 229 221 / 0.96), rgb(21 26 24 / 0.96));
+  --color-app-shadow: light-dark(rgb(18 27 24 / 0.2), rgb(0 0 0 / 0.42));
+  --color-app-backdrop: light-dark(rgb(18 27 24 / 0.62), rgb(0 0 0 / 0.72));
+  --color-app-on-accent: light-dark(white, #07130f);
+  --color-app-pdf-surround: light-dark(#d8d4ca, #0f1311);
+  --color-app-graph-confirmed: light-dark(#0c7655, #75d3b3);
+  --color-app-graph-extracted: light-dark(#4e6b61, #a5b9b2);
+  --color-app-graph-conflicting: light-dark(#b34835, #ed8274);
+  --color-app-graph-inferred: light-dark(#9b7b3d, #ddb66b);
+  --font-sans: "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+:root {
+  --color-app-border: var(--color-app-line);
+  --color-app-danger: var(--color-app-error);
+  --ui-space-1: 0.25rem;
+  --ui-space-2: 0.5rem;
+  --ui-space-3: 0.75rem;
+  --ui-space-4: 1rem;
+  --ui-space-5: 1.5rem;
+  --ui-radius-sm: 0.2rem;
+  --ui-radius-md: 0.25rem;
+  --ui-radius-pill: 999px;
+  --ui-control-compact: 2rem;
+  --ui-control-default: 2.35rem;
+  --ui-control-touch: 2.75rem;
+  --ui-elevation-menu: 0 0.75rem 2rem var(--color-app-shadow);
+  --ui-elevation-dialog: 0 2rem 6rem var(--color-app-shadow);
+  --ui-transition: 140ms ease;
+}
+
+@layer base {
+  html {
+    background: var(--color-app-canvas);
+    color-scheme: light dark;
+  }
+
+  html[data-theme="light"] {
+    color-scheme: light;
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: var(--font-serif);
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  textarea,
+  select,
+  summary {
+    font: inherit;
+  }
+
+  :is(button, a, input, textarea, select, summary):focus-visible {
+    outline: 2px solid var(--color-app-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-app-accent) 22%, transparent);
+  }
+}
