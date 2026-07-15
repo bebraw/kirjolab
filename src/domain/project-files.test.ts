@@ -3,6 +3,7 @@ import {
   composeProject,
   inboundProjectIncludes,
   normalizeProjectPath,
+  previewProjectFile,
   projectUsesCitationAlias,
   relativeProjectPath,
   resolveProjectPath,
@@ -37,6 +38,45 @@ describe("project composition", () => {
       { fileId: "intro", includeChain: ["main", "intro"] },
       { fileId: "figure", includeChain: ["main", "intro", "figure"] },
     ]);
+  });
+
+  it("previews main as the composition and a supporting file in isolation", () => {
+    const files = [
+      file("main", "main.md", "Root\n::include[sections/method.md]\n"),
+      file("method", "sections/method.md", "## Method\n\n::include[nested.md]\n"),
+      file("nested", "sections/nested.md", "Nested detail\n"),
+    ];
+
+    expect(previewProjectFile(files, "main", "main")).toMatchObject({
+      mode: "composed",
+      fileId: "main",
+      path: "main.md",
+      content: "Root\n## Method\n\nNested detail\n",
+    });
+    expect(previewProjectFile(files, "main", null).mode).toBe("composed");
+    expect(previewProjectFile(files, "main", "missing").mode).toBe("composed");
+
+    const isolated = previewProjectFile(files, "main", "method");
+    expect(isolated).toEqual({
+      mode: "isolated",
+      fileId: "method",
+      path: "sections/method.md",
+      content: "## Method\n\n::include[nested.md]\n",
+      sourceMap: [
+        {
+          outputStart: 0,
+          outputEnd: 32,
+          fileId: "method",
+          path: "sections/method.md",
+          sourceStart: 0,
+          sourceEnd: 32,
+          includeChain: ["method"],
+        },
+      ],
+      diagnostics: [],
+      dependencies: {},
+    });
+    expect(() => previewProjectFile([], "main", null)).toThrow("entry file does not exist");
   });
 
   it("renames only exact project-local citation aliases", () => {

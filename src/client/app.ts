@@ -22,6 +22,7 @@ import {
 } from "../domain/project-history";
 import {
   composeProject,
+  previewProjectFile,
   relativeProjectPath,
   resolveProjectPath,
   type CompositionSourceSpan,
@@ -276,6 +277,7 @@ interface Elements {
   pinActiveContext: HTMLButtonElement;
   closeActiveContext: HTMLButtonElement;
   previewContextControls: HTMLElement;
+  previewFileContext: HTMLElement;
   pdfContextControls: HTMLElement;
   contextPreviewPanel: HTMLElement;
   previewScroll: HTMLElement;
@@ -831,7 +833,7 @@ class WorkspaceApp {
       this.#revision = snapshot.revision;
       this.#elements.source.value = snapshot.source;
       this.#elements.bibliography.value = snapshot.bibliography;
-      void this.#renderPreview(snapshot.source, snapshot.bibliography);
+      void this.#renderPreview(snapshot.bibliography);
       this.#updateRevision();
     } else {
       void this.#renderPreview();
@@ -1580,23 +1582,18 @@ class WorkspaceApp {
     });
   }
 
-  async #renderPreview(source?: string, bibliography = this.#bibliography.toString()): Promise<void> {
+  async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
     const renderVersion = ++this.#previewRenderVersion;
-    const composition =
-      source === undefined && this.#snapshot ? composeProject(this.#liveProjectFiles(), this.#snapshot.entryFileId) : null;
-    const renderedSource = source ?? composition?.content ?? this.#source.toString();
-    const statisticsComposition =
-      composition ??
-      (source !== undefined
-        ? (this.#snapshot?.composition ?? null)
-        : this.#snapshot
-          ? composeProject(this.#liveProjectFiles(), this.#snapshot.entryFileId)
-          : null);
-    if (statisticsComposition && this.#snapshot) {
-      this.#wordStatistics = publicationWordStatistics(
-        statisticsComposition,
-        source !== undefined ? this.#snapshot.files : this.#liveProjectFiles(),
-      );
+    const files = this.#previewProjectFiles();
+    const publicationComposition = this.#snapshot ? composeProject(files, this.#snapshot.entryFileId) : null;
+    const filePreview = this.#snapshot ? previewProjectFile(files, this.#snapshot.entryFileId, this.#activeFileId) : null;
+    const renderedSource = filePreview?.content ?? this.#source.toString();
+    this.#elements.previewFileContext.textContent = filePreview
+      ? `${filePreview.path} · ${filePreview.mode === "composed" ? "composed paper" : "isolated file"}`
+      : "Preview";
+    this.#elements.previewFileContext.title = this.#elements.previewFileContext.textContent;
+    if (publicationComposition && this.#snapshot) {
+      this.#wordStatistics = publicationWordStatistics(publicationComposition, files);
       this.#renderExportStatistics();
     }
     let runtime;
@@ -1616,12 +1613,12 @@ class WorkspaceApp {
     if (renderVersion !== this.#previewRenderVersion) return;
     const rendered = runtime.renderWorkspaceMarkdown(renderedSource, bibliography, this.#snapshot?.publicationProfile.citationStyle);
     this.#elements.preview.innerHTML = rendered.html;
-    this.#resolveProjectPreviewImages(renderedSource, composition?.sourceMap ?? []);
+    this.#resolveProjectPreviewImages(renderedSource, filePreview?.sourceMap ?? []);
     this.#elements.diagnostics.replaceChildren();
-    const diagnosticCount = rendered.diagnostics.length + (composition?.diagnostics.length ?? 0);
+    const diagnosticCount = rendered.diagnostics.length + (filePreview?.diagnostics.length ?? 0);
     this.#elements.diagnosticSummary.textContent =
       diagnosticCount === 0 ? "No syntax errors" : `${diagnosticCount} ${diagnosticCount === 1 ? "issue" : "issues"}`;
-    for (const diagnostic of composition?.diagnostics ?? []) {
+    for (const diagnostic of filePreview?.diagnostics ?? []) {
       this.#appendProjectDiagnostic(diagnostic.message, diagnostic.fileId, diagnostic.from, diagnostic.to);
     }
     for (const diagnostic of rendered.diagnostics) {
@@ -1630,14 +1627,14 @@ class WorkspaceApp {
       item.className = "resource-card mb-2 block w-full text-left font-sans text-xs";
       item.textContent = diagnostic.message;
       item.addEventListener("click", () => {
-        const span = composition ? sourceSpanAt(composition.sourceMap, diagnostic.from) : undefined;
+        const span = filePreview ? sourceSpanAt(filePreview.sourceMap, diagnostic.from) : undefined;
         if (span)
           this.#focusProjectRange(
             span.fileId,
             span.sourceStart,
             Math.min(span.sourceEnd, span.sourceStart + diagnostic.to - diagnostic.from),
           );
-        else this.#focusProjectRange(this.#snapshot?.entryFileId ?? "", diagnostic.from, diagnostic.to);
+        else this.#focusProjectRange(filePreview?.fileId ?? this.#snapshot?.entryFileId ?? "", diagnostic.from, diagnostic.to);
       });
       this.#elements.diagnostics.append(item);
     }
@@ -1658,7 +1655,13 @@ class WorkspaceApp {
         })),
       );
       this.#renderKnowledgeGraph(
-        buildWorkspaceKnowledgeGraph({ ...this.#snapshot, source: renderedSource, bibliography, links, claimLinks }),
+        buildWorkspaceKnowledgeGraph({
+          ...this.#snapshot,
+          source: publicationComposition?.content ?? this.#snapshot.composition.content,
+          bibliography,
+          links,
+          claimLinks,
+        }),
       );
     }
   }
@@ -1680,6 +1683,11 @@ class WorkspaceApp {
       ...file,
       content: this.#document.getText(file.id === this.#snapshot?.entryFileId ? "source" : `file:${file.id}`).toString(),
     }));
+  }
+
+  #previewProjectFiles(): ProjectFile[] {
+    if (!this.#snapshot) return [];
+    return this.#socketSynced || this.#hasOfflineSnapshot ? this.#liveProjectFiles() : [...this.#snapshot.files];
   }
 
   #renderProjectFiles(): void {
@@ -1822,6 +1830,8 @@ class WorkspaceApp {
     this.#authoringSelection = null;
     this.#renderProjectFiles();
     this.#updateModelAvailability();
+    this.#elements.previewScroll.scrollTop = 0;
+    void this.#renderPreview();
   }
 
   #openProjectFileDialog(mode: "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder", folderId?: string): void {
@@ -6535,6 +6545,7 @@ function collectElements(): Elements {
     pinActiveContext: requiredElement("pin-active-context", HTMLButtonElement),
     closeActiveContext: requiredElement("close-active-context", HTMLButtonElement),
     previewContextControls: requiredElement("preview-context-controls", HTMLElement),
+    previewFileContext: requiredElement("preview-file-context", HTMLElement),
     pdfContextControls: requiredElement("pdf-context-controls", HTMLElement),
     contextPreviewPanel: requiredElement("context-preview-panel", HTMLElement),
     previewScroll: requiredElement("preview-scroll", HTMLElement),

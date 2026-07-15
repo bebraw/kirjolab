@@ -236,6 +236,7 @@ export function renderHomePage(
           </div>
           <div class="context-tab-controls" aria-label="Active context actions">
             <div class="context-mode-controls" id="preview-context-controls">
+              <span class="preview-file-context" id="preview-file-context" title="main.md · composed paper">main.md · composed paper</span>
               <span id="diagnostic-summary">Validating…</span>
             </div>
             <div class="context-mode-controls" id="pdf-context-controls" hidden>

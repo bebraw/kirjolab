@@ -38,6 +38,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="edit-share-link" type="text" readonly');
     expect(html).toContain('id="revoke-edit-share" type="button">Revoke edit link</button>');
     expect(html).toContain('id="diagnostic-summary"');
+    expect(html).toContain('id="preview-file-context"');
     expect(html).toContain('id="authoring-context-resizer" role="separator"');
     expect(html).toContain("Annotate this paper");
     expect(html).toContain("Import BibTeX");

@@ -2130,6 +2130,9 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await source.fill("## Method\n\nDescribe the procedure.\n");
   await expect(page.locator("#source-editor-highlight")).toHaveText("## Method\n\nDescribe the procedure.\n");
   await expect(page.locator("#source-editor-highlight .markdown-token-heading")).toContainText("Method");
+  await expect(page.locator("#preview-file-context")).toHaveText("chapters/method.md · isolated file");
+  await expect(page.locator("#preview")).toContainText("Describe the procedure.");
+  await expect(page.locator("#preview")).not.toContainText("Before");
 
   await page.locator("#new-project-folder-rail").click();
   await page.locator("#project-file-path").fill("notes");
@@ -2150,6 +2153,10 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   const movedSnapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${workspaceId}`);
   expect(movedSnapshot.source).toContain("::include[methods/method.md]");
   expect(movedSnapshot.files.some((file) => file.path === "methods/method.md")).toBe(true);
+  await page.locator(".project-file-row", { hasText: "main.md" }).click();
+  await expect(page.locator("#preview-file-context")).toHaveText("main.md · composed paper");
+  await expect(page.locator("#preview")).toContainText("Before");
+  await expect(page.locator("#preview")).toContainText("Describe the procedure.");
 });
 
 test("isolates clients that send unsupported collaboration frames", async ({ page }) => {

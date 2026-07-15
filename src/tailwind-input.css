@@ -755,6 +755,13 @@
     white-space: nowrap;
   }
 
+  .context-mode-controls > .preview-file-context {
+    max-width: 11rem;
+    border-right: 1px solid var(--color-app-line);
+    color: var(--color-app-text);
+    font-weight: 700;
+  }
+
   .context-mode-controls .context-page-indicator {
     min-width: 3.5rem;
     justify-content: center;

@@ -36,7 +36,6 @@ ADRs are grouped by lifecycle status:
 | [ADR-093](./implemented/ADR-093-scope-prettier-to-owned-files.md)             | Implemented | Keep duplicated and vendored skill references outside the Prettier ownership boundary.          |
 | [ADR-094](./implemented/ADR-094-cache-prettier-checks-by-content.md)          | Implemented | Cache successful Prettier checks by file content under ignored local state.                     |
 | [ADR-095](./implemented/ADR-095-decouple-public-share-locators.md)            | Implemented | Route public shares through opaque locators instead of requiring globally unique workspace ids. |
-| [ADR-113](./accepted/ADR-113-follow-preview-file-selection.md)                | Accepted    | Show the selected supporting Markdown file in isolation while preserving `main.md` publication. |
 
 ## Implemented ADRs
 
@@ -142,6 +141,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-110](./implemented/ADR-110-make-private-pdf-reading-routable-and-geometric.md)   | Implemented          | Make private PDF navigation routable and preserve geometric highlights and tablet gestures.                  |
 | [ADR-111](./implemented/ADR-111-store-project-images-as-assets.md)                    | Implemented          | Store bounded project images in R2 with durable paths, preview resolution, backups, and source export.       |
 | [ADR-112](./implemented/ADR-112-store-sanitized-project-templates.md)                 | Implemented          | Store built-in and owner-created templates as independent sanitized project seeds.                           |
+| [ADR-113](./implemented/ADR-113-follow-preview-file-selection.md)                     | Implemented          | Show the selected supporting Markdown file in isolation while preserving `main.md` publication.              |
 
 ## Creating A New ADR
 

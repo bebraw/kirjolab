@@ -65,6 +65,12 @@ export interface ProjectComposition {
   readonly dependencies: Readonly<Record<string, readonly string[]>>;
 }
 
+export interface ProjectFilePreview extends ProjectComposition {
+  readonly fileId: string;
+  readonly path: string;
+  readonly mode: "composed" | "isolated";
+}
+
 export interface CompositionLimits {
   readonly maximumDepth?: number;
   readonly maximumFiles?: number;
@@ -123,6 +129,34 @@ export function composeProject(files: readonly ProjectFile[], entryFileId: strin
     dependencies: Object.fromEntries(
       [...state.dependencies.entries()].map(([fileId, dependencyIds]) => [fileId, [...dependencyIds].sort()]),
     ),
+  };
+}
+
+export function previewProjectFile(files: readonly ProjectFile[], entryFileId: string, selectedFileId: string | null): ProjectFilePreview {
+  const entry = files.find((file) => file.id === entryFileId);
+  if (!entry) throw new Error("The project entry file does not exist");
+  const selected = files.find((file) => file.id === selectedFileId) ?? entry;
+  if (selected.id === entryFileId) {
+    return { ...composeProject(files, entryFileId), fileId: entry.id, path: entry.path, mode: "composed" };
+  }
+  return {
+    content: selected.content,
+    sourceMap: [
+      {
+        outputStart: 0,
+        outputEnd: selected.content.length,
+        fileId: selected.id,
+        path: selected.path,
+        sourceStart: 0,
+        sourceEnd: selected.content.length,
+        includeChain: [selected.id],
+      },
+    ],
+    diagnostics: [],
+    dependencies: {},
+    fileId: selected.id,
+    path: selected.path,
+    mode: "isolated",
   };
 }
 

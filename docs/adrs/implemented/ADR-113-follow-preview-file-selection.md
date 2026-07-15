@@ -1,6 +1,6 @@
 # ADR-113: Follow Preview File Selection
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-15
 
