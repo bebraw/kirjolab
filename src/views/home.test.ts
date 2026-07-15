@@ -24,6 +24,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="preferences-menu" data-settings-menu');
     expect(html).toContain('aria-label="Open preferences" title="Preferences"');
     expect(html).toContain('id="account-menu" data-action-menu');
+    expect(html).toContain('class="account-trigger" aria-label="Account for local@kirjolab.invalid" title="Account"');
+    expect(html).toContain('<circle cx="12" cy="8" r="3.25"></circle>');
+    expect(html).not.toContain('aria-label="Account for local@kirjolab.invalid">Account</summary>');
     expect(html).toContain("<span>Local development</span>");
     expect(html).toContain("Local mode has no login session.");
     expect(html).not.toContain('id="log-out"');

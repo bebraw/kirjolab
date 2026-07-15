@@ -22,8 +22,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - Workspace catalog, access, document-room, and R2 lookups use opaque or hashed
   storage identities rather than plaintext hosted email values.
 - `GET /api/session` exposes only the current email and authentication mode.
-- The authenticated shell exposes the current identity under **Account**.
-  Hosted Access identities receive a native link to the application-domain
+- The authenticated shell exposes the current identity from a compact user icon
+  labelled **Account**. Hosted Access identities receive a native link to the application-domain
   `/cdn-cgi/access/logout` endpoint, which ends the user's shared Cloudflare
   Access session. Local mode states that no login session exists and does not
   render a non-functional logout action.

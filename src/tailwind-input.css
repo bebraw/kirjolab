@@ -825,6 +825,39 @@
     display: none;
   }
 
+  .account-trigger {
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    cursor: pointer;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    color: var(--color-app-text-soft);
+  }
+
+  .account-trigger:hover,
+  #account-menu[open] > .account-trigger {
+    border-color: var(--color-app-line);
+    background: var(--color-app-paper);
+    color: var(--color-app-accent-strong);
+  }
+
+  .account-trigger:focus-visible {
+    outline: 2px solid var(--color-app-accent);
+    outline-offset: 2px;
+  }
+
+  .account-trigger svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+  }
+
   .header-action-menu .editor-command-menu {
     right: auto;
     left: 0;

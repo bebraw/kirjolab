@@ -122,7 +122,9 @@ export function renderHomePage(
         <div class="flex items-center gap-3">
           ${workspaceLayoutControl}
           <details class="action-menu" id="account-menu" data-action-menu>
-            <summary class="button-secondary shrink-0" aria-label="Account for ${escapedIdentityEmail}">Account</summary>
+            <summary class="account-trigger" aria-label="Account for ${escapedIdentityEmail}" title="Account">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"></circle><path d="M5.5 20c.45-4 2.65-6 6.5-6s6.05 2 6.5 6"></path></svg>
+            </summary>
             <div class="editor-command-menu account-menu" aria-label="Account actions">
               <div class="account-menu-identity"><strong title="${escapedIdentityEmail}">${escapedIdentityEmail}</strong><span>${identityMode === "access" ? "Cloudflare Access" : "Local development"}</span></div>
               ${
