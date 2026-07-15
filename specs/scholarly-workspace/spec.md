@@ -104,6 +104,12 @@ mode for authenticated hosted collaboration.
   state followed by a versioned `sync` control. The browser sends no state on
   open, retains ordered local updates until a durable `ack`, and replays only
   unacknowledged updates after reconnect.
+- **Connection workflow:** One browser-local XState actor coordinates
+  disconnected, connecting, synchronizing, live, reconnecting, offline, and
+  reset phases. It tracks queued-update count, the remote-revision boundary,
+  collaborator count, and whether an authorized offline copy exists. WebSocket
+  instances, retry timers, Yjs documents and updates, IndexedDB records, and DOM
+  rendering remain outside the actor.
 - **Editor ownership:** After `sync`, source and bibliography inputs derive from
   `Y.Text`; server collaboration controls own the displayed revision. REST
   workspace refreshes cannot assign those values. The editor reports `Saved`
@@ -293,6 +299,9 @@ mode for authenticated hosted collaboration.
   representation.
 - Do not send browser Yjs state speculatively when a socket opens or treat a
   sent frame as durable before its acknowledgement.
+- Do not infer collaboration readiness from independent booleans. Editing and
+  model operations derive readiness from the connection actor, and only the
+  server-led `sync` event may enter its live state.
 - Do not cache API responses, WebSockets, exports, model operations, library
   state, or PDF bytes as part of offline authoring.
 - Do not treat the offline browser copy as project history, a portable backup,

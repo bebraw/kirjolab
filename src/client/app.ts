@@ -80,6 +80,13 @@ import {
 } from "../domain/workspace";
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
 import {
+  collaborationCanEdit,
+  collaborationStable,
+  collaborationStatus,
+  collaborationSynced,
+  createCollaborationWorkflowActor,
+} from "./collaboration-workflow-machine";
+import {
   assistantOperationDefinition,
   assistantOperationDefinitions,
   assistantTargetScopeLabel,
@@ -527,13 +534,12 @@ class WorkspaceApp {
   readonly #pdfAnnotation = createPdfAnnotationActor();
   readonly #assistantWorkflow = createAssistantWorkflowActor();
   readonly #publicationIntake = createPublicationIntakeActor();
+  readonly #collaborationWorkflow = createCollaborationWorkflowActor();
   #snapshot: WorkspaceSnapshot | null = null;
   #revision = 0;
   #socket: WebSocket | null = null;
   #serverDocument: Y.Doc | null = null;
   #serverStateVector = Y.encodeStateVector(this.#document);
-  #socketSynced = false;
-  #awaitingRemoteRevision = false;
   #reconnectTimer: number | undefined;
   #selectionBroadcastTimer: number | undefined;
   readonly #remoteSelections = new Map<string, RemoteCollaboratorSelection>();
@@ -575,7 +581,6 @@ class WorkspaceApp {
   #workspaceCatalog: WorkspaceSummary[] = [];
   #projectTemplates: ProjectTemplateSummary[] = [];
   #previewRenderVersion = 0;
-  #hasOfflineSnapshot = false;
   #offlineSaveTimer: number | undefined;
   #offlineSaveVersion = 0;
   #offlineSaveChain: Promise<void> = Promise.resolve();
@@ -662,8 +667,8 @@ class WorkspaceApp {
         throw error;
       }
       if (!restored) throw new Error("Open this project online once before editing it offline", { cause: error });
-      this.#setConnection("Offline · changes stay on this device", false);
-      this.#setEditorsEnabled(true);
+      this.#collaborationWorkflow.send({ type: "OFFLINE" });
+      this.#renderCollaborationWorkflow();
     }
     await this.#restoreWorkspaceRoute();
     this.#connect();
@@ -673,8 +678,8 @@ class WorkspaceApp {
     this.#restoreModelPreferences();
     window.addEventListener("online", () => this.#connect());
     window.addEventListener("offline", () => {
-      this.#setConnection("Offline · changes stay on this device", false);
-      if (this.#hasOfflineSnapshot) this.#setEditorsEnabled(true);
+      this.#collaborationWorkflow.send({ type: "OFFLINE" });
+      this.#renderCollaborationWorkflow();
     });
     window.addEventListener("pagehide", () => this.#scheduleOfflineSave(0));
     window.addEventListener("popstate", () => {
@@ -849,7 +854,10 @@ class WorkspaceApp {
       this.#scheduleOfflineSave();
       if (origin === remoteOrigin || origin === offlineOrigin) return;
       this.#pendingUpdates.enqueue(update);
-      this.#elements.saveStatus.textContent = this.#socketSynced ? "Saving…" : "Saving offline…";
+      this.#syncCollaborationQueue();
+      this.#elements.saveStatus.textContent = collaborationSynced(this.#collaborationWorkflow.getSnapshot())
+        ? "Saving…"
+        : "Saving offline…";
       this.#updateModelAvailability();
       void this.#renderPreview();
       this.#flushPendingUpdates();
@@ -974,7 +982,7 @@ class WorkspaceApp {
     if (!response.ok) throw new Error("Could not load the project");
     const value: unknown = await response.json();
     if (!isWorkspaceSnapshot(value)) throw new Error("Project returned an invalid snapshot");
-    const snapshot = this.#socketSynced ? this.#resolveSnapshotAnchors(value) : value;
+    const snapshot = collaborationSynced(this.#collaborationWorkflow.getSnapshot()) ? this.#resolveSnapshotAnchors(value) : value;
     this.#snapshot = snapshot;
     if (!this.#hasBootstrapSnapshot) {
       this.#hasBootstrapSnapshot = true;
@@ -1516,27 +1524,41 @@ class WorkspaceApp {
     this.#showToast("Collaborator invited to this project.");
   }
 
+  #syncCollaborationQueue(): void {
+    this.#collaborationWorkflow.send({ type: "QUEUE_CHANGED", pendingUpdates: this.#pendingUpdates.size });
+  }
+
+  #renderCollaborationWorkflow(): void {
+    const snapshot = this.#collaborationWorkflow.getSnapshot();
+    const status = collaborationStatus(snapshot);
+    this.#setConnection(status.label, status.connected);
+    this.#setEditorsEnabled(collaborationCanEdit(snapshot));
+    this.#updateModelAvailability();
+  }
+
   #connect(): void {
     if (this.#socket && this.#socket.readyState < WebSocket.CLOSING) return;
     if (!navigator.onLine) {
-      this.#setConnection("Offline · changes stay on this device", false);
-      if (this.#hasOfflineSnapshot) this.#setEditorsEnabled(true);
+      this.#collaborationWorkflow.send({ type: "CONNECT", online: false });
+      this.#renderCollaborationWorkflow();
       return;
     }
     window.clearTimeout(this.#reconnectTimer);
     this.#reconnectTimer = undefined;
+    this.#collaborationWorkflow.send({ type: "CONNECT", online: true });
+    this.#renderCollaborationWorkflow();
     this.#serverDocument?.destroy();
     this.#serverDocument = new Y.Doc();
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(`${protocol}//${location.host}${apiBase}/socket`);
     socket.binaryType = "arraybuffer";
     this.#socket = socket;
-    this.#socketSynced = false;
     this.#pendingUpdates.resetForReconnect();
-    this.#updateModelAvailability();
+    this.#syncCollaborationQueue();
     socket.addEventListener("open", () => {
       if (this.#socket !== socket) return;
-      this.#setConnection("Synchronizing", false);
+      this.#collaborationWorkflow.send({ type: "SOCKET_OPEN" });
+      this.#renderCollaborationWorkflow();
     });
     socket.addEventListener("message", (event: MessageEvent<string | ArrayBuffer>) => {
       if (this.#socket === socket) this.#handleSocketMessage(socket, event.data);
@@ -1544,16 +1566,16 @@ class WorkspaceApp {
     socket.addEventListener("close", () => {
       if (this.#socket !== socket) return;
       this.#socket = null;
-      this.#socketSynced = false;
       this.#pendingUpdates.resetForReconnect();
+      this.#syncCollaborationQueue();
       this.#remoteSelections.clear();
       this.#renderRemoteSelections();
-      this.#setConnection(navigator.onLine ? "Reconnecting" : "Offline · changes stay on this device", false);
-      this.#setEditorsEnabled(this.#hasOfflineSnapshot);
-      this.#updateModelAvailability();
+      this.#collaborationWorkflow.send({ type: "SOCKET_CLOSED", online: navigator.onLine });
+      this.#renderCollaborationWorkflow();
       if (navigator.onLine) {
         this.#reconnectTimer ??= window.setTimeout(() => {
           this.#reconnectTimer = undefined;
+          this.#collaborationWorkflow.send({ type: "RECONNECT" });
           this.#connect();
         }, 1200);
       }
@@ -1564,7 +1586,9 @@ class WorkspaceApp {
   #handleSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
     if (typeof message !== "string") {
       const selections = this.#captureEditorSelections();
-      if (this.#socketSynced) this.#awaitingRemoteRevision = true;
+      if (collaborationSynced(this.#collaborationWorkflow.getSnapshot())) {
+        this.#collaborationWorkflow.send({ type: "REMOTE_UPDATE" });
+      }
       try {
         const update = new Uint8Array(message);
         if (this.#serverDocument) {
@@ -1588,15 +1612,11 @@ class WorkspaceApp {
     }
     switch (value.type) {
       case "sync":
-        if (this.#socketSynced) {
+        if (collaborationSynced(this.#collaborationWorkflow.getSnapshot())) {
           socket.close(1002, "Duplicate collaboration sync");
           return;
         }
-        this.#socketSynced = true;
-        this.#awaitingRemoteRevision = false;
-        this.#setConnection("Live", true);
-        this.#setEditorsEnabled(true);
-        this.#hasOfflineSnapshot = true;
+        this.#collaborationWorkflow.send({ type: "SYNC" });
         if (this.#serverDocument) this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
         this.#setRevision(value.revision);
         this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
@@ -1614,21 +1634,22 @@ class WorkspaceApp {
           socket.close(1002, "Unexpected collaboration acknowledgement");
           return;
         }
+        this.#syncCollaborationQueue();
         this.#setRevision(value.revision);
         this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
         this.#scheduleOfflineSave();
         this.#flushPendingUpdates();
         break;
       case "revision":
-        this.#awaitingRemoteRevision = false;
+        this.#collaborationWorkflow.send({ type: "REVISION" });
         this.#setRevision(value.revision);
         break;
       case "reset":
-        this.#socketSynced = false;
+        this.#collaborationWorkflow.send({ type: "RESET" });
         void Promise.resolve(this.#offlineStore?.clear()).finally(() => window.location.reload());
         return;
       case "presence":
-        this.#elements.connectionStatus.textContent = `Live · ${value.collaborators} ${value.collaborators === 1 ? "writer" : "writers"}`;
+        this.#collaborationWorkflow.send({ type: "PRESENCE", collaborators: value.collaborators });
         break;
       case "selection":
         if (value.revision === this.#revision) this.#remoteSelections.set(value.collaboratorId, value);
@@ -1644,12 +1665,12 @@ class WorkspaceApp {
         });
         break;
     }
-    this.#updateModelAvailability();
+    this.#renderCollaborationWorkflow();
   }
 
   #flushPendingUpdates(): void {
     const socket = this.#socket;
-    if (!this.#socketSynced || !socket || socket.readyState !== WebSocket.OPEN) return;
+    if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot()) || !socket || socket.readyState !== WebSocket.OPEN) return;
     for (let update = this.#pendingUpdates.nextUnsent(); update; update = this.#pendingUpdates.nextUnsent()) {
       socket.send(update.payload);
       this.#pendingUpdates.markSent(update.sequence);
@@ -1691,7 +1712,13 @@ class WorkspaceApp {
     this.#selectionBroadcastTimer = window.setTimeout(() => {
       this.#selectionBroadcastTimer = undefined;
       const socket = this.#socket;
-      if (!this.#socketSynced || !socket || socket.readyState !== WebSocket.OPEN || !this.#activeFileId) return;
+      if (
+        !collaborationSynced(this.#collaborationWorkflow.getSnapshot()) ||
+        !socket ||
+        socket.readyState !== WebSocket.OPEN ||
+        !this.#activeFileId
+      )
+        return;
       socket.send(
         encodeClientSelectionMessage({
           type: "selection",
@@ -1756,7 +1783,7 @@ class WorkspaceApp {
   }
 
   #hasStableDocumentBase(): boolean {
-    return this.#socketSynced && this.#pendingUpdates.size === 0 && !this.#awaitingRemoteRevision;
+    return collaborationStable(this.#collaborationWorkflow.getSnapshot());
   }
 
   #updateModelAvailability(): void {
@@ -2062,7 +2089,10 @@ class WorkspaceApp {
 
   #previewProjectFiles(): ProjectFile[] {
     if (!this.#snapshot) return [];
-    return this.#socketSynced || this.#hasOfflineSnapshot ? this.#liveProjectFiles() : [...this.#snapshot.files];
+    const collaboration = this.#collaborationWorkflow.getSnapshot();
+    return collaborationSynced(collaboration) || collaboration.context.offlineAvailable
+      ? this.#liveProjectFiles()
+      : [...this.#snapshot.files];
   }
 
   #renderProjectFiles(): void {
@@ -7152,9 +7182,10 @@ class WorkspaceApp {
     this.#serverStateVector = new Uint8Array(record.serverStateVector);
     const pending = offlineDocumentDelta(this.#document, this.#serverStateVector);
     if (pending) this.#pendingUpdates.enqueue(pending);
+    this.#syncCollaborationQueue();
     this.#snapshot = this.#resolveSnapshotAnchors(record.snapshot);
     this.#hasBootstrapSnapshot = true;
-    this.#hasOfflineSnapshot = true;
+    this.#collaborationWorkflow.send({ type: "OFFLINE_AVAILABLE", available: true });
     this.#revision = record.snapshot.revision;
     this.#renderWorkspaceCatalog([
       {
@@ -7169,14 +7200,14 @@ class WorkspaceApp {
     this.#renderProjectFiles();
     this.#renderResources();
     this.#updateRevision();
-    this.#setEditorsEnabled(true);
+    this.#renderCollaborationWorkflow();
     this.#elements.saveStatus.textContent = pending ? "Saved offline" : "Saved";
     void this.#renderPreview();
     return true;
   }
 
   #scheduleOfflineSave(delay = 120): void {
-    if (!this.#offlineStore || !this.#snapshot || !this.#hasOfflineSnapshot) return;
+    if (!this.#offlineStore || !this.#snapshot || !this.#collaborationWorkflow.getSnapshot().context.offlineAvailable) return;
     const version = ++this.#offlineSaveVersion;
     window.clearTimeout(this.#offlineSaveTimer);
     this.#offlineSaveTimer = window.setTimeout(() => {
@@ -7188,17 +7219,17 @@ class WorkspaceApp {
           if (version !== this.#offlineSaveVersion) return;
           document.body.dataset.offlineCached = "true";
           document.body.dataset.offlineSavedAt = String(version);
-          if (!this.#socketSynced) this.#elements.saveStatus.textContent = "Saved offline";
+          if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.saveStatus.textContent = "Saved offline";
         });
       void this.#offlineSaveChain.catch((error: unknown) => {
-        if (!this.#socketSynced) this.#elements.saveStatus.textContent = "Offline save failed";
+        if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.saveStatus.textContent = "Offline save failed";
         this.#showToast(error instanceof Error ? error.message : "Could not save the manuscript offline");
       });
     }, delay);
   }
 
   async #persistOfflineWorkspace(): Promise<void> {
-    if (!this.#offlineStore || !this.#snapshot || !this.#hasOfflineSnapshot) return;
+    if (!this.#offlineStore || !this.#snapshot || !this.#collaborationWorkflow.getSnapshot().context.offlineAvailable) return;
     await this.#offlineStore.save(this.#snapshot, Y.encodeStateAsUpdate(this.#document), this.#serverStateVector);
   }
 

@@ -23,7 +23,7 @@ Adopt XState 5 as a pinned runtime dependency for bounded, event-driven client
 workflows where mutually exclusive states, asynchronous lifecycles, or guarded
 transitions are otherwise encoded across several independent fields.
 
-The first workflow is private PDF annotation interaction. Its machine will own:
+The first workflow is private PDF annotation interaction. Its machine owns:
 
 - the active Select, Text, Note, or Draw tool;
 - pending note composition and note editing;
@@ -35,6 +35,19 @@ The machine will not own PDF resources, DOM elements, persisted library data,
 network requests, Yjs document state, URL state, or simple view preferences.
 Those remain in their existing authorities. Application code will perform side
 effects after explicit machine transitions and render from machine snapshots.
+
+Three later workflows meet the same threshold and use separate actors:
+
+- writing-assistant generation, clarification, transient review, staleness,
+  and candidate decisions;
+- DOI publication preview, review, acceptance, cancellation, and request
+  generation; and
+- browser collaboration connection phases, synchronization readiness,
+  remote-revision waiting, offline-copy availability, and pending-update count.
+
+Provider clients, WebSockets, timers, Yjs data and update payloads, IndexedDB,
+persisted candidates and publications, and DOM elements stay outside those
+actors.
 
 Future adoption requires the same bounded-workflow test: a machine must remove
 invalid combinations or materially clarify event ordering. XState will not
@@ -49,8 +62,8 @@ for consistency.
 - Impossible combinations such as simultaneous note dragging and drawing are
   unrepresentable.
 - Transition tests can exercise cancellation and tool changes without the DOM.
-- Later assistant or connection workflows may reuse the approach when they meet
-  the same threshold.
+- Assistant, intake, and connection workflows expose their cancellation,
+  staleness, retry, and readiness boundaries as tested transitions.
 
 **Negative:**
 
@@ -63,7 +76,8 @@ for consistency.
 
 - XState actors are local browser orchestration only; they do not replace
   Durable Objects, Yjs, or persisted domain state.
-- The PDF annotation UI and API contracts remain unchanged by the pilot.
+- The coordinated UI and API contracts remain unchanged by the actor
+  migrations.
 
 ## Alternatives Considered
 
