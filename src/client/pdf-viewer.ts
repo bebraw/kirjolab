@@ -5,6 +5,7 @@ import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection
 import { readPdfTextContent } from "./pdf-text-content";
 import { advancePdfWheelPaging, initialPdfWheelPagingState, type PdfWheelPagingState } from "./pdf-gestures";
 import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
+import { createPdfViewerActor, pdfViewerDocumentRequestActive, pdfViewerRenderRequestActive } from "./pdf-viewer-machine";
 
 export interface PdfSelectionCapture {
   page: number;
@@ -41,6 +42,7 @@ export class PdfEvidenceViewer {
   readonly #onHighlight: (annotationId: string, fragmentId: string) => void;
   readonly #onPageChange: (page: number) => void;
   readonly #onPrivateHighlight: (highlightId: string) => void;
+  readonly #lifecycle = createPdfViewerActor();
   #document: PDFDocumentProxy | null = null;
   #loadingTask: PDFDocumentLoadingTask | null = null;
   #runtime: PdfJsRuntime | null = null;
@@ -53,8 +55,6 @@ export class PdfEvidenceViewer {
   #mode: "evidence" | "private-highlight" = "evidence";
   #privateHighlightSelection = false;
   #selectedPrivateHighlightId: string | null = null;
-  #renderVersion = 0;
-  #openVersion = 0;
   #zoom = 1;
   #renderedZoom = 1;
   #pinchStart: { distance: number; zoom: number } | null = null;
@@ -90,7 +90,7 @@ export class PdfEvidenceViewer {
       (event) => {
         if (event.ctrlKey) {
           event.preventDefault();
-          this.#renderVersion += 1;
+          this.#lifecycle.send({ type: "CANCEL_RENDER" });
           this.#zoom = clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4);
           this.#elements.page.style.transform = `scale(${this.#zoom / this.#renderedZoom})`;
           window.clearTimeout(this.#wheelZoomRenderTimer);
@@ -128,12 +128,12 @@ export class PdfEvidenceViewer {
   }
 
   async open(options: OpenPdfOptions): Promise<boolean> {
-    const openVersion = ++this.#openVersion;
-    this.#renderVersion += 1;
+    this.#lifecycle.send({ type: "OPEN" });
+    const documentRequest = this.#lifecycle.getSnapshot().context.documentRequest;
     const previousTask = this.#loadingTask;
     this.#loadingTask = null;
     await previousTask?.destroy();
-    if (openVersion !== this.#openVersion) return false;
+    if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
     this.#document = null;
     this.#annotations = options.annotations;
     this.#privateHighlights = options.privateHighlights ?? [];
@@ -148,8 +148,17 @@ export class PdfEvidenceViewer {
     this.#renderedZoom = 1;
     this.#wheelPagingState = initialPdfWheelPagingState();
     this.#elements.status.textContent = "Loading PDF…";
-    const runtime = await loadPdfJsRuntime();
-    if (openVersion !== this.#openVersion) return false;
+    let runtime: PdfJsRuntime;
+    try {
+      runtime = await loadPdfJsRuntime();
+    } catch (error) {
+      if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
+      const message = error instanceof Error ? error.message : "Could not load the PDF runtime";
+      this.#lifecycle.send({ type: "OPEN_FAILED", documentRequest, message });
+      throw error;
+    }
+    this.#lifecycle.send({ type: "RUNTIME_READY", documentRequest });
+    if (!this.#lifecycle.getSnapshot().matches("loadingDocument")) return false;
     this.#runtime = runtime;
     runtime.GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
     const loadingTask = runtime.getDocument({ url: options.url });
@@ -158,17 +167,25 @@ export class PdfEvidenceViewer {
     try {
       documentModel = await loadingTask.promise;
     } catch (error) {
-      if (openVersion !== this.#openVersion) return false;
+      if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
+      const message = error instanceof Error ? error.message : "Could not load the PDF";
+      this.#lifecycle.send({ type: "OPEN_FAILED", documentRequest, message });
       throw error;
     }
-    if (openVersion !== this.#openVersion) {
+    if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) {
       await loadingTask.destroy();
       return false;
     }
     this.#document = documentModel;
     this.#pageNumber = clamp(options.page ?? 1, 1, documentModel.numPages);
+    this.#lifecycle.send({ type: "DOCUMENT_READY", documentRequest, page: this.#pageNumber, pages: documentModel.numPages });
+    if (!this.#lifecycle.getSnapshot().matches("ready")) {
+      await loadingTask.destroy();
+      return false;
+    }
     await this.#renderPage();
-    return openVersion === this.#openVersion;
+    const snapshot = this.#lifecycle.getSnapshot();
+    return documentRequest === snapshot.context.documentRequest && snapshot.matches("ready");
   }
 
   updateAnnotations(annotations: AnnotationResource[]): void {
@@ -221,10 +238,19 @@ export class PdfEvidenceViewer {
     const documentModel = this.#document;
     const runtime = this.#runtime;
     if (!documentModel || !runtime) return;
-    const version = ++this.#renderVersion;
+    this.#lifecycle.send({ type: "RENDER", page: this.#pageNumber });
+    const renderRequest = this.#lifecycle.getSnapshot().context.renderRequest;
+    if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
     this.#elements.status.textContent = `Rendering page ${this.#pageNumber}…`;
-    const page = await documentModel.getPage(this.#pageNumber);
-    if (version !== this.#renderVersion) return;
+    let page: Awaited<ReturnType<PDFDocumentProxy["getPage"]>>;
+    try {
+      page = await documentModel.getPage(this.#pageNumber);
+    } catch (error) {
+      if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
+      this.#failRender(renderRequest, error);
+      throw error;
+    }
+    if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
 
     const unscaled = page.getViewport({ scale: 1 });
     const readerStyle = window.getComputedStyle(this.#elements.reader);
@@ -241,24 +267,41 @@ export class PdfEvidenceViewer {
     renderedTextLayer.className = "textLayer";
     renderedTextLayer.style.setProperty("--total-scale-factor", String(viewport.scale));
 
-    const textContent = await readPdfTextContent(page);
-    if (version !== this.#renderVersion) return;
+    let textContent: Awaited<ReturnType<typeof readPdfTextContent>>;
+    try {
+      textContent = await readPdfTextContent(page);
+    } catch (error) {
+      if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
+      this.#failRender(renderRequest, error);
+      throw error;
+    }
+    if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
     const pageText = textContent.items
       .map((item) => ("str" in item ? item.str : ""))
       .filter(Boolean)
       .join(" ");
     const textLayer = new runtime.TextLayer({ textContentSource: textContent, container: renderedTextLayer, viewport });
-    await Promise.all([
-      page.render({
-        canvas: renderedCanvas,
-        viewport,
-        transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
-      }).promise,
-      textLayer.render(),
-    ]);
-    if (version !== this.#renderVersion) return;
+    try {
+      await Promise.all([
+        page.render({
+          canvas: renderedCanvas,
+          viewport,
+          transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
+        }).promise,
+        textLayer.render(),
+      ]);
+    } catch (error) {
+      if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
+      this.#failRender(renderRequest, error);
+      throw error;
+    }
+    if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
     const canvasContext = this.#elements.canvas.getContext("2d");
-    if (!canvasContext) return;
+    if (!canvasContext) {
+      const error = new Error("PDF canvas is unavailable");
+      this.#failRender(renderRequest, error);
+      throw error;
+    }
     this.#elements.canvas.width = renderedCanvas.width;
     this.#elements.canvas.height = renderedCanvas.height;
     canvasContext.drawImage(renderedCanvas, 0, 0);
@@ -280,7 +323,14 @@ export class PdfEvidenceViewer {
     for (const button of this.#elements.nextPages) button.disabled = this.#pageNumber === documentModel.numPages;
     this.#elements.status.textContent =
       this.#mode === "private-highlight" ? "Private library PDF · select text to highlight" : "Select text to capture evidence";
+    this.#lifecycle.send({ type: "RENDERED", renderRequest });
     this.#onPageChange(this.#pageNumber);
+  }
+
+  #failRender(renderRequest: number, error: unknown): void {
+    const message = error instanceof Error ? error.message : "Could not render the PDF page";
+    this.#lifecycle.send({ type: "RENDER_FAILED", renderRequest, message });
+    if (this.#lifecycle.getSnapshot().matches("failed")) this.#elements.status.textContent = message;
   }
 
   #queueSelectionCapture(): void {
@@ -374,7 +424,7 @@ export class PdfEvidenceViewer {
       event.preventDefault();
       window.clearTimeout(this.#wheelZoomRenderTimer);
       this.#wheelZoomRenderTimer = undefined;
-      this.#renderVersion += 1;
+      this.#lifecycle.send({ type: "CANCEL_RENDER" });
       this.#pinchStart = { distance: touchDistance(event.touches), zoom: this.#zoom };
       this.#swipeStart = null;
       return;

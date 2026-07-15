@@ -13,6 +13,11 @@ with an authored passage.
 
 - `src/client/pdf-viewer.ts` owns single-page PDF.js canvas and text-layer
   rendering, page navigation, stored highlights, and browser selection capture.
+- A viewer-local XState actor coordinates closed, runtime-loading,
+  document-loading, page-rendering, ready, and failed phases. Its document and
+  render request generations invalidate late work when another PDF, page, zoom,
+  or resize supersedes it. PDF.js documents/tasks, rendered DOM, gestures,
+  annotations, and selection state remain outside the actor.
 - `src/client/pdf-selection.ts` normalizes selection geometry and derives quote
   context independently of the viewer runtime. Fragmented browser client
   rectangles are clipped and coalesced into continuous visual-line rectangles
@@ -78,6 +83,8 @@ with an authored passage.
 - Text extraction must consume PDF.js streams through `getReader()` instead of
   requiring `ReadableStream` async iteration, which Safari does not provide.
 - The viewer must render only the active page.
+- A superseded document or render request must never replace the active canvas,
+  text layer, page indicators, or viewer status.
 - Stored highlights must never mutate the imported R2 object.
 - The embedded annotation composer must always target the currently visible
   PDF; it must not expose an independent editable artifact selector.
