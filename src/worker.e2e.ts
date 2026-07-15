@@ -2906,12 +2906,32 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
     const content =
       schemaName === "kirjolab_clarity_question"
         ? JSON.stringify({ issue: "Better does not name an outcome.", question: "What improves, and for whom?" })
-        : JSON.stringify({
-            rewrites: [
-              { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
-              { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
-            ],
-          });
+        : schemaName === "kirjolab_ideas"
+          ? JSON.stringify({
+              ideas: [
+                {
+                  title: "Measure review time",
+                  direction: "Name one affected group and measurable outcome.",
+                  draft: "The workflow reduces review time for editors.",
+                },
+                {
+                  title: "Compare steps",
+                  direction: "Contrast the two workflows.",
+                  draft: "The workflow removes a separate evidence lookup step.",
+                },
+                {
+                  title: "Explain mechanism",
+                  direction: "Connect visible evidence to review speed.",
+                  draft: "Visible evidence lets editors validate claims without leaving the draft.",
+                },
+              ],
+            })
+          : JSON.stringify({
+              rewrites: [
+                { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
+                { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
+              ],
+            });
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2948,8 +2968,16 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await expect(page.locator("#context-candidate-after")).toHaveText("The workflow cuts review time for editors.");
   await expect(editor).toHaveValue(source);
   expect(requests).toHaveLength(2);
-  const snapshot = await readWorkspaceSnapshot(page, api);
-  expect(snapshot.candidates).toContainEqual(expect.objectContaining({ evidence: [], status: "pending" }));
+  expect((await readWorkspaceSnapshot(page, api)).candidates).toContainEqual(expect.objectContaining({ evidence: [], status: "pending" }));
+
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await page.locator("#model-operation").selectOption("ideate");
+  await page.getByRole("button", { name: "Generate ideas" }).click();
+  await expect(page.getByText("Measure review time")).toBeVisible();
+  await page.getByRole("button", { name: "Review this direction" }).first().click();
+  await expect(page.locator("#context-candidate-after")).toHaveText("The workflow reduces review time for editors.");
+  await expect(editor).toHaveValue(source);
+  expect(requests).toHaveLength(3);
 });
 
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {

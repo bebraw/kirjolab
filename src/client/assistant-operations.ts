@@ -76,10 +76,10 @@ const definitions: readonly AssistantOperationDefinition[] = [
     instructionLabel: "Ideation prompt",
     defaultInstruction: "Suggest concrete directions that deepen the argument without repeating the current text.",
     actionLabel: "Generate ideas",
-    scopes: ["caret", "selection", "paragraph", "section"],
+    scopes: ["selection", "paragraph", "section"],
     defaultScope: "section",
     evidence: "optional",
-    enabled: false,
+    enabled: true,
   },
   {
     id: "find-references",

@@ -4,6 +4,7 @@ import {
   OpenAICompatibleBrowserProvider,
   type DraftClaimRequest,
   type ClarityDrillRequest,
+  type IdeationRequest,
   type OpenAICompatibleBrowserProviderOptions,
   type ReviseSelectionRequest,
 } from "./model-provider";
@@ -28,6 +29,7 @@ const clarityOperation = {
   instruction: "Make the claim concrete.",
   evidence: [],
 } as const satisfies ClarityDrillRequest;
+const ideationOperation = clarityOperation satisfies IdeationRequest;
 
 afterEach(() => {
   vi.useRealTimers();
@@ -36,6 +38,28 @@ afterEach(() => {
 });
 
 describe("OpenAICompatibleBrowserProvider", () => {
+  it("returns three typed ideation drafts", async () => {
+    const content = JSON.stringify({
+      ideas: [
+        { title: "Measure time", direction: "Name the affected group and outcome.", draft: "Editors review drafts faster." },
+        { title: "Compare steps", direction: "Contrast the old and new workflow.", draft: "The workflow removes one review pass." },
+        { title: "Expose mechanism", direction: "Explain why review accelerates.", draft: "Inline evidence reduces lookup time." },
+      ],
+    });
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content));
+    const result = await createProvider({ fetcher }).ideate(ideationOperation);
+    expect(result.ideas).toHaveLength(3);
+    expect(result.ideas[0]).toEqual({
+      title: "Measure time",
+      direction: "Name the affected group and outcome.",
+      draft: "Editors review drafts faster.",
+    });
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+    };
+    expect(body.response_format.json_schema.name).toBe("kirjolab_ideas");
+  });
+
   it("asks one clarity question and returns bounded rewrite choices", async () => {
     const fetcher = vi
       .fn<typeof fetch>()

@@ -299,6 +299,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   and ask one question, then use the researcher's answer to offer two to four
   typed rewrites. Persist only the chosen rewrite, through the ordinary targeted
   candidate review and stale-base checks.
+- Keep ideation as three to five typed direction cards with complete bounded
+  target drafts. Persist only a researcher-promoted draft through the ordinary
+  candidate boundary; do not store discarded ideas or mutate prose from the
+  exploratory response.
 - Persist passage-revision candidates as a Yjs-relative target, bounded
   instruction, typed versioned evidence snapshots, provider/model identity, and
   replacement text. Never model a selected-passage operation as a proposed

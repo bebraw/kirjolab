@@ -107,6 +107,7 @@ import {
   OpenAICompatibleBrowserProvider,
   type ModelClarityQuestion,
   type ModelClarityRewrites,
+  type ModelIdeas,
   type ModelEvidenceItem,
   type ModelReasoningEffort,
 } from "./model-provider";
@@ -477,12 +478,15 @@ interface ResolvedAuthoringTarget {
   readonly end: number;
 }
 
-interface ClarityDrillContext {
-  readonly provider: OpenAICompatibleBrowserProvider;
+interface AssistantDraftContext {
   readonly passage: AuthoringPassage;
   readonly evidence: { readonly items: ModelEvidenceItem[]; readonly references: ModelEvidenceReference[] };
   readonly instruction: string;
   readonly sourceRevision: number;
+}
+
+interface ClarityDrillContext extends AssistantDraftContext {
+  readonly provider: OpenAICompatibleBrowserProvider;
   readonly question: ModelClarityQuestion;
 }
 
@@ -5567,6 +5571,12 @@ class WorkspaceApp {
       }
       if (!passage) throw new Error("Select manuscript text first");
       const sourceRevision = this.#revision;
+      if (operation.id === "ideate") {
+        const result = await provider.ideate({ selectedPassage: passage.excerpt, instruction, evidence: evidence.items });
+        this.#renderIdeas({ passage, evidence, instruction, sourceRevision }, result);
+        this.#elements.modelStatus.textContent = "Choose a direction to open its complete draft for exact review.";
+        return;
+      }
       if (operation.id === "clarity-drill") {
         const question = await provider.startClarityDrill({
           selectedPassage: passage.excerpt,
@@ -5621,6 +5631,72 @@ class WorkspaceApp {
     card.append(eyebrow, issue, question, answer, continueButton);
     this.#elements.assistantInteractiveResult.replaceChildren(card);
     answer.focus();
+  }
+
+  #renderIdeas(input: AssistantDraftContext, result: ModelIdeas): void {
+    const list = document.createElement("div");
+    list.className = "grid gap-3";
+    for (const idea of result.ideas) {
+      const card = document.createElement("section");
+      card.className = "resource-card";
+      const title = document.createElement("h3");
+      title.className = "text-base font-semibold";
+      title.textContent = idea.title;
+      const direction = document.createElement("p");
+      direction.className = "mt-2 text-sm text-app-text-soft";
+      direction.textContent = idea.direction;
+      const draft = document.createElement("details");
+      draft.className = "mt-3";
+      const summary = document.createElement("summary");
+      summary.className = "cursor-pointer text-xs font-semibold";
+      summary.textContent = "Preview complete draft";
+      const draftText = document.createElement("p");
+      draftText.className = "mt-2 whitespace-pre-wrap text-sm";
+      draftText.textContent = idea.draft;
+      draft.append(summary, draftText);
+      const choose = document.createElement("button");
+      choose.className = "button-secondary mt-3";
+      choose.type = "button";
+      choose.textContent = "Review this direction";
+      choose.addEventListener(
+        "click",
+        () => void this.#chooseIdea(input, idea.title, idea.direction, idea.draft, result.providerLabel, result.model),
+      );
+      card.append(title, direction, draft, choose);
+      list.append(card);
+    }
+    this.#elements.assistantInteractiveResult.replaceChildren(list);
+  }
+
+  async #chooseIdea(
+    input: AssistantDraftContext,
+    title: string,
+    direction: string,
+    replacement: string,
+    providerLabel: string,
+    model: string,
+  ): Promise<void> {
+    if (this.#modelBusy) return;
+    this.#modelBusy = true;
+    this.#updateModelAvailability();
+    try {
+      const instruction = `${input.instruction}\nChosen direction: ${title}. ${direction}`.slice(0, 4_000);
+      await this.#persistRevisionCandidate({
+        passage: input.passage,
+        evidence: input.evidence.references,
+        instruction,
+        sourceRevision: input.sourceRevision,
+        replacement,
+        providerLabel,
+        model,
+      });
+      this.#elements.modelStatus.textContent = "Idea draft ready for exact before-and-after review.";
+    } catch (error) {
+      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Could not save the idea draft";
+    } finally {
+      this.#modelBusy = false;
+      this.#updateModelAvailability();
+    }
   }
 
   async #continueClarityDrill(input: ClarityDrillContext, rawAnswer: string): Promise<void> {

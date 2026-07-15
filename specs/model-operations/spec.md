@@ -33,6 +33,11 @@ All mutation operations preserve a human review boundary.
   Clarity candidates may have no research evidence because the researcher's
   answer and captured prose are their provenance; ordinary grounded revision
   continues to require selected evidence in the UI.
+- `ideate` returns three to five distinct direction cards for the visible
+  selection, paragraph, or Markdown section. Each card contains a bounded title,
+  rationale, and complete target replacement draft. Ideas remain transient;
+  promoting one creates an evidence-optional targeted candidate captured against
+  the original source revision.
 - Model connection settings discover live model identifiers from the standard
   OpenAI-compatible `/models` route instead of hardcoding a catalog. Discovery
   is explicit, bounded, credential-free, loopback-only, and available through
@@ -144,6 +149,8 @@ All mutation operations preserve a human review boundary.
       answer in their own words, and choose among two to four precise rewrites.
 - [x] A chosen clarity rewrite enters the ordinary exact before/after candidate
       review and cannot bypass stale-target validation or explicit apply.
+- [x] A researcher can compare three to five distinct directions for the current
+      manuscript context and promote one complete draft into exact review.
 
 ### Regression Guardrails
 
@@ -183,6 +190,9 @@ All mutation operations preserve a human review boundary.
 - Clarity diagnosis must ask exactly one question and produce no rewrite. The
   follow-up must contain the captured target, question, and bounded researcher
   answer and return only two to four typed rewrites.
+- Ideation must return three to five typed ideas, each with a title, concrete
+  direction, and complete bounded replacement. An unchosen idea is never
+  persisted and a chosen draft never writes directly to canonical prose.
 
 ### Scenarios
 
@@ -242,3 +252,10 @@ All mutation operations preserve a human review boundary.
   chooses one proposed wording
 - Then: Kirjolab opens an ordinary targeted candidate with the original passage,
   chosen replacement, captured provenance, and no canonical source change
+
+**Scenario: One direction advances from ideation**
+
+- Given: a current manuscript section and an optional set of evidence resources
+- When: the researcher generates directions and promotes one idea
+- Then: the chosen complete draft opens as a targeted candidate while the other
+  transient ideas and canonical manuscript remain unchanged
