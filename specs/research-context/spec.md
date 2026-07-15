@@ -68,8 +68,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   coordinates and rerender on page change.
 - Touch surround swipes and unzoomed, horizontally dominant Mac trackpad
   gestures change one page at a time. Two-finger pinch gestures scale only the
-  PDF, zoomed pages retain native panning, and pen input updates the active path
-  without rebuilding saved markup.
+  PDF. The fitted page uses the reader's actual content width without exposing
+  a redundant horizontal scrollbar; zoomed pages retain native panning, and pen
+  input updates the active path without rebuilding saved markup.
 - PDF zoom transforms the committed page during active touch or trackpad input.
   Rendering is debounced and buffered offscreen; canvas, text layer, geometry,
   and zoom state commit together only after the complete frame is ready.

@@ -55,6 +55,9 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#paper-canvas")).toHaveAttribute("width", String(fittedCanvasWidth));
   await expect(page.locator("#paper-page")).toHaveAttribute("style", /transform: scale/u);
   await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBeGreaterThan(fittedCanvasWidth);
+  await expect
+    .poll(async () => page.locator("#paper-reader").evaluate((element) => element.scrollWidth - element.clientWidth))
+    .toBeGreaterThan(0);
   await expect(page.locator("#paper-page")).not.toHaveAttribute("style", /transform: scale/u);
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: 12, deltaMode: 0 });
   await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBe(fittedCanvasWidth);
@@ -1671,6 +1674,9 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#annotation-pdf")).toBeDisabled();
   await expect(page.locator("#annotation-pdf")).toHaveValue(delayedPdf.id);
   await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
+  await expect
+    .poll(async () => page.locator("#paper-reader").evaluate((element) => element.scrollWidth - element.clientWidth))
+    .toBeLessThanOrEqual(1);
   await page.locator("#next-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.locator("#paper-reader").evaluate((element) => {

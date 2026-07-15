@@ -227,7 +227,10 @@ export class PdfEvidenceViewer {
     if (version !== this.#renderVersion) return;
 
     const unscaled = page.getViewport({ scale: 1 });
-    const availableWidth = Math.max(320, Math.min(900, this.#elements.page.parentElement?.clientWidth ?? 760) - 32);
+    const readerStyle = window.getComputedStyle(this.#elements.reader);
+    const horizontalPadding = (Number.parseFloat(readerStyle.paddingLeft) || 0) + (Number.parseFloat(readerStyle.paddingRight) || 0);
+    const readerWidth = this.#elements.reader.clientWidth || 760;
+    const availableWidth = Math.max(320, Math.min(900, readerWidth - horizontalPadding));
     const renderedZoom = this.#zoom;
     const viewport = page.getViewport({ scale: (availableWidth / unscaled.width) * renderedZoom });
     const outputScale = window.devicePixelRatio || 1;
