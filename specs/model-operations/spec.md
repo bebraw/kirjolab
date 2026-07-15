@@ -31,11 +31,19 @@ selected annotations. Both preserve a human review boundary.
   reads at most 256 KiB of OpenAI-compatible JSON. The page CSP exposes the same
   IPv4, localhost, and IPv6 loopback boundary.
 - When direct browser access is blocked by provider CORS or browser networking,
-  `npm run model:companion` exposes the same OpenAI-compatible path at
+  the companion started by `npm run dev` exposes the same OpenAI-compatible path at
   `127.0.0.1:8790`. The user explicitly starts it with a fixed loopback
   upstream and exact allowed Kirjolab origin. It binds only IPv4 loopback,
   validates task shape, permits bounded CORS/private-network preflight, rejects
   redirects, and caps request and response bodies at 256 KiB.
+- `npm run dev` supervises the Worker and, when an upstream is configured, the
+  companion as one local session. It loads local operator configuration from
+  the ignored project-root `.env`, strips every `KIRJOLAB_MODEL_*` value from
+  the Worker child, disables Wrangler's automatic `.env` discovery, and shuts
+  the sibling down when either process exits. Worker-local values remain in
+  `.dev.vars`. A checked-in `.env.example` documents the supported variables,
+  explicit process variables take precedence, and `npm run model:companion`
+  remains a standalone troubleshooting path.
 - Only the selected passage, instruction, and chosen evidence snapshots enter
   the operation prompt; the adapter also sends the configured model identifier.
   No unrelated manuscript text is transmitted.

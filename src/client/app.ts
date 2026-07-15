@@ -835,7 +835,7 @@ class WorkspaceApp {
           : "http://127.0.0.1:1234/v1/chat/completions";
       this.#elements.modelStatus.textContent =
         this.#elements.llmConnection.value === "companion"
-          ? "Start npm run model:companion, then select manuscript text and grounding evidence."
+          ? "The local companion starts with npm run dev; select manuscript text and grounding evidence."
           : "The browser will contact the configured loopback provider directly.";
     });
     this.#elements.discoverLlmModels.addEventListener("click", () => void this.#discoverLlmModels());

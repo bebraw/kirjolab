@@ -305,6 +305,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   one exact allowed browser origin. Bind it only to `127.0.0.1`, bound and
   validate both sides of the request, reject redirects, and never accept a
   browser-selected upstream.
+- Supervise the configured companion alongside the local Worker under
+  `npm run dev`, but strip all model-specific environment variables from the
+  Worker child, disable Wrangler's automatic `.env` discovery, keep Worker
+  secrets in `.dev.vars`, and stop the sibling process when either service
+  exits.
 - Keep the initial browser-direct model adapter on credential-free HTTP(S)
   loopback endpoints, reject redirects, bound its response before JSON parsing,
   and align the page connection policy with the same IPv4, localhost, and IPv6

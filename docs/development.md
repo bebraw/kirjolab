@@ -45,8 +45,9 @@ If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` t
 - Run the baseline quality gate with `npm run quality:gate`.
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
 - Run the shipped runtime dependency audit with `npm run security:audit`.
-- Start the local Worker with `npm run dev`.
-- Start the optional local-model bridge with `KIRJOLAB_MODEL_UPSTREAM=http://127.0.0.1:1234/v1/chat/completions npm run model:companion`.
+- Start the local Worker and configured model companion with `npm run dev`.
+- Copy `.env.example` to the ignored `.env` to enable the companion; use
+  `npm run model:companion` only for standalone troubleshooting.
 - Install the Playwright browser with `npm run playwright:install`.
 - Run end-to-end tests with `npm run e2e`.
 - Run unit and integration tests with `npm test`.
@@ -74,7 +75,7 @@ Use targeted checks while iterating, then run the full readiness path before pro
 - Readability, complexity, duplication, or cleanup review: `npm run diagnostics:codebase`
 - Baseline readiness: `npm run quality:gate` and `npm run ci:local`
 
-The template now ships with a minimal Worker stub in `src/worker.ts`. `npm run dev` starts it on `http://127.0.0.1:8787`, and Playwright uses `npm run e2e:server` on `http://127.0.0.1:8788` so browser tests can run without extra setup. The e2e launcher forces Chokidar polling mode to avoid file-watcher exhaustion in macOS-hosted local runs and gives Wrangler a fresh operating-system temporary persistence directory that it removes on shutdown. Browser-created workspaces therefore cannot accumulate in the interactive `npm run dev` catalog. API modules live under `src/api/`, view modules live under `src/views/`, and tests are colocated under `src/`.
+The template now ships with a minimal Worker stub in `src/worker.ts`. `npm run dev` supervises the Worker on `http://127.0.0.1:8787` and, when configured, the model companion on `http://127.0.0.1:8790`; stopping either process stops the other. Playwright uses `npm run e2e:server` on `http://127.0.0.1:8788` so browser tests can run without extra setup or a model process. The e2e launcher forces Chokidar polling mode to avoid file-watcher exhaustion in macOS-hosted local runs and gives Wrangler a fresh operating-system temporary persistence directory that it removes on shutdown. Browser-created workspaces therefore cannot accumulate in the interactive `npm run dev` catalog. API modules live under `src/api/`, view modules live under `src/views/`, and tests are colocated under `src/`.
 
 `npm run format:check` covers project-owned source, configuration, skill
 entrypoints, specs, ADRs, and documentation. It excludes duplicated
@@ -102,13 +103,21 @@ the local output is disposable and ignored by Git.
 ### Local Model Companion
 
 Use the companion only when the configured local provider cannot accept the
-browser request directly. Starting it is the explicit permission boundary:
+browser request directly. Starting it is the explicit permission boundary.
+Create the ignored local configuration once:
 
 ```sh
-KIRJOLAB_MODEL_UPSTREAM=http://127.0.0.1:1234/v1/chat/completions \
-KIRJOLAB_MODEL_COMPANION_ORIGIN=http://127.0.0.1:8787 \
-npm run model:companion
+cp .env.example .env
+npm run dev
 ```
+
+The development supervisor loads `.env`, starts the companion only when
+`KIRJOLAB_MODEL_UPSTREAM` is configured, and removes all `KIRJOLAB_MODEL_*`
+values from the Worker child environment. It also disables Wrangler's automatic
+`.env` discovery for Worker development and tests, keeping `.dev.vars` as the
+Worker-local configuration path. The standalone companion command loads the
+same file for troubleshooting. Explicit shell variables take precedence over
+matching `.env` entries.
 
 It listens on `127.0.0.1:8790` unless
 `KIRJOLAB_MODEL_COMPANION_PORT` selects another valid port. The upstream is
@@ -119,6 +128,8 @@ upstreams are not supported. In Kirjolab choose **Local companion**, which uses
 only availability and the upstream origin, not its path or model request data.
 The companion also exposes bounded `GET /v1/models` discovery derived from the
 fixed upstream completion route; it cannot select another upstream.
+Stopping the Worker or companion stops the supervised development session so a
+half-running local stack is not left behind.
 
 The Lighthouse setup is also generic, but the Worker stub gives it a concrete local target. Use `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`. Reports are written to `reports/lighthouse/`.
 

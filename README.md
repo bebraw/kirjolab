@@ -53,17 +53,19 @@ identifier. It is sent directly from the browser to a credential-free,
 OpenAI-compatible service running on your computer.
 
 If the browser cannot reach that service directly, use the optional local
-companion:
+companion. Configure it once, then restart the ordinary development command:
 
 ```bash
-export KIRJOLAB_MODEL_UPSTREAM=http://127.0.0.1:YOUR_PORT/v1/chat/completions
-npm run model:companion
+cp .env.example .env
+npm run dev
 ```
 
 Then choose **Local companion** in Writing assistant. The companion listens on
 `127.0.0.1:8790` by default and never sends model requests through the hosted
-Worker. Set `KIRJOLAB_MODEL_COMPANION_ORIGIN` if you need to allow a different
-local Kirjolab origin.
+Worker. Edit the ignored `.env` to set `KIRJOLAB_MODEL_UPSTREAM` and
+`KIRJOLAB_MODEL_COMPANION_ORIGIN`; explicit shell variables override the file.
+When no upstream is configured, `npm run dev` starts only the Worker.
+`npm run model:companion` remains available for standalone troubleshooting.
 
 Open **Model connection** and choose **Find loaded models** to read the live
 model identifiers exposed by the provider. Focused revision and claim tasks

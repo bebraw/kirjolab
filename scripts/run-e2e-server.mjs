@@ -29,6 +29,7 @@ const wrangler = spawn(
       ...process.env,
       CHOKIDAR_USEPOLLING: "1",
       CHOKIDAR_INTERVAL: "200",
+      CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
       HOME: process.cwd(),
     },
   },

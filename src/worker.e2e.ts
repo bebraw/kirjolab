@@ -2723,7 +2723,7 @@ test("selects the explicit local companion connection", async ({ page }) => {
   await openWritingAssistant(page, true);
   await page.locator("#llm-connection").selectOption("companion");
   await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:8790/v1/chat/completions");
-  await expect(page.locator("#model-status")).toContainText("npm run model:companion");
+  await expect(page.locator("#model-status")).toContainText("npm run dev");
   await page.locator("#llm-connection").selectOption("direct");
   await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:1234/v1/chat/completions");
 });
