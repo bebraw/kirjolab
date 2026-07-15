@@ -37,6 +37,12 @@ Templates never remain linked to their source project or to projects created
 from them. Replacing a personal template is an explicit owner action that
 captures a new sanitized snapshot.
 
+Template-list responses may derive a bounded preview from the seed: total file
+and folder counts, at most eight paths of each kind, bibliography presence, and
+publication settings. They never return file contents, bibliography contents,
+or the seed itself. This lets the owner inspect a starting point before choosing
+it without turning discovery into a template export endpoint.
+
 ## Trigger
 
 The starter now teaches Kirjolab syntax in-project, and researchers want
@@ -67,6 +73,8 @@ layouts.
   semantics.
 - Portable BibTeX may contain public bibliographic metadata but retains no
   private-library identity or notes.
+- Template previews are owner-scoped derived metadata, not another canonical
+  template representation.
 
 ## Alternatives Considered
 

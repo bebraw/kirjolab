@@ -194,6 +194,8 @@ interface Elements {
   newWorkspaceForm: HTMLFormElement;
   newWorkspaceTitle: HTMLInputElement;
   newWorkspaceTemplateList: HTMLElement;
+  newWorkspaceTemplatePreview: HTMLElement;
+  newWorkspaceTemplateId: HTMLInputElement;
   newWorkspaceTemplateStatus: HTMLElement;
   newWorkspaceSubmit: HTMLButtonElement;
   cancelNewWorkspace: HTMLButtonElement;
@@ -586,6 +588,7 @@ class WorkspaceApp {
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
   #projectTemplates: ProjectTemplateSummary[] = [];
+  #previewedProjectTemplateId = "";
   #previewRenderVersion = 0;
   #offlineSaveTimer: number | undefined;
   #offlineSaveVersion = 0;
@@ -1190,9 +1193,7 @@ class WorkspaceApp {
 
   async #createWorkspace(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const templateId = this.#elements.newWorkspaceTemplateList.querySelector<HTMLInputElement>(
-      'input[name="project-template"]:checked',
-    )?.value;
+    const templateId = this.#elements.newWorkspaceTemplateId.value;
     if (!templateId) {
       this.#elements.newWorkspaceTemplateStatus.textContent = "Choose a starting template.";
       return;
@@ -1208,13 +1209,13 @@ class WorkspaceApp {
 
   async #openNewWorkspace(): Promise<void> {
     this.#elements.newWorkspaceDialog.showModal();
+    this.#elements.newWorkspaceTemplateId.value = "";
+    this.#previewedProjectTemplateId = "builtin-guided";
     this.#elements.newWorkspaceSubmit.disabled = true;
     this.#elements.newWorkspaceTemplateStatus.textContent = "Loading starting points…";
     try {
       await this.#refreshProjectTemplates();
-      this.#elements.newWorkspaceSubmit.disabled = false;
-      this.#elements.newWorkspaceTemplateStatus.textContent = "Templates create independent projects without research history.";
-      this.#elements.newWorkspaceTitle.focus();
+      this.#elements.newWorkspaceTemplateList.querySelector<HTMLButtonElement>("[data-template-id]")?.focus();
     } catch (error) {
       this.#elements.newWorkspaceTemplateStatus.textContent = error instanceof Error ? error.message : "Could not load project templates.";
     }
@@ -1231,9 +1232,14 @@ class WorkspaceApp {
   }
 
   #renderProjectTemplates(): void {
-    const selected = this.#elements.newWorkspaceTemplateList.querySelector<HTMLInputElement>(
-      'input[name="project-template"]:checked',
-    )?.value;
+    const selected = this.#elements.newWorkspaceTemplateId.value;
+    if (!this.#projectTemplates.some((template) => template.id === selected)) {
+      this.#elements.newWorkspaceTemplateId.value = "";
+      this.#elements.newWorkspaceSubmit.disabled = true;
+    }
+    if (!this.#projectTemplates.some((template) => template.id === this.#previewedProjectTemplateId)) {
+      this.#previewedProjectTemplateId = this.#projectTemplates[0]?.id ?? "";
+    }
     this.#elements.newWorkspaceTemplateList.replaceChildren();
     for (const source of ["built-in", "personal"] as const) {
       const templates = this.#projectTemplates.filter((template) => template.source === source);
@@ -1244,23 +1250,22 @@ class WorkspaceApp {
       heading.className = "template-choice-group-title";
       heading.textContent = source === "built-in" ? "Built in" : "Your templates";
       group.append(heading);
-      for (const template of templates) group.append(this.#templateChoice(template, selected));
+      for (const template of templates) group.append(this.#templateChoice(template));
       this.#elements.newWorkspaceTemplateList.append(group);
     }
+    this.#renderProjectTemplatePreview();
   }
 
-  #templateChoice(template: ProjectTemplateSummary, selected: string | undefined): HTMLElement {
+  #templateChoice(template: ProjectTemplateSummary): HTMLElement {
     const row = document.createElement("div");
     row.className = "template-choice";
-    const input = document.createElement("input");
-    input.type = "radio";
-    input.name = "project-template";
-    input.value = template.id;
-    input.id = `project-template-${template.id}`;
-    input.checked = selected ? selected === template.id : template.id === "builtin-guided";
-    const label = document.createElement("label");
+    row.dataset.selected = String(this.#elements.newWorkspaceTemplateId.value === template.id);
+    const label = document.createElement("button");
     label.className = "template-choice-label";
-    label.htmlFor = input.id;
+    label.type = "button";
+    label.dataset.templateId = template.id;
+    label.setAttribute("aria-pressed", String(this.#previewedProjectTemplateId === template.id));
+    label.addEventListener("click", () => this.#previewProjectTemplate(template.id));
     const name = document.createElement("span");
     name.className = "template-choice-name";
     name.textContent = template.name;
@@ -1268,7 +1273,7 @@ class WorkspaceApp {
     description.className = "template-choice-description";
     description.textContent = template.description;
     label.append(name, description);
-    row.append(input, label);
+    row.append(label);
     if (template.source === "personal") {
       const remove = document.createElement("button");
       remove.className = "template-choice-remove";
@@ -1279,6 +1284,81 @@ class WorkspaceApp {
       row.append(remove);
     }
     return row;
+  }
+
+  #previewProjectTemplate(templateId: string): void {
+    const template = this.#projectTemplates.find((candidate) => candidate.id === templateId);
+    if (!template) return;
+    this.#previewedProjectTemplateId = templateId;
+    for (const button of this.#elements.newWorkspaceTemplateList.querySelectorAll<HTMLButtonElement>("[data-template-id]")) {
+      button.setAttribute("aria-pressed", String(button.dataset.templateId === templateId));
+    }
+    const selected = this.#projectTemplates.find((candidate) => candidate.id === this.#elements.newWorkspaceTemplateId.value);
+    this.#elements.newWorkspaceTemplateStatus.textContent = selected
+      ? selected.id === template.id
+        ? `Using “${selected.name}”. The new project will be an independent copy.`
+        : `Previewing “${template.name}”. “${selected.name}” remains chosen.`
+      : `Previewing “${template.name}”. Choose Use template when it fits.`;
+    this.#renderProjectTemplatePreview();
+  }
+
+  #renderProjectTemplatePreview(): void {
+    const template = this.#projectTemplates.find((candidate) => candidate.id === this.#previewedProjectTemplateId);
+    if (!template) {
+      this.#elements.newWorkspaceTemplatePreview.innerHTML = '<div class="empty-state">No templates are available.</div>';
+      return;
+    }
+    const preview = template.preview;
+    const article = document.createElement("article");
+    article.className = "template-preview-content";
+    const header = document.createElement("header");
+    header.innerHTML = `<p class="eyebrow">${template.source === "built-in" ? "Built-in template" : "Personal template"}</p><h3 class="template-preview-title"></h3><p class="template-preview-description"></p>`;
+    header.querySelector<HTMLElement>(".template-preview-title")!.textContent = template.name;
+    header.querySelector<HTMLElement>(".template-preview-description")!.textContent = template.description;
+    const facts = document.createElement("div");
+    facts.className = "template-preview-facts";
+    facts.append(
+      templateFact(`${preview.fileCount}`, preview.fileCount === 1 ? "Markdown file" : "Markdown files"),
+      templateFact(`${preview.folderCount}`, preview.folderCount === 1 ? "folder" : "folders"),
+      templateFact(preview.hasBibliography ? "Included" : "Empty", "bibliography"),
+    );
+    const structure = document.createElement("section");
+    structure.className = "template-preview-section";
+    const structureHeading = document.createElement("h4");
+    structureHeading.textContent = "Starting structure";
+    const paths = document.createElement("ul");
+    paths.className = "template-preview-tree";
+    for (const folder of preview.folders) paths.append(templatePath(folder, "folder"));
+    for (const file of preview.files) paths.append(templatePath(file, "file"));
+    const hiddenPaths = preview.fileCount + preview.folderCount - preview.files.length - preview.folders.length;
+    if (hiddenPaths > 0) paths.append(templatePath(`+ ${hiddenPaths} more`, "more"));
+    structure.append(structureHeading, paths);
+    const publication = document.createElement("section");
+    publication.className = "template-preview-section";
+    publication.innerHTML = `<h4>Publication setup</h4><dl class="template-preview-settings"><div><dt>Format</dt><dd></dd></div><div><dt>Citations</dt><dd></dd></div><div><dt>Page</dt><dd></dd></div></dl>`;
+    const values = publication.querySelectorAll<HTMLElement>("dd");
+    values[0]!.textContent = humanizeTemplateValue(preview.submissionTemplate);
+    values[1]!.textContent = `${preview.citationStyle.toUpperCase()} · ${preview.locale}`;
+    values[2]!.textContent = preview.paperSize === "a4" ? "A4" : "US Letter";
+    const choose = document.createElement("button");
+    choose.className = "button-primary template-preview-choose";
+    choose.type = "button";
+    const selected = this.#elements.newWorkspaceTemplateId.value === template.id;
+    choose.textContent = selected ? "Template selected" : `Use ${template.name}`;
+    choose.setAttribute("aria-pressed", String(selected));
+    choose.addEventListener("click", () => this.#chooseProjectTemplate(template));
+    article.append(header, facts, structure, publication, choose);
+    this.#elements.newWorkspaceTemplatePreview.replaceChildren(article);
+  }
+
+  #chooseProjectTemplate(template: ProjectTemplateSummary): void {
+    this.#elements.newWorkspaceTemplateId.value = template.id;
+    this.#elements.newWorkspaceSubmit.disabled = false;
+    this.#elements.newWorkspaceTemplateStatus.textContent = `Using “${template.name}”. The new project will be an independent copy.`;
+    for (const row of this.#elements.newWorkspaceTemplateList.querySelectorAll<HTMLElement>(".template-choice")) {
+      row.dataset.selected = String(row.querySelector<HTMLElement>("[data-template-id]")?.dataset.templateId === template.id);
+    }
+    this.#renderProjectTemplatePreview();
   }
 
   async #deleteProjectTemplate(template: ProjectTemplateSummary): Promise<void> {
@@ -7658,6 +7738,8 @@ function collectElements(): Elements {
     newWorkspaceForm: requiredElement("new-workspace-form", HTMLFormElement),
     newWorkspaceTitle: requiredElement("new-workspace-title", HTMLInputElement),
     newWorkspaceTemplateList: requiredElement("new-workspace-template-list", HTMLElement),
+    newWorkspaceTemplatePreview: requiredElement("new-workspace-template-preview", HTMLElement),
+    newWorkspaceTemplateId: requiredElement("new-workspace-template-id", HTMLInputElement),
     newWorkspaceTemplateStatus: requiredElement("new-workspace-template-status", HTMLElement),
     newWorkspaceSubmit: requiredElement("create-workspace", HTMLButtonElement),
     cancelNewWorkspace: requiredElement("cancel-new-workspace", HTMLButtonElement),
@@ -8070,6 +8152,28 @@ async function expectOk(response: Response): Promise<void> {
 
 function formatBytes(value: number): string {
   return value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function templateFact(value: string, label: string): HTMLElement {
+  const fact = document.createElement("span");
+  fact.innerHTML = "<strong></strong><span></span>";
+  fact.querySelector<HTMLElement>("strong")!.textContent = value;
+  fact.querySelector<HTMLElement>("span")!.textContent = label;
+  return fact;
+}
+
+function templatePath(path: string, kind: "file" | "folder" | "more"): HTMLLIElement {
+  const item = document.createElement("li");
+  item.dataset.kind = kind;
+  item.textContent = path;
+  return item;
+}
+
+function humanizeTemplateValue(value: string): string {
+  return value
+    .split("-")
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
 }
 
 function statusText(value: string): HTMLParagraphElement {

@@ -11,7 +11,12 @@ describe("ProjectTemplateCatalog in the Workers runtime", () => {
     const seed = builtInProjectTemplate("builtin-blank")!.seed;
     const created = await catalog.saveTemplate({ name: "Lab paper", description: "Shared structure", seed });
 
-    expect(created).toMatchObject({ source: "personal", name: "Lab paper", description: "Shared structure" });
+    expect(created).toMatchObject({
+      source: "personal",
+      name: "Lab paper",
+      description: "Shared structure",
+      preview: { files: ["main.md"], fileCount: 1, folders: ["figures"], folderCount: 1 },
+    });
     expect(await catalog.listTemplates()).toEqual([created]);
     expect(await otherCatalog.listTemplates()).toEqual([]);
     expect((await catalog.getTemplate(created.id))?.seed).toEqual(seed);

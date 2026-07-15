@@ -2510,6 +2510,7 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
   await page.locator("#new-workspace-title").fill("Independent inquiry");
+  await page.getByRole("button", { name: "Use Guided starter" }).click();
   await page.locator("#new-workspace-dialog").getByRole("button", { name: "Create project" }).click();
   await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
 
@@ -2571,7 +2572,31 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
   await expect(page.locator("#new-workspace-template-list")).toContainText("Literature review");
-  await page.getByLabel("Literature review").check();
+  await expect(page.locator("#create-workspace")).toBeDisabled();
+  await expect(page.locator("#new-workspace-template-preview")).toContainText("Guided starter");
+  await page.setViewportSize({ width: 1024, height: 768 });
+  const desktopBrowser = await page.locator(".template-browser").evaluate((browser) => {
+    const index = browser.querySelector<HTMLElement>(".template-browser-index")!.getBoundingClientRect();
+    const preview = browser.querySelector<HTMLElement>(".template-preview")!.getBoundingClientRect();
+    return { indexRight: index.right, previewLeft: preview.left };
+  });
+  expect(desktopBrowser.previewLeft).toBeGreaterThanOrEqual(desktopBrowser.indexRight - 1);
+  await page.setViewportSize({ width: 640, height: 900 });
+  const compactBrowser = await page.locator(".template-browser").evaluate((browser) => {
+    const index = browser.querySelector<HTMLElement>(".template-browser-index")!.getBoundingClientRect();
+    const preview = browser.querySelector<HTMLElement>(".template-preview")!.getBoundingClientRect();
+    return { indexBottom: index.bottom, previewTop: preview.top, overflow: document.documentElement.scrollWidth - innerWidth };
+  });
+  expect(compactBrowser.previewTop).toBeGreaterThanOrEqual(compactBrowser.indexBottom - 1);
+  expect(compactBrowser.overflow).toBeLessThanOrEqual(0);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.locator('[data-template-id="builtin-literature-review"]').click();
+  await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/search-strategy.md");
+  await expect(page.locator("#new-workspace-template-preview")).toContainText("Publication setup");
+  await expect(page.locator("#new-workspace-template-id")).toHaveValue("");
+  await page.getByRole("button", { name: "Use Literature review" }).click();
+  await expect(page.locator("#new-workspace-template-id")).toHaveValue("builtin-literature-review");
+  await expect(page.locator("#create-workspace")).toBeEnabled();
   await page.locator("#new-workspace-title").fill("Review workflow");
   await page.locator("#create-workspace").click();
   await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
@@ -2605,10 +2630,14 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   );
   if (!isRecord(personal) || typeof personal.id !== "string") throw new Error("Expected a personal project template");
   expect("seed" in personal).toBe(false);
+  expect(isRecord(personal.preview)).toBe(true);
+  expect(JSON.stringify(personal.preview)).not.toContain("Reusable steps.");
 
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
-  await page.locator(`#new-workspace-template-list input[value="${personal.id}"]`).check();
+  await page.locator(`[data-template-id="${personal.id}"]`).click();
+  await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/lab-checklist.md");
+  await page.getByRole("button", { name: "Use Lab review workflow" }).click();
   await page.locator("#new-workspace-title").fill("Reusable review");
   await page.locator("#create-workspace").click();
   await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);

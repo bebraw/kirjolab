@@ -29,14 +29,19 @@ without copying private research or creating a live dependency on the source.
   instantiates an independent `DocumentRoom`, records revision zero, and then
   registers the project in the owner catalog. Blank and built-in creation use
   the same path as personal templates.
-- The New project surface presents one clear template choice before creation.
-  Personal templates can be removed there. Project settings exposes **Save as
-  template** for creating or explicitly replacing one.
+- The New project surface separates browsing from choosing. It previews each
+  template's bounded file and folder structure, bibliography presence, and
+  publication setup before an explicit **Use template** action enables project
+  creation. Personal templates can be removed there. Project settings exposes
+  **Save as template** for creating or explicitly replacing one.
 
 ### API Contracts
 
 - `GET /api/project-templates` returns the built-in templates followed by the
-  verified owner's personal templates. Seeds are not returned in list data.
+  verified owner's personal templates. Seeds and file contents are not returned
+  in list data. Each summary includes at most eight file paths and eight folder
+  paths plus total counts, bibliography presence, and publication settings for
+  the interactive preview.
 - `DELETE /api/project-templates/{id}` deletes only an owner-created template.
 - `POST /api/workspaces/{id}/template` promotes the current project. A bounded
   optional `templateId` replaces one personal template owned by the caller.
@@ -66,6 +71,8 @@ without copying private research or creating a live dependency on the source.
       history representation.
 - [x] New-project and project-settings UI expose the workflow without adding a
       second project browser.
+- [x] Researchers can browse template structure and publication settings before
+      explicitly choosing the template used for creation.
 - [x] Domain, Workers, API, and browser tests cover the critical behavior.
 
 ### Regression Guardrails

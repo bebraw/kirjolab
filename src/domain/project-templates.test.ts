@@ -6,6 +6,7 @@ import {
   isProjectTemplateSummaries,
   isSaveProjectTemplateInput,
   listBuiltInProjectTemplates,
+  projectTemplatePreview,
   projectTemplateSeed,
 } from "./project-templates";
 import { defaultProjectPublicationProfile, type WorkspaceSnapshot } from "./workspace";
@@ -25,12 +26,52 @@ describe("project templates", () => {
       "sections/search-strategy.md",
     );
     expect(builtInProjectTemplate("missing")).toBeNull();
+    expect(summaries[0]?.preview).toMatchObject({
+      files: ["main.md", "KIRJOLAB.md", "sections/transclusion.md"],
+      fileCount: 3,
+      folders: ["figures", "sections"],
+      folderCount: 2,
+      hasBibliography: true,
+      citationStyle: "apa",
+      locale: "en-US",
+      submissionTemplate: "article",
+      paperSize: "a4",
+    });
     for (const summary of summaries) {
       const record = builtInProjectTemplate(summary.id);
       expect(record?.source).toBe("built-in");
       expect(record?.createdAt).toBeNull();
       expect(isProjectTemplateSeed(record?.seed)).toBe(true);
     }
+  });
+
+  it("derives a bounded content-free preview from a template seed", () => {
+    const seed = builtInProjectTemplate("builtin-blank")!.seed;
+    const files = [
+      { path: "sections/z-last.md", content: "Private" },
+      ...seed.files,
+      ...Array.from({ length: 9 }, (_, index) => ({ path: `sections/${String(index).padStart(2, "0")}.md`, content: "Private" })),
+    ];
+    const folders = ["z-last", "figures", "sections", "appendices", "notes", "data", "tables", "assets", "archive"];
+    const preview = projectTemplatePreview({ ...seed, files, folders });
+
+    expect(preview.fileCount).toBe(11);
+    expect(preview.files).toEqual([
+      "main.md",
+      "sections/00.md",
+      "sections/01.md",
+      "sections/02.md",
+      "sections/03.md",
+      "sections/04.md",
+      "sections/05.md",
+      "sections/06.md",
+    ]);
+    expect(preview.folderCount).toBe(9);
+    expect(preview.folders).toEqual(["appendices", "archive", "assets", "data", "figures", "notes", "sections", "tables"]);
+    expect(preview.hasBibliography).toBe(false);
+    expect(JSON.stringify(preview)).not.toContain("Private");
+    expect(projectTemplatePreview({ ...seed, bibliography: "  @article{x}  " }).hasBibliography).toBe(true);
+    expect(() => projectTemplatePreview({ ...seed, files: [] })).toThrow("valid seed");
   });
 
   it("projects only portable authored structure from a workspace", () => {
@@ -126,5 +167,22 @@ describe("project templates", () => {
     expect(isProjectTemplateSummaries([{ ...summary, createdAt: 42 }])).toBe(false);
     expect(isProjectTemplateSummaries([{ ...summary, updatedAt: "2026-07-15T00:00:00.000Z" }])).toBe(true);
     expect(isProjectTemplateSummaries([{ ...summary, updatedAt: 42 }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: null }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, files: ["../private.md"] } }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, files: ["notes.txt"] } }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, folders: ["notes.md"] } }])).toBe(false);
+    expect(
+      isProjectTemplateSummaries([
+        { ...summary, preview: { ...summary.preview, files: Array.from({ length: 9 }, (_, index) => `${index}.md`), fileCount: 9 } },
+      ]),
+    ).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, fileCount: 2.5 } }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, fileCount: 2 } }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, fileCount: 0 } }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, fileCount: 513 } }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, folderCount: 1 } }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, folderCount: 513 } }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, hasBibliography: "yes" } }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, preview: { ...summary.preview, citationStyle: "unknown" } }])).toBe(false);
   });
 });

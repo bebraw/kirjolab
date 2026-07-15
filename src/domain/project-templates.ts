@@ -34,6 +34,19 @@ export interface ProjectTemplateSummary {
   readonly description: string;
   readonly createdAt: string | null;
   readonly updatedAt: string | null;
+  readonly preview: ProjectTemplatePreview;
+}
+
+export interface ProjectTemplatePreview {
+  readonly files: readonly string[];
+  readonly fileCount: number;
+  readonly folders: readonly string[];
+  readonly folderCount: number;
+  readonly hasBibliography: boolean;
+  readonly citationStyle: ProjectPublicationProfile["citationStyle"];
+  readonly locale: ProjectPublicationProfile["locale"];
+  readonly submissionTemplate: ProjectPublicationProfile["submissionTemplate"];
+  readonly paperSize: ProjectPublicationProfile["paperSize"];
 }
 
 export interface ProjectTemplateRecord extends ProjectTemplateSummary {
@@ -48,6 +61,7 @@ export interface SaveProjectTemplateInput {
 
 const maximumSeedBytes = 2 * 1024 * 1024;
 const maximumSeedFiles = 512;
+const maximumPreviewPaths = 8;
 const personalTemplateId = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 const guidedSeed: ProjectTemplateSeed = {
@@ -212,6 +226,25 @@ export function projectTemplateSeed(
   return seed;
 }
 
+export function projectTemplatePreview(seed: ProjectTemplateSeed): ProjectTemplatePreview {
+  if (!isProjectTemplateSeed(seed)) throw new Error("Project template preview requires a valid seed");
+  const files = [...seed.files]
+    .sort((left, right) =>
+      left.path === projectEntryPath ? -1 : right.path === projectEntryPath ? 1 : left.path.localeCompare(right.path),
+    )
+    .slice(0, maximumPreviewPaths)
+    .map((file) => file.path);
+  const folders = [...seed.folders].sort((left, right) => left.localeCompare(right)).slice(0, maximumPreviewPaths);
+  return {
+    files,
+    fileCount: seed.files.length,
+    folders,
+    folderCount: seed.folders.length,
+    hasBibliography: seed.bibliography.trim().length > 0,
+    ...seed.publicationProfile,
+  };
+}
+
 export function isProjectTemplateSeed(value: unknown): value is ProjectTemplateSeed {
   if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.files) || !Array.isArray(value.folders)) return false;
   if (value.files.length === 0 || value.files.length > maximumSeedFiles || value.folders.length > maximumSeedFiles) return false;
@@ -268,14 +301,43 @@ export function isProjectTemplateSummaries(value: unknown): value is ProjectTemp
         isBoundedText(template.name, 120, true) &&
         isBoundedText(template.description, 500, false) &&
         (template.createdAt === null || typeof template.createdAt === "string") &&
-        (template.updatedAt === null || typeof template.updatedAt === "string"),
+        (template.updatedAt === null || typeof template.updatedAt === "string") &&
+        isProjectTemplatePreview(template.preview),
     )
   );
 }
 
 function builtIn(id: string, name: string, description: string, seed: ProjectTemplateSeed): ProjectTemplateRecord {
   if (!isProjectTemplateSeed(seed)) throw new Error(`Built-in project template is invalid: ${id}`);
-  return { id, source: "built-in", name, description, createdAt: null, updatedAt: null, seed };
+  return { id, source: "built-in", name, description, createdAt: null, updatedAt: null, preview: projectTemplatePreview(seed), seed };
+}
+
+function isProjectTemplatePreview(value: unknown): value is ProjectTemplatePreview {
+  if (!isRecord(value) || !Array.isArray(value.files) || !Array.isArray(value.folders)) return false;
+  if (!isPreviewPaths(value.files, value.fileCount, "file") || !isPreviewPaths(value.folders, value.folderCount, "folder")) return false;
+  return (
+    typeof value.hasBibliography === "boolean" &&
+    isProjectPublicationProfile({
+      citationStyle: value.citationStyle,
+      locale: value.locale,
+      submissionTemplate: value.submissionTemplate,
+      paperSize: value.paperSize,
+    })
+  );
+}
+
+function isPreviewPaths(value: readonly unknown[], count: unknown, kind: "file" | "folder"): value is readonly string[] {
+  return (
+    Number.isInteger(count) &&
+    typeof count === "number" &&
+    count >= value.length &&
+    count <= maximumSeedFiles &&
+    value.length <= maximumPreviewPaths &&
+    value.every((path) => {
+      if (typeof path !== "string" || path.length > 1024 || normalizeProjectPath(path) !== path) return false;
+      return kind === "file" ? path.toLocaleLowerCase().endsWith(".md") : !path.toLocaleLowerCase().endsWith(".md");
+    })
+  );
 }
 
 function isBoundedText(value: unknown, maximum: number, required: boolean): value is string {

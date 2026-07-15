@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import {
   isPersonalProjectTemplateId,
   isProjectTemplateSeed,
+  projectTemplatePreview,
   type ProjectTemplateRecord,
   type ProjectTemplateSeed,
   type ProjectTemplateSummary,
@@ -114,6 +115,7 @@ export class ProjectTemplateCatalog extends DurableObject<Env> {
 }
 
 function summaryFromRow(row: ProjectTemplateRow): ProjectTemplateSummary {
+  const seed = seedFromRow(row);
   return {
     id: row.id,
     source: "personal",
@@ -121,11 +123,16 @@ function summaryFromRow(row: ProjectTemplateRow): ProjectTemplateSummary {
     description: row.description,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    preview: projectTemplatePreview(seed),
   };
 }
 
 function recordFromRow(row: ProjectTemplateRow): ProjectTemplateRecord {
+  return { ...summaryFromRow(row), seed: seedFromRow(row) };
+}
+
+function seedFromRow(row: ProjectTemplateRow): ProjectTemplateSeed {
   const seed: unknown = JSON.parse(row.seed_json);
   if (!isProjectTemplateSeed(seed)) throw new Error("Stored project template seed is invalid");
-  return { ...summaryFromRow(row), seed };
+  return seed;
 }
