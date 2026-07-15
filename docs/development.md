@@ -134,6 +134,29 @@ fixed upstream completion route; it cannot select another upstream.
 Stopping the Worker or companion stops the supervised development session so a
 half-running local stack is not left behind.
 
+#### Connect the Deployed App to a Local Model
+
+The deployed Kirjolab app may use the companion running on the same computer as
+the browser. Configure the ignored project-root `.env` with the local completion
+endpoint and the deployed app's exact origin:
+
+```dotenv
+KIRJOLAB_MODEL_UPSTREAM=http://127.0.0.1:1234/v1/chat/completions
+KIRJOLAB_MODEL_COMPANION_ORIGIN=https://write.example.com
+```
+
+The companion origin contains only the scheme and hostname, plus a port when it
+is non-default. Do not include a trailing slash, route, or query parameters.
+Restart `npm run model:companion` after changing `.env`; the running process does
+not reload configuration. Then select **Local companion** in the deployed app
+and use **Find loaded models**.
+
+The companion binds only to `127.0.0.1`, so the deployed app and model may be
+remote while the browser, companion, and local model must share one computer.
+For example, an iPad browser cannot reach a companion running on a Mac through
+this path. Keep Worker-only local secrets in `.dev.vars`; the companion settings
+belong in `.env` and are never deployed.
+
 The Lighthouse setup is also generic, but the Worker stub gives it a concrete local target. Use `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`. Reports are written to `reports/lighthouse/`.
 
 The Node Vitest setup remains the fast home for pure logic. `vitest.config.ts`

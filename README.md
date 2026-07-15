@@ -67,6 +67,12 @@ Worker. Edit the ignored `.env` to set `KIRJOLAB_MODEL_UPSTREAM` and
 When no upstream is configured, `npm run dev` starts only the Worker.
 `npm run model:companion` remains available for standalone troubleshooting.
 
+The deployed app can use a model on the same computer. Set
+`KIRJOLAB_MODEL_COMPANION_ORIGIN` to the deployed app's exact origin, such as
+`https://write.example.com` with no path, query, or trailing slash, then restart
+`npm run model:companion`. The companion reads `.env` only at startup. A browser
+on another device cannot use this loopback-only companion.
+
 Open **Model connection** and choose **Find loaded models** to read the live
 model identifiers exposed by the provider. Focused revision and claim tasks
 default to reasoning off for responsive local inference; deeper reasoning can
