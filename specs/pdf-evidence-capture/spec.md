@@ -71,6 +71,8 @@ with an authored passage.
 - PDF.js display and worker assets must use the package's compatibility builds
   so PDF reading does not depend on newer browser APIs such as
   `Promise.withResolvers` being native.
+- Text extraction must consume PDF.js streams through `getReader()` instead of
+  requiring `ReadableStream` async iteration, which Safari does not provide.
 - The viewer must render only the active page.
 - Stored highlights must never mutate the imported R2 object.
 - The embedded annotation composer must always target the currently visible

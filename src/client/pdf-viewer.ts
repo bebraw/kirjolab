@@ -1,6 +1,7 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type { AnnotationResource, PdfSelectionRect } from "../domain/workspace";
 import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
+import { readPdfTextContent } from "./pdf-text-content";
 import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
 
 export interface PdfSelectionCapture {
@@ -155,7 +156,7 @@ export class PdfEvidenceViewer {
     this.#elements.canvas.style.width = `${viewport.width}px`;
     this.#elements.canvas.style.height = `${viewport.height}px`;
 
-    const textContent = await page.getTextContent();
+    const textContent = await readPdfTextContent(page);
     if (version !== this.#renderVersion) return;
     this.#pageText = textContent.items
       .map((item) => ("str" in item ? item.str : ""))

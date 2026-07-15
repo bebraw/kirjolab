@@ -179,7 +179,7 @@ describe("worker", () => {
   });
 
   it("requires runtime assets for the lazy PDF.js module", async () => {
-    const response = await handleRequest(new Request("http://example.com/pdfjs-module-6.1.200.js"));
+    const response = await handleRequest(new Request("http://example.com/pdfjs-module-6.1.200-compat-1.js"));
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });

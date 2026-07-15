@@ -2,7 +2,7 @@ import type * as PdfJs from "pdfjs-dist";
 
 export type PdfJsRuntime = typeof PdfJs;
 
-const pdfJsRuntimeUrl = "/pdfjs-module-6.1.200.js";
+const pdfJsRuntimeUrl = "/pdfjs-module-6.1.200-compat-1.js";
 let runtimePromise: Promise<PdfJsRuntime> | null = null;
 
 export async function loadPdfJsRuntime(): Promise<PdfJsRuntime> {

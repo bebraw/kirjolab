@@ -42,7 +42,7 @@ authored source if the runtime cannot load. This keeps the application shell and
 workspace data from waiting behind Wasm initialization.
 
 Remove PDF.js from the initial application module and publish it as the
-versioned, immutable `/pdfjs-module-6.1.200.js` runtime asset. A shared loader
+versioned, immutable `/pdfjs-module-6.1.200-compat-1.js` runtime asset. A shared loader
 imports that asset only when a PDF viewer or metadata scan first needs it,
 caches the successful module, and allows a failed load to be retried.
 

@@ -60,7 +60,7 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return scriptResponse(await loadPdfWorkerScript());
   }
 
-  if (url.pathname === "/markdown-module-1.js" || url.pathname === "/pdfjs-module-6.1.200.js") {
+  if (url.pathname === "/markdown-module-1.js" || url.pathname === "/pdfjs-module-6.1.200-compat-1.js") {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await loadBrowserRuntimeAsset(request, env);
   }

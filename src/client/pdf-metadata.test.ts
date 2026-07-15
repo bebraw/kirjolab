@@ -64,12 +64,20 @@ describe("PDF metadata candidates", () => {
     const destroy = vi.fn().mockResolvedValue(undefined);
     const getPage = vi.fn((pageNumber: number) =>
       Promise.resolve({
-        getTextContent: vi.fn().mockResolvedValue({
-          items:
-            pageNumber === 1
-              ? [{ str: "Opening" }, { hasEol: true }, { str: "doi:10.4242/Traversal.Test." }]
-              : [{ str: `page-${pageNumber}` }],
-        }),
+        streamTextContent: () =>
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue({
+                items:
+                  pageNumber === 1
+                    ? [{ str: "Opening" }, { hasEol: true }, { str: "doi:10.4242/Traversal.Test." }]
+                    : [{ str: `page-${pageNumber}` }],
+                styles: {},
+                lang: null,
+              });
+              controller.close();
+            },
+          }),
       }),
     );
     pdfjs.getDocument.mockReturnValue({
@@ -99,7 +107,13 @@ describe("PDF metadata candidates", () => {
     const destroy = vi.fn().mockResolvedValue(undefined);
     const getPage = vi.fn((pageNumber: number) =>
       Promise.resolve({
-        getTextContent: vi.fn().mockResolvedValue({ items: [{ str: pageNumber === 1 ? "x".repeat(65_536) : "ignored" }] }),
+        streamTextContent: () =>
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue({ items: [{ str: pageNumber === 1 ? "x".repeat(65_536) : "ignored" }], styles: {}, lang: null });
+              controller.close();
+            },
+          }),
       }),
     );
     pdfjs.getDocument.mockReturnValue({

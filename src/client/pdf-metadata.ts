@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { normalizeDoi } from "../domain/bibliography";
+import { readPdfTextContent } from "./pdf-text-content";
 import { loadPdfJsRuntime } from "./pdfjs-runtime";
 
 export interface PdfMetadataCandidates {
@@ -26,7 +27,7 @@ export async function extractPdfMetadata(url: string): Promise<PdfMetadataCandid
     let openingText = "";
     for (let pageNumber = 1; pageNumber <= pagesScanned && openingText.length < maximumTextLength; pageNumber += 1) {
       const page = await documentModel.getPage(pageNumber);
-      const content = await page.getTextContent();
+      const content = await readPdfTextContent(page);
       for (const item of content.items) {
         if (!("str" in item) || !item.str) continue;
         const remaining = maximumTextLength - openingText.length;

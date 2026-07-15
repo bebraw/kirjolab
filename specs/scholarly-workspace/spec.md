@@ -26,7 +26,7 @@ mode for authenticated hosted collaboration.
   excludes the Markdown pipeline and PDF.js. The immutable versioned
   `/markdown-module-1.js` pure-JavaScript runtime loads concurrently with
   workspace data; PDF viewing and metadata extraction load
-  `/pdfjs-module-6.1.200.js` on first use. Consumers share each cached module
+  `/pdfjs-module-6.1.200-compat-1.js` on first use. Consumers share each cached module
   thereafter.
 - **Appearance:** The shell uses one semantic `app-*` token palette with light
   and dark values. Appearance follows the operating-system color scheme by

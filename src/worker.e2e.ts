@@ -2983,7 +2983,7 @@ test("serves stable health and browser assets", async ({ request }) => {
   expect(styles.headers()["content-type"]).toContain("text/css");
   expect(client.headers()["content-type"]).toContain("text/javascript");
 
-  const pdfRuntime = await request.get("/pdfjs-module-6.1.200.js");
+  const pdfRuntime = await request.get("/pdfjs-module-6.1.200-compat-1.js");
   expect(pdfRuntime.ok()).toBe(true);
   expect(pdfRuntime.headers()["content-type"]).toContain("javascript");
   expect(pdfRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
