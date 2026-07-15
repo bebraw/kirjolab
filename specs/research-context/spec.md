@@ -33,10 +33,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - In standalone Library mode, the permanent Library tab, open private-resource
   tabs, and resource actions share the global header. Private PDF help and page
   controls are omitted there because annotation feedback is contextual and the
-  persistent left rail is the sole page-navigation control. The context panel
-  begins directly below that single row. Workspace mode retains its pane-local
-  context strip because those tabs apply only to the context side of the
-  authoring split.
+  persistent left rail is the sole page-navigation control. Project sharing is
+  absent because no project is active. The context panel begins directly below
+  that single row. Workspace mode retains its pane-local context strip and an
+  explicitly labelled Share project action because those tabs remain inside an
+  active project.
 - Closing the active private-resource tab in standalone Library mode activates
   the permanent Library destination and replaces the document route with
   `/library`. Workspace resource tabs retain the shared previous-neighbor
@@ -416,8 +417,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Given: an owner opens a private PDF from the standalone Library
 - When: its resource tab and private-reader controls become active
 - Then: Library, the PDF tab, and resource actions share the global header,
-  page navigation appears only in the left rail, and the document begins
-  immediately below the header
+  project sharing is absent, page navigation appears only in the left rail, and
+  the document begins immediately below the header
 
 **Scenario: Closing a standalone PDF returns to Library**
 

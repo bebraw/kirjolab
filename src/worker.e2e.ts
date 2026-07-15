@@ -30,6 +30,8 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#authoring-surface")).toBeHidden();
   await expect(page.getByText("Add reference", { exact: true })).toBeVisible();
   await expect(page.getByTitle(/^Add :cite/u)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Share project" })).toBeHidden();
+  await expect(page.locator("#share-workspace")).toHaveAttribute("hidden", "");
 
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "student_submission.pdf",
@@ -1673,6 +1675,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#context-pdf-panel")).toHaveAttribute("aria-labelledby", pdfTabId ?? "missing");
   await expect(page.locator("#annotation-pdf")).toBeDisabled();
   await expect(page.locator("#annotation-pdf")).toHaveValue(delayedPdf.id);
+  await expect(page.getByRole("button", { name: "Share project" })).toBeVisible();
   await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
   await expect
     .poll(async () => page.locator("#paper-reader").evaluate((element) => element.scrollWidth - element.clientWidth))
@@ -2488,7 +2491,7 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await page.locator("#source-editor").fill(isolatedSource);
   await expect(page.locator("#preview")).toContainText("This belongs to one workspace.");
 
-  await page.getByRole("button", { name: "Share" }).click();
+  await page.getByRole("button", { name: "Share project" }).click();
   await expect(page.locator("#workspace-member-list")).toContainText("local@kirjolab.invalid");
   await page.locator("#invite-member-email").fill("collaborator@example.org");
   await page.getByRole("button", { name: "Invite collaborator" }).click();

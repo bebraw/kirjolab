@@ -133,7 +133,7 @@ export function renderHomePage(
             <span class="h-2 w-2 rounded-full bg-app-warn" id="connection-dot"></span>
             <span id="connection-status">Connecting</span>
           </div>
-          <button class="button-secondary hidden sm:inline-flex" id="share-workspace" type="button">Share</button>
+          <button class="button-secondary hidden sm:inline-flex" id="share-workspace" type="button"${appMode === "library" ? " hidden" : ""}>Share project</button>
           <button class="button-primary" id="open-export" type="button">Export</button>
         </div>
       </div>
