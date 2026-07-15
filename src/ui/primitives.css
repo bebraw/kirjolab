@@ -158,6 +158,48 @@
     background: var(--color-app-paper);
   }
 
+  .ui-toolbar {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--ui-space-2);
+  }
+
+  .ui-tab-list {
+    display: flex;
+    min-width: 0;
+    align-items: stretch;
+  }
+
+  .ui-tab {
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+  }
+
+  .ui-tab:is([aria-selected="true"], [aria-pressed="true"]) {
+    color: var(--color-app-ink);
+  }
+
+  .ui-menu {
+    position: relative;
+  }
+
+  .ui-menu > summary {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .ui-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .ui-menu-panel {
+    border: 1px solid var(--color-app-line);
+    border-radius: var(--ui-radius-md);
+    background: var(--color-app-paper);
+    box-shadow: var(--ui-elevation-menu);
+  }
+
   .ui-status {
     color: var(--color-app-text-soft);
     font-family: var(--font-sans);

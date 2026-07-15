@@ -8,7 +8,7 @@ describe("renderHomePage", () => {
 
     expect(html).toContain("KIRJOLAB");
     expect(html).toContain('data-app-mode="workspace" data-workspace-id="demo" data-identity-email="local@kirjolab.invalid"');
-    expect(html).toContain('class="action-menu header-action-menu" data-action-menu');
+    expect(html).toContain('class="action-menu header-action-menu ui-menu" data-action-menu');
     expect(html).toContain('<a class="header-library-link" href="/library">Library</a>');
     expect(html).not.toContain('class="library-header-context"');
     expect(html).toContain('id="manage-workspaces" type="button"><strong>Open projects</strong></button>');
@@ -102,7 +102,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="derived-project-bibliography"');
     expect(html).toContain('class="bibliography-editor rail-bibliography-editor" id="bibliography-editor"');
     expect(html).toContain('class="button-secondary hidden" id="open-source-citation"');
-    expect(html).toContain('class="editor-toolbar"');
+    expect(html).toContain('class="editor-toolbar ui-toolbar"');
     expect(html.match(/class="editor-toolbar-group"/gu)).toHaveLength(2);
     expect(html).not.toContain('id="project-file-switcher"');
     expect(html).toContain('class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"');
@@ -122,6 +122,11 @@ describe("renderHomePage", () => {
     expect(html).toContain("/api/workspaces/demo/export/source.zip");
     expect(html).toContain('id="export-statistics"');
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
+    expect(html).toContain('class="context-tab-list ui-tab-list"');
+    expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(3);
+    expect(html.match(/class="(?:new-workspace-dialog|reference-library-dialog)[^"]*ui-dialog"/gu)).toHaveLength(9);
+    expect(html.match(/data-touch-target="true"/gu)).toHaveLength(8);
+    expect(html).toContain('id="archive-workspace" type="button" data-destructive="true"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
     expect(html).not.toContain('id="pin-active-context"');
     expect(html).not.toContain('id="close-active-context"');

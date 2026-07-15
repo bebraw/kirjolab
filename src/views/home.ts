@@ -1,4 +1,5 @@
 import { escapeHtml } from "./shared";
+import { renderIcon } from "../ui/icons";
 
 export function renderHomePage(
   routes: Array<{ path: string; purpose: string }>,
@@ -20,10 +21,10 @@ export function renderHomePage(
             </select>
           </label>`;
   const contextTabs = `<div class="context-tabs" id="context-tabs">
-          <div class="context-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
-            <button class="context-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
-            <button class="context-tab" id="context-library-tab" type="button" role="tab" aria-controls="context-library-panel" aria-selected="false" tabindex="-1">Library</button>
-            <button class="context-tab" id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1">Writing assistant</button>
+          <div class="context-tab-list ui-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
+            <button class="context-tab ui-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
+            <button class="context-tab ui-tab" id="context-library-tab" type="button" role="tab" aria-controls="context-library-panel" aria-selected="false" tabindex="-1">Library</button>
+            <button class="context-tab ui-tab" id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1">Writing assistant</button>
             <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
           </div>
           <div class="context-tab-controls" aria-label="Active context actions">
@@ -55,12 +56,12 @@ export function renderHomePage(
       <div class="app-header-row flex min-h-16 items-center justify-between gap-4 px-4 lg:px-6">
         <div class="flex min-w-0 items-center gap-3">
           <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
-          <details class="preferences-menu" id="preferences-menu" data-settings-menu>
+          <details class="preferences-menu ui-menu" id="preferences-menu" data-settings-menu>
             <summary class="preferences-trigger" aria-label="Open preferences" title="Preferences">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19 13.5v-3l-2.1-.7a7.5 7.5 0 0 0-.7-1.7l1-2-2.1-2.1-2 1a7.5 7.5 0 0 0-1.7-.7L10.5 2h-3l-.7 2.1a7.5 7.5 0 0 0-1.7.7l-2-1L1 5.9l1 2a7.5 7.5 0 0 0-.7 1.7L-1 10.5v3l2.1.7a7.5 7.5 0 0 0 .7 1.7l-1 2L3 20l2-1a7.5 7.5 0 0 0 1.7.7l.8 2.3h3l.7-2.1a7.5 7.5 0 0 0 1.7-.7l2 1 2.1-2.1-1-2a7.5 7.5 0 0 0 .7-1.7z" transform="translate(2)"></path></svg>
+              ${renderIcon("settings")}
               <span class="hidden sm:inline">Settings</span>
             </summary>
-            <div class="preferences-panel" aria-label="Preferences">
+            <div class="preferences-panel ui-menu-panel" aria-label="Preferences">
               <header><p class="eyebrow">Personal preferences</p><h2>Settings</h2><p>Stored in this browser and reused across projects.</p></header>
               <section class="preferences-section" aria-labelledby="appearance-preference-heading">
                 <div><h3 id="appearance-preference-heading">Appearance</h3><p>Follow your device or keep one theme.</p></div>
@@ -101,7 +102,7 @@ export function renderHomePage(
                   </label>
                   <button class="button-secondary justify-center" id="discover-llm-models" type="button">Find loaded models</button>
                 </div>
-                <p class="preferences-model-status" id="preferences-model-status" role="status" aria-live="polite">Connection details stay on this device.</p>
+                <p class="preferences-model-status ui-status" id="preferences-model-status" role="status" aria-live="polite">Connection details stay on this device.</p>
               </section>
             </div>
           </details>
@@ -109,9 +110,9 @@ export function renderHomePage(
           <a class="header-library-link" href="/library"${appMode === "library" ? ' aria-current="page"' : ""}>Library</a>
           <label class="sr-only" for="workspace-switcher">Current project</label>
           <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading project…</option></select>
-          <details class="action-menu header-action-menu" data-action-menu>
+          <details class="action-menu header-action-menu ui-menu" data-action-menu>
             <summary class="button-secondary shrink-0">Project</summary>
-            <div class="editor-command-menu" aria-label="Project actions">
+            <div class="editor-command-menu ui-menu-panel" aria-label="Project actions">
               <button id="manage-workspaces" type="button"><strong>Open projects</strong></button>
               <button id="workspace-settings" type="button"><strong>Project settings</strong></button>
               <button id="new-workspace" type="button"><strong>New project</strong></button>
@@ -121,11 +122,11 @@ export function renderHomePage(
         ${appMode === "library" ? `<div class="library-header-context">${contextTabs}</div>` : ""}
         <div class="flex items-center gap-3">
           ${workspaceLayoutControl}
-          <details class="action-menu" id="account-menu" data-action-menu>
+          <details class="action-menu ui-menu" id="account-menu" data-action-menu>
             <summary class="account-trigger" aria-label="Account for ${escapedIdentityEmail}" title="Account">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"></circle><path d="M5.5 20c.45-4 2.65-6 6.5-6s6.05 2 6.5 6"></path></svg>
+              ${renderIcon("account")}
             </summary>
-            <div class="editor-command-menu account-menu" aria-label="Account actions">
+            <div class="editor-command-menu account-menu ui-menu-panel" aria-label="Account actions">
               <div class="account-menu-identity"><strong title="${escapedIdentityEmail}">${escapedIdentityEmail}</strong><span>${identityMode === "access" ? "Cloudflare Access" : "Local development"}</span></div>
               ${
                 identityMode === "access"
@@ -153,13 +154,13 @@ export function renderHomePage(
       <aside class="source-rail border-b border-app-line bg-app-paper min-[72rem]:border-r min-[72rem]:border-b-0">
         <div class="rail-mode-switcher" role="tablist" aria-label="Project navigation">
           <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-label="Files" aria-controls="files-rail-panel" aria-selected="true" title="Files">
-            <svg class="rail-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.75h6l2 2h9v9.5h-17z"></path></svg>
+            ${renderIcon("files", "rail-mode-icon")}
           </button>
           <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-label="Research" aria-controls="research-rail-panel" aria-selected="false" title="Research">
-            <svg class="rail-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h5.25A2.75 2.75 0 0 1 13 8.25v10.25a3.25 3.25 0 0 0-3.25-3.25H5z"></path><path d="M19 5.5h-3.25A2.75 2.75 0 0 0 13 8.25v10.25a3.25 3.25 0 0 1 3.25-3.25H19z"></path></svg>
+            ${renderIcon("research", "rail-mode-icon")}
           </button>
           <button class="rail-mode" id="show-comments-rail" type="button" role="tab" aria-label="Comments" aria-describedby="manuscript-comment-count" aria-controls="comments-rail-panel" aria-selected="false" title="Comments">
-            <svg class="rail-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.25h16v11.5H9l-5 3z"></path></svg>
+            ${renderIcon("comments", "rail-mode-icon")}
             <span class="count-badge rail-mode-count" id="manuscript-comment-count">0</span>
           </button>
         </div>
@@ -169,13 +170,13 @@ export function renderHomePage(
             <h1 class="text-xl font-semibold tracking-[-0.035em]">Files</h1>
             <div class="grid grid-cols-3 gap-1">
               <button class="button-secondary justify-center" id="new-project-file-rail" type="button" aria-label="Add file" title="Add file">
-                <svg class="rail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75h8l4 4v12.5H6z"></path><path d="M14 3.75v4h4"></path><path d="M9 14h6M12 11v6"></path></svg>
+                ${renderIcon("fileAdd", "rail-action-icon")}
               </button>
               <button class="button-secondary justify-center" id="new-project-folder-rail" type="button" aria-label="Add folder" title="Add folder">
-                <svg class="rail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.75h6l2 2h9v9.5h-17z"></path><path d="M9 13.5h6M12 10.5v6"></path></svg>
+                ${renderIcon("folderAdd", "rail-action-icon")}
               </button>
               <button class="button-secondary justify-center" id="upload-project-images" type="button" aria-label="Add image" title="Add image">
-                <svg class="rail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="1.5"></rect><circle cx="8.25" cy="9.25" r="1.5"></circle><path d="m5.5 17 4.25-4.25 3 3 2-2 3.75 3.25"></path><path d="M18.5 2.75v4M16.5 4.75h4"></path></svg>
+                ${renderIcon("imageAdd", "rail-action-icon")}
               </button>
             </div>
           </div>
@@ -229,16 +230,16 @@ export function renderHomePage(
       </aside>
 
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
-        <div class="editor-toolbar">
+        <div class="editor-toolbar ui-toolbar">
           <div class="editor-toolbar-group">
             <div class="authoring-mode-switcher" role="group" aria-label="Authoring mode">
               <button class="authoring-mode" id="show-write-mode" type="button" aria-pressed="true">Write</button>
               <button class="authoring-mode" id="show-map-mode" type="button" aria-pressed="false">Map</button>
             </div>
             <button class="count-badge" id="word-count-badge" type="button" title="Open publication statistics">… words</button>
-            <details class="action-menu" id="editor-more-menu" data-action-menu>
+            <details class="action-menu ui-menu" id="editor-more-menu" data-action-menu>
               <summary class="button-secondary">More</summary>
-              <div class="editor-command-menu" aria-label="More editor actions">
+              <div class="editor-command-menu ui-menu-panel" aria-label="More editor actions">
                 <button id="open-project-history" type="button"><strong>History</strong><code id="revision-badge">r0</code></button>
                 <p class="editor-command-menu-label">File</p>
                 <button id="new-project-file" type="button"><strong>Add file</strong></button>
@@ -249,9 +250,9 @@ export function renderHomePage(
             </details>
           </div>
           <div class="editor-toolbar-group" id="editor-write-actions">
-            <details class="action-menu" id="editor-insert-menu" data-action-menu>
+            <details class="action-menu ui-menu" id="editor-insert-menu" data-action-menu>
               <summary class="button-secondary">Insert</summary>
-              <div class="editor-command-menu">
+              <div class="editor-command-menu ui-menu-panel">
                 <button type="button" data-insert-syntax="citation"><strong>Citation</strong><code>:cite[key]</code></button>
                 <button type="button" data-insert-syntax="reference"><strong>Cross-reference</strong><code>:ref[target]</code></button>
                 <button type="button" data-insert-syntax="anchor"><strong>Anchor</strong><code>{#label}</code></button>
@@ -319,9 +320,9 @@ export function renderHomePage(
           <div class="context-library-scroll p-5" id="context-library-scroll">
             <header class="library-header">
               <h2 title="Private references and research material">Library</h2>
-              <details class="action-menu library-add-menu" data-action-menu>
+              <details class="action-menu library-add-menu ui-menu" data-action-menu>
                 <summary class="button-primary">Add reference</summary>
-                <div class="library-menu library-add-reference-menu">
+                <div class="library-menu library-add-reference-menu ui-menu-panel">
                   <label class="library-menu-action" id="library-pdf-dropzone" for="library-pdf-upload" title="Choose or drop up to 20 PDF files">
                     <span><strong>PDF files</strong><small id="library-pdf-upload-help">Upload up to 20</small></span><span aria-hidden="true">↑</span>
                     <input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf" multiple aria-describedby="library-pdf-upload-help">
@@ -344,9 +345,9 @@ export function renderHomePage(
                 <input class="field" id="reference-filter-query" type="search" maxlength="200" placeholder="Search references…" title="Search title, author, reference ID, DOI, or URL">
                 <span id="reference-filter-count" aria-live="polite">0 references</span>
               </div>
-              <details class="action-menu library-filter-menu" data-action-menu>
+              <details class="action-menu library-filter-menu ui-menu" data-action-menu>
                 <summary class="button-secondary" title="Filter and sort references">Filter</summary>
-                <section class="library-menu library-filter-fields" aria-label="Filter reference library">
+                <section class="library-menu library-filter-fields ui-menu-panel" aria-label="Filter reference library">
                   <label class="field-label">Type<select class="field" id="reference-filter-type"><option value="">All types</option></select></label>
                   <label class="field-label">Reading<select class="field" id="reference-filter-reading"><option value="all">Any status</option><option value="unread">Unread</option><option value="reading">Reading</option><option value="read">Read</option></select></label>
                   <label class="field-label">Tag or collection<input class="field" id="reference-filter-organization" maxlength="80" placeholder="Any label"></label>
@@ -355,9 +356,9 @@ export function renderHomePage(
                   <label class="field-label">Sort<select class="field" id="reference-filter-sort"><option value="updated">Recently updated</option><option value="title">Title</option><option value="year">Year</option><option value="priority">Reading priority</option></select></label>
                 </section>
               </details>
-              <details class="action-menu library-tools-menu" data-action-menu>
+              <details class="action-menu library-tools-menu ui-menu" data-action-menu>
                 <summary class="button-secondary library-more-button" aria-label="Library tools" title="Library tools">•••</summary>
-                <div class="library-menu library-tools-list">
+                <div class="library-menu library-tools-list ui-menu-panel">
                   <label class="library-menu-action" title="Restore a Kirjolab library archive"><span>Restore archive</span><input class="sr-only" id="library-archive-upload" type="file" accept=".zip,application/zip"></label>
                   <a href="/api/library/export/csl.json">Export CSL JSON</a>
                   <a href="/api/library/export/library.zip">Export library</a>
@@ -434,7 +435,7 @@ export function renderHomePage(
             <p class="mt-2 text-xs leading-5 text-app-text-soft" id="assistant-target-preview" aria-live="polite">Place the caret in a sentence or select the exact text to revise.</p>
             <div class="mt-4" id="assistant-interactive-result" aria-live="polite"></div>
             <button class="assistant-connection-link" id="open-preferences-from-assistant" type="button">Connection settings</button>
-            <p class="mt-3 text-sm text-app-text-soft" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
+            <p class="ui-status mt-3" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
             <div class="mt-4" id="candidate-list">
               <div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>
             </div>
@@ -473,27 +474,27 @@ export function renderHomePage(
           <div class="context-pdf-body">
             <nav class="library-pdf-page-rail" aria-label="Private PDF controls">
               <div class="library-pdf-page-controls" aria-label="PDF page navigation">
-                <button class="library-pdf-rail-button" id="previous-library-paper-page" type="button" aria-label="Previous PDF page" title="Previous page">
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 14 5-5 5 5"/></svg>
+                <button class="library-pdf-rail-button button-icon" id="previous-library-paper-page" type="button" aria-label="Previous PDF page" title="Previous page" data-touch-target="true">
+                  ${renderIcon("chevronUp")}
                 </button>
                 <span id="library-paper-page-indicator">–<span class="sr-only"> PDF page</span></span>
-                <button class="library-pdf-rail-button" id="next-library-paper-page" type="button" aria-label="Next PDF page" title="Next page">
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg>
+                <button class="library-pdf-rail-button button-icon" id="next-library-paper-page" type="button" aria-label="Next PDF page" title="Next page" data-touch-target="true">
+                  ${renderIcon("chevronDown")}
                 </button>
               </div>
               <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF annotation tools">
-                <button class="library-pdf-rail-button" id="library-select-tool" type="button" aria-pressed="false" title="Select, edit, move, or delete an existing annotation">
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 3 11 9-6 1.5L9 19Z"/></svg><span class="sr-only">Select</span>
+                <button class="library-pdf-rail-button button-icon" id="library-select-tool" type="button" aria-pressed="false" title="Select, edit, move, or delete an existing annotation" data-touch-target="true">
+                  ${renderIcon("select")}<span class="sr-only">Select</span>
                 </button>
-                <button class="library-pdf-rail-button" id="library-text-tool" type="button" aria-pressed="true" title="Select text and save a quotation">
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 6h14M12 6v12M8.5 18h7"/><path class="library-pdf-icon-accent" d="M5 20h14"/></svg><span class="sr-only">Text</span>
+                <button class="library-pdf-rail-button button-icon" id="library-text-tool" type="button" aria-pressed="true" title="Select text and save a quotation" data-touch-target="true">
+                  ${renderIcon("text")}<span class="sr-only">Text</span>
                 </button>
-                <button class="library-pdf-rail-button" id="library-note-tool" type="button" aria-pressed="false" title="Tap the page to attach a private note">
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h14v12H9l-4 4Z"/><path d="M9 8h6M9 12h4"/></svg><span class="sr-only">Note</span>
+                <button class="library-pdf-rail-button button-icon" id="library-note-tool" type="button" aria-pressed="false" title="Tap the page to attach a private note" data-touch-target="true">
+                  ${renderIcon("note")}<span class="sr-only">Note</span>
                 </button>
                 <div class="library-draw-rail-control">
-                  <button class="library-pdf-rail-button" id="library-draw-tool" type="button" aria-pressed="false" title="Draw directly on the page with Apple Pencil or a mouse">
-                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 19 3.5-.8L18 8.7 15.3 6 5.8 15.5Z"/><path d="m13.8 7.5 2.7 2.7"/></svg><span class="sr-only">Draw</span>
+                  <button class="library-pdf-rail-button button-icon" id="library-draw-tool" type="button" aria-pressed="false" title="Draw directly on the page with Apple Pencil or a mouse" data-touch-target="true">
+                    ${renderIcon("draw")}<span class="sr-only">Draw</span>
                   </button>
                   <div class="library-ink-options" id="library-ink-options" aria-label="Drawing style" hidden>
                     <label title="Ink color"><span class="sr-only">Ink color</span><input id="library-draw-color" type="color" value="#d33f49"></label>
@@ -502,11 +503,11 @@ export function renderHomePage(
                   </div>
                 </div>
                 <span class="library-pdf-rail-divider" aria-hidden="true"></span>
-                <button class="library-pdf-rail-button" id="export-library-annotated-pdf" type="button" disabled title="Download a copy with private notes and ink">
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v11m-4-4 4 4 4-4M5 19h14"/></svg><span class="sr-only">Export annotated</span>
+                <button class="library-pdf-rail-button button-icon" id="export-library-annotated-pdf" type="button" disabled title="Download a copy with private notes and ink" data-touch-target="true">
+                  ${renderIcon("download")}<span class="sr-only">Export annotated</span>
                 </button>
-                <button class="library-pdf-rail-button library-pdf-annotations-button" id="open-library-pdf-inspector" type="button" aria-label="Annotations" aria-expanded="false" aria-controls="library-highlight-composer" title="Open annotations">
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5h14v11H9l-4 4Z"/><path d="M9 9h6M9 12.5h4"/></svg><span class="sr-only">Annotations</span><span class="count-badge" id="library-highlight-count">0</span>
+                <button class="library-pdf-rail-button library-pdf-annotations-button button-icon" id="open-library-pdf-inspector" type="button" aria-label="Annotations" aria-expanded="false" aria-controls="library-highlight-composer" title="Open annotations" data-touch-target="true">
+                  ${renderIcon("annotations")}<span class="sr-only">Annotations</span><span class="count-badge" id="library-highlight-count">0</span>
                 </button>
               </div>
             </nav>
@@ -591,7 +592,7 @@ export function renderHomePage(
               <header class="library-pdf-inspector-header">
                 <div>
                   <p class="eyebrow">PDF annotations</p>
-                  <p class="library-pdf-status" id="library-highlight-status" role="status" aria-live="polite">Select text to highlight.</p>
+                  <p class="library-pdf-status ui-status" id="library-highlight-status" role="status" aria-live="polite">Select text to highlight.</p>
                 </div>
                 <button class="library-pdf-inspector-close" id="close-library-pdf-inspector" type="button" aria-label="Close annotation inspector" title="Close annotation inspector">×</button>
               </header>
@@ -616,7 +617,7 @@ export function renderHomePage(
                   <button class="button-primary" type="submit">Apply style</button>
                 </div>
                 <button class="button-secondary" id="edit-selected-library-note" type="button" hidden>Edit note</button>
-                <button class="button-secondary" id="delete-selected-library-markup" type="button">Delete</button>
+                <button class="button-secondary" id="delete-selected-library-markup" type="button" data-destructive="true">Delete</button>
                 <button class="button-secondary" id="cancel-library-markup-selection" type="button">Done</button>
               </form>
               <details class="library-annotation-details" id="library-annotation-details">
@@ -674,7 +675,7 @@ export function renderHomePage(
   
     </main>
 
-    <dialog class="reference-library-dialog" id="export-dialog">
+    <dialog class="reference-library-dialog ui-dialog" id="export-dialog">
       <div class="p-5">
         <div class="flex items-start justify-between gap-4">
           <div>
@@ -698,7 +699,7 @@ export function renderHomePage(
       </div>
     </dialog>
 
-    <dialog class="new-workspace-dialog template-dialog" id="new-workspace-dialog">
+    <dialog class="new-workspace-dialog template-dialog ui-dialog" id="new-workspace-dialog">
       <form class="p-5" id="new-workspace-form">
         <p class="eyebrow">New project</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Start another line of inquiry</h2>
@@ -717,7 +718,7 @@ export function renderHomePage(
       </form>
     </dialog>
 
-    <dialog class="new-workspace-dialog" id="workspace-settings-dialog">
+    <dialog class="new-workspace-dialog ui-dialog" id="workspace-settings-dialog">
       <form class="p-5" id="workspace-settings-form">
         <p class="eyebrow">Project settings</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Manage this project</h2>
@@ -740,18 +741,18 @@ export function renderHomePage(
           <button class="button-primary" type="submit">Save title</button>
           <button class="button-secondary" id="save-workspace-template" type="button">Save as template</button>
           <button class="button-secondary" id="duplicate-workspace" type="button">Duplicate</button>
-          <button class="button-secondary" id="archive-workspace" type="button">Archive</button>
+          <button class="button-secondary" id="archive-workspace" type="button" data-destructive="true">Archive</button>
         </div>
         <section class="mt-6 border-t border-app-line pt-5">
           <p class="eyebrow">Danger zone</p>
           <p class="mt-2 text-sm leading-6 text-app-text-soft">Permanent deletion removes project revisions, collaborators, project PDFs, and project links. Private library references remain.</p>
-          <button class="button-secondary mt-3" id="delete-workspace" type="button">Delete permanently</button>
+          <button class="button-secondary mt-3" id="delete-workspace" type="button" data-destructive="true">Delete permanently</button>
         </section>
         <div class="mt-5 flex justify-end"><button class="button-secondary" id="close-workspace-settings" type="button">Close</button></div>
       </form>
     </dialog>
 
-    <dialog class="new-workspace-dialog" id="save-template-dialog">
+    <dialog class="new-workspace-dialog ui-dialog" id="save-template-dialog">
       <form class="p-5" id="save-template-form">
         <p class="eyebrow">Personal template</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Reuse this project structure</h2>
@@ -767,7 +768,7 @@ export function renderHomePage(
       </form>
     </dialog>
 
-    <dialog class="reference-library-dialog" id="workspace-catalog-dialog">
+    <dialog class="reference-library-dialog ui-dialog" id="workspace-catalog-dialog">
       <div class="p-5">
         <div class="flex items-start justify-between gap-4">
           <div><p class="eyebrow">Project library</p><h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Open a project</h2></div>
@@ -780,7 +781,7 @@ export function renderHomePage(
       </div>
     </dialog>
 
-    <dialog class="new-workspace-dialog" id="share-workspace-dialog">
+    <dialog class="new-workspace-dialog ui-dialog" id="share-workspace-dialog">
       <div class="p-5">
         <p class="eyebrow">Project access</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Collaborators</h2>
@@ -827,7 +828,7 @@ export function renderHomePage(
       </div>
     </dialog>
 
-    <dialog class="new-workspace-dialog" id="project-file-dialog">
+    <dialog class="new-workspace-dialog ui-dialog" id="project-file-dialog">
       <form class="p-5" id="project-file-form">
         <p class="eyebrow">Project structure</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]" id="project-file-dialog-title">Add Markdown file</h2>
@@ -842,7 +843,7 @@ export function renderHomePage(
       </form>
     </dialog>
 
-    <dialog class="reference-library-dialog" id="project-history-dialog">
+    <dialog class="reference-library-dialog ui-dialog" id="project-history-dialog">
       <div class="p-5">
         <div class="flex items-start justify-between gap-4">
           <div>
@@ -862,7 +863,7 @@ export function renderHomePage(
       </div>
     </dialog>
 
-    <dialog class="new-workspace-dialog" id="claim-dialog">
+    <dialog class="new-workspace-dialog ui-dialog" id="claim-dialog">
       <form class="p-5" id="claim-form">
         <p class="eyebrow">Evidence synthesis</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]" id="claim-dialog-title">Create claim</h2>
