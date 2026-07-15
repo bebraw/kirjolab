@@ -36,6 +36,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-093](./implemented/ADR-093-scope-prettier-to-owned-files.md)             | Implemented | Keep duplicated and vendored skill references outside the Prettier ownership boundary.          |
 | [ADR-094](./implemented/ADR-094-cache-prettier-checks-by-content.md)          | Implemented | Cache successful Prettier checks by file content under ignored local state.                     |
 | [ADR-095](./implemented/ADR-095-decouple-public-share-locators.md)            | Implemented | Route public shares through opaque locators instead of requiring globally unique workspace ids. |
+| [ADR-113](./accepted/ADR-113-follow-preview-file-selection.md)                | Accepted    | Show the selected supporting Markdown file in isolation while preserving `main.md` publication. |
 
 ## Implemented ADRs
 
@@ -97,7 +98,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-054](./implemented/ADR-054-model-publication-pdf-associations-explicitly.md)     | Implemented          | Link publications and local PDF artifacts only through explicit durable relationships.                       |
 | [ADR-055](./implemented/ADR-055-use-reviewed-doi-intake-for-pdfs.md)                  | Implemented          | Identify an imported PDF through reviewed, atomic, DOI-backed publication intake.                            |
 | [ADR-056](./implemented/ADR-056-persist-grounded-passage-revisions.md)                | Implemented          | Persist typed evidence and targeted replacements for grounded passage revisions.                             |
-| [ADR-057](./implemented/ADR-057-compose-projects-from-main.md)                        | Implemented          | Compose one project from root `main.md` through bounded, source-mapped transclusion.                         |
+| [ADR-057](./implemented/ADR-057-compose-projects-from-main.md)                        | Partially superseded | Compose one project from root `main.md` through bounded, source-mapped transclusion.                         |
 | [ADR-058](./implemented/ADR-058-use-a-shared-reference-library.md)                    | Implemented          | Make a user-scoped reference library authoritative and derive project bibliography snapshots.                |
 | [ADR-059](./implemented/ADR-059-separate-private-research-from-projects.md)           | Implemented          | Keep personal research private by default and share pinned snapshots into projects explicitly.               |
 | [ADR-060](./implemented/ADR-060-capture-versioned-web-sources.md)                     | Partially superseded | Preserve timestamped web-source snapshots for reproducible citations and evidence.                           |

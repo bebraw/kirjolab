@@ -45,8 +45,12 @@ collaborative, and unambiguous about what preview and export mean.
   and targets. Destinations cannot collide or sit inside the folder being moved. File deletion is
   rejected while an inbound include remains; folder deletion is limited to
   empty folders. `main.md` cannot be renamed, moved, or deleted.
-- Preview and Markdown export always compose from `main.md`; selecting a
-  supporting file changes the editor, not the publication root.
+- Preview follows file selection. Selecting `main.md` shows the composed paper;
+  selecting a supporting Markdown file shows only that file's authored content
+  without expanding its includes. A quiet context label identifies the active
+  path and whether Preview is composed or isolated. Markdown export, word
+  statistics, history, project search, and every publication path continue to
+  compose from `main.md`.
 - The workspace exposes project files as a dedicated navigation mode, separate
   from research inventory. Files is the default rail mode so the workspace
   opens with its authored structure visible. The file navigator uses one
@@ -110,7 +114,8 @@ collaborative, and unambiguous about what preview and export mean.
 ### Anti-Patterns
 
 - Do not infer composition order from lexical file order.
-- Do not treat supporting files as independent documents or export roots.
+- Do not treat an isolated supporting-file preview as an independent document
+  or export root.
 - Do not resolve paths outside the project or silently omit invalid includes.
 - Do not rewrite heading levels or merge included frontmatter into root
   metadata.
@@ -130,11 +135,11 @@ collaborative, and unambiguous about what preview and export mean.
   file identity across rename, composed diffs, non-destructive restore, and
   revision seeds.
 - Browser coverage verifies that authors can insert an existing file and create
-  a new file at a remembered caret, select it through the file tree without
-  changing the `main.md` composition root, and that Files is the initial rail
-  mode. Compact split-width coverage verifies that toolbar controls remain
-  fully visible without a duplicate file dropdown and that include-action help
-  cannot overlap its file path.
+  a new file at a remembered caret, select it through the file tree to isolate
+  its Preview without changing the `main.md` publication root, and that Files
+  is the initial rail mode. Compact split-width coverage verifies that toolbar
+  controls remain fully visible without a duplicate file dropdown and that
+  include-action help cannot overlap its file path.
 - Workers and browser coverage verify that a fresh project exposes the syntax
   guide and transclusion demo as real supporting files while composing neither
   diagnostics nor guide prose into the paper.

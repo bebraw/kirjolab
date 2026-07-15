@@ -1,6 +1,6 @@
 # ADR-057: Compose Projects From a Root Main File
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-113](../accepted/ADR-113-follow-preview-file-selection.md)
 
 **Date:** 2026-07-11
 
