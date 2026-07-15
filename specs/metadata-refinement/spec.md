@@ -12,6 +12,11 @@ enough to overwrite canonical metadata without review.
 ### Architecture
 
 - Each linked PDF exposes one inline **Refine metadata** action.
+- One browser-local XState actor coordinates the active reference's extraction,
+  provider discovery, review, apply, failure, and supersession phases. It owns
+  only transient candidates, preview data, errors, and request generation;
+  PDF.js, provider requests, canonical metadata, and DOM elements remain
+  outside the actor.
 - The authorized browser first runs the existing bounded PDF.js extraction and
   keeps the PDF bytes and extracted page text local.
 - The browser sends only the linked artifact id and bounded bibliographic hints
@@ -95,6 +100,9 @@ enough to overwrite canonical metadata without review.
 - Artifact ownership is checked by the owner-keyed library authority.
 - Manual editing, PDF download, local-only review, and project linking remain available.
 - Provider unavailability must not hide or discard already extracted PDF suggestions.
+- Late extraction or discovery results from a cancelled or superseded reference
+  must not replace the active review, and apply failure must retain that review
+  for correction or retry.
 
 ### Scenarios
 

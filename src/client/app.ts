@@ -98,6 +98,7 @@ import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } fr
 import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHistoryAction } from "./editor-history";
 import { loadMarkdownRuntime } from "./markdown-runtime";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
+import { createMetadataRefinementActor } from "./metadata-refinement-machine";
 import { cacheOfflineNavigation, clearOfflineShellCaches, registerOfflineServiceWorker } from "./offline-service-worker";
 import {
   clearAllOfflineWorkspaces,
@@ -535,6 +536,7 @@ class WorkspaceApp {
   readonly #assistantWorkflow = createAssistantWorkflowActor();
   readonly #publicationIntake = createPublicationIntakeActor();
   readonly #collaborationWorkflow = createCollaborationWorkflowActor();
+  readonly #metadataRefinement = createMetadataRefinementActor();
   #snapshot: WorkspaceSnapshot | null = null;
   #revision = 0;
   #socket: WebSocket | null = null;
@@ -3368,10 +3370,14 @@ class WorkspaceApp {
   }
 
   async #refinePdfMetadata(reference: BibliographicRecord, artifact: LibraryPdfArtifact, container: HTMLElement): Promise<void> {
+    this.#metadataRefinement.send({ type: "START", referenceId: reference.id, artifactId: artifact.id });
+    const requestId = this.#metadataRefinement.getSnapshot().context.requestId;
     container.classList.remove("hidden");
     container.replaceChildren(resourceLabel("Refine metadata"), statusText("Step 1 of 2 · Reading embedded metadata and opening pages…"));
     try {
       const candidates = await extractPdfMetadata(`/api/library/pdfs/${encodeURIComponent(artifact.id)}`);
+      this.#metadataRefinement.send({ type: "LOCAL_READY", requestId, local: candidates });
+      if (!this.#metadataRefinement.getSnapshot().matches("discovering")) return;
       container.replaceChildren(resourceLabel("Refine metadata"), statusText("Step 2 of 2 · Searching scholarly metadata…"));
       try {
         const response = await jsonFetch(`/api/library/references/${encodeURIComponent(reference.id)}/metadata-refinement/preview`, {
@@ -3386,22 +3392,27 @@ class WorkspaceApp {
         await expectOk(response);
         const preview: unknown = await response.json();
         if (!isMetadataRefinementPreview(preview)) throw new Error("Metadata providers returned an invalid preview");
+        this.#metadataRefinement.send({ type: "DISCOVERY_READY", requestId, preview });
+        if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
         this.#renderMetadataRefinement(reference, artifact, candidates, preview, container);
       } catch (error) {
+        const message = error instanceof Error ? error.message : "Provider lookup failed.";
+        this.#metadataRefinement.send({ type: "DISCOVERY_FAILED", requestId, message });
+        if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
         this.#renderMetadataRefinement(
           reference,
           artifact,
           candidates,
           { referenceId: reference.id, artifactId: artifact.id, candidates: [] },
           container,
-          error instanceof Error ? error.message : "Provider lookup failed.",
+          message,
         );
       }
     } catch (error) {
-      container.replaceChildren(
-        resourceLabel("Refine metadata"),
-        statusText(error instanceof Error ? `Metadata could not be refined: ${error.message}` : "Metadata could not be refined."),
-      );
+      const message = error instanceof Error ? `Metadata could not be refined: ${error.message}` : "Metadata could not be refined.";
+      this.#metadataRefinement.send({ type: "FAIL", requestId, message });
+      if (!this.#metadataRefinement.getSnapshot().matches("failed")) return;
+      container.replaceChildren(resourceLabel("Refine metadata"), statusText(message));
     }
   }
 
@@ -3536,20 +3547,32 @@ class WorkspaceApp {
       this.#showToast("Select at least one provider metadata field to apply.");
       return;
     }
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/metadata-refinement/accept`, {
-      selections: [...fieldsByCandidate].map(([index, fields]) => {
-        const candidate = candidates[index]!;
-        return {
-          provider: candidate.provider,
-          doi: candidate.metadata.doi,
-          metadataFingerprint: candidate.metadataFingerprint,
-          fields,
-        };
-      }),
-    });
-    await expectOk(response);
-    await this.#refreshBibliographicMetadata();
-    this.#showToast("Scholarly metadata applied with field-level provenance.");
+    this.#metadataRefinement.send({ type: "APPLY", referenceId });
+    if (!this.#metadataRefinement.getSnapshot().matches("applying")) {
+      this.#showToast("This metadata preview is no longer active. Refine the PDF again.");
+      return;
+    }
+    try {
+      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/metadata-refinement/accept`, {
+        selections: [...fieldsByCandidate].map(([index, fields]) => {
+          const candidate = candidates[index]!;
+          return {
+            provider: candidate.provider,
+            doi: candidate.metadata.doi,
+            metadataFingerprint: candidate.metadataFingerprint,
+            fields,
+          };
+        }),
+      });
+      await expectOk(response);
+      this.#metadataRefinement.send({ type: "APPLIED" });
+      await this.#refreshBibliographicMetadata();
+      this.#showToast("Scholarly metadata applied with field-level provenance.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not apply scholarly metadata";
+      this.#metadataRefinement.send({ type: "APPLY_FAILED", message });
+      this.#showToast(message);
+    }
   }
 
   #renderPdfMetadataReview(
