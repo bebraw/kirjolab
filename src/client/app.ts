@@ -78,6 +78,13 @@ import {
   type WorkspaceSummary,
 } from "../domain/workspace";
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
+import {
+  assistantOperationDefinition,
+  assistantOperationDefinitions,
+  assistantTargetScopeLabel,
+  resolveAssistantTarget,
+  type AssistantTargetScope,
+} from "./assistant-operations";
 import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
 import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHistoryAction } from "./editor-history";
 import { loadMarkdownRuntime } from "./markdown-runtime";
@@ -429,6 +436,9 @@ interface Elements {
   llmReasoningEffort: HTMLSelectElement;
   discoverLlmModels: HTMLButtonElement;
   modelOperation: HTMLSelectElement;
+  assistantTargetScope: HTMLSelectElement;
+  assistantTargetScopeField: HTMLElement;
+  assistantTargetPreview: HTMLElement;
   modelClaimRelation: HTMLSelectElement;
   modelClaimRelationField: HTMLElement;
   assistantOperationEyebrow: HTMLElement;
@@ -846,7 +856,12 @@ class WorkspaceApp {
           : "The browser will contact the configured loopback provider directly.";
     });
     this.#elements.discoverLlmModels.addEventListener("click", () => void this.#discoverLlmModels());
-    this.#elements.modelOperation.addEventListener("change", () => this.#updateModelTask());
+    this.#renderModelOperationOptions();
+    this.#elements.modelOperation.addEventListener("change", () => this.#updateModelTask(true));
+    this.#elements.assistantTargetScope.addEventListener("change", () => {
+      this.#renderAssistantTargetPreview();
+      this.#updateModelAvailability();
+    });
     this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
     this.#updateModelTask();
   }
@@ -1652,14 +1667,22 @@ class WorkspaceApp {
   }
 
   #canGenerateCandidate(): boolean {
+    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
+    if (!operation.enabled) return false;
     const selectedEvidence = this.#modelEvidence();
+    const evidenceValid =
+      operation.evidence === "none" ||
+      operation.evidence === "optional" ||
+      (operation.evidence === "annotations"
+        ? selectedEvidence.items.some((item) => item.kind === "annotation")
+        : selectedEvidence.items.length > 0);
     return (
-      selectedEvidence.items.length > 0 &&
+      evidenceValid &&
       this.#modelEvidenceSelection.size <= maximumModelEvidenceItems &&
       Boolean(this.#elements.llmModel.value.trim()) &&
       (this.#draftsClaim()
         ? selectedEvidence.items.some((item) => item.kind === "annotation")
-        : this.#selectedAuthoringPassage() !== null) &&
+        : this.#assistantAuthoringPassage() !== null) &&
       Boolean(this.#elements.modelInstruction.value.trim())
     );
   }
@@ -1668,20 +1691,64 @@ class WorkspaceApp {
     return this.#elements.modelOperation.value === "draft-claim";
   }
 
-  #updateModelTask(): void {
-    const draftsClaim = this.#draftsClaim();
+  #renderModelOperationOptions(): void {
+    const current = this.#elements.modelOperation.value;
+    this.#elements.modelOperation.replaceChildren(
+      ...assistantOperationDefinitions().map((definition) => {
+        const option = document.createElement("option");
+        option.value = definition.id;
+        option.textContent = definition.enabled ? definition.label : `${definition.label} · coming next`;
+        option.disabled = !definition.enabled;
+        return option;
+      }),
+    );
+    this.#elements.modelOperation.value = assistantOperationDefinition(current).id;
+  }
+
+  #updateModelTask(resetInstruction = false): void {
+    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
+    const draftsClaim = operation.id === "draft-claim";
     this.#elements.modelClaimRelationField.hidden = !draftsClaim;
-    this.#elements.assistantOperationEyebrow.textContent = draftsClaim ? "Selected annotations" : "Selected passage";
-    this.#elements.assistantOperationTitle.textContent = draftsClaim ? "Draft a reviewable claim" : "Draft a reviewable revision";
-    this.#elements.assistantOperationDescription.textContent = draftsClaim
-      ? "Uses only chosen annotation snapshots. Review the proposition and note in Context before creating a claim."
-      : "Uses only the selected passage and chosen evidence. Review the draft in Context before applying it.";
-    this.#elements.modelInstructionLabel.textContent = draftsClaim ? "Research instruction" : "Revision instruction";
-    this.#elements.generateCandidate.textContent = draftsClaim ? "Draft claim" : "Draft revision";
+    this.#elements.assistantTargetScopeField.hidden = operation.scopes.length === 0;
+    const currentScope = this.#elements.assistantTargetScope.value;
+    this.#elements.assistantTargetScope.replaceChildren(
+      ...operation.scopes.map((scope) => {
+        const option = document.createElement("option");
+        option.value = scope;
+        option.textContent = assistantTargetScopeLabel(scope);
+        return option;
+      }),
+    );
+    const scope = operation.scopes.includes(currentScope as AssistantTargetScope) ? currentScope : operation.defaultScope;
+    if (scope) this.#elements.assistantTargetScope.value = scope;
+    this.#elements.assistantOperationEyebrow.textContent = operation.eyebrow;
+    this.#elements.assistantOperationTitle.textContent = operation.title;
+    this.#elements.assistantOperationDescription.textContent = operation.description;
+    this.#elements.modelInstructionLabel.textContent = operation.instructionLabel;
+    this.#elements.generateCandidate.textContent = operation.actionLabel;
+    if (resetInstruction) this.#elements.modelInstruction.value = operation.defaultInstruction;
     this.#elements.modelStatus.textContent = draftsClaim
       ? "Select at least one annotation to ground the claim draft."
-      : "Select manuscript text and at least one annotation or claim to ground the request.";
+      : "Choose a target and the required evidence, then generate a reviewable draft.";
+    this.#renderAssistantTargetPreview();
     this.#updateModelAvailability();
+  }
+
+  #renderAssistantTargetPreview(): void {
+    if (this.#draftsClaim()) {
+      this.#elements.assistantTargetPreview.textContent =
+        "This operation uses selected annotation snapshots rather than a manuscript target.";
+      return;
+    }
+    const passage = this.#assistantAuthoringPassage();
+    if (!passage) {
+      this.#elements.assistantTargetPreview.textContent = "Place the caret in manuscript text or select the exact passage to target.";
+      return;
+    }
+    const target = this.#resolvedAuthoringTarget();
+    const scope = target && target.start !== target.end ? "selection" : this.#assistantTargetScope();
+    const excerpt = passage.excerpt.replace(/\s+/gu, " ").trim();
+    this.#elements.assistantTargetPreview.textContent = `${assistantTargetScopeLabel(scope)} · “${excerpt.slice(0, 180)}${excerpt.length > 180 ? "…" : ""}”`;
   }
 
   #modelProvider(): OpenAICompatibleBrowserProvider {
@@ -5075,6 +5142,7 @@ class WorkspaceApp {
     if (!target) {
       this.#elements.editorTargetStatus.textContent = `${file?.path ?? "Manuscript"} · no target`;
       this.#renderSourceEditorHighlight();
+      this.#renderAssistantTargetPreview();
       return;
     }
     const source = this.#activeFileText.toString();
@@ -5084,6 +5152,7 @@ class WorkspaceApp {
     const selection = target.start === target.end ? "caret" : `${target.end - target.start} characters selected`;
     this.#elements.editorTargetStatus.textContent = `${file?.path ?? "Manuscript"} · ${location} · ${selection}`;
     this.#renderSourceEditorHighlight();
+    this.#renderAssistantTargetPreview();
   }
 
   #resolvedAuthoringCaret(): number | null {
@@ -5302,6 +5371,21 @@ class WorkspaceApp {
     return excerpt.trim() && this.#activeFileId ? { fileId: this.#activeFileId, start: start.index, end: end.index, excerpt } : null;
   }
 
+  #assistantTargetScope(): AssistantTargetScope {
+    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
+    const scope = this.#elements.assistantTargetScope.value as AssistantTargetScope;
+    return operation.scopes.includes(scope) ? scope : (operation.defaultScope ?? "selection");
+  }
+
+  #assistantAuthoringPassage(): AuthoringPassage | null {
+    if (!this.#activeFileId) return null;
+    const target = this.#resolvedAuthoringTarget();
+    if (!target) return null;
+    const source = this.#activeFileText.toString();
+    const resolved = resolveAssistantTarget(source, target.start, target.end, this.#assistantTargetScope());
+    return resolved.text.trim() ? { fileId: this.#activeFileId, start: resolved.start, end: resolved.end, excerpt: resolved.text } : null;
+  }
+
   #insertSourceSyntax(event: MouseEvent): void {
     const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-insert-syntax]") : null;
     const includeTarget = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-include-file-id]") : null;
@@ -5411,7 +5495,7 @@ class WorkspaceApp {
       return;
     }
 
-    const passage = this.#selectedAuthoringPassage();
+    const passage = this.#assistantAuthoringPassage();
     const evidence = this.#modelEvidence();
     const annotationItems = evidence.items.filter((item) => item.kind === "annotation");
     const annotationReferences = evidence.references.filter((item) => item.kind === "annotation");
@@ -6872,6 +6956,9 @@ function collectElements(): Elements {
     llmReasoningEffort: requiredElement("llm-reasoning-effort", HTMLSelectElement),
     discoverLlmModels: requiredElement("discover-llm-models", HTMLButtonElement),
     modelOperation: requiredElement("model-operation", HTMLSelectElement),
+    assistantTargetScope: requiredElement("assistant-target-scope", HTMLSelectElement),
+    assistantTargetScopeField: requiredElement("assistant-target-scope-field", HTMLElement),
+    assistantTargetPreview: requiredElement("assistant-target-preview", HTMLElement),
     modelClaimRelation: requiredElement("model-claim-relation", HTMLSelectElement),
     modelClaimRelationField: requiredElement("model-claim-relation-field", HTMLElement),
     assistantOperationEyebrow: requiredElement("assistant-operation-eyebrow", HTMLElement),

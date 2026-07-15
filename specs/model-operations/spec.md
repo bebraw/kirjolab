@@ -5,11 +5,20 @@
 ### Context
 
 Kirjolab uses local-capable language models to propose inspectable scholarly
-changes. One operation revises a selected manuscript passage using explicit
-annotations or claims. A second operation drafts one evidence-backed claim from
-selected annotations. Both preserve a human review boundary.
+changes. Typed capabilities cover passage revision and evidence-backed claim
+drafting, with clarity drilling, ideation, reference discovery, and structured
+syntax exposed through the same operation framework as their contracts land.
+All mutation operations preserve a human review boundary.
 
 ### Architecture
+
+- One typed registry defines every assistant operation's presentation, target
+  scopes, evidence requirement, action, and availability. The UI does not infer
+  operation semantics from a generic prompt.
+- A non-empty manuscript selection always resolves exactly. Otherwise the
+  remembered Yjs-relative caret expands deterministically to the configured
+  sentence, paragraph, or Markdown section, or remains an insertion point.
+  The resolved target is previewed before provider I/O.
 
 - `revise-selection` captures one current exact passage, instruction, provider
   adapter/label, model name, and one to twelve typed, versioned evidence
@@ -44,7 +53,7 @@ selected annotations. Both preserve a human review boundary.
   `.dev.vars`. A checked-in `.env.example` documents the supported variables,
   explicit process variables take precedence, and `npm run model:companion`
   remains a standalone troubleshooting path.
-- Only the selected passage, instruction, and chosen evidence snapshots enter
+- Only the resolved passage, instruction, and chosen evidence snapshots enter
   the operation prompt; the adapter also sends the configured model identifier.
   No unrelated manuscript text is transmitted.
 - The provider returns bounded replacement Markdown, never a complete document
@@ -103,8 +112,9 @@ selected annotations. Both preserve a human review boundary.
 
 ### Definition of Done
 
-- [x] A researcher can select prose, choose annotation/claim evidence, and add
-      a bounded revision instruction.
+- [x] A researcher can select prose or target the sentence, paragraph, or
+      section at the remembered caret, choose annotation/claim evidence, and
+      add a bounded revision instruction.
 - [x] The browser invokes a provider-neutral operation through the local
       OpenAI-compatible adapter.
 - [x] An explicitly started local companion can bridge the same operation when
@@ -135,6 +145,8 @@ selected annotations. Both preserve a human review boundary.
   quotes remain provenance rather than navigation fallback.
 - Contextual actions must resolve the visible local authoring target and must
   never fall back to a stale numeric caret from another file.
+- A non-empty researcher selection must override broader assistant scope; a
+  collapsed caret must use the operation's declared deterministic scope.
 - Apply and accepted status persist atomically and preserve surrounding Yjs
   identities through a range-only splice.
 - Provider errors and candidate rejection leave canonical Markdown unchanged.

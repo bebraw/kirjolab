@@ -290,6 +290,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Capture a model operation's source, selection, revision, and evidence as one
   immutable base before awaiting a provider; reject stale candidate creation
   and keep application as a separate revision-validated action.
+- Define model-writing capabilities through one typed operation registry with
+  operation-specific target, evidence, input, and output contracts. Resolve a
+  visible non-empty selection exactly; otherwise expand the remembered caret
+  deterministically to the requested sentence, paragraph, Markdown section, or
+  insertion point, and preview that target before provider I/O.
 - Persist passage-revision candidates as a Yjs-relative target, bounded
   instruction, typed versioned evidence snapshots, provider/model identity, and
   replacement text. Never model a selected-passage operation as a proposed

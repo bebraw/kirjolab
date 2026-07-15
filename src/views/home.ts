@@ -348,6 +348,9 @@ export function renderHomePage(
                   <option value="draft-claim">Draft evidence-backed claim</option>
                 </select>
               </label>
+              <label class="field-label" id="assistant-target-scope-field">Target
+                <select class="field" id="assistant-target-scope"></select>
+              </label>
               <label class="field-label" id="model-claim-relation-field" hidden>Evidence relation
                 <select class="field" id="model-claim-relation">
                   <option value="supports">Supports</option>
@@ -360,6 +363,7 @@ export function renderHomePage(
               </label>
               <button class="button-primary model-generate-action justify-center" id="generate-candidate" type="button">Draft revision</button>
             </div>
+            <p class="mt-2 text-xs leading-5 text-app-text-soft" id="assistant-target-preview" aria-live="polite">Place the caret in a sentence or select the exact text to revise.</p>
             <details class="assistant-settings" id="assistant-model-settings">
               <summary>Model connection</summary>
               <div class="assistant-settings-grid">
