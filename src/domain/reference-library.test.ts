@@ -10,7 +10,10 @@ import {
   isPdfDraftResult,
   isReferenceLibrarySnapshot,
   likelyReferenceIdentity,
+  libraryPdfRectsOverlap,
   memorableReferenceKey,
+  mergeLibraryHighlightQuote,
+  mergeLibraryPdfRects,
   missingRequiredBibliographicFields,
   normalizeWebSourceUrl,
   referenceFromBibTeX,
@@ -625,5 +628,25 @@ describe("shared reference library", () => {
     expect(capped).toMatchObject({ identical: false, beforeLines: 204, afterLines: 204, addedLines: 105, removedLines: 105 });
     expect(capped.hunks).toHaveLength(101);
     expect(capped.hunks.at(-1)).toMatchObject({ beforeLine: 200, afterLine: 200, truncated: true });
+  });
+
+  it("merges overlapping private highlight geometry and quotation text", () => {
+    const existing = [
+      { x: 0.1, y: 0.2, width: 0.3, height: 0.04 },
+      { x: 0.1, y: 0.3, width: 0.2, height: 0.04 },
+    ];
+    const incoming = [
+      { x: 0.25, y: 0.2, width: 0.25, height: 0.04 },
+      { x: 0.6, y: 0.4, width: 0.2, height: 0.04 },
+    ];
+
+    expect(libraryPdfRectsOverlap(existing, incoming)).toBe(true);
+    expect(libraryPdfRectsOverlap(existing, [{ x: 0.5, y: 0.8, width: 0.1, height: 0.02 }])).toBe(false);
+    expect(mergeLibraryPdfRects(existing, incoming)).toEqual([{ x: 0.1, y: 0.2, width: 0.4, height: 0.04 }, existing[1], incoming[1]]);
+    expect(mergeLibraryHighlightQuote("The visible evidence", "evidence shortens review")).toBe("The visible evidence shortens review");
+    expect(mergeLibraryHighlightQuote("review time", "Visible evidence shortens review time")).toBe(
+      "Visible evidence shortens review time",
+    );
+    expect(mergeLibraryHighlightQuote("First passage", "Second passage")).toBe("First passage Second passage");
   });
 });

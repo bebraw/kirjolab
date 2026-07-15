@@ -37,6 +37,7 @@ import {
   isMetadataRefinementPreview,
   isPdfDraftResult,
   isReferenceLibrarySnapshot,
+  libraryPdfRectsOverlap,
   type BibliographicRecord,
   type CrossrefMetadataField,
   type LibraryHighlight,
@@ -555,6 +556,8 @@ class WorkspaceApp {
   #pdfDrawingPointer: number | null = null;
   #pdfDrawingDraftLine: SVGElement | null = null;
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
+  #editingLibraryHighlightId: string | null = null;
+  #editingLibraryPdfNoteId: string | null = null;
   #pdfNoteDrag: { id: string; pointerId: number; startX: number; startY: number; moved: boolean } | null = null;
   #openPdfNoteId: string | null = null;
   #failedLibraryPdfUploads: readonly File[] = [];
@@ -6151,7 +6154,9 @@ class WorkspaceApp {
       this.#elements.libraryHighlightPage.value = String(capture.page);
       this.#elements.libraryHighlightQuote.value = capture.quote;
       this.#libraryHighlightRects = capture.rects;
+      this.#editingLibraryHighlightId = null;
       this.#elements.libraryHighlightExcerpt.textContent = `“${capture.quote}”`;
+      this.#elements.saveLibraryHighlight.textContent = "Save";
       this.#elements.libraryHighlightForm.hidden = false;
       this.#elements.saveLibraryHighlight.disabled = false;
       this.#elements.cancelLibraryHighlight.disabled = false;
@@ -6178,6 +6183,9 @@ class WorkspaceApp {
       this.#elements.libraryHighlightPage.value = "1";
       this.#elements.libraryHighlightQuote.value = "";
       this.#elements.libraryHighlightComment.value = "";
+      this.#editingLibraryHighlightId = null;
+      this.#editingLibraryPdfNoteId = null;
+      this.#elements.saveLibraryHighlight.textContent = "Save";
       this.#elements.libraryHighlightExcerpt.textContent = "";
       this.#elements.libraryHighlightForm.hidden = true;
       this.#elements.saveLibraryHighlight.disabled = true;
@@ -6208,7 +6216,10 @@ class WorkspaceApp {
       }
       const actions = document.createElement("div");
       actions.className = "mt-3 flex flex-wrap gap-2";
-      actions.append(actionButton(`Open page ${highlight.page}`, "button-secondary", () => void this.#openLibraryHighlight(highlight)));
+      actions.append(
+        actionButton(`Open page ${highlight.page}`, "button-secondary", () => void this.#openLibraryHighlight(highlight)),
+        actionButton("Edit note", "button-secondary", () => this.#editLibraryHighlight(highlight)),
+      );
       const linked = this.#snapshot?.projectReferences.some((item) => item.referenceId === highlight.referenceId) ?? false;
       const share = this.#snapshot?.researchShares.find((item) => item.kind === "highlight" && item.resourceId === highlight.id);
       const shareAction = share
@@ -6235,6 +6246,7 @@ class WorkspaceApp {
       actions.className = "mt-3 flex flex-wrap gap-2";
       actions.append(
         actionButton(`Open page ${markup.page}`, "button-secondary", () => void this.#openLibraryPdf(artifact, markup.page)),
+        ...(markup.kind === "note" ? [actionButton("Edit note", "button-secondary", () => this.#editLibraryPdfNote(markup))] : []),
         actionButton("Delete", "button-secondary", () => void this.#deleteLibraryPdfMarkup(markup)),
       );
       card.append(actions);
@@ -6326,6 +6338,29 @@ class WorkspaceApp {
     const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id);
     const quote = this.#elements.libraryHighlightQuote.value.trim();
     if (!artifact?.referenceId || !quote) return;
+    if (this.#editingLibraryHighlightId) {
+      const response = await fetch(
+        `/api/library/references/${encodeURIComponent(artifact.referenceId)}/highlights/${encodeURIComponent(this.#editingLibraryHighlightId)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ comment: this.#elements.libraryHighlightComment.value }),
+        },
+      );
+      await expectOk(response);
+      this.#clearLibraryHighlightDraft("Private highlight note updated.");
+      await this.#refreshReferenceLibrary();
+      this.#showToast("Private highlight note updated.");
+      return;
+    }
+    const extendsExisting =
+      this.#librarySnapshot?.highlights.some(
+        (highlight) =>
+          highlight.artifactId === artifact.id &&
+          highlight.page === Number(this.#elements.libraryHighlightPage.value) &&
+          libraryPdfRectsOverlap(highlight.rects, this.#libraryHighlightRects),
+      ) ?? false;
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/highlights`, {
       artifactId: artifact.id,
       page: Number(this.#elements.libraryHighlightPage.value),
@@ -6334,23 +6369,46 @@ class WorkspaceApp {
       rects: this.#libraryHighlightRects,
     });
     await expectOk(response);
-    this.#clearLibraryHighlightDraft("Private highlight saved. It remains outside the project until explicitly shared.");
+    this.#clearLibraryHighlightDraft(
+      extendsExisting
+        ? "Existing private highlight extended."
+        : "Private highlight saved. It remains outside the project until explicitly shared.",
+    );
     await this.#refreshReferenceLibrary();
-    this.#elements.libraryHighlightStatus.textContent = "Private highlight saved. Select another passage to continue.";
-    this.#showToast("Private highlight saved to your library.");
+    this.#elements.libraryHighlightStatus.textContent = extendsExisting
+      ? "Existing private highlight extended. Select another passage to continue."
+      : "Private highlight saved. Select another passage to continue.";
+    this.#showToast(extendsExisting ? "Existing private highlight extended." : "Private highlight saved to your library.");
   }
 
   #clearLibraryHighlightDraft(message = "Selection cancelled. Nothing was saved."): void {
     this.#elements.libraryHighlightPage.value = String(this.#pdfViewer.currentPage);
     this.#elements.libraryHighlightQuote.value = "";
     this.#libraryHighlightRects = [];
+    this.#editingLibraryHighlightId = null;
     this.#elements.libraryHighlightComment.value = "";
     this.#elements.libraryHighlightExcerpt.textContent = "";
     this.#elements.libraryHighlightForm.hidden = true;
     this.#elements.saveLibraryHighlight.disabled = true;
+    this.#elements.saveLibraryHighlight.textContent = "Save";
     this.#elements.cancelLibraryHighlight.disabled = true;
     this.#elements.libraryHighlightStatus.textContent = message;
     this.#pdfViewer.clearDraftSelection();
+  }
+
+  #editLibraryHighlight(highlight: LibraryHighlight): void {
+    this.#editingLibraryHighlightId = highlight.id;
+    this.#elements.libraryHighlightPage.value = String(highlight.page);
+    this.#elements.libraryHighlightQuote.value = highlight.quote;
+    this.#libraryHighlightRects = [...highlight.rects];
+    this.#elements.libraryHighlightExcerpt.textContent = `“${highlight.quote}”`;
+    this.#elements.libraryHighlightComment.value = highlight.comment;
+    this.#elements.libraryHighlightForm.hidden = false;
+    this.#elements.saveLibraryHighlight.disabled = false;
+    this.#elements.saveLibraryHighlight.textContent = "Save note";
+    this.#elements.cancelLibraryHighlight.disabled = false;
+    this.#elements.libraryHighlightStatus.textContent = `Editing the note for page ${highlight.page}.`;
+    this.#elements.libraryHighlightComment.focus();
   }
 
   #setLibraryPdfTool(tool: "text" | "note" | "draw"): void {
@@ -6462,6 +6520,22 @@ class WorkspaceApp {
     const anchor = this.#pendingPdfNote;
     const body = this.#elements.libraryNoteBody.value.trim();
     if (!artifact?.referenceId || !anchor || !body) return;
+    if (this.#editingLibraryPdfNoteId) {
+      const response = await fetch(
+        `/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups/${encodeURIComponent(this.#editingLibraryPdfNoteId)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ...anchor, body }),
+        },
+      );
+      await expectOk(response);
+      this.#clearLibraryPdfNoteDraft();
+      await this.#refreshReferenceLibrary();
+      this.#showToast("Private note updated.");
+      return;
+    }
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups`, {
       kind: "note",
       artifactId: artifact.id,
@@ -6476,9 +6550,19 @@ class WorkspaceApp {
 
   #clearLibraryPdfNoteDraft(render = true): void {
     this.#pendingPdfNote = null;
+    this.#editingLibraryPdfNoteId = null;
     this.#elements.libraryNoteBody.value = "";
     this.#elements.libraryNoteForm.hidden = true;
     if (render) this.#renderPdfMarkups();
+  }
+
+  #editLibraryPdfNote(note: LibraryPdfNote): void {
+    this.#editingLibraryPdfNoteId = note.id;
+    this.#pendingPdfNote = { page: note.page, x: note.x, y: note.y };
+    this.#elements.libraryNoteBody.value = note.body;
+    this.#elements.libraryNoteForm.hidden = false;
+    this.#elements.libraryHighlightStatus.textContent = `Editing the note on page ${note.page}.`;
+    this.#elements.libraryNoteBody.focus();
   }
 
   #activeLibraryPdf(): LibraryPdfArtifact | undefined {

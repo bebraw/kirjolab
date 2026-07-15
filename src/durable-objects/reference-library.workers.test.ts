@@ -104,6 +104,51 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     });
   });
 
+  it("extends overlapping private highlights and edits saved PDF notes", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`annotations-${crypto.randomUUID()}`);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "reading.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/owner/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-15T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const first = await library.createHighlight(draft.reference.id, draft.artifact.id, 1, "Visible evidence", "First note", [
+      { x: 0.1, y: 0.2, width: 0.3, height: 0.04 },
+    ]);
+    const extended = await library.createHighlight(draft.reference.id, draft.artifact.id, 1, "evidence shortens review", "Second note", [
+      { x: 0.25, y: 0.2, width: 0.25, height: 0.04 },
+    ]);
+
+    expect(extended).toMatchObject({
+      id: first.id,
+      quote: "Visible evidence shortens review",
+      comment: "First note\n\nSecond note",
+      rects: [{ x: 0.1, y: 0.2, width: 0.4, height: 0.04 }],
+    });
+    expect((await library.getSnapshot()).highlights).toHaveLength(1);
+    expect(await library.updateHighlightComment(draft.reference.id, first.id, "Edited insight")).toMatchObject({
+      id: first.id,
+      comment: "Edited insight",
+    });
+
+    const note = await library.createPdfNote(draft.reference.id, draft.artifact.id, 1, 0.3, 0.4, "Initial note");
+    expect(await library.updatePdfNote(draft.reference.id, note.id, note.x, note.y, "Edited note")).toMatchObject({
+      id: note.id,
+      body: "Edited note",
+      x: 0.3,
+      y: 0.4,
+    });
+  });
+
   it("improves provisional PDF keys until their first project link finalizes them", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`pdf-drafts-${crypto.randomUUID()}`);
     const artifact = (id: string): LibraryPdfArtifact => ({

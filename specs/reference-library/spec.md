@@ -96,12 +96,20 @@ memory and makes citation aliases compete with stable source identity.
   An explicit save records its artifact, page, quote, optional comment, and
   bounded normalized selection rectangles in the owner library
   without adding, sharing, or annotating the artifact in a project.
+- Saving a text selection whose normalized rectangles overlap a saved
+  highlight on the same artifact page extends that stable highlight instead of
+  creating a second resource. Geometry, quotation text, and distinct comments
+  are combined within their existing bounds. Non-overlapping selections remain
+  separate highlights.
 - The private reader stays focused on the page: its idle annotation surface is
   a compact Text, Note, and Draw toolbar. Text selection opens a contextual
   save row; Note places a page-anchored private note; Draw captures pointer or
   touch strokes with red as the default color and an adjustable 1–24 pixel
   width. Notes and strokes use normalized page coordinates so they remain
   aligned when the page is resized. Saved annotations are collapsed by default.
+- Saved text-highlight comments and page-note bodies expose an explicit edit
+  action. Editing preserves the annotation id, page, geometry, and creation
+  time while advancing its update time; it never changes the immutable PDF.
 - Saved private highlight rectangles repaint over the matching page. Existing
   quote-only highlights remain valid but cannot recover geometry. Note pins can
   be dragged to a new normalized anchor; drawing undo deletes the newest stroke
@@ -144,14 +152,17 @@ memory and makes citation aliases compete with stable source identity.
   confirmed deletion routes mutate only the authenticated owner's library.
 - Highlight creation accepts at most 512 normalized rectangles. Missing or
   malformed geometry fails closed; migrated legacy rows contain an empty list.
+- `PATCH /api/library/references/{referenceId}/highlights/{highlightId}` updates
+  only the bounded private comment for an owner-matching highlight.
 - `POST /api/library/references/{referenceId}/pdf-markups` creates an
   owner-private note or drawing for an identified artifact. Notes are limited
   to 8,000 characters; colors use six-digit hex; widths are 1–24; drawings
   contain 2–2,048 normalized points. `DELETE` of a markup requires the same
   reference ownership boundary. PDF markups are not project-share resources.
-- `PATCH /api/library/references/{referenceId}/pdf-markups/{markupId}` moves
-  only an owner-private note to a validated normalized anchor. It cannot turn a
-  drawing into a note or move a resource owned by another reference.
+- `PATCH /api/library/references/{referenceId}/pdf-markups/{markupId}` moves an
+  owner-private note to a validated normalized anchor and may replace its
+  bounded body. It cannot turn a drawing into a note or mutate a resource owned
+  by another reference.
 - Web-source capture, snapshot inspection, inert content download, and neutral
   snapshot comparison routes remain within the same owner-private API.
 - Citation assertion, review, bounded network, and explicit Crossref reference
@@ -213,8 +224,10 @@ memory and makes citation aliases compete with stable source identity.
 - Browser coverage opens a private artifact, saves and revisits a private
   page-and-quote highlight, restores reading state, keeps project evidence
   controls unavailable, and proves that capture does not mutate the workspace
-  snapshot. Pure tests prove fragmented DOM rectangles become visual lines and
-  exported multi-line highlights remain one multi-quad annotation. Browser
+  snapshot. It also extends an overlapping highlight and edits saved highlight
+  and page-note text without replacing their identities. Pure tests prove
+  fragmented DOM rectangles become visual lines and exported multi-line
+  highlights remain one multi-quad annotation. Browser
   coverage opens attached PDFs directly from collapsed library rows and verifies
   that references without artifacts expose no PDF action.
 - Browser coverage proves bounded batch progress, partial success, and retry

@@ -211,6 +211,69 @@ export interface LibraryPdfRect extends LibraryPdfPoint {
   readonly height: number;
 }
 
+export function libraryPdfRectsOverlap(left: readonly LibraryPdfRect[], right: readonly LibraryPdfRect[]): boolean {
+  return left.some((leftRect) => right.some((rightRect) => pdfRectsOverlap(leftRect, rightRect)));
+}
+
+export function mergeLibraryPdfRects(left: readonly LibraryPdfRect[], right: readonly LibraryPdfRect[]): readonly LibraryPdfRect[] {
+  const merged = left.map((rect) => ({ ...rect }));
+  for (const candidate of right) {
+    let union = { ...candidate };
+    let index = 0;
+    while (index < merged.length) {
+      const current = merged[index]!;
+      if (!pdfRectsOverlap(union, current)) {
+        index += 1;
+        continue;
+      }
+      const x = Math.min(union.x, current.x);
+      const y = Math.min(union.y, current.y);
+      union = {
+        x: roundPdfCoordinate(x),
+        y: roundPdfCoordinate(y),
+        width: roundPdfCoordinate(Math.max(union.x + union.width, current.x + current.width) - x),
+        height: roundPdfCoordinate(Math.max(union.y + union.height, current.y + current.height) - y),
+      };
+      merged.splice(index, 1);
+      index = 0;
+    }
+    merged.push(union);
+  }
+  return merged.sort((first, second) => first.y - second.y || first.x - second.x);
+}
+
+export function mergeLibraryHighlightQuote(existingValue: string, incomingValue: string): string {
+  const existing = existingValue.trim();
+  const incoming = incomingValue.trim();
+  if (existing.includes(incoming)) return existing;
+  if (incoming.includes(existing)) return incoming;
+  const existingThenIncoming = overlappingTextLength(existing, incoming);
+  const incomingThenExisting = overlappingTextLength(incoming, existing);
+  if (existingThenIncoming >= incomingThenExisting && existingThenIncoming > 0) {
+    return `${existing}${incoming.slice(existingThenIncoming)}`;
+  }
+  if (incomingThenExisting > 0) return `${incoming}${existing.slice(incomingThenExisting)}`;
+  return `${existing} ${incoming}`;
+}
+
+function pdfRectsOverlap(left: LibraryPdfRect, right: LibraryPdfRect): boolean {
+  return (
+    left.x < right.x + right.width && right.x < left.x + left.width && left.y < right.y + right.height && right.y < left.y + left.height
+  );
+}
+
+function roundPdfCoordinate(value: number): number {
+  return Math.round(value * 1_000_000) / 1_000_000;
+}
+
+function overlappingTextLength(first: string, second: string): number {
+  const maximum = Math.min(first.length, second.length);
+  for (let length = maximum; length > 0; length -= 1) {
+    if (first.endsWith(second.slice(0, length))) return length;
+  }
+  return 0;
+}
+
 interface LibraryPdfMarkupBase {
   readonly id: string;
   readonly referenceId: string;

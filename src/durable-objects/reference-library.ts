@@ -10,9 +10,12 @@ import {
 } from "../domain/citation-assertions";
 import {
   likelyReferenceIdentity,
+  libraryPdfRectsOverlap,
   crossrefMetadataFields,
   isCrossrefMetadata,
   memorableReferenceKey,
+  mergeLibraryHighlightQuote,
+  mergeLibraryPdfRects,
   missingRequiredBibliographicFields,
   referenceFromBibTeX,
   type BibliographicRecord,
@@ -913,6 +916,38 @@ export class ReferenceLibrary extends DurableObject<Env> {
       throw new Error("Invalid private highlight");
     }
     const now = new Date().toISOString();
+    const overlapping = this.ctx.storage.sql
+      .exec<HighlightRow>(
+        "SELECT * FROM highlights WHERE reference_id = ? AND artifact_id = ? AND page = ? ORDER BY updated_at DESC, id",
+        referenceId,
+        artifactId,
+        page,
+      )
+      .toArray()
+      .find((row) => libraryPdfRectsOverlap(parsePdfRectsJson(row.rects_json), rects));
+    if (overlapping) {
+      const mergedRects = mergeLibraryPdfRects(parsePdfRectsJson(overlapping.rects_json), rects);
+      const mergedQuote = mergeLibraryHighlightQuote(overlapping.quote, quote);
+      const mergedComment = mergeHighlightComments(overlapping.comment, comment);
+      if (mergedRects.length > 512 || mergedQuote.length > 20_000 || mergedComment.length > 8_000) {
+        throw new Error("Merged private highlight exceeds its limits");
+      }
+      this.ctx.storage.sql.exec(
+        "UPDATE highlights SET quote = ?, comment = ?, rects_json = ?, updated_at = ? WHERE id = ?",
+        mergedQuote,
+        mergedComment,
+        JSON.stringify(mergedRects),
+        now,
+        overlapping.id,
+      );
+      return highlightFromRow({
+        ...overlapping,
+        quote: mergedQuote,
+        comment: mergedComment,
+        rects_json: JSON.stringify(mergedRects),
+        updated_at: now,
+      });
+    }
     const highlight: LibraryHighlight = {
       id: crypto.randomUUID(),
       referenceId,
@@ -940,16 +975,35 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return highlight;
   }
 
-  updatePdfNote(referenceId: string, markupId: string, x: number, y: number): LibraryPdfNote {
+  updateHighlightComment(referenceId: string, highlightId: string, commentValue: string): LibraryHighlight {
+    const row = this.ctx.storage.sql
+      .exec<HighlightRow>("SELECT * FROM highlights WHERE id = ? AND reference_id = ?", highlightId, referenceId)
+      .toArray()[0];
+    const comment = commentValue.trim();
+    if (!row || comment.length > 8_000) throw new Error("Invalid private highlight comment");
+    const updatedAt = new Date().toISOString();
+    this.ctx.storage.sql.exec("UPDATE highlights SET comment = ?, updated_at = ? WHERE id = ?", comment, updatedAt, highlightId);
+    return highlightFromRow({ ...row, comment, updated_at: updatedAt });
+  }
+
+  updatePdfNote(referenceId: string, markupId: string, x: number, y: number, bodyValue?: string): LibraryPdfNote {
     const row = this.ctx.storage.sql
       .exec<PdfMarkupRow>("SELECT * FROM pdf_markups WHERE id = ? AND reference_id = ?", markupId, referenceId)
       .toArray()[0];
-    if (!row || row.kind !== "note" || !normalizedCoordinate(x) || !normalizedCoordinate(y)) {
+    const body = bodyValue === undefined ? row?.body : bodyValue.trim();
+    if (!row || row.kind !== "note" || !normalizedCoordinate(x) || !normalizedCoordinate(y) || !body || body.length > 8_000) {
       throw new Error("Invalid private PDF note position");
     }
     const updatedAt = new Date().toISOString();
-    this.ctx.storage.sql.exec("UPDATE pdf_markups SET x = ?, y = ?, updated_at = ? WHERE id = ?", x, y, updatedAt, markupId);
-    return pdfMarkupFromRow({ ...row, x, y, updated_at: updatedAt }) as LibraryPdfNote;
+    this.ctx.storage.sql.exec(
+      "UPDATE pdf_markups SET x = ?, y = ?, body = ?, updated_at = ? WHERE id = ?",
+      x,
+      y,
+      body,
+      updatedAt,
+      markupId,
+    );
+    return pdfMarkupFromRow({ ...row, x, y, body, updated_at: updatedAt }) as LibraryPdfNote;
   }
 
   createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, bodyValue: string): LibraryPdfNote {
@@ -1729,6 +1783,14 @@ function parsePdfRects(value: unknown): LibraryHighlight["rects"] | null {
       item.y + item.height <= 1.000_001,
   );
   return rects.length === value.length ? rects : null;
+}
+
+function mergeHighlightComments(existingValue: string, incomingValue: string): string {
+  const existing = existingValue.trim();
+  const incoming = incomingValue.trim();
+  if (!incoming || existing === incoming) return existing;
+  if (!existing) return incoming;
+  return `${existing}\n\n${incoming}`;
 }
 
 function pdfMarkupFromRow(row: PdfMarkupRow): LibraryPdfMarkup {

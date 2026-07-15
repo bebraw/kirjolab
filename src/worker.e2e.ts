@@ -1004,6 +1004,53 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#library-highlight-count")).toHaveText("1");
   await expect(page.locator("#library-highlight-list")).toContainText("Private reading insight");
   await expect.poll(async () => await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(true);
+  await page.locator(".library-annotation-details").evaluate((details: HTMLDetailsElement) => {
+    details.open = true;
+  });
+  await page.locator("#paper-text-layer").evaluate((layer) => {
+    const span = layer.querySelector("span");
+    if (!span?.firstChild) throw new Error("Expected private PDF text");
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+  });
+  await expect(page.locator("#library-highlight-form")).toBeVisible();
+  await page.locator("#library-highlight-comment").fill("Additive follow-up");
+  await page.locator("#save-library-highlight").click();
+  await expect(page.locator("#toast")).toHaveText("Existing private highlight extended.");
+  await expect(page.locator("#library-highlight-count")).toHaveText("1");
+  await expect(page.locator("#library-highlight-list")).toContainText("Private reading insight");
+  await expect(page.locator("#library-highlight-list")).toContainText("Additive follow-up");
+
+  const highlightCard = page.locator("#library-highlight-list article").filter({ hasText: "Private reading insight" });
+  await highlightCard.getByRole("button", { name: "Edit note" }).click();
+  await page.locator("#library-highlight-comment").fill("Revised reading insight");
+  await page.locator("#save-library-highlight").click();
+  await expect(page.locator("#toast")).toHaveText("Private highlight note updated.");
+  await expect(page.locator("#library-highlight-list")).toContainText("Revised reading insight");
+  await expect(page.locator("#library-highlight-list")).not.toContainText("Additive follow-up");
+
+  await page.getByRole("button", { name: "Note", exact: true }).click();
+  await page.locator("#paper-markups").evaluate((layer) => {
+    const rect = layer.getBoundingClientRect();
+    const event = { bubbles: true, pointerId: 71, clientX: rect.left + rect.width * 0.7, clientY: rect.top + rect.height * 0.25 };
+    layer.dispatchEvent(new PointerEvent("pointerdown", event));
+    layer.dispatchEvent(new PointerEvent("pointerup", event));
+  });
+  await page.locator("#library-note-body").fill("Initial page note");
+  await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
+  await expect(page.locator("#library-highlight-count")).toHaveText("2");
+  const pageNoteCard = page.locator("#library-highlight-list article").filter({ hasText: "Initial page note" });
+  await pageNoteCard.getByRole("button", { name: "Edit note" }).click();
+  await page.locator("#library-note-body").fill("Revised page note");
+  await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
+  await expect(page.locator("#toast")).toHaveText("Private note updated.");
+  await expect(page.locator("#library-highlight-list")).toContainText("Revised page note");
+  await expect(page.locator("#library-highlight-list")).not.toContainText("Initial page note");
+  await page.getByRole("button", { name: "Text", exact: true }).click();
   await expect(page.getByRole("button", { name: "Export annotated" })).toBeEnabled();
   const annotatedDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export annotated" }).click();
@@ -1017,8 +1064,14 @@ test("keeps private library research separate from project citations", async ({ 
   const refreshedPdfCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "climate adaptation" });
   await refreshedPdfCard.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
-  await page.getByText("Annotations", { exact: true }).click();
-  await page.getByRole("button", { name: "Open page 1" }).click();
+  await page.locator(".library-annotation-details").evaluate((details: HTMLDetailsElement) => {
+    details.open = true;
+  });
+  await page
+    .locator("#library-highlight-list article")
+    .filter({ hasText: "Revised reading insight" })
+    .getByRole("button", { name: "Open page 1" })
+    .click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await expect(page.locator("#library-highlight-status")).toHaveText("Showing saved private highlight on page 1.");
 

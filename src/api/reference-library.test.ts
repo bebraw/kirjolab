@@ -355,11 +355,21 @@ describe("reference library API", () => {
         )
       ).status,
     ).toBe(201);
+    const highlightId = "44444444-4444-4444-8444-444444444444";
+    expect(
+      (
+        await handleReferenceLibraryApi(
+          jsonRequest(`/api/library/references/${id}/highlights/${highlightId}`, { comment: "Revised private note" }, "PATCH"),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(200);
     const markupId = "33333333-3333-4333-8333-333333333333";
     expect(
       (
         await handleReferenceLibraryApi(
-          jsonRequest(`/api/library/references/${id}/pdf-markups/${markupId}`, { x: 0.4, y: 0.6 }, "PATCH"),
+          jsonRequest(`/api/library/references/${id}/pdf-markups/${markupId}`, { x: 0.4, y: 0.6, body: "Revised page note" }, "PATCH"),
           fixture.env,
           identity,
         )
@@ -401,7 +411,8 @@ describe("reference library API", () => {
     expect(fixture.library.createHighlight).toHaveBeenCalledWith(id, "artifact", 2, "Evidence", "Private", [
       { x: 0.1, y: 0.2, width: 0.3, height: 0.04 },
     ]);
-    expect(fixture.library.updatePdfNote).toHaveBeenCalledWith(id, markupId, 0.4, 0.6);
+    expect(fixture.library.updateHighlightComment).toHaveBeenCalledWith(id, highlightId, "Revised private note");
+    expect(fixture.library.updatePdfNote).toHaveBeenCalledWith(id, markupId, 0.4, 0.6, "Revised page note");
     expect(fixture.library.setReadingState).toHaveBeenCalledWith(id, "reading", 4, "high");
     expect(fixture.library.setCollections).toHaveBeenCalledWith(id, ["Dissertation"]);
     expect(fixture.library.updateReferenceMetadata).toHaveBeenCalledWith(id, metadata, identity.email);
@@ -1149,6 +1160,17 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
         updatedAt: now,
       }),
     ),
+    updateHighlightComment: vi.fn(async (referenceId: string, id: string, comment: string) => ({
+      id,
+      referenceId,
+      artifactId: artifact.id,
+      page: 1,
+      quote: "Evidence",
+      comment,
+      rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+      createdAt: now,
+      updatedAt: now,
+    })),
     createPdfNote: vi.fn(async (referenceId: string, artifactId: string, page: number, x: number, y: number, body: string) => ({
       id: "pdf-note",
       kind: "note" as const,
@@ -1161,7 +1183,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       createdAt: now,
       updatedAt: now,
     })),
-    updatePdfNote: vi.fn(async (referenceId: string, markupId: string, x: number, y: number) => ({
+    updatePdfNote: vi.fn(async (referenceId: string, markupId: string, x: number, y: number, body = "Moved note") => ({
       id: markupId,
       kind: "note" as const,
       referenceId,
@@ -1169,7 +1191,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       page: 1,
       x,
       y,
-      body: "Moved note",
+      body,
       createdAt: now,
       updatedAt: now,
     })),

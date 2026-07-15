@@ -108,6 +108,7 @@ interface ReferenceLibraryApi {
     comment: string,
     rects: unknown,
   ): Promise<LibraryHighlight>;
+  updateHighlightComment(referenceId: string, highlightId: string, comment: string): Promise<LibraryHighlight>;
   createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, body: string): Promise<LibraryPdfNote>;
   createPdfDrawing(
     referenceId: string,
@@ -117,7 +118,7 @@ interface ReferenceLibraryApi {
     width: number,
     points: readonly LibraryPdfPoint[],
   ): Promise<LibraryPdfDrawing>;
-  updatePdfNote(referenceId: string, markupId: string, x: number, y: number): Promise<LibraryPdfNote>;
+  updatePdfNote(referenceId: string, markupId: string, x: number, y: number, body?: string): Promise<LibraryPdfNote>;
   deletePdfMarkup(referenceId: string, markupId: string): Promise<LibraryPdfMarkup>;
   setReadingState(
     referenceId: string,
@@ -279,13 +280,24 @@ export async function handleReferenceLibraryApi(
     const pdfMarkupMatch = /^\/references\/([0-9a-f-]{36})\/pdf-markups\/([0-9a-f-]{36})$/iu.exec(suffix);
     if (pdfMarkupMatch?.[1] && pdfMarkupMatch[2] && request.method === "PATCH") {
       const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.x !== "number" || typeof body.y !== "number") {
+      if (
+        !isRecord(body) ||
+        typeof body.x !== "number" ||
+        typeof body.y !== "number" ||
+        (body.body !== undefined && typeof body.body !== "string")
+      ) {
         return jsonError("Invalid private PDF note position", 400);
       }
-      return Response.json(await library.updatePdfNote(pdfMarkupMatch[1], pdfMarkupMatch[2], body.x, body.y), noStore());
+      return Response.json(await library.updatePdfNote(pdfMarkupMatch[1], pdfMarkupMatch[2], body.x, body.y, body.body), noStore());
     }
     if (pdfMarkupMatch?.[1] && pdfMarkupMatch[2] && request.method === "DELETE") {
       return Response.json(await library.deletePdfMarkup(pdfMarkupMatch[1], pdfMarkupMatch[2]), noStore());
+    }
+    const highlightMatch = /^\/references\/([0-9a-f-]{36})\/highlights\/([0-9a-f-]{36})$/iu.exec(suffix);
+    if (highlightMatch?.[1] && highlightMatch[2] && request.method === "PATCH") {
+      const body: unknown = await request.json();
+      if (!isRecord(body) || typeof body.comment !== "string") return jsonError("Invalid private highlight comment", 400);
+      return Response.json(await library.updateHighlightComment(highlightMatch[1], highlightMatch[2], body.comment), noStore());
     }
     const referenceMatch =
       /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|pdf-metadata))?$/iu.exec(
