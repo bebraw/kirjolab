@@ -1315,6 +1315,7 @@
   .library-pdf-toolbar,
   .library-pdf-tool-group,
   .library-ink-options,
+  .library-selected-drawing-options,
   .library-context-composer {
     display: flex;
     align-items: center;
@@ -1350,6 +1351,24 @@
     border-color: var(--color-app-accent);
     background: var(--color-app-accent-ghost);
     color: var(--color-app-accent-strong);
+  }
+
+  .library-markup-selection > strong {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    color: var(--color-app-text);
+    font: 700 0.72rem/1.4 var(--font-sans);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .library-markup-selection [hidden] {
+    display: none;
+  }
+
+  .library-selected-drawing-options {
+    flex: none;
   }
 
   .library-ink-options {
@@ -2531,6 +2550,13 @@
     height: 100%;
     pointer-events: none;
   }
+  .pdf-markups[data-tool="select"] .pdf-ink-stroke {
+    pointer-events: stroke;
+    cursor: pointer;
+  }
+  .pdf-ink-stroke[data-selected="true"] {
+    filter: drop-shadow(0 0 5px var(--color-app-accent));
+  }
   .pdf-note-pin {
     position: absolute;
     width: 1.45rem;
@@ -2549,6 +2575,10 @@
     opacity: 0.82;
     pointer-events: none;
     animation: pdf-note-draft-pulse 1.4s ease-in-out infinite alternate;
+  }
+  .pdf-note-pin[data-selected="true"] {
+    outline: 3px solid var(--color-app-accent);
+    outline-offset: 3px;
   }
 
   @keyframes pdf-note-draft-pulse {
@@ -2589,6 +2619,15 @@
     pointer-events: none;
   }
 
+  .pdf-highlights[data-private-select="true"] {
+    pointer-events: auto;
+  }
+
+  .pdf-highlights[data-private-select="true"] .pdf-highlight[data-private="true"] {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
   .pdf-highlight {
     position: absolute;
     border: 0;
@@ -2606,6 +2645,10 @@
   .pdf-highlight[data-private="true"] {
     background: rgb(255 212 64 / 0.44);
     box-shadow: none;
+  }
+
+  .pdf-highlight[data-private="true"][data-selected="true"] {
+    box-shadow: inset 0 0 0 2px var(--color-app-accent);
   }
 
   @media (min-width: 720px) and (max-width: 1420px) {

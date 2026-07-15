@@ -1006,6 +1006,25 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return pdfMarkupFromRow({ ...row, x, y, body, updated_at: updatedAt }) as LibraryPdfNote;
   }
 
+  updatePdfDrawing(referenceId: string, markupId: string, colorValue: string, width: number): LibraryPdfDrawing {
+    const row = this.ctx.storage.sql
+      .exec<PdfMarkupRow>("SELECT * FROM pdf_markups WHERE id = ? AND reference_id = ?", markupId, referenceId)
+      .toArray()[0];
+    const color = colorValue.toLocaleLowerCase();
+    if (!row || row.kind !== "drawing" || !/^#[0-9a-f]{6}$/u.test(color) || !Number.isFinite(width) || width < 1 || width > 24) {
+      throw new Error("Invalid private PDF drawing style");
+    }
+    const updatedAt = new Date().toISOString();
+    this.ctx.storage.sql.exec(
+      "UPDATE pdf_markups SET color = ?, width = ?, updated_at = ? WHERE id = ?",
+      color,
+      width,
+      updatedAt,
+      markupId,
+    );
+    return pdfMarkupFromRow({ ...row, color, width, updated_at: updatedAt }) as LibraryPdfDrawing;
+  }
+
   createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, bodyValue: string): LibraryPdfNote {
     this.#reference(referenceId);
     const artifact = this.#artifact(artifactId);

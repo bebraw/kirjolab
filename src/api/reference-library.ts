@@ -119,6 +119,7 @@ interface ReferenceLibraryApi {
     points: readonly LibraryPdfPoint[],
   ): Promise<LibraryPdfDrawing>;
   updatePdfNote(referenceId: string, markupId: string, x: number, y: number, body?: string): Promise<LibraryPdfNote>;
+  updatePdfDrawing(referenceId: string, markupId: string, color: string, width: number): Promise<LibraryPdfDrawing>;
   deletePdfMarkup(referenceId: string, markupId: string): Promise<LibraryPdfMarkup>;
   setReadingState(
     referenceId: string,
@@ -280,6 +281,9 @@ export async function handleReferenceLibraryApi(
     const pdfMarkupMatch = /^\/references\/([0-9a-f-]{36})\/pdf-markups\/([0-9a-f-]{36})$/iu.exec(suffix);
     if (pdfMarkupMatch?.[1] && pdfMarkupMatch[2] && request.method === "PATCH") {
       const body: unknown = await request.json();
+      if (isRecord(body) && typeof body.color === "string" && typeof body.width === "number") {
+        return Response.json(await library.updatePdfDrawing(pdfMarkupMatch[1], pdfMarkupMatch[2], body.color, body.width), noStore());
+      }
       if (
         !isRecord(body) ||
         typeof body.x !== "number" ||

@@ -1046,6 +1046,11 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#toast")).toHaveText("Private highlight note updated.");
   await expect(page.locator("#library-highlight-list")).toContainText("Revised reading insight");
   await expect(page.locator("#library-highlight-list")).not.toContainText("Additive follow-up");
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await page.locator("#paper-highlights [data-private='true']").first().click();
+  await expect(page.locator("#library-highlight-form")).toBeVisible();
+  await expect(page.locator("#library-highlight-comment")).toHaveValue("Revised reading insight");
+  await page.locator("#cancel-library-highlight").click();
 
   await page.getByRole("button", { name: "Note", exact: true }).click();
   await page.locator("#paper-markups").evaluate((layer) => {
@@ -1058,13 +1063,23 @@ test("keeps private library research separate from project citations", async ({ 
   await page.locator("#library-note-body").fill("Initial page note");
   await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
   await expect(page.locator("#library-highlight-count")).toHaveText("2");
-  const pageNoteCard = page.locator("#library-highlight-list article").filter({ hasText: "Initial page note" });
-  await pageNoteCard.getByRole("button", { name: "Edit note" }).click();
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await page.locator("#paper-markups .pdf-note-pin").click();
+  await expect(page.locator("#library-markup-selection")).toContainText("drag its pin to move");
+  await page.locator("#edit-selected-library-note").click();
   await page.locator("#library-note-body").fill("Revised page note");
   await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
   await expect(page.locator("#toast")).toHaveText("Private note updated.");
   await expect(page.locator("#library-highlight-list")).toContainText("Revised page note");
   await expect(page.locator("#library-highlight-list")).not.toContainText("Initial page note");
+  const notePin = page.locator("#paper-markups .pdf-note-pin");
+  const noteBox = await notePin.boundingBox();
+  if (!noteBox) throw new Error("Expected a movable PDF note pin");
+  await page.mouse.move(noteBox.x + noteBox.width / 2, noteBox.y + noteBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(noteBox.x + 35, noteBox.y + 28, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.locator("#toast")).toHaveText("Note moved.");
   await page.getByRole("button", { name: "Draw", exact: true }).click();
   await page.locator("#paper-markups").evaluate((layer) => {
     const rect = layer.getBoundingClientRect();
@@ -1081,6 +1096,21 @@ test("keeps private library research separate from project citations", async ({ 
   });
   await expect(page.locator("#paper-markups polyline")).toHaveCount(0);
   await expect(page.locator("#library-highlight-status")).toContainText("touch gestures pan and zoom");
+  const markupBox = await page.locator("#paper-markups").boundingBox();
+  if (!markupBox) throw new Error("Expected a drawable PDF page");
+  await page.mouse.move(markupBox.x + markupBox.width * 0.25, markupBox.y + markupBox.height * 0.35);
+  await page.mouse.down();
+  await page.mouse.move(markupBox.x + markupBox.width * 0.48, markupBox.y + markupBox.height * 0.42, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.locator("#paper-markups polyline")).toHaveCount(1);
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await page.locator("#paper-markups polyline").dispatchEvent("pointerdown", { bubbles: true, pointerId: 73, pointerType: "mouse" });
+  await expect(page.locator("#library-markup-selection")).toContainText("Line on page 1");
+  await page.locator("#library-selected-draw-color").fill("#116655");
+  await page.locator("#library-selected-draw-width").fill("7");
+  await page.locator("#library-markup-selection").getByRole("button", { name: "Apply style" }).click();
+  await expect(page.locator("#toast")).toHaveText("Line style updated.");
+  await expect(page.locator("#paper-markups polyline")).toHaveAttribute("stroke", "#116655");
   await page.getByRole("button", { name: "Text", exact: true }).click();
   await expect(page.locator("#export-library-annotated-pdf")).toBeEnabled();
   const annotatedDownload = page.waitForEvent("download");

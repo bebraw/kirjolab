@@ -39,6 +39,7 @@ export class PdfEvidenceViewer {
   readonly #onSelection: (capture: PdfSelectionCapture) => void;
   readonly #onHighlight: (annotationId: string, fragmentId: string) => void;
   readonly #onPageChange: (page: number) => void;
+  readonly #onPrivateHighlight: (highlightId: string) => void;
   #document: PDFDocumentProxy | null = null;
   #loadingTask: PDFDocumentLoadingTask | null = null;
   #runtime: PdfJsRuntime | null = null;
@@ -49,6 +50,8 @@ export class PdfEvidenceViewer {
   #focusedAnnotationId: string | undefined;
   #draftSelection: PdfSelectionCapture | null = null;
   #mode: "evidence" | "private-highlight" = "evidence";
+  #privateHighlightSelection = false;
+  #selectedPrivateHighlightId: string | null = null;
   #renderVersion = 0;
   #openVersion = 0;
   #zoom = 1;
@@ -62,11 +65,13 @@ export class PdfEvidenceViewer {
     onSelection: (capture: PdfSelectionCapture) => void,
     onHighlight: (annotationId: string, fragmentId: string) => void,
     onPageChange: (page: number) => void = () => undefined,
+    onPrivateHighlight: (highlightId: string) => void = () => undefined,
   ) {
     this.#elements = elements;
     this.#onSelection = onSelection;
     this.#onHighlight = onHighlight;
     this.#onPageChange = onPageChange;
+    this.#onPrivateHighlight = onPrivateHighlight;
     for (const button of elements.previousPages) button.addEventListener("click", () => void this.#move(-1));
     for (const button of elements.nextPages) button.addEventListener("click", () => void this.#move(1));
     elements.textLayer.addEventListener("pointerup", () => this.#queueSelectionCapture());
@@ -157,6 +162,13 @@ export class PdfEvidenceViewer {
 
   setTool(tool: "paint" | "erase"): void {
     this.#elements.highlights.dataset.tool = tool;
+  }
+
+  setPrivateHighlightSelection(enabled: boolean, selectedId: string | null = null): void {
+    this.#privateHighlightSelection = enabled;
+    this.#selectedPrivateHighlightId = selectedId;
+    this.#elements.highlights.dataset.privateSelect = String(enabled);
+    this.#renderHighlights();
   }
 
   async resize(): Promise<void> {
@@ -279,14 +291,18 @@ export class PdfEvidenceViewer {
     }
     for (const annotation of this.#privateHighlights.filter((item) => item.page === this.#pageNumber)) {
       for (const rect of annotation.rects) {
-        const highlight = document.createElement("span");
+        const highlight = document.createElement(this.#privateHighlightSelection ? "button" : "span");
+        if (highlight instanceof HTMLButtonElement) highlight.type = "button";
         highlight.className = "pdf-highlight";
         highlight.dataset.private = "true";
+        highlight.dataset.highlightId = annotation.id;
+        if (annotation.id === this.#selectedPrivateHighlightId) highlight.dataset.selected = "true";
         highlight.style.left = `${rect.x * 100}%`;
         highlight.style.top = `${rect.y * 100}%`;
         highlight.style.width = `${rect.width * 100}%`;
         highlight.style.height = `${rect.height * 100}%`;
         highlight.title = annotation.comment || annotation.quote;
+        if (this.#privateHighlightSelection) highlight.addEventListener("click", () => this.#onPrivateHighlight(annotation.id));
         this.#elements.highlights.append(highlight);
       }
     }

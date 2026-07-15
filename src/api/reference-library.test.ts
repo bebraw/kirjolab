@@ -378,6 +378,15 @@ describe("reference library API", () => {
     expect(
       (
         await handleReferenceLibraryApi(
+          jsonRequest(`/api/library/references/${id}/pdf-markups/${markupId}`, { color: "#116655", width: 7 }, "PATCH"),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await handleReferenceLibraryApi(
           jsonRequest(`/api/library/references/${id}/reading`, { status: "reading", rating: 4, priority: "high" }, "PUT"),
           fixture.env,
           identity,
@@ -413,6 +422,7 @@ describe("reference library API", () => {
     ]);
     expect(fixture.library.updateHighlightComment).toHaveBeenCalledWith(id, highlightId, "Revised private note");
     expect(fixture.library.updatePdfNote).toHaveBeenCalledWith(id, markupId, 0.4, 0.6, "Revised page note");
+    expect(fixture.library.updatePdfDrawing).toHaveBeenCalledWith(id, markupId, "#116655", 7);
     expect(fixture.library.setReadingState).toHaveBeenCalledWith(id, "reading", 4, "high");
     expect(fixture.library.setCollections).toHaveBeenCalledWith(id, ["Dissertation"]);
     expect(fixture.library.updateReferenceMetadata).toHaveBeenCalledWith(id, metadata, identity.email);
@@ -1216,6 +1226,21 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
         updatedAt: now,
       }),
     ),
+    updatePdfDrawing: vi.fn(async (referenceId: string, markupId: string, color: string, width: number) => ({
+      id: markupId,
+      kind: "drawing" as const,
+      referenceId,
+      artifactId: artifact.id,
+      page: 1,
+      color,
+      width,
+      points: [
+        { x: 0.1, y: 0.2 },
+        { x: 0.3, y: 0.4 },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    })),
     deletePdfMarkup: vi.fn(async (referenceId: string, markupId: string) => ({
       id: markupId,
       kind: "note" as const,

@@ -147,6 +147,15 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       x: 0.3,
       y: 0.4,
     });
+    const drawing = await library.createPdfDrawing(draft.reference.id, draft.artifact.id, 1, "#d33f49", 4, [
+      { x: 0.1, y: 0.2 },
+      { x: 0.3, y: 0.4 },
+    ]);
+    expect(await library.updatePdfDrawing(draft.reference.id, drawing.id, "#116655", 7)).toMatchObject({
+      id: drawing.id,
+      color: "#116655",
+      width: 7,
+    });
   });
 
   it("improves provisional PDF keys until their first project link finalizes them", async () => {

@@ -143,6 +143,12 @@ mode for authenticated hosted collaboration.
   authorization remain owner-private. Selection creates only an ephemeral
   draft; explicit save may create a library-owned page-and-quote highlight,
   while navigation never creates project evidence or sharing state.
+  A dedicated Select tool makes saved highlights, freehand lines, and note pins
+  directly actionable on the page. Highlight comments, line color/width, and
+  note text remain editable; selected notes may be dragged to a new normalized
+  page position. A pending note renders its anchor while its body is composed.
+  On touch hardware, fingers pan and pinch-zoom even while Draw is active;
+  Apple Pencil and mouse pointers create ink.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and
@@ -359,6 +365,10 @@ mode for authenticated hosted collaboration.
       pane beside manuscript authoring.
 - [x] Tab, pin, page, focus, and reading-position state remains local while
       narrow layouts switch explicitly between Authoring and Context.
+- [x] Private PDF annotation controls remain on one row and expose a dedicated
+      Select tool for directly editing highlights, lines, and notes.
+- [x] A new note anchor stays visible while its body is written, selected notes
+      can be moved, and touch navigation cannot accidentally create ink.
 - [x] The split workspace activates only when all minimum-width tracks fit;
       compact desktop windows remain free of horizontal page overflow.
 - [x] Writing assistant remains a permanent, keyboard-accessible Context tab
