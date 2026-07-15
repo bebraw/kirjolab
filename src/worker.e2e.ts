@@ -33,11 +33,10 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await studentPdf.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.getByRole("tab", { name: "student_submission.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("header").getByRole("tab", { name: "student_submission.pdf" })).toBeVisible();
-  await expect(page.locator("header #pdf-context-controls")).toBeAttached();
+  await expect(page.locator("header #pdf-context-controls")).toBeHidden();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(page.locator("header #pdf-context-controls")).toBeVisible();
+  await expect(page.locator("header #pdf-context-controls")).toBeHidden();
   await page.setViewportSize({ width: 1024, height: 768 });
-  await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.getByRole("toolbar", { name: "PDF annotation tools" })).toBeVisible();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
@@ -1021,6 +1020,7 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(pdfCard.locator(".library-reference-details")).not.toHaveAttribute("open", "");
   await pdfCard.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#pdf-context-controls")).toBeVisible();
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.locator("#annotation-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();

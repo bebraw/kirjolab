@@ -19,14 +19,16 @@ would incorrectly imply that they control the editor as well.
 
 Render the existing context tab model in the global header when the application
 is in standalone Library mode. The permanent Library tab follows Kirjolab and
-Settings, open private PDF tabs follow Library, and active PDF status,
-navigation, Keep tab, and Close actions occupy the header's trailing context
-region before global account controls.
+Settings, open private PDF tabs follow Library, and Keep tab and Close actions
+occupy the header's trailing context region before global account controls.
+Omit private PDF help text and page navigation from this header because the
+annotation inspector provides contextual feedback and the persistent left rail
+already owns page navigation.
 
 Do not render a second context strip inside the standalone context surface.
 Keep the existing pane-local strip unchanged in workspace mode. At tablet
-widths, retain the integrated PDF tab but omit duplicate page and pin controls
-that already exist in the left PDF rail.
+widths, retain the integrated PDF tab but omit the pin control to protect the
+document title and Close action.
 
 The tab and control elements keep their existing ids, roles, keyboard behavior,
 route synchronization, and application state; only their server-rendered host
@@ -39,14 +41,16 @@ changes by application mode.
 - Standalone PDFs gain 48 pixels of vertical reading space.
 - Library, the active document, and its actions read as one navigation
   hierarchy.
+- The private PDF reader has one page-navigation control instead of duplicate
+  header and rail affordances.
 - No duplicate tab state or client-side portal is introduced.
 - Workspace context remains visually and semantically local to its pane.
 
 **Negative:**
 
 - The global header carries more controls while a desktop PDF is active.
-- Responsive rules must truncate document titles and suppress controls already
-  available in the tablet rail.
+- Responsive rules must truncate document titles and suppress the secondary
+  pin action at tablet widths.
 - The server view has one shared tab fragment with two conditional hosts.
 
 ## Alternatives Considered
