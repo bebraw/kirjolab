@@ -33,4 +33,14 @@ describe("editor collaborator presence", () => {
     expect(segments.at(-1)).toMatchObject({ text: "" });
     expect(segments.at(-1)?.caretColors).toHaveLength(1);
   });
+
+  it("marks a remembered local target independently from collaborators", () => {
+    const segments = editorPresenceSegments("Local target", [
+      { collaboratorId: "local-author", start: 0, end: 5, local: true },
+      { collaboratorId: "remote-author", start: 12, end: 12 },
+    ]);
+
+    expect(segments.find(({ text }) => text === "Local")?.selectionColor).toBe("local");
+    expect(segments.at(-1)?.caretColors).not.toContain("local");
+  });
 });

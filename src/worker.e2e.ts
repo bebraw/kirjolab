@@ -427,6 +427,31 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
   expect(includeActionFit).toEqual({ textOverlaps: false, actionFits: true });
 });
 
+test("keeps the local editor target visible after focus moves to Context", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Remembered editor target");
+  await page.goto(`/workspaces/${workspaceId}`);
+  const editor = page.locator("#source-editor");
+  await editor.fill("# Target\n\nVisible selection remains anchored.");
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(10, 27);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+
+  await expect(page.locator("#editor-target-status")).toContainText("main.md · line 3 · 17 characters selected");
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await expect(page.locator("#source-editor-highlight .local-author-selection")).toContainText("Visible selection");
+
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(element.value.length, element.value.length);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await expect(page.locator("#editor-target-status")).toContainText("line 3 · caret");
+  await expect(page.locator("#source-editor-highlight .local-author-caret")).toHaveCount(1);
+});
+
 test("highlights Markdown without replacing the native editor", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Highlighted source");
   await page.goto(`/workspaces/${workspaceId}`);

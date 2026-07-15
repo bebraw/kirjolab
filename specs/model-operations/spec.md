@@ -63,6 +63,10 @@ selected annotations. Both preserve a human review boundary.
   with the authoring workflow. Passage selection, instruction, and evidence are
   primary; endpoint and model connection fields remain available under
   secondary settings instead of occupying persistent chrome.
+- The active manuscript caret or selection is retained as Yjs-relative
+  positions. Editor chrome always reports its file and line, while the existing
+  highlight layer paints the local target after textarea focus moves into
+  Context. Switching files creates a new caret at that file's start.
 - Each candidate can open one stable resource-keyed Context tab. Tab lifecycle
   and scroll remain local while the candidate and its provenance are shared
   authorized workspace state.
@@ -129,6 +133,8 @@ selected annotations. Both preserve a human review boundary.
 - Candidate creation and application use conservative source-revision equality.
 - Target identity resolves only through its Yjs-relative anchor; offsets and
   quotes remain provenance rather than navigation fallback.
+- Contextual actions must resolve the visible local authoring target and must
+  never fall back to a stale numeric caret from another file.
 - Apply and accepted status persist atomically and preserve surrounding Yjs
   identities through a range-only splice.
 - Provider errors and candidate rejection leave canonical Markdown unchanged.

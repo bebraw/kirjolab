@@ -144,6 +144,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-113](./implemented/ADR-113-follow-preview-file-selection.md)                     | Implemented          | Show the selected supporting Markdown file in isolation while preserving `main.md` publication.              |
 | [ADR-114](./implemented/ADR-114-accept-inert-svg-project-images.md)                   | Implemented          | Accept a constrained SVG subset and serve it with an image-specific sandbox boundary.                        |
 | [ADR-115](./implemented/ADR-115-discover-and-constrain-local-models.md)               | Implemented          | Discover live local models, expose reasoning effort, and constrain writing outputs with task schemas.        |
+| [ADR-118](./implemented/ADR-118-render-the-remembered-editor-target.md)               | Implemented          | Keep the manuscript caret or selection visible after editor focus moves.                                     |
 
 ## Creating A New ADR
 

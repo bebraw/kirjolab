@@ -331,6 +331,7 @@ interface Elements {
   diagnosticSummary: HTMLElement;
   connectionDot: HTMLElement;
   connectionStatus: HTMLElement;
+  editorTargetStatus: HTMLElement;
   saveStatus: HTMLElement;
   revisionBadge: HTMLElement;
   pdfUpload: HTMLInputElement;
@@ -456,6 +457,11 @@ interface AuthoringPassage {
   readonly start: number;
   readonly end: number;
   readonly excerpt: string;
+}
+
+interface ResolvedAuthoringTarget {
+  readonly start: number;
+  readonly end: number;
 }
 
 class WorkspaceApp {
@@ -726,6 +732,7 @@ class WorkspaceApp {
       control.addEventListener("input", () => this.#renderReferenceLibrary());
     }
     this.#bindSourceEditor(this.#source);
+    this.#rememberAuthoringSelection();
     bindVimTextarea(this.#elements.source, this.#elements.sourceEditorShell, this.#elements.vimToggle, this.#elements.vimModeStatus);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
@@ -1549,6 +1556,7 @@ class WorkspaceApp {
       selection.textarea.setSelectionRange(start.index, end.index, selection.direction ?? undefined);
     }
     if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
+    else this.#renderAuthoringTarget();
   }
 
   #setRevision(revision: number): void {
@@ -1598,9 +1606,16 @@ class WorkspaceApp {
   }
 
   #activeEditorPresence(): readonly EditorPresenceRange[] {
-    return [...this.#remoteSelections.values()].filter(
-      (selection) => selection.revision === this.#revision && selection.fileId === this.#activeFileId,
-    );
+    const target = this.#resolvedAuthoringTarget();
+    const local: readonly EditorPresenceRange[] = target
+      ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
+      : [];
+    return [
+      ...local,
+      ...[...this.#remoteSelections.values()].filter(
+        (selection) => selection.revision === this.#revision && selection.fileId === this.#activeFileId,
+      ),
+    ];
   }
 
   #bindSourceEditor(text: Y.Text): void {
@@ -1943,6 +1958,7 @@ class WorkspaceApp {
     const entryActive = this.#activeFileId === snapshot.entryFileId;
     this.#elements.renameProjectFile.disabled = entryActive;
     this.#elements.deleteProjectFile.disabled = entryActive;
+    this.#renderAuthoringTarget();
   }
 
   #selectProjectFile(fileId: string): void {
@@ -1953,8 +1969,10 @@ class WorkspaceApp {
     this.#activeFileId = fileId;
     this.#activeFileText = this.#document.getText(fileId === snapshot.entryFileId ? "source" : `file:${fileId}`);
     this.#elements.source.value = this.#activeFileText.toString();
-    this.#bindSourceEditor(this.#activeFileText);
     this.#authoringSelection = null;
+    this.#elements.source.setSelectionRange(0, 0);
+    this.#bindSourceEditor(this.#activeFileText);
+    this.#rememberAuthoringSelection();
     this.#renderProjectFiles();
     this.#updateModelAvailability();
     this.#elements.previewScroll.scrollTop = 0;
@@ -5039,13 +5057,37 @@ class WorkspaceApp {
     const citationAtCaret = citationKeysAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd).length > 0;
     this.#elements.openSourceCitation.disabled = !citationAtCaret;
     this.#elements.openSourceCitation.classList.toggle("hidden", !citationAtCaret);
+    this.#renderAuthoringTarget();
     this.#updateCitationInsertionAvailability();
   }
 
-  #resolvedAuthoringCaret(): number | null {
+  #resolvedAuthoringTarget(): ResolvedAuthoringTarget | null {
     if (!this.#authoringSelection) return null;
+    const start = Y.createAbsolutePositionFromRelativePosition(this.#authoringSelection.start, this.#document);
     const end = Y.createAbsolutePositionFromRelativePosition(this.#authoringSelection.end, this.#document);
-    return end?.type === this.#activeFileText ? end.index : null;
+    if (!start || !end || start.type !== this.#activeFileText || end.type !== this.#activeFileText) return null;
+    return { start: Math.min(start.index, end.index), end: Math.max(start.index, end.index) };
+  }
+
+  #renderAuthoringTarget(): void {
+    const target = this.#resolvedAuthoringTarget();
+    const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
+    if (!target) {
+      this.#elements.editorTargetStatus.textContent = `${file?.path ?? "Manuscript"} · no target`;
+      this.#renderSourceEditorHighlight();
+      return;
+    }
+    const source = this.#activeFileText.toString();
+    const startLine = lineNumberAt(source, target.start);
+    const endLine = lineNumberAt(source, target.end);
+    const location = startLine === endLine ? `line ${startLine}` : `lines ${startLine}–${endLine}`;
+    const selection = target.start === target.end ? "caret" : `${target.end - target.start} characters selected`;
+    this.#elements.editorTargetStatus.textContent = `${file?.path ?? "Manuscript"} · ${location} · ${selection}`;
+    this.#renderSourceEditorHighlight();
+  }
+
+  #resolvedAuthoringCaret(): number | null {
+    return this.#resolvedAuthoringTarget()?.end ?? null;
   }
 
   #updateCitationInsertionAvailability(): void {
@@ -6329,7 +6371,7 @@ function bindYText(
     for (const segment of editorPresenceSegments(textarea.value, presence())) {
       for (const color of segment.caretColors) {
         const caret = document.createElement("span");
-        caret.className = "collaborator-caret";
+        caret.className = color === "local" ? "local-author-caret" : "collaborator-caret";
         caret.dataset.collaboratorColor = String(color);
         line.append(caret);
       }
@@ -6351,7 +6393,8 @@ function bindYText(
         } else {
           const token = document.createElement("span");
           token.classList.toggle(`markdown-token-${segment.kind}`, segment.kind !== null);
-          token.classList.toggle("collaborator-selection", segment.selectionColor !== null);
+          token.classList.toggle("collaborator-selection", segment.selectionColor !== null && segment.selectionColor !== "local");
+          token.classList.toggle("local-author-selection", segment.selectionColor === "local");
           if (segment.selectionColor !== null) token.dataset.collaboratorColor = String(segment.selectionColor);
           token.textContent = part;
           line.append(token);
@@ -6429,6 +6472,10 @@ function sourceEditorLine(lineNumber: number): HTMLSpanElement {
   line.className = "source-editor-line";
   line.dataset.lineNumber = String(lineNumber);
   return line;
+}
+
+function lineNumberAt(source: string, offset: number): number {
+  return source.slice(0, Math.max(0, Math.min(offset, source.length))).split(/\r\n|\r|\n/u).length;
 }
 
 function bindVimTextarea(textarea: HTMLTextAreaElement, shell: HTMLElement, toggle: HTMLButtonElement, status: HTMLElement): void {
@@ -6727,6 +6774,7 @@ function collectElements(): Elements {
     diagnosticSummary: requiredElement("diagnostic-summary", HTMLElement),
     connectionDot: requiredElement("connection-dot", HTMLElement),
     connectionStatus: requiredElement("connection-status", HTMLElement),
+    editorTargetStatus: requiredElement("editor-target-status", HTMLElement),
     saveStatus: requiredElement("save-status", HTMLElement),
     revisionBadge: requiredElement("revision-badge", HTMLElement),
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),

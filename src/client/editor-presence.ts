@@ -4,13 +4,16 @@ export interface EditorPresenceRange {
   readonly collaboratorId: string;
   readonly start: number;
   readonly end: number;
+  readonly local?: boolean;
 }
+
+export type EditorPresenceColor = number | "local";
 
 export interface EditorPresenceSegment {
   readonly text: string;
   readonly kind: MarkdownHighlightKind | null;
-  readonly selectionColor: number | null;
-  readonly caretColors: readonly number[];
+  readonly selectionColor: EditorPresenceColor | null;
+  readonly caretColors: readonly EditorPresenceColor[];
 }
 
 const presenceColorCount = 4;
@@ -21,7 +24,7 @@ export function editorPresenceSegments(source: string, ranges: readonly EditorPr
     ...range,
     start: Math.min(range.start, source.length),
     end: Math.min(range.end, source.length),
-    color: collaboratorColor(range.collaboratorId),
+    color: presenceColor(range),
   }));
   const boundaries = new Set([0, source.length]);
   let offset = 0;
@@ -67,6 +70,13 @@ function collaboratorColor(collaboratorId: string): number {
   return hash % presenceColorCount;
 }
 
-function caretColorsAt(ranges: readonly (EditorPresenceRange & { readonly color: number })[], offset: number): readonly number[] {
+function presenceColor(range: EditorPresenceRange): EditorPresenceColor {
+  return range.local ? "local" : collaboratorColor(range.collaboratorId);
+}
+
+function caretColorsAt(
+  ranges: readonly (EditorPresenceRange & { readonly color: EditorPresenceColor })[],
+  offset: number,
+): readonly EditorPresenceColor[] {
   return ranges.filter((range) => range.start === offset && range.end === offset).map((range) => range.color);
 }
