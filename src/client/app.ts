@@ -126,7 +126,6 @@ import {
   reconcileResearchContext,
   researchResourceKey,
   setPdfResearchLocation,
-  setResearchTabPinned,
   setResearchTabScroll,
   type ResearchContextKey,
   type ResearchContextState,
@@ -307,8 +306,6 @@ interface Elements {
   contextLibraryTab: HTMLButtonElement;
   contextAssistantTab: HTMLButtonElement;
   contextResourceTabs: HTMLElement;
-  pinActiveContext: HTMLButtonElement;
-  closeActiveContext: HTMLButtonElement;
   previewContextControls: HTMLElement;
   previewFileContext: HTMLElement;
   pdfContextControls: HTMLElement;
@@ -335,12 +332,10 @@ interface Elements {
   contextCandidateEvidence: HTMLElement;
   contextCandidateApply: HTMLButtonElement;
   contextCandidateReject: HTMLButtonElement;
-  closeCandidateContext: HTMLButtonElement;
   contextPublicationTitle: HTMLElement;
   contextPublicationMeta: HTMLElement;
   contextPublicationDetails: HTMLElement;
   contextPublicationPdfs: HTMLElement;
-  closePublicationContext: HTMLButtonElement;
   insertContextCitation: HTMLButtonElement;
   publicationPdfLinkForm: HTMLFormElement;
   publicationPdfLink: HTMLSelectElement;
@@ -886,15 +881,11 @@ class WorkspaceApp {
     this.#elements.insertContextCitation.addEventListener("click", () => this.#insertActivePublicationCitation());
     this.#elements.publicationPdfLinkForm.addEventListener("submit", (event) => void this.#linkActivePublicationPdf(event));
     this.#elements.openPaper.addEventListener("click", () => void this.#openOnlyLinkedPaper());
-    this.#elements.pinActiveContext.addEventListener("click", () => this.#toggleActiveContextPin());
-    this.#elements.closeActiveContext.addEventListener("click", () => this.#closeActiveContext());
-    this.#elements.closePublicationContext.addEventListener("click", () => this.#closeActiveContext());
     this.#elements.publicationIntakeForm.addEventListener("submit", (event) => void this.#previewPublicationIntake(event));
     this.#elements.publicationIntakeAccept.addEventListener("click", () => void this.#acceptPublicationIntake());
     this.#elements.publicationIntakeCancel.addEventListener("click", () => this.#cancelPublicationIntake());
     this.#elements.contextCandidateApply.addEventListener("click", () => void this.#updateActiveCandidate("apply"));
     this.#elements.contextCandidateReject.addEventListener("click", () => void this.#updateActiveCandidate("reject"));
-    this.#elements.closeCandidateContext.addEventListener("click", () => this.#closeActiveContext());
     for (const input of [
       this.#elements.llmConnection,
       this.#elements.llmEndpoint,
@@ -4732,17 +4723,6 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("push");
   }
 
-  #closeActiveContext(): void {
-    this.#closeContextTab(this.#contextState.activeKey);
-  }
-
-  #setContextPinned(key: ResearchContextKey, pinned: boolean): void {
-    this.#captureActiveContextState();
-    this.#contextState = setResearchTabPinned(this.#contextState, key, pinned);
-    this.#renderResearchContext();
-    this.#focusContextTab(key);
-  }
-
   #renderResearchContext(loadPdf = true): void {
     const activeKey = this.#contextState.activeKey;
     this.#elements.contextPreviewTab.setAttribute("aria-selected", String(activeKey === RESEARCH_PREVIEW_KEY));
@@ -4786,24 +4766,6 @@ class WorkspaceApp {
         : activePdfPublications.length === 1
           ? "Cite linked reference"
           : "Identify before citing";
-    this.#elements.pinActiveContext.disabled = !activeTab;
-    this.#elements.closeActiveContext.disabled = !activeTab;
-    this.#elements.pinActiveContext.hidden = !activeTab;
-    this.#elements.closeActiveContext.hidden = !activeTab;
-    this.#elements.pinActiveContext.textContent = activeTab?.pinned ? "Allow replacement" : "Keep tab";
-    this.#elements.pinActiveContext.title = activeTab?.pinned
-      ? "Let the next opened research item reuse this tab"
-      : "Keep this tab open when another research item is opened";
-    this.#elements.pinActiveContext.setAttribute(
-      "aria-label",
-      activeTab
-        ? `${activeTab.pinned ? "Allow replacement of" : "Keep open"} ${this.#contextTabTitle(activeTab)}`
-        : "Keep active context open",
-    );
-    this.#elements.closeActiveContext.setAttribute(
-      "aria-label",
-      activeTab ? `Close ${this.#contextTabTitle(activeTab)}` : "Close active context",
-    );
     if (activeTab) {
       const panel =
         activeTab.kind === "publication"
@@ -4990,8 +4952,11 @@ class WorkspaceApp {
     this.#elements.publicationIntakeCancel.disabled = this.#publicationIntakeBusy;
   }
 
-  #renderContextResourceTab(tab: ResearchResourceTab): HTMLButtonElement {
+  #renderContextResourceTab(tab: ResearchResourceTab): HTMLElement {
     const title = this.#contextTabTitle(tab);
+    const item = document.createElement("div");
+    item.className = "context-resource-tab";
+    item.setAttribute("role", "presentation");
     const button = document.createElement("button");
     button.type = "button";
     button.className = "context-tab";
@@ -5006,7 +4971,15 @@ class WorkspaceApp {
     button.title = title;
     button.textContent = title;
     button.addEventListener("click", () => this.#activateContext(tab.key));
-    return button;
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "context-tab-close";
+    close.setAttribute("aria-label", `Close ${title}`);
+    close.title = `Close ${title}`;
+    close.innerHTML = '<svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 4 8 8m0-8-8 8"/></svg>';
+    close.addEventListener("click", () => this.#closeContextTab(tab.key));
+    item.append(button, close);
+    return item;
   }
 
   #renderCandidateContext(tab: ResearchResourceTab): void {
@@ -5107,11 +5080,6 @@ class WorkspaceApp {
       candidate.target.resolution.status === "resolved" &&
       candidate.target.resolution.exactMatch
     );
-  }
-
-  #toggleActiveContextPin(): void {
-    const tab = this.#activeResourceTab();
-    if (tab) this.#setContextPinned(tab.key, !tab.pinned);
   }
 
   #closeContextTab(key: ResearchContextKey): void {
@@ -7601,8 +7569,6 @@ function collectElements(): Elements {
     contextLibraryTab: requiredElement("context-library-tab", HTMLButtonElement),
     contextAssistantTab: requiredElement("context-assistant-tab", HTMLButtonElement),
     contextResourceTabs: requiredElement("context-resource-tabs", HTMLElement),
-    pinActiveContext: requiredElement("pin-active-context", HTMLButtonElement),
-    closeActiveContext: requiredElement("close-active-context", HTMLButtonElement),
     previewContextControls: requiredElement("preview-context-controls", HTMLElement),
     previewFileContext: requiredElement("preview-file-context", HTMLElement),
     pdfContextControls: requiredElement("pdf-context-controls", HTMLElement),
@@ -7629,12 +7595,10 @@ function collectElements(): Elements {
     contextCandidateEvidence: requiredElement("context-candidate-evidence", HTMLElement),
     contextCandidateApply: requiredElement("context-candidate-apply", HTMLButtonElement),
     contextCandidateReject: requiredElement("context-candidate-reject", HTMLButtonElement),
-    closeCandidateContext: requiredElement("close-candidate-context", HTMLButtonElement),
     contextPublicationTitle: requiredElement("context-publication-title", HTMLElement),
     contextPublicationMeta: requiredElement("context-publication-meta", HTMLElement),
     contextPublicationDetails: requiredElement("context-publication-details", HTMLElement),
     contextPublicationPdfs: requiredElement("context-publication-pdfs", HTMLElement),
-    closePublicationContext: requiredElement("close-publication-context", HTMLButtonElement),
     insertContextCitation: requiredElement("insert-context-citation", HTMLButtonElement),
     publicationPdfLinkForm: requiredElement("publication-pdf-link-form", HTMLFormElement),
     publicationPdfLink: requiredElement("publication-pdf-link", HTMLSelectElement),

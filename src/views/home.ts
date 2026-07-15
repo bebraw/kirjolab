@@ -27,8 +27,6 @@ export function renderHomePage(
               <span class="context-page-indicator" id="paper-page-indicator">– / –</span>
               <button id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
             </div>
-            <button id="pin-active-context" type="button" disabled hidden>Pin</button>
-            <button id="close-active-context" type="button" disabled hidden>Close</button>
           </div>
         </div>`;
   return `<!doctype html>
@@ -443,7 +441,6 @@ export function renderHomePage(
               <h2 class="context-resource-title" id="context-publication-title">No reference selected</h2>
               <p class="context-resource-meta" id="context-publication-meta">Choose a citation or reference to inspect its scholarly record.</p>
             </div>
-            <button class="button-secondary shrink-0" id="close-publication-context" type="button">Close</button>
           </header>
           <div class="context-publication-body" id="context-publication-body">
             <div class="context-resource-copy" id="context-publication-details">
@@ -636,7 +633,6 @@ export function renderHomePage(
               <h2 class="context-resource-title" id="context-candidate-title">No revision selected</h2>
               <p class="context-resource-meta" id="context-candidate-meta">Provider, model, and source revision appear here.</p>
             </div>
-            <button class="button-secondary shrink-0" id="close-candidate-context" type="button" aria-label="Close revision context">Close</button>
           </header>
           <div class="context-candidate-scroll" id="context-candidate-scroll">
             <div class="context-candidate-review">

@@ -9,6 +9,8 @@ describe("renderHomePage", () => {
     expect(html).toContain("KIRJOLAB");
     expect(html).toContain('data-app-mode="workspace" data-workspace-id="demo" data-identity-email="local@kirjolab.invalid"');
     expect(html).toContain('class="action-menu header-action-menu" data-action-menu');
+    expect(html).toContain('<a class="header-library-link" href="/library">Library</a>');
+    expect(html).not.toContain('class="library-header-context"');
     expect(html).toContain('id="manage-workspaces" type="button"><strong>Open projects</strong></button>');
     expect(html).toContain('id="editor-more-menu" data-action-menu');
     expect(html).toContain('aria-label="More editor actions"');
@@ -22,6 +24,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="preferences-menu" data-settings-menu');
     expect(html).toContain('aria-label="Open preferences" title="Preferences"');
     expect(html).toContain('id="account-menu" data-action-menu');
+    expect(html).toContain("<span>Local development</span>");
     expect(html).toContain("Local mode has no login session.");
     expect(html).not.toContain('id="log-out"');
     expect(html).toContain('<option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>');
@@ -107,6 +110,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="project-history-dialog"');
     expect(html).toContain("Browse, compare, restore, or branch from saved versions.");
     expect(html).toContain('id="open-export" type="button">Export</button>');
+    expect(html).toContain('id="share-workspace" type="button">Share project</button>');
     expect(html).toContain('id="word-count-badge"');
     expect(html).toContain('id="export-dialog"');
     expect(html).toContain("Choose a format for the composed project.");
@@ -116,8 +120,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="export-statistics"');
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
-    expect(html).toContain('id="pin-active-context" type="button" disabled hidden');
-    expect(html).toContain('id="close-active-context" type="button" disabled hidden');
+    expect(html).not.toContain('id="pin-active-context"');
+    expect(html).not.toContain('id="close-active-context"');
     expect(html).toContain('id="pdf-context-controls" hidden');
     expect(html).toContain('id="context-preview-tab" type="button" role="tab"');
     expect(html).toContain('id="web-source-url"');
@@ -175,6 +179,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="library-paper-page-indicator"');
     expect(html).toContain('id="next-library-paper-page"');
     expect(html).toContain('<div class="library-header-context"><div class="context-tabs" id="context-tabs">');
+    expect(html).toContain('id="share-workspace" type="button" hidden>Share project</button>');
     expect(html).not.toContain(
       '<section class="context-column preview-column min-w-0 bg-app-paper" id="context-surface" aria-label="Research context">\n        <div class="context-tabs"',
     );
@@ -248,7 +253,7 @@ describe("renderHomePage", () => {
     expect(html).toContain(
       'class="context-panel context-candidate-panel" id="context-candidate-panel" role="tabpanel" aria-label="Model revision context" tabindex="0" hidden',
     );
-    expect(html).toContain('id="close-candidate-context" type="button" aria-label="Close revision context"');
+    expect(html).not.toContain('id="close-candidate-context"');
     expect(html).toContain('id="context-candidate-scroll"');
     expect(html).toContain('id="context-candidate-title"');
     expect(html).toContain('id="context-candidate-meta"');

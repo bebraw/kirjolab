@@ -36,7 +36,6 @@ export interface AssistantResearchTab {
 interface ResourceResearchTab {
   readonly id: string;
   readonly key: ResearchResourceKey;
-  readonly pinned: boolean;
   readonly scrollTop: number;
 }
 
@@ -59,7 +58,7 @@ export type ResearchContextTab = PreviewResearchTab | LibraryResearchTab | Assis
 
 export interface ResearchContextState {
   readonly activeKey: ResearchContextKey;
-  /** Preview, Library, and Writing assistant are always first, followed by pinned tabs and at most one unpinned tab. */
+  /** Preview, Library, and Writing assistant are always first, followed by resources in the order they were opened. */
   readonly tabs: readonly ResearchContextTab[];
 }
 
@@ -95,10 +94,9 @@ export function openResearchResource(state: ResearchContextState, target: Resear
   const existing = state.tabs.find((tab) => tab.key === key);
   if (existing) return state.activeKey === key ? state : { ...state, activeKey: key };
 
-  const pinnedTabs = state.tabs.filter((tab) => isPermanentTab(tab) || tab.pinned);
   return {
     activeKey: key,
-    tabs: [...pinnedTabs, createResourceTab(target, key)],
+    tabs: [...state.tabs, createResourceTab(target, key)],
   };
 }
 
@@ -106,28 +104,6 @@ export function activateResearchTab(state: ResearchContextState, key: string): R
   const target = state.tabs.find((tab) => tab.key === key);
   if (!target || state.activeKey === target.key) return state;
   return { ...state, activeKey: target.key };
-}
-
-export function setResearchTabPinned(state: ResearchContextState, key: string, pinned: boolean): ResearchContextState {
-  const targetIndex = state.tabs.findIndex((tab) => tab.key === key);
-  const target = state.tabs[targetIndex];
-  if (!target || isPermanentTab(target) || target.pinned === pinned) return state;
-
-  if (pinned) {
-    return {
-      ...state,
-      tabs: replaceTab(state.tabs, targetIndex, { ...target, pinned: true }),
-    };
-  }
-
-  const replaceableTab = state.tabs.find((tab) => !isPermanentTab(tab) && !tab.pinned);
-  const replacedActiveTab = replaceableTab?.key === state.activeKey;
-  const retainedTabs = state.tabs.filter((tab) => isPermanentTab(tab) || (tab.pinned && tab.key !== key));
-  const unpinnedTarget = { ...target, pinned: false };
-  return {
-    activeKey: replacedActiveTab ? unpinnedTarget.key : state.activeKey,
-    tabs: [...retainedTabs, unpinnedTarget],
-  };
 }
 
 export function closeResearchTab(state: ResearchContextState, key: string): ResearchContextState {
@@ -180,7 +156,7 @@ export function reconcileResearchContext(state: ResearchContextState, authorizat
 }
 
 function createResourceTab(target: ResearchResourceTarget, key: ResearchResourceKey): ResearchResourceTab {
-  const common = { id: target.id, key, pinned: false, scrollTop: 0 };
+  const common = { id: target.id, key, scrollTop: 0 };
   if (target.kind === "pdf" || target.kind === "library-pdf") {
     return { ...common, kind: target.kind, page: 1, focusedAnnotationId: null };
   }

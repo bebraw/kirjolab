@@ -42,6 +42,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(studentPdf).toBeVisible();
   await studentPdf.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.getByRole("tab", { name: "student_submission.pdf" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("button", { name: "Close student_submission.pdf" })).toBeVisible();
   await expect(page.locator("header").getByRole("tab", { name: "student_submission.pdf" })).toBeVisible();
   await expect(page.locator("header #pdf-context-controls")).toBeHidden();
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -80,7 +81,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   const annotatedDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export annotated" }).click();
   await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("student_submission-annotated.pdf");
-  await page.locator("#close-active-context").click();
+  await page.getByRole("button", { name: "Close student_submission.pdf" }).click();
   await expect(page).toHaveURL(/\/library$/u);
   await expect(page.locator("header #context-library-tab")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#context-library-panel")).toBeVisible();
@@ -754,8 +755,8 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.locator("#context-assistant-panel")).toBeVisible();
   await previewTab.click();
   await expect(page.locator("#open-source-citation")).toBeHidden();
-  await expect(page.locator("#pin-active-context")).toBeHidden();
-  await expect(page.locator("#close-active-context")).toBeHidden();
+  await expect(page.locator("#pin-active-context")).toHaveCount(0);
+  await expect(page.locator("#close-active-context")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Project settings" })).toBeHidden();
   await page.locator(".header-action-menu summary").click();
   await expect(page.getByRole("button", { name: "Project settings" })).toBeVisible();
@@ -1668,9 +1669,11 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   page.on("request", (request) => {
     if (request.method() !== "GET" && new URL(request.url()).pathname.startsWith(api)) contextMutations.push(request.method());
   });
-  await page.getByRole("button", { name: "Keep open The Normative Structure of Science" }).click();
   await page.locator("#context-publication-pdfs").getByRole("button", { name: "Open" }).click();
   await expect(page.locator("#context-pdf-panel")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close The Normative Structure of Science" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close context-paper.pdf" })).toBeVisible();
   const pdfTabId = await page.getByRole("tab", { name: "context-paper.pdf" }).getAttribute("id");
   await expect(page.locator("#context-pdf-panel")).toHaveAttribute("aria-labelledby", pdfTabId ?? "missing");
   await expect(page.locator("#annotation-pdf")).toBeDisabled();
@@ -1740,6 +1743,11 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
   await page.locator("#insert-context-citation").click();
   await expect.poll(async () => ((await editor.inputValue()).match(/:cite\[merton1942\]/gu) ?? []).length).toBe(2);
+  await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
+  await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "Close The Normative Structure of Science" }).click();
+  await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Writing assistant" })).toHaveAttribute("aria-selected", "true");
 
   await page.setViewportSize({ width: 800, height: 900 });
   await page.locator("#show-context-surface").click();

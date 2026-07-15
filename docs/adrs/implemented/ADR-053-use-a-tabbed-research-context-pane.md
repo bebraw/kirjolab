@@ -37,14 +37,15 @@ publication details, and the PDF reader remain separate view components hosted
 by the common pane rather than one component conditionally taking ownership of
 another's DOM.
 
-Context navigation will use one unpinned resource tab as a replaceable reading
-slot. Pinning makes a resource tab persistent within the current browser
-session, so following another citation or evidence link cannot replace it. Each
-tab retains its own reading position while the user switches context: preview
-scroll for the Preview tab, and page, scroll, and focused annotation for a PDF
-tab.
+Each opened resource receives a persistent local tab in stable opening order.
+Following another citation or evidence link opens or focuses its own
+kind-qualified tab and never replaces an earlier resource. Each resource tab
+integrates a labelled close icon and remains open until the user activates it.
+Each tab retains its own reading position while the user switches context:
+preview scroll for the Preview tab, and page, scroll, and focused annotation
+for a PDF tab.
 
-Open tabs, active tab, pin state, and reading positions are local, ephemeral UI
+Open tabs, active tab, and reading positions are local, ephemeral UI
 state. They are not Yjs document content, Durable Object resources, or
 collaborative presence. Publications, PDFs, annotations, claims, and their
 typed links remain authorized, shared scholarly resources. A context target is
@@ -60,7 +61,7 @@ The interface will expose three distinct actions:
 - **Connect as evidence** deliberately creates an annotation, claim, or typed
   manuscript relationship.
 
-Viewing, opening, switching, closing, or pinning context must not perform any
+Viewing, opening, switching, or closing context must not perform any
 of these mutations implicitly. A publication with no linked PDF opens a useful
 publication representation rather than pretending that every publication owns
 one artifact. Its context lists zero, one, or several explicitly linked PDF

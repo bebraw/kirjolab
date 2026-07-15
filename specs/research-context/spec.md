@@ -46,10 +46,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   connection settings, request status, and draft inventory. Activating its tab
   never starts a model request; a generated candidate opens its resource-keyed
   review tab without removing the assistant destination.
-- Publication and PDF tabs are closable. One unpinned resource tab serves as
-  the replaceable follow-context slot; pinned tabs are not replaced by later
-  navigation.
-- Candidate tabs follow the same close, pin, replace, dedupe, and local-scroll
+- Publication and PDF tabs remain open in stable order until explicitly closed.
+  Opening later resources never replaces an earlier tab.
+- Candidate tabs follow the same close, dedupe, retention, and local-scroll
   rules. Their review renders immutable original/replacement text and evidence
   snapshots, with navigation to current evidence resources when available.
   Rejecting returns to Writing assistant for rapid redrafting; applying keeps
@@ -85,7 +84,7 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - The semantic preview and `PdfEvidenceViewer` remain independent views behind
   one context-pane controller. Switching tabs must not recreate a resource
   identity or mutate the manuscript, PDF, or annotation records.
-- Active target, tab order, open/closed state, pin state, permanent-tab scroll,
+- Active target, tab order, open/closed state, permanent-tab scroll,
   PDF page, PDF scroll, and focused annotation are local browser state.
   They must not be written to Yjs, the workspace snapshot, Durable Object
   SQLite, or collaboration control messages.
@@ -98,7 +97,7 @@ changing their canonical data, selector, authorization, or rendering contracts.
   page turns replace the current history entry so Back follows meaningful
   research navigation rather than replaying every local adjustment. Unknown
   query parameters remain untouched.
-- Draft text, form contents, open/pinned inactive tabs, scroll offsets, pane
+- Draft text, form contents, open inactive tabs, scroll offsets, pane
   widths, selections, and dialog state do not enter the URL. They remain
   ephemeral or use their existing browser-local storage contract.
 - On desktop, a pointer- and keyboard-operable separator resizes Authoring and
@@ -157,21 +156,17 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - The tab list uses standard tab semantics: the container has `tablist`, each
   tab has `tab`, the active tab exposes `aria-selected="true"`, and its content
   has `tabpanel` with an accessible label relationship.
-- The tab row owns active-context status, page navigation, pin, and close
-  controls. A PDF filename appears in its resource tab instead of being
-  repeated in a second content header.
+- The tab row owns active-context status and page navigation. A PDF filename
+  appears in its resource tab instead of being repeated in a second content
+  header, and each closable resource tab integrates its own labelled close icon.
 - Left/Right Arrow moves tab focus, Home/End reaches the first/last tab, Enter
   or Space activates a focused tab, and a close control is independently
   labelled. Closing the active resource selects the nearest remaining tab;
   permanent Preview, Library, and Writing assistant tabs are never removed.
 - Opening an existing resource tab activates it without changing tab order or
   resetting its reading position.
-- Automatic navigation may replace only the unpinned follow-context resource
-  tab. It must never replace Preview, Library, Writing assistant, or a pinned
-  tab.
-- The replaceable-tab control uses the behavioral labels **Keep tab** and
-  **Allow replacement**; its accessible name and title explain what opening the
-  next research resource will do.
+- Automatic navigation opens or focuses a kind-qualified resource tab. It never
+  closes another tab; only the resource's explicit close icon does so.
 - Selecting text in a visible PDF populates an annotation draft for that exact
   PDF and page and immediately paints its pending geometry over the page so
   the researcher does not lose visual context. Its PDF target is locked to the
@@ -252,7 +247,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
       tab switches.
 - [x] A PDF can be read and selected beside the live authoring editor without a
       modal covering either surface.
-- [x] Resource tabs can be pinned, closed, and navigated entirely by keyboard.
+- [x] Resource tabs remain open until their labelled close icons are activated,
+      and tabs can be navigated entirely by keyboard.
 - [x] Desktop users can resize Authoring and Context by pointer or keyboard,
       reset the split, keep all permanent tabs at one width, and retain a
       separate PDF reading proportion.
@@ -291,10 +287,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   non-closable.
 - An open resource target must map to at most one tab by kind-qualified stable
   id.
-- Switching, closing, or pinning tabs must not send Yjs updates or resource
-  mutation requests.
-- Following context must never replace Preview, Library, Writing assistant, or
-  a pinned resource tab.
+- Switching or closing tabs must not send Yjs updates or resource mutation
+  requests.
+- Following context must never replace any open tab.
 - Per-tab reading state must be scoped by resource identity and must not leak
   between PDFs.
 - Context tabs must be reconciled on workspace changes and must not retain a
@@ -303,7 +298,7 @@ changing their canonical data, selector, authorization, or rendering contracts.
   preserve parameters owned by other features, and fall back to Preview or the
   entry file when a requested stable id is absent or unauthorized.
 - Candidate tabs must be authorized by candidate id and must not persist their
-  local open, pin, active, or scroll state into candidate provenance.
+  local open, active, or scroll state into candidate provenance.
 - PDF rendering remains single-active-page and uses the pinned matching PDF.js
   display and worker assets.
 - PDF selections and highlights remain external to immutable PDF bytes.
