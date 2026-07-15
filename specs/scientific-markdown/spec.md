@@ -38,7 +38,9 @@ second Markdown dialect.
 - Explicit heading ids, `::alias`, and `::anchor` create reference targets.
 - `:ref` accepts bracket targets, custom `text`, and legacy `target` attributes.
 - `:cite` accepts multiple ids, `parenthetical`, `textual`, and `full` modes,
-  plus `locator`, `prefix`, and `suffix`.
+  plus `locator`, `prefix`, and `suffix`. The familiar `:citet` and `:citep`
+  aliases default to textual and parenthetical modes respectively; an explicit
+  `mode` attribute remains authoritative.
 - `::bibliography[]` places the cited-reference list at that exact manuscript
   location. Researchers author any surrounding heading as ordinary Markdown.
 - Each rendered citation id is an accessible sanitized button keyed by its
@@ -80,6 +82,8 @@ second Markdown dialect.
 - [x] The documented standard Markdown and GFM examples render through the
       pinned JavaScript pipeline.
 - [x] Citation modes, multiple ids, locators, prefixes, and suffixes render.
+- [x] `:citet` and `:citep` aliases retain citation identity across preview,
+      navigation, validation, history rewrites, and every publication output.
 - [x] Rendered citation buttons open stable publication context without
       mutating canonical Markdown or the bibliography.
 - [x] Heading, alias, anchor, and custom reference targets resolve.

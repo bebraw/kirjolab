@@ -15,6 +15,8 @@ describe("citation navigation", () => {
     expect(citationKeysAtPosition(source, source.length)).toEqual([]);
     expect(citationKeysAtPosition("::cite[not-a-text-directive]", 5)).toEqual([]);
     expect(citationKeysAtPosition(":cite[]", 3)).toEqual([]);
+    expect(citationKeysAtPosition(":citet[textual]", 5)).toEqual(["textual"]);
+    expect(citationKeysAtPosition(":citep[parenthetical]", 6)).toEqual(["parenthetical"]);
   });
 });
 

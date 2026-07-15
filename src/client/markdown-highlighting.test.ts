@@ -8,7 +8,7 @@ title: Evidence
 ---
 ## Findings {#findings}
 
-> Read **carefully** and use :cite[smith2024] with [context](https://example.test).
+> Read **carefully** and use :cite[smith2024], :citet[jones2025], and :citep[roe2026] with [context](https://example.test).
 - Include \`measurement details\`[^method]
 ::include[methods.md]
 \`\`\`text
@@ -26,6 +26,8 @@ title: Evidence
         { text: "> ", kind: "quote-marker" },
         { text: "**carefully**", kind: "markup" },
         { text: ":cite[smith2024]", kind: "directive" },
+        { text: ":citet[jones2025]", kind: "directive" },
+        { text: ":citep[roe2026]", kind: "directive" },
         { text: "[context](https://example.test)", kind: "link" },
         { text: "- ", kind: "list-marker" },
         { text: "`measurement details`", kind: "code" },

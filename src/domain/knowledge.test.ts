@@ -286,6 +286,15 @@ describe("knowledge navigation", () => {
     });
   });
 
+  it("derives citation links from textual and parenthetical aliases", () => {
+    for (const directive of [":citet[doe2026]", ":citep[doe2026]"]) {
+      const graph = buildWorkspaceKnowledgeGraph({ ...snapshot, source: `Evidence ${directive}.`, files: [] }, []);
+      expect(graph.edges).toContainEqual(
+        expect.objectContaining({ relation: "cites", from: "document:workspace", to: "publication:publication-1" }),
+      );
+    }
+  });
+
   it("projects people, shared notes, and provenance-bearing model candidates as typed resources", () => {
     const members = [{ id: "person-1", email: "researcher@example.org", role: "owner" as const, addedAt: "2026-07-10T00:00:00.000Z" }];
     const expanded: WorkspaceSnapshot = {

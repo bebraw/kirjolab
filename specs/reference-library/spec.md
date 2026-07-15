@@ -31,7 +31,8 @@ memory and makes citation aliases compete with stable source identity.
   Import retains the incoming key only as a suggested project alias.
 - A project links a stable library identity through one case-insensitive local
   citation alias and a bounded bibliographic snapshot. Alias rename rewrites
-  exact `:cite[...]` keys across all project files in the same revision.
+  exact `:cite[...]`, `:citet[...]`, and `:citep[...]` keys across all project
+  files in the same revision.
 - Project bibliography text is derived from linked snapshots. Normal export
   includes only aliases cited by composed `main.md`; archival export may use
   every explicit project link.

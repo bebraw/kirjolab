@@ -18,6 +18,13 @@ describe("renderWorkspaceMarkdown", () => {
     expect(text("chicago-author-date")).toContain("(Merton 1942; Doe 2026)");
     expect(text("ieee")).toContain("[1, 2]");
   });
+  it("renders natbib-style textual and parenthetical citation aliases", () => {
+    const rendered = renderWorkspaceMarkdown("As :citet[merton1942] argues; compare :citep[merton1942].", bibliography);
+    expect(rendered.diagnostics).toEqual([]);
+    const text = rendered.html.replaceAll(/<[^>]+>/gu, "");
+    expect(text).toContain("As Merton (1942) argues; compare (Merton, 1942).");
+    expect(rendered.html.match(/data-citation="merton1942"/gu)).toHaveLength(2);
+  });
   it("renders meaningful Markdown and extended scholarly directives", () => {
     const source = `::alias[Evidence]{target="sec:legacy" slug="evidence"}
 

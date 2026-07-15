@@ -213,18 +213,18 @@ export function relativeProjectPath(fromPath: string, toPath: string): string {
 }
 
 export function rewriteProjectCitationAlias(content: string, previousAlias: string, nextAlias: string): string {
-  return content.replaceAll(/:cite\[(?<keys>[^\]\r\n]+)\]/gu, (directive, ...values: unknown[]) => {
+  return content.replaceAll(/:(?<name>cite|citet|citep)\[(?<keys>[^\]\r\n]+)\]/gu, (directive, ...values: unknown[]) => {
     const groups = values.at(-1);
     if (!isStringRecord(groups) || !groups.keys) return directive;
     const keys = groups.keys.split(",").map((key) => key.trim());
     if (!keys.includes(previousAlias)) return directive;
-    return `:cite[${keys.map((key) => (key === previousAlias ? nextAlias : key)).join(", ")}]`;
+    return `:${groups.name ?? "cite"}[${keys.map((key) => (key === previousAlias ? nextAlias : key)).join(", ")}]`;
   });
 }
 
 export function projectUsesCitationAlias(files: readonly ProjectFile[], alias: string): boolean {
   return files.some((file) =>
-    [...file.content.matchAll(/:cite\[(?<keys>[^\]\r\n]+)\]/gu)].some((match) =>
+    [...file.content.matchAll(/:(?:cite|citet|citep)\[(?<keys>[^\]\r\n]+)\]/gu)].some((match) =>
       (match.groups?.keys ?? "")
         .split(",")
         .map((key) => key.trim())

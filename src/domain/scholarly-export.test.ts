@@ -38,6 +38,17 @@ describe("scholarly publication projection", () => {
     );
   });
 
+  it("normalizes natbib-style citation aliases to citation modes", () => {
+    const seen: PublicationTextDirective[] = [];
+    expect(
+      replacePublicationTextDirectives(":citet[doe2026] and :citep[roe2025] and :citet[full]{mode=full}", (directive) => {
+        seen.push(directive);
+        return directive.attributes.get("mode") ?? "default";
+      }),
+    ).toBe("textual and parenthetical and full");
+    expect(seen.map((directive) => directive.kind)).toEqual(["cite", "cite", "cite"]);
+  });
+
   it("resolves heading, alias, anchor, custom, and fallback reference labels", () => {
     const markdown = `::alias[Legacy]{target="sec:legacy" slug="results"}
 
@@ -106,5 +117,7 @@ describe("scholarly publication projection", () => {
     );
     expect(publicationCitationText(parsed(":cite[doe2026]{mode=full}"), bibliography, "apa")).toBe("Doe. 2026. Methods");
     expect(publicationCitationText(parsed(":cite[missing]"), bibliography, "apa")).toBe("(missing, n.d.)");
+    expect(publicationCitationText(parsed(":citet[doe2026]"), bibliography, "apa")).toBe("Doe (2026)");
+    expect(publicationCitationText(parsed(":citep[doe2026]"), bibliography, "apa")).toBe("(Doe, 2026)");
   });
 });

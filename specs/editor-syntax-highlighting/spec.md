@@ -30,7 +30,7 @@ preserving the native collaborative textarea and exact source text.
 - YAML frontmatter delimiters and keys
 - Fenced and inline code
 - Links, emphasis, heading anchors, and footnote references
-- Citation and cross-reference directives
+- Citation (`:cite`, `:citet`, and `:citep`) and cross-reference directives
 - Block directives, list markers, and quote markers
 
 ### Anti-Patterns

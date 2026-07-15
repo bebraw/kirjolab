@@ -839,6 +839,30 @@ test("uploads project images, inserts relative Markdown, and renders authorized 
   expect((await sourceBundle.body()).subarray(0, 2).toString()).toBe("PK");
 });
 
+test("authors textual and parenthetical citation aliases", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Citation aliases");
+  const api = `/api/workspaces/${workspaceId}`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  const source = "## Argument\n\nAs :citet[merton1942] argues, compare :citep[merton1942].\n";
+  const editor = page.locator("#source-editor");
+  await editor.fill(source);
+  await expect(page.locator("#diagnostic-summary")).toHaveText("No syntax errors");
+  await expect(page.locator("#preview")).toContainText("As Merton (1942) argues, compare (Merton, 1942).");
+  await expect(page.locator('#preview [data-citation="merton1942"]')).toHaveCount(2);
+
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    const citation = element.value.indexOf(":citet[merton1942]");
+    element.focus();
+    element.setSelectionRange(citation + 5, citation + 5);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await expect(page.locator("#open-source-citation")).toBeVisible();
+  const markdown = await page.request.get(`${api}/export/document.md`);
+  const exportedSource = await markdown.text();
+  expect(exportedSource).toContain(":citet[merton1942]");
+  expect(exportedSource).toContain(":citep[merton1942]");
+});
+
 test("keeps private library research separate from project citations", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(Promise, "withResolvers", { configurable: true, value: undefined, writable: true });

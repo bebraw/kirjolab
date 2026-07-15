@@ -335,7 +335,7 @@ function getUniqueSlug(value: string, foundSlugs: Record<string, number>): strin
 }
 
 function extractCitationKeys(source: string): string[] {
-  return [...source.matchAll(/:cite\[([^\]]*)\]/gu)].flatMap((match) =>
+  return [...source.matchAll(/:(?:cite|citet|citep)\[([^\]]*)\]/gu)].flatMap((match) =>
     (match[1] ?? "")
       .split(",")
       .map((value) => value.trim())

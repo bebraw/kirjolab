@@ -47,7 +47,8 @@ describe("project composition", () => {
     expect(rewriteProjectCitationAlias(":cite[doe2026]\n:cite[other, doe2026]\n", "doe2026", "renamed")).toBe(
       ":cite[renamed]\n:cite[other, renamed]\n",
     );
-    const cited = [file("main", "main.md", "See :cite[doe2026, other]."), file("other", "other.md", "No citation")];
+    expect(rewriteProjectCitationAlias(":citet[doe2026] :citep[doe2026]", "doe2026", "renamed")).toBe(":citet[renamed] :citep[renamed]");
+    const cited = [file("main", "main.md", "See :citet[doe2026] and :citep[other]."), file("other", "other.md", "No citation")];
     expect(projectUsesCitationAlias(cited, "doe2026")).toBe(true);
     expect(projectUsesCitationAlias(cited, "doe20260")).toBe(false);
   });

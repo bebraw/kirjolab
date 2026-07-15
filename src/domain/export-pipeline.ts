@@ -88,7 +88,7 @@ export interface MaterializedExportBundle {
   readonly generatedSourceMap: readonly GeneratedSourceSpan[];
 }
 
-const citationDirective = /:cite\[(?<keys>[^\]\r\n]+)\]/gu;
+const citationDirective = /:(?:cite|citet|citep)\[(?<keys>[^\]\r\n]+)\]/gu;
 const headingLine = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*(?:\{#[^}\r\n]+\})?[ \t]*$/u;
 
 export function buildExportBundle(input: ExportPipelineInput): MaterializedExportBundle {

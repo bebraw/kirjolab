@@ -286,6 +286,8 @@ describe("source-mapped export pipeline", () => {
       ["block equation", "Before$$\nx + hidden = y\n$$After", 2],
       ["inline equation", "Before$x + hidden$After", 2],
       ["citation", "Before:cite[hiddenKey]After", 2],
+      ["textual citation alias", "Before:citet[hiddenKey]After", 2],
+      ["parenthetical citation alias", "Before:citep[hiddenKey]After", 2],
       ["bibliography marker", "Before\n::bibliography[]\nAfter", 2],
       ["image", 'Before![descriptive alt text](image-long.png "Long image title")After', 5],
       ["empty image", "Before![](image.png)After", 2],
@@ -405,6 +407,20 @@ describe("source-mapped export pipeline", () => {
       submissionTemplate: "anonymous-review",
       paperSize: "letter",
     });
+  });
+
+  it("materializes natbib-style citation aliases and their bibliography reachability", () => {
+    const bundle = buildExportBundle({
+      title: "Citation aliases",
+      files: [file("main", "main.md", "As :citet[textual] notes, compare :citep[parenthetical].")],
+      entryFileId: "main",
+      bibliography:
+        "@article{textual, author={Text, Ada}, title={Textual}, year={2026}}\n@article{parenthetical, author={Paren, Bea}, title={Parenthetical}, year={2025}}",
+    });
+    expect(bundle.intermediate.citationKeys).toEqual(["textual", "parenthetical"]);
+    expect(bundle.bibliography).toContain("@article{textual");
+    expect(bundle.bibliography).toContain("@article{parenthetical");
+    expect(bundle.mainTex).toContain("As \\citet{textual} notes, compare \\citep{parenthetical}.");
   });
 
   it("renders the same materialized bundle through the pinned bounded PDF engine", async () => {

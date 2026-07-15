@@ -69,7 +69,7 @@ files.
   artifacts or imported research PDFs.
 - Composed Markdown and canonical files intentionally retain portable Kirjolab
   extensions. Publication-facing LaTeX and PDF must never print supported
-  `::include`, `::alias`, `::anchor`, `::bibliography`, `:ref`, or `:cite`
+  `::include`, `::alias`, `::anchor`, `::bibliography`, `:ref`, `:cite`, `:citet`, or `:citep`
   syntax or its attribute block as prose.
 
 ## User Interface

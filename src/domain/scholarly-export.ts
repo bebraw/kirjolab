@@ -15,7 +15,9 @@ export interface PublicationCitationEntry {
   readonly number: number;
 }
 
-const textDirective = /(?<!:):(?<kind>cite|ref)\[(?<content>[^\]\r\n]*)\](?:\{(?<attributes>[^}\r\n]*)\})?/giu;
+export type CitationDirectiveName = "cite" | "citet" | "citep";
+
+const textDirective = /(?<!:):(?<kind>cite|citet|citep|ref)\[(?<content>[^\]\r\n]*)\](?:\{(?<attributes>[^}\r\n]*)\})?/giu;
 const declaration = /^[ \t]*::(?<kind>alias|anchor)\[(?<title>[^\]\r\n]*)\]\{(?<attributes>[^}\r\n]*)\}[ \t]*$/iu;
 const bibliographyDirective = /^[ \t]*::bibliography\[\][ \t]*$/iu;
 const attribute = /(?<name>[a-z][a-z-]*)=(?:"(?<quoted>[^"]*)"|(?<bare>[^\s}]+))/giu;
@@ -24,13 +26,25 @@ const heading = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*(?:\{#(?<id>[^}\r\n]+
 export function replacePublicationTextDirectives(value: string, replacement: (directive: PublicationTextDirective) => string): string {
   return value.replace(textDirective, (_match, ...values: unknown[]) => {
     const groups = values.at(-1);
-    if (!isStringRecord(groups) || (groups.kind !== "cite" && groups.kind !== "ref")) return "";
+    if (!isStringRecord(groups) || !groups.kind) return "";
+    const name = groups.kind.toLocaleLowerCase();
+    if (name !== "ref" && !isCitationDirectiveName(name)) return "";
+    const attributes = new Map(directiveAttributes(groups.attributes ?? ""));
+    if (name !== "ref" && name !== "cite" && !attributes.has("mode")) attributes.set("mode", citationModeForDirective(name));
     return replacement({
-      kind: groups.kind,
+      kind: name === "ref" ? "ref" : "cite",
       content: (groups.content ?? "").trim(),
-      attributes: directiveAttributes(groups.attributes ?? ""),
+      attributes,
     });
   });
+}
+
+export function isCitationDirectiveName(value: string): value is CitationDirectiveName {
+  return value === "cite" || value === "citet" || value === "citep";
+}
+
+export function citationModeForDirective(name: CitationDirectiveName, explicitMode?: string): string {
+  return explicitMode ?? (name === "citet" ? "textual" : "parenthetical");
 }
 
 export function isPublicationReferenceDeclaration(line: string): boolean {

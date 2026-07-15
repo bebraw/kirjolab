@@ -4,7 +4,7 @@ export interface CitationInsertion {
   readonly caret: number;
 }
 
-const citationDirectivePattern = /(?<!:):cite\[([^\]]*)\](?:\{[^}]*\})?/giu;
+const citationDirectivePattern = /(?<!:):(?:cite|citet|citep)\[([^\]]*)\](?:\{[^}]*\})?/giu;
 const unsafeCitationKeyPattern = /[\s,[\]]/u;
 const leadingBoundaryPattern = /[\s([{\u2014-]/u;
 const trailingBoundaryPattern = /[\s)\]},.;:!?\u2014-]/u;

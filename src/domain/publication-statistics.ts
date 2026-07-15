@@ -28,7 +28,7 @@ export interface PublicationWordStatistics {
   readonly headings: readonly WordCountByHeading[];
 }
 
-const citationDirective = /:cite\[(?<keys>[^\]\r\n]+)\]/gu;
+const citationDirective = /:(?:cite|citet|citep)\[(?<keys>[^\]\r\n]+)\]/gu;
 const headingLine = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*(?:\{#[^}\r\n]+\})?[ \t]*$/u;
 const wordPattern = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
 

@@ -11,7 +11,13 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 import { SKIP, visit } from "unist-util-visit";
-import { publicationBibliographyText, publicationCitationEntries, type PublicationCitationEntry } from "./scholarly-export";
+import {
+  citationModeForDirective,
+  isCitationDirectiveName,
+  publicationBibliographyText,
+  publicationCitationEntries,
+  type PublicationCitationEntry,
+} from "./scholarly-export";
 import type { CitationStyle } from "./workspace";
 
 export interface Diagnostic {
@@ -225,13 +231,14 @@ function renderSemanticDirectives(options: SemanticOptions) {
       if (index === undefined || !parent) return;
       const directive: Directives = node;
       const content = mdastText(directive).trim();
-      if (directive.type === "textDirective" && directive.name === "cite") {
+      const directiveName = directive.name.toLocaleLowerCase();
+      if (directive.type === "textDirective" && isCitationDirectiveName(directiveName)) {
         const locator = attributeValue(directive.attributes?.locator);
         const prefix = attributeValue(directive.attributes?.prefix);
         const suffix = attributeValue(directive.attributes?.suffix);
         const citation = {
           ids: splitIds(content),
-          mode: attributeValue(directive.attributes?.mode) ?? "parenthetical",
+          mode: citationModeForDirective(directiveName, attributeValue(directive.attributes?.mode)),
           ...(locator ? { locator } : {}),
           ...(prefix ? { prefix } : {}),
           ...(suffix ? { suffix } : {}),
@@ -413,7 +420,7 @@ function collectReferences(source: string): Map<string, ReferenceEntry> {
 function collectCitationIds(source: string): ReadonlySet<string> {
   const ids = new Set<string>();
   for (const match of source.matchAll(directivePattern)) {
-    if (match[1]?.toLowerCase() !== "cite") continue;
+    if (!isCitationDirectiveName(match[1]?.toLocaleLowerCase() ?? "")) continue;
     for (const id of splitIds(match[2] ?? "")) ids.add(id);
   }
   return ids;
@@ -429,8 +436,8 @@ function validateSyntax(
     const kind = match[1]?.toLowerCase() ?? "";
     const content = match[2]?.trim() ?? "";
     const attributes = parseAttributes(match[3] ?? "");
-    if (kind === "cite") {
-      const mode = attributes.get("mode") ?? "parenthetical";
+    if (isCitationDirectiveName(kind)) {
+      const mode = citationModeForDirective(kind, attributes.get("mode"));
       if (!new Set(["parenthetical", "textual", "full"]).has(mode))
         diagnostics.push(toDiagnostic(`Unsupported citation mode: ${mode}`, match));
       const ids = splitIds(content);
