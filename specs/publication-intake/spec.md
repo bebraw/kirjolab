@@ -12,6 +12,10 @@ association, and manuscript citation.
 ### Architecture
 
 - DOI preview is bounded, Crossref-backed, and non-mutating.
+- One browser-local XState actor owns the active PDF identity, request
+  generation, preview/review state, acceptance state, cancellation, and
+  transient preview payload. Changing PDF context or cancelling invalidates
+  late responses without placing workflow state in the document room.
 - `POST /api/workspaces/{id}/publication-intake/preview` accepts a known PDF
   id and DOI, then returns mapped metadata, its SHA-256 review fingerprint, an
   existing publication id when applicable, and a collision-aware key.
@@ -54,6 +58,8 @@ association, and manuscript citation.
 ### Regression Guardrails
 
 - Crossref failure or invalid output must leave canonical state unchanged.
+- Preview and acceptance are mutually exclusive machine states; only a response
+  matching the active request generation and PDF may advance the workflow.
 - External strings must be bounded and rendered through text nodes.
 - Acceptance must verify the PDF and DOI/citation-key state inside the target
   document room.
