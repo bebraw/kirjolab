@@ -804,6 +804,9 @@ test("maps broken export composition back to authored source without losing reco
 });
 
 test("keeps private library research separate from project citations", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Promise, "withResolvers", { configurable: true, value: undefined, writable: true });
+  });
   const failedPdfWorkerRequests: string[] = [];
   page.on("requestfailed", (request) => {
     if (new URL(request.url()).pathname === "/pdf.worker.js") failedPdfWorkerRequests.push(request.failure()?.errorText ?? "failed");

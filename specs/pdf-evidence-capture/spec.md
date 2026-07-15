@@ -68,6 +68,9 @@ with an authored passage.
   bounds after normalization.
 - A selection may contain at most 64 geometry fragments.
 - PDF.js display and worker assets must come from the same pinned package.
+- PDF.js display and worker assets must use the package's compatibility builds
+  so PDF reading does not depend on newer browser APIs such as
+  `Promise.withResolvers` being native.
 - The viewer must render only the active page.
 - Stored highlights must never mutate the imported R2 object.
 - The embedded annotation composer must always target the currently visible
