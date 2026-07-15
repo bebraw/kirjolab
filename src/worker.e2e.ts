@@ -2664,7 +2664,16 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
       });
       return;
     }
-    modelRequests.push(route.request().postDataJSON());
+    const requestBody: unknown = route.request().postDataJSON();
+    modelRequests.push(requestBody);
+    const providerPrompt = readProviderPrompt(requestBody);
+    const content =
+      typeof providerPrompt.evidenceRelation === "string"
+        ? JSON.stringify({
+            text: "Inspectable evidence makes scholarly claims more defensible.",
+            note: "Drafted from the selected source annotation.",
+          })
+        : "Grounded revisions retain a visible path to their evidence :cite[merton1942].";
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2673,7 +2682,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
         choices: [
           {
             message: {
-              content: "Grounded revisions retain a visible path to their evidence :cite[merton1942].",
+              content,
             },
           },
         ],
@@ -2897,6 +2906,47 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(editor).toHaveValue(expectedAppliedSource);
   await expect(page.locator("#preview")).toContainText("Grounded revisions retain a visible path");
   await expect(page.locator("#context-candidate-status")).toContainText("Accepted");
+
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await page.locator("#model-operation").selectOption("draft-claim");
+  await page.locator("#model-claim-relation").selectOption("extends");
+  await page.locator("#model-instruction").fill("Draft one claim about why inspectable evidence matters.");
+  await expect(page.getByRole("button", { name: "Draft claim" })).toBeEnabled();
+  await page.getByRole("button", { name: "Draft claim" }).click();
+  await expect(page.locator("#model-status")).toContainText("Claim draft ready");
+  await expect.poll(() => modelRequests.length).toBe(3);
+  expect(readProviderPrompt(modelRequests[2])).toEqual({
+    instruction: "Draft one claim about why inspectable evidence matters.",
+    evidenceRelation: "extends",
+    orderedAnnotations: [
+      {
+        order: 1,
+        id: expect.any(String),
+        label: "PDF annotation on page 1",
+        content: expect.stringContaining("Knowledge grows through inspectable evidence"),
+      },
+    ],
+  });
+  await expect(page.locator("#context-candidate-before-label")).toHaveText("Research instruction");
+  await expect(page.locator("#context-candidate-after-label")).toHaveText("Proposed claim and note");
+  await expect(page.locator("#context-candidate-evidence-heading")).toHaveText("Annotations used for this claim");
+  await expect(page.locator("#context-candidate-after")).toContainText("Inspectable evidence makes scholarly claims more defensible.");
+  await page.getByRole("button", { name: "Create claim" }).click();
+  await expect(page.locator("#context-candidate-status")).toContainText("Accepted");
+  await expect(page.locator("#claim-list")).toContainText("Inspectable evidence makes scholarly claims more defensible.");
+  const claimDraftSnapshot = await readWorkspaceSnapshot(page, api);
+  const draftedClaim = claimDraftSnapshot.claims.find((claim) => claim.text.includes("more defensible"));
+  expect(draftedClaim).toBeDefined();
+  expect(claimDraftSnapshot.claimEvidenceLinks).toContainEqual(expect.objectContaining({ claimId: draftedClaim?.id, relation: "extends" }));
+
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await page
+    .locator("#candidate-list article")
+    .filter({ hasText: "Kirjolab keeps the path" })
+    .first()
+    .getByRole("button", { name: "Open review" })
+    .click();
+
   page.once("dialog", (dialog) => void dialog.accept());
   await claimCard.getByRole("button", { name: "Delete" }).click();
   await expect(page.locator(`[data-claim-resource-id="${claimResourceId}"]`)).toHaveCount(0);

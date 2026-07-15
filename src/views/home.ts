@@ -332,13 +332,26 @@ export function renderHomePage(
           <div class="context-assistant-scroll p-5" id="context-assistant-scroll">
             <div class="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p class="eyebrow">Selected passage</p>
-                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Draft a reviewable revision</h2>
+                <p class="eyebrow" id="assistant-operation-eyebrow">Selected passage</p>
+                <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]" id="assistant-operation-title">Draft a reviewable revision</h2>
               </div>
-              <p class="max-w-lg text-xs leading-5 text-app-text-soft">Uses only the selected passage and chosen evidence. Review the draft in Context before applying it.</p>
+              <p class="max-w-lg text-xs leading-5 text-app-text-soft" id="assistant-operation-description">Uses only the selected passage and chosen evidence. Review the draft in Context before applying it.</p>
             </div>
             <div class="assistant-workflow">
-              <label class="field-label model-instruction-field" for="model-instruction">Revision instruction
+              <label class="field-label">Task
+                <select class="field" id="model-operation">
+                  <option value="revise-selection">Revise selected passage</option>
+                  <option value="draft-claim">Draft evidence-backed claim</option>
+                </select>
+              </label>
+              <label class="field-label" id="model-claim-relation-field" hidden>Evidence relation
+                <select class="field" id="model-claim-relation">
+                  <option value="supports">Supports</option>
+                  <option value="contradicts">Contradicts</option>
+                  <option value="extends">Extends</option>
+                </select>
+              </label>
+              <label class="field-label model-instruction-field" for="model-instruction"><span id="model-instruction-label">Revision instruction</span>
                 <textarea class="field model-instruction" id="model-instruction" maxlength="4000" rows="2">Improve clarity while preserving the claim and citation syntax.</textarea>
               </label>
               <button class="button-primary model-generate-action justify-center" id="generate-candidate" type="button">Draft revision</button>
@@ -520,7 +533,7 @@ export function renderHomePage(
         <section class="context-panel context-candidate-panel" id="context-candidate-panel" role="tabpanel" aria-label="Model revision context" tabindex="0" hidden>
           <header class="context-resource-header">
             <div class="min-w-0">
-              <p class="eyebrow">Grounded revision</p>
+              <p class="eyebrow" id="context-candidate-eyebrow">Grounded revision</p>
               <h2 class="context-resource-title" id="context-candidate-title">No revision selected</h2>
               <p class="context-resource-meta" id="context-candidate-meta">Provider, model, and source revision appear here.</p>
             </div>
@@ -556,7 +569,7 @@ export function renderHomePage(
           </div>
         </section>
       </section>
-
+  
     </main>
 
     <dialog class="reference-library-dialog" id="export-dialog">

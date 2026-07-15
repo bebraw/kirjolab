@@ -267,12 +267,19 @@ describe("renderHomePage", () => {
 
     expect(html).toContain("Uses only the selected passage and chosen evidence.");
     expect(html).toContain("Review the draft in Context before applying it.");
-    expect(html).toContain('<label class="field-label model-instruction-field" for="model-instruction">Revision instruction');
+    expect(html).toContain(
+      '<label class="field-label model-instruction-field" for="model-instruction"><span id="model-instruction-label">Revision instruction</span>',
+    );
     expect(html).toContain('id="model-instruction" maxlength="4000" rows="2"');
     expect(html).toContain("Improve clarity while preserving the claim and citation syntax.");
     expect(html).toContain('id="model-status" role="status" aria-live="polite"');
     expect(html).toContain("Select manuscript text and at least one annotation or claim to ground the request.");
     expect(html).toContain("Drafts open in Context and do not change the manuscript until applied.");
+    expect(html).toContain('<select class="field" id="model-operation">');
+    expect(html).toContain('<option value="draft-claim">Draft evidence-backed claim</option>');
+    expect(html).toContain('id="model-claim-relation-field" hidden');
+    expect(html).toContain('<select class="field" id="model-claim-relation">');
+    expect(html).toContain('<option value="contradicts">Contradicts</option>');
 
     expect(html.indexOf('id="model-instruction"')).toBeLessThan(html.indexOf('id="assistant-model-settings"'));
     expect(html.indexOf('id="assistant-model-settings"')).toBeLessThan(html.indexOf('id="llm-endpoint"'));

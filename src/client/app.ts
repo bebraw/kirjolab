@@ -268,10 +268,14 @@ interface Elements {
   contextCandidatePanel: HTMLElement;
   contextCandidateScroll: HTMLElement;
   contextCandidateTitle: HTMLElement;
+  contextCandidateEyebrow: HTMLElement;
   contextCandidateMeta: HTMLElement;
   contextCandidateStatus: HTMLElement;
   contextCandidateBefore: HTMLElement;
+  contextCandidateBeforeLabel: HTMLElement;
   contextCandidateAfter: HTMLElement;
+  contextCandidateAfterLabel: HTMLElement;
+  contextCandidateEvidenceHeading: HTMLElement;
   contextCandidateEvidence: HTMLElement;
   contextCandidateApply: HTMLButtonElement;
   contextCandidateReject: HTMLButtonElement;
@@ -379,6 +383,13 @@ interface Elements {
   llmEndpoint: HTMLInputElement;
   llmConnection: HTMLSelectElement;
   llmModel: HTMLInputElement;
+  modelOperation: HTMLSelectElement;
+  modelClaimRelation: HTMLSelectElement;
+  modelClaimRelationField: HTMLElement;
+  assistantOperationEyebrow: HTMLElement;
+  assistantOperationTitle: HTMLElement;
+  assistantOperationDescription: HTMLElement;
+  modelInstructionLabel: HTMLElement;
   modelInstruction: HTMLTextAreaElement;
   generateCandidate: HTMLButtonElement;
   modelStatus: HTMLElement;
@@ -742,6 +753,7 @@ class WorkspaceApp {
       this.#elements.llmEndpoint,
       this.#elements.llmModel,
       this.#elements.modelInstruction,
+      this.#elements.modelClaimRelation,
     ]) {
       input.addEventListener("input", () => this.#updateModelAvailability());
     }
@@ -755,7 +767,9 @@ class WorkspaceApp {
           ? "Start npm run model:companion, then select manuscript text and grounding evidence."
           : "The browser will contact the configured loopback provider directly.";
     });
+    this.#elements.modelOperation.addEventListener("change", () => this.#updateModelTask());
     this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
+    this.#updateModelTask();
   }
 
   async #refreshSnapshot(): Promise<void> {
@@ -1328,22 +1342,45 @@ class WorkspaceApp {
 
   #updateModelAvailability(): void {
     const stable = this.#hasStableDocumentBase();
-    this.#elements.generateCandidate.disabled = this.#modelBusy || !stable || !this.#canGenerateCandidate();
+    this.#elements.generateCandidate.disabled = this.#modelBusy || (!this.#draftsClaim() && !stable) || !this.#canGenerateCandidate();
     for (const apply of document.querySelectorAll<HTMLButtonElement>('[data-candidate-action="apply"]')) {
       const candidate = this.#snapshot?.candidates.find((item) => item.id === apply.dataset.candidateId);
       const applicable = candidate ? this.#candidateApplicable(candidate) : false;
       apply.dataset.candidateApplicable = String(applicable);
-      apply.disabled = this.#candidateDecision !== null || !stable || !applicable;
+      apply.disabled = this.#candidateDecision !== null || (candidate?.operation !== "draft-claim" && !stable) || !applicable;
     }
   }
 
   #canGenerateCandidate(): boolean {
+    const selectedEvidence = this.#modelEvidence();
     return (
-      this.#modelEvidenceSelection.size > 0 &&
+      selectedEvidence.items.length > 0 &&
       this.#modelEvidenceSelection.size <= maximumModelEvidenceItems &&
-      this.#selectedAuthoringPassage() !== null &&
+      (this.#draftsClaim()
+        ? selectedEvidence.items.some((item) => item.kind === "annotation")
+        : this.#selectedAuthoringPassage() !== null) &&
       Boolean(this.#elements.modelInstruction.value.trim())
     );
+  }
+
+  #draftsClaim(): boolean {
+    return this.#elements.modelOperation.value === "draft-claim";
+  }
+
+  #updateModelTask(): void {
+    const draftsClaim = this.#draftsClaim();
+    this.#elements.modelClaimRelationField.hidden = !draftsClaim;
+    this.#elements.assistantOperationEyebrow.textContent = draftsClaim ? "Selected annotations" : "Selected passage";
+    this.#elements.assistantOperationTitle.textContent = draftsClaim ? "Draft a reviewable claim" : "Draft a reviewable revision";
+    this.#elements.assistantOperationDescription.textContent = draftsClaim
+      ? "Uses only chosen annotation snapshots. Review the proposition and note in Context before creating a claim."
+      : "Uses only the selected passage and chosen evidence. Review the draft in Context before applying it.";
+    this.#elements.modelInstructionLabel.textContent = draftsClaim ? "Research instruction" : "Revision instruction";
+    this.#elements.generateCandidate.textContent = draftsClaim ? "Draft claim" : "Draft revision";
+    this.#elements.modelStatus.textContent = draftsClaim
+      ? "Select at least one annotation to ground the claim draft."
+      : "Select manuscript text and at least one annotation or claim to ground the request.";
+    this.#updateModelAvailability();
   }
 
   #modelProvider(): OpenAICompatibleBrowserProvider {
@@ -4294,6 +4331,7 @@ class WorkspaceApp {
     if (!candidate) return;
 
     const draftsClaim = candidate.operation === "draft-claim";
+    this.#elements.contextCandidateEyebrow.textContent = draftsClaim ? "Grounded claim draft" : "Grounded revision";
     this.#elements.contextCandidateTitle.textContent = draftsClaim ? "Draft evidence-backed claim" : "Revise selected passage";
     this.#elements.contextCandidateMeta.textContent = [
       candidate.model,
@@ -4305,6 +4343,11 @@ class WorkspaceApp {
     this.#elements.contextCandidateAfter.textContent = draftsClaim
       ? [candidate.proposedText, candidate.proposedNote].filter(Boolean).join("\n\n")
       : candidate.proposedReplacement;
+    this.#elements.contextCandidateBeforeLabel.textContent = draftsClaim ? "Research instruction" : "Original passage";
+    this.#elements.contextCandidateAfterLabel.textContent = draftsClaim ? "Proposed claim and note" : "Proposed replacement";
+    this.#elements.contextCandidateEvidenceHeading.textContent = draftsClaim
+      ? "Annotations used for this claim"
+      : "Evidence used for this revision";
     const applicable = this.#candidateApplicable(candidate);
     this.#elements.contextCandidateStatus.textContent =
       candidate.status === "pending"
@@ -4861,15 +4904,20 @@ class WorkspaceApp {
   }
 
   async #generateCandidate(): Promise<void> {
-    if (!this.#snapshot || !this.#hasStableDocumentBase()) {
+    const draftsClaim = this.#draftsClaim();
+    if (!this.#snapshot || (!draftsClaim && !this.#hasStableDocumentBase())) {
       this.#elements.modelStatus.textContent = "Wait for the manuscript to finish synchronizing before using the model.";
       return;
     }
 
     const passage = this.#selectedAuthoringPassage();
     const evidence = this.#modelEvidence();
-    if (!passage || evidence.items.length === 0) {
-      this.#elements.modelStatus.textContent = "Select manuscript text and at least one annotation or claim first.";
+    const annotationItems = evidence.items.filter((item) => item.kind === "annotation");
+    const annotationReferences = evidence.references.filter((item) => item.kind === "annotation");
+    if ((!draftsClaim && !passage) || (draftsClaim ? annotationItems.length === 0 : evidence.items.length === 0)) {
+      this.#elements.modelStatus.textContent = draftsClaim
+        ? "Select at least one annotation first. Claims cannot ground a new claim draft."
+        : "Select manuscript text and at least one annotation or claim first.";
       return;
     }
     let provider: OpenAICompatibleBrowserProvider;
@@ -4879,12 +4927,39 @@ class WorkspaceApp {
       this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
       return;
     }
-    const sourceRevision = this.#revision;
     const instruction = this.#elements.modelInstruction.value;
     this.#modelBusy = true;
     this.#updateModelAvailability();
-    this.#elements.modelStatus.textContent = "Asking the local model for a grounded candidate…";
+    this.#elements.modelStatus.textContent = draftsClaim
+      ? "Asking the local model for one grounded claim draft…"
+      : "Asking the local model for a grounded candidate…";
     try {
+      if (draftsClaim) {
+        const relation = readClaimEvidenceRelation(this.#elements.modelClaimRelation.value);
+        const draft = await provider.draftClaim({ instruction, relation, evidence: annotationItems });
+        const response = await jsonFetch(`${apiBase}/claim-candidates`, {
+          providerAdapter: "openai-compatible",
+          providerLabel: draft.providerLabel,
+          model: draft.model,
+          promptVersion: "draft-claim-v1",
+          instruction,
+          relation,
+          evidence: annotationReferences,
+          proposedText: draft.text,
+          proposedNote: draft.note,
+        });
+        await expectOk(response);
+        const value: unknown = await response.json();
+        if (!isModelCandidate(value) || value.operation !== "draft-claim") {
+          throw new Error("Candidate endpoint returned an invalid claim draft");
+        }
+        await this.#resourceRefresh.request();
+        this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
+        this.#elements.modelStatus.textContent = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
+        return;
+      }
+      if (!passage) throw new Error("Select manuscript text first");
+      const sourceRevision = this.#revision;
       const revision = await provider.reviseSelection({ selectedPassage: passage.excerpt, instruction, evidence: evidence.items });
       const response = await jsonFetch(`${apiBase}/candidates`, {
         providerAdapter: "openai-compatible",
@@ -4913,7 +4988,8 @@ class WorkspaceApp {
 
   async #updateCandidate(candidateId: string, action: "apply" | "reject"): Promise<void> {
     if (this.#candidateDecision) return;
-    if (action === "apply" && !this.#hasStableDocumentBase()) {
+    const candidate = this.#snapshot?.candidates.find((item) => item.id === candidateId);
+    if (action === "apply" && candidate?.operation !== "draft-claim" && !this.#hasStableDocumentBase()) {
       this.#showToast("Wait for the manuscript to finish synchronizing before applying a candidate.");
       return;
     }
@@ -4926,7 +5002,15 @@ class WorkspaceApp {
       await expectOk(response);
       await this.#resourceRefresh.request();
       if (action === "reject") this.#contextState = activateResearchTab(this.#contextState, RESEARCH_ASSISTANT_KEY);
-      this.#showToast(action === "apply" ? "Candidate applied to canonical Markdown." : "Candidate rejected; manuscript unchanged.");
+      this.#showToast(
+        action === "apply"
+          ? candidate?.operation === "draft-claim"
+            ? "Evidence-backed claim created."
+            : "Candidate applied to canonical Markdown."
+          : candidate?.operation === "draft-claim"
+            ? "Claim draft rejected; no claim created."
+            : "Candidate rejected; manuscript unchanged.",
+      );
     } catch (error) {
       failure = error instanceof Error ? error.message : "Candidate decision failed";
       await this.#resourceRefresh.request().catch(() => undefined);
@@ -4938,7 +5022,7 @@ class WorkspaceApp {
       if (!failure && action === "reject") this.#focusContextTab(RESEARCH_ASSISTANT_KEY);
       const current = this.#snapshot?.candidates.find((candidate) => candidate.id === candidateId);
       if (failure && current?.status === "pending" && this.#activeResourceTab()?.id === candidateId) {
-        this.#elements.contextCandidateStatus.textContent = `Could not ${action === "apply" ? "apply" : "reject"} revision: ${failure}`;
+        this.#elements.contextCandidateStatus.textContent = `Could not ${action === "apply" ? "apply" : "reject"} ${current.operation === "draft-claim" ? "claim draft" : "revision"}: ${failure}`;
       }
     }
   }
@@ -6033,11 +6117,15 @@ function collectElements(): Elements {
     contextPdfPanel: requiredElement("context-pdf-panel", HTMLElement),
     contextCandidatePanel: requiredElement("context-candidate-panel", HTMLElement),
     contextCandidateScroll: requiredElement("context-candidate-scroll", HTMLElement),
+    contextCandidateEyebrow: requiredElement("context-candidate-eyebrow", HTMLElement),
     contextCandidateTitle: requiredElement("context-candidate-title", HTMLElement),
     contextCandidateMeta: requiredElement("context-candidate-meta", HTMLElement),
     contextCandidateStatus: requiredElement("context-candidate-status", HTMLElement),
     contextCandidateBefore: requiredElement("context-candidate-before", HTMLElement),
+    contextCandidateBeforeLabel: requiredElement("context-candidate-before-label", HTMLElement),
     contextCandidateAfter: requiredElement("context-candidate-after", HTMLElement),
+    contextCandidateAfterLabel: requiredElement("context-candidate-after-label", HTMLElement),
+    contextCandidateEvidenceHeading: requiredElement("context-candidate-evidence-heading", HTMLElement),
     contextCandidateEvidence: requiredElement("context-candidate-evidence", HTMLElement),
     contextCandidateApply: requiredElement("context-candidate-apply", HTMLButtonElement),
     contextCandidateReject: requiredElement("context-candidate-reject", HTMLButtonElement),
@@ -6145,6 +6233,13 @@ function collectElements(): Elements {
     llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
     llmConnection: requiredElement("llm-connection", HTMLSelectElement),
     llmModel: requiredElement("llm-model", HTMLInputElement),
+    modelOperation: requiredElement("model-operation", HTMLSelectElement),
+    modelClaimRelation: requiredElement("model-claim-relation", HTMLSelectElement),
+    modelClaimRelationField: requiredElement("model-claim-relation-field", HTMLElement),
+    assistantOperationEyebrow: requiredElement("assistant-operation-eyebrow", HTMLElement),
+    assistantOperationTitle: requiredElement("assistant-operation-title", HTMLElement),
+    assistantOperationDescription: requiredElement("assistant-operation-description", HTMLElement),
+    modelInstructionLabel: requiredElement("model-instruction-label", HTMLElement),
     modelInstruction: requiredElement("model-instruction", HTMLTextAreaElement),
     generateCandidate: requiredElement("generate-candidate", HTMLButtonElement),
     modelStatus: requiredElement("model-status", HTMLElement),
