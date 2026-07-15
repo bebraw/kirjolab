@@ -38,6 +38,12 @@ All mutation operations preserve a human review boundary.
   rationale, and complete target replacement draft. Ideas remain transient;
   promoting one creates an evidence-optional targeted candidate captured against
   the original source revision.
+- `build-table` accepts separate caption, column, and pipe-delimited row fields
+  instead of forcing complex requirements into one prompt. The model returns
+  bounded structured cells with the requested dimensions; the client validates
+  the shape and serializes portable GFM deterministically. The researcher sees
+  the exact syntax and explicitly inserts or replaces it only while the captured
+  manuscript revision and target still match.
 - Model connection settings discover live model identifiers from the standard
   OpenAI-compatible `/models` route instead of hardcoding a catalog. Discovery
   is explicit, bounded, credential-free, loopback-only, and available through
@@ -151,6 +157,9 @@ All mutation operations preserve a human review boundary.
       review and cannot bypass stale-target validation or explicit apply.
 - [x] A researcher can compare three to five distinct directions for the current
       manuscript context and promote one complete draft into exact review.
+- [x] A researcher can describe a 2–8-column, 1–100-row table through structured
+      fields, preview deterministic GFM, and explicitly insert it at the caret or
+      replace the visible selection.
 
 ### Regression Guardrails
 
@@ -193,6 +202,9 @@ All mutation operations preserve a human review boundary.
 - Ideation must return three to five typed ideas, each with a title, concrete
   direction, and complete bounded replacement. An unchosen idea is never
   persisted and a chosen draft never writes directly to canonical prose.
+- Table generation must never trust model-authored Markdown. Returned caption,
+  columns, rows, cell bounds, and dimensions are validated before deterministic
+  serialization; insertion fails after any intervening manuscript revision.
 
 ### Scenarios
 
@@ -259,3 +271,11 @@ All mutation operations preserve a human review boundary.
 - When: the researcher generates directions and promotes one idea
 - Then: the chosen complete draft opens as a targeted candidate while the other
   transient ideas and canonical manuscript remain unchanged
+
+**Scenario: Structured table becomes portable syntax**
+
+- Given: a visible insertion target and valid structured table requirements
+- When: the local provider returns the same bounded table shape and the
+  researcher approves the rendered GFM
+- Then: Kirjolab inserts only the validated deterministic syntax if the captured
+  manuscript base is still current

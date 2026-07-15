@@ -5,6 +5,7 @@ import {
   type DraftClaimRequest,
   type ClarityDrillRequest,
   type IdeationRequest,
+  type TableSyntaxRequest,
   type OpenAICompatibleBrowserProviderOptions,
   type ReviseSelectionRequest,
 } from "./model-provider";
@@ -30,6 +31,13 @@ const clarityOperation = {
   evidence: [],
 } as const satisfies ClarityDrillRequest;
 const ideationOperation = clarityOperation satisfies IdeationRequest;
+const tableOperation = {
+  instruction: "Make labels concise.",
+  caption: "Results",
+  columns: ["Method", "Score"],
+  rows: [["Baseline", "0.6"]],
+  manuscriptContext: "The proposed method improves the score.",
+} as const satisfies TableSyntaxRequest;
 
 afterEach(() => {
   vi.useRealTimers();
@@ -38,6 +46,20 @@ afterEach(() => {
 });
 
 describe("OpenAICompatibleBrowserProvider", () => {
+  it("returns a bounded structured table instead of model-authored Markdown", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(completionResponse('{"caption":"Results","columns":["Method","Score"],"rows":[["Base","0.6"]]}'));
+    const result = await createProvider({ fetcher }).buildTable(tableOperation);
+    expect(result).toMatchObject({ caption: "Results", columns: ["Method", "Score"], rows: [["Base", "0.6"]] });
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+      messages: Array<{ content: string }>;
+    };
+    expect(body.response_format.json_schema.name).toBe("kirjolab_table");
+    expect(body.messages[0]?.content).toContain("do not emit Markdown");
+  });
+
   it("returns three typed ideation drafts", async () => {
     const content = JSON.stringify({
       ideas: [

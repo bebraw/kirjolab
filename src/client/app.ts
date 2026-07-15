@@ -108,9 +108,11 @@ import {
   type ModelClarityQuestion,
   type ModelClarityRewrites,
   type ModelIdeas,
+  type ModelTable,
   type ModelEvidenceItem,
   type ModelReasoningEffort,
 } from "./model-provider";
+import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -443,6 +445,10 @@ interface Elements {
   assistantTargetScopeField: HTMLElement;
   assistantTargetPreview: HTMLElement;
   assistantInteractiveResult: HTMLElement;
+  assistantTableFields: HTMLFieldSetElement;
+  assistantTableCaption: HTMLInputElement;
+  assistantTableColumns: HTMLTextAreaElement;
+  assistantTableRows: HTMLTextAreaElement;
   modelClaimRelation: HTMLSelectElement;
   modelClaimRelationField: HTMLElement;
   assistantOperationEyebrow: HTMLElement;
@@ -858,6 +864,9 @@ class WorkspaceApp {
       this.#elements.llmReasoningEffort,
       this.#elements.modelInstruction,
       this.#elements.modelClaimRelation,
+      this.#elements.assistantTableCaption,
+      this.#elements.assistantTableColumns,
+      this.#elements.assistantTableRows,
     ]) {
       input.addEventListener("input", () => this.#updateModelAvailability());
     }
@@ -1692,13 +1701,16 @@ class WorkspaceApp {
       (operation.evidence === "annotations"
         ? selectedEvidence.items.some((item) => item.kind === "annotation")
         : selectedEvidence.items.length > 0);
+    const targetValid = operation.id !== "build-table" || (this.#assistantInsertionTarget() !== null && this.#validTableRequirements());
     return (
       evidenceValid &&
       this.#modelEvidenceSelection.size <= maximumModelEvidenceItems &&
       Boolean(this.#elements.llmModel.value.trim()) &&
-      (this.#draftsClaim()
-        ? selectedEvidence.items.some((item) => item.kind === "annotation")
-        : this.#assistantAuthoringPassage() !== null) &&
+      (operation.id === "build-table"
+        ? targetValid
+        : this.#draftsClaim()
+          ? selectedEvidence.items.some((item) => item.kind === "annotation")
+          : this.#assistantAuthoringPassage() !== null) &&
       Boolean(this.#elements.modelInstruction.value.trim())
     );
   }
@@ -1725,6 +1737,7 @@ class WorkspaceApp {
     const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
     const draftsClaim = operation.id === "draft-claim";
     this.#elements.modelClaimRelationField.hidden = !draftsClaim;
+    this.#elements.assistantTableFields.hidden = operation.id !== "build-table";
     this.#elements.assistantTargetScopeField.hidden = operation.scopes.length === 0;
     const currentScope = this.#elements.assistantTargetScope.value;
     this.#elements.assistantTargetScope.replaceChildren(
@@ -1755,6 +1768,15 @@ class WorkspaceApp {
     if (this.#draftsClaim()) {
       this.#elements.assistantTargetPreview.textContent =
         "This operation uses selected annotation snapshots rather than a manuscript target.";
+      return;
+    }
+    if (assistantOperationDefinition(this.#elements.modelOperation.value).id === "build-table") {
+      const target = this.#assistantInsertionTarget();
+      this.#elements.assistantTargetPreview.textContent = target
+        ? target.start === target.end
+          ? "The reviewed table syntax will be inserted at the visible caret."
+          : `The reviewed table syntax will replace ${target.end - target.start} selected characters.`
+        : "Place the caret where the table should be inserted, or select text to replace.";
       return;
     }
     const passage = this.#assistantAuthoringPassage();
@@ -5403,6 +5425,35 @@ class WorkspaceApp {
     return resolved.text.trim() ? { fileId: this.#activeFileId, start: resolved.start, end: resolved.end, excerpt: resolved.text } : null;
   }
 
+  #assistantInsertionTarget(): AuthoringPassage | null {
+    if (!this.#activeFileId) return null;
+    const target = this.#resolvedAuthoringTarget();
+    if (!target) return null;
+    return {
+      fileId: this.#activeFileId,
+      start: target.start,
+      end: target.end,
+      excerpt: this.#activeFileText.toString().slice(target.start, target.end),
+    };
+  }
+
+  #tableRequirements(): TableRequirements {
+    return parseTableRequirements(
+      this.#elements.assistantTableCaption.value,
+      this.#elements.assistantTableColumns.value,
+      this.#elements.assistantTableRows.value,
+    );
+  }
+
+  #validTableRequirements(): boolean {
+    try {
+      this.#tableRequirements();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   #insertSourceSyntax(event: MouseEvent): void {
     const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-insert-syntax]") : null;
     const includeTarget = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-include-file-id]") : null;
@@ -5523,7 +5574,12 @@ class WorkspaceApp {
         : operation.evidence === "annotations"
           ? annotationItems.length === 0
           : false;
-    if ((!draftsClaim && !passage) || evidenceMissing) {
+    const insertionTarget = operation.id === "build-table" ? this.#assistantInsertionTarget() : null;
+    if (
+      (!draftsClaim && operation.id !== "build-table" && !passage) ||
+      (operation.id === "build-table" && !insertionTarget) ||
+      evidenceMissing
+    ) {
       this.#elements.modelStatus.textContent = draftsClaim
         ? "Select at least one annotation first. Claims cannot ground a new claim draft."
         : "Choose a valid manuscript target and any required evidence first.";
@@ -5569,6 +5625,24 @@ class WorkspaceApp {
         this.#elements.modelStatus.textContent = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
         return;
       }
+      if (operation.id === "build-table") {
+        if (!insertionTarget) throw new Error("Place the manuscript caret first");
+        const sourceRevision = this.#revision;
+        const requirements = this.#tableRequirements();
+        const source = this.#activeFileText.toString();
+        const context = resolveAssistantTarget(source, insertionTarget.end, insertionTarget.end, "paragraph").text;
+        const table = await provider.buildTable({
+          instruction,
+          ...requirements,
+          manuscriptContext: context,
+        });
+        if (table.columns.length !== requirements.columns.length || table.rows.length !== requirements.rows.length) {
+          throw new Error("Local model changed the requested table shape");
+        }
+        this.#renderGeneratedTable(insertionTarget, sourceRevision, table);
+        this.#elements.modelStatus.textContent = "Table syntax ready. Review it before inserting at the visible target.";
+        return;
+      }
       if (!passage) throw new Error("Select manuscript text first");
       const sourceRevision = this.#revision;
       if (operation.id === "ideate") {
@@ -5604,6 +5678,45 @@ class WorkspaceApp {
       this.#modelBusy = false;
       this.#updateModelAvailability();
     }
+  }
+
+  #renderGeneratedTable(target: AuthoringPassage, sourceRevision: number, table: ModelTable): void {
+    const markdown = tableMarkdown(table);
+    const card = document.createElement("section");
+    card.className = "resource-card";
+    const label = document.createElement("p");
+    label.className = "eyebrow";
+    label.textContent = "Validated GFM table";
+    const preview = document.createElement("pre");
+    preview.className = "mt-3 overflow-x-auto whitespace-pre text-xs";
+    preview.textContent = markdown;
+    const insert = document.createElement("button");
+    insert.className = "button-primary mt-3";
+    insert.type = "button";
+    insert.textContent = target.start === target.end ? "Insert table" : "Replace selection with table";
+    insert.addEventListener("click", () => this.#insertGeneratedTable(target, sourceRevision, markdown));
+    card.append(label, preview, insert);
+    this.#elements.assistantInteractiveResult.replaceChildren(card);
+  }
+
+  #insertGeneratedTable(target: AuthoringPassage, sourceRevision: number, markdown: string): void {
+    const source = this.#activeFileText.toString();
+    if (!this.#hasStableDocumentBase() || this.#revision !== sourceRevision || source.slice(target.start, target.end) !== target.excerpt) {
+      this.#elements.modelStatus.textContent = "The manuscript changed. Generate the table again for the current target.";
+      return;
+    }
+    const prefix = target.start > 0 && source[target.start - 1] !== "\n" ? "\n\n" : "";
+    const suffix = target.end < source.length && source[target.end] !== "\n" ? "\n\n" : "\n";
+    const insertion = `${prefix}${markdown}${suffix}`;
+    this.#document.transact(() => {
+      if (target.end > target.start) this.#activeFileText.delete(target.start, target.end - target.start);
+      this.#activeFileText.insert(target.start, insertion);
+    }, this);
+    const caret = target.start + insertion.length;
+    this.#elements.source.focus();
+    this.#elements.source.setSelectionRange(caret, caret);
+    this.#rememberAuthoringSelection();
+    this.#elements.modelStatus.textContent = "Table inserted into the manuscript.";
   }
 
   #renderClarityQuestion(input: ClarityDrillContext): void {
@@ -7201,6 +7314,10 @@ function collectElements(): Elements {
     assistantTargetScopeField: requiredElement("assistant-target-scope-field", HTMLElement),
     assistantTargetPreview: requiredElement("assistant-target-preview", HTMLElement),
     assistantInteractiveResult: requiredElement("assistant-interactive-result", HTMLElement),
+    assistantTableFields: requiredElement("assistant-table-fields", HTMLFieldSetElement),
+    assistantTableCaption: requiredElement("assistant-table-caption", HTMLInputElement),
+    assistantTableColumns: requiredElement("assistant-table-columns", HTMLTextAreaElement),
+    assistantTableRows: requiredElement("assistant-table-rows", HTMLTextAreaElement),
     modelClaimRelation: requiredElement("model-claim-relation", HTMLSelectElement),
     modelClaimRelationField: requiredElement("model-claim-relation-field", HTMLElement),
     assistantOperationEyebrow: requiredElement("assistant-operation-eyebrow", HTMLElement),

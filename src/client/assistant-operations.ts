@@ -107,7 +107,7 @@ const definitions: readonly AssistantOperationDefinition[] = [
     scopes: ["caret", "selection"],
     defaultScope: "caret",
     evidence: "optional",
-    enabled: false,
+    enabled: true,
   },
 ] as const;
 

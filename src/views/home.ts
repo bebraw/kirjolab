@@ -358,6 +358,17 @@ export function renderHomePage(
                   <option value="extends">Extends</option>
                 </select>
               </label>
+              <fieldset class="contents" id="assistant-table-fields" hidden>
+                <label class="field-label">Caption
+                  <input class="field" id="assistant-table-caption" type="text" maxlength="500" placeholder="Optional table caption">
+                </label>
+                <label class="field-label">Columns · one per line
+                  <textarea class="field" id="assistant-table-columns" rows="3" maxlength="4000" placeholder="Method&#10;Dataset&#10;Score"></textarea>
+                </label>
+                <label class="field-label">Rows · one per line, cells separated by |
+                  <textarea class="field" id="assistant-table-rows" rows="5" maxlength="20000" placeholder="Baseline | Dataset A | 0.71&#10;Proposed | Dataset A | 0.83"></textarea>
+                </label>
+              </fieldset>
               <label class="field-label model-instruction-field" for="model-instruction"><span id="model-instruction-label">Revision instruction</span>
                 <textarea class="field model-instruction" id="model-instruction" maxlength="4000" rows="2">Improve clarity while preserving the claim and citation syntax.</textarea>
               </label>

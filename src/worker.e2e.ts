@@ -2906,32 +2906,41 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
     const content =
       schemaName === "kirjolab_clarity_question"
         ? JSON.stringify({ issue: "Better does not name an outcome.", question: "What improves, and for whom?" })
-        : schemaName === "kirjolab_ideas"
+        : schemaName === "kirjolab_table"
           ? JSON.stringify({
-              ideas: [
-                {
-                  title: "Measure review time",
-                  direction: "Name one affected group and measurable outcome.",
-                  draft: "The workflow reduces review time for editors.",
-                },
-                {
-                  title: "Compare steps",
-                  direction: "Contrast the two workflows.",
-                  draft: "The workflow removes a separate evidence lookup step.",
-                },
-                {
-                  title: "Explain mechanism",
-                  direction: "Connect visible evidence to review speed.",
-                  draft: "Visible evidence lets editors validate claims without leaving the draft.",
-                },
+              caption: "Review outcomes",
+              columns: ["Workflow", "Review time"],
+              rows: [
+                ["Baseline", "12 min"],
+                ["Kirjolab", "8 min"],
               ],
             })
-          : JSON.stringify({
-              rewrites: [
-                { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
-                { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
-              ],
-            });
+          : schemaName === "kirjolab_ideas"
+            ? JSON.stringify({
+                ideas: [
+                  {
+                    title: "Measure review time",
+                    direction: "Name one affected group and measurable outcome.",
+                    draft: "The workflow reduces review time for editors.",
+                  },
+                  {
+                    title: "Compare steps",
+                    direction: "Contrast the two workflows.",
+                    draft: "The workflow removes a separate evidence lookup step.",
+                  },
+                  {
+                    title: "Explain mechanism",
+                    direction: "Connect visible evidence to review speed.",
+                    draft: "Visible evidence lets editors validate claims without leaving the draft.",
+                  },
+                ],
+              })
+            : JSON.stringify({
+                rewrites: [
+                  { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
+                  { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
+                ],
+              });
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2978,6 +2987,17 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await expect(page.locator("#context-candidate-after")).toHaveText("The workflow reduces review time for editors.");
   await expect(editor).toHaveValue(source);
   expect(requests).toHaveLength(3);
+
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await page.locator("#model-operation").selectOption("build-table");
+  await page.locator("#assistant-table-caption").fill("Review outcomes");
+  await page.locator("#assistant-table-columns").fill("Workflow\nReview time");
+  await page.locator("#assistant-table-rows").fill("Baseline | 12 min\nKirjolab | 8 min");
+  await page.getByRole("button", { name: "Build syntax" }).click();
+  await expect(page.locator("#assistant-interactive-result pre")).toContainText("| Workflow | Review time |");
+  await page.getByRole("button", { name: "Insert table" }).click();
+  await expect(editor).toHaveValue(/\| Kirjolab \| 8 min \|/u);
+  expect(requests).toHaveLength(4);
 });
 
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {

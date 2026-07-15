@@ -303,6 +303,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   target drafts. Persist only a researcher-promoted draft through the ordinary
   candidate boundary; do not store discarded ideas or mutate prose from the
   exploratory response.
+- Accept complex syntax requirements through typed operation-specific controls.
+  For tables, validate bounded structured cells and requested dimensions, render
+  portable GFM deterministically in the client, expose the exact syntax for
+  review, and insert only against the unchanged captured target and revision.
 - Persist passage-revision candidates as a Yjs-relative target, bounded
   instruction, typed versioned evidence snapshots, provider/model identity, and
   replacement text. Never model a selected-passage operation as a proposed
