@@ -19,6 +19,8 @@ import {
   isProjectRevisionContent,
   isProjectRevisionDiff,
   isProjectRevisionSummaries,
+  type ProjectRevisionContent,
+  type ProjectRevisionDiff,
   type ProjectRevisionSummary,
 } from "../domain/project-history";
 import {
@@ -125,6 +127,7 @@ import {
   type ModelReasoningEffort,
 } from "./model-provider";
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
+import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -537,6 +540,7 @@ class WorkspaceApp {
   readonly #publicationIntake = createPublicationIntakeActor();
   readonly #collaborationWorkflow = createCollaborationWorkflowActor();
   readonly #metadataRefinement = createMetadataRefinementActor();
+  readonly #projectHistoryWorkflow = createProjectHistoryActor();
   #snapshot: WorkspaceSnapshot | null = null;
   #revision = 0;
   #socket: WebSocket | null = null;
@@ -841,6 +845,7 @@ class WorkspaceApp {
     }
     this.#elements.closeExport.addEventListener("click", () => this.#elements.exportDialog.close());
     this.#elements.closeProjectHistory.addEventListener("click", () => this.#elements.projectHistoryDialog.close());
+    this.#elements.projectHistoryDialog.addEventListener("close", () => this.#projectHistoryWorkflow.send({ type: "CLOSE" }));
     this.#elements.projectHistoryCompareForm.addEventListener("submit", (event) => void this.#compareProjectHistory(event));
     this.#elements.manuscriptCommentForm.addEventListener("submit", (event) => void this.#createManuscriptComment(event));
     for (const eventName of ["focus", "input", "keyup", "select", "click"] as const) {
@@ -2434,13 +2439,54 @@ class WorkspaceApp {
   }
 
   async #openProjectHistory(): Promise<void> {
-    const response = await fetch(`${apiBase}/history`, { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isProjectRevisionSummaries(value)) throw new Error("Project history returned an invalid timeline");
-    this.#projectHistory = value;
-    this.#renderProjectHistory();
+    this.#projectHistoryWorkflow.send({ type: "OPEN" });
+    const requestId = this.#projectHistoryWorkflow.getSnapshot().context.requestId;
     if (!this.#elements.projectHistoryDialog.open) this.#elements.projectHistoryDialog.showModal();
+    this.#elements.projectHistoryList.replaceChildren(statusText("Loading revision history…"));
+    this.#updateProjectHistoryAvailability();
+    try {
+      const response = await fetch(`${apiBase}/history`, { credentials: "same-origin" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isProjectRevisionSummaries(value)) throw new Error("Project history returned an invalid timeline");
+      this.#projectHistoryWorkflow.send({ type: "TIMELINE_READY", requestId });
+      const history = this.#projectHistoryWorkflow.getSnapshot();
+      if (!history.matches("ready") || history.context.requestId !== requestId) return;
+      this.#projectHistory = value;
+      this.#renderProjectHistory();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not load project history";
+      this.#projectHistoryWorkflow.send({ type: "TIMELINE_FAILED", requestId, message });
+      if (this.#projectHistoryWorkflow.getSnapshot().matches("failed")) {
+        this.#elements.projectHistoryList.replaceChildren(statusText(message));
+        this.#showToast(message);
+      }
+    } finally {
+      this.#updateProjectHistoryAvailability();
+    }
+  }
+
+  #startProjectHistoryOperation(operation: ProjectHistoryOperation): number | null {
+    this.#projectHistoryWorkflow.send({ type: "START_OPERATION", operation });
+    const history = this.#projectHistoryWorkflow.getSnapshot();
+    if (history.context.operation !== operation) return null;
+    this.#updateProjectHistoryAvailability();
+    return history.context.requestId;
+  }
+
+  #finishProjectHistoryOperation(requestId: number): void {
+    this.#projectHistoryWorkflow.send({ type: "OPERATION_DONE", requestId });
+    this.#updateProjectHistoryAvailability();
+  }
+
+  #updateProjectHistoryAvailability(): void {
+    const busy = projectHistoryBusy(this.#projectHistoryWorkflow.getSnapshot());
+    this.#elements.projectHistoryDialog.setAttribute("aria-busy", String(busy));
+    this.#elements.projectHistoryFrom.disabled = busy;
+    this.#elements.projectHistoryTo.disabled = busy;
+    for (const button of this.#elements.projectHistoryDialog.querySelectorAll<HTMLButtonElement>("button")) {
+      if (button !== this.#elements.closeProjectHistory) button.disabled = busy;
+    }
   }
 
   #openExport(): void {
@@ -2527,13 +2573,26 @@ class WorkspaceApp {
         return card;
       }),
     );
+    this.#updateProjectHistoryAvailability();
   }
 
   async #inspectProjectRevision(revision: number): Promise<void> {
-    const response = await fetch(`${apiBase}/history/${revision}`, { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isProjectRevisionContent(value)) throw new Error("Project revision returned an invalid snapshot");
+    const requestId = this.#startProjectHistoryOperation({ kind: "inspect", revision });
+    if (requestId === null) return;
+    let value: ProjectRevisionContent;
+    try {
+      const response = await fetch(`${apiBase}/history/${revision}`, { credentials: "same-origin" });
+      await expectOk(response);
+      const result: unknown = await response.json();
+      if (!isProjectRevisionContent(result)) throw new Error("Project revision returned an invalid snapshot");
+      value = result;
+      this.#finishProjectHistoryOperation(requestId);
+      const history = this.#projectHistoryWorkflow.getSnapshot();
+      if (!history.matches("ready") || history.context.requestId !== requestId) return;
+    } catch (error) {
+      this.#failProjectHistoryOperation(requestId, error, "Could not inspect project revision");
+      return;
+    }
     const inspector = this.#elements.projectHistoryInspector;
     inspector.classList.remove("hidden");
     const heading = document.createElement("h3");
@@ -2552,12 +2611,24 @@ class WorkspaceApp {
     event.preventDefault();
     const from = this.#elements.projectHistoryFrom.value;
     const to = this.#elements.projectHistoryTo.value;
-    const response = await fetch(`${apiBase}/history/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isProjectRevisionDiff(value)) throw new Error("Project history returned an invalid comparison");
+    const requestId = this.#startProjectHistoryOperation({ kind: "compare", from: Number(from), to: Number(to) });
+    if (requestId === null) return;
+    let value: ProjectRevisionDiff;
+    try {
+      const response = await fetch(`${apiBase}/history/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+        credentials: "same-origin",
+      });
+      await expectOk(response);
+      const result: unknown = await response.json();
+      if (!isProjectRevisionDiff(result)) throw new Error("Project history returned an invalid comparison");
+      value = result;
+      this.#finishProjectHistoryOperation(requestId);
+      const history = this.#projectHistoryWorkflow.getSnapshot();
+      if (!history.matches("ready") || history.context.requestId !== requestId) return;
+    } catch (error) {
+      this.#failProjectHistoryOperation(requestId, error, "Could not compare project revisions");
+      return;
+    }
     const inspector = this.#elements.projectHistoryInspector;
     inspector.classList.remove("hidden");
     const heading = document.createElement("h3");
@@ -2584,29 +2655,58 @@ class WorkspaceApp {
     const name = window.prompt(`Name immutable milestone v${revision}`)?.trim();
     if (!name) return;
     const description = window.prompt("Optional milestone description")?.trim() ?? "";
-    const response = await jsonFetch(`${apiBase}/history/${revision}/milestones`, { name, description });
-    await expectOk(response);
-    await this.#openProjectHistory();
-    this.#showToast(`Milestone “${name}” now identifies v${revision}.`);
+    const requestId = this.#startProjectHistoryOperation({ kind: "milestone", revision });
+    if (requestId === null) return;
+    try {
+      const response = await jsonFetch(`${apiBase}/history/${revision}/milestones`, { name, description });
+      await expectOk(response);
+      this.#finishProjectHistoryOperation(requestId);
+      this.#showToast(`Milestone “${name}” now identifies v${revision}.`);
+      if (this.#elements.projectHistoryDialog.open) await this.#openProjectHistory();
+    } catch (error) {
+      this.#failProjectHistoryOperation(requestId, error, "Could not name the milestone");
+    }
   }
 
   async #restoreProjectRevision(revision: number): Promise<void> {
     if (!window.confirm(`Restore v${revision} as a new head revision? Current history will be preserved.`)) return;
-    const response = await jsonFetch(`${apiBase}/history/${revision}/restore`, {});
-    await expectOk(response);
-    this.#showToast(`Restored v${revision} as a new head.`);
-    window.location.reload();
+    const requestId = this.#startProjectHistoryOperation({ kind: "restore", revision });
+    if (requestId === null) return;
+    try {
+      const response = await jsonFetch(`${apiBase}/history/${revision}/restore`, {});
+      await expectOk(response);
+      this.#finishProjectHistoryOperation(requestId);
+      this.#showToast(`Restored v${revision} as a new head.`);
+      window.location.reload();
+    } catch (error) {
+      this.#failProjectHistoryOperation(requestId, error, "Could not restore the revision");
+    }
   }
 
   async #seedProjectRevision(revision: number): Promise<void> {
     const title = window.prompt(`Name the new project seeded from v${revision}`)?.trim();
     if (!title) return;
-    const response = await jsonFetch(`${apiBase}/history/${revision}/seed`, { title });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    const summaries: unknown = [value];
-    if (!isWorkspaceSummaries(summaries) || !summaries[0]) throw new Error("Project branch returned an invalid workspace");
-    window.location.assign(summaries[0].href);
+    const requestId = this.#startProjectHistoryOperation({ kind: "branch", revision });
+    if (requestId === null) return;
+    try {
+      const response = await jsonFetch(`${apiBase}/history/${revision}/seed`, { title });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      const summaries: unknown = [value];
+      if (!isWorkspaceSummaries(summaries) || !summaries[0]) throw new Error("Project branch returned an invalid workspace");
+      this.#finishProjectHistoryOperation(requestId);
+      window.location.assign(summaries[0].href);
+    } catch (error) {
+      this.#failProjectHistoryOperation(requestId, error, "Could not branch from the revision");
+    }
+  }
+
+  #failProjectHistoryOperation(requestId: number, error: unknown, fallback: string): void {
+    const message = error instanceof Error ? error.message : fallback;
+    this.#projectHistoryWorkflow.send({ type: "OPERATION_FAILED", requestId, message });
+    this.#updateProjectHistoryAvailability();
+    const history = this.#projectHistoryWorkflow.getSnapshot();
+    if (history.matches("ready") && history.context.requestId === requestId) this.#showToast(message);
   }
 
   #appendProjectDiagnostic(message: string, fileId: string, from: number, to: number): void {

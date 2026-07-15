@@ -13,6 +13,11 @@ continues to use a narrow source revision for stale-selection checks.
 
 - `DocumentRoom` owns an append-only logical history sequence in SQLite. The
   sequence is distinct from the manuscript concurrency revision.
+- One browser-local XState actor coordinates timeline loading and mutually
+  exclusive inspect, compare, milestone, branch, and restore operations. It
+  owns only active-operation identity, request generation, and transient
+  failure state; retained revisions, fetched projections, confirmation prompts,
+  navigation, and server mutations remain outside the actor.
 - Every retained snapshot stores the exact Yjs update plus workspace settings
   and the rows for project files, references, research shares, PDFs,
   annotations, claims, manuscript comments, and their typed relationships in
@@ -66,6 +71,9 @@ continues to use a narrow source revision for stale-selection checks.
 - Restore failure must retain the prior live Yjs document and head state.
 - Milestone creation must reject duplicate names without changing the target.
 - Historical reads and comparisons must not mutate the live project.
+- Closing or reopening History invalidates late timeline, inspection, and
+  comparison responses. A mutation that the server has already accepted still
+  completes its required refresh, reload, or navigation consequence.
 - Comment creation and resolution must create distinct resource revisions while
   leaving the manuscript concurrency revision unchanged.
 - Restore must preserve every older revision and milestone.

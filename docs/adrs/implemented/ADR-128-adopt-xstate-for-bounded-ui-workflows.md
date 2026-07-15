@@ -36,18 +36,24 @@ network requests, Yjs document state, URL state, or simple view preferences.
 Those remain in their existing authorities. Application code will perform side
 effects after explicit machine transitions and render from machine snapshots.
 
-Three later workflows meet the same threshold and use separate actors:
+Additional workflows meeting the same threshold use separate actors:
 
 - writing-assistant generation, clarification, transient review, staleness,
   and candidate decisions;
 - DOI publication preview, review, acceptance, cancellation, and request
-  generation; and
+  generation;
 - browser collaboration connection phases, synchronization readiness,
-  remote-revision waiting, offline-copy availability, and pending-update count.
+  remote-revision waiting, offline-copy availability, and pending-update count;
+- PDF metadata extraction, provider discovery, review, application, and
+  supersession;
+- PDF.js runtime/document loading, active-page rendering, failure, and
+  supersession;
+- project-history timeline loading plus mutually exclusive inspect, compare,
+  milestone, branch, and restore operations.
 
-Provider clients, WebSockets, timers, Yjs data and update payloads, IndexedDB,
-persisted candidates and publications, and DOM elements stay outside those
-actors.
+Provider clients, PDF.js objects, WebSockets, timers, Yjs data and update
+payloads, IndexedDB, persisted candidates, publications and revisions, and DOM
+elements stay outside those actors.
 
 Future adoption requires the same bounded-workflow test: a machine must remove
 invalid combinations or materially clarify event ordering. XState will not
