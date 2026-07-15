@@ -24,6 +24,9 @@ describe("renderHomePage", () => {
       '<option value="system">Theme: System</option><option value="light">Theme: Light</option><option value="dark">Theme: Dark</option>',
     );
     expect(html).toContain('<p class="eyebrow">New project</p>');
+    expect(html).toContain('id="new-workspace-template-list"');
+    expect(html).toContain('id="save-workspace-template"');
+    expect(html).toContain('id="save-template-dialog"');
     expect(html).toContain('type="submit">Create project</button>');
     expect(html).toContain('id="workspace-catalog-filter"');
     expect(html).toContain('id="read-only-share-heading"');

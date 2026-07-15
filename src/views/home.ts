@@ -603,16 +603,21 @@ export function renderHomePage(
       </div>
     </dialog>
 
-    <dialog class="new-workspace-dialog" id="new-workspace-dialog">
+    <dialog class="new-workspace-dialog template-dialog" id="new-workspace-dialog">
       <form class="p-5" id="new-workspace-form">
         <p class="eyebrow">New project</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Start another line of inquiry</h2>
         <label class="field-label mt-5">Project title
           <input class="field" id="new-workspace-title" type="text" maxlength="120" required autofocus placeholder="Working title">
         </label>
+        <fieldset class="mt-5">
+          <legend class="field-label">Starting template</legend>
+          <div class="template-choice-list mt-2" id="new-workspace-template-list"><div class="empty-state">Loading templates…</div></div>
+        </fieldset>
+        <p class="mt-3 text-xs leading-5 text-app-text-soft" id="new-workspace-template-status" role="status">Templates create independent projects without research history.</p>
         <div class="mt-5 flex justify-end gap-2">
           <button class="button-secondary" id="cancel-new-workspace" type="button">Cancel</button>
-          <button class="button-primary" type="submit">Create project</button>
+          <button class="button-primary" id="create-workspace" type="submit">Create project</button>
         </div>
       </form>
     </dialog>
@@ -638,6 +643,7 @@ export function renderHomePage(
         <p class="mt-2 text-xs leading-5 text-app-text-soft">These settings affect preview and exports without changing the manuscript.</p>
         <div class="mt-5 flex flex-wrap gap-2">
           <button class="button-primary" type="submit">Save title</button>
+          <button class="button-secondary" id="save-workspace-template" type="button">Save as template</button>
           <button class="button-secondary" id="duplicate-workspace" type="button">Duplicate</button>
           <button class="button-secondary" id="archive-workspace" type="button">Archive</button>
         </div>
@@ -647,6 +653,22 @@ export function renderHomePage(
           <button class="button-secondary mt-3" id="delete-workspace" type="button">Delete permanently</button>
         </section>
         <div class="mt-5 flex justify-end"><button class="button-secondary" id="close-workspace-settings" type="button">Close</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="new-workspace-dialog" id="save-template-dialog">
+      <form class="p-5" id="save-template-form">
+        <p class="eyebrow">Personal template</p>
+        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Reuse this project structure</h2>
+        <label class="field-label mt-5">Save action<select class="field" id="save-template-target"><option value="">Create a new template</option></select></label>
+        <label class="field-label mt-4">Template name<input class="field" id="save-template-name" maxlength="120" required placeholder="Lab article"></label>
+        <label class="field-label mt-4">Description<textarea class="field min-h-20 resize-y" id="save-template-description" maxlength="500" placeholder="When should this template be used?"></textarea></label>
+        <p class="mt-3 text-xs leading-5 text-app-text-soft">Saves Markdown files, folders, portable bibliography, and publication settings. PDFs, images, annotations, claims, comments, collaborators, and history stay out.</p>
+        <p class="mt-2 text-xs leading-5 text-app-text-soft" id="save-template-status" role="status"></p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="button-secondary" id="cancel-save-template" type="button">Cancel</button>
+          <button class="button-primary" type="submit">Save template</button>
+        </div>
       </form>
     </dialog>
 

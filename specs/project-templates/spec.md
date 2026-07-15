@@ -57,16 +57,16 @@ without copying private research or creating a live dependency on the source.
 
 ### Definition of Done
 
-- [ ] New projects can start from four distinct built-in structures.
-- [ ] Owners can promote the current project into a named personal template.
-- [ ] Owners can explicitly replace or delete a personal template.
-- [ ] Template instantiation preserves files, folders, BibTeX, and publication
+- [x] New projects can start from four distinct built-in structures.
+- [x] Owners can promote the current project into a named personal template.
+- [x] Owners can explicitly replace or delete a personal template.
+- [x] Template instantiation preserves files, folders, BibTeX, and publication
       settings while creating an independent project and revision history.
-- [ ] Promotion excludes every private research, collaboration, binary, and
+- [x] Promotion excludes every private research, collaboration, binary, and
       history representation.
-- [ ] New-project and project-settings UI expose the workflow without adding a
+- [x] New-project and project-settings UI expose the workflow without adding a
       second project browser.
-- [ ] Domain, Workers, API, and browser tests cover the critical behavior.
+- [x] Domain, Workers, API, and browser tests cover the critical behavior.
 
 ### Regression Guardrails
 

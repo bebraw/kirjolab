@@ -3,6 +3,7 @@ import {
   builtInProjectTemplate,
   isPersonalProjectTemplateId,
   isProjectTemplateSeed,
+  isProjectTemplateSummaries,
   isSaveProjectTemplateInput,
   listBuiltInProjectTemplates,
   projectTemplateSeed,
@@ -77,5 +78,7 @@ describe("project templates", () => {
     expect(isSaveProjectTemplateInput({ name: "Lab", templateId: "builtin-guided" })).toBe(false);
     expect(isPersonalProjectTemplateId(id)).toBe(true);
     expect(isPersonalProjectTemplateId("builtin-guided")).toBe(false);
+    expect(isProjectTemplateSummaries(listBuiltInProjectTemplates())).toBe(true);
+    expect(isProjectTemplateSummaries([{ ...listBuiltInProjectTemplates()[0], source: "foreign" }])).toBe(false);
   });
 });

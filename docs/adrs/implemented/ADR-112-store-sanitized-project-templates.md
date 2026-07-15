@@ -1,6 +1,6 @@
 # ADR-112: Store Sanitized Project Templates
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-15
 

@@ -255,6 +255,24 @@ export function isPersonalProjectTemplateId(value: string): boolean {
   return personalTemplateId.test(value);
 }
 
+export function isProjectTemplateSummaries(value: unknown): value is ProjectTemplateSummary[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (template) =>
+        isRecord(template) &&
+        typeof template.id === "string" &&
+        template.id.length > 0 &&
+        template.id.length <= 64 &&
+        (template.source === "built-in" || template.source === "personal") &&
+        isBoundedText(template.name, 120, true) &&
+        isBoundedText(template.description, 500, false) &&
+        (template.createdAt === null || typeof template.createdAt === "string") &&
+        (template.updatedAt === null || typeof template.updatedAt === "string"),
+    )
+  );
+}
+
 function builtIn(id: string, name: string, description: string, seed: ProjectTemplateSeed): ProjectTemplateRecord {
   if (!isProjectTemplateSeed(seed)) throw new Error(`Built-in project template is invalid: ${id}`);
   return { id, source: "built-in", name, description, createdAt: null, updatedAt: null, seed };

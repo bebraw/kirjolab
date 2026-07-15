@@ -2289,6 +2289,91 @@
     background: var(--color-app-backdrop);
   }
 
+  .template-dialog {
+    width: min(38rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+  }
+
+  .template-choice-list {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .template-choice-group {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .template-choice-group + .template-choice-group {
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--color-app-line);
+  }
+
+  .template-choice-group-title {
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .template-choice {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.65rem;
+    border: 1px solid var(--color-app-line);
+    border-radius: 0.2rem;
+    padding: 0.7rem 0.75rem;
+    background: var(--color-app-raised);
+  }
+
+  .template-choice:has(input:checked) {
+    border-color: var(--color-app-accent);
+    box-shadow: inset 0 0 0 1px var(--color-app-accent);
+  }
+
+  .template-choice input {
+    margin-top: 0.2rem;
+    accent-color: var(--color-app-accent);
+  }
+
+  .template-choice-label {
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  .template-choice-name {
+    display: block;
+    color: var(--color-app-text);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .template-choice-description {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    line-height: 1.45;
+  }
+
+  .template-choice-remove {
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .template-choice-remove:hover {
+    color: var(--color-app-danger);
+  }
+
   .reference-library-dialog {
     width: min(64rem, calc(100vw - 2rem));
     max-height: calc(100vh - 2rem);

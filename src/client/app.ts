@@ -29,6 +29,7 @@ import {
   type ProjectFile,
 } from "../domain/project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
+import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import {
   crossrefMetadataFields,
   isMetadataRefinementPreview,
@@ -134,6 +135,7 @@ interface Elements {
   workspaceSubmissionTemplate: HTMLSelectElement;
   workspacePaperSize: HTMLSelectElement;
   closeWorkspaceSettings: HTMLButtonElement;
+  saveWorkspaceTemplate: HTMLButtonElement;
   duplicateWorkspace: HTMLButtonElement;
   archiveWorkspace: HTMLButtonElement;
   deleteWorkspace: HTMLButtonElement;
@@ -145,7 +147,17 @@ interface Elements {
   newWorkspaceDialog: HTMLDialogElement;
   newWorkspaceForm: HTMLFormElement;
   newWorkspaceTitle: HTMLInputElement;
+  newWorkspaceTemplateList: HTMLElement;
+  newWorkspaceTemplateStatus: HTMLElement;
+  newWorkspaceSubmit: HTMLButtonElement;
   cancelNewWorkspace: HTMLButtonElement;
+  saveTemplateDialog: HTMLDialogElement;
+  saveTemplateForm: HTMLFormElement;
+  saveTemplateTarget: HTMLSelectElement;
+  saveTemplateName: HTMLInputElement;
+  saveTemplateDescription: HTMLTextAreaElement;
+  saveTemplateStatus: HTMLElement;
+  cancelSaveTemplate: HTMLButtonElement;
   shareWorkspace: HTMLButtonElement;
   shareWorkspaceDialog: HTMLDialogElement;
   closeShareWorkspace: HTMLButtonElement;
@@ -493,6 +505,7 @@ class WorkspaceApp {
   #projectHistory: ProjectRevisionSummary[] = [];
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
+  #projectTemplates: ProjectTemplateSummary[] = [];
   #previewRenderVersion = 0;
   #hasOfflineSnapshot = false;
   #offlineSaveTimer: number | undefined;
@@ -605,18 +618,23 @@ class WorkspaceApp {
       this.#elements.workspaceSubmissionTemplate.value = this.#snapshot?.publicationProfile.submissionTemplate ?? "article";
       this.#elements.workspacePaperSize.value = this.#snapshot?.publicationProfile.paperSize ?? "a4";
       this.#elements.archiveWorkspace.textContent = current?.archivedAt ? "Restore" : "Archive";
+      this.#elements.saveWorkspaceTemplate.hidden = workspaceId === "demo";
       this.#elements.workspaceSettingsDialog.showModal();
     });
     this.#elements.closeWorkspaceSettings.addEventListener("click", () => this.#elements.workspaceSettingsDialog.close());
     this.#elements.workspaceSettingsForm.addEventListener("submit", (event) => void this.#saveWorkspaceSettings(event));
     this.#elements.archiveWorkspace.addEventListener("click", () => void this.#toggleWorkspaceArchive());
+    this.#elements.saveWorkspaceTemplate.addEventListener("click", () => void this.#openSaveTemplate());
     this.#elements.duplicateWorkspace.addEventListener("click", () => void this.#duplicateWorkspace());
     this.#elements.deleteWorkspace.addEventListener("click", () => void this.#deleteWorkspace());
     this.#elements.closeWorkspaceCatalog.addEventListener("click", () => this.#elements.workspaceCatalogDialog.close());
     this.#elements.workspaceCatalogFilter.addEventListener("input", () => this.#renderWorkspaceCatalogList());
-    this.#elements.newWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.showModal());
+    this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
     this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
+    this.#elements.cancelSaveTemplate.addEventListener("click", () => this.#elements.saveTemplateDialog.close());
+    this.#elements.saveTemplateForm.addEventListener("submit", (event) => void this.#saveProjectTemplate(event));
+    this.#elements.saveTemplateTarget.addEventListener("change", () => this.#selectTemplateReplacement());
     this.#elements.showFilesRail.addEventListener("click", () => this.#showRail("files"));
     this.#elements.showResearchRail.addEventListener("click", () => this.#showRail("research"));
     this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
@@ -938,12 +956,156 @@ class WorkspaceApp {
 
   async #createWorkspace(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const response = await jsonFetch(catalogBase, { title: this.#elements.newWorkspaceTitle.value });
+    const templateId = this.#elements.newWorkspaceTemplateList.querySelector<HTMLInputElement>(
+      'input[name="project-template"]:checked',
+    )?.value;
+    if (!templateId) {
+      this.#elements.newWorkspaceTemplateStatus.textContent = "Choose a starting template.";
+      return;
+    }
+    this.#elements.newWorkspaceSubmit.disabled = true;
+    const response = await jsonFetch(catalogBase, { title: this.#elements.newWorkspaceTitle.value, templateId });
     await expectOk(response);
     const workspace: unknown = await response.json();
     const created: unknown = [workspace];
     if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Project catalog returned invalid data");
     location.assign(created[0].href);
+  }
+
+  async #openNewWorkspace(): Promise<void> {
+    this.#elements.newWorkspaceDialog.showModal();
+    this.#elements.newWorkspaceSubmit.disabled = true;
+    this.#elements.newWorkspaceTemplateStatus.textContent = "Loading starting points…";
+    try {
+      await this.#refreshProjectTemplates();
+      this.#elements.newWorkspaceSubmit.disabled = false;
+      this.#elements.newWorkspaceTemplateStatus.textContent = "Templates create independent projects without research history.";
+      this.#elements.newWorkspaceTitle.focus();
+    } catch (error) {
+      this.#elements.newWorkspaceTemplateStatus.textContent = error instanceof Error ? error.message : "Could not load project templates.";
+    }
+  }
+
+  async #refreshProjectTemplates(): Promise<void> {
+    const response = await fetch("/api/project-templates", { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isProjectTemplateSummaries(value)) throw new Error("Project templates returned invalid data");
+    this.#projectTemplates = value;
+    this.#renderProjectTemplates();
+    this.#renderTemplateReplacementOptions();
+  }
+
+  #renderProjectTemplates(): void {
+    const selected = this.#elements.newWorkspaceTemplateList.querySelector<HTMLInputElement>(
+      'input[name="project-template"]:checked',
+    )?.value;
+    this.#elements.newWorkspaceTemplateList.replaceChildren();
+    for (const source of ["built-in", "personal"] as const) {
+      const templates = this.#projectTemplates.filter((template) => template.source === source);
+      if (source === "personal" && templates.length === 0) continue;
+      const group = document.createElement("section");
+      group.className = "template-choice-group";
+      const heading = document.createElement("h3");
+      heading.className = "template-choice-group-title";
+      heading.textContent = source === "built-in" ? "Built in" : "Your templates";
+      group.append(heading);
+      for (const template of templates) group.append(this.#templateChoice(template, selected));
+      this.#elements.newWorkspaceTemplateList.append(group);
+    }
+  }
+
+  #templateChoice(template: ProjectTemplateSummary, selected: string | undefined): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "template-choice";
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "project-template";
+    input.value = template.id;
+    input.id = `project-template-${template.id}`;
+    input.checked = selected ? selected === template.id : template.id === "builtin-guided";
+    const label = document.createElement("label");
+    label.className = "template-choice-label";
+    label.htmlFor = input.id;
+    const name = document.createElement("span");
+    name.className = "template-choice-name";
+    name.textContent = template.name;
+    const description = document.createElement("span");
+    description.className = "template-choice-description";
+    description.textContent = template.description;
+    label.append(name, description);
+    row.append(input, label);
+    if (template.source === "personal") {
+      const remove = document.createElement("button");
+      remove.className = "template-choice-remove";
+      remove.type = "button";
+      remove.textContent = "Remove";
+      remove.title = `Delete template ${template.name}`;
+      remove.addEventListener("click", () => void this.#deleteProjectTemplate(template));
+      row.append(remove);
+    }
+    return row;
+  }
+
+  async #deleteProjectTemplate(template: ProjectTemplateSummary): Promise<void> {
+    if (!confirm(`Delete the personal template “${template.name}”? Existing projects will not change.`)) return;
+    await expectOk(
+      await fetch(`/api/project-templates/${encodeURIComponent(template.id)}`, { method: "DELETE", credentials: "same-origin" }),
+    );
+    await this.#refreshProjectTemplates();
+    this.#showToast(`Deleted template “${template.name}”.`);
+  }
+
+  async #openSaveTemplate(): Promise<void> {
+    this.#elements.workspaceSettingsDialog.close();
+    this.#elements.saveTemplateDialog.showModal();
+    this.#elements.saveTemplateStatus.textContent = "Loading personal templates…";
+    try {
+      await this.#refreshProjectTemplates();
+      this.#elements.saveTemplateTarget.value = "";
+      this.#elements.saveTemplateName.value = this.#elements.workspaceSettingsTitle.value;
+      this.#elements.saveTemplateDescription.value = "";
+      this.#elements.saveTemplateStatus.textContent = "Create a new template or explicitly replace one you already own.";
+      this.#elements.saveTemplateName.focus();
+    } catch (error) {
+      this.#elements.saveTemplateStatus.textContent = error instanceof Error ? error.message : "Could not load personal templates.";
+    }
+  }
+
+  #renderTemplateReplacementOptions(): void {
+    const selected = this.#elements.saveTemplateTarget.value;
+    this.#elements.saveTemplateTarget.replaceChildren(new Option("Create a new template", ""));
+    for (const template of this.#projectTemplates.filter((candidate) => candidate.source === "personal")) {
+      this.#elements.saveTemplateTarget.append(new Option(`Replace ${template.name}`, template.id));
+    }
+    if (this.#projectTemplates.some((template) => template.id === selected && template.source === "personal")) {
+      this.#elements.saveTemplateTarget.value = selected;
+    }
+  }
+
+  #selectTemplateReplacement(): void {
+    const template = this.#projectTemplates.find((candidate) => candidate.id === this.#elements.saveTemplateTarget.value);
+    if (!template || template.source !== "personal") return;
+    this.#elements.saveTemplateName.value = template.name;
+    this.#elements.saveTemplateDescription.value = template.description;
+    this.#elements.saveTemplateStatus.textContent = `Replacing “${template.name}” affects only projects created from it in the future.`;
+  }
+
+  async #saveProjectTemplate(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const templateId = this.#elements.saveTemplateTarget.value;
+    const response = await jsonFetch(`${apiBase}/template`, {
+      name: this.#elements.saveTemplateName.value,
+      description: this.#elements.saveTemplateDescription.value,
+      ...(templateId ? { templateId } : {}),
+    });
+    await expectOk(response);
+    const value: unknown[] = [await response.json()];
+    if (!isProjectTemplateSummaries(value) || !value[0]) throw new Error("Saved project template returned invalid data");
+    const template = value[0];
+    this.#elements.saveTemplateDialog.close();
+    await this.#refreshProjectTemplates();
+    this.#showToast(templateId ? `Replaced template “${template.name}”.` : `Saved “${template.name}” as a personal template.`);
   }
 
   async #saveWorkspaceSettings(event: SubmitEvent): Promise<void> {
@@ -6232,6 +6394,7 @@ function collectElements(): Elements {
     workspaceSubmissionTemplate: requiredElement("workspace-submission-template", HTMLSelectElement),
     workspacePaperSize: requiredElement("workspace-paper-size", HTMLSelectElement),
     closeWorkspaceSettings: requiredElement("close-workspace-settings", HTMLButtonElement),
+    saveWorkspaceTemplate: requiredElement("save-workspace-template", HTMLButtonElement),
     duplicateWorkspace: requiredElement("duplicate-workspace", HTMLButtonElement),
     archiveWorkspace: requiredElement("archive-workspace", HTMLButtonElement),
     deleteWorkspace: requiredElement("delete-workspace", HTMLButtonElement),
@@ -6243,7 +6406,17 @@ function collectElements(): Elements {
     newWorkspaceDialog: requiredElement("new-workspace-dialog", HTMLDialogElement),
     newWorkspaceForm: requiredElement("new-workspace-form", HTMLFormElement),
     newWorkspaceTitle: requiredElement("new-workspace-title", HTMLInputElement),
+    newWorkspaceTemplateList: requiredElement("new-workspace-template-list", HTMLElement),
+    newWorkspaceTemplateStatus: requiredElement("new-workspace-template-status", HTMLElement),
+    newWorkspaceSubmit: requiredElement("create-workspace", HTMLButtonElement),
     cancelNewWorkspace: requiredElement("cancel-new-workspace", HTMLButtonElement),
+    saveTemplateDialog: requiredElement("save-template-dialog", HTMLDialogElement),
+    saveTemplateForm: requiredElement("save-template-form", HTMLFormElement),
+    saveTemplateTarget: requiredElement("save-template-target", HTMLSelectElement),
+    saveTemplateName: requiredElement("save-template-name", HTMLInputElement),
+    saveTemplateDescription: requiredElement("save-template-description", HTMLTextAreaElement),
+    saveTemplateStatus: requiredElement("save-template-status", HTMLElement),
+    cancelSaveTemplate: requiredElement("cancel-save-template", HTMLButtonElement),
     shareWorkspace: requiredElement("share-workspace", HTMLButtonElement),
     shareWorkspaceDialog: requiredElement("share-workspace-dialog", HTMLDialogElement),
     closeShareWorkspace: requiredElement("close-share-workspace", HTMLButtonElement),

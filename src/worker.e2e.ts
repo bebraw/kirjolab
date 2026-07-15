@@ -2254,6 +2254,84 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await expect(page.locator("#source-editor")).not.toHaveValue(isolatedSource);
 });
 
+test("starts from built-in and promoted personal project templates", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await expect(page.locator("#new-workspace-template-list")).toContainText("Literature review");
+  await page.getByLabel("Literature review").check();
+  await page.locator("#new-workspace-title").fill("Review workflow");
+  await page.locator("#create-workspace").click();
+  await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
+
+  const reviewApi = `/api${new URL(page.url()).pathname}`;
+  const reviewSnapshot = await readWorkspaceSnapshot(page, reviewApi);
+  expect(reviewSnapshot.files.some((file) => file.path === "sections/search-strategy.md")).toBe(true);
+  expect(reviewSnapshot.files.some((file) => file.path === "KIRJOLAB.md")).toBe(false);
+
+  const reusableFile = await page.request.post(`${reviewApi}/files`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { path: "sections/lab-checklist.md", content: "## Lab checklist\n\nReusable steps.\n" },
+  });
+  expect(reusableFile.status()).toBe(201);
+  await page.reload();
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "Project settings" }).click();
+  await page.locator("#save-workspace-template").click();
+  await expect(page.locator("#save-template-dialog")).toBeVisible();
+  await page.locator("#save-template-name").fill("Lab review workflow");
+  await page.locator("#save-template-description").fill("A reusable evidence review workflow.");
+  await page.locator("#save-template-form").getByRole("button", { name: "Save template" }).click();
+  await expect(page.locator("#toast")).toContainText(/saved .* as a personal template/iu);
+
+  const templatesResponse = await page.request.get("/api/project-templates");
+  expect(templatesResponse.ok()).toBe(true);
+  const templates: unknown = await templatesResponse.json();
+  if (!Array.isArray(templates)) throw new Error("Expected project template summaries");
+  const personal = templates.find(
+    (template) => isRecord(template) && template.source === "personal" && template.name === "Lab review workflow",
+  );
+  if (!isRecord(personal) || typeof personal.id !== "string") throw new Error("Expected a personal project template");
+  expect("seed" in personal).toBe(false);
+
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.locator(`#new-workspace-template-list input[value="${personal.id}"]`).check();
+  await page.locator("#new-workspace-title").fill("Reusable review");
+  await page.locator("#create-workspace").click();
+  await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
+
+  const personalApi = `/api${new URL(page.url()).pathname}`;
+  const personalSnapshot = await readWorkspaceSnapshot(page, personalApi);
+  expect(personalSnapshot.files.some((file) => file.path === "sections/lab-checklist.md")).toBe(true);
+  const replacementFile = await page.request.post(`${personalApi}/files`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { path: "sections/replacement-only.md", content: "## Replacement\n\nOnly in the replacement.\n" },
+  });
+  expect(replacementFile.status()).toBe(201);
+  const replacement = await page.request.post(`${personalApi}/template`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: {
+      templateId: personal.id,
+      name: "Lab review workflow",
+      description: "Updated reusable evidence review workflow.",
+    },
+  });
+  expect(replacement.ok()).toBe(true);
+
+  const instantiated = await page.request.post("/api/workspaces", {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { title: "Updated reusable review", templateId: personal.id },
+  });
+  expect(instantiated.status()).toBe(201);
+  const instantiatedSummary: unknown = await instantiated.json();
+  if (!isRecord(instantiatedSummary) || typeof instantiatedSummary.id !== "string") {
+    throw new Error("Expected a project created from the replacement template");
+  }
+  const instantiatedSnapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${instantiatedSummary.id}`);
+  expect(instantiatedSnapshot.files.some((file) => file.path === "sections/replacement-only.md")).toBe(true);
+});
+
 test("names, compares, restores, and branches immutable project revisions", async ({ page, browser }) => {
   const workspaceId = await createWorkspace(page, "Revision workflow");
   const api = `/api/workspaces/${workspaceId}`;
