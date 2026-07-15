@@ -475,6 +475,15 @@ test("keeps the local editor target visible after focus moves to Context", async
   await page.goto(`/workspaces/${workspaceId}`);
   const editor = page.locator("#source-editor");
   await editor.fill("# Target\n\nVisible selection remains anchored.");
+
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(2, 2);
+    element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await expect(page.locator("#editor-target-status")).toContainText("main.md · line 1 · caret");
+  await expect(page.locator('#source-editor-highlight .source-editor-line[data-line-number="1"] .local-author-caret')).toHaveCount(1);
+
   await editor.evaluate((element: HTMLTextAreaElement) => {
     element.focus();
     element.setSelectionRange(10, 27);

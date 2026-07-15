@@ -99,7 +99,8 @@ All mutation operations preserve a human review boundary.
   primary; endpoint and model connection fields remain available under
   secondary settings instead of occupying persistent chrome.
 - The active manuscript caret or selection is retained as Yjs-relative
-  positions. Editor chrome always reports its file and line, while the existing
+  positions and refreshes after keyboard movement, pointer clicks, selections,
+  and edits. Editor chrome always reports its file and line, while the existing
   highlight layer paints the local target after textarea focus moves into
   Context. Switching files creates a new caret at that file's start.
 - Each candidate can open one stable resource-keyed Context tab. Tab lifecycle

@@ -817,7 +817,7 @@ class WorkspaceApp {
     this.#elements.closeProjectHistory.addEventListener("click", () => this.#elements.projectHistoryDialog.close());
     this.#elements.projectHistoryCompareForm.addEventListener("submit", (event) => void this.#compareProjectHistory(event));
     this.#elements.manuscriptCommentForm.addEventListener("submit", (event) => void this.#createManuscriptComment(event));
-    for (const eventName of ["focus", "input", "keyup", "select"] as const) {
+    for (const eventName of ["focus", "input", "keyup", "select", "click"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
         if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
         this.#scheduleSelectionBroadcast();
