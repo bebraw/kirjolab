@@ -785,6 +785,23 @@ describe("workspace input guards", () => {
         ],
       }),
     ).toBe(true);
+    expect(
+      isWorkspaceSnapshot({
+        ...valid,
+        assets: [
+          {
+            id: "svg-asset",
+            path: "figures/chart.svg",
+            mediaType: "image/svg+xml",
+            size: 42,
+            objectKey: "demo/assets/svg-asset",
+            fingerprint: "svg-etag",
+            createdAt: "now",
+            updatedAt: "now",
+          },
+        ],
+      }),
+    ).toBe(true);
     expect(isWorkspaceSnapshot({ ...valid, claimEvidenceLinks: [{ relation: "unknown" }] })).toBe(false);
     expect(isWorkspaceSnapshot({ ...valid, claimLinks: [{ anchor: null, resolution: null }] })).toBe(false);
     const validPublicationPdfLink = {

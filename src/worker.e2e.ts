@@ -825,15 +825,42 @@ test("uploads project images, inserts relative Markdown, and renders authorized 
   expect(imageResponse.headers()["content-type"]).toBe("image/png");
   expect(imageResponse.headers()["x-content-type-options"]).toBe("nosniff");
   expect(await imageResponse.body()).toEqual(png);
-  const rejectedSvg = await page.request.post(`${api}/assets`, {
+  const svg = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20"><defs><linearGradient id="ink"><stop stop-color="#1d4ed8"/></linearGradient></defs><rect width="40" height="20" rx="3" fill="url(#ink)"/></svg>',
+  );
+  await page.locator("#project-image-upload").setInputFiles({ name: "vector result.svg", mimeType: "image/svg+xml", buffer: svg });
+  const svgAsset = page.locator(".project-asset-row", { hasText: "vector result.svg" });
+  await expect(svgAsset).toBeVisible();
+  await svgAsset.locator("summary").click();
+  await svgAsset.getByRole("button", { name: "Insert image" }).click();
+  await expect(page.locator("#source-editor")).toHaveValue(/!\[vector result\]\(<figures\/vector result\.svg>\)/u);
+  const svgPreview = page.locator('#preview img[alt="vector result"]');
+  await expect(svgPreview).toBeVisible();
+  const svgResponse = await page.request.get((await svgPreview.getAttribute("src")) ?? "");
+  expect(svgResponse.ok()).toBe(true);
+  expect(svgResponse.headers()["content-type"]).toBe("image/svg+xml");
+  expect(svgResponse.headers()["content-security-policy"]).toBe("sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:");
+  expect(svgResponse.headers()["cross-origin-resource-policy"]).toBe("same-origin");
+  expect(await svgResponse.body()).toEqual(svg);
+
+  const rejectedActiveSvg = await page.request.post(`${api}/assets`, {
     headers: {
       "content-type": "image/svg+xml",
       "x-file-path": encodeURIComponent("figures/active.svg"),
       origin: new URL(page.url()).origin,
     },
-    data: '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+    data: '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
   });
-  expect(rejectedSvg.status()).toBe(415);
+  expect(rejectedActiveSvg.status()).toBe(415);
+  const rejectedExternalSvg = await page.request.post(`${api}/assets`, {
+    headers: {
+      "content-type": "image/svg+xml",
+      "x-file-path": encodeURIComponent("figures/external.svg"),
+      origin: new URL(page.url()).origin,
+    },
+    data: '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.test/tracker.png"/></svg>',
+  });
+  expect(rejectedExternalSvg.status()).toBe(415);
   const sourceBundle = await page.request.get(`${api}/export/source.zip`);
   expect(sourceBundle.ok()).toBe(true);
   expect((await sourceBundle.body()).subarray(0, 2).toString()).toBe("PK");

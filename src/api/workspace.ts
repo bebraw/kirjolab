@@ -22,7 +22,7 @@ import {
   type PdfResource,
   type ProjectAsset,
 } from "../domain/workspace";
-import { normalizeProjectPath } from "../domain/project-files";
+import { isInertSvgImage, normalizeProjectPath } from "../domain/project-files";
 import {
   builtInProjectTemplate,
   isSaveProjectTemplateInput,
@@ -43,6 +43,7 @@ const imageExtensions: Readonly<Record<ProjectAsset["mediaType"], readonly strin
   "image/gif": [".gif"],
   "image/webp": [".webp"],
   "image/avif": [".avif"],
+  "image/svg+xml": [".svg"],
 };
 
 export async function handleWorkspaceApi(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
@@ -629,7 +630,7 @@ async function uploadProjectAsset(
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
 ): Promise<Response> {
   const mediaType = request.headers.get("content-type")?.split(";", 1)[0] ?? "";
-  if (!isProjectImageMediaType(mediaType)) return jsonError("Only PNG, JPEG, GIF, WebP, and AVIF images are supported", 415);
+  if (!isProjectImageMediaType(mediaType)) return jsonError("Only PNG, JPEG, GIF, WebP, AVIF, and SVG images are supported", 415);
   if (!request.body) return jsonError("Image body is required", 400);
   const size = Number(request.headers.get("content-length") ?? "0");
   if (!Number.isSafeInteger(size) || size <= 0) return jsonError("Content-Length is required", 411);
@@ -650,9 +651,12 @@ async function uploadProjectAsset(
   const upload = env.PAPERS.put(objectKey, fixedLengthBody.readable, { httpMetadata: { contentType: mediaType } });
   const pipeline = request.body.pipeTo(fixedLengthBody.writable);
   const [stored] = await Promise.all([upload, pipeline]);
-  const headerObject = await env.PAPERS.get(objectKey, { range: { offset: 0, length: Math.min(size, 16) } });
-  const header = headerObject ? new Uint8Array(await headerObject.arrayBuffer()) : new Uint8Array();
-  if (!hasImageSignature(mediaType, header)) {
+  const validationObject =
+    mediaType === "image/svg+xml"
+      ? await env.PAPERS.get(objectKey)
+      : await env.PAPERS.get(objectKey, { range: { offset: 0, length: Math.min(size, 16) } });
+  const validationBytes = validationObject ? new Uint8Array(await validationObject.arrayBuffer()) : new Uint8Array();
+  if (!hasImageSignature(mediaType, validationBytes)) {
     await env.PAPERS.delete(objectKey);
     return jsonError("Image bytes do not match the declared media type", 415);
   }
@@ -692,6 +696,10 @@ async function downloadProjectAsset(
     "x-content-type-options": "nosniff",
     etag: object.httpEtag,
   });
+  headers.set("cross-origin-resource-policy", "same-origin");
+  if (asset.mediaType === "image/svg+xml") {
+    headers.set("content-security-policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:");
+  }
   return new Response(object.body, { headers });
 }
 
@@ -719,7 +727,8 @@ function hasImageSignature(mediaType: ProjectAsset["mediaType"], bytes: Uint8Arr
   if (mediaType === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   if (mediaType === "image/gif") return ascii(0, 6) === "GIF87a" || ascii(0, 6) === "GIF89a";
   if (mediaType === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
-  return ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12));
+  if (mediaType === "image/avif") return ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12));
+  return isInertSvgImage(bytes);
 }
 
 async function createAnnotation(

@@ -368,6 +368,7 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(guide?.content).toContain("## Kirjolab guide");
     expect(guide?.content).toContain(":cite[<key>]{mode=textual");
     expect(guide?.content).toContain("::include[sections/methods.md]");
+    expect(guide?.content).toContain("AVIF, or SVG images");
     expect(snapshot.composition.content).not.toContain("Kirjolab guide");
     expect(snapshot.composition.diagnostics).toEqual([]);
     expect(await migrationVersion(stub, 22)).toEqual({ version: 22, name: "document-new-starter-projects" });
@@ -452,6 +453,17 @@ describe("DocumentRoom in the Workers runtime", () => {
       expect(() => instance.registerProjectAsset(workspaceId, { ...asset, id: crypto.randomUUID() })).toThrow("already uses");
     });
     expect((await stub.deleteProjectAsset(workspaceId, asset.id)).assets).toEqual([]);
+
+    const svgAsset = {
+      ...asset,
+      id: crypto.randomUUID(),
+      path: "figures/diagram.svg",
+      mediaType: "image/svg+xml" as const,
+      objectKey: `${workspaceId}/assets/diagram`,
+      fingerprint: "r2-etag:svg",
+    };
+    expect((await stub.registerProjectAsset(workspaceId, svgAsset)).assets).toEqual([svgAsset]);
+    expect(await migrationVersion(stub, 23)).toEqual({ version: 23, name: "allow-inert-svg-project-assets" });
   });
 
   it("adds bibliography placement to an unchanged starter manuscript", async () => {

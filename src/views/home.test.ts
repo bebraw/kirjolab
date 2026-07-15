@@ -16,6 +16,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('aria-label="Project view"');
     expect(html).toContain('<meta name="color-scheme" content="light dark">');
     expect(html).toContain('<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
+    expect(html).toContain('accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml"');
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
     expect(html).toContain('id="account-menu" data-action-menu');
     expect(html).toContain("Local mode has no login session.");

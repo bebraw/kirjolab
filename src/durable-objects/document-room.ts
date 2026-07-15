@@ -2922,6 +2922,30 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 23,
+        name: "allow-inert-svg-project-assets",
+        apply(sql): undefined {
+          sql.exec(`
+            ALTER TABLE project_assets RENAME TO project_assets_raster_only;
+            CREATE TABLE project_assets (
+              id TEXT PRIMARY KEY,
+              path TEXT NOT NULL UNIQUE COLLATE NOCASE,
+              media_type TEXT NOT NULL CHECK (media_type IN ('image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml')),
+              size INTEGER NOT NULL CHECK (size > 0),
+              object_key TEXT NOT NULL UNIQUE,
+              fingerprint TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            INSERT INTO project_assets (id, path, media_type, size, object_key, fingerprint, created_at, updated_at)
+            SELECT id, path, media_type, size, object_key, fingerprint, created_at, updated_at
+            FROM project_assets_raster_only;
+            DROP TABLE project_assets_raster_only;
+          `);
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -4074,7 +4098,7 @@ function projectAssetFromRow(row: ProjectAssetRow): ProjectAsset {
 }
 
 function projectAssetMediaType(value: string): ProjectAsset["mediaType"] {
-  if (!["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"].includes(value)) {
+  if (!["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml"].includes(value)) {
     throw new Error("Stored project asset has an unsupported media type");
   }
   return value as ProjectAsset["mediaType"];

@@ -16,7 +16,7 @@ export interface ProjectFolder {
   readonly updatedAt: string;
 }
 
-export type ProjectImageMediaType = "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/avif";
+export type ProjectImageMediaType = "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/avif" | "image/svg+xml";
 
 export interface ProjectAsset {
   readonly id: string;
@@ -82,6 +82,14 @@ const defaultMaximumFiles = 512;
 const defaultMaximumOutputBytes = 2 * 1024 * 1024;
 const includeLine = /^(?<indent>[ \t]*)::include\[(?<path>[^\]\r\n]+)\][ \t]*(?:\r?\n|$)/gmu;
 const frontmatter = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/u;
+const svgRoot = /^\uFEFF?\s*(?:<\?xml(?:\s[^?]*)?\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|>)/u;
+const svgForbiddenDeclaration = /<!\s*(?:doctype|entity)\b/iu;
+const svgForbiddenElement = /<\s*(?:script|foreignObject|iframe|object|embed|audio|video)\b/iu;
+const svgEventHandler = /\son[a-z0-9:_-]*\s*=/iu;
+const svgCssImport = /@import\b/iu;
+const svgReference = /\b(?:href|xlink:href)\s*=\s*(["'])([\s\S]*?)\1/giu;
+const svgCssUrl = /url\(\s*(["']?)(.*?)\1\s*\)/giu;
+const embeddedRasterImage = /^data:image\/(?:png|jpeg|gif|webp|avif);base64,[a-z0-9+/=\s]+$/iu;
 
 export function composeProject(files: readonly ProjectFile[], entryFileId: string, limits: CompositionLimits = {}): ProjectComposition {
   const maximumDepth = limits.maximumDepth ?? defaultMaximumDepth;
@@ -158,6 +166,37 @@ export function previewProjectFile(files: readonly ProjectFile[], entryFileId: s
     path: selected.path,
     mode: "isolated",
   };
+}
+
+export function isInertSvgImage(bytes: Uint8Array): boolean {
+  let source: string;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes);
+  } catch {
+    return false;
+  }
+  if (
+    !svgRoot.test(source) ||
+    svgForbiddenDeclaration.test(source) ||
+    svgForbiddenElement.test(source) ||
+    svgEventHandler.test(source) ||
+    svgCssImport.test(source)
+  )
+    return false;
+  const withoutXmlDeclaration = source.replace(/^\uFEFF?\s*<\?xml(?:\s[^?]*)?\?>/u, "");
+  if (/<\?/u.test(withoutXmlDeclaration)) return false;
+  for (const match of source.matchAll(svgReference)) {
+    if (!isLocalSvgReference(match[2] ?? "")) return false;
+  }
+  for (const match of source.matchAll(svgCssUrl)) {
+    if (!isLocalSvgReference(match[2] ?? "")) return false;
+  }
+  return true;
+}
+
+function isLocalSvgReference(value: string): boolean {
+  const reference = value.trim();
+  return /^#[^\s]+$/u.test(reference) || embeddedRasterImage.test(reference);
 }
 
 export function normalizeProjectPath(value: string): string | null {

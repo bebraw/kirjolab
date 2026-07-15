@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   composeProject,
   inboundProjectIncludes,
+  isInertSvgImage,
   normalizeProjectPath,
   previewProjectFile,
   projectUsesCitationAlias,
@@ -21,6 +22,41 @@ function file(id: string, path: string, content: string): ProjectFile {
 }
 
 describe("project composition", () => {
+  it("accepts inert SVG figures and rejects active or external content", () => {
+    const svg = (source: string): Uint8Array => new TextEncoder().encode(source);
+    expect(
+      isInertSvgImage(
+        svg(
+          `<?xml version="1.0"?>
+<!-- publication figure -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
+  <defs><linearGradient id="fade"><stop offset="0" stop-color="#fff"/></linearGradient></defs>
+  <rect width="10" height="10" fill="url(#fade)"/>
+  <use href="#shape"/>
+</svg>`,
+        ),
+      ),
+    ).toBe(true);
+    expect(isInertSvgImage(svg(`<svg xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,iVBORw0KGgo="/></svg>`))).toBe(
+      true,
+    );
+    expect(isInertSvgImage(new Uint8Array([0xff, 0xfe, 0x00]))).toBe(false);
+    expect(isInertSvgImage(svg("not svg"))).toBe(false);
+    for (const source of [
+      `<!DOCTYPE svg [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><svg>&xxe;</svg>`,
+      `<svg><script>alert(1)</script></svg>`,
+      `<svg><foreignObject><iframe src="https://example.test"/></foreignObject></svg>`,
+      `<svg onload="alert(1)"></svg>`,
+      `<svg><style>@import "https://example.test/style.css";</style></svg>`,
+      `<svg><image href="https://example.test/pixel.png"/></svg>`,
+      `<svg><rect style="fill: url(https://example.test/pixel.png)"/></svg>`,
+      `<svg><?xml-stylesheet href="https://example.test/style.css"?></svg>`,
+      `<svg><image href="data:image/svg+xml;base64,PHN2Zz4="/></svg>`,
+    ]) {
+      expect(isInertSvgImage(svg(source)), source).toBe(false);
+    }
+  });
+
   it("recursively composes relative includes while retaining source provenance", () => {
     const files = [
       file("main", "main.md", "---\ntitle: Study\n---\n# Study\n\n::include[chapters/01_intro.md]\n"),

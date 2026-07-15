@@ -159,7 +159,7 @@ Only \`main.md\` defines the publication root. Opening another file changes the 
 
 ### Images
 
-Upload PNG, JPEG, GIF, WebP, or AVIF images through the Files rail. Kirjolab stores them below \`figures/\` and inserts a path relative to the active Markdown file.
+Upload PNG, JPEG, GIF, WebP, AVIF, or SVG images through the Files rail. Kirjolab stores them below \`figures/\` and inserts a path relative to the active Markdown file. SVG figures must be self-contained and cannot include scripts, embedded documents, event handlers, or remote resources.
 
 ~~~markdown
 ![Descriptive alternative text](figures/result.png)
@@ -934,7 +934,7 @@ function isProjectAsset(value: unknown): value is ProjectAsset {
     isRecord(value) &&
     isNonEmptyString(value.id) &&
     isNonEmptyString(value.path) &&
-    ["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"].includes(String(value.mediaType)) &&
+    ["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml"].includes(String(value.mediaType)) &&
     Number.isSafeInteger(value.size) &&
     Number(value.size) > 0 &&
     isNonEmptyString(value.objectKey) &&

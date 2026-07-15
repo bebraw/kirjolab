@@ -100,7 +100,7 @@ export function renderHomePage(
             </div>
           </div>
           <div class="mt-4 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
-          <input class="sr-only" id="project-image-upload" type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp,image/avif">
+          <input class="sr-only" id="project-image-upload" type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml">
           <details class="rail-collection mt-4" id="derived-project-bibliography">
             <summary><span>Bibliography</span></summary>
             <div class="pb-4">
