@@ -121,7 +121,7 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email, identity.mode), 200, url);
   }
 
-  if (url.pathname === "/library") {
+  if (url.pathname === "/library" || /^\/library\/pdfs\/[^/]+$/u.test(url.pathname)) {
     return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email, identity.mode, "library"), 200, url);
   }
 

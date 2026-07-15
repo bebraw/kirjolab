@@ -120,6 +120,7 @@ interface HighlightRow extends Record<string, SqlStorageValue> {
   page: number;
   quote: string;
   comment: string;
+  rects_json: string;
   created_at: string;
   updated_at: string;
 }
@@ -469,6 +470,14 @@ const migrations = [
         CREATE INDEX pdf_markups_artifact ON pdf_markups(artifact_id, page, created_at, id);
         CREATE INDEX pdf_markups_reference ON pdf_markups(reference_id);
       `);
+      return undefined;
+    },
+  },
+  {
+    version: 9,
+    name: "preserve-private-highlight-geometry",
+    apply(sql): undefined {
+      sql.exec("ALTER TABLE highlights ADD COLUMN rects_json TEXT NOT NULL DEFAULT '[]'");
       return undefined;
     },
   },
@@ -886,13 +895,21 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return note;
   }
 
-  createHighlight(referenceId: string, artifactId: string, page: number, quoteValue: string, commentValue: string): LibraryHighlight {
+  createHighlight(
+    referenceId: string,
+    artifactId: string,
+    page: number,
+    quoteValue: string,
+    commentValue: string,
+    rectsValue: unknown,
+  ): LibraryHighlight {
     this.#reference(referenceId);
     const artifact = this.#artifact(artifactId);
     if (artifact.referenceId !== referenceId) throw new Error("PDF is not identified as this reference");
     const quote = quoteValue.trim();
     const comment = commentValue.trim();
-    if (!Number.isInteger(page) || page < 1 || !quote || quote.length > 20_000 || comment.length > 8_000) {
+    const rects = parsePdfRects(rectsValue);
+    if (!Number.isInteger(page) || page < 1 || !quote || quote.length > 20_000 || comment.length > 8_000 || !rects?.length) {
       throw new Error("Invalid private highlight");
     }
     const now = new Date().toISOString();
@@ -903,22 +920,36 @@ export class ReferenceLibrary extends DurableObject<Env> {
       page,
       quote,
       comment,
+      rects,
       createdAt: now,
       updatedAt: now,
     };
     this.ctx.storage.sql.exec(
-      `INSERT INTO highlights (id, reference_id, artifact_id, page, quote, comment, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO highlights (id, reference_id, artifact_id, page, quote, comment, rects_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       highlight.id,
       referenceId,
       artifactId,
       page,
       quote,
       comment,
+      JSON.stringify(rects),
       now,
       now,
     );
     return highlight;
+  }
+
+  updatePdfNote(referenceId: string, markupId: string, x: number, y: number): LibraryPdfNote {
+    const row = this.ctx.storage.sql
+      .exec<PdfMarkupRow>("SELECT * FROM pdf_markups WHERE id = ? AND reference_id = ?", markupId, referenceId)
+      .toArray()[0];
+    if (!row || row.kind !== "note" || !normalizedCoordinate(x) || !normalizedCoordinate(y)) {
+      throw new Error("Invalid private PDF note position");
+    }
+    const updatedAt = new Date().toISOString();
+    this.ctx.storage.sql.exec("UPDATE pdf_markups SET x = ?, y = ?, updated_at = ? WHERE id = ?", x, y, updatedAt, markupId);
+    return pdfMarkupFromRow({ ...row, x, y, updated_at: updatedAt }) as LibraryPdfNote;
   }
 
   createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, bodyValue: string): LibraryPdfNote {
@@ -1660,9 +1691,44 @@ function highlightFromRow(row: HighlightRow): LibraryHighlight {
     page: row.page,
     quote: row.quote,
     comment: row.comment,
+    rects: parsePdfRectsJson(row.rects_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function parsePdfRectsJson(value: string): LibraryHighlight["rects"] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error("Stored private highlight geometry is invalid");
+  }
+  const rects = parsePdfRects(parsed);
+  if (!rects) throw new Error("Stored private highlight geometry is invalid");
+  return rects;
+}
+
+function parsePdfRects(value: unknown): LibraryHighlight["rects"] | null {
+  if (!Array.isArray(value) || value.length > 512) return null;
+  const rects = value.filter(
+    (item): item is { x: number; y: number; width: number; height: number } =>
+      typeof item === "object" &&
+      item !== null &&
+      "x" in item &&
+      "y" in item &&
+      "width" in item &&
+      "height" in item &&
+      normalizedCoordinate(item.x) &&
+      normalizedCoordinate(item.y) &&
+      typeof item.width === "number" &&
+      typeof item.height === "number" &&
+      item.width > 0 &&
+      item.height > 0 &&
+      item.x + item.width <= 1.000_001 &&
+      item.y + item.height <= 1.000_001,
+  );
+  return rects.length === value.length ? rects : null;
 }
 
 function pdfMarkupFromRow(row: PdfMarkupRow): LibraryPdfMarkup {

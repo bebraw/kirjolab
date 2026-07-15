@@ -2,6 +2,8 @@
 
 **Status:** Implemented
 
+**Superseded in part by:** [ADR-110](./ADR-110-make-private-pdf-reading-routable-and-geometric.md)
+
 **Date:** 2026-07-13
 
 ## Context

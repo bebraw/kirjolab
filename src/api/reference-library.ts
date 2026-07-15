@@ -100,7 +100,14 @@ interface ReferenceLibraryApi {
   setTags(referenceId: string, tags: readonly string[]): Promise<readonly string[]>;
   setCollections(referenceId: string, collections: readonly string[]): Promise<readonly string[]>;
   createNote(referenceId: string, body: string): Promise<LibraryNote>;
-  createHighlight(referenceId: string, artifactId: string, page: number, quote: string, comment: string): Promise<LibraryHighlight>;
+  createHighlight(
+    referenceId: string,
+    artifactId: string,
+    page: number,
+    quote: string,
+    comment: string,
+    rects: unknown,
+  ): Promise<LibraryHighlight>;
   createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, body: string): Promise<LibraryPdfNote>;
   createPdfDrawing(
     referenceId: string,
@@ -110,6 +117,7 @@ interface ReferenceLibraryApi {
     width: number,
     points: readonly LibraryPdfPoint[],
   ): Promise<LibraryPdfDrawing>;
+  updatePdfNote(referenceId: string, markupId: string, x: number, y: number): Promise<LibraryPdfNote>;
   deletePdfMarkup(referenceId: string, markupId: string): Promise<LibraryPdfMarkup>;
   setReadingState(
     referenceId: string,
@@ -258,6 +266,13 @@ export async function handleReferenceLibraryApi(
         : await acceptMetadataRefinement(request, refinementMatch[1], identity, env, library, fetchExternal);
     }
     const pdfMarkupMatch = /^\/references\/([0-9a-f-]{36})\/pdf-markups\/([0-9a-f-]{36})$/iu.exec(suffix);
+    if (pdfMarkupMatch?.[1] && pdfMarkupMatch[2] && request.method === "PATCH") {
+      const body: unknown = await request.json();
+      if (!isRecord(body) || typeof body.x !== "number" || typeof body.y !== "number") {
+        return jsonError("Invalid private PDF note position", 400);
+      }
+      return Response.json(await library.updatePdfNote(pdfMarkupMatch[1], pdfMarkupMatch[2], body.x, body.y), noStore());
+    }
     if (pdfMarkupMatch?.[1] && pdfMarkupMatch[2] && request.method === "DELETE") {
       return Response.json(await library.deletePdfMarkup(pdfMarkupMatch[1], pdfMarkupMatch[2]), noStore());
     }
@@ -335,11 +350,12 @@ export async function handleReferenceLibraryApi(
         typeof body.artifactId !== "string" ||
         typeof body.page !== "number" ||
         typeof body.quote !== "string" ||
-        typeof body.comment !== "string"
+        typeof body.comment !== "string" ||
+        !Array.isArray(body.rects)
       ) {
         return jsonError("Invalid private highlight", 400);
       }
-      return Response.json(await library.createHighlight(referenceId, body.artifactId, body.page, body.quote, body.comment), {
+      return Response.json(await library.createHighlight(referenceId, body.artifactId, body.page, body.quote, body.comment, body.rects), {
         status: 201,
         ...noStore(),
       });

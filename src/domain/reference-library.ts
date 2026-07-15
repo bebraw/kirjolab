@@ -196,6 +196,7 @@ export interface LibraryHighlight {
   readonly page: number;
   readonly quote: string;
   readonly comment: string;
+  readonly rects: readonly LibraryPdfRect[];
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -203,6 +204,11 @@ export interface LibraryHighlight {
 export interface LibraryPdfPoint {
   readonly x: number;
   readonly y: number;
+}
+
+export interface LibraryPdfRect extends LibraryPdfPoint {
+  readonly width: number;
+  readonly height: number;
 }
 
 interface LibraryPdfMarkupBase {
@@ -501,6 +507,7 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
     value.webSnapshots.every(isWebSnapshot) &&
     Array.isArray(value.notes) &&
     Array.isArray(value.highlights) &&
+    value.highlights.every(isLibraryHighlight) &&
     (value.pdfMarkups === undefined || (Array.isArray(value.pdfMarkups) && value.pdfMarkups.every(isLibraryPdfMarkup))) &&
     isStringArrayRecord(value.tags) &&
     isStringArrayRecord(value.collections) &&
@@ -515,6 +522,38 @@ export function isReferenceLibrarySnapshot(value: unknown): value is ReferenceLi
         (item.priority === "low" || item.priority === "normal" || item.priority === "high") &&
         typeof item.updatedAt === "string",
     )
+  );
+}
+
+function isLibraryHighlight(value: unknown): value is LibraryHighlight {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.referenceId === "string" &&
+    typeof value.artifactId === "string" &&
+    typeof value.page === "number" &&
+    Number.isInteger(value.page) &&
+    value.page > 0 &&
+    typeof value.quote === "string" &&
+    typeof value.comment === "string" &&
+    Array.isArray(value.rects) &&
+    value.rects.every(isLibraryPdfRect) &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string"
+  );
+}
+
+function isLibraryPdfRect(value: unknown): value is LibraryPdfRect {
+  return (
+    isRecord(value) &&
+    normalizedCoordinate(value.x) &&
+    normalizedCoordinate(value.y) &&
+    typeof value.width === "number" &&
+    typeof value.height === "number" &&
+    value.width > 0 &&
+    value.height > 0 &&
+    value.x + value.width <= 1.000_001 &&
+    value.y + value.height <= 1.000_001
   );
 }
 

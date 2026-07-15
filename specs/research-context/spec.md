@@ -54,6 +54,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   needs input. Page-anchored note pins open lightweight cards in place, while
   freehand strokes accept mouse, pen, and touch input. Both persist in the
   owner library using normalized page coordinates and rerender on page change.
+- At tablet widths, the standalone reader moves page navigation into a left
+  rail and private annotation controls into a right rail. Note pins are
+  draggable, surround swipes change page, and two-finger gestures scale only
+  the PDF. Pen input updates the active path without rebuilding saved markup.
 - The same compact row exposes annotated export only after a private annotation
   exists. Export downloads an owner-authorized derived copy and does not change
   the context tab, source artifact, project state, or research-share state.
@@ -136,6 +140,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Automatic navigation may replace only the unpinned follow-context resource
   tab. It must never replace Preview, Library, Writing assistant, or a pinned
   tab.
+- The replaceable-tab control uses the behavioral labels **Keep tab** and
+  **Allow replacement**; its accessible name and title explain what opening the
+  next research resource will do.
 - Selecting text in a visible PDF populates an annotation draft for that exact
   PDF and page and immediately paints its pending geometry over the page so
   the researcher does not lose visual context. Its PDF target is locked to the

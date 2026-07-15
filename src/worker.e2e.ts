@@ -1347,7 +1347,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   page.on("request", (request) => {
     if (request.method() !== "GET" && new URL(request.url()).pathname.startsWith(api)) contextMutations.push(request.method());
   });
-  await page.getByRole("button", { name: "Pin The Normative Structure of Science" }).click();
+  await page.getByRole("button", { name: "Keep open The Normative Structure of Science" }).click();
   await page.locator("#context-publication-pdfs").getByRole("button", { name: "Open" }).click();
   await expect(page.locator("#context-pdf-panel")).toBeVisible();
   const pdfTabId = await page.getByRole("tab", { name: "context-paper.pdf" }).getAttribute("id");
@@ -3017,6 +3017,7 @@ test("serves stable health and browser assets", async ({ request }) => {
     routes: [
       "/",
       "/library",
+      "/library/pdfs/:id",
       "/workspaces/:id",
       "/share/:token",
       "/edit/:token",

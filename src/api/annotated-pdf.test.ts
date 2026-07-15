@@ -48,6 +48,7 @@ describe("annotated PDF export", () => {
         page: 1,
         quote: "Quoted evidence",
         comment: "Useful context",
+        rects: [{ x: 0.2, y: 0.3, width: 0.25, height: 0.03 }],
         createdAt,
         updatedAt: createdAt,
       },
@@ -57,7 +58,7 @@ describe("annotated PDF export", () => {
     const exported = await PDFDocument.load(result, { updateMetadata: false });
     expect(exported.getPageCount()).toBe(2);
     expect(exported.getProducer()).toBe("Kirjolab annotated PDF");
-    expect(exported.getPage(0).node.Annots()?.size()).toBe(2);
+    expect(exported.getPage(0).node.Annots()?.size()).toBe(3);
     expect(result.byteLength).toBeGreaterThan(sourceBytes.byteLength);
   });
 

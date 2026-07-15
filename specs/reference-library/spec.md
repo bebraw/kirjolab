@@ -74,6 +74,10 @@ memory and makes citation aliases compete with stable source identity.
   connect a collaboration socket, restore manuscript state, or expose project
   linkage and sharing actions. A PDF can be imported, privately annotated, and
   exported from this surface through the existing owner-library contracts.
+- Standalone PDFs have stable `/library/pdfs/{artifactId}` locations. Opening a
+  PDF pushes history, page changes replace that location with an optional
+  `page` query, direct navigation restores the authorized artifact, and Back
+  returns to `/library` without creating project or collaborative state.
 - The default Library view keeps one **Add reference** control for PDF, website,
   BibTeX, and CSL intake without intake-time metadata overrides. Search stays
   visible; filters and maintenance tools use separate compact menus. References
@@ -86,7 +90,8 @@ memory and makes citation aliases compete with stable source identity.
 - An attached private PDF opens from its library record in a kind-qualified
   context tab. Reading uses the owner-private stream and local page state. Text
   selection creates only an ephemeral private-highlight draft; an explicit save
-  records its artifact, page, quote, and optional comment in the owner library
+  records its artifact, page, quote, optional comment, and bounded normalized
+  selection rectangles in the owner library
   without adding, sharing, or annotating the artifact in a project.
 - The private reader stays focused on the page: its idle annotation surface is
   a compact Text, Note, and Draw toolbar. Text selection opens a contextual
@@ -94,11 +99,20 @@ memory and makes citation aliases compete with stable source identity.
   touch strokes with red as the default color and an adjustable 1–24 pixel
   width. Notes and strokes use normalized page coordinates so they remain
   aligned when the page is resized. Saved annotations are collapsed by default.
+- Saved private highlight rectangles repaint over the matching page. Existing
+  quote-only highlights remain valid but cannot recover geometry. Note pins can
+  be dragged to a new normalized anchor; drawing undo deletes the newest stroke
+  on the active page by creation time and stable id.
+- At tablet widths, page navigation occupies a left rail and annotation tools
+  a right rail so the page retains vertical space. A horizontal swipe begun in
+  the page surround changes page, while a two-finger gesture zooms the PDF
+  rather than the application. Live ink updates one draft path between saves.
 - Once the PDF has a saved text highlight, page note, or drawing, **Export
   annotated** downloads a derived PDF without changing the stored source.
   Freehand strokes are flattened at their normalized page coordinates. Page
-  notes become printable sticky-note annotations; legacy text highlights become
-  page-level comments because their stored records predate selection geometry.
+  notes become interactive sticky-note annotations with popup contents; text
+  highlights with geometry become standard PDF highlight annotations. Legacy
+  quote-only highlights become page-level comments.
 - The private reader exposes a staged current-project handoff without changing
   those defaults: first add the bibliographic record, then explicitly review
   artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
@@ -123,11 +137,16 @@ memory and makes citation aliases compete with stable source identity.
   at most the existing 25 MB source limit, and never persists the derived copy.
 - Reference tag, note, highlight, reading, archive, deletion-impact, and
   confirmed deletion routes mutate only the authenticated owner's library.
+- Highlight creation accepts at most 512 normalized rectangles. Missing or
+  malformed geometry fails closed; migrated legacy rows contain an empty list.
 - `POST /api/library/references/{referenceId}/pdf-markups` creates an
   owner-private note or drawing for an identified artifact. Notes are limited
   to 8,000 characters; colors use six-digit hex; widths are 1–24; drawings
   contain 2–2,048 normalized points. `DELETE` of a markup requires the same
   reference ownership boundary. PDF markups are not project-share resources.
+- `PATCH /api/library/references/{referenceId}/pdf-markups/{markupId}` moves
+  only an owner-private note to a validated normalized anchor. It cannot turn a
+  drawing into a note or move a resource owned by another reference.
 - Web-source capture, snapshot inspection, inert content download, and neutral
   snapshot comparison routes remain within the same owner-private API.
 - Citation assertion, review, bounded network, and explicit Crossref reference

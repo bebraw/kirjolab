@@ -411,6 +411,11 @@ export function renderHomePage(
 
         <section class="context-panel context-pdf-panel" id="context-pdf-panel" role="tabpanel" aria-label="PDF context" tabindex="0" hidden>
           <div class="context-pdf-body">
+            <nav class="library-pdf-page-rail" aria-label="PDF page navigation">
+              <button id="previous-library-paper-page" type="button" aria-label="Previous PDF page">↑</button>
+              <span id="library-paper-page-indicator">–<span class="sr-only"> PDF page</span></span>
+              <button id="next-library-paper-page" type="button" aria-label="Next PDF page">↓</button>
+            </nav>
             <div class="pdf-reader" id="paper-reader">
               <div class="pdf-page" id="paper-page">
                 <canvas class="block" id="paper-canvas"></canvas>

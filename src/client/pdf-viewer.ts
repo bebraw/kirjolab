@@ -1,5 +1,6 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type { AnnotationResource, PdfSelectionRect } from "../domain/workspace";
+import type { LibraryHighlight } from "../domain/reference-library";
 import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
 import { readPdfTextContent } from "./pdf-text-content";
 import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
@@ -13,13 +14,14 @@ export interface PdfSelectionCapture {
 }
 
 interface PdfViewerElements {
+  reader: HTMLElement;
   canvas: HTMLCanvasElement;
   page: HTMLElement;
   textLayer: HTMLElement;
   highlights: HTMLElement;
-  pageIndicator: HTMLElement;
-  previousPage: HTMLButtonElement;
-  nextPage: HTMLButtonElement;
+  pageIndicators: readonly HTMLElement[];
+  previousPages: readonly HTMLButtonElement[];
+  nextPages: readonly HTMLButtonElement[];
   status: HTMLElement;
 }
 
@@ -29,6 +31,7 @@ interface OpenPdfOptions {
   page?: number;
   focusAnnotationId?: string;
   mode?: "evidence" | "private-highlight";
+  privateHighlights?: readonly LibraryHighlight[];
 }
 
 export class PdfEvidenceViewer {
@@ -40,6 +43,7 @@ export class PdfEvidenceViewer {
   #loadingTask: PDFDocumentLoadingTask | null = null;
   #runtime: PdfJsRuntime | null = null;
   #annotations: AnnotationResource[] = [];
+  #privateHighlights: readonly LibraryHighlight[] = [];
   #pageNumber = 1;
   #pageText = "";
   #focusedAnnotationId: string | undefined;
@@ -47,6 +51,10 @@ export class PdfEvidenceViewer {
   #mode: "evidence" | "private-highlight" = "evidence";
   #renderVersion = 0;
   #openVersion = 0;
+  #zoom = 1;
+  #renderedZoom = 1;
+  #pinchStart: { distance: number; zoom: number } | null = null;
+  #swipeStart: { x: number; y: number; startedAt: number } | null = null;
 
   constructor(
     elements: PdfViewerElements,
@@ -58,9 +66,23 @@ export class PdfEvidenceViewer {
     this.#onSelection = onSelection;
     this.#onHighlight = onHighlight;
     this.#onPageChange = onPageChange;
-    elements.previousPage.addEventListener("click", () => void this.#move(-1));
-    elements.nextPage.addEventListener("click", () => void this.#move(1));
+    for (const button of elements.previousPages) button.addEventListener("click", () => void this.#move(-1));
+    for (const button of elements.nextPages) button.addEventListener("click", () => void this.#move(1));
     elements.textLayer.addEventListener("pointerup", () => this.#captureSelection());
+    elements.reader.addEventListener("touchstart", (event) => this.#startTouchGesture(event), { passive: false });
+    elements.reader.addEventListener("touchmove", (event) => this.#continueTouchGesture(event), { passive: false });
+    elements.reader.addEventListener("touchend", (event) => void this.#finishTouchGesture(event), { passive: true });
+    elements.reader.addEventListener("touchcancel", () => this.#cancelTouchGesture(), { passive: true });
+    elements.reader.addEventListener(
+      "wheel",
+      (event) => {
+        if (!event.ctrlKey) return;
+        event.preventDefault();
+        this.#zoom = clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4);
+        void this.#renderPage();
+      },
+      { passive: false },
+    );
   }
 
   get currentPage(): number {
@@ -80,9 +102,12 @@ export class PdfEvidenceViewer {
     if (openVersion !== this.#openVersion) return false;
     this.#document = null;
     this.#annotations = options.annotations;
+    this.#privateHighlights = options.privateHighlights ?? [];
     this.#focusedAnnotationId = options.focusAnnotationId;
     this.#draftSelection = null;
     this.#mode = options.mode ?? "evidence";
+    this.#zoom = 1;
+    this.#renderedZoom = 1;
     this.#elements.status.textContent = "Loading PDF…";
     const runtime = await loadPdfJsRuntime();
     if (openVersion !== this.#openVersion) return false;
@@ -109,6 +134,11 @@ export class PdfEvidenceViewer {
 
   updateAnnotations(annotations: AnnotationResource[]): void {
     this.#annotations = annotations;
+    this.#renderHighlights();
+  }
+
+  updatePrivateHighlights(highlights: readonly LibraryHighlight[]): void {
+    this.#privateHighlights = highlights;
     this.#renderHighlights();
   }
 
@@ -146,7 +176,9 @@ export class PdfEvidenceViewer {
 
     const unscaled = page.getViewport({ scale: 1 });
     const availableWidth = Math.max(320, Math.min(900, this.#elements.page.parentElement?.clientWidth ?? 760) - 32);
-    const viewport = page.getViewport({ scale: availableWidth / unscaled.width });
+    const viewport = page.getViewport({ scale: (availableWidth / unscaled.width) * this.#zoom });
+    this.#elements.page.style.removeProperty("transform");
+    this.#renderedZoom = this.#zoom;
     const outputScale = window.devicePixelRatio || 1;
     this.#elements.page.style.width = `${viewport.width}px`;
     this.#elements.page.style.height = `${viewport.height}px`;
@@ -174,9 +206,9 @@ export class PdfEvidenceViewer {
     ]);
     if (version !== this.#renderVersion) return;
     this.#renderHighlights();
-    this.#elements.pageIndicator.textContent = `${this.#pageNumber} / ${documentModel.numPages}`;
-    this.#elements.previousPage.disabled = this.#pageNumber === 1;
-    this.#elements.nextPage.disabled = this.#pageNumber === documentModel.numPages;
+    for (const indicator of this.#elements.pageIndicators) indicator.textContent = `${this.#pageNumber} / ${documentModel.numPages}`;
+    for (const button of this.#elements.previousPages) button.disabled = this.#pageNumber === 1;
+    for (const button of this.#elements.nextPages) button.disabled = this.#pageNumber === documentModel.numPages;
     this.#elements.status.textContent =
       this.#mode === "private-highlight" ? "Private library PDF · select text to highlight" : "Select text to capture evidence";
     this.#onPageChange(this.#pageNumber);
@@ -223,6 +255,19 @@ export class PdfEvidenceViewer {
         }
       }
     }
+    for (const annotation of this.#privateHighlights.filter((item) => item.page === this.#pageNumber)) {
+      for (const rect of annotation.rects) {
+        const highlight = document.createElement("span");
+        highlight.className = "pdf-highlight";
+        highlight.dataset.private = "true";
+        highlight.style.left = `${rect.x * 100}%`;
+        highlight.style.top = `${rect.y * 100}%`;
+        highlight.style.width = `${rect.width * 100}%`;
+        highlight.style.height = `${rect.height * 100}%`;
+        highlight.title = annotation.comment || annotation.quote;
+        this.#elements.highlights.append(highlight);
+      }
+    }
     if (this.#draftSelection?.page === this.#pageNumber) {
       for (const rect of this.#draftSelection.rects) {
         const highlight = document.createElement("span");
@@ -236,6 +281,55 @@ export class PdfEvidenceViewer {
       }
     }
   }
+
+  #startTouchGesture(event: TouchEvent): void {
+    if (event.touches.length === 2) {
+      event.preventDefault();
+      this.#pinchStart = { distance: touchDistance(event.touches), zoom: this.#zoom };
+      this.#swipeStart = null;
+      return;
+    }
+    const touch = event.touches[0];
+    if (event.touches.length === 1 && touch && event.target instanceof Node && !this.#elements.page.contains(event.target)) {
+      this.#swipeStart = { x: touch.clientX, y: touch.clientY, startedAt: performance.now() };
+    }
+  }
+
+  #continueTouchGesture(event: TouchEvent): void {
+    if (event.touches.length !== 2 || !this.#pinchStart) return;
+    event.preventDefault();
+    const zoom = clamp(this.#pinchStart.zoom * (touchDistance(event.touches) / this.#pinchStart.distance), 0.75, 4);
+    this.#zoom = zoom;
+    this.#elements.page.style.transform = `scale(${zoom / this.#renderedZoom})`;
+  }
+
+  async #finishTouchGesture(event: TouchEvent): Promise<void> {
+    if (this.#pinchStart && event.touches.length < 2) {
+      this.#pinchStart = null;
+      await this.#renderPage();
+      return;
+    }
+    const start = this.#swipeStart;
+    const touch = event.changedTouches[0];
+    this.#swipeStart = null;
+    if (!start || !touch || performance.now() - start.startedAt > 700) return;
+    const x = touch.clientX - start.x;
+    const y = touch.clientY - start.y;
+    if (Math.abs(x) < 54 || Math.abs(x) < Math.abs(y) * 1.4) return;
+    await this.#move(x < 0 ? 1 : -1);
+  }
+
+  #cancelTouchGesture(): void {
+    this.#pinchStart = null;
+    this.#swipeStart = null;
+    this.#elements.page.style.removeProperty("transform");
+  }
+}
+
+function touchDistance(touches: TouchList): number {
+  const first = touches[0];
+  const second = touches[1];
+  return first && second ? Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY) : 1;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

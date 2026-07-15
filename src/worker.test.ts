@@ -41,6 +41,13 @@ describe("worker", () => {
     expect(body).toContain('id="export-library-annotated-pdf"');
   });
 
+  it("renders a directly addressed private library PDF through the library shell", async () => {
+    const response = await handleRequest(new Request("http://example.com/library/pdfs/artifact-id?page=3"));
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('data-app-mode="library"');
+  });
+
   it("returns a JSON health response", async () => {
     const response = await handleRequest(new Request("http://example.com/api/health"));
 
@@ -52,6 +59,7 @@ describe("worker", () => {
       routes: [
         "/",
         "/library",
+        "/library/pdfs/:id",
         "/workspaces/:id",
         "/share/:token",
         "/edit/:token",

@@ -159,6 +159,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="library-pdf-upload"');
     expect(html).toContain('id="library-highlight-composer"');
     expect(html).toContain('id="export-library-annotated-pdf"');
+    expect(html).toContain('id="previous-library-paper-page"');
+    expect(html).toContain('id="library-paper-page-indicator"');
+    expect(html).toContain('id="next-library-paper-page"');
   });
 
   it("offers Cloudflare Access identities a native logout control", () => {
