@@ -77,7 +77,7 @@ describe("local model companion", () => {
     );
     expect(preflight.status).toBe(204);
     expect(preflight.headers.get("access-control-allow-origin")).toBe(config.allowedOrigin);
-    expect(preflight.headers.get("access-control-allow-methods")).toBe("POST, OPTIONS");
+    expect(preflight.headers.get("access-control-allow-methods")).toBe("GET, POST, OPTIONS");
     expect(preflight.headers.get("access-control-allow-headers")).toBe("content-type");
     expect(preflight.headers.get("vary")).toBe("Origin");
     expect(preflight.headers.get("access-control-allow-private-network")).toBe("true");
@@ -86,6 +86,58 @@ describe("local model companion", () => {
     const ordinaryPreflight = await handleModelCompanionRequest(request("OPTIONS"), config, fetcher);
     expect(ordinaryPreflight.headers.has("access-control-allow-private-network")).toBe(false);
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("proxies bounded model discovery to the configured provider origin", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: [{ id: "qwen/qwen3.5-9b" }] }));
+    const response = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", { headers: { origin: config.allowedOrigin } }),
+      config,
+      fetcher,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("access-control-allow-origin")).toBe(config.allowedOrigin);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ data: [{ id: "qwen/qwen3.5-9b" }] });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe("http://127.0.0.1:1234/v1/models");
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ method: "GET", redirect: "error", headers: { accept: "application/json" } });
+  });
+
+  it("keeps model discovery inside the companion route and response limits", async () => {
+    const wrongMethod = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", { method: "POST", headers: { origin: config.allowedOrigin } }),
+      config,
+    );
+    expect(wrongMethod.status).toBe(405);
+
+    const denied = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", { headers: { origin: "https://attacker.example" } }),
+      config,
+    );
+    expect(denied.status).toBe(403);
+
+    const unavailableRoute = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", { headers: { origin: config.allowedOrigin } }),
+      { ...config, upstream: new URL("http://127.0.0.1:1234/custom") },
+    );
+    expect(unavailableRoute.status).toBe(404);
+
+    const providerFailure = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", { headers: { origin: config.allowedOrigin } }),
+      config,
+      vi.fn<typeof fetch>().mockRejectedValue(new Error("private provider detail")),
+    );
+    expect(providerFailure.status).toBe(502);
+    await expect(providerFailure.json()).resolves.toEqual({ error: "Local model unavailable" });
+
+    const oversized = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", { headers: { origin: config.allowedOrigin } }),
+      config,
+      vi.fn<typeof fetch>().mockResolvedValue(new Response(new Uint8Array(256 * 1_024 + 1))),
+    );
+    expect(oversized.status).toBe(502);
   });
 
   it("forwards a validated request only to the configured provider and bounds the response", async () => {
@@ -120,6 +172,44 @@ describe("local model companion", () => {
       [request("POST", { ...validPayload, stream: true }), 400],
       [request("POST", { ...validPayload, temperature: -0.1 }), 400],
       [request("POST", { ...validPayload, temperature: 3 }), 400],
+      [request("POST", { ...validPayload, reasoning_effort: "extreme" }), 400],
+      [request("POST", { ...validPayload, response_format: "json" }), 400],
+      [request("POST", { ...validPayload, response_format: { type: "json_schema", json_schema: {} } }), 400],
+      [
+        request("POST", {
+          ...validPayload,
+          response_format: { type: "text", json_schema: { name: "revision", strict: true, schema: {} } },
+        }),
+        400,
+      ],
+      [
+        request("POST", {
+          ...validPayload,
+          response_format: { type: "json_schema", json_schema: { name: " ", strict: true, schema: {} } },
+        }),
+        400,
+      ],
+      [
+        request("POST", {
+          ...validPayload,
+          response_format: { type: "json_schema", json_schema: { name: "x".repeat(129), strict: true, schema: {} } },
+        }),
+        400,
+      ],
+      [
+        request("POST", {
+          ...validPayload,
+          response_format: { type: "json_schema", json_schema: { name: "revision", strict: false, schema: {} } },
+        }),
+        400,
+      ],
+      [
+        request("POST", {
+          ...validPayload,
+          response_format: { type: "json_schema", json_schema: { name: "revision", strict: true, schema: [] } },
+        }),
+        400,
+      ],
       [request("POST", { ...validPayload, messages: [] }), 400],
       [request("POST", { ...validPayload, messages: Array.from({ length: 17 }, () => ({ role: "user", content: "x" })) }), 400],
       [request("POST", { ...validPayload, messages: [{ role: "tool", content: "x" }] }), 400],
@@ -141,13 +231,24 @@ describe("local model companion", () => {
       { ...validPayload, model: "x".repeat(256) },
       { ...validPayload, temperature: 0 },
       { ...validPayload, temperature: 2 },
+      { ...validPayload, reasoning_effort: "none" },
+      { ...validPayload, reasoning_effort: "low" },
+      { ...validPayload, reasoning_effort: "medium" },
+      { ...validPayload, reasoning_effort: "high" },
+      {
+        ...validPayload,
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: "x".repeat(128), strict: true, schema: { type: "object" } },
+        },
+      },
       { ...validPayload, messages: [{ role: "assistant", content: "x" }] },
       { ...validPayload, messages: Array.from({ length: 16 }, () => ({ role: "user", content: "x" })) },
       { ...validPayload, messages: [{ role: "user", content: "x".repeat(128 * 1_024) }] },
     ]) {
       expect((await handleModelCompanionRequest(request("POST", payload), config, fetcher)).status).toBe(200);
     }
-    expect(fetcher).toHaveBeenCalledTimes(6);
+    expect(fetcher).toHaveBeenCalledTimes(11);
   });
 
   it("rejects declared and streamed request bodies above the byte limit", async () => {

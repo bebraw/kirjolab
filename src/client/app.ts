@@ -94,7 +94,13 @@ import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { adjustSelectionRects } from "./pdf-selection";
 import { uploadPdfBatch, type ExistingPdfUpload, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
-import { maximumModelEvidenceItems, OpenAICompatibleBrowserProvider, type ModelEvidenceItem } from "./model-provider";
+import {
+  discoverOpenAICompatibleModels,
+  maximumModelEvidenceItems,
+  OpenAICompatibleBrowserProvider,
+  type ModelEvidenceItem,
+  type ModelReasoningEffort,
+} from "./model-provider";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -409,6 +415,9 @@ interface Elements {
   llmEndpoint: HTMLInputElement;
   llmConnection: HTMLSelectElement;
   llmModel: HTMLInputElement;
+  llmModelOptions: HTMLDataListElement;
+  llmReasoningEffort: HTMLSelectElement;
+  discoverLlmModels: HTMLButtonElement;
   modelOperation: HTMLSelectElement;
   modelClaimRelation: HTMLSelectElement;
   modelClaimRelationField: HTMLElement;
@@ -798,6 +807,7 @@ class WorkspaceApp {
       this.#elements.llmConnection,
       this.#elements.llmEndpoint,
       this.#elements.llmModel,
+      this.#elements.llmReasoningEffort,
       this.#elements.modelInstruction,
       this.#elements.modelClaimRelation,
     ]) {
@@ -813,6 +823,7 @@ class WorkspaceApp {
           ? "Start npm run model:companion, then select manuscript text and grounding evidence."
           : "The browser will contact the configured loopback provider directly.";
     });
+    this.#elements.discoverLlmModels.addEventListener("click", () => void this.#discoverLlmModels());
     this.#elements.modelOperation.addEventListener("change", () => this.#updateModelTask());
     this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
     this.#updateModelTask();
@@ -1546,6 +1557,7 @@ class WorkspaceApp {
     return (
       selectedEvidence.items.length > 0 &&
       this.#modelEvidenceSelection.size <= maximumModelEvidenceItems &&
+      Boolean(this.#elements.llmModel.value.trim()) &&
       (this.#draftsClaim()
         ? selectedEvidence.items.some((item) => item.kind === "annotation")
         : this.#selectedAuthoringPassage() !== null) &&
@@ -1579,7 +1591,38 @@ class WorkspaceApp {
       providerLabel:
         this.#elements.llmConnection.value === "companion" ? "Local companion · OpenAI-compatible" : "Browser-local OpenAI-compatible",
       model: this.#elements.llmModel.value,
+      reasoningEffort: readModelReasoningEffort(this.#elements.llmReasoningEffort.value),
     });
+  }
+
+  async #discoverLlmModels(): Promise<void> {
+    if (this.#modelBusy) return;
+    this.#modelBusy = true;
+    this.#elements.discoverLlmModels.disabled = true;
+    this.#updateModelAvailability();
+    this.#elements.modelStatus.textContent = "Checking the local provider for loaded models…";
+    try {
+      const models = await discoverOpenAICompatibleModels(this.#elements.llmEndpoint.value);
+      this.#elements.llmModelOptions.replaceChildren(
+        ...models.map((model) => {
+          const option = document.createElement("option");
+          option.value = model;
+          return option;
+        }),
+      );
+      const selectedModel = this.#elements.llmModel.value.trim();
+      if ((!selectedModel || !models.includes(selectedModel)) && models[0]) this.#elements.llmModel.value = models[0];
+      this.#elements.modelStatus.textContent = models.length
+        ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.#elements.llmModel.value}.`
+        : "The local provider is reachable but reports no loaded models.";
+    } catch (error) {
+      this.#elements.modelStatus.textContent =
+        error instanceof Error ? error.message : "Could not discover models from the local provider.";
+    } finally {
+      this.#modelBusy = false;
+      this.#elements.discoverLlmModels.disabled = false;
+      this.#updateModelAvailability();
+    }
   }
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
@@ -6677,6 +6720,9 @@ function collectElements(): Elements {
     llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
     llmConnection: requiredElement("llm-connection", HTMLSelectElement),
     llmModel: requiredElement("llm-model", HTMLInputElement),
+    llmModelOptions: requiredElement("llm-model-options", HTMLDataListElement),
+    llmReasoningEffort: requiredElement("llm-reasoning-effort", HTMLSelectElement),
+    discoverLlmModels: requiredElement("discover-llm-models", HTMLButtonElement),
     modelOperation: requiredElement("model-operation", HTMLSelectElement),
     modelClaimRelation: requiredElement("model-claim-relation", HTMLSelectElement),
     modelClaimRelationField: requiredElement("model-claim-relation-field", HTMLElement),
@@ -6851,6 +6897,11 @@ function citationStateColor(state: CitationNetwork["edges"][number]["state"]): s
 function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
   if (value === "contradicts" || value === "extends") return value;
   return "supports";
+}
+
+function readModelReasoningEffort(value: string): ModelReasoningEffort {
+  if (value === "none" || value === "low" || value === "medium" || value === "high") return value;
+  return "provider-default";
 }
 
 function modelEvidenceKey(kind: "annotation" | "claim", id: string): string {

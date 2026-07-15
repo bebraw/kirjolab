@@ -288,6 +288,11 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="model-claim-relation-field" hidden');
     expect(html).toContain('<select class="field" id="model-claim-relation">');
     expect(html).toContain('<option value="contradicts">Contradicts</option>');
+    expect(html).toContain('id="llm-model" type="text" list="llm-model-options"');
+    expect(html).toContain('<datalist id="llm-model-options"></datalist>');
+    expect(html).toContain('<select class="field" id="llm-reasoning-effort">');
+    expect(html).toContain('<option value="none">Off · fastest</option>');
+    expect(html).toContain('id="discover-llm-models" type="button">Find loaded models</button>');
 
     expect(html.indexOf('id="model-instruction"')).toBeLessThan(html.indexOf('id="assistant-model-settings"'));
     expect(html.indexOf('id="assistant-model-settings"')).toBeLessThan(html.indexOf('id="llm-endpoint"'));

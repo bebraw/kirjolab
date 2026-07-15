@@ -60,10 +60,15 @@ export KIRJOLAB_MODEL_UPSTREAM=http://127.0.0.1:YOUR_PORT/v1/chat/completions
 npm run model:companion
 ```
 
-Then choose **Local companion** in the model lab. The companion listens on
+Then choose **Local companion** in Writing assistant. The companion listens on
 `127.0.0.1:8790` by default and never sends model requests through the hosted
 Worker. Set `KIRJOLAB_MODEL_COMPANION_ORIGIN` if you need to allow a different
 local Kirjolab origin.
+
+Open **Model connection** and choose **Find loaded models** to read the live
+model identifiers exposed by the provider. Focused revision and claim tasks
+default to reasoning off for responsive local inference; deeper reasoning can
+be selected when a model and task benefit from it.
 
 ## Deploy to Cloudflare
 

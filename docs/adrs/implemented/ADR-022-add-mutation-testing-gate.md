@@ -25,6 +25,8 @@ We will add Stryker mutation testing as a separate mutation gate:
 - Mutation testing targets runtime `src/**/*.ts` files and excludes declarations, unit tests, end-to-end tests, and `src/test-support.ts`.
 - Mutation reports are written under `reports/mutation/`.
 - Stryker's temporary sandbox stays under ignored `.stryker-tmp/`.
+- Ignored `.wrangler/` runtime state is not copied into mutation sandboxes;
+  live Durable Object SQLite files are not test inputs.
 - `npm run quality:gate` runs the fast gate, browser gate, and mutation gate in that order.
 - The GitHub Actions workflow runs mutation testing as a separate `quality-mutation` job.
 

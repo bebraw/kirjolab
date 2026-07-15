@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  discoverOpenAICompatibleModels,
   OpenAICompatibleBrowserProvider,
   type DraftClaimRequest,
   type OpenAICompatibleBrowserProviderOptions,
@@ -39,8 +40,24 @@ describe("OpenAICompatibleBrowserProvider", () => {
       providerLabel: "Local test model",
       model: "test-model",
     });
-    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as { messages: Array<{ content: string }> };
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ content: string }>;
+      response_format: { json_schema: { name: string; schema: { required: string[] } } };
+    };
     expect(body.messages[0]?.content).toContain("exactly two string fields");
+    expect(body.response_format).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: "kirjolab_claim_draft",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: { text: { type: "string" }, note: { type: "string" } },
+          required: ["text", "note"],
+          additionalProperties: false,
+        },
+      },
+    });
     expect(JSON.parse(body.messages[1]?.content ?? "")).toEqual({
       instruction: claimOperation.instruction,
       evidenceRelation: "supports",
@@ -101,10 +118,25 @@ describe("OpenAICompatibleBrowserProvider", () => {
       temperature: number;
       stream: boolean;
       messages: Array<{ role: string; content: string }>;
+      response_format: { json_schema: { name: string; schema: { required: string[] } } };
     };
     expect(body).toMatchObject({ model: "test-model", temperature: 0.2, stream: false });
+    expect(body).not.toHaveProperty("reasoning_effort");
     expect(body.messages.map((message) => message.role)).toEqual(["system", "user"]);
-    expect(body.messages[0]?.content).toContain("return only the replacement passage");
+    expect(body.messages[0]?.content).toContain("return the replacement passage in the required response schema");
+    expect(body.response_format).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: "kirjolab_revision",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: { replacement: { type: "string" } },
+          required: ["replacement"],
+          additionalProperties: false,
+        },
+      },
+    });
     expect(body.messages[1]?.content).not.toContain("complete document");
     expect(body.messages[1]?.content).not.toContain("unrelated manuscript tail");
     const prompt = JSON.parse(body.messages[1]?.content ?? "") as {
@@ -120,6 +152,29 @@ describe("OpenAICompatibleBrowserProvider", () => {
         { order: 2, kind: "claim", id: "claim-1", label: "Working claim", content: "Second evidence item." },
       ],
     });
+  });
+
+  it("passes an explicit reasoning effort to compatible local models", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse("replacement"));
+    await createProvider({ fetcher, reasoningEffort: "none" }).reviseSelection(operation);
+
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toMatchObject({ reasoning_effort: "none" });
+    expect(() =>
+      Reflect.construct(OpenAICompatibleBrowserProvider, [
+        {
+          endpoint: "http://127.0.0.1:1234/v1/chat/completions",
+          providerLabel: "Local test model",
+          model: "test-model",
+          reasoningEffort: "extreme",
+        },
+      ]),
+    ).toThrow("reasoning effort is invalid");
+  });
+
+  it.each(["low", "medium", "high"] as const)("passes the %s reasoning effort unchanged", async (reasoningEffort) => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse("replacement"));
+    await createProvider({ fetcher, reasoningEffort }).reviseSelection(operation);
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toHaveProperty("reasoning_effort", reasoningEffort);
   });
 
   it("invokes the browser fetch function without binding the provider as its receiver", async () => {
@@ -242,11 +297,32 @@ describe("OpenAICompatibleBrowserProvider", () => {
       [jsonResponse({ choices: [{ message: null }] }), "no replacement text"],
       [jsonResponse({ choices: [{ message: { content: 1 } }] }), "no replacement text"],
       [completionResponse("   "), "blank replacement"],
+      [completionResponse('{"ok":true,"message":"wrapped replacement"}'), "invalid structured revision"],
+      [completionResponse('{"replacement":"valid","extra":true}'), "invalid structured revision"],
+      [completionResponse('{"replacement":1}'), "invalid structured revision"],
+      [completionResponse("{}"), "invalid structured revision"],
+      [completionResponse('{"replacement":'), "malformed structured revision"],
       [completionResponse("x".repeat(50_001)), "exceeds 50000 characters"],
     ] as const) {
       const provider = createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(response) });
       await expect(provider.reviseSelection(operation)).rejects.toThrow(message);
     }
+  });
+
+  it("explains reasoning-only responses instead of treating them as blank prose", async () => {
+    const exhausted = jsonResponse({
+      choices: [{ finish_reason: "length", message: { content: "", reasoning_content: "unfinished analysis" } }],
+    });
+    await expect(
+      createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(exhausted) }).reviseSelection(operation),
+    ).rejects.toThrow("exhausted its output budget in reasoning");
+
+    const missingFinal = jsonResponse({
+      choices: [{ finish_reason: "stop", message: { content: "", reasoning_content: "analysis only" } }],
+    });
+    await expect(
+      createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(missingFinal) }).reviseSelection(operation),
+    ).rejects.toThrow("reasoning without a final answer");
   });
 
   it("rejects declared and streamed responses above 256 KiB", async () => {
@@ -308,6 +384,8 @@ describe("OpenAICompatibleBrowserProvider", () => {
     ["```md\r\nInline replacement\r\n```", "Inline replacement"],
     ["```\nUnlabelled Markdown\n```", "Unlabelled Markdown"],
     ["plain inline replacement", "plain inline replacement"],
+    ['{"replacement":"Structured replacement"}', "Structured replacement"],
+    ['```json\n{"replacement":"Fenced structured replacement"}\n```', "Fenced structured replacement"],
     ["  preserve plain whitespace  ", "  preserve plain whitespace  "],
     ["prefix ```md\nnot an outer fence\n```", "prefix ```md\nnot an outer fence\n```"],
     ["```json\nnot a Markdown fence\n```", "```json\nnot a Markdown fence\n```"],
@@ -315,6 +393,94 @@ describe("OpenAICompatibleBrowserProvider", () => {
     const provider = createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) });
 
     await expect(provider.reviseSelection(operation)).resolves.toMatchObject({ replacement });
+  });
+});
+
+describe("OpenAI-compatible model discovery", () => {
+  it("derives the bounded model-list endpoint and returns unique model ids", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        data: [{ id: "qwen/qwen3.5-9b" }, { id: "gemma/local" }, { id: "qwen/qwen3.5-9b" }],
+      }),
+    );
+
+    await expect(discoverOpenAICompatibleModels("http://127.0.0.1:1234/v1/chat/completions", { fetcher })).resolves.toEqual([
+      "qwen/qwen3.5-9b",
+      "gemma/local",
+    ]);
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe("http://127.0.0.1:1234/v1/models");
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
+      method: "GET",
+      credentials: "omit",
+      redirect: "error",
+      headers: { accept: "application/json" },
+    });
+  });
+
+  it("normalizes bounded identifiers and strips completion endpoint query data", async () => {
+    const exactId = "x".repeat(256);
+    const listing = { data: [{ id: `  qwen/local  ` }, { id: exactId }] };
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(listing));
+    await expect(
+      discoverOpenAICompatibleModels("http://localhost:1234/v1/chat/completions?ignored=true#fragment", { fetcher }),
+    ).resolves.toEqual(["qwen/local", exactId]);
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe("http://localhost:1234/v1/models");
+
+    await expect(
+      discoverOpenAICompatibleModels("http://localhost:1234/v1/chat/completions", {
+        fetcher: vi
+          .fn<typeof fetch>()
+          .mockResolvedValue(jsonResponse({ data: Array.from({ length: 256 }, (_, index) => ({ id: `model-${index}` })) })),
+      }),
+    ).resolves.toHaveLength(256);
+  });
+
+  it("reports provider failures and honors caller cancellation", async () => {
+    await expect(
+      discoverOpenAICompatibleModels("http://localhost:1234/v1/chat/completions", {
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 503 })),
+      }),
+    ).rejects.toThrow("discovery failed (503)");
+
+    const alreadyAborted = new AbortController();
+    alreadyAborted.abort(new Error("discovery cancelled"));
+    await expect(
+      discoverOpenAICompatibleModels("http://localhost:1234/v1/chat/completions", { signal: alreadyAborted.signal }),
+    ).rejects.toThrow("discovery cancelled");
+
+    const caller = new AbortController();
+    const pending = discoverOpenAICompatibleModels("http://localhost:1234/v1/chat/completions", {
+      signal: caller.signal,
+      fetcher: abortableFetch(),
+    });
+    caller.abort(new Error("stop discovery"));
+    await expect(pending).rejects.toThrow("stop discovery");
+  });
+
+  it("times out model discovery after ten seconds", async () => {
+    vi.useFakeTimers();
+    const pending = discoverOpenAICompatibleModels("http://localhost:1234/v1/chat/completions", { fetcher: abortableFetch() });
+    const expectation = expect(pending).rejects.toMatchObject({ name: "TimeoutError" });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expectation;
+  });
+
+  it("fails closed on unsupported routes and malformed or excessive listings", async () => {
+    await expect(discoverOpenAICompatibleModels("http://127.0.0.1:1234/custom")).rejects.toThrow("must end with");
+    for (const value of [
+      {},
+      { data: [{ name: "missing-id" }] },
+      { data: [{ id: "" }] },
+      { data: [{ id: "x".repeat(257) }] },
+      { data: Array.from({ length: 257 }, (_, index) => ({ id: String(index) })) },
+    ]) {
+      await expect(
+        discoverOpenAICompatibleModels("http://127.0.0.1:1234/v1/chat/completions", {
+          fetcher: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(value)),
+        }),
+      ).rejects.toThrow();
+    }
   });
 });
 

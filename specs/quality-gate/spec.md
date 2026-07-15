@@ -160,6 +160,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - Mutation testing must set Stryker worker concurrency as a percentage of available parallelism instead of a fixed worker count.
 - GitHub Actions must run the full mutation gate instead of the incremental mutation gate.
 - Mutation reports and Stryker incremental data must be written under ignored `reports/`, and Stryker's temporary sandbox must stay under ignored `.stryker-tmp/`.
+- Mutation sandboxes must not copy ignored `.wrangler/` runtime state; live
+  SQLite WAL files are ephemeral application data, not mutation-test inputs.
 - New workflow write targets must be documented when they are introduced.
 - Manually created Fallow caches must stay ignored under `.fallow/`.
 

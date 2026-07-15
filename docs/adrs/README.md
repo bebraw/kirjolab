@@ -143,6 +143,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-112](./implemented/ADR-112-store-sanitized-project-templates.md)                 | Implemented          | Store built-in and owner-created templates as independent sanitized project seeds.                           |
 | [ADR-113](./implemented/ADR-113-follow-preview-file-selection.md)                     | Implemented          | Show the selected supporting Markdown file in isolation while preserving `main.md` publication.              |
 | [ADR-114](./implemented/ADR-114-accept-inert-svg-project-images.md)                   | Implemented          | Accept a constrained SVG subset and serve it with an image-specific sandbox boundary.                        |
+| [ADR-115](./implemented/ADR-115-discover-and-constrain-local-models.md)               | Implemented          | Discover live local models, expose reasoning effort, and constrain writing outputs with task schemas.        |
 
 ## Creating A New ADR
 

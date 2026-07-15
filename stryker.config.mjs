@@ -9,6 +9,7 @@ const config = {
   htmlReporter: {
     fileName: "reports/mutation/index.html",
   },
+  ignorePatterns: [".wrangler/**"],
   mutate: [
     "src/**/*.ts",
     "!src/**/*.d.ts",

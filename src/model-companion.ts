@@ -33,12 +33,18 @@ export async function handleModelCompanionRequest(
   if (url.pathname === "/health" && request.method === "GET") {
     return Response.json({ ok: true, upstream: config.upstream.origin }, { headers: { "cache-control": "no-store" } });
   }
-  if (url.pathname !== "/v1/chat/completions") return jsonError("Route not found", 404);
+  const servesCompletions = url.pathname === "/v1/chat/completions";
+  const servesModels = url.pathname === "/v1/models";
+  if (!servesCompletions && !servesModels) return jsonError("Route not found", 404);
 
   const origin = request.headers.get("origin");
   if (origin !== config.allowedOrigin) return jsonError("Origin not allowed", 403);
   const cors = corsHeaders(origin, request.headers.get("access-control-request-private-network") === "true");
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  if (servesModels) {
+    if (request.method !== "GET") return jsonError("Method not allowed", 405, cors);
+    return proxyModelList(config, cors, fetcher);
+  }
   if (request.method !== "POST") return jsonError("Method not allowed", 405, cors);
   if (request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
     return jsonError("Content type must be application/json", 415, cors);
@@ -74,6 +80,40 @@ export async function handleModelCompanionRequest(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function proxyModelList(config: ModelCompanionConfig, cors: Headers, fetcher: Fetch): Promise<Response> {
+  const upstream = modelListUpstream(config.upstream);
+  if (!upstream) return jsonError("Configured provider does not expose the standard model-list route", 404, cors);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMilliseconds);
+  try {
+    const response = await fetcher(upstream, {
+      method: "GET",
+      redirect: "error",
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    });
+    const responseBody = await readBoundedBody(response, maximumResponseBytes);
+    const headers = new Headers(cors);
+    headers.set("content-type", "application/json; charset=utf-8");
+    headers.set("cache-control", "no-store");
+    return new Response(responseBody, { status: response.status, headers });
+  } catch (error) {
+    const message =
+      error instanceof DOMException && error.name === "AbortError" ? "Local model discovery timed out" : "Local model unavailable";
+    return jsonError(message, 502, cors);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function modelListUpstream(completionUpstream: URL): URL | null {
+  const suffix = "/chat/completions";
+  if (!completionUpstream.pathname.endsWith(suffix)) return null;
+  const upstream = new URL(completionUpstream);
+  upstream.pathname = `${upstream.pathname.slice(0, -suffix.length)}/models`;
+  return upstream;
 }
 
 export function startModelCompanion(config: ModelCompanionConfig): Server {
@@ -159,6 +199,30 @@ function validateOpenAICompatibleRequest(value: unknown): void {
   if (value.stream !== false || typeof value.temperature !== "number" || value.temperature < 0 || value.temperature > 2) {
     throw new TypeError("Model parameters are invalid");
   }
+  if (
+    value.reasoning_effort !== undefined &&
+    value.reasoning_effort !== "none" &&
+    value.reasoning_effort !== "low" &&
+    value.reasoning_effort !== "medium" &&
+    value.reasoning_effort !== "high"
+  ) {
+    throw new TypeError("Model reasoning effort is invalid");
+  }
+  if (value.response_format !== undefined) {
+    const format = value.response_format;
+    if (
+      !isRecord(format) ||
+      format.type !== "json_schema" ||
+      !isRecord(format.json_schema) ||
+      typeof format.json_schema.name !== "string" ||
+      !format.json_schema.name.trim() ||
+      format.json_schema.name.length > 128 ||
+      format.json_schema.strict !== true ||
+      !isRecord(format.json_schema.schema)
+    ) {
+      throw new TypeError("Model response format is invalid");
+    }
+  }
   if (!Array.isArray(value.messages) || value.messages.length < 1 || value.messages.length > 16) {
     throw new TypeError("Model messages are invalid");
   }
@@ -208,7 +272,7 @@ function isLoopbackHost(hostname: string): boolean {
 function corsHeaders(origin: string, privateNetwork: boolean): Headers {
   const headers = new Headers({
     "access-control-allow-origin": origin,
-    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-headers": "content-type",
     vary: "Origin",
   });

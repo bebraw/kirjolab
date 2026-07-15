@@ -372,8 +372,19 @@ export function renderHomePage(
                   <input class="field" id="llm-endpoint" type="url" value="http://127.0.0.1:1234/v1/chat/completions">
                 </label>
                 <label class="field-label">Model
-                  <input class="field" id="llm-model" type="text" value="local-model">
+                  <input class="field" id="llm-model" type="text" list="llm-model-options" maxlength="256" placeholder="Discover or enter a loaded model id">
+                  <datalist id="llm-model-options"></datalist>
                 </label>
+                <label class="field-label">Reasoning
+                  <select class="field" id="llm-reasoning-effort">
+                    <option value="none">Off · fastest</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="provider-default">Provider default</option>
+                  </select>
+                </label>
+                <button class="button-secondary justify-center" id="discover-llm-models" type="button">Find loaded models</button>
               </div>
             </details>
             <p class="mt-3 text-sm text-app-text-soft" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>

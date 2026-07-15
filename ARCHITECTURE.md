@@ -304,6 +304,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   loopback endpoints, reject redirects, bound its response before JSON parsing,
   and align the page connection policy with the same IPv4, localhost, and IPv6
   sources.
+- Discover local model identifiers only from the completion endpoint's derived
+  same-origin `/models` route, keep reasoning effort explicit, and constrain
+  writing-operation output with task-specific JSON Schemas before mapping it
+  into provider-neutral candidates.
 - Verify Cloudflare Access JWT signatures and claims inside the Worker for hosted identity; never trust caller-supplied identity headers alone.
 - Authorize every workspace data representation, API operation, PDF stream, and WebSocket upgrade through explicit owner/member state.
 - Authorize every library operation through its verified owner identity. Never

@@ -16,6 +16,16 @@ selected annotations. Both preserve a human review boundary.
   references before provider I/O.
 - A provider-neutral browser contract isolates operation semantics from the
   initial OpenAI-compatible HTTP adapter.
+- Model connection settings discover live model identifiers from the standard
+  OpenAI-compatible `/models` route instead of hardcoding a catalog. Discovery
+  is explicit, bounded, credential-free, loopback-only, and available through
+  the same optional companion when provider CORS blocks direct browser access.
+- Generation requests use JSON Schema response formats for passage revisions
+  and claim drafts. The adapter accepts plain replacement text as a
+  compatibility fallback, but rejects malformed or unexpected JSON envelopes.
+- Reasoning effort is an explicit transient model setting. Focused writing
+  operations default to `none` for responsive local inference, while low,
+  medium, high, and provider-default behavior remain selectable.
 - The initial adapter permits credential-free HTTP(S) loopback endpoints only,
   omits browser credentials, rejects redirects, aborts after 120 seconds, and
   reads at most 256 KiB of OpenAI-compatible JSON. The page CSP exposes the same
@@ -117,6 +127,12 @@ selected annotations. Both preserve a human review boundary.
 - The companion must require one exact origin and a fixed credential-free
   loopback upstream, and it must fail closed on invalid shape, size, route,
   method, media type, redirect, timeout, or network response.
+- Model discovery must derive `/models` from the configured completion route,
+  return at most 256 bounded unique identifiers, and never broaden the allowed
+  upstream origin.
+- Structured revision JSON may contain only `replacement`; structured claim
+  JSON may contain only `text` and `note`. A provider-created generic wrapper
+  must never be inserted into manuscript prose.
 - Claim drafts must use annotations only, contain one to twelve unique evidence
   snapshots, and retain the researcher-selected relation unchanged.
 - Claim propositions are required and bounded to 2,000 characters; working

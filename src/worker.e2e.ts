@@ -2714,6 +2714,25 @@ test("selects the explicit local companion connection", async ({ page }) => {
   await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:1234/v1/chat/completions");
 });
 
+test("discovers loaded local models for the writing assistant", async ({ page }) => {
+  await page.route("http://127.0.0.1:1234/v1/models", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ data: [{ id: "qwen/qwen3.5-9b" }, { id: "gemma/local" }] }),
+    });
+  });
+  await page.goto("/");
+  await openWritingAssistant(page, true);
+  await expect(page.locator("#llm-model")).toHaveValue("");
+  await page.getByRole("button", { name: "Find loaded models" }).click();
+
+  await expect(page.locator("#llm-model")).toHaveValue("qwen/qwen3.5-9b");
+  await expect(page.locator("#llm-model-options option")).toHaveCount(2);
+  await expect(page.locator("#model-status")).toHaveText("Found 2 loaded models. Using qwen/qwen3.5-9b.");
+});
+
 test("rejects a delayed model candidate after a concurrent manuscript edit", async ({ page, context }) => {
   const origin = "http://127.0.0.1:8788";
   const workspaceId = await createWorkspace(page, "Stale model boundary");
@@ -3027,6 +3046,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(page.locator("#model-status")).toHaveText("Candidate ready. Review its exact replacement and evidence in Context.");
   await expect.poll(() => modelRequests.length).toBe(1);
   const firstPrompt = readProviderPrompt(modelRequests[0]);
+  expect(modelRequests[0]).toMatchObject({ reasoning_effort: "none" });
   expect(firstPrompt).toEqual({
     selectedPassage,
     instruction: "Improve clarity while preserving the claim and citation syntax.",
