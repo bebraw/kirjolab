@@ -1386,8 +1386,11 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#project-evidence")).toBeHidden();
 
   await page.locator("#preview .semantic-citation[data-citation='merton1942']").evaluate((element: HTMLButtonElement) => element.click());
-  await expect(page.locator("#insert-context-citation")).toBeDisabled();
-  await expect(page.locator("#insert-context-citation")).toHaveAttribute("title", "Place the manuscript caret before inserting a citation");
+  await expect(page.locator("#insert-context-citation")).toBeEnabled();
+  await expect(page.locator("#insert-context-citation")).toHaveAttribute(
+    "title",
+    "Insert this reference at the remembered manuscript caret",
+  );
   await page.getByRole("tab", { name: "Preview" }).click();
 
   const editor = page.locator("#source-editor");
