@@ -99,6 +99,7 @@ import {
   type OfflineWorkspaceStore,
 } from "./offline-workspace";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
+import { createPdfAnnotationActor, pdfAnnotationTool, type PdfAnnotationSnapshot, type PdfAnnotationTool } from "./pdf-annotation-machine";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { adjustSelectionRects } from "./pdf-selection";
 import { uploadPdfBatch, type ExistingPdfUpload, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
@@ -522,6 +523,7 @@ class WorkspaceApp {
     workspaceId,
   );
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
+  readonly #pdfAnnotation = createPdfAnnotationActor();
   #snapshot: WorkspaceSnapshot | null = null;
   #revision = 0;
   #socket: WebSocket | null = null;
@@ -561,18 +563,10 @@ class WorkspaceApp {
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   readonly #expandedLibraryReferences = new Set<string>();
   #libraryPdfUploadBusy = false;
-  #libraryPdfTool: "select" | "text" | "note" | "draw" = "text";
-  #pendingPdfNote: { page: number; x: number; y: number } | null = null;
-  #pdfDrawingDraft: LibraryPdfPoint[] | null = null;
-  #pdfDrawingPointer: number | null = null;
   #pdfDrawingDraftLine: SVGElement | null = null;
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
   #editingLibraryHighlightId: string | null = null;
-  #editingLibraryPdfNoteId: string | null = null;
-  #pdfNoteDrag: { id: string; pointerId: number; startX: number; startY: number; moved: boolean } | null = null;
   #openPdfNoteId: string | null = null;
-  #selectedLibraryPdfMarkupId: string | null = null;
-  #selectedLibraryHighlightId: string | null = null;
   #failedLibraryPdfUploads: readonly File[] = [];
   #showArchivedReferences = false;
   #citationNetwork: CitationNetwork | null = null;
@@ -606,6 +600,38 @@ class WorkspaceApp {
       (page) => this.#handlePdfPageChange(page),
       (highlightId) => this.#selectLibraryHighlight(highlightId),
     );
+  }
+
+  #pdfAnnotationSnapshot(): PdfAnnotationSnapshot {
+    return this.#pdfAnnotation.getSnapshot();
+  }
+
+  #libraryPdfTool(): PdfAnnotationTool {
+    return pdfAnnotationTool(this.#pdfAnnotationSnapshot());
+  }
+
+  #pendingPdfNote() {
+    return this.#pdfAnnotationSnapshot().context.note;
+  }
+
+  #pdfDrawingDraft(): readonly LibraryPdfPoint[] | null {
+    return this.#pdfAnnotationSnapshot().context.drawing?.points ?? null;
+  }
+
+  #pdfDrawingPointer(): number | null {
+    return this.#pdfAnnotationSnapshot().context.drawing?.pointerId ?? null;
+  }
+
+  #pdfNoteDrag() {
+    return this.#pdfAnnotationSnapshot().context.noteDrag;
+  }
+
+  #selectedLibraryPdfMarkupId(): string | null {
+    return this.#pdfAnnotationSnapshot().context.selectedMarkupId;
+  }
+
+  #selectedLibraryHighlightId(): string | null {
+    return this.#pdfAnnotationSnapshot().context.selectedHighlightId;
   }
 
   async start(): Promise<void> {
@@ -859,7 +885,7 @@ class WorkspaceApp {
     this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfDrawing(event));
     this.#elements.paperMarkups.addEventListener("pointerup", (event) => void this.#finishLibraryPdfDrawing(event));
     this.#elements.paperMarkups.addEventListener("pointercancel", () => {
-      const movedNote = this.#pdfNoteDrag?.moved;
+      const movedNote = this.#pdfNoteDrag()?.moved;
       this.#cancelLibraryPdfDrawing();
       if (movedNote) this.#renderPdfMarkups();
     });
@@ -6265,7 +6291,7 @@ class WorkspaceApp {
       this.#elements.libraryHighlightQuote.value = "";
       this.#elements.libraryHighlightComment.value = "";
       this.#editingLibraryHighlightId = null;
-      this.#editingLibraryPdfNoteId = null;
+      this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool: this.#libraryPdfTool() });
       this.#elements.saveLibraryHighlight.textContent = "Save";
       this.#elements.libraryHighlightExcerpt.textContent = "";
       this.#elements.libraryHighlightForm.hidden = true;
@@ -6479,9 +6505,9 @@ class WorkspaceApp {
   }
 
   #editLibraryHighlight(highlight: LibraryHighlight): void {
-    if (this.#selectedLibraryPdfMarkupId) this.#clearLibraryPdfMarkupSelection(false);
-    if (this.#libraryPdfTool !== "select") this.#setLibraryPdfTool("select");
-    this.#selectedLibraryHighlightId = highlight.id;
+    if (this.#selectedLibraryPdfMarkupId()) this.#clearLibraryPdfMarkupSelection(false);
+    if (this.#libraryPdfTool() !== "select") this.#setLibraryPdfTool("select");
+    this.#pdfAnnotation.send({ type: "SELECT_HIGHLIGHT", id: highlight.id });
     this.#pdfViewer.setPrivateHighlightSelection(true, highlight.id);
     this.#editingLibraryHighlightId = highlight.id;
     this.#elements.libraryHighlightPage.value = String(highlight.page);
@@ -6513,7 +6539,7 @@ class WorkspaceApp {
   }
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
-    this.#libraryPdfTool = tool;
+    this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool });
     this.#elements.paperMarkups.dataset.tool = tool;
     this.#elements.paperTextLayer.style.pointerEvents = tool === "text" ? "auto" : "none";
     for (const [button, value] of [
@@ -6524,7 +6550,7 @@ class WorkspaceApp {
     ] as const)
       button.setAttribute("aria-pressed", String(tool === value));
     this.#elements.libraryInkOptions.hidden = tool !== "draw";
-    this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#selectedLibraryHighlightId);
+    this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#selectedLibraryHighlightId());
     this.#elements.libraryHighlightStatus.textContent =
       tool === "select"
         ? "Tap an existing highlight, line, or note to edit it. Drag a selected note to move it."
@@ -6543,75 +6569,85 @@ class WorkspaceApp {
     const note = (event.target as Element).closest<HTMLButtonElement>(".pdf-note-pin");
     if (note) {
       const id = note.dataset.markupId;
-      if (!id || this.#libraryPdfTool !== "select") return;
+      if (!id || this.#libraryPdfTool() !== "select") return;
       this.#selectLibraryPdfMarkup(id);
-      this.#pdfNoteDrag = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
+      this.#pdfAnnotation.send({
+        type: "START_NOTE_DRAG",
+        id,
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+      });
       this.#elements.paperMarkups.setPointerCapture(event.pointerId);
       return;
     }
     const drawing = (event.target as Element).closest<SVGElement>(".pdf-ink-stroke");
-    if (drawing?.dataset.markupId && this.#libraryPdfTool === "select") {
+    if (drawing?.dataset.markupId && this.#libraryPdfTool() === "select") {
       event.preventDefault();
       this.#selectLibraryPdfMarkup(drawing.dataset.markupId);
       return;
     }
     const point = this.#normalizedPdfPoint(event);
     if (!point) return;
-    if (this.#libraryPdfTool === "note") {
-      this.#pendingPdfNote = { page: this.#pdfViewer.currentPage, ...point };
+    if (this.#libraryPdfTool() === "note") {
+      this.#pdfAnnotation.send({ type: "PLACE_NOTE", page: this.#pdfViewer.currentPage, point });
       this.#elements.libraryNoteForm.hidden = false;
       this.#setLibraryPdfInspector(true);
       this.#renderPdfMarkups();
       this.#elements.libraryNoteBody.focus();
       return;
     }
-    if (this.#libraryPdfTool !== "draw") return;
+    if (this.#libraryPdfTool() !== "draw") return;
     if (event.pointerType === "touch") {
       this.#elements.libraryHighlightStatus.textContent = "Use Apple Pencil or a mouse to draw; touch gestures pan and zoom the page.";
       return;
     }
     event.preventDefault();
-    this.#pdfDrawingPointer = event.pointerId;
-    this.#pdfDrawingDraft = [point];
+    this.#pdfAnnotation.send({ type: "START_DRAWING", pointerId: event.pointerId, point });
     this.#elements.paperMarkups.setPointerCapture(event.pointerId);
     this.#renderPdfMarkups();
   }
 
   #continueLibraryPdfDrawing(event: PointerEvent): void {
-    if (this.#pdfNoteDrag?.pointerId === event.pointerId) {
+    const drag = this.#pdfNoteDrag();
+    if (drag?.pointerId === event.pointerId) {
       const point = this.#normalizedPdfPoint(event);
-      const pin = this.#elements.paperMarkups.querySelector<HTMLElement>(
-        `.pdf-note-pin[data-markup-id="${CSS.escape(this.#pdfNoteDrag.id)}"]`,
-      );
+      const pin = this.#elements.paperMarkups.querySelector<HTMLElement>(`.pdf-note-pin[data-markup-id="${CSS.escape(drag.id)}"]`);
       if (!point || !pin) return;
-      this.#pdfNoteDrag.moved ||= Math.hypot(event.clientX - this.#pdfNoteDrag.startX, event.clientY - this.#pdfNoteDrag.startY) > 5;
-      if (this.#pdfNoteDrag.moved) {
+      this.#pdfAnnotation.send({ type: "MOVE_NOTE_DRAG", pointerId: event.pointerId, x: event.clientX, y: event.clientY });
+      if (this.#pdfNoteDrag()?.moved) {
         event.preventDefault();
         pin.style.left = `${point.x * 100}%`;
         pin.style.top = `${point.y * 100}%`;
       }
       return;
     }
-    if (this.#pdfDrawingPointer !== event.pointerId || !this.#pdfDrawingDraft) return;
+    const draft = this.#pdfDrawingDraft();
+    if (this.#pdfDrawingPointer() !== event.pointerId || !draft) return;
     const samples = event.getCoalescedEvents?.() ?? [event];
-    let changed = false;
+    const points = [...draft];
+    const additions: LibraryPdfPoint[] = [];
     for (const sample of samples) {
       const point = this.#normalizedPdfPoint(sample);
-      const previous = this.#pdfDrawingDraft.at(-1);
+      const previous = points.at(-1);
       if (!point || (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 0.0015)) continue;
-      this.#pdfDrawingDraft.push(point);
-      changed = true;
+      points.push(point);
+      additions.push(point);
     }
-    if (changed && this.#pdfDrawingDraftLine) this.#pdfDrawingDraftLine.setAttribute("points", this.#drawingPoints(this.#pdfDrawingDraft));
+    if (additions.length === 0) return;
+    this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: additions });
+    if (this.#pdfDrawingDraftLine) this.#pdfDrawingDraftLine.setAttribute("points", this.#drawingPoints(points));
   }
 
   async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {
-    if (this.#pdfNoteDrag?.pointerId === event.pointerId) {
+    if (this.#pdfNoteDrag()?.pointerId === event.pointerId) {
       await this.#finishLibraryPdfNoteDrag(event);
       return;
     }
-    if (this.#pdfDrawingPointer !== event.pointerId || !this.#pdfDrawingDraft) return;
-    const points = this.#pdfDrawingDraft;
+    const draft = this.#pdfDrawingDraft();
+    if (this.#pdfDrawingPointer() !== event.pointerId || !draft) return;
+    const points = [...draft];
+    this.#pdfAnnotation.send({ type: "FINISH_DRAWING", pointerId: event.pointerId });
     this.#cancelLibraryPdfDrawing();
     const artifact = this.#activeLibraryPdf();
     if (!artifact?.referenceId || points.length < 2) return this.#renderPdfMarkups();
@@ -6629,21 +6665,20 @@ class WorkspaceApp {
   }
 
   #cancelLibraryPdfDrawing(): void {
-    this.#pdfDrawingPointer = null;
-    this.#pdfDrawingDraft = null;
+    this.#pdfAnnotation.send({ type: "CANCEL_POINTER" });
     this.#pdfDrawingDraftLine = null;
-    this.#pdfNoteDrag = null;
   }
 
   async #saveLibraryPdfNote(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const artifact = this.#activeLibraryPdf();
-    const anchor = this.#pendingPdfNote;
+    const noteDraft = this.#pendingPdfNote();
     const body = this.#elements.libraryNoteBody.value.trim();
-    if (!artifact?.referenceId || !anchor || !body) return;
-    if (this.#editingLibraryPdfNoteId) {
+    if (!artifact?.referenceId || !noteDraft || !body) return;
+    const { editingId, ...anchor } = noteDraft;
+    if (editingId) {
       const response = await fetch(
-        `/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups/${encodeURIComponent(this.#editingLibraryPdfNoteId)}`,
+        `/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups/${encodeURIComponent(editingId)}`,
         {
           method: "PATCH",
           credentials: "same-origin",
@@ -6652,7 +6687,7 @@ class WorkspaceApp {
         },
       );
       await expectOk(response);
-      this.#clearLibraryPdfNoteDraft();
+      this.#clearLibraryPdfNoteDraft(true, true);
       await this.#refreshReferenceLibrary();
       this.#setLibraryPdfInspector(false);
       this.#showToast("Private note updated.");
@@ -6665,23 +6700,22 @@ class WorkspaceApp {
       body,
     });
     await expectOk(response);
-    this.#clearLibraryPdfNoteDraft();
+    this.#clearLibraryPdfNoteDraft(true, true);
     await this.#refreshReferenceLibrary();
     this.#setLibraryPdfInspector(false);
     this.#showToast("Note attached privately.");
   }
 
-  #clearLibraryPdfNoteDraft(render = true): void {
-    this.#pendingPdfNote = null;
-    this.#editingLibraryPdfNoteId = null;
+  #clearLibraryPdfNoteDraft(render = true, saved = false): void {
+    this.#pdfAnnotation.send({ type: saved ? "NOTE_SAVED" : "CANCEL_NOTE" });
     this.#elements.libraryNoteBody.value = "";
     this.#elements.libraryNoteForm.hidden = true;
     if (render) this.#renderPdfMarkups();
   }
 
   #editLibraryPdfNote(note: LibraryPdfNote): void {
-    this.#editingLibraryPdfNoteId = note.id;
-    this.#pendingPdfNote = { page: note.page, x: note.x, y: note.y };
+    if (this.#libraryPdfTool() !== "select") this.#setLibraryPdfTool("select");
+    this.#pdfAnnotation.send({ type: "EDIT_NOTE", id: note.id, page: note.page, point: { x: note.x, y: note.y } });
     this.#elements.libraryNoteBody.value = note.body;
     this.#elements.libraryNoteForm.hidden = false;
     this.#elements.libraryHighlightStatus.textContent = `Editing the note on page ${note.page}.`;
@@ -6700,8 +6734,7 @@ class WorkspaceApp {
     const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === markupId);
     if (!markup) return;
     if (!this.#elements.libraryHighlightForm.hidden) this.#clearLibraryHighlightDraft();
-    this.#selectedLibraryHighlightId = null;
-    this.#selectedLibraryPdfMarkupId = markup.id;
+    this.#pdfAnnotation.send({ type: "SELECT_MARKUP", id: markup.id });
     this.#pdfViewer.setPrivateHighlightSelection(true);
     this.#elements.libraryMarkupSelection.hidden = false;
     this.#elements.libraryMarkupSelectionLabel.textContent =
@@ -6722,16 +6755,15 @@ class WorkspaceApp {
   }
 
   #clearLibraryPdfMarkupSelection(render = true): void {
-    this.#selectedLibraryPdfMarkupId = null;
-    this.#selectedLibraryHighlightId = null;
+    this.#pdfAnnotation.send({ type: "CLEAR_SELECTION" });
     this.#elements.libraryMarkupSelection.hidden = true;
-    this.#pdfViewer.setPrivateHighlightSelection(this.#libraryPdfTool === "select");
+    this.#pdfViewer.setPrivateHighlightSelection(this.#libraryPdfTool() === "select");
     if (render) this.#renderPdfMarkups();
   }
 
   #editSelectedLibraryPdfNote(): void {
     const note = (this.#librarySnapshot?.pdfMarkups ?? []).find(
-      (item): item is LibraryPdfNote => item.kind === "note" && item.id === this.#selectedLibraryPdfMarkupId,
+      (item): item is LibraryPdfNote => item.kind === "note" && item.id === this.#selectedLibraryPdfMarkupId(),
     );
     if (note) this.#editLibraryPdfNote(note);
   }
@@ -6739,7 +6771,7 @@ class WorkspaceApp {
   async #updateSelectedLibraryDrawing(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const drawing = (this.#librarySnapshot?.pdfMarkups ?? []).find(
-      (item): item is LibraryPdfDrawing => item.kind === "drawing" && item.id === this.#selectedLibraryPdfMarkupId,
+      (item): item is LibraryPdfDrawing => item.kind === "drawing" && item.id === this.#selectedLibraryPdfMarkupId(),
     );
     if (!drawing) return;
     const response = await fetch(
@@ -6760,7 +6792,7 @@ class WorkspaceApp {
   }
 
   async #deleteSelectedLibraryPdfMarkup(): Promise<void> {
-    const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === this.#selectedLibraryPdfMarkupId);
+    const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === this.#selectedLibraryPdfMarkupId());
     if (!markup) return;
     this.#clearLibraryPdfMarkupSelection(false);
     await this.#deleteLibraryPdfMarkup(markup);
@@ -6783,12 +6815,15 @@ class WorkspaceApp {
   #renderPdfMarkups(): void {
     const artifact = this.#activeLibraryPdf();
     const page = this.#pdfViewer.currentPage;
+    const drawingDraft = this.#pdfDrawingDraft();
+    const noteDraft = this.#pendingPdfNote();
+    const selectedMarkupId = this.#selectedLibraryPdfMarkupId();
     const markups = artifact
       ? (this.#librarySnapshot?.pdfMarkups ?? []).filter((item) => item.artifactId === artifact.id && item.page === page)
       : [];
     this.#elements.paperMarkups.replaceChildren();
     const drawings = markups.filter((item): item is LibraryPdfDrawing => item.kind === "drawing");
-    if (this.#pdfDrawingDraft)
+    if (drawingDraft)
       drawings.push({
         id: "draft",
         kind: "drawing",
@@ -6797,7 +6832,7 @@ class WorkspaceApp {
         page,
         color: this.#elements.libraryDrawColor.value,
         width: Number(this.#elements.libraryDrawWidth.value),
-        points: this.#pdfDrawingDraft,
+        points: drawingDraft,
         createdAt: "",
         updatedAt: "",
       });
@@ -6817,18 +6852,18 @@ class WorkspaceApp {
         line.setAttribute("vector-effect", "non-scaling-stroke");
         line.classList.add("pdf-ink-stroke");
         line.dataset.markupId = drawing.id;
-        if (drawing.id === this.#selectedLibraryPdfMarkupId) line.dataset.selected = "true";
+        if (drawing.id === selectedMarkupId) line.dataset.selected = "true";
         svg.append(line);
         if (drawing.id === "draft") this.#pdfDrawingDraftLine = line;
       }
       this.#elements.paperMarkups.append(svg);
     }
-    if (this.#pendingPdfNote?.page === page && !this.#editingLibraryPdfNoteId) {
+    if (noteDraft?.page === page && !noteDraft.editingId) {
       const draftPin = document.createElement("span");
       draftPin.className = "pdf-note-pin";
       draftPin.dataset.draft = "true";
-      draftPin.style.left = `${this.#pendingPdfNote.x * 100}%`;
-      draftPin.style.top = `${this.#pendingPdfNote.y * 100}%`;
+      draftPin.style.left = `${noteDraft.x * 100}%`;
+      draftPin.style.top = `${noteDraft.y * 100}%`;
       draftPin.setAttribute("aria-label", `New note location on page ${page}`);
       draftPin.title = "New note location";
       this.#elements.paperMarkups.append(draftPin);
@@ -6838,11 +6873,11 @@ class WorkspaceApp {
       pin.className = "pdf-note-pin";
       pin.type = "button";
       pin.dataset.markupId = note.id;
-      if (note.id === this.#selectedLibraryPdfMarkupId) pin.dataset.selected = "true";
+      if (note.id === selectedMarkupId) pin.dataset.selected = "true";
       pin.style.left = `${note.x * 100}%`;
       pin.style.top = `${note.y * 100}%`;
       pin.setAttribute("aria-label", `Open note on page ${note.page}`);
-      pin.title = this.#libraryPdfTool === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note";
+      pin.title = this.#libraryPdfTool() === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note";
       this.#elements.paperMarkups.append(pin);
       if (this.#openPdfNoteId === note.id) {
         const card = document.createElement("aside");
@@ -6872,9 +6907,9 @@ class WorkspaceApp {
   }
 
   async #finishLibraryPdfNoteDrag(event: PointerEvent): Promise<void> {
-    const drag = this.#pdfNoteDrag;
-    this.#pdfNoteDrag = null;
+    const drag = this.#pdfNoteDrag();
     if (!drag) return;
+    this.#pdfAnnotation.send({ type: "FINISH_NOTE_DRAG", pointerId: event.pointerId });
     if (!drag.moved) {
       this.#openPdfNoteId = this.#openPdfNoteId === drag.id ? null : drag.id;
       this.#renderPdfMarkups();

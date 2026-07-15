@@ -1,6 +1,6 @@
 # ADR-128: Adopt XState for Bounded UI Workflows
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-15
 

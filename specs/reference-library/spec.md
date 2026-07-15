@@ -106,11 +106,15 @@ memory and makes citation aliases compete with stable source identity.
   are combined within their existing bounds. Non-overlapping selections remain
   separate highlights.
 - The private reader stays focused on the page: its idle annotation surface is
-  a compact Text, Note, and Draw toolbar. Text selection opens a contextual
-  save row; Note places a page-anchored private note; Draw captures pointer or
-  touch strokes with red as the default color and an adjustable 1–24 pixel
-  width. Notes and strokes use normalized page coordinates so they remain
-  aligned when the page is resized. Saved annotations are collapsed by default.
+  a compact Select, Text, Note, and Draw toolbar. One typed interaction
+  transition authority keeps tool selection, note composition, saved-resource
+  selection, note dragging, and drawing mutually exclusive. Changing tools or
+  cancelling a pointer interaction clears its transient draft. Text selection
+  opens a contextual save row; Note places a page-anchored private note; Draw
+  captures Apple Pencil or mouse strokes with red as the default color and an
+  adjustable 1–24 pixel width while touch remains available for pan and zoom.
+  Notes and strokes use normalized page coordinates so they remain aligned when
+  the page is resized. Saved annotations are collapsed by default.
 - Saved text-highlight comments and page-note bodies expose an explicit edit
   action. Editing preserves the annotation id, page, geometry, and creation
   time while advancing its update time; it never changes the immutable PDF.
