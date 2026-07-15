@@ -123,7 +123,10 @@ It listens on `127.0.0.1:8790` unless
 `KIRJOLAB_MODEL_COMPANION_PORT` selects another valid port. The upstream is
 fixed at process start and must be a credential-free HTTP(S) loopback URL. The
 browser origin must match exactly; wildcard origins and browser-selected
-upstreams are not supported. In Kirjolab choose **Local companion**, which uses
+upstreams are not supported. For a configured loopback origin, `localhost`,
+`127.0.0.1`, and `::1` are accepted as equivalent host aliases only when the
+scheme and port match, so opening the local Worker through either common name
+does not create a false CORS failure. In Kirjolab choose **Local companion**, which uses
 `http://127.0.0.1:8790/v1/chat/completions` by default. `GET /health` reports
 only availability and the upstream origin, not its path or model request data.
 The companion also exposes bounded `GET /v1/models` discovery derived from the

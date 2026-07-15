@@ -67,9 +67,10 @@ All mutation operations preserve a human review boundary.
 - When direct browser access is blocked by provider CORS or browser networking,
   the companion started by `npm run dev` exposes the same OpenAI-compatible path at
   `127.0.0.1:8790`. The user explicitly starts it with a fixed loopback
-  upstream and exact allowed Kirjolab origin. It binds only IPv4 loopback,
-  validates task shape, permits bounded CORS/private-network preflight, rejects
-  redirects, and caps request and response bodies at 256 KiB.
+  upstream and allowed Kirjolab origin. It binds only IPv4 loopback, treats
+  `localhost`, `127.0.0.1`, and `::1` as browser aliases only at the configured
+  scheme and port, validates task shape, permits bounded CORS/private-network
+  preflight, rejects redirects, and caps request and response bodies at 256 KiB.
 - `npm run dev` supervises the Worker and, when an upstream is configured, the
   companion as one local session. It loads local operator configuration from
   the ignored project-root `.env`, strips every `KIRJOLAB_MODEL_*` value from

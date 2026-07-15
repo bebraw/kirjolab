@@ -88,6 +88,28 @@ describe("local model companion", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("accepts equivalent loopback browser aliases only on the configured scheme and port", async () => {
+    const loopbackConfig = { ...config, allowedOrigin: "http://127.0.0.1:8787" };
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: [] }));
+    const accepted = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", { headers: { origin: "http://localhost:8787" } }),
+      loopbackConfig,
+      fetcher,
+    );
+    expect(accepted.status).toBe(200);
+    expect(accepted.headers.get("access-control-allow-origin")).toBe("http://localhost:8787");
+
+    for (const origin of ["http://localhost:8788", "https://localhost:8787", "http://attacker.example:8787"]) {
+      const denied = await handleModelCompanionRequest(
+        new Request("http://127.0.0.1:8790/v1/models", { headers: { origin } }),
+        loopbackConfig,
+        fetcher,
+      );
+      expect(denied.status).toBe(403);
+    }
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
   it("proxies bounded model discovery to the configured provider origin", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: [{ id: "qwen/qwen3.5-9b" }] }));
     const response = await handleModelCompanionRequest(

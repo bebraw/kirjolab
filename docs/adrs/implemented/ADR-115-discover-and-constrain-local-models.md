@@ -36,8 +36,10 @@ identifiers. It does not persist model state into a project.
 
 The optional companion will proxy bounded `GET /v1/models` requests to the
 derived route on its already fixed upstream origin. It will preserve the exact
-origin, loopback binding, response limit, timeout, and CORS boundary used for
-completion requests; the browser cannot choose or modify the upstream.
+browser scheme and port, loopback binding, response limit, timeout, and CORS
+boundary used for completion requests; `localhost`, `127.0.0.1`, and `::1` are
+equivalent only when both configured and requesting origins are loopback. The
+browser cannot choose or modify the upstream.
 
 Reasoning effort becomes an explicit transient setting with `none`, `low`,
 `medium`, `high`, and provider-default choices. Focused passage revision and

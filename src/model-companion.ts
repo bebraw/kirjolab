@@ -38,7 +38,7 @@ export async function handleModelCompanionRequest(
   if (!servesCompletions && !servesModels) return jsonError("Route not found", 404);
 
   const origin = request.headers.get("origin");
-  if (origin !== config.allowedOrigin) return jsonError("Origin not allowed", 403);
+  if (!origin || !isAllowedBrowserOrigin(origin, config.allowedOrigin)) return jsonError("Origin not allowed", 403);
   const cors = corsHeaders(origin, request.headers.get("access-control-request-private-network") === "true");
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (servesModels) {
@@ -267,6 +267,23 @@ function exactOrigin(value: string): string {
 function isLoopbackHost(hostname: string): boolean {
   const normalized = hostname.toLowerCase();
   return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "[::1]" || normalized === "::1";
+}
+
+function isAllowedBrowserOrigin(origin: string, configuredOrigin: string): boolean {
+  if (origin === configuredOrigin) return true;
+  try {
+    const candidate = new URL(origin);
+    const configured = new URL(configuredOrigin);
+    return (
+      candidate.origin === origin &&
+      candidate.protocol === configured.protocol &&
+      candidate.port === configured.port &&
+      isLoopbackHost(candidate.hostname) &&
+      isLoopbackHost(configured.hostname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function corsHeaders(origin: string, privateNetwork: boolean): Headers {

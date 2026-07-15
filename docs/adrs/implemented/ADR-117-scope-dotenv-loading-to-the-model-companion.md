@@ -33,7 +33,8 @@ runtime.
 - Explicit process environment variables take precedence over matching file
   entries.
 - `.env` remains ignored. `.env.example` documents only the companion's fixed
-  loopback upstream, exact allowed origin, and optional listening port.
+  loopback upstream, allowed browser scheme and port, loopback-host aliases,
+  and optional listening port.
 - No browser build, test, deployment, or standalone Worker script implicitly
   loads this file, and no dotenv dependency is added.
 
