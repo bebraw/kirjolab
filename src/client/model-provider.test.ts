@@ -61,7 +61,19 @@ describe("OpenAICompatibleBrowserProvider", () => {
       response_format: { json_schema: { name: string } };
       messages: Array<{ content: string }>;
     };
-    expect(body.response_format.json_schema.name).toBe("kirjolab_reference_query");
+    expect(body.response_format).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: "kirjolab_reference_query",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: { query: { type: "string" }, rationale: { type: "string" } },
+          required: ["query", "rationale"],
+          additionalProperties: false,
+        },
+      },
+    });
     expect(body.messages[0]?.content).toContain("Do not invent titles, authors, DOIs, or citations");
   });
 
@@ -75,7 +87,28 @@ describe("OpenAICompatibleBrowserProvider", () => {
       response_format: { json_schema: { name: string } };
       messages: Array<{ content: string }>;
     };
-    expect(body.response_format.json_schema.name).toBe("kirjolab_table");
+    expect(body.response_format).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: "kirjolab_table",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            caption: { type: "string" },
+            columns: { type: "array", minItems: 2, maxItems: 8, items: { type: "string" } },
+            rows: {
+              type: "array",
+              minItems: 1,
+              maxItems: 100,
+              items: { type: "array", minItems: 2, maxItems: 8, items: { type: "string" } },
+            },
+          },
+          required: ["caption", "columns", "rows"],
+          additionalProperties: false,
+        },
+      },
+    });
     expect(body.messages[0]?.content).toContain("do not emit Markdown");
   });
 
@@ -98,7 +131,31 @@ describe("OpenAICompatibleBrowserProvider", () => {
     const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as {
       response_format: { json_schema: { name: string } };
     };
-    expect(body.response_format.json_schema.name).toBe("kirjolab_ideas");
+    expect(body.response_format).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: "kirjolab_ideas",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            ideas: {
+              type: "array",
+              minItems: 3,
+              maxItems: 5,
+              items: {
+                type: "object",
+                properties: { title: { type: "string" }, direction: { type: "string" }, draft: { type: "string" } },
+                required: ["title", "direction", "draft"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["ideas"],
+          additionalProperties: false,
+        },
+      },
+    });
   });
 
   it("asks one clarity question and returns bounded rewrite choices", async () => {
@@ -131,8 +188,44 @@ describe("OpenAICompatibleBrowserProvider", () => {
       response_format: { json_schema: { name: string } };
       messages: Array<{ content: string }>;
     };
-    expect(firstBody.response_format.json_schema.name).toBe("kirjolab_clarity_question");
-    expect(secondBody.response_format.json_schema.name).toBe("kirjolab_clarity_rewrites");
+    expect(firstBody.response_format).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: "kirjolab_clarity_question",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: { issue: { type: "string" }, question: { type: "string" } },
+          required: ["issue", "question"],
+          additionalProperties: false,
+        },
+      },
+    });
+    expect(secondBody.response_format).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: "kirjolab_clarity_rewrites",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            rewrites: {
+              type: "array",
+              minItems: 2,
+              maxItems: 4,
+              items: {
+                type: "object",
+                properties: { text: { type: "string" }, rationale: { type: "string" } },
+                required: ["text", "rationale"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["rewrites"],
+          additionalProperties: false,
+        },
+      },
+    });
     expect(JSON.parse(secondBody.messages[1]?.content ?? "")).toMatchObject({
       researcherAnswer: "It reduces review time for editors.",
     });
@@ -247,6 +340,34 @@ describe("OpenAICompatibleBrowserProvider", () => {
         ),
       ).rejects.toThrow();
     }
+  });
+
+  it("accepts exact contextual-operation boundaries", async () => {
+    const questionProvider = createProvider({
+      fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse('{"issue":"Issue","question":"Question?"}')),
+    });
+    await expect(
+      questionProvider.startClarityDrill({
+        selectedPassage: "p".repeat(20_000),
+        instruction: "i".repeat(4_000),
+        evidence: Array.from({ length: 12 }, (_, index) => evidence("annotation", String(index))),
+      }),
+    ).resolves.toMatchObject({ issue: "Issue" });
+
+    const columns = Array.from({ length: 8 }, (_, index) => `C${index}`);
+    const rows = Array.from({ length: 100 }, () => columns.map(() => "cell"));
+    const tableProvider = createProvider({
+      fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(JSON.stringify({ caption: "c".repeat(500), columns, rows }))),
+    });
+    await expect(
+      tableProvider.buildTable({
+        instruction: "instruction",
+        caption: "c".repeat(500),
+        columns,
+        rows,
+        manuscriptContext: "m".repeat(20_000),
+      }),
+    ).resolves.toMatchObject({ columns, rows });
   });
 
   it("drafts one structured claim from annotation-only evidence", async () => {

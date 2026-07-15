@@ -40,6 +40,72 @@ describe("assistant operation registry", () => {
       { id: "find-references", defaultScope: "sentence", scopes: ["sentence", "selection", "paragraph"], evidence: "none", enabled: true },
       { id: "build-table", defaultScope: "caret", scopes: ["caret", "selection"], evidence: "optional", enabled: true },
     ]);
+    expect(
+      assistantOperationDefinitions().map(({ label, eyebrow, title, description, instructionLabel, defaultInstruction, actionLabel }) => [
+        label,
+        eyebrow,
+        title,
+        description,
+        instructionLabel,
+        defaultInstruction,
+        actionLabel,
+      ]),
+    ).toEqual([
+      [
+        "Revise passage",
+        "Manuscript target",
+        "Draft a reviewable revision",
+        "Uses the visible editor target and chosen evidence. Review the exact replacement in Context before applying it.",
+        "Revision instruction",
+        "Improve clarity while preserving the claim and citation syntax.",
+        "Draft revision",
+      ],
+      [
+        "Draft evidence-backed claim",
+        "Selected annotations",
+        "Draft a reviewable claim",
+        "Uses only chosen annotation snapshots. Review the proposition and note in Context before creating a claim.",
+        "Research instruction",
+        "Draft one precise claim supported by the selected annotations.",
+        "Draft claim",
+      ],
+      [
+        "Drill unclear writing",
+        "Focused clarification",
+        "Clarify one fuzzy claim at a time",
+        "Identifies an unclear sentence, asks one focused question, and turns the agreed meaning into a reviewable revision.",
+        "Clarity goal",
+        "Find the least concrete claim and help me state exactly what I mean.",
+        "Start drill",
+      ],
+      [
+        "Ideate",
+        "Writing directions",
+        "Generate focused possibilities",
+        "Produces distinct ideas grounded in the surrounding manuscript; a chosen idea can become a reviewable draft.",
+        "Ideation prompt",
+        "Suggest concrete directions that deepen the argument without repeating the current text.",
+        "Generate ideas",
+      ],
+      [
+        "Find references",
+        "Verifiable sources",
+        "Find sources for the current claim",
+        "Derives a focused query from the manuscript target, then returns records that can be verified before citation.",
+        "Search focus",
+        "Find primary or authoritative sources that directly support or challenge this claim.",
+        "Find references",
+      ],
+      [
+        "Build table or syntax",
+        "Structured authoring",
+        "Create complex manuscript syntax",
+        "Collects structured requirements and produces validated syntax for insertion at the caret or replacement of a selection.",
+        "Content guidance",
+        "Create a concise table from the structured fields below.",
+        "Build syntax",
+      ],
+    ]);
     for (const definition of assistantOperationDefinitions()) {
       for (const value of [
         definition.label,
