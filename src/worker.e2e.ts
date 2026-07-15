@@ -491,6 +491,18 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
   });
   expect(toolbarFit).toEqual({ pageOverflows: false, clippedControls: [], rowCount: 1 });
 
+  const editorFit = await page.locator("#authoring-surface").evaluate((authoring) => {
+    const workspace = document.querySelector<HTMLElement>("#workspace-surfaces")!;
+    const shell = authoring.querySelector<HTMLElement>("#source-editor-shell")!;
+    const editor = shell.querySelector<HTMLTextAreaElement>("#source-editor")!;
+    return {
+      authoringGap: Math.round(workspace.getBoundingClientRect().bottom - authoring.getBoundingClientRect().bottom),
+      editorGap: Math.round(authoring.getBoundingClientRect().bottom - shell.getBoundingClientRect().bottom),
+      resize: getComputedStyle(editor).resize,
+    };
+  });
+  expect(editorFit).toEqual({ authoringGap: 0, editorGap: 0, resize: "none" });
+
   await page.locator("#editor-more-menu summary").click();
   const moreMenu = page.locator("#editor-more-menu .editor-command-menu");
   await expect(moreMenu.getByRole("button", { name: /History/ })).toBeVisible();

@@ -586,7 +586,7 @@
   @media (min-width: 72rem) {
     .workspace-grid {
       grid-template-columns: 17rem minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(28rem, 1.05fr);
-      grid-template-rows: minmax(38rem, calc(100vh - 6.875rem)) auto;
+      grid-template-rows: minmax(38rem, calc(100vh - 4rem - 1px));
     }
 
     .surface-switcher {
@@ -629,6 +629,25 @@
     .source-rail,
     .editor-column {
       min-height: 0;
+    }
+
+    .source-rail {
+      overflow: auto;
+    }
+
+    .editor-column {
+      overflow: hidden;
+    }
+
+    .source-editor-shell {
+      min-height: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .source-editor {
+      height: 100%;
+      min-height: 100%;
       overflow: auto;
     }
 
@@ -1976,6 +1995,7 @@
     position: relative;
     z-index: 1;
     min-height: 34rem;
+    resize: none;
     color: transparent;
     caret-color: var(--color-app-ink);
     -webkit-text-fill-color: transparent;
