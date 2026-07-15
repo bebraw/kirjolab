@@ -35,6 +35,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   header. The context panel begins directly below that single row. Workspace
   mode retains its pane-local context strip because those tabs apply only to
   the context side of the authoring split.
+- Closing the active private-resource tab in standalone Library mode activates
+  the permanent Library destination and replaces the document route with
+  `/library`. Workspace resource tabs retain the shared previous-neighbor
+  fallback behavior.
 - Writing assistant contains the selected-passage instruction, explicit model
   connection settings, request status, and draft inventory. Activating its tab
   never starts a model request; a generated candidate opens its resource-keyed
@@ -410,6 +414,13 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - When: its resource tab and page controls become active
 - Then: Library, the PDF tab, desktop page controls, and resource actions share
   the global header while the document begins immediately below it
+
+**Scenario: Closing a standalone PDF returns to Library**
+
+- Given: an owner opened a private PDF from `/library`
+- When: the owner closes its active resource tab
+- Then: the permanent Library tab and panel are active at `/library`, not the
+  neighboring Writing assistant destination
 
 **Scenario: Private research enters a project explicitly**
 

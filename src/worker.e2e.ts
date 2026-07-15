@@ -68,6 +68,11 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   const annotatedDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export annotated" }).click();
   await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("student_submission-annotated.pdf");
+  await page.locator("#close-active-context").click();
+  await expect(page).toHaveURL(/\/library$/u);
+  await expect(page.locator("header #context-library-tab")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#context-library-panel")).toBeVisible();
+  await expect(page.locator("#context-assistant-panel")).toBeHidden();
   expect(workspaceRequests).toEqual([]);
 });
 

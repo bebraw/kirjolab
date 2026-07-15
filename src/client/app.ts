@@ -5095,7 +5095,12 @@ class WorkspaceApp {
 
   #closeContextTab(key: ResearchContextKey): void {
     this.#captureActiveContextState();
+    const returnToStandaloneLibrary = appMode === "library" && this.#contextState.activeKey === key;
     this.#contextState = closeResearchTab(this.#contextState, key);
+    if (returnToStandaloneLibrary) {
+      this.#contextState = activateResearchTab(this.#contextState, RESEARCH_LIBRARY_KEY);
+      history.replaceState({ view: "library" }, "", "/library");
+    }
     this.#renderResearchContext();
     this.#focusContextTab(this.#contextState.activeKey);
     this.#syncWorkspaceRoute("replace");

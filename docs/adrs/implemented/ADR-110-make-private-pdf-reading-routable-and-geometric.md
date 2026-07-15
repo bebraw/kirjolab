@@ -24,7 +24,10 @@ artifact.
 
 - Standalone private PDFs use `/library/pdfs/{artifactId}` with an optional
   `page` query. Opening a PDF pushes browser history, page changes replace the
-  current location, and browser Back restores the Library.
+  current location, and browser Back restores the Library. Closing the active
+  PDF also activates the permanent Library destination and replaces its route
+  with `/library`; it does not fall through to an adjacent workspace-oriented
+  context tab.
 - New private highlights retain bounded normalized selection rectangles in
   addition to artifact, page, quote, and comment. Existing rows migrate with
   empty geometry and remain readable. Selection capture waits briefly for
