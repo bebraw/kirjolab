@@ -140,6 +140,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-109](./implemented/ADR-109-draft-reviewed-evidence-backed-claims.md)             | Implemented          | Draft reviewable claims from selected annotation evidence through the local model boundary.                  |
 | [ADR-110](./implemented/ADR-110-make-private-pdf-reading-routable-and-geometric.md)   | Implemented          | Make private PDF navigation routable and preserve geometric highlights and tablet gestures.                  |
 | [ADR-111](./implemented/ADR-111-store-project-images-as-assets.md)                    | Implemented          | Store bounded project images in R2 with durable paths, preview resolution, backups, and source export.       |
+| [ADR-112](./accepted/ADR-112-store-sanitized-project-templates.md)                    | Accepted             | Store built-in and owner-created templates as independent sanitized project seeds.                           |
 
 ## Creating A New ADR
 

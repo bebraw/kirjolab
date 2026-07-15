@@ -40,6 +40,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Store project image metadata beside the durable file tree and keep its bytes
   as bounded, inert R2 objects under the reserved `figures/` path. Do not put
   uploaded image bytes in Yjs or accept active same-origin image documents.
+- Represent reusable project templates as versioned sanitized seeds containing
+  only Markdown files, folders, portable BibTeX, and publication settings.
+  Store personal templates in a separate owner-keyed authority; never use a
+  hidden project, the workspace catalog, or a complete revision seed. Template
+  instantiation is an independent copy with no live inheritance.
 - Require every composition result to retain source-map spans back to file
   identity, source range, output range, and include chain. Reject unsafe paths,
   cycles, missing files, and resource-limit violations with navigable
