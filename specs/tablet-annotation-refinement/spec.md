@@ -26,6 +26,9 @@ identity and downstream work.
   unsaved draft.
 - Draw color, width, and undo remain contextual to the Draw icon instead of
   reserving a permanent sidebar.
+- An unzoomed PDF accumulates horizontally dominant Mac trackpad wheel input
+  into one previous/next page action. Vertical scroll remains native, while
+  zoomed pages retain horizontal panning instead of changing page.
 - Updating a stroke advances annotation version and project history without
   mutating imported PDF bytes.
 - Citation, claim, and manuscript-link actions remain separate from annotation
@@ -44,6 +47,8 @@ identity and downstream work.
 - [x] The annotation inspector does not reserve page width while closed.
 - [x] Creation and selection reveal the inspector when editing controls are
       required.
+- [x] Two-finger horizontal Mac trackpad swipes turn one page per gesture
+      without capturing vertical scroll or zoomed-page panning.
 - [x] Pure, Workers-runtime, and browser tests cover adjustment.
 
 ### Regression Guardrails

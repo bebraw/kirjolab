@@ -3,6 +3,7 @@ import type { AnnotationResource, PdfSelectionRect } from "../domain/workspace";
 import type { LibraryHighlight } from "../domain/reference-library";
 import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
 import { readPdfTextContent } from "./pdf-text-content";
+import { advancePdfWheelPaging, initialPdfWheelPagingState, type PdfWheelPagingState } from "./pdf-gestures";
 import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
 
 export interface PdfSelectionCapture {
@@ -58,6 +59,7 @@ export class PdfEvidenceViewer {
   #renderedZoom = 1;
   #pinchStart: { distance: number; zoom: number } | null = null;
   #swipeStart: { x: number; y: number; startedAt: number } | null = null;
+  #wheelPagingState: PdfWheelPagingState = initialPdfWheelPagingState();
   #selectionCaptureTimer: number | undefined;
 
   constructor(
@@ -85,10 +87,26 @@ export class PdfEvidenceViewer {
     elements.reader.addEventListener(
       "wheel",
       (event) => {
-        if (!event.ctrlKey) return;
+        if (event.ctrlKey) {
+          event.preventDefault();
+          this.#zoom = clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4);
+          void this.#renderPage();
+          return;
+        }
+        if (!this.#document || this.#zoom > 1.01) {
+          this.#wheelPagingState = initialPdfWheelPagingState();
+          return;
+        }
+        const gesture = advancePdfWheelPaging(this.#wheelPagingState, {
+          deltaX: event.deltaX,
+          deltaY: event.deltaY,
+          deltaMode: event.deltaMode,
+          now: performance.now(),
+        });
+        this.#wheelPagingState = gesture.state;
+        if (!gesture.consumed) return;
         event.preventDefault();
-        this.#zoom = clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4);
-        void this.#renderPage();
+        if (gesture.direction) void this.#move(gesture.direction);
       },
       { passive: false },
     );
@@ -119,6 +137,7 @@ export class PdfEvidenceViewer {
     this.#mode = options.mode ?? "evidence";
     this.#zoom = 1;
     this.#renderedZoom = 1;
+    this.#wheelPagingState = initialPdfWheelPagingState();
     this.#elements.status.textContent = "Loading PDF…";
     const runtime = await loadPdfJsRuntime();
     if (openVersion !== this.#openVersion) return false;

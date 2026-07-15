@@ -1019,6 +1019,13 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   expect(failedPdfWorkerRequests).toEqual([]);
+  await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: 8, deltaY: 80, deltaMode: 0 });
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: 70, deltaY: 4, deltaMode: 0 });
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.waitForTimeout(450);
+  await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: -70, deltaY: 4, deltaMode: 0 });
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected private PDF text");

@@ -50,14 +50,15 @@ changing their canonical data, selector, authorization, or rendering contracts.
   intake, citation, highlighting, and annotation controls are unavailable in
   that mode. A selection remains ephemeral until the owner explicitly saves a
   page, quote, and optional comment to the private library.
-- Private library PDF tools occupy one compact row until a selection or note
-  needs input. Page-anchored note pins open lightweight cards in place, while
-  freehand strokes accept mouse, pen, and touch input. Both persist in the
-  owner library using normalized page coordinates and rerender on page change.
-- At tablet widths, the standalone reader moves page navigation into a left
-  rail and private annotation controls into a right rail. Note pins are
-  draggable, surround swipes change page, and two-finger gestures scale only
-  the PDF. Pen input updates the active path without rebuilding saved markup.
+- Private library PDF page navigation and annotation modes share a persistent
+  left icon rail. Annotation editors, overview, and project sharing appear in
+  a transient inspector only when requested or required. Page-anchored note
+  pins and freehand strokes persist in the owner library using normalized page
+  coordinates and rerender on page change.
+- Touch surround swipes and unzoomed, horizontally dominant Mac trackpad
+  gestures change one page at a time. Two-finger pinch gestures scale only the
+  PDF, zoomed pages retain native panning, and pen input updates the active path
+  without rebuilding saved markup.
 - The same compact row exposes annotated export only after a private annotation
   exists. Export downloads an owner-authorized derived copy and does not change
   the context tab, source artifact, project state, or research-share state.
