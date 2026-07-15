@@ -59,6 +59,9 @@ describe("metadata refinement machine", () => {
       value: "extracting",
       context: { referenceId: "ref-2", artifactId: "pdf-2", local: null },
     });
+    expect(value.getSnapshot().context.requestId).toBe(staleRequest + 1);
+    value.send({ type: "FAIL", requestId: staleRequest, message: "late failure" });
+    expect(value.getSnapshot().value).toBe("extracting");
   });
 
   it("returns to review with the same candidates when apply fails", () => {
@@ -73,5 +76,33 @@ describe("metadata refinement machine", () => {
       value: "reviewing",
       context: { local, preview, error: "Metadata changed" },
     });
+  });
+
+  it("invalidates work and clears transient context when cancelled", () => {
+    const value = actor();
+    value.send({ type: "START", referenceId: "ref-1", artifactId: "pdf-1" });
+    const requestId = value.getSnapshot().context.requestId;
+    value.send({ type: "LOCAL_READY", requestId, local });
+    expect(metadataRefinementBusy(value.getSnapshot())).toBe(true);
+    value.send({ type: "DISCOVERY_FAILED", requestId: requestId + 1, message: "wrong request" });
+    expect(value.getSnapshot().value).toBe("discovering");
+    value.send({ type: "CANCEL" });
+    expect(value.getSnapshot()).toMatchObject({
+      value: "idle",
+      context: { requestId: requestId + 1, referenceId: null, artifactId: null, local: null, preview: null, error: null },
+    });
+    expect(metadataRefinementBusy(value.getSnapshot())).toBe(false);
+  });
+
+  it("accepts apply only for the active reference", () => {
+    const value = actor();
+    value.send({ type: "START", referenceId: "ref-1", artifactId: "pdf-1" });
+    const requestId = value.getSnapshot().context.requestId;
+    value.send({ type: "LOCAL_READY", requestId, local });
+    value.send({ type: "DISCOVERY_READY", requestId, preview });
+    value.send({ type: "APPLY", referenceId: "ref-2" });
+    expect(value.getSnapshot().value).toBe("reviewing");
+    value.send({ type: "APPLY", referenceId: "ref-1" });
+    expect(metadataRefinementBusy(value.getSnapshot())).toBe(true);
   });
 });
