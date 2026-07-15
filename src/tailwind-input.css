@@ -201,6 +201,16 @@
     stroke-width: 1.7;
   }
 
+  .rail-action-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+  }
+
   .rail-mode-count {
     position: absolute;
     top: 0.2rem;

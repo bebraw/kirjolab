@@ -79,7 +79,10 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail">');
     expect(html).toContain('id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail" hidden>');
     expect(html).toContain('<h1 class="text-xl font-semibold tracking-[-0.035em]">Files</h1>');
-    expect(html).toContain('id="new-project-folder-rail" type="button">Add folder</button>');
+    expect(html).toContain('id="new-project-file-rail" type="button" aria-label="Add file" title="Add file">');
+    expect(html).toContain('id="new-project-folder-rail" type="button" aria-label="Add folder" title="Add folder">');
+    expect(html).toContain('id="upload-project-images" type="button" aria-label="Add image" title="Add image">');
+    expect(html.match(/class="rail-action-icon"/gu)).toHaveLength(3);
     expect(html).toContain("<strong>Move or rename file</strong>");
     expect(html).not.toContain('id="project-file-count"');
     expect(html).not.toContain("Files · A–Z");

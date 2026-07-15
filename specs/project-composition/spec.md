@@ -64,7 +64,9 @@ collaborative, and unambiguous about what preview and export mean.
   authoring-toolbar dropdown. File creation remains available from both the
   navigator and the active-file toolbar. The navigator directly exposes folder
   creation and contextual folder move, rename, and empty-delete actions. The
-  file toolbar labels its editable path action as **Move or rename file**.
+  three primary navigator creation actions use compact file, folder, and image
+  icons with accessible names and native titles. The file toolbar labels its
+  editable path action as **Move or rename file**.
 - A fresh starter project includes one supporting Markdown file transcluded
   from `main.md`, making the portable include syntax and composed result
   discoverable, plus an empty `figures/` folder that exposes the image

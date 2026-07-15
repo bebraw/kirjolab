@@ -94,9 +94,15 @@ export function renderHomePage(
           <div class="grid gap-3">
             <h1 class="text-xl font-semibold tracking-[-0.035em]">Files</h1>
             <div class="grid grid-cols-3 gap-1">
-              <button class="button-secondary justify-center" id="new-project-file-rail" type="button">Add file</button>
-              <button class="button-secondary justify-center" id="new-project-folder-rail" type="button">Add folder</button>
-              <button class="button-secondary justify-center" id="upload-project-images" type="button">Add image</button>
+              <button class="button-secondary justify-center" id="new-project-file-rail" type="button" aria-label="Add file" title="Add file">
+                <svg class="rail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75h8l4 4v12.5H6z"></path><path d="M14 3.75v4h4"></path><path d="M9 14h6M12 11v6"></path></svg>
+              </button>
+              <button class="button-secondary justify-center" id="new-project-folder-rail" type="button" aria-label="Add folder" title="Add folder">
+                <svg class="rail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.75h6l2 2h9v9.5h-17z"></path><path d="M9 13.5h6M12 10.5v6"></path></svg>
+              </button>
+              <button class="button-secondary justify-center" id="upload-project-images" type="button" aria-label="Add image" title="Add image">
+                <svg class="rail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="1.5"></rect><circle cx="8.25" cy="9.25" r="1.5"></circle><path d="m5.5 17 4.25-4.25 3 3 2-2 3.75 3.25"></path><path d="M18.5 2.75v4M16.5 4.75h4"></path></svg>
+              </button>
             </div>
           </div>
           <div class="mt-4 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
