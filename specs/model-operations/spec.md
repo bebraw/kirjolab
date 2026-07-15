@@ -44,6 +44,12 @@ All mutation operations preserve a human review boundary.
   the shape and serializes portable GFM deterministically. The researcher sees
   the exact syntax and explicitly inserts or replaces it only while the captured
   manuscript revision and target still match.
+- `find-references` lets the model formulate one bounded search query and a
+  rationale from the visible claim, but never accepts model-authored citation
+  records. The query is executed against configured scholarly metadata
+  providers; only validated DOI-bearing provider results are displayed. Saving
+  imports reviewed CSL JSON into the private Library, after which ordinary
+  project-use and citation workflows apply.
 - Model connection settings discover live model identifiers from the standard
   OpenAI-compatible `/models` route instead of hardcoding a catalog. Discovery
   is explicit, bounded, credential-free, loopback-only, and available through
@@ -160,6 +166,8 @@ All mutation operations preserve a human review boundary.
 - [x] A researcher can describe a 2–8-column, 1–100-row table through structured
       fields, preview deterministic GFM, and explicitly insert it at the caret or
       replace the visible selection.
+- [x] A researcher can derive a focused query from the current claim, inspect
+      DOI-verifiable provider records, and explicitly save one to the Library.
 
 ### Regression Guardrails
 
@@ -205,6 +213,9 @@ All mutation operations preserve a human review boundary.
 - Table generation must never trust model-authored Markdown. Returned caption,
   columns, rows, cell bounds, and dimensions are validated before deterministic
   serialization; insertion fails after any intervening manuscript revision.
+- Reference-query output may contain only search terms and a rationale. Titles,
+  authors, dates, venues, abstracts, URLs, and DOI identities must come from a
+  validated external metadata response, and no result is saved automatically.
 
 ### Scenarios
 
@@ -279,3 +290,10 @@ All mutation operations preserve a human review boundary.
   researcher approves the rendered GFM
 - Then: Kirjolab inserts only the validated deterministic syntax if the captured
   manuscript base is still current
+
+**Scenario: A claim yields verifiable reference candidates**
+
+- Given: a visible manuscript claim and an available scholarly metadata provider
+- When: the model formulates a query and the provider returns DOI-bearing records
+- Then: Kirjolab labels the provider, links each DOI for verification, and saves
+  nothing until the researcher explicitly imports a chosen record to Library

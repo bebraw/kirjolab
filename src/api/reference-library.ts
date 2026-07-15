@@ -171,6 +171,17 @@ export async function handleReferenceLibraryApi(
       const items = parseCslJson(body);
       return Response.json(await library.importBibTeX(cslJsonToBibTeX(items), identity.email), { status: 201, ...noStore() });
     }
+    if (suffix === "/discovery" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isRecord(body) || typeof body.query !== "string" || !body.query.trim() || body.query.length > 4_000) {
+        return jsonError("Invalid reference discovery query", 400);
+      }
+      const matches = await searchMetadataProviders({ title: body.query.trim(), authors: [], year: "" }, env, fetchExternal);
+      return Response.json(
+        matches.map(({ provider, score }) => ({ provider: provider.name, score, metadata: provider.metadata })),
+        noStore(),
+      );
+    }
     if (suffix === "/import/archive" && request.method === "POST") {
       return await importPortableLibrary(request, identity, library);
     }

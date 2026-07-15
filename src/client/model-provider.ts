@@ -60,6 +60,7 @@ export interface ClarityDrillAnswerRequest extends ClarityDrillRequest {
 }
 
 export type IdeationRequest = ClarityDrillRequest;
+export type ReferenceQueryRequest = ClarityDrillRequest;
 
 export interface TableSyntaxRequest {
   readonly instruction: string;
@@ -132,6 +133,14 @@ export interface ModelTable {
   readonly model: string;
 }
 
+export interface ModelReferenceQuery {
+  readonly query: string;
+  readonly rationale: string;
+  readonly adapter: string;
+  readonly providerLabel: string;
+  readonly model: string;
+}
+
 export interface ModelProvider {
   reviseSelection(request: ReviseSelectionRequest, options?: ModelProviderRequestOptions): Promise<ModelRevision>;
   draftClaim(request: DraftClaimRequest, options?: ModelProviderRequestOptions): Promise<ModelClaimDraft>;
@@ -139,6 +148,7 @@ export interface ModelProvider {
   continueClarityDrill(request: ClarityDrillAnswerRequest, options?: ModelProviderRequestOptions): Promise<ModelClarityRewrites>;
   ideate(request: IdeationRequest, options?: ModelProviderRequestOptions): Promise<ModelIdeas>;
   buildTable(request: TableSyntaxRequest, options?: ModelProviderRequestOptions): Promise<ModelTable>;
+  formulateReferenceQuery(request: ReferenceQueryRequest, options?: ModelProviderRequestOptions): Promise<ModelReferenceQuery>;
 }
 
 export interface OpenAICompatibleBrowserProviderOptions {
@@ -215,6 +225,12 @@ export class OpenAICompatibleBrowserProvider implements ModelProvider {
     const operation = validateTableSyntaxRequest(request);
     const content = await this.#complete(buildTableMessages(operation), tableResponseFormat(), options);
     return { ...tableFromContent(content), ...this.#provenance() };
+  }
+
+  async formulateReferenceQuery(request: ReferenceQueryRequest, options: ModelProviderRequestOptions = {}): Promise<ModelReferenceQuery> {
+    const operation = validateClarityDrillRequest(request);
+    const content = await this.#complete(buildReferenceQueryMessages(operation), referenceQueryResponseFormat(), options);
+    return { ...referenceQueryFromContent(content), ...this.#provenance() };
   }
 
   #provenance(): { readonly adapter: string; readonly providerLabel: string; readonly model: string } {
@@ -489,6 +505,19 @@ function buildTableMessages(request: TableSyntaxRequest): Array<{ readonly role:
   ];
 }
 
+function buildReferenceQueryMessages(
+  request: ReferenceQueryRequest,
+): Array<{ readonly role: "system" | "user"; readonly content: string }> {
+  return [
+    {
+      role: "system",
+      content:
+        "Formulate one concise bibliographic search query for finding primary or authoritative sources relevant to the target claim. Do not invent titles, authors, DOIs, or citations. The query will be sent to scholarly metadata providers. Return only the required JSON object.",
+    },
+    { role: "user", content: JSON.stringify(clarityPrompt(request)) },
+  ];
+}
+
 function clarityPrompt(request: ClarityDrillRequest): Record<string, unknown> {
   return {
     instruction: request.instruction,
@@ -587,6 +616,13 @@ function tableResponseFormat(): JsonSchemaResponseFormat {
       },
     },
     required: ["caption", "columns", "rows"],
+  });
+}
+
+function referenceQueryResponseFormat(): JsonSchemaResponseFormat {
+  return objectResponseFormat("kirjolab_reference_query", {
+    properties: { query: { type: "string" }, rationale: { type: "string" } },
+    required: ["query", "rationale"],
   });
 }
 
@@ -800,6 +836,15 @@ function tableFromContent(content: string): Pick<ModelTable, "caption" | "column
   if (!Array.isArray(value.columns) || !Array.isArray(value.rows)) throw new TypeError("Local model returned invalid table");
   validateTableShape(value.columns as readonly string[], value.rows as readonly (readonly string[])[]);
   return { caption: value.caption.trim(), columns: value.columns as string[], rows: value.rows as string[][] };
+}
+
+function referenceQueryFromContent(content: string): Pick<ModelReferenceQuery, "query" | "rationale"> {
+  const value = parsedObject(content, "reference query");
+  exactKeys(value, ["query", "rationale"], "reference query");
+  return {
+    query: boundedRequiredString(value.query, 4_000, "Reference query").trim(),
+    rationale: boundedRequiredString(value.rationale, 2_000, "Reference query rationale").trim(),
+  };
 }
 
 function parsedObject(content: string, label: string): Record<string, unknown> {

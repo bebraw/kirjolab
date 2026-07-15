@@ -93,7 +93,7 @@ const definitions: readonly AssistantOperationDefinition[] = [
     scopes: ["sentence", "selection", "paragraph"],
     defaultScope: "sentence",
     evidence: "none",
-    enabled: false,
+    enabled: true,
   },
   {
     id: "build-table",

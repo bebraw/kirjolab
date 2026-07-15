@@ -2885,6 +2885,29 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   const workspaceId = await createWorkspace(page, "Clarity drill");
   const api = `/api/workspaces/${workspaceId}`;
   const requests: unknown[] = [];
+  await page.route("**/api/library/discovery", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ query: "visible evidence review time" });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          provider: "crossref",
+          score: 42,
+          metadata: {
+            type: "article",
+            title: "Verified discovery",
+            authors: ["Doe, Jane"],
+            year: "2026",
+            venue: "Research Systems",
+            doi: "10.5555/discovery",
+            url: "https://doi.org/10.5555/discovery",
+            abstract: "Registry-backed metadata.",
+          },
+        },
+      ]),
+    });
+  });
   await page.route("http://127.0.0.1:1234/v1/chat/completions", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({
@@ -2904,43 +2927,45 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
         ? body.response_format.json_schema.name
         : null;
     const content =
-      schemaName === "kirjolab_clarity_question"
-        ? JSON.stringify({ issue: "Better does not name an outcome.", question: "What improves, and for whom?" })
-        : schemaName === "kirjolab_table"
-          ? JSON.stringify({
-              caption: "Review outcomes",
-              columns: ["Workflow", "Review time"],
-              rows: [
-                ["Baseline", "12 min"],
-                ["Kirjolab", "8 min"],
-              ],
-            })
-          : schemaName === "kirjolab_ideas"
+      schemaName === "kirjolab_reference_query"
+        ? JSON.stringify({ query: "visible evidence review time", rationale: "Names the mechanism and outcome." })
+        : schemaName === "kirjolab_clarity_question"
+          ? JSON.stringify({ issue: "Better does not name an outcome.", question: "What improves, and for whom?" })
+          : schemaName === "kirjolab_table"
             ? JSON.stringify({
-                ideas: [
-                  {
-                    title: "Measure review time",
-                    direction: "Name one affected group and measurable outcome.",
-                    draft: "The workflow reduces review time for editors.",
-                  },
-                  {
-                    title: "Compare steps",
-                    direction: "Contrast the two workflows.",
-                    draft: "The workflow removes a separate evidence lookup step.",
-                  },
-                  {
-                    title: "Explain mechanism",
-                    direction: "Connect visible evidence to review speed.",
-                    draft: "Visible evidence lets editors validate claims without leaving the draft.",
-                  },
+                caption: "Review outcomes",
+                columns: ["Workflow", "Review time"],
+                rows: [
+                  ["Baseline", "12 min"],
+                  ["Kirjolab", "8 min"],
                 ],
               })
-            : JSON.stringify({
-                rewrites: [
-                  { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
-                  { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
-                ],
-              });
+            : schemaName === "kirjolab_ideas"
+              ? JSON.stringify({
+                  ideas: [
+                    {
+                      title: "Measure review time",
+                      direction: "Name one affected group and measurable outcome.",
+                      draft: "The workflow reduces review time for editors.",
+                    },
+                    {
+                      title: "Compare steps",
+                      direction: "Contrast the two workflows.",
+                      draft: "The workflow removes a separate evidence lookup step.",
+                    },
+                    {
+                      title: "Explain mechanism",
+                      direction: "Connect visible evidence to review speed.",
+                      draft: "Visible evidence lets editors validate claims without leaving the draft.",
+                    },
+                  ],
+                })
+              : JSON.stringify({
+                  rewrites: [
+                    { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
+                    { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
+                  ],
+                });
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2998,6 +3023,15 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await page.getByRole("button", { name: "Insert table" }).click();
   await expect(editor).toHaveValue(/\| Kirjolab \| 8 min \|/u);
   expect(requests).toHaveLength(4);
+
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await page.locator("#model-operation").selectOption("find-references");
+  await page.getByRole("button", { name: "Find references" }).click();
+  await expect(page.getByText("Verified discovery")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Verify DOI" })).toHaveAttribute("href", "https://doi.org/10.5555/discovery");
+  await page.getByRole("button", { name: "Save to library" }).click();
+  await expect(page.getByRole("button", { name: "Saved to library" })).toBeDisabled();
+  expect(requests).toHaveLength(5);
 });
 
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {

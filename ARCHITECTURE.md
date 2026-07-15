@@ -307,6 +307,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   For tables, validate bounded structured cells and requested dimensions, render
   portable GFM deterministically in the client, expose the exact syntax for
   review, and insert only against the unchanged captured target and revision.
+- Separate model-assisted reference query formulation from bibliographic fact
+  retrieval. Accept only bounded query text from the model; source titles,
+  authors, publication metadata, and DOI identities from validated scholarly
+  provider responses, label their origin, and require explicit Library import.
 - Persist passage-revision candidates as a Yjs-relative target, bounded
   instruction, typed versioned evidence snapshots, provider/model identity, and
   replacement text. Never model a selected-passage operation as a proposed

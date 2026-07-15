@@ -7,6 +7,7 @@ import {
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
 import { isCitationNetwork, type CitationAssertionView, type CitationNetwork } from "../domain/citation-assertions";
+import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import {
   collaborationProtocolVersion,
   encodeClientSelectionMessage,
@@ -5645,6 +5646,22 @@ class WorkspaceApp {
       }
       if (!passage) throw new Error("Select manuscript text first");
       const sourceRevision = this.#revision;
+      if (operation.id === "find-references") {
+        const formulated = await provider.formulateReferenceQuery({
+          selectedPassage: passage.excerpt,
+          instruction,
+          evidence: evidence.items,
+        });
+        const response = await jsonFetch("/api/library/discovery", { query: formulated.query });
+        await expectOk(response);
+        const value: unknown = await response.json();
+        if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
+        this.#renderReferenceDiscovery(formulated.query, formulated.rationale, value);
+        this.#elements.modelStatus.textContent = value.length
+          ? `Found ${value.length} verifiable registry record${value.length === 1 ? "" : "s"}. Review before saving.`
+          : "No verifiable registry records matched this query. Refine the search focus and try again.";
+        return;
+      }
       if (operation.id === "ideate") {
         const result = await provider.ideate({ selectedPassage: passage.excerpt, instruction, evidence: evidence.items });
         this.#renderIdeas({ passage, evidence, instruction, sourceRevision }, result);
@@ -5779,6 +5796,86 @@ class WorkspaceApp {
       list.append(card);
     }
     this.#elements.assistantInteractiveResult.replaceChildren(list);
+  }
+
+  #renderReferenceDiscovery(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {
+    const container = document.createElement("div");
+    container.className = "grid gap-3";
+    const summary = document.createElement("section");
+    summary.className = "resource-card";
+    const label = document.createElement("p");
+    label.className = "eyebrow";
+    label.textContent = "Registry query";
+    const queryText = document.createElement("p");
+    queryText.className = "mt-2 text-sm font-semibold";
+    queryText.textContent = query;
+    const reason = document.createElement("p");
+    reason.className = "mt-2 text-xs text-app-text-soft";
+    reason.textContent = rationale;
+    summary.append(label, queryText, reason);
+    container.append(summary);
+    for (const result of results) {
+      const card = document.createElement("article");
+      card.className = "resource-card";
+      const provider = document.createElement("p");
+      provider.className = "eyebrow";
+      provider.textContent = result.provider.replace("semantic-scholar", "Semantic Scholar");
+      const title = document.createElement("h3");
+      title.className = "mt-2 text-base font-semibold";
+      title.textContent = result.metadata.title;
+      const meta = document.createElement("p");
+      meta.className = "mt-2 text-xs text-app-text-soft";
+      meta.textContent = [result.metadata.authors.join("; "), result.metadata.year, result.metadata.venue].filter(Boolean).join(" · ");
+      const actions = document.createElement("div");
+      actions.className = "mt-3 flex flex-wrap gap-2";
+      const doi = document.createElement("a");
+      doi.className = "button-secondary";
+      doi.href = `https://doi.org/${result.metadata.doi}`;
+      doi.target = "_blank";
+      doi.rel = "noopener noreferrer";
+      doi.textContent = "Verify DOI";
+      const save = document.createElement("button");
+      save.className = "button-primary";
+      save.type = "button";
+      save.textContent = "Save to library";
+      save.addEventListener("click", () => void this.#saveDiscoveredReference(result, save));
+      actions.append(doi, save);
+      card.append(provider, title, meta, actions);
+      container.append(card);
+    }
+    this.#elements.assistantInteractiveResult.replaceChildren(container);
+  }
+
+  async #saveDiscoveredReference(result: ReferenceDiscoveryResult, button: HTMLButtonElement): Promise<void> {
+    button.disabled = true;
+    try {
+      const metadata = result.metadata;
+      const response = await fetch("/api/library/import/csl-json", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify([
+          {
+            id: metadata.doi,
+            type: metadata.type === "article" ? "article-journal" : metadata.type,
+            title: metadata.title,
+            author: metadata.authors.map((literal) => ({ literal })),
+            ...(metadata.year ? { issued: { "date-parts": [[metadata.year]] } } : {}),
+            ...(metadata.venue ? { "container-title": metadata.venue } : {}),
+            DOI: metadata.doi,
+            URL: metadata.url || `https://doi.org/${metadata.doi}`,
+            ...(metadata.abstract ? { abstract: metadata.abstract } : {}),
+          },
+        ]),
+      });
+      await expectOk(response);
+      await this.#refreshReferenceLibrary();
+      button.textContent = "Saved to library";
+      this.#elements.modelStatus.textContent = "Reference saved. Use its Library card to add it to this project before citing.";
+    } catch (error) {
+      button.disabled = false;
+      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Could not save the reference";
+    }
   }
 
   async #chooseIdea(

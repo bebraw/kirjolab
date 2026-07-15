@@ -46,6 +46,25 @@ afterEach(() => {
 });
 
 describe("OpenAICompatibleBrowserProvider", () => {
+  it("formulates a search query without inventing reference records", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        completionResponse('{"query":"visible evidence scholarly review time","rationale":"Names the mechanism and outcome."}'),
+      );
+    const result = await createProvider({ fetcher }).formulateReferenceQuery(clarityOperation);
+    expect(result).toMatchObject({
+      query: "visible evidence scholarly review time",
+      rationale: "Names the mechanism and outcome.",
+    });
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+      messages: Array<{ content: string }>;
+    };
+    expect(body.response_format.json_schema.name).toBe("kirjolab_reference_query");
+    expect(body.messages[0]?.content).toContain("Do not invent titles, authors, DOIs, or citations");
+  });
+
   it("returns a bounded structured table instead of model-authored Markdown", async () => {
     const fetcher = vi
       .fn<typeof fetch>()

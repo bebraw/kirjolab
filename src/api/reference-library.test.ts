@@ -108,6 +108,31 @@ describe("reference library API", () => {
     expect(fixture.library.importBibTeX).toHaveBeenCalledWith("@manual{guide,title={Private Guide}}", identity.email);
   });
 
+  it("discovers only provider-backed references for a bounded query", async () => {
+    const fixture = apiFixture();
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      expect(new URL(input instanceof Request ? input.url : input.toString()).searchParams.get("query.bibliographic")).toBe(
+        "visible evidence review time",
+      );
+      return crossrefSearchResponse();
+    });
+    const response = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/discovery", { query: "visible evidence review time" }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([
+      expect.objectContaining({
+        provider: "crossref",
+        score: 42,
+        metadata: expect.objectContaining({ title: "Verified discovery", doi: "10.5555/discovery" }),
+      }),
+    ]);
+    expect((await handleReferenceLibraryApi(jsonRequest("/api/library/discovery", { query: "" }), fixture.env, identity)).status).toBe(400);
+  });
+
   it("imports Zotero-compatible CSL JSON and round-trips portable library metadata", async () => {
     const fixture = apiFixture();
     const csl = [
@@ -1243,6 +1268,26 @@ function crossrefResponse(doi = "10.5555/current", title = "Crossref title"): Re
       DOI: doi,
       URL: `https://doi.org/${doi}`,
       abstract: "<jats:p>Crossref abstract</jats:p>",
+    },
+  });
+}
+
+function crossrefSearchResponse(): Response {
+  return Response.json({
+    message: {
+      items: [
+        {
+          type: "journal-article",
+          title: ["Verified discovery"],
+          author: [{ family: "Doe", given: "Jane" }],
+          issued: { "date-parts": [[2026]] },
+          "container-title": ["Research Systems"],
+          DOI: "10.5555/discovery",
+          URL: "https://doi.org/10.5555/discovery",
+          abstract: "Registry-backed metadata",
+          score: 42,
+        },
+      ],
     },
   });
 }
