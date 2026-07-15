@@ -489,6 +489,7 @@ export interface AnnotationLinkResult {
 
 export interface CreateWorkspaceInput {
   title: string;
+  templateId?: string;
 }
 
 export interface InviteWorkspaceMemberInput {
@@ -643,7 +644,11 @@ export function isCreateAnnotationLinkInput(value: unknown): value is CreateAnno
 }
 
 export function isCreateWorkspaceInput(value: unknown): value is CreateWorkspaceInput {
-  return isRecord(value) && isStringWithin(value.title, 120, true);
+  return (
+    isRecord(value) &&
+    isStringWithin(value.title, 120, true) &&
+    (value.templateId === undefined || isStringWithin(value.templateId, 64, true))
+  );
 }
 
 export function isInviteWorkspaceMemberInput(value: unknown): value is InviteWorkspaceMemberInput {

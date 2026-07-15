@@ -3,11 +3,13 @@ import { handleBackupApi } from "./api/backups";
 import { handleEditShareRequest } from "./api/edit-share";
 import { renderExportPdf } from "./api/export-artifacts";
 import { handleWorkspaceApi } from "./api/workspace";
+import { handleProjectTemplateApi } from "./api/project-templates";
 import { handleReferenceLibraryApi } from "./api/reference-library";
 import { exampleRoutes } from "./app-routes";
 import { buildExportBundle } from "./domain/export-pipeline";
 import { DocumentRoom } from "./durable-objects/document-room";
 import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
+import { ProjectTemplateCatalog } from "./durable-objects/project-template-catalog";
 import { WorkspaceAccess } from "./durable-objects/workspace-access";
 import { ReferenceLibrary } from "./durable-objects/reference-library";
 import { BackupCoordinator } from "./durable-objects/backup-coordinator";
@@ -18,7 +20,7 @@ import { renderNotFoundPage } from "./views/not-found";
 import { renderReadOnlySharePage } from "./views/read-only-share";
 import { cssResponse, faviconResponse, htmlResponse, pdfResponse, scriptResponse } from "./views/shared";
 
-export { BackupCoordinator, BackupRecovery, DocumentRoom, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
+export { BackupCoordinator, BackupRecovery, DocumentRoom, ProjectTemplateCatalog, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
 
 export default {
   async fetch(request: Request, env?: Env, ctx?: ExecutionContext): Promise<Response> {
@@ -115,6 +117,11 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   if (url.pathname === "/api/backups" || url.pathname.startsWith("/api/backups/")) {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await handleBackupApi(request, env, identity);
+  }
+
+  if (url.pathname === "/api/project-templates" || url.pathname.startsWith("/api/project-templates/")) {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await handleProjectTemplateApi(request, env, identity);
   }
 
   if (url.pathname === "/") {

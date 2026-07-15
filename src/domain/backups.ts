@@ -1,4 +1,5 @@
 import type { ReferenceLibrarySnapshot } from "./reference-library";
+import type { ProjectTemplateRecord } from "./project-templates";
 import type { WorkspaceMember, WorkspaceSnapshot, WorkspaceSummary } from "./workspace";
 
 export const ownerBackupSchemaVersion = "kirjolab-owner-backup-v1" as const;
@@ -15,6 +16,7 @@ export interface OwnerBackupState {
   readonly ownerKey: string;
   readonly catalog: readonly WorkspaceSummary[];
   readonly library: ReferenceLibrarySnapshot;
+  readonly templates?: readonly ProjectTemplateRecord[];
   readonly workspaces: readonly OwnerWorkspaceBackup[];
 }
 
@@ -29,6 +31,7 @@ export interface BackupBinaryObject {
 export interface OwnerBackupRecovery {
   readonly catalog: string | null;
   readonly library: string | null;
+  readonly templates?: string | null;
   readonly workspaces: readonly {
     readonly workspaceId: string;
     readonly access: string | null;

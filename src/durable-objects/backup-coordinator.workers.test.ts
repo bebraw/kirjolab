@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import type { OwnerBackupManifest } from "../domain/backups";
+import { builtInProjectTemplate } from "../domain/project-templates";
 
 describe("BackupCoordinator in the Workers runtime", () => {
   it("creates immutable owner backups only when state changes and reports source failures", async () => {
@@ -13,6 +14,7 @@ describe("BackupCoordinator in the Workers runtime", () => {
     const access = env.WORKSPACE_ACCESS.getByName(workspaceId);
     const room = env.DOCUMENT_ROOMS.getByName(workspaceId);
     const coordinator = env.BACKUP_COORDINATOR.getByName(`backup-${crypto.randomUUID()}`);
+    const templates = env.PROJECT_TEMPLATE_CATALOGS.getByName(ownerKey);
 
     await catalog.registerWorkspace(workspaceId, "Backup fixture");
     await access.initializeOwner(ownerEmail);
@@ -28,6 +30,11 @@ describe("BackupCoordinator in the Workers runtime", () => {
       objectKey: sourceKey,
       fingerprint: "test:fixture",
       createdAt: new Date().toISOString(),
+    });
+    const personalTemplate = await templates.saveTemplate({
+      name: "Backed-up template",
+      description: "Portable structure",
+      seed: builtInProjectTemplate("builtin-blank")!.seed,
     });
 
     const created = await coordinator.runOwnerBackup(ownerKey, ownerEmail);
@@ -45,6 +52,7 @@ describe("BackupCoordinator in the Workers runtime", () => {
       recovery: { catalog: null, library: null },
     });
     expect(manifest.state.workspaces).toHaveLength(1);
+    expect(manifest.state.templates).toEqual([expect.objectContaining({ id: personalTemplate.id, name: "Backed-up template" })]);
     expect(manifest.state.workspaces[0]?.members).toEqual([expect.objectContaining({ email: ownerEmail, role: "owner" })]);
     expect(manifest.binaries).toEqual([
       expect.objectContaining({ sourceKey, size: 11, backupKey: expect.stringMatching(`^backups/blobs/${ownerKey}/`) }),

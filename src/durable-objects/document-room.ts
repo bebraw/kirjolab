@@ -44,6 +44,7 @@ import {
   type ProjectFile,
   type ProjectFolder,
 } from "../domain/project-files";
+import { isProjectTemplateSeed, type ProjectTemplateSeed } from "../domain/project-templates";
 import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnapshot, type WebSnapshot } from "../domain/reference-library";
 import type { ResearchShareSnapshot } from "../domain/reference-library";
 import {
@@ -834,6 +835,80 @@ export class DocumentRoom extends DurableObject<Env> {
       throw error;
     }
     this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
+  seedFromTemplate(workspaceId: string, titleValue: string, seed: ProjectTemplateSeed): WorkspaceSnapshot {
+    const title = titleValue.trim();
+    if (!title || title.length > 120 || !isProjectTemplateSeed(seed)) throw new Error("Project template seed is invalid");
+    const current = this.#workspaceRow();
+    const revisions = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_revisions").one().count;
+    if (current.revision !== 0 || current.title !== "Evidence becomes prose" || revisions !== 1) {
+      throw new Error("Project template target is already initialized");
+    }
+
+    const document = new Y.Doc();
+    const now = new Date().toISOString();
+    const files = seed.files.map((file) => {
+      const id = crypto.randomUUID();
+      const yTextName = file.path === projectEntryPath ? "source" : `file:${id}`;
+      document.getText(yTextName).insert(0, file.content);
+      return { ...file, id, yTextName };
+    });
+    document.getText("bibliography").insert(0, seed.bibliography);
+    const entry = files.find((file) => file.path === projectEntryPath);
+    if (!entry) throw new Error("Project template entry file is unavailable");
+    const state = new Uint8Array(Y.encodeStateAsUpdate(document)).buffer;
+    const previousState = current.y_state;
+    this.#restoreDocument(state);
+    try {
+      this.ctx.storage.transactionSync(() => {
+        this.ctx.storage.sql.exec("DELETE FROM candidates");
+        this.ctx.storage.sql.exec("DELETE FROM claim_candidates");
+        this.ctx.storage.sql.exec("DELETE FROM project_milestones");
+        this.ctx.storage.sql.exec("DELETE FROM project_revisions");
+        for (const table of revisionDeleteOrder) this.ctx.storage.sql.exec(`DELETE FROM ${table}`);
+        for (const file of files) {
+          this.ctx.storage.sql.exec(
+            `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
+             VALUES (?, ?, 'text/markdown', ?, ?, ?, ?)`,
+            file.id,
+            file.path,
+            file.yTextName,
+            file.content,
+            now,
+            now,
+          );
+        }
+        for (const path of seed.folders) {
+          this.ctx.storage.sql.exec(
+            "INSERT INTO project_folders (id, path, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            crypto.randomUUID(),
+            path,
+            now,
+            now,
+          );
+        }
+        this.ctx.storage.sql.exec(
+          `UPDATE workspace
+           SET title = ?, y_state = ?, source = ?, bibliography = ?, revision = 0, entry_file_id = ?, settings_json = ?
+           WHERE id = 1`,
+          title,
+          state,
+          entry.content,
+          seed.bibliography,
+          entry.id,
+          JSON.stringify({ publicationProfile: seed.publicationProfile }),
+        );
+        this.#reconcileBibliography(seed.bibliography);
+        this.#recordRevision("template-instantiation", 0);
+      });
+    } catch (error) {
+      this.#restoreDocument(previousState);
+      throw error;
+    } finally {
+      document.destroy();
+    }
     return this.getSnapshot(workspaceId);
   }
 

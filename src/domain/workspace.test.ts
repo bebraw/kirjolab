@@ -88,6 +88,7 @@ describe("workspace input guards", () => {
       }),
     ).toBe(true);
     expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
+    expect(isCreateWorkspaceInput({ title: "New study", templateId: "builtin-blank" })).toBe(true);
     expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
     expect(isImportBibliographyInput({ bibtex: "@article{key, title={Title}}" })).toBe(true);
     expect(isCreatePublicationPdfLinkInput({ publicationId: "publication", pdfId: "pdf" })).toBe(true);
@@ -157,6 +158,7 @@ describe("workspace input guards", () => {
     expect(isCreateClaimPassageLinkInput({ claimId: "", start: -1, end: 0, excerpt: "" })).toBe(false);
     expect(isCreateWorkspaceInput({ title: "" })).toBe(false);
     expect(isCreateWorkspaceInput({ title: "x".repeat(121) })).toBe(false);
+    expect(isCreateWorkspaceInput({ title: "New study", templateId: "" })).toBe(false);
     expect(isCreateWorkspaceInput(null)).toBe(false);
     expect(isInviteWorkspaceMemberInput({ email: "invalid" })).toBe(false);
     expect(isInviteWorkspaceMemberInput(null)).toBe(false);

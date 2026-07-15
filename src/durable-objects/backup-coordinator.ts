@@ -252,7 +252,12 @@ export class BackupCoordinator extends DurableObject<Env> {
   async #ownerState(owner: OwnerRow): Promise<{ state: OwnerBackupState; recovery: OwnerBackupRecovery }> {
     const catalog = this.env.WORKSPACE_CATALOGS.getByName(owner.owner_key);
     const library = this.env.REFERENCE_LIBRARIES.getByName(owner.owner_key);
-    const [catalogBackup, libraryBackup] = await Promise.all([catalog.getBackupSnapshot(), library.getBackupSnapshot()]);
+    const templates = this.env.PROJECT_TEMPLATE_CATALOGS.getByName(owner.owner_key);
+    const [catalogBackup, libraryBackup, templateBackup] = await Promise.all([
+      catalog.getBackupSnapshot(),
+      library.getBackupSnapshot(),
+      templates.getBackupSnapshot(),
+    ]);
     if (catalogBackup.workspaces.length > maximumWorkspacesPerOwner) throw new Error("Owner workspace catalog exceeds backup bound");
 
     const workspaces: OwnerWorkspaceBackup[] = [];
@@ -278,11 +283,13 @@ export class BackupCoordinator extends DurableObject<Env> {
         ownerKey: owner.owner_key,
         catalog: workspaces.map((workspace) => workspace.summary),
         library: libraryBackup.snapshot,
+        templates: templateBackup.templates,
         workspaces,
       },
       recovery: {
         catalog: catalogBackup.bookmark,
         library: libraryBackup.bookmark,
+        templates: templateBackup.bookmark,
         workspaces: recoveryWorkspaces,
       },
     };

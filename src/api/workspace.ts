@@ -23,6 +23,12 @@ import {
   type ProjectAsset,
 } from "../domain/workspace";
 import { normalizeProjectPath } from "../domain/project-files";
+import {
+  builtInProjectTemplate,
+  isSaveProjectTemplateInput,
+  projectTemplateSeed,
+  type ProjectTemplateRecord,
+} from "../domain/project-templates";
 import { buildWorkspaceKnowledgeGraph, searchWorkspaceKnowledge } from "../domain/knowledge";
 import { archivalSourceBundle, latexArchive, renderExportPdf } from "./export-artifacts";
 import { assertExportable, buildExportBundle, ExportPipelineError } from "../domain/export-pipeline";
@@ -65,6 +71,10 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix === "/duplicate" && request.method === "POST") {
       if (role !== "owner") return jsonError("Only the workspace owner can duplicate a project", 403);
       return await duplicateWorkspace(request, workspaceId, room, catalog, env, identity);
+    }
+    if (suffix === "/template" && request.method === "POST") {
+      if (role !== "owner") return jsonError("Only the workspace owner can save project templates", 403);
+      return await saveWorkspaceTemplate(request, workspaceId, room, env, identity);
     }
     if (suffix === "/settings" && request.method === "DELETE") {
       if (role !== "owner") return jsonError("Only the workspace owner can permanently delete a project", 403);
@@ -310,6 +320,27 @@ async function duplicateWorkspace(
   return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
 }
 
+async function saveWorkspaceTemplate(
+  request: Request,
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  env: Env,
+  identity: AuthIdentity,
+): Promise<Response> {
+  if (workspaceId === demoWorkspaceId) return jsonError("The demo project cannot become a personal template", 409);
+  const body: unknown = await request.json();
+  if (!isSaveProjectTemplateInput(body)) return jsonError("Invalid project template", 400);
+  const snapshot = await room.getSnapshot(workspaceId);
+  const catalog = env.PROJECT_TEMPLATE_CATALOGS.getByName(identity.ownerKey);
+  const summary = await catalog.saveTemplate({
+    ...(body.templateId ? { id: body.templateId } : {}),
+    name: body.name,
+    description: body.description ?? "",
+    seed: projectTemplateSeed(snapshot),
+  });
+  return Response.json(summary, { status: body.templateId ? 200 : 201 });
+}
+
 async function permanentlyDeleteWorkspace(
   workspaceId: string,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
@@ -493,12 +524,20 @@ async function handleWorkspaceCatalog(request: Request, env: Env, identity: Auth
   if (request.method !== "POST") return jsonError("Route not found", 404);
   const body: unknown = await request.json();
   if (!isCreateWorkspaceInput(body)) return jsonError("Invalid workspace", 400);
+  let template: ProjectTemplateRecord | null = null;
+  if (body.templateId && body.templateId !== "builtin-guided") {
+    template =
+      builtInProjectTemplate(body.templateId) ??
+      (await env.PROJECT_TEMPLATE_CATALOGS.getByName(identity.ownerKey).getTemplate(body.templateId));
+    if (!template) return jsonError("Project template not found", 404);
+  }
   const id = crypto.randomUUID();
   const storageKey = workspaceStorageKey(identity, id);
   const access = env.WORKSPACE_ACCESS.getByName(storageKey);
   await access.initializeOwner(identity.email);
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
-  await room.initializeWorkspace(body.title.trim());
+  if (template) await room.seedFromTemplate(id, body.title.trim(), template.seed);
+  else await room.initializeWorkspace(body.title.trim());
   return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
 }
 

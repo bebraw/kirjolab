@@ -27,6 +27,8 @@ rollback workflow without adding a second identity system.
   is present in that prefix.
 - Authoritative project image asset keys are binary backup references alongside
   workspace PDFs; their logical metadata remains in each workspace snapshot.
+- Owner-created project template seeds and their recovery bookmark are included
+  as logical owner state; templates contain no binary objects.
 - Recovery drills target isolated recovery Durable Object names and never
   mutate canonical owner or workspace identities.
 - Backup payloads and logs never contain Access tokens. R2 paths use opaque
@@ -47,7 +49,7 @@ rollback workflow without adding a second identity system.
 - [x] Backup status is available only to the authenticated owner and is
       non-cacheable.
 - [x] Durable Object recovery bookmarks are included for every backed-up
-      catalog, library, access object, and document room.
+      catalog, template catalog, library, access object, and document room.
 - [x] A recovery drill restores logical data into isolated identities and
       verifies the manifest digest without overwriting production.
 - [x] Production logs, smoke checks, versions, and rollback commands are
