@@ -2,6 +2,7 @@ import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
 import type { PublicationEnrichment } from "../domain/workspace";
 import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
+import type { CitationExpansionCandidate } from "../domain/citation-expansion";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -15,21 +16,13 @@ export interface CrossrefMetadataMatch {
   readonly identifiers: readonly ReferenceDiscoveryIdentifier[];
 }
 
-export interface CrossrefCitationCandidate {
-  readonly doi: string;
-  readonly title: string;
-  readonly authors: string;
-  readonly year: string;
-  readonly unstructured: string;
-}
-
 export interface CrossrefCitationExpansion {
   readonly provider: "crossref";
   readonly direction: "references";
   readonly retrievedAt: string;
   readonly responseId: string;
   readonly sourceLocator: string;
-  readonly candidates: readonly CrossrefCitationCandidate[];
+  readonly candidates: readonly CitationExpansionCandidate[];
   readonly truncated: boolean;
 }
 
@@ -140,7 +133,7 @@ export async function fetchCrossrefReferences(
   const body = await readBoundedJson(response);
   if (!isRecord(body) || !isRecord(body.message)) throw new Error("Crossref returned invalid metadata");
   const references = Array.isArray(body.message.reference) ? body.message.reference : [];
-  const candidates = references.slice(0, maximumCitationCandidates).flatMap((value): CrossrefCitationCandidate[] => {
+  const candidates = references.slice(0, maximumCitationCandidates).flatMap((value): CitationExpansionCandidate[] => {
     if (!isRecord(value) || typeof value.DOI !== "string" || !isValidDoi(value.DOI)) return [];
     return [
       {
