@@ -5,9 +5,8 @@ Markdown manuscripts, references, PDF annotations, and evidence-aware writing
 suggestions into one place while keeping the underlying `.md` and `.bib` files
 portable.
 
-The current version is an early but working vertical slice. You can import
-research material, annotate it, connect evidence to a manuscript, review a
-locally generated revision, collaborate with other writers, and export your
+You can import research material, annotate it, connect evidence to a manuscript,
+review a locally generated revision, collaborate with other writers, and export your
 work again.
 
 Kirjolab runs on Cloudflare Workers, Durable Objects, and R2. Local development
