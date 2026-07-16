@@ -626,6 +626,43 @@ test("keeps the workspace within a compact desktop viewport", async ({ page }) =
   ).toMatchObject({ clientWidth: 1100, scrollWidth: 1100 });
 });
 
+test("keeps workspace and Library navigation usable on a phone", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Phone layout");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/workspaces/${workspaceId}`);
+
+  const workspaceLayout = await page.evaluate(() => {
+    const headerGroups = [...document.querySelectorAll<HTMLElement>(".app-header-row > div")].map((group) => group.getBoundingClientRect());
+    return {
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      separateHeaderRows: headerGroups[0]!.bottom <= headerGroups[1]!.top,
+      groupsFit: headerGroups.every((group) => group.left >= 0 && group.right <= innerWidth),
+    };
+  });
+  expect(workspaceLayout).toEqual({ clientWidth: 390, scrollWidth: 390, separateHeaderRows: true, groupsFit: true });
+  await expect(page.locator("#show-authoring-surface")).toBeVisible();
+
+  await page.goto("/library");
+  const libraryLayout = await page.evaluate(() => {
+    const primaryHeader = document.querySelector<HTMLElement>(".app-header-row > div:first-child")!.getBoundingClientRect();
+    const contextHeader = document.querySelector<HTMLElement>(".library-header-context")!.getBoundingClientRect();
+    return {
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      contextFollowsPrimaryHeader: contextHeader.top >= primaryHeader.bottom,
+      contextFits: contextHeader.left >= 0 && contextHeader.right <= innerWidth,
+    };
+  });
+  expect(libraryLayout).toEqual({
+    clientWidth: 390,
+    scrollWidth: 390,
+    contextFollowsPrimaryHeader: true,
+    contextFits: true,
+  });
+  await expect(page.locator("#context-library-panel")).toBeVisible();
+});
+
 test("keeps editor controls visible at a compact split width", async ({ page }) => {
   await page.setViewportSize({ width: 1197, height: 800 });
   const workspaceId = await createWorkspace(page, "Compact split toolbar");

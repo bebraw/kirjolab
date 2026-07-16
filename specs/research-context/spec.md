@@ -38,6 +38,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   that single row. Workspace mode retains its pane-local context strip and an
   explicitly labelled Share project action because those tabs remain inside an
   active project.
+- On phone-sized viewports, workspace navigation uses two compact header rows
+  so project and account actions remain distinct and reachable. Standalone
+  Library keeps identity controls in the first row and gives its horizontally
+  scrollable context tabs a dedicated second row without page overflow.
 - Closing the active private-resource tab in standalone Library mode activates
   the permanent Library destination and replaces the document route with
   `/library`. Workspace resource tabs retain the shared previous-neighbor
@@ -419,6 +423,13 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - When: the researcher switches from Authoring to Context and back
 - Then: only one primary surface is shown at a time and both surfaces retain
   their selections and reading state
+
+**Scenario: Application navigation fits a phone viewport**
+
+- Given: the researcher opens a workspace or the standalone Library on a phone
+- When: the global navigation and available context tabs are rendered
+- Then: controls occupy two non-overlapping rows, remain within the viewport,
+  and the document has no horizontal page overflow
 
 **Scenario: Private library PDF remains private while highlighting**
 

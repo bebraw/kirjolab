@@ -53,7 +53,7 @@ export function renderHomePage(
   </head>
   <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-app-mode="${appMode}" data-workspace-id="${escapedWorkspaceId}" data-identity-email="${escapedIdentityEmail}">
     <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur">
-      <div class="app-header-row flex min-h-16 items-center justify-between gap-4 px-4 lg:px-6">
+      <div class="app-header-row">
         <div class="flex min-w-0 items-center gap-3">
           <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
           <details class="preferences-menu ui-menu" id="preferences-menu" data-settings-menu>
