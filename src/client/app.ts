@@ -1674,7 +1674,9 @@ class WorkspaceApp {
         "PATCH",
       ),
     );
-    location.reload();
+    const next = new URL(location.href);
+    next.searchParams.set("file", this.#elements.workspaceEntryFile.value);
+    location.assign(`${next.pathname}${next.search}${next.hash}`);
   }
 
   async #toggleWorkspaceArchive(): Promise<void> {
