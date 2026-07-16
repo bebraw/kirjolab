@@ -248,6 +248,20 @@ export function renderHomePage(
             <div class="rail-collection-body" id="manuscript-map-cues"></div>
           </details>
           <details class="rail-collection mt-4" open>
+            <summary><span>Editing pass</span><span class="count-badge" id="editing-pass-cue-count">0</span></summary>
+            <div class="rail-collection-body">
+              <label class="field-label" for="editing-pass">Review purpose</label>
+              <select class="field mt-2" id="editing-pass">
+                <option value="structure">Structure</option>
+                <option value="order">Order</option>
+                <option value="clarity">Clarity</option>
+                <option value="evidence">Evidence</option>
+                <option value="length">Length</option>
+              </select>
+              <div class="mt-3 grid gap-2" id="editing-pass-cues"></div>
+            </div>
+          </details>
+          <details class="rail-collection mt-4" open>
             <summary><span>Research questions</span><span class="count-badge" id="research-question-count">0</span></summary>
             <div class="rail-collection-body">
               <div class="grid gap-2" id="research-question-list"></div>

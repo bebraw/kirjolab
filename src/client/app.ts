@@ -7,6 +7,7 @@ import {
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
 import { isCitationNetwork, type CitationAssertionView, type CitationNetwork } from "../domain/citation-assertions";
+import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import {
   collaborationProtocolVersion,
@@ -341,6 +342,9 @@ interface Elements {
   researchQuestionCount: HTMLElement;
   researchQuestionList: HTMLElement;
   openResearchQuestions: HTMLButtonElement;
+  editingPass: HTMLSelectElement;
+  editingPassCueCount: HTMLElement;
+  editingPassCues: HTMLElement;
   newProjectFileRail: HTMLButtonElement;
   newProjectFolderRail: HTMLButtonElement;
   uploadProjectImages: HTMLButtonElement;
@@ -899,6 +903,7 @@ class WorkspaceApp {
     this.#elements.showGuideRail.addEventListener("click", () => this.#showRail("guide"));
     this.#elements.openResearchDiary.addEventListener("click", () => void this.#openResearchDiary());
     this.#elements.openResearchQuestions.addEventListener("click", () => void this.#openResearchQuestions());
+    this.#elements.editingPass.addEventListener("change", () => this.#renderEditingPass(this.#currentComposedSource()));
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
@@ -2687,7 +2692,7 @@ class WorkspaceApp {
     }
   }
 
-  #renderManuscriptMap(source = this.#snapshot?.composition.content ?? this.#source.toString()): void {
+  #renderManuscriptMap(source = this.#currentComposedSource()): void {
     const map = buildManuscriptMap(source);
     this.#elements.manuscriptMapSummary.replaceChildren(
       manuscriptMapMetric(map.words, "words"),
@@ -2726,6 +2731,31 @@ class WorkspaceApp {
     }
     this.#renderResearchDiarySummary();
     this.#renderResearchQuestions();
+    this.#renderEditingPass(source);
+  }
+
+  #renderEditingPass(source: string): void {
+    const pass = readEditingPass(this.#elements.editingPass.value);
+    const cues = runEditingPass(source, pass);
+    this.#elements.editingPassCueCount.textContent = String(cues.length);
+    this.#elements.editingPassCues.replaceChildren();
+    if (cues.length === 0) this.#elements.editingPassCues.append(emptyState(`No ${pass} cues.`));
+    for (const cue of cues) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "manuscript-map-item";
+      const message = document.createElement("span");
+      message.textContent = cue.message;
+      const detail = document.createElement("small");
+      detail.textContent = cue.detail;
+      button.append(message, detail);
+      button.addEventListener("click", () => this.#focusComposedRange(cue.from, cue.to));
+      this.#elements.editingPassCues.append(button);
+    }
+  }
+
+  #currentComposedSource(): string {
+    return this.#snapshot ? composeProject(this.#previewProjectFiles(), this.#snapshot.entryFileId).content : this.#source.toString();
   }
 
   #renderResearchQuestions(): void {
@@ -8831,6 +8861,9 @@ function collectElements(): Elements {
     researchQuestionCount: requiredElement("research-question-count", HTMLElement),
     researchQuestionList: requiredElement("research-question-list", HTMLElement),
     openResearchQuestions: requiredElement("open-research-questions", HTMLButtonElement),
+    editingPass: requiredElement("editing-pass", HTMLSelectElement),
+    editingPassCueCount: requiredElement("editing-pass-cue-count", HTMLElement),
+    editingPassCues: requiredElement("editing-pass-cues", HTMLElement),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),
@@ -9427,6 +9460,11 @@ function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
 function readModelReasoningEffort(value: string): ModelReasoningEffort {
   if (value === "none" || value === "low" || value === "medium" || value === "high") return value;
   return "provider-default";
+}
+
+function readEditingPass(value: string): EditingPass {
+  if (value === "order" || value === "clarity" || value === "evidence" || value === "length") return value;
+  return "structure";
 }
 
 function modelEvidenceKey(kind: "annotation" | "claim", id: string): string {

@@ -23,6 +23,14 @@ export interface ManuscriptMap {
   readonly cues: readonly ManuscriptCue[];
 }
 
+export interface ManuscriptParagraph {
+  readonly text: string;
+  readonly from: number;
+  readonly to: number;
+  readonly words: number;
+  readonly citations: number;
+}
+
 const headingPattern = /^(#{1,6})[ \t]+(.+?)(?:[ \t]+\{#[^}]+\})?[ \t]*$/u;
 const citationPattern = /(?<!:):cite\[[^\]]+\](?:\{[^}]*\})?/giu;
 const placeholderPattern = /\b(?:TODO|TBD|FIXME)\b|\?\?\?/giu;
@@ -57,8 +65,8 @@ export function buildManuscriptMap(source: string): ManuscriptMap {
     cues.push({ kind: "placeholder", message: `Resolve placeholder “${match[0]}”`, from, to: from + match[0].length });
   }
 
-  for (const paragraph of proseParagraphs(visible)) {
-    const words = wordCount(paragraph.text);
+  for (const paragraph of manuscriptParagraphs(visible)) {
+    const words = paragraph.words;
     const sentences = paragraph.text.match(/[.!?](?:["')\]]+)?(?=\s|$)/gu)?.length ?? 0;
     if (words >= 5 && sentences <= 1) {
       cues.push({ kind: "orphan-paragraph", message: "Review this single-sentence paragraph", from: paragraph.from, to: paragraph.to });
@@ -84,6 +92,14 @@ export function buildManuscriptMap(source: string): ManuscriptMap {
     sections,
     cues: cues.sort((left, right) => left.from - right.from || left.to - right.to),
   };
+}
+
+export function manuscriptParagraphs(source: string): readonly ManuscriptParagraph[] {
+  return proseParagraphs(maskNonProse(projectMarkdownComments(source.replaceAll("\r\n", "\n")).masked)).map((paragraph) => ({
+    ...paragraph,
+    words: wordCount(paragraph.text),
+    citations: citationCount(paragraph.text),
+  }));
 }
 
 function maskNonProse(source: string): string {
