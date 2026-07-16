@@ -1,6 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
 import {
+  buildGitHubPublishPlan,
+  compareGitHubSync,
+  type GitHubPublishPlan,
+  type GitHubSyncBaseFile,
+  type GitHubSyncChange,
+  type GitHubSyncRemoteFile,
+} from "../domain/github-sync";
+import {
   bibTeXPublicationProjectionsEqual,
   mergeBibTeX,
   normalizeDoi,
@@ -109,6 +117,38 @@ export type ProjectFileReplaceResult = DocumentRoomOperationResult<
 
 export type ProjectReferenceUnlinkResult = DocumentRoomOperationResult<WorkspaceSnapshot, "reference-not-linked" | "citation-alias-in-use">;
 
+export interface GitHubProjectBindingInput {
+  readonly installationId: number;
+  readonly repositoryId: number;
+  readonly owner: string;
+  readonly repository: string;
+  readonly branch: string;
+  readonly rootPath: string;
+  readonly commitSha: string;
+}
+
+export interface GitHubProjectBindingState extends GitHubProjectBindingInput {
+  readonly synchronizedRevision: number;
+  readonly trackedPaths: readonly string[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface GitHubPublishPreview {
+  readonly id: string;
+  readonly expectedRevision: number;
+  readonly expectedRemoteHead: string;
+  readonly commitMessage: string;
+  readonly expiresAt: string;
+  readonly comparison: readonly GitHubSyncChange[];
+  readonly plan: GitHubPublishPlan;
+}
+
+export interface GitHubPublishConfirmation {
+  readonly binding: GitHubProjectBindingInput;
+  readonly preview: GitHubPublishPreview;
+}
+
 export type ClaimUpdateResult = DocumentRoomOperationResult<ClaimResource, "claim-not-found" | "annotation-not-found">;
 
 export type CandidateCreationResult = DocumentRoomOperationResult<
@@ -134,6 +174,38 @@ interface ProjectFileRow extends Record<string, SqlStorageValue> {
   content: string;
   created_at: string;
   updated_at: string;
+}
+
+interface GitHubProjectBindingRow extends Record<string, SqlStorageValue> {
+  singleton: number;
+  installation_id: number;
+  repository_id: number;
+  owner: string;
+  repository: string;
+  branch: string;
+  root_path: string;
+  synchronized_commit: string;
+  synchronized_revision: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface GitHubTrackedFileRow extends Record<string, SqlStorageValue> {
+  file_id: string;
+  path: string;
+  blob_sha: string;
+  content: string;
+}
+
+interface GitHubPublishPreviewRow extends Record<string, SqlStorageValue> {
+  id: string;
+  expected_revision: number;
+  expected_remote_head: string;
+  commit_message: string;
+  comparison_json: string;
+  plan_json: string;
+  created_at: string;
+  expires_at: string;
 }
 
 interface ProjectFolderRow extends Record<string, SqlStorageValue> {
@@ -911,6 +983,145 @@ export class DocumentRoom extends DurableObject<Env> {
       document.destroy();
     }
     return this.getSnapshot(workspaceId);
+  }
+
+  bindGitHubProject(input: GitHubProjectBindingInput, remoteFiles: readonly GitHubSyncRemoteFile[]): GitHubProjectBindingState {
+    validateGitHubBinding(input);
+    if (this.#githubBindingRow()) throw new Error("Project already has a GitHub binding");
+    const projectFiles = this.#projectFileRows();
+    if (projectFiles.length !== remoteFiles.length) throw new Error("GitHub binding files do not match the project");
+    const projectByPath = new Map(projectFiles.map((file) => [file.path, file]));
+    const tracked: GitHubSyncBaseFile[] = remoteFiles.map((remote) => {
+      const project = projectByPath.get(remote.path);
+      if (!project || project.content !== remote.content) throw new Error("GitHub binding files do not match the project");
+      return { fileId: project.id, path: remote.path, blobSha: remote.blobSha, content: remote.content };
+    });
+    const workspace = this.#workspaceRow();
+    const now = new Date().toISOString();
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO github_project_binding
+         (singleton, installation_id, repository_id, owner, repository, branch, root_path, synchronized_commit,
+          synchronized_revision, created_at, updated_at)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        input.installationId,
+        input.repositoryId,
+        input.owner,
+        input.repository,
+        input.branch,
+        input.rootPath,
+        input.commitSha,
+        workspace.revision,
+        now,
+        now,
+      );
+      this.#replaceGitHubTrackedFiles(tracked);
+    });
+    return this.getGitHubSyncState()!;
+  }
+
+  getGitHubSyncState(): GitHubProjectBindingState | null {
+    const binding = this.#githubBindingRow();
+    if (!binding) return null;
+    const trackedPaths = this.ctx.storage.sql
+      .exec<{ path: string }>("SELECT path FROM github_tracked_files ORDER BY path COLLATE NOCASE")
+      .toArray()
+      .map((row) => row.path);
+    return {
+      ...githubBindingInput(binding),
+      synchronizedRevision: binding.synchronized_revision,
+      trackedPaths,
+      createdAt: binding.created_at,
+      updatedAt: binding.updated_at,
+    };
+  }
+
+  createGitHubPublishPreview(
+    remoteHead: string,
+    remoteFiles: readonly GitHubSyncRemoteFile[],
+    commitMessageValue: string,
+  ): GitHubPublishPreview {
+    const binding = this.#githubBindingRow();
+    if (!binding) throw new Error("Project is not connected to GitHub");
+    if (!isGitHubCommitSha(remoteHead)) throw new Error("GitHub remote head is invalid");
+    const commitMessage = commitMessageValue.trim();
+    if (!commitMessage || commitMessage.length > 1_000) throw new Error("GitHub commit message is invalid");
+    this.#deleteExpiredGitHubPublishPreviews();
+    const workspace = this.#workspaceRow();
+    const comparison = compareGitHubSync(
+      this.#githubTrackedFiles(),
+      this.#projectFileRows().map((file) => ({ fileId: file.id, path: file.path, content: file.content })),
+      remoteFiles,
+    );
+    const plan = buildGitHubPublishPlan(comparison);
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1_000).toISOString();
+    this.ctx.storage.sql.exec(
+      `INSERT INTO github_publish_previews
+       (id, expected_revision, expected_remote_head, commit_message, comparison_json, plan_json, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      workspace.revision,
+      remoteHead,
+      commitMessage,
+      JSON.stringify(comparison),
+      JSON.stringify(plan),
+      createdAt,
+      expiresAt,
+    );
+    return { id, expectedRevision: workspace.revision, expectedRemoteHead: remoteHead, commitMessage, expiresAt, comparison, plan };
+  }
+
+  getGitHubPublishConfirmation(previewId: string): GitHubPublishConfirmation | null {
+    this.#deleteExpiredGitHubPublishPreviews();
+    const binding = this.#githubBindingRow();
+    const row = this.ctx.storage.sql
+      .exec<GitHubPublishPreviewRow>("SELECT * FROM github_publish_previews WHERE id = ?", previewId)
+      .toArray()[0];
+    if (!binding || !row || row.expected_revision !== this.#workspaceRow().revision) return null;
+    return { binding: githubBindingInput(binding), preview: githubPublishPreviewFromRow(row) };
+  }
+
+  completeGitHubPublish(previewId: string, commitSha: string, remoteFiles: readonly GitHubSyncRemoteFile[]): GitHubProjectBindingState {
+    if (!isGitHubCommitSha(commitSha)) throw new Error("GitHub commit is invalid");
+    const confirmation = this.getGitHubPublishConfirmation(previewId);
+    if (!confirmation) throw new Error("GitHub publish preview is stale");
+    const plan = confirmation.preview.plan;
+    if (plan.blocking.length > 0 || plan.changes.length === 0) throw new Error("GitHub publish preview cannot be confirmed");
+    const previousTracked = this.#githubTrackedFiles();
+    const localById = new Map(this.#projectFileRows().map((file) => [file.id, file]));
+    const remoteByPath = new Map(remoteFiles.map((file) => [file.path, file]));
+    const nextTracked: GitHubSyncBaseFile[] = [];
+    for (const previous of previousTracked) {
+      const local = localById.get(previous.fileId);
+      if (!local) continue;
+      const remote = remoteByPath.get(local.path);
+      if (!remote || remote.content !== local.content) throw new Error("Published GitHub state does not match the project");
+      nextTracked.push({ fileId: local.id, path: local.path, blobSha: remote.blobSha, content: local.content });
+    }
+    const workspace = this.#workspaceRow();
+    const now = new Date().toISOString();
+    this.ctx.storage.transactionSync(() => {
+      this.#replaceGitHubTrackedFiles(nextTracked);
+      this.ctx.storage.sql.exec(
+        `UPDATE github_project_binding
+         SET synchronized_commit = ?, synchronized_revision = ?, updated_at = ? WHERE singleton = 1`,
+        commitSha,
+        workspace.revision,
+        now,
+      );
+      this.ctx.storage.sql.exec("DELETE FROM github_publish_previews");
+    });
+    return this.getGitHubSyncState()!;
+  }
+
+  disconnectGitHubProject(): void {
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("DELETE FROM github_publish_previews");
+      this.ctx.storage.sql.exec("DELETE FROM github_tracked_files");
+      this.ctx.storage.sql.exec("DELETE FROM github_project_binding");
+    });
   }
 
   linkProjectReference(
@@ -2963,7 +3174,76 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 24,
+        name: "retain-github-project-sync-state",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS github_project_binding (
+              singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+              installation_id INTEGER NOT NULL,
+              repository_id INTEGER NOT NULL,
+              owner TEXT NOT NULL,
+              repository TEXT NOT NULL,
+              branch TEXT NOT NULL,
+              root_path TEXT NOT NULL,
+              synchronized_commit TEXT NOT NULL,
+              synchronized_revision INTEGER NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS github_tracked_files (
+              file_id TEXT PRIMARY KEY,
+              path TEXT NOT NULL UNIQUE,
+              blob_sha TEXT NOT NULL,
+              content TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS github_publish_previews (
+              id TEXT PRIMARY KEY,
+              expected_revision INTEGER NOT NULL,
+              expected_remote_head TEXT NOT NULL,
+              commit_message TEXT NOT NULL,
+              comparison_json TEXT NOT NULL,
+              plan_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              expires_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS github_publish_previews_expiry ON github_publish_previews(expires_at);
+          `);
+          return undefined;
+        },
+      },
     ];
+  }
+
+  #githubBindingRow(): GitHubProjectBindingRow | null {
+    return (
+      this.ctx.storage.sql.exec<GitHubProjectBindingRow>("SELECT * FROM github_project_binding WHERE singleton = 1").toArray()[0] ?? null
+    );
+  }
+
+  #githubTrackedFiles(): GitHubSyncBaseFile[] {
+    return this.ctx.storage.sql
+      .exec<GitHubTrackedFileRow>("SELECT * FROM github_tracked_files ORDER BY path COLLATE NOCASE")
+      .toArray()
+      .map((row) => ({ fileId: row.file_id, path: row.path, blobSha: row.blob_sha, content: row.content }));
+  }
+
+  #replaceGitHubTrackedFiles(files: readonly GitHubSyncBaseFile[]): void {
+    this.ctx.storage.sql.exec("DELETE FROM github_tracked_files");
+    for (const file of files) {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO github_tracked_files (file_id, path, blob_sha, content) VALUES (?, ?, ?, ?)",
+        file.fileId,
+        file.path,
+        file.blobSha,
+        file.content,
+      );
+    }
+  }
+
+  #deleteExpiredGitHubPublishPreviews(): void {
+    this.ctx.storage.sql.exec("DELETE FROM github_publish_previews WHERE expires_at <= ?", new Date().toISOString());
   }
 
   #addAnchorColumns(table: "passage_links" | "claim_passage_links"): void {
@@ -4485,4 +4765,54 @@ function isStoredSelectionRect(value: unknown): value is AnnotationResource["rec
     "height" in value &&
     [value.x, value.y, value.width, value.height].every((coordinate) => typeof coordinate === "number")
   );
+}
+
+function validateGitHubBinding(input: GitHubProjectBindingInput): void {
+  const validRoot =
+    input.rootPath === "" ||
+    (!input.rootPath.startsWith("/") &&
+      !input.rootPath.includes("\\") &&
+      input.rootPath.split("/").every((segment) => segment.length > 0 && segment !== "." && segment !== ".."));
+  if (
+    !Number.isSafeInteger(input.installationId) ||
+    input.installationId <= 0 ||
+    !Number.isSafeInteger(input.repositoryId) ||
+    input.repositoryId <= 0 ||
+    !/^[a-z0-9_.-]{1,100}$/iu.test(input.owner) ||
+    !/^[a-z0-9_.-]{1,100}$/iu.test(input.repository) ||
+    !input.branch ||
+    input.branch.length > 255 ||
+    !validRoot ||
+    !isGitHubCommitSha(input.commitSha)
+  ) {
+    throw new Error("GitHub project binding is invalid");
+  }
+}
+
+function isGitHubCommitSha(value: string): boolean {
+  return /^[a-f0-9]{40,64}$/iu.test(value);
+}
+
+function githubBindingInput(row: GitHubProjectBindingRow): GitHubProjectBindingInput {
+  return {
+    installationId: row.installation_id,
+    repositoryId: row.repository_id,
+    owner: row.owner,
+    repository: row.repository,
+    branch: row.branch,
+    rootPath: row.root_path,
+    commitSha: row.synchronized_commit,
+  };
+}
+
+function githubPublishPreviewFromRow(row: GitHubPublishPreviewRow): GitHubPublishPreview {
+  return {
+    id: row.id,
+    expectedRevision: row.expected_revision,
+    expectedRemoteHead: row.expected_remote_head,
+    commitMessage: row.commit_message,
+    expiresAt: row.expires_at,
+    comparison: JSON.parse(row.comparison_json) as readonly GitHubSyncChange[],
+    plan: JSON.parse(row.plan_json) as GitHubPublishPlan,
+  };
 }

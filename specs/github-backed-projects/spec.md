@@ -234,6 +234,11 @@ incoming and outgoing mutation.
   preserves unique blob-backed remote renames, blocks conflicted publish plans,
   and keeps untracked local files out of outgoing commits. Credentials remain
   Worker-only configuration.
+- Implemented first-slice server workflow: owner-scoped expiring import
+  previews create an exact-commit project and retained base; revision-bound
+  Publish previews create direct commits and advance the base only after
+  verification. An operation footer reconciles ambiguous branch-update
+  responses before any retry can create another branch commit.
 - First implementation slice: import preview/confirmation and direct Publish
   preview/confirmation, including retained base state and conflict detection.
 - Deferred: optional publish-through-branch-and-PR, binary assets, repository

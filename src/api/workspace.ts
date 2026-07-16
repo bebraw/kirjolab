@@ -35,6 +35,7 @@ import { assertExportable, buildExportBundle, ExportPipelineError } from "../dom
 import { fetchCrossrefWork, fingerprintPublicationMetadata } from "../integrations/crossref";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { downloadR2Object } from "./r2-download";
+import { handleGitHubWorkspaceSyncApi } from "./github-sync";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumImageBytes = 20 * 1024 * 1024;
@@ -66,6 +67,10 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
 
   try {
+    if (suffix === "/github-sync" || suffix.startsWith("/github-sync/")) {
+      if (role !== "owner") return jsonError("Only the workspace owner can synchronize GitHub", 403);
+      return await handleGitHubWorkspaceSyncApi(request, env, room, suffix);
+    }
     if (suffix === "/settings" && request.method === "PATCH") {
       if (role !== "owner") return jsonError("Only the workspace owner can change project settings", 403);
       return await updateWorkspaceSettings(request, workspaceId, room, access, catalog, env, identity.email);

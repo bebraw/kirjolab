@@ -4,6 +4,7 @@ import { handleEditShareRequest } from "./api/edit-share";
 import { renderExportPdf } from "./api/export-artifacts";
 import { handleWorkspaceApi } from "./api/workspace";
 import { handleProjectTemplateApi } from "./api/project-templates";
+import { handleGitHubImportApi } from "./api/github-sync";
 import { handleReferenceLibraryApi } from "./api/reference-library";
 import { exampleRoutes } from "./app-routes";
 import { buildExportBundle } from "./domain/export-pipeline";
@@ -130,6 +131,11 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   if (url.pathname === "/api/project-templates" || url.pathname.startsWith("/api/project-templates/")) {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await handleProjectTemplateApi(request, env, identity);
+  }
+
+  if (url.pathname === "/api/github/import-previews" || url.pathname === "/api/github/imports") {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await handleGitHubImportApi(request, env, identity);
   }
 
   if (url.pathname === "/") {

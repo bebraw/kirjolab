@@ -26,6 +26,7 @@ describe("supporting Durable Objects in the Workers runtime", () => {
       { version: 1, name: "create-workspace-catalog" },
       { version: 2, name: "archive-workspaces" },
       { version: 3, name: "add-public-share-locators" },
+      { version: 4, name: "retain-github-import-previews" },
     ]);
     expect(accessLedger).toEqual([
       { version: 1, name: "create-workspace-access" },
@@ -40,6 +41,25 @@ describe("supporting Durable Objects in the Workers runtime", () => {
     expect(demoLocator).toMatch(/^[0-9a-f-]{36}$/u);
     expect(await catalog.getOrCreateShareLocator("demo")).toBe(demoLocator);
     expect(await catalog.getOrCreateShareLocator(registered.id)).toBe(registered.id);
+
+    const importPreview = await catalog.createGitHubImportPreview(
+      { installationId: 7, owner: "bebraw", repository: "scalability_book", branch: "main", rootPath: "book" },
+      {
+        repositoryId: 99,
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "main",
+        rootPath: "book",
+        commitSha: "a".repeat(40),
+        commitMessage: "Import source",
+        files: [{ path: "main.md", blobSha: "b".repeat(40), content: "# Main\n" }],
+        skipped: [],
+      },
+      "main.md",
+    );
+    expect(await catalog.getGitHubImportPreview(importPreview.id)).toEqual(importPreview);
+    await catalog.deleteGitHubImportPreview(importPreview.id);
+    expect(await catalog.getGitHubImportPreview(importPreview.id)).toBeNull();
 
     expect(await access.getReadOnlyShareStatus(owner.email)).toEqual({ active: false, createdAt: null, token: null });
     const share = await access.createReadOnlyShare(owner.email);

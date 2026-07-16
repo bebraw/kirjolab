@@ -30,6 +30,7 @@ export interface GitHubRepositorySnapshot {
   readonly branch: string;
   readonly rootPath: string;
   readonly commitSha: string;
+  readonly commitMessage: string;
   readonly files: readonly GitHubRemoteMarkdownFile[];
   readonly skipped: readonly GitHubSkippedEntry[];
 }
@@ -92,6 +93,9 @@ export class GitHubAppClient {
       `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/commits/${segment(commitSha)}`,
     );
     const treeSha = nestedSha(commit, "tree", "GitHub commit response is invalid");
+    if (!isRecord(commit) || typeof commit.message !== "string" || commit.message.length > 10_000) {
+      throw invalidResponse("GitHub commit response is invalid");
+    }
     const tree = await this.#request(
       token,
       `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/trees/${segment(treeSha)}?recursive=1`,
@@ -146,6 +150,7 @@ export class GitHubAppClient {
       branch: normalized.branch,
       rootPath: normalized.rootPath,
       commitSha,
+      commitMessage: commit.message,
       files,
       skipped,
     };
@@ -209,8 +214,13 @@ export class GitHubAppClient {
         body: JSON.stringify({ sha: commitSha, force: false }),
       });
     } catch (error) {
-      if (error instanceof GitHubClientError && (error.status === 403 || error.status === 422)) {
-        throw new GitHubClientError("branch-protected", "GitHub rejected the direct branch update", error.status);
+      if (error instanceof GitHubClientError && error.status === 422) {
+        const observedHead = gitObjectSha(await this.#request(token, refPath), "GitHub branch response is invalid");
+        if (observedHead !== currentHead) throw new GitHubClientError("remote-changed", "The GitHub branch changed during publish", 422);
+        throw new GitHubClientError("branch-protected", "GitHub rejected the direct branch update", 422);
+      }
+      if (error instanceof GitHubClientError && error.status === 403) {
+        throw new GitHubClientError("branch-protected", "GitHub rejected the direct branch update", 403);
       }
       throw error;
     }

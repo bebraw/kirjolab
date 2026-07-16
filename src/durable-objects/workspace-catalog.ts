@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { demoWorkspaceId, type WorkspaceSummary } from "../domain/workspace";
+import type { GitHubRepositorySelection, GitHubRepositorySnapshot } from "../integrations/github-app";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
@@ -49,6 +50,24 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 4,
+    name: "retain-github-import-previews",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE github_import_previews (
+          id TEXT PRIMARY KEY,
+          selection_json TEXT NOT NULL,
+          snapshot_json TEXT NOT NULL,
+          entry_path TEXT,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        );
+        CREATE INDEX github_import_previews_expiry ON github_import_previews(expires_at);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface WorkspaceCatalogRow extends Record<string, SqlStorageValue> {
@@ -57,6 +76,24 @@ interface WorkspaceCatalogRow extends Record<string, SqlStorageValue> {
   created_at: string;
   updated_at: string;
   archived_at: string | null;
+}
+
+interface GitHubImportPreviewRow extends Record<string, SqlStorageValue> {
+  id: string;
+  selection_json: string;
+  snapshot_json: string;
+  entry_path: string | null;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface GitHubImportPreviewRecord {
+  readonly id: string;
+  readonly selection: GitHubRepositorySelection;
+  readonly snapshot: GitHubRepositorySnapshot;
+  readonly entryPath: string | null;
+  readonly createdAt: string;
+  readonly expiresAt: string;
 }
 
 export class WorkspaceCatalog extends DurableObject<Env> {
@@ -132,6 +169,42 @@ export class WorkspaceCatalog extends DurableObject<Env> {
   removeWorkspace(id: string): void {
     this.ctx.storage.sql.exec("DELETE FROM workspaces WHERE id = ?", id);
   }
+
+  createGitHubImportPreview(
+    selection: GitHubRepositorySelection,
+    snapshot: GitHubRepositorySnapshot,
+    entryPath: string | null,
+  ): GitHubImportPreviewRecord {
+    this.#deleteExpiredGitHubImportPreviews();
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1_000).toISOString();
+    this.ctx.storage.sql.exec(
+      `INSERT INTO github_import_previews (id, selection_json, snapshot_json, entry_path, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      id,
+      JSON.stringify(selection),
+      JSON.stringify(snapshot),
+      entryPath,
+      createdAt,
+      expiresAt,
+    );
+    return { id, selection, snapshot, entryPath, createdAt, expiresAt };
+  }
+
+  getGitHubImportPreview(id: string): GitHubImportPreviewRecord | null {
+    this.#deleteExpiredGitHubImportPreviews();
+    const row = this.ctx.storage.sql.exec<GitHubImportPreviewRow>("SELECT * FROM github_import_previews WHERE id = ?", id).toArray()[0];
+    return row ? githubImportPreviewFromRow(row) : null;
+  }
+
+  deleteGitHubImportPreview(id: string): void {
+    this.ctx.storage.sql.exec("DELETE FROM github_import_previews WHERE id = ?", id);
+  }
+
+  #deleteExpiredGitHubImportPreviews(): void {
+    this.ctx.storage.sql.exec("DELETE FROM github_import_previews WHERE expires_at <= ?", new Date().toISOString());
+  }
 }
 
 function summaryFromRow(row: WorkspaceCatalogRow): WorkspaceSummary {
@@ -142,5 +215,16 @@ function summaryFromRow(row: WorkspaceCatalogRow): WorkspaceSummary {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     archivedAt: row.archived_at,
+  };
+}
+
+function githubImportPreviewFromRow(row: GitHubImportPreviewRow): GitHubImportPreviewRecord {
+  return {
+    id: row.id,
+    selection: JSON.parse(row.selection_json) as GitHubRepositorySelection,
+    snapshot: JSON.parse(row.snapshot_json) as GitHubRepositorySnapshot,
+    entryPath: row.entry_path,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
   };
 }

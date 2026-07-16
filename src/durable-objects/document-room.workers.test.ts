@@ -385,6 +385,51 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect((await stub.deleteProjectFile(workspaceId, introduction!.id)).files.some((file) => file.id === introduction!.id)).toBe(false);
   });
 
+  it("retains GitHub bindings and invalidates publish previews on local edits", async () => {
+    const workspaceId = "github-sync-state";
+    const stub = roomStub(workspaceId);
+    const initial = await stub.getSnapshot(workspaceId);
+    const remote = initial.files.map((file, index) => ({ path: file.path, blobSha: String(index + 1).repeat(40), content: file.content }));
+    const commit = "a".repeat(40);
+    const binding = await stub.bindGitHubProject(
+      {
+        installationId: 7,
+        repositoryId: 99,
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "main",
+        rootPath: "book",
+        commitSha: commit,
+      },
+      remote,
+    );
+    expect(binding).toMatchObject({ repositoryId: 99, synchronizedRevision: initial.revision });
+    expect(binding.trackedPaths).toEqual(initial.files.map((file) => file.path).sort());
+
+    const entry = initial.files.find((file) => file.id === initial.entryFileId)!;
+    const edited = operationValue(
+      await stub.replaceProjectFileContent(workspaceId, entry.id, `${entry.content}\nChanged.\n`, initial.revision),
+    );
+    const preview = await stub.createGitHubPublishPreview(commit, remote, "Publish from Kirjolab");
+    expect(preview.plan.blocking).toEqual([]);
+    expect(preview.plan.changes).toEqual([{ path: entry.path, content: `${entry.content}\nChanged.\n` }]);
+    expect((await stub.getGitHubPublishConfirmation(preview.id))?.preview.commitMessage).toBe("Publish from Kirjolab");
+
+    await stub.createProjectFolder(workspaceId, "private-notes");
+    expect(await stub.getGitHubPublishConfirmation(preview.id)).toBeNull();
+    const current = await stub.createGitHubPublishPreview(commit, remote, "Publish after refresh");
+    const publishedRemote = remote.map((file) =>
+      file.path === entry.path ? { ...file, blobSha: "f".repeat(40), content: `${entry.content}\nChanged.\n` } : file,
+    );
+    const completed = await stub.completeGitHubPublish(current.id, "b".repeat(40), publishedRemote);
+    expect(completed).toMatchObject({ synchronizedRevision: edited.revision + 1, commitSha: "b".repeat(40) });
+    expect(await stub.getGitHubPublishConfirmation(current.id)).toBeNull();
+    expect(await migrationVersion(stub, 24)).toEqual({ version: 24, name: "retain-github-project-sync-state" });
+
+    await stub.disconnectGitHubProject();
+    expect(await stub.getGitHubSyncState()).toBeNull();
+  });
+
   it("documents a new starter project outside the composed manuscript", async () => {
     const workspaceId = "documented-starter";
     const stub = roomStub(workspaceId);

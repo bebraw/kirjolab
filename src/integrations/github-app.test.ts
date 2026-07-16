@@ -49,7 +49,7 @@ describe("GitHub App integration", () => {
       if (url.pathname === "/app/installations/7/access_tokens") return Response.json({ token: "t".repeat(20) });
       if (url.pathname === "/repos/bebraw/scalability_book") return Response.json({ id: 99 });
       if (url.pathname.endsWith("/git/ref/heads/main")) return Response.json({ object: { sha: commitA } });
-      if (url.pathname.endsWith(`/git/commits/${commitA}`)) return Response.json({ tree: { sha: commitB } });
+      if (url.pathname.endsWith(`/git/commits/${commitA}`)) return Response.json({ tree: { sha: commitB }, message: "Current head" });
       if (url.pathname.endsWith(`/git/trees/${commitB}`)) {
         return Response.json({
           truncated: false,
@@ -78,6 +78,7 @@ describe("GitHub App integration", () => {
       branch: "main",
       rootPath: "book",
       commitSha: commitA,
+      commitMessage: "Current head",
       files: [{ path: "main.md", blobSha: commitC, content: markdown }],
       skipped: [
         { path: "demo.js", reason: "unsupported-type" },
