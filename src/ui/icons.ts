@@ -12,6 +12,7 @@ const ICONS = {
   folderAdd: '<path d="M3.5 6.75h6l2 2h9v9.5h-17z"></path><path d="M9 13.5h6M12 10.5v6"></path>',
   imageAdd:
     '<rect x="3.5" y="5" width="17" height="14" rx="1.5"></rect><circle cx="8.25" cy="9.25" r="1.5"></circle><path d="m5.5 17 4.25-4.25 3 3 2-2 3.75 3.25"></path><path d="M18.5 2.75v4M16.5 4.75h4"></path>',
+  guide: '<path d="M5 4h14v16H5z"></path><path d="M8 8h8M8 12h5M8 16h7"></path>',
   note: '<path d="M5 4h14v12H9l-4 4Z"></path><path d="M9 8h6M9 12h4"></path>',
   research:
     '<path d="M5 5.5h5.25A2.75 2.75 0 0 1 13 8.25v10.25a3.25 3.25 0 0 0-3.25-3.25H5z"></path><path d="M19 5.5h-3.25A2.75 2.75 0 0 0 13 8.25v10.25a3.25 3.25 0 0 1 3.25-3.25H19z"></path>',

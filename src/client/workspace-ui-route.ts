@@ -7,7 +7,7 @@ import {
   type ResearchResourceTarget,
 } from "./research-context";
 
-export type WorkspaceRail = "files" | "research" | "comments";
+export type WorkspaceRail = "files" | "research" | "comments" | "guide";
 export type AuthoringMode = "write" | "map";
 export type WorkspaceSurface = "authoring" | "context";
 export type WorkspaceLayout = "split" | "editor" | "context" | "pdf";
@@ -36,7 +36,7 @@ export function readWorkspaceUiRoute(url: URL): WorkspaceUiRouteState {
   const annotationId = contextKey.startsWith("pdf:") ? readIdentifier(parameters.get("annotation")) : null;
   return {
     ...(fileId ? { fileId } : {}),
-    rail: readChoice(parameters.get("rail"), ["files", "research", "comments"], "files"),
+    rail: readChoice(parameters.get("rail"), ["files", "research", "comments", "guide"], "files"),
     mode: readChoice(parameters.get("mode"), ["write", "map"], "write"),
     surface: readChoice(parameters.get("surface"), ["authoring", "context"], "authoring"),
     ...(layout ? { layout } : {}),

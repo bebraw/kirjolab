@@ -15,6 +15,7 @@ import {
   type ServerCollaborationMessage,
 } from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
+import { buildManuscriptMap } from "../domain/manuscript-map";
 import {
   isProjectRevisionContent,
   isProjectRevisionDiff,
@@ -323,9 +324,15 @@ interface Elements {
   showFilesRail: HTMLButtonElement;
   showResearchRail: HTMLButtonElement;
   showCommentsRail: HTMLButtonElement;
+  showGuideRail: HTMLButtonElement;
   filesRailPanel: HTMLElement;
   researchRailPanel: HTMLElement;
   commentsRailPanel: HTMLElement;
+  guideRailPanel: HTMLElement;
+  manuscriptMapSummary: HTMLElement;
+  manuscriptMapOutline: HTMLElement;
+  manuscriptMapCueCount: HTMLElement;
+  manuscriptMapCues: HTMLElement;
   newProjectFileRail: HTMLButtonElement;
   newProjectFolderRail: HTMLButtonElement;
   uploadProjectImages: HTMLButtonElement;
@@ -881,6 +888,7 @@ class WorkspaceApp {
     this.#elements.showFilesRail.addEventListener("click", () => this.#showRail("files"));
     this.#elements.showResearchRail.addEventListener("click", () => this.#showRail("research"));
     this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
+    this.#elements.showGuideRail.addEventListener("click", () => this.#showRail("guide"));
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
@@ -1214,12 +1222,16 @@ class WorkspaceApp {
     const files = mode === "files";
     const research = mode === "research";
     const comments = mode === "comments";
+    const guide = mode === "guide";
     this.#elements.filesRailPanel.hidden = !files;
     this.#elements.researchRailPanel.hidden = !research;
     this.#elements.commentsRailPanel.hidden = !comments;
+    this.#elements.guideRailPanel.hidden = !guide;
     this.#elements.showFilesRail.setAttribute("aria-selected", String(files));
     this.#elements.showResearchRail.setAttribute("aria-selected", String(research));
     this.#elements.showCommentsRail.setAttribute("aria-selected", String(comments));
+    this.#elements.showGuideRail.setAttribute("aria-selected", String(guide));
+    if (guide) this.#renderManuscriptMap();
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -1298,7 +1310,9 @@ class WorkspaceApp {
         ? "research"
         : this.#elements.showCommentsRail.getAttribute("aria-selected") === "true"
           ? "comments"
-          : "files";
+          : this.#elements.showGuideRail.getAttribute("aria-selected") === "true"
+            ? "guide"
+            : "files";
     const current = new URL(location.href);
     const next = workspaceUiRouteUrl(current, {
       ...(this.#activeFileId && this.#activeFileId !== this.#snapshot?.entryFileId ? { fileId: this.#activeFileId } : {}),
@@ -2584,6 +2598,7 @@ class WorkspaceApp {
     const publicationComposition = this.#snapshot ? composeProject(files, this.#snapshot.entryFileId) : null;
     const filePreview = this.#snapshot ? previewProjectFile(files, this.#snapshot.entryFileId, this.#activeFileId) : null;
     const renderedSource = filePreview?.content ?? this.#source.toString();
+    this.#renderManuscriptMap(publicationComposition?.content ?? renderedSource);
     this.#elements.previewFileContext.textContent = filePreview
       ? `${filePreview.path} · ${filePreview.mode === "composed" ? "composed paper" : "isolated file"}`
       : "Preview";
@@ -2660,6 +2675,56 @@ class WorkspaceApp {
         }),
       );
     }
+  }
+
+  #renderManuscriptMap(source = this.#snapshot?.composition.content ?? this.#source.toString()): void {
+    const map = buildManuscriptMap(source);
+    this.#elements.manuscriptMapSummary.replaceChildren(
+      manuscriptMapMetric(map.words, "words"),
+      manuscriptMapMetric(map.sections.length, "sections"),
+      manuscriptMapMetric(map.citations, "citations"),
+    );
+    this.#elements.manuscriptMapOutline.replaceChildren();
+    if (map.sections.length === 0) this.#elements.manuscriptMapOutline.append(emptyState("Add headings to build the manuscript map."));
+    for (const section of map.sections) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "manuscript-map-item";
+      button.style.paddingInlineStart = `${0.6 + Math.max(0, section.level - 1) * 0.55}rem`;
+      const title = document.createElement("span");
+      title.textContent = section.title;
+      const meta = document.createElement("small");
+      meta.textContent = `${section.words}w · ${section.citations}c`;
+      button.append(title, meta);
+      button.addEventListener("click", () => this.#focusComposedRange(section.from, section.to));
+      this.#elements.manuscriptMapOutline.append(button);
+    }
+    this.#elements.manuscriptMapCueCount.textContent = String(map.cues.length);
+    this.#elements.manuscriptMapCues.replaceChildren();
+    if (map.cues.length === 0) this.#elements.manuscriptMapCues.append(emptyState("No structural review cues."));
+    for (const cue of map.cues) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "manuscript-map-item";
+      const message = document.createElement("span");
+      message.textContent = cue.message;
+      const kind = document.createElement("small");
+      kind.textContent = cue.kind.replaceAll("-", " ");
+      button.append(message, kind);
+      button.addEventListener("click", () => this.#focusComposedRange(cue.from, cue.to));
+      this.#elements.manuscriptMapCues.append(button);
+    }
+  }
+
+  #focusComposedRange(from: number, to: number): void {
+    const composition = this.#snapshot ? composeProject(this.#previewProjectFiles(), this.#snapshot.entryFileId) : null;
+    const start = composition ? sourceSpanAt(composition.sourceMap, from) : undefined;
+    const end = composition ? sourceSpanAt(composition.sourceMap, Math.max(from, to - 1)) : undefined;
+    if (start && end && start.fileId === end.fileId) {
+      this.#focusProjectRange(start.fileId, start.sourceStart, end.sourceEnd);
+      return;
+    }
+    this.#focusProjectRange(this.#snapshot?.entryFileId ?? "", from, to);
   }
 
   #updateAnchorActions(links: Array<PassageLink | ClaimPassageLink>): void {
@@ -8665,9 +8730,15 @@ function collectElements(): Elements {
     showFilesRail: requiredElement("show-files-rail", HTMLButtonElement),
     showResearchRail: requiredElement("show-research-rail", HTMLButtonElement),
     showCommentsRail: requiredElement("show-comments-rail", HTMLButtonElement),
+    showGuideRail: requiredElement("show-guide-rail", HTMLButtonElement),
     filesRailPanel: requiredElement("files-rail-panel", HTMLElement),
     researchRailPanel: requiredElement("research-rail-panel", HTMLElement),
     commentsRailPanel: requiredElement("comments-rail-panel", HTMLElement),
+    guideRailPanel: requiredElement("guide-rail-panel", HTMLElement),
+    manuscriptMapSummary: requiredElement("manuscript-map-summary", HTMLElement),
+    manuscriptMapOutline: requiredElement("manuscript-map-outline", HTMLElement),
+    manuscriptMapCueCount: requiredElement("manuscript-map-cue-count", HTMLElement),
+    manuscriptMapCues: requiredElement("manuscript-map-cues", HTMLElement),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),
@@ -9218,6 +9289,12 @@ function statusText(value: string): HTMLParagraphElement {
   paragraph.className = "mt-2 text-xs leading-5 text-app-text-soft";
   paragraph.textContent = value;
   return paragraph;
+}
+
+function manuscriptMapMetric(value: number, label: string): HTMLSpanElement {
+  const metric = document.createElement("span");
+  metric.textContent = `${value} ${label}`;
+  return metric;
 }
 
 function uploadStateLabel(state: PdfUploadQueueSnapshot["items"][number]["state"]): string {

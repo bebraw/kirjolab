@@ -170,6 +170,9 @@ export function renderHomePage(
             ${renderIcon("comments", "rail-mode-icon")}
             <span class="count-badge rail-mode-count" id="manuscript-comment-count">0</span>
           </button>
+          <button class="rail-mode" id="show-guide-rail" type="button" role="tab" aria-label="Writing guide" aria-controls="guide-rail-panel" aria-selected="false" title="Writing guide">
+            ${renderIcon("guide", "rail-mode-icon")}
+          </button>
         </div>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail">
@@ -233,6 +236,17 @@ export function renderHomePage(
             <p class="text-xs leading-5 text-app-text-soft" id="manuscript-comment-status" role="status">Comments stay outside the Markdown source.</p>
           </form>
           <div class="mt-4 grid gap-3" id="manuscript-comment-list"></div>
+        </section>
+
+        <section class="rail-panel px-4 py-5 lg:px-5" id="guide-rail-panel" role="tabpanel" aria-labelledby="show-guide-rail" hidden>
+          <div><p class="eyebrow">Writing guide</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Manuscript map</h1></div>
+          <p class="mt-2 text-xs leading-5 text-app-text-soft">A local, advisory view of structure. Cues point to places worth reviewing; they are not correctness judgments.</p>
+          <div class="manuscript-map-summary" id="manuscript-map-summary" aria-live="polite"></div>
+          <div class="mt-4 grid gap-2" id="manuscript-map-outline"></div>
+          <details class="rail-collection mt-4" open>
+            <summary><span>Review cues</span><span class="count-badge" id="manuscript-map-cue-count">0</span></summary>
+            <div class="rail-collection-body" id="manuscript-map-cues"></div>
+          </details>
         </section>
       </aside>
 

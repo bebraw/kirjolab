@@ -492,7 +492,7 @@
     top: 0;
     z-index: 5;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     border-bottom: 1px solid var(--color-app-line);
     background: var(--color-app-paper);
     padding: 0.5rem;
@@ -553,6 +553,49 @@
 
   .rail-panel[hidden] {
     display: none;
+  }
+
+  .manuscript-map-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    margin-top: 1rem;
+    border: 1px solid var(--color-app-line);
+    background: var(--color-app-line);
+  }
+
+  .manuscript-map-summary > span {
+    background: var(--color-app-surface);
+    padding: 0.65rem 0.35rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .manuscript-map-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    width: 100%;
+    border-left: 2px solid var(--color-app-line);
+    padding: 0.55rem 0.6rem;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    text-align: left;
+  }
+
+  .manuscript-map-item:hover {
+    border-left-color: var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+  }
+
+  .manuscript-map-item small {
+    color: var(--color-app-text-soft);
+    font-size: 0.6rem;
+    white-space: nowrap;
   }
 
   .project-file-row {

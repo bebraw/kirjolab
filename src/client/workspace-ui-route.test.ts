@@ -114,6 +114,12 @@ describe("workspace UI routes", () => {
     );
   });
 
+  it("round trips the writing guide rail", () => {
+    const state = readWorkspaceUiRoute(new URL("https://example.test/workspaces/demo?rail=guide"));
+    expect(state.rail).toBe("guide");
+    expect(workspaceUiRouteUrl(new URL("https://example.test/workspaces/demo"), state)).toBe("/workspaces/demo?rail=guide");
+  });
+
   it("does not serialize PDF-only location fields for other resource kinds", () => {
     expect(
       workspaceUiRouteUrl(new URL("https://example.test/workspaces/demo?page=9&annotation=old"), {

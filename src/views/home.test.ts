@@ -84,9 +84,11 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="show-files-rail" type="button" role="tab" aria-label="Files"');
     expect(html).toContain('id="show-research-rail" type="button" role="tab" aria-label="Research"');
     expect(html).toContain('id="show-comments-rail" type="button" role="tab" aria-label="Comments"');
+    expect(html).toContain('id="show-guide-rail" type="button" role="tab" aria-label="Writing guide"');
     expect(html).toContain('aria-selected="true" title="Files"');
     expect(html).toContain('aria-selected="false" title="Research"');
     expect(html).toContain('aria-selected="false" title="Comments"');
+    expect(html).toContain('aria-selected="false" title="Writing guide"');
     expect(html).toContain('id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail">');
     expect(html).toContain('id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail" hidden>');
     expect(html).toContain('<h1 class="text-xl font-semibold tracking-[-0.035em]">Files</h1>');
@@ -101,6 +103,7 @@ describe("renderHomePage", () => {
     expect(html).toContain("<summary><span>Bibliography</span></summary>");
     expect(html).toContain('class="count-badge rail-mode-count" id="manuscript-comment-count"');
     expect(html).toContain('id="comments-rail-panel" role="tabpanel"');
+    expect(html).toContain('id="guide-rail-panel" role="tabpanel"');
     expect(html).toContain('id="manuscript-comment-form"');
     expect(html).not.toContain('id="manuscript-comments"');
     expect(html).toContain('id="derived-project-bibliography"');
