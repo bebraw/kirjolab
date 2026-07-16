@@ -584,7 +584,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
 
     const repeated = await library.acceptCitationCandidate(seed.id, metadata, source, "owner@example.test");
     expect(repeated).toMatchObject({ created: false, reference: { id: accepted.reference.id }, assertion: { id: accepted.assertion.id } });
-    expect((await library.findReferencesByDois([metadata.doi]))).toHaveLength(1);
+    expect(await library.findReferencesByDois([metadata.doi])).toHaveLength(1);
     expect(await library.getCitationNetwork()).toMatchObject({
       nodes: [{ referenceId: accepted.reference.id }, { referenceId: seed.id }],
       edges: [{ assertions: [{ id: accepted.assertion.id }] }],

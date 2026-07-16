@@ -4,6 +4,8 @@
 
 **Date:** 2026-07-11
 
+**Amended by:** [ADR-138](./ADR-138-accept-snowball-candidates-atomically.md)
+
 ## Context
 
 ADR-036 models scholarly work as typed hypermedia and ADR-046 derives bounded

@@ -1,10 +1,10 @@
 # ADR-138: Accept Snowball Candidates Atomically
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-16
 
-**Amends:** [ADR-063](../implemented/ADR-063-model-citation-assertions-with-provenance.md)
+**Amends:** [ADR-063](./ADR-063-model-citation-assertions-with-provenance.md)
 
 ## Context
 

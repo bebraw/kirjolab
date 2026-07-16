@@ -23,6 +23,9 @@ is supported on macOS.
 - Import PDFs, highlight passages, and link evidence back to manuscript text.
 - Import BibTeX, enrich references through Crossref, and review DOI metadata
   before associating it with a PDF.
+- Follow a DOI-backed reference trail from trusted seed papers, review
+  backward-snowball candidates, and save each accepted source with its
+  discovery provenance.
 - Ask a local model to revise a selected passage using selected evidence, then
   accept or reject the proposed change.
 - Export portable Markdown and BibTeX files.

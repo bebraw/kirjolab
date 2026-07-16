@@ -30,7 +30,6 @@ ADRs are grouped by lifecycle status:
 | ADR                                                                           | Status      | Summary                                                                                             |
 | ----------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------- |
 | [ADR-132](./accepted/ADR-132-synchronize-projects-with-github.md)             | Accepted    | Manually synchronize bounded GitHub subtrees through previewed pulls and reviewed direct publishes. |
-| [ADR-138](./accepted/ADR-138-accept-snowball-candidates-atomically.md)        | Accepted    | Verify and atomically accept a backward-snowball candidate with its extracted citation assertion.   |
 | [ADR-089](./implemented/ADR-089-require-a-fail-closed-production-release.md)  | Implemented | Require production identity, hostname, dry-run, smoke, version, and rollback evidence.              |
 | [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md) | Implemented | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.                 |
 | [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)             | Implemented | Use semantic light/dark tokens with a browser-local system-aware preference.                        |
@@ -158,6 +157,9 @@ ADRs are grouped by lifecycle status:
 | [ADR-131](./implemented/ADR-131-navigate-citations-by-page-locator.md)                | Implemented          | Insert page locators from project PDFs and use them for unambiguous citation navigation.                     |
 | [ADR-133](./implemented/ADR-133-resolve-optional-project-entry-files.md)              | Implemented          | Resolve an omitted project entry to `main.md` or the first Markdown path, then persist its identity.         |
 | [ADR-135](./implemented/ADR-135-add-inert-markdown-comment-blocks.md)                 | Implemented          | Preserve portable block comments while excluding them from every derived manuscript surface.                 |
+| [ADR-136](./implemented/ADR-136-federate-library-reference-discovery.md)              | Implemented          | Search several scholarly metadata providers and merge reviewable results without mutating the library.       |
+| [ADR-137](./implemented/ADR-137-identify-discovered-works-across-providers.md)        | Implemented          | Reconcile federated discovery results through transitive scholarly identifiers before presenting them.       |
+| [ADR-138](./implemented/ADR-138-accept-snowball-candidates-atomically.md)             | Implemented          | Verify and atomically accept a backward-snowball candidate with its extracted citation assertion.            |
 
 ## Creating A New ADR
 

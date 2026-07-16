@@ -92,7 +92,7 @@ provider result, extraction, or model suggestion as equally trustworthy.
       its audit record.
 - [x] The library network has an optional current-project neighborhood filter.
 - [x] Expansion is explicit, bounded, DOI-matched, and reports unmatched work.
-- [ ] Unmatched works render as a reviewable discovery round and explicit
+- [x] Unmatched works render as a reviewable discovery round and explicit
       acceptance atomically saves the work and its extracted relationship.
 - [x] A graph and accessible provenance list expose the same projection.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover

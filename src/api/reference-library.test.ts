@@ -1432,7 +1432,12 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       ) => ({
         reference: { ...reference, id: citationAssertion.citedReferenceId, ...metadata },
         created: true,
-        assertion: { ...citationAssertion, observedAt: source.observedAt, sourceId: source.responseId, sourceLocator: source.sourceLocator },
+        assertion: {
+          ...citationAssertion,
+          observedAt: source.observedAt,
+          sourceId: source.responseId,
+          sourceLocator: source.sourceLocator,
+        },
       }),
     ),
     getCitationAssertions: vi.fn(async () => [citationAssertion]),
