@@ -27,6 +27,9 @@ Owners need a minimal way to grant access to a known collaborator.
   `/cdn-cgi/access/logout` endpoint, which ends the user's shared Cloudflare
   Access session. Local mode states that no login session exists and does not
   render a non-functional logout action.
+- Read-only and editable external links use a compact file selector on phone
+  viewports. Desktop keeps persistent file navigation, while the editable phone
+  view avoids making a long project tree precede the active editor.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
 - `POST /api/workspaces/{id}/share-link` lets only the owner create or rotate

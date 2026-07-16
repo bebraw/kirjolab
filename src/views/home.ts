@@ -54,8 +54,8 @@ export function renderHomePage(
   <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-app-mode="${appMode}" data-workspace-id="${escapedWorkspaceId}" data-identity-email="${escapedIdentityEmail}">
     <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur">
       <div class="app-header-row">
-        <div class="flex min-w-0 items-center gap-3">
-          <a class="font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
+        <div class="app-header-primary">
+          <a class="app-brand font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>
           <details class="preferences-menu ui-menu" id="preferences-menu" data-settings-menu>
             <summary class="preferences-trigger" aria-label="Open preferences" title="Preferences">
               ${renderIcon("settings")}
@@ -127,7 +127,7 @@ export function renderHomePage(
           </details>
         </div>
         ${appMode === "library" ? `<div class="library-header-context">${contextTabs}</div>` : ""}
-        <div class="flex items-center gap-3">
+        <div class="app-header-secondary">
           ${workspaceLayoutControl}
           <details class="action-menu ui-menu" id="account-menu" data-action-menu>
             <summary class="account-trigger" aria-label="Account for ${escapedIdentityEmail}" title="Account">

@@ -25,6 +25,8 @@ addressable without collapsing their collaboration state into one process.
 - The application shell pairs a compact current-project selector with a
   labelled Projects browser. The browser filters the authorized catalog by
   title, marks the current project, and links directly to stable project URLs.
+- Unknown browser routes render the shared responsive visual shell, identify
+  the missing path, and provide a direct return to Kirjolab.
 
 ### Anti-Patterns
 

@@ -50,6 +50,9 @@ describe("editable project viewer", () => {
     expect(html).toContain('data-edit-save-path="/edit/locator.secret/files/main-file"');
     expect(html).toContain('id="edit-source-highlight"');
     expect(html).toContain('id="edit-source" maxlength="2000000"');
+    expect(html).toContain('id="edit-file-switcher" name="file"');
+    expect(html).toContain('<option value="main-file" selected>main.md</option>');
+    expect(html).toContain('<option value="section-file">sections/results.md</option>');
     expect(html).toContain('id="edit-collaborator-selections" aria-live="polite"');
     expect(html).toContain("# Main &lt;source&gt;");
     expect(html).not.toContain("# Main <source>");

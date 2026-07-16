@@ -663,6 +663,35 @@ test("keeps workspace and Library navigation usable on a phone", async ({ page }
   await expect(page.locator("#context-library-panel")).toBeVisible();
 });
 
+test("keeps shared, editable, and missing views usable on a narrow phone", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Narrow phone layout");
+  const origin = "http://127.0.0.1:8788";
+  const shareResponse = await page.request.post(`/api/workspaces/${workspaceId}/share-link`, { headers: { origin } });
+  const editResponse = await page.request.post(`/api/workspaces/${workspaceId}/edit-link`, { headers: { origin } });
+  const share = (await shareResponse.json()) as { href: string };
+  const edit = (await editResponse.json()) as { href: string };
+  await page.setViewportSize({ width: 320, height: 568 });
+
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.locator("#workspace-switcher")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+
+  await page.goto(`${share.href}?view=markdown`);
+  await expect(page.locator("#shared-view-switcher")).toBeVisible();
+  expect(await page.locator("#shared-view-switcher").evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(150);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+
+  await page.goto(edit.href);
+  await expect(page.locator("#edit-file-switcher")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Editable project files" })).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+
+  const missingResponse = await page.goto("/does-not-exist");
+  expect(missingResponse?.status()).toBe(404);
+  await expect(page.getByRole("link", { name: "Return to Kirjolab" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+});
+
 test("keeps editor controls visible at a compact split width", async ({ page }) => {
   await page.setViewportSize({ width: 1197, height: 800 });
   const workspaceId = await createWorkspace(page, "Compact split toolbar");
