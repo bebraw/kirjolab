@@ -794,6 +794,7 @@ test("keeps the local editor target visible after focus moves to Context", async
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await expect(page.locator("#editor-target-status")).toContainText("line 3 · caret");
   await expect(localCaret).toHaveCSS("visibility", "visible");
+  expect(await localCaret.evaluate((element) => getComputedStyle(element, "::after").content)).toBe("none");
 });
 
 test("highlights Markdown without replacing the native editor", async ({ page }) => {

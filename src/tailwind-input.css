@@ -2733,19 +2733,6 @@
     content: "";
   }
 
-  .collaborator-caret::after,
-  .local-author-caret::after {
-    position: absolute;
-    z-index: 2;
-    inset-block-start: 0;
-    inset-inline-start: -2px;
-    width: 0.38rem;
-    height: 0.2rem;
-    border-radius: 2px 2px 0 0;
-    background: var(--collaborator-color);
-    content: "";
-  }
-
   .source-editor-shell:focus-within .local-author-caret {
     visibility: hidden;
   }
