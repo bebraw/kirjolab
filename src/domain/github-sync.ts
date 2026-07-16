@@ -37,6 +37,11 @@ export interface GitHubPullPlan {
   readonly blocking: readonly GitHubSyncChange[];
 }
 
+export interface GitHubPullResolution {
+  readonly conflict: number;
+  readonly choice: "local" | "remote";
+}
+
 export function compareGitHubSync(
   baseFiles: readonly GitHubSyncBaseFile[],
   localFiles: readonly GitHubSyncLocalFile[],
@@ -115,6 +120,30 @@ export function buildGitHubPullPlan(comparison: readonly GitHubSyncChange[]): Gi
     changes: comparison.filter((change) => change.kind === "remote-only"),
     blocking: comparison.filter((change) => change.kind === "conflict"),
   };
+}
+
+export function resolveGitHubPullPlan(plan: GitHubPullPlan, resolutions: readonly GitHubPullResolution[]): readonly GitHubSyncChange[] {
+  if (resolutions.length !== plan.blocking.length) throw new Error("Every GitHub pull conflict requires one resolution");
+  const byConflict = new Map<number, GitHubPullResolution["choice"]>();
+  for (const resolution of resolutions) {
+    if (
+      !Number.isSafeInteger(resolution.conflict) ||
+      resolution.conflict < 0 ||
+      resolution.conflict >= plan.blocking.length ||
+      byConflict.has(resolution.conflict)
+    ) {
+      throw new Error("GitHub pull conflict resolution is invalid");
+    }
+    byConflict.set(resolution.conflict, resolution.choice);
+  }
+  return [
+    ...plan.changes,
+    ...plan.blocking.filter((_change, index) => {
+      const choice = byConflict.get(index);
+      if (choice !== "local" && choice !== "remote") throw new Error("GitHub pull conflict resolution is invalid");
+      return choice === "remote";
+    }),
+  ];
 }
 
 function classify(base: GitHubSyncBaseFile, local: GitHubSyncLocalFile | null, remote: GitHubSyncRemoteFile | null): GitHubSyncChange {

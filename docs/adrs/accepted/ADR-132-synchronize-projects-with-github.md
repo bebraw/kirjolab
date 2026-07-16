@@ -106,7 +106,11 @@ preview. Confirmation re-reads GitHub, rejects remote movement, applies all safe
 remote-only Markdown changes in one Durable Object transaction, advances the
 retained base in that same transaction, and creates one project revision.
 Local-only changes are intentionally left as divergence for a later Publish;
-conflicts remain blocked until the owner reviews a resolution.
+conflicts remain blocked until the owner reviews both versions and chooses one.
+The confirmation payload carries only conflict indexes and local-or-remote
+choices; canonical conflict content remains server-owned in the expiring
+preview. Choosing Kirjolab advances the remote base while retaining that local
+version as an unpublished local change.
 
 **Positive:**
 

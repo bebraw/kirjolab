@@ -148,7 +148,7 @@ incoming and outgoing mutation.
       existing Yjs documents as one logical revision.
 - [ ] An owner can preview and publish local tracked changes as one direct,
       non-forced commit to the configured branch.
-- [ ] Concurrent local and remote changes are classified by a retained
+- [x] Concurrent local and remote changes are classified by a retained
       three-way base and never silently overwrite either side.
 - [ ] Unknown Markdown syntax and all untracked repository content remain
       byte-for-byte unchanged by operations that do not edit them.
@@ -270,8 +270,12 @@ incoming and outgoing mutation.
   with the retained base and local project, lists incoming changes, blocks
   conflicts, and applies a still-current non-conflicting preview through Yjs as
   one logical revision. Local-only and untracked files remain unchanged.
+- Implemented conflict review: every conflicting path presents bounded,
+  text-only Kirjolab and GitHub versions and requires an explicit keep-local or
+  use-remote choice. Confirmation validates the complete choice set against the
+  retained preview; it never accepts replacement content from the browser.
 - First implementation slice: import, Pull, and direct Publish
   preview/confirmation, including retained base state and conflict detection.
 - Deferred: optional publish-through-branch-and-PR, binary assets, repository
   creation, multiple bindings per project, GitHub Enterprise Server, webhooks,
-  background synchronization, and automatic conflict resolution.
+  background synchronization, and automatic text merging.

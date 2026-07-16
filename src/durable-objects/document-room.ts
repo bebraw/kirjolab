@@ -4,8 +4,10 @@ import {
   buildGitHubPublishPlan,
   buildGitHubPullPlan,
   compareGitHubSync,
+  resolveGitHubPullPlan,
   type GitHubPublishPlan,
   type GitHubPullPlan,
+  type GitHubPullResolution,
   type GitHubSyncBaseFile,
   type GitHubSyncChange,
   type GitHubSyncRemoteFile,
@@ -1100,12 +1102,17 @@ export class DocumentRoom extends DurableObject<Env> {
     return { binding: githubBindingInput(binding), preview: githubPullPreviewFromRow(row) };
   }
 
-  completeGitHubPull(previewId: string, remoteFiles: readonly GitHubSyncRemoteFile[]): GitHubProjectBindingState {
+  completeGitHubPull(
+    previewId: string,
+    remoteFiles: readonly GitHubSyncRemoteFile[],
+    resolutions: readonly GitHubPullResolution[] = [],
+  ): GitHubProjectBindingState {
     const confirmation = this.getGitHubPullConfirmation(previewId);
     if (!confirmation) throw new Error("GitHub pull preview is stale");
-    if (confirmation.preview.plan.blocking.length > 0 || confirmation.preview.plan.changes.length === 0) {
+    if (confirmation.preview.plan.blocking.length === 0 && confirmation.preview.plan.changes.length === 0) {
       throw new Error("GitHub pull preview cannot be confirmed");
     }
+    const acceptedChanges = resolveGitHubPullPlan(confirmation.preview.plan, resolutions);
     if (remoteFiles.some((file) => !file.path.endsWith(".md") || file.content.length > 2_000_000)) {
       throw new Error("GitHub pull contains an invalid project file");
     }
@@ -1119,7 +1126,7 @@ export class DocumentRoom extends DurableObject<Env> {
       if (change.remote) assignedIds.set(change.remote.path, change.local?.fileId ?? change.base?.fileId ?? crypto.randomUUID());
     }
     const finalById = new Map(currentRows.map((row) => [row.id, projectFileFromRow(row)]));
-    for (const change of confirmation.preview.plan.changes) {
+    for (const change of acceptedChanges) {
       const existingId = change.local?.fileId ?? change.base?.fileId;
       if (existingId) finalById.delete(existingId);
       if (change.remote) {
@@ -1149,7 +1156,7 @@ export class DocumentRoom extends DurableObject<Env> {
 
     const stateVector = Y.encodeStateVector(this.#document);
     this.#document.transact(() => {
-      for (const change of confirmation.preview.plan.changes) {
+      for (const change of acceptedChanges) {
         if (!change.remote) continue;
         const fileId = assignedIds.get(change.remote.path)!;
         const row = currentById.get(fileId);
@@ -1172,7 +1179,7 @@ export class DocumentRoom extends DurableObject<Env> {
       previous,
       {},
       () => {
-        for (const change of confirmation.preview.plan.changes) {
+        for (const change of acceptedChanges) {
           const existingId = change.local?.fileId ?? change.base?.fileId;
           if (!change.remote) {
             if (existingId) this.ctx.storage.sql.exec("DELETE FROM project_files WHERE id = ?", existingId);

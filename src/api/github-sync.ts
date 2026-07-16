@@ -1,4 +1,5 @@
 import { defaultProjectPublicationProfile } from "../domain/workspace";
+import type { GitHubPullResolution } from "../domain/github-sync";
 import { resolveTemplateEntryPath, type ProjectTemplateSeed } from "../domain/project-templates";
 import type { GitHubPublishConfirmation } from "../durable-objects/document-room";
 import {
@@ -77,13 +78,23 @@ export async function handleGitHubWorkspaceSyncApi(
     }
     if (suffix === "/github-sync/pulls" && request.method === "POST") {
       const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.previewId !== "string" || !uuid.test(body.previewId)) {
+      if (
+        !isRecord(body) ||
+        typeof body.previewId !== "string" ||
+        !uuid.test(body.previewId) ||
+        (body.resolutions !== undefined && !isGitHubPullResolutions(body.resolutions))
+      ) {
         return jsonError("Invalid GitHub pull confirmation", 400);
       }
+      const resolutions = body.resolutions ?? [];
       const confirmation = await room.getGitHubPullConfirmation(body.previewId);
       if (!confirmation) return jsonError("GitHub pull preview is stale", 409, "stale-preview");
-      if (confirmation.preview.plan.blocking.length > 0) return jsonError("GitHub pull has unresolved conflicts", 409, "conflict");
-      if (confirmation.preview.plan.changes.length === 0) return jsonError("GitHub is already up to date", 409, "no-changes");
+      if (!hasEveryGitHubPullResolution(resolutions, confirmation.preview.plan.blocking.length)) {
+        return jsonError("Every GitHub pull conflict requires a resolution", 409, "conflict");
+      }
+      if (confirmation.preview.plan.changes.length === 0 && confirmation.preview.plan.blocking.length === 0) {
+        return jsonError("GitHub is already up to date", 409, "no-changes");
+      }
       const selection = await authorize(identity, env, selectionFromBinding(confirmation.binding));
       const snapshot = await client.readMarkdownSnapshot(selection);
       if (snapshot.repositoryId !== confirmation.binding.repositoryId) {
@@ -92,7 +103,7 @@ export async function handleGitHubWorkspaceSyncApi(
       if (snapshot.commitSha !== confirmation.preview.expectedRemoteHead) {
         return jsonError("GitHub changed after the pull preview", 409, "remote-changed");
       }
-      const binding = await room.completeGitHubPull(confirmation.preview.id, snapshot.files);
+      const binding = await room.completeGitHubPull(confirmation.preview.id, snapshot.files, resolutions);
       return Response.json({ binding });
     }
     if (suffix === "/github-sync/publish-previews" && request.method === "POST") {
@@ -281,6 +292,22 @@ interface GitHubProjectBindingInputLike {
   readonly repository: string;
   readonly branch: string;
   readonly rootPath: string;
+}
+
+function isGitHubPullResolutions(value: unknown): value is GitHubPullResolution[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (resolution) =>
+        isRecord(resolution) &&
+        Number.isSafeInteger(resolution.conflict) &&
+        (resolution.choice === "local" || resolution.choice === "remote"),
+    )
+  );
+}
+
+function hasEveryGitHubPullResolution(resolutions: readonly GitHubPullResolution[], conflictCount: number): boolean {
+  return resolutions.length === conflictCount && resolutions.every((resolution, index) => resolution.conflict === index);
 }
 
 function seedFromSnapshot(snapshot: GitHubRepositorySnapshot, entryPath?: string): ProjectTemplateSeed {

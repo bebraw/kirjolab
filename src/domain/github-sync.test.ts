@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildGitHubPublishPlan, buildGitHubPullPlan, compareGitHubSync, type GitHubSyncBaseFile } from "./github-sync";
+import {
+  buildGitHubPublishPlan,
+  buildGitHubPullPlan,
+  compareGitHubSync,
+  resolveGitHubPullPlan,
+  type GitHubSyncBaseFile,
+} from "./github-sync";
 
 const base: readonly GitHubSyncBaseFile[] = [
   { fileId: "main", path: "main.md", blobSha: "a", content: "base" },
@@ -98,6 +104,14 @@ describe("GitHub three-way sync", () => {
     const plan = buildGitHubPullPlan(comparison);
     expect(plan.changes.map((change) => change.remote?.path)).toEqual(["appendix.md", "main.md"]);
     expect(plan.blocking.map((change) => change.local?.path)).toEqual(["chapter.md"]);
+    expect(resolveGitHubPullPlan(plan, [{ conflict: 0, choice: "remote" }]).map((change) => change.remote?.path)).toEqual([
+      "appendix.md",
+      "main.md",
+      "chapter.md",
+    ]);
+    expect(resolveGitHubPullPlan(plan, [{ conflict: 0, choice: "local" }])).toEqual(plan.changes);
+    expect(() => resolveGitHubPullPlan(plan, [])).toThrow("Every GitHub pull conflict");
+    expect(() => resolveGitHubPullPlan(plan, [{ conflict: 1, choice: "local" }])).toThrow("resolution is invalid");
   });
 
   it("rejects ambiguous identities", () => {

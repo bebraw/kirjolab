@@ -1589,8 +1589,39 @@ class WorkspaceApp {
         item.textContent = `${change.remote ? (change.base ? "Update" : "Add") : "Delete"} · ${change.remote?.path ?? change.base?.path ?? "Unknown path"}`;
         list.append(item);
       }
-      this.#elements.gitHubPullReview.replaceChildren(summary, list);
-      this.#elements.confirmGitHubPull.disabled = value.plan.blocking.length > 0 || value.plan.changes.length === 0;
+      const conflicts = document.createElement("div");
+      conflicts.className = "mt-4 space-y-4";
+      value.plan.blocking.forEach((change, conflict) => {
+        const fieldset = document.createElement("fieldset");
+        fieldset.className = "rounded-app border border-app-line p-3";
+        const legend = document.createElement("legend");
+        legend.className = "px-1 font-sans text-xs font-semibold text-app-text";
+        legend.textContent = `Conflict · ${change.local?.path ?? change.remote?.path ?? change.base?.path ?? "Unknown path"}`;
+        const versions = document.createElement("div");
+        versions.className = "mt-2 grid gap-3 md:grid-cols-2";
+        versions.append(
+          gitHubConflictVersion("Kirjolab", change.local?.content ?? "File deleted in Kirjolab"),
+          gitHubConflictVersion("GitHub", change.remote?.content ?? "File deleted on GitHub"),
+        );
+        const label = document.createElement("label");
+        label.className = "field-label mt-3";
+        label.textContent = "Resolution";
+        const select = document.createElement("select");
+        select.className = "field";
+        select.dataset.githubConflict = String(conflict);
+        select.append(new Option("Choose a version…", ""), new Option("Keep Kirjolab", "local"), new Option("Use GitHub", "remote"));
+        select.addEventListener("change", () => {
+          this.#elements.confirmGitHubPull.disabled = ![
+            ...this.#elements.gitHubPullReview.querySelectorAll<HTMLSelectElement>("[data-github-conflict]"),
+          ].every((candidate) => candidate.value === "local" || candidate.value === "remote");
+        });
+        label.append(select);
+        fieldset.append(legend, versions, label);
+        conflicts.append(fieldset);
+      });
+      this.#elements.gitHubPullReview.replaceChildren(summary, list, conflicts);
+      this.#elements.confirmGitHubPull.disabled =
+        value.plan.changes.length === 0 && value.plan.blocking.length === 0 ? true : value.plan.blocking.length > 0;
     } catch (error) {
       this.#elements.gitHubPullReview.replaceChildren(statusText(error instanceof Error ? error.message : "Could not check GitHub."));
     }
@@ -1600,7 +1631,13 @@ class WorkspaceApp {
     if (!this.#gitHubPullPreviewId) return;
     this.#elements.confirmGitHubPull.disabled = true;
     try {
-      const response = await jsonFetch(`${apiBase}/github-sync/pulls`, { previewId: this.#gitHubPullPreviewId });
+      const resolutions = [...this.#elements.gitHubPullReview.querySelectorAll<HTMLSelectElement>("[data-github-conflict]")].map(
+        (select) => ({
+          conflict: Number(select.dataset.githubConflict),
+          choice: select.value,
+        }),
+      );
+      const response = await jsonFetch(`${apiBase}/github-sync/pulls`, { previewId: this.#gitHubPullPreviewId, resolutions });
       await expectOk(response);
       await this.#resourceRefresh.request();
       await this.#refreshGitHubSyncState();
@@ -9056,7 +9093,11 @@ function isGitHubPullPreview(value: unknown): value is {
       base: { path: string } | null;
       remote: { path: string } | null;
     }>;
-    blocking: unknown[];
+    blocking: Array<{
+      base: { path: string; content: string } | null;
+      local: { path: string; content: string } | null;
+      remote: { path: string; content: string } | null;
+    }>;
   };
 } {
   if (!isUnknownRecord(value) || typeof value.id !== "string" || !isUnknownRecord(value.plan)) return false;
@@ -9068,8 +9109,34 @@ function isGitHubPullPreview(value: unknown): value is {
         (change.base === null || (isUnknownRecord(change.base) && typeof change.base.path === "string")) &&
         (change.remote === null || (isUnknownRecord(change.remote) && typeof change.remote.path === "string")),
     ) &&
-    Array.isArray(value.plan.blocking)
+    Array.isArray(value.plan.blocking) &&
+    value.plan.blocking.every(isGitHubPullConflict)
   );
+}
+
+function isGitHubPullConflict(value: unknown): value is {
+  base: { path: string; content: string } | null;
+  local: { path: string; content: string } | null;
+  remote: { path: string; content: string } | null;
+} {
+  return (
+    isUnknownRecord(value) &&
+    [value.base, value.local, value.remote].every(
+      (file) => file === null || (isUnknownRecord(file) && typeof file.path === "string" && typeof file.content === "string"),
+    )
+  );
+}
+
+function gitHubConflictVersion(label: string, content: string): HTMLElement {
+  const section = document.createElement("section");
+  const heading = document.createElement("p");
+  heading.className = "font-sans text-xs font-semibold text-app-text-soft";
+  heading.textContent = label;
+  const preview = document.createElement("pre");
+  preview.className = "mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-app bg-app-surface p-2 font-mono text-xs text-app-text";
+  preview.textContent = content.length > 1_000 ? `${content.slice(0, 1_000)}\n…` : content;
+  section.append(heading, preview);
+  return section;
 }
 
 function isGitHubPublishPreview(value: unknown): value is {

@@ -167,6 +167,62 @@ describe("GitHub sync API in the Workers runtime", () => {
     expect(await room.getGitHubSyncState()).toMatchObject({ commitSha: "5".repeat(40), synchronizedRevision: 2 });
   });
 
+  it("requires a reviewed choice for each pull conflict", async () => {
+    const client = new FakeGitHubClient(snapshot("8".repeat(40), "Initial"));
+    const conflictIdentity = { ...identity, ownerKey: `conflict-${crypto.randomUUID()}` };
+    const imported = await importWorkspace(client, conflictIdentity);
+    const room = env.DOCUMENT_ROOMS.getByName(imported.id);
+    const initial = await room.getSnapshot(imported.id);
+    const entry = initial.files.find((file) => file.id === initial.entryFileId)!;
+    expect(await room.replaceProjectFileContent(imported.id, entry.id, "# Kirjolab introduction\n", initial.revision)).toMatchObject({
+      ok: true,
+    });
+    client.current = {
+      ...client.current,
+      commitSha: "9".repeat(40),
+      commitMessage: "Conflicting edit",
+      files: [{ path: "00_introduction.md", blobSha: "a".repeat(40), content: "# GitHub introduction\n" }, client.current.files[1]!],
+    };
+    const previewResponse = await handleGitHubWorkspaceSyncApi(
+      jsonRequest("http://example.com/api/workspaces/project/github-sync/pull-previews", {}),
+      env,
+      conflictIdentity,
+      room,
+      "/github-sync/pull-previews",
+      client,
+      authorizeSelection,
+    );
+    const preview = await responseRecord(previewResponse);
+    expect(preview.plan).toMatchObject({ changes: [], blocking: [{ local: { content: "# Kirjolab introduction\n" } }] });
+
+    const unresolved = await handleGitHubWorkspaceSyncApi(
+      jsonRequest("http://example.com/api/workspaces/project/github-sync/pulls", { previewId: preview.id, resolutions: [] }),
+      env,
+      conflictIdentity,
+      room,
+      "/github-sync/pulls",
+      client,
+      authorizeSelection,
+    );
+    expect(unresolved.status).toBe(409);
+    const resolved = await handleGitHubWorkspaceSyncApi(
+      jsonRequest("http://example.com/api/workspaces/project/github-sync/pulls", {
+        previewId: preview.id,
+        resolutions: [{ conflict: 0, choice: "local" }],
+      }),
+      env,
+      conflictIdentity,
+      room,
+      "/github-sync/pulls",
+      client,
+      authorizeSelection,
+    );
+    expect(resolved.status).toBe(200);
+    expect((await room.getSnapshot(imported.id)).files.find((file) => file.id === entry.id)?.content).toBe("# Kirjolab introduction\n");
+    const nextPreview = await room.createGitHubPullPreview(client.current.commitSha, client.current.files);
+    expect(nextPreview.plan).toMatchObject({ blocking: [], changes: [] });
+  });
+
   it("logs unexpected failures without request or credential data", async () => {
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const client: GitHubSyncRemoteClient = {
