@@ -125,6 +125,11 @@ mode for authenticated hosted collaboration.
   separate private-library `Add and cite` action. Completion replaces only the
   active comma-separated key in one collaborative text transaction; accepting
   a private-library result explicitly links it to the project first.
+- **Include completion:** With the caret in a line-level `::include[...]`
+  directive, the source editor suggests other project Markdown files by their
+  path. Each inserted reference is computed relative to the active file and
+  replaces only the path inside the directive in one collaborative text
+  transaction.
 - **Offline authoring:** A service worker retains the allowlisted authoring
   shell and previously authorized workspace navigation. IndexedDB stores the
   current Yjs document, last acknowledged server vector, and last authorized
@@ -433,6 +438,8 @@ mode for authenticated hosted collaboration.
 - [x] Citation keys offer keyboard-accessible project suggestions at the caret,
       with an opt-in personal preference for explicit private-library add-and-cite
       suggestions.
+- [x] Include paths offer keyboard-accessible project-file suggestions using
+      references relative to the active source file.
 - [x] Preview citations open publication context and explicit citation
       insertion uses a remembered collaborative authoring position.
 - [x] Legacy workspace BibTeX and explicit imports reconcile into stable

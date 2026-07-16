@@ -2509,6 +2509,38 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await expect(page.locator("#preview")).toContainText("Describe the procedure.");
 });
 
+test("completes include paths relative to the active project file", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Include completion");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.locator("#save-status")).toHaveText("Saved");
+
+  await page.locator("#new-project-file-rail").click();
+  await page.locator("#project-file-path").fill("chapters/method.md");
+  await page.locator("#project-file-form").getByRole("button", { name: "Save file" }).click();
+  await page.locator(".project-file-row", { hasText: "main.md" }).click();
+
+  const source = page.locator("#source-editor");
+  await source.fill("::include[chapters/met]");
+  await source.evaluate((element: HTMLTextAreaElement) => {
+    element.setSelectionRange(element.value.length - 1, element.value.length - 1);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await expect(page.locator("#source-completion")).toBeVisible();
+  await expect(page.locator("#source-completion").getByRole("option").first()).toContainText("chapters/method.md");
+  await source.press("Enter");
+  await expect(source).toHaveValue("::include[chapters/method.md]");
+
+  await page.locator(".project-file-row", { hasText: "method.md" }).click();
+  await source.fill("::include[KIRJ]");
+  await source.evaluate((element: HTMLTextAreaElement) => {
+    element.setSelectionRange(element.value.length - 1, element.value.length - 1);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await expect(page.locator("#source-completion").getByRole("option").first()).toContainText("../KIRJOLAB.md");
+  await source.press("Tab");
+  await expect(source).toHaveValue("::include[../KIRJOLAB.md]");
+});
+
 test("isolates clients that send unsupported collaboration frames", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
