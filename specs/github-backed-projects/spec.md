@@ -22,6 +22,10 @@ incoming and outgoing mutation.
   server-side read and write independently verifies the current Kirjolab owner,
   installation access, repository id, branch, and normalized subtree path.
   Repository display names are not authorities.
+- One deployment-wide GitHub App is authorized per Kirjolab owner through the
+  GitHub App user OAuth flow. One-time callback state is owner-scoped, user and
+  refresh tokens are encrypted at rest, and installation ids are never trusted
+  without checking them against the connected GitHub user.
 - Import, Pull, and Publish are two-phase operations: a read-only preview is
   followed by an explicit confirmation carrying an opaque, expiring preview
   identity. Confirmation fails if the project revision, binding, remote head,
@@ -68,6 +72,14 @@ incoming and outgoing mutation.
 
 ### API Contracts
 
+- `GET /api/github/connect` begins an owner-scoped GitHub user authorization;
+  `GET /api/github/callback` consumes its one-time state and stores only
+  encrypted token material.
+- `GET` and `DELETE /api/github/connection` return owner-safe connection state
+  or remove the current owner's connection without changing projects or GitHub.
+- `GET /api/github/install` begins repository access setup and
+  `GET /api/github/setup` accepts an installation only after GitHub confirms it
+  is accessible to the connected user.
 - `POST /api/github/import-previews` validates an owner-visible installation,
   repository, branch, and root, then returns a bounded immutable import preview.
 - `POST /api/github/imports` consumes a current import preview and creates the
@@ -151,6 +163,8 @@ incoming and outgoing mutation.
 - Installation tokens, App private keys, authorization codes, and complete
   private repository responses never enter browser payloads, logs, snapshots,
   history, or Durable Object storage.
+- GitHub user and refresh tokens are encrypted with owner-bound authenticated
+  encryption in Durable Object storage and never returned to the browser.
 - Every remote write is confined to the immutable repository id, configured
   branch, and normalized subtree revalidated by the server at confirmation.
 - Pull and Publish always have a separately confirmed diff preview; preview
@@ -243,6 +257,9 @@ incoming and outgoing mutation.
   exact commit/file/entry review, and explicit confirmation; Project settings
   shows the binding, outgoing tracked-path review, direct Publish confirmation,
   and non-destructive disconnect.
+- Implemented per-user connection boundary: owner-scoped OAuth and installation
+  state, encrypted GitHub user tokens, accessible-installation verification,
+  and repository-restricted installation token minting.
 - First implementation slice: import preview/confirmation and direct Publish
   preview/confirmation, including retained base state and conflict detection.
 - Deferred: optional publish-through-branch-and-PR, binary assets, repository

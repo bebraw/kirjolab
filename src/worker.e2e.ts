@@ -2887,6 +2887,38 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   expect(instantiatedSnapshot.files.some((file) => file.path === "sections/replacement-only.md")).toBe(true);
 });
 
+test("gates GitHub project import behind a user connection", async ({ page }) => {
+  let connected = false;
+  await page.route("**/api/github/connection", async (route) => {
+    if (route.request().method() === "DELETE") {
+      connected = false;
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    await route.fulfill({
+      json: connected
+        ? { connected: true, user: { id: "42", login: "researcher" }, connectedAt: "2026-07-16T12:00:00.000Z" }
+        : { connected: false },
+    });
+  });
+  await page.goto("/");
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Import GitHub" }).click();
+  await expect(page.locator("#github-connection-status")).toContainText("Connect GitHub");
+  await expect(page.getByRole("link", { name: "Connect GitHub" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Preview import" })).toBeDisabled();
+
+  connected = true;
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Import GitHub" }).click();
+  await expect(page.locator("#github-connection-status")).toContainText("Connected as @researcher");
+  await expect(page.getByRole("link", { name: "Manage repository access" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Preview import" })).toBeEnabled();
+});
+
 test("names, compares, restores, and branches immutable project revisions", async ({ page, browser }) => {
   const workspaceId = await createWorkspace(page, "Revision workflow");
   const api = `/api/workspaces/${workspaceId}`;

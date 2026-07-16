@@ -32,11 +32,22 @@ The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflar
 
 ### GitHub App sync
 
-GitHub-backed projects authenticate as a repository-scoped GitHub App installation. Set `GITHUB_APP_ID` and `GITHUB_APP_SLUG` as Worker variables, and keep the PEM private key out of Wrangler configuration:
+GitHub-backed projects use one deployment-wide GitHub App with a separate,
+owner-scoped GitHub user connection. Set `GITHUB_APP_ID`,
+`GITHUB_APP_CLIENT_ID`, and `GITHUB_APP_SLUG` as Worker variables. Configure the
+App callback URL as `/api/github/callback` and its setup URL as
+`/api/github/setup`. Keep the PEM, client secret, and connection encryption key
+out of Wrangler configuration:
 
 ```sh
 npx wrangler secret put GITHUB_APP_PRIVATE_KEY
+npx wrangler secret put GITHUB_APP_CLIENT_SECRET
+npx wrangler secret put GITHUB_CONNECTION_ENCRYPTION_KEY
 ```
+
+Generate `GITHUB_CONNECTION_ENCRYPTION_KEY` as 32 random bytes encoded with
+base64 or base64url. GitHub user and refresh tokens are encrypted with that key;
+changing it disconnects stored connections unless they are migrated first.
 
 For local development only, copy `.dev.vars.example` to the ignored `.dev.vars` and place the same values there. The App installation needs repository metadata read access and repository contents read/write access. Kirjolab reads only supported Markdown below the user-selected repository root and publishes with a non-forced branch update.
 

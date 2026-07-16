@@ -6,6 +6,7 @@ export interface GitHubAppConfig {
 
 export interface GitHubRepositorySelection {
   readonly installationId: number;
+  readonly repositoryId?: number;
   readonly owner: string;
   readonly repository: string;
   readonly branch: string;
@@ -80,9 +81,12 @@ export class GitHubAppClient {
 
   async readMarkdownSnapshot(selection: GitHubRepositorySelection): Promise<GitHubRepositorySnapshot> {
     const normalized = validateSelection(selection);
-    const token = await this.#installationToken(normalized.installationId);
+    const token = await this.#installationToken(normalized.installationId, normalized.repositoryId);
     const repository = await this.#request(token, `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}`);
     if (!isRecord(repository) || !isPositiveInteger(repository.id)) throw invalidResponse("GitHub repository metadata is invalid");
+    if (normalized.repositoryId !== undefined && repository.id !== normalized.repositoryId) {
+      throw new GitHubClientError("forbidden", "GitHub repository is outside the authorized user selection", 403);
+    }
     const ref = await this.#request(
       token,
       `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/ref/heads/${pathSegment(normalized.branch)}`,
@@ -183,7 +187,7 @@ export class GitHubAppClient {
       }
       paths.add(relative);
     }
-    const token = await this.#installationToken(normalized.installationId);
+    const token = await this.#installationToken(normalized.installationId, normalized.repositoryId);
     const repositoryPath = `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}`;
     const refPath = `${repositoryPath}/git/ref/heads/${pathSegment(normalized.branch)}`;
     const currentHead = gitObjectSha(await this.#request(token, refPath), "GitHub branch response is invalid");
@@ -256,10 +260,16 @@ export class GitHubAppClient {
     }
   }
 
-  async #installationToken(installationId: number): Promise<string> {
+  async #installationToken(installationId: number, repositoryId?: number): Promise<string> {
     if (!isPositiveInteger(installationId)) throw new GitHubClientError("bounds", "GitHub installation id is invalid");
+    if (repositoryId !== undefined && !isPositiveInteger(repositoryId)) {
+      throw new GitHubClientError("bounds", "GitHub repository id is invalid");
+    }
     const jwt = await createGitHubAppJwt(this.#config.appId, this.#config.privateKey);
-    const value = await this.#request(jwt, `/app/installations/${installationId}/access_tokens`, { method: "POST" });
+    const value = await this.#request(jwt, `/app/installations/${installationId}/access_tokens`, {
+      method: "POST",
+      ...(repositoryId === undefined ? {} : { body: JSON.stringify({ repository_ids: [repositoryId] }) }),
+    });
     if (!isRecord(value) || typeof value.token !== "string" || value.token.length < 20) {
       throw new GitHubClientError("authentication", "GitHub installation token response is invalid");
     }
@@ -328,6 +338,7 @@ function validateSelection(selection: GitHubRepositorySelection): GitHubReposito
   const rootPath = normalizeGitHubRoot(selection.rootPath);
   if (
     !isPositiveInteger(selection.installationId) ||
+    (selection.repositoryId !== undefined && !isPositiveInteger(selection.repositoryId)) ||
     !repositoryPart(selection.owner) ||
     !repositoryPart(selection.repository) ||
     !selection.branch.trim() ||

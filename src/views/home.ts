@@ -739,6 +739,15 @@ export function renderHomePage(
         <p class="eyebrow">GitHub-backed project</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Import a Markdown folder</h2>
         <p class="mt-2 text-sm leading-6 text-app-text-soft">Preview an exact commit before creating the project. Nothing is written to GitHub.</p>
+        <section class="mt-5 border-y border-app-line py-4" aria-labelledby="github-connection-heading">
+          <p class="field-label" id="github-connection-heading">GitHub account</p>
+          <p class="mt-1 text-sm leading-6 text-app-text-soft" id="github-connection-status">Checking connection…</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <a class="button-primary" id="connect-github-account" href="/api/github/connect?returnTo=%2F%3FgithubImport%3D1">Connect GitHub</a>
+            <a class="button-secondary" id="install-github-app" href="/api/github/install?returnTo=%2F%3FgithubImport%3D1" hidden>Manage repository access</a>
+            <button class="button-secondary" id="disconnect-github-account" type="button" hidden>Disconnect account</button>
+          </div>
+        </section>
         <div class="mt-5 grid gap-3 sm:grid-cols-2">
           <label class="field-label">Project title<input class="field" id="github-import-title" maxlength="120" required placeholder="Scalability book"></label>
           <label class="field-label">Installation ID<input class="field" id="github-installation-id" inputmode="numeric" required placeholder="12345678"></label>
@@ -752,7 +761,7 @@ export function renderHomePage(
         <p class="ui-status mt-3" id="github-import-status" role="status"></p>
         <div class="mt-5 flex justify-end gap-2">
           <button class="button-secondary" id="cancel-github-import" type="button">Cancel</button>
-          <button class="button-secondary" type="submit">Preview import</button>
+          <button class="button-secondary" id="preview-github-import" type="submit" disabled>Preview import</button>
           <button class="button-primary" id="confirm-github-import" type="button" disabled>Create project</button>
         </div>
       </form>

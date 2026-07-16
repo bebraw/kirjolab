@@ -27,6 +27,7 @@ describe("supporting Durable Objects in the Workers runtime", () => {
       { version: 2, name: "archive-workspaces" },
       { version: 3, name: "add-public-share-locators" },
       { version: 4, name: "retain-github-import-previews" },
+      { version: 5, name: "connect-github-users" },
     ]);
     expect(accessLedger).toEqual([
       { version: 1, name: "create-workspace-access" },
@@ -60,6 +61,24 @@ describe("supporting Durable Objects in the Workers runtime", () => {
     expect(await catalog.getGitHubImportPreview(importPreview.id)).toEqual(importPreview);
     await catalog.deleteGitHubImportPreview(importPreview.id);
     expect(await catalog.getGitHubImportPreview(importPreview.id)).toBeNull();
+
+    const flowState = await catalog.createGitHubFlowState("connect", "/?github=connect");
+    expect(flowState).toMatch(/^[A-Za-z0-9_-]{43}$/u);
+    expect(await catalog.consumeGitHubFlowState(flowState, "install")).toBeNull();
+    expect(await catalog.consumeGitHubFlowState(flowState, "connect")).toMatchObject({ returnPath: "/?github=connect" });
+    expect(await catalog.consumeGitHubFlowState(flowState, "connect")).toBeNull();
+
+    const connection = await catalog.setGitHubConnection({
+      githubUserId: "42",
+      githubLogin: "researcher",
+      encryptedAccessToken: "encrypted-access",
+      accessExpiresAt: "2026-07-16T18:00:00.000Z",
+      encryptedRefreshToken: "encrypted-refresh",
+      refreshExpiresAt: "2027-01-16T18:00:00.000Z",
+    });
+    expect(await catalog.getGitHubConnection()).toEqual(connection);
+    await catalog.deleteGitHubConnection();
+    expect(await catalog.getGitHubConnection()).toBeNull();
 
     expect(await access.getReadOnlyShareStatus(owner.email)).toEqual({ active: false, createdAt: null, token: null });
     const share = await access.createReadOnlyShare(owner.email);

@@ -68,6 +68,34 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 5,
+    name: "connect-github-users",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE github_connections (
+          singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+          github_user_id TEXT NOT NULL,
+          github_login TEXT NOT NULL,
+          encrypted_access_token TEXT NOT NULL,
+          access_expires_at TEXT,
+          encrypted_refresh_token TEXT,
+          refresh_expires_at TEXT,
+          connected_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE github_flow_states (
+          digest TEXT PRIMARY KEY,
+          purpose TEXT NOT NULL,
+          return_path TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        );
+        CREATE INDEX github_flow_states_expiry ON github_flow_states(expires_at);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface WorkspaceCatalogRow extends Record<string, SqlStorageValue> {
@@ -87,11 +115,54 @@ interface GitHubImportPreviewRow extends Record<string, SqlStorageValue> {
   expires_at: string;
 }
 
+interface GitHubConnectionRow extends Record<string, SqlStorageValue> {
+  github_user_id: string;
+  github_login: string;
+  encrypted_access_token: string;
+  access_expires_at: string | null;
+  encrypted_refresh_token: string | null;
+  refresh_expires_at: string | null;
+  connected_at: string;
+  updated_at: string;
+}
+
+interface GitHubFlowStateRow extends Record<string, SqlStorageValue> {
+  return_path: string;
+  created_at: string;
+  expires_at: string;
+}
+
 export interface GitHubImportPreviewRecord {
   readonly id: string;
   readonly selection: GitHubRepositorySelection;
   readonly snapshot: GitHubRepositorySnapshot;
   readonly entryPath: string | null;
+  readonly createdAt: string;
+  readonly expiresAt: string;
+}
+
+export interface GitHubConnectionRecord {
+  readonly githubUserId: string;
+  readonly githubLogin: string;
+  readonly encryptedAccessToken: string;
+  readonly accessExpiresAt: string | null;
+  readonly encryptedRefreshToken: string | null;
+  readonly refreshExpiresAt: string | null;
+  readonly connectedAt: string;
+  readonly updatedAt: string;
+}
+
+export interface GitHubConnectionInput {
+  readonly githubUserId: string;
+  readonly githubLogin: string;
+  readonly encryptedAccessToken: string;
+  readonly accessExpiresAt: string | null;
+  readonly encryptedRefreshToken: string | null;
+  readonly refreshExpiresAt: string | null;
+}
+
+export interface GitHubFlowStateRecord {
+  readonly returnPath: string;
   readonly createdAt: string;
   readonly expiresAt: string;
 }
@@ -170,6 +241,77 @@ export class WorkspaceCatalog extends DurableObject<Env> {
     this.ctx.storage.sql.exec("DELETE FROM workspaces WHERE id = ?", id);
   }
 
+  async createGitHubFlowState(purpose: "connect" | "install", returnPath: string): Promise<string> {
+    this.#deleteExpiredGitHubFlowStates();
+    const state = randomToken();
+    const digest = await sha256(state);
+    const createdAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1_000).toISOString();
+    this.ctx.storage.sql.exec(
+      "INSERT INTO github_flow_states (digest, purpose, return_path, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+      digest,
+      purpose,
+      returnPath,
+      createdAt,
+      expiresAt,
+    );
+    return state;
+  }
+
+  async consumeGitHubFlowState(state: string, purpose: "connect" | "install"): Promise<GitHubFlowStateRecord | null> {
+    this.#deleteExpiredGitHubFlowStates();
+    if (!/^[A-Za-z0-9_-]{43}$/u.test(state)) return null;
+    const digest = await sha256(state);
+    const row = this.ctx.storage.sql
+      .exec<GitHubFlowStateRow>(
+        "SELECT return_path, created_at, expires_at FROM github_flow_states WHERE digest = ? AND purpose = ?",
+        digest,
+        purpose,
+      )
+      .toArray()[0];
+    if (row) this.ctx.storage.sql.exec("DELETE FROM github_flow_states WHERE digest = ?", digest);
+    return row ? { returnPath: row.return_path, createdAt: row.created_at, expiresAt: row.expires_at } : null;
+  }
+
+  setGitHubConnection(input: GitHubConnectionInput): GitHubConnectionRecord {
+    const previous = this.getGitHubConnection();
+    const now = new Date().toISOString();
+    const connectedAt = previous?.connectedAt ?? now;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO github_connections (
+         singleton, github_user_id, github_login, encrypted_access_token, access_expires_at,
+         encrypted_refresh_token, refresh_expires_at, connected_at, updated_at
+       ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(singleton) DO UPDATE SET
+         github_user_id = excluded.github_user_id,
+         github_login = excluded.github_login,
+         encrypted_access_token = excluded.encrypted_access_token,
+         access_expires_at = excluded.access_expires_at,
+         encrypted_refresh_token = excluded.encrypted_refresh_token,
+         refresh_expires_at = excluded.refresh_expires_at,
+         updated_at = excluded.updated_at`,
+      input.githubUserId,
+      input.githubLogin,
+      input.encryptedAccessToken,
+      input.accessExpiresAt,
+      input.encryptedRefreshToken,
+      input.refreshExpiresAt,
+      connectedAt,
+      now,
+    );
+    return this.getGitHubConnection()!;
+  }
+
+  getGitHubConnection(): GitHubConnectionRecord | null {
+    const row = this.ctx.storage.sql.exec<GitHubConnectionRow>("SELECT * FROM github_connections WHERE singleton = 1").toArray()[0];
+    return row ? githubConnectionFromRow(row) : null;
+  }
+
+  deleteGitHubConnection(): void {
+    this.ctx.storage.sql.exec("DELETE FROM github_connections WHERE singleton = 1");
+    this.ctx.storage.sql.exec("DELETE FROM github_flow_states");
+  }
+
   createGitHubImportPreview(
     selection: GitHubRepositorySelection,
     snapshot: GitHubRepositorySnapshot,
@@ -205,6 +347,10 @@ export class WorkspaceCatalog extends DurableObject<Env> {
   #deleteExpiredGitHubImportPreviews(): void {
     this.ctx.storage.sql.exec("DELETE FROM github_import_previews WHERE expires_at <= ?", new Date().toISOString());
   }
+
+  #deleteExpiredGitHubFlowStates(): void {
+    this.ctx.storage.sql.exec("DELETE FROM github_flow_states WHERE expires_at <= ?", new Date().toISOString());
+  }
 }
 
 function summaryFromRow(row: WorkspaceCatalogRow): WorkspaceSummary {
@@ -227,4 +373,29 @@ function githubImportPreviewFromRow(row: GitHubImportPreviewRow): GitHubImportPr
     createdAt: row.created_at,
     expiresAt: row.expires_at,
   };
+}
+
+function githubConnectionFromRow(row: GitHubConnectionRow): GitHubConnectionRecord {
+  return {
+    githubUserId: row.github_user_id,
+    githubLogin: row.github_login,
+    encryptedAccessToken: row.encrypted_access_token,
+    accessExpiresAt: row.access_expires_at,
+    encryptedRefreshToken: row.encrypted_refresh_token,
+    refreshExpiresAt: row.refresh_expires_at,
+    connectedAt: row.connected_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function randomToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+async function sha256(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

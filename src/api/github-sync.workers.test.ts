@@ -25,6 +25,7 @@ describe("GitHub sync API in the Workers runtime", () => {
       env,
       identity,
       client,
+      authorizeSelection,
     );
     expect(previewResponse.status).toBe(201);
     const preview = await responseRecord(previewResponse);
@@ -36,6 +37,7 @@ describe("GitHub sync API in the Workers runtime", () => {
       env,
       identity,
       client,
+      authorizeSelection,
     );
     expect(importResponse.status).toBe(201);
     const imported = await responseRecord(importResponse);
@@ -52,9 +54,11 @@ describe("GitHub sync API in the Workers runtime", () => {
     const publishPreviewResponse = await handleGitHubWorkspaceSyncApi(
       jsonRequest("http://example.com/api/workspaces/project/github-sync/publish-previews", { commitMessage: "Revise introduction" }),
       env,
+      identity,
       room,
       "/github-sync/publish-previews",
       client,
+      authorizeSelection,
     );
     expect(publishPreviewResponse.status).toBe(201);
     const publishPreview = await responseRecord(publishPreviewResponse);
@@ -66,9 +70,11 @@ describe("GitHub sync API in the Workers runtime", () => {
     const publishResponse = await handleGitHubWorkspaceSyncApi(
       jsonRequest("http://example.com/api/workspaces/project/github-sync/publishes", { previewId: publishPreview.id }),
       env,
+      identity,
       room,
       "/github-sync/publishes",
       client,
+      authorizeSelection,
     );
     expect(publishResponse.status).toBe(200);
     await expect(publishResponse.json()).resolves.toMatchObject({ commitSha: "c".repeat(40), reconciled: false });
@@ -92,6 +98,7 @@ describe("GitHub sync API in the Workers runtime", () => {
       env,
       staleIdentity,
       client,
+      authorizeSelection,
     );
     const preview = await responseRecord(previewResponse);
     client.current = snapshot("e".repeat(40), "After");
@@ -100,6 +107,7 @@ describe("GitHub sync API in the Workers runtime", () => {
       env,
       staleIdentity,
       client,
+      authorizeSelection,
     );
     expect(response.status).toBe(409);
   });
@@ -127,6 +135,7 @@ describe("GitHub sync API in the Workers runtime", () => {
         env,
         identity,
         client,
+        authorizeSelection,
       );
 
       expect(response.status).toBe(500);
@@ -203,4 +212,12 @@ async function responseRecord(response: Response): Promise<Record<string, unknow
   const value: unknown = await response.json();
   if (typeof value !== "object" || value === null) throw new Error("Expected JSON object response");
   return value as Record<string, unknown>;
+}
+
+async function authorizeSelection(
+  _identity: AuthIdentity,
+  _env: Env,
+  selection: GitHubRepositorySelection,
+): Promise<GitHubRepositorySelection> {
+  return { ...selection, repositoryId: 99 };
 }

@@ -8,6 +8,7 @@ const commitD = "d".repeat(40);
 const commitE = "e".repeat(40);
 const selection: GitHubRepositorySelection = {
   installationId: 7,
+  repositoryId: 99,
   owner: "bebraw",
   repository: "scalability_book",
   branch: "main",
@@ -91,6 +92,7 @@ describe("GitHub App integration", () => {
       expect(fetcher).toHaveBeenCalledTimes(7);
       expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({ authorization: expect.stringMatching(/^Bearer /u) });
       expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
+      expect(fetcher.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ repository_ids: [99] }));
       expect(fetcher.mock.calls[6]?.[1]?.headers).toMatchObject({ authorization: `Bearer ${"t".repeat(20)}` });
     } finally {
       vi.unstubAllGlobals();

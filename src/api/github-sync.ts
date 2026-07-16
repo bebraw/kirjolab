@@ -7,7 +7,9 @@ import {
   type GitHubRepositorySelection,
   type GitHubRepositorySnapshot,
 } from "../integrations/github-app";
+import { GitHubUserError } from "../integrations/github-user";
 import type { AuthIdentity } from "../security/auth";
+import { authorizeGitHubSelection } from "./github-connection";
 
 interface GitHubSecretEnvironment {
   readonly GITHUB_APP_PRIVATE_KEY?: string;
@@ -25,17 +27,24 @@ export interface GitHubSyncRemoteClient {
   ): Promise<string>;
 }
 
+export type GitHubSelectionAuthorizer = (
+  identity: AuthIdentity,
+  env: Env,
+  selection: GitHubRepositorySelection,
+) => Promise<GitHubRepositorySelection>;
+
 export async function handleGitHubImportApi(
   request: Request,
   env: Env,
   identity: AuthIdentity,
   client: GitHubSyncRemoteClient = githubClient(env),
+  authorize: GitHubSelectionAuthorizer = authorizeGitHubSelection,
 ): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   if (request.method !== "POST") return jsonError("GitHub sync route not found", 404);
   try {
-    if (pathname === "/api/github/import-previews") return await previewImport(request, env, identity, client);
-    if (pathname === "/api/github/imports") return await confirmImport(request, env, identity, client);
+    if (pathname === "/api/github/import-previews") return await previewImport(request, env, identity, client, authorize);
+    if (pathname === "/api/github/imports") return await confirmImport(request, env, identity, client, authorize);
     return jsonError("GitHub sync route not found", 404);
   } catch (error) {
     return githubErrorResponse(error);
@@ -45,9 +54,11 @@ export async function handleGitHubImportApi(
 export async function handleGitHubWorkspaceSyncApi(
   request: Request,
   env: Env,
+  identity: AuthIdentity,
   room: DocumentRoomStub,
   suffix: string,
   client: GitHubSyncRemoteClient = githubClient(env),
+  authorize: GitHubSelectionAuthorizer = authorizeGitHubSelection,
 ): Promise<Response> {
   try {
     if (suffix === "/github-sync" && request.method === "GET") return Response.json(await room.getGitHubSyncState());
@@ -62,7 +73,8 @@ export async function handleGitHubWorkspaceSyncApi(
       }
       const binding = await room.getGitHubSyncState();
       if (!binding) return jsonError("Project is not connected to GitHub", 409, "not-connected");
-      const snapshot = await client.readMarkdownSnapshot(selectionFromBinding(binding));
+      const selection = await authorize(identity, env, selectionFromBinding(binding));
+      const snapshot = await client.readMarkdownSnapshot(selection);
       if (snapshot.repositoryId !== binding.repositoryId) return jsonError("GitHub repository identity changed", 409, "repository-changed");
       const preview = await room.createGitHubPublishPreview(snapshot.commitSha, snapshot.files, body.commitMessage);
       return Response.json(preview, { status: 201 });
@@ -76,7 +88,8 @@ export async function handleGitHubWorkspaceSyncApi(
       if (!confirmation) return jsonError("GitHub publish preview is stale", 409, "stale-preview");
       if (confirmation.preview.plan.blocking.length > 0) return jsonError("GitHub publish has unresolved remote changes", 409, "conflict");
       if (confirmation.preview.plan.changes.length === 0) return jsonError("GitHub publish has no tracked changes", 409, "no-changes");
-      return await publishConfirmation(client, room, confirmation);
+      const selection = await authorize(identity, env, selectionFromBinding(confirmation.binding));
+      return await publishConfirmation(client, room, confirmation, selection);
     }
     return jsonError("GitHub sync route not found", 404);
   } catch (error) {
@@ -84,7 +97,13 @@ export async function handleGitHubWorkspaceSyncApi(
   }
 }
 
-async function previewImport(request: Request, env: Env, identity: AuthIdentity, client: GitHubSyncRemoteClient): Promise<Response> {
+async function previewImport(
+  request: Request,
+  env: Env,
+  identity: AuthIdentity,
+  client: GitHubSyncRemoteClient,
+  authorize: GitHubSelectionAuthorizer,
+): Promise<Response> {
   const body: unknown = await request.json();
   if (!isImportPreviewInput(body)) return jsonError("Invalid GitHub import preview", 400);
   const selection: GitHubRepositorySelection = {
@@ -94,13 +113,18 @@ async function previewImport(request: Request, env: Env, identity: AuthIdentity,
     branch: body.branch,
     rootPath: body.rootPath,
   };
-  const snapshot = await client.readMarkdownSnapshot(selection);
+  const authorizedSelection = await authorize(identity, env, selection);
+  const snapshot = await client.readMarkdownSnapshot(authorizedSelection);
   if (body.entryPath !== undefined && !snapshot.files.some((file) => file.path === body.entryPath)) {
     return jsonError("GitHub import entry file is unavailable", 400);
   }
   const seed = seedFromSnapshot(snapshot, body.entryPath);
   const entryPath = resolveTemplateEntryPath(seed);
-  const preview = await env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).createGitHubImportPreview(selection, snapshot, entryPath);
+  const preview = await env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).createGitHubImportPreview(
+    authorizedSelection,
+    snapshot,
+    entryPath,
+  );
   return Response.json(
     {
       id: preview.id,
@@ -121,7 +145,13 @@ async function previewImport(request: Request, env: Env, identity: AuthIdentity,
   );
 }
 
-async function confirmImport(request: Request, env: Env, identity: AuthIdentity, client: GitHubSyncRemoteClient): Promise<Response> {
+async function confirmImport(
+  request: Request,
+  env: Env,
+  identity: AuthIdentity,
+  client: GitHubSyncRemoteClient,
+  authorize: GitHubSelectionAuthorizer,
+): Promise<Response> {
   const body: unknown = await request.json();
   if (!isRecord(body) || typeof body.previewId !== "string" || !uuid.test(body.previewId) || typeof body.title !== "string") {
     return jsonError("Invalid GitHub import confirmation", 400);
@@ -131,7 +161,8 @@ async function confirmImport(request: Request, env: Env, identity: AuthIdentity,
   const catalog = env.WORKSPACE_CATALOGS.getByName(identity.ownerKey);
   const preview = await catalog.getGitHubImportPreview(body.previewId);
   if (!preview) return jsonError("GitHub import preview is stale", 409, "stale-preview");
-  const current = await client.readMarkdownSnapshot(preview.selection);
+  const authorizedSelection = await authorize(identity, env, preview.selection);
+  const current = await client.readMarkdownSnapshot(authorizedSelection);
   if (current.repositoryId !== preview.snapshot.repositoryId || current.commitSha !== preview.snapshot.commitSha) {
     return jsonError("GitHub changed after the import preview", 409, "remote-changed");
   }
@@ -157,8 +188,8 @@ async function publishConfirmation(
   client: GitHubSyncRemoteClient,
   room: DocumentRoomStub,
   confirmation: GitHubPublishConfirmation,
+  selection: GitHubRepositorySelection,
 ): Promise<Response> {
-  const selection = selectionFromBinding(confirmation.binding);
   const operationFooter = `Kirjolab-Operation: ${confirmation.preview.id}`;
   const commitMessage = `${confirmation.preview.commitMessage}\n\n${operationFooter}`;
   const before = await client.readMarkdownSnapshot(selection);
@@ -206,6 +237,7 @@ function githubClient(env: Env): GitHubAppClient {
 function selectionFromBinding(binding: GitHubProjectBindingInputLike): GitHubRepositorySelection {
   return {
     installationId: binding.installationId,
+    repositoryId: binding.repositoryId,
     owner: binding.owner,
     repository: binding.repository,
     branch: binding.branch,
@@ -215,6 +247,7 @@ function selectionFromBinding(binding: GitHubProjectBindingInputLike): GitHubRep
 
 interface GitHubProjectBindingInputLike {
   readonly installationId: number;
+  readonly repositoryId: number;
   readonly owner: string;
   readonly repository: string;
   readonly branch: string;
@@ -264,6 +297,18 @@ function isDefinitiveGitHubFailure(error: unknown): boolean {
 }
 
 function githubErrorResponse(error: unknown): Response {
+  if (error instanceof GitHubUserError) {
+    const status = error.code === "configuration" ? 503 : error.code === "authorization" ? 401 : error.code === "forbidden" ? 403 : 502;
+    const message =
+      error.code === "configuration"
+        ? "GitHub user connection is not configured"
+        : error.code === "authorization"
+          ? "Connect GitHub to continue"
+          : error.code === "forbidden"
+            ? "GitHub installation or repository access was denied"
+            : "GitHub user authorization failed";
+    return jsonError(message, status, error.code);
+  }
   if (error instanceof GitHubClientError) {
     const status =
       error.code === "configuration"

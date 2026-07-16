@@ -7,6 +7,11 @@ CROSSREF_MAILTO=
 OPENALEX_API_KEY=
 SEMANTIC_SCHOLAR_API_KEY=
 GITHUB_APP_ID=
+GITHUB_APP_CLIENT_ID=
 GITHUB_APP_SLUG=
 # Set with `wrangler secret put GITHUB_APP_PRIVATE_KEY` in deployed environments.
 GITHUB_APP_PRIVATE_KEY=
+# Set with `wrangler secret put GITHUB_APP_CLIENT_SECRET` in deployed environments.
+GITHUB_APP_CLIENT_SECRET=
+# Generate 32 random bytes and set with `wrangler secret put GITHUB_CONNECTION_ENCRYPTION_KEY`.
+GITHUB_CONNECTION_ENCRYPTION_KEY=

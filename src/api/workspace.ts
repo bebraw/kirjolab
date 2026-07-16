@@ -69,7 +69,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
   try {
     if (suffix === "/github-sync" || suffix.startsWith("/github-sync/")) {
       if (role !== "owner") return jsonError("Only the workspace owner can synchronize GitHub", 403);
-      return await handleGitHubWorkspaceSyncApi(request, env, room, suffix);
+      return await handleGitHubWorkspaceSyncApi(request, env, identity, room, suffix);
     }
     if (suffix === "/settings" && request.method === "PATCH") {
       if (role !== "owner") return jsonError("Only the workspace owner can change project settings", 403);

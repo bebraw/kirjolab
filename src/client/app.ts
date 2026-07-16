@@ -224,6 +224,10 @@ interface Elements {
   openGitHubImport: HTMLButtonElement;
   gitHubImportDialog: HTMLDialogElement;
   gitHubImportForm: HTMLFormElement;
+  gitHubConnectionStatus: HTMLElement;
+  connectGitHubAccount: HTMLAnchorElement;
+  installGitHubApp: HTMLAnchorElement;
+  disconnectGitHubAccount: HTMLButtonElement;
   gitHubImportTitle: HTMLInputElement;
   gitHubInstallationId: HTMLInputElement;
   gitHubOwner: HTMLInputElement;
@@ -234,6 +238,7 @@ interface Elements {
   gitHubImportPreview: HTMLElement;
   gitHubImportStatus: HTMLElement;
   confirmGitHubImport: HTMLButtonElement;
+  previewGitHubImport: HTMLButtonElement;
   cancelGitHubImport: HTMLButtonElement;
   gitHubSyncStatus: HTMLElement;
   gitHubPublishMessage: HTMLInputElement;
@@ -830,13 +835,20 @@ class WorkspaceApp {
       this.#elements.gitHubImportStatus.textContent = "";
       this.#elements.gitHubImportDialog.showModal();
       this.#elements.gitHubImportTitle.focus();
+      void this.#refreshGitHubConnection();
     });
     this.#elements.cancelGitHubImport.addEventListener("click", () => this.#elements.gitHubImportDialog.close());
     this.#elements.gitHubImportForm.addEventListener("submit", (event) => void this.#previewGitHubImport(event));
     this.#elements.confirmGitHubImport.addEventListener("click", () => void this.#confirmGitHubImport());
+    this.#elements.disconnectGitHubAccount.addEventListener("click", () => void this.#disconnectGitHubAccount());
     this.#elements.previewGitHubPublish.addEventListener("click", () => void this.#previewGitHubPublish());
     this.#elements.confirmGitHubPublish.addEventListener("click", () => void this.#confirmGitHubPublish());
     this.#elements.disconnectGitHub.addEventListener("click", () => void this.#disconnectGitHub());
+    const githubResult = new URL(location.href).searchParams.get("github");
+    if (githubResult === "connected" || githubResult === "installed") {
+      this.#elements.openGitHubImport.click();
+      history.replaceState(history.state, "", location.pathname);
+    }
     this.#elements.cancelSaveTemplate.addEventListener("click", () => this.#elements.saveTemplateDialog.close());
     this.#elements.saveTemplateForm.addEventListener("submit", (event) => void this.#saveProjectTemplate(event));
     this.#elements.saveTemplateTarget.addEventListener("change", () => this.#selectTemplateReplacement());
@@ -1334,6 +1346,32 @@ class WorkspaceApp {
     } catch (error) {
       this.#elements.gitHubImportStatus.textContent = error instanceof Error ? error.message : "Could not preview GitHub import.";
     }
+  }
+
+  async #refreshGitHubConnection(): Promise<void> {
+    this.#elements.previewGitHubImport.disabled = true;
+    try {
+      const response = await fetch("/api/github/connection", { credentials: "same-origin" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isGitHubConnectionState(value)) throw new Error("GitHub returned an invalid connection state");
+      this.#elements.gitHubConnectionStatus.textContent = value.connected
+        ? `Connected as @${value.user.login}. Repository access remains controlled on GitHub.`
+        : "Connect GitHub to choose repositories available to your account.";
+      this.#elements.connectGitHubAccount.hidden = value.connected;
+      this.#elements.installGitHubApp.hidden = !value.connected;
+      this.#elements.disconnectGitHubAccount.hidden = !value.connected;
+      this.#elements.previewGitHubImport.disabled = !value.connected;
+    } catch (error) {
+      this.#elements.gitHubConnectionStatus.textContent = error instanceof Error ? error.message : "Could not load the GitHub connection.";
+    }
+  }
+
+  async #disconnectGitHubAccount(): Promise<void> {
+    if (!confirm("Disconnect your GitHub account from Kirjolab? Existing project files and repositories will not be deleted.")) return;
+    const response = await fetch("/api/github/connection", { method: "DELETE", credentials: "same-origin" });
+    await expectOk(response);
+    await this.#refreshGitHubConnection();
   }
 
   async #confirmGitHubImport(): Promise<void> {
@@ -8312,6 +8350,10 @@ function collectElements(): Elements {
     openGitHubImport: requiredElement("open-github-import", HTMLButtonElement),
     gitHubImportDialog: requiredElement("github-import-dialog", HTMLDialogElement),
     gitHubImportForm: requiredElement("github-import-form", HTMLFormElement),
+    gitHubConnectionStatus: requiredElement("github-connection-status", HTMLElement),
+    connectGitHubAccount: requiredElement("connect-github-account", HTMLAnchorElement),
+    installGitHubApp: requiredElement("install-github-app", HTMLAnchorElement),
+    disconnectGitHubAccount: requiredElement("disconnect-github-account", HTMLButtonElement),
     gitHubImportTitle: requiredElement("github-import-title", HTMLInputElement),
     gitHubInstallationId: requiredElement("github-installation-id", HTMLInputElement),
     gitHubOwner: requiredElement("github-owner", HTMLInputElement),
@@ -8322,6 +8364,7 @@ function collectElements(): Elements {
     gitHubImportPreview: requiredElement("github-import-preview", HTMLElement),
     gitHubImportStatus: requiredElement("github-import-status", HTMLElement),
     confirmGitHubImport: requiredElement("confirm-github-import", HTMLButtonElement),
+    previewGitHubImport: requiredElement("preview-github-import", HTMLButtonElement),
     cancelGitHubImport: requiredElement("cancel-github-import", HTMLButtonElement),
     gitHubSyncStatus: requiredElement("github-sync-status", HTMLElement),
     gitHubPublishMessage: requiredElement("github-publish-message", HTMLInputElement),
@@ -8716,6 +8759,19 @@ function isWebSnapshotComparisonResponse(value: unknown): value is WebSnapshotCo
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isGitHubConnectionState(
+  value: unknown,
+): value is { connected: false } | { connected: true; user: { id: string; login: string }; connectedAt: string } {
+  if (!isUnknownRecord(value) || typeof value.connected !== "boolean") return false;
+  if (!value.connected) return true;
+  return (
+    isUnknownRecord(value.user) &&
+    typeof value.user.id === "string" &&
+    typeof value.user.login === "string" &&
+    typeof value.connectedAt === "string"
+  );
 }
 
 function isGitHubImportPreview(value: unknown): value is {

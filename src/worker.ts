@@ -4,6 +4,7 @@ import { handleEditShareRequest } from "./api/edit-share";
 import { renderExportPdf } from "./api/export-artifacts";
 import { handleWorkspaceApi } from "./api/workspace";
 import { handleProjectTemplateApi } from "./api/project-templates";
+import { handleGitHubConnectionApi } from "./api/github-connection";
 import { handleGitHubImportApi } from "./api/github-sync";
 import { handleReferenceLibraryApi } from "./api/reference-library";
 import { exampleRoutes } from "./app-routes";
@@ -136,6 +137,17 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   if (url.pathname === "/api/github/import-previews" || url.pathname === "/api/github/imports") {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await handleGitHubImportApi(request, env, identity);
+  }
+
+  if (
+    url.pathname === "/api/github/connection" ||
+    url.pathname === "/api/github/connect" ||
+    url.pathname === "/api/github/callback" ||
+    url.pathname === "/api/github/install" ||
+    url.pathname === "/api/github/setup"
+  ) {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await handleGitHubConnectionApi(request, env, identity);
   }
 
   if (url.pathname === "/") {
