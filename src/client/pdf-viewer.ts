@@ -427,6 +427,12 @@ export class PdfEvidenceViewer {
   }
 
   #startTouchGesture(event: TouchEvent): void {
+    if (this.#touchTargetsActiveDrawing(event)) {
+      event.preventDefault();
+      this.#touchPanStart = null;
+      this.#swipeStart = null;
+      return;
+    }
     if (event.touches.length === 2) {
       event.preventDefault();
       window.clearTimeout(this.#wheelZoomRenderTimer);
@@ -455,6 +461,10 @@ export class PdfEvidenceViewer {
   }
 
   #continueTouchGesture(event: TouchEvent): void {
+    if (this.#touchTargetsActiveDrawing(event)) {
+      event.preventDefault();
+      return;
+    }
     if (event.touches.length === 2 && this.#pinchStart) {
       event.preventDefault();
       const zoom = clamp(this.#pinchStart.zoom * (touchDistance(event.touches) / this.#pinchStart.distance), 0.75, 4);
@@ -492,6 +502,10 @@ export class PdfEvidenceViewer {
     this.#touchPanStart = null;
     this.#swipeStart = null;
     this.#elements.page.style.removeProperty("transform");
+  }
+
+  #touchTargetsActiveDrawing(event: TouchEvent): boolean {
+    return event.target instanceof Element && event.target.closest('.pdf-markups[data-drawing-active="true"]') !== null;
   }
 }
 

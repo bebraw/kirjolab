@@ -1304,6 +1304,33 @@ test("keeps private library research separate from project citations", async ({ 
   if (!markupBox) throw new Error("Expected a drawable PDF page");
   await page.mouse.move(markupBox.x + markupBox.width * 0.25, markupBox.y + markupBox.height * 0.35);
   await page.mouse.down();
+  const drawingTouch = await page.locator("#paper-markups").evaluate((layer) => {
+    const reader = layer.closest<HTMLElement>("#paper-reader");
+    if (!reader) throw new Error("Expected the PDF reader");
+    const overflow = document.createElement("div");
+    overflow.style.height = "1000px";
+    reader.append(overflow);
+    const previousHeight = reader.style.height;
+    reader.style.height = "100px";
+    reader.scrollTop = 40;
+    const startTouch = new Touch({ identifier: 2, target: layer, clientX: 100, clientY: 100 });
+    const start = new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] });
+    layer.dispatchEvent(start);
+    const movedTouch = new Touch({ identifier: 2, target: layer, clientX: 100, clientY: 70 });
+    const move = new TouchEvent("touchmove", { bubbles: true, cancelable: true, touches: [movedTouch] });
+    layer.dispatchEvent(move);
+    layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [movedTouch], touches: [] }));
+    const scrollTop = reader.scrollTop;
+    overflow.remove();
+    reader.style.height = previousHeight;
+    return {
+      drawingActive: layer.dataset.drawingActive,
+      startPrevented: start.defaultPrevented,
+      movePrevented: move.defaultPrevented,
+      scrollTop,
+    };
+  });
+  expect(drawingTouch).toEqual({ drawingActive: "true", startPrevented: true, movePrevented: true, scrollTop: 40 });
   await page.locator("#paper-markups").evaluate((layer) => {
     layer.addEventListener("pointermove", (event) => layer.toggleAttribute("data-drawing-move-cancelled", event.defaultPrevented), {
       once: true,
@@ -1311,6 +1338,7 @@ test("keeps private library research separate from project citations", async ({ 
   });
   await page.mouse.move(markupBox.x + markupBox.width * 0.48, markupBox.y + markupBox.height * 0.42, { steps: 6 });
   await page.mouse.up();
+  await expect(page.locator("#paper-markups")).not.toHaveAttribute("data-drawing-active", "true");
   await expect(page.locator("#paper-markups")).toHaveAttribute("data-drawing-move-cancelled", "");
   await expect(page.locator("#paper-markups polyline")).toHaveCount(1);
   await page.getByRole("button", { name: "Select", exact: true }).click();

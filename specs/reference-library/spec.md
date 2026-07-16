@@ -116,6 +116,9 @@ memory and makes citation aliases compete with stable source identity.
   The Draw surface disables native browser gestures before pointer input begins
   so a zoomed iPad page cannot take over an Apple Pencil stroke. The reader
   handles one-finger panning and two-finger zooming explicitly on that surface.
+  Once a Pencil or mouse stroke owns the surface, accompanying touch events are
+  consumed without changing reader scroll until that stroke finishes or is
+  cancelled.
   Notes and strokes use normalized page coordinates so they remain aligned when
   the page is resized. Saved annotations are collapsed by default.
 - Saved text-highlight comments and page-note bodies expose an explicit edit

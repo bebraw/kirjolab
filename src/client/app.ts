@@ -7324,6 +7324,7 @@ class WorkspaceApp {
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
     this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool });
+    if (tool !== "draw") delete this.#elements.paperMarkups.dataset.drawingActive;
     this.#elements.paperMarkups.dataset.tool = tool;
     this.#elements.paperTextLayer.style.pointerEvents = tool === "text" ? "auto" : "none";
     for (const [button, value] of [
@@ -7389,6 +7390,7 @@ class WorkspaceApp {
     event.preventDefault();
     this.#pdfAnnotation.send({ type: "START_DRAWING", pointerId: event.pointerId, point });
     this.#elements.paperMarkups.setPointerCapture(event.pointerId);
+    this.#elements.paperMarkups.dataset.drawingActive = "true";
     this.#renderPdfMarkups();
   }
 
@@ -7453,6 +7455,7 @@ class WorkspaceApp {
 
   #cancelLibraryPdfDrawing(): void {
     this.#pdfAnnotation.send({ type: "CANCEL_POINTER" });
+    delete this.#elements.paperMarkups.dataset.drawingActive;
     this.#pdfDrawingDraftLine = null;
   }
 
