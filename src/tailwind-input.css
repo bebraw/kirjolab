@@ -439,6 +439,10 @@
     display: none;
   }
 
+  .preview-sync-controls {
+    display: none;
+  }
+
   .surface-switcher {
     position: sticky;
     top: 4rem;
@@ -927,11 +931,65 @@
       width: 2px;
       background: var(--color-app-accent);
     }
+
+    .preview-sync-controls {
+      position: absolute;
+      top: 4.25rem;
+      left: 0;
+      z-index: 12;
+      display: grid;
+      width: 2.55rem;
+      overflow: hidden;
+      border: 1px solid var(--color-app-border);
+      border-radius: 999px;
+      background: var(--color-app-paper);
+      box-shadow: 0 0.45rem 1.25rem var(--color-app-shadow);
+      transform: translateX(-50%);
+    }
+
+    .preview-sync-controls > button {
+      display: grid;
+      min-height: 2.3rem;
+      place-items: center;
+      color: var(--color-app-text-soft);
+      transition:
+        background var(--ui-transition),
+        color var(--ui-transition);
+    }
+
+    .preview-sync-controls > button + button {
+      border-top: 1px solid var(--color-app-line);
+    }
+
+    .preview-sync-controls > button:hover {
+      background: var(--color-app-accent-ghost);
+      color: var(--color-app-accent-strong);
+    }
+
+    .preview-sync-controls svg {
+      width: 1.3rem;
+      height: 1.3rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
+    }
   }
 
   .editor-column,
   .context-column {
     flex-direction: column;
+  }
+
+  .context-column {
+    position: relative;
+  }
+
+  body[data-app-mode="library"] .preview-sync-controls,
+  .workspace-grid:not([data-layout="split"]) .preview-sync-controls,
+  .preview-sync-controls[hidden] {
+    display: none;
   }
 
   .editor-toolbar {
@@ -2869,6 +2927,12 @@
     color: var(--color-app-text);
     font-size: 1.05rem;
     line-height: 1.8;
+  }
+
+  .prose-preview [data-preview-sync-active="true"] {
+    border-radius: 0.12rem;
+    outline: 2px solid color-mix(in srgb, var(--color-app-accent) 55%, transparent);
+    outline-offset: 0.18rem;
   }
 
   .prose-preview h1 {

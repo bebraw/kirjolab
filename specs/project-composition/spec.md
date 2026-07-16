@@ -35,6 +35,10 @@ collaborative, and unambiguous about what preview and export mean.
 - The pure composition engine returns composed Markdown, diagnostics,
   dependencies, and source-map spans containing stable file ids, source ranges,
   output ranges, and include chains.
+- The live Preview uses those spans to translate disposable rendered-element
+  offsets into file-qualified source positions for bidirectional navigation.
+  Repeated includes remain distinct output occurrences and resolve to the
+  occurrence nearest the current Preview viewport.
 - Recursive expansion tracks the active include chain by stable file identity.
   When an include targets an identity already on that chain, composition omits
   only that cyclic edge from expansion, emits a navigable diagnostic with the
@@ -134,6 +138,7 @@ collaborative, and unambiguous about what preview and export mean.
   metadata.
 - Do not anchor durable relationships only to a mutable path or composed
   offset.
+- Do not persist Preview DOM offsets as composition or manuscript state.
 
 ### Validation
 

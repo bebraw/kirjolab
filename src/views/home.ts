@@ -367,6 +367,14 @@ export function renderHomePage(
       <div class="authoring-context-resizer" id="authoring-context-resizer" role="separator" aria-label="Resize authoring and context panes" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" tabindex="0"></div>
 
       <section class="context-column preview-column min-w-0 bg-app-paper" id="context-surface" aria-label="Research context">
+        <div class="preview-sync-controls" id="preview-sync-controls" role="group" aria-label="Synchronize source and preview">
+          <button id="sync-preview-from-source" type="button" aria-label="Reveal source cursor in Preview" title="Source to Preview">
+            ${renderIcon("arrowRight")}
+          </button>
+          <button id="sync-source-from-preview" type="button" aria-label="Reveal centered Preview passage in source" title="Preview to source">
+            ${renderIcon("arrowLeft")}
+          </button>
+        </div>
         ${appMode === "workspace" ? contextTabs : ""}
 
         <section class="context-panel context-preview-panel" id="context-preview-panel" role="tabpanel" aria-labelledby="context-preview-tab" tabindex="0">

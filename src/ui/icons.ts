@@ -1,5 +1,7 @@
 const ICONS = {
   account: '<circle cx="12" cy="8" r="3.25"></circle><path d="M5.5 20c.45-4 2.65-6 6.5-6s6.05 2 6.5 6"></path>',
+  arrowLeft: '<path d="M20 12H5M11 6l-6 6 6 6"></path>',
+  arrowRight: '<path d="M4 12h15M13 6l6 6-6 6"></path>',
   annotations: '<path d="M5 5h14v11H9l-4 4Z"></path><path d="M9 9h6M9 12.5h4"></path>',
   chevronDown: '<path d="m7 10 5 5 5-5"></path>',
   chevronUp: '<path d="m7 14 5-5 5 5"></path>',

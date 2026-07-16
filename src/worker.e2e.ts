@@ -1181,6 +1181,35 @@ test("styles rendered Markdown headings in descending size order", async ({ page
   expect(headingFontSizes[2]).toBeGreaterThan(headingFontSizes[3]!);
 });
 
+test("synchronizes the source caret and rendered Preview in both directions", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const workspaceId = await createWorkspace(page, "Source Preview synchronization");
+  const source = "# Synchronized paper\n\nFirst passage.\n\n## Findings\n\nSecond passage.\n";
+  await page.goto(`/workspaces/${workspaceId}`);
+  const editor = page.locator("#source-editor");
+  await editor.fill(source);
+
+  const controls = page.getByRole("group", { name: "Synchronize source and preview" });
+  await expect(controls).toBeVisible();
+  const secondPassage = page.locator("#preview p", { hasText: "Second passage." });
+  await expect(secondPassage).toBeVisible();
+
+  await editor.evaluate((element: HTMLTextAreaElement, offset: number) => {
+    element.focus();
+    element.setSelectionRange(offset, offset);
+  }, source.indexOf("Second passage."));
+  await page.getByRole("button", { name: "Reveal source cursor in Preview" }).click();
+  await expect(secondPassage).toHaveAttribute("data-preview-sync-active", "true");
+
+  const firstPassage = page.locator("#preview p", { hasText: "First passage." });
+  await firstPassage.click();
+  await expect(editor).toBeFocused();
+  await expect
+    .poll(async () => await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart))
+    .toBe(source.indexOf("First passage."));
+  await expect(firstPassage).toHaveAttribute("data-preview-sync-active", "true");
+});
+
 test("keeps Markdown comment blocks in source and out of publication", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Markdown comments workspace");
   const api = `/api/workspaces/${workspaceId}`;
@@ -3732,8 +3761,8 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
       contentType: "application/json",
       body: JSON.stringify([
         {
-          provider: "crossref",
-          score: 42,
+          providers: [{ provider: "crossref", score: 42 }],
+          identifiers: [{ scheme: "doi", value: "10.5555/discovery" }],
           metadata: {
             type: "article",
             title: "Verified discovery",

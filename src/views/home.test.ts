@@ -154,6 +154,9 @@ describe("renderHomePage", () => {
     expect(html).not.toContain('id="web-source-title"');
     expect(html).toContain('aria-controls="context-preview-panel" aria-selected="true"');
     expect(html).toContain('id="context-preview-panel" role="tabpanel"');
+    expect(html).toContain('id="preview-sync-controls" role="group" aria-label="Synchronize source and preview"');
+    expect(html).toContain('id="sync-preview-from-source" type="button" aria-label="Reveal source cursor in Preview"');
+    expect(html).toContain('id="sync-source-from-preview" type="button" aria-label="Reveal centered Preview passage in source"');
     expect(html).toContain('id="context-assistant-tab" type="button" role="tab"');
     expect(html).toContain('aria-controls="context-assistant-panel" aria-selected="false"');
     expect(html).toContain('id="context-assistant-panel" role="tabpanel"');

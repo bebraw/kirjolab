@@ -45,6 +45,10 @@ mode for authenticated hosted collaboration.
   Context reach its lower edge without an empty footer track. The manuscript
   textarea owns vertical scrolling within that row and does not expose a native
   resize handle that conflicts with the fixed pane layout.
+  While Preview is active, a compact control at the pane boundary synchronizes
+  the source caret and rendered passage in either direction. Preview content
+  clicks navigate to source, while deliberate source navigation follows in
+  Preview without moving the pane during ordinary typing.
 - **Editor toolbar:** Persistent editor actions keep their labels on one line.
   The toolbar never wraps: Write/Map, word count, Insert, current target, and
   save state retain one horizontal hierarchy. Lower-frequency History, revision,

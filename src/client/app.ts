@@ -151,6 +151,7 @@ import {
 } from "./model-provider";
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
+import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset } from "./source-preview-sync";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -421,6 +422,9 @@ interface Elements {
   manuscriptCommentList: HTMLElement;
   workspaceSurfaces: HTMLElement;
   authoringContextResizer: HTMLElement;
+  previewSyncControls: HTMLElement;
+  syncPreviewFromSource: HTMLButtonElement;
+  syncSourceFromPreview: HTMLButtonElement;
   showAuthoringSurface: HTMLButtonElement;
   showContextSurface: HTMLButtonElement;
   openSourceCitation: HTMLButtonElement;
@@ -704,6 +708,8 @@ class WorkspaceApp {
   #projectTemplates: ProjectTemplateSummary[] = [];
   #previewedProjectTemplateId = "";
   #previewRenderVersion = 0;
+  #previewSourceMap: readonly CompositionSourceSpan[] = [];
+  #previewSyncHighlightTimer: number | undefined;
   #offlineSaveTimer: number | undefined;
   #offlineSaveVersion = 0;
   #offlineSaveChain: Promise<void> = Promise.resolve();
@@ -1033,6 +1039,13 @@ class WorkspaceApp {
         this.#updateModelAvailability();
       });
     }
+    this.#elements.source.addEventListener("click", () => this.#syncPreviewFromSource(false));
+    this.#elements.source.addEventListener("select", () => this.#syncPreviewFromSource(false));
+    this.#elements.source.addEventListener("keyup", (event) => {
+      if (["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home", "PageDown", "PageUp"].includes(event.key)) {
+        this.#syncPreviewFromSource(false);
+      }
+    });
     this.#source.observe(() => void this.#renderPreview());
     this.#bibliography.observe(() => void this.#renderPreview());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
@@ -1094,7 +1107,9 @@ class WorkspaceApp {
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
     this.#elements.contextAssistantTab.addEventListener("click", () => this.#activateContext(RESEARCH_ASSISTANT_KEY));
     this.#elements.contextTabList.addEventListener("keydown", (event) => this.#moveContextTabFocus(event));
-    this.#elements.preview.addEventListener("click", (event) => this.#openPreviewCitation(event));
+    this.#elements.preview.addEventListener("click", (event) => this.#handlePreviewClick(event));
+    this.#elements.syncPreviewFromSource.addEventListener("click", () => this.#syncPreviewFromSource());
+    this.#elements.syncSourceFromPreview.addEventListener("click", () => this.#syncSourceFromPreviewCenter());
     this.#elements.openSourceCitation.addEventListener("click", () => this.#openCitationAtCaret());
     this.#elements.insertContextCitation.addEventListener("click", () => this.#insertActivePublicationCitation());
     this.#elements.publicationPdfLinkForm.addEventListener("submit", (event) => void this.#linkActivePublicationPdf(event));
@@ -2666,6 +2681,7 @@ class WorkspaceApp {
     if (renderVersion !== this.#previewRenderVersion) return;
     const rendered = runtime.renderWorkspaceMarkdown(renderedSource, bibliography, this.#snapshot?.publicationProfile.citationStyle);
     this.#elements.preview.innerHTML = rendered.html;
+    this.#previewSourceMap = filePreview?.sourceMap ?? [];
     this.#resolveProjectPreviewImages(renderedSource, filePreview?.sourceMap ?? []);
     this.#elements.diagnostics.replaceChildren();
     const diagnosticCount = rendered.diagnostics.length + (filePreview?.diagnostics.length ?? 0);
@@ -2914,6 +2930,90 @@ class WorkspaceApp {
       return;
     }
     this.#focusProjectRange(this.#snapshot?.entryFileId ?? "", from, to);
+  }
+
+  #handlePreviewClick(event: MouseEvent): void {
+    if (this.#openPreviewCitation(event) || !(event.target instanceof Element)) return;
+    if (event.target.closest("a, button, input, select, textarea")) return;
+    const target = event.target.closest<HTMLElement>("[data-source-from][data-source-to]");
+    if (target) this.#syncSourceFromPreviewElement(target);
+  }
+
+  #syncSourceFromPreviewCenter(): void {
+    const bounds = this.#elements.previewScroll.getBoundingClientRect();
+    const centered = document
+      .elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+      ?.closest<HTMLElement>("[data-source-from][data-source-to]");
+    const target = centered && this.#elements.preview.contains(centered) ? centered : this.#nearestPreviewSourceElement();
+    if (target) this.#syncSourceFromPreviewElement(target);
+  }
+
+  #syncSourceFromPreviewElement(target: HTMLElement): void {
+    const previewOffset = Number.parseInt(target.dataset.sourceFrom ?? "", 10);
+    if (!Number.isSafeInteger(previewOffset)) return;
+    const location = sourceLocationForPreviewOffset(this.#previewSourceMap, previewOffset);
+    if (!location) return;
+    this.#showWorkspaceSurface("authoring");
+    this.#focusProjectRange(location.fileId, location.offset, location.offset);
+    this.#markPreviewSyncTarget(target);
+  }
+
+  #syncPreviewFromSource(force = true): void {
+    if (!force && !this.#automaticPreviewSyncAvailable()) return;
+    if (this.#contextState.activeKey !== RESEARCH_PREVIEW_KEY) return;
+    const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
+    const offsets = previewOffsetsForSourceLocation(this.#previewSourceMap, fileId, this.#elements.source.selectionEnd);
+    if (offsets.length === 0) return;
+    const target = this.#nearestPreviewSourceElement(offsets);
+    if (!target) return;
+    target.scrollIntoView({ block: "center" });
+    this.#markPreviewSyncTarget(target);
+  }
+
+  #automaticPreviewSyncAvailable(): boolean {
+    return (
+      window.matchMedia("(min-width: 72rem)").matches &&
+      this.#elements.workspaceSurfaces.dataset.layout === "split" &&
+      this.#contextState.activeKey === RESEARCH_PREVIEW_KEY
+    );
+  }
+
+  #nearestPreviewSourceElement(offsets: readonly number[] = []): HTMLElement | null {
+    const viewportCenter = this.#elements.previewScroll.getBoundingClientRect().top + this.#elements.previewScroll.clientHeight / 2;
+    const candidates = [...this.#elements.preview.querySelectorAll<HTMLElement>("[data-source-from][data-source-to]")]
+      .filter((element) => offsets.length === 0 || this.#previewElementContainsOffset(element, offsets))
+      .map((element) => {
+        const bounds = element.getBoundingClientRect();
+        return {
+          element,
+          distance: Math.abs(bounds.top + bounds.height / 2 - viewportCenter),
+          rangeLength: this.#previewSourceRangeLength(element),
+        };
+      });
+    candidates.sort((left, right) => left.distance - right.distance || left.rangeLength - right.rangeLength);
+    return candidates[0]?.element ?? null;
+  }
+
+  #previewElementContainsOffset(element: HTMLElement, offsets: readonly number[]): boolean {
+    const from = Number.parseInt(element.dataset.sourceFrom ?? "", 10);
+    const to = Number.parseInt(element.dataset.sourceTo ?? "", 10);
+    return Number.isSafeInteger(from) && Number.isSafeInteger(to) && offsets.some((offset) => offset >= from && offset < to);
+  }
+
+  #previewSourceRangeLength(element: HTMLElement): number {
+    const from = Number.parseInt(element.dataset.sourceFrom ?? "", 10);
+    const to = Number.parseInt(element.dataset.sourceTo ?? "", 10);
+    return Number.isSafeInteger(from) && Number.isSafeInteger(to) ? Math.max(0, to - from) : Number.POSITIVE_INFINITY;
+  }
+
+  #markPreviewSyncTarget(target: HTMLElement): void {
+    if (this.#previewSyncHighlightTimer !== undefined) window.clearTimeout(this.#previewSyncHighlightTimer);
+    this.#elements.preview.querySelector<HTMLElement>('[data-preview-sync-active="true"]')?.removeAttribute("data-preview-sync-active");
+    target.dataset.previewSyncActive = "true";
+    this.#previewSyncHighlightTimer = window.setTimeout(() => {
+      target.removeAttribute("data-preview-sync-active");
+      this.#previewSyncHighlightTimer = undefined;
+    }, 900);
   }
 
   #updateAnchorActions(links: Array<PassageLink | ClaimPassageLink>): void {
@@ -5890,6 +5990,7 @@ class WorkspaceApp {
     );
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#elements.previewSyncControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.pdfContextControls.hidden = !activePdf;
     const activePdfPublications =
       activeTab?.kind === "pdf" ? (this.#snapshot?.publicationPdfLinks.filter((link) => link.pdfId === activeTab.id) ?? []) : [];
@@ -6337,14 +6438,15 @@ class WorkspaceApp {
     if (submit) submit.disabled = available.length === 0;
   }
 
-  #openPreviewCitation(event: MouseEvent): void {
-    if (!(event.target instanceof Element)) return;
+  #openPreviewCitation(event: MouseEvent): boolean {
+    if (!(event.target instanceof Element)) return false;
     const citation = event.target.closest<HTMLButtonElement>("button.semantic-citation[data-citation]");
-    if (!citation) return;
+    if (!citation) return false;
     const key = parseCitationKeys(citation.dataset.citation ?? "")[0];
     const publication = key ? this.#publicationByCitationKey(key) : undefined;
     if (publication) this.#navigateToCitation(publication, citation.dataset.locator);
     else this.#showToast(`No publication resource is available for ${key ?? "this citation"}.`);
+    return true;
   }
 
   #openCitationAtCaret(): void {
@@ -9123,6 +9225,9 @@ function collectElements(): Elements {
     manuscriptCommentList: requiredElement("manuscript-comment-list", HTMLElement),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
     authoringContextResizer: requiredElement("authoring-context-resizer", HTMLElement),
+    previewSyncControls: requiredElement("preview-sync-controls", HTMLElement),
+    syncPreviewFromSource: requiredElement("sync-preview-from-source", HTMLButtonElement),
+    syncSourceFromPreview: requiredElement("sync-source-from-preview", HTMLButtonElement),
     showAuthoringSurface: requiredElement("show-authoring-surface", HTMLButtonElement),
     showContextSurface: requiredElement("show-context-surface", HTMLButtonElement),
     openSourceCitation: requiredElement("open-source-citation", HTMLButtonElement),
