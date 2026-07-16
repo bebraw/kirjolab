@@ -24,6 +24,7 @@ import {
   type WebCaptureRegistration,
   type WebSnapshot,
 } from "../domain/reference-library";
+import { isReferenceDiscoveryQuery } from "../domain/reference-discovery";
 import {
   isCreateCitationAssertionInput,
   isReviewCitationAssertionInput,
@@ -176,14 +177,29 @@ export async function handleReferenceLibraryApi(
     }
     if (suffix === "/discovery" && request.method === "POST") {
       const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.query !== "string" || !body.query.trim() || body.query.length > 4_000) {
+      const query = isRecord(body)
+        ? {
+            query: body.query,
+            author: typeof body.author === "string" ? body.author : "",
+            year: typeof body.year === "string" ? body.year : "",
+            type: typeof body.type === "string" ? body.type : "",
+          }
+        : body;
+      if (!isReferenceDiscoveryQuery(query)) {
         return jsonError("Invalid reference discovery query", 400);
       }
-      const matches = await searchMetadataProviders({ title: body.query.trim(), authors: [], year: "" }, env, fetchExternal, {
-        usePublicSemanticScholar: true,
-      });
+      const matches = await searchMetadataProviders(
+        { title: query.query.trim(), authors: [query.author.trim()].filter(Boolean), year: query.year },
+        env,
+        fetchExternal,
+        {
+          usePublicSemanticScholar: true,
+        },
+      );
       return Response.json(
-        matches.map(({ provider, score }) => ({ provider: provider.name, score, metadata: provider.metadata })),
+        matches
+          .filter(({ provider }) => !query.type || provider.metadata.type === query.type)
+          .map(({ provider, score }) => ({ provider: provider.name, score, metadata: provider.metadata })),
         noStore(),
       );
     }

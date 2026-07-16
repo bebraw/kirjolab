@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isReferenceDiscoveryResults } from "./reference-discovery";
+import { isReferenceDiscoveryQuery, isReferenceDiscoveryResults } from "./reference-discovery";
 
 describe("reference discovery results", () => {
   const result = {
@@ -28,5 +28,18 @@ describe("reference discovery results", () => {
     expect(isReferenceDiscoveryResults([{ ...result, metadata: { ...result.metadata, title: "" } }])).toBe(false);
     expect(isReferenceDiscoveryResults(Array.from({ length: 13 }, () => result))).toBe(false);
     expect(isReferenceDiscoveryResults(null)).toBe(false);
+  });
+});
+
+describe("reference discovery query", () => {
+  it("accepts bounded manual search facets", () => {
+    expect(isReferenceDiscoveryQuery({ query: "causal inference", author: "Pearl", year: "2009", type: "book" })).toBe(true);
+    expect(isReferenceDiscoveryQuery({ query: "causal inference", author: "", year: "", type: "" })).toBe(true);
+  });
+
+  it("rejects empty, malformed, or unsupported facets", () => {
+    expect(isReferenceDiscoveryQuery({ query: "", author: "", year: "", type: "" })).toBe(false);
+    expect(isReferenceDiscoveryQuery({ query: "evidence", author: "", year: "20", type: "" })).toBe(false);
+    expect(isReferenceDiscoveryQuery({ query: "evidence", author: "", year: "2026", type: "dataset" })).toBe(false);
   });
 });

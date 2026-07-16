@@ -300,6 +300,13 @@ interface Elements {
   copyEditShare: HTMLButtonElement;
   revokeEditShare: HTMLButtonElement;
   referenceLibraryList: HTMLElement;
+  libraryDiscoveryForm: HTMLFormElement;
+  libraryDiscoveryQuery: HTMLInputElement;
+  libraryDiscoveryAuthor: HTMLInputElement;
+  libraryDiscoveryYear: HTMLInputElement;
+  libraryDiscoveryType: HTMLSelectElement;
+  libraryDiscoveryStatus: HTMLElement;
+  libraryDiscoveryResults: HTMLElement;
   libraryBibliographyUpload: HTMLInputElement;
   libraryCslUpload: HTMLInputElement;
   libraryArchiveUpload: HTMLInputElement;
@@ -926,6 +933,7 @@ class WorkspaceApp {
     this.#elements.copyEditShare.addEventListener("click", () => void this.#copyEditShare());
     this.#elements.revokeEditShare.addEventListener("click", () => void this.#revokeEditShare());
     this.#elements.contextLibraryTab.addEventListener("click", () => void this.#openReferenceLibrary());
+    this.#elements.libraryDiscoveryForm.addEventListener("submit", (event) => void this.#discoverLibraryReferences(event));
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
     this.#elements.libraryArchiveUpload.addEventListener("change", () => void this.#importLibraryArchive());
@@ -3572,6 +3580,38 @@ class WorkspaceApp {
     this.#renderReferenceLibrary();
     this.#renderResearchContext();
     this.#syncWorkspaceRoute("replace");
+  }
+
+  async #discoverLibraryReferences(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const submit = this.#elements.libraryDiscoveryForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    this.#elements.libraryDiscoveryStatus.textContent = "Searching scholarly indexes…";
+    this.#elements.libraryDiscoveryResults.replaceChildren();
+    try {
+      const response = await jsonFetch("/api/library/discovery", {
+        query: this.#elements.libraryDiscoveryQuery.value,
+        author: this.#elements.libraryDiscoveryAuthor.value,
+        year: this.#elements.libraryDiscoveryYear.value,
+        type: this.#elements.libraryDiscoveryType.value,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
+      this.#renderLibraryDiscoveryResults(value);
+      this.#elements.libraryDiscoveryStatus.textContent = value.length
+        ? `${value.length} result${value.length === 1 ? "" : "s"}. Review metadata before saving.`
+        : "No matching scholarly records. Try broader keywords or remove a filter.";
+    } catch (error) {
+      this.#elements.libraryDiscoveryStatus.textContent = error instanceof Error ? error.message : "Reference search failed";
+    } finally {
+      if (submit) submit.disabled = false;
+    }
+  }
+
+  #renderLibraryDiscoveryResults(results: readonly ReferenceDiscoveryResult[]): void {
+    this.#elements.libraryDiscoveryResults.replaceChildren();
+    for (const result of results) this.#elements.libraryDiscoveryResults.append(this.#referenceDiscoveryCard(result));
   }
 
   #renderReferenceLibrary(): void {
@@ -7205,36 +7245,38 @@ class WorkspaceApp {
     reason.textContent = rationale;
     summary.append(label, queryText, reason);
     container.append(summary);
-    for (const result of results) {
-      const card = document.createElement("article");
-      card.className = "resource-card";
-      const provider = document.createElement("p");
-      provider.className = "eyebrow";
-      provider.textContent = result.provider.replace("semantic-scholar", "Semantic Scholar");
-      const title = document.createElement("h3");
-      title.className = "mt-2 text-base font-semibold";
-      title.textContent = result.metadata.title;
-      const meta = document.createElement("p");
-      meta.className = "mt-2 text-xs text-app-text-soft";
-      meta.textContent = [result.metadata.authors.join("; "), result.metadata.year, result.metadata.venue].filter(Boolean).join(" · ");
-      const actions = document.createElement("div");
-      actions.className = "mt-3 flex flex-wrap gap-2";
-      const doi = document.createElement("a");
-      doi.className = "button-secondary";
-      doi.href = `https://doi.org/${result.metadata.doi}`;
-      doi.target = "_blank";
-      doi.rel = "noopener noreferrer";
-      doi.textContent = "Verify DOI";
-      const save = document.createElement("button");
-      save.className = "button-primary";
-      save.type = "button";
-      save.textContent = "Save to library";
-      save.addEventListener("click", () => void this.#saveDiscoveredReference(result, save));
-      actions.append(doi, save);
-      card.append(provider, title, meta, actions);
-      container.append(card);
-    }
+    for (const result of results) container.append(this.#referenceDiscoveryCard(result));
     this.#elements.assistantInteractiveResult.replaceChildren(container);
+  }
+
+  #referenceDiscoveryCard(result: ReferenceDiscoveryResult): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    const provider = document.createElement("p");
+    provider.className = "eyebrow";
+    provider.textContent = result.provider.replace("semantic-scholar", "Semantic Scholar");
+    const title = document.createElement("h3");
+    title.className = "mt-2 text-base font-semibold";
+    title.textContent = result.metadata.title;
+    const meta = document.createElement("p");
+    meta.className = "mt-2 text-xs text-app-text-soft";
+    meta.textContent = [result.metadata.authors.join("; "), result.metadata.year, result.metadata.venue].filter(Boolean).join(" · ");
+    const actions = document.createElement("div");
+    actions.className = "mt-3 flex flex-wrap gap-2";
+    const doi = document.createElement("a");
+    doi.className = "button-secondary";
+    doi.href = `https://doi.org/${result.metadata.doi}`;
+    doi.target = "_blank";
+    doi.rel = "noopener noreferrer";
+    doi.textContent = "Verify DOI";
+    const save = document.createElement("button");
+    save.className = "button-primary";
+    save.type = "button";
+    save.textContent = "Save to library";
+    save.addEventListener("click", () => void this.#saveDiscoveredReference(result, save));
+    actions.append(doi, save);
+    card.append(provider, title, meta, actions);
+    return card;
   }
 
   async #saveDiscoveredReference(result: ReferenceDiscoveryResult, button: HTMLButtonElement): Promise<void> {
@@ -8871,6 +8913,13 @@ function collectElements(): Elements {
     copyEditShare: requiredElement("copy-edit-share", HTMLButtonElement),
     revokeEditShare: requiredElement("revoke-edit-share", HTMLButtonElement),
     referenceLibraryList: requiredElement("reference-library-list", HTMLElement),
+    libraryDiscoveryForm: requiredElement("library-discovery-form", HTMLFormElement),
+    libraryDiscoveryQuery: requiredElement("library-discovery-query", HTMLInputElement),
+    libraryDiscoveryAuthor: requiredElement("library-discovery-author", HTMLInputElement),
+    libraryDiscoveryYear: requiredElement("library-discovery-year", HTMLInputElement),
+    libraryDiscoveryType: requiredElement("library-discovery-type", HTMLSelectElement),
+    libraryDiscoveryStatus: requiredElement("library-discovery-status", HTMLElement),
+    libraryDiscoveryResults: requiredElement("library-discovery-results", HTMLElement),
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
     libraryArchiveUpload: requiredElement("library-archive-upload", HTMLInputElement),

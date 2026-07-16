@@ -133,6 +133,29 @@ describe("reference library API", () => {
     expect((await handleReferenceLibraryApi(jsonRequest("/api/library/discovery", { query: "" }), fixture.env, identity)).status).toBe(400);
   });
 
+  it("passes manual author and year facets to providers and filters result type", async () => {
+    const fixture = apiFixture();
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      expect(new URL(String(input)).searchParams.get("query.bibliographic")).toBe("evidence synthesis Doe 2026");
+      return crossrefSearchResponse();
+    });
+    const response = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/discovery", { query: "evidence synthesis", author: "Doe", year: "2026", type: "article" }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toHaveLength(1);
+    const excluded = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/discovery", { query: "evidence synthesis", author: "Doe", year: "2026", type: "book" }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    await expect(excluded.json()).resolves.toEqual([]);
+  });
+
   it("keeps discovery usable through OpenAlex and public Semantic Scholar when Crossref fails", async () => {
     const fixture = apiFixture();
     const env = { ...fixture.env, OPENALEX_API_KEY: "openalex-key" };

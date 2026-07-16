@@ -268,6 +268,10 @@ describe("renderHomePage", () => {
 
     expect(html).toContain('<summary class="button-primary">Add reference</summary>');
     expect(html).toContain('placeholder="Search references…"');
+    expect(html).toContain('id="library-discovery-form"');
+    expect(html).toContain('id="library-discovery-query" type="search" maxlength="4000" required');
+    expect(html).toContain('id="library-discovery-status" role="status" aria-live="polite"');
+    expect(html).toContain("Results are not saved automatically.");
     expect(html).toContain('title="Filter and sort references">Filter</summary>');
     expect(html).toContain('aria-label="Library tools" title="Library tools">•••</summary>');
     expect(html).not.toContain("Private research memory");
