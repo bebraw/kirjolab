@@ -6,6 +6,7 @@ node_modules
 .asdlc
 .github/skills
 .codex/skills/**/references
+worker-configuration.d.ts
 playwright-report
 reports
 test-results
