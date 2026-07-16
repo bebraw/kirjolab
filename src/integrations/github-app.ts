@@ -73,7 +73,7 @@ export class GitHubAppClient {
   readonly #config: GitHubAppConfig;
   readonly #fetch: FetchExternal;
 
-  constructor(config: GitHubAppConfig, fetchExternal: FetchExternal = fetch) {
+  constructor(config: GitHubAppConfig, fetchExternal: FetchExternal = (input, init) => fetch(input, init)) {
     this.#config = validateConfig(config);
     this.#fetch = fetchExternal;
   }

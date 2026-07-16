@@ -44,7 +44,8 @@ describe("GitHub App integration", () => {
   it("reads only bounded Markdown blobs below the selected root", async () => {
     const markdown = "# Main\n";
     const lfsPointer = `version https://git-lfs.github.com/spec/v1\noid sha256:${"f".repeat(64)}\nsize 10000000\n`;
-    const fetcher = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+    const fetcher = vi.fn(async function (this: unknown, input: RequestInfo | URL, _init?: RequestInit) {
+      if (this !== undefined) throw new TypeError("Illegal invocation");
       const url = new URL(String(input));
       if (url.pathname === "/app/installations/7/access_tokens") return Response.json({ token: "t".repeat(20) });
       if (url.pathname === "/repos/bebraw/scalability_book") return Response.json({ id: 99 });
@@ -69,26 +70,31 @@ describe("GitHub App integration", () => {
       }
       return new Response(null, { status: 500 });
     });
+    vi.stubGlobal("fetch", fetcher);
 
-    const client = new GitHubAppClient({ appId: "12345", privateKey, apiBase: "https://github.test" }, fetcher);
-    await expect(client.readMarkdownSnapshot(selection)).resolves.toEqual({
-      repositoryId: 99,
-      owner: "bebraw",
-      repository: "scalability_book",
-      branch: "main",
-      rootPath: "book",
-      commitSha: commitA,
-      commitMessage: "Current head",
-      files: [{ path: "main.md", blobSha: commitC, content: markdown }],
-      skipped: [
-        { path: "demo.js", reason: "unsupported-type" },
-        { path: "large.md", reason: "git-lfs" },
-      ],
-    });
-    expect(fetcher).toHaveBeenCalledTimes(7);
-    expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({ authorization: expect.stringMatching(/^Bearer /u) });
-    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
-    expect(fetcher.mock.calls[6]?.[1]?.headers).toMatchObject({ authorization: `Bearer ${"t".repeat(20)}` });
+    try {
+      const client = new GitHubAppClient({ appId: "12345", privateKey, apiBase: "https://github.test" });
+      await expect(client.readMarkdownSnapshot(selection)).resolves.toEqual({
+        repositoryId: 99,
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "main",
+        rootPath: "book",
+        commitSha: commitA,
+        commitMessage: "Current head",
+        files: [{ path: "main.md", blobSha: commitC, content: markdown }],
+        skipped: [
+          { path: "demo.js", reason: "unsupported-type" },
+          { path: "large.md", reason: "git-lfs" },
+        ],
+      });
+      expect(fetcher).toHaveBeenCalledTimes(7);
+      expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({ authorization: expect.stringMatching(/^Bearer /u) });
+      expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
+      expect(fetcher.mock.calls[6]?.[1]?.headers).toMatchObject({ authorization: `Bearer ${"t".repeat(20)}` });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("creates blobs and advances the branch without forcing", async () => {
