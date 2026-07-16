@@ -30,6 +30,16 @@ This template is set up for the local Agent CI runner from `agent-ci.dev`.
 
 The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflare-based experiments. Prefer invoking those tools through `npx` or repo scripts so the project version is used instead of a global install.
 
+### GitHub App sync
+
+GitHub-backed projects authenticate as a repository-scoped GitHub App installation. Set `GITHUB_APP_ID` and `GITHUB_APP_SLUG` as Worker variables, and keep the PEM private key out of Wrangler configuration:
+
+```sh
+npx wrangler secret put GITHUB_APP_PRIVATE_KEY
+```
+
+For local development only, copy `.dev.vars.example` to the ignored `.dev.vars` and place the same values there. The App installation needs repository metadata read access and repository contents read/write access. Kirjolab reads only supported Markdown below the user-selected repository root and publishes with a non-forced branch update.
+
 If local CI fails with `No such image: ghcr.io/actions/actions-runner:latest`, pull that image manually and re-run the workflow.
 
 If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` to `.env.agent-ci` and rerun the workflow.

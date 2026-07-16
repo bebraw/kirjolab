@@ -9,6 +9,8 @@
     "ACCESS_TEAM_DOMAIN": "",
     "ACCESS_AUD": "",
     "CROSSREF_MAILTO": "",
+    "GITHUB_APP_ID": "",
+    "GITHUB_APP_SLUG": "",
   },
   "build": {
     "command": "npm run build",

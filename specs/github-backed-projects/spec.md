@@ -227,6 +227,10 @@ incoming and outgoing mutation.
 
 - Accepted design: manual import, Pull, and reviewed direct Publish for bounded
   Markdown subtrees through a repository-scoped GitHub App.
+- Implemented foundation: short-lived App authentication, bounded and
+  root-confined Markdown snapshot reads, strict UTF-8 and Git LFS rejection,
+  Git object commit creation, stale-head detection, and non-forced branch
+  advancement. Credentials remain Worker-only configuration.
 - First implementation slice: import preview/confirmation and direct Publish
   preview/confirmation, including retained base state and conflict detection.
 - Deferred: optional publish-through-branch-and-PR, binary assets, repository
