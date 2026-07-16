@@ -230,7 +230,10 @@ incoming and outgoing mutation.
 - Implemented foundation: short-lived App authentication, bounded and
   root-confined Markdown snapshot reads, strict UTF-8 and Git LFS rejection,
   Git object commit creation, stale-head detection, and non-forced branch
-  advancement. Credentials remain Worker-only configuration.
+  advancement. Three-way comparison classifies path and content changes,
+  preserves unique blob-backed remote renames, blocks conflicted publish plans,
+  and keeps untracked local files out of outgoing commits. Credentials remain
+  Worker-only configuration.
 - First implementation slice: import preview/confirmation and direct Publish
   preview/confirmation, including retained base state and conflict detection.
 - Deferred: optional publish-through-branch-and-PR, binary assets, repository
