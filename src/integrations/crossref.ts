@@ -1,6 +1,7 @@
 import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
 import type { PublicationEnrichment } from "../domain/workspace";
+import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -11,6 +12,7 @@ const maximumMetadataMatches = 5;
 export interface CrossrefMetadataMatch {
   readonly metadata: PublicationEnrichment;
   readonly score: number | null;
+  readonly identifiers: readonly ReferenceDiscoveryIdentifier[];
 }
 
 export interface CrossrefCitationCandidate {
@@ -75,7 +77,13 @@ export async function searchCrossrefWorks(
     try {
       const metadata = mapCrossrefMessage(item, doi);
       seen.add(doi);
-      return [{ metadata, score: typeof item.score === "number" && Number.isFinite(item.score) ? item.score : null }];
+      return [
+        {
+          metadata,
+          score: typeof item.score === "number" && Number.isFinite(item.score) ? item.score : null,
+          identifiers: [{ scheme: "doi", value: doi }],
+        },
+      ];
     } catch {
       return [];
     }

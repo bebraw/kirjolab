@@ -125,8 +125,8 @@ describe("reference library API", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([
       expect.objectContaining({
-        provider: "crossref",
-        score: 42,
+        providers: [{ provider: "crossref", score: 42 }],
+        identifiers: [{ scheme: "doi", value: "10.5555/discovery" }],
         metadata: expect.objectContaining({ title: "Verified discovery", doi: "10.5555/discovery" }),
       }),
     ]);
@@ -176,8 +176,14 @@ describe("reference library API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([
-      expect.objectContaining({ provider: "openalex", metadata: expect.objectContaining({ doi: "10.5555/openalex" }) }),
-      expect.objectContaining({ provider: "semantic-scholar", metadata: expect.objectContaining({ doi: "10.5555/semantic" }) }),
+      expect.objectContaining({
+        providers: [expect.objectContaining({ provider: "openalex" })],
+        metadata: expect.objectContaining({ doi: "10.5555/openalex" }),
+      }),
+      expect.objectContaining({
+        providers: [expect.objectContaining({ provider: "semantic-scholar" })],
+        metadata: expect.objectContaining({ doi: "10.5555/semantic" }),
+      }),
     ]);
     expect(fetchExternal.mock.calls.map(([input]) => new URL(String(input)).hostname)).toEqual([
       "api.openalex.org",
@@ -187,6 +193,37 @@ describe("reference library API", () => {
     expect(fetchExternal.mock.calls[2]?.[1]).toMatchObject({
       headers: expect.not.objectContaining({ "x-api-key": expect.anything() }),
     });
+  });
+
+  it("merges discovery records that share a scholarly identifier", async () => {
+    const fixture = apiFixture();
+    const env = { ...fixture.env, OPENALEX_API_KEY: "openalex-key" };
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.hostname === "api.openalex.org") {
+        return Response.json({
+          results: [openAlexWork({ id: "https://openalex.org/W123", doi: "https://doi.org/10.5555/shared" })],
+        });
+      }
+      if (url.hostname === "api.crossref.org") {
+        return Response.json({ message: { items: [{ DOI: "10.5555/shared", title: ["Crossref shared"], score: 70 }] } });
+      }
+      return Response.json({ data: [] });
+    });
+
+    const response = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/discovery", { query: "shared scholarly identity" }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    const results = (await response.json()) as Array<{ providers: Array<{ provider: string }>; identifiers: unknown[] }>;
+    expect(results).toHaveLength(1);
+    expect(results[0]?.providers.map(({ provider }) => provider)).toEqual(["openalex", "crossref"]);
+    expect(results[0]?.identifiers).toEqual([
+      { scheme: "doi", value: "10.5555/shared" },
+      { scheme: "openalex", value: "W123" },
+    ]);
   });
 
   it("imports Zotero-compatible CSL JSON and round-trips portable library metadata", async () => {

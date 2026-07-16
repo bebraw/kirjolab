@@ -51,14 +51,33 @@ describe("OpenAlex metadata integration", () => {
           openAlexWork({ relevance_score: 91.5 }),
           openAlexWork({ title: "Duplicate" }),
           openAlexWork({ doi: null }),
-          openAlexWork({ doi: "https://doi.org/10.1000/second", title: "Second", relevance_score: "high" }),
+          openAlexWork({ id: "https://openalex.org/W2", doi: "https://doi.org/10.1000/second", title: "Second", relevance_score: "high" }),
           openAlexWork({ doi: "https://doi.org/10.1000/no-title", title: "", display_name: "" }),
         ],
       });
     });
     await expect(searchOpenAlexWorks({ title: " Evidence ", authors: [" Doe "], year: " 2026 " }, "key", fetcher)).resolves.toEqual([
-      { metadata: expect.objectContaining({ doi: "10.1000/example", title: "Inspectable evidence" }), score: 91.5 },
-      { metadata: expect.objectContaining({ doi: "10.1000/second", title: "Second" }), score: null },
+      {
+        metadata: expect.objectContaining({ doi: "10.1000/example", title: "Inspectable evidence" }),
+        score: 91.5,
+        identifiers: [
+          { scheme: "doi", value: "10.1000/example" },
+          { scheme: "openalex", value: "W1" },
+        ],
+      },
+      {
+        metadata: expect.objectContaining({ doi: "", url: "https://openalex.org/W1" }),
+        score: null,
+        identifiers: [{ scheme: "openalex", value: "W1" }],
+      },
+      {
+        metadata: expect.objectContaining({ doi: "10.1000/second", title: "Second" }),
+        score: null,
+        identifiers: [
+          { scheme: "doi", value: "10.1000/second" },
+          { scheme: "openalex", value: "W2" },
+        ],
+      },
     ]);
     const url = new URL(observedUrl);
     expect(url.searchParams.get("search")).toBe("Evidence Doe 2026");

@@ -7254,7 +7254,9 @@ class WorkspaceApp {
     card.className = "resource-card";
     const provider = document.createElement("p");
     provider.className = "eyebrow";
-    provider.textContent = result.provider.replace("semantic-scholar", "Semantic Scholar");
+    provider.textContent = result.providers
+      .map(({ provider: name }) => (name === "semantic-scholar" ? "Semantic Scholar" : name === "openalex" ? "OpenAlex" : "Crossref"))
+      .join(" + ");
     const title = document.createElement("h3");
     title.className = "mt-2 text-base font-semibold";
     title.textContent = result.metadata.title;
@@ -7263,40 +7265,50 @@ class WorkspaceApp {
     meta.textContent = [result.metadata.authors.join("; "), result.metadata.year, result.metadata.venue].filter(Boolean).join(" · ");
     const actions = document.createElement("div");
     actions.className = "mt-3 flex flex-wrap gap-2";
-    const doi = document.createElement("a");
-    doi.className = "button-secondary";
-    doi.href = `https://doi.org/${result.metadata.doi}`;
-    doi.target = "_blank";
-    doi.rel = "noopener noreferrer";
-    doi.textContent = "Verify DOI";
+    const identifier = result.identifiers[0]!;
+    const verify = document.createElement("a");
+    verify.className = "button-secondary";
+    verify.href = this.#referenceDiscoveryIdentifierUrl(identifier);
+    verify.target = "_blank";
+    verify.rel = "noopener noreferrer";
+    verify.textContent = `Verify ${identifier.scheme === "semantic-scholar" ? "Semantic Scholar" : identifier.scheme.toUpperCase()}`;
     const save = document.createElement("button");
     save.className = "button-primary";
     save.type = "button";
     save.textContent = "Save to library";
     save.addEventListener("click", () => void this.#saveDiscoveredReference(result, save));
-    actions.append(doi, save);
+    actions.append(verify, save);
     card.append(provider, title, meta, actions);
     return card;
+  }
+
+  #referenceDiscoveryIdentifierUrl(identifier: ReferenceDiscoveryResult["identifiers"][number]): string {
+    if (identifier.scheme === "doi") return `https://doi.org/${identifier.value}`;
+    if (identifier.scheme === "openalex") return `https://openalex.org/${identifier.value}`;
+    if (identifier.scheme === "semantic-scholar") return `https://www.semanticscholar.org/paper/${encodeURIComponent(identifier.value)}`;
+    if (identifier.scheme === "arxiv") return `https://arxiv.org/abs/${encodeURIComponent(identifier.value)}`;
+    return `https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(identifier.value)}/`;
   }
 
   async #saveDiscoveredReference(result: ReferenceDiscoveryResult, button: HTMLButtonElement): Promise<void> {
     button.disabled = true;
     try {
       const metadata = result.metadata;
+      const primaryIdentifier = result.identifiers[0]!;
       const response = await fetch("/api/library/import/csl-json", {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify([
           {
-            id: metadata.doi,
+            id: metadata.doi || `${primaryIdentifier.scheme}:${primaryIdentifier.value}`,
             type: metadata.type === "article" ? "article-journal" : metadata.type,
             title: metadata.title,
             author: metadata.authors.map((literal) => ({ literal })),
             ...(metadata.year ? { issued: { "date-parts": [[metadata.year]] } } : {}),
             ...(metadata.venue ? { "container-title": metadata.venue } : {}),
-            DOI: metadata.doi,
-            URL: metadata.url || `https://doi.org/${metadata.doi}`,
+            ...(metadata.doi ? { DOI: metadata.doi } : {}),
+            URL: metadata.url || this.#referenceDiscoveryIdentifierUrl(primaryIdentifier),
             ...(metadata.abstract ? { abstract: metadata.abstract } : {}),
           },
         ]),

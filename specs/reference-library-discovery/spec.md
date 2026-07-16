@@ -28,6 +28,14 @@ indexes.
   another provider's results.
 - Results remain ephemeral until the researcher explicitly saves one through
   the existing reviewed CSL JSON import path.
+- Discovery identity is a typed set of DOI, OpenAlex, Semantic Scholar, arXiv,
+  and PubMed identifiers. DOI is preferred when present but is not required.
+- Provider records sharing any normalized identifier collapse into one result.
+  The result retains every contributing provider and identifier, and fills
+  missing metadata from the most complete matching records.
+- A non-DOI result imports with its provider identifier and canonical provider
+  URL; ordinary title/author/year library identity prevents a second equivalent
+  record when no DOI is available.
 
 ## Contract
 
@@ -41,6 +49,10 @@ indexes.
 - [x] A researcher can manually search scholarly providers from the Library.
 - [x] Optional author, year, and type facets narrow provider-backed results.
 - [x] Search results remain reviewable and require an explicit save action.
+- [x] One scholarly work appears once when multiple providers report a shared
+      identifier.
+- [x] Stable provider, arXiv, and PubMed identifiers keep non-DOI works
+      discoverable and saveable.
 
 ### Regression Guardrails
 
@@ -52,3 +64,5 @@ indexes.
   manuscript content.
 - Provider I/O remains bounded and server-side, and discovery responses remain
   uncached.
+- Provider labels and identifiers remain visible so merged metadata stays
+  inspectable rather than implying a single authoritative registry.

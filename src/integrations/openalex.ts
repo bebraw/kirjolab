@@ -1,6 +1,7 @@
 import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
 import type { PublicationEnrichment } from "../domain/workspace";
+import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -11,6 +12,7 @@ const selectedFields = "id,doi,title,display_name,publication_year,type,authorsh
 export interface OpenAlexMetadataMatch {
   readonly metadata: PublicationEnrichment;
   readonly score: number | null;
+  readonly identifiers: readonly ReferenceDiscoveryIdentifier[];
 }
 
 export async function fetchOpenAlexWork(doiValue: string, apiKey: string, fetcher: Fetcher = fetch): Promise<PublicationEnrichment> {
@@ -48,11 +50,22 @@ export async function searchOpenAlexWorks(
   return body.results.slice(0, maximumMetadataMatches).flatMap((value): OpenAlexMetadataMatch[] => {
     if (!isRecord(value)) return [];
     const doi = openAlexDoi(value.doi);
-    if (!doi || seen.has(doi)) return [];
+    const openAlex = openAlexIdentifier(value.id);
+    const identity = doi ? `doi:${doi}` : openAlex ? `openalex:${openAlex}` : "";
+    if (!identity || seen.has(identity)) return [];
     try {
       const metadata = mapOpenAlexWork(value, doi);
-      seen.add(doi);
-      return [{ metadata, score: finiteNumber(value.relevance_score) }];
+      seen.add(identity);
+      return [
+        {
+          metadata,
+          score: finiteNumber(value.relevance_score),
+          identifiers: [
+            ...(doi ? ([{ scheme: "doi", value: doi }] as const) : []),
+            ...(openAlex ? ([{ scheme: "openalex", value: openAlex }] as const) : []),
+          ],
+        },
+      ];
     } catch {
       return [];
     }
@@ -70,9 +83,14 @@ function mapOpenAlexWork(work: Record<string, unknown>, fallbackDoi: string): Pu
     year: typeof work.publication_year === "number" && Number.isSafeInteger(work.publication_year) ? String(work.publication_year) : "",
     venue: bound(openAlexVenue(work.primary_location), 2_000),
     doi,
-    url: `https://doi.org/${doi}`,
+    url: doi ? `https://doi.org/${doi}` : typeof work.id === "string" ? bound(work.id, 2_000) : "",
     abstract: bound(reconstructAbstract(work.abstract_inverted_index), 20_000),
   };
+}
+
+function openAlexIdentifier(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return /(?:^|\/)(W\d+)$/iu.exec(value.trim())?.[1]?.toUpperCase() ?? "";
 }
 
 function openAlexDoi(value: unknown): string {

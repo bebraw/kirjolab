@@ -185,8 +185,13 @@ describe("Crossref metadata integration", () => {
       {
         metadata: expect.objectContaining({ title: "First match", authors: ["Doe, Jane"], doi: "10.7000/first" }),
         score: 91.5,
+        identifiers: [{ scheme: "doi", value: "10.7000/first" }],
       },
-      { metadata: expect.objectContaining({ title: "Second match", doi: "10.7000/second" }), score: null },
+      {
+        metadata: expect.objectContaining({ title: "Second match", doi: "10.7000/second" }),
+        score: null,
+        identifiers: [{ scheme: "doi", value: "10.7000/second" }],
+      },
     ]);
     const url = new URL(observedUrl);
     expect(url.origin + url.pathname).toBe("https://api.crossref.org/works");

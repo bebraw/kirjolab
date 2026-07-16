@@ -54,10 +54,11 @@ All mutation operations preserve a human review boundary.
   records. The query is executed against configured OpenAlex, Crossref, and
   Semantic Scholar metadata providers; Semantic Scholar also supplies its
   throttled public pool when no key is configured. A provider failure does not
-  discard results returned by another provider. Only validated DOI-bearing
-  provider results are displayed. Saving imports reviewed CSL JSON into the
-  private Library, after which ordinary project-use and citation workflows
-  apply.
+  discard results returned by another provider. Validated results carry typed
+  DOI, OpenAlex, Semantic Scholar, arXiv, or PubMed identity; records sharing
+  any identifier collapse into one inspectable multi-provider result. Saving
+  imports reviewed CSL JSON into the private Library, after which ordinary
+  project-use and citation workflows apply.
 - Model connection settings discover live model identifiers from the standard
   OpenAI-compatible `/models` route and populate an explicit model selector
   instead of hardcoding a catalog. Discovery is explicit, bounded,
@@ -310,6 +311,7 @@ All mutation operations preserve a human review boundary.
 **Scenario: A claim yields verifiable reference candidates**
 
 - Given: a visible manuscript claim and an available scholarly metadata provider
-- When: the model formulates a query and the provider returns DOI-bearing records
-- Then: Kirjolab labels the provider, links each DOI for verification, and saves
-  nothing until the researcher explicitly imports a chosen record to Library
+- When: the model formulates a query and providers return identified records
+- Then: Kirjolab merges shared identities, labels every contributing provider,
+  links a stable identifier for verification, and saves nothing until the
+  researcher explicitly imports a chosen record to Library

@@ -50,7 +50,7 @@ describe("Semantic Scholar metadata integration", () => {
           semanticScholarPaper(),
           semanticScholarPaper({ title: "Duplicate" }),
           semanticScholarPaper({ externalIds: {} }),
-          semanticScholarPaper({ externalIds: { DOI: "10.1000/second" }, title: "Second" }),
+          semanticScholarPaper({ paperId: "paper-2", externalIds: { DOI: "10.1000/second" }, title: "Second" }),
           semanticScholarPaper({ externalIds: { DOI: "10.1000/no-title" }, title: "" }),
         ],
       });
@@ -58,8 +58,27 @@ describe("Semantic Scholar metadata integration", () => {
     await expect(
       searchSemanticScholarWorks({ title: " Evidence-based methods ", authors: [" Doe "], year: " 2026 " }, "", fetcher),
     ).resolves.toEqual([
-      { metadata: expect.objectContaining({ doi: "10.1000/example", title: "Inspectable evidence" }), score: null },
-      { metadata: expect.objectContaining({ doi: "10.1000/second", title: "Second" }), score: null },
+      {
+        metadata: expect.objectContaining({ doi: "10.1000/example", title: "Inspectable evidence" }),
+        score: null,
+        identifiers: [
+          { scheme: "doi", value: "10.1000/example" },
+          { scheme: "semantic-scholar", value: "paper-1" },
+        ],
+      },
+      {
+        metadata: expect.objectContaining({ doi: "", url: "https://www.semanticscholar.org/paper/paper-1" }),
+        score: null,
+        identifiers: [{ scheme: "semantic-scholar", value: "paper-1" }],
+      },
+      {
+        metadata: expect.objectContaining({ doi: "10.1000/second", title: "Second" }),
+        score: null,
+        identifiers: [
+          { scheme: "doi", value: "10.1000/second" },
+          { scheme: "semantic-scholar", value: "paper-2" },
+        ],
+      },
     ]);
     const url = new URL(observedUrl);
     expect(url.searchParams.get("query")).toBe("Evidence based methods Doe");

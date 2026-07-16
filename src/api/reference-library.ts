@@ -24,7 +24,11 @@ import {
   type WebCaptureRegistration,
   type WebSnapshot,
 } from "../domain/reference-library";
-import { isReferenceDiscoveryQuery } from "../domain/reference-discovery";
+import {
+  isReferenceDiscoveryQuery,
+  mergeReferenceDiscoveryCandidates,
+  type ReferenceDiscoveryCandidate,
+} from "../domain/reference-discovery";
 import {
   isCreateCitationAssertionInput,
   isReviewCitationAssertionInput,
@@ -188,18 +192,13 @@ export async function handleReferenceLibraryApi(
       if (!isReferenceDiscoveryQuery(query)) {
         return jsonError("Invalid reference discovery query", 400);
       }
-      const matches = await searchMetadataProviders(
+      const matches = await searchReferenceDiscoveryProviders(
         { title: query.query.trim(), authors: [query.author.trim()].filter(Boolean), year: query.year },
         env,
         fetchExternal,
-        {
-          usePublicSemanticScholar: true,
-        },
       );
       return Response.json(
-        matches
-          .filter(({ provider }) => !query.type || provider.metadata.type === query.type)
-          .map(({ provider, score }) => ({ provider: provider.name, score, metadata: provider.metadata })),
+        matches.filter(({ metadata }) => !query.type || metadata.type === query.type),
         noStore(),
       );
     }
@@ -669,6 +668,32 @@ async function searchMetadataProviders(
   }
   if (results.length === 0 && lastError) throw lastError;
   return results;
+}
+
+async function searchReferenceDiscoveryProviders(
+  query: { readonly title: string; readonly authors: readonly string[]; readonly year: string },
+  env: ReferenceLibraryApiEnv,
+  fetchExternal: ExternalFetch,
+): Promise<readonly ReturnType<typeof mergeReferenceDiscoveryCandidates>[number][]> {
+  const candidates: ReferenceDiscoveryCandidate[] = [];
+  let lastError: unknown;
+  const collect = async (
+    provider: ReferenceDiscoveryCandidate["provider"],
+    search: () => Promise<readonly Omit<ReferenceDiscoveryCandidate, "provider">[]>,
+  ): Promise<void> => {
+    try {
+      for (const candidate of await search()) candidates.push({ provider, ...candidate });
+    } catch (error) {
+      lastError = error;
+    }
+  };
+  if (env.OPENALEX_API_KEY?.trim()) {
+    await collect("openalex", () => searchOpenAlexWorks(query, env.OPENALEX_API_KEY ?? "", fetchExternal));
+  }
+  await collect("crossref", () => searchCrossrefWorks(query, env.CROSSREF_MAILTO, fetchExternal));
+  await collect("semantic-scholar", () => searchSemanticScholarWorks(query, env.SEMANTIC_SCHOLAR_API_KEY ?? "", fetchExternal));
+  if (candidates.length === 0 && lastError) throw lastError;
+  return mergeReferenceDiscoveryCandidates(candidates);
 }
 
 function fetchProviderWork(

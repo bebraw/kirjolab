@@ -1,6 +1,7 @@
 import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
 import type { PublicationEnrichment } from "../domain/workspace";
+import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -11,6 +12,7 @@ const selectedFields = "title,abstract,authors,year,venue,url,externalIds,public
 export interface SemanticScholarMetadataMatch {
   readonly metadata: PublicationEnrichment;
   readonly score: number | null;
+  readonly identifiers: readonly ReferenceDiscoveryIdentifier[];
 }
 
 export async function fetchSemanticScholarWork(doiValue: string, apiKey: string, fetcher: Fetcher = fetch): Promise<PublicationEnrichment> {
@@ -46,12 +48,14 @@ export async function searchSemanticScholarWorks(
   const seen = new Set<string>();
   return body.data.slice(0, maximumMetadataMatches).flatMap((value): SemanticScholarMetadataMatch[] => {
     if (!isRecord(value)) return [];
-    const doi = semanticScholarDoi(value.externalIds);
-    if (!doi || seen.has(doi)) return [];
+    const identifiers = semanticScholarIdentifiers(value);
+    const identity = identifiers[0] ? `${identifiers[0].scheme}:${identifiers[0].value.toLocaleLowerCase()}` : "";
+    const doi = identifiers.find((identifier) => identifier.scheme === "doi")?.value ?? "";
+    if (!identity || seen.has(identity)) return [];
     try {
       const metadata = mapSemanticScholarPaper(value, doi);
-      seen.add(doi);
-      return [{ metadata, score: null }];
+      seen.add(identity);
+      return [{ metadata, score: null, identifiers }];
     } catch {
       return [];
     }
@@ -69,9 +73,33 @@ function mapSemanticScholarPaper(paper: Record<string, unknown>, fallbackDoi: st
     year: typeof paper.year === "number" && Number.isSafeInteger(paper.year) ? String(paper.year) : "",
     venue: bound(typeof paper.venue === "string" ? paper.venue.trim() : "", 2_000),
     doi,
-    url: `https://doi.org/${doi}`,
+    url: doi
+      ? `https://doi.org/${doi}`
+      : typeof paper.url === "string" && paper.url.trim()
+        ? bound(paper.url.trim(), 2_000)
+        : typeof paper.paperId === "string"
+          ? `https://www.semanticscholar.org/paper/${encodeURIComponent(paper.paperId)}`
+          : "",
     abstract: bound(typeof paper.abstract === "string" ? paper.abstract.trim() : "", 20_000),
   };
+}
+
+function semanticScholarIdentifiers(paper: Record<string, unknown>): ReferenceDiscoveryIdentifier[] {
+  const identifiers: ReferenceDiscoveryIdentifier[] = [];
+  const doi = semanticScholarDoi(paper.externalIds);
+  if (doi) identifiers.push({ scheme: "doi", value: doi });
+  if (isRecord(paper.externalIds)) {
+    if (typeof paper.externalIds.ArXiv === "string" && paper.externalIds.ArXiv.trim()) {
+      identifiers.push({ scheme: "arxiv", value: paper.externalIds.ArXiv.trim().slice(0, 500) });
+    }
+    if (typeof paper.externalIds.PubMed === "string" && /^\d+$/u.test(paper.externalIds.PubMed.trim())) {
+      identifiers.push({ scheme: "pmid", value: paper.externalIds.PubMed.trim() });
+    }
+  }
+  if (typeof paper.paperId === "string" && paper.paperId.trim()) {
+    identifiers.push({ scheme: "semantic-scholar", value: paper.paperId.trim().slice(0, 500) });
+  }
+  return identifiers;
 }
 
 function semanticScholarDoi(value: unknown): string {
