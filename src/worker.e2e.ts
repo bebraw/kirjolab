@@ -1217,6 +1217,29 @@ test("keeps private library research separate from project citations", async ({ 
   await page.mouse.up();
   await expect(page.locator("#toast")).toHaveText("Note moved.");
   await page.getByRole("button", { name: "Draw", exact: true }).click();
+  await expect(page.locator("#paper-markups")).toHaveCSS("touch-action", "none");
+  const touchPan = await page.locator("#paper-markups").evaluate((layer) => {
+    const reader = layer.closest<HTMLElement>("#paper-reader");
+    if (!reader) throw new Error("Expected the PDF reader");
+    const overflow = document.createElement("div");
+    overflow.style.height = "1000px";
+    reader.append(overflow);
+    const previousHeight = reader.style.height;
+    reader.style.height = "100px";
+    reader.scrollTop = 40;
+    const startTouch = new Touch({ identifier: 1, target: layer, clientX: 100, clientY: 100 });
+    const start = new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] });
+    layer.dispatchEvent(start);
+    const movedTouch = new Touch({ identifier: 1, target: layer, clientX: 100, clientY: 70 });
+    const move = new TouchEvent("touchmove", { bubbles: true, cancelable: true, touches: [movedTouch] });
+    layer.dispatchEvent(move);
+    layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [movedTouch], touches: [] }));
+    const scrollTop = reader.scrollTop;
+    overflow.remove();
+    reader.style.height = previousHeight;
+    return { startPrevented: start.defaultPrevented, movePrevented: move.defaultPrevented, scrollTop };
+  });
+  expect(touchPan).toEqual({ startPrevented: true, movePrevented: true, scrollTop: 70 });
   await page.locator("#paper-markups").evaluate((layer) => {
     const rect = layer.getBoundingClientRect();
     const event = {

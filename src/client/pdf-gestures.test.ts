@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { advancePdfWheelPaging, initialPdfWheelPagingState } from "./pdf-gestures";
+import { advancePdfWheelPaging, initialPdfWheelPagingState, pdfTouchPanScroll } from "./pdf-gestures";
+
+describe("PDF touch panning", () => {
+  it("moves the scroll position opposite the finger movement", () => {
+    expect(pdfTouchPanScroll({ x: 100, y: 120, scrollLeft: 40, scrollTop: 60 }, { x: 75, y: 90 })).toEqual({
+      left: 65,
+      top: 90,
+    });
+  });
+});
 
 describe("PDF trackpad paging", () => {
   it("accumulates a horizontal gesture into one page turn", () => {

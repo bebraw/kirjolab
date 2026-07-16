@@ -3035,7 +3035,7 @@
   }
   .pdf-markups[data-tool="draw"] {
     cursor: crosshair;
-    touch-action: pan-x pan-y;
+    touch-action: none;
   }
 
   .pdf-ink-layer {

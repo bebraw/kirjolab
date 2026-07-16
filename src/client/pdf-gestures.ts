@@ -10,6 +10,13 @@ export interface PdfWheelPagingResult {
   direction?: -1 | 1;
 }
 
+export interface PdfTouchPanStart {
+  x: number;
+  y: number;
+  scrollLeft: number;
+  scrollTop: number;
+}
+
 const GESTURE_GAP_MS = 180;
 const PAGE_COOLDOWN_MS = 420;
 const PAGE_THRESHOLD_PX = 64;
@@ -17,6 +24,13 @@ const HORIZONTAL_DOMINANCE = 1.25;
 
 export function initialPdfWheelPagingState(): PdfWheelPagingState {
   return { distance: 0, lastAt: 0, lockedUntil: 0 };
+}
+
+export function pdfTouchPanScroll(start: PdfTouchPanStart, point: { x: number; y: number }): { left: number; top: number } {
+  return {
+    left: start.scrollLeft - (point.x - start.x),
+    top: start.scrollTop - (point.y - start.y),
+  };
 }
 
 export function advancePdfWheelPaging(

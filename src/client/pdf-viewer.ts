@@ -3,7 +3,13 @@ import type { AnnotationResource, PdfSelectionRect } from "../domain/workspace";
 import type { LibraryHighlight } from "../domain/reference-library";
 import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
 import { readPdfTextContent } from "./pdf-text-content";
-import { advancePdfWheelPaging, initialPdfWheelPagingState, type PdfWheelPagingState } from "./pdf-gestures";
+import {
+  advancePdfWheelPaging,
+  initialPdfWheelPagingState,
+  pdfTouchPanScroll,
+  type PdfTouchPanStart,
+  type PdfWheelPagingState,
+} from "./pdf-gestures";
 import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
 import { createPdfViewerActor, pdfViewerDocumentRequestActive, pdfViewerRenderRequestActive } from "./pdf-viewer-machine";
 
@@ -58,6 +64,7 @@ export class PdfEvidenceViewer {
   #zoom = 1;
   #renderedZoom = 1;
   #pinchStart: { distance: number; zoom: number } | null = null;
+  #touchPanStart: PdfTouchPanStart | null = null;
   #swipeStart: { x: number; y: number; startedAt: number } | null = null;
   #wheelPagingState: PdfWheelPagingState = initialPdfWheelPagingState();
   #wheelZoomRenderTimer: number | undefined;
@@ -426,24 +433,45 @@ export class PdfEvidenceViewer {
       this.#wheelZoomRenderTimer = undefined;
       this.#lifecycle.send({ type: "CANCEL_RENDER" });
       this.#pinchStart = { distance: touchDistance(event.touches), zoom: this.#zoom };
+      this.#touchPanStart = null;
       this.#swipeStart = null;
       return;
     }
     const touch = event.touches[0];
+    if (event.touches.length === 1 && touch && event.target instanceof Element && event.target.closest('.pdf-markups[data-tool="draw"]')) {
+      event.preventDefault();
+      this.#touchPanStart = {
+        x: touch.clientX,
+        y: touch.clientY,
+        scrollLeft: this.#elements.reader.scrollLeft,
+        scrollTop: this.#elements.reader.scrollTop,
+      };
+      this.#swipeStart = null;
+      return;
+    }
     if (event.touches.length === 1 && touch && event.target instanceof Node && !this.#elements.page.contains(event.target)) {
       this.#swipeStart = { x: touch.clientX, y: touch.clientY, startedAt: performance.now() };
     }
   }
 
   #continueTouchGesture(event: TouchEvent): void {
-    if (event.touches.length !== 2 || !this.#pinchStart) return;
+    if (event.touches.length === 2 && this.#pinchStart) {
+      event.preventDefault();
+      const zoom = clamp(this.#pinchStart.zoom * (touchDistance(event.touches) / this.#pinchStart.distance), 0.75, 4);
+      this.#zoom = zoom;
+      this.#elements.page.style.transform = `scale(${zoom / this.#renderedZoom})`;
+      return;
+    }
+    const touch = event.touches[0];
+    if (event.touches.length !== 1 || !touch || !this.#touchPanStart) return;
     event.preventDefault();
-    const zoom = clamp(this.#pinchStart.zoom * (touchDistance(event.touches) / this.#pinchStart.distance), 0.75, 4);
-    this.#zoom = zoom;
-    this.#elements.page.style.transform = `scale(${zoom / this.#renderedZoom})`;
+    const scroll = pdfTouchPanScroll(this.#touchPanStart, { x: touch.clientX, y: touch.clientY });
+    this.#elements.reader.scrollLeft = scroll.left;
+    this.#elements.reader.scrollTop = scroll.top;
   }
 
   async #finishTouchGesture(event: TouchEvent): Promise<void> {
+    if (event.touches.length === 0) this.#touchPanStart = null;
     if (this.#pinchStart && event.touches.length < 2) {
       this.#pinchStart = null;
       await this.#renderPage();
@@ -461,6 +489,7 @@ export class PdfEvidenceViewer {
 
   #cancelTouchGesture(): void {
     this.#pinchStart = null;
+    this.#touchPanStart = null;
     this.#swipeStart = null;
     this.#elements.page.style.removeProperty("transform");
   }
