@@ -30,6 +30,7 @@ ADRs are grouped by lifecycle status:
 | ADR                                                                           | Status      | Summary                                                                                             |
 | ----------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------- |
 | [ADR-132](./accepted/ADR-132-synchronize-projects-with-github.md)             | Accepted    | Manually synchronize bounded GitHub subtrees through previewed pulls and reviewed direct publishes. |
+| [ADR-138](./accepted/ADR-138-accept-snowball-candidates-atomically.md)        | Accepted    | Verify and atomically accept a backward-snowball candidate with its extracted citation assertion.   |
 | [ADR-089](./implemented/ADR-089-require-a-fail-closed-production-release.md)  | Implemented | Require production identity, hostname, dry-run, smoke, version, and rollback evidence.              |
 | [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md) | Implemented | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.                 |
 | [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)             | Implemented | Use semantic light/dark tokens with a browser-local system-aware preference.                        |
