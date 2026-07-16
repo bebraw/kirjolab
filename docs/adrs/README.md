@@ -21,9 +21,10 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                       | Status   | Summary                            |
-| ----------------------------------------- | -------- | ---------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
+| ADR                                                                 | Status   | Summary                                                                                  |
+| ------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md)                           | Proposed | Template for drafting future ADRs.                                                       |
+| [ADR-131](./proposed/ADR-131-navigate-citations-by-page-locator.md) | Proposed | Insert page locators from project PDFs and use them for unambiguous citation navigation. |
 
 ## Accepted ADRs
 
