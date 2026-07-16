@@ -1194,6 +1194,14 @@ test("synchronizes the source caret and rendered Preview in both directions", as
 
   const controls = page.getByRole("group", { name: "Synchronize source and preview" });
   await expect(controls).toBeVisible();
+  const dividerCenterOffset = await controls.evaluate((element) => {
+    const divider = document.querySelector("#authoring-context-resizer");
+    if (!(divider instanceof HTMLElement)) throw new Error("Expected authoring/context divider");
+    const controlBounds = element.getBoundingClientRect();
+    const dividerBounds = divider.getBoundingClientRect();
+    return controlBounds.left + controlBounds.width / 2 - (dividerBounds.left + dividerBounds.width / 2);
+  });
+  expect(dividerCenterOffset).toBeCloseTo(0, 5);
   const controlEdgesAreInteractive = await controls.evaluate((element) => {
     const bounds = element.getBoundingClientRect();
     const centerY = bounds.top + bounds.height / 2;
