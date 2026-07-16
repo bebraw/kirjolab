@@ -5,6 +5,7 @@ import {
   isInertSvgImage,
   normalizeProjectPath,
   previewProjectFile,
+  projectFileCollaborationTextName,
   projectUsesCitationAlias,
   relativeProjectPath,
   resolveProjectPath,
@@ -12,6 +13,7 @@ import {
   rewriteInboundProjectIncludes,
   rewriteProjectIncludesForMoves,
   rewriteProjectImageReferencesForMoves,
+  resolveProjectEntryFileId,
   type ProjectFile,
 } from "./project-files";
 
@@ -115,6 +117,24 @@ describe("project composition", () => {
     expect(() => previewProjectFile([], "main", null)).toThrow("entry file does not exist");
   });
 
+  it("resolves and composes a persisted entry without requiring main.md", () => {
+    const files = [file("second", "02_chapter.md", "Second\n"), file("first", "00_introduction.md", "Intro\n::include[02_chapter.md]\n")];
+
+    expect(resolveProjectEntryFileId(files)).toBe("first");
+    expect(resolveProjectEntryFileId([...files, file("main", "main.md", "Main\n")])).toBe("main");
+    expect(resolveProjectEntryFileId(files, "second")).toBe("second");
+    expect(() => resolveProjectEntryFileId(files, "missing")).toThrow("selected project entry file does not exist");
+    expect(() => resolveProjectEntryFileId([])).toThrow("at least one Markdown file");
+    expect(composeProject(files, "first").content).toBe("Intro\nSecond\n");
+  });
+
+  it("retains collaboration text identity when the entry changes", () => {
+    expect(projectFileCollaborationTextName(file("entry", "chapter.md", ""), "entry")).toBe("source");
+    expect(
+      projectFileCollaborationTextName({ ...file("chapter", "chapter.md", ""), collaborationTextName: "file:chapter" }, "chapter"),
+    ).toBe("file:chapter");
+  });
+
   it("renames only exact project-local citation aliases", () => {
     expect(rewriteProjectCitationAlias('See :cite[doe2026, doe2020]{locator="p. 2"}.', "doe2026", "doeStudy")).toBe(
       'See :cite[doeStudy, doe2020]{locator="p. 2"}.',
@@ -208,8 +228,8 @@ describe("project composition", () => {
     ]);
   });
 
-  it("enforces entry point and resource bounds", () => {
-    expect(() => composeProject([file("intro", "intro.md", "Hello")], "intro")).toThrow(/main\.md/u);
+  it("enforces entry identity and resource bounds", () => {
+    expect(composeProject([file("intro", "intro.md", "Hello")], "intro").content).toBe("Hello");
     const result = composeProject([file("main", "main.md", "12345")], "main", { maximumOutputBytes: 4 });
     expect(result.content).toBe("");
     expect(result.diagnostics[0]?.code).toBe("output-limit");

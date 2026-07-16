@@ -1,6 +1,6 @@
 # ADR-133: Resolve Optional Project Entry Files
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-16
 

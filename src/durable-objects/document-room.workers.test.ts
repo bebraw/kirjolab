@@ -359,6 +359,32 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(deleted.files.map((file) => file.id)).not.toContain(supporting!.id);
   });
 
+  it("persists an arbitrary entry without changing its Yjs text identity", async () => {
+    const workspaceId = "optional-entry";
+    const stub = roomStub(workspaceId);
+    const initial = await stub.getSnapshot(workspaceId);
+    const created = await stub.createProjectFile(workspaceId, "00_introduction.md", "# Imported introduction\n");
+    const introduction = created.files.find((file) => file.path === "00_introduction.md");
+    expect(introduction?.collaborationTextName).toBe(`file:${introduction?.id}`);
+
+    const selected = await stub.setProjectEntryFile(workspaceId, introduction!.id);
+    expect(selected.entryFileId).toBe(introduction!.id);
+    expect(selected.source).toBe("# Imported introduction\n");
+    expect(selected.composition.content).toBe("# Imported introduction\n");
+    expect(selected.files.find((file) => file.id === introduction!.id)?.collaborationTextName).toBe(`file:${introduction!.id}`);
+
+    const renamed = await stub.renameProjectFile(workspaceId, introduction!.id, "chapters/introduction.md");
+    expect(renamed.entryFileId).toBe(introduction!.id);
+    expect(renamed.files.find((file) => file.id === introduction!.id)?.path).toBe("chapters/introduction.md");
+    const edited = operationValue(
+      await stub.replaceProjectFileContent(workspaceId, introduction!.id, "# Revised imported introduction\n", renamed.revision),
+    );
+    expect(edited.source).toBe("# Revised imported introduction\n");
+
+    await stub.setProjectEntryFile(workspaceId, initial.entryFileId);
+    expect((await stub.deleteProjectFile(workspaceId, introduction!.id)).files.some((file) => file.id === introduction!.id)).toBe(false);
+  });
+
   it("documents a new starter project outside the composed manuscript", async () => {
     const workspaceId = "documented-starter";
     const stub = roomStub(workspaceId);

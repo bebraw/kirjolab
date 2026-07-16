@@ -738,6 +738,8 @@ export function renderHomePage(
         <p class="eyebrow">Project settings</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Manage this project</h2>
         <label class="field-label mt-5">Project title<input class="field" id="workspace-settings-title" maxlength="120" required></label>
+        <label class="field-label mt-4">Entry file<select class="field" id="workspace-entry-file"></select></label>
+        <p class="mt-2 text-xs leading-5 text-app-text-soft">Preview, statistics, and publication exports compose from this file.</p>
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
           <label class="field-label">Citation style<select class="field" id="workspace-citation-style">
             <option value="apa">APA</option><option value="chicago-author-date">Chicago author-date</option><option value="ieee">IEEE numeric</option>
@@ -850,7 +852,7 @@ export function renderHomePage(
         <label class="field-label mt-5">Relative path
           <input class="field" id="project-file-path" type="text" maxlength="1024" required placeholder="chapters/01_introduction.md">
         </label>
-        <p class="mt-2 text-xs leading-5 text-app-text-soft" id="project-file-dialog-help">Compose this file from main.md with <code>::include[path]</code>.</p>
+        <p class="mt-2 text-xs leading-5 text-app-text-soft" id="project-file-dialog-help">Compose this file from the project entry with <code>::include[path]</code>.</p>
         <div class="mt-5 flex justify-end gap-2">
           <button class="button-secondary" id="cancel-project-file" type="button">Cancel</button>
           <button class="button-primary" id="save-project-file" type="submit">Save file</button>

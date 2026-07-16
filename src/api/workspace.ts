@@ -271,14 +271,17 @@ async function updateWorkspaceSettings(
   const title = body.title === undefined ? null : typeof body.title === "string" ? body.title.trim() : "";
   const archived = body.archived === undefined ? null : typeof body.archived === "boolean" ? body.archived : undefined;
   const publicationProfile = body.publicationProfile === undefined ? null : body.publicationProfile;
+  const entryFileId = body.entryFileId === undefined ? null : typeof body.entryFileId === "string" ? body.entryFileId : "";
   if (
     (title !== null && (!title || title.length > 120)) ||
     archived === undefined ||
+    (entryFileId !== null && (!entryFileId || entryFileId.length > 128)) ||
     (publicationProfile !== null && !isProjectPublicationProfile(publicationProfile))
   )
     return jsonError("Invalid project settings", 400);
   if (title !== null) await room.renameWorkspace(title);
   if (publicationProfile !== null) await room.updatePublicationProfile(publicationProfile);
+  if (entryFileId !== null) await room.setProjectEntryFile(workspaceId, entryFileId);
   const members = await access.listMembers(requesterEmail);
   let result = await catalog.updateWorkspace(workspaceId, title, archived);
   for (const member of members) {

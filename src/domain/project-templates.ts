@@ -1,4 +1,4 @@
-import { normalizeProjectPath, projectEntryPath } from "./project-files";
+import { normalizeProjectPath, projectEntryPath, resolveProjectEntryFileId, type ProjectFile } from "./project-files";
 import {
   defaultBibliography,
   defaultGuidePath,
@@ -21,6 +21,7 @@ export interface ProjectTemplateFileSeed {
 
 export interface ProjectTemplateSeed {
   readonly schemaVersion: 1;
+  readonly entryPath?: string;
   readonly files: readonly ProjectTemplateFileSeed[];
   readonly folders: readonly string[];
   readonly bibliography: string;
@@ -213,10 +214,13 @@ export function builtInProjectTemplate(id: string): ProjectTemplateRecord | null
 }
 
 export function projectTemplateSeed(
-  snapshot: Pick<WorkspaceSnapshot, "files" | "folders" | "bibliography" | "publicationProfile">,
+  snapshot: Pick<WorkspaceSnapshot, "entryFileId" | "files" | "folders" | "bibliography" | "publicationProfile">,
 ): ProjectTemplateSeed {
+  const entryPath = snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path;
+  if (!entryPath) throw new Error("Project cannot be represented as a bounded template");
   const seed: ProjectTemplateSeed = {
     schemaVersion: 1,
+    entryPath,
     files: snapshot.files.map((file) => ({ path: file.path, content: file.content })),
     folders: snapshot.folders.map((folder) => folder.path),
     bibliography: snapshot.bibliography,
@@ -228,10 +232,9 @@ export function projectTemplateSeed(
 
 export function projectTemplatePreview(seed: ProjectTemplateSeed): ProjectTemplatePreview {
   if (!isProjectTemplateSeed(seed)) throw new Error("Project template preview requires a valid seed");
+  const entryPath = resolveTemplateEntryPath(seed);
   const files = [...seed.files]
-    .sort((left, right) =>
-      left.path === projectEntryPath ? -1 : right.path === projectEntryPath ? 1 : left.path.localeCompare(right.path),
-    )
+    .sort((left, right) => (left.path === entryPath ? -1 : right.path === entryPath ? 1 : left.path.localeCompare(right.path)))
     .slice(0, maximumPreviewPaths)
     .map((file) => file.path);
   const folders = [...seed.folders].sort((left, right) => left.localeCompare(right)).slice(0, maximumPreviewPaths);
@@ -250,7 +253,6 @@ export function isProjectTemplateSeed(value: unknown): value is ProjectTemplateS
   if (value.files.length === 0 || value.files.length > maximumSeedFiles || value.folders.length > maximumSeedFiles) return false;
   if (typeof value.bibliography !== "string" || !isProjectPublicationProfile(value.publicationProfile)) return false;
   const paths = new Set<string>();
-  let entryFiles = 0;
   let bytes = new TextEncoder().encode(value.bibliography).byteLength;
   for (const file of value.files) {
     if (!isRecord(file) || typeof file.path !== "string" || typeof file.content !== "string") return false;
@@ -259,10 +261,16 @@ export function isProjectTemplateSeed(value: unknown): value is ProjectTemplateS
     const key = path.toLocaleLowerCase();
     if (paths.has(key)) return false;
     paths.add(key);
-    if (path === projectEntryPath) entryFiles += 1;
     bytes += new TextEncoder().encode(file.content).byteLength;
   }
-  if (entryFiles !== 1 || bytes > maximumSeedBytes) return false;
+  if (bytes > maximumSeedBytes) return false;
+  if (
+    value.entryPath !== undefined &&
+    (typeof value.entryPath !== "string" ||
+      normalizeProjectPath(value.entryPath) !== value.entryPath ||
+      !paths.has(value.entryPath.toLocaleLowerCase()))
+  )
+    return false;
   const folders = new Set<string>();
   for (const folder of value.folders) {
     if (typeof folder !== "string") return false;
@@ -273,6 +281,18 @@ export function isProjectTemplateSeed(value: unknown): value is ProjectTemplateS
     folders.add(key);
   }
   return true;
+}
+
+export function resolveTemplateEntryPath(seed: ProjectTemplateSeed): string {
+  const files: ProjectFile[] = seed.files.map((file, index) => ({
+    ...file,
+    id: String(index),
+    mediaType: "text/markdown",
+    createdAt: "",
+    updatedAt: "",
+  }));
+  const explicit = seed.entryPath ? files.find((file) => file.path === seed.entryPath)?.id : null;
+  return files.find((file) => file.id === resolveProjectEntryFileId(files, explicit))?.path ?? projectEntryPath;
 }
 
 export function isSaveProjectTemplateInput(value: unknown): value is SaveProjectTemplateInput {

@@ -44,7 +44,7 @@ import {
   type ProjectFile,
   type ProjectFolder,
 } from "../domain/project-files";
-import { isProjectTemplateSeed, type ProjectTemplateSeed } from "../domain/project-templates";
+import { isProjectTemplateSeed, resolveTemplateEntryPath, type ProjectTemplateSeed } from "../domain/project-templates";
 import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnapshot, type WebSnapshot } from "../domain/reference-library";
 import type { ResearchShareSnapshot } from "../domain/reference-library";
 import {
@@ -849,14 +849,15 @@ export class DocumentRoom extends DurableObject<Env> {
 
     const document = new Y.Doc();
     const now = new Date().toISOString();
+    const entryPath = resolveTemplateEntryPath(seed);
     const files = seed.files.map((file) => {
       const id = crypto.randomUUID();
-      const yTextName = file.path === projectEntryPath ? "source" : `file:${id}`;
+      const yTextName = file.path === entryPath ? "source" : `file:${id}`;
       document.getText(yTextName).insert(0, file.content);
       return { ...file, id, yTextName };
     });
     document.getText("bibliography").insert(0, seed.bibliography);
-    const entry = files.find((file) => file.path === projectEntryPath);
+    const entry = files.find((file) => file.path === entryPath);
     if (!entry) throw new Error("Project template entry file is unavailable");
     const state = new Uint8Array(Y.encodeStateAsUpdate(document)).buffer;
     const previousState = current.y_state;
@@ -1115,8 +1116,8 @@ export class DocumentRoom extends DurableObject<Env> {
 
   createProjectFile(workspaceId: string, pathValue: string, content = ""): WorkspaceSnapshot {
     const path = normalizeProjectPath(pathValue);
-    if (!path || path !== pathValue.trim() || !path.endsWith(".md") || path === projectEntryPath) {
-      throw new Error("Project files require a unique relative .md path; main.md is reserved");
+    if (!path || path !== pathValue.trim() || !path.endsWith(".md")) {
+      throw new Error("Project files require a unique relative .md path");
     }
     if (content.length > 2_000_000) throw new Error("Project file exceeds 2 MB");
     if (this.#projectFiles().some((file) => file.path === path || path.startsWith(`${file.path}/`))) {
@@ -1159,6 +1160,23 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.getSnapshot(workspaceId);
   }
 
+  setProjectEntryFile(workspaceId: string, fileId: string): WorkspaceSnapshot {
+    const previous = this.#workspaceRow();
+    if (previous.entry_file_id === fileId) return this.getSnapshot(workspaceId);
+    const target = this.#projectFileRows().find((file) => file.id === fileId);
+    if (!target) throw new Error("The selected project entry file does not exist");
+    const source = this.#document.getText(target.y_text_name).toString();
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => this.ctx.storage.sql.exec("UPDATE workspace SET entry_file_id = ?, source = ? WHERE id = 1", fileId, source),
+      "project-entry-change",
+    );
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getSnapshot(workspaceId);
+  }
+
   replaceProjectFileContent(workspaceId: string, fileId: string, content: string, expectedRevision: number): ProjectFileReplaceResult {
     if (content.length > 2_000_000) return { ok: false, code: "content-too-large", error: "Project file exceeds 2 MB" };
     const previous = this.#workspaceRow();
@@ -1188,11 +1206,10 @@ export class DocumentRoom extends DurableObject<Env> {
 
   renameProjectFile(workspaceId: string, fileId: string, pathValue: string): WorkspaceSnapshot {
     const nextPath = normalizeProjectPath(pathValue);
-    if (!nextPath || nextPath !== pathValue.trim() || !nextPath.endsWith(".md") || nextPath === projectEntryPath) {
-      throw new Error("Supporting files require a unique relative .md path");
+    if (!nextPath || nextPath !== pathValue.trim() || !nextPath.endsWith(".md")) {
+      throw new Error("Project files require a unique relative .md path");
     }
     const workspace = this.#workspaceRow();
-    if (workspace.entry_file_id === fileId) throw new Error("The main.md entry path cannot be renamed");
     const files = this.#projectFiles();
     const target = files.find((file) => file.id === fileId);
     if (!target) throw new Error("Project file not found");
@@ -1493,7 +1510,7 @@ export class DocumentRoom extends DurableObject<Env> {
 
   deleteProjectFile(workspaceId: string, fileId: string): WorkspaceSnapshot {
     const workspace = this.#workspaceRow();
-    if (workspace.entry_file_id === fileId) throw new Error("The main.md entry file cannot be deleted");
+    if (workspace.entry_file_id === fileId) throw new Error("Choose another project entry file before deleting this file");
     const files = this.#projectFiles();
     const target = files.find((file) => file.id === fileId);
     if (!target) throw new Error("Project file not found");
@@ -3047,7 +3064,10 @@ export class DocumentRoom extends DurableObject<Env> {
     let resourcesChanged = false;
     try {
       const state = Y.encodeStateAsUpdate(this.#document);
-      const source = this.#document.getText("source").toString();
+      const projectFiles = this.#projectFileRows();
+      const entry = projectFiles.find((file) => file.id === previous.entry_file_id);
+      if (!entry) throw new Error("Project entry file is not initialized");
+      const source = this.#document.getText(entry.y_text_name).toString();
       const bibliography = this.#document.getText("bibliography").toString();
       this.ctx.storage.transactionSync(() => {
         this.ctx.storage.sql.exec(
@@ -3057,7 +3077,7 @@ export class DocumentRoom extends DurableObject<Env> {
           bibliography,
           revision,
         );
-        for (const file of this.#projectFileRows()) {
+        for (const file of projectFiles) {
           const content = this.#document.getText(file.y_text_name).toString();
           if (content !== file.content) {
             this.ctx.storage.sql.exec(
@@ -4070,6 +4090,7 @@ function projectFileFromRow(row: ProjectFileRow): ProjectFile {
     path: row.path,
     mediaType: "text/markdown",
     content: row.content,
+    collaborationTextName: row.y_text_name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

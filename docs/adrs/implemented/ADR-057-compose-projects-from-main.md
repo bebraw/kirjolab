@@ -2,7 +2,7 @@
 
 **Status:** Partially superseded by
 [ADR-113](./ADR-113-follow-preview-file-selection.md) and
-[ADR-133](../accepted/ADR-133-resolve-optional-project-entry-files.md)
+[ADR-133](./ADR-133-resolve-optional-project-entry-files.md)
 
 **Date:** 2026-07-11
 

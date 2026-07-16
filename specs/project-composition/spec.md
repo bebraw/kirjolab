@@ -10,9 +10,10 @@ collaborative, and unambiguous about what preview and export mean.
 
 ### Architecture
 
-- Every project has stable file identities and exactly one root entry file at
-  `main.md`. Paths are mutable presentation data; file identities qualify
-  evidence links and model targets.
+- Every non-empty project has stable file identities and one persisted effective
+  entry file. An explicit owner choice wins; otherwise creation prefers root
+  `main.md` and then the first normalized Markdown path. Paths are mutable
+  presentation data; file identities qualify evidence links and model targets.
 - Project folders also have stable identities and mutable project-relative
   paths. Empty folders persist in snapshots and revision history. Creating a
   file materializes missing ancestor folders.
@@ -27,7 +28,7 @@ collaborative, and unambiguous about what preview and export mean.
   revision persist in one SQLite-backed coordination atom.
 - `::include[path]` is a block directive. It resolves relative to its including
   file and may recurse. Composition retains authored headings and accepts
-  frontmatter only from `main.md`.
+  frontmatter only from the effective entry.
 - The pure composition engine returns composed Markdown, diagnostics,
   dependencies, and source-map spans containing stable file ids, source ranges,
   output ranges, and include chains.
@@ -47,13 +48,14 @@ collaborative, and unambiguous about what preview and export mean.
   rewrites includes and project image references relative to both moved sources
   and targets. Destinations cannot collide or sit inside the folder being moved. File deletion is
   rejected while an inbound include remains; folder deletion is limited to
-  empty folders. `main.md` cannot be renamed, moved, or deleted.
-- Preview follows file selection. Selecting `main.md` shows the composed paper;
+  empty folders. The entry may be renamed, but deleting it requires selecting
+  another entry first.
+- Preview follows file selection. Selecting the effective entry shows the composed paper;
   selecting a supporting Markdown file shows only that file's authored content
   without expanding its includes. A quiet context label identifies the active
   path and whether Preview is composed or isolated. Markdown export, word
   statistics, history, project search, and every publication path continue to
-  compose from `main.md`.
+  compose from the persisted effective entry.
 - The workspace exposes project files as a dedicated navigation mode, separate
   from research inventory. Files is the default rail mode so the workspace
   opens with its authored structure visible. The file navigator uses one
@@ -90,13 +92,14 @@ collaborative, and unambiguous about what preview and export mean.
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.
 - Stable file identities also qualify rename-aware history. A historical
-  composition resolves the retained `main.md` and file tree from that exact
+  composition resolves the retained entry identity and file tree from that exact
   logical revision rather than current paths or content.
 
 ### API Contracts
 
 - `GET /api/workspaces/{id}` includes `entryFileId`, `files`, `folders`, and the current
-  `composition` alongside the compatibility `source` field for `main.md`.
+  `composition` alongside a compatibility `source` field for the effective entry.
+- `PATCH /api/workspaces/{id}/settings` accepts an owner-selected `entryFileId`.
 - `POST /api/workspaces/{id}/files` creates a supporting Markdown file from a
   bounded project-relative path and optional bounded content.
 - `PATCH /api/workspaces/{id}/files/{fileId}` renames a supporting file and
@@ -143,7 +146,7 @@ collaborative, and unambiguous about what preview and export mean.
   revision seeds.
 - Browser coverage verifies that authors can insert an existing file and create
   a new file at a remembered caret, select it through the file tree to isolate
-  its Preview without changing the `main.md` publication root, and that Files
+  its Preview without changing the persisted publication root, and that Files
   is the initial rail mode. Compact split-width coverage verifies that toolbar
   controls remain fully visible without a duplicate file dropdown and that
   include-action help cannot overlap its file path.
@@ -155,7 +158,7 @@ collaborative, and unambiguous about what preview and export mean.
 
 ## Current Milestone
 
-- Implemented: starter syntax guide, discoverable starter transclusion, durable Markdown folder tree, canonical `main.md`, recursive composition,
+- Implemented: optional explicit entry selection with `main.md`/first-file fallback, starter syntax guide, discoverable starter transclusion, durable Markdown folder tree, recursive composition,
   source maps and diagnostics, file management API/UI, composed preview/export,
   project-wide revisions, and file-qualified manuscript/model anchors.
 - Implemented: project image upload, durable `figures/` assets, Markdown

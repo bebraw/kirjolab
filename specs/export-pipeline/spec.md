@@ -3,7 +3,7 @@
 ## Context
 
 Kirjolab papers are authored as a folder of canonical Markdown files composed
-from `main.md`. PDF, LaTeX, Markdown, BibTeX, and archival outputs must not
+from the persisted effective entry. PDF, LaTeX, Markdown, BibTeX, and archival outputs must not
 resolve that tree or its citations independently. Researchers also need a
 stable publication word count and diagnostics that lead back to authored
 files.
@@ -64,7 +64,7 @@ files.
 - ZIP encoding is pinned to `fflate@0.8.3`, sorts paths, fixes timestamps and
   permissions, and rejects traversal semantics when adding archive paths.
 - Normal outputs contain only bibliography entries cited from the composed
-  `main.md`. The source bundle additionally retains the authored folder tree
+  effective entry. The manifest records that entry's current path. The source bundle additionally retains the authored folder tree
   and project-shared metadata; it does not silently embed private library
   artifacts or imported research PDFs.
 - Composed Markdown and canonical files intentionally retain portable Kirjolab
@@ -135,7 +135,7 @@ journal uses the same counting policy.
 
 - Given a project with cited and uncited linked references
 - When any normal export is requested
-- Then only aliases reachable from composed `main.md` appear in BibTeX and
+- Then only aliases reachable from the composed effective entry appear in BibTeX and
   publication artifacts.
 
 ### Source mapping through front matter

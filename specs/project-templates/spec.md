@@ -18,8 +18,9 @@ without copying private research or creating a live dependency on the source.
 - An owner-keyed `ProjectTemplateCatalog` Durable Object stores at most 50
   personal template records with bounded name, description, sanitized seed,
   and timestamps. It is separate from project navigation and collaboration.
-- A sanitized seed contains the Markdown file tree, empty folders, portable
-  BibTeX, and publication profile. It excludes images and all PDFs,
+- A sanitized seed contains the Markdown file tree, optional persisted entry
+  path, empty folders, portable BibTeX, and publication profile. An omitted
+  entry uses normal `main.md`/first-file resolution. It excludes images and all PDFs,
   annotations, claims, comments, candidates, private research shares,
   collaborators, share capabilities, history, and milestones.
 - Promotion captures the current project head. Replacing a personal template
@@ -65,8 +66,9 @@ without copying private research or creating a live dependency on the source.
 - [x] New projects can start from four distinct built-in structures.
 - [x] Owners can promote the current project into a named personal template.
 - [x] Owners can explicitly replace or delete a personal template.
-- [x] Template instantiation preserves files, folders, BibTeX, and publication
-      settings while creating an independent project and revision history.
+- [x] Template instantiation preserves files, entry choice, folders, BibTeX,
+      and publication settings while creating an independent project and
+      revision history.
 - [x] Promotion excludes every private research, collaboration, binary, and
       history representation.
 - [x] New-project and project-settings UI expose the workflow without adding a

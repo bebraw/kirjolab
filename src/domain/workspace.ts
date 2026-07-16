@@ -999,11 +999,13 @@ function isProjectReferenceLink(value: unknown): value is ProjectReferenceLink {
 function isProjectFile(value: unknown): value is ProjectFile {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ["id", "path", "mediaType", "content", "createdAt", "updatedAt"]) &&
+    (hasExactKeys(value, ["id", "path", "mediaType", "content", "createdAt", "updatedAt"]) ||
+      hasExactKeys(value, ["id", "path", "mediaType", "content", "collaborationTextName", "createdAt", "updatedAt"])) &&
     isStringWithin(value.id, 128, true) &&
     isStringWithin(value.path, 1_024, true) &&
     value.mediaType === "text/markdown" &&
     isStringWithin(value.content, 2_000_000) &&
+    (value.collaborationTextName === undefined || isStringWithin(value.collaborationTextName, 256, true)) &&
     isStringWithin(value.createdAt, 128, true) &&
     isStringWithin(value.updatedAt, 128, true)
   );

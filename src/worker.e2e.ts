@@ -2513,6 +2513,26 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await expect(page.locator("#preview-file-context")).toHaveText("main.md · composed paper");
   await expect(page.locator("#preview")).toContainText("Before");
   await expect(page.locator("#preview")).toContainText("Describe the procedure.");
+
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "Project settings" }).click();
+  await page.locator("#workspace-entry-file").selectOption({ label: "methods/method.md" });
+  await Promise.all([
+    page.waitForNavigation(),
+    page.locator("#workspace-settings-form").getByRole("button", { name: "Save title" }).click(),
+  ]);
+  await expect(page.locator("#preview-file-context")).toHaveText("methods/method.md · composed paper");
+  await expect(page.locator("#preview")).toContainText("Describe the procedure.");
+  await expect(page.locator("#preview")).not.toContainText("Before");
+
+  await page
+    .locator(".action-menu", { has: page.locator("#rename-project-file") })
+    .locator("summary")
+    .click();
+  await page.locator("#rename-project-file").click();
+  await page.locator("#project-file-path").fill("chapters/revised-method.md");
+  await page.locator("#project-file-form").getByRole("button", { name: "Save file" }).click();
+  await expect(page.locator("#preview-file-context")).toHaveText("chapters/revised-method.md · composed paper");
 });
 
 test("completes include paths relative to the active project file", async ({ page }) => {

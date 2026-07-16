@@ -5,6 +5,7 @@ export interface ProjectFile {
   readonly path: string;
   readonly mediaType: "text/markdown";
   readonly content: string;
+  readonly collaborationTextName?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -118,7 +119,6 @@ export function composeProject(files: readonly ProjectFile[], entryFileId: strin
 
   const entry = byId.get(entryFileId);
   if (!entry) throw new Error("The project entry file does not exist");
-  if (entry.path !== projectEntryPath) throw new Error(`The project entry file must be ${projectEntryPath}`);
 
   const state = {
     output: "",
@@ -138,6 +138,23 @@ export function composeProject(files: readonly ProjectFile[], entryFileId: strin
       [...state.dependencies.entries()].map(([fileId, dependencyIds]) => [fileId, [...dependencyIds].sort()]),
     ),
   };
+}
+
+export function resolveProjectEntryFileId(files: readonly ProjectFile[], explicitFileId?: string | null): string {
+  if (explicitFileId) {
+    const explicit = files.find((file) => file.id === explicitFileId);
+    if (!explicit) throw new Error("The selected project entry file does not exist");
+    return explicit.id;
+  }
+  const conventional = files.find((file) => file.path === projectEntryPath);
+  if (conventional) return conventional.id;
+  const first = [...files].sort((left, right) => compareProjectPaths(left.path, right.path))[0];
+  if (!first) throw new Error("A project requires at least one Markdown file");
+  return first.id;
+}
+
+export function projectFileCollaborationTextName(file: ProjectFile, entryFileId: string): string {
+  return file.collaborationTextName ?? (file.id === entryFileId ? "source" : `file:${file.id}`);
 }
 
 export function previewProjectFile(files: readonly ProjectFile[], entryFileId: string, selectedFileId: string | null): ProjectFilePreview {
@@ -444,6 +461,10 @@ function byIdPath(files: ReadonlyMap<string, ProjectFile>, id: string): string {
 
 function assertLimit(value: number, name: string): void {
   if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`${name} must be a positive safe integer`);
+}
+
+function compareProjectPaths(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function isStringRecord(value: unknown): value is Record<string, string | undefined> {

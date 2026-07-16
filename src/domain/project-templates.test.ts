@@ -75,10 +75,11 @@ describe("project templates", () => {
   });
 
   it("projects only portable authored structure from a workspace", () => {
-    const snapshot: Pick<WorkspaceSnapshot, "files" | "folders" | "bibliography" | "publicationProfile"> & {
+    const snapshot: Pick<WorkspaceSnapshot, "entryFileId" | "files" | "folders" | "bibliography" | "publicationProfile"> & {
       pdfs: readonly { id: string }[];
       annotations: readonly { id: string }[];
     } = {
+      entryFileId: "private-id",
       files: [
         { id: "private-id", path: "main.md", mediaType: "text/markdown", content: "## Study\n", createdAt: "then", updatedAt: "now" },
       ],
@@ -91,6 +92,7 @@ describe("project templates", () => {
 
     expect(projectTemplateSeed(snapshot)).toEqual({
       schemaVersion: 1,
+      entryPath: "main.md",
       files: [{ path: "main.md", content: "## Study\n" }],
       folders: ["figures"],
       bibliography: "@article{doe2026, title={Study}}\n",
@@ -98,7 +100,7 @@ describe("project templates", () => {
     });
   });
 
-  it("rejects malformed, duplicate, entryless, and oversized seeds", () => {
+  it("rejects malformed, duplicate, missing explicit entry, and oversized seeds", () => {
     const seed = builtInProjectTemplate("builtin-guided")!.seed;
     expect(isProjectTemplateSeed(null)).toBe(false);
     expect(isProjectTemplateSeed([])).toBe(false);
@@ -111,7 +113,10 @@ describe("project templates", () => {
     expect(isProjectTemplateSeed({ ...seed, folders: Array.from({ length: 513 }, (_, index) => `folder-${index}`) })).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, bibliography: 42 })).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, publicationProfile: null })).toBe(false);
-    expect(isProjectTemplateSeed({ ...seed, files: [{ path: "notes.md", content: "notes" }] })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, entryPath: "missing.md" })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, entryPath: 42 })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, entryPath: "../main.md" })).toBe(false);
+    expect(isProjectTemplateSeed({ ...seed, entryPath: undefined, files: [{ path: "notes.md", content: "notes" }] })).toBe(true);
     expect(isProjectTemplateSeed({ ...seed, files: [...seed.files, { path: "MAIN.md", content: "duplicate" }] })).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, files: [null] })).toBe(false);
     expect(isProjectTemplateSeed({ ...seed, files: [{ path: 42, content: "bad" }] })).toBe(false);
@@ -129,7 +134,13 @@ describe("project templates", () => {
     expect(isProjectTemplateSeed({ ...minimalSeed, bibliography: "x".repeat(2 * 1024 * 1024) })).toBe(true);
     expect(isProjectTemplateSeed({ ...minimalSeed, bibliography: "x".repeat(2 * 1024 * 1024 + 1) })).toBe(false);
     expect(() =>
-      projectTemplateSeed({ files: [], folders: [], bibliography: "", publicationProfile: defaultProjectPublicationProfile }),
+      projectTemplateSeed({
+        entryFileId: "missing",
+        files: [],
+        folders: [],
+        bibliography: "",
+        publicationProfile: defaultProjectPublicationProfile,
+      }),
     ).toThrow("Project cannot be represented as a bounded template");
   });
 

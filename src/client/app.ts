@@ -25,6 +25,7 @@ import {
 } from "../domain/project-history";
 import {
   composeProject,
+  projectFileCollaborationTextName,
   previewProjectFile,
   relativeProjectPath,
   resolveProjectPath,
@@ -196,6 +197,7 @@ interface Elements {
   workspaceSettingsDialog: HTMLDialogElement;
   workspaceSettingsForm: HTMLFormElement;
   workspaceSettingsTitle: HTMLInputElement;
+  workspaceEntryFile: HTMLSelectElement;
   workspaceCitationStyle: HTMLSelectElement;
   workspaceCitationLocale: HTMLSelectElement;
   workspaceSubmissionTemplate: HTMLSelectElement;
@@ -769,6 +771,15 @@ class WorkspaceApp {
     this.#elements.workspaceSettings.addEventListener("click", () => {
       const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
       this.#elements.workspaceSettingsTitle.value = current?.title ?? "";
+      this.#elements.workspaceEntryFile.replaceChildren(
+        ...(this.#snapshot?.files ?? []).map((file) => {
+          const option = document.createElement("option");
+          option.value = file.id;
+          option.textContent = file.path;
+          option.selected = file.id === this.#snapshot?.entryFileId;
+          return option;
+        }),
+      );
       this.#elements.workspaceCitationStyle.value = this.#snapshot?.publicationProfile.citationStyle ?? "apa";
       this.#elements.workspaceCitationLocale.value = this.#snapshot?.publicationProfile.locale ?? "en-US";
       this.#elements.workspaceSubmissionTemplate.value = this.#snapshot?.publicationProfile.submissionTemplate ?? "article";
@@ -1467,6 +1478,7 @@ class WorkspaceApp {
         `${apiBase}/settings`,
         {
           title: this.#elements.workspaceSettingsTitle.value,
+          entryFileId: this.#elements.workspaceEntryFile.value,
           publicationProfile: {
             citationStyle: this.#elements.workspaceCitationStyle.value,
             locale: this.#elements.workspaceCitationLocale.value,
@@ -2208,7 +2220,7 @@ class WorkspaceApp {
     if (!this.#snapshot) return [];
     return this.#snapshot.files.map((file) => ({
       ...file,
-      content: this.#document.getText(file.id === this.#snapshot?.entryFileId ? "source" : `file:${file.id}`).toString(),
+      content: this.#document.getText(projectFileCollaborationTextName(file, this.#snapshot?.entryFileId ?? "")).toString(),
     }));
   }
 
@@ -2225,7 +2237,8 @@ class WorkspaceApp {
     if (!snapshot) return;
     if (!this.#activeFileId || !snapshot.files.some((file) => file.id === this.#activeFileId)) {
       this.#activeFileId = snapshot.entryFileId;
-      this.#activeFileText = this.#source;
+      const entry = snapshot.files.find((file) => file.id === snapshot.entryFileId);
+      this.#activeFileText = entry ? this.#document.getText(projectFileCollaborationTextName(entry, snapshot.entryFileId)) : this.#source;
     }
     this.#elements.projectFileList.replaceChildren();
     this.#elements.includeProjectFileList.replaceChildren();
@@ -2344,7 +2357,7 @@ class WorkspaceApp {
       this.#elements.includeProjectFileList.append(empty);
     }
     const entryActive = this.#activeFileId === snapshot.entryFileId;
-    this.#elements.renameProjectFile.disabled = entryActive;
+    this.#elements.renameProjectFile.disabled = false;
     this.#elements.deleteProjectFile.disabled = entryActive;
     this.#renderAuthoringTarget();
   }
@@ -2355,7 +2368,7 @@ class WorkspaceApp {
     if (!snapshot || !file || fileId === this.#activeFileId) return;
     this.#unbindSourceEditor();
     this.#activeFileId = fileId;
-    this.#activeFileText = this.#document.getText(fileId === snapshot.entryFileId ? "source" : `file:${fileId}`);
+    this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
     this.#elements.source.value = this.#activeFileText.toString();
     this.#authoringSelection = null;
     this.#elements.source.setSelectionRange(0, 0);
@@ -2371,7 +2384,7 @@ class WorkspaceApp {
   #openProjectFileDialog(mode: "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder", folderId?: string): void {
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
     const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
-    if (mode === "rename" && (!file || file.id === this.#snapshot?.entryFileId)) return;
+    if (mode === "rename" && !file) return;
     if (mode === "rename-folder" && !folder) return;
     this.#projectFileDialogMode = mode;
     this.#projectFolderId = folder?.id ?? null;
@@ -2393,7 +2406,7 @@ class WorkspaceApp {
       ? "Use a relative path. Moving a folder also moves its files and keeps includes valid."
       : mode === "rename"
         ? "Change the folder or filename by editing this relative path. Inbound includes stay valid."
-        : "Compose this file from main.md with ::include[path].";
+        : "Compose this file from the project entry with ::include[path].";
     this.#elements.saveProjectFile.textContent = folderMode ? "Save folder" : "Save file";
     this.#elements.projectFilePath.placeholder = folderMode ? "chapters" : "chapters/01_introduction.md";
     this.#elements.projectFilePath.value = mode === "rename" ? (file?.path ?? "") : mode === "rename-folder" ? (folder?.path ?? "") : "";
@@ -2549,7 +2562,7 @@ class WorkspaceApp {
       const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
       if (!requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return;
       const span = sourceMap.length > 0 && match?.index !== undefined ? sourceSpanAt(sourceMap, match.index) : undefined;
-      const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "main.md";
+      const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "";
       const path = resolveProjectPath(fromPath, requested);
       const asset = snapshot.assets.find((candidate) => candidate.path === path);
       if (asset) image.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
@@ -8082,6 +8095,7 @@ function collectElements(): Elements {
     workspaceSettingsDialog: requiredElement("workspace-settings-dialog", HTMLDialogElement),
     workspaceSettingsForm: requiredElement("workspace-settings-form", HTMLFormElement),
     workspaceSettingsTitle: requiredElement("workspace-settings-title", HTMLInputElement),
+    workspaceEntryFile: requiredElement("workspace-entry-file", HTMLSelectElement),
     workspaceCitationStyle: requiredElement("workspace-citation-style", HTMLSelectElement),
     workspaceCitationLocale: requiredElement("workspace-citation-locale", HTMLSelectElement),
     workspaceSubmissionTemplate: requiredElement("workspace-submission-template", HTMLSelectElement),
