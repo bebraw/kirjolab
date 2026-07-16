@@ -32,13 +32,19 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 
 ## Kirjolab Product Architecture
 
+- Synchronize GitHub-backed projects only through explicit, previewed Import,
+  Pull, and Publish operations over one repository-scoped GitHub App binding.
+  Confine every operation to its configured subtree, retain a three-way sync
+  base, apply pulls through existing Yjs texts, and publish reviewed changes as
+  one non-forced direct commit by default; never synchronize in the background.
 - Treat portable project Markdown and stable shared-library records as the
   canonical authored artifacts. Keep BibTeX as bounded derived interchange and
   export, not a second project-local metadata authority.
-- Compose each paper from exactly one root `main.md` through bounded,
-  project-relative `::include[path]` directives. Keep supporting Markdown files
-  user-named and preserve authored heading levels; never infer composition from
-  file ordering.
+- Compose each paper from one persisted effective entry file through bounded,
+  project-relative `::include[path]` directives. Resolve an omitted entry once
+  by preferring root `main.md` and then the first normalized Markdown path;
+  never infer composition by concatenating file order. Keep supporting Markdown
+  files user-named and preserve authored heading levels.
 - Give project files stable identities independent of mutable paths. Persist
   the file tree, all collaborative file texts, and their revision in one
   project-scoped `DocumentRoom`; qualify manuscript, evidence, and model
