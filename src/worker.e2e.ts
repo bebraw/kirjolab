@@ -1008,10 +1008,11 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Files" })).toBeVisible();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   const railModes = page.locator(".rail-mode-switcher");
-  await expect(railModes.locator(".rail-mode-icon")).toHaveCount(3);
+  await expect(railModes.locator(".rail-mode-icon")).toHaveCount(4);
   await expect(page.getByRole("tab", { name: "Files" })).toHaveAttribute("title", "Files");
   await expect(page.getByRole("tab", { name: "Research" })).toHaveAttribute("title", "Research");
   await expect(page.getByRole("tab", { name: "Comments" })).toHaveAttribute("title", "Comments");
+  await expect(page.getByRole("tab", { name: "Writing guide" })).toHaveAttribute("title", "Writing guide");
   await expect(page.getByRole("tab", { name: "Files" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#files-rail-panel")).toBeVisible();
   await expect(page.locator("#research-rail-panel")).toBeHidden();
