@@ -8,6 +8,7 @@ import {
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
+import type { CitationCandidateAcceptance, CitationCandidateSource } from "../domain/citation-expansion";
 import {
   likelyReferenceIdentity,
   libraryPdfRectsOverlap,
@@ -606,6 +607,50 @@ export class ReferenceLibrary extends DurableObject<Env> {
   createCitationAssertions(inputs: readonly CreateCitationAssertionInput[], actor: string): CitationAssertion[] {
     if (inputs.length === 0 || inputs.length > 128) throw new Error("Add between 1 and 128 citation assertions at a time");
     return this.ctx.storage.transactionSync(() => inputs.map((input) => this.#createCitationAssertion(input, actor)));
+  }
+
+  acceptCitationCandidate(
+    citingReferenceId: string,
+    metadata: CrossrefMetadata,
+    source: CitationCandidateSource,
+    actor: string,
+  ): CitationCandidateAcceptance {
+    const citingReference = this.#reference(citingReferenceId);
+    const doi = normalizeDoi(metadata.doi);
+    if (
+      !isCrossrefMetadata(metadata) ||
+      !doi ||
+      doi === normalizeDoi(citingReference.doi) ||
+      !Number.isFinite(Date.parse(source.observedAt)) ||
+      !/^sha256:[a-f0-9]{64}$/u.test(source.responseId) ||
+      !source.sourceLocator ||
+      source.sourceLocator.length > 2_000
+    ) {
+      throw new Error("Citation candidate is invalid");
+    }
+    return this.ctx.storage.transactionSync(() => {
+      const existing = this.ctx.storage.sql
+        .exec<ReferenceRow>("SELECT * FROM library_references WHERE LOWER(doi) = ? AND deleted_at IS NULL LIMIT 1", doi)
+        .toArray()[0];
+      const created = existing === undefined;
+      const reference = existing ? referenceFromRow(existing) : this.#createCitationCandidateReference(metadata, source.observedAt, actor);
+      const assertion = this.#createCitationAssertion(
+        {
+          citingReferenceId,
+          citedReferenceId: reference.id,
+          polarity: "cites",
+          evidenceState: "extracted",
+          method: "provider",
+          observedAt: source.observedAt,
+          sourceKind: "provider-response",
+          sourceId: source.responseId,
+          sourceLocator: source.sourceLocator,
+          confidence: null,
+        },
+        "Crossref",
+      );
+      return { reference, created, assertion };
+    });
   }
 
   getCitationAssertions(referenceId?: string): CitationAssertion[] {
@@ -1503,6 +1548,40 @@ export class ReferenceLibrary extends DurableObject<Env> {
       assertion.createdAt,
     );
     return assertion;
+  }
+
+  #createCitationCandidateReference(metadata: CrossrefMetadata, capturedAt: string, actor: string): BibliographicRecord {
+    const provenance: MetadataFieldProvenance = { method: "crossref", capturedAt, actor };
+    const now = new Date().toISOString();
+    const draft: BibliographicRecord = {
+      id: crypto.randomUUID(),
+      referenceKey: "",
+      type: metadata.type,
+      title: metadata.title,
+      authors: [...metadata.authors],
+      year: metadata.year,
+      venue: metadata.venue,
+      doi: normalizeDoi(metadata.doi),
+      url: metadata.url,
+      abstract: metadata.abstract,
+      provenance: {
+        type: provenance,
+        title: provenance,
+        ...(metadata.authors.length > 0 ? { authors: provenance } : {}),
+        ...(metadata.year ? { year: provenance } : {}),
+        ...(metadata.venue ? { venue: provenance } : {}),
+        doi: provenance,
+        ...(metadata.url ? { url: provenance } : {}),
+        ...(metadata.abstract ? { abstract: provenance } : {}),
+      },
+      archivedAt: null,
+      deletedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const reference = { ...draft, referenceKey: this.#allocateReferenceKey(draft) };
+    this.#writeReference(reference, likelyReferenceIdentity(reference), true);
+    return reference;
   }
 
   #citationAssertion(assertionId: string): CitationAssertionRow {

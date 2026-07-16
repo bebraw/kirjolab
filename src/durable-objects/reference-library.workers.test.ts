@@ -538,6 +538,66 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     });
   });
 
+  it("atomically accepts and deduplicates a provider citation candidate", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`citation-candidate-${crypto.randomUUID()}`);
+    const imported = await library.importBibTeX(
+      "@article{seed, title={Seed paper}, author={Seed, Sam}, year={2026}, doi={10.1000/seed}}",
+      "owner@example.test",
+    );
+    const seed = imported[0]!.reference;
+    const metadata = {
+      type: "article",
+      title: "Discovered paper",
+      authors: ["Doe, Jane"],
+      year: "2024",
+      venue: "Discovery Journal",
+      doi: "10.1000/discovered",
+      url: "https://doi.org/10.1000/discovered",
+      abstract: "A discovered work.",
+    };
+    const source = {
+      observedAt: "2026-07-16T10:00:00.000Z",
+      responseId: `sha256:${"a".repeat(64)}`,
+      sourceLocator: "https://api.crossref.org/works/10.1000%2Fseed",
+    };
+
+    const accepted = await library.acceptCitationCandidate(seed.id, metadata, source, "owner@example.test");
+    expect(accepted).toMatchObject({
+      created: true,
+      reference: {
+        title: metadata.title,
+        doi: metadata.doi,
+        provenance: {
+          title: { method: "crossref", actor: "owner@example.test", capturedAt: source.observedAt },
+          doi: { method: "crossref", actor: "owner@example.test", capturedAt: source.observedAt },
+        },
+      },
+      assertion: {
+        citingReferenceId: seed.id,
+        polarity: "cites",
+        evidenceState: "extracted",
+        sourceId: source.responseId,
+        assertedBy: "Crossref",
+      },
+    });
+    expect(accepted.assertion.citedReferenceId).toBe(accepted.reference.id);
+
+    const repeated = await library.acceptCitationCandidate(seed.id, metadata, source, "owner@example.test");
+    expect(repeated).toMatchObject({ created: false, reference: { id: accepted.reference.id }, assertion: { id: accepted.assertion.id } });
+    expect((await library.findReferencesByDois([metadata.doi]))).toHaveLength(1);
+    expect(await library.getCitationNetwork()).toMatchObject({
+      nodes: [{ referenceId: accepted.reference.id }, { referenceId: seed.id }],
+      edges: [{ assertions: [{ id: accepted.assertion.id }] }],
+    });
+
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() => instance.acceptCitationCandidate(seed.id, { ...metadata, doi: seed.doi }, source, "owner@example.test")).toThrow(
+        "invalid",
+      );
+    });
+    expect((await library.getSnapshot()).references).toHaveLength(2);
+  });
+
   it("persists bounded private page notes and freehand drawings", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`pdf-markups-${crypto.randomUUID()}`);
     const draft = await library.createPdfDraft(

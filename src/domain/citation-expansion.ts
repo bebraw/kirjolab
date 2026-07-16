@@ -28,6 +28,12 @@ export interface AcceptCitationCandidateInput {
   readonly responseId: string;
 }
 
+export interface CitationCandidateSource {
+  readonly observedAt: string;
+  readonly responseId: string;
+  readonly sourceLocator: string;
+}
+
 export interface CitationCandidateAcceptance {
   readonly reference: BibliographicRecord;
   readonly created: boolean;
