@@ -152,6 +152,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-127](./implemented/ADR-127-integrate-library-context-into-the-header.md)         | Implemented          | Integrate standalone Library tabs and PDF actions into the global header while retaining workspace locality. |
 | [ADR-128](./implemented/ADR-128-adopt-xstate-for-bounded-ui-workflows.md)             | Implemented          | Use XState for bounded event-driven browser workflows rather than as a global application store.             |
 | [ADR-129](./implemented/ADR-129-codify-a-thin-internal-design-system.md)              | Implemented          | Codify foundations, primitives, state contracts, and typed icons without a component framework.              |
+| [ADR-130](./implemented/ADR-130-emit-quality-gate-progress.md)                        | Implemented          | Report full-gate phase transitions and heartbeats without changing its fail-fast sequence.                   |
 
 ## Creating A New ADR
 

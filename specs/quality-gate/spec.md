@@ -21,6 +21,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Full mutation gate:** `npm run mutation`
 - **Incremental mutation gate:** `npm run mutation:incremental`
 - **Full gate:** `npm run quality:gate`
+- **Full gate progress:** named phase transitions plus a 30-second elapsed-time heartbeat while a phase is running
 - **Local workflow:** `npm run ci:local`
 - **Local workflow formatter:** `scripts/run-local-ci.mjs`
 - **Local workflow progress source:** Agent CI versioned NDJSON events
@@ -76,6 +77,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - [ ] The full mutation gate covers runtime `src/**/*.ts` files with Stryker, Vitest, and TypeScript checking.
 - [ ] The incremental mutation gate reuses prior Stryker results and ignores static mutants for repeated local quality-gate runs while preserving a complete mutation report.
 - [ ] The full gate runs the fast, browser, and incremental mutation gates in order.
+- [ ] The full gate reports phase starts, completions, failures, and periodic elapsed-time heartbeats.
 - [ ] The repo-managed `pre-push` hook runs affected-file guardrails before a push leaves the machine.
 - [ ] Local and remote CI use the same split verification model for non-documentation changes.
 - [ ] Local CI reports job and step starts, completions, durations, and
@@ -95,6 +97,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - `npm run quality:affected` must avoid full-repo work when affected files make a narrower check sufficient.
 - `npm run test:affected` must avoid full coverage work when affected runtime or unit test files can be checked through related or direct Vitest runs.
 - `npm run quality:gate` must continue to represent the local baseline verification path.
+- `npm run quality:gate` must preserve each child command's live output and emit a progress heartbeat at least every 30 seconds while that command is still running.
 - `npm run diagnostics:codebase` must remain advisory and must not be required by the baseline readiness path.
 - Fallow diagnostics must use `--no-cache` in repo scripts so normal diagnostic runs do not create a persistent `.fallow/` cache.
 - `npm run mutation` must fail when the mutation score is below the configured break threshold.
@@ -217,6 +220,13 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - Given: a non-documentation change is ready for review or merge
 - When: the contributor runs `npm run quality:gate` and `npm run ci:local`
 - Then: the fast, browser, and local incremental mutation verification paths pass
+
+**Scenario: Contributor monitors the full quality gate**
+
+- Given: a full quality-gate phase takes long enough to appear idle
+- When: the contributor runs `npm run quality:gate`
+- Then: the gate names the active phase, preserves its live output, and reports
+  elapsed time every 30 seconds until the phase completes or fails
 
 **Scenario: Contributor watches local workflow progress**
 

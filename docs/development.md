@@ -223,14 +223,16 @@ Use this expectation for routine changes:
 - `npm run ci:local` should also pass before proposing or landing the change.
 - The repo-managed `pre-push` hook runs `npm run quality:affected` automatically after `npm install`, so pushes stop locally when affected guardrails are already red.
 
-The quality gate currently runs the fast gate first, then the Playwright browser
-tests, then incremental mutation tests for faster repeated local runs. The fast
+The quality gate runs the fast gate first, then the Playwright browser tests,
+then incremental mutation tests for faster repeated local runs. It prints named
+phase transitions and an elapsed-time heartbeat every 30 seconds while a phase
+is still running, while preserving each child command's live output. The fast
 gate includes both Node coverage and `npm run test:workers`, so the baseline and
 local Agent CI cannot omit real Durable Object persistence verification. GitHub
 Actions runs separate fast, browser, and full mutation jobs, with
 repository-shape validation included in the fast job. Local Agent CI runs
 should go through `npm run ci:local`, which executes the same workflow with
-isolated parallel jobs, reports structured job and step progress, and prints a heartbeat
-during long-running steps. The command preserves Agent CI's pause-on-failure
-exit behavior and retry command. Local browser installation should go through
-the pinned `npm run playwright:install` script.
+isolated parallel jobs, reports structured job and step progress, and prints a
+heartbeat during long-running steps. The command preserves Agent CI's
+pause-on-failure exit behavior and retry command. Local browser installation
+should go through the pinned `npm run playwright:install` script.

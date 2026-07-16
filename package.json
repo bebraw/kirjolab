@@ -34,7 +34,8 @@
       "2026-07-14-agent-ci-cache-isolation",
       "2026-07-14-scope-prettier-to-owned-files",
       "2026-07-14-prettier-content-cache",
-      "2026-07-14-oxlint-correctness-gate"
+      "2026-07-14-oxlint-correctness-gate",
+      "2026-07-15-quality-gate-progress"
     ]
   },
   "scripts": {
@@ -67,12 +68,13 @@
     "playwright:install": "playwright install chromium",
     "prepare": "node ./scripts/setup-git-hooks.mjs",
     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
-    "quality:gate": "npm run quality:gate:fast && npm run e2e && npm run mutation:incremental",
-    "quality:gate:fast": "npm run format:check && npm run lint && npm run typecheck && npm run worker:client-guard && npm run security:audit && npm run test:coverage && npm run test:workers",
+    "quality:gate": "node ./scripts/run-quality-gate.mjs",
+    "quality:gate:fast": "npm run format:check && npm run lint && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
     "security:audit": "npm audit --omit=dev --audit-level high",
     "test": "vitest run --passWithNoTests",
     "test:affected": "node ./scripts/run-affected-tests.mjs",
     "test:coverage": "node ./scripts/run-coverage-gate.mjs",
+    "test:tooling": "node --test scripts/run-quality-gate.test.mjs",
     "test:workers": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false vitest run --config vitest.workers.config.mts",
     "typecheck": "node ./node_modules/typescript-7/bin/tsc --noEmit && node ./node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.client.json && npm run typecheck:workers",
     "typecheck:workers": "node ./node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.workers-test.json",
