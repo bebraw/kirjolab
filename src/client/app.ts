@@ -35,6 +35,7 @@ import {
   type ProjectFile,
 } from "../domain/project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
+import { parseResearchQuestions, researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate, summarizeResearchDiary } from "../domain/writing-workflows";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import {
@@ -337,6 +338,9 @@ interface Elements {
   researchDiaryEntryCount: HTMLElement;
   researchDiarySummary: HTMLElement;
   openResearchDiary: HTMLButtonElement;
+  researchQuestionCount: HTMLElement;
+  researchQuestionList: HTMLElement;
+  openResearchQuestions: HTMLButtonElement;
   newProjectFileRail: HTMLButtonElement;
   newProjectFolderRail: HTMLButtonElement;
   uploadProjectImages: HTMLButtonElement;
@@ -894,6 +898,7 @@ class WorkspaceApp {
     this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
     this.#elements.showGuideRail.addEventListener("click", () => this.#showRail("guide"));
     this.#elements.openResearchDiary.addEventListener("click", () => void this.#openResearchDiary());
+    this.#elements.openResearchQuestions.addEventListener("click", () => void this.#openResearchQuestions());
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
@@ -2720,6 +2725,34 @@ class WorkspaceApp {
       this.#elements.manuscriptMapCues.append(button);
     }
     this.#renderResearchDiarySummary();
+    this.#renderResearchQuestions();
+  }
+
+  #renderResearchQuestions(): void {
+    const file = this.#previewProjectFiles().find((candidate) => candidate.path === researchQuestionsPath);
+    this.#elements.openResearchQuestions.textContent = file ? "Open question ledger" : "Start question ledger";
+    const questions = file ? parseResearchQuestions(file.content) : [];
+    this.#elements.researchQuestionCount.textContent = String(questions.length);
+    this.#elements.researchQuestionList.replaceChildren();
+    if (!file) {
+      this.#elements.researchQuestionList.append(emptyState("Record the study's questions, methods, and manuscript coverage."));
+      return;
+    }
+    if (questions.length === 0) this.#elements.researchQuestionList.append(emptyState("Add an ## RQ1: … heading to the ledger."));
+    for (const question of questions) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "manuscript-map-item";
+      const label = document.createElement("span");
+      const id = document.createElement("strong");
+      id.textContent = `${question.id} · `;
+      label.append(id, question.question);
+      const meta = document.createElement("small");
+      meta.textContent = `${question.status} · ${question.sections.length}s · ${question.claims.length}c`;
+      button.append(label, meta);
+      button.addEventListener("click", () => this.#focusProjectRange(file.id, question.from, question.to));
+      this.#elements.researchQuestionList.append(button);
+    }
   }
 
   #renderResearchDiarySummary(): void {
@@ -2744,6 +2777,16 @@ class WorkspaceApp {
     }
     const date = new Date().toISOString().slice(0, 10);
     await this.#createWorkflowFile(researchDiaryPath, researchDiaryTemplate(date));
+  }
+
+  async #openResearchQuestions(): Promise<void> {
+    const existing = this.#snapshot?.files.find((file) => file.path === researchQuestionsPath);
+    if (existing) {
+      this.#selectProjectFile(existing.id);
+      this.#elements.source.focus();
+      return;
+    }
+    await this.#createWorkflowFile(researchQuestionsPath, researchQuestionsTemplate());
   }
 
   async #createWorkflowFile(path: string, content: string): Promise<void> {
@@ -8785,6 +8828,9 @@ function collectElements(): Elements {
     researchDiaryEntryCount: requiredElement("research-diary-entry-count", HTMLElement),
     researchDiarySummary: requiredElement("research-diary-summary", HTMLElement),
     openResearchDiary: requiredElement("open-research-diary", HTMLButtonElement),
+    researchQuestionCount: requiredElement("research-question-count", HTMLElement),
+    researchQuestionList: requiredElement("research-question-list", HTMLElement),
+    openResearchQuestions: requiredElement("open-research-questions", HTMLButtonElement),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),

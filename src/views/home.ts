@@ -248,6 +248,13 @@ export function renderHomePage(
             <div class="rail-collection-body" id="manuscript-map-cues"></div>
           </details>
           <details class="rail-collection mt-4" open>
+            <summary><span>Research questions</span><span class="count-badge" id="research-question-count">0</span></summary>
+            <div class="rail-collection-body">
+              <div class="grid gap-2" id="research-question-list"></div>
+              <button class="button-secondary mt-3 w-full justify-center" id="open-research-questions" type="button">Start question ledger</button>
+            </div>
+          </details>
+          <details class="rail-collection mt-4" open>
             <summary><span>Research diary</span><span class="count-badge" id="research-diary-entry-count">0</span></summary>
             <div class="rail-collection-body">
               <p class="px-1 text-xs leading-5 text-app-text-soft" id="research-diary-summary">Keep progress, discoveries, questions, and the next action in portable Markdown.</p>
