@@ -1211,7 +1211,6 @@
   .context-column {
     display: flex;
     min-height: min(46rem, calc(100vh - 7.25rem));
-    overflow: hidden;
   }
 
   .context-tabs {

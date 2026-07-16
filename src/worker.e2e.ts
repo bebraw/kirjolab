@@ -1191,6 +1191,12 @@ test("synchronizes the source caret and rendered Preview in both directions", as
 
   const controls = page.getByRole("group", { name: "Synchronize source and preview" });
   await expect(controls).toBeVisible();
+  const controlEdgesAreInteractive = await controls.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const centerY = bounds.top + bounds.height / 2;
+    return [bounds.left + 1, bounds.right - 1].every((x) => element.contains(document.elementFromPoint(x, centerY)));
+  });
+  expect(controlEdgesAreInteractive).toBe(true);
   const secondPassage = page.locator("#preview p", { hasText: "Second passage." });
   await expect(secondPassage).toBeVisible();
 
