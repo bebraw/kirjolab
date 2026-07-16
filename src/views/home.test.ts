@@ -22,6 +22,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml"');
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
     expect(html).toContain('id="preferences-menu" data-settings-menu');
+    expect(html).toContain('id="citation-completion-scope" aria-label="Citation suggestion scope"');
     expect(html).toContain('aria-label="Open preferences" title="Preferences"');
     expect(html).toContain('id="account-menu" data-action-menu');
     expect(html).toContain('class="account-trigger" aria-label="Account for local@kirjolab.invalid" title="Account"');
@@ -110,6 +111,7 @@ describe("renderHomePage", () => {
     expect(html).not.toContain('id="project-file-switcher"');
     expect(html).toContain('class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"');
     expect(html).toContain('class="source-editor" id="source-editor" spellcheck="true"');
+    expect(html).toContain('id="source-completion" role="listbox" aria-label="Source suggestions" hidden');
     expect(html).toContain('id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"');
     expect(html).toContain('id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span>');
     expect(html).toContain('id="open-project-history"');

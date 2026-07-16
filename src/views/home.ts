@@ -74,6 +74,13 @@ export function renderHomePage(
                 <div><h3 id="writing-preference-heading">Writing</h3><p>Use modal Vim keybindings in the source editor.</p></div>
                 <button class="preference-toggle" id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"><span>Vim mode</span><span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span></button>
               </section>
+              <section class="preferences-section" aria-labelledby="citation-suggestions-heading">
+                <div><h3 id="citation-suggestions-heading">Citation suggestions</h3><p>Choose which references appear while completing citation keys.</p></div>
+                <label class="sr-only" for="citation-completion-scope">Citation suggestion scope</label>
+                <select class="field" id="citation-completion-scope" aria-label="Citation suggestion scope">
+                  <option value="project">Project references</option><option value="library">Project and private library</option>
+                </select>
+              </section>
               <section class="preferences-model" aria-labelledby="model-preference-heading">
                 <div><h3 id="model-preference-heading">Local model</h3><p>Configure the OpenAI-compatible connection used by Writing assistant.</p></div>
                 <div class="preferences-model-grid">
@@ -270,7 +277,8 @@ export function renderHomePage(
         <label class="sr-only" for="source-editor">Markdown source</label>
         <div class="source-editor-shell" id="source-editor-shell" data-vim-mode="off">
           <pre class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"></pre>
-          <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help"></textarea>
+          <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help" aria-autocomplete="list" aria-controls="source-completion"></textarea>
+          <div class="source-completion" id="source-completion" role="listbox" aria-label="Source suggestions" hidden></div>
         </div>
         <section class="project-map" id="project-map" aria-labelledby="project-map-heading" hidden>
           <header class="project-map-header">

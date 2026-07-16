@@ -118,6 +118,13 @@ mode for authenticated hosted collaboration.
   `Y.Text`; server collaboration controls own the displayed revision. REST
   workspace refreshes cannot assign those values. The editor reports `Saved`
   once initial synchronization completes with no queued local updates.
+- **Citation completion:** With the caret in a `:cite`, `:citet`, or `:citep`
+  key, the source editor ranks matching project aliases by key, author, and
+  title and shows key, author, title, and year metadata. A browser-local
+  preference defaults suggestions to project references and may also expose a
+  separate private-library `Add and cite` action. Completion replaces only the
+  active comma-separated key in one collaborative text transaction; accepting
+  a private-library result explicitly links it to the project first.
 - **Offline authoring:** A service worker retains the allowlisted authoring
   shell and previously authorized workspace navigation. IndexedDB stores the
   current Yjs document, last acknowledged server vector, and last authorized
@@ -423,6 +430,9 @@ mode for authenticated hosted collaboration.
       Escape, and return focus to their labelled summary control.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
+- [x] Citation keys offer keyboard-accessible project suggestions at the caret,
+      with an opt-in personal preference for explicit private-library add-and-cite
+      suggestions.
 - [x] Preview citations open publication context and explicit citation
       insertion uses a remembered collaborative authoring position.
 - [x] Legacy workspace BibTeX and explicit imports reconcile into stable

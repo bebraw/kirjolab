@@ -2221,6 +2221,72 @@
     text-align: end;
   }
 
+  .source-completion {
+    position: absolute;
+    z-index: 8;
+    width: min(32rem, calc(100% - 1rem));
+    max-height: min(22rem, 45%);
+    overflow: auto;
+    border: 1px solid var(--color-app-border);
+    border-radius: 0.25rem;
+    background: var(--color-app-paper);
+    box-shadow: 0 1rem 2.5rem var(--color-app-shadow);
+    color: var(--color-app-text);
+    font-family: var(--font-sans);
+  }
+
+  .source-completion-option {
+    display: grid;
+    width: 100%;
+    gap: 0.18rem;
+    padding: 0.62rem 0.75rem;
+    border-bottom: 1px solid var(--color-app-line);
+    text-align: left;
+  }
+
+  .source-completion-option:last-child {
+    border-bottom: 0;
+  }
+
+  .source-completion-option[aria-selected="true"] {
+    background: var(--color-app-accent-ghost);
+  }
+
+  .source-completion-heading {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .source-completion-heading code {
+    overflow: hidden;
+    color: var(--color-app-accent-strong);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .source-completion-action {
+    flex: none;
+    color: var(--color-app-text-soft);
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .source-completion-meta {
+    overflow: hidden;
+    color: var(--color-app-text-soft);
+    font-size: 0.68rem;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .source-editor-newline {
     display: none;
   }

@@ -160,6 +160,12 @@ import {
   type WorkspaceSurface,
 } from "./workspace-ui-route";
 import { editorPresenceSegments, type EditorPresenceRange } from "./editor-presence";
+import {
+  citationCompletionContext,
+  rankCitationCompletionCandidates,
+  type CitationCompletionCandidate,
+  type CitationCompletionContext,
+} from "./citation-completions";
 
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
@@ -169,10 +175,12 @@ const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
 const modelPreferencesStorageKey = "kirjolab:model-preferences";
+const citationCompletionScopeStorageKey = "kirjolab:citation-completion-scope";
 
 interface Elements {
   preferencesMenu: HTMLDetailsElement;
   preferencesModelStatus: HTMLElement;
+  citationCompletionScope: HTMLSelectElement;
   openPreferencesFromAssistant: HTMLButtonElement;
   collaboratorSelections: HTMLElement;
   workspaceSwitcher: HTMLSelectElement;
@@ -299,6 +307,7 @@ interface Elements {
   source: HTMLTextAreaElement;
   sourceHighlight: HTMLElement;
   sourceEditorShell: HTMLElement;
+  sourceCompletion: HTMLElement;
   showWriteMode: HTMLButtonElement;
   showMapMode: HTMLButtonElement;
   editorWriteActions: HTMLElement;
@@ -600,6 +609,11 @@ class WorkspaceApp {
   #offlineSaveVersion = 0;
   #offlineSaveChain: Promise<void> = Promise.resolve();
   #workspaceRouteReady = false;
+  #citationCompletionContext: CitationCompletionContext | null = null;
+  #citationCompletionCandidates: readonly CitationCompletionCandidate[] = [];
+  #sourceCompletionIndex = 0;
+  #citationLibraryRequest = 0;
+  #citationLibraryLoading = false;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -691,6 +705,7 @@ class WorkspaceApp {
 
   #bindUi(): void {
     this.#restoreModelPreferences();
+    this.#restoreCitationCompletionScope();
     window.addEventListener("online", () => this.#connect());
     window.addEventListener("offline", () => {
       this.#collaborationWorkflow.send({ type: "OFFLINE" });
@@ -846,6 +861,13 @@ class WorkspaceApp {
     this.#elements.cancelProjectFile.addEventListener("click", () => this.#elements.projectFileDialog.close());
     this.#elements.projectFileForm.addEventListener("submit", (event) => void this.#saveProjectFile(event));
     this.#elements.editorInsertMenu.addEventListener("click", (event) => this.#insertSourceSyntax(event));
+    this.#elements.citationCompletionScope.addEventListener("change", () => {
+      const scope = this.#elements.citationCompletionScope.value === "library" ? "library" : "project";
+      localStorage.setItem(citationCompletionScopeStorageKey, scope);
+      void this.#renderCitationCompletion();
+    });
+    this.#elements.source.addEventListener("keydown", (event) => this.#handleSourceCompletionKey(event));
+    this.#elements.source.addEventListener("blur", () => window.setTimeout(() => this.#hideSourceCompletion(), 0));
     this.#elements.showWriteMode.addEventListener("click", () => this.#setAuthoringMode("write"));
     this.#elements.showMapMode.addEventListener("click", () => this.#setAuthoringMode("map"));
     this.#elements.openProjectHistory.addEventListener("click", () => void this.#openProjectHistory());
@@ -860,6 +882,7 @@ class WorkspaceApp {
     for (const eventName of ["focus", "input", "keyup", "select", "click"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
         if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
+        void this.#renderCitationCompletion();
         this.#scheduleSelectionBroadcast();
         this.#updateModelAvailability();
       });
@@ -5511,6 +5534,189 @@ class WorkspaceApp {
     return this.#snapshot?.publications.find((publication) => publication.citationKey.toLocaleLowerCase() === normalized);
   }
 
+  #restoreCitationCompletionScope(): void {
+    this.#elements.citationCompletionScope.value =
+      localStorage.getItem(citationCompletionScopeStorageKey) === "library" ? "library" : "project";
+  }
+
+  async #renderCitationCompletion(): Promise<void> {
+    if (appMode !== "workspace" || document.activeElement !== this.#elements.source) {
+      this.#hideSourceCompletion();
+      return;
+    }
+    const context = citationCompletionContext(this.#elements.source.value, this.#elements.source.selectionEnd);
+    if (!context) {
+      this.#hideSourceCompletion();
+      return;
+    }
+    if (this.#elements.citationCompletionScope.value === "library" && !this.#librarySnapshot && !this.#citationLibraryLoading) {
+      const request = ++this.#citationLibraryRequest;
+      this.#citationLibraryLoading = true;
+      void this.#loadCitationCompletionLibrary(request);
+    }
+    const candidates = rankCitationCompletionCandidates(this.#citationCandidates(), context.query);
+    if (candidates.length === 0) {
+      this.#hideSourceCompletion();
+      return;
+    }
+    this.#citationCompletionContext = context;
+    this.#citationCompletionCandidates = candidates;
+    this.#sourceCompletionIndex = Math.min(this.#sourceCompletionIndex, candidates.length - 1);
+    const options = candidates.map((candidate, index) => this.#citationCompletionOption(candidate, index));
+    this.#elements.sourceCompletion.replaceChildren(...options);
+    this.#elements.sourceCompletion.hidden = false;
+    this.#elements.source.setAttribute("aria-expanded", "true");
+    this.#renderSourceCompletionSelection();
+    positionSourceCompletion(this.#elements.source, this.#elements.sourceCompletion, context.start);
+  }
+
+  async #loadCitationCompletionLibrary(request: number): Promise<void> {
+    try {
+      const response = await fetch("/api/library", { credentials: "same-origin" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
+      if (request !== this.#citationLibraryRequest) return;
+      this.#librarySnapshot = value;
+      await this.#renderCitationCompletion();
+    } catch {
+      if (request === this.#citationLibraryRequest) this.#citationLibraryRequest += 1;
+    } finally {
+      this.#citationLibraryLoading = false;
+    }
+  }
+
+  #citationCandidates(): CitationCompletionCandidate[] {
+    const snapshot = this.#snapshot;
+    if (!snapshot) return [];
+    const projectCandidates = snapshot.projectReferences.map((reference) => ({
+      key: reference.citationAlias,
+      title: reference.snapshot.title,
+      authors: reference.snapshot.authors,
+      year: reference.snapshot.year,
+      scope: "project" as const,
+      referenceId: reference.referenceId,
+    }));
+    if (this.#elements.citationCompletionScope.value !== "library" || !this.#librarySnapshot) return projectCandidates;
+    const linked = new Set(snapshot.projectReferences.map((reference) => reference.referenceId));
+    return [
+      ...projectCandidates,
+      ...this.#librarySnapshot.references
+        .filter((reference) => !linked.has(reference.id) && reference.archivedAt === null && reference.deletedAt === null)
+        .map((reference) => ({
+          key: reference.referenceKey,
+          title: reference.title,
+          authors: reference.authors,
+          year: reference.year,
+          scope: "library" as const,
+          referenceId: reference.id,
+        })),
+    ];
+  }
+
+  #citationCompletionOption(candidate: CitationCompletionCandidate, index: number): HTMLButtonElement {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.id = `source-completion-option-${index}`;
+    option.className = "source-completion-option";
+    option.setAttribute("role", "option");
+    option.dataset.index = String(index);
+    const heading = document.createElement("span");
+    heading.className = "source-completion-heading";
+    const key = document.createElement("code");
+    key.textContent = candidate.key;
+    heading.append(key);
+    if (candidate.scope === "library") {
+      const action = document.createElement("span");
+      action.className = "source-completion-action";
+      action.textContent = "Add and cite";
+      heading.append(action);
+    }
+    const metadata = document.createElement("span");
+    metadata.className = "source-completion-meta";
+    metadata.textContent = [candidate.authors.join("; "), candidate.title, candidate.year].filter(Boolean).join(" · ");
+    option.append(heading, metadata);
+    option.addEventListener("pointerdown", (event) => event.preventDefault());
+    option.addEventListener("click", () => void this.#acceptCitationCompletion(index));
+    option.addEventListener("mousemove", () => {
+      this.#sourceCompletionIndex = index;
+      this.#renderSourceCompletionSelection();
+    });
+    return option;
+  }
+
+  #handleSourceCompletionKey(event: KeyboardEvent): void {
+    if (this.#elements.sourceCompletion.hidden || this.#citationCompletionCandidates.length === 0 || event.isComposing) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      this.#sourceCompletionIndex =
+        (this.#sourceCompletionIndex + direction + this.#citationCompletionCandidates.length) % this.#citationCompletionCandidates.length;
+      this.#renderSourceCompletionSelection();
+      return;
+    }
+    if (event.key === "Enter" || event.key === "Tab") {
+      event.preventDefault();
+      void this.#acceptCitationCompletion(this.#sourceCompletionIndex);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      this.#hideSourceCompletion();
+    }
+  }
+
+  #renderSourceCompletionSelection(): void {
+    for (const option of this.#elements.sourceCompletion.querySelectorAll<HTMLElement>("[role=option]")) {
+      const selected = Number(option.dataset.index) === this.#sourceCompletionIndex;
+      option.setAttribute("aria-selected", String(selected));
+      if (selected) {
+        this.#elements.source.setAttribute("aria-activedescendant", option.id);
+        option.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }
+
+  async #acceptCitationCompletion(index: number): Promise<void> {
+    const candidate = this.#citationCompletionCandidates[index];
+    const context = this.#citationCompletionContext;
+    if (!candidate || !context) return;
+    this.#hideSourceCompletion();
+    let start = context.start;
+    let end = context.end;
+    if (candidate.scope === "library") {
+      const relativeStart = Y.createRelativePositionFromTypeIndex(this.#activeFileText, start);
+      const relativeEnd = Y.createRelativePositionFromTypeIndex(this.#activeFileText, end);
+      const response = await jsonFetch(`${apiBase}/references`, { referenceId: candidate.referenceId, citationAlias: candidate.key });
+      await this.#acceptWorkspaceMutation(response);
+      const resolvedStart = Y.createAbsolutePositionFromRelativePosition(relativeStart, this.#document);
+      const resolvedEnd = Y.createAbsolutePositionFromRelativePosition(relativeEnd, this.#document);
+      if (!resolvedStart || !resolvedEnd || resolvedStart.type !== this.#activeFileText || resolvedEnd.type !== this.#activeFileText)
+        return;
+      start = resolvedStart.index;
+      end = resolvedEnd.index;
+    }
+    this.#document.transact(() => {
+      if (end > start) this.#activeFileText.delete(start, end - start);
+      this.#activeFileText.insert(start, candidate.key);
+    }, this);
+    const caret = start + candidate.key.length;
+    this.#elements.source.focus();
+    this.#elements.source.setSelectionRange(caret, caret);
+    this.#rememberAuthoringSelection();
+    if (candidate.scope === "library") this.#showToast(`Added and cited ${candidate.key}.`);
+  }
+
+  #hideSourceCompletion(): void {
+    this.#citationCompletionContext = null;
+    this.#citationCompletionCandidates = [];
+    this.#sourceCompletionIndex = 0;
+    this.#elements.sourceCompletion.hidden = true;
+    this.#elements.sourceCompletion.replaceChildren();
+    this.#elements.source.setAttribute("aria-expanded", "false");
+    this.#elements.source.removeAttribute("aria-activedescendant");
+  }
+
   #rememberAuthoringSelection(): void {
     this.#authoringSelection = captureRelativeSelection(this.#elements.source, this.#activeFileText);
     const citationAtCaret = citationKeysAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd).length > 0;
@@ -7616,6 +7822,38 @@ function sourceEditorLine(lineNumber: number): HTMLSpanElement {
   return line;
 }
 
+function positionSourceCompletion(textarea: HTMLTextAreaElement, completion: HTMLElement, position: number): void {
+  const style = getComputedStyle(textarea);
+  const mirror = document.createElement("div");
+  mirror.style.position = "absolute";
+  mirror.style.visibility = "hidden";
+  mirror.style.pointerEvents = "none";
+  mirror.style.boxSizing = style.boxSizing;
+  mirror.style.width = `${textarea.clientWidth}px`;
+  mirror.style.padding = style.padding;
+  mirror.style.border = style.border;
+  mirror.style.font = style.font;
+  mirror.style.letterSpacing = style.letterSpacing;
+  mirror.style.lineHeight = style.lineHeight;
+  mirror.style.overflowWrap = style.overflowWrap;
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.tabSize = style.tabSize;
+  mirror.textContent = textarea.value.slice(0, position);
+  const marker = document.createElement("span");
+  marker.textContent = "\u200b";
+  mirror.append(marker);
+  document.body.append(mirror);
+  const lineHeight = Number.parseFloat(style.lineHeight) || 24;
+  const shellWidth = textarea.parentElement?.clientWidth ?? textarea.clientWidth;
+  const shellHeight = textarea.parentElement?.clientHeight ?? textarea.clientHeight;
+  const left = Math.max(8, Math.min(marker.offsetLeft - textarea.scrollLeft, shellWidth - completion.offsetWidth - 8));
+  const below = marker.offsetTop - textarea.scrollTop + lineHeight + 4;
+  const top = Math.max(8, Math.min(below, shellHeight - completion.offsetHeight - 8));
+  completion.style.left = `${left}px`;
+  completion.style.top = `${top}px`;
+  mirror.remove();
+}
+
 function lineNumberAt(source: string, offset: number): number {
   return source.slice(0, Math.max(0, Math.min(offset, source.length))).split(/\r\n|\r|\n/u).length;
 }
@@ -7725,6 +7963,7 @@ function collectElements(): Elements {
   return {
     preferencesMenu: requiredElement("preferences-menu", HTMLDetailsElement),
     preferencesModelStatus: requiredElement("preferences-model-status", HTMLElement),
+    citationCompletionScope: requiredElement("citation-completion-scope", HTMLSelectElement),
     openPreferencesFromAssistant: requiredElement("open-preferences-from-assistant", HTMLButtonElement),
     collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
     workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
@@ -7851,6 +8090,7 @@ function collectElements(): Elements {
     source: requiredElement("source-editor", HTMLTextAreaElement),
     sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),
     sourceEditorShell: requiredElement("source-editor-shell", HTMLElement),
+    sourceCompletion: requiredElement("source-completion", HTMLElement),
     showWriteMode: requiredElement("show-write-mode", HTMLButtonElement),
     showMapMode: requiredElement("show-map-mode", HTMLButtonElement),
     editorWriteActions: requiredElement("editor-write-actions", HTMLElement),
