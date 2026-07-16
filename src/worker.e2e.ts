@@ -996,6 +996,21 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   expect((await sourceBundle.body()).subarray(0, 2).toString()).toBe("PK");
 });
 
+test("styles rendered Markdown headings in descending size order", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Heading hierarchy workspace");
+  await page.goto(`/workspaces/${workspaceId}`);
+  await page.locator("#source-editor").fill("# Research manuscript\n\n## Evidence\n\n### Analysis\n\n#### Detail\n\nBody text.\n");
+
+  await expect(page.locator("#preview h1")).toHaveText("Research manuscript");
+  const headingFontSizes = await page
+    .locator("#preview h1, #preview h2, #preview h3, #preview > b")
+    .evaluateAll((headings) => headings.map((heading) => Number.parseFloat(getComputedStyle(heading).fontSize)));
+  expect(headingFontSizes).toHaveLength(4);
+  expect(headingFontSizes[0]).toBeGreaterThan(headingFontSizes[1]!);
+  expect(headingFontSizes[1]).toBeGreaterThan(headingFontSizes[2]!);
+  expect(headingFontSizes[2]).toBeGreaterThan(headingFontSizes[3]!);
+});
+
 test("maps broken export composition back to authored source without losing recovery output", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Broken export diagnostics");
   const api = `/api/workspaces/${workspaceId}`;

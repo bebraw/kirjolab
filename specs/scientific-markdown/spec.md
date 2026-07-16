@@ -31,6 +31,8 @@ second Markdown dialect.
 
 - Standard headings, paragraphs, emphasis, strong text, links, images, lists,
   block quotes, thematic breaks, and fenced code.
+- Preview headings preserve a descending visual size hierarchy from manuscript
+  title through lower-level sections.
 - GFM tables, strikethrough, task lists, autolinks, and footnotes.
 - YAML and TOML frontmatter is parsed but not rendered in the preview.
 - Level-two and level-three headings receive generated section numbers.

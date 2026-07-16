@@ -2537,6 +2537,20 @@
     line-height: 1.8;
   }
 
+  .prose-preview h1 {
+    margin-top: 3rem;
+    margin-bottom: 1.25rem;
+    color: var(--color-app-ink);
+    font-size: clamp(2.4rem, 4vw, 3.4rem);
+    font-weight: 600;
+    letter-spacing: -0.05em;
+    line-height: 1;
+  }
+
+  .prose-preview h1:first-child {
+    margin-top: 0;
+  }
+
   .prose-preview h2 {
     margin-top: 2.6rem;
     margin-bottom: 1rem;
