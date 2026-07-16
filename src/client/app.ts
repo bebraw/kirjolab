@@ -184,6 +184,22 @@ const offlineOrigin = Symbol("offline");
 const modelPreferencesStorageKey = "kirjolab:model-preferences";
 const citationCompletionScopeStorageKey = "kirjolab:citation-completion-scope";
 
+interface GitHubInstallationOption {
+  readonly id: number;
+  readonly accountId: string;
+  readonly accountLogin: string;
+  readonly accountType: "Organization" | "User";
+}
+
+interface GitHubRepositoryOption {
+  readonly id: number;
+  readonly owner: string;
+  readonly name: string;
+  readonly fullName: string;
+  readonly private: boolean;
+  readonly defaultBranch: string;
+}
+
 interface Elements {
   preferencesMenu: HTMLDetailsElement;
   preferencesModelStatus: HTMLElement;
@@ -229,10 +245,9 @@ interface Elements {
   installGitHubApp: HTMLAnchorElement;
   disconnectGitHubAccount: HTMLButtonElement;
   gitHubImportTitle: HTMLInputElement;
-  gitHubInstallationId: HTMLInputElement;
-  gitHubOwner: HTMLInputElement;
-  gitHubRepository: HTMLInputElement;
-  gitHubBranch: HTMLInputElement;
+  gitHubInstallationId: HTMLSelectElement;
+  gitHubRepository: HTMLSelectElement;
+  gitHubBranch: HTMLSelectElement;
   gitHubRootPath: HTMLInputElement;
   gitHubEntryPath: HTMLInputElement;
   gitHubImportPreview: HTMLElement;
@@ -637,6 +652,8 @@ class WorkspaceApp {
   #workspaceCatalog: WorkspaceSummary[] = [];
   #gitHubImportPreviewId: string | null = null;
   #gitHubPublishPreviewId: string | null = null;
+  #gitHubRepositories: readonly GitHubRepositoryOption[] = [];
+  #gitHubPickerRequest = 0;
   #projectTemplates: ProjectTemplateSummary[] = [];
   #previewedProjectTemplateId = "";
   #previewRenderVersion = 0;
@@ -839,6 +856,9 @@ class WorkspaceApp {
     });
     this.#elements.cancelGitHubImport.addEventListener("click", () => this.#elements.gitHubImportDialog.close());
     this.#elements.gitHubImportForm.addEventListener("submit", (event) => void this.#previewGitHubImport(event));
+    this.#elements.gitHubInstallationId.addEventListener("change", () => void this.#loadGitHubRepositories());
+    this.#elements.gitHubRepository.addEventListener("change", () => void this.#loadGitHubBranches());
+    this.#elements.gitHubBranch.addEventListener("change", () => this.#updateGitHubImportReadiness());
     this.#elements.confirmGitHubImport.addEventListener("click", () => void this.#confirmGitHubImport());
     this.#elements.disconnectGitHubAccount.addEventListener("click", () => void this.#disconnectGitHubAccount());
     this.#elements.previewGitHubPublish.addEventListener("click", () => void this.#previewGitHubPublish());
@@ -1313,10 +1333,12 @@ class WorkspaceApp {
     this.#elements.gitHubImportStatus.textContent = "Reading the selected commit…";
     try {
       const installationId = Number(this.#elements.gitHubInstallationId.value);
+      const repository = this.#gitHubRepositories.find((candidate) => candidate.id === Number(this.#elements.gitHubRepository.value));
+      if (!repository) throw new Error("Choose a GitHub repository");
       const response = await jsonFetch("/api/github/import-previews", {
         installationId,
-        owner: this.#elements.gitHubOwner.value,
-        repository: this.#elements.gitHubRepository.value,
+        owner: repository.owner,
+        repository: repository.name,
         branch: this.#elements.gitHubBranch.value,
         rootPath: this.#elements.gitHubRootPath.value,
         ...(this.#elements.gitHubEntryPath.value.trim() ? { entryPath: this.#elements.gitHubEntryPath.value.trim() } : {}),
@@ -1361,10 +1383,128 @@ class WorkspaceApp {
       this.#elements.connectGitHubAccount.hidden = value.connected;
       this.#elements.installGitHubApp.hidden = !value.connected;
       this.#elements.disconnectGitHubAccount.hidden = !value.connected;
-      this.#elements.previewGitHubImport.disabled = !value.connected;
+      if (value.connected) await this.#loadGitHubInstallations();
+      else this.#resetGitHubPickers();
     } catch (error) {
       this.#elements.gitHubConnectionStatus.textContent = error instanceof Error ? error.message : "Could not load the GitHub connection.";
     }
+  }
+
+  async #loadGitHubInstallations(): Promise<void> {
+    const requestId = ++this.#gitHubPickerRequest;
+    this.#elements.previewGitHubImport.disabled = true;
+    this.#elements.gitHubInstallationId.disabled = true;
+    this.#replaceSelectOptions(this.#elements.gitHubInstallationId, "Loading accounts…");
+    const response = await fetch("/api/github/installations", { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isGitHubInstallationList(value)) throw new Error("GitHub returned an invalid installation list");
+    if (requestId !== this.#gitHubPickerRequest) return;
+    this.#elements.gitHubInstallationId.replaceChildren(
+      ...value.installations.map((installation) => {
+        const option = document.createElement("option");
+        option.value = String(installation.id);
+        option.textContent = `${installation.accountLogin} · ${installation.accountType === "Organization" ? "organization" : "personal"}`;
+        return option;
+      }),
+    );
+    this.#elements.gitHubInstallationId.disabled = value.installations.length === 0;
+    if (value.installations.length === 0) {
+      this.#replaceSelectOptions(this.#elements.gitHubInstallationId, "No installations available");
+      this.#elements.gitHubConnectionStatus.textContent = "Connected. Install the Kirjolab GitHub App or grant it repository access.";
+      this.#resetGitHubRepositoryPickers();
+      return;
+    }
+    await this.#loadGitHubRepositories(requestId);
+  }
+
+  async #loadGitHubRepositories(parentRequestId?: number): Promise<void> {
+    const requestId = parentRequestId ?? ++this.#gitHubPickerRequest;
+    if (parentRequestId !== undefined && requestId !== this.#gitHubPickerRequest) return;
+    const installationId = Number(this.#elements.gitHubInstallationId.value);
+    this.#elements.previewGitHubImport.disabled = true;
+    this.#elements.gitHubRepository.disabled = true;
+    this.#replaceSelectOptions(this.#elements.gitHubRepository, "Loading repositories…");
+    this.#replaceSelectOptions(this.#elements.gitHubBranch, "Choose a repository");
+    this.#elements.gitHubBranch.disabled = true;
+    const response = await fetch(`/api/github/installations/${installationId}/repositories`, { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isGitHubRepositoryList(value)) throw new Error("GitHub returned an invalid repository list");
+    if (requestId !== this.#gitHubPickerRequest) return;
+    this.#gitHubRepositories = [...value.repositories].sort((left, right) => left.fullName.localeCompare(right.fullName));
+    this.#elements.gitHubRepository.replaceChildren(
+      ...this.#gitHubRepositories.map((repository) => {
+        const option = document.createElement("option");
+        option.value = String(repository.id);
+        option.textContent = `${repository.fullName}${repository.private ? " · private" : ""}`;
+        return option;
+      }),
+    );
+    this.#elements.gitHubRepository.disabled = this.#gitHubRepositories.length === 0;
+    if (this.#gitHubRepositories.length === 0) {
+      this.#replaceSelectOptions(this.#elements.gitHubRepository, "No repositories available");
+      return;
+    }
+    if (!this.#elements.gitHubImportTitle.value.trim()) this.#elements.gitHubImportTitle.value = this.#gitHubRepositories[0]!.name;
+    await this.#loadGitHubBranches(requestId);
+  }
+
+  async #loadGitHubBranches(parentRequestId?: number): Promise<void> {
+    const requestId = parentRequestId ?? ++this.#gitHubPickerRequest;
+    if (parentRequestId !== undefined && requestId !== this.#gitHubPickerRequest) return;
+    const installationId = Number(this.#elements.gitHubInstallationId.value);
+    const repositoryId = Number(this.#elements.gitHubRepository.value);
+    this.#elements.previewGitHubImport.disabled = true;
+    this.#elements.gitHubBranch.disabled = true;
+    this.#replaceSelectOptions(this.#elements.gitHubBranch, "Loading branches…");
+    const response = await fetch(`/api/github/installations/${installationId}/repositories/${repositoryId}/branches`, {
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isGitHubBranchList(value)) throw new Error("GitHub returned an invalid branch list");
+    if (requestId !== this.#gitHubPickerRequest) return;
+    this.#elements.gitHubBranch.replaceChildren(
+      ...value.branches.map((branch) => {
+        const option = document.createElement("option");
+        option.value = branch.name;
+        option.textContent = `${branch.name}${branch.protected ? " · protected" : ""}`;
+        option.selected = branch.name === value.repository.defaultBranch;
+        return option;
+      }),
+    );
+    this.#elements.gitHubBranch.disabled = value.branches.length === 0;
+    if (value.branches.length === 0) this.#replaceSelectOptions(this.#elements.gitHubBranch, "No branches available");
+    this.#updateGitHubImportReadiness();
+  }
+
+  #updateGitHubImportReadiness(): void {
+    this.#elements.previewGitHubImport.disabled =
+      !this.#elements.gitHubInstallationId.value || !this.#elements.gitHubRepository.value || !this.#elements.gitHubBranch.value;
+  }
+
+  #resetGitHubPickers(): void {
+    this.#gitHubPickerRequest += 1;
+    this.#elements.gitHubInstallationId.disabled = true;
+    this.#replaceSelectOptions(this.#elements.gitHubInstallationId, "Connect GitHub first");
+    this.#resetGitHubRepositoryPickers();
+  }
+
+  #resetGitHubRepositoryPickers(): void {
+    this.#gitHubRepositories = [];
+    this.#elements.gitHubRepository.disabled = true;
+    this.#replaceSelectOptions(this.#elements.gitHubRepository, "Choose an account");
+    this.#elements.gitHubBranch.disabled = true;
+    this.#replaceSelectOptions(this.#elements.gitHubBranch, "Choose a repository");
+    this.#elements.previewGitHubImport.disabled = true;
+  }
+
+  #replaceSelectOptions(select: HTMLSelectElement, label: string): void {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = label;
+    select.replaceChildren(option);
   }
 
   async #disconnectGitHubAccount(): Promise<void> {
@@ -8355,10 +8495,9 @@ function collectElements(): Elements {
     installGitHubApp: requiredElement("install-github-app", HTMLAnchorElement),
     disconnectGitHubAccount: requiredElement("disconnect-github-account", HTMLButtonElement),
     gitHubImportTitle: requiredElement("github-import-title", HTMLInputElement),
-    gitHubInstallationId: requiredElement("github-installation-id", HTMLInputElement),
-    gitHubOwner: requiredElement("github-owner", HTMLInputElement),
-    gitHubRepository: requiredElement("github-repository", HTMLInputElement),
-    gitHubBranch: requiredElement("github-branch", HTMLInputElement),
+    gitHubInstallationId: requiredElement("github-installation-id", HTMLSelectElement),
+    gitHubRepository: requiredElement("github-repository", HTMLSelectElement),
+    gitHubBranch: requiredElement("github-branch", HTMLSelectElement),
     gitHubRootPath: requiredElement("github-root-path", HTMLInputElement),
     gitHubEntryPath: requiredElement("github-entry-path", HTMLInputElement),
     gitHubImportPreview: requiredElement("github-import-preview", HTMLElement),
@@ -8771,6 +8910,51 @@ function isGitHubConnectionState(
     typeof value.user.id === "string" &&
     typeof value.user.login === "string" &&
     typeof value.connectedAt === "string"
+  );
+}
+
+function isGitHubInstallationList(value: unknown): value is { installations: GitHubInstallationOption[] } {
+  return (
+    isUnknownRecord(value) &&
+    Array.isArray(value.installations) &&
+    value.installations.every(
+      (installation) =>
+        isUnknownRecord(installation) &&
+        typeof installation.id === "number" &&
+        Number.isSafeInteger(installation.id) &&
+        typeof installation.accountId === "string" &&
+        typeof installation.accountLogin === "string" &&
+        (installation.accountType === "Organization" || installation.accountType === "User"),
+    )
+  );
+}
+
+function isGitHubRepositoryList(value: unknown): value is { repositories: GitHubRepositoryOption[] } {
+  return (
+    isUnknownRecord(value) &&
+    Array.isArray(value.repositories) &&
+    value.repositories.every(
+      (repository) =>
+        isUnknownRecord(repository) &&
+        typeof repository.id === "number" &&
+        Number.isSafeInteger(repository.id) &&
+        typeof repository.owner === "string" &&
+        typeof repository.name === "string" &&
+        typeof repository.fullName === "string" &&
+        typeof repository.private === "boolean" &&
+        typeof repository.defaultBranch === "string",
+    )
+  );
+}
+
+function isGitHubBranchList(
+  value: unknown,
+): value is { repository: GitHubRepositoryOption; branches: { name: string; protected: boolean }[] } {
+  return (
+    isUnknownRecord(value) &&
+    isGitHubRepositoryList({ repositories: [value.repository] }) &&
+    Array.isArray(value.branches) &&
+    value.branches.every((branch) => isUnknownRecord(branch) && typeof branch.name === "string" && typeof branch.protected === "boolean")
   );
 }
 

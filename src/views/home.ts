@@ -750,10 +750,9 @@ export function renderHomePage(
         </section>
         <div class="mt-5 grid gap-3 sm:grid-cols-2">
           <label class="field-label">Project title<input class="field" id="github-import-title" maxlength="120" required placeholder="Scalability book"></label>
-          <label class="field-label">Installation ID<input class="field" id="github-installation-id" inputmode="numeric" required placeholder="12345678"></label>
-          <label class="field-label">Owner<input class="field" id="github-owner" required placeholder="bebraw"></label>
-          <label class="field-label">Repository<input class="field" id="github-repository" required placeholder="scalability_book"></label>
-          <label class="field-label">Branch<input class="field" id="github-branch" required value="main"></label>
+          <label class="field-label">Account<select class="field" id="github-installation-id" required disabled><option value="">Connect GitHub first</option></select></label>
+          <label class="field-label">Repository<select class="field" id="github-repository" required disabled><option value="">Choose an account</option></select></label>
+          <label class="field-label">Branch<select class="field" id="github-branch" required disabled><option value="">Choose a repository</option></select></label>
           <label class="field-label">Folder<input class="field" id="github-root-path" placeholder="book"></label>
           <label class="field-label sm:col-span-2">Entry file <span class="font-normal normal-case text-app-text-soft">(optional)</span><input class="field" id="github-entry-path" placeholder="main.md"></label>
         </div>

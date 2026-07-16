@@ -43,9 +43,13 @@ users do not register their own Apps or upload private keys. Each Kirjolab owner
 instead authorizes a separate GitHub user connection. OAuth and installation
 callbacks consume one-time owner-scoped state, and every repository operation
 revalidates that the connected GitHub user can access the selected installation
-and repository. User and refresh tokens are encrypted at rest with an
-installation-specific server secret. Short-lived installation tokens are
-further restricted to the selected immutable repository id.
+and repository. User and refresh tokens are encrypted at rest with a
+deployment-specific server secret. Short-lived installation tokens are further
+restricted to the selected immutable repository id.
+
+Project setup discovers installations, repositories, and branches through the
+connected user's access token, while canonical bindings retain immutable ids
+rather than treating picker labels as authority.
 
 Import creates a new project from a reviewed snapshot of the chosen branch and
 subtree. Version 1 imports bounded UTF-8 Markdown files and durable folder

@@ -33,6 +33,11 @@ export interface GitHubUserRepository {
   readonly defaultBranch: string;
 }
 
+export interface GitHubRepositoryBranch {
+  readonly name: string;
+  readonly protected: boolean;
+}
+
 type FetchExternal = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 const maximumJsonBytes = 2 * 1024 * 1024;
@@ -100,6 +105,32 @@ export class GitHubUserClient {
       if (value.repositories.length < 100) return repositories;
     }
     throw new GitHubUserError("bounds", "GitHub repository list exceeds supported bounds");
+  }
+
+  async listBranches(accessToken: string, owner: string, repository: string): Promise<GitHubRepositoryBranch[]> {
+    if (!isLogin(owner) || !isRepositoryName(repository)) throw new GitHubUserError("bounds", "GitHub repository identity is invalid");
+    const branches: GitHubRepositoryBranch[] = [];
+    for (let page = 1; page <= maximumPages; page += 1) {
+      const value = await this.#apiRequest(
+        accessToken,
+        `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/branches?per_page=100&page=${page}`,
+      );
+      if (!Array.isArray(value)) throw new GitHubUserError("invalid-response", "GitHub branch response is invalid");
+      for (const branch of value) {
+        if (
+          !isRecord(branch) ||
+          typeof branch.name !== "string" ||
+          !branch.name ||
+          branch.name.length > 255 ||
+          typeof branch.protected !== "boolean"
+        ) {
+          throw new GitHubUserError("invalid-response", "GitHub branch response is invalid");
+        }
+        branches.push({ name: branch.name, protected: branch.protected });
+      }
+      if (value.length < 100) return branches;
+    }
+    throw new GitHubUserError("bounds", "GitHub branch list exceeds supported bounds");
   }
 
   async #tokenRequest(parameters: Record<string, string>, now: number): Promise<GitHubUserToken> {

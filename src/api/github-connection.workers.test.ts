@@ -55,6 +55,30 @@ describe("GitHub user connection API in the Workers runtime", () => {
         encryptionKey,
       ),
     ).resolves.toMatchObject({ installationId: 7, repositoryId: 99, owner: "researcher", repository: "manuscript" });
+    const installations = await handleGitHubConnectionApi(
+      new Request("https://kirjolab.test/api/github/installations"),
+      env,
+      identity,
+      client,
+      encryptionKey,
+    );
+    await expect(installations.json()).resolves.toMatchObject({ installations: [{ id: 7, accountLogin: "researcher" }] });
+    const repositories = await handleGitHubConnectionApi(
+      new Request("https://kirjolab.test/api/github/installations/7/repositories"),
+      env,
+      identity,
+      client,
+      encryptionKey,
+    );
+    await expect(repositories.json()).resolves.toMatchObject({ repositories: [{ id: 99, fullName: "researcher/manuscript" }] });
+    const branches = await handleGitHubConnectionApi(
+      new Request("https://kirjolab.test/api/github/installations/7/repositories/99/branches"),
+      env,
+      identity,
+      client,
+      encryptionKey,
+    );
+    await expect(branches.json()).resolves.toMatchObject({ repository: { id: 99 }, branches: [{ name: "main" }] });
 
     const install = await handleGitHubConnectionApi(
       new Request("https://kirjolab.test/api/github/install?returnTo=%2F%3Fnew%3Dgithub"),
@@ -143,6 +167,10 @@ class FakeGitHubUserClient implements GitHubUserRemoteClient {
     { id: number; owner: string; name: string; fullName: string; private: boolean; defaultBranch: string }[]
   > {
     return [{ id: 99, owner: "researcher", name: "manuscript", fullName: "researcher/manuscript", private: true, defaultBranch: "main" }];
+  }
+
+  async listBranches(): Promise<{ name: string; protected: boolean }[]> {
+    return [{ name: "main", protected: false }];
   }
 }
 

@@ -144,7 +144,9 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     url.pathname === "/api/github/connect" ||
     url.pathname === "/api/github/callback" ||
     url.pathname === "/api/github/install" ||
-    url.pathname === "/api/github/setup"
+    url.pathname === "/api/github/setup" ||
+    url.pathname === "/api/github/installations" ||
+    url.pathname.startsWith("/api/github/installations/")
   ) {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await handleGitHubConnectionApi(request, env, identity);

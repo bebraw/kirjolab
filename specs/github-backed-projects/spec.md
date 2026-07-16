@@ -80,6 +80,9 @@ incoming and outgoing mutation.
 - `GET /api/github/install` begins repository access setup and
   `GET /api/github/setup` accepts an installation only after GitHub confirms it
   is accessible to the connected user.
+- `GET /api/github/installations`, installation-scoped repository discovery,
+  and immutable-repository-scoped branch discovery return only resources the
+  connected user can currently access.
 - `POST /api/github/import-previews` validates an owner-visible installation,
   repository, branch, and root, then returns a bounded immutable import preview.
 - `POST /api/github/imports` consumes a current import preview and creates the
@@ -260,6 +263,9 @@ incoming and outgoing mutation.
 - Implemented per-user connection boundary: owner-scoped OAuth and installation
   state, encrypted GitHub user tokens, accessible-installation verification,
   and repository-restricted installation token minting.
+- Implemented guided source selection: connected owners choose an accessible
+  personal or organization installation, repository, and discovered branch;
+  repository identity fields and installation ids are no longer typed by hand.
 - First implementation slice: import preview/confirmation and direct Publish
   preview/confirmation, including retained base state and conflict detection.
 - Deferred: optional publish-through-branch-and-PR, binary assets, repository

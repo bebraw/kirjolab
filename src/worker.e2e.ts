@@ -2901,6 +2901,43 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
         : { connected: false },
     });
   });
+  await page.route("**/api/github/installations", async (route) => {
+    await route.fulfill({ json: { installations: [{ id: 7, accountId: "42", accountLogin: "researcher", accountType: "User" }] } });
+  });
+  await page.route("**/api/github/installations/7/repositories", async (route) => {
+    await route.fulfill({
+      json: {
+        repositories: [
+          {
+            id: 99,
+            owner: "researcher",
+            name: "manuscript",
+            fullName: "researcher/manuscript",
+            private: true,
+            defaultBranch: "main",
+          },
+        ],
+      },
+    });
+  });
+  await page.route("**/api/github/installations/7/repositories/99/branches", async (route) => {
+    await route.fulfill({
+      json: {
+        repository: {
+          id: 99,
+          owner: "researcher",
+          name: "manuscript",
+          fullName: "researcher/manuscript",
+          private: true,
+          defaultBranch: "main",
+        },
+        branches: [
+          { name: "main", protected: true },
+          { name: "draft", protected: false },
+        ],
+      },
+    });
+  });
   await page.goto("/");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
@@ -2916,6 +2953,10 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
   await page.getByRole("button", { name: "Import GitHub" }).click();
   await expect(page.locator("#github-connection-status")).toContainText("Connected as @researcher");
   await expect(page.getByRole("link", { name: "Manage repository access" })).toBeVisible();
+  await expect(page.locator("#github-installation-id")).toHaveValue("7");
+  await expect(page.locator("#github-repository")).toHaveValue("99");
+  await expect(page.locator("#github-branch")).toHaveValue("main");
+  await expect(page.locator("#github-branch option:checked")).toContainText("protected");
   await expect(page.getByRole("button", { name: "Preview import" })).toBeEnabled();
 });
 

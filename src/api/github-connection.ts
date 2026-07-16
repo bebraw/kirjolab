@@ -29,6 +29,11 @@ export interface GitHubUserRemoteClient {
       readonly defaultBranch: string;
     }[]
   >;
+  listBranches(
+    accessToken: string,
+    owner: string,
+    repository: string,
+  ): Promise<readonly { readonly name: string; readonly protected: boolean }[]>;
 }
 
 export async function handleGitHubConnectionApi(
@@ -76,9 +81,40 @@ export async function handleGitHubConnectionApi(
     if (url.pathname === "/api/github/setup" && request.method === "GET") {
       return await completeInstallation(url, env, identity, catalog, client, encryptionKey);
     }
+    if (url.pathname === "/api/github/installations" && request.method === "GET") {
+      const { token } = await githubUserAccessToken(env, identity, client, encryptionKey);
+      return Response.json({ installations: await client.listInstallations(token) }, privateResponse());
+    }
+    const repositoryList = /^\/api\/github\/installations\/(\d+)\/repositories$/u.exec(url.pathname);
+    if (repositoryList?.[1] && request.method === "GET") {
+      const installationId = Number(repositoryList[1]);
+      const { token } = await githubUserAccessToken(env, identity, client, encryptionKey);
+      await requireInstallation(client, token, installationId);
+      return Response.json({ repositories: await client.listRepositories(token, installationId) }, privateResponse());
+    }
+    const branchList = /^\/api\/github\/installations\/(\d+)\/repositories\/(\d+)\/branches$/u.exec(url.pathname);
+    if (branchList?.[1] && branchList[2] && request.method === "GET") {
+      const installationId = Number(branchList[1]);
+      const repositoryId = Number(branchList[2]);
+      const { token } = await githubUserAccessToken(env, identity, client, encryptionKey);
+      await requireInstallation(client, token, installationId);
+      const repositories = await client.listRepositories(token, installationId);
+      const repository = repositories.find((candidate) => candidate.id === repositoryId);
+      if (!repository) return jsonError("GitHub repository is not accessible to the connected user", 403);
+      const branches = await client.listBranches(token, repository.owner, repository.name);
+      return Response.json({ repository, branches }, privateResponse());
+    }
     return jsonError("GitHub connection route not found", 404);
   } catch (error) {
     return connectionErrorResponse(error);
+  }
+}
+
+async function requireInstallation(client: GitHubUserRemoteClient, token: string, installationId: number): Promise<void> {
+  if (!Number.isSafeInteger(installationId) || installationId <= 0)
+    throw new GitHubUserError("bounds", "GitHub installation id is invalid");
+  if (!(await client.listInstallations(token)).some((installation) => installation.id === installationId)) {
+    throw new GitHubUserError("forbidden", "GitHub installation is not accessible to the connected user");
   }
 }
 

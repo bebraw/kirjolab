@@ -43,18 +43,23 @@ describe("GitHub user authorization client", () => {
           installations: [{ id: 7, account: { id: 8, login: "bebraw", type: "User" } }],
         });
       }
-      return Response.json({
-        repositories: [
-          {
-            id: 99,
-            owner: { login: "bebraw" },
-            name: "kirjolab",
-            full_name: "bebraw/kirjolab",
-            private: true,
-            default_branch: "main",
-          },
-        ],
-      });
+      if (url.includes("/repositories?"))
+        return Response.json({
+          repositories: [
+            {
+              id: 99,
+              owner: { login: "bebraw" },
+              name: "kirjolab",
+              full_name: "bebraw/kirjolab",
+              private: true,
+              default_branch: "main",
+            },
+          ],
+        });
+      return Response.json([
+        { name: "main", protected: true },
+        { name: "draft", protected: false },
+      ]);
     });
     const client = new GitHubUserClient(config, fetchMock);
 
@@ -63,6 +68,10 @@ describe("GitHub user authorization client", () => {
     ]);
     await expect(client.listRepositories("user-token", 7)).resolves.toEqual([
       { id: 99, owner: "bebraw", name: "kirjolab", fullName: "bebraw/kirjolab", private: true, defaultBranch: "main" },
+    ]);
+    await expect(client.listBranches("user-token", "bebraw", "kirjolab")).resolves.toEqual([
+      { name: "main", protected: true },
+      { name: "draft", protected: false },
     ]);
   });
 
