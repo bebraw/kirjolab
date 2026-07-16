@@ -7208,6 +7208,9 @@ class WorkspaceApp {
     }
     const draft = this.#pdfDrawingDraft();
     if (this.#pdfDrawingPointer() !== event.pointerId || !draft) return;
+    // Safari can otherwise promote an active Apple Pencil stroke to a native
+    // scroll once the zoomed page starts moving, despite cancelling pointerdown.
+    event.preventDefault();
     const samples = event.getCoalescedEvents?.() ?? [event];
     const points = [...draft];
     const additions: LibraryPdfPoint[] = [];

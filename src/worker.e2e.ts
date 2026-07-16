@@ -1236,8 +1236,14 @@ test("keeps private library research separate from project citations", async ({ 
   if (!markupBox) throw new Error("Expected a drawable PDF page");
   await page.mouse.move(markupBox.x + markupBox.width * 0.25, markupBox.y + markupBox.height * 0.35);
   await page.mouse.down();
+  await page.locator("#paper-markups").evaluate((layer) => {
+    layer.addEventListener("pointermove", (event) => layer.toggleAttribute("data-drawing-move-cancelled", event.defaultPrevented), {
+      once: true,
+    });
+  });
   await page.mouse.move(markupBox.x + markupBox.width * 0.48, markupBox.y + markupBox.height * 0.42, { steps: 6 });
   await page.mouse.up();
+  await expect(page.locator("#paper-markups")).toHaveAttribute("data-drawing-move-cancelled", "");
   await expect(page.locator("#paper-markups polyline")).toHaveCount(1);
   await page.getByRole("button", { name: "Select", exact: true }).click();
   await page.locator("#paper-markups polyline").dispatchEvent("pointerdown", { bubbles: true, pointerId: 73, pointerType: "mouse" });

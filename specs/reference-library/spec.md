@@ -113,6 +113,8 @@ memory and makes citation aliases compete with stable source identity.
   opens a contextual save row; Note places a page-anchored private note; Draw
   captures Apple Pencil or mouse strokes with red as the default color and an
   adjustable 1–24 pixel width while touch remains available for pan and zoom.
+  Once an ink pointer starts drawing, its movement suppresses native page
+  scrolling so a zoomed iPad page cannot take over the Apple Pencil stroke.
   Notes and strokes use normalized page coordinates so they remain aligned when
   the page is resized. Saved annotations are collapsed by default.
 - Saved text-highlight comments and page-note bodies expose an explicit edit
