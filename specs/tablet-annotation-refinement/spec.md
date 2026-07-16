@@ -19,7 +19,8 @@ identity and downstream work.
 - Controls use touch-sized targets and remain keyboard accessible.
 - Private PDF page navigation and Select, Text, Note, and Draw modes share one
   persistent icon rail on the left so the page retains the full remaining
-  width.
+  width. Page navigation and annotation tools stay grouped at the top so iPad
+  browser chrome cannot cover drawing controls near the lower viewport edge.
 - Annotation editing, overview, and project-sharing controls use a transient
   inspector. Creating or selecting an annotation opens it automatically; the
   annotation-list control opens it deliberately, and closing it clears any
@@ -47,6 +48,8 @@ identity and downstream work.
 - [x] Geometry cannot leave the PDF page or collapse invisibly.
 - [x] Private PDF tools remain available as labelled, keyboard-operable icons
       in the left rail.
+- [x] Tablet-sized PDF rails and contextual Draw controls remain fully inside
+      the visible viewport without causing horizontal page overflow.
 - [x] The annotation inspector does not reserve page width while closed.
 - [x] Creation and selection reveal the inspector when editing controls are
       required.
@@ -61,3 +64,5 @@ identity and downstream work.
 - Never rewrite PDF files to persist Kirjolab annotations.
 - Never replace annotation identity for a geometry correction.
 - Model evidence must use the new annotation update version after adjustment.
+- Tablet layouts must not push PDF annotation tools to the bottom edge or allow
+  the contextual Draw controls to overflow the viewport.

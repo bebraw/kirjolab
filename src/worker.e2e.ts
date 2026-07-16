@@ -64,21 +64,41 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("header #pdf-context-controls")).toBeHidden();
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.locator("header #pdf-context-controls")).toBeHidden();
-  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.setViewportSize({ width: 1024, height: 640 });
   await expect(page.getByRole("toolbar", { name: "PDF annotation tools" })).toBeVisible();
   const compactRail = await page.locator(".library-pdf-page-rail").evaluate((rail) => {
     const railBounds = rail.getBoundingClientRect();
+    const pageControlsBounds = rail.querySelector<HTMLElement>(".library-pdf-page-controls")?.getBoundingClientRect();
+    const annotationToolsBounds = rail.querySelector<HTMLElement>(".library-pdf-annotation-tools")?.getBoundingClientRect();
     const buttons = [...rail.querySelectorAll<HTMLElement>(".library-pdf-annotation-tools .library-pdf-rail-button")].map((button) =>
       button.getBoundingClientRect(),
     );
     return {
       columns: new Set(buttons.map((button) => Math.round(button.left))).size,
+      groupGap: (annotationToolsBounds?.top ?? 0) - (pageControlsBounds?.bottom ?? 0),
       lastToolBottom: Math.max(...buttons.map((button) => button.bottom)),
       visibleRailBottom: Math.min(railBounds.bottom, window.innerHeight),
     };
   });
   expect(compactRail.columns).toBe(2);
+  expect(compactRail.groupGap).toBeLessThanOrEqual(16);
   expect(compactRail.lastToolBottom).toBeLessThanOrEqual(compactRail.visibleRailBottom);
+  await page.locator("#library-draw-tool").click();
+  await expect(page.locator("#library-ink-options")).toBeVisible();
+  const drawingLayout = await page.locator("#library-ink-options").evaluate((options) => {
+    const bounds = options.getBoundingClientRect();
+    return {
+      bottom: bounds.bottom,
+      right: bounds.right,
+      viewportHeight: window.innerHeight,
+      viewportWidth: window.innerWidth,
+      pageOverflowsHorizontally: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+  expect(drawingLayout.bottom).toBeLessThanOrEqual(drawingLayout.viewportHeight);
+  expect(drawingLayout.right).toBeLessThanOrEqual(drawingLayout.viewportWidth);
+  expect(drawingLayout.pageOverflowsHorizontally).toBe(false);
+  await page.locator("#library-text-tool").click();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
