@@ -247,6 +247,13 @@ export function renderHomePage(
             <summary><span>Review cues</span><span class="count-badge" id="manuscript-map-cue-count">0</span></summary>
             <div class="rail-collection-body" id="manuscript-map-cues"></div>
           </details>
+          <details class="rail-collection mt-4" open>
+            <summary><span>Research diary</span><span class="count-badge" id="research-diary-entry-count">0</span></summary>
+            <div class="rail-collection-body">
+              <p class="px-1 text-xs leading-5 text-app-text-soft" id="research-diary-summary">Keep progress, discoveries, questions, and the next action in portable Markdown.</p>
+              <button class="button-secondary mt-3 w-full justify-center" id="open-research-diary" type="button">Start diary</button>
+            </div>
+          </details>
         </section>
       </aside>
 

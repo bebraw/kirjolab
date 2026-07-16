@@ -35,6 +35,7 @@ import {
   type ProjectFile,
 } from "../domain/project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
+import { researchDiaryPath, researchDiaryTemplate, summarizeResearchDiary } from "../domain/writing-workflows";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import {
   crossrefMetadataFields,
@@ -333,6 +334,9 @@ interface Elements {
   manuscriptMapOutline: HTMLElement;
   manuscriptMapCueCount: HTMLElement;
   manuscriptMapCues: HTMLElement;
+  researchDiaryEntryCount: HTMLElement;
+  researchDiarySummary: HTMLElement;
+  openResearchDiary: HTMLButtonElement;
   newProjectFileRail: HTMLButtonElement;
   newProjectFolderRail: HTMLButtonElement;
   uploadProjectImages: HTMLButtonElement;
@@ -889,6 +893,7 @@ class WorkspaceApp {
     this.#elements.showResearchRail.addEventListener("click", () => this.#showRail("research"));
     this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
     this.#elements.showGuideRail.addEventListener("click", () => this.#showRail("guide"));
+    this.#elements.openResearchDiary.addEventListener("click", () => void this.#openResearchDiary());
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
@@ -2714,6 +2719,44 @@ class WorkspaceApp {
       button.addEventListener("click", () => this.#focusComposedRange(cue.from, cue.to));
       this.#elements.manuscriptMapCues.append(button);
     }
+    this.#renderResearchDiarySummary();
+  }
+
+  #renderResearchDiarySummary(): void {
+    const diary = this.#previewProjectFiles().find((file) => file.path === researchDiaryPath);
+    this.#elements.openResearchDiary.textContent = diary ? "Open diary" : "Start diary";
+    if (!diary) {
+      this.#elements.researchDiaryEntryCount.textContent = "0";
+      this.#elements.researchDiarySummary.textContent = "Keep progress, discoveries, questions, and the next action in portable Markdown.";
+      return;
+    }
+    const summary = summarizeResearchDiary(diary.content);
+    this.#elements.researchDiaryEntryCount.textContent = String(summary.entries);
+    this.#elements.researchDiarySummary.textContent = `${summary.entries} dated ${summary.entries === 1 ? "entry" : "entries"} · ${summary.openQuestions} open ${summary.openQuestions === 1 ? "question" : "questions"} · ${summary.nextActions} next ${summary.nextActions === 1 ? "action" : "actions"}`;
+  }
+
+  async #openResearchDiary(): Promise<void> {
+    const existing = this.#snapshot?.files.find((file) => file.path === researchDiaryPath);
+    if (existing) {
+      this.#selectProjectFile(existing.id);
+      this.#elements.source.focus();
+      return;
+    }
+    const date = new Date().toISOString().slice(0, 10);
+    await this.#createWorkflowFile(researchDiaryPath, researchDiaryTemplate(date));
+  }
+
+  async #createWorkflowFile(path: string, content: string): Promise<void> {
+    const response = await jsonFetch(`${apiBase}/files`, { path, content });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWorkspaceSnapshot(value)) throw new Error("Writing workflow returned an invalid workspace");
+    const created = value.files.find((file) => file.path === path);
+    if (!created) throw new Error("Writing workflow file was not created");
+    const next = new URL(location.href);
+    next.searchParams.set("file", created.id);
+    next.searchParams.set("rail", "guide");
+    location.assign(`${next.pathname}${next.search}${next.hash}`);
   }
 
   #focusComposedRange(from: number, to: number): void {
@@ -8739,6 +8782,9 @@ function collectElements(): Elements {
     manuscriptMapOutline: requiredElement("manuscript-map-outline", HTMLElement),
     manuscriptMapCueCount: requiredElement("manuscript-map-cue-count", HTMLElement),
     manuscriptMapCues: requiredElement("manuscript-map-cues", HTMLElement),
+    researchDiaryEntryCount: requiredElement("research-diary-entry-count", HTMLElement),
+    researchDiarySummary: requiredElement("research-diary-summary", HTMLElement),
+    openResearchDiary: requiredElement("open-research-diary", HTMLButtonElement),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),
