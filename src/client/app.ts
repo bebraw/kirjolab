@@ -1425,8 +1425,8 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isUnknownRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");
-      this.#elements.gitHubPublishReview.replaceChildren(statusText(`Published commit ${value.commitSha.slice(0, 10)}.`));
       await this.#refreshGitHubSyncState();
+      this.#elements.gitHubPublishReview.replaceChildren(statusText(`Published commit ${value.commitSha.slice(0, 10)}.`));
     } catch (error) {
       this.#elements.gitHubPublishReview.replaceChildren(
         statusText(error instanceof Error ? error.message : "Could not publish to GitHub."),

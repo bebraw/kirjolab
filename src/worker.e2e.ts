@@ -401,6 +401,51 @@ test("renames, archives, duplicates, and permanently deletes projects", async ({
   expect((await page.request.get(`/api/workspaces/${duplicate.id}`)).ok()).toBe(true);
 });
 
+test("keeps GitHub publish confirmation visible after refreshing sync state", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "GitHub publish feedback");
+  const api = `/api/workspaces/${workspaceId}/github-sync`;
+  const commitSha = "c".repeat(40);
+  await page.route(`**${api}`, async (route) => {
+    await route.fulfill({
+      json: {
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "kirjolab-smoke-test",
+        rootPath: "book",
+        commitSha,
+      },
+    });
+  });
+  await page.route(`**${api}/publish-previews`, async (route) => {
+    await route.fulfill({
+      status: 201,
+      json: {
+        id: crypto.randomUUID(),
+        expectedRemoteHead: "a".repeat(40),
+        plan: {
+          changes: [{ path: "00_introduction.md", content: "# Revised introduction\n" }],
+          skippedLocalPaths: [],
+          blocking: [],
+        },
+      },
+    });
+  });
+  await page.route(`**${api}/publishes`, async (route) => {
+    await route.fulfill({ json: { commitSha } });
+  });
+
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "Project settings" }).click();
+  await expect(page.locator("#github-sync-status")).toContainText("bebraw/scalability_book");
+  await page.getByRole("button", { name: "Preview publish" }).click();
+  await expect(page.locator("#github-publish-review")).toContainText("1 tracked path change");
+  await page.getByRole("button", { name: "Publish commit" }).click();
+  await expect(page.locator("#github-publish-review")).toHaveText(`Published commit ${commitSha.slice(0, 10)}.`);
+  await expect(page.locator("#github-sync-status")).toContainText(`synced ${commitSha.slice(0, 10)}`);
+});
+
 test("switches and remembers focused workspace views", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Focus modes");
   await page.goto(`/workspaces/${workspaceId}`);
