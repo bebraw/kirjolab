@@ -73,19 +73,24 @@ export function deployArguments(configuration, dryRun) {
 
 export function runProductionDeploy({ environment = process.env, dryRunOnly = false, run = runWrangler } = {}) {
   const configuration = productionConfiguration(environment);
+  const wranglerEnvironment = productionWranglerEnvironment(environment);
   console.log(`[deploy] Production hostname: ${configuration.hostname}`);
   console.log("[deploy] Checking generated Worker bindings");
-  run(["types", "--check"]);
+  run(["types", "--check"], wranglerEnvironment);
   console.log("[deploy] Running strict production dry run");
-  run(deployArguments(configuration, true));
+  run(deployArguments(configuration, true), wranglerEnvironment);
   if (dryRunOnly) {
     console.log("[deploy] Production dry run passed; no Worker was uploaded");
     return;
   }
   console.log("[deploy] Uploading production Worker");
-  run(deployArguments(configuration, false));
+  run(deployArguments(configuration, false), wranglerEnvironment);
   console.log("[deploy] Inspecting deployed versions");
-  run(["versions", "list"]);
+  run(["versions", "list"], wranglerEnvironment);
+}
+
+export function productionWranglerEnvironment(environment = process.env) {
+  return { ...environment, CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false" };
 }
 
 function required(environment, name) {
@@ -94,9 +99,13 @@ function required(environment, name) {
   return value;
 }
 
-function runWrangler(arguments_) {
+function runWrangler(arguments_, environment) {
   const executable = fileURLToPath(new URL("../node_modules/.bin/wrangler", import.meta.url));
-  const result = spawnSync(executable, arguments_, { cwd: fileURLToPath(new URL("..", import.meta.url)), stdio: "inherit" });
+  const result = spawnSync(executable, arguments_, {
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    env: environment,
+    stdio: "inherit",
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`Wrangler exited with status ${result.status ?? "unknown"}`);
 }

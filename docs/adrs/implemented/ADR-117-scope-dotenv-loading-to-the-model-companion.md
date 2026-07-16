@@ -22,7 +22,7 @@ runtime.
 - The supervisor loads the project-root `.env` with Node's
   `--env-file-if-exists` flag, removes every `KIRJOLAB_MODEL_*` value from the
   Worker child environment, and passes the configuration to the companion.
-- Worker development and tests set
+- Worker development, tests, and production Wrangler subprocesses set
   `CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false`, the
   [documented Wrangler control](https://developers.cloudflare.com/workers/local-development/environment-variables/#controlling-env-handling)
   for disabling `.env` discovery. Worker-only local values remain in

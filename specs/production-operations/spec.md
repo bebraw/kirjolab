@@ -41,6 +41,9 @@ rollback workflow without adding a second identity system.
 - [x] Production deployment refuses local auth, blank Access configuration,
       placeholder values, and a non-HTTPS or Access-team hostname.
 - [x] The production command performs a strict Wrangler dry run before upload.
+- [x] Every production Wrangler subprocess disables project-root `.env`
+      discovery so local companion settings cannot alter generated Worker types
+      or deployment bindings.
 - [x] A daily scheduled handler invokes the backup coordinator.
 - [x] Authenticated owners are registered idempotently for scheduled backup.
 - [x] An unchanged owner state produces no new manifest or binary write.

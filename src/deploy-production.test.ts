@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { deployArguments, productionConfiguration, runProductionDeploy } from "../scripts/deploy-production.mjs";
+import {
+  deployArguments,
+  productionConfiguration,
+  productionWranglerEnvironment,
+  runProductionDeploy,
+} from "../scripts/deploy-production.mjs";
 
 const validEnvironment = {
   KIRJOLAB_PRODUCTION_URL: "https://write.kirjolab.test",
@@ -62,18 +67,35 @@ describe("production deployment preflight", () => {
     expect(deployArguments(configuration, false)).not.toContain("--dry-run");
   });
 
+  it("disables dotenv discovery for every production Wrangler command", () => {
+    expect(
+      productionWranglerEnvironment({
+        ...validEnvironment,
+        CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "true",
+        KIRJOLAB_MODEL_UPSTREAM: "http://127.0.0.1:1234",
+      }),
+    ).toEqual({
+      ...validEnvironment,
+      CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
+      KIRJOLAB_MODEL_UPSTREAM: "http://127.0.0.1:1234",
+    });
+  });
+
   it("checks types and dry run before upload, and stops after a requested dry run", () => {
     const run = vi.fn();
     runProductionDeploy({ environment: validEnvironment, dryRunOnly: true, run });
     expect(run).toHaveBeenCalledTimes(2);
     expect(run.mock.calls[0]?.[0]).toEqual(["types", "--check"]);
+    expect(run.mock.calls[0]?.[1]).toMatchObject({ CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false" });
     expect(run.mock.calls[1]?.[0]).toContain("--dry-run");
+    expect(run.mock.calls[1]?.[1]).toMatchObject({ CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false" });
 
     run.mockClear();
     runProductionDeploy({ environment: validEnvironment, run });
     expect(run).toHaveBeenCalledTimes(4);
     expect(run.mock.calls[2]?.[0]).not.toContain("--dry-run");
     expect(run.mock.calls[3]?.[0]).toEqual(["versions", "list"]);
+    expect(run.mock.calls.every((call) => call[1]?.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV === "false")).toBe(true);
   });
 
   it("does not continue after a failed preflight command", () => {
