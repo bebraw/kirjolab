@@ -19,6 +19,7 @@ const ICONS = {
   settings:
     '<circle cx="12" cy="12" r="3"></circle><path d="M19 13.5v-3l-2.1-.7a7.5 7.5 0 0 0-.7-1.7l1-2-2.1-2.1-2 1a7.5 7.5 0 0 0-1.7-.7L10.5 2h-3l-.7 2.1a7.5 7.5 0 0 0-1.7.7l-2-1L1 5.9l1 2a7.5 7.5 0 0 0-.7 1.7L-1 10.5v3l2.1.7a7.5 7.5 0 0 0 .7 1.7l-1 2L3 20l2-1a7.5 7.5 0 0 0 1.7.7l.8 2.3h3l.7-2.1a7.5 7.5 0 0 0 1.7-.7l2 1 2.1-2.1-1-2a7.5 7.5 0 0 0 .7-1.7z" transform="translate(2)"></path>',
   text: '<path d="M5 6h14M12 6v12M8.5 18h7"></path><path class="library-pdf-icon-accent" d="M5 20h14"></path>',
+  undo: '<path d="M9 7 5 11l4 4"></path><path d="M5.5 11H14a5 5 0 0 1 5 5"></path>',
 } as const;
 
 export type IconName = keyof typeof ICONS;

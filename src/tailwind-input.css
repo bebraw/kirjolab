@@ -1553,7 +1553,8 @@
     align-items: center;
     justify-content: flex-start;
     gap: 0.75rem;
-    overflow: visible;
+    overflow-x: hidden;
+    overflow-y: auto;
     border-right: 1px solid var(--color-app-line);
     background: var(--color-app-paper);
     padding: 0.55rem 0;
@@ -1571,7 +1572,6 @@
 
   .library-pdf-annotation-tools {
     min-height: 0;
-    overflow: visible;
   }
 
   .library-pdf-rail-button {
@@ -1643,7 +1643,10 @@
   }
 
   .library-draw-rail-control {
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
   }
 
   .context-pdf-panel[data-library-pdf="true"] .pdf-reader {
@@ -1726,16 +1729,14 @@
   }
 
   .library-ink-options {
-    position: absolute;
-    z-index: 10;
-    top: 0;
-    left: calc(100% + 0.6rem);
-    width: max-content;
-    border: 1px solid var(--color-app-line);
-    border-radius: 0.65rem;
-    background: var(--color-app-paper);
-    box-shadow: 0 0.75rem 2rem rgb(8 20 17 / 0.15);
-    padding: 0.4rem;
+    width: 2.75rem;
+    flex-direction: column;
+    border-block: 1px solid var(--color-app-line);
+    padding-block: 0.45rem;
+  }
+
+  .library-ink-options[hidden] {
+    display: none;
   }
 
   .library-ink-options input[type="color"] {
@@ -1746,6 +1747,11 @@
     background: transparent;
   }
 
+  .library-ink-color-control {
+    display: grid;
+    place-items: center;
+  }
+
   .library-width-control {
     display: flex;
     align-items: center;
@@ -1754,8 +1760,30 @@
     color: var(--color-app-text-soft);
   }
 
+  .library-ink-options .library-width-control {
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
   .library-width-control input {
     width: clamp(4rem, 8vw, 7rem);
+  }
+
+  .library-ink-options .library-width-control input {
+    width: 1.25rem;
+    height: 4.5rem;
+    direction: rtl;
+    writing-mode: vertical-lr;
+  }
+
+  .library-ink-options .library-width-control output {
+    min-width: 1.4rem;
+    text-align: center;
+  }
+
+  .library-undo-drawing {
+    width: 2.25rem;
+    height: 2.25rem;
   }
 
   .library-pdf-status {

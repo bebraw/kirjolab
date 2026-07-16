@@ -70,9 +70,9 @@ test("imports, annotates, and exports a private PDF without a project", async ({
     const railBounds = rail.getBoundingClientRect();
     const pageControlsBounds = rail.querySelector<HTMLElement>(".library-pdf-page-controls")?.getBoundingClientRect();
     const annotationToolsBounds = rail.querySelector<HTMLElement>(".library-pdf-annotation-tools")?.getBoundingClientRect();
-    const buttons = [...rail.querySelectorAll<HTMLElement>(".library-pdf-annotation-tools .library-pdf-rail-button")].map((button) =>
-      button.getBoundingClientRect(),
-    );
+    const buttons = [...rail.querySelectorAll<HTMLElement>(".library-pdf-annotation-tools .library-pdf-rail-button")]
+      .filter((button) => button.offsetParent !== null)
+      .map((button) => button.getBoundingClientRect());
     return {
       columns: new Set(buttons.map((button) => Math.round(button.left))).size,
       groupGap: (annotationToolsBounds?.top ?? 0) - (pageControlsBounds?.bottom ?? 0),
@@ -87,16 +87,25 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#library-ink-options")).toBeVisible();
   const drawingLayout = await page.locator("#library-ink-options").evaluate((options) => {
     const bounds = options.getBoundingClientRect();
+    const railBounds = options.closest<HTMLElement>(".library-pdf-page-rail")?.getBoundingClientRect();
+    const controlCenters = ["#library-draw-color", "#library-draw-width", "#undo-library-drawing"].map((selector) => {
+      const control = options.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      return control ? control.left + control.width / 2 : 0;
+    });
+    const widthBounds = options.querySelector<HTMLElement>("#library-draw-width")?.getBoundingClientRect();
     return {
       bottom: bounds.bottom,
-      right: bounds.right,
+      insideRail: Boolean(railBounds && bounds.left >= railBounds.left && bounds.right <= railBounds.right),
+      verticalControls: Math.max(...controlCenters) - Math.min(...controlCenters) <= 2,
+      verticalWidth: Boolean(widthBounds && widthBounds.height > widthBounds.width),
       viewportHeight: window.innerHeight,
-      viewportWidth: window.innerWidth,
       pageOverflowsHorizontally: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     };
   });
   expect(drawingLayout.bottom).toBeLessThanOrEqual(drawingLayout.viewportHeight);
-  expect(drawingLayout.right).toBeLessThanOrEqual(drawingLayout.viewportWidth);
+  expect(drawingLayout.insideRail).toBe(true);
+  expect(drawingLayout.verticalControls).toBe(true);
+  expect(drawingLayout.verticalWidth).toBe(true);
   expect(drawingLayout.pageOverflowsHorizontally).toBe(false);
   await page.locator("#library-text-tool").click();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();

@@ -504,10 +504,12 @@ export function renderHomePage(
                   <button class="library-pdf-rail-button button-icon" id="library-draw-tool" type="button" aria-pressed="false" title="Draw directly on the page with Apple Pencil or a mouse" data-touch-target="true">
                     ${renderIcon("draw")}<span class="sr-only">Draw</span>
                   </button>
-                  <div class="library-ink-options" id="library-ink-options" aria-label="Drawing style" hidden>
-                    <label title="Ink color"><span class="sr-only">Ink color</span><input id="library-draw-color" type="color" value="#d33f49"></label>
-                    <label class="library-width-control" title="Ink width"><span class="sr-only">Ink width</span><input id="library-draw-width" type="range" min="1" max="24" value="4"><output id="library-draw-width-value">4</output></label>
-                    <button class="button-secondary" id="undo-library-drawing" type="button" disabled title="Remove the latest drawing on this page">Undo</button>
+                  <div class="library-ink-options" id="library-ink-options" role="group" aria-label="Drawing style" hidden>
+                    <label class="library-ink-color-control" title="Ink color"><span class="sr-only">Ink color</span><input id="library-draw-color" type="color" value="#d33f49"></label>
+                    <label class="library-width-control" title="Ink width"><span class="sr-only">Ink width</span><input id="library-draw-width" type="range" min="1" max="24" value="4" aria-orientation="vertical"><output id="library-draw-width-value" for="library-draw-width">4</output></label>
+                    <button class="library-pdf-rail-button library-undo-drawing button-icon" id="undo-library-drawing" type="button" disabled title="Remove the latest drawing on this page">
+                      ${renderIcon("undo")}<span class="sr-only">Undo latest drawing</span>
+                    </button>
                   </div>
                 </div>
                 <span class="library-pdf-rail-divider" aria-hidden="true"></span>
