@@ -1171,9 +1171,14 @@ describe("reference library API", () => {
     const target = { ...reference, id: citationAssertion.citedReferenceId, title: "Target", doi: "10.1000/target" };
     fixture.library.getReferences.mockResolvedValueOnce([source]);
     fixture.library.findReferencesByDois.mockResolvedValueOnce([target]);
-    const fetchExternal = vi.fn(async () =>
-      Response.json({ message: { reference: [{ DOI: "10.1000/target", "article-title": "Target" }, { DOI: "10.1000/unmatched" }] } }),
-    );
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      return url.includes("10.1000%2Funmatched")
+        ? crossrefResponse("10.1000/unmatched", "Unmatched candidate")
+        : Response.json({
+            message: { reference: [{ DOI: "10.1000/target", "article-title": "Target" }, { DOI: "10.1000/unmatched" }] },
+          });
+    });
     const expanded = await handleReferenceLibraryApi(
       jsonRequest(`/api/library/references/${reference.id}/citation-expansions`, {}),
       fixture.env,
@@ -1181,9 +1186,11 @@ describe("reference library API", () => {
       fetchExternal,
     );
     expect(expanded.status).toBe(201);
-    await expect(expanded.json()).resolves.toMatchObject({
+    const expansionBody = await expanded.json();
+    expect(expansionBody).toMatchObject({
       provider: "crossref",
       direction: "references",
+      seedReferenceId: reference.id,
       assertions: [expect.objectContaining({ citingReferenceId: reference.id, citedReferenceId: target.id })],
       unmatched: [{ doi: "10.1000/unmatched" }],
       requestedBy: identity.email,
@@ -1201,6 +1208,43 @@ describe("reference library API", () => {
       ],
       "Crossref",
     );
+
+    fixture.library.getReferences.mockResolvedValueOnce([source]);
+    const accepted = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/citation-candidates`, {
+        doi: "10.1000/unmatched",
+        responseId: (expansionBody as { responseId: string }).responseId,
+      }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    expect(accepted.status).toBe(201);
+    await expect(accepted.json()).resolves.toMatchObject({
+      created: true,
+      reference: { doi: "10.1000/unmatched", title: "Unmatched candidate" },
+      assertion: { citedReferenceId: citationAssertion.citedReferenceId },
+    });
+    expect(fixture.library.acceptCitationCandidate).toHaveBeenCalledWith(
+      source.id,
+      expect.objectContaining({ doi: "10.1000/unmatched", title: "Unmatched candidate" }),
+      expect.objectContaining({ responseId: (expansionBody as { responseId: string }).responseId }),
+      identity.email,
+    );
+    expect(fetchExternal).toHaveBeenCalledTimes(3);
+
+    fixture.library.getReferences.mockResolvedValueOnce([source]);
+    const stale = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/citation-candidates`, {
+        doi: "10.1000/unmatched",
+        responseId: `sha256:${"f".repeat(64)}`,
+      }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    expect(stale.status).toBe(409);
+    expect(fixture.library.acceptCitationCandidate).toHaveBeenCalledOnce();
 
     expect(
       (
@@ -1379,6 +1423,17 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     findReferencesByDois: vi.fn(async () => [] as BibliographicRecord[]),
     createCitationAssertions: vi.fn(async (inputs: readonly import("../domain/citation-assertions").CreateCitationAssertionInput[]) =>
       inputs.map((input) => ({ ...citationAssertion, ...input })),
+    ),
+    acceptCitationCandidate: vi.fn(
+      async (
+        _sourceId: string,
+        metadata: import("../domain/reference-library").CrossrefMetadata,
+        source: import("../domain/citation-expansion").CitationCandidateSource,
+      ) => ({
+        reference: { ...reference, id: citationAssertion.citedReferenceId, ...metadata },
+        created: true,
+        assertion: { ...citationAssertion, observedAt: source.observedAt, sourceId: source.responseId, sourceLocator: source.sourceLocator },
+      }),
     ),
     getCitationAssertions: vi.fn(async () => [citationAssertion]),
     reviewCitationAssertion: vi.fn(async (_id: string, input: import("../domain/citation-assertions").ReviewCitationAssertionInput) => ({

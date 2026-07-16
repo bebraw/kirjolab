@@ -37,6 +37,11 @@ import {
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
+import {
+  isAcceptCitationCandidateInput,
+  type CitationCandidateAcceptance,
+  type CitationCandidateSource,
+} from "../domain/citation-expansion";
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
 import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi } from "../domain/publication-intake";
@@ -141,6 +146,12 @@ interface ReferenceLibraryApi {
   getReferences(referenceIds: readonly string[]): Promise<BibliographicRecord[]>;
   findReferencesByDois(doiValues: readonly string[]): Promise<BibliographicRecord[]>;
   createCitationAssertions(inputs: readonly CreateCitationAssertionInput[], actor: string): Promise<CitationAssertion[]>;
+  acceptCitationCandidate(
+    citingReferenceId: string,
+    metadata: CrossrefMetadata,
+    source: CitationCandidateSource,
+    actor: string,
+  ): Promise<CitationCandidateAcceptance>;
   getCitationAssertions(referenceId?: string): Promise<CitationAssertion[]>;
   reviewCitationAssertion(assertionId: string, input: ReviewCitationAssertionInput, reviewer: string): Promise<CitationAssertion>;
   getCitationNetwork(projectId?: string): Promise<CitationNetwork>;
@@ -322,7 +333,7 @@ export async function handleReferenceLibraryApi(
       return Response.json(await library.updateHighlightComment(highlightMatch[1], highlightMatch[2], body.comment), noStore());
     }
     const referenceMatch =
-      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|pdf-metadata))?$/iu.exec(
+      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|citation-candidates|pdf-metadata))?$/iu.exec(
         suffix,
       );
     if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
@@ -450,6 +461,9 @@ export async function handleReferenceLibraryApi(
     }
     if (action === "citation-expansions" && request.method === "POST") {
       return await expandCitationReferences(referenceId, identity, env, library, fetchExternal);
+    }
+    if (action === "citation-candidates" && request.method === "POST") {
+      return await acceptCitationCandidate(request, referenceId, identity, env, library, fetchExternal);
     }
     if (!action && request.method === "DELETE") {
       const body: unknown = await request.json();
@@ -844,6 +858,7 @@ async function expandCitationReferences(
     {
       provider: expansion.provider,
       direction: expansion.direction,
+      seedReferenceId: source.id,
       retrievedAt: expansion.retrievedAt,
       responseId: expansion.responseId,
       sourceLocator: expansion.sourceLocator,
@@ -854,6 +869,39 @@ async function expandCitationReferences(
     },
     { status: 201, ...noStore() },
   );
+}
+
+async function acceptCitationCandidate(
+  request: Request,
+  referenceId: string,
+  identity: AuthIdentity,
+  env: ReferenceLibraryApiEnv,
+  library: ReferenceLibraryApi,
+  fetchExternal: ExternalFetch,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (!isAcceptCitationCandidateInput(body)) return jsonError("Invalid citation candidate", 400);
+  const source = (await library.getReferences([referenceId]))[0];
+  if (!source) return jsonError("Reference not found", 404);
+  if (!source.doi) return jsonError("Add a DOI before accepting external citation references", 409);
+  const expansion = await fetchCrossrefReferences(source.doi, env.CROSSREF_MAILTO, fetchExternal);
+  const doi = normalizeDoi(body.doi);
+  if (expansion.responseId !== body.responseId || !expansion.candidates.some((candidate) => candidate.doi === doi)) {
+    return jsonError("Citation expansion changed; expand the source again before saving", 409);
+  }
+  const fetched = await fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal);
+  const metadata: CrossrefMetadata = { ...fetched, type: fetched.type ?? "misc" };
+  const accepted = await library.acceptCitationCandidate(
+    source.id,
+    metadata,
+    {
+      observedAt: expansion.retrievedAt,
+      responseId: expansion.responseId,
+      sourceLocator: expansion.sourceLocator,
+    },
+    identity.email,
+  );
+  return Response.json(accepted, { status: accepted.created ? 201 : 200, ...noStore() });
 }
 
 async function captureWebSource(
