@@ -107,6 +107,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="open-research-diary" type="button">Start diary</button>');
     expect(html).toContain('id="open-research-questions" type="button">Start question ledger</button>');
     expect(html).toContain('<select class="field mt-2" id="editing-pass">');
+    expect(html).toContain('id="open-reviewer-response" type="button">Start matrix</button>');
+    expect(html).toContain('id="download-reviewer-response" type="button" disabled>Export letter</button>');
     expect(html).toContain('id="manuscript-comment-form"');
     expect(html).not.toContain('id="manuscript-comments"');
     expect(html).toContain('id="derived-project-bibliography"');

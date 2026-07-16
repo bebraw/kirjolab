@@ -275,6 +275,16 @@ export function renderHomePage(
               <button class="button-secondary mt-3 w-full justify-center" id="open-research-diary" type="button">Start diary</button>
             </div>
           </details>
+          <details class="rail-collection mt-4" open>
+            <summary><span>Reviewer responses</span><span class="count-badge" id="reviewer-response-count">0</span></summary>
+            <div class="rail-collection-body">
+              <div class="grid gap-2" id="reviewer-response-list"></div>
+              <div class="mt-3 grid grid-cols-2 gap-2">
+                <button class="button-secondary justify-center" id="open-reviewer-response" type="button">Start matrix</button>
+                <button class="button-secondary justify-center" id="download-reviewer-response" type="button" disabled>Export letter</button>
+              </div>
+            </div>
+          </details>
         </section>
       </aside>
 

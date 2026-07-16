@@ -10,6 +10,12 @@ import { isCitationNetwork, type CitationAssertionView, type CitationNetwork } f
 import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import {
+  parseReviewerResponses,
+  reviewerResponseLetter,
+  reviewerResponsePath,
+  reviewerResponseTemplate,
+} from "../domain/reviewer-response";
+import {
   collaborationProtocolVersion,
   encodeClientSelectionMessage,
   parseServerCollaborationMessage,
@@ -345,6 +351,10 @@ interface Elements {
   editingPass: HTMLSelectElement;
   editingPassCueCount: HTMLElement;
   editingPassCues: HTMLElement;
+  reviewerResponseCount: HTMLElement;
+  reviewerResponseList: HTMLElement;
+  openReviewerResponse: HTMLButtonElement;
+  downloadReviewerResponse: HTMLButtonElement;
   newProjectFileRail: HTMLButtonElement;
   newProjectFolderRail: HTMLButtonElement;
   uploadProjectImages: HTMLButtonElement;
@@ -904,6 +914,8 @@ class WorkspaceApp {
     this.#elements.openResearchDiary.addEventListener("click", () => void this.#openResearchDiary());
     this.#elements.openResearchQuestions.addEventListener("click", () => void this.#openResearchQuestions());
     this.#elements.editingPass.addEventListener("change", () => this.#renderEditingPass(this.#currentComposedSource()));
+    this.#elements.openReviewerResponse.addEventListener("click", () => void this.#openReviewerResponse());
+    this.#elements.downloadReviewerResponse.addEventListener("click", () => this.#downloadReviewerResponse());
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
@@ -2732,6 +2744,35 @@ class WorkspaceApp {
     this.#renderResearchDiarySummary();
     this.#renderResearchQuestions();
     this.#renderEditingPass(source);
+    this.#renderReviewerResponses();
+  }
+
+  #renderReviewerResponses(): void {
+    const file = this.#previewProjectFiles().find((candidate) => candidate.path === reviewerResponsePath);
+    const responses = file ? parseReviewerResponses(file.content) : [];
+    this.#elements.openReviewerResponse.textContent = file ? "Open matrix" : "Start matrix";
+    this.#elements.downloadReviewerResponse.disabled = !file || responses.length === 0;
+    this.#elements.reviewerResponseCount.textContent = String(responses.length);
+    this.#elements.reviewerResponseList.replaceChildren();
+    if (!file) {
+      this.#elements.reviewerResponseList.append(emptyState("Track external review feedback separately from collaborator comments."));
+      return;
+    }
+    if (responses.length === 0) this.#elements.reviewerResponseList.append(emptyState("Add an ## R1.1: … heading to the matrix."));
+    for (const response of responses) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "manuscript-map-item";
+      const label = document.createElement("span");
+      const id = document.createElement("strong");
+      id.textContent = `${response.id} · `;
+      label.append(id, response.summary);
+      const meta = document.createElement("small");
+      meta.textContent = `${response.status} · ${response.manuscriptLinks.length} links`;
+      button.append(label, meta);
+      button.addEventListener("click", () => this.#focusProjectRange(file.id, response.from, response.to));
+      this.#elements.reviewerResponseList.append(button);
+    }
   }
 
   #renderEditingPass(source: string): void {
@@ -2817,6 +2858,23 @@ class WorkspaceApp {
       return;
     }
     await this.#createWorkflowFile(researchQuestionsPath, researchQuestionsTemplate());
+  }
+
+  async #openReviewerResponse(): Promise<void> {
+    const existing = this.#snapshot?.files.find((file) => file.path === reviewerResponsePath);
+    if (existing) {
+      this.#selectProjectFile(existing.id);
+      this.#elements.source.focus();
+      return;
+    }
+    await this.#createWorkflowFile(reviewerResponsePath, reviewerResponseTemplate());
+  }
+
+  #downloadReviewerResponse(): void {
+    const file = this.#previewProjectFiles().find((candidate) => candidate.path === reviewerResponsePath);
+    if (!file) return;
+    downloadTextFile("response-to-reviewers.md", reviewerResponseLetter(file.content));
+    this.#showToast("Response letter exported.");
   }
 
   async #createWorkflowFile(path: string, content: string): Promise<void> {
@@ -8864,6 +8922,10 @@ function collectElements(): Elements {
     editingPass: requiredElement("editing-pass", HTMLSelectElement),
     editingPassCueCount: requiredElement("editing-pass-cue-count", HTMLElement),
     editingPassCues: requiredElement("editing-pass-cues", HTMLElement),
+    reviewerResponseCount: requiredElement("reviewer-response-count", HTMLElement),
+    reviewerResponseList: requiredElement("reviewer-response-list", HTMLElement),
+    openReviewerResponse: requiredElement("open-reviewer-response", HTMLButtonElement),
+    downloadReviewerResponse: requiredElement("download-reviewer-response", HTMLButtonElement),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),
@@ -9420,6 +9482,15 @@ function manuscriptMapMetric(value: number, label: string): HTMLSpanElement {
   const metric = document.createElement("span");
   metric.textContent = `${value} ${label}`;
   return metric;
+}
+
+function downloadTextFile(name: string, content: string): void {
+  const href = URL.createObjectURL(new Blob([content], { type: "text/markdown;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(href);
 }
 
 function uploadStateLabel(state: PdfUploadQueueSnapshot["items"][number]["state"]): string {
