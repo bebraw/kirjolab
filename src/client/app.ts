@@ -221,6 +221,26 @@ interface Elements {
   newWorkspaceTemplateStatus: HTMLElement;
   newWorkspaceSubmit: HTMLButtonElement;
   cancelNewWorkspace: HTMLButtonElement;
+  openGitHubImport: HTMLButtonElement;
+  gitHubImportDialog: HTMLDialogElement;
+  gitHubImportForm: HTMLFormElement;
+  gitHubImportTitle: HTMLInputElement;
+  gitHubInstallationId: HTMLInputElement;
+  gitHubOwner: HTMLInputElement;
+  gitHubRepository: HTMLInputElement;
+  gitHubBranch: HTMLInputElement;
+  gitHubRootPath: HTMLInputElement;
+  gitHubEntryPath: HTMLInputElement;
+  gitHubImportPreview: HTMLElement;
+  gitHubImportStatus: HTMLElement;
+  confirmGitHubImport: HTMLButtonElement;
+  cancelGitHubImport: HTMLButtonElement;
+  gitHubSyncStatus: HTMLElement;
+  gitHubPublishMessage: HTMLInputElement;
+  gitHubPublishReview: HTMLElement;
+  previewGitHubPublish: HTMLButtonElement;
+  confirmGitHubPublish: HTMLButtonElement;
+  disconnectGitHub: HTMLButtonElement;
   saveTemplateDialog: HTMLDialogElement;
   saveTemplateForm: HTMLFormElement;
   saveTemplateTarget: HTMLSelectElement;
@@ -610,6 +630,8 @@ class WorkspaceApp {
   #projectHistory: ProjectRevisionSummary[] = [];
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
+  #gitHubImportPreviewId: string | null = null;
+  #gitHubPublishPreviewId: string | null = null;
   #projectTemplates: ProjectTemplateSummary[] = [];
   #previewedProjectTemplateId = "";
   #previewRenderVersion = 0;
@@ -787,6 +809,7 @@ class WorkspaceApp {
       this.#elements.archiveWorkspace.textContent = current?.archivedAt ? "Restore" : "Archive";
       this.#elements.saveWorkspaceTemplate.hidden = workspaceId === "demo";
       this.#elements.workspaceSettingsDialog.showModal();
+      void this.#refreshGitHubSyncState();
     });
     this.#elements.closeWorkspaceSettings.addEventListener("click", () => this.#elements.workspaceSettingsDialog.close());
     this.#elements.workspaceSettingsForm.addEventListener("submit", (event) => void this.#saveWorkspaceSettings(event));
@@ -799,6 +822,21 @@ class WorkspaceApp {
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
     this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
+    this.#elements.openGitHubImport.addEventListener("click", () => {
+      this.#elements.newWorkspaceDialog.close();
+      this.#gitHubImportPreviewId = null;
+      this.#elements.confirmGitHubImport.disabled = true;
+      this.#elements.gitHubImportPreview.replaceChildren(statusText("Preview to inspect the selected files and resolved entry."));
+      this.#elements.gitHubImportStatus.textContent = "";
+      this.#elements.gitHubImportDialog.showModal();
+      this.#elements.gitHubImportTitle.focus();
+    });
+    this.#elements.cancelGitHubImport.addEventListener("click", () => this.#elements.gitHubImportDialog.close());
+    this.#elements.gitHubImportForm.addEventListener("submit", (event) => void this.#previewGitHubImport(event));
+    this.#elements.confirmGitHubImport.addEventListener("click", () => void this.#confirmGitHubImport());
+    this.#elements.previewGitHubPublish.addEventListener("click", () => void this.#previewGitHubPublish());
+    this.#elements.confirmGitHubPublish.addEventListener("click", () => void this.#confirmGitHubPublish());
+    this.#elements.disconnectGitHub.addEventListener("click", () => void this.#disconnectGitHub());
     this.#elements.cancelSaveTemplate.addEventListener("click", () => this.#elements.saveTemplateDialog.close());
     this.#elements.saveTemplateForm.addEventListener("submit", (event) => void this.#saveProjectTemplate(event));
     this.#elements.saveTemplateTarget.addEventListener("change", () => this.#selectTemplateReplacement());
@@ -1254,6 +1292,153 @@ class WorkspaceApp {
     const created: unknown = [workspace];
     if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Project catalog returned invalid data");
     location.assign(created[0].href);
+  }
+
+  async #previewGitHubImport(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    this.#gitHubImportPreviewId = null;
+    this.#elements.confirmGitHubImport.disabled = true;
+    this.#elements.gitHubImportStatus.textContent = "Reading the selected commit…";
+    try {
+      const installationId = Number(this.#elements.gitHubInstallationId.value);
+      const response = await jsonFetch("/api/github/import-previews", {
+        installationId,
+        owner: this.#elements.gitHubOwner.value,
+        repository: this.#elements.gitHubRepository.value,
+        branch: this.#elements.gitHubBranch.value,
+        rootPath: this.#elements.gitHubRootPath.value,
+        ...(this.#elements.gitHubEntryPath.value.trim() ? { entryPath: this.#elements.gitHubEntryPath.value.trim() } : {}),
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isGitHubImportPreview(value)) throw new Error("GitHub returned an invalid import preview");
+      this.#gitHubImportPreviewId = value.id;
+      const heading = document.createElement("p");
+      heading.className = "text-sm font-semibold text-app-text";
+      heading.textContent = `${value.files.length} Markdown files · entry ${value.entryPath}`;
+      const list = document.createElement("ul");
+      list.className = "mt-3 space-y-1 font-sans text-xs text-app-text-soft";
+      for (const file of value.files.slice(0, 12)) {
+        const item = document.createElement("li");
+        item.textContent = `${file.path} · ${formatBytes(file.bytes)}`;
+        list.append(item);
+      }
+      if (value.files.length > 12) {
+        const item = document.createElement("li");
+        item.textContent = `…and ${value.files.length - 12} more`;
+        list.append(item);
+      }
+      this.#elements.gitHubImportPreview.replaceChildren(heading, list);
+      this.#elements.gitHubImportStatus.textContent = `${value.commitSha.slice(0, 10)} previewed. Confirm to create the project.`;
+      this.#elements.confirmGitHubImport.disabled = false;
+    } catch (error) {
+      this.#elements.gitHubImportStatus.textContent = error instanceof Error ? error.message : "Could not preview GitHub import.";
+    }
+  }
+
+  async #confirmGitHubImport(): Promise<void> {
+    if (!this.#gitHubImportPreviewId) return;
+    this.#elements.confirmGitHubImport.disabled = true;
+    this.#elements.gitHubImportStatus.textContent = "Creating the project…";
+    try {
+      const response = await jsonFetch("/api/github/imports", {
+        previewId: this.#gitHubImportPreviewId,
+        title: this.#elements.gitHubImportTitle.value,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isUnknownRecord(value) || !isUnknownRecord(value.workspace) || typeof value.workspace.href !== "string") {
+        throw new Error("GitHub import returned invalid project data");
+      }
+      location.assign(value.workspace.href);
+    } catch (error) {
+      this.#elements.gitHubImportStatus.textContent = error instanceof Error ? error.message : "Could not import the project.";
+      this.#elements.confirmGitHubImport.disabled = false;
+    }
+  }
+
+  async #refreshGitHubSyncState(): Promise<void> {
+    this.#gitHubPublishPreviewId = null;
+    this.#elements.confirmGitHubPublish.disabled = true;
+    this.#elements.gitHubPublishReview.replaceChildren();
+    try {
+      const response = await fetch(`${apiBase}/github-sync`, { credentials: "same-origin" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      const connected = isGitHubSyncState(value);
+      this.#elements.previewGitHubPublish.disabled = !connected;
+      this.#elements.disconnectGitHub.disabled = !connected;
+      this.#elements.gitHubPublishMessage.disabled = !connected;
+      this.#elements.gitHubSyncStatus.textContent = connected
+        ? `${value.owner}/${value.repository} · ${value.branch}${value.rootPath ? ` · ${value.rootPath}/` : ""} · synced ${value.commitSha.slice(0, 10)}`
+        : "This project is not connected to GitHub.";
+    } catch (error) {
+      this.#elements.gitHubSyncStatus.textContent = error instanceof Error ? error.message : "Could not load GitHub sync state.";
+    }
+  }
+
+  async #previewGitHubPublish(): Promise<void> {
+    this.#gitHubPublishPreviewId = null;
+    this.#elements.confirmGitHubPublish.disabled = true;
+    this.#elements.gitHubPublishReview.replaceChildren(statusText("Comparing Kirjolab with GitHub…"));
+    try {
+      const response = await jsonFetch(`${apiBase}/github-sync/publish-previews`, {
+        commitMessage: this.#elements.gitHubPublishMessage.value,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isGitHubPublishPreview(value)) throw new Error("GitHub returned an invalid publish preview");
+      this.#gitHubPublishPreviewId = value.id;
+      const summary = document.createElement("p");
+      summary.className = "text-sm leading-6 text-app-text-soft";
+      summary.textContent = value.plan.blocking.length
+        ? `${value.plan.blocking.length} remote change or conflict must be pulled or resolved first.`
+        : value.plan.changes.length
+          ? `${value.plan.changes.length} tracked path changes will be committed to ${value.expectedRemoteHead.slice(0, 10)}.`
+          : "No tracked changes to publish.";
+      const list = document.createElement("ul");
+      list.className = "mt-2 space-y-1 font-sans text-xs text-app-text-soft";
+      for (const change of value.plan.changes) {
+        const item = document.createElement("li");
+        item.textContent = `${change.content === null ? "Delete" : "Update"} · ${change.path}`;
+        list.append(item);
+      }
+      if (value.plan.skippedLocalPaths.length > 0) {
+        const item = document.createElement("li");
+        item.textContent = `Not tracked · ${value.plan.skippedLocalPaths.join(", ")}`;
+        list.append(item);
+      }
+      this.#elements.gitHubPublishReview.replaceChildren(summary, list);
+      this.#elements.confirmGitHubPublish.disabled = value.plan.blocking.length > 0 || value.plan.changes.length === 0;
+    } catch (error) {
+      this.#elements.gitHubPublishReview.replaceChildren(
+        statusText(error instanceof Error ? error.message : "Could not preview GitHub publish."),
+      );
+    }
+  }
+
+  async #confirmGitHubPublish(): Promise<void> {
+    if (!this.#gitHubPublishPreviewId) return;
+    this.#elements.confirmGitHubPublish.disabled = true;
+    try {
+      const response = await jsonFetch(`${apiBase}/github-sync/publishes`, { previewId: this.#gitHubPublishPreviewId });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isUnknownRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");
+      this.#elements.gitHubPublishReview.replaceChildren(statusText(`Published commit ${value.commitSha.slice(0, 10)}.`));
+      await this.#refreshGitHubSyncState();
+    } catch (error) {
+      this.#elements.gitHubPublishReview.replaceChildren(
+        statusText(error instanceof Error ? error.message : "Could not publish to GitHub."),
+      );
+    }
+  }
+
+  async #disconnectGitHub(): Promise<void> {
+    if (!confirm("Disconnect this project from GitHub? Project files and the repository will not be deleted.")) return;
+    const response = await fetch(`${apiBase}/github-sync`, { method: "DELETE", credentials: "same-origin" });
+    await expectOk(response);
+    await this.#refreshGitHubSyncState();
   }
 
   async #openNewWorkspace(): Promise<void> {
@@ -8119,6 +8304,26 @@ function collectElements(): Elements {
     newWorkspaceTemplateStatus: requiredElement("new-workspace-template-status", HTMLElement),
     newWorkspaceSubmit: requiredElement("create-workspace", HTMLButtonElement),
     cancelNewWorkspace: requiredElement("cancel-new-workspace", HTMLButtonElement),
+    openGitHubImport: requiredElement("open-github-import", HTMLButtonElement),
+    gitHubImportDialog: requiredElement("github-import-dialog", HTMLDialogElement),
+    gitHubImportForm: requiredElement("github-import-form", HTMLFormElement),
+    gitHubImportTitle: requiredElement("github-import-title", HTMLInputElement),
+    gitHubInstallationId: requiredElement("github-installation-id", HTMLInputElement),
+    gitHubOwner: requiredElement("github-owner", HTMLInputElement),
+    gitHubRepository: requiredElement("github-repository", HTMLInputElement),
+    gitHubBranch: requiredElement("github-branch", HTMLInputElement),
+    gitHubRootPath: requiredElement("github-root-path", HTMLInputElement),
+    gitHubEntryPath: requiredElement("github-entry-path", HTMLInputElement),
+    gitHubImportPreview: requiredElement("github-import-preview", HTMLElement),
+    gitHubImportStatus: requiredElement("github-import-status", HTMLElement),
+    confirmGitHubImport: requiredElement("confirm-github-import", HTMLButtonElement),
+    cancelGitHubImport: requiredElement("cancel-github-import", HTMLButtonElement),
+    gitHubSyncStatus: requiredElement("github-sync-status", HTMLElement),
+    gitHubPublishMessage: requiredElement("github-publish-message", HTMLInputElement),
+    gitHubPublishReview: requiredElement("github-publish-review", HTMLElement),
+    previewGitHubPublish: requiredElement("preview-github-publish", HTMLButtonElement),
+    confirmGitHubPublish: requiredElement("confirm-github-publish", HTMLButtonElement),
+    disconnectGitHub: requiredElement("disconnect-github", HTMLButtonElement),
     saveTemplateDialog: requiredElement("save-template-dialog", HTMLDialogElement),
     saveTemplateForm: requiredElement("save-template-form", HTMLFormElement),
     saveTemplateTarget: requiredElement("save-template-target", HTMLSelectElement),
@@ -8506,6 +8711,68 @@ function isWebSnapshotComparisonResponse(value: unknown): value is WebSnapshotCo
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isGitHubImportPreview(value: unknown): value is {
+  id: string;
+  commitSha: string;
+  entryPath: string;
+  files: Array<{ path: string; bytes: number }>;
+} {
+  return (
+    isUnknownRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.commitSha === "string" &&
+    typeof value.entryPath === "string" &&
+    Array.isArray(value.files) &&
+    value.files.every((file) => isUnknownRecord(file) && typeof file.path === "string" && typeof file.bytes === "number")
+  );
+}
+
+function isGitHubSyncState(value: unknown): value is {
+  owner: string;
+  repository: string;
+  branch: string;
+  rootPath: string;
+  commitSha: string;
+} {
+  return (
+    isUnknownRecord(value) &&
+    typeof value.owner === "string" &&
+    typeof value.repository === "string" &&
+    typeof value.branch === "string" &&
+    typeof value.rootPath === "string" &&
+    typeof value.commitSha === "string"
+  );
+}
+
+function isGitHubPublishPreview(value: unknown): value is {
+  id: string;
+  expectedRemoteHead: string;
+  plan: {
+    changes: Array<{ path: string; content: string | null }>;
+    skippedLocalPaths: string[];
+    blocking: unknown[];
+  };
+} {
+  if (
+    !isUnknownRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.expectedRemoteHead !== "string" ||
+    !isUnknownRecord(value.plan)
+  ) {
+    return false;
+  }
+  return (
+    Array.isArray(value.plan.changes) &&
+    value.plan.changes.every(
+      (change) =>
+        isUnknownRecord(change) && typeof change.path === "string" && (typeof change.content === "string" || change.content === null),
+    ) &&
+    Array.isArray(value.plan.skippedLocalPaths) &&
+    value.plan.skippedLocalPaths.every((path) => typeof path === "string") &&
+    Array.isArray(value.plan.blocking)
+  );
 }
 
 async function jsonFetch(url: string, body: object, method: "POST" | "PUT" | "PATCH" = "POST"): Promise<Response> {

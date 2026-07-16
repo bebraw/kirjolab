@@ -726,10 +726,35 @@ export function renderHomePage(
         <footer class="template-browser-footer">
           <p class="ui-status" id="new-workspace-template-status" role="status">Templates create independent projects without research history.</p>
           <div class="ui-cluster justify-end">
+            <button class="button-secondary" id="open-github-import" type="button">Import GitHub</button>
             <button class="button-secondary" id="cancel-new-workspace" type="button">Cancel</button>
             <button class="button-primary" id="create-workspace" type="submit" disabled>Create project</button>
           </div>
         </footer>
+      </form>
+    </dialog>
+
+    <dialog class="new-workspace-dialog ui-dialog" id="github-import-dialog">
+      <form class="p-5" id="github-import-form">
+        <p class="eyebrow">GitHub-backed project</p>
+        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Import a Markdown folder</h2>
+        <p class="mt-2 text-sm leading-6 text-app-text-soft">Preview an exact commit before creating the project. Nothing is written to GitHub.</p>
+        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+          <label class="field-label">Project title<input class="field" id="github-import-title" maxlength="120" required placeholder="Scalability book"></label>
+          <label class="field-label">Installation ID<input class="field" id="github-installation-id" inputmode="numeric" required placeholder="12345678"></label>
+          <label class="field-label">Owner<input class="field" id="github-owner" required placeholder="bebraw"></label>
+          <label class="field-label">Repository<input class="field" id="github-repository" required placeholder="scalability_book"></label>
+          <label class="field-label">Branch<input class="field" id="github-branch" required value="main"></label>
+          <label class="field-label">Folder<input class="field" id="github-root-path" placeholder="book"></label>
+          <label class="field-label sm:col-span-2">Entry file <span class="font-normal normal-case text-app-text-soft">(optional)</span><input class="field" id="github-entry-path" placeholder="main.md"></label>
+        </div>
+        <div class="mt-5 border-t border-app-line pt-4" id="github-import-preview" aria-live="polite"><p class="ui-status">Preview to inspect the selected files and resolved entry.</p></div>
+        <p class="ui-status mt-3" id="github-import-status" role="status"></p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="button-secondary" id="cancel-github-import" type="button">Cancel</button>
+          <button class="button-secondary" type="submit">Preview import</button>
+          <button class="button-primary" id="confirm-github-import" type="button" disabled>Create project</button>
+        </div>
       </form>
     </dialog>
 
@@ -760,6 +785,17 @@ export function renderHomePage(
           <button class="button-secondary" id="duplicate-workspace" type="button">Duplicate</button>
           <button class="button-secondary" id="archive-workspace" type="button" data-destructive="true">Archive</button>
         </div>
+        <section class="mt-6 border-t border-app-line pt-5">
+          <p class="eyebrow">GitHub sync</p>
+          <p class="mt-2 text-sm leading-6 text-app-text-soft" id="github-sync-status">Checking connection…</p>
+          <label class="field-label mt-4">Commit message<input class="field" id="github-publish-message" maxlength="900" value="Publish from Kirjolab"></label>
+          <div class="mt-3" id="github-publish-review" aria-live="polite"></div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button class="button-secondary" id="preview-github-publish" type="button">Preview publish</button>
+            <button class="button-primary" id="confirm-github-publish" type="button" disabled>Publish commit</button>
+            <button class="button-secondary" id="disconnect-github" type="button" data-destructive="true">Disconnect</button>
+          </div>
+        </section>
         <section class="mt-6 border-t border-app-line pt-5">
           <p class="eyebrow">Danger zone</p>
           <p class="mt-2 text-sm leading-6 text-app-text-soft">Permanent deletion removes project revisions, collaborators, project PDFs, and project links. Private library references remain.</p>

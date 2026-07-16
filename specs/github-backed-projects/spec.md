@@ -239,6 +239,10 @@ incoming and outgoing mutation.
   Publish previews create direct commits and advance the base only after
   verification. An operation footer reconciles ambiguous branch-update
   responses before any retry can create another branch commit.
+- Implemented first-slice interface: New project exposes GitHub import fields,
+  exact commit/file/entry review, and explicit confirmation; Project settings
+  shows the binding, outgoing tracked-path review, direct Publish confirmation,
+  and non-destructive disconnect.
 - First implementation slice: import preview/confirmation and direct Publish
   preview/confirmation, including retained base state and conflict detection.
 - Deferred: optional publish-through-branch-and-PR, binary assets, repository

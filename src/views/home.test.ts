@@ -129,7 +129,10 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain('class="context-tab-list ui-tab-list"');
     expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(3);
-    expect(html.match(/class="(?:new-workspace-dialog|reference-library-dialog)[^"]*ui-dialog"/gu)).toHaveLength(9);
+    expect(html.match(/class="(?:new-workspace-dialog|reference-library-dialog)[^"]*ui-dialog"/gu)).toHaveLength(10);
+    expect(html).toContain('id="open-github-import"');
+    expect(html).toContain('id="github-import-dialog"');
+    expect(html).toContain('id="github-publish-review"');
     expect(html.match(/data-touch-target="true"/gu)).toHaveLength(8);
     expect(html).toContain('id="archive-workspace" type="button" data-destructive="true"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
