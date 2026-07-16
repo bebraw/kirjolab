@@ -1919,6 +1919,8 @@ test("records and reviews source citation assertions in an accessible shared net
   });
   const alpha = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Network Alpha Study" });
   await expect(alpha).toBeVisible();
+  const alphaId = await alpha.getAttribute("data-reference-id");
+  if (!alphaId) throw new Error("Network Alpha reference id is missing");
   await alpha.getByRole("button", { name: "Add" }).click();
 
   await page.locator('summary[aria-label="Library tools"]').click();
@@ -1942,6 +1944,86 @@ test("records and reviews source citation assertions in an accessible shared net
   await expect(page.locator("#filter-project-citations")).toHaveAttribute("aria-pressed", "true");
   await expect(list).toContainText("Network Alpha Study → Network Beta Study");
   await expect(list).toContainText("Current project");
+
+  const responseId = `sha256:${"a".repeat(64)}`;
+  const candidateId = "77777777-7777-4777-8777-777777777777";
+  const observedAt = "2026-07-16T10:00:00.000Z";
+  await page.route(`**/api/library/references/${alphaId}/citation-expansions`, async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        provider: "crossref",
+        direction: "references",
+        seedReferenceId: alphaId,
+        retrievedAt: observedAt,
+        responseId,
+        sourceLocator: "https://api.crossref.org/works/10.1000%2Fnetwork-alpha",
+        assertions: [],
+        unmatched: [
+          {
+            doi: "10.1000/snowball-candidate",
+            title: "Snowball Candidate Study",
+            authors: "Candidate, Casey",
+            year: "2023",
+            unstructured: "",
+          },
+        ],
+        truncated: false,
+        requestedBy: "owner@example.test",
+      }),
+    });
+  });
+  await page.route(`**/api/library/references/${alphaId}/citation-candidates`, async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        created: true,
+        reference: {
+          id: candidateId,
+          referenceKey: "candidate2023snowball",
+          type: "article",
+          title: "Snowball Candidate Study",
+          authors: ["Candidate, Casey"],
+          year: "2023",
+          venue: "Research Journal",
+          doi: "10.1000/snowball-candidate",
+          url: "https://doi.org/10.1000/snowball-candidate",
+          abstract: "",
+          provenance: {},
+          archivedAt: null,
+          deletedAt: null,
+          createdAt: observedAt,
+          updatedAt: observedAt,
+        },
+        assertion: {
+          id: "88888888-8888-4888-8888-888888888888",
+          citingReferenceId: alphaId,
+          citedReferenceId: candidateId,
+          polarity: "cites",
+          evidenceState: "extracted",
+          method: "provider",
+          assertedBy: "Crossref",
+          observedAt,
+          sourceKind: "provider-response",
+          sourceId: responseId,
+          sourceLocator: "https://api.crossref.org/works/10.1000%2Fnetwork-alpha",
+          confidence: null,
+          review: null,
+          createdAt: observedAt,
+        },
+      }),
+    });
+  });
+  const alphaNetworkCard = list.locator("article").filter({ hasText: "Network Alpha Study" }).first();
+  await alphaNetworkCard.getByRole("button", { name: "Expand references" }).click();
+  await expect(list).toContainText("Backward snowball · Crossref");
+  await expect(list).toContainText("Snowball Candidate Study");
+  await expect(list.getByRole("link", { name: "Verify DOI" })).toHaveAttribute("href", "https://doi.org/10.1000/snowball-candidate");
+  await list.getByRole("button", { name: "Save candidate" }).click();
+  await expect(page.locator("#toast")).toContainText("Reference saved with its discovery trail.");
+  await expect(list).toContainText("This seed may be saturated for backward snowballing.");
+  await expect(list).not.toContainText("Snowball Candidate Study");
 });
 
 test("keeps resource-keyed research context beside authoring", async ({ page }) => {

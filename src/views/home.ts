@@ -434,7 +434,7 @@ export function renderHomePage(
                   <label class="library-menu-action" title="Restore a Kirjolab library archive"><span>Restore archive</span><input class="sr-only" id="library-archive-upload" type="file" accept=".zip,application/zip"></label>
                   <a href="/api/library/export/csl.json">Export CSL JSON</a>
                   <a href="/api/library/export/library.zip">Export library</a>
-                  <button id="open-citation-network" type="button">Citation network</button>
+                  <button id="open-citation-network" type="button">Reference trail</button>
                   <button id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
                 </div>
               </details>
@@ -443,7 +443,7 @@ export function renderHomePage(
             <section class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></section>
             <section class="mt-6 hidden border-t border-app-line pt-5" id="citation-network" aria-labelledby="citation-network-heading">
               <div class="flex flex-wrap items-start justify-between gap-3">
-                <div><p class="eyebrow">Shared literature map</p><h3 class="mt-1 text-lg font-semibold" id="citation-network-heading">Citation assertions</h3><p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">Review how sources cite one another. Conflicting relationships remain visible.</p></div>
+                <div><p class="eyebrow">Guided snowballing</p><h3 class="mt-1 text-lg font-semibold" id="citation-network-heading">Reference trail</h3><p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">Follow references from trusted seeds, review each candidate, and retain how every source was found.</p></div>
                 <div class="flex gap-2"><button class="button-secondary" id="filter-project-citations" type="button" aria-pressed="false">Current project</button><button class="button-secondary" id="close-citation-network" type="button">Close network</button></div>
               </div>
               <form class="mt-4 grid gap-3 border-y border-app-line py-4 md:grid-cols-[1fr_auto_1fr_auto]" id="citation-assertion-form">

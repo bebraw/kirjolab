@@ -60,7 +60,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="citation-assertion-form"');
     expect(html).toContain('id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"');
     expect(html).toContain('id="citation-network-list" aria-live="polite"');
-    expect(html).toContain("Conflicting relationships remain visible.");
+    expect(html).toContain("Follow references from trusted seeds, review each candidate, and retain how every source was found.");
     expect(html).toContain('id="publication-list"');
     expect(html).toContain('id="knowledge-search-form"');
     expect(html).toContain('id="knowledge-connection-list"');

@@ -7,6 +7,12 @@ import {
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
 import { isCitationNetwork, type CitationAssertionView, type CitationNetwork } from "../domain/citation-assertions";
+import {
+  isCitationCandidateAcceptance,
+  isCitationExpansionResult,
+  type CitationExpansionCandidate,
+  type CitationExpansionResult,
+} from "../domain/citation-expansion";
 import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import {
@@ -685,6 +691,7 @@ class WorkspaceApp {
   #failedLibraryPdfUploads: readonly File[] = [];
   #showArchivedReferences = false;
   #citationNetwork: CitationNetwork | null = null;
+  #citationExpansion: CitationExpansionResult | null = null;
   #filterProjectCitations = false;
   #projectHistory: ProjectRevisionSummary[] = [];
   #wordStatistics: PublicationWordStatistics | null = null;
@@ -3690,6 +3697,7 @@ class WorkspaceApp {
     if (!network) return;
     this.#renderCitationGraph(network);
     this.#elements.citationNetworkList.replaceChildren();
+    if (this.#citationExpansion) this.#elements.citationNetworkList.append(this.#citationExpansionRound(this.#citationExpansion));
     if (network.nodes.length === 0) {
       this.#elements.citationNetworkList.append(
         emptyState(
@@ -3730,6 +3738,50 @@ class WorkspaceApp {
       for (const assertion of edge.assertions) card.append(this.#citationAssertionRow(assertion));
       this.#elements.citationNetworkList.append(card);
     }
+  }
+
+  #citationExpansionRound(expansion: CitationExpansionResult): HTMLElement {
+    const section = document.createElement("section");
+    section.className = "resource-card border-app-accent";
+    const seed = this.#librarySnapshot?.references.find((reference) => reference.id === expansion.seedReferenceId);
+    section.append(resourceLabel("Backward snowball · Crossref"), resourceTitle(`References from ${seed?.title ?? "selected source"}`));
+    const summary = document.createElement("p");
+    summary.className = "mt-2 text-xs leading-5 text-app-text-soft";
+    summary.textContent = expansion.unmatched.length
+      ? `${expansion.unmatched.length} new DOI candidate${expansion.unmatched.length === 1 ? "" : "s"} to review${
+          expansion.truncated ? " · provider list truncated" : ""
+        }.`
+      : "No unseen DOI candidates in this round. This seed may be saturated for backward snowballing.";
+    section.append(summary);
+    for (const candidate of expansion.unmatched) section.append(this.#citationCandidateCard(expansion, candidate));
+    return section;
+  }
+
+  #citationCandidateCard(expansion: CitationExpansionResult, candidate: CitationExpansionCandidate): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "mt-3 border-t border-app-line pt-3";
+    const title = document.createElement("h5");
+    title.className = "text-sm font-semibold";
+    title.textContent = candidate.title || candidate.unstructured || candidate.doi;
+    const metadata = document.createElement("p");
+    metadata.className = "mt-1 text-xs leading-5 text-app-text-soft";
+    metadata.textContent = [candidate.authors, candidate.year, candidate.doi].filter(Boolean).join(" · ");
+    const actions = document.createElement("div");
+    actions.className = "mt-2 flex flex-wrap gap-2";
+    const verify = document.createElement("a");
+    verify.className = "button-secondary";
+    verify.href = `https://doi.org/${candidate.doi}`;
+    verify.target = "_blank";
+    verify.rel = "noopener noreferrer";
+    verify.textContent = "Verify DOI";
+    const save = document.createElement("button");
+    save.className = "button-primary";
+    save.type = "button";
+    save.textContent = "Save candidate";
+    save.addEventListener("click", () => void this.#acceptCitationCandidate(expansion, candidate, save));
+    actions.append(verify, save);
+    card.append(title, metadata, actions);
+    return card;
   }
 
   #renderCitationGraph(network: CitationNetwork): void {
@@ -3875,13 +3927,44 @@ class WorkspaceApp {
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/citation-expansions`, {});
     await expectOk(response);
     const value: unknown = await response.json();
-    const unmatched = isUnknownRecord(value) && Array.isArray(value.unmatched) ? value.unmatched.length : 0;
+    if (!isCitationExpansionResult(value)) throw new Error("Citation expansion returned an invalid representation");
+    this.#citationExpansion = value;
     await this.#refreshCitationNetwork();
     this.#showToast(
-      unmatched > 0
-        ? `Known Crossref relationships added; ${unmatched} external reference${unmatched === 1 ? "" : "s"} await library matching.`
+      value.unmatched.length > 0
+        ? `Review ${value.unmatched.length} new reference${value.unmatched.length === 1 ? "" : "s"} from this seed.`
         : "Known Crossref relationships added to the shared citation network.",
     );
+  }
+
+  async #acceptCitationCandidate(
+    expansion: CitationExpansionResult,
+    candidate: CitationExpansionCandidate,
+    button: HTMLButtonElement,
+  ): Promise<void> {
+    button.disabled = true;
+    button.textContent = "Saving…";
+    try {
+      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(expansion.seedReferenceId)}/citation-candidates`, {
+        doi: candidate.doi,
+        responseId: expansion.responseId,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isCitationCandidateAcceptance(value)) throw new Error("Citation candidate returned an invalid representation");
+      this.#citationExpansion = {
+        ...expansion,
+        assertions: [...expansion.assertions, value.assertion],
+        unmatched: expansion.unmatched.filter((item) => item.doi !== candidate.doi),
+      };
+      await this.#refreshReferenceLibrary();
+      await this.#refreshCitationNetwork();
+      this.#showToast(value.created ? "Reference saved with its discovery trail." : "Existing reference linked to its discovery trail.");
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = "Save candidate";
+      this.#showToast(error instanceof Error ? error.message : "Could not save citation candidate");
+    }
   }
 
   #referenceLibraryCard(reference: BibliographicRecord): HTMLElement {
