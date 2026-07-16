@@ -9,8 +9,8 @@
     "ACCESS_TEAM_DOMAIN": "",
     "ACCESS_AUD": "",
     "CROSSREF_MAILTO": "",
-    "GITHUB_APP_ID": "",
-    "GITHUB_APP_SLUG": "",
+    "GITHUB_APP_ID": "4313375",
+    "GITHUB_APP_SLUG": "kirjolab-sync-bebraw",
   },
   "build": {
     "command": "npm run build",
