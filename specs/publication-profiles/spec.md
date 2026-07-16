@@ -13,6 +13,10 @@ changing its canonical Markdown or shared references.
   style and locale.
 - The initial citation styles are APA, Chicago author-date, and IEEE numeric.
 - Preview and the unified export pipeline read the same profile.
+- Across the bounded profiles, inline author labels use one family name, two
+  names joined by “and”, or the first name plus “et al.” for three or more
+  authors. Numeric parenthetical citations remain numeric, and bibliography
+  entries retain every authored name.
 - Export manifests record the profile; LaTeX materialization selects the
   matching pinned citation command and bibliography style.
 - Profile changes create project revisions and survive milestones, restore,

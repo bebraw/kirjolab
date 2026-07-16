@@ -47,6 +47,10 @@ second Markdown dialect.
   plus `locator`, `prefix`, and `suffix`. The familiar `:citet` and `:citep`
   aliases default to textual and parenthetical modes respectively; an explicit
   `mode` attribute remains authoritative.
+- Inline author labels show one family name for a single author, both family
+  names joined by “and” for two authors, and the first family name followed by
+  “et al.” for three or more authors. Bibliography entries retain the complete
+  authored list.
 - `::bibliography[]` places the cited-reference list at that exact manuscript
   location. Researchers author any surrounding heading as ordinary Markdown.
 - Each rendered citation id is an accessible sanitized button keyed by its
@@ -89,6 +93,8 @@ second Markdown dialect.
 - [x] The documented standard Markdown and GFM examples render through the
       pinned JavaScript pipeline.
 - [x] Citation modes, multiple ids, locators, prefixes, and suffixes render.
+- [x] Inline citations compact author lists after two authors without
+      truncating bibliography entries.
 - [x] `:citet` and `:citep` aliases retain citation identity across preview,
       navigation, validation, history rewrites, and every publication output.
 - [x] Rendered citation buttons open stable publication context without

@@ -25,6 +25,19 @@ describe("renderWorkspaceMarkdown", () => {
     expect(text).toContain("As Merton (1942) argues; compare (Merton, 1942).");
     expect(rendered.html.match(/data-citation="merton1942"/gu)).toHaveLength(2);
   });
+  it("compacts preview citations with more than two authors", () => {
+    const sources = `@article{conilh2023,
+      author={Louise Conilh and Lenka Sadílková and Warren Viricel and Charles Dumontet},
+      title={A collaborative study},
+      year={2023}
+    }`;
+    const rendered = renderWorkspaceMarkdown("As :citet[conilh2023] reports; compare :citep[conilh2023].", sources);
+    const text = rendered.html.replaceAll(/<[^>]+>/gu, "");
+
+    expect(rendered.diagnostics).toEqual([]);
+    expect(text).toContain("As Conilh et al. (2023) reports; compare (Conilh et al., 2023).");
+    expect(text).not.toContain("Sadílková");
+  });
   it("renders meaningful Markdown and extended scholarly directives", () => {
     const source = `::alias[Evidence]{target="sec:legacy" slug="evidence"}
 

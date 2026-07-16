@@ -16,6 +16,7 @@ import {
   citationModeForDirective,
   isCitationDirectiveName,
   publicationBibliographyText,
+  publicationCitationAuthorLabel,
   publicationCitationEntries,
   type PublicationCitationEntry,
 } from "./scholarly-export";
@@ -556,7 +557,7 @@ function validateReferenceDeclarations(source: string): Diagnostic[] {
 }
 
 function formatCitation(entry: BibliographyEntry, mode: string, citationStyle: CitationStyle, number: number): string {
-  const author = entry.author.split(",", 1)[0]?.trim() || entry.id;
+  const author = publicationCitationAuthorLabel(entry);
   if (citationStyle === "ieee") return mode === "textual" ? `${author} [${number}]` : String(number);
   if (mode === "full") return [author, entry.year, entry.title].filter(Boolean).join(". ");
   if (mode === "textual") return `${author} (${entry.year || "n.d."})`;

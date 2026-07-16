@@ -3,6 +3,7 @@ import {
   isPublicationBibliographyDirective,
   isPublicationReferenceDeclaration,
   publicationBibliographyText,
+  publicationCitationAuthorLabel,
   publicationCitationEntries,
   publicationCitationText,
   publicationReferenceLabel,
@@ -119,5 +120,35 @@ describe("scholarly publication projection", () => {
     expect(publicationCitationText(parsed(":cite[missing]"), bibliography, "apa")).toBe("(missing, n.d.)");
     expect(publicationCitationText(parsed(":citet[doe2026]"), bibliography, "apa")).toBe("Doe (2026)");
     expect(publicationCitationText(parsed(":citep[doe2026]"), bibliography, "apa")).toBe("(Doe, 2026)");
+  });
+
+  it("compacts inline author lists after two authors", () => {
+    const bibliography = publicationCitationEntries(
+      `@article{solo, author={Doe, Jane}, title={Solo}, year={2026}}
+@article{pair, author={Jane Doe and Roe, Richard}, title={Pair}, year={2025}}
+@article{group, author={Louise Conilh and Lenka Sadílková and Warren Viricel and Charles Dumontet}, title={Group}, year={2023}}
+@article{organization, author={{Research Collective}}, title={Organization}, year={2022}}`,
+    );
+    const parsed = (source: string): PublicationTextDirective => {
+      let directive: PublicationTextDirective | undefined;
+      replacePublicationTextDirectives(source, (value) => {
+        directive = value;
+        return "";
+      });
+      if (!directive) throw new Error("Expected a publication directive");
+      return directive;
+    };
+
+    expect(publicationCitationAuthorLabel(bibliography.get("solo")!)).toBe("Doe");
+    expect(publicationCitationAuthorLabel(bibliography.get("pair")!)).toBe("Doe and Roe");
+    expect(publicationCitationAuthorLabel(bibliography.get("group")!)).toBe("Conilh et al.");
+    expect(publicationCitationAuthorLabel(bibliography.get("organization")!)).toBe("Research Collective");
+    expect(publicationCitationText(parsed(":cite[group]"), bibliography, "apa")).toBe("(Conilh et al., 2023)");
+    expect(publicationCitationText(parsed(":citet[group]"), bibliography, "chicago-author-date")).toBe("Conilh et al. (2023)");
+    expect(publicationCitationText(parsed(":citet[group]"), bibliography, "ieee")).toBe("Conilh et al. [3]");
+    expect(publicationCitationText(parsed(":cite[pair]"), bibliography, "apa")).toBe("(Doe and Roe, 2025)");
+    expect(publicationBibliographyText(bibliography.get("group")!, "apa")).toContain(
+      "Louise Conilh and Lenka Sadílková and Warren Viricel and Charles Dumontet",
+    );
   });
 });

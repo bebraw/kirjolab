@@ -24,6 +24,12 @@ Preview and every export consume the same project profile. LaTeX materialization
 selects a compatible pinned bibliography style and citation command. Export
 manifests record the exact profile so rendered artifacts remain explainable.
 
+The bounded inline formatter uses one family name for one author, joins two
+family names with “and”, and compacts three or more authors to the first family
+name plus “et al.” This shared threshold applies across supported profiles;
+numeric parenthetical citations remain numeric, while bibliography entries
+retain the complete authored author field.
+
 Publication profiles participate in project revisions, milestones, restore,
 duplication, and archival source bundles. Only the project owner may change the
 profile through Project Settings.

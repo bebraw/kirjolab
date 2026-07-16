@@ -127,6 +127,18 @@ export function publicationBibliographyText(entry: PublicationCitationEntry, cit
   return `${author} (${year}). ${title}.`;
 }
 
+export function publicationCitationAuthorLabel(entry: Pick<PublicationCitationEntry, "author" | "id">): string {
+  const authors = entry.author
+    .split(/\s+and\s+/iu)
+    .map(citationFamilyName)
+    .filter(Boolean);
+  const [first, second] = authors;
+  if (!first) return entry.id;
+  if (!second) return first;
+  if (authors.length === 2) return `${first} and ${second}`;
+  return `${first} et al.`;
+}
+
 function directiveAttributes(value: string): ReadonlyMap<string, string> {
   const attributes = new Map<string, string>();
   for (const match of value.matchAll(attribute)) {
@@ -148,11 +160,18 @@ function publicationSlug(value: string): string {
 }
 
 function formatCitation(entry: PublicationCitationEntry, mode: string, citationStyle: CitationStyle): string {
-  const author = entry.author.split(",", 1)[0]?.trim() || entry.id;
+  const author = publicationCitationAuthorLabel(entry);
   if (citationStyle === "ieee") return mode === "textual" ? `${author} [${entry.number || entry.id}]` : String(entry.number || entry.id);
   if (mode === "full") return [author, entry.year, entry.title].filter(Boolean).join(". ");
   if (mode === "textual") return `${author} (${entry.year || "n.d."})`;
   return citationStyle === "chicago-author-date" ? `${author} ${entry.year || "n.d."}` : `${author}, ${entry.year || "n.d."}`;
+}
+
+function citationFamilyName(value: string): string {
+  const author = value.trim();
+  if (author.startsWith("{") && author.endsWith("}")) return author.slice(1, -1).trim();
+  if (author.includes(",")) return author.slice(0, author.indexOf(",")).trim();
+  return author.split(/\s+/u).at(-1) ?? "";
 }
 
 function isStringRecord(value: unknown): value is Record<string, string | undefined> {
