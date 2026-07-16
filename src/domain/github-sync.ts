@@ -32,6 +32,11 @@ export interface GitHubPublishPlan {
   readonly blocking: readonly GitHubSyncChange[];
 }
 
+export interface GitHubPullPlan {
+  readonly changes: readonly GitHubSyncChange[];
+  readonly blocking: readonly GitHubSyncChange[];
+}
+
 export function compareGitHubSync(
   baseFiles: readonly GitHubSyncBaseFile[],
   localFiles: readonly GitHubSyncLocalFile[],
@@ -102,6 +107,13 @@ export function buildGitHubPublishPlan(comparison: readonly GitHubSyncChange[]):
     changes: [...changes].sort(([left], [right]) => compareText(left, right)).map(([path, content]) => ({ path, content })),
     skippedLocalPaths,
     blocking,
+  };
+}
+
+export function buildGitHubPullPlan(comparison: readonly GitHubSyncChange[]): GitHubPullPlan {
+  return {
+    changes: comparison.filter((change) => change.kind === "remote-only"),
+    blocking: comparison.filter((change) => change.kind === "conflict"),
   };
 }
 

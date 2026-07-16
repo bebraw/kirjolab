@@ -144,7 +144,7 @@ incoming and outgoing mutation.
 - [ ] Import of `bebraw/scalability_book` scoped to `book/` tracks only its
       chapter Markdown and resolves `00_introduction.md` as the default entry unless
       the owner chooses another file.
-- [ ] An owner can preview and pull non-conflicting remote changes through the
+- [x] An owner can preview and pull non-conflicting remote changes through the
       existing Yjs documents as one logical revision.
 - [ ] An owner can preview and publish local tracked changes as one direct,
       non-forced commit to the configured branch.
@@ -266,7 +266,11 @@ incoming and outgoing mutation.
 - Implemented guided source selection: connected owners choose an accessible
   personal or organization installation, repository, and discovered branch;
   repository identity fields and installation ids are no longer typed by hand.
-- First implementation slice: import preview/confirmation and direct Publish
+- Implemented explicit Pull: Project settings compares the current remote head
+  with the retained base and local project, lists incoming changes, blocks
+  conflicts, and applies a still-current non-conflicting preview through Yjs as
+  one logical revision. Local-only and untracked files remain unchanged.
+- First implementation slice: import, Pull, and direct Publish
   preview/confirmation, including retained base state and conflict detection.
 - Deferred: optional publish-through-branch-and-PR, binary assets, repository
   creation, multiple bindings per project, GitHub Enterprise Server, webhooks,

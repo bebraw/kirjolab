@@ -2,8 +2,10 @@ import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
 import {
   buildGitHubPublishPlan,
+  buildGitHubPullPlan,
   compareGitHubSync,
   type GitHubPublishPlan,
+  type GitHubPullPlan,
   type GitHubSyncBaseFile,
   type GitHubSyncChange,
   type GitHubSyncRemoteFile,
@@ -149,6 +151,20 @@ export interface GitHubPublishConfirmation {
   readonly preview: GitHubPublishPreview;
 }
 
+export interface GitHubPullPreview {
+  readonly id: string;
+  readonly expectedRevision: number;
+  readonly expectedRemoteHead: string;
+  readonly expiresAt: string;
+  readonly comparison: readonly GitHubSyncChange[];
+  readonly plan: GitHubPullPlan;
+}
+
+export interface GitHubPullConfirmation {
+  readonly binding: GitHubProjectBindingInput;
+  readonly preview: GitHubPullPreview;
+}
+
 export type ClaimUpdateResult = DocumentRoomOperationResult<ClaimResource, "claim-not-found" | "annotation-not-found">;
 
 export type CandidateCreationResult = DocumentRoomOperationResult<
@@ -202,6 +218,16 @@ interface GitHubPublishPreviewRow extends Record<string, SqlStorageValue> {
   expected_revision: number;
   expected_remote_head: string;
   commit_message: string;
+  comparison_json: string;
+  plan_json: string;
+  created_at: string;
+  expires_at: string;
+}
+
+interface GitHubPullPreviewRow extends Record<string, SqlStorageValue> {
+  id: string;
+  expected_revision: number;
+  expected_remote_head: string;
   comparison_json: string;
   plan_json: string;
   created_at: string;
@@ -1036,6 +1062,165 @@ export class DocumentRoom extends DurableObject<Env> {
     };
   }
 
+  createGitHubPullPreview(remoteHead: string, remoteFiles: readonly GitHubSyncRemoteFile[]): GitHubPullPreview {
+    const binding = this.#githubBindingRow();
+    if (!binding) throw new Error("Project is not connected to GitHub");
+    if (!isGitHubCommitSha(remoteHead)) throw new Error("GitHub remote head is invalid");
+    this.#deleteExpiredGitHubPullPreviews();
+    const workspace = this.#workspaceRow();
+    const comparison = compareGitHubSync(
+      this.#githubTrackedFiles(),
+      this.#projectFileRows().map((file) => ({ fileId: file.id, path: file.path, content: file.content })),
+      remoteFiles,
+    );
+    const plan = buildGitHubPullPlan(comparison);
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1_000).toISOString();
+    this.ctx.storage.sql.exec(
+      `INSERT INTO github_pull_previews
+       (id, expected_revision, expected_remote_head, comparison_json, plan_json, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      workspace.revision,
+      remoteHead,
+      JSON.stringify(comparison),
+      JSON.stringify(plan),
+      createdAt,
+      expiresAt,
+    );
+    return { id, expectedRevision: workspace.revision, expectedRemoteHead: remoteHead, expiresAt, comparison, plan };
+  }
+
+  getGitHubPullConfirmation(previewId: string): GitHubPullConfirmation | null {
+    this.#deleteExpiredGitHubPullPreviews();
+    const binding = this.#githubBindingRow();
+    const row = this.ctx.storage.sql.exec<GitHubPullPreviewRow>("SELECT * FROM github_pull_previews WHERE id = ?", previewId).toArray()[0];
+    if (!binding || !row || row.expected_revision !== this.#workspaceRow().revision) return null;
+    return { binding: githubBindingInput(binding), preview: githubPullPreviewFromRow(row) };
+  }
+
+  completeGitHubPull(previewId: string, remoteFiles: readonly GitHubSyncRemoteFile[]): GitHubProjectBindingState {
+    const confirmation = this.getGitHubPullConfirmation(previewId);
+    if (!confirmation) throw new Error("GitHub pull preview is stale");
+    if (confirmation.preview.plan.blocking.length > 0 || confirmation.preview.plan.changes.length === 0) {
+      throw new Error("GitHub pull preview cannot be confirmed");
+    }
+    if (remoteFiles.some((file) => !file.path.endsWith(".md") || file.content.length > 2_000_000)) {
+      throw new Error("GitHub pull contains an invalid project file");
+    }
+
+    const previous = this.#workspaceRow();
+    const currentRows = this.#projectFileRows();
+    const currentById = new Map(currentRows.map((file) => [file.id, file]));
+    const now = new Date().toISOString();
+    const assignedIds = new Map<string, string>();
+    for (const change of confirmation.preview.comparison) {
+      if (change.remote) assignedIds.set(change.remote.path, change.local?.fileId ?? change.base?.fileId ?? crypto.randomUUID());
+    }
+    const finalById = new Map(currentRows.map((row) => [row.id, projectFileFromRow(row)]));
+    for (const change of confirmation.preview.plan.changes) {
+      const existingId = change.local?.fileId ?? change.base?.fileId;
+      if (existingId) finalById.delete(existingId);
+      if (change.remote) {
+        const fileId = assignedIds.get(change.remote.path)!;
+        const existing = currentById.get(fileId);
+        finalById.set(fileId, {
+          id: fileId,
+          path: change.remote.path,
+          mediaType: "text/markdown",
+          content: change.remote.content,
+          collaborationTextName: existing?.y_text_name ?? `file:${fileId}`,
+          createdAt: existing?.created_at ?? now,
+          updatedAt: now,
+        });
+      }
+    }
+    const finalFiles = [...finalById.values()];
+    if (!finalFiles.some((file) => file.id === previous.entry_file_id)) {
+      throw new Error("Choose another project entry file before pulling this deletion");
+    }
+    for (const change of confirmation.preview.plan.changes) {
+      if (change.base && !change.remote && inboundProjectIncludes(finalFiles, change.base.path).length > 0) {
+        throw new Error(`Remove inbound include directives before pulling deletion of ${change.base.path}`);
+      }
+    }
+    composeProject(finalFiles, previous.entry_file_id!);
+
+    const stateVector = Y.encodeStateVector(this.#document);
+    this.#document.transact(() => {
+      for (const change of confirmation.preview.plan.changes) {
+        if (!change.remote) continue;
+        const fileId = assignedIds.get(change.remote.path)!;
+        const row = currentById.get(fileId);
+        const yTextName = row?.y_text_name ?? `file:${fileId}`;
+        const text = this.#document.getText(yTextName);
+        const splice = calculateTextSplice(text.toString(), change.remote.content);
+        if (!splice) continue;
+        if (splice.deleteCount > 0) text.delete(splice.start, splice.deleteCount);
+        if (splice.insert) text.insert(splice.start, splice.insert);
+      }
+    }, "github-pull");
+
+    const tracked = remoteFiles.map((remote) => ({
+      fileId: assignedIds.get(remote.path) ?? crypto.randomUUID(),
+      path: remote.path,
+      blobSha: remote.blobSha,
+      content: remote.content,
+    }));
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => {
+        for (const change of confirmation.preview.plan.changes) {
+          const existingId = change.local?.fileId ?? change.base?.fileId;
+          if (!change.remote) {
+            if (existingId) this.ctx.storage.sql.exec("DELETE FROM project_files WHERE id = ?", existingId);
+            continue;
+          }
+          const fileId = assignedIds.get(change.remote.path)!;
+          const row = currentById.get(fileId);
+          this.#ensureProjectFolders(folderAncestors(change.remote.path), now);
+          if (row) {
+            this.ctx.storage.sql.exec(
+              "UPDATE project_files SET path = ?, content = ?, updated_at = ? WHERE id = ?",
+              change.remote.path,
+              change.remote.content,
+              now,
+              fileId,
+            );
+          } else {
+            this.ctx.storage.sql.exec(
+              `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
+               VALUES (?, ?, 'text/markdown', ?, ?, ?, ?)`,
+              fileId,
+              change.remote.path,
+              `file:${fileId}`,
+              change.remote.content,
+              now,
+              now,
+            );
+          }
+        }
+        this.#replaceGitHubTrackedFiles(tracked);
+        this.ctx.storage.sql.exec(
+          `UPDATE github_project_binding
+           SET synchronized_commit = ?, synchronized_revision = ?, updated_at = ? WHERE singleton = 1`,
+          confirmation.preview.expectedRemoteHead,
+          previous.revision + 1,
+          now,
+        );
+        this.ctx.storage.sql.exec("DELETE FROM github_pull_previews");
+        this.ctx.storage.sql.exec("DELETE FROM github_publish_previews");
+      },
+      "github-pull",
+    );
+    this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return this.getGitHubSyncState()!;
+  }
+
   createGitHubPublishPreview(
     remoteHead: string,
     remoteFiles: readonly GitHubSyncRemoteFile[],
@@ -1118,6 +1303,7 @@ export class DocumentRoom extends DurableObject<Env> {
 
   disconnectGitHubProject(): void {
     this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("DELETE FROM github_pull_previews");
       this.ctx.storage.sql.exec("DELETE FROM github_publish_previews");
       this.ctx.storage.sql.exec("DELETE FROM github_tracked_files");
       this.ctx.storage.sql.exec("DELETE FROM github_project_binding");
@@ -3213,6 +3399,25 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 25,
+        name: "retain-github-pull-previews",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS github_pull_previews (
+              id TEXT PRIMARY KEY,
+              expected_revision INTEGER NOT NULL,
+              expected_remote_head TEXT NOT NULL,
+              comparison_json TEXT NOT NULL,
+              plan_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              expires_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS github_pull_previews_expiry ON github_pull_previews(expires_at);
+          `);
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -3244,6 +3449,10 @@ export class DocumentRoom extends DurableObject<Env> {
 
   #deleteExpiredGitHubPublishPreviews(): void {
     this.ctx.storage.sql.exec("DELETE FROM github_publish_previews WHERE expires_at <= ?", new Date().toISOString());
+  }
+
+  #deleteExpiredGitHubPullPreviews(): void {
+    this.ctx.storage.sql.exec("DELETE FROM github_pull_previews WHERE expires_at <= ?", new Date().toISOString());
   }
 
   #addAnchorColumns(table: "passage_links" | "claim_passage_links"): void {
@@ -4814,5 +5023,16 @@ function githubPublishPreviewFromRow(row: GitHubPublishPreviewRow): GitHubPublis
     expiresAt: row.expires_at,
     comparison: JSON.parse(row.comparison_json) as readonly GitHubSyncChange[],
     plan: JSON.parse(row.plan_json) as GitHubPublishPlan,
+  };
+}
+
+function githubPullPreviewFromRow(row: GitHubPullPreviewRow): GitHubPullPreview {
+  return {
+    id: row.id,
+    expectedRevision: row.expected_revision,
+    expectedRemoteHead: row.expected_remote_head,
+    expiresAt: row.expires_at,
+    comparison: JSON.parse(row.comparison_json) as readonly GitHubSyncChange[],
+    plan: JSON.parse(row.plan_json) as GitHubPullPlan,
   };
 }

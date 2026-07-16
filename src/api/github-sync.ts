@@ -66,6 +66,35 @@ export async function handleGitHubWorkspaceSyncApi(
       await room.disconnectGitHubProject();
       return new Response(null, { status: 204 });
     }
+    if (suffix === "/github-sync/pull-previews" && request.method === "POST") {
+      const binding = await room.getGitHubSyncState();
+      if (!binding) return jsonError("Project is not connected to GitHub", 409, "not-connected");
+      const selection = await authorize(identity, env, selectionFromBinding(binding));
+      const snapshot = await client.readMarkdownSnapshot(selection);
+      if (snapshot.repositoryId !== binding.repositoryId) return jsonError("GitHub repository identity changed", 409, "repository-changed");
+      const preview = await room.createGitHubPullPreview(snapshot.commitSha, snapshot.files);
+      return Response.json(preview, { status: 201 });
+    }
+    if (suffix === "/github-sync/pulls" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isRecord(body) || typeof body.previewId !== "string" || !uuid.test(body.previewId)) {
+        return jsonError("Invalid GitHub pull confirmation", 400);
+      }
+      const confirmation = await room.getGitHubPullConfirmation(body.previewId);
+      if (!confirmation) return jsonError("GitHub pull preview is stale", 409, "stale-preview");
+      if (confirmation.preview.plan.blocking.length > 0) return jsonError("GitHub pull has unresolved conflicts", 409, "conflict");
+      if (confirmation.preview.plan.changes.length === 0) return jsonError("GitHub is already up to date", 409, "no-changes");
+      const selection = await authorize(identity, env, selectionFromBinding(confirmation.binding));
+      const snapshot = await client.readMarkdownSnapshot(selection);
+      if (snapshot.repositoryId !== confirmation.binding.repositoryId) {
+        return jsonError("GitHub repository identity changed", 409, "repository-changed");
+      }
+      if (snapshot.commitSha !== confirmation.preview.expectedRemoteHead) {
+        return jsonError("GitHub changed after the pull preview", 409, "remote-changed");
+      }
+      const binding = await room.completeGitHubPull(confirmation.preview.id, snapshot.files);
+      return Response.json({ binding });
+    }
     if (suffix === "/github-sync/publish-previews" && request.method === "POST") {
       const body: unknown = await request.json();
       if (!isRecord(body) || typeof body.commitMessage !== "string" || !body.commitMessage.trim() || body.commitMessage.length > 900) {

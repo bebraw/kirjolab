@@ -256,6 +256,9 @@ interface Elements {
   previewGitHubImport: HTMLButtonElement;
   cancelGitHubImport: HTMLButtonElement;
   gitHubSyncStatus: HTMLElement;
+  gitHubPullReview: HTMLElement;
+  previewGitHubPull: HTMLButtonElement;
+  confirmGitHubPull: HTMLButtonElement;
   gitHubPublishMessage: HTMLInputElement;
   gitHubPublishReview: HTMLElement;
   previewGitHubPublish: HTMLButtonElement;
@@ -651,6 +654,7 @@ class WorkspaceApp {
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
   #gitHubImportPreviewId: string | null = null;
+  #gitHubPullPreviewId: string | null = null;
   #gitHubPublishPreviewId: string | null = null;
   #gitHubRepositories: readonly GitHubRepositoryOption[] = [];
   #gitHubPickerRequest = 0;
@@ -861,6 +865,8 @@ class WorkspaceApp {
     this.#elements.gitHubBranch.addEventListener("change", () => this.#updateGitHubImportReadiness());
     this.#elements.confirmGitHubImport.addEventListener("click", () => void this.#confirmGitHubImport());
     this.#elements.disconnectGitHubAccount.addEventListener("click", () => void this.#disconnectGitHubAccount());
+    this.#elements.previewGitHubPull.addEventListener("click", () => void this.#previewGitHubPull());
+    this.#elements.confirmGitHubPull.addEventListener("click", () => void this.#confirmGitHubPull());
     this.#elements.previewGitHubPublish.addEventListener("click", () => void this.#previewGitHubPublish());
     this.#elements.confirmGitHubPublish.addEventListener("click", () => void this.#confirmGitHubPublish());
     this.#elements.disconnectGitHub.addEventListener("click", () => void this.#disconnectGitHub());
@@ -1536,14 +1542,18 @@ class WorkspaceApp {
   }
 
   async #refreshGitHubSyncState(): Promise<void> {
+    this.#gitHubPullPreviewId = null;
     this.#gitHubPublishPreviewId = null;
+    this.#elements.confirmGitHubPull.disabled = true;
     this.#elements.confirmGitHubPublish.disabled = true;
+    this.#elements.gitHubPullReview.replaceChildren();
     this.#elements.gitHubPublishReview.replaceChildren();
     try {
       const response = await fetch(`${apiBase}/github-sync`, { credentials: "same-origin" });
       await expectOk(response);
       const value: unknown = await response.json();
       const connected = isGitHubSyncState(value);
+      this.#elements.previewGitHubPull.disabled = !connected;
       this.#elements.previewGitHubPublish.disabled = !connected;
       this.#elements.disconnectGitHub.disabled = !connected;
       this.#elements.gitHubPublishMessage.disabled = !connected;
@@ -1552,6 +1562,51 @@ class WorkspaceApp {
         : "This project is not connected to GitHub.";
     } catch (error) {
       this.#elements.gitHubSyncStatus.textContent = error instanceof Error ? error.message : "Could not load GitHub sync state.";
+    }
+  }
+
+  async #previewGitHubPull(): Promise<void> {
+    this.#gitHubPullPreviewId = null;
+    this.#elements.confirmGitHubPull.disabled = true;
+    this.#elements.gitHubPullReview.replaceChildren(statusText("Checking GitHub for changes…"));
+    try {
+      const response = await jsonFetch(`${apiBase}/github-sync/pull-previews`, {});
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isGitHubPullPreview(value)) throw new Error("GitHub returned an invalid pull preview");
+      this.#gitHubPullPreviewId = value.id;
+      const summary = document.createElement("p");
+      summary.className = "text-sm leading-6 text-app-text-soft";
+      summary.textContent = value.plan.blocking.length
+        ? `${value.plan.blocking.length} conflict${value.plan.blocking.length === 1 ? "" : "s"} need review before pulling.`
+        : value.plan.changes.length
+          ? `${value.plan.changes.length} incoming change${value.plan.changes.length === 1 ? "" : "s"} ready to pull.`
+          : "Kirjolab is up to date with GitHub.";
+      const list = document.createElement("ul");
+      list.className = "mt-2 space-y-1 font-sans text-xs text-app-text-soft";
+      for (const change of value.plan.changes) {
+        const item = document.createElement("li");
+        item.textContent = `${change.remote ? (change.base ? "Update" : "Add") : "Delete"} · ${change.remote?.path ?? change.base?.path ?? "Unknown path"}`;
+        list.append(item);
+      }
+      this.#elements.gitHubPullReview.replaceChildren(summary, list);
+      this.#elements.confirmGitHubPull.disabled = value.plan.blocking.length > 0 || value.plan.changes.length === 0;
+    } catch (error) {
+      this.#elements.gitHubPullReview.replaceChildren(statusText(error instanceof Error ? error.message : "Could not check GitHub."));
+    }
+  }
+
+  async #confirmGitHubPull(): Promise<void> {
+    if (!this.#gitHubPullPreviewId) return;
+    this.#elements.confirmGitHubPull.disabled = true;
+    try {
+      const response = await jsonFetch(`${apiBase}/github-sync/pulls`, { previewId: this.#gitHubPullPreviewId });
+      await expectOk(response);
+      await this.#resourceRefresh.request();
+      await this.#refreshGitHubSyncState();
+      this.#elements.gitHubPullReview.replaceChildren(statusText("Pulled the reviewed changes from GitHub."));
+    } catch (error) {
+      this.#elements.gitHubPullReview.replaceChildren(statusText(error instanceof Error ? error.message : "Could not pull from GitHub."));
     }
   }
 
@@ -8506,6 +8561,9 @@ function collectElements(): Elements {
     previewGitHubImport: requiredElement("preview-github-import", HTMLButtonElement),
     cancelGitHubImport: requiredElement("cancel-github-import", HTMLButtonElement),
     gitHubSyncStatus: requiredElement("github-sync-status", HTMLElement),
+    gitHubPullReview: requiredElement("github-pull-review", HTMLElement),
+    previewGitHubPull: requiredElement("preview-github-pull", HTMLButtonElement),
+    confirmGitHubPull: requiredElement("confirm-github-pull", HTMLButtonElement),
     gitHubPublishMessage: requiredElement("github-publish-message", HTMLInputElement),
     gitHubPublishReview: requiredElement("github-publish-review", HTMLElement),
     previewGitHubPublish: requiredElement("preview-github-publish", HTMLButtonElement),
@@ -8988,6 +9046,29 @@ function isGitHubSyncState(value: unknown): value is {
     typeof value.branch === "string" &&
     typeof value.rootPath === "string" &&
     typeof value.commitSha === "string"
+  );
+}
+
+function isGitHubPullPreview(value: unknown): value is {
+  id: string;
+  plan: {
+    changes: Array<{
+      base: { path: string } | null;
+      remote: { path: string } | null;
+    }>;
+    blocking: unknown[];
+  };
+} {
+  if (!isUnknownRecord(value) || typeof value.id !== "string" || !isUnknownRecord(value.plan)) return false;
+  return (
+    Array.isArray(value.plan.changes) &&
+    value.plan.changes.every(
+      (change) =>
+        isUnknownRecord(change) &&
+        (change.base === null || (isUnknownRecord(change.base) && typeof change.base.path === "string")) &&
+        (change.remote === null || (isUnknownRecord(change.remote) && typeof change.remote.path === "string")),
+    ) &&
+    Array.isArray(value.plan.blocking)
   );
 }
 

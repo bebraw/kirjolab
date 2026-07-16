@@ -101,6 +101,13 @@ routine publishing, making reviewed direct commits the intended default.
 
 ## Consequences
 
+The implemented Pull path stores only an expiring revision- and remote-head-bound
+preview. Confirmation re-reads GitHub, rejects remote movement, applies all safe
+remote-only Markdown changes in one Durable Object transaction, advances the
+retained base in that same transaction, and creates one project revision.
+Local-only changes are intentionally left as divergence for a later Publish;
+conflicts remain blocked until the owner reviews a resolution.
+
 **Positive:**
 
 - Existing GitHub manuscripts can use Kirjolab collaboration without moving

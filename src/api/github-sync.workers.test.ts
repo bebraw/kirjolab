@@ -112,6 +112,61 @@ describe("GitHub sync API in the Workers runtime", () => {
     expect(response.status).toBe(409);
   });
 
+  it("previews and atomically pulls remote-only changes while preserving local edits", async () => {
+    const client = new FakeGitHubClient(snapshot("4".repeat(40), "Initial"));
+    const pullIdentity = { ...identity, ownerKey: `pull-${crypto.randomUUID()}` };
+    const imported = await importWorkspace(client, pullIdentity);
+    const room = env.DOCUMENT_ROOMS.getByName(imported.id);
+    const initial = await room.getSnapshot(imported.id);
+    const chapter = initial.files.find((file) => file.path === "chapters/scale.md")!;
+    expect(await room.replaceProjectFileContent(imported.id, chapter.id, "# Local scale\n", initial.revision)).toMatchObject({ ok: true });
+
+    client.current = {
+      ...client.current,
+      commitSha: "5".repeat(40),
+      commitMessage: "Remote edits",
+      files: [
+        { path: "00_introduction.md", blobSha: "6".repeat(40), content: "# Remote introduction\n" },
+        client.current.files[1]!,
+        { path: "appendix.md", blobSha: "7".repeat(40), content: "# Appendix\n" },
+      ],
+    };
+    const previewResponse = await handleGitHubWorkspaceSyncApi(
+      jsonRequest("http://example.com/api/workspaces/project/github-sync/pull-previews", {}),
+      env,
+      pullIdentity,
+      room,
+      "/github-sync/pull-previews",
+      client,
+      authorizeSelection,
+    );
+    expect(previewResponse.status).toBe(201);
+    const preview = await responseRecord(previewResponse);
+    expect(preview.plan).toMatchObject({
+      blocking: [],
+      changes: [{ remote: { path: "00_introduction.md" } }, { remote: { path: "appendix.md" } }],
+    });
+
+    const response = await handleGitHubWorkspaceSyncApi(
+      jsonRequest("http://example.com/api/workspaces/project/github-sync/pulls", { previewId: preview.id }),
+      env,
+      pullIdentity,
+      room,
+      "/github-sync/pulls",
+      client,
+      authorizeSelection,
+    );
+    expect(response.status).toBe(200);
+    const pulled = await room.getSnapshot(imported.id);
+    expect(pulled.revision).toBe(2);
+    expect(pulled.files.map((file) => [file.path, file.content])).toEqual([
+      ["00_introduction.md", "# Remote introduction\n"],
+      ["appendix.md", "# Appendix\n"],
+      ["chapters/scale.md", "# Local scale\n"],
+    ]);
+    expect(await room.getGitHubSyncState()).toMatchObject({ commitSha: "5".repeat(40), synchronizedRevision: 2 });
+  });
+
   it("logs unexpected failures without request or credential data", async () => {
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const client: GitHubSyncRemoteClient = {
@@ -220,4 +275,30 @@ async function authorizeSelection(
   selection: GitHubRepositorySelection,
 ): Promise<GitHubRepositorySelection> {
   return { ...selection, repositoryId: 99 };
+}
+
+async function importWorkspace(client: FakeGitHubClient, owner: AuthIdentity): Promise<{ readonly id: string }> {
+  const previewResponse = await handleGitHubImportApi(
+    jsonRequest("http://example.com/api/github/import-previews", {
+      installationId: 7,
+      owner: "bebraw",
+      repository: "scalability_book",
+      branch: "main",
+      rootPath: "book",
+    }),
+    env,
+    owner,
+    client,
+    authorizeSelection,
+  );
+  const preview = await responseRecord(previewResponse);
+  const response = await handleGitHubImportApi(
+    jsonRequest("http://example.com/api/github/imports", { previewId: preview.id, title: "Pulled project" }),
+    env,
+    owner,
+    client,
+    authorizeSelection,
+  );
+  const body = await responseRecord(response);
+  return body.workspace as { readonly id: string };
 }

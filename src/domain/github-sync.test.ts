@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGitHubPublishPlan, compareGitHubSync, type GitHubSyncBaseFile } from "./github-sync";
+import { buildGitHubPublishPlan, buildGitHubPullPlan, compareGitHubSync, type GitHubSyncBaseFile } from "./github-sync";
 
 const base: readonly GitHubSyncBaseFile[] = [
   { fileId: "main", path: "main.md", blobSha: "a", content: "base" },
@@ -86,6 +86,18 @@ describe("GitHub three-way sync", () => {
     const plan = buildGitHubPublishPlan(comparison);
     expect(plan.changes).toEqual([]);
     expect(plan.blocking.map((change) => change.kind)).toEqual(["remote-only", "conflict"]);
+  });
+
+  it("builds a pull plan from remote-only changes and blocks conflicts", () => {
+    const comparison = compareGitHubSync(
+      base,
+      [local("base"), local("chapter", "local chapter"), { fileId: "notes", path: "notes.md", content: "notes" }],
+      [remote("remote"), remote("chapter", "remote chapter"), { path: "appendix.md", blobSha: "d", content: "appendix" }],
+    );
+
+    const plan = buildGitHubPullPlan(comparison);
+    expect(plan.changes.map((change) => change.remote?.path)).toEqual(["appendix.md", "main.md"]);
+    expect(plan.blocking.map((change) => change.local?.path)).toEqual(["chapter.md"]);
   });
 
   it("rejects ambiguous identities", () => {

@@ -446,6 +446,49 @@ test("keeps GitHub publish confirmation visible after refreshing sync state", as
   await expect(page.locator("#github-sync-status")).toContainText(`synced ${commitSha.slice(0, 10)}`);
 });
 
+test("previews and confirms incoming GitHub changes", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "GitHub pull feedback");
+  const api = `/api/workspaces/${workspaceId}/github-sync`;
+  const previewId = crypto.randomUUID();
+  await page.route(`**${api}`, async (route) => {
+    await route.fulfill({
+      json: {
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "main",
+        rootPath: "book",
+        commitSha: "a".repeat(40),
+      },
+    });
+  });
+  await page.route(`**${api}/pull-previews`, async (route) => {
+    await route.fulfill({
+      status: 201,
+      json: {
+        id: previewId,
+        plan: {
+          changes: [{ base: { path: "00_introduction.md" }, remote: { path: "00_introduction.md" } }],
+          blocking: [],
+        },
+      },
+    });
+  });
+  await page.route(`**${api}/pulls`, async (route) => {
+    expect(await route.request().postDataJSON()).toEqual({ previewId });
+    await route.fulfill({ json: { binding: {} } });
+  });
+
+  await page.goto(`/workspaces/${workspaceId}`);
+  await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "Project settings" }).click();
+  await page.getByRole("button", { name: "Check GitHub" }).click();
+  await expect(page.locator("#github-pull-review")).toContainText("1 incoming change ready to pull");
+  await expect(page.locator("#github-pull-review")).toContainText("Update · 00_introduction.md");
+  await page.getByRole("button", { name: "Pull changes" }).click();
+  await expect(page.locator("#github-pull-review")).toHaveText("Pulled the reviewed changes from GitHub.");
+});
+
 test("switches and remembers focused workspace views", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Focus modes");
   await page.goto(`/workspaces/${workspaceId}`);
