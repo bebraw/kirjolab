@@ -139,25 +139,25 @@ incoming and outgoing mutation.
 
 ### Definition of Done
 
-- [ ] An owner can preview and import a selected GitHub repository subtree into
+- [x] An owner can preview and import a selected GitHub repository subtree into
       a new project at one exact commit.
-- [ ] Import of `bebraw/scalability_book` scoped to `book/` tracks only its
+- [x] Import of `bebraw/scalability_book` scoped to `book/` tracks only its
       chapter Markdown and resolves `00_introduction.md` as the default entry unless
       the owner chooses another file.
 - [x] An owner can preview and pull non-conflicting remote changes through the
       existing Yjs documents as one logical revision.
-- [ ] An owner can preview and publish local tracked changes as one direct,
+- [x] An owner can preview and publish local tracked changes as one direct,
       non-forced commit to the configured branch.
 - [x] Concurrent local and remote changes are classified by a retained
       three-way base and never silently overwrite either side.
-- [ ] Unknown Markdown syntax and all untracked repository content remain
+- [x] Unknown Markdown syntax and all untracked repository content remain
       byte-for-byte unchanged by operations that do not edit them.
-- [ ] Revoked access, stale previews, protected branches, timeouts, and retries
+- [x] Revoked access, stale previews, protected branches, timeouts, and retries
       fail closed without duplicate commits or premature base advancement.
-- [ ] Unit, Workers-runtime integration, and browser tests cover authorization,
+- [x] Unit, Workers-runtime integration, and browser tests cover authorization,
       bounds, path confinement, preview freshness, Yjs application, conflicts, and
       idempotent GitHub mutation reconciliation.
-- [ ] This spec and ADR-132 are updated with discoveries from implementation.
+- [x] This spec and ADR-132 are updated with discoveries from implementation.
 
 ### Regression Guardrails
 
@@ -244,7 +244,7 @@ incoming and outgoing mutation.
 
 ## Current Milestone
 
-- Accepted design: manual import, Pull, and reviewed direct Publish for bounded
+- Implemented design: manual import, Pull, and reviewed direct Publish for bounded
   Markdown subtrees through a repository-scoped GitHub App.
 - Implemented foundation: short-lived App authentication, bounded and
   root-confined Markdown snapshot reads, strict UTF-8 and Git LFS rejection,

@@ -1,6 +1,6 @@
 # ADR-132: Synchronize Projects with Scoped GitHub Trees
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-16
 
