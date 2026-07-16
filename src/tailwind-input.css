@@ -1056,6 +1056,13 @@
     box-shadow: 0 0.75rem 2rem var(--color-app-shadow);
   }
 
+  @media (min-width: 40.0625rem) {
+    #editor-more-menu .editor-command-menu {
+      right: auto;
+      left: 0;
+    }
+  }
+
   .editor-command-menu :is(button, a) {
     display: grid;
     width: 100%;

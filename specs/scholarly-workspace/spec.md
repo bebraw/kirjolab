@@ -51,7 +51,9 @@ mode for authenticated hosted collaboration.
   Vim, and file mutations live in one labelled More menu. Target text may
   truncate with its complete value retained as a native title, and word count
   yields at the narrowest container widths instead of increasing toolbar height
-  or overflowing the page.
+  or overflowing the page. Above the phone layout, the More menu opens toward
+  the manuscript so the authoring column cannot clip it beneath the project
+  rail.
   File navigation remains in the default-visible project tree rather than
   consuming toolbar width with a duplicate selector.
 - **Authoring modality:** Write and Map are peer views of the current project.
@@ -416,6 +418,8 @@ mode for authenticated hosted collaboration.
       controls in one contained row at a 1197 px split-workspace width.
 - [x] Infrequent History, revision, and file actions remain labelled and
       keyboard-accessible from the editor's More menu.
+- [x] The More menu remains fully visible inside the clipped authoring column
+      instead of extending beneath the project rail.
 - [x] Header Preferences opens and closes with pointer or keyboard, keeps
       personal appearance, Vim, and model settings together, and persists them
       locally across projects and refreshes.
