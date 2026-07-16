@@ -2746,6 +2746,10 @@
     content: "";
   }
 
+  .source-editor-shell:focus-within .local-author-caret {
+    visibility: hidden;
+  }
+
   .source-editor-shell:focus-within {
     background: var(--color-app-raised);
   }

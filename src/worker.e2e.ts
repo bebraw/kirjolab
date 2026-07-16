@@ -789,9 +789,11 @@ test("keeps the local editor target visible after focus moves to Context", async
     element.setSelectionRange(element.value.length, element.value.length);
     element.dispatchEvent(new Event("select", { bubbles: true }));
   });
+  const localCaret = page.locator("#source-editor-highlight .local-author-caret");
+  await expect(localCaret).toHaveCSS("visibility", "hidden");
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await expect(page.locator("#editor-target-status")).toContainText("line 3 · caret");
-  await expect(page.locator("#source-editor-highlight .local-author-caret")).toHaveCount(1);
+  await expect(localCaret).toHaveCSS("visibility", "visible");
 });
 
 test("highlights Markdown without replacing the native editor", async ({ page }) => {
