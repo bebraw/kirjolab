@@ -94,7 +94,7 @@ const previewSchema: Schema = {
   tagNames: safeElements,
   attributes: {
     a: ["ariaDescribedBy", "ariaLabel", "className", "dataFootnoteBackref", "dataFootnoteRef", "href", "id", "title"],
-    button: ["ariaLabel", "className", "dataCitation", ["type", "button"]],
+    button: ["ariaLabel", "className", "dataCitation", "dataLocator", ["type", "button"]],
     code: ["className"],
     h1: ["className", "id"],
     h2: ["className", "id"],
@@ -360,6 +360,7 @@ function citationChildren(
         type: "button",
         className: ["semantic-citation"],
         dataCitation: entry.id,
+        ...(citation.locator ? { dataLocator: citation.locator } : {}),
         ariaLabel: `Open reference ${entry.title || entry.id}`,
       },
       children: [

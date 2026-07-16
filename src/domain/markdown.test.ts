@@ -46,7 +46,7 @@ const answer = 42;
     expect(rendered.diagnostics).toEqual([]);
     expect(rendered.html).toContain('<h2 id="evidence"><span class="section-number">1 </span>Evidence</h2>');
     expect(rendered.html).toContain(
-      '<button type="button" class="semantic-citation" data-citation="merton1942" aria-label="Open reference The Normative Structure of Science">Merton (1942)</button>, p. 4',
+      '<button type="button" class="semantic-citation" data-citation="merton1942" data-locator="p. 4" aria-label="Open reference The Normative Structure of Science">Merton (1942)</button>, p. 4',
     );
     expect(rendered.html).toContain('<a class="semantic-reference"');
     expect(rendered.html).toContain("<strong>weight</strong>");

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
+import {
+  citationContextAtPosition,
+  citationKeysAtPosition,
+  citationPageFromLocator,
+  createCitationInsertion,
+  parseCitationKeys,
+} from "./citations";
 
 describe("citation navigation", () => {
   it("parses ordered case-insensitive citation keys without duplicates", () => {
@@ -17,6 +23,21 @@ describe("citation navigation", () => {
     expect(citationKeysAtPosition(":cite[]", 3)).toEqual([]);
     expect(citationKeysAtPosition(":citet[textual]", 5)).toEqual(["textual"]);
     expect(citationKeysAtPosition(":citep[parenthetical]", 6)).toEqual(["parenthetical"]);
+  });
+
+  it("reads citation locators and their first numeric page", () => {
+    const source = 'Before :cite[merton1942]{locator="pp. 270\u2013271"} after';
+
+    expect(citationContextAtPosition(source, source.indexOf("locator"))).toEqual({
+      keys: ["merton1942"],
+      locator: "pp. 270\u2013271",
+    });
+    expect(citationPageFromLocator("p. 270")).toBe(270);
+    expect(citationPageFromLocator("pp. 270\u2013271")).toBe(270);
+    expect(citationPageFromLocator("pages 4-5")).toBe(4);
+    expect(citationPageFromLocator("chapter 4")).toBeNull();
+    expect(citationPageFromLocator("p. 0")).toBeNull();
+    expect(citationPageFromLocator("pp. 5-4")).toBeNull();
   });
 });
 
@@ -50,5 +71,15 @@ describe("citation insertion", () => {
     expect(createCitationInsertion("text", 2, "two words")).toBeNull();
     expect(createCitationInsertion("text", 2, "bad]key")).toBeNull();
     expect(createCitationInsertion("text", 2, "  ")).toBeNull();
+  });
+
+  it("inserts a bounded page locator when one is available", () => {
+    expect(createCitationInsertion("Claim.", 5, "merton1942", "p. 270")).toEqual({
+      index: 5,
+      text: ' :cite[merton1942]{locator="p. 270"}',
+      caret: 41,
+    });
+    expect(createCitationInsertion("Claim.", 5, "merton1942", 'p. 2" suffix="wrong')).toBeNull();
+    expect(createCitationInsertion("Claim.", 5, "merton1942", "p. 2\nwrong")).toBeNull();
   });
 });

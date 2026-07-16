@@ -96,7 +96,13 @@ import {
   type AssistantTargetScope,
 } from "./assistant-operations";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
-import { citationKeysAtPosition, createCitationInsertion, parseCitationKeys } from "./citations";
+import {
+  citationContextAtPosition,
+  citationKeysAtPosition,
+  citationPageFromLocator,
+  createCitationInsertion,
+  parseCitationKeys,
+} from "./citations";
 import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHistoryAction } from "./editor-history";
 import { loadMarkdownRuntime } from "./markdown-runtime";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
@@ -5028,7 +5034,7 @@ class WorkspaceApp {
       activePdfPublications.length > 1
         ? "Choose reference to cite"
         : activePdfPublications.length === 1
-          ? "Cite linked reference"
+          ? "Cite current page"
           : "Identify before citing";
     if (activeTab) {
       const panel =
@@ -5473,23 +5479,31 @@ class WorkspaceApp {
     if (!citation) return;
     const key = parseCitationKeys(citation.dataset.citation ?? "")[0];
     const publication = key ? this.#publicationByCitationKey(key) : undefined;
-    if (publication) this.#openPublicationContext(publication);
+    if (publication) this.#navigateToCitation(publication, citation.dataset.locator);
     else this.#showToast(`No publication resource is available for ${key ?? "this citation"}.`);
   }
 
   #openCitationAtCaret(): void {
-    const keys = citationKeysAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd);
-    if (keys.length === 0) {
+    const citation = citationContextAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd);
+    if (!citation) {
       this.#showToast("Place the cursor inside a citation directive first.");
       return;
     }
-    if (keys.length > 1) {
+    if (citation.keys.length > 1) {
       this.#showToast("Open this grouped citation from Preview to choose a reference.");
       return;
     }
-    const publication = this.#publicationByCitationKey(keys[0] ?? "");
-    if (publication) this.#openPublicationContext(publication);
-    else this.#showToast(`No publication resource is available for ${keys[0]}.`);
+    const publication = this.#publicationByCitationKey(citation.keys[0] ?? "");
+    if (publication) this.#navigateToCitation(publication, citation.locator);
+    else this.#showToast(`No publication resource is available for ${citation.keys[0]}.`);
+  }
+
+  #navigateToCitation(publication: PublicationResource, locator: string | undefined): void {
+    const page = citationPageFromLocator(locator);
+    const links = this.#snapshot?.publicationPdfLinks.filter((link) => link.publicationId === publication.id) ?? [];
+    const pdf = links.length === 1 ? this.#snapshot?.pdfs.find((item) => item.id === links[0]?.pdfId) : undefined;
+    if (page && pdf) void this.#showPaper(pdf, page);
+    else this.#openPublicationContext(publication);
   }
 
   #publicationByCitationKey(citationKey: string): PublicationResource | undefined {
@@ -5562,16 +5576,16 @@ class WorkspaceApp {
     if (tab?.kind !== "pdf" || !this.#snapshot) return;
     const links = this.#snapshot.publicationPdfLinks.filter((link) => link.pdfId === tab.id);
     const publication = links.length === 1 ? this.#snapshot.publications.find((item) => item.id === links[0]?.publicationId) : undefined;
-    if (publication) this.#insertPublicationCitation(publication);
+    if (publication) this.#insertPublicationCitation(publication, `p. ${tab.page}`);
   }
 
-  #insertPublicationCitation(publication: PublicationResource): void {
+  #insertPublicationCitation(publication: PublicationResource, locator?: string): void {
     const index = this.#resolvedAuthoringCaret();
     if (index === null) {
       this.#showToast("Place the manuscript caret before inserting a citation.");
       return;
     }
-    const insertion = createCitationInsertion(this.#activeFileText.toString(), index, publication.citationKey);
+    const insertion = createCitationInsertion(this.#activeFileText.toString(), index, publication.citationKey, locator);
     if (!insertion) {
       this.#showToast("This reference key cannot be represented by citation syntax.");
       return;
@@ -5582,7 +5596,7 @@ class WorkspaceApp {
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
     this.#rememberAuthoringSelection();
-    this.#showToast(`Inserted :cite[${publication.citationKey}] into canonical Markdown.`);
+    this.#showToast(`Inserted :cite[${publication.citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
   }
 
   async #linkActivePublicationPdf(event: SubmitEvent): Promise<void> {

@@ -1796,6 +1796,19 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   expect(await page.locator("#paper-reader").evaluate((element) => element.scrollTop)).toBe(pdfPosition);
   contextMutations.length = 0;
 
+  await page.locator("#cite-active-pdf").click();
+  await expect(editor).toHaveValue(`${source} :cite[merton1942]{locator="p. 2"}`);
+  await expect(page.locator("#preview .semantic-citation[data-citation='merton1942'][data-locator='p. 2']")).toHaveCount(1);
+  await page.getByRole("tab", { name: "context-paper.pdf" }).click();
+  await page.locator("#previous-paper-page").click();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.getByRole("tab", { name: "Preview" }).click();
+  await page
+    .locator("#preview .semantic-citation[data-citation='merton1942'][data-locator='p. 2']")
+    .evaluate((element: HTMLButtonElement) => element.click());
+  await expect(page.locator("#context-pdf-panel")).toBeVisible();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+
   await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
   await page.getByRole("tab", { name: "Preview" }).focus();
   await page.keyboard.press("End");
@@ -1806,7 +1819,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   expect(contextMutations).toEqual([]);
   await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
   await page.locator("#insert-context-citation").click();
-  await expect.poll(async () => ((await editor.inputValue()).match(/:cite\[merton1942\]/gu) ?? []).length).toBe(2);
+  await expect.poll(async () => ((await editor.inputValue()).match(/:cite\[merton1942\]/gu) ?? []).length).toBe(3);
   await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
   await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("button", { name: "Close The Normative Structure of Science" }).click();
@@ -1819,7 +1832,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#authoring-surface")).toBeHidden();
   await page.locator("#show-authoring-surface").click();
   await expect(page.locator("#authoring-surface")).toBeVisible();
-  await expect(editor).toHaveValue(`${source} :cite[merton1942]`);
+  await expect(editor).toHaveValue(`${source} :cite[merton1942]{locator="p. 2"} :cite[merton1942]`);
 });
 
 test("reviews DOI metadata before adding and connecting an imported paper", async ({ page }) => {

@@ -1,6 +1,6 @@
 # ADR-131: Navigate Citations by Page Locator
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-16
 
@@ -85,3 +85,15 @@ needed for page-level source verification.
 Choosing a same-page highlight by proximity, quotation similarity, or recency
 would present a heuristic as provenance and could silently open the wrong
 evidence.
+
+## Implementation
+
+- `src/client/citations.ts` reads bounded numeric page locators from citation
+  directives and inserts optional locators without changing citation identity.
+- `src/domain/markdown.ts` retains each citation group's locator as sanitized
+  data on its individual citation controls.
+- The research-context controller inserts the active project PDF page and opens
+  an exactly-one linked PDF at the first supported locator page. Other cases
+  retain publication-context navigation.
+- Unit and browser tests cover page-range parsing, safe insertion, sanitized
+  rendering, and returning from page one to a cited page two.

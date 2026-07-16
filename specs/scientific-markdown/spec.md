@@ -44,7 +44,8 @@ second Markdown dialect.
 - `::bibliography[]` places the cited-reference list at that exact manuscript
   location. Researchers author any surrounding heading as ordinary Markdown.
 - Each rendered citation id is an accessible sanitized button keyed by its
-  citation alias, so grouped citations can open one publication at a time.
+  citation alias and carrying the group's inert locator, so grouped citations
+  can open one publication at a time and page navigation can remain derived.
 - The authoring toolbar exposes labelled insertion templates for citations,
   cross-references, anchors, footnotes, links, and `::include[path]`. Insertion
   teaches and writes canonical Markdown syntax; it does not introduce an
@@ -86,6 +87,8 @@ second Markdown dialect.
       navigation, validation, history rewrites, and every publication output.
 - [x] Rendered citation buttons open stable publication context without
       mutating canonical Markdown or the bibliography.
+- [x] Rendered citation buttons retain sanitized locator data for local PDF-page
+      navigation without exposing project-only evidence identities.
 - [x] Heading, alias, anchor, and custom reference targets resolve.
 - [x] An explicit bibliography marker renders cited references in preview and
       publication outputs without printing directive syntax.

@@ -21,10 +21,9 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                                                 | Status   | Summary                                                                                  |
-| ------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md)                           | Proposed | Template for drafting future ADRs.                                                       |
-| [ADR-131](./proposed/ADR-131-navigate-citations-by-page-locator.md) | Proposed | Insert page locators from project PDFs and use them for unambiguous citation navigation. |
+| ADR                                       | Status   | Summary                            |
+| ----------------------------------------- | -------- | ---------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
 
 ## Accepted ADRs
 
@@ -154,6 +153,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-128](./implemented/ADR-128-adopt-xstate-for-bounded-ui-workflows.md)             | Implemented          | Use XState for bounded event-driven browser workflows rather than as a global application store.             |
 | [ADR-129](./implemented/ADR-129-codify-a-thin-internal-design-system.md)              | Implemented          | Codify foundations, primitives, state contracts, and typed icons without a component framework.              |
 | [ADR-130](./implemented/ADR-130-emit-quality-gate-progress.md)                        | Implemented          | Report full-gate phase transitions and heartbeats without changing its fail-fast sequence.                   |
+| [ADR-131](./implemented/ADR-131-navigate-citations-by-page-locator.md)                | Implemented          | Insert page locators from project PDFs and use them for unambiguous citation navigation.                     |
 
 ## Creating A New ADR
 

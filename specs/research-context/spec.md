@@ -129,10 +129,13 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - `PublicationPdfLink` is a stable, durable, workspace-scoped many-to-many
   association with a unique publication/PDF pair. It projects `has-artifact`
   from publication to PDF in workspace knowledge navigation.
-- Opening a citation or publication focuses its publication context. That view
-  lists zero, one, or several explicitly linked PDFs; selecting one opens its
-  resource-keyed PDF tab. With no link, publication metadata remains useful and
-  the view presents an honest unlinked state rather than a broken viewer.
+- Opening a citation with a supported numeric page locator and exactly one
+  explicitly linked PDF opens or focuses that PDF at the locator's first page.
+  Other citations and direct publication navigation focus publication context.
+  That view lists zero, one, or several explicitly linked PDFs; selecting one
+  opens its resource-keyed PDF tab. With no link, publication metadata remains
+  useful and the view presents an honest unlinked state rather than a broken
+  viewer.
 - An imported PDF with no publication link remains a usable standalone PDF
   context. Linking or unlinking it is explicit and never deletes the PDF,
   publication, or annotations.
@@ -178,7 +181,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   visible artifact. Saving the draft remains an explicit durable action.
 - Reference intake is folded by default because identification is a distinct
   research task. A PDF with exactly one linked publication exposes a labelled
-  citation action beside evidence capture; linking a highlight to selected
+  citation action beside evidence capture. It inserts the current one-based PDF
+  page as a conventional `p. N` locator; linking a highlight to selected
   manuscript prose remains a separate labelled save action.
 - Citing a visible publication requires an explicit command and a valid current
   remembered Yjs-relative editor insertion point. If no safe insertion point
@@ -259,6 +263,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
       separate PDF reading proportion.
 - [x] Citation and annotation navigation focus the appropriate publication,
       PDF evidence, or resolved manuscript passage.
+- [x] Citing from an identified project PDF inserts its current page as a
+      portable locator, and activating an unambiguous numeric locator returns to
+      that PDF page.
 - [x] A publication context lists all explicitly linked PDF artifacts, supports
       explicit link/unlink actions, and remains useful when none are linked.
 - [x] Publication/PDF associations appear as typed `has-artifact` connections
@@ -340,8 +347,17 @@ changing their canonical data, selector, authorization, or rendering contracts.
 
 - Given: the manuscript references a known stable publication
 - When: the researcher opens that citation
-- Then: Kirjolab activates one publication tab and offers any related PDFs as
-  explicit resource actions without changing the manuscript or library
+- Then: Kirjolab opens its sole linked PDF at a supported cited page, or
+  activates publication context when the artifact or page is ambiguous,
+  without changing the manuscript or library
+
+**Scenario: Visible PDF page becomes a citation locator**
+
+- Given: a project PDF has exactly one linked publication and the manuscript has
+  a remembered caret
+- When: the researcher cites the PDF from page 270
+- Then: Kirjolab inserts an ordinary `:cite` directive with `locator="p. 270"`
+  into canonical Markdown
 
 **Scenario: Evidence remains in place while writing**
 
