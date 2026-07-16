@@ -565,14 +565,33 @@
   }
 
   .manuscript-map-summary > span {
+    display: grid;
+    min-width: 0;
+    align-content: center;
+    justify-items: center;
+    gap: 0.15rem;
     background: var(--color-app-surface);
     padding: 0.65rem 0.35rem;
     color: var(--color-app-text-soft);
     font-family: var(--font-sans);
-    font-size: 0.62rem;
     font-weight: 800;
     text-align: center;
     text-transform: uppercase;
+  }
+
+  .manuscript-map-summary > span > strong {
+    color: var(--color-app-ink);
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  .manuscript-map-summary > span > small {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 0.55rem;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .manuscript-map-item {

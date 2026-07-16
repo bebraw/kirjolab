@@ -9541,7 +9541,11 @@ function statusText(value: string): HTMLParagraphElement {
 
 function manuscriptMapMetric(value: number, label: string): HTMLSpanElement {
   const metric = document.createElement("span");
-  metric.textContent = `${value} ${label}`;
+  const count = document.createElement("strong");
+  count.textContent = value.toLocaleString();
+  const description = document.createElement("small");
+  description.textContent = label;
+  metric.append(count, description);
   return metric;
 }
 

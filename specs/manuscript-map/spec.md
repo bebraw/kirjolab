@@ -13,6 +13,8 @@ review cues visible without claiming to judge scientific validity.
 - The domain analyzer derives a map from composed Markdown and retains exact source ranges.
 - The Writing guide rail navigates each item back to authored source.
 - Maps and cues are disposable browser state and never enter collaboration history.
+- Summary metrics use one consistent value-over-label hierarchy so words,
+  sections, and citations remain aligned at constrained rail widths.
 
 ### Anti-Patterns
 
@@ -27,6 +29,8 @@ review cues visible without claiming to judge scientific validity.
 - [x] The guide shows heading hierarchy, section word counts, and citation counts.
 - [x] It identifies heading jumps, placeholders, and single-sentence paragraphs.
 - [x] Every visible item can focus its exact current source range.
+- [x] Summary metrics keep equal typography and alignment without incidental
+      label wrapping.
 
 ### Regression Guardrails
 
