@@ -279,6 +279,12 @@ function githubErrorResponse(error: unknown): Response {
                 : 502;
     return jsonError(safeGitHubErrorMessage(error.code), status, error.code);
   }
+  console.error(
+    JSON.stringify({
+      event: "github-sync-unexpected-error",
+      error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : { type: typeof error },
+    }),
+  );
   return jsonError("GitHub sync failed", 500);
 }
 

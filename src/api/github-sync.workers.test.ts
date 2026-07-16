@@ -103,6 +103,46 @@ describe("GitHub sync API in the Workers runtime", () => {
     );
     expect(response.status).toBe(409);
   });
+
+  it("logs unexpected failures without request or credential data", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const client: GitHubSyncRemoteClient = {
+      async readMarkdownSnapshot(): Promise<GitHubRepositorySnapshot> {
+        throw new TypeError("Durable Object preview failed");
+      },
+      async createCommit(): Promise<string> {
+        throw new Error("Not used");
+      },
+    };
+
+    try {
+      const response = await handleGitHubImportApi(
+        jsonRequest("http://example.com/api/github/import-previews", {
+          installationId: 7,
+          owner: "private-owner",
+          repository: "private-repository",
+          branch: "main",
+          rootPath: "book",
+        }),
+        env,
+        identity,
+        client,
+      );
+
+      expect(response.status).toBe(500);
+      await expect(response.json()).resolves.toEqual({ error: "GitHub sync failed" });
+      expect(errorLog).toHaveBeenCalledOnce();
+      const logged = String(errorLog.mock.calls[0]?.[0]);
+      expect(JSON.parse(logged)).toMatchObject({
+        event: "github-sync-unexpected-error",
+        error: { name: "TypeError", message: "Durable Object preview failed" },
+      });
+      expect(logged).not.toContain("private-owner");
+      expect(logged).not.toContain("private-repository");
+    } finally {
+      errorLog.mockRestore();
+    }
+  });
 });
 
 class FakeGitHubClient implements GitHubSyncRemoteClient {
