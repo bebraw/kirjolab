@@ -191,7 +191,9 @@ incoming and outgoing mutation.
 - **Workers tests:** Owner authorization, binding migrations, exact base
   retention, atomic pull application through Yjs, logical revision creation,
   typed failure results, and ambiguous external-write reconciliation with a
-  deterministic fake GitHub client.
+  deterministic fake GitHub client. GitHub API route modules are excluded from
+  the Node-only V8 coverage aggregate because their coverage authority is the
+  Workers-runtime suite.
 - **Browser tests:** Installation/repository/folder and optional entry selection,
   deterministic entry fallback, incoming and outgoing diff review, conflict blocking,
   direct Publish confirmation, stale preview recovery, and disconnected state.
