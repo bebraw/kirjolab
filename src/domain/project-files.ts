@@ -1,3 +1,5 @@
+import { projectMarkdownComments } from "./markdown-comments";
+
 export const projectEntryPath = "main.md";
 
 export interface ProjectFile {
@@ -239,7 +241,7 @@ export function resolveProjectPath(fromPath: string, includePath: string): strin
 
 export function inboundProjectIncludes(files: readonly ProjectFile[], targetPath: string): readonly ProjectFile[] {
   return files.filter((file) => {
-    for (const match of file.content.matchAll(includeLine)) {
+    for (const match of projectMarkdownComments(file.content).masked.matchAll(includeLine)) {
       const requested = match.groups?.path?.trim();
       if (requested && resolveProjectPath(file.path, requested) === targetPath) return true;
     }
@@ -248,10 +250,8 @@ export function inboundProjectIncludes(files: readonly ProjectFile[], targetPath
 }
 
 export function rewriteInboundProjectIncludes(file: ProjectFile, previousPath: string, nextPath: string): string {
-  return file.content.replace(includeLine, (directive, ...values: unknown[]) => {
-    const groups = values.at(-1);
-    if (!isStringRecord(groups)) return directive;
-    const requested = groups.path?.trim();
+  return replaceActiveMarkdown(file.content, includeLine, (directive, match) => {
+    const requested = match.groups?.path?.trim();
     if (!requested || resolveProjectPath(file.path, requested) !== previousPath) return directive;
     return directive.replace(requested, relativeProjectPath(file.path, nextPath));
   });
@@ -259,10 +259,8 @@ export function rewriteInboundProjectIncludes(file: ProjectFile, previousPath: s
 
 export function rewriteProjectIncludesForMoves(file: ProjectFile, movedPaths: ReadonlyMap<string, string>): string {
   const nextFilePath = movedPaths.get(file.path) ?? file.path;
-  return file.content.replace(includeLine, (directive, ...values: unknown[]) => {
-    const groups = values.at(-1);
-    if (!isStringRecord(groups)) return directive;
-    const requested = groups.path?.trim();
+  return replaceActiveMarkdown(file.content, includeLine, (directive, match) => {
+    const requested = match.groups?.path?.trim();
     if (!requested) return directive;
     const previousTargetPath = resolveProjectPath(file.path, requested);
     if (!previousTargetPath) return directive;
@@ -274,20 +272,21 @@ export function rewriteProjectIncludesForMoves(file: ProjectFile, movedPaths: Re
 
 export function rewriteProjectImageReferencesForMoves(file: ProjectFile, movedPaths: ReadonlyMap<string, string>): string {
   const nextFilePath = movedPaths.get(file.path) ?? file.path;
-  return file.content.replace(
+  return replaceActiveMarkdown(
+    file.content,
     /!\[[^\]\r\n]*\]\((?<target><[^>\r\n]+>|[^\s)\r\n]+)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)/gu,
-    (syntax, ...values: unknown[]) => {
-      const groups = values.at(-1);
-      if (!isStringRecord(groups) || !groups.target) return syntax;
-      const bracketed = groups.target.startsWith("<") && groups.target.endsWith(">");
-      const requested = bracketed ? groups.target.slice(1, -1) : groups.target;
+    (syntax, match) => {
+      const target = match.groups?.target;
+      if (!target) return syntax;
+      const bracketed = target.startsWith("<") && target.endsWith(">");
+      const requested = bracketed ? target.slice(1, -1) : target;
       if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return syntax;
       const previousTargetPath = resolveProjectPath(file.path, requested);
       if (!previousTargetPath) return syntax;
       const nextTargetPath = movedPaths.get(previousTargetPath) ?? previousTargetPath;
       if (nextFilePath === file.path && nextTargetPath === previousTargetPath) return syntax;
       const nextReference = relativeProjectPath(nextFilePath, nextTargetPath);
-      return syntax.replace(groups.target, bracketed ? `<${nextReference}>` : nextReference);
+      return syntax.replace(target, bracketed ? `<${nextReference}>` : nextReference);
     },
   );
 }
@@ -303,18 +302,18 @@ export function relativeProjectPath(fromPath: string, toPath: string): string {
 }
 
 export function rewriteProjectCitationAlias(content: string, previousAlias: string, nextAlias: string): string {
-  return content.replaceAll(/:(?<name>cite|citet|citep)\[(?<keys>[^\]\r\n]+)\]/gu, (directive, ...values: unknown[]) => {
-    const groups = values.at(-1);
-    if (!isStringRecord(groups) || !groups.keys) return directive;
-    const keys = groups.keys.split(",").map((key) => key.trim());
+  return replaceActiveMarkdown(content, /:(?<name>cite|citet|citep)\[(?<keys>[^\]\r\n]+)\]/gu, (directive, match) => {
+    const keysValue = match.groups?.keys;
+    if (!keysValue) return directive;
+    const keys = keysValue.split(",").map((key) => key.trim());
     if (!keys.includes(previousAlias)) return directive;
-    return `:${groups.name ?? "cite"}[${keys.map((key) => (key === previousAlias ? nextAlias : key)).join(", ")}]`;
+    return `:${match.groups?.name ?? "cite"}[${keys.map((key) => (key === previousAlias ? nextAlias : key)).join(", ")}]`;
   });
 }
 
 export function projectUsesCitationAlias(files: readonly ProjectFile[], alias: string): boolean {
   return files.some((file) =>
-    [...file.content.matchAll(/:(?:cite|citet|citep)\[(?<keys>[^\]\r\n]+)\]/gu)].some((match) =>
+    [...projectMarkdownComments(file.content).masked.matchAll(/:(?:cite|citet|citep)\[(?<keys>[^\]\r\n]+)\]/gu)].some((match) =>
       (match.groups?.keys ?? "")
         .split(",")
         .map((key) => key.trim())
@@ -361,7 +360,7 @@ function expand(
   const prepared = isEntry ? { content: file.content, sourceOffset: 0 } : stripFrontmatter(file.content);
   const { content, sourceOffset } = prepared;
   let cursor = 0;
-  for (const match of content.matchAll(includeLine)) {
+  for (const match of projectMarkdownComments(content).masked.matchAll(includeLine)) {
     const index = match.index;
     append(file, content, cursor, index, sourceOffset, chain, state, limits);
     if (state.stopped) return;
@@ -467,6 +466,15 @@ function compareProjectPaths(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function isStringRecord(value: unknown): value is Record<string, string | undefined> {
-  return typeof value === "object" && value !== null;
+function replaceActiveMarkdown(source: string, pattern: RegExp, replacement: (syntax: string, match: RegExpMatchArray) => string): string {
+  const chunks: string[] = [];
+  let cursor = 0;
+  for (const match of projectMarkdownComments(source).masked.matchAll(pattern)) {
+    const from = match.index;
+    const to = from + match[0].length;
+    chunks.push(source.slice(cursor, from), replacement(source.slice(from, to), match));
+    cursor = to;
+  }
+  chunks.push(source.slice(cursor));
+  return chunks.join("");
 }

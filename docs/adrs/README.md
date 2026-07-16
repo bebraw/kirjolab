@@ -156,6 +156,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-130](./implemented/ADR-130-emit-quality-gate-progress.md)                        | Implemented          | Report full-gate phase transitions and heartbeats without changing its fail-fast sequence.                   |
 | [ADR-131](./implemented/ADR-131-navigate-citations-by-page-locator.md)                | Implemented          | Insert page locators from project PDFs and use them for unambiguous citation navigation.                     |
 | [ADR-133](./implemented/ADR-133-resolve-optional-project-entry-files.md)              | Implemented          | Resolve an omitted project entry to `main.md` or the first Markdown path, then persist its identity.         |
+| [ADR-135](./implemented/ADR-135-add-inert-markdown-comment-blocks.md)                 | Implemented          | Preserve portable block comments while excluding them from every derived manuscript surface.                 |
 
 ## Creating A New ADR
 

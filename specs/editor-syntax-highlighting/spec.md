@@ -32,6 +32,7 @@ preserving the native collaborative textarea and exact source text.
 - Links, emphasis, heading anchors, and footnote references
 - Citation (`:cite`, `:citet`, and `:citep`) and cross-reference directives
 - Block directives, list markers, and quote markers
+- Complete `::: comment` blocks, with inner Markdown left uninterpreted
 
 ### Anti-Patterns
 

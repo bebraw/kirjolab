@@ -1,3 +1,5 @@
+import { projectMarkdownComments } from "../domain/markdown-comments";
+
 export interface IncludeCompletionContext {
   readonly query: string;
   readonly start: number;
@@ -12,7 +14,7 @@ export interface IncludeCompletionCandidate {
 export function includeCompletionContext(source: string, position: number): IncludeCompletionContext | null {
   const caret = Math.max(0, Math.min(position, source.length));
   const lineStart = Math.max(source.lastIndexOf("\n", caret - 1), source.lastIndexOf("\r", caret - 1)) + 1;
-  const before = source.slice(lineStart, caret);
+  const before = projectMarkdownComments(source).masked.slice(lineStart, caret);
   const match = /^[ \t]*::include\[([^\]\r\n]*)$/u.exec(before);
   if (!match) return null;
   const token = match[1] ?? "";

@@ -54,6 +54,45 @@ describe("source-mapped export pipeline", () => {
     });
   });
 
+  it("omits comments from publication content, citations, and word counts", () => {
+    const bundle = buildExportBundle({
+      title: "Commented draft",
+      files: [
+        file(
+          "main",
+          "main.md",
+          `# Study
+Visible words.
+
+::: comment
+Hidden draft words :cite[private].
+:::
+
+Published ending.
+`,
+        ),
+      ],
+      entryFileId: "main",
+      bibliography: "@article{private, title={Private source}}",
+    });
+
+    expect(bundle.intermediate.markdown).not.toContain("Hidden draft words");
+    expect(bundle.intermediate.citationKeys).toEqual([]);
+    expect(bundle.intermediate.statistics.totalWords).toBe(5);
+    expect(bundle.mainTex).not.toContain("Hidden draft words");
+    expect(bundle.mainTex).toContain("Published ending.");
+
+    const unclosed = buildExportBundle({
+      title: "Unclosed",
+      files: [file("main", "main.md", "Visible\n::: comment\nHidden")],
+      entryFileId: "main",
+      bibliography: "",
+    });
+    expect(unclosed.intermediate.diagnostics).toEqual([
+      expect.objectContaining({ code: "unclosed-comment", path: "main.md", line: 2, severity: "error" }),
+    ]);
+  });
+
   it("returns authored composition diagnostics and refuses invalid artifacts", () => {
     const bundle = buildExportBundle({
       title: "Broken",

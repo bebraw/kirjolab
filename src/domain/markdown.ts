@@ -2,6 +2,7 @@ import type { Element as HastElement, ElementContent as HastElementContent, Root
 import type { Schema } from "hast-util-sanitize";
 import type { Directives } from "mdast-util-directive";
 import type { Heading, Html, Root as MdastRoot, RootContent as MdastRootContent } from "mdast";
+import type { Node, Parent } from "unist";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeStringify from "rehype-stringify";
 import remarkDirective from "remark-directive";
@@ -19,6 +20,7 @@ import {
   type PublicationCitationEntry,
 } from "./scholarly-export";
 import type { CitationStyle } from "./workspace";
+import { projectMarkdownComments, type MarkdownCommentRange } from "./markdown-comments";
 
 export interface Diagnostic {
   severity: "error" | "warning";
@@ -124,10 +126,23 @@ export function renderWorkspaceMarkdown(
   citationStyle: CitationStyle = "apa",
 ): RenderedDocument {
   const normalized = source.replaceAll("\r\n", "\n");
+  const comments = projectMarkdownComments(normalized);
   const bibliography = parseBibliography(bibliographySource);
-  const citedIds = collectCitationIds(normalized);
-  const references = collectReferences(normalized);
-  const diagnostics = validateSyntax(normalized, bibliography, references);
+  const citedIds = collectCitationIds(comments.masked);
+  const references = collectReferences(comments.masked);
+  const diagnostics = [
+    ...(comments.unclosedFrom === null
+      ? []
+      : [
+          {
+            severity: "error" as const,
+            message: "Comment block is not closed",
+            from: comments.unclosedFrom,
+            to: normalized.indexOf("\n", comments.unclosedFrom) < 0 ? normalized.length : normalized.indexOf("\n", comments.unclosedFrom),
+          },
+        ]),
+    ...validateSyntax(comments.masked, bibliography, references),
+  ];
 
   try {
     const result = unified()
@@ -135,6 +150,7 @@ export function renderWorkspaceMarkdown(
       .use(remarkGfm)
       .use(remarkFrontmatter, ["yaml", "toml"])
       .use(remarkDirective)
+      .use(removeMarkdownComments)
       .use(escapeAuthoredHtml)
       .use(readHeadingAttributes)
       .use(renderSemanticDirectives, { bibliography, citedIds, references, citationStyle })
@@ -159,6 +175,48 @@ export function renderWorkspaceMarkdown(
       ],
     };
   }
+}
+
+function removeMarkdownComments() {
+  return (tree: MdastRoot, file: { value: unknown }): void => {
+    const source = String(file.value);
+    pruneCommentChildren(tree, projectMarkdownComments(source).ranges, source);
+  };
+}
+
+function pruneCommentChildren(parent: Parent, ranges: readonly MarkdownCommentRange[], source: string): void {
+  parent.children = parent.children.flatMap((child) => pruneCommentNode(child, ranges, source));
+}
+
+function pruneCommentNode(node: Node, ranges: readonly MarkdownCommentRange[], source: string): Node[] {
+  const from = node.position?.start.offset;
+  const to = node.position?.end.offset;
+  if (from === undefined || to === undefined) return [node];
+  if (ranges.some((range) => from >= range.from && to <= range.to)) return [];
+  const overlapping = ranges.filter((range) => range.from < to && range.to > from);
+  if (overlapping.length === 0) return [node];
+  if (isParent(node)) {
+    pruneCommentChildren(node, overlapping, source);
+    return node.children.length > 0 ? [node] : [];
+  }
+  if (!isValueNode(node) || source.slice(from, to) !== node.value) return [];
+  let cursor = from;
+  const visible: string[] = [];
+  for (const range of overlapping) {
+    if (range.from > cursor) visible.push(source.slice(cursor, Math.min(range.from, to)));
+    cursor = Math.max(cursor, range.to);
+  }
+  if (cursor < to) visible.push(source.slice(cursor, to));
+  node.value = visible.join("");
+  return node.value ? [node] : [];
+}
+
+function isParent(node: Node): node is Parent {
+  return "children" in node && Array.isArray(node.children);
+}
+
+function isValueNode(node: Node): node is Node & { value: string } {
+  return "value" in node && typeof node.value === "string";
 }
 
 export function parseBibliography(source: string): Map<string, BibliographyEntry> {
@@ -469,7 +527,7 @@ function validateReferenceDeclarations(source: string): Diagnostic[] {
       } else if (bibliographyMarkers > 1) diagnostics.push(toDiagnostic("Duplicate bibliography marker", match));
     } else if (kind !== "alias" && kind !== "anchor") diagnostics.push(toDiagnostic(`Unsupported leaf directive: ::${kind}`, match));
   }
-  for (const match of source.matchAll(/^:::([a-z][a-z-]*)\b.*$/gimu)) {
+  for (const match of source.matchAll(/^:::[ \t]*([a-z][a-z-]*)\b.*$/gimu)) {
     diagnostics.push(toDiagnostic(`Unsupported container directive: :::${match[1]?.toLowerCase() ?? ""}`, match));
   }
   for (const heading of source.matchAll(/\{#([a-zA-Z0-9:_-]+)\}/gu)) {

@@ -1114,6 +1114,31 @@ test("styles rendered Markdown headings in descending size order", async ({ page
   expect(headingFontSizes[2]).toBeGreaterThan(headingFontSizes[3]!);
 });
 
+test("keeps Markdown comment blocks in source and out of publication", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Markdown comments workspace");
+  const api = `/api/workspaces/${workspaceId}`;
+  const source = `## Visible
+
+::: comment
+## Hidden draft
+::include[missing.md]
+:cite[missing]
+:::
+
+Published ending.
+`;
+  await page.goto(`/workspaces/${workspaceId}`);
+  await page.locator("#source-editor").fill(source);
+
+  await expect(page.locator("#source-editor")).toHaveValue(source);
+  await expect(page.locator("#source-editor-highlight .markdown-token-comment").filter({ hasText: "Hidden draft" })).toBeVisible();
+  await expect(page.locator("#preview")).toContainText("Visible");
+  await expect(page.locator("#preview")).toContainText("Published ending.");
+  await expect(page.locator("#preview")).not.toContainText("Hidden draft");
+  await expect.poll(async () => (await page.request.get(`${api}/export/document.md`)).status()).toBe(200);
+  expect(await (await page.request.get(`${api}/export/document.md`)).text()).not.toContain("Hidden draft");
+});
+
 test("maps broken export composition back to authored source without losing recovery output", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Broken export diagnostics");
   const api = `/api/workspaces/${workspaceId}`;

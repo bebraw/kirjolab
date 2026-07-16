@@ -79,6 +79,18 @@ A claim with a note.[^detail]
 
 YAML or TOML frontmatter is accepted at the beginning of \`main.md\` and hidden from preview. Frontmatter in included files is ignored during composition.
 
+### Comments
+
+Use a comment block for draft notes that should remain in the Markdown source without appearing in preview or publication output. The opening and closing markers must each occupy their own line.
+
+~~~markdown
+::: comment
+This note remains in source and history, but is not published.
+:::
+~~~
+
+Commented content is ignored by includes, citations, cross-references, word counts, and exports. Comment blocks do not nest, and an opening marker without a closing \`:::\` produces a diagnostic.
+
 ### Citations
 
 Citation keys come from references linked to the project. Separate multiple keys with commas.

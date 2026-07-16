@@ -78,6 +78,35 @@ describe("project composition", () => {
     ]);
   });
 
+  it("keeps comment contents inert during composition and path rewrites", () => {
+    const main = file(
+      "main",
+      "main.md",
+      `::: comment
+::include[missing.md]
+:cite[old] ![Draft](images/old.png)
+:::
+::include[chapter.md]
+`,
+    );
+    const chapter = file("chapter", "chapter.md", "Published chapter\n");
+    const composition = composeProject([main, chapter], "main");
+
+    expect(composition.content).toBe(`::: comment
+::include[missing.md]
+:cite[old] ![Draft](images/old.png)
+:::
+Published chapter
+`);
+    expect(composition.diagnostics).toEqual([]);
+    expect(composition.dependencies).toEqual({ main: ["chapter"] });
+    expect(inboundProjectIncludes([main], "missing.md")).toEqual([]);
+    expect(projectUsesCitationAlias([main], "old")).toBe(false);
+    expect(rewriteProjectCitationAlias(main.content, "old", "new")).toBe(main.content);
+    expect(rewriteProjectIncludesForMoves(main, new Map([["missing.md", "moved.md"]]))).toBe(main.content);
+    expect(rewriteProjectImageReferencesForMoves(main, new Map([["images/old.png", "images/new.png"]]))).toBe(main.content);
+  });
+
   it("previews main as the composition and a supporting file in isolation", () => {
     const files = [
       file("main", "main.md", "Root\n::include[sections/method.md]\n"),

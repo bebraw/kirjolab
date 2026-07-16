@@ -3,6 +3,7 @@ import { composeProject, type CompositionDiagnostic, type CompositionSourceSpan,
 import { publicationWordStatistics, type PublicationWordStatistics } from "./publication-statistics";
 import { defaultProjectPublicationProfile, type ProjectPublicationProfile } from "./workspace";
 import { resolveSubmissionTemplate } from "./submission-templates";
+import { projectMarkdownComments } from "./markdown-comments";
 import {
   isPublicationBibliographyDirective,
   isPublicationReferenceDeclaration,
@@ -95,19 +96,33 @@ export function buildExportBundle(input: ExportPipelineInput): MaterializedExpor
   const entry = input.files.find((file) => file.id === input.entryFileId);
   if (!entry) throw new Error("The project entry file does not exist");
   const composition = composeProject(input.files, input.entryFileId);
-  const citationKeys = citedAliases(composition.content);
+  const comments = projectMarkdownComments(composition.content);
+  const publicationComposition = { ...composition, content: comments.masked };
+  const citationKeys = citedAliases(publicationComposition.content);
   const bibliography = citedBibliography(input.bibliography, citationKeys);
   const publicationProfile = input.publicationProfile ?? defaultProjectPublicationProfile;
   const intermediate: SourceMappedIntermediate = {
     schemaVersion: exportSchemaVersion,
     title: input.title.trim() || "Untitled project",
-    markdown: composition.content,
+    markdown: publicationComposition.content,
     citationKeys,
     bibliography,
     publicationProfile,
     sourceMap: composition.sourceMap,
-    diagnostics: composition.diagnostics.map((diagnostic) => exportDiagnostic(diagnostic, input.files)),
-    statistics: publicationWordStatistics(composition, input.files),
+    diagnostics: [
+      ...composition.diagnostics.map((diagnostic) => exportDiagnostic(diagnostic, input.files)),
+      ...(comments.unclosedFrom === null
+        ? []
+        : [
+            {
+              ...sourceLocationAt(composition.sourceMap, input.files, comments.unclosedFrom, "::: comment".length),
+              code: "unclosed-comment",
+              message: "Comment block is not closed",
+              severity: "error" as const,
+            },
+          ]),
+    ],
+    statistics: publicationWordStatistics(publicationComposition, input.files),
   };
   const latex = materializeLatex(intermediate, input.files, entry.path);
   return {

@@ -71,6 +71,10 @@ files.
   extensions. Publication-facing LaTeX and PDF must never print supported
   `::include`, `::alias`, `::anchor`, `::bibliography`, `:ref`, `:cite`, `:citet`, or `:citep`
   syntax or its attribute block as prose.
+- Publication-facing Markdown, statistics, LaTeX, and PDF replace standalone
+  comment blocks with offset-preserving whitespace. Archival source ZIPs retain
+  the canonical comment text. Unclosed comments block normal publication
+  artifacts with a source-mapped diagnostic.
 
 ## User Interface
 

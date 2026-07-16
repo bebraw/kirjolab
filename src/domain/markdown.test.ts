@@ -167,6 +167,34 @@ A statement with detail.[^detail]
     expect(rendered.html).toContain('data-footnotes class="footnotes"');
   });
 
+  it("omits comment blocks and ignores their Markdown semantics", () => {
+    const rendered = renderWorkspaceMarkdown(
+      `## Visible
+
+::: comment
+## Hidden {#hidden}
+Unpublished :cite[missing] and :unknown[value].
+:::
+
+After the comment.`,
+      "",
+    );
+
+    expect(rendered.diagnostics).toEqual([]);
+    expect(rendered.html).toContain("Visible");
+    expect(rendered.html).toContain("After the comment.");
+    expect(rendered.html).not.toContain("Hidden");
+    expect(rendered.html).not.toContain("Unpublished");
+    expect(rendered.html).not.toContain('id="hidden"');
+  });
+
+  it("diagnoses an unclosed comment without rendering its contents", () => {
+    const rendered = renderWorkspaceMarkdown("Before\n\n::: comment\nHidden", "");
+    expect(rendered.diagnostics).toEqual([{ severity: "error", message: "Comment block is not closed", from: 8, to: 19 }]);
+    expect(rendered.html).toContain("Before");
+    expect(rendered.html).not.toContain("Hidden");
+  });
+
   it("validates unsupported directives and alias-heading mismatches", () => {
     const source = `::unknown[value]
 :::unknown

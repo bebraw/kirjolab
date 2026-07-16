@@ -120,4 +120,18 @@ title: Evidence
       { text: "\n", kind: null },
     ]);
   });
+
+  it("styles complete comment blocks without interpreting their contents", () => {
+    const source = "Before\n::: comment\n## Hidden :cite[source]\n:::\nAfter\n";
+    const segments = highlightMarkdown(source);
+
+    expect(segments.map(({ text }) => text).join("")).toBe(source);
+    expect(segments.filter(({ kind }) => kind === "comment")).toEqual([
+      { text: "::: comment", kind: "comment" },
+      { text: "## Hidden :cite[source]", kind: "comment" },
+      { text: ":::", kind: "comment" },
+    ]);
+    expect(segments).not.toContainEqual({ text: "##", kind: "heading-marker" });
+    expect(segments).not.toContainEqual({ text: ":cite[source]", kind: "directive" });
+  });
 });

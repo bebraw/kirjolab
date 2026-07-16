@@ -1,5 +1,8 @@
+import { projectMarkdownComments } from "../domain/markdown-comments";
+
 export type MarkdownHighlightKind =
   | "code"
+  | "comment"
   | "directive"
   | "frontmatter"
   | "heading"
@@ -29,6 +32,7 @@ export function highlightMarkdown(source: string): readonly MarkdownHighlightSeg
   let offset = 0;
   let inFrontmatter = false;
   let inFence = false;
+  const commentRanges = projectMarkdownComments(source).ranges;
 
   for (const match of source.matchAll(/[^\r\n]*(?:\r\n|\r|\n)|[^\r\n]+$/gu)) {
     const line = match[0];
@@ -36,7 +40,10 @@ export function highlightMarkdown(source: string): readonly MarkdownHighlightSeg
     const newline = line.slice(content.length);
     const ranges: HighlightRange[] = [];
 
-    if (offset === 0 && content.trim() === "---") {
+    const comment = commentRanges.some((range) => offset < range.to && offset + content.length > range.from);
+    if (comment) {
+      ranges.push({ from: 0, to: content.length, kind: "comment" });
+    } else if (offset === 0 && content.trim() === "---") {
       inFrontmatter = true;
       ranges.push({ from: 0, to: content.length, kind: "frontmatter" });
     } else if (inFrontmatter) {

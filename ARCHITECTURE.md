@@ -40,6 +40,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat portable project Markdown and stable shared-library records as the
   canonical authored artifacts. Keep BibTeX as bounded derived interchange and
   export, not a second project-local metadata authority.
+- Preserve standalone `::: comment` blocks in canonical project Markdown while
+  treating their contents as inert in composition, semantic analysis, preview,
+  path rewrites, statistics, and publication outputs. Keep attributed
+  collaborative comments as separate durable resources.
 - Compose each paper from one persisted effective entry file through bounded,
   project-relative `::include[path]` directives. Resolve an omitted entry once
   by preferring root `main.md` and then the first normalized Markdown path;

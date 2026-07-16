@@ -25,6 +25,17 @@ describe("include completion", () => {
     expect(includeCompletionContext("::include[int]", 100)).toBeNull();
   });
 
+  it("does not complete includes inside comment blocks", () => {
+    const source = "::: comment\n::include[int\n:::\n::include[act";
+
+    expect(includeCompletionContext(source, source.indexOf("int") + 3)).toBeNull();
+    expect(includeCompletionContext(source, source.length)).toEqual({
+      query: "act",
+      start: source.length - 3,
+      end: source.length,
+    });
+  });
+
   it("ranks relative references before filename and full-path matches", () => {
     expect(rankIncludeCompletionCandidates(candidates, "../").map((candidate) => candidate.reference)).toEqual([
       "../appendices/data.md",

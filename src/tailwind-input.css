@@ -2476,6 +2476,12 @@
     color: var(--color-app-error);
   }
 
+  .markdown-token-comment {
+    color: var(--color-app-text-soft);
+    font-style: italic;
+    opacity: 0.72;
+  }
+
   .markdown-token-markup {
     color: var(--color-app-text-soft);
   }

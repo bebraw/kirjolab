@@ -29,6 +29,9 @@ collaborative, and unambiguous about what preview and export mean.
 - `::include[path]` is a block directive. It resolves relative to its including
   file and may recurse. Composition retains authored headings and accepts
   frontmatter only from the effective entry.
+- Include syntax inside a standalone `::: comment` block is inert: it creates no
+  dependency, diagnostic, expansion, or path rewrite. The canonical comment
+  text remains in composed source until the publication projection removes it.
 - The pure composition engine returns composed Markdown, diagnostics,
   dependencies, and source-map spans containing stable file ids, source ranges,
   output ranges, and include chains.

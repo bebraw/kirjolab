@@ -35,6 +35,10 @@ second Markdown dialect.
   title through lower-level sections.
 - GFM tables, strikethrough, task lists, autolinks, and footnotes.
 - YAML and TOML frontmatter is parsed but not rendered in the preview.
+- Standalone `::: comment` … `:::` blocks remain canonical source but do not
+  render or contribute headings, citations, references, or validation inside
+  the block. Markers in frontmatter and fenced code remain literal. An unclosed
+  block diagnoses and keeps the remaining source out of the preview.
 - Level-two and level-three headings receive generated section numbers.
 - Level-four headings render as unnumbered paragraph labels.
 - Explicit heading ids, `::alias`, and `::anchor` create reference targets.
@@ -94,6 +98,8 @@ second Markdown dialect.
 - [x] Heading, alias, anchor, and custom reference targets resolve.
 - [x] An explicit bibliography marker renders cited references in preview and
       publication outputs without printing directive syntax.
+- [x] Portable block comments remain visible in source and absent from preview
+      and publication semantics.
 - [x] Invalid ids, modes, directives, duplicates, and alias targets diagnose.
 - [x] Browser preview uses one versioned JavaScript runtime without WASM or a
       helper worker.
