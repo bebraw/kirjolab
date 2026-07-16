@@ -50,6 +50,7 @@ import {
   referenceToCslJson,
 } from "../domain/library-interchange";
 import { renderAnnotatedPdf } from "./annotated-pdf";
+import { downloadR2Object } from "./r2-download";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumWebRawBytes = 2 * 1024 * 1024;
@@ -251,7 +252,7 @@ export async function handleReferenceLibraryApi(
       return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
     const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})(?:\/(identify|rights|annotated))?$/iu.exec(suffix);
     if (pdfMatch?.[1] && request.method === "GET" && !pdfMatch[2]) {
-      return await downloadLibraryPdf(pdfMatch[1], env, library);
+      return await downloadLibraryPdf(request, pdfMatch[1], env, library);
     }
     if (pdfMatch?.[1] && pdfMatch[2] === "annotated" && request.method === "GET") {
       return await downloadAnnotatedLibraryPdf(pdfMatch[1], env, library);
@@ -1105,19 +1106,22 @@ async function uploadLibraryPdf(
   return Response.json(draft, { status: draft.created ? 201 : 200, ...noStore() });
 }
 
-async function downloadLibraryPdf(artifactId: string, env: ReferenceLibraryApiEnv, library: ReferenceLibraryApi): Promise<Response> {
+async function downloadLibraryPdf(
+  request: Request,
+  artifactId: string,
+  env: ReferenceLibraryApiEnv,
+  library: ReferenceLibraryApi,
+): Promise<Response> {
   const snapshot = await library.getSnapshot(true);
   if (!isReferenceLibrarySnapshot(snapshot)) throw new Error("Reference library returned an invalid snapshot");
   const artifact = snapshot.artifacts.find((item) => item.id === artifactId);
   if (!artifact) return jsonError("PDF artifact not found", 404);
-  const object = await env.PAPERS.get(artifact.objectKey);
-  if (!object) return jsonError("PDF artifact not found", 404);
-  const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("etag", object.httpEtag);
-  headers.set("cache-control", "private, no-store");
-  headers.set("content-disposition", "inline");
-  return new Response(object.body, { headers });
+  return (
+    (await downloadR2Object(request, env.PAPERS, artifact.objectKey, {
+      cacheControl: "private, no-store",
+      contentDisposition: "inline",
+    })) ?? jsonError("PDF artifact not found", 404)
+  );
 }
 
 async function downloadAnnotatedLibraryPdf(

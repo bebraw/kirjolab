@@ -253,7 +253,9 @@ mode for authenticated hosted collaboration.
   inbound include paths.
 - `DELETE /api/workspaces/demo/files/{fileId}` deletes an unreferenced
   supporting file; the root `main.md` cannot be renamed or deleted.
-- `GET /api/workspaces/demo/pdfs/{id}` streams an imported PDF.
+- `GET /api/workspaces/demo/pdfs/{id}` streams an imported PDF, forwarding HTTP
+  byte ranges and object preconditions to R2 for bounded reader requests and
+  ETag validation.
 - `POST /api/workspaces/demo/annotations` creates a selector-backed annotation.
 - `POST /api/workspaces/demo/annotation-links` atomically creates one
   selector-backed annotation and its current manuscript passage link.

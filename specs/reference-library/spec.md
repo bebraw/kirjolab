@@ -155,7 +155,8 @@ memory and makes citation aliases compete with stable source identity.
   artifact rights.
 - `GET /api/library/pdfs/{id}` streams an artifact only when it occurs in the
   authenticated owner's library snapshot, with inline, private, non-cacheable
-  response headers.
+  response headers. It forwards HTTP byte ranges and object preconditions to R2
+  so private readers can request bounded slices and validate the current ETag.
 - `GET /api/library/pdfs/{id}/annotated` applies only that artifact's private
   annotations and returns an attachment with private, non-cacheable headers.
   It uses the same authenticated-owner lookup as the original PDF stream, reads

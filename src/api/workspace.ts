@@ -34,6 +34,7 @@ import { archivalSourceBundle, latexArchive, renderExportPdf } from "./export-ar
 import { assertExportable, buildExportBundle, ExportPipelineError } from "../domain/export-pipeline";
 import { fetchCrossrefWork, fingerprintPublicationMetadata } from "../integrations/crossref";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
+import { downloadR2Object } from "./r2-download";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumImageBytes = 20 * 1024 * 1024;
@@ -162,7 +163,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await mutateProjectFolder(request, workspaceId, suffix, room);
     }
     if (suffix.startsWith("/pdfs/") && request.method === "GET") {
-      return await downloadPdf(storageKey, suffix.slice("/pdfs/".length), env);
+      return await downloadPdf(request, storageKey, suffix.slice("/pdfs/".length), env);
     }
     if (suffix.startsWith("/pdfs/") && request.method === "DELETE") {
       return await deletePdf(storageKey, suffix.slice("/pdfs/".length), env, room);
@@ -598,16 +599,14 @@ async function uploadPdf(
   return Response.json(pdf, { status: 201 });
 }
 
-async function downloadPdf(workspaceId: string, pdfId: string, env: Env): Promise<Response> {
+async function downloadPdf(request: Request, workspaceId: string, pdfId: string, env: Env): Promise<Response> {
   if (!/^[0-9a-f-]{36}$/iu.test(pdfId)) return jsonError("PDF not found", 404);
-  const object = await env.PAPERS.get(`${workspaceId}/${pdfId}.pdf`);
-  if (!object) return jsonError("PDF not found", 404);
-  const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("etag", object.httpEtag);
-  headers.set("cache-control", "private, max-age=300");
-  headers.set("content-disposition", "inline");
-  return new Response(object.body, { headers });
+  return (
+    (await downloadR2Object(request, env.PAPERS, `${workspaceId}/${pdfId}.pdf`, {
+      cacheControl: "private, max-age=300",
+      contentDisposition: "inline",
+    })) ?? jsonError("PDF not found", 404)
+  );
 }
 
 async function deletePdf(

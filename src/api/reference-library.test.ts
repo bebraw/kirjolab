@@ -531,6 +531,8 @@ describe("reference library API", () => {
     expect(response.headers.get("content-type")).toBe("application/pdf");
     expect(response.headers.get("content-disposition")).toBe("inline");
     expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("accept-ranges")).toBe("bytes");
+    expect(response.headers.get("content-length")).toBe("4");
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([37, 80, 68, 70]));
 
     const foreign = await handleReferenceLibraryApi(
