@@ -44,6 +44,9 @@ rollback workflow without adding a second identity system.
 - [x] Every production Wrangler subprocess disables project-root `.env`
       discovery so local companion settings cannot alter generated Worker types
       or deployment bindings.
+- [x] Worker binding generation and freshness checks use canonical package
+      scripts with the same disabled-discovery environment, and the fast quality
+      gate rejects environment-dependent generated declarations before deploy.
 - [x] A daily scheduled handler invokes the backup coordinator.
 - [x] Authenticated owners are registered idempotently for scheduled backup.
 - [x] An unchanged owner state produces no new manifest or binary write.

@@ -79,6 +79,10 @@ If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` t
 - Run full mutation tests with `npm run mutation`.
 - Run incremental mutation tests with `npm run mutation:incremental`.
 - Run TypeScript checks with `npm run typecheck`.
+- Regenerate committed Worker bindings with `npm run worker:types`; this
+  intentionally ignores `.env` and `.dev.vars` so output is reproducible.
+- Check committed Worker bindings without rewriting them with
+  `npm run worker:types:check`.
 - Run Lighthouse with `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`.
 - Format the repo with `npm run format`.
 - Check formatting with `npm run format:check`.

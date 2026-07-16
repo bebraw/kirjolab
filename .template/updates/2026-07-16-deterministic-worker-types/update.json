@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-16-deterministic-worker-types",
+  "title": "Make Worker type generation deterministic",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-117-scope-dotenv-loading-to-the-model-companion.md"],
+  "touches": ["package.json", "worker-configuration.d.ts", "docs/", "specs/"],
+  "checks": ["npm run worker:types:check", "npm run quality:gate", "npm run ci:local"]
+}

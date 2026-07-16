@@ -36,7 +36,8 @@
       "2026-07-14-prettier-content-cache",
       "2026-07-14-oxlint-correctness-gate",
       "2026-07-15-quality-gate-progress",
-      "2026-07-16-keep-mutation-explicit"
+      "2026-07-16-keep-mutation-explicit",
+      "2026-07-16-deterministic-worker-types"
     ]
   },
   "scripts": {
@@ -70,7 +71,7 @@
     "prepare": "node ./scripts/setup-git-hooks.mjs",
     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
     "quality:gate": "node ./scripts/run-quality-gate.mjs",
-    "quality:gate:fast": "npm run format:check && npm run lint && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
+    "quality:gate:fast": "npm run format:check && npm run lint && npm run worker:types:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
     "security:audit": "npm audit --omit=dev --audit-level high",
     "test": "vitest run --passWithNoTests",
     "test:affected": "node ./scripts/run-affected-tests.mjs",
@@ -79,7 +80,9 @@
     "test:workers": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false vitest run --config vitest.workers.config.mts",
     "typecheck": "node ./node_modules/typescript-7/bin/tsc --noEmit && node ./node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.client.json && npm run typecheck:workers",
     "typecheck:workers": "node ./node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.workers-test.json",
-    "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs"
+    "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs",
+    "worker:types": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types",
+    "worker:types:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.18.4",

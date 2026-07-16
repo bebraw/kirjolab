@@ -27,6 +27,10 @@ runtime.
   [documented Wrangler control](https://developers.cloudflare.com/workers/local-development/environment-variables/#controlling-env-handling)
   for disabling `.env` discovery. Worker-only local values remain in
   `.dev.vars`.
+- Committed Worker bindings are generated only through
+  `npm run worker:types`, which applies the same disabled-discovery setting.
+  `npm run worker:types:check` enforces that projection in the fast quality gate
+  and production preflight retains the same environment boundary.
 - If either supervised process exits, the supervisor terminates its sibling.
 - `npm run model:companion` remains available as a standalone troubleshooting
   command and loads the same file.
@@ -43,6 +47,8 @@ runtime.
 - Local Worker and companion startup becomes one `npm run dev` after the initial
   copy from `.env.example` to `.env`.
 - Existing shell-based and CI configuration remains valid and authoritative.
+- Generated Worker bindings are reproducible across developer machines and
+  Cloudflare builds instead of depending on ignored local environment files.
 - Companion settings do not enter the Worker process, leak into unrelated local
   processes, or become a deployment configuration mechanism.
 - A companion startup failure also ends the Worker session instead of leaving a

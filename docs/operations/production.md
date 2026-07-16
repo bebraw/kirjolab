@@ -49,6 +49,9 @@ npm run deploy:dry-run
 
 This checks generated binding types and executes the exact production Wrangler
 configuration with `--strict --dry-run`. It does not create or modify a Worker.
+If the binding check is stale after changing `wrangler.jsonc`, regenerate it
+with `npm run worker:types`; do not use bare `wrangler types`, which may load
+ignored machine-local environment files.
 
 ## Deploy
 

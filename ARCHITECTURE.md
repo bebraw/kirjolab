@@ -398,7 +398,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - `npm run diagnostics:codebase` is useful during review and refactoring, but passing or failing it is not a readiness baseline by itself.
 - Documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests.
 - Build typed browser code with esbuild into the existing ignored `.generated/` directory before Wrangler bundles the Worker.
-- Regenerate committed Worker binding types with `npx wrangler types worker-configuration.d.ts` whenever `wrangler.jsonc` bindings change.
+- Regenerate committed Worker binding types with `npm run worker:types` whenever
+  `wrangler.jsonc` bindings change. Generation, the fast quality gate, and
+  production preflight must all disable Wrangler's automatic `.env` and
+  `.dev.vars` discovery so machine-local values cannot enter the committed
+  declaration or make its freshness environment-dependent.
 
 ## Capability Kits
 

@@ -1,0 +1,19 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@
+-    "quality:gate:fast": "npm run format:check && npm run lint && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
++    "quality:gate:fast": "npm run format:check && npm run lint && npm run worker:types:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
+@@
+-    "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs"
++    "worker:client-guard": "node ./scripts/assert-no-worker-client-scripts.mjs",
++    "worker:types": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types",
++    "worker:types:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check"
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@
+-- Regenerate committed Worker binding types with `npx wrangler types worker-configuration.d.ts` whenever `wrangler.jsonc` bindings change.
++- Regenerate committed Worker binding types with `npm run worker:types` whenever
++  `wrangler.jsonc` bindings change. Generation, verification, and production
++  preflight must disable Wrangler's automatic environment-file discovery.
