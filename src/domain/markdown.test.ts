@@ -8,7 +8,18 @@ const bibliography = `@article{merton1942,
 }
 `;
 
+function withoutSourcePositions(html: string): string {
+  return html.replaceAll(/ data-source-(?:from|to)="\d+"/gu, "");
+}
+
 describe("renderWorkspaceMarkdown", () => {
+  it("retains sanitized source offsets on rendered elements", () => {
+    const rendered = renderWorkspaceMarkdown("## Evidence\n\nMapped paragraph.", "");
+
+    expect(rendered.html).toContain('data-source-from="0" data-source-to="11"');
+    expect(rendered.html).toContain('data-source-from="13" data-source-to="30"');
+  });
+
   it("renders project citation profiles without changing citation identity", () => {
     const source = "Evidence :cite[merton1942, doe2026].";
     const sources = `${bibliography}\n@article{doe2026, author={Doe, Jane}, year={2026}, title={Methods}}`;
@@ -55,20 +66,21 @@ const answer = 42;
 \`\`\`
 `;
     const rendered = renderWorkspaceMarkdown(source, bibliography);
+    const html = withoutSourcePositions(rendered.html);
 
     expect(rendered.diagnostics).toEqual([]);
-    expect(rendered.html).toContain('<h2 id="evidence"><span class="section-number">1 </span>Evidence</h2>');
-    expect(rendered.html).toContain(
+    expect(html).toContain('<h2 id="evidence"><span class="section-number">1 </span>Evidence</h2>');
+    expect(html).toContain(
       '<button type="button" class="semantic-citation" data-citation="merton1942" data-locator="p. 4" aria-label="Open reference The Normative Structure of Science">Merton (1942)</button>, p. 4',
     );
-    expect(rendered.html).toContain('<a class="semantic-reference"');
-    expect(rendered.html).toContain("<strong>weight</strong>");
-    expect(rendered.html).toContain("<li>one</li>");
-    expect(rendered.html).toContain("<li>two</li>");
-    expect(rendered.html).toContain("const answer = 42;");
-    expect(rendered.html).toContain('id="table-one"');
-    expect(rendered.html).toContain('<a class="semantic-reference" href="#evidence">Evidence</a>');
-    expect(rendered.html).toContain('<code class="language-ts">const answer = 42;');
+    expect(html).toContain('<a class="semantic-reference"');
+    expect(html).toContain("<strong>weight</strong>");
+    expect(html).toContain("<li>one</li>");
+    expect(html).toContain("<li>two</li>");
+    expect(html).toContain("const answer = 42;");
+    expect(html).toContain('id="table-one"');
+    expect(html).toContain('<a class="semantic-reference" href="#evidence">Evidence</a>');
+    expect(html).toContain('<code class="language-ts">const answer = 42;');
   });
 
   it("reports missing, duplicate, empty, and unsupported directives", () => {
@@ -105,25 +117,25 @@ const answer = 42;
 \`\`\`
 unfinished`;
     const rendered = renderWorkspaceMarkdown(source, bibliography);
+    const html = withoutSourcePositions(rendered.html);
 
-    expect(rendered.html).toContain("See <button");
-    expect(rendered.html).toContain(">Merton. 1942. The Normative Structure of Science</button>.");
-    expect(rendered.html).toContain(
+    expect(html).toContain("See <button");
+    expect(html).toContain(">Merton. 1942. The Normative Structure of Science</button>.");
+    expect(html).toContain(
       '(<button type="button" class="semantic-citation" data-citation="merton1942" aria-label="Open reference The Normative Structure of Science">Merton, 1942</button>)',
     );
-    expect(rendered.html).toContain("unfinished\n</code></pre>");
-    expect(rendered.html).toContain('<h2 id="notes"><span class="section-number">1 </span>Notes</h2>');
+    expect(html).toContain("unfinished\n</code></pre>");
+    expect(html).toContain('<h2 id="notes"><span class="section-number">1 </span>Notes</h2>');
   });
 
   it("renders cited references at an explicit bibliography marker", () => {
     const sources = `${bibliography}\n@article{unused, author={Unused, Una}, year={2025}, title={Unused work}}`;
     const rendered = renderWorkspaceMarkdown("Evidence :cite[merton1942].\n\n## References\n\n::bibliography[]", sources);
+    const html = withoutSourcePositions(rendered.html);
 
     expect(rendered.diagnostics).toEqual([]);
-    expect(rendered.html).toContain(
-      '<ol class="semantic-bibliography"><li>Merton, Robert K. (1942). The Normative Structure of Science.</li></ol>',
-    );
-    expect(rendered.html).not.toContain("Unused work");
+    expect(html).toContain('<ol class="semantic-bibliography"><li>Merton, Robert K. (1942). The Normative Structure of Science.</li></ol>');
+    expect(html).not.toContain("Unused work");
   });
 
   it("diagnoses malformed and duplicate bibliography markers", () => {
@@ -141,7 +153,7 @@ unfinished`;
   });
 
   it("normalizes CRLF, joins paragraph lines, and renders heading levels", () => {
-    const html = renderWorkspaceMarkdown("### Three\r\n\r\nline one\r\nline two\r\n\r\n#### Four", "").html;
+    const html = withoutSourcePositions(renderWorkspaceMarkdown("### Three\r\n\r\nline one\r\nline two\r\n\r\n#### Four", "").html);
     expect(html).toContain('<h3 id="three"><span class="section-number">0.1 </span>Three</h3>');
     expect(html).toContain("<p>line one\nline two</p>");
     expect(html).toContain("<b>Four</b>");
@@ -169,15 +181,16 @@ A statement with detail.[^detail]
 [^detail]: Supporting *detail*.
 `;
     const rendered = renderWorkspaceMarkdown(source, "");
+    const html = withoutSourcePositions(rendered.html);
 
     expect(rendered.diagnostics).toEqual([]);
-    expect(rendered.html).not.toContain("Hidden frontmatter");
-    expect(rendered.html).toContain('<img src="https://example.com/diagram.png" alt="diagram">');
-    expect(rendered.html).toContain("<table>");
-    expect(rendered.html).toContain("<del>41</del> <strong>42</strong>");
-    expect(rendered.html).toContain("<ol>");
-    expect(rendered.html).toContain("data-footnote-ref");
-    expect(rendered.html).toContain('data-footnotes class="footnotes"');
+    expect(html).not.toContain("Hidden frontmatter");
+    expect(html).toContain('<img src="https://example.com/diagram.png" alt="diagram">');
+    expect(html).toContain("<table>");
+    expect(html).toContain("<del>41</del> <strong>42</strong>");
+    expect(html).toContain("<ol>");
+    expect(html).toContain("data-footnote-ref");
+    expect(html).toContain('data-footnotes class="footnotes"');
   });
 
   it("omits comment blocks and ignores their Markdown semantics", () => {
@@ -250,14 +263,15 @@ content
       '## Safe heading {#safe .primary .secondary onmouseover="alert(1)" style="background:url(javascript:alert(1))" data-leak=yes aria-label="forged" title="forged" tabindex=0}',
       "",
     );
+    const html = withoutSourcePositions(rendered.html);
 
-    expect(rendered.html).toContain('<h2 id="safe" class="primary secondary"><span class="section-number">1 </span>Safe heading</h2>');
-    expect(rendered.html).not.toContain("onmouseover");
-    expect(rendered.html).not.toContain("javascript:");
-    expect(rendered.html).not.toContain("data-leak");
-    expect(rendered.html).not.toContain("aria-label");
-    expect(rendered.html).not.toContain("title=");
-    expect(rendered.html).not.toContain("tabindex");
+    expect(html).toContain('<h2 id="safe" class="primary secondary"><span class="section-number">1 </span>Safe heading</h2>');
+    expect(html).not.toContain("onmouseover");
+    expect(html).not.toContain("javascript:");
+    expect(html).not.toContain("data-leak");
+    expect(html).not.toContain("aria-label");
+    expect(html).not.toContain("title=");
+    expect(html).not.toContain("tabindex");
   });
 
   it("preserves the complete reviewed Markdown element and property vocabulary", () => {
@@ -303,6 +317,7 @@ Footnote.[^a]
 `,
       "",
     );
+    const html = withoutSourcePositions(rendered.html);
 
     for (const fragment of [
       '<h1 id="one" class="top">',
@@ -333,7 +348,7 @@ Footnote.[^a]
       '<section data-footnotes class="footnotes">',
       'data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref"',
     ]) {
-      expect(rendered.html).toContain(fragment);
+      expect(html).toContain(fragment);
     }
   });
 
@@ -360,15 +375,16 @@ Footnote.[^a]
 `,
       extendedBibliography,
     );
+    const html = withoutSourcePositions(rendered.html);
 
     expect(rendered.diagnostics).toEqual([]);
-    expect(rendered.html).toContain('<h2 id="repeated"><span class="section-number">1 </span>Repeated</h2>');
-    expect(rendered.html).toContain('<h2 id="repeated-2"><span class="section-number">2 </span>Repeated</h2>');
-    expect(rendered.html).toContain('<a class="semantic-reference" href="#repeated">1 Repeated</a>');
-    expect(rendered.html).toContain('<a class="semantic-reference" href="#table-one">custom table</a>');
-    expect(rendered.html).toContain("See <button");
-    expect(rendered.html).toContain(">Merton (1942)</button>, <button");
-    expect(rendered.html).toContain(">Doe (2026)</button>, p. 4 for context");
+    expect(html).toContain('<h2 id="repeated"><span class="section-number">1 </span>Repeated</h2>');
+    expect(html).toContain('<h2 id="repeated-2"><span class="section-number">2 </span>Repeated</h2>');
+    expect(html).toContain('<a class="semantic-reference" href="#repeated">1 Repeated</a>');
+    expect(html).toContain('<a class="semantic-reference" href="#table-one">custom table</a>');
+    expect(html).toContain("See <button");
+    expect(html).toContain(">Merton (1942)</button>, <button");
+    expect(html).toContain(">Doe (2026)</button>, p. 4 for context");
   });
 
   it("diagnoses incomplete semantic declarations", () => {

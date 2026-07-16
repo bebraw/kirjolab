@@ -96,6 +96,7 @@ const safeElements = [
 const previewSchema: Schema = {
   tagNames: safeElements,
   attributes: {
+    "*": ["dataSourceFrom", "dataSourceTo"],
     a: ["ariaDescribedBy", "ariaLabel", "className", "dataFootnoteBackref", "dataFootnoteRef", "href", "id", "title"],
     button: ["ariaLabel", "className", "dataCitation", "dataLocator", ["type", "button"]],
     code: ["className"],
@@ -156,6 +157,7 @@ export function renderWorkspaceMarkdown(
       .use(readHeadingAttributes)
       .use(renderSemanticDirectives, { bibliography, citedIds, references, citationStyle })
       .use(remarkRehype)
+      .use(annotatePreviewSourcePositions)
       .use(renderNumberedHeadings)
       .use(normalizeTableAlignment)
       .use(rehypeSanitize, previewSchema)
@@ -176,6 +178,18 @@ export function renderWorkspaceMarkdown(
       ],
     };
   }
+}
+
+function annotatePreviewSourcePositions() {
+  return (tree: HastRoot): void => {
+    visit(tree, "element", (node: HastElement) => {
+      const from = node.position?.start.offset;
+      const to = node.position?.end.offset;
+      if (from === undefined || to === undefined || to <= from) return;
+      node.properties.dataSourceFrom = String(from);
+      node.properties.dataSourceTo = String(to);
+    });
+  };
 }
 
 function removeMarkdownComments() {
