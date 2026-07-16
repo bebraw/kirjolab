@@ -22,9 +22,9 @@ test("runs every quality-gate phase with visible transitions", async () => {
   });
 
   assert.equal(exitCode, 0);
-  assert.deepEqual(scripts, ["quality:gate:fast", "e2e", "mutation:incremental"]);
-  assert.match(logs[0], /1\/3 Starting fast checks/);
-  assert.match(logs.at(-1), /Completed all 3 phases/);
+  assert.deepEqual(scripts, ["quality:gate:fast", "e2e"]);
+  assert.match(logs[0], /1\/2 Starting fast checks/);
+  assert.match(logs.at(-1), /Completed all 2 phases/);
 });
 
 test("stops after the first failing phase", async () => {
@@ -60,7 +60,7 @@ test("reports elapsed time while a phase is still running", () => {
     label: "browser tests",
     log: (message) => logs.push(message),
     now: () => 91_000,
-    position: "2/3",
+    position: "2/2",
     setIntervalFn: (callback, delay) => {
       assert.equal(delay, 30_000);
       heartbeat = callback;
@@ -74,5 +74,5 @@ test("reports elapsed time while a phase is still running", () => {
 
   assert.equal(timer.unrefCalled, true);
   assert.equal(clearedTimer, timer);
-  assert.deepEqual(logs, ["[quality:gate] 2/3 browser tests still running (1m 30s elapsed)."]);
+  assert.deepEqual(logs, ["[quality:gate] 2/2 browser tests still running (1m 30s elapsed)."]);
 });

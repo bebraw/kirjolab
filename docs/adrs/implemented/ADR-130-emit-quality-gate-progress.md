@@ -6,8 +6,8 @@
 
 ## Context
 
-The local `quality:gate` ran three npm scripts through a shell chain. npm
-announced each child command, but a long browser or mutation phase could produce
+The local `quality:gate` ran multiple npm scripts through a shell chain. npm
+announced each child command, but a long browser phase could produce
 no output for long enough to look hung. The gate must retain its sequential
 fail-fast behavior, include Kirjolab's Worker-specific fast checks, and stream
 the underlying tools' output without adding a dependency or persistent state.
@@ -20,9 +20,10 @@ heartbeat every 30 seconds while the current phase remains active. Child
 processes inherit standard input and output so their native interactive behavior
 and live logs remain available.
 
-Keep `quality:gate:fast`, `e2e`, and `mutation:incremental` as the canonical
-phase commands and run them sequentially with fail-fast exit codes. Keep the
-existing Worker-specific checks inside `quality:gate:fast`.
+Keep `quality:gate:fast` and `e2e` as the canonical phase commands and run them
+sequentially with fail-fast exit codes. Keep the existing Worker-specific
+checks inside `quality:gate:fast`. Mutation commands remain separately
+invocable under ADR-134.
 
 ## Consequences
 
@@ -41,14 +42,14 @@ existing Worker-specific checks inside `quality:gate:fast`.
 
 **Neutral:**
 
-- The phase order, Worker checks, and readiness baseline do not change.
+- The phase order, Worker checks, and readiness baseline remain explicit.
 
 ## Alternatives Considered
 
 ### Enable more verbose output in individual tools
 
-This would not provide a consistent liveness signal across formatting, browser,
-and mutation phases, and tool-specific verbosity can generate substantially
+This would not provide a consistent liveness signal across formatting and
+browser phases, and tool-specific verbosity can generate substantially
 noisier logs.
 
 ### Keep only phase transition messages

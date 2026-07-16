@@ -20,7 +20,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Whole-repo health diagnostics:** `npm run diagnostics:health`
 - **Full mutation gate:** `npm run mutation`
 - **Incremental mutation gate:** `npm run mutation:incremental`
-- **Full gate:** `npm run quality:gate`
+- **Full gate:** `npm run quality:gate` (fast gate followed by browser gate)
 - **Full gate progress:** named phase transitions plus a 30-second elapsed-time heartbeat while a phase is running
 - **Local workflow:** `npm run ci:local`
 - **Local workflow formatter:** `scripts/run-local-ci.mjs`
@@ -56,7 +56,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 
 - Do not collapse fast and browser verification back into one opaque step without a concrete reason.
 - Do not treat colocated tests or test-support files as runtime source code when deciding whether unit coverage is missing.
-- Do not weaken the full gate just to make iteration faster.
+- Do not add unbounded specialist analysis to the routine readiness gate when
+  it already has an explicit command and authoritative CI job.
 - Do not split, duplicate, reorder, or omit workflow checks merely to expose
   more progress.
 - Do not parse Agent CI's human-oriented logs when its versioned event stream
@@ -75,8 +76,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - [ ] The advisory codebase diagnostics report changed-code readability risk, whole-repo health, hotspots, duplication, and cleanup evidence without becoming part of the hard quality gate.
 - [ ] The browser gate covers each canonical Playwright baseline file once.
 - [ ] The full mutation gate covers runtime `src/**/*.ts` files with Stryker, Vitest, and TypeScript checking.
-- [ ] The incremental mutation gate reuses prior Stryker results and ignores static mutants for repeated local quality-gate runs while preserving a complete mutation report.
-- [ ] The full gate runs the fast, browser, and incremental mutation gates in order.
+- [ ] The incremental mutation gate reuses prior Stryker results and ignores static mutants for explicit local test-hardening runs while preserving a complete mutation report.
+- [ ] The full gate runs the fast and browser gates in order.
 - [ ] The full gate reports phase starts, completions, failures, and periodic elapsed-time heartbeats.
 - [ ] The repo-managed `pre-push` hook runs affected-file guardrails before a push leaves the machine.
 - [ ] Local and remote CI use the same split verification model for non-documentation changes.
@@ -141,7 +142,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The local verification workflow should document macOS as the supported host baseline instead of implying cross-platform support.
 - The Playwright server path must avoid macOS file-watcher exhaustion in local runs without changing the normal `npm run dev` workflow.
 - Playwright must ignore Stryker's generated `.stryker-tmp/` sandbox so an
-  incremental mutation run cannot duplicate browser suites in a later gate.
+  explicit mutation run cannot duplicate browser suites in a later gate.
 - Browser tests that mutate durable state must create isolated workspaces rather
   than assume the shared demo workspace still contains seed data.
 - The local CI documentation must cover the no-`origin` case through `.env.agent-ci` and `GITHUB_REPO` instead of treating that warning as normal noise.
@@ -219,7 +220,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 
 - Given: a non-documentation change is ready for review or merge
 - When: the contributor runs `npm run quality:gate` and `npm run ci:local`
-- Then: the fast, browser, and local incremental mutation verification paths pass
+- Then: the fast and browser verification paths pass
 
 **Scenario: Contributor monitors the full quality gate**
 
@@ -255,11 +256,11 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - When: the contributor runs `npm run mutation`
 - Then: Stryker mutates runtime source only and fails if the mutation score is below the configured break threshold
 
-**Scenario: Contributor repeats the local quality gate**
+**Scenario: Contributor requests local mutation feedback**
 
 - Given: Stryker has an existing incremental report under `reports/`
-- When: the contributor runs `npm run quality:gate`
-- Then: the fast and browser gates pass before Stryker reuses valid prior mutant results and reruns affected mutants
+- When: the contributor runs `npm run mutation:incremental`
+- Then: Stryker reuses valid prior mutant results and reruns affected mutants
 
 **Scenario: GitHub verifies mutation strength**
 

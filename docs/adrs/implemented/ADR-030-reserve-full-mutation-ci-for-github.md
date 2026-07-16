@@ -6,6 +6,8 @@
 
 **Amends:** [ADR-022](./ADR-022-add-mutation-testing-gate.md), [ADR-028](./ADR-028-use-incremental-local-mutation-gate.md)
 
+**Amended by:** [ADR-134](./ADR-134-keep-mutation-explicit.md)
+
 ## Context
 
 ADR-022 added a full Stryker mutation job to the GitHub Actions workflow, and ADR-028 moved the local quality gate to incremental mutation testing while keeping GitHub CI on a clean full mutation run.
@@ -28,7 +30,7 @@ The user asked to ensure the full mutation workflow job never runs locally and s
 
 - Local Agent CI no longer schedules the expensive full mutation workflow job.
 - GitHub Actions still performs a clean full mutation run on pull requests and pushes to `main`.
-- The local baseline still includes mutation testing through `npm run quality:gate`, which runs incremental Stryker.
+- Contributors can still run incremental mutation testing explicitly with `npm run mutation:incremental`.
 
 **Negative:**
 
@@ -38,7 +40,7 @@ The user asked to ensure the full mutation workflow job never runs locally and s
 **Neutral:**
 
 - No new dependency or workflow file is required.
-- The existing split between local incremental mutation and GitHub full mutation remains intact.
+- GitHub retains the authoritative clean full-mutation signal.
 
 ## Alternatives Considered
 

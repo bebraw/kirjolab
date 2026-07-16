@@ -6,7 +6,6 @@ const defaultHeartbeatMs = 30_000;
 export const qualityGateSteps = [
   { label: "fast checks", script: "quality:gate:fast" },
   { label: "browser tests", script: "e2e" },
-  { label: "incremental mutation tests", script: "mutation:incremental" },
 ];
 
 export async function runQualityGate({

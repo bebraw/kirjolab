@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-16-keep-mutation-explicit",
+  "title": "Keep mutation testing explicit",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": ["2026-06-12-incremental-local-mutation"],
+  "adrs": ["docs/adrs/implemented/ADR-134-keep-mutation-explicit.md"],
+  "touches": ["scripts/", "docs/", "specs/"],
+  "checks": ["npm run quality:gate", "npm run ci:local"]
+}
