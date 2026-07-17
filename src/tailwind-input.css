@@ -4028,6 +4028,24 @@
     font-size: 0.78rem;
   }
 
+  .review-matrix {
+    overflow-x: auto;
+  }
+
+  .review-matrix table {
+    width: 100%;
+    margin-top: 0.75rem;
+    border-collapse: collapse;
+    font-size: 0.72rem;
+  }
+
+  .review-matrix :is(th, td) {
+    border: 1px solid var(--color-app-line);
+    padding: 0.5rem;
+    text-align: left;
+    vertical-align: top;
+  }
+
   .review-search-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.55fr);

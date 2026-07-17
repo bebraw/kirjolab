@@ -13,7 +13,7 @@ describe("review appraisal and extraction evidence", () => {
   });
 
   it("validates typed values and explicit missingness", () => {
-    const integer = { id: "year", label: "Year", type: "integer" as const, values: [] };
+    const integer = { id: "year", label: "Year", type: "integer" as const, values: [], researchQuestionIds: [] };
     expect(validateExtractionValue(integer, 2026, null)).toEqual({ value: 2026, missingReason: null });
     expect(validateExtractionValue(integer, null, "Not reported")).toEqual({ value: null, missingReason: "Not reported" });
     expect(() => validateExtractionValue(integer, "2026", null)).toThrow("field type");

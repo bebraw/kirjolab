@@ -173,8 +173,8 @@ describe("ReviewStudy in the Workers runtime", () => {
         minimumScore: 0.5,
       },
       extractionFields: [
-        { id: "year", label: "Year", type: "integer" as const, values: [] },
-        { id: "finding", label: "Key finding", type: "string" as const, values: [] },
+        { id: "year", label: "Year", type: "integer" as const, values: [], researchQuestionIds: [] },
+        { id: "finding", label: "Key finding", type: "string" as const, values: [], researchQuestionIds: [] },
       ],
       sources: [{ id: "source", name: "Source", url: "", dialect: "generic" as const, fieldScope: "all-fields" as const }],
     };
@@ -239,5 +239,10 @@ describe("ReviewStudy in the Workers runtime", () => {
     );
     expect(missing.records[0]).toMatchObject({ extractionComplete: true });
     expect(missing.records[0]?.extractionValues).toHaveLength(2);
+    expect(await study.getSynthesis("reviewer@example.com")).toMatchObject({
+      revision: missing.revision,
+      flow: { identified: 1, included: 1 },
+      matrix: [{ title: "Evidence Study", Year: 2025, "Key finding": "Missing: Not reported" }],
+    });
   });
 });

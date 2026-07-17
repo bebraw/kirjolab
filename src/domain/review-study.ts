@@ -55,6 +55,7 @@ export interface ExtractionFieldDefinition {
   readonly label: string;
   readonly type: "string" | "integer" | "boolean" | "enum";
   readonly values: readonly string[];
+  readonly researchQuestionIds: readonly string[];
 }
 
 export interface SourceQueryPlan {
@@ -232,14 +233,19 @@ export function parseReviewProtocolContent(value: unknown): ReviewProtocolConten
     const type = isExtractionFieldType(item.type) ? item.type : undefined;
     if (!type) throw new Error("Extraction field is invalid");
     const values = parseArray(item.values, 128, "extraction values", (entry) => boundedText(entry, "Extraction option", 500));
+    const researchQuestionIds = parseArray(item.researchQuestionIds ?? [], 128, "extraction research questions", (entry) =>
+      stableId(entry, "Extraction research question"),
+    );
     if (type === "enum" && values.length === 0) throw new Error("Enum extraction field needs values");
     if (type !== "enum" && values.length > 0) throw new Error("Only enum extraction fields can define values");
     uniqueStrings(values, "Extraction options");
+    uniqueStrings(researchQuestionIds, "Extraction research questions");
     return {
       id: stableId(item.id, "Extraction field"),
       label: boundedText(item.label, "Extraction field label", 300),
       type,
       values,
+      researchQuestionIds,
     };
   });
   uniqueIds(researchQuestions, "Research questions");
@@ -249,6 +255,10 @@ export function parseReviewProtocolContent(value: unknown): ReviewProtocolConten
   uniqueIds(qualityQuestions, "Quality questions");
   uniqueIds(qualityAnswers, "Quality answers");
   uniqueIds(extractionFields, "Extraction fields");
+  const researchQuestionIds = new Set(researchQuestions.map((question) => question.id));
+  if (extractionFields.some((field) => field.researchQuestionIds.some((id) => !researchQuestionIds.has(id)))) {
+    throw new Error("Extraction field references an unavailable research question");
+  }
   return {
     profile: value.profile,
     objective,

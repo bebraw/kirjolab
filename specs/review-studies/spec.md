@@ -275,7 +275,7 @@ state.
       and adjudicate without overwriting original decisions.
 - [x] Included records support evidence-linked quality appraisal and typed data
       extraction with explicit missingness.
-- [ ] RQ-oriented process and evidence analyses derive from a pinned review
+- [x] RQ-oriented process and evidence analyses derive from a pinned review
       revision and can enter the manuscript as named review artifacts.
 - [ ] Local models can propose screening and extraction candidates that require
       explicit human acceptance and produce an auditable disclosure.

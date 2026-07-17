@@ -2,6 +2,7 @@ import { parseReviewProtocolContent } from "../domain/review-study";
 import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search";
 import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
 import { parseEvidencePointer, type ExtractionValue } from "../domain/review-evidence";
+import { reviewSynthesisCsv, reviewSynthesisMarkdown } from "../domain/review-synthesis";
 import type { AuthIdentity } from "../security/auth";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
@@ -11,6 +12,8 @@ export async function handleReviewStudyApi(
   study: DurableObjectStub<import("../durable-objects/review-study").ReviewStudy>,
   identity: AuthIdentity,
   suffix: string,
+  room?: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  workspaceId?: string,
 ): Promise<Response> {
   if (suffix === "/review-study" && request.method === "GET") {
     return noStore(await study.getSnapshot("slr", identity.email));
@@ -110,7 +113,39 @@ export async function handleReviewStudyApi(
       ),
     );
   }
+  if (suffix === "/review-study/synthesis" && request.method === "GET") return noStore(await study.getSynthesis(identity.email));
+  if (suffix === "/review-study/synthesis.csv" && request.method === "GET") {
+    return download(reviewSynthesisCsv(await study.getSynthesis(identity.email)), "text/csv; charset=utf-8", "review-synthesis.csv");
+  }
+  if (suffix === "/review-study/synthesis.md" && request.method === "GET") {
+    return download(
+      reviewSynthesisMarkdown(await study.getSynthesis(identity.email)),
+      "text/markdown; charset=utf-8",
+      "review-synthesis.md",
+    );
+  }
+  if (suffix === "/review-study/synthesis/publish" && request.method === "POST") {
+    if (!room || !workspaceId) throw new Error("Project room is unavailable for review publication");
+    const body = await synthesisPublishRequest(request);
+    const synthesis = await study.getSynthesis(identity.email);
+    const content = `<!-- kirjolab-review-artifact revision=${synthesis.revision} -->\n${reviewSynthesisMarkdown(synthesis)}`;
+    const result = await room.upsertReviewArtifact(workspaceId, body.path, content, body.expectedProjectRevision);
+    if (!result.ok) throw new Error(result.error);
+    return noStore({ path: body.path, reviewRevision: synthesis.revision, project: result.value });
+  }
   return Response.json({ error: "Review-study route not found" }, { status: 404 });
+}
+
+async function synthesisPublishRequest(request: Request): Promise<{ expectedProjectRevision: number; path: string }> {
+  const value: unknown = await request.json();
+  if (!isRecord(value) || typeof value.expectedProjectRevision !== "number" || !Number.isSafeInteger(value.expectedProjectRevision)) {
+    throw new Error("Review synthesis publication request is invalid");
+  }
+  const path = typeof value.path === "string" ? value.path.trim() : "review/synthesis.md";
+  if (!/^review\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.md$/iu.test(path) || path.length > 500) {
+    throw new Error("Review synthesis path is invalid");
+  }
+  return { expectedProjectRevision: value.expectedProjectRevision, path };
 }
 
 async function qualityValueRequest(request: Request) {
@@ -286,6 +321,12 @@ function assertRequestSize(request: Request): void {
 
 function noStore(value: unknown): Response {
   return Response.json(value, { headers: { "cache-control": "no-store" } });
+}
+
+function download(content: string, contentType: string, filename: string): Response {
+  return new Response(content, {
+    headers: { "cache-control": "no-store", "content-type": contentType, "content-disposition": `attachment; filename="${filename}"` },
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

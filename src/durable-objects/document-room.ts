@@ -118,6 +118,10 @@ export type ProjectFileReplaceResult = DocumentRoomOperationResult<
   WorkspaceSnapshot,
   "content-too-large" | "revision-conflict" | "file-not-found"
 >;
+export type ReviewArtifactResult = DocumentRoomOperationResult<
+  WorkspaceSnapshot,
+  "content-too-large" | "revision-conflict" | "file-not-found" | "invalid-path"
+>;
 
 export type ProjectReferenceUnlinkResult = DocumentRoomOperationResult<WorkspaceSnapshot, "reference-not-linked" | "citation-alias-in-use">;
 
@@ -1562,6 +1566,19 @@ export class DocumentRoom extends DurableObject<Env> {
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
     return this.getSnapshot(workspaceId);
+  }
+
+  upsertReviewArtifact(workspaceId: string, pathValue: string, content: string, expectedRevision: number): ReviewArtifactResult {
+    const path = normalizeProjectPath(pathValue);
+    if (!path || !path.startsWith("review/") || !path.endsWith(".md")) {
+      return { ok: false, code: "invalid-path", error: "Review artifacts require a review/*.md path" };
+    }
+    if (this.#workspaceRow().revision !== expectedRevision) {
+      return { ok: false, code: "revision-conflict", error: "Project changed since this review artifact loaded" };
+    }
+    const existing = this.#projectFiles().find((file) => file.path === path);
+    if (existing) return this.replaceProjectFileContent(workspaceId, existing.id, content, expectedRevision);
+    return { ok: true, value: this.createProjectFile(workspaceId, path, content) };
   }
 
   setProjectEntryFile(workspaceId: string, fileId: string): WorkspaceSnapshot {

@@ -24,6 +24,9 @@ is supported on macOS.
 - Import BibTeX, enrich references through Crossref, and review DOI metadata
 - Plan an SLR or MLR with versioned PICOC framing, research questions, concept
   groups, query calibration, and source-specific search syntax
+- Import and deduplicate search results, run attributed staged screening,
+  appraise and extract evidence, and publish revision-pinned synthesis into the
+  project
   before associating it with a PDF.
 - Follow a DOI-backed reference trail from trusted seed papers, review
   backward-snowball candidates, and save each accepted source with its

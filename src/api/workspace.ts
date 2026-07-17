@@ -74,7 +74,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await handleGitHubWorkspaceSyncApi(request, env, identity, room, suffix);
     }
     if (suffix === "/review-study" || suffix.startsWith("/review-study/")) {
-      return await handleReviewStudyApi(request, reviewStudy, identity, suffix);
+      return await handleReviewStudyApi(request, reviewStudy, identity, suffix, room, workspaceId);
     }
     if (suffix === "/settings" && request.method === "PATCH") {
       if (role !== "owner") return jsonError("Only the workspace owner can change project settings", 403);

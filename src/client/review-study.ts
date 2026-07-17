@@ -30,6 +30,7 @@ import {
   type ExtractionValue,
   type ReviewEvidenceSnapshot,
 } from "../domain/review-evidence";
+import { parseReviewSynthesis, type ReviewSynthesis } from "../domain/review-synthesis";
 
 const facets = ["population", "intervention", "comparison", "outcome", "context"] as const;
 
@@ -44,15 +45,18 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   const screenStep = required("review-step-screen", HTMLButtonElement);
   const appraiseStep = required("review-step-appraise", HTMLButtonElement);
   const extractStep = required("review-step-extract", HTMLButtonElement);
+  const synthesizeStep = required("review-step-synthesize", HTMLButtonElement);
   const searchContent = required("review-search-content", HTMLElement);
   const screenContent = required("review-screen-content", HTMLElement);
   const appraiseContent = required("review-appraise-content", HTMLElement);
   const extractContent = required("review-extract-content", HTMLElement);
+  const synthesisContent = required("review-synthesis-content", HTMLElement);
   let snapshot: ReviewStudySnapshot | null = null;
   let searchSnapshot: ReviewSearchSnapshot | null = null;
   let importPreview: ReviewImportPreview | null = null;
   let screeningSnapshot: ReviewScreeningSnapshot | null = null;
   let evidenceSnapshot: ReviewEvidenceSnapshot | null = null;
+  let synthesis: ReviewSynthesis | null = null;
 
   open.addEventListener("click", () => {
     dialog.showModal();
@@ -70,9 +74,12 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   screenStep.addEventListener("click", () => void showScreen());
   appraiseStep.addEventListener("click", () => void showEvidence("appraise"));
   extractStep.addEventListener("click", () => void showEvidence("extract"));
+  synthesizeStep.addEventListener("click", () => void showSynthesis());
   required("back-to-review-search", HTMLButtonElement).addEventListener("click", () => void showSearch());
   required("back-to-review-screen", HTMLButtonElement).addEventListener("click", () => void showScreen());
   required("back-to-review-appraise", HTMLButtonElement).addEventListener("click", () => void showEvidence("appraise"));
+  required("back-to-review-extract", HTMLButtonElement).addEventListener("click", () => void showEvidence("extract"));
+  required("publish-review-synthesis", HTMLButtonElement).addEventListener("click", () => void publishSynthesis());
   required("review-screen-stage", HTMLSelectElement).addEventListener("change", renderScreening);
   required("review-screen-filter", HTMLSelectElement).addEventListener("change", renderScreening);
   required("review-search-source", HTMLSelectElement).addEventListener("change", () => {
@@ -154,11 +161,13 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     screenContent.hidden = true;
     appraiseContent.hidden = true;
     extractContent.hidden = true;
+    synthesisContent.hidden = true;
     planStep.setAttribute("aria-current", "step");
     searchStep.removeAttribute("aria-current");
     screenStep.removeAttribute("aria-current");
     appraiseStep.removeAttribute("aria-current");
     extractStep.removeAttribute("aria-current");
+    synthesizeStep.removeAttribute("aria-current");
   }
 
   async function showSearch(): Promise<void> {
@@ -168,11 +177,13 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     screenContent.hidden = true;
     appraiseContent.hidden = true;
     extractContent.hidden = true;
+    synthesisContent.hidden = true;
     planStep.removeAttribute("aria-current");
     searchStep.setAttribute("aria-current", "step");
     screenStep.removeAttribute("aria-current");
     appraiseStep.removeAttribute("aria-current");
     extractStep.removeAttribute("aria-current");
+    synthesizeStep.removeAttribute("aria-current");
     populateSearchSources(snapshot);
     await loadSearchSnapshot();
   }
@@ -198,11 +209,13 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     screenContent.hidden = false;
     appraiseContent.hidden = true;
     extractContent.hidden = true;
+    synthesisContent.hidden = true;
     planStep.removeAttribute("aria-current");
     searchStep.removeAttribute("aria-current");
     screenStep.setAttribute("aria-current", "step");
     appraiseStep.removeAttribute("aria-current");
     extractStep.removeAttribute("aria-current");
+    synthesizeStep.removeAttribute("aria-current");
     await loadScreening();
   }
 
@@ -229,7 +242,8 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     screenContent.hidden = true;
     appraiseContent.hidden = mode !== "appraise";
     extractContent.hidden = mode !== "extract";
-    for (const step of [planStep, searchStep, screenStep, appraiseStep, extractStep]) step.removeAttribute("aria-current");
+    synthesisContent.hidden = true;
+    for (const step of [planStep, searchStep, screenStep, appraiseStep, extractStep, synthesizeStep]) step.removeAttribute("aria-current");
     (mode === "appraise" ? appraiseStep : extractStep).setAttribute("aria-current", "step");
     await loadEvidence();
   }
@@ -242,11 +256,55 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       evidenceSnapshot = parseReviewEvidenceSnapshot(await response.json());
       renderEvidence();
+      synthesizeStep.disabled = evidenceSnapshot.records.length === 0;
       setEvidenceStatus("appraise", "Scores are derived from the frozen checklist.");
       setEvidenceStatus("extract", "Extraction remains traceable to each study.");
     } catch (error) {
       setEvidenceStatus("appraise", errorMessage(error));
       setEvidenceStatus("extract", errorMessage(error));
+    }
+  }
+
+  async function showSynthesis(): Promise<void> {
+    if (synthesizeStep.disabled) return;
+    form.hidden = true;
+    searchContent.hidden = true;
+    screenContent.hidden = true;
+    appraiseContent.hidden = true;
+    extractContent.hidden = true;
+    synthesisContent.hidden = false;
+    for (const step of [planStep, searchStep, screenStep, appraiseStep, extractStep, synthesizeStep]) step.removeAttribute("aria-current");
+    synthesizeStep.setAttribute("aria-current", "step");
+    setSynthesisStatus("Deriving analysis from the current review revision…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/synthesis`, { credentials: "same-origin" });
+      await expectOk(response);
+      synthesis = parseReviewSynthesis(await response.json());
+      renderSynthesis(synthesis);
+      setSynthesisStatus(`Synthesis derived from review revision ${synthesis.revision}.`);
+    } catch (error) {
+      setSynthesisStatus(errorMessage(error));
+    }
+  }
+
+  async function publishSynthesis(): Promise<void> {
+    if (!synthesis) return;
+    setSynthesisStatus("Publishing review/synthesis.md…");
+    try {
+      const projectResponse = await fetch(apiBase, { credentials: "same-origin" });
+      await expectOk(projectResponse);
+      const projectValue: unknown = await projectResponse.json();
+      if (!isRevisionRecord(projectValue)) throw new Error("Project revision is unavailable");
+      const response = await fetch(`${apiBase}/review-study/synthesis/publish`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedProjectRevision: projectValue.revision, path: "review/synthesis.md" }),
+      });
+      await expectOk(response);
+      setSynthesisStatus(`Published review/synthesis.md from review revision ${synthesis.revision}.`);
+    } catch (error) {
+      setSynthesisStatus(errorMessage(error));
     }
   }
 
@@ -519,7 +577,7 @@ function render(snapshot: ReviewStudySnapshot): void {
   required("review-quality-minimum", HTMLInputElement).value =
     protocol.qualityAssessment.minimumScore === null ? "" : String(protocol.qualityAssessment.minimumScore);
   required("review-extraction-fields", HTMLTextAreaElement).value = protocol.extractionFields
-    .map((field) => `${field.label} | ${field.type} | ${field.values.join("; ")}`)
+    .map((field) => `${field.label} | ${field.type} | ${field.values.join("; ")} | ${field.researchQuestionIds.join("; ")}`)
     .join("\n");
   required("review-protocol-state", HTMLElement).textContent =
     `${protocol.status === "frozen" ? "Frozen" : "Draft"} · r${snapshot.revision}`;
@@ -850,6 +908,77 @@ function syncEvidenceSteps(snapshot: ReviewScreeningSnapshot, appraiseStep: HTML
   extractStep.disabled = disabled;
 }
 
+function renderSynthesis(synthesis: ReviewSynthesis): void {
+  const view = required("review-synthesis-view", HTMLElement);
+  view.replaceChildren();
+  const flow = document.createElement("section");
+  flow.className = "review-study-card";
+  const heading = document.createElement("h4");
+  heading.textContent = "PRISMA flow snapshot";
+  const metrics = document.createElement("div");
+  metrics.className = "review-import-summary";
+  metrics.append(
+    metric(synthesis.flow.identified, "identified"),
+    metric(synthesis.flow.duplicatesRemoved, "duplicates removed"),
+    metric(synthesis.flow.titleAbstractScreened, "screened"),
+    metric(synthesis.flow.fullTextAssessed, "full texts"),
+    metric(synthesis.flow.included, "included"),
+  );
+  flow.append(heading, metrics);
+  const rq = document.createElement("section");
+  rq.className = "review-study-card";
+  const rqHeading = document.createElement("h4");
+  rqHeading.textContent = "Research-question coverage";
+  rq.append(
+    rqHeading,
+    ...synthesis.rqCoverage.map((coverage) => synthesisStatusText(`${coverage.id} · ${coverage.studies} studies · ${coverage.question}`)),
+  );
+  const matrix = document.createElement("section");
+  matrix.className = "review-study-card review-matrix";
+  const matrixHeading = document.createElement("h4");
+  matrixHeading.textContent = "Evidence matrix";
+  const table = document.createElement("table");
+  const columns = ["title", "year", "qualityScore", ...synthesis.extractionColumns];
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const column of columns) {
+    const cell = document.createElement("th");
+    cell.textContent = column;
+    headRow.append(cell);
+  }
+  head.append(headRow);
+  const body = document.createElement("tbody");
+  for (const row of synthesis.matrix) {
+    const tableRow = document.createElement("tr");
+    for (const column of columns) {
+      const cell = document.createElement("td");
+      cell.textContent = row[column] === null || row[column] === undefined ? "Not reported" : String(row[column]);
+      tableRow.append(cell);
+    }
+    body.append(tableRow);
+  }
+  table.append(head, body);
+  matrix.append(matrixHeading, table);
+  view.append(flow, rq, matrix);
+}
+
+function synthesisStatusText(value: string): HTMLParagraphElement {
+  const paragraph = document.createElement("p");
+  paragraph.className = "review-screen-meta";
+  paragraph.textContent = value;
+  return paragraph;
+}
+
+function isRevisionRecord(value: unknown): value is { revision: number } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "revision" in value &&
+    typeof value.revision === "number" &&
+    Number.isSafeInteger(value.revision)
+  );
+}
+
 function actionButton(label: string, action: () => void): HTMLButtonElement {
   const button = document.createElement("button");
   button.className = "button-secondary";
@@ -978,13 +1107,17 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
   });
   const minimumValue = required("review-quality-minimum", HTMLInputElement).value.trim();
   const extractionFields = nonEmptyLines(required("review-extraction-fields", HTMLTextAreaElement).value).map((line, index) => {
-    const [label = "", typeValue = "", valuesValue = ""] = line.split("|").map((part) => part.trim());
+    const [label = "", typeValue = "", valuesValue = "", rqValue = ""] = line.split("|").map((part) => part.trim());
     if (!label || !isExtractionType(typeValue)) throw new Error(`Extraction field line ${index + 1} is invalid`);
     return {
       id: previous.extractionFields[index]?.id ?? `field_${crypto.randomUUID()}`,
       label,
       type: typeValue,
       values: valuesValue
+        .split(";")
+        .map((value) => value.trim())
+        .filter(Boolean),
+      researchQuestionIds: rqValue
         .split(";")
         .map((value) => value.trim())
         .filter(Boolean),
@@ -1066,6 +1199,10 @@ function setScreenStatus(message: string): void {
 
 function setEvidenceStatus(mode: "appraise" | "extract", message: string): void {
   required(`review-${mode}-status`, HTMLElement).textContent = message;
+}
+
+function setSynthesisStatus(message: string): void {
+  required("review-synthesis-status", HTMLElement).textContent = message;
 }
 
 function errorMessage(error: unknown): string {

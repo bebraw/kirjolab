@@ -39,6 +39,7 @@ import {
   type ReviewEvidencePointer,
   type ReviewEvidenceSnapshot,
 } from "../domain/review-evidence";
+import { buildReviewSynthesis, type ReviewSynthesis } from "../domain/review-synthesis";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 
 const migrations = [
@@ -676,6 +677,15 @@ export class ReviewStudy extends DurableObject<Env> {
       this.advanceRevision();
     });
     return this.getEvidenceSnapshot(actor);
+  }
+
+  getSynthesis(actor: string): ReviewSynthesis {
+    return buildReviewSynthesis(
+      this.getSnapshot(),
+      this.getSearchSnapshot(),
+      this.getScreeningSnapshot(actor),
+      this.getEvidenceSnapshot(actor),
+    );
   }
 
   private appendProtocol(content: ReviewProtocolContent, status: "draft" | "frozen", rationale: string, actor: string): void {
