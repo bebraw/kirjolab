@@ -179,7 +179,7 @@ export function parseReviewStudySnapshot(value: unknown): ReviewStudySnapshot {
   if (!Array.isArray(value.protocolHistory) || value.protocolHistory.length === 0) throw new Error("Review protocol history is invalid");
   const protocolHistory = value.protocolHistory.map(parseProtocolRevision);
   const protocol = parseProtocolRevision(value.protocol);
-  if (protocol.revision !== value.revision || protocolHistory.at(-1)?.revision !== protocol.revision) {
+  if (protocol.revision > value.revision || protocolHistory.at(-1)?.revision !== protocol.revision) {
     throw new Error("Review protocol revision is inconsistent");
   }
   return { revision: value.revision, protocol, protocolHistory };

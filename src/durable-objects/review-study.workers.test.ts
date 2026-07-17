@@ -1,6 +1,7 @@
 import { env, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { defaultReviewProtocol } from "../domain/review-study";
+import { previewReviewBibTeX } from "../domain/review-search";
 import { ReviewStudy } from "./review-study";
 
 describe("ReviewStudy in the Workers runtime", () => {
@@ -51,6 +52,42 @@ describe("ReviewStudy in the Workers runtime", () => {
       await runInDurableObject(study, (_instance: ReviewStudy, state) =>
         state.storage.sql.exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations").toArray(),
       ),
-    ).toEqual([{ version: 1, name: "store-review-protocol-revisions" }]);
+    ).toEqual([
+      { version: 1, name: "store-review-protocol-revisions" },
+      { version: 2, name: "store-search-runs-and-reviewed-duplicates" },
+    ]);
+  });
+
+  it("imports immutable occurrences and merges only reviewed duplicates", async () => {
+    const study = env.REVIEW_STUDIES.getByName(`review-search-${crypto.randomUUID()}`);
+    const initial = await study.getSnapshot();
+    const content = {
+      ...defaultReviewProtocol(),
+      sources: [
+        { id: "scopus", name: "Scopus", url: "https://scopus.com", dialect: "scopus" as const, fieldScope: "title-abstract" as const },
+      ],
+    };
+    await study.replaceProtocol({ expectedRevision: initial.revision, content, actor: "owner@example.com" });
+    const frozen = await study.freezeProtocol(2, "owner@example.com");
+    const bibtex = `@article{one, title={Same Study}, author={Doe, Jane}, year={2025}, doi={10.1/same}}
+@article{two, title={Same Study}, author={Doe, Jane}, year={2025}, doi={10.1/same}}`;
+    const preview = await previewReviewBibTeX(bibtex);
+    const imported = await study.confirmSearchRun({
+      expectedRevision: frozen.revision,
+      sourceId: "scopus",
+      query: "TITLE-ABS(test)",
+      searchedAt: "2026-07-17T09:00:00Z",
+      bibtex,
+      digest: preview.digest,
+      actor: "owner@example.com",
+    });
+    expect(imported.counts).toEqual({ identified: 2, unique: 2, duplicatesRemoved: 0 });
+    expect(imported.runs).toHaveLength(1);
+    expect(imported.duplicateCandidates).toHaveLength(1);
+    const candidate = imported.duplicateCandidates[0]!;
+    const merged = await study.resolveDuplicate(imported.revision, candidate.id, "merge", candidate.leftId, "reviewer@example.com");
+    expect(merged.counts).toEqual({ identified: 2, unique: 1, duplicatesRemoved: 1 });
+    expect(new Set(merged.occurrences.map((occurrence) => occurrence.recordId))).toEqual(new Set([candidate.leftId]));
+    expect(merged.duplicateCandidates[0]).toMatchObject({ status: "merged", resolvedBy: "reviewer@example.com" });
   });
 });

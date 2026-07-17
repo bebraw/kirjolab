@@ -1,4 +1,5 @@
 import { parseReviewProtocolContent } from "../domain/review-study";
+import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search";
 import type { AuthIdentity } from "../security/auth";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
@@ -38,7 +39,71 @@ export async function handleReviewStudyApi(
       }),
     );
   }
+  if (suffix === "/review-study/search-import-previews" && request.method === "POST") {
+    const body = await searchImportBody(request);
+    return noStore(await previewReviewBibTeX(body.bibtex));
+  }
+  if (suffix === "/review-study/search-runs" && request.method === "GET") return noStore(await study.getSearchSnapshot());
+  if (suffix === "/review-study/search-runs" && request.method === "POST") {
+    const body = await searchRunRequest(request);
+    return noStore(await study.confirmSearchRun({ ...body, actor: identity.email }));
+  }
+  const duplicateMatch = /^\/review-study\/duplicate-candidates\/([a-f0-9-]{36})\/resolve$/iu.exec(suffix);
+  if (duplicateMatch?.[1] && request.method === "POST") {
+    const body = await duplicateResolutionRequest(request);
+    return noStore(
+      await study.resolveDuplicate(body.expectedRevision, duplicateMatch[1], body.action, body.canonicalRecordId, identity.email),
+    );
+  }
   return Response.json({ error: "Review-study route not found" }, { status: 404 });
+}
+
+async function searchRunRequest(request: Request) {
+  const value = await searchImportBody(request);
+  if (
+    typeof value.expectedRevision !== "number" ||
+    !Number.isSafeInteger(value.expectedRevision) ||
+    typeof value.sourceId !== "string" ||
+    typeof value.query !== "string" ||
+    typeof value.searchedAt !== "string" ||
+    typeof value.digest !== "string"
+  ) {
+    throw new Error("Review search run request is invalid");
+  }
+  return {
+    expectedRevision: value.expectedRevision,
+    sourceId: value.sourceId,
+    query: value.query,
+    searchedAt: value.searchedAt,
+    bibtex: value.bibtex,
+    digest: value.digest,
+  };
+}
+
+async function searchImportBody(request: Request): Promise<Record<string, unknown> & { bibtex: string }> {
+  const length = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(length) && length > reviewImportLimits.bibtexBytes + 100_000) throw new Error("Review BibTeX import is too large");
+  const value: unknown = await request.json();
+  if (!isRecord(value) || typeof value.bibtex !== "string") throw new Error("Review BibTeX import request is invalid");
+  return { ...value, bibtex: value.bibtex };
+}
+
+async function duplicateResolutionRequest(request: Request): Promise<{
+  expectedRevision: number;
+  action: "merge" | "distinct";
+  canonicalRecordId: string | null;
+}> {
+  const value: unknown = await request.json();
+  if (
+    !isRecord(value) ||
+    typeof value.expectedRevision !== "number" ||
+    !Number.isSafeInteger(value.expectedRevision) ||
+    (value.action !== "merge" && value.action !== "distinct") ||
+    (value.canonicalRecordId !== null && typeof value.canonicalRecordId !== "string")
+  ) {
+    throw new Error("Review duplicate resolution is invalid");
+  }
+  return { expectedRevision: value.expectedRevision, action: value.action, canonicalRecordId: value.canonicalRecordId };
 }
 
 async function protocolRequest(request: Request, requireRationale = false) {

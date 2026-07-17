@@ -269,7 +269,7 @@ state.
 - [x] A project can initialize, edit, freeze, and amend an SLR or MLR protocol.
 - [x] Researchers can build concept groups, calibrate a logical query, and
       review source-specific field-scoped query renderings.
-- [ ] Immutable search runs can import BibTeX occurrences and preserve source
+- [x] Immutable search runs can import BibTeX occurrences and preserve source
       counts through reviewed deduplication.
 - [ ] One or two reviewers can complete staged screening, inspect conflicts,
       and adjudicate without overwriting original decisions.

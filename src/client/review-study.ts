@@ -9,6 +9,14 @@ import {
   type SearchDialect,
   type SearchFieldScope,
 } from "../domain/review-study";
+import {
+  parseReviewImportPreview,
+  parseReviewSearchSnapshot,
+  type ReviewDuplicateCandidate,
+  type ReviewImportPreview,
+  type ReviewRecord,
+  type ReviewSearchSnapshot,
+} from "../domain/review-search";
 
 const facets = ["population", "intervention", "comparison", "outcome", "context"] as const;
 const dialects = new Set<SearchDialect>(["generic", "scopus", "web-of-science", "ieee-xplore", "acm-dl"]);
@@ -20,7 +28,12 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   const dialog = required("review-study-dialog", HTMLDialogElement);
   const form = required("review-protocol-form", HTMLFormElement);
   const freeze = required("freeze-review-protocol", HTMLButtonElement);
+  const planStep = required("review-step-plan", HTMLButtonElement);
+  const searchStep = required("review-step-search", HTMLButtonElement);
+  const searchContent = required("review-search-content", HTMLElement);
   let snapshot: ReviewStudySnapshot | null = null;
+  let searchSnapshot: ReviewSearchSnapshot | null = null;
+  let importPreview: ReviewImportPreview | null = null;
 
   open.addEventListener("click", () => {
     dialog.showModal();
@@ -32,6 +45,15 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     void save();
   });
   freeze.addEventListener("click", () => void freezeProtocol());
+  planStep.addEventListener("click", showPlan);
+  required("back-to-review-plan", HTMLButtonElement).addEventListener("click", showPlan);
+  searchStep.addEventListener("click", () => void showSearch());
+  required("review-search-source", HTMLSelectElement).addEventListener("change", () => {
+    if (snapshot) syncSourceQuery(snapshot);
+  });
+  required("preview-review-import", HTMLButtonElement).addEventListener("click", () => void previewImport());
+  required("confirm-review-import", HTMLButtonElement).addEventListener("click", () => void confirmImport());
+  required("review-search-bibtex", HTMLTextAreaElement).addEventListener("input", clearImportPreview);
 
   async function load(): Promise<void> {
     setStatus("Loading protocol…");
@@ -93,6 +115,127 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       setStatus(errorMessage(error));
     }
   }
+
+  function showPlan(): void {
+    form.hidden = false;
+    searchContent.hidden = true;
+    planStep.setAttribute("aria-current", "step");
+    searchStep.removeAttribute("aria-current");
+  }
+
+  async function showSearch(): Promise<void> {
+    if (!snapshot || snapshot.protocol.status !== "frozen") return;
+    form.hidden = true;
+    searchContent.hidden = false;
+    planStep.removeAttribute("aria-current");
+    searchStep.setAttribute("aria-current", "step");
+    populateSearchSources(snapshot);
+    await loadSearchSnapshot();
+  }
+
+  async function loadSearchSnapshot(): Promise<void> {
+    setSearchStatus("Loading search runs…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/search-runs`, { credentials: "same-origin" });
+      await expectOk(response);
+      searchSnapshot = parseReviewSearchSnapshot(await response.json());
+      renderSearchSnapshot(searchSnapshot);
+      setSearchStatus("Search runs preserve the exact source, query, date, and import digest.");
+    } catch (error) {
+      setSearchStatus(errorMessage(error));
+    }
+  }
+
+  async function previewImport(): Promise<void> {
+    const bibtex = required("review-search-bibtex", HTMLTextAreaElement).value;
+    setImportStatus("Validating BibTeX without changing the review…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/search-import-previews`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bibtex }),
+      });
+      await expectOk(response);
+      importPreview = parseReviewImportPreview(await response.json());
+      renderImportPreview(importPreview);
+      required("confirm-review-import", HTMLButtonElement).disabled = false;
+      setImportStatus("Preview ready. Confirm only if the source, query, date, and record counts are correct.");
+    } catch (error) {
+      clearImportPreview();
+      setImportStatus(errorMessage(error));
+    }
+  }
+
+  async function confirmImport(): Promise<void> {
+    if (!snapshot || !searchSnapshot || !importPreview) return;
+    const sourceId = required("review-search-source", HTMLSelectElement).value;
+    const searchedAt = required("review-searched-at", HTMLInputElement).value;
+    if (!searchedAt) return setImportStatus("Record when this source search was executed.");
+    setImportStatus("Recording immutable search run…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/search-runs`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: searchSnapshot.revision,
+          sourceId,
+          query: required("review-search-query", HTMLTextAreaElement).value,
+          searchedAt: new Date(searchedAt).toISOString(),
+          bibtex: required("review-search-bibtex", HTMLTextAreaElement).value,
+          digest: importPreview.digest,
+        }),
+      });
+      await expectOk(response);
+      searchSnapshot = parseReviewSearchSnapshot(await response.json());
+      clearImportPreview();
+      required("review-search-bibtex", HTMLTextAreaElement).value = "";
+      renderSearchSnapshot(searchSnapshot);
+      setImportStatus("Immutable search run recorded.");
+    } catch (error) {
+      setImportStatus(errorMessage(error));
+    }
+  }
+
+  async function resolveDuplicate(
+    candidate: ReviewDuplicateCandidate,
+    action: "merge" | "distinct",
+    canonicalRecordId: string | null,
+  ): Promise<void> {
+    if (!searchSnapshot) return;
+    setSearchStatus("Recording duplicate review…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/duplicate-candidates/${candidate.id}/resolve`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedRevision: searchSnapshot.revision, action, canonicalRecordId }),
+      });
+      await expectOk(response);
+      searchSnapshot = parseReviewSearchSnapshot(await response.json());
+      renderSearchSnapshot(searchSnapshot);
+      setSearchStatus(
+        action === "merge" ? "Duplicate merged; both source occurrences remain in provenance." : "Records marked as distinct.",
+      );
+    } catch (error) {
+      setSearchStatus(errorMessage(error));
+    }
+  }
+
+  function renderSearchSnapshot(value: ReviewSearchSnapshot): void {
+    required("review-search-run-count", HTMLElement).textContent = String(value.runs.length);
+    required("review-search-counts", HTMLElement).textContent = `${value.counts.unique} unique · ${value.counts.duplicatesRemoved} removed`;
+    const runs = required("review-search-runs", HTMLElement);
+    runs.replaceChildren(...(value.runs.length ? value.runs.map(renderSearchRun) : [emptyState("No source searches imported.")]));
+    const candidates = required("review-duplicate-list", HTMLElement);
+    const pending = value.duplicateCandidates.filter((candidate) => candidate.status === "pending");
+    candidates.replaceChildren(
+      ...(pending.length
+        ? pending.map((candidate) => renderDuplicateCandidate(candidate, value.records, resolveDuplicate))
+        : [emptyState("No unresolved duplicate candidates.")]),
+    );
+  }
 }
 
 function render(snapshot: ReviewStudySnapshot): void {
@@ -113,8 +256,133 @@ function render(snapshot: ReviewStudySnapshot): void {
   required("review-protocol-state", HTMLElement).textContent =
     `${protocol.status === "frozen" ? "Frozen" : "Draft"} · r${snapshot.revision}`;
   required("freeze-review-protocol", HTMLButtonElement).disabled = protocol.status === "frozen";
+  required("review-step-search", HTMLButtonElement).disabled = protocol.status !== "frozen";
   required("review-calibration", HTMLElement).textContent = `${protocol.calibration.matched} / ${protocol.calibration.total} seeds`;
   renderQueries(protocol);
+}
+
+function populateSearchSources(snapshot: ReviewStudySnapshot): void {
+  const select = required("review-search-source", HTMLSelectElement);
+  const selected = select.value;
+  select.replaceChildren(
+    ...snapshot.protocol.sources.map((source) => {
+      const option = document.createElement("option");
+      option.value = source.id;
+      option.textContent = source.name;
+      return option;
+    }),
+  );
+  if (snapshot.protocol.sources.some((source) => source.id === selected)) select.value = selected;
+  syncSourceQuery(snapshot);
+  const searchedAt = required("review-searched-at", HTMLInputElement);
+  if (!searchedAt.value) searchedAt.value = localDateTime(new Date());
+}
+
+function syncSourceQuery(snapshot: ReviewStudySnapshot): void {
+  const sourceId = required("review-search-source", HTMLSelectElement).value;
+  const plan = snapshot.protocol.sourceQueries.find((candidate) => candidate.sourceId === sourceId);
+  required("review-search-query", HTMLTextAreaElement).value = plan?.query ?? snapshot.protocol.logicalQuery;
+}
+
+function renderImportPreview(preview: ReviewImportPreview): void {
+  const container = required("review-import-preview", HTMLElement);
+  container.replaceChildren();
+  const summary = document.createElement("div");
+  summary.className = "review-import-summary";
+  summary.append(
+    metric(preview.records.length, "valid records"),
+    metric(preview.skippedEntries, "skipped entries"),
+    metric(preview.records.filter((record) => record.warnings.length > 0).length, "with warnings"),
+  );
+  container.append(summary);
+}
+
+function clearImportPreview(): void {
+  required("review-import-preview", HTMLElement).replaceChildren();
+  required("confirm-review-import", HTMLButtonElement).disabled = true;
+}
+
+function metric(value: number, label: string): HTMLElement {
+  const element = document.createElement("span");
+  const strong = document.createElement("strong");
+  strong.textContent = String(value);
+  const small = document.createElement("small");
+  small.textContent = label;
+  element.append(strong, small);
+  return element;
+}
+
+function renderSearchRun(run: ReviewSearchSnapshot["runs"][number]): HTMLElement {
+  const item = document.createElement("article");
+  item.className = "review-query-item";
+  const title = document.createElement("strong");
+  title.textContent = `${run.sourceName} · ${run.occurrenceCount} records`;
+  const meta = document.createElement("p");
+  meta.className = "review-field-help";
+  meta.textContent = `Searched ${formatDate(run.searchedAt)} · imported by ${run.importedBy} · protocol r${run.protocolRevision}`;
+  const query = document.createElement("pre");
+  query.textContent = run.query;
+  const digest = document.createElement("p");
+  digest.className = "review-field-help";
+  digest.textContent = `SHA-256 ${run.digest.slice(0, 16)}…`;
+  item.append(title, meta, query, digest);
+  return item;
+}
+
+function renderDuplicateCandidate(
+  candidate: ReviewDuplicateCandidate,
+  records: readonly ReviewRecord[],
+  resolve: (candidate: ReviewDuplicateCandidate, action: "merge" | "distinct", canonicalRecordId: string | null) => Promise<void>,
+): HTMLElement {
+  const left = records.find((record) => record.id === candidate.leftId);
+  const right = records.find((record) => record.id === candidate.rightId);
+  const item = document.createElement("article");
+  item.className = "review-query-item";
+  const title = document.createElement("strong");
+  title.textContent = candidate.confidence === "exact" ? "Exact duplicate signal" : "Probable duplicate";
+  const comparison = document.createElement("p");
+  comparison.className = "review-field-help";
+  comparison.textContent = `${recordLabel(left)} ↔ ${recordLabel(right)} · ${candidate.signals.join(", ")}`;
+  const actions = document.createElement("div");
+  actions.className = "review-duplicate-actions";
+  actions.append(
+    actionButton("Keep first", () => void resolve(candidate, "merge", candidate.leftId)),
+    actionButton("Keep second", () => void resolve(candidate, "merge", candidate.rightId)),
+    actionButton("Not duplicates", () => void resolve(candidate, "distinct", null)),
+  );
+  item.append(title, comparison, actions);
+  return item;
+}
+
+function actionButton(label: string, action: () => void): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.className = "button-secondary";
+  button.type = "button";
+  button.textContent = label;
+  button.addEventListener("click", action);
+  return button;
+}
+
+function recordLabel(record: ReviewRecord | undefined): string {
+  if (!record) return "Unavailable record";
+  return `${record.metadata.title}${record.metadata.year ? ` (${record.metadata.year})` : ""}`;
+}
+
+function emptyState(message: string): HTMLElement {
+  const element = document.createElement("div");
+  element.className = "empty-state";
+  element.textContent = message;
+  return element;
+}
+
+function localDateTime(date: Date): string {
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 function renderQueries(protocol: ReviewStudySnapshot["protocol"]): void {
@@ -229,6 +497,14 @@ async function expectOk(response: Response): Promise<void> {
 
 function setStatus(message: string): void {
   required("review-protocol-status", HTMLElement).textContent = message;
+}
+
+function setImportStatus(message: string): void {
+  required("review-import-status", HTMLElement).textContent = message;
+}
+
+function setSearchStatus(message: string): void {
+  required("review-search-status", HTMLElement).textContent = message;
 }
 
 function errorMessage(error: unknown): string {

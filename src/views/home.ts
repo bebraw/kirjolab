@@ -779,7 +779,7 @@ export function renderHomePage(
       <div class="flex items-center gap-2"><span class="count-badge" id="review-protocol-state">Draft</span><button class="button-secondary" id="close-review-study" type="button">Close</button></div>
     </header>
     <nav class="review-study-steps" aria-label="Review study stages">
-      <button type="button" aria-current="step">1. Plan</button><button type="button" disabled>2. Search</button><button type="button" disabled>3. Screen</button><button type="button" disabled>4. Appraise</button><button type="button" disabled>5. Extract</button><button type="button" disabled>6. Synthesize</button><button type="button" disabled>7. Report</button>
+      <button id="review-step-plan" type="button" aria-current="step">1. Plan</button><button id="review-step-search" type="button" disabled>2. Search</button><button type="button" disabled>3. Screen</button><button type="button" disabled>4. Appraise</button><button type="button" disabled>5. Extract</button><button type="button" disabled>6. Synthesize</button><button type="button" disabled>7. Report</button>
     </nav>
     <form class="review-study-content" id="review-protocol-form">
       <section class="review-study-intro">
@@ -802,6 +802,16 @@ export function renderHomePage(
       </div>
       <footer class="review-study-footer"><p id="review-protocol-status" role="status" aria-live="polite">Loading protocol…</p><div><button class="button-secondary" id="freeze-review-protocol" type="button">Freeze protocol</button><button class="button-primary" type="submit">Save protocol</button></div></footer>
     </form>
+    <section class="review-search-content" id="review-search-content" hidden>
+      <div class="review-search-grid">
+        <div class="review-study-form-stack">
+          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Immutable run</p><h3>Import source results</h3></div><span class="count-badge">BibTeX</span></div><div class="review-search-fields"><label class="field-label">Source<select class="field" id="review-search-source"></select></label><label class="field-label">Search executed at<input class="field" id="review-searched-at" type="datetime-local"></label><label class="field-label review-search-query-field">Exact query used<textarea class="field font-mono" id="review-search-query" rows="4" maxlength="20000"></textarea></label><label class="field-label review-search-query-field">BibTeX results<textarea class="field font-mono" id="review-search-bibtex" rows="8" maxlength="33554432" placeholder="Paste the exact source export here"></textarea></label></div><div class="review-search-actions"><button class="button-secondary" id="preview-review-import" type="button">Preview import</button><button class="button-primary" id="confirm-review-import" type="button" disabled>Confirm immutable run</button></div><p class="review-field-help" id="review-import-status" role="status">Preview validates records without changing the review.</p><div id="review-import-preview"></div></section>
+          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Provenance</p><h3>Search runs</h3></div><span class="count-badge" id="review-search-run-count">0</span></div><div class="review-query-list" id="review-search-runs"><div class="empty-state">No source searches imported.</div></div></section>
+        </div>
+        <aside class="review-query-preview"><div class="review-study-card-heading"><div><p class="eyebrow">Deduplication</p><h3>Review candidates</h3></div><span class="count-badge" id="review-search-counts">0 unique</span></div><p class="review-field-help">Every source occurrence is retained. Merging changes only the canonical review record.</p><div class="review-query-list mt-3" id="review-duplicate-list"><div class="empty-state">No duplicate candidates.</div></div></aside>
+      </div>
+      <footer class="review-study-footer"><p id="review-search-status" role="status" aria-live="polite">Search runs preserve the exact source, query, date, and import digest.</p><div><button class="button-secondary" id="back-to-review-plan" type="button">Back to plan</button></div></footer>
+    </section>
   </div>
 </dialog>
 

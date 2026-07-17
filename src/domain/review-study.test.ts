@@ -91,6 +91,9 @@ describe("review study protocol", () => {
   it("validates snapshot revision consistency", () => {
     const protocol = materializeProtocolRevision(defaultReviewProtocol(), 1, "draft", "Created", "owner");
     expect(parseReviewStudySnapshot({ revision: 1, protocol, protocolHistory: [protocol] }).protocol).toEqual(protocol);
-    expect(() => parseReviewStudySnapshot({ revision: 2, protocol, protocolHistory: [protocol] })).toThrow("inconsistent");
+    const futureProtocol = materializeProtocolRevision(defaultReviewProtocol(), 2, "draft", "Future", "owner");
+    expect(() => parseReviewStudySnapshot({ revision: 1, protocol: futureProtocol, protocolHistory: [futureProtocol] })).toThrow(
+      "inconsistent",
+    );
   });
 });
