@@ -119,6 +119,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   from one exact review revision. Publish a reviewed synthesis only through a
   revision-checked `review/*.md` project artifact; never let background review
   changes rewrite manuscript files.
+- Keep local-model review assistance browser-to-loopback. Store the operation,
+  provider, model, prompt version, authorized source scope, result, and human
+  disposition; model candidates remain inert until explicit acceptance.
 - Coordinate each personal reference library through a separate SQLite-backed
   Durable Object keyed by verified owner identity. Stable source identity must
   not depend on a DOI, title, filename, or project citation alias.

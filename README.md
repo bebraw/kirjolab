@@ -22,12 +22,14 @@ is supported on macOS.
   local pure-JavaScript pipeline.
 - Import PDFs, highlight passages, and link evidence back to manuscript text.
 - Import BibTeX, enrich references through Crossref, and review DOI metadata
+  before associating it with a PDF.
 - Plan an SLR or MLR with versioned PICOC framing, research questions, concept
   groups, query calibration, and source-specific search syntax
 - Import and deduplicate search results, run attributed staged screening,
   appraise and extract evidence, and publish revision-pinned synthesis into the
   project
-  before associating it with a PDF.
+- Accelerate screening and typed extraction with auditable local-model
+  candidates that require explicit researcher disposition.
 - Follow a DOI-backed reference trail from trusted seed papers, review
   backward-snowball candidates, and save each accepted source with its
   discovery provenance.

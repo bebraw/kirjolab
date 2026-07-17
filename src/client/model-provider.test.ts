@@ -56,6 +56,50 @@ afterEach(() => {
 });
 
 describe("OpenAICompatibleBrowserProvider", () => {
+  it("returns evidence-bounded review screening and extraction candidates", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        completionResponse(
+          JSON.stringify({ decision: "include", criterion: "Empirical", rationale: "Reports a study.", evidence: "survey" }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        completionResponse(
+          JSON.stringify({
+            fieldId: "design",
+            value: "survey",
+            missingReason: null,
+            evidence: { quote: "We conducted a survey.", page: 4, location: "Methods" },
+            rationale: "The method is explicit.",
+          }),
+        ),
+      );
+    const provider = createProvider({ fetcher });
+    await expect(
+      provider.screenReviewRecord({
+        title: "A survey",
+        abstract: "We report a survey.",
+        inclusionCriteria: ["Empirical"],
+        exclusionCriteria: [],
+      }),
+    ).resolves.toMatchObject({ decision: "include", evidence: "survey", providerLabel: "Local test model" });
+    await expect(
+      provider.extractReviewField({
+        title: "A survey",
+        fieldId: "design",
+        fieldLabel: "Study design",
+        fieldType: "enum",
+        allowedValues: ["survey", "experiment"],
+        quote: "We conducted a survey.",
+        page: 4,
+        location: "Methods",
+      }),
+    ).resolves.toMatchObject({ fieldId: "design", value: "survey" });
+    const screeningBody = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as { response_format: { json_schema: { name: string } } };
+    expect(screeningBody.response_format.json_schema.name).toBe("kirjolab_review_screening_candidate");
+  });
+
   it("formulates a search query without inventing reference records", async () => {
     const fetcher = vi
       .fn<typeof fetch>()

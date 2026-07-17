@@ -4277,3 +4277,15 @@
     }
   }
 }
+
+.review-model-candidate {
+  @apply mt-3 grid gap-2 rounded-app border border-app-accent/30 bg-app-accent/5 p-3 font-sans text-sm;
+}
+
+.review-model-candidate small {
+  @apply text-xs leading-5 text-app-text-soft;
+}
+
+.review-model-candidate blockquote {
+  @apply border-l-2 border-app-accent pl-3 font-serif text-sm leading-6 text-app-text;
+}

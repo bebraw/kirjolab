@@ -1,6 +1,7 @@
 import { parseReviewProtocolContent } from "../domain/review-study";
 import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search";
 import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
+import type { ReviewModelOperation } from "../domain/review-model";
 import { parseEvidencePointer, type ExtractionValue } from "../domain/review-evidence";
 import { reviewSynthesisCsv, reviewSynthesisMarkdown } from "../domain/review-synthesis";
 import type { AuthIdentity } from "../security/auth";
@@ -113,6 +114,25 @@ export async function handleReviewStudyApi(
       ),
     );
   }
+  if (suffix === "/review-study/model-candidates" && request.method === "GET") {
+    return noStore(await study.getModelSnapshot(identity.email));
+  }
+  if (suffix === "/review-study/model-candidates" && request.method === "POST") {
+    const body = await modelCandidateRequest(request);
+    return noStore(await study.createModelCandidate({ ...body, actor: identity.email }));
+  }
+  const modelCandidateMatch = /^\/review-study\/model-candidates\/([a-f0-9-]{36})\/(accept|reject)$/iu.exec(suffix);
+  if (modelCandidateMatch?.[1] && modelCandidateMatch[2] && request.method === "POST") {
+    const body = await expectedRevisionRequest(request);
+    return noStore(
+      await study.resolveModelCandidate(
+        body.expectedRevision,
+        modelCandidateMatch[1],
+        modelCandidateMatch[2] === "accept" ? "accepted" : "rejected",
+        identity.email,
+      ),
+    );
+  }
   if (suffix === "/review-study/synthesis" && request.method === "GET") return noStore(await study.getSynthesis(identity.email));
   if (suffix === "/review-study/synthesis.csv" && request.method === "GET") {
     return download(reviewSynthesisCsv(await study.getSynthesis(identity.email)), "text/csv; charset=utf-8", "review-synthesis.csv");
@@ -146,6 +166,46 @@ async function synthesisPublishRequest(request: Request): Promise<{ expectedProj
     throw new Error("Review synthesis path is invalid");
   }
   return { expectedProjectRevision: value.expectedProjectRevision, path };
+}
+
+async function modelCandidateRequest(request: Request): Promise<{
+  expectedRevision: number;
+  operation: ReviewModelOperation;
+  recordId: string;
+  stage: ScreeningStage | null;
+  provider: string;
+  model: string;
+  promptTemplateVersion: string;
+  sourceScope: string[];
+  result: unknown;
+}> {
+  const value: unknown = await request.json();
+  if (
+    !isRecord(value) ||
+    typeof value.expectedRevision !== "number" ||
+    !Number.isSafeInteger(value.expectedRevision) ||
+    (value.operation !== "screen-record" && value.operation !== "extract-field") ||
+    typeof value.recordId !== "string" ||
+    (value.stage !== null && value.stage !== "title-abstract" && value.stage !== "full-text") ||
+    typeof value.provider !== "string" ||
+    typeof value.model !== "string" ||
+    typeof value.promptTemplateVersion !== "string" ||
+    !Array.isArray(value.sourceScope) ||
+    !value.sourceScope.every((item) => typeof item === "string")
+  ) {
+    throw new Error("Review model candidate request is invalid");
+  }
+  return {
+    expectedRevision: value.expectedRevision,
+    operation: value.operation,
+    recordId: value.recordId,
+    stage: value.stage,
+    provider: value.provider,
+    model: value.model,
+    promptTemplateVersion: value.promptTemplateVersion,
+    sourceScope: value.sourceScope,
+    result: value.result,
+  };
 }
 
 async function qualityValueRequest(request: Request) {

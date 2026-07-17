@@ -277,7 +277,7 @@ state.
       extraction with explicit missingness.
 - [x] RQ-oriented process and evidence analyses derive from a pinned review
       revision and can enter the manuscript as named review artifacts.
-- [ ] Local models can propose screening and extraction candidates that require
+- [x] Local models can propose screening and extraction candidates that require
       explicit human acceptance and produce an auditable disclosure.
 - [ ] JSON, CSV, BibTeX, PRISMA JSON/SVG, and deterministic review ZIP exports
       derive from the same review revision.

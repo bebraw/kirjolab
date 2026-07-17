@@ -31,6 +31,14 @@ import {
   type ReviewEvidenceSnapshot,
 } from "../domain/review-evidence";
 import { parseReviewSynthesis, type ReviewSynthesis } from "../domain/review-synthesis";
+import {
+  parseReviewModelSnapshot,
+  type ExtractionModelResult,
+  type ReviewModelCandidate,
+  type ReviewModelSnapshot,
+  type ScreeningModelResult,
+} from "../domain/review-model";
+import { OpenAICompatibleBrowserProvider, type ModelReasoningEffort } from "./model-provider";
 
 const facets = ["population", "intervention", "comparison", "outcome", "context"] as const;
 
@@ -57,6 +65,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   let screeningSnapshot: ReviewScreeningSnapshot | null = null;
   let evidenceSnapshot: ReviewEvidenceSnapshot | null = null;
   let synthesis: ReviewSynthesis | null = null;
+  let modelSnapshot: ReviewModelSnapshot | null = null;
 
   open.addEventListener("click", () => {
     dialog.showModal();
@@ -122,7 +131,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot, evidenceSnapshot),
+          expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot, evidenceSnapshot, modelSnapshot),
           content,
           ...(rationale ? { rationale } : {}),
         }),
@@ -144,7 +153,9 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot, evidenceSnapshot) }),
+        body: JSON.stringify({
+          expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot, evidenceSnapshot, modelSnapshot),
+        }),
       });
       await expectOk(response);
       snapshot = parseReviewStudySnapshot(await response.json());
@@ -225,6 +236,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       const response = await fetch(`${apiBase}/review-study/screening`, { credentials: "same-origin" });
       await expectOk(response);
       screeningSnapshot = parseReviewScreeningSnapshot(await response.json());
+      await loadModelSnapshot();
       renderScreening();
       const hasIncluded = screeningSnapshot.counts.fullTextIncluded > 0;
       appraiseStep.disabled = !hasIncluded;
@@ -255,6 +267,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       const response = await fetch(`${apiBase}/review-study/evidence`, { credentials: "same-origin" });
       await expectOk(response);
       evidenceSnapshot = parseReviewEvidenceSnapshot(await response.json());
+      await loadModelSnapshot();
       renderEvidence();
       synthesizeStep.disabled = evidenceSnapshot.records.length === 0;
       setEvidenceStatus("appraise", "Scores are derived from the frozen checklist.");
@@ -263,6 +276,12 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       setEvidenceStatus("appraise", errorMessage(error));
       setEvidenceStatus("extract", errorMessage(error));
     }
+  }
+
+  async function loadModelSnapshot(): Promise<void> {
+    const response = await fetch(`${apiBase}/review-study/model-candidates`, { credentials: "same-origin" });
+    await expectOk(response);
+    modelSnapshot = parseReviewModelSnapshot(await response.json());
   }
 
   async function showSynthesis(): Promise<void> {
@@ -397,7 +416,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          expectedRevision: screeningSnapshot.revision,
+          expectedRevision: latestReviewRevision(screeningSnapshot.revision, modelSnapshot?.revision),
           stage,
           decision: screeningDecisionValue(data.get("decision")),
           criterion: String(data.get("criterion") ?? ""),
@@ -406,10 +425,133 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       });
       await expectOk(response);
       screeningSnapshot = parseReviewScreeningSnapshot(await response.json());
+      await loadModelSnapshot();
       renderScreening();
       setScreenStatus("Screening decision recorded.");
     } catch (error) {
       setScreenStatus(errorMessage(error));
+    }
+  }
+
+  async function generateScreeningCandidate(state: ScreeningRecordState): Promise<void> {
+    if (!snapshot || !screeningSnapshot || snapshot.protocol.modelAssistance.mode === "off") return;
+    setScreenStatus("Asking the configured local model for a reviewable screening candidate…");
+    try {
+      const provider = reviewModelProvider();
+      const suggestion = await provider.screenReviewRecord({
+        title: state.record.metadata.title,
+        abstract: state.record.metadata.abstract,
+        inclusionCriteria: snapshot.protocol.inclusionCriteria,
+        exclusionCriteria: snapshot.protocol.exclusionCriteria,
+      });
+      const response = await fetch(`${apiBase}/review-study/model-candidates`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: latestReviewRevision(screeningSnapshot.revision, modelSnapshot?.revision),
+          operation: "screen-record",
+          recordId: state.record.id,
+          stage: "title-abstract",
+          provider: suggestion.providerLabel,
+          model: suggestion.model,
+          promptTemplateVersion: "review-screening-v1",
+          sourceScope: ["bibliographic title", "bibliographic abstract", "frozen eligibility criteria"],
+          result: {
+            decision: suggestion.decision,
+            criterion: suggestion.criterion,
+            rationale: suggestion.rationale,
+            evidence: suggestion.evidence,
+          },
+        }),
+      });
+      await expectOk(response);
+      modelSnapshot = parseReviewModelSnapshot(await response.json());
+      renderScreening();
+      setScreenStatus(
+        snapshot.protocol.modelAssistance.mode === "human-first"
+          ? "Candidate recorded and hidden until your initial decision."
+          : "Candidate recorded. Accept or reject it explicitly.",
+      );
+    } catch (error) {
+      setScreenStatus(errorMessage(error));
+    }
+  }
+
+  async function generateExtractionCandidate(
+    record: EvidenceRecordState,
+    field: ReviewEvidenceSnapshot["protocol"]["extractionFields"][number],
+    formElement: HTMLFormElement,
+  ): Promise<void> {
+    if (!snapshot || !evidenceSnapshot || snapshot.protocol.modelAssistance.mode === "off") return;
+    const data = new FormData(formElement);
+    const pointer = evidenceFromForm(data);
+    if (!pointer.quote.trim()) return setEvidenceStatus("extract", "Paste the exact authorized quotation before asking the model.");
+    setEvidenceStatus("extract", "Asking the configured local model for a typed extraction candidate…");
+    try {
+      const provider = reviewModelProvider();
+      const suggestion = await provider.extractReviewField({
+        title: record.record.metadata.title,
+        fieldId: field.id,
+        fieldLabel: field.label,
+        fieldType: field.type,
+        allowedValues: field.values,
+        quote: pointer.quote,
+        page: pointer.page,
+        location: pointer.location,
+      });
+      const response = await fetch(`${apiBase}/review-study/model-candidates`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: latestReviewRevision(evidenceSnapshot.revision, modelSnapshot?.revision),
+          operation: "extract-field",
+          recordId: record.record.id,
+          stage: null,
+          provider: suggestion.providerLabel,
+          model: suggestion.model,
+          promptTemplateVersion: "review-extraction-v1",
+          sourceScope: ["researcher-authorized exact quotation", "frozen extraction field"],
+          result: {
+            fieldId: suggestion.fieldId,
+            value: suggestion.value,
+            missingReason: suggestion.missingReason,
+            evidence: suggestion.evidence,
+            rationale: suggestion.rationale,
+          },
+        }),
+      });
+      await expectOk(response);
+      modelSnapshot = parseReviewModelSnapshot(await response.json());
+      renderEvidence();
+      setEvidenceStatus(
+        "extract",
+        snapshot.protocol.modelAssistance.mode === "human-first"
+          ? "Candidate recorded and hidden until your initial extraction."
+          : "Candidate recorded. Accept or reject it explicitly.",
+      );
+    } catch (error) {
+      setEvidenceStatus("extract", errorMessage(error));
+    }
+  }
+
+  async function resolveModelCandidate(candidate: ReviewModelCandidate, action: "accept" | "reject"): Promise<void> {
+    if (!modelSnapshot) return;
+    try {
+      const response = await fetch(`${apiBase}/review-study/model-candidates/${candidate.id}/${action}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedRevision: modelSnapshot.revision }),
+      });
+      await expectOk(response);
+      modelSnapshot = parseReviewModelSnapshot(await response.json());
+      if (candidate.operation === "screen-record") await loadScreening();
+      else await loadEvidence();
+    } catch (error) {
+      if (candidate.operation === "screen-record") setScreenStatus(errorMessage(error));
+      else setEvidenceStatus("extract", errorMessage(error));
     }
   }
 
@@ -458,6 +600,14 @@ export function bindReviewStudyPlanning(apiBase: string): void {
               protocolSnapshot,
               (recordId, formElement) => submitDecision(recordId, stage, formElement),
               (recordId, outcome) => adjudicate(recordId, stage, outcome),
+              stage === "title-abstract" && protocolSnapshot.protocol.modelAssistance.mode !== "off"
+                ? (record) => generateScreeningCandidate(record)
+                : null,
+              modelSnapshot?.candidates.filter(
+                (candidate) =>
+                  candidate.operation === "screen-record" && candidate.recordId === state.record.id && candidate.stage === stage,
+              ) ?? [],
+              resolveModelCandidate,
             ),
           )
         : [emptyState("No records match this screening view.")]),
@@ -475,7 +625,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          expectedRevision: evidenceSnapshot.revision,
+          expectedRevision: latestReviewRevision(evidenceSnapshot.revision, modelSnapshot?.revision),
           questionId,
           answerId: String(data.get("answer") ?? ""),
           evidence: evidenceFromForm(data),
@@ -483,6 +633,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       });
       await expectOk(response);
       evidenceSnapshot = parseReviewEvidenceSnapshot(await response.json());
+      await loadModelSnapshot();
       renderEvidence();
       setEvidenceStatus("appraise", "Quality answer recorded with evidence.");
     } catch (error) {
@@ -501,7 +652,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          expectedRevision: evidenceSnapshot.revision,
+          expectedRevision: latestReviewRevision(evidenceSnapshot.revision, modelSnapshot?.revision),
           fieldId,
           value: missingReason ? null : extractionValueFromForm(data.get("value"), fieldType),
           missingReason: missingReason || null,
@@ -510,6 +661,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       });
       await expectOk(response);
       evidenceSnapshot = parseReviewEvidenceSnapshot(await response.json());
+      await loadModelSnapshot();
       renderEvidence();
       setEvidenceStatus("extract", "Extracted value recorded with provenance.");
     } catch (error) {
@@ -529,7 +681,18 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     const extractList = required("review-extract-list", HTMLElement);
     extractList.replaceChildren(
       ...(evidenceSnapshot.records.length
-        ? currentEvidence.records.map((record) => extractionCard(record, currentEvidence, submitExtraction))
+        ? currentEvidence.records.map((record) =>
+            extractionCard(
+              record,
+              currentEvidence,
+              submitExtraction,
+              snapshot?.protocol.modelAssistance.mode === "off" ? null : generateExtractionCandidate,
+              modelSnapshot?.candidates.filter(
+                (candidate) => candidate.operation === "extract-field" && candidate.recordId === record.record.id,
+              ) ?? [],
+              resolveModelCandidate,
+            ),
+          )
         : [emptyState("No full-text inclusions are ready for extraction.")]),
     );
   }
@@ -567,6 +730,7 @@ function render(snapshot: ReviewStudySnapshot): void {
   required("review-inclusion-criteria", HTMLTextAreaElement).value = protocol.inclusionCriteria.join("\n");
   required("review-exclusion-criteria", HTMLTextAreaElement).value = protocol.exclusionCriteria.join("\n");
   required("review-reviewer-count", HTMLSelectElement).value = String(protocol.screening.reviewersPerStage);
+  required("review-model-mode", HTMLSelectElement).value = protocol.modelAssistance.mode;
   required("review-blinded", HTMLInputElement).checked = protocol.screening.blinded;
   required("review-quality-questions", HTMLTextAreaElement).value = protocol.qualityAssessment.questions
     .map((question) => question.text)
@@ -686,6 +850,9 @@ function screeningCard(
   protocolSnapshot: ReviewStudySnapshot,
   submit: (recordId: string, form: HTMLFormElement) => Promise<void>,
   adjudicate: (recordId: string, outcome: "include" | "exclude") => Promise<void>,
+  generateCandidate: ((record: ScreeningRecordState) => Promise<void>) | null,
+  candidates: readonly ReviewModelCandidate[],
+  resolveCandidate: (candidate: ReviewModelCandidate, action: "accept" | "reject") => Promise<void>,
 ): HTMLElement {
   const stageState = screeningStateFor(state, stage);
   const card = document.createElement("article");
@@ -738,6 +905,8 @@ function screeningCard(
     });
     card.append(form);
   }
+  if (generateCandidate) card.append(actionButton("Ask local model", () => void generateCandidate(state)));
+  for (const candidate of candidates) card.append(modelCandidateCard(candidate, resolveCandidate));
   if (stageState.decisions.length > 0) {
     const history = document.createElement("p");
     history.className = "review-decision-history";
@@ -833,6 +1002,15 @@ function extractionCard(
   record: EvidenceRecordState,
   snapshot: ReviewEvidenceSnapshot,
   submit: (recordId: string, fieldId: string, fieldType: string, form: HTMLFormElement) => Promise<void>,
+  generateCandidate:
+    | ((
+        record: EvidenceRecordState,
+        field: ReviewEvidenceSnapshot["protocol"]["extractionFields"][number],
+        form: HTMLFormElement,
+      ) => Promise<void>)
+    | null,
+  candidates: readonly ReviewModelCandidate[],
+  resolveCandidate: (candidate: ReviewModelCandidate, action: "accept" | "reject") => Promise<void>,
 ): HTMLElement {
   const card = evidenceCardHeader(record, record.extractionComplete ? "Complete" : "In progress");
   for (const field of snapshot.protocol.extractionFields) {
@@ -846,11 +1024,19 @@ function extractionCard(
     save.className = "button-primary";
     save.type = "submit";
     form.append(save);
+    if (generateCandidate) {
+      form.append(actionButton("Ask local model", () => void generateCandidate(record, field, form)));
+    }
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       void submit(record.record.id, field.id, field.type, form);
     });
     card.append(form);
+    for (const candidate of candidates) {
+      if (candidate.operation === "extract-field" && (candidate.result as ExtractionModelResult).fieldId === field.id) {
+        card.append(modelCandidateCard(candidate, resolveCandidate));
+      }
+    }
   }
   return card;
 }
@@ -988,6 +1174,78 @@ function actionButton(label: string, action: () => void): HTMLButtonElement {
   return button;
 }
 
+function modelCandidateCard(
+  candidate: ReviewModelCandidate,
+  resolve: (candidate: ReviewModelCandidate, action: "accept" | "reject") => Promise<void>,
+): HTMLElement {
+  const card = document.createElement("aside");
+  card.className = "review-model-candidate";
+  const heading = document.createElement("strong");
+  heading.textContent = `Local-model candidate · ${candidate.disposition}`;
+  const result =
+    candidate.operation === "screen-record" ? (candidate.result as ScreeningModelResult) : (candidate.result as ExtractionModelResult);
+  const summary = document.createElement("p");
+  summary.textContent =
+    candidate.operation === "screen-record"
+      ? `${(result as ScreeningModelResult).decision} · ${(result as ScreeningModelResult).rationale}`
+      : `${String((result as ExtractionModelResult).value ?? (result as ExtractionModelResult).missingReason)} · ${(result as ExtractionModelResult).rationale}`;
+  const provenance = document.createElement("small");
+  provenance.textContent = `${candidate.provider} · ${candidate.model} · ${candidate.promptTemplateVersion} · ${candidate.sourceScope.join(", ")}`;
+  card.append(heading, summary, provenance);
+  if (candidate.operation === "screen-record") {
+    const evidence = document.createElement("blockquote");
+    evidence.textContent = (result as ScreeningModelResult).evidence;
+    card.append(evidence);
+  }
+  if (candidate.disposition === "pending") {
+    const actions = document.createElement("div");
+    actions.className = "review-duplicate-actions";
+    actions.append(
+      actionButton("Accept candidate", () => void resolve(candidate, "accept")),
+      actionButton("Reject candidate", () => void resolve(candidate, "reject")),
+    );
+    card.append(actions);
+  }
+  return card;
+}
+
+function reviewModelProvider(): OpenAICompatibleBrowserProvider {
+  const stored = readReviewModelPreferences();
+  if (!stored.model) throw new Error("Choose a local model in Assistant settings first.");
+  return new OpenAICompatibleBrowserProvider({
+    endpoint: stored.endpoint,
+    providerLabel: stored.connection === "companion" ? "Local companion · OpenAI-compatible" : "Browser-local OpenAI-compatible",
+    model: stored.model,
+    reasoningEffort: stored.reasoningEffort,
+  });
+}
+
+function readReviewModelPreferences(): {
+  connection: "direct" | "companion";
+  endpoint: string;
+  model: string;
+  reasoningEffort: ModelReasoningEffort;
+} {
+  let value: unknown = null;
+  try {
+    value = JSON.parse(localStorage.getItem("kirjolab:model-preferences") ?? "null");
+  } catch {
+    value = null;
+  }
+  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  const effort = record.reasoningEffort;
+  return {
+    connection: record.connection === "companion" ? "companion" : "direct",
+    endpoint: typeof record.endpoint === "string" ? record.endpoint : "http://127.0.0.1:1234/v1/chat/completions",
+    model: typeof record.model === "string" ? record.model : "",
+    reasoningEffort: effort === "none" || effort === "low" || effort === "medium" || effort === "high" ? effort : "provider-default",
+  };
+}
+
+function latestReviewRevision(...values: readonly (number | undefined)[]): number {
+  return Math.max(...values.map((value) => value ?? 0));
+}
+
 function recordLabel(record: ReviewRecord | undefined): string {
   if (!record) return "Unavailable record";
   return `${record.metadata.title}${record.metadata.year ? ` (${record.metadata.year})` : ""}`;
@@ -1015,8 +1273,9 @@ function currentRevision(
   search: ReviewSearchSnapshot | null,
   screening: ReviewScreeningSnapshot | null,
   evidence: ReviewEvidenceSnapshot | null,
+  model: ReviewModelSnapshot | null,
 ): number {
-  return Math.max(protocol.revision, search?.revision ?? 0, screening?.revision ?? 0, evidence?.revision ?? 0);
+  return Math.max(protocol.revision, search?.revision ?? 0, screening?.revision ?? 0, evidence?.revision ?? 0, model?.revision ?? 0);
 }
 
 function renderQueries(protocol: ReviewStudySnapshot["protocol"]): void {
@@ -1142,6 +1401,14 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
     screening: {
       reviewersPerStage: required("review-reviewer-count", HTMLSelectElement).value === "2" ? 2 : 1,
       blinded: required("review-blinded", HTMLInputElement).checked,
+    },
+    modelAssistance: {
+      mode:
+        required("review-model-mode", HTMLSelectElement).value === "human-first"
+          ? "human-first"
+          : required("review-model-mode", HTMLSelectElement).value === "assisted"
+            ? "assisted"
+            : "off",
     },
     qualityAssessment: {
       questions: qualityQuestions,

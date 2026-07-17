@@ -11,6 +11,7 @@ export type ProtocolStatus = "draft" | "frozen";
 export type PicocFacet = "population" | "intervention" | "comparison" | "outcome" | "context";
 export type SearchDialect = "generic" | "scopus" | "web-of-science" | "ieee-xplore" | "acm-dl";
 export type SearchFieldScope = "all-fields" | "title-abstract" | "title-abstract-keywords";
+export type ReviewModelAssistanceMode = "off" | "human-first" | "assisted";
 
 export interface ReviewResearchQuestion {
   readonly id: string;
@@ -84,6 +85,9 @@ export interface ReviewProtocolContent {
     readonly reviewersPerStage: 1 | 2;
     readonly blinded: boolean;
   };
+  readonly modelAssistance: {
+    readonly mode: ReviewModelAssistanceMode;
+  };
   readonly qualityAssessment: {
     readonly questions: readonly QualityQuestion[];
     readonly answers: readonly QualityAnswerOption[];
@@ -125,6 +129,7 @@ export function defaultReviewProtocol(profile: ReviewProfile = "slr"): ReviewPro
     inclusionCriteria: [],
     exclusionCriteria: [],
     screening: { reviewersPerStage: 1, blinded: false },
+    modelAssistance: { mode: "off" },
     qualityAssessment: {
       questions: [],
       answers: [
@@ -199,6 +204,10 @@ export function parseReviewProtocolContent(value: unknown): ReviewProtocolConten
   if ((screeningValue.reviewersPerStage !== 1 && screeningValue.reviewersPerStage !== 2) || typeof screeningValue.blinded !== "boolean") {
     throw new Error("Screening policy is invalid");
   }
+  const modelAssistanceValue = isRecord(value.modelAssistance) ? value.modelAssistance : { mode: "off" };
+  if (modelAssistanceValue.mode !== "off" && modelAssistanceValue.mode !== "human-first" && modelAssistanceValue.mode !== "assisted") {
+    throw new Error("Model assistance mode is invalid");
+  }
   const qualityValue = isRecord(value.qualityAssessment) ? value.qualityAssessment : defaultReviewProtocol().qualityAssessment;
   const qualityQuestions = parseArray(qualityValue.questions, 256, "quality questions", (item) => {
     if (!isRecord(item)) throw new Error("Quality question is invalid");
@@ -270,6 +279,7 @@ export function parseReviewProtocolContent(value: unknown): ReviewProtocolConten
     inclusionCriteria,
     exclusionCriteria,
     screening: { reviewersPerStage: screeningValue.reviewersPerStage, blinded: screeningValue.blinded },
+    modelAssistance: { mode: modelAssistanceValue.mode },
     qualityAssessment: { questions: qualityQuestions, answers: qualityAnswers, minimumScore },
     extractionFields,
   };

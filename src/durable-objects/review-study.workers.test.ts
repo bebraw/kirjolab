@@ -57,6 +57,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       { version: 2, name: "store-search-runs-and-reviewed-duplicates" },
       { version: 3, name: "store-append-only-screening-decisions" },
       { version: 4, name: "store-evidence-linked-appraisal-and-extraction" },
+      { version: 5, name: "store-review-model-candidates" },
     ]);
   });
 
@@ -243,6 +244,91 @@ describe("ReviewStudy in the Workers runtime", () => {
       revision: missing.revision,
       flow: { identified: 1, included: 1 },
       matrix: [{ title: "Evidence Study", Year: 2025, "Key finding": "Missing: Not reported" }],
+    });
+  });
+
+  it("records model provenance and applies candidates only after human acceptance", async () => {
+    const study = env.REVIEW_STUDIES.getByName(`review-model-${crypto.randomUUID()}`);
+    const initial = await study.getSnapshot();
+    const content = {
+      ...defaultReviewProtocol(),
+      modelAssistance: { mode: "assisted" as const },
+      inclusionCriteria: ["Empirical"],
+      extractionFields: [{ id: "design", label: "Design", type: "enum" as const, values: ["survey"], researchQuestionIds: [] }],
+      sources: [{ id: "source", name: "Source", url: "", dialect: "generic" as const, fieldScope: "all-fields" as const }],
+    };
+    await study.replaceProtocol({ expectedRevision: initial.revision, content, actor: "owner@example.com" });
+    await study.freezeProtocol(2, "owner@example.com");
+    const bibtex = "@article{study, title={A Survey}, abstract={We conducted a survey.}}";
+    const preview = await previewReviewBibTeX(bibtex);
+    const searched = await study.confirmSearchRun({
+      expectedRevision: 3,
+      sourceId: "source",
+      query: "survey",
+      searchedAt: "2026-07-17T09:00:00Z",
+      bibtex,
+      digest: preview.digest,
+      actor: "owner@example.com",
+    });
+    const recordId = searched.records[0]!.id;
+    const screeningCandidate = await study.createModelCandidate({
+      expectedRevision: searched.revision,
+      operation: "screen-record",
+      recordId,
+      stage: "title-abstract",
+      provider: "Browser-local OpenAI-compatible",
+      model: "local-model",
+      promptTemplateVersion: "review-screening-v1",
+      sourceScope: ["bibliographic title", "bibliographic abstract", "frozen eligibility criteria"],
+      result: { decision: "include", criterion: "Empirical", rationale: "Reports a study.", evidence: "survey" },
+      actor: "reviewer@example.com",
+    });
+    expect((await study.getScreeningSnapshot("reviewer@example.com")).records[0]?.titleAbstract.outcome).toBe("pending");
+    const acceptedScreen = await study.resolveModelCandidate(
+      screeningCandidate.revision,
+      screeningCandidate.candidates[0]!.id,
+      "accepted",
+      "reviewer@example.com",
+    );
+    expect(acceptedScreen.candidates[0]).toMatchObject({ disposition: "accepted", model: "local-model" });
+    const titleState = await study.getScreeningSnapshot("reviewer@example.com");
+    expect(titleState.records[0]?.titleAbstract.outcome).toBe("include");
+    const full = await study.submitScreeningDecision(
+      titleState.revision,
+      recordId,
+      "full-text",
+      "include",
+      "Eligible",
+      "Empirical",
+      "reviewer@example.com",
+    );
+    const extractionCandidate = await study.createModelCandidate({
+      expectedRevision: full.revision,
+      operation: "extract-field",
+      recordId,
+      stage: null,
+      provider: "Browser-local OpenAI-compatible",
+      model: "local-model",
+      promptTemplateVersion: "review-extraction-v1",
+      sourceScope: ["researcher-authorized exact quotation", "frozen extraction field"],
+      result: {
+        fieldId: "design",
+        value: "survey",
+        missingReason: null,
+        evidence: { quote: "We conducted a survey.", page: 2, location: "Methods" },
+        rationale: "The design is explicit.",
+      },
+      actor: "reviewer@example.com",
+    });
+    await study.resolveModelCandidate(
+      extractionCandidate.revision,
+      extractionCandidate.candidates.find((candidate) => candidate.operation === "extract-field")!.id,
+      "accepted",
+      "reviewer@example.com",
+    );
+    expect((await study.getEvidenceSnapshot("reviewer@example.com")).records[0]).toMatchObject({
+      extractionComplete: true,
+      extractionValues: [{ value: "survey" }],
     });
   });
 });

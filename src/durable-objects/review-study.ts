@@ -40,6 +40,14 @@ import {
   type ReviewEvidenceSnapshot,
 } from "../domain/review-evidence";
 import { buildReviewSynthesis, type ReviewSynthesis } from "../domain/review-synthesis";
+import {
+  parseExtractionModelResult,
+  parseScreeningModelResult,
+  type ExtractionModelResult,
+  type ReviewModelCandidate,
+  type ReviewModelOperation,
+  type ReviewModelSnapshot,
+} from "../domain/review-model";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 
 const migrations = [
@@ -174,6 +182,32 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 5,
+    name: "store-review-model-candidates",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE review_model_candidates (
+          id TEXT PRIMARY KEY,
+          operation TEXT NOT NULL CHECK (operation IN ('screen-record', 'extract-field')),
+          record_id TEXT NOT NULL REFERENCES review_records(id),
+          stage TEXT CHECK (stage IN ('title-abstract', 'full-text')),
+          provider TEXT NOT NULL,
+          model TEXT NOT NULL,
+          prompt_template_version TEXT NOT NULL,
+          source_scope_json TEXT NOT NULL,
+          result_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          disposition TEXT NOT NULL CHECK (disposition IN ('pending', 'accepted', 'rejected')),
+          disposed_at TEXT,
+          disposed_by TEXT
+        );
+        CREATE INDEX review_model_candidates_record_idx ON review_model_candidates(record_id, created_at);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface MetaRow extends Record<string, SqlStorageValue> {
@@ -272,6 +306,23 @@ interface ExtractionValueRow extends Record<string, SqlStorageValue> {
   created_at: string;
 }
 
+interface ModelCandidateRow extends Record<string, SqlStorageValue> {
+  id: string;
+  operation: ReviewModelOperation;
+  record_id: string;
+  stage: ScreeningStage | null;
+  provider: string;
+  model: string;
+  prompt_template_version: string;
+  source_scope_json: string;
+  result_json: string;
+  created_at: string;
+  created_by: string;
+  disposition: "pending" | "accepted" | "rejected";
+  disposed_at: string | null;
+  disposed_by: string | null;
+}
+
 export interface ReplaceReviewProtocolInput {
   readonly expectedRevision: number;
   readonly content: ReviewProtocolContent;
@@ -290,6 +341,19 @@ export interface ConfirmReviewSearchRunInput {
   readonly searchedAt: string;
   readonly bibtex: string;
   readonly digest: string;
+  readonly actor: string;
+}
+
+export interface CreateReviewModelCandidateInput {
+  readonly expectedRevision: number;
+  readonly operation: ReviewModelOperation;
+  readonly recordId: string;
+  readonly stage: ScreeningStage | null;
+  readonly provider: string;
+  readonly model: string;
+  readonly promptTemplateVersion: string;
+  readonly sourceScope: readonly string[];
+  readonly result: unknown;
   readonly actor: string;
 }
 
@@ -679,6 +743,165 @@ export class ReviewStudy extends DurableObject<Env> {
     return this.getEvidenceSnapshot(actor);
   }
 
+  getModelSnapshot(actor: string): ReviewModelSnapshot {
+    const protocol = this.getSnapshot().protocol;
+    const rows = this.ctx.storage.sql
+      .exec<ModelCandidateRow>("SELECT * FROM review_model_candidates ORDER BY created_at ASC, id ASC")
+      .toArray();
+    return {
+      revision: this.currentRevision(),
+      candidates: rows
+        .map((row) => modelCandidateFromRow(row, protocol))
+        .filter((candidate) => {
+          if (candidate.disposition !== "pending" || protocol.modelAssistance.mode !== "human-first") return true;
+          if (candidate.operation === "screen-record") {
+            return (
+              this.ctx.storage.sql
+                .exec<{
+                  count: number;
+                }>(
+                  "SELECT COUNT(*) AS count FROM screening_decisions WHERE record_id = ? AND stage = ? AND reviewer = ?",
+                  candidate.recordId,
+                  candidate.stage,
+                  actor,
+                )
+                .one().count > 0
+            );
+          }
+          const result = candidate.result as import("../domain/review-model").ExtractionModelResult;
+          return (
+            this.ctx.storage.sql
+              .exec<{
+                count: number;
+              }>(
+                "SELECT COUNT(*) AS count FROM extracted_data_values WHERE record_id = ? AND field_id = ? AND reviewer = ?",
+                candidate.recordId,
+                result.fieldId,
+                actor,
+              )
+              .one().count > 0
+          );
+        }),
+    };
+  }
+
+  createModelCandidate(input: CreateReviewModelCandidateInput): ReviewModelSnapshot {
+    this.assertRevision(input.expectedRevision, this.currentRevision());
+    const protocol = this.getSnapshot().protocol;
+    if (protocol.modelAssistance.mode === "off") throw new Error("Enable model assistance in the protocol first");
+    const recordRow = this.ctx.storage.sql
+      .exec<ReviewRecordRow>("SELECT * FROM review_records WHERE id = ? AND state = 'active'", input.recordId)
+      .toArray()[0];
+    if (!recordRow) throw new Error("Model candidate review record is unavailable");
+    const provider = boundedScreeningText(input.provider, "Model provider", 256, false);
+    const model = boundedScreeningText(input.model, "Model", 256, false);
+    const promptTemplateVersion = boundedScreeningText(input.promptTemplateVersion, "Prompt template version", 128, false);
+    if (!Array.isArray(input.sourceScope) || input.sourceScope.length === 0 || input.sourceScope.length > 16) {
+      throw new Error("Model source scope is invalid");
+    }
+    const sourceScope = input.sourceScope.map((value) => boundedScreeningText(value, "Model source scope", 128, false));
+    let result: ReturnType<typeof parseScreeningModelResult> | ReturnType<typeof parseExtractionModelResult>;
+    if (input.operation === "screen-record") {
+      if (input.stage !== "title-abstract") throw new Error("Current screening assistance is title-and-abstract only");
+      result = parseScreeningModelResult(input.result);
+      const record = recordFromRow(recordRow);
+      if (!record.metadata.title.includes(result.evidence) && !record.metadata.abstract.includes(result.evidence)) {
+        throw new Error("Screening candidate evidence must quote the supplied title or abstract exactly");
+      }
+      const criteria = [...protocol.inclusionCriteria, ...protocol.exclusionCriteria];
+      if (result.criterion && !criteria.includes(result.criterion)) throw new Error("Screening candidate criterion is unavailable");
+    } else if (input.operation === "extract-field") {
+      if (input.stage !== null) throw new Error("Extraction candidates do not use a screening stage");
+      this.assertEvidenceRecord(input.recordId, input.actor);
+      const fieldId = isRecordValue(input.result) && typeof input.result.fieldId === "string" ? input.result.fieldId : "";
+      const field = protocol.extractionFields.find((candidate) => candidate.id === fieldId);
+      if (!field) throw new Error("Extraction candidate field is unavailable");
+      result = parseExtractionModelResult(input.result, field);
+    } else {
+      throw new Error("Model candidate operation is invalid");
+    }
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO review_model_candidates (id, operation, record_id, stage, provider, model, prompt_template_version, source_scope_json, result_json, created_at, created_by, disposition, disposed_at, disposed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, NULL)",
+        crypto.randomUUID(),
+        input.operation,
+        input.recordId,
+        input.stage,
+        provider,
+        model,
+        promptTemplateVersion,
+        JSON.stringify(sourceScope),
+        JSON.stringify(result),
+        new Date().toISOString(),
+        input.actor,
+      );
+      this.advanceRevision();
+    });
+    return this.getModelSnapshot(input.actor);
+  }
+
+  resolveModelCandidate(
+    expectedRevision: number,
+    candidateId: string,
+    disposition: "accepted" | "rejected",
+    actor: string,
+  ): ReviewModelSnapshot {
+    this.assertRevision(expectedRevision, this.currentRevision());
+    const row = this.ctx.storage.sql
+      .exec<ModelCandidateRow>("SELECT * FROM review_model_candidates WHERE id = ?", candidateId)
+      .toArray()[0];
+    if (!row || row.disposition !== "pending") throw new Error("Model candidate is unavailable");
+    const protocol = this.getSnapshot().protocol;
+    const candidate = modelCandidateFromRow(row, protocol);
+    if (
+      protocol.modelAssistance.mode === "human-first" &&
+      !this.getModelSnapshot(actor).candidates.some((visible) => visible.id === candidate.id)
+    ) {
+      throw new Error("Human-first candidates require an initial human judgment before disposition");
+    }
+    const now = new Date().toISOString();
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "UPDATE review_model_candidates SET disposition = ?, disposed_at = ?, disposed_by = ? WHERE id = ?",
+        disposition,
+        now,
+        actor,
+        candidateId,
+      );
+      if (disposition === "accepted" && candidate.operation === "screen-record") {
+        const result = candidate.result as import("../domain/review-model").ScreeningModelResult;
+        this.ctx.storage.sql.exec(
+          "INSERT INTO screening_decisions (id, record_id, stage, reviewer, decision, reason, criterion, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          crypto.randomUUID(),
+          candidate.recordId,
+          candidate.stage,
+          actor,
+          result.decision,
+          `${result.rationale}\nEvidence: ${result.evidence}`,
+          result.criterion,
+          now,
+        );
+      }
+      if (disposition === "accepted" && candidate.operation === "extract-field") {
+        const result = candidate.result as import("../domain/review-model").ExtractionModelResult;
+        this.assertEvidenceRecord(candidate.recordId, actor);
+        this.ctx.storage.sql.exec(
+          "INSERT INTO extracted_data_values (id, record_id, field_id, value_json, missing_reason, evidence_json, reviewer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          crypto.randomUUID(),
+          candidate.recordId,
+          result.fieldId,
+          JSON.stringify(result.value),
+          result.missingReason,
+          result.evidence ? JSON.stringify(result.evidence) : null,
+          actor,
+          now,
+        );
+      }
+      this.advanceRevision();
+    });
+    return this.getModelSnapshot(actor);
+  }
+
   getSynthesis(actor: string): ReviewSynthesis {
     return buildReviewSynthesis(
       this.getSnapshot(),
@@ -777,6 +1000,7 @@ function protocolContent(protocol: ReviewProtocolRevision): ReviewProtocolConten
     inclusionCriteria: protocol.inclusionCriteria,
     exclusionCriteria: protocol.exclusionCriteria,
     screening: protocol.screening,
+    modelAssistance: protocol.modelAssistance,
     qualityAssessment: protocol.qualityAssessment,
     extractionFields: protocol.extractionFields,
   };
@@ -831,6 +1055,55 @@ function candidateFromRow(row: DuplicateCandidateRow): ReviewDuplicateCandidate 
     resolvedAt: row.resolved_at,
     resolvedBy: row.resolved_by,
   };
+}
+
+function modelCandidateFromRow(row: ModelCandidateRow, protocol: ReviewProtocolRevision): ReviewModelCandidate {
+  const sourceScope: unknown = JSON.parse(row.source_scope_json);
+  if (!Array.isArray(sourceScope) || !sourceScope.every((value) => typeof value === "string")) {
+    throw new Error("Stored model source scope is invalid");
+  }
+  const resultValue: unknown = JSON.parse(row.result_json);
+  const result = row.operation === "screen-record" ? parseScreeningModelResult(resultValue) : storedExtractionResult(resultValue, protocol);
+  return {
+    id: row.id,
+    operation: row.operation,
+    recordId: row.record_id,
+    stage: row.stage,
+    provider: row.provider,
+    model: row.model,
+    promptTemplateVersion: row.prompt_template_version,
+    sourceScope,
+    result,
+    createdAt: row.created_at,
+    createdBy: row.created_by,
+    disposition: row.disposition,
+    disposedAt: row.disposed_at,
+    disposedBy: row.disposed_by,
+  };
+}
+
+function storedExtractionResult(value: unknown, protocol: ReviewProtocolRevision): ExtractionModelResult {
+  if (!isRecordValue(value) || typeof value.fieldId !== "string") throw new Error("Stored extraction model candidate is invalid");
+  const field = protocol.extractionFields.find((candidate) => candidate.id === value.fieldId);
+  if (field) return parseExtractionModelResult(value, field);
+  if (
+    (value.value !== null && typeof value.value !== "string" && typeof value.value !== "number" && typeof value.value !== "boolean") ||
+    (value.missingReason !== null && typeof value.missingReason !== "string") ||
+    typeof value.rationale !== "string"
+  ) {
+    throw new Error("Stored extraction model candidate is invalid");
+  }
+  return {
+    fieldId: value.fieldId,
+    value: value.value,
+    missingReason: value.missingReason,
+    evidence: value.evidence === null ? null : parseEvidencePointer(value.evidence, false),
+    rationale: value.rationale,
+  };
+}
+
+function isRecordValue(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function importRecord(value: string): ReviewImportRecord {
