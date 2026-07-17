@@ -104,6 +104,7 @@ export async function handleReviewStudyApi(
         body.questionId,
         body.answerId,
         body.evidence,
+        body.rationale,
         identity.email,
       ),
     );
@@ -255,7 +256,8 @@ async function qualityValueRequest(request: Request) {
     expectedRevision: value.expectedRevision,
     questionId: value.questionId,
     answerId: value.answerId,
-    evidence: parseEvidencePointer(value.evidence, true)!,
+    evidence: parseEvidencePointer(value.evidence, false),
+    rationale: typeof value.rationale === "string" ? value.rationale : "",
   };
 }
 

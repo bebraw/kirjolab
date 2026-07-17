@@ -58,6 +58,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       { version: 3, name: "store-append-only-screening-decisions" },
       { version: 4, name: "store-evidence-linked-appraisal-and-extraction" },
       { version: 5, name: "store-review-model-candidates" },
+      { version: 6, name: "allow-rationales-for-negative-appraisal" },
     ]);
   });
 
@@ -232,6 +233,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       "method",
       "yes",
       { quote: "The method was preregistered.", page: 3, location: "Methods" },
+      "",
       "reviewer@example.com",
     );
     expect(quality.records[0]).toMatchObject({ qualityScore: 1, qualityComplete: true, qualityRejected: false });

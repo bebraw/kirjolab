@@ -661,14 +661,15 @@ export function bindReviewStudyPlanning(apiBase: string): void {
           expectedRevision: latestReviewRevision(evidenceSnapshot.revision, modelSnapshot?.revision),
           questionId,
           answerId: String(data.get("answer") ?? ""),
-          evidence: evidenceFromForm(data),
+          evidence: optionalEvidenceFromForm(data),
+          rationale: String(data.get("rationale") ?? ""),
         }),
       });
       await expectOk(response);
       evidenceSnapshot = parseReviewEvidenceSnapshot(await response.json());
       await loadModelSnapshot();
       renderEvidence();
-      setEvidenceStatus("appraise", "Quality answer recorded with evidence.");
+      setEvidenceStatus("appraise", "Quality answer recorded with its evidence or absence rationale.");
     } catch (error) {
       setEvidenceStatus("appraise", errorMessage(error));
     }
@@ -1022,7 +1023,7 @@ function appraisalCard(
       const answer = snapshot.protocol.qualityAssessment.answers.find((candidate) => candidate.id === option.value);
       option.textContent = answer ? `${answer.label} (${answer.weight})` : option.value;
     }
-    form.append(...evidenceFields());
+    form.append(...evidenceFields(), inputField("Absence rationale", "rationale", "Use instead of a quotation for a negative answer"));
     const save = actionButton("Save answer", () => undefined);
     save.className = "button-primary";
     save.type = "submit";
@@ -1145,6 +1146,10 @@ function evidenceFromForm(data: FormData) {
     page: pageValue ? Number(pageValue) : null,
     location: String(data.get("location") ?? ""),
   };
+}
+
+function optionalEvidenceFromForm(data: FormData) {
+  return String(data.get("quote") ?? "").trim() ? evidenceFromForm(data) : null;
 }
 
 function extractionValueFromForm(value: FormDataEntryValue | null, fieldType: string): ExtractionValue {

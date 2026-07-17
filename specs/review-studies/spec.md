@@ -141,6 +141,10 @@ state.
 - Appraisal exposes dimension-level judgments before any derived total score.
   The `mlr` profile may use separate credibility dimensions for authority,
   objectivity, evidence support, currency, and outlet reputation.
+- Positive appraisal answers require an exact evidence quotation. A
+  zero-weight or rejecting answer may instead record a bounded explicit
+  absence rationale, so reviewers never fabricate a quotation to support a
+  missing report element.
 - Extraction fields support text, integer, decimal, Boolean, date, single or
   multiple controlled choices, and source selector values. Fields may be
   required, optional, conditional, or repeatable and may link to RQs.

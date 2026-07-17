@@ -33,6 +33,7 @@ import {
   parseEvidencePointer,
   summarizeEvidenceRecord,
   validateExtractionValue,
+  validateQualityAssessment,
   type ExtractedDataValue,
   type ExtractionValue,
   type QualityAssessmentValue,
@@ -210,6 +211,14 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 6,
+    name: "allow-rationales-for-negative-appraisal",
+    apply(sql): undefined {
+      sql.exec("ALTER TABLE quality_assessment_values ADD COLUMN rationale TEXT NOT NULL DEFAULT '';");
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface MetaRow extends Record<string, SqlStorageValue> {
@@ -293,6 +302,7 @@ interface QualityValueRow extends Record<string, SqlStorageValue> {
   question_id: string;
   answer_id: string;
   evidence_json: string;
+  rationale: string;
   reviewer: string;
   created_at: string;
 }
@@ -684,25 +694,28 @@ export class ReviewStudy extends DurableObject<Env> {
     recordId: string,
     questionId: string,
     answerId: string,
-    evidence: ReviewEvidencePointer,
+    evidence: ReviewEvidencePointer | null,
+    rationale: string,
     actor: string,
   ): ReviewEvidenceSnapshot {
     this.assertRevision(expectedRevision, this.currentRevision());
     const protocol = this.getSnapshot().protocol;
     if (!protocol.qualityAssessment.questions.some((question) => question.id === questionId))
       throw new Error("Quality question is unavailable");
-    if (!protocol.qualityAssessment.answers.some((answer) => answer.id === answerId)) throw new Error("Quality answer is unavailable");
+    const answer = protocol.qualityAssessment.answers.find((candidate) => candidate.id === answerId);
+    if (!answer) throw new Error("Quality answer is unavailable");
     this.assertEvidenceRecord(recordId, actor);
-    const pointer = parseEvidencePointer(evidence, true)!;
+    const validated = validateQualityAssessment(answer, evidence, rationale);
     this.assertEvidenceRevisionLimit("quality_assessment_values", "question_id", recordId, questionId, actor);
     this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec(
-        "INSERT INTO quality_assessment_values (id, record_id, question_id, answer_id, evidence_json, reviewer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO quality_assessment_values (id, record_id, question_id, answer_id, evidence_json, rationale, reviewer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         crypto.randomUUID(),
         recordId,
         questionId,
         answerId,
-        JSON.stringify(pointer),
+        JSON.stringify(validated.evidence),
+        validated.rationale,
         actor,
         new Date().toISOString(),
       );
@@ -1247,7 +1260,8 @@ function qualityValueFromRow(row: QualityValueRow): QualityAssessmentValue {
     recordId: row.record_id,
     questionId: row.question_id,
     answerId: row.answer_id,
-    evidence: parseEvidencePointer(JSON.parse(row.evidence_json), true)!,
+    evidence: parseEvidencePointer(JSON.parse(row.evidence_json), false),
+    rationale: row.rationale,
     reviewer: row.reviewer,
     createdAt: row.created_at,
   };

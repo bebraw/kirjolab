@@ -18,9 +18,26 @@ export interface QualityAssessmentValue {
   readonly recordId: string;
   readonly questionId: string;
   readonly answerId: string;
-  readonly evidence: ReviewEvidencePointer;
+  readonly evidence: ReviewEvidencePointer | null;
+  readonly rationale: string;
   readonly reviewer: string;
   readonly createdAt: string;
+}
+
+export function validateQualityAssessment(
+  answer: QualityAnswerOption,
+  evidence: unknown,
+  rationale: unknown,
+): { readonly evidence: ReviewEvidencePointer | null; readonly rationale: string } {
+  const rationaleValue = typeof rationale === "string" ? rationale.trim() : "";
+  if (rationaleValue.length > 2_000) throw new Error("Quality assessment rationale is invalid");
+  const positive = answer.weight > 0 && !answer.rejects;
+  if (!positive && evidence === null && !rationaleValue)
+    throw new Error("Negative quality answers require an absence rationale or evidence");
+  const pointer = parseEvidencePointer(evidence, positive);
+  if (!positive && pointer === null && !rationaleValue)
+    throw new Error("Negative quality answers require an absence rationale or evidence");
+  return { evidence: pointer, rationale: rationaleValue };
 }
 
 export type ExtractionValue = string | number | boolean | null;
@@ -192,7 +209,8 @@ function parseQualityValue(value: unknown): QualityAssessmentValue {
     recordId: text(value.recordId),
     questionId: text(value.questionId),
     answerId: text(value.answerId),
-    evidence: parseEvidencePointer(value.evidence, true)!,
+    evidence: parseEvidencePointer(value.evidence, false),
+    rationale: text(value.rationale),
     reviewer: text(value.reviewer),
     createdAt: text(value.createdAt),
   };

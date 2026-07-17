@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { defaultReviewProtocol, materializeProtocolRevision } from "./review-study";
-import { parseEvidencePointer, parseReviewEvidenceSnapshot, summarizeEvidenceRecord, validateExtractionValue } from "./review-evidence";
+import {
+  parseEvidencePointer,
+  parseReviewEvidenceSnapshot,
+  summarizeEvidenceRecord,
+  validateExtractionValue,
+  validateQualityAssessment,
+} from "./review-evidence";
 
 describe("review appraisal and extraction evidence", () => {
   it("requires an exact quotation for appraisal evidence", () => {
@@ -12,6 +18,16 @@ describe("review appraisal and extraction evidence", () => {
     });
     expect(() => parseEvidencePointer({ quote: "", page: null, location: "" }, true)).toThrow("pointer");
     expect(() => parseEvidencePointer({ quote: "Evidence", page: 0, location: "Results" }, true)).toThrow("page");
+  });
+
+  it("accepts an explicit rationale for a negative appraisal answer", () => {
+    const answers = defaultReviewProtocol().qualityAssessment.answers;
+    expect(() => validateQualityAssessment(answers.find((answer) => answer.id === "yes")!, null, "")).toThrow("pointer");
+    expect(validateQualityAssessment(answers.find((answer) => answer.id === "no")!, null, "No limitations section was found.")).toEqual({
+      evidence: null,
+      rationale: "No limitations section was found.",
+    });
+    expect(() => validateQualityAssessment(answers.find((answer) => answer.id === "no")!, null, "")).toThrow("rationale");
   });
 
   it("validates typed values and explicit missingness", () => {
@@ -71,8 +87,8 @@ describe("review appraisal and extraction evidence", () => {
     };
     const evidence = { quote: "Evidence", page: 1, location: "Methods" };
     const qualityValues = [
-      { id: "a", recordId: "record", questionId: "q1", answerId: "yes", evidence, reviewer: "r", createdAt: "1" },
-      { id: "b", recordId: "record", questionId: "q2", answerId: "reject", evidence, reviewer: "r", createdAt: "2" },
+      { id: "a", recordId: "record", questionId: "q1", answerId: "yes", evidence, rationale: "", reviewer: "r", createdAt: "1" },
+      { id: "b", recordId: "record", questionId: "q2", answerId: "reject", evidence, rationale: "", reviewer: "r", createdAt: "2" },
     ];
     expect(summarizeEvidenceRecord(record, protocol, qualityValues, [])).toMatchObject({
       qualityScore: 1,
@@ -120,6 +136,7 @@ describe("review appraisal and extraction evidence", () => {
               questionId: "q1",
               answerId: "yes",
               evidence: { quote: "Clear method", page: 2, location: "Methods" },
+              rationale: "",
               reviewer: "reviewer",
               createdAt: "2026-07-17",
             },
