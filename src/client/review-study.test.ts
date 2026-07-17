@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { researchQuestionReference, resolveResearchQuestionReferences } from "./review-study";
+import { latestExtractionValue, researchQuestionReference, resolveResearchQuestionReferences } from "./review-study";
 
 const questions = [
   { id: "rq_internal_first", text: "What changed?" },
@@ -19,5 +19,35 @@ describe("review-study research-question references", () => {
   it("renders stable ids as visible ordered references", () => {
     expect(researchQuestionReference("rq_internal_second", questions)).toBe("rq2");
     expect(researchQuestionReference("legacy", questions)).toBe("legacy");
+  });
+});
+
+describe("review-study extraction state", () => {
+  it("returns the latest recorded value for a field", () => {
+    const values = [
+      {
+        id: "first",
+        recordId: "record",
+        fieldId: "effect",
+        value: "small",
+        missingReason: null,
+        evidence: { quote: "Small effect", page: 1, location: "Results" },
+        reviewer: "one@example.org",
+        createdAt: "2026-07-17T10:00:00.000Z",
+      },
+      {
+        id: "second",
+        recordId: "record",
+        fieldId: "effect",
+        value: "moderate",
+        missingReason: null,
+        evidence: { quote: "Moderate effect", page: 2, location: "Results" },
+        reviewer: "two@example.org",
+        createdAt: "2026-07-17T11:00:00.000Z",
+      },
+    ];
+
+    expect(latestExtractionValue(values, "effect")?.id).toBe("second");
+    expect(latestExtractionValue(values, "missing")).toBeNull();
   });
 });

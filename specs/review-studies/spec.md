@@ -151,6 +151,9 @@ state.
 - Evidence selectors identify an authorized project-shared PDF annotation or
   captured-web passage. Review data never broadens access to a private source.
 - A record is complete only when every applicable required field is resolved.
+- The extraction form displays the latest recorded value, missingness reason,
+  evidence pointer, reviewer, and time. Saving a later value is labelled as a
+  superseding append-only action rather than presenting a blank form.
 
 ### Synthesis and Manuscript Integration
 

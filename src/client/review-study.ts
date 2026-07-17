@@ -27,6 +27,7 @@ import {
 import {
   parseReviewEvidenceSnapshot,
   type EvidenceRecordState,
+  type ExtractedDataValue,
   type ExtractionValue,
   type ReviewEvidenceSnapshot,
 } from "../domain/review-evidence";
@@ -1051,13 +1052,15 @@ function extractionCard(
 ): HTMLElement {
   const card = evidenceCardHeader(record, record.extractionComplete ? "Complete" : "In progress");
   for (const field of snapshot.protocol.extractionFields) {
+    const recorded = latestExtractionValue(record.extractionValues, field.id);
     const form = document.createElement("form");
     form.className = "review-evidence-form";
     const heading = document.createElement("strong");
     heading.textContent = field.label;
     form.append(heading, extractionInput(field));
     form.append(inputField("Missing reason", "missingReason", "Use only when the value is absent"), ...evidenceFields());
-    const save = actionButton("Save value", () => undefined);
+    if (recorded) populateRecordedExtraction(form, recorded);
+    const save = actionButton(recorded ? "Supersede value" : "Save value", () => undefined);
     save.className = "button-primary";
     save.type = "submit";
     form.append(save);
@@ -1068,6 +1071,12 @@ function extractionCard(
       event.preventDefault();
       void submit(record.record.id, field.id, field.type, form);
     });
+    if (recorded) {
+      const status = document.createElement("p");
+      status.className = "review-field-help";
+      status.textContent = `Recorded by ${recorded.reviewer} · ${recorded.createdAt}`;
+      form.append(status);
+    }
     card.append(form);
     for (const candidate of candidates) {
       if (candidate.operation === "extract-field" && (candidate.result as ExtractionModelResult).fieldId === field.id) {
@@ -1076,6 +1085,26 @@ function extractionCard(
     }
   }
   return card;
+}
+
+export function latestExtractionValue(values: readonly ExtractedDataValue[], fieldId: string): ExtractedDataValue | null {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    if (values[index]?.fieldId === fieldId) return values[index]!;
+  }
+  return null;
+}
+
+function populateRecordedExtraction(form: HTMLFormElement, recorded: ExtractedDataValue): void {
+  setFormControlValue(form, "value", recorded.value === null ? "" : String(recorded.value));
+  setFormControlValue(form, "missingReason", recorded.missingReason ?? "");
+  setFormControlValue(form, "quote", recorded.evidence?.quote ?? "");
+  setFormControlValue(form, "page", recorded.evidence?.page === null ? "" : String(recorded.evidence?.page ?? ""));
+  setFormControlValue(form, "location", recorded.evidence?.location ?? "");
+}
+
+function setFormControlValue(form: HTMLFormElement, name: string, value: string): void {
+  const control = form.elements.namedItem(name);
+  if (control instanceof HTMLInputElement || control instanceof HTMLSelectElement) control.value = value;
 }
 
 function evidenceCardHeader(record: EvidenceRecordState, status: string): HTMLElement {
