@@ -166,6 +166,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-140](./implemented/ADR-140-derive-phrasing-guidance-from-licensed-papers.md)         | Implemented          | Derive reviewed scholarly phrasing guidance from independently licensed paper corpora.                        |
 | [ADR-141](./implemented/ADR-141-import-latex-as-reviewed-markdown.md)                     | Implemented          | Convert bounded LaTeX archives on the server into reviewed canonical Markdown projects.                       |
 | [ADR-142](./implemented/ADR-142-preserve-tikz-until-isolated-rendering.md)                | Implemented          | Preserve TikZ source until a separately approved isolated renderer exists.                                    |
+| [ADR-145](./accepted/ADR-145-add-experimental-native-figures.md)                          | Accepted             | Add a bounded native figure syntax with deterministic sanitized preview rendering.                            |
 
 ## Creating A New ADR
 

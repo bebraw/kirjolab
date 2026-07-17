@@ -45,6 +45,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Preserve explicit TikZ source as canonical fenced Markdown. Do not render it
   until a separately approved isolated server boundary can compile it and its
   SVG output can pass inert-SVG validation.
+- Express small editable graphics through versioned, bounded native Markdown
+  directives and render them as derived sanitized preview SVG. Expand the typed
+  vocabulary explicitly; never imply TikZ compatibility or approximate
+  unsupported imported figures.
 - Treat portable project Markdown and stable shared-library records as the
   canonical authored artifacts. Keep BibTeX as bounded derived interchange and
   export, not a second project-local metadata authority.
