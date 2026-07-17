@@ -102,6 +102,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Escape authored raw HTML and sanitize the final preview tree after all syntax plugins; allow only the elements, properties, and URL protocols required by the scientific-writing vocabulary before inserting output into the DOM.
 - Return a restrictive Content Security Policy on application HTML as an independent browser-execution boundary; do not permit inline or evaluated scripts.
 - Coordinate each collaborative composed project through its own SQLite-backed Durable Object.
+- Coordinate each project review study through its own SQLite-backed Durable
+  Object addressed by the authenticated workspace storage key. Keep protocol
+  revisions immutable, generate source-specific queries from one logical
+  concept model, and require an explicit rationale for every post-freeze
+  amendment.
 - Coordinate each personal reference library through a separate SQLite-backed
   Durable Object keyed by verified owner identity. Stable source identity must
   not depend on a DOI, title, filename, or project citation alias.

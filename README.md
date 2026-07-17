@@ -22,6 +22,8 @@ is supported on macOS.
   local pure-JavaScript pipeline.
 - Import PDFs, highlight passages, and link evidence back to manuscript text.
 - Import BibTeX, enrich references through Crossref, and review DOI metadata
+- Plan an SLR or MLR with versioned PICOC framing, research questions, concept
+  groups, query calibration, and source-specific search syntax
   before associating it with a PDF.
 - Follow a DOI-backed reference trail from trusted seed papers, review
   backward-snowball candidates, and save each accepted source with its

@@ -266,8 +266,8 @@ state.
 
 ### Definition of Done
 
-- [ ] A project can initialize, edit, freeze, and amend an SLR or MLR protocol.
-- [ ] Researchers can build concept groups, calibrate a logical query, and
+- [x] A project can initialize, edit, freeze, and amend an SLR or MLR protocol.
+- [x] Researchers can build concept groups, calibrate a logical query, and
       review source-specific field-scoped query renderings.
 - [ ] Immutable search runs can import BibTeX occurrences and preserve source
       counts through reviewed deduplication.

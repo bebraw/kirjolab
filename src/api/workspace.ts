@@ -36,6 +36,7 @@ import { fetchCrossrefWork, fingerprintPublicationMetadata } from "../integratio
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { downloadR2Object } from "./r2-download";
 import { handleGitHubWorkspaceSyncApi } from "./github-sync";
+import { handleReviewStudyApi } from "./review-study";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumImageBytes = 20 * 1024 * 1024;
@@ -65,11 +66,15 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
   const role = await access.getRole(identity.email);
   if (!role) return jsonError("Workspace access denied", 403);
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
+  const reviewStudy = env.REVIEW_STUDIES.getByName(storageKey);
 
   try {
     if (suffix === "/github-sync" || suffix.startsWith("/github-sync/")) {
       if (role !== "owner") return jsonError("Only the workspace owner can synchronize GitHub", 403);
       return await handleGitHubWorkspaceSyncApi(request, env, identity, room, suffix);
+    }
+    if (suffix === "/review-study" || suffix.startsWith("/review-study/")) {
+      return await handleReviewStudyApi(request, reviewStudy, identity, suffix);
     }
     if (suffix === "/settings" && request.method === "PATCH") {
       if (role !== "owner") return jsonError("Only the workspace owner can change project settings", 403);
@@ -254,7 +259,9 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     const message = error instanceof Error ? error.message : "Workspace operation failed";
     const status = /access denied|only the workspace owner/iu.test(message)
       ? 403
-      : /already exists|ambiguous|changed|stale|pending|remove citations|inbound include|dependencies/iu.test(message)
+      : /already exists|ambiguous|changed|stale|pending|remove citations|inbound include|dependencies|revision conflict|frozen protocol/iu.test(
+            message,
+          )
         ? 409
         : 400;
     return jsonError(message, status);

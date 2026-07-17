@@ -13,6 +13,7 @@ import { buildExportBundle } from "./domain/export-pipeline";
 import { DocumentRoom } from "./durable-objects/document-room";
 import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
 import { ProjectTemplateCatalog } from "./durable-objects/project-template-catalog";
+import { ReviewStudy } from "./durable-objects/review-study";
 import { WorkspaceAccess } from "./durable-objects/workspace-access";
 import { ReferenceLibrary } from "./durable-objects/reference-library";
 import { BackupCoordinator } from "./durable-objects/backup-coordinator";
@@ -25,7 +26,16 @@ import { cssResponse, faviconResponse, htmlResponse, pdfResponse, scriptResponse
 import { renderUiInventoryPage } from "./views/ui-inventory";
 import phrasingGuidanceSources from "../phrasing-guidance/sources.json";
 
-export { BackupCoordinator, BackupRecovery, DocumentRoom, ProjectTemplateCatalog, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
+export {
+  BackupCoordinator,
+  BackupRecovery,
+  DocumentRoom,
+  ProjectTemplateCatalog,
+  ReferenceLibrary,
+  ReviewStudy,
+  WorkspaceAccess,
+  WorkspaceCatalog,
+};
 
 export default {
   async fetch(request: Request, env?: Env, ctx?: ExecutionContext): Promise<Response> {

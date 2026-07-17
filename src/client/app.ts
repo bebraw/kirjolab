@@ -197,6 +197,7 @@ import {
   type IncludeCompletionCandidate,
   type IncludeCompletionContext,
 } from "./include-completions";
+import { bindReviewStudyPlanning } from "./review-study";
 
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
@@ -848,6 +849,7 @@ class WorkspaceApp {
   async start(): Promise<void> {
     this.#elements.applicationVersion.textContent = applicationVersion;
     this.#bindUi();
+    if (appMode === "workspace") bindReviewStudyPlanning(apiBase);
     this.#elements.workspaceSurfaces.dataset.ready = "true";
     if (appMode === "library") {
       this.#elements.workspaceSurfaces.dataset.activeSurface = "context";

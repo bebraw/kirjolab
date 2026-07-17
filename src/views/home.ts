@@ -208,6 +208,9 @@ export function renderHomePage(
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail" hidden>
           <div><p class="eyebrow">Research</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Sources &amp; evidence</h1></div>
+          <button class="review-study-launch" id="open-review-study" type="button">
+            <span><strong>Review study</strong><small>Plan and conduct an SLR or MLR</small></span><span aria-hidden="true">→</span>
+          </button>
           <div class="research-inventory" id="research-inventory">
             <details class="rail-collection" id="project-evidence" hidden>
               <summary><span>Project evidence</span><span class="count-badge" id="project-evidence-count">0</span></summary>
@@ -769,7 +772,40 @@ export function renderHomePage(
   
     </main>
 
-    <dialog class="reference-library-dialog ui-dialog" id="export-dialog">
+<dialog class="review-study-dialog ui-dialog" id="review-study-dialog">
+  <div class="review-study-shell">
+    <header class="review-study-header">
+      <div><p class="eyebrow">Review study</p><h2>Systematic evidence workflow</h2></div>
+      <div class="flex items-center gap-2"><span class="count-badge" id="review-protocol-state">Draft</span><button class="button-secondary" id="close-review-study" type="button">Close</button></div>
+    </header>
+    <nav class="review-study-steps" aria-label="Review study stages">
+      <button type="button" aria-current="step">1. Plan</button><button type="button" disabled>2. Search</button><button type="button" disabled>3. Screen</button><button type="button" disabled>4. Appraise</button><button type="button" disabled>5. Extract</button><button type="button" disabled>6. Synthesize</button><button type="button" disabled>7. Report</button>
+    </nav>
+    <form class="review-study-content" id="review-protocol-form">
+      <section class="review-study-intro">
+        <div><p class="eyebrow">Protocol</p><h3>Frame the review before searching</h3><p>Research questions, concepts, and source-specific queries remain versioned together. Freeze the protocol before the first search; later changes require a rationale.</p></div>
+        <label class="field-label review-profile-field">Review profile<select class="field" id="review-profile"><option value="slr">Systematic literature review (SLR)</option><option value="mlr">Multivocal literature review (MLR)</option></select></label>
+      </section>
+      <div class="review-study-grid">
+        <div class="review-study-form-stack">
+          <section class="review-study-card"><label class="field-label" for="review-objective">Objective<textarea class="field" id="review-objective" rows="3" maxlength="4000" placeholder="What should this review establish?"></textarea></label></section>
+          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">PICOC</p><h4>Question frame</h4></div><small>Leave non-applicable facets blank.</small></div><div class="review-picoc-grid">${["population", "intervention", "comparison", "outcome", "context"].map((facet) => `<label class="field-label">${facet[0]!.toUpperCase()}${facet.slice(1)}<input class="field" id="review-picoc-${facet}" maxlength="1000"></label>`).join("")}</div></section>
+          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">RQs</p><h4>Research questions</h4></div><small>One question per line.</small></div><textarea class="field" id="review-questions" rows="4" maxlength="20000" placeholder="What evidence answers the review objective?"></textarea></section>
+          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Concepts</p><h4>Keywords and synonyms</h4></div><small><code>Label :: term; synonym</code>, one group per line.</small></div><textarea class="field font-mono" id="review-concepts" rows="6" maxlength="40000" placeholder="Population :: computer science education; CSEd&#10;Intervention :: artificial intelligence; AI"></textarea></section>
+          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Sources</p><h4>Databases and query syntax</h4></div><small><code>Name | URL | dialect | scope</code></small></div><textarea class="field font-mono" id="review-sources" rows="5" maxlength="40000" placeholder="Scopus | https://scopus.com | scopus | title-abstract-keywords&#10;ACM Digital Library | https://dl.acm.org | acm-dl | title-abstract"></textarea><p class="review-field-help">Dialects: generic, scopus, web-of-science, ieee-xplore, acm-dl. Scopes: all-fields, title-abstract, title-abstract-keywords.</p></section>
+          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Calibration</p><h4>Known relevant studies</h4></div><small><code>Title | Abstract</code>, one study per line.</small></div><textarea class="field" id="review-known-studies" rows="4" maxlength="80000" placeholder="A known relevant title | Its abstract text"></textarea></section>
+        </div>
+        <aside class="review-query-preview">
+          <div class="review-study-card-heading"><div><p class="eyebrow">Live preview</p><h4>Search plan</h4></div><span class="count-badge" id="review-calibration">0 / 0 seeds</span></div>
+          <div class="review-query-list" id="review-query-list"><div class="empty-state">Add concept groups and sources to generate query variants.</div></div>
+        </aside>
+      </div>
+      <footer class="review-study-footer"><p id="review-protocol-status" role="status" aria-live="polite">Loading protocol…</p><div><button class="button-secondary" id="freeze-review-protocol" type="button">Freeze protocol</button><button class="button-primary" type="submit">Save protocol</button></div></footer>
+    </form>
+  </div>
+</dialog>
+
+<dialog class="reference-library-dialog ui-dialog" id="export-dialog">
       <div class="p-5">
         <div class="flex items-start justify-between gap-4">
           <div>
