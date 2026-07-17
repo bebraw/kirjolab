@@ -2068,7 +2068,7 @@ class WorkspaceApp {
     label.className = "template-choice-label";
     label.type = "button";
     label.dataset.templateId = template.id;
-    label.setAttribute("aria-pressed", String(this.#previewedProjectTemplateId === template.id));
+    label.setAttribute("aria-pressed", String(this.#elements.newWorkspaceTemplateId.value === template.id));
     label.addEventListener("click", () => this.#chooseProjectTemplate(template));
     const name = document.createElement("span");
     name.className = "template-choice-name";

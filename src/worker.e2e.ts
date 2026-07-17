@@ -3326,6 +3326,9 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#new-workspace-template-list")).toContainText("Literature review");
   await expect(page.locator("#create-workspace")).toBeDisabled();
   await expect(page.locator("#new-workspace-template-preview")).toContainText("Guided starter");
+  const guidedTemplate = page.locator('[data-template-id="builtin-guided"]');
+  await expect(guidedTemplate).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".template-choice", { has: guidedTemplate })).toHaveAttribute("data-selected", "false");
   await page.setViewportSize({ width: 1024, height: 768 });
   const desktopBrowser = await page.locator(".template-browser").evaluate((browser) => {
     const index = browser.querySelector<HTMLElement>(".template-browser-index")!.getBoundingClientRect();
@@ -3343,6 +3346,7 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   expect(compactBrowser.overflow).toBeLessThanOrEqual(0);
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.locator('[data-template-id="builtin-literature-review"]').click();
+  await expect(page.locator('[data-template-id="builtin-literature-review"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/search-strategy.md");
   await expect(page.locator("#new-workspace-template-preview")).toContainText("Publication setup");
   await expect(page.locator("#new-workspace-template-id")).toHaveValue("builtin-literature-review");

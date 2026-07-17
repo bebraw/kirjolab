@@ -35,7 +35,9 @@ without copying private research or creating a live dependency on the source.
 - The New project surface previews each template's bounded file and folder
   structure, bibliography presence, and publication setup. Clicking a template
   row selects and previews it in one action; **Create project** remains the only
-  confirmation. Personal templates can be removed there; removal hides the
+  confirmation. The initial structural preview remains explicitly unselected,
+  so pressed semantics, form state, and submit state agree. Personal templates
+  can be removed there; removal hides the
   template immediately, offers **Undo** for six seconds, and only then deletes it.
   Project settings exposes **Save as template** for creating or explicitly
   replacing one.
