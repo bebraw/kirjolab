@@ -75,6 +75,9 @@ state.
 - Research questions keep stable ids and ordering and may link to concept
   groups, extraction fields, synthesis findings, claims, and manuscript
   sections.
+- Planning and synthesis identify questions to researchers as `RQ1`, `RQ2`,
+  and so on by visible order. Extraction-field input resolves those labels to
+  stable internal ids; internal ids are not required knowledge for authoring.
 - The initial question frameworks are PICOC and a free-form concept matrix.
   PICOC fields are optional; missing Comparison, Outcome, or Context values do
   not invalidate a protocol.

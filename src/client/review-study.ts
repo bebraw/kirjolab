@@ -773,7 +773,12 @@ function render(snapshot: ReviewStudySnapshot): void {
   required("review-quality-minimum", HTMLInputElement).value =
     protocol.qualityAssessment.minimumScore === null ? "" : String(protocol.qualityAssessment.minimumScore);
   required("review-extraction-fields", HTMLTextAreaElement).value = protocol.extractionFields
-    .map((field) => `${field.label} | ${field.type} | ${field.values.join("; ")} | ${field.researchQuestionIds.join("; ")}`)
+    .map(
+      (field) =>
+        `${field.label} | ${field.type} | ${field.values.join("; ")} | ${field.researchQuestionIds
+          .map((id) => researchQuestionReference(id, protocol.researchQuestions))
+          .join("; ")}`,
+    )
     .join("\n");
   required("review-protocol-state", HTMLElement).textContent =
     `${protocol.status === "frozen" ? "Frozen" : "Draft"} · r${snapshot.revision}`;
@@ -1149,7 +1154,9 @@ function renderSynthesis(synthesis: ReviewSynthesis): void {
   rqHeading.textContent = "Research-question coverage";
   rq.append(
     rqHeading,
-    ...synthesis.rqCoverage.map((coverage) => synthesisStatusText(`${coverage.id} · ${coverage.studies} studies · ${coverage.question}`)),
+    ...synthesis.rqCoverage.map((coverage, index) =>
+      synthesisStatusText(`RQ${index + 1} · ${coverage.studies} studies · ${coverage.question}`),
+    ),
   );
   const matrix = document.createElement("section");
   matrix.className = "review-study-card review-matrix";
@@ -1408,10 +1415,7 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
         .split(";")
         .map((value) => value.trim())
         .filter(Boolean),
-      researchQuestionIds: rqValue
-        .split(";")
-        .map((value) => value.trim())
-        .filter(Boolean),
+      researchQuestionIds: resolveResearchQuestionReferences(rqValue, researchQuestions),
     };
   });
   return {
@@ -1468,6 +1472,24 @@ function isScope(value: string): value is SearchFieldScope {
 
 function isExtractionType(value: string): value is ReviewProtocolContent["extractionFields"][number]["type"] {
   return value === "string" || value === "integer" || value === "boolean" || value === "enum";
+}
+
+export function resolveResearchQuestionReferences(value: string, researchQuestions: readonly ReviewResearchQuestion[]): string[] {
+  return value
+    .split(";")
+    .map((reference) => reference.trim())
+    .filter(Boolean)
+    .map((reference) => {
+      const match = /^rq(\d+)$/iu.exec(reference);
+      if (!match) return reference;
+      const index = Number(match[1]) - 1;
+      return researchQuestions[index]?.id ?? reference;
+    });
+}
+
+export function researchQuestionReference(id: string, researchQuestions: readonly ReviewResearchQuestion[]): string {
+  const index = researchQuestions.findIndex((question) => question.id === id);
+  return index < 0 ? id : `rq${index + 1}`;
 }
 
 async function expectOk(response: Response): Promise<void> {
