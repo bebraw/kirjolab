@@ -1,6 +1,5 @@
 import {
   parseReviewStudySnapshot,
-  type PicocFacet,
   type ReviewConceptGroup,
   type ReviewProtocolContent,
   type ReviewResearchQuestion,
@@ -25,10 +24,14 @@ import {
   type ScreeningRecordState,
   type ScreeningStage,
 } from "../domain/review-screening";
+import {
+  parseReviewEvidenceSnapshot,
+  type EvidenceRecordState,
+  type ExtractionValue,
+  type ReviewEvidenceSnapshot,
+} from "../domain/review-evidence";
 
 const facets = ["population", "intervention", "comparison", "outcome", "context"] as const;
-const dialects = new Set<SearchDialect>(["generic", "scopus", "web-of-science", "ieee-xplore", "acm-dl"]);
-const scopes = new Set<SearchFieldScope>(["all-fields", "title-abstract", "title-abstract-keywords"]);
 
 export function bindReviewStudyPlanning(apiBase: string): void {
   const open = required("open-review-study", HTMLButtonElement);
@@ -39,12 +42,17 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   const planStep = required("review-step-plan", HTMLButtonElement);
   const searchStep = required("review-step-search", HTMLButtonElement);
   const screenStep = required("review-step-screen", HTMLButtonElement);
+  const appraiseStep = required("review-step-appraise", HTMLButtonElement);
+  const extractStep = required("review-step-extract", HTMLButtonElement);
   const searchContent = required("review-search-content", HTMLElement);
   const screenContent = required("review-screen-content", HTMLElement);
+  const appraiseContent = required("review-appraise-content", HTMLElement);
+  const extractContent = required("review-extract-content", HTMLElement);
   let snapshot: ReviewStudySnapshot | null = null;
   let searchSnapshot: ReviewSearchSnapshot | null = null;
   let importPreview: ReviewImportPreview | null = null;
   let screeningSnapshot: ReviewScreeningSnapshot | null = null;
+  let evidenceSnapshot: ReviewEvidenceSnapshot | null = null;
 
   open.addEventListener("click", () => {
     dialog.showModal();
@@ -60,7 +68,11 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   required("back-to-review-plan", HTMLButtonElement).addEventListener("click", showPlan);
   searchStep.addEventListener("click", () => void showSearch());
   screenStep.addEventListener("click", () => void showScreen());
+  appraiseStep.addEventListener("click", () => void showEvidence("appraise"));
+  extractStep.addEventListener("click", () => void showEvidence("extract"));
   required("back-to-review-search", HTMLButtonElement).addEventListener("click", () => void showSearch());
+  required("back-to-review-screen", HTMLButtonElement).addEventListener("click", () => void showScreen());
+  required("back-to-review-appraise", HTMLButtonElement).addEventListener("click", () => void showEvidence("appraise"));
   required("review-screen-stage", HTMLSelectElement).addEventListener("change", renderScreening);
   required("review-screen-filter", HTMLSelectElement).addEventListener("change", renderScreening);
   required("review-search-source", HTMLSelectElement).addEventListener("change", () => {
@@ -103,7 +115,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot),
+          expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot, evidenceSnapshot),
           content,
           ...(rationale ? { rationale } : {}),
         }),
@@ -125,7 +137,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot) }),
+        body: JSON.stringify({ expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot, evidenceSnapshot) }),
       });
       await expectOk(response);
       snapshot = parseReviewStudySnapshot(await response.json());
@@ -140,9 +152,13 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     form.hidden = false;
     searchContent.hidden = true;
     screenContent.hidden = true;
+    appraiseContent.hidden = true;
+    extractContent.hidden = true;
     planStep.setAttribute("aria-current", "step");
     searchStep.removeAttribute("aria-current");
     screenStep.removeAttribute("aria-current");
+    appraiseStep.removeAttribute("aria-current");
+    extractStep.removeAttribute("aria-current");
   }
 
   async function showSearch(): Promise<void> {
@@ -150,9 +166,13 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     form.hidden = true;
     searchContent.hidden = false;
     screenContent.hidden = true;
+    appraiseContent.hidden = true;
+    extractContent.hidden = true;
     planStep.removeAttribute("aria-current");
     searchStep.setAttribute("aria-current", "step");
     screenStep.removeAttribute("aria-current");
+    appraiseStep.removeAttribute("aria-current");
+    extractStep.removeAttribute("aria-current");
     populateSearchSources(snapshot);
     await loadSearchSnapshot();
   }
@@ -176,9 +196,13 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     form.hidden = true;
     searchContent.hidden = true;
     screenContent.hidden = false;
+    appraiseContent.hidden = true;
+    extractContent.hidden = true;
     planStep.removeAttribute("aria-current");
     searchStep.removeAttribute("aria-current");
     screenStep.setAttribute("aria-current", "step");
+    appraiseStep.removeAttribute("aria-current");
+    extractStep.removeAttribute("aria-current");
     await loadScreening();
   }
 
@@ -189,9 +213,40 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       screeningSnapshot = parseReviewScreeningSnapshot(await response.json());
       renderScreening();
+      const hasIncluded = screeningSnapshot.counts.fullTextIncluded > 0;
+      appraiseStep.disabled = !hasIncluded;
+      extractStep.disabled = !hasIncluded;
       setScreenStatus("Decisions are append-only and attributed to the signed-in reviewer.");
     } catch (error) {
       setScreenStatus(errorMessage(error));
+    }
+  }
+
+  async function showEvidence(mode: "appraise" | "extract"): Promise<void> {
+    if ((mode === "appraise" ? appraiseStep : extractStep).disabled) return;
+    form.hidden = true;
+    searchContent.hidden = true;
+    screenContent.hidden = true;
+    appraiseContent.hidden = mode !== "appraise";
+    extractContent.hidden = mode !== "extract";
+    for (const step of [planStep, searchStep, screenStep, appraiseStep, extractStep]) step.removeAttribute("aria-current");
+    (mode === "appraise" ? appraiseStep : extractStep).setAttribute("aria-current", "step");
+    await loadEvidence();
+  }
+
+  async function loadEvidence(): Promise<void> {
+    setEvidenceStatus("appraise", "Loading quality assessments…");
+    setEvidenceStatus("extract", "Loading extracted data…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/evidence`, { credentials: "same-origin" });
+      await expectOk(response);
+      evidenceSnapshot = parseReviewEvidenceSnapshot(await response.json());
+      renderEvidence();
+      setEvidenceStatus("appraise", "Scores are derived from the frozen checklist.");
+      setEvidenceStatus("extract", "Extraction remains traceable to each study.");
+    } catch (error) {
+      setEvidenceStatus("appraise", errorMessage(error));
+      setEvidenceStatus("extract", errorMessage(error));
     }
   }
 
@@ -349,6 +404,76 @@ export function bindReviewStudyPlanning(apiBase: string): void {
           )
         : [emptyState("No records match this screening view.")]),
     );
+    syncEvidenceSteps(screeningSnapshot, appraiseStep, extractStep);
+  }
+
+  async function submitQuality(recordId: string, questionId: string, formElement: HTMLFormElement): Promise<void> {
+    if (!evidenceSnapshot) return;
+    const data = new FormData(formElement);
+    setEvidenceStatus("appraise", "Recording quality answer…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/records/${recordId}/quality-values`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: evidenceSnapshot.revision,
+          questionId,
+          answerId: String(data.get("answer") ?? ""),
+          evidence: evidenceFromForm(data),
+        }),
+      });
+      await expectOk(response);
+      evidenceSnapshot = parseReviewEvidenceSnapshot(await response.json());
+      renderEvidence();
+      setEvidenceStatus("appraise", "Quality answer recorded with evidence.");
+    } catch (error) {
+      setEvidenceStatus("appraise", errorMessage(error));
+    }
+  }
+
+  async function submitExtraction(recordId: string, fieldId: string, fieldType: string, formElement: HTMLFormElement): Promise<void> {
+    if (!evidenceSnapshot) return;
+    const data = new FormData(formElement);
+    const missingReason = String(data.get("missingReason") ?? "").trim();
+    setEvidenceStatus("extract", "Recording extracted value…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/records/${recordId}/extraction-values`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: evidenceSnapshot.revision,
+          fieldId,
+          value: missingReason ? null : extractionValueFromForm(data.get("value"), fieldType),
+          missingReason: missingReason || null,
+          evidence: missingReason ? null : evidenceFromForm(data),
+        }),
+      });
+      await expectOk(response);
+      evidenceSnapshot = parseReviewEvidenceSnapshot(await response.json());
+      renderEvidence();
+      setEvidenceStatus("extract", "Extracted value recorded with provenance.");
+    } catch (error) {
+      setEvidenceStatus("extract", errorMessage(error));
+    }
+  }
+
+  function renderEvidence(): void {
+    if (!evidenceSnapshot) return;
+    const currentEvidence = evidenceSnapshot;
+    const appraiseList = required("review-appraise-list", HTMLElement);
+    appraiseList.replaceChildren(
+      ...(evidenceSnapshot.records.length
+        ? currentEvidence.records.map((record) => appraisalCard(record, currentEvidence, submitQuality))
+        : [emptyState("No full-text inclusions are ready for appraisal.")]),
+    );
+    const extractList = required("review-extract-list", HTMLElement);
+    extractList.replaceChildren(
+      ...(evidenceSnapshot.records.length
+        ? currentEvidence.records.map((record) => extractionCard(record, currentEvidence, submitExtraction))
+        : [emptyState("No full-text inclusions are ready for extraction.")]),
+    );
   }
 
   function renderSearchSnapshot(value: ReviewSearchSnapshot): void {
@@ -385,6 +510,17 @@ function render(snapshot: ReviewStudySnapshot): void {
   required("review-exclusion-criteria", HTMLTextAreaElement).value = protocol.exclusionCriteria.join("\n");
   required("review-reviewer-count", HTMLSelectElement).value = String(protocol.screening.reviewersPerStage);
   required("review-blinded", HTMLInputElement).checked = protocol.screening.blinded;
+  required("review-quality-questions", HTMLTextAreaElement).value = protocol.qualityAssessment.questions
+    .map((question) => question.text)
+    .join("\n");
+  required("review-quality-answers", HTMLTextAreaElement).value = protocol.qualityAssessment.answers
+    .map((answer) => `${answer.label} | ${answer.weight} | ${answer.rejects ? "reject" : ""}`)
+    .join("\n");
+  required("review-quality-minimum", HTMLInputElement).value =
+    protocol.qualityAssessment.minimumScore === null ? "" : String(protocol.qualityAssessment.minimumScore);
+  required("review-extraction-fields", HTMLTextAreaElement).value = protocol.extractionFields
+    .map((field) => `${field.label} | ${field.type} | ${field.values.join("; ")}`)
+    .join("\n");
   required("review-protocol-state", HTMLElement).textContent =
     `${protocol.status === "frozen" ? "Frozen" : "Draft"} · r${snapshot.revision}`;
   required("freeze-review-protocol", HTMLButtonElement).disabled = protocol.status === "frozen";
@@ -597,6 +733,123 @@ function screeningDecisionValue(value: FormDataEntryValue | null): ScreeningDeci
   return value === "exclude" || value === "uncertain" ? value : "include";
 }
 
+function appraisalCard(
+  record: EvidenceRecordState,
+  snapshot: ReviewEvidenceSnapshot,
+  submit: (recordId: string, questionId: string, form: HTMLFormElement) => Promise<void>,
+): HTMLElement {
+  const card = evidenceCardHeader(record, `Score ${record.qualityScore}${record.qualityRejected ? " · rejected" : ""}`);
+  for (const question of snapshot.protocol.qualityAssessment.questions) {
+    const form = document.createElement("form");
+    form.className = "review-evidence-form";
+    const heading = document.createElement("strong");
+    heading.textContent = question.text;
+    form.append(
+      heading,
+      selectField(
+        "Answer",
+        "answer",
+        snapshot.protocol.qualityAssessment.answers.map((answer) => answer.id),
+      ),
+    );
+    const answerSelect = form.querySelector<HTMLSelectElement>('select[name="answer"]')!;
+    for (const option of answerSelect.options) {
+      const answer = snapshot.protocol.qualityAssessment.answers.find((candidate) => candidate.id === option.value);
+      option.textContent = answer ? `${answer.label} (${answer.weight})` : option.value;
+    }
+    form.append(...evidenceFields());
+    const save = actionButton("Save answer", () => undefined);
+    save.className = "button-primary";
+    save.type = "submit";
+    form.append(save);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void submit(record.record.id, question.id, form);
+    });
+    card.append(form);
+  }
+  return card;
+}
+
+function extractionCard(
+  record: EvidenceRecordState,
+  snapshot: ReviewEvidenceSnapshot,
+  submit: (recordId: string, fieldId: string, fieldType: string, form: HTMLFormElement) => Promise<void>,
+): HTMLElement {
+  const card = evidenceCardHeader(record, record.extractionComplete ? "Complete" : "In progress");
+  for (const field of snapshot.protocol.extractionFields) {
+    const form = document.createElement("form");
+    form.className = "review-evidence-form";
+    const heading = document.createElement("strong");
+    heading.textContent = field.label;
+    form.append(heading, extractionInput(field));
+    form.append(inputField("Missing reason", "missingReason", "Use only when the value is absent"), ...evidenceFields());
+    const save = actionButton("Save value", () => undefined);
+    save.className = "button-primary";
+    save.type = "submit";
+    form.append(save);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void submit(record.record.id, field.id, field.type, form);
+    });
+    card.append(form);
+  }
+  return card;
+}
+
+function evidenceCardHeader(record: EvidenceRecordState, status: string): HTMLElement {
+  const card = document.createElement("article");
+  card.className = "review-screen-card";
+  const header = document.createElement("header");
+  const title = document.createElement("h4");
+  title.textContent = record.record.metadata.title;
+  const badge = document.createElement("span");
+  badge.className = "count-badge";
+  badge.textContent = status;
+  header.append(title, badge);
+  card.append(header);
+  return card;
+}
+
+function evidenceFields(): [HTMLLabelElement, HTMLLabelElement, HTMLLabelElement] {
+  const quote = inputField("Exact quotation", "quote", "Required evidence passage");
+  const page = inputField("Page", "page", "Optional page");
+  page.querySelector("input")!.type = "number";
+  page.querySelector("input")!.min = "1";
+  const location = inputField("Location", "location", "Section, URL, or locator");
+  return [quote, page, location];
+}
+
+function extractionInput(field: ReviewEvidenceSnapshot["protocol"]["extractionFields"][number]): HTMLLabelElement {
+  if (field.type === "enum") return selectField("Value", "value", field.values);
+  if (field.type === "boolean") return selectField("Value", "value", ["true", "false"]);
+  const label = inputField("Value", "value", field.type === "integer" ? "Whole number" : "Extracted value");
+  if (field.type === "integer") label.querySelector("input")!.type = "number";
+  return label;
+}
+
+function evidenceFromForm(data: FormData) {
+  const pageValue = String(data.get("page") ?? "").trim();
+  return {
+    quote: String(data.get("quote") ?? ""),
+    page: pageValue ? Number(pageValue) : null,
+    location: String(data.get("location") ?? ""),
+  };
+}
+
+function extractionValueFromForm(value: FormDataEntryValue | null, fieldType: string): ExtractionValue {
+  const textValue = String(value ?? "");
+  if (fieldType === "integer") return Number(textValue);
+  if (fieldType === "boolean") return textValue === "true";
+  return textValue;
+}
+
+function syncEvidenceSteps(snapshot: ReviewScreeningSnapshot, appraiseStep: HTMLButtonElement, extractStep: HTMLButtonElement): void {
+  const disabled = snapshot.counts.fullTextIncluded === 0;
+  appraiseStep.disabled = disabled;
+  extractStep.disabled = disabled;
+}
+
 function actionButton(label: string, action: () => void): HTMLButtonElement {
   const button = document.createElement("button");
   button.className = "button-secondary";
@@ -632,8 +885,9 @@ function currentRevision(
   protocol: ReviewStudySnapshot,
   search: ReviewSearchSnapshot | null,
   screening: ReviewScreeningSnapshot | null,
+  evidence: ReviewEvidenceSnapshot | null,
 ): number {
-  return Math.max(protocol.revision, search?.revision ?? 0, screening?.revision ?? 0);
+  return Math.max(protocol.revision, search?.revision ?? 0, screening?.revision ?? 0, evidence?.revision ?? 0);
 }
 
 function renderQueries(protocol: ReviewStudySnapshot["protocol"]): void {
@@ -707,13 +961,45 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
     const abstract = separator < 0 ? "" : line.slice(separator + 1).trim();
     return { id: previous.knownRelevantStudies[index]?.id ?? `seed_${crypto.randomUUID()}`, title, abstract };
   });
+  const qualityQuestions = nonEmptyLines(required("review-quality-questions", HTMLTextAreaElement).value).map((text, index) => ({
+    id: previous.qualityAssessment.questions[index]?.id ?? `quality_${crypto.randomUUID()}`,
+    text,
+  }));
+  const qualityAnswers = nonEmptyLines(required("review-quality-answers", HTMLTextAreaElement).value).map((line, index) => {
+    const [label = "", weightValue = "", rejectValue = ""] = line.split("|").map((part) => part.trim());
+    const weight = Number(weightValue);
+    if (!label || !Number.isFinite(weight)) throw new Error(`Quality answer line ${index + 1} is invalid`);
+    return {
+      id: previous.qualityAssessment.answers[index]?.id ?? `answer_${crypto.randomUUID()}`,
+      label,
+      weight,
+      rejects: rejectValue.toLocaleLowerCase() === "reject",
+    };
+  });
+  const minimumValue = required("review-quality-minimum", HTMLInputElement).value.trim();
+  const extractionFields = nonEmptyLines(required("review-extraction-fields", HTMLTextAreaElement).value).map((line, index) => {
+    const [label = "", typeValue = "", valuesValue = ""] = line.split("|").map((part) => part.trim());
+    if (!label || !isExtractionType(typeValue)) throw new Error(`Extraction field line ${index + 1} is invalid`);
+    return {
+      id: previous.extractionFields[index]?.id ?? `field_${crypto.randomUUID()}`,
+      label,
+      type: typeValue,
+      values: valuesValue
+        .split(";")
+        .map((value) => value.trim())
+        .filter(Boolean),
+    };
+  });
   return {
     profile: required("review-profile", HTMLSelectElement).value === "mlr" ? "mlr" : "slr",
     objective: required("review-objective", HTMLTextAreaElement).value,
-    picoc: Object.fromEntries(facets.map((facet) => [facet, required(`review-picoc-${facet}`, HTMLInputElement).value])) as Record<
-      PicocFacet,
-      string
-    >,
+    picoc: {
+      population: required("review-picoc-population", HTMLInputElement).value,
+      intervention: required("review-picoc-intervention", HTMLInputElement).value,
+      comparison: required("review-picoc-comparison", HTMLInputElement).value,
+      outcome: required("review-picoc-outcome", HTMLInputElement).value,
+      context: required("review-picoc-context", HTMLInputElement).value,
+    },
     researchQuestions,
     conceptGroups,
     sources,
@@ -724,6 +1010,12 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
       reviewersPerStage: required("review-reviewer-count", HTMLSelectElement).value === "2" ? 2 : 1,
       blinded: required("review-blinded", HTMLInputElement).checked,
     },
+    qualityAssessment: {
+      questions: qualityQuestions,
+      answers: qualityAnswers,
+      minimumScore: minimumValue ? Number(minimumValue) : null,
+    },
+    extractionFields,
   };
 }
 
@@ -735,11 +1027,15 @@ function nonEmptyLines(value: string): string[] {
 }
 
 function isDialect(value: string): value is SearchDialect {
-  return dialects.has(value as SearchDialect);
+  return value === "generic" || value === "scopus" || value === "web-of-science" || value === "ieee-xplore" || value === "acm-dl";
 }
 
 function isScope(value: string): value is SearchFieldScope {
-  return scopes.has(value as SearchFieldScope);
+  return value === "all-fields" || value === "title-abstract" || value === "title-abstract-keywords";
+}
+
+function isExtractionType(value: string): value is ReviewProtocolContent["extractionFields"][number]["type"] {
+  return value === "string" || value === "integer" || value === "boolean" || value === "enum";
 }
 
 async function expectOk(response: Response): Promise<void> {
@@ -766,6 +1062,10 @@ function setSearchStatus(message: string): void {
 
 function setScreenStatus(message: string): void {
   required("review-screen-status", HTMLElement).textContent = message;
+}
+
+function setEvidenceStatus(mode: "appraise" | "extract", message: string): void {
+  required(`review-${mode}-status`, HTMLElement).textContent = message;
 }
 
 function errorMessage(error: unknown): string {

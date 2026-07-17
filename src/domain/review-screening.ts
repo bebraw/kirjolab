@@ -96,11 +96,10 @@ export function parseReviewScreeningSnapshot(value: unknown): ReviewScreeningSna
 
 function parseStageState(value: unknown): ScreeningStageState {
   if (!isRecord(value) || !Array.isArray(value.decisions)) throw new Error("Review screening stage is invalid");
-  const outcomes = new Set(["pending", "include", "exclude", "uncertain", "conflict"]);
-  if (typeof value.outcome !== "string" || !outcomes.has(value.outcome)) throw new Error("Review screening outcome is invalid");
+  if (!isScreeningOutcome(value.outcome)) throw new Error("Review screening outcome is invalid");
   const adjudication = value.adjudication === null ? null : parseAdjudication(value.adjudication);
   return {
-    outcome: value.outcome as ScreeningStageState["outcome"],
+    outcome: value.outcome,
     decisions: value.decisions.map(parseDecision),
     adjudication,
   };
@@ -180,6 +179,10 @@ function isStage(value: unknown): value is ScreeningStage {
 
 function isDecision(value: unknown): value is ScreeningDecisionValue {
   return value === "include" || value === "exclude" || value === "uncertain";
+}
+
+function isScreeningOutcome(value: unknown): value is ScreeningStageState["outcome"] {
+  return value === "pending" || value === "include" || value === "exclude" || value === "uncertain" || value === "conflict";
 }
 
 function integer(value: unknown): number {

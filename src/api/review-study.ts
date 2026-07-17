@@ -1,6 +1,7 @@
 import { parseReviewProtocolContent } from "../domain/review-study";
 import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search";
 import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
+import { parseEvidencePointer, type ExtractionValue } from "../domain/review-evidence";
 import type { AuthIdentity } from "../security/auth";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
@@ -79,7 +80,83 @@ export async function handleReviewStudyApi(
       await study.adjudicateScreening(body.expectedRevision, adjudicationMatch[1], body.stage, body.outcome, body.reason, identity.email),
     );
   }
+  if (suffix === "/review-study/evidence" && request.method === "GET") return noStore(await study.getEvidenceSnapshot(identity.email));
+  const qualityMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/quality-values$/iu.exec(suffix);
+  if (qualityMatch?.[1] && request.method === "POST") {
+    const body = await qualityValueRequest(request);
+    return noStore(
+      await study.submitQualityAssessment(
+        body.expectedRevision,
+        qualityMatch[1],
+        body.questionId,
+        body.answerId,
+        body.evidence,
+        identity.email,
+      ),
+    );
+  }
+  const extractionMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/extraction-values$/iu.exec(suffix);
+  if (extractionMatch?.[1] && request.method === "POST") {
+    const body = await extractionValueRequest(request);
+    return noStore(
+      await study.submitExtractionValue(
+        body.expectedRevision,
+        extractionMatch[1],
+        body.fieldId,
+        body.value,
+        body.missingReason,
+        body.evidence,
+        identity.email,
+      ),
+    );
+  }
   return Response.json({ error: "Review-study route not found" }, { status: 404 });
+}
+
+async function qualityValueRequest(request: Request) {
+  const value: unknown = await request.json();
+  if (
+    !isRecord(value) ||
+    typeof value.expectedRevision !== "number" ||
+    !Number.isSafeInteger(value.expectedRevision) ||
+    typeof value.questionId !== "string" ||
+    typeof value.answerId !== "string"
+  ) {
+    throw new Error("Quality assessment request is invalid");
+  }
+  return {
+    expectedRevision: value.expectedRevision,
+    questionId: value.questionId,
+    answerId: value.answerId,
+    evidence: parseEvidencePointer(value.evidence, true)!,
+  };
+}
+
+async function extractionValueRequest(request: Request): Promise<{
+  expectedRevision: number;
+  fieldId: string;
+  value: ExtractionValue;
+  missingReason: string | null;
+  evidence: ReturnType<typeof parseEvidencePointer>;
+}> {
+  const input: unknown = await request.json();
+  if (
+    !isRecord(input) ||
+    typeof input.expectedRevision !== "number" ||
+    !Number.isSafeInteger(input.expectedRevision) ||
+    typeof input.fieldId !== "string" ||
+    (input.value !== null && typeof input.value !== "string" && typeof input.value !== "number" && typeof input.value !== "boolean") ||
+    (input.missingReason !== null && typeof input.missingReason !== "string")
+  ) {
+    throw new Error("Extraction value request is invalid");
+  }
+  return {
+    expectedRevision: input.expectedRevision,
+    fieldId: input.fieldId,
+    value: input.value,
+    missingReason: input.missingReason,
+    evidence: parseEvidencePointer(input.evidence, input.value !== null),
+  };
 }
 
 async function screeningDecisionRequest(request: Request): Promise<{

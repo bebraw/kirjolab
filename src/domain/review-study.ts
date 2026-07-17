@@ -38,6 +38,25 @@ export interface KnownRelevantStudy {
   readonly abstract: string;
 }
 
+export interface QualityQuestion {
+  readonly id: string;
+  readonly text: string;
+}
+
+export interface QualityAnswerOption {
+  readonly id: string;
+  readonly label: string;
+  readonly weight: number;
+  readonly rejects: boolean;
+}
+
+export interface ExtractionFieldDefinition {
+  readonly id: string;
+  readonly label: string;
+  readonly type: "string" | "integer" | "boolean" | "enum";
+  readonly values: readonly string[];
+}
+
 export interface SourceQueryPlan {
   readonly sourceId: string;
   readonly query: string;
@@ -64,6 +83,12 @@ export interface ReviewProtocolContent {
     readonly reviewersPerStage: 1 | 2;
     readonly blinded: boolean;
   };
+  readonly qualityAssessment: {
+    readonly questions: readonly QualityQuestion[];
+    readonly answers: readonly QualityAnswerOption[];
+    readonly minimumScore: number | null;
+  };
+  readonly extractionFields: readonly ExtractionFieldDefinition[];
 }
 
 export interface ReviewProtocolRevision extends ReviewProtocolContent {
@@ -99,6 +124,17 @@ export function defaultReviewProtocol(profile: ReviewProfile = "slr"): ReviewPro
     inclusionCriteria: [],
     exclusionCriteria: [],
     screening: { reviewersPerStage: 1, blinded: false },
+    qualityAssessment: {
+      questions: [],
+      answers: [
+        { id: "yes", label: "Yes", weight: 1, rejects: false },
+        { id: "partly", label: "Partly", weight: 0.5, rejects: false },
+        { id: "no", label: "No", weight: 0, rejects: false },
+        { id: "reject", label: "Reject", weight: 0, rejects: true },
+      ],
+      minimumScore: null,
+    },
+    extractionFields: [],
   };
 }
 
@@ -162,10 +198,57 @@ export function parseReviewProtocolContent(value: unknown): ReviewProtocolConten
   if ((screeningValue.reviewersPerStage !== 1 && screeningValue.reviewersPerStage !== 2) || typeof screeningValue.blinded !== "boolean") {
     throw new Error("Screening policy is invalid");
   }
+  const qualityValue = isRecord(value.qualityAssessment) ? value.qualityAssessment : defaultReviewProtocol().qualityAssessment;
+  const qualityQuestions = parseArray(qualityValue.questions, 256, "quality questions", (item) => {
+    if (!isRecord(item)) throw new Error("Quality question is invalid");
+    return { id: stableId(item.id, "Quality question"), text: boundedText(item.text, "Quality question", 2_000) };
+  });
+  const qualityAnswers = parseArray(qualityValue.answers, 32, "quality answers", (item) => {
+    if (
+      !isRecord(item) ||
+      typeof item.weight !== "number" ||
+      !Number.isFinite(item.weight) ||
+      item.weight < -100 ||
+      item.weight > 100 ||
+      typeof item.rejects !== "boolean"
+    ) {
+      throw new Error("Quality answer is invalid");
+    }
+    return {
+      id: stableId(item.id, "Quality answer"),
+      label: boundedText(item.label, "Quality answer label", 200),
+      weight: item.weight,
+      rejects: item.rejects,
+    };
+  });
+  const minimumScore = qualityValue.minimumScore;
+  if (minimumScore !== null && (typeof minimumScore !== "number" || !Number.isFinite(minimumScore))) {
+    throw new Error("Quality minimum score is invalid");
+  }
+  const extractionFields = parseArray(value.extractionFields ?? [], 512, "extraction fields", (item) => {
+    if (!isRecord(item)) {
+      throw new Error("Extraction field is invalid");
+    }
+    const type = isExtractionFieldType(item.type) ? item.type : undefined;
+    if (!type) throw new Error("Extraction field is invalid");
+    const values = parseArray(item.values, 128, "extraction values", (entry) => boundedText(entry, "Extraction option", 500));
+    if (type === "enum" && values.length === 0) throw new Error("Enum extraction field needs values");
+    if (type !== "enum" && values.length > 0) throw new Error("Only enum extraction fields can define values");
+    uniqueStrings(values, "Extraction options");
+    return {
+      id: stableId(item.id, "Extraction field"),
+      label: boundedText(item.label, "Extraction field label", 300),
+      type,
+      values,
+    };
+  });
   uniqueIds(researchQuestions, "Research questions");
   uniqueIds(conceptGroups, "Concept groups");
   uniqueIds(sources, "Search sources");
   uniqueIds(knownRelevantStudies, "Known relevant studies");
+  uniqueIds(qualityQuestions, "Quality questions");
+  uniqueIds(qualityAnswers, "Quality answers");
+  uniqueIds(extractionFields, "Extraction fields");
   return {
     profile: value.profile,
     objective,
@@ -177,6 +260,8 @@ export function parseReviewProtocolContent(value: unknown): ReviewProtocolConten
     inclusionCriteria,
     exclusionCriteria,
     screening: { reviewersPerStage: screeningValue.reviewersPerStage, blinded: screeningValue.blinded },
+    qualityAssessment: { questions: qualityQuestions, answers: qualityAnswers, minimumScore },
+    extractionFields,
   };
 }
 
@@ -319,4 +404,8 @@ function uniqueStrings(values: readonly string[], label: string): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isExtractionFieldType(value: unknown): value is ExtractionFieldDefinition["type"] {
+  return value === "string" || value === "integer" || value === "boolean" || value === "enum";
 }

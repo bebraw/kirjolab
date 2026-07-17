@@ -273,7 +273,7 @@ state.
       counts through reviewed deduplication.
 - [x] One or two reviewers can complete staged screening, inspect conflicts,
       and adjudicate without overwriting original decisions.
-- [ ] Included records support evidence-linked quality appraisal and typed data
+- [x] Included records support evidence-linked quality appraisal and typed data
       extraction with explicit missingness.
 - [ ] RQ-oriented process and evidence analyses derive from a pinned review
       revision and can enter the manuscript as named review artifacts.

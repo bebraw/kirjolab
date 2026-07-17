@@ -56,6 +56,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       { version: 1, name: "store-review-protocol-revisions" },
       { version: 2, name: "store-search-runs-and-reviewed-duplicates" },
       { version: 3, name: "store-append-only-screening-decisions" },
+      { version: 4, name: "store-evidence-linked-appraisal-and-extraction" },
     ]);
   });
 
@@ -158,5 +159,85 @@ describe("ReviewStudy in the Workers runtime", () => {
       "reviewer-a@example.com",
     );
     expect(fullText.records[0]?.fullText.outcome).toBe("pending");
+  });
+
+  it("records evidence-linked quality answers and typed extraction with missingness", async () => {
+    const study = env.REVIEW_STUDIES.getByName(`review-evidence-${crypto.randomUUID()}`);
+    const initial = await study.getSnapshot();
+    const defaults = defaultReviewProtocol();
+    const content = {
+      ...defaults,
+      qualityAssessment: {
+        questions: [{ id: "method", text: "Is the method clear?" }],
+        answers: defaults.qualityAssessment.answers,
+        minimumScore: 0.5,
+      },
+      extractionFields: [
+        { id: "year", label: "Year", type: "integer" as const, values: [] },
+        { id: "finding", label: "Key finding", type: "string" as const, values: [] },
+      ],
+      sources: [{ id: "source", name: "Source", url: "", dialect: "generic" as const, fieldScope: "all-fields" as const }],
+    };
+    await study.replaceProtocol({ expectedRevision: initial.revision, content, actor: "owner@example.com" });
+    await study.freezeProtocol(2, "owner@example.com");
+    const bibtex = "@article{study, title={Evidence Study}, year={2025}}";
+    const preview = await previewReviewBibTeX(bibtex);
+    const searched = await study.confirmSearchRun({
+      expectedRevision: 3,
+      sourceId: "source",
+      query: "evidence",
+      searchedAt: "2026-07-17T09:00:00Z",
+      bibtex,
+      digest: preview.digest,
+      actor: "owner@example.com",
+    });
+    const recordId = searched.records[0]!.id;
+    const title = await study.submitScreeningDecision(
+      searched.revision,
+      recordId,
+      "title-abstract",
+      "include",
+      "Relevant",
+      "",
+      "reviewer@example.com",
+    );
+    const full = await study.submitScreeningDecision(
+      title.revision,
+      recordId,
+      "full-text",
+      "include",
+      "Eligible",
+      "",
+      "reviewer@example.com",
+    );
+    const quality = await study.submitQualityAssessment(
+      full.revision,
+      recordId,
+      "method",
+      "yes",
+      { quote: "The method was preregistered.", page: 3, location: "Methods" },
+      "reviewer@example.com",
+    );
+    expect(quality.records[0]).toMatchObject({ qualityScore: 1, qualityComplete: true, qualityRejected: false });
+    const extracted = await study.submitExtractionValue(
+      quality.revision,
+      recordId,
+      "year",
+      2025,
+      null,
+      { quote: "Published 2025", page: 1, location: "Front matter" },
+      "reviewer@example.com",
+    );
+    const missing = await study.submitExtractionValue(
+      extracted.revision,
+      recordId,
+      "finding",
+      null,
+      "Not reported",
+      null,
+      "reviewer@example.com",
+    );
+    expect(missing.records[0]).toMatchObject({ extractionComplete: true });
+    expect(missing.records[0]?.extractionValues).toHaveLength(2);
   });
 });

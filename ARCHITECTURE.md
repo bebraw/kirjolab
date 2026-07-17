@@ -111,6 +111,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   stage outcomes from the configured independent-review policy, blind pending
   peer decisions when requested, and resolve conflicts through separate
   adjudications instead of overwriting either judgment.
+- Keep review quality answers and extracted values typed, revisioned, and
+  evidence-linked. Require an exact quotation/location for present claims and
+  an explicit missingness reason when an extraction value is absent; derive
+  checklist scores and completeness instead of persisting them as authority.
 - Coordinate each personal reference library through a separate SQLite-backed
   Durable Object keyed by verified owner identity. Stable source identity must
   not depend on a DOI, title, filename, or project citation alias.

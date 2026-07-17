@@ -29,6 +29,16 @@ import {
   type ScreeningRecordState,
   type ScreeningStage,
 } from "../domain/review-screening";
+import {
+  parseEvidencePointer,
+  summarizeEvidenceRecord,
+  validateExtractionValue,
+  type ExtractedDataValue,
+  type ExtractionValue,
+  type QualityAssessmentValue,
+  type ReviewEvidencePointer,
+  type ReviewEvidenceSnapshot,
+} from "../domain/review-evidence";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 
 const migrations = [
@@ -133,6 +143,36 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 4,
+    name: "store-evidence-linked-appraisal-and-extraction",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE quality_assessment_values (
+          id TEXT PRIMARY KEY,
+          record_id TEXT NOT NULL REFERENCES review_records(id),
+          question_id TEXT NOT NULL,
+          answer_id TEXT NOT NULL,
+          evidence_json TEXT NOT NULL,
+          reviewer TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE extracted_data_values (
+          id TEXT PRIMARY KEY,
+          record_id TEXT NOT NULL REFERENCES review_records(id),
+          field_id TEXT NOT NULL,
+          value_json TEXT NOT NULL,
+          missing_reason TEXT,
+          evidence_json TEXT,
+          reviewer TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX quality_values_record_idx ON quality_assessment_values(record_id, question_id, created_at);
+        CREATE INDEX extraction_values_record_idx ON extracted_data_values(record_id, field_id, created_at);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface MetaRow extends Record<string, SqlStorageValue> {
@@ -207,6 +247,27 @@ interface ScreeningAdjudicationRow extends Record<string, SqlStorageValue> {
   outcome: "include" | "exclude";
   reason: string;
   adjudicator: string;
+  created_at: string;
+}
+
+interface QualityValueRow extends Record<string, SqlStorageValue> {
+  id: string;
+  record_id: string;
+  question_id: string;
+  answer_id: string;
+  evidence_json: string;
+  reviewer: string;
+  created_at: string;
+}
+
+interface ExtractionValueRow extends Record<string, SqlStorageValue> {
+  id: string;
+  record_id: string;
+  field_id: string;
+  value_json: string;
+  missing_reason: string | null;
+  evidence_json: string | null;
+  reviewer: string;
   created_at: string;
 }
 
@@ -373,7 +434,11 @@ export class ReviewStudy extends DurableObject<Env> {
     const screeningCount = this.ctx.storage.sql
       .exec<{
         count: number;
-      }>("SELECT COUNT(*) AS count FROM screening_decisions WHERE record_id = ? OR record_id = ?", candidateRow.left_id, candidateRow.right_id)
+      }>(
+        "SELECT COUNT(*) AS count FROM screening_decisions WHERE record_id = ? OR record_id = ?",
+        candidateRow.left_id,
+        candidateRow.right_id,
+      )
       .one().count;
     if (screeningCount > 0) throw new Error("Resolve duplicate candidates before screening their records");
     const now = new Date().toISOString();
@@ -512,6 +577,107 @@ export class ReviewStudy extends DurableObject<Env> {
     return this.getScreeningSnapshot(actor);
   }
 
+  getEvidenceSnapshot(actor: string): ReviewEvidenceSnapshot {
+    const protocol = this.getSnapshot().protocol;
+    const includedIds = new Set(
+      this.getScreeningSnapshot(actor)
+        .records.filter((record) => record.fullText.outcome === "include")
+        .map((record) => record.record.id),
+    );
+    const records = this.ctx.storage.sql
+      .exec<ReviewRecordRow>("SELECT * FROM review_records WHERE state = 'active' ORDER BY id ASC")
+      .toArray()
+      .map(recordFromRow)
+      .filter((record) => includedIds.has(record.id));
+    const qualityValues = this.ctx.storage.sql
+      .exec<QualityValueRow>("SELECT * FROM quality_assessment_values ORDER BY created_at ASC, id ASC")
+      .toArray()
+      .map(qualityValueFromRow);
+    const extractionValues = this.ctx.storage.sql
+      .exec<ExtractionValueRow>("SELECT * FROM extracted_data_values ORDER BY created_at ASC, id ASC")
+      .toArray()
+      .map(extractionValueFromRow);
+    return {
+      revision: this.currentRevision(),
+      protocolRevision: protocol.revision,
+      protocol: { qualityAssessment: protocol.qualityAssessment, extractionFields: protocol.extractionFields },
+      records: records.map((record) =>
+        summarizeEvidenceRecord(
+          record,
+          protocol,
+          qualityValues.filter((value) => value.recordId === record.id),
+          extractionValues.filter((value) => value.recordId === record.id),
+        ),
+      ),
+    };
+  }
+
+  submitQualityAssessment(
+    expectedRevision: number,
+    recordId: string,
+    questionId: string,
+    answerId: string,
+    evidence: ReviewEvidencePointer,
+    actor: string,
+  ): ReviewEvidenceSnapshot {
+    this.assertRevision(expectedRevision, this.currentRevision());
+    const protocol = this.getSnapshot().protocol;
+    if (!protocol.qualityAssessment.questions.some((question) => question.id === questionId))
+      throw new Error("Quality question is unavailable");
+    if (!protocol.qualityAssessment.answers.some((answer) => answer.id === answerId)) throw new Error("Quality answer is unavailable");
+    this.assertEvidenceRecord(recordId, actor);
+    const pointer = parseEvidencePointer(evidence, true)!;
+    this.assertEvidenceRevisionLimit("quality_assessment_values", "question_id", recordId, questionId, actor);
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO quality_assessment_values (id, record_id, question_id, answer_id, evidence_json, reviewer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        crypto.randomUUID(),
+        recordId,
+        questionId,
+        answerId,
+        JSON.stringify(pointer),
+        actor,
+        new Date().toISOString(),
+      );
+      this.advanceRevision();
+    });
+    return this.getEvidenceSnapshot(actor);
+  }
+
+  submitExtractionValue(
+    expectedRevision: number,
+    recordId: string,
+    fieldId: string,
+    value: ExtractionValue,
+    missingReason: string | null,
+    evidence: ReviewEvidencePointer | null,
+    actor: string,
+  ): ReviewEvidenceSnapshot {
+    this.assertRevision(expectedRevision, this.currentRevision());
+    const protocol = this.getSnapshot().protocol;
+    const field = protocol.extractionFields.find((candidate) => candidate.id === fieldId);
+    if (!field) throw new Error("Extraction field is unavailable");
+    this.assertEvidenceRecord(recordId, actor);
+    const validated = validateExtractionValue(field, value, missingReason);
+    const pointer = parseEvidencePointer(evidence, validated.value !== null);
+    this.assertEvidenceRevisionLimit("extracted_data_values", "field_id", recordId, fieldId, actor);
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO extracted_data_values (id, record_id, field_id, value_json, missing_reason, evidence_json, reviewer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        crypto.randomUUID(),
+        recordId,
+        fieldId,
+        JSON.stringify(validated.value),
+        validated.missingReason,
+        pointer ? JSON.stringify(pointer) : null,
+        actor,
+        new Date().toISOString(),
+      );
+      this.advanceRevision();
+    });
+    return this.getEvidenceSnapshot(actor);
+  }
+
   private appendProtocol(content: ReviewProtocolContent, status: "draft" | "frozen", rationale: string, actor: string): void {
     const revision = this.currentRevision() + 1;
     const protocol = materializeProtocolRevision(content, revision, status, rationale, actor);
@@ -557,6 +723,24 @@ export class ReviewStudy extends DurableObject<Env> {
       match.confidence,
     );
   }
+
+  private assertEvidenceRecord(recordId: string, actor: string): void {
+    const included = this.getScreeningSnapshot(actor).records.some(
+      (record) => record.record.id === recordId && record.fullText.outcome === "include",
+    );
+    if (!included) throw new Error("Appraisal and extraction require full-text inclusion");
+  }
+
+  private assertEvidenceRevisionLimit(table: string, fieldColumn: string, recordId: string, fieldId: string, actor: string): void {
+    const allowed = new Set(["quality_assessment_values:question_id", "extracted_data_values:field_id"]);
+    if (!allowed.has(`${table}:${fieldColumn}`)) throw new Error("Evidence revision query is invalid");
+    const count = this.ctx.storage.sql
+      .exec<{
+        count: number;
+      }>(`SELECT COUNT(*) AS count FROM ${table} WHERE record_id = ? AND ${fieldColumn} = ? AND reviewer = ?`, recordId, fieldId, actor)
+      .one().count;
+    if (count >= 20) throw new Error("Evidence value revision limit reached");
+  }
 }
 
 function protocolFromRow(row: ProtocolRow): ReviewProtocolRevision {
@@ -583,6 +767,8 @@ function protocolContent(protocol: ReviewProtocolRevision): ReviewProtocolConten
     inclusionCriteria: protocol.inclusionCriteria,
     exclusionCriteria: protocol.exclusionCriteria,
     screening: protocol.screening,
+    qualityAssessment: protocol.qualityAssessment,
+    extractionFields: protocol.extractionFields,
   };
 }
 
@@ -728,4 +914,33 @@ function boundedScreeningText(value: string, label: string, maximum: number, all
   const normalized = value.trim();
   if ((!allowEmpty && !normalized) || normalized.length > maximum) throw new Error(`${label} is invalid`);
   return normalized;
+}
+
+function qualityValueFromRow(row: QualityValueRow): QualityAssessmentValue {
+  return {
+    id: row.id,
+    recordId: row.record_id,
+    questionId: row.question_id,
+    answerId: row.answer_id,
+    evidence: parseEvidencePointer(JSON.parse(row.evidence_json), true)!,
+    reviewer: row.reviewer,
+    createdAt: row.created_at,
+  };
+}
+
+function extractionValueFromRow(row: ExtractionValueRow): ExtractedDataValue {
+  const value: unknown = JSON.parse(row.value_json);
+  if (value !== null && typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+    throw new Error("Stored extraction value is invalid");
+  }
+  return {
+    id: row.id,
+    recordId: row.record_id,
+    fieldId: row.field_id,
+    value,
+    missingReason: row.missing_reason,
+    evidence: row.evidence_json ? parseEvidencePointer(JSON.parse(row.evidence_json), true) : null,
+    reviewer: row.reviewer,
+    createdAt: row.created_at,
+  };
 }
