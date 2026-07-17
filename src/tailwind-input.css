@@ -4279,7 +4279,7 @@
 }
 
 .review-model-candidate {
-  @apply mt-3 grid gap-2 rounded-app border border-app-accent/30 bg-app-accent/5 p-3 font-sans text-sm;
+  @apply mt-3 grid gap-2 rounded-md border border-app-accent/30 bg-app-accent/5 p-3 font-sans text-sm;
 }
 
 .review-model-candidate small {
