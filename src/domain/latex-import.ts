@@ -10,16 +10,21 @@ export type LatexArchiveFileKind = "tex" | "bibtex" | "image" | "ignored";
 
 export type LatexImportDiagnosticCode =
   | "ambiguous-root"
+  | "include-cycle"
+  | "invalid-bibliography-selection"
+  | "invalid-root-selection"
   | "missing-bibliography"
   | "missing-include"
   | "missing-root"
+  | "tikz-preserved"
+  | "unsupported-environment"
   | "unsafe-bibliography"
   | "unsafe-include"
   | "unreferenced-bibliography";
 
 export interface LatexImportDiagnostic {
   readonly code: LatexImportDiagnosticCode;
-  readonly severity: "error" | "warning";
+  readonly severity: "error" | "warning" | "info";
   readonly message: string;
   readonly path?: string;
   readonly from?: number;
