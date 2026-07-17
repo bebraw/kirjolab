@@ -119,16 +119,17 @@ considering a change ready.
 | `npm run quality:affected`     | Check files affected by the current change |
 | `npm run quality:gate:fast`    | Run the fast local verification gate       |
 | `npm run quality:gate`         | Run the full baseline quality gate         |
-| `npm run ci:local`             | Run the GitHub Actions workflow locally    |
+| `npm run ci:local`             | Run the full local gate natively           |
+| `npm run ci:local:container`   | Run optional container workflow parity     |
 | `npm test`                     | Run unit tests                             |
 | `npm run e2e`                  | Run browser tests                          |
 | `npm run mutation`             | Run mutation tests                         |
 | `npm run diagnostics:codebase` | Report advisory readability diagnostics    |
 
-Install the pinned Playwright browser with `npm run playwright:install`. If a
-local CI run pauses after a failure, fix the problem and resume it with
-`npm run ci:local:retry -- --name <runner-name>`. More setup and troubleshooting
-details are in [docs/development.md](./docs/development.md).
+Install the pinned Playwright browser with `npm run playwright:install`. The
+container parity path can pause after a failure; resume it with
+`npm run ci:local:container:retry -- --name <runner-name>`. More setup and
+troubleshooting details are in [docs/development.md](./docs/development.md).
 
 ## Project Guide
 

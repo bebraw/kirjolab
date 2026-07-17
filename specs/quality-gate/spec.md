@@ -22,14 +22,12 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Incremental mutation gate:** `npm run mutation:incremental`
 - **Full gate:** `npm run quality:gate` (fast gate followed by browser gate)
 - **Full gate progress:** named phase transitions plus a 30-second elapsed-time heartbeat while a phase is running
-- **Local workflow:** `npm run ci:local`
-- **Local workflow formatter:** `scripts/run-local-ci.mjs`
-- **Local workflow progress source:** Agent CI versioned NDJSON events
-- **Local workflow heartbeat:** every 15 seconds while the workflow is active
-- **Local workflow concurrency:** parallel Agent CI jobs with isolated writable dependency views
-- **Local dependency prewarm:** `.github/workflows/ci.yml:quality-fast:install`
-- **Local workflow failure mode:** pause failed Agent CI runners for retry
-- **Retry command:** `npm run ci:local:retry -- --name <runner-name>`
+- **Local readiness:** `npm run ci:local` delegates to the native full gate
+- **Optional container parity:** `npm run ci:local:container`
+- **Container workflow formatter:** `scripts/run-local-ci.mjs`
+- **Container workflow progress source:** Agent CI versioned NDJSON events
+- **Container workflow heartbeat:** every 15 seconds while the workflow is active
+- **Container retry:** `npm run ci:local:container:retry -- --name <runner-name>`
 - **Remote workflow:** `.github/workflows/ci.yml`
 - **CI dependency install:** plain `npm ci`
 - **Action pinning:** every GitHub Actions `uses:` reference must use a full commit SHA
@@ -49,7 +47,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Formatting cache:** content-based results under ignored `.cache/prettier`
 - **Mutation config:** `stryker.config.mjs`
 - **Mutation heap ceiling:** 8 GiB for TypeScript-aware Stryker instrumentation
-- **Readiness baseline:** `npm run quality:gate` and `npm run ci:local` for non-documentation changes
+- **Readiness baseline:** `npm run ci:local` for non-documentation changes
 - **Documentation-only exception:** documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests
 
 ### Anti-Patterns
@@ -58,12 +56,12 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - Do not treat colocated tests or test-support files as runtime source code when deciding whether unit coverage is missing.
 - Do not add unbounded specialist analysis to the routine readiness gate when
   it already has an explicit command and authoritative CI job.
-- Do not split, duplicate, reorder, or omit workflow checks merely to expose
-  more progress.
+- Do not make routine readiness depend on a container when the same
+  authoritative package scripts run natively on the supported host.
 - Do not parse Agent CI's human-oriented logs when its versioned event stream
   provides the same state directly.
 - Do not treat advisory Fallow diagnostics as a replacement for formatting, type checking, runtime audit, unit coverage, browser tests, mutation testing, or Worker-specific guardrails.
-- Do not treat targeted iteration checks as a replacement for the readiness baseline unless the change is documentation-only and qualifies for the documented Agent CI exception.
+- Do not treat targeted iteration checks as a replacement for the readiness baseline unless the change is documentation-only and qualifies for the documented local CI exception.
 - Do not add undocumented workflow write targets for generated output, local state, caches, archives, or tool artifacts.
 
 ## Contract
@@ -80,11 +78,10 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - [ ] The full gate runs the fast and browser gates in order.
 - [ ] The full gate reports phase starts, completions, failures, and periodic elapsed-time heartbeats.
 - [ ] The repo-managed `pre-push` hook runs affected-file guardrails before a push leaves the machine.
-- [ ] Local and remote CI use the same split verification model for non-documentation changes.
-- [ ] Local CI reports job and step starts, completions, durations, and
-      15-second heartbeats without changing Agent CI's workflow, failure, or
-      retry semantics.
-- [ ] Documentation-only changes can skip Agent CI when they do not alter executable behavior or workflow configuration.
+- [ ] Local and remote CI use the same fast and browser package scripts for non-documentation changes.
+- [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
+- [ ] Optional container parity preserves Agent CI job progress, failure, and retry semantics.
+- [ ] Documentation-only changes can skip local CI when they do not alter executable behavior or workflow configuration.
 - [ ] The spec is updated in the same change set.
 
 ### Regression Guardrails
@@ -110,7 +107,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The CI workflow must keep using npm for install and verification steps without depending on one exact npm patch release.
 - The npm release used by CI must stay inside the supported npm range declared in `package.json`.
 - CI jobs must install dependencies with plain `npm ci`.
-- Local Agent CI must rely on its built-in warm-cache serialization instead of repo-local install locking.
+- Optional container Agent CI must rely on its built-in warm-cache serialization instead of repo-local install locking.
 - The CI workflow must pin every GitHub Actions `uses:` action reference to a full commit SHA, with any tag information kept only as a comment.
 - The browser CI job must use the pinned Playwright container instead of reinstalling Chromium at runtime.
 - The coverage gate must only require unit tests when runtime `src/` code exists.
@@ -128,16 +125,16 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The affected test path must run full unit coverage when affected-file helper logic changes.
 - The affected test path must run full unit coverage when affected runtime files have no related tests and no affected unit test files were supplied.
 - The affected guardrail path may fall back to project-level type checking or coverage when a safe per-file check is not available.
-- The repo's local CI scripts should use the repo-pinned `agent-ci` binary directly instead of carrying repo-specific runtime patching or install locking.
-- The canonical local CI script must explicitly prewarm through the stable fast
+- The optional container CI script should use the repo-pinned `agent-ci` binary directly instead of carrying repo-specific runtime patching or install locking.
+- The optional container CI script must explicitly prewarm through the stable fast
   job install step before concurrent jobs receive isolated writable dependency
   views.
-- The canonical local CI script should use pause-on-failure so agents can fix and retry a failed runner without restarting the whole workflow.
-- The local CI formatter must consume Agent CI's versioned JSON event stream
+- The optional container CI script should use pause-on-failure so agents can fix and retry a failed runner without restarting the whole workflow.
+- The optional container CI formatter must consume Agent CI's versioned JSON event stream
   instead of matching human log text.
-- The local CI formatter must preserve Agent CI's final process exit code,
+- The optional container CI formatter must preserve Agent CI's final process exit code,
   attached pause-on-failure lifecycle, and retry command.
-- The local CI formatter must report a heartbeat at least every 15 seconds while
+- The optional container CI formatter must report a heartbeat at least every 15 seconds while
   Agent CI is running without an active step completion.
 - The local verification workflow should document macOS as the supported host baseline instead of implying cross-platform support.
 - The Playwright server path must avoid macOS file-watcher exhaustion in local runs without changing the normal `npm run dev` workflow.
@@ -148,7 +145,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The local CI documentation must cover the no-`origin` case through `.env.agent-ci` and `GITHUB_REPO` instead of treating that warning as normal noise.
 - The local CI Docker daemon override must use Agent CI's `AGENT_CI_DOCKER_HOST` variable instead of the general Docker CLI `DOCKER_HOST` variable.
 - Local Playwright browser installation should go through a pinned repo script instead of ad hoc `npx playwright install ...` usage.
-- Targeted checks may be documented for iteration, but `npm run quality:gate` and `npm run ci:local` remain the readiness baseline for non-documentation changes.
+- Targeted checks may be documented for iteration, but `npm run ci:local` remains the readiness baseline for non-documentation changes.
 - Documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests.
 - Mutation testing must exclude colocated tests, end-to-end tests, declarations,
   test support, HTTP adapters covered by route plus end-to-end tests, and
@@ -171,7 +168,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 
 ### Verification
 
-- **Automated checks:** `npm run quality:gate` and `npm run ci:local`
+- **Automated checks:** `npm run ci:local`
 - **Local setup check:** `git config --get core.hooksPath` should resolve to `.githooks`
 - **Workflow shape:** `.github/workflows/ci.yml` should show separate fast and browser jobs, with repository-shape validation in the fast job
 
@@ -219,7 +216,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 **Scenario: Full verification before landing code changes**
 
 - Given: a non-documentation change is ready for review or merge
-- When: the contributor runs `npm run quality:gate` and `npm run ci:local`
+- When: the contributor runs `npm run ci:local`
 - Then: the fast and browser verification paths pass
 
 **Scenario: Contributor monitors the full quality gate**
@@ -229,17 +226,17 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - Then: the gate names the active phase, preserves its live output, and reports
   elapsed time every 30 seconds until the phase completes or fails
 
-**Scenario: Contributor watches local workflow progress**
+**Scenario: Contributor watches native local progress**
 
 - Given: a local workflow step takes longer than normal without producing logs
 - When: the contributor runs `npm run ci:local`
-- Then: job and step boundaries remain visible and a heartbeat confirms the
-  workflow is still active at least every 15 seconds
+- Then: fast and browser phase output remains visible and a heartbeat confirms
+  a long-running phase is still active
 
-**Scenario: Local workflow pauses on failure**
+**Scenario: Optional container workflow pauses on failure**
 
 - Given: an Agent CI workflow step fails
-- When: the local formatter receives the paused-runner event
+- When: `npm run ci:local:container` receives the paused-runner event
 - Then: it prints the failed runner and retry command while Agent CI remains
   available for an attached retry
 

@@ -1,0 +1,15 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@
+-    "ci:local": "node ./scripts/run-local-ci.mjs",
+-    "ci:local:retry": "agent-ci retry",
++    "ci:local": "npm run quality:gate",
++    "ci:local:container": "node ./scripts/run-local-ci.mjs",
++    "ci:local:container:retry": "agent-ci retry",
+diff --git a/AGENTS.md b/AGENTS.md
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@
+-Prefer the local Agent CI workflow before relying on remote CI.
++Prefer native `npm run ci:local`; reserve Agent CI containers for explicit workflow or Linux parity checks.

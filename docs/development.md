@@ -11,7 +11,9 @@ The template vendors the ASDLC knowledge base in `.asdlc/`.
 
 ## Local CI
 
-This template is set up for the local Agent CI runner from `agent-ci.dev`.
+Routine local CI runs natively on the supported macOS host. The pinned Agent CI
+runner from `agent-ci.dev` remains available for optional workflow and Linux
+container parity.
 
 ### Prerequisites
 
@@ -22,7 +24,7 @@ This template is set up for the local Agent CI runner from `agent-ci.dev`.
 - The exact Node.js version is pinned in `package.json`, mirrored in `.nvmrc` for `nvm` users, and read directly by CI through `actions/setup-node`.
 - The repo requires npm 11 in `package.json` but does not pin one exact patch release. Local development, CI, and platforms such as Cloudflare may use different npm 11 patch versions as long as they stay inside the supported major range.
 - Copy `.dev.vars.example` to `.dev.vars` and replace placeholder values when a project needs local secrets.
-- Copy `.env.agent-ci.example` to `.env.agent-ci` when you need machine-local Agent CI overrides. Agent CI loads that file automatically.
+- Copy `.env.agent-ci.example` to `.env.agent-ci` only when you need machine-local overrides for optional container parity. Agent CI loads that file automatically.
 - If your clone has no `origin` remote, set `GITHUB_REPO=owner/repo` in `.env.agent-ci` to stop Agent CI from warning while inferring the repository name.
 - If Agent CI needs a non-default Docker socket or daemon, set `AGENT_CI_DOCKER_HOST=...` in `.env.agent-ci`.
 - Start a Docker runtime before running Agent CI.
@@ -51,15 +53,16 @@ changing it disconnects stored connections unless they are migrated first.
 
 For local development only, copy `.dev.vars.example` to the ignored `.dev.vars` and place the same values there. The App installation needs repository metadata read access and repository contents read/write access. Kirjolab reads only supported Markdown below the user-selected repository root and publishes with a non-forced branch update.
 
-If local CI fails with `No such image: ghcr.io/actions/actions-runner:latest`, pull that image manually and re-run the workflow.
+If optional container parity fails with `No such image: ghcr.io/actions/actions-runner:latest`, pull that image manually and re-run the workflow.
 
-If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` to `.env.agent-ci` and rerun the workflow.
+If optional container parity warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` to `.env.agent-ci` and rerun the workflow.
 
 ### Commands
 
-- Run the local workflow with job and step progress, 15-second heartbeats during
-  long operations, isolated parallel jobs, and pause-on-failure using
+- Run the native local readiness gate with live phase output using
   `npm run ci:local`.
+- Run the GitHub Actions workflow in Agent CI containers only when Linux or
+  workflow-orchestration parity matters using `npm run ci:local:container`.
 - Rebuild the generated stylesheet manually with `npm run build:css`.
 - Rebuild the content-fingerprinted application, service worker, Markdown
   runtime, and PDF.js runtime together with `npm run build:browser-shell` after
@@ -89,7 +92,8 @@ If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` t
 - Format the repo with `npm run format`.
 - Check formatting with `npm run format:check`.
 - Run default Oxlint correctness checks with `npm run lint`.
-- If a run pauses on failure, fix the issue and resume with `npm run ci:local:retry -- --name <runner-name>`.
+- If a container run pauses on failure, fix the issue and resume with
+  `npm run ci:local:container:retry -- --name <runner-name>`.
 
 Use targeted checks while iterating, then run the full readiness path before proposing or landing a change:
 
@@ -100,7 +104,7 @@ Use targeted checks while iterating, then run the full readiness path before pro
   `npm run typecheck:workers` and `npm run test:workers`
 - Browser behavior or UI changes: `npm run quality:gate`
 - Readability, complexity, duplication, or cleanup review: `npm run diagnostics:codebase`
-- Baseline readiness: `npm run quality:gate` and `npm run ci:local`
+- Baseline readiness: `npm run ci:local`
 
 The template now ships with a minimal Worker stub in `src/worker.ts`. `npm run dev` supervises the Worker on `http://127.0.0.1:8787` and, when configured, the model companion on `http://127.0.0.1:8790`; stopping either process stops the other. Playwright uses `npm run e2e:server` on `http://127.0.0.1:8788` so browser tests can run without extra setup or a model process. The e2e launcher forces Chokidar polling mode to avoid file-watcher exhaustion in macOS-hosted local runs and gives Wrangler a fresh operating-system temporary persistence directory that it removes on shutdown. Browser-created workspaces therefore cannot accumulate in the interactive `npm run dev` catalog. API modules live under `src/api/`, view modules live under `src/views/`, and tests are colocated under `src/`.
 
@@ -118,7 +122,7 @@ ignored; clean CI runners perform a cold check rather than restoring it.
 as failures. It complements Prettier's formatting ownership and TypeScript's
 type checking instead of replacing either tool.
 
-The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.61.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The full `quality-mutation` workflow job is reserved for GitHub Actions with a `github.server_url` guard, so local Agent CI runs skip it; use `npm run mutation:incremental` or `npm run mutation` explicitly when local mutation feedback is needed. Dependency installation uses plain `npm ci`. Local Agent CI 0.17.1 explicitly prewarms through the fast job's stable `install` step, then gives concurrent jobs isolated writable dependency views. The local wrapper consumes Agent CI's versioned JSON events and reports each job and step with elapsed time, including a heartbeat every 15 seconds; it does not duplicate, reorder, or omit workflow checks.
+The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.61.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The full `quality-mutation` workflow job is reserved for GitHub Actions with a `github.server_url` guard; use `npm run mutation:incremental` or `npm run mutation` explicitly when local mutation feedback is needed. Dependency installation uses plain `npm ci`. Optional Agent CI 0.17.1 container parity explicitly prewarms through the fast job's stable `install` step, then gives concurrent jobs isolated writable dependency views. Its wrapper consumes Agent CI's versioned JSON events and reports each job and step with elapsed time, including a heartbeat every 15 seconds.
 
 The starter UI now follows the same Tailwind v4 baseline shape as `thesis-journey-tracker`: Tailwind input lives in `src/tailwind-input.css`, generated CSS is written to `.generated/styles.css`, and Wrangler runs `npm run build:css` automatically before local development.
 
@@ -247,9 +251,11 @@ The template keeps secret handling lightweight and explicit:
 
 Use this expectation for routine changes:
 
-- `npm run quality:gate` must pass before a change is considered ready.
+- `npm run ci:local` must pass before a change is considered ready; it delegates
+  to `npm run quality:gate` without container overhead.
 - Use `npm run quality:gate:fast` for quicker local iteration when browser coverage is not the immediate focus.
-- `npm run ci:local` should also pass before proposing or landing the change.
+- `npm run ci:local:container` is optional and should be used for changes to
+  GitHub Actions orchestration or when Linux-container parity is in question.
 - The repo-managed `pre-push` hook runs `npm run quality:affected` automatically after `npm install`, so pushes stop locally when affected guardrails are already red.
 
 The quality gate runs the fast gate first, then the Playwright browser tests.
@@ -257,12 +263,12 @@ Mutation testing is explicit locally and remains authoritative in its clean
 GitHub Actions job. The gate prints named
 phase transitions and an elapsed-time heartbeat every 30 seconds while a phase
 is still running, while preserving each child command's live output. The fast
-gate includes both Node coverage and `npm run test:workers`, so the baseline and
-local Agent CI cannot omit real Durable Object persistence verification. GitHub
-Actions runs separate fast, browser, and full mutation jobs, with
-repository-shape validation included in the fast job. Local Agent CI runs
-should go through `npm run ci:local`, which executes the same workflow with
-isolated parallel jobs, reports structured job and step progress, and prints a
-heartbeat during long-running steps. The command preserves Agent CI's
-pause-on-failure exit behavior and retry command. Local browser installation
-should go through the pinned `npm run playwright:install` script.
+gate includes both Node coverage and `npm run test:workers`, so the baseline
+cannot omit real Durable Object persistence verification. GitHub Actions runs
+separate fast, browser, and full mutation jobs, with repository-shape
+validation included in the fast job. Native local CI runs the same fast and
+browser package scripts sequentially on the supported macOS host. The optional
+`npm run ci:local:container` path executes the complete workflow with Agent CI
+when its orchestration or Linux container environment is the subject under
+test. Local browser installation should go through the pinned
+`npm run playwright:install` script.

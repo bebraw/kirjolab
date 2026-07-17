@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-17-native-local-ci",
+  "title": "Prefer native local CI",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": ["2026-07-13-agent-ci-progress"],
+  "adrs": ["docs/adrs/implemented/ADR-148-prefer-native-local-ci.md"],
+  "touches": ["package.json", "AGENTS.md", ".codex/skills/agent-ci/SKILL.md", "docs/development.md"],
+  "checks": ["npm run ci:local"]
+}

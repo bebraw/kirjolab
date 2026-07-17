@@ -6,11 +6,12 @@
 
 ## Toolchain Registry
 
-| Intent         | Command                                          | Notes                                                                           |
-| -------------- | ------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Local CI       | `npm run ci:local`                               | Quietly runs `.github/workflows/ci.yml` through Agent CI with local parallelism |
-| Retry CI       | `npm run ci:local:retry -- --name <runner-name>` | Retries a paused local Agent CI runner                                          |
-| Workflow notes | `docs/development.md`                            | Setup details and prerequisites                                                 |
+| Intent             | Command                                                    | Notes                                        |
+| ------------------ | ---------------------------------------------------------- | -------------------------------------------- |
+| Local CI           | `npm run ci:local`                                         | Runs the full quality gate natively on macOS |
+| Container CI       | `npm run ci:local:container`                               | Optional Agent CI workflow-parity check      |
+| Retry container CI | `npm run ci:local:container:retry -- --name <runner-name>` | Retries a paused Agent CI runner             |
+| Workflow notes     | `docs/development.md`                                      | Setup details and prerequisites              |
 
 ## Judgment Boundaries
 
@@ -37,16 +38,17 @@
 - Add or update an ADR in `docs/adrs/` in the same change set whenever a decision introduces or changes a lasting architectural constraint, selects between credible alternatives, or supersedes an earlier architecture decision. Keep drafts in `docs/adrs/proposed/`, approved-but-not-yet-implemented decisions in `docs/adrs/accepted/`, and implemented decisions in `docs/adrs/implemented/`.
 - Record global architecture rules in `ARCHITECTURE.md` and feature-level contracts in `specs/{feature-domain}/spec.md`.
 - Treat completed feature work as spec work: create a new `specs/{feature-domain}/spec.md` or update the relevant existing spec in the same change set whenever feature behavior, contracts, workflows, or quality guardrails change.
-- Prefer the local Agent CI workflow before relying on remote CI.
+- Prefer native `npm run ci:local` before relying on remote CI. Use the optional
+  Agent CI container path only for workflow or Linux-container parity.
 - Treat a non-documentation change as ready only after the quality gate and local CI both pass.
 - Treat `package.json` as the source of truth for pinned Node and npm versions, with `.nvmrc` kept in sync as a convenience mirror for `nvm use`.
 - Read the relevant library or tool documentation carefully before applying, upgrading, or reconfiguring it in the project, especially when behavior is version-sensitive.
-- Use `npm run quality:gate:fast` for quick local iteration, `npm run quality:gate` for the full baseline gate, and `npm run ci:local` for the local workflow check.
+- Use `npm run quality:gate:fast` for quick local iteration and `npm run ci:local` for the full native baseline.
 - Use `npm run quality:affected` for affected-file guardrails while iterating or before push when a full fast gate would do avoidable work.
 - Treat `npm run typecheck` as part of the baseline gate whenever TypeScript files or typed tooling config are involved.
 - Treat high automated test coverage as part of done work for `src/` code. The baseline gate should fail when `src/` code exists without matching unit coverage.
 - Keep new workflow write targets explicit and documented instead of adding ad hoc file writes.
-- Use targeted checks while iterating, then run `npm run quality:gate` and `npm run ci:local` before treating a non-documentation change as ready.
+- Use targeted checks while iterating, then run `npm run ci:local` before treating a non-documentation change as ready.
 - For documentation-only changes that do not alter executable config, generated artifacts, package metadata, source code, or tests, skip `npm run ci:local` and use the smallest relevant local checks such as `npm run format:check`.
 
 ## TypeScript
@@ -56,11 +58,14 @@
 - Prefer explicit domain types over inferred object blobs, especially at module, API, fixture, and workflow boundaries.
 - Do not silence errors with `as unknown as`, `@ts-ignore`, or broad casts. Use local guards, narrower interfaces, or small helper types instead.
 
-## Agent CI
+## Local CI
 
 - Use the project-local [`agent-ci`](./.codex/skills/agent-ci/SKILL.md) skill when testing, running checks, or validating code changes before pushing.
-- Treat the skill as the default local CI loop for this repo before relying on remote GitHub Actions.
-- Skip Agent CI for documentation-only changes that do not alter executable behavior or workflow configuration.
+- Treat native `npm run ci:local` as the default loop. It runs the full quality
+  gate without Docker and keeps live phase output.
+- Use `npm run ci:local:container` only for explicit GitHub Actions or
+  Linux-container parity investigation.
+- Skip local CI for documentation-only changes that do not alter executable behavior or workflow configuration.
 
 ## Frontend Design
 

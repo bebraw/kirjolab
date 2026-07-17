@@ -44,6 +44,7 @@ ADRs are grouped by lifecycle status:
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-148](./implemented/ADR-148-prefer-native-local-ci.md)                                | Implemented          | Run routine local readiness natively and reserve Agent CI containers for explicit parity checks.              |
 | [ADR-001](./implemented/ADR-001-use-architecture-decision-records.md)                     | Accepted             | Use ADRs to capture significant architectural decisions in this repo.                                         |
 | [ADR-002](./implemented/ADR-002-make-architectural-decisions-explicit.md)                 | Accepted             | Require explicit ADR updates for lasting architectural decisions.                                             |
 | [ADR-003](./implemented/ADR-003-require-spec-updates-and-high-coverage.md)                | Accepted             | Treat completed feature work as spec work and gate `src/` code on high unit coverage.                         |

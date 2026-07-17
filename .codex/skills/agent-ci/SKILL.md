@@ -1,21 +1,34 @@
 ---
 name: agent-ci
-description: Run GitHub Actions CI locally with Agent CI to validate changes before pushing. Use when testing, running checks, or validating code changes.
+description: Run the repository's native local CI gate, with optional Agent CI container parity, before pushing. Use when testing, running checks, or validating code changes.
 license: MIT
-compatibility: Requires Node.js 18+ and Docker
+compatibility: Requires the repository Node.js toolchain; Docker is optional for workflow parity
 metadata:
   author: redwoodjs
   version: "1.0.0"
 ---
 
-# Agent CI
+# Local CI
 
-Run the full CI pipeline locally before pushing. CI was green before you started — any failure is caused by your changes.
+Run the full native quality pipeline locally before pushing. CI was green before you started — investigate failures against the current change first.
 
 ## Run
 
 ```bash
 npm run ci:local
+```
+
+This is the default readiness path. It avoids container startup, dependency
+prewarming, and opaque runner mounts while executing the same fast and browser
+package scripts used by GitHub Actions.
+
+## Optional workflow parity
+
+Use Agent CI only when the task specifically needs GitHub Actions orchestration
+or Linux-container parity:
+
+```bash
+npm run ci:local:container
 ```
 
 Pipes are safe — pause-on-failure works through `| tee log`, `> log.txt`, etc. When stdout isn't a TTY the launcher detaches the run and the foreground process exits **77** the moment a step pauses, freeing the pipe while the container stays paused for `retry`.
@@ -25,13 +38,13 @@ Pipes are safe — pause-on-failure works through `| tee log`, `> log.txt`, etc.
 When a step fails, the run pauses automatically. Fix the issue, then retry:
 
 ```bash
-npm run ci:local:retry -- --name <runner-name>
+npm run ci:local:container:retry -- --name <runner-name>
 ```
 
 To re-run from an earlier step:
 
 ```bash
-npm run ci:local:retry -- --name <runner-name> --from-step <N>
+npm run ci:local:container:retry -- --name <runner-name> --from-step <N>
 ```
 
 Repeat until all jobs pass. Do not push to trigger remote CI when agent-ci can run it locally.

@@ -1,6 +1,6 @@
 # ADR-072: Report Local CI Progress
 
-**Status:** Partially superseded by [ADR-092](./ADR-092-prewarm-agent-ci-dependencies-explicitly.md)
+**Status:** Superseded by [ADR-148](./ADR-148-prefer-native-local-ci.md)
 
 **Date:** 2026-07-13
 
