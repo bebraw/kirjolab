@@ -29,8 +29,8 @@ ADRs are grouped by lifecycle status:
 
 | ADR                                                                           | Status      | Summary                                                                                             |
 | ----------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------- |
-| [ADR-144](./accepted/ADR-144-derive-review-outputs-from-evidence.md)          | Accepted    | Derive review outputs and portable packages from pinned evidence.                                   |
-| [ADR-143](./accepted/ADR-143-coordinate-project-review-studies.md)            | Accepted    | Coordinate protocol-driven SLR and MLR state through a project-associated authority.                |
+| [ADR-147](./accepted/ADR-147-derive-review-outputs-from-evidence.md)          | Accepted    | Derive review outputs and portable packages from pinned evidence.                                   |
+| [ADR-146](./accepted/ADR-146-coordinate-project-review-studies.md)            | Accepted    | Coordinate protocol-driven SLR and MLR state through a project-associated authority.                |
 | [ADR-132](./accepted/ADR-132-synchronize-projects-with-github.md)             | Accepted    | Manually synchronize bounded GitHub subtrees through previewed pulls and reviewed direct publishes. |
 | [ADR-089](./implemented/ADR-089-require-a-fail-closed-production-release.md)  | Implemented | Require production identity, hostname, dry-run, smoke, version, and rollback evidence.              |
 | [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md) | Implemented | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.                 |
