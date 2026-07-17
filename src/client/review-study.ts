@@ -61,6 +61,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   const extractContent = required("review-extract-content", HTMLElement);
   const synthesisContent = required("review-synthesis-content", HTMLElement);
   const reportContent = required("review-report-content", HTMLElement);
+  const prismaImage = required("review-prisma-flow", HTMLImageElement);
   let snapshot: ReviewStudySnapshot | null = null;
   let searchSnapshot: ReviewSearchSnapshot | null = null;
   let importPreview: ReviewImportPreview | null = null;
@@ -323,6 +324,8 @@ export function bindReviewStudyPlanning(apiBase: string): void {
 
   function showReport(): void {
     if (reportStep.disabled) return;
+    const source = prismaImage.dataset.src;
+    if (!prismaImage.hasAttribute("src") && source) prismaImage.src = source;
     form.hidden = true;
     searchContent.hidden = true;
     screenContent.hidden = true;
