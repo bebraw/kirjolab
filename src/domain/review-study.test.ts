@@ -28,6 +28,11 @@ describe("review study protocol", () => {
     expect(
       sourceQueryPlan({ id: "manual", name: "Manual", url: "", dialect: "generic", fieldScope: "title-abstract" }, logical).diagnostics,
     ).toContain("Generic syntax cannot guarantee the requested field scope; verify it in the source UI.");
+    expect(sourceQueryPlan({ id: "all", name: "All", url: "", dialect: "generic", fieldScope: "all-fields" }, "")).toEqual({
+      sourceId: "all",
+      query: "",
+      diagnostics: ["Add at least one concept term before running this query."],
+    });
   });
 
   it("calibrates recall against known relevant studies", () => {
@@ -68,6 +73,60 @@ describe("review study protocol", () => {
     expect(revision.sourceQueries[0]?.query).toMatch(/^TS=/u);
   });
 
+  it("round-trips the complete protocol contract and renders every supported source dialect", () => {
+    const content = parseReviewProtocolContent({
+      ...defaultReviewProtocol(),
+      objective: "Review evidence transparently",
+      picoc: {
+        population: "Software teams",
+        intervention: "AI assistants",
+        comparison: "Manual work",
+        outcome: "Quality",
+        context: "Industry",
+      },
+      researchQuestions: [{ id: "rq-quality", text: "How does quality change?" }],
+      conceptGroups: [{ id: "tools", label: "AI tools", facet: null, terms: ['agentic "AI"', "copilot\\tool"] }],
+      sources: [
+        { id: "ieee", name: "IEEE Xplore", url: "https://ieeexplore.ieee.org", dialect: "ieee-xplore", fieldScope: "title-abstract" },
+        { id: "acm", name: "ACM DL", url: "https://dl.acm.org", dialect: "acm-dl", fieldScope: "title-abstract-keywords" },
+      ],
+      inclusionCriteria: ["Empirical evidence"],
+      exclusionCriteria: ["Not in scope"],
+      screening: { reviewersPerStage: 2, blinded: true },
+      modelAssistance: { mode: "human-first" },
+      qualityAssessment: {
+        questions: [{ id: "qa-method", text: "Is the method credible?" }],
+        answers: [{ id: "pass", label: "Pass", weight: 2, rejects: false }],
+        minimumScore: 2,
+      },
+      extractionFields: [
+        {
+          id: "study-type",
+          label: "Study type",
+          type: "enum",
+          values: ["Case study", "Experiment"],
+          researchQuestionIds: ["rq-quality"],
+        },
+      ],
+    });
+    const revision = materializeProtocolRevision(content, 3, "frozen", "Peer reviewed", "owner");
+
+    expect(revision).toMatchObject({
+      screening: { reviewersPerStage: 2, blinded: true },
+      modelAssistance: { mode: "human-first" },
+      qualityAssessment: { minimumScore: 2 },
+    });
+    expect(revision.sourceQueries.map(({ query }) => query)).toEqual([
+      expect.stringContaining('Document Title":" OR "Abstract":"'),
+      expect.stringMatching(/^\[\[Abstract:/u),
+    ]);
+    expect(parseReviewStudySnapshot({ revision: 3, protocol: revision, protocolHistory: [revision] })).toEqual({
+      revision: 3,
+      protocol: revision,
+      protocolHistory: [revision],
+    });
+  });
+
   it("rejects malformed, duplicate, and oversized protocol content", () => {
     expect(() => parseReviewProtocolContent({ ...defaultReviewProtocol(), profile: "invalid" })).toThrow("profile");
     expect(() =>
@@ -86,6 +145,36 @@ describe("review study protocol", () => {
         sources: [{ id: "source", name: "Source", url: "javascript:alert(1)", dialect: "generic", fieldScope: "all-fields" }],
       }),
     ).toThrow("URL");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...defaultReviewProtocol(),
+        modelAssistance: { mode: "automatic" },
+      }),
+    ).toThrow("Model assistance");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...defaultReviewProtocol(),
+        qualityAssessment: { questions: [], answers: [{ id: "bad", label: "Bad", weight: 101, rejects: false }], minimumScore: null },
+      }),
+    ).toThrow("Quality answer");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...defaultReviewProtocol(),
+        extractionFields: [{ id: "kind", label: "Kind", type: "enum", values: [], researchQuestionIds: [] }],
+      }),
+    ).toThrow("needs values");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...defaultReviewProtocol(),
+        extractionFields: [{ id: "year", label: "Year", type: "integer", values: ["2026"], researchQuestionIds: [] }],
+      }),
+    ).toThrow("Only enum");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...defaultReviewProtocol(),
+        extractionFields: [{ id: "finding", label: "Finding", type: "string", values: [], researchQuestionIds: ["missing"] }],
+      }),
+    ).toThrow("unavailable research question");
   });
 
   it("validates snapshot revision consistency", () => {
@@ -95,5 +184,7 @@ describe("review study protocol", () => {
     expect(() => parseReviewStudySnapshot({ revision: 1, protocol: futureProtocol, protocolHistory: [futureProtocol] })).toThrow(
       "inconsistent",
     );
+    expect(() => parseReviewStudySnapshot({ revision: 1, protocol, protocolHistory: [] })).toThrow("history");
+    expect(() => materializeProtocolRevision(defaultReviewProtocol(), 0, "draft", "Invalid", "owner")).toThrow("revision");
   });
 });

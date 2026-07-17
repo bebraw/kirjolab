@@ -24,6 +24,8 @@ export default defineConfig({
         "src/api/github-connection.ts",
         "src/api/github-sync.ts",
         "src/api/workspace.ts",
+        "src/api/review-study.ts",
+        "src/client/review-study.ts",
         "src/durable-objects/**",
       ],
       reporter: ["text", "html"],

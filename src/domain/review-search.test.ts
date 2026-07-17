@@ -42,6 +42,42 @@ describe("review search imports", () => {
   it("rejects malformed browser-bound payloads", async () => {
     const preview = await previewReviewBibTeX("@misc{one, title={One}} ");
     expect(parseReviewImportPreview(preview)).toEqual(preview);
+    const metadata = preview.records[0]!;
+    const snapshot = {
+      revision: 4,
+      runs: [
+        {
+          id: "run-1",
+          protocolRevision: 2,
+          sourceId: "source-1",
+          sourceName: "Source",
+          query: "one",
+          searchedAt: "2026-07-17T00:00:00.000Z",
+          importedAt: "2026-07-17T00:01:00.000Z",
+          importedBy: "owner@example.com",
+          digest: preview.digest,
+          detectedEntries: 1,
+          skippedEntries: 0,
+          occurrenceCount: 1,
+        },
+      ],
+      occurrences: [{ id: "occurrence-1", runId: "run-1", recordId: "record-1", citationKey: "one", imported: metadata }],
+      records: [{ id: "record-1", state: "active", mergedInto: null, metadata }],
+      duplicateCandidates: [
+        {
+          id: "duplicate-1",
+          leftId: "record-1",
+          rightId: "record-2",
+          signals: ["title-year"],
+          confidence: "probable",
+          status: "pending",
+          resolvedAt: null,
+          resolvedBy: null,
+        },
+      ],
+      counts: { identified: 1, unique: 1, duplicatesRemoved: 0 },
+    };
+    expect(parseReviewSearchSnapshot(snapshot)).toEqual(snapshot);
     expect(() => parseReviewSearchSnapshot({ revision: 1 })).toThrow("snapshot");
   });
 });

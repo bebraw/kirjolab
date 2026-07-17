@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReviewSynthesis, reviewSynthesisCsv, reviewSynthesisMarkdown } from "./review-synthesis";
+import { buildReviewSynthesis, parseReviewSynthesis, reviewSynthesisCsv, reviewSynthesisMarkdown } from "./review-synthesis";
 import { defaultReviewProtocol, materializeProtocolRevision } from "./review-study";
 
 describe("review synthesis", () => {
@@ -91,5 +91,7 @@ describe("review synthesis", () => {
     expect(synthesis).toMatchObject({ revision: 5, flow: { identified: 1, included: 1 }, rqCoverage: [{ id: "rq1", studies: 1 }] });
     expect(reviewSynthesisCsv(synthesis)).toContain("Improves quality");
     expect(reviewSynthesisMarkdown(synthesis)).toContain("# Review synthesis");
+    expect(parseReviewSynthesis(synthesis)).toEqual(synthesis);
+    expect(() => parseReviewSynthesis({ flow: {}, sourceYields: [], rqCoverage: [], matrix: [], extractionColumns: [] })).toThrow("count");
   });
 });

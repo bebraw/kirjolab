@@ -6,8 +6,10 @@ import {
   buildReviewPackage,
   reviewBibliographyBibTeX,
   reviewExtractionCsv,
+  reviewHistoryJson,
   reviewPrismaData,
   reviewPrismaSvg,
+  stableReviewJson,
   type ReviewExportAuthority,
 } from "./review-export";
 import type { ReviewRecord, ReviewSearchSnapshot } from "./review-search";
@@ -47,6 +49,79 @@ describe("review reproducibility export", () => {
     expect(manifest.reviewRevision).toBe(7);
     expect(manifest.files).toHaveLength(8);
     expect(manifest.files.every((file) => /^[a-f0-9]{64}$/u.test(file.sha256) && file.bytes > 0)).toBe(true);
+  });
+
+  it("reports exclusions, adjudications, model disclosure, and empty extraction tables", () => {
+    const authority = fixture();
+    const record = authority.screening.records[0]!;
+    const excluded = {
+      ...record,
+      titleAbstract: {
+        outcome: "exclude" as const,
+        decisions: [{ ...record.titleAbstract.decisions[0]!, decision: "exclude" as const, reason: "Wrong population" }],
+        adjudication: {
+          id: "adjudication-1",
+          recordId: record.record.id,
+          stage: "title-abstract" as const,
+          outcome: "exclude" as const,
+          reason: "Wrong population",
+          adjudicator: "lead@example.com",
+          createdAt: "2026-07-17T11:00:00.000Z",
+        },
+      },
+      fullText: { outcome: "pending" as const, decisions: [], adjudication: null },
+    };
+    const changed: ReviewExportAuthority = {
+      ...authority,
+      screening: { ...authority.screening, records: [excluded] },
+      evidence: { ...authority.evidence, records: [] },
+      model: {
+        revision: 7,
+        candidates: [
+          {
+            id: "model-1",
+            operation: "screen-record",
+            recordId: record.record.id,
+            stage: "title-abstract",
+            provider: "Local",
+            model: "review-model",
+            promptTemplateVersion: "v1",
+            sourceScope: ["title", "abstract"],
+            result: { decision: "exclude", criterion: "Population", rationale: "Not eligible", evidence: "Title" },
+            createdAt: timestamp,
+            createdBy: "reviewer@example.com",
+            disposition: "rejected",
+            disposedAt: "2026-07-17T11:05:00.000Z",
+            disposedBy: "reviewer@example.com",
+          },
+        ],
+      },
+    };
+
+    expect(reviewPrismaData(changed).exclusionReasons.titleAbstract).toEqual({ "Wrong population": 1 });
+    expect(reviewBibliographyBibTeX(changed)).toContain("kirjolab_status = {excluded-title-abstract}");
+    expect(reviewExtractionCsv(changed)).toMatch(/^recordId,/u);
+    expect(reviewHistoryJson(changed)).toContain("screening-adjudication");
+    expect(reviewHistoryJson(changed)).toContain("model-candidate");
+    expect(stableReviewJson({ z: 1, a: { y: 2, x: 1 } })).toBe('{\n  "a": {\n    "x": 1,\n    "y": 2\n  },\n  "z": 1\n}\n');
+
+    const fullTextExcluded: ReviewExportAuthority = {
+      ...authority,
+      screening: {
+        ...authority.screening,
+        records: [
+          {
+            ...record,
+            fullText: {
+              outcome: "exclude",
+              decisions: [{ ...record.fullText.decisions[0]!, decision: "exclude", reason: "No full text" }],
+              adjudication: null,
+            },
+          },
+        ],
+      },
+    };
+    expect(reviewBibliographyBibTeX(fullTextExcluded)).toContain("kirjolab_status = {excluded-full-text}");
   });
 });
 
