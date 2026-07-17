@@ -372,7 +372,7 @@ export function renderHomePage(
 
       <section class="context-column preview-column min-w-0 bg-app-paper" id="context-surface" aria-label="Research context">
         <div class="preview-sync-controls" id="preview-sync-controls" role="group" aria-label="Synchronize source and preview">
-          <button id="sync-preview-from-source" type="button" aria-label="Reveal source cursor in Preview" title="Source to Preview">
+          <button id="sync-preview-from-source" type="button" aria-label="Reveal centered source passage in Preview" title="Source to Preview">
             ${renderIcon("arrowRight")}
           </button>
           <button id="sync-source-from-preview" type="button" aria-label="Reveal centered Preview passage in source" title="Preview to source">

@@ -19,8 +19,8 @@ Preview offset may belong to a supporting file.
   previews use the same contract.
 - A compact two-button control straddles the authoring/context divider while
   the Preview tab is active in desktop split view. The right arrow reveals the
-  source caret in Preview; the left arrow reveals the passage centered in
-  Preview in the source editor.
+  passage centered in the source editor in Preview; the left arrow reveals the
+  passage centered in Preview in the source editor.
 - Clicking non-interactive Preview content reveals that element's start in the
   source editor. Citation buttons, links, and form controls retain their own
   actions.
@@ -35,8 +35,10 @@ Preview offset may belong to a supporting file.
 
 ### Interaction Contract
 
-- **Source to Preview:** Preserve source focus and selection, center the nearest
-  matching rendered element, and briefly identify it.
+- **Source to Preview:** Preserve source focus and selection, map the logical
+  source line nearest the editor viewport center, center the nearest matching
+  rendered element, and briefly identify it. Deliberate caret navigation still
+  follows the caret automatically while both panes are visible.
 - **Preview to source:** Select the owning project file, enter Write mode, place
   the caret at the mapped source offset, and show Authoring on a single-pane
   layout.

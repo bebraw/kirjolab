@@ -3169,16 +3169,39 @@ class WorkspaceApp {
     this.#markPreviewSyncTarget(target);
   }
 
-  #syncPreviewFromSource(force = true): void {
-    if (!force && !this.#automaticPreviewSyncAvailable()) return;
+  #syncPreviewFromSource(explicit = true): void {
+    if (!explicit && !this.#automaticPreviewSyncAvailable()) return;
     if (this.#contextState.activeKey !== RESEARCH_PREVIEW_KEY) return;
     const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
-    const offsets = previewOffsetsForSourceLocation(this.#previewSourceMap, fileId, this.#elements.source.selectionEnd);
+    const sourceOffset = explicit ? this.#sourceOffsetAtEditorCenter() : this.#elements.source.selectionEnd;
+    const offsets = previewOffsetsForSourceLocation(this.#previewSourceMap, fileId, sourceOffset);
     if (offsets.length === 0) return;
     const target = this.#nearestPreviewSourceElement(offsets);
     if (!target) return;
     target.scrollIntoView({ block: "center" });
     this.#markPreviewSyncTarget(target);
+  }
+
+  #sourceOffsetAtEditorCenter(): number {
+    const center = this.#elements.source.scrollTop + this.#elements.source.clientHeight / 2;
+    const lines = [...this.#elements.sourceHighlight.querySelectorAll<HTMLElement>(".source-editor-line")];
+    let nearestLine = lines[0];
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const line of lines) {
+      const distance = Math.abs(line.offsetTop + line.offsetHeight / 2 - center);
+      if (distance >= nearestDistance) continue;
+      nearestLine = line;
+      nearestDistance = distance;
+    }
+    const lineNumber = Number.parseInt(nearestLine?.dataset.lineNumber ?? "1", 10);
+    if (!Number.isSafeInteger(lineNumber) || lineNumber <= 1) return 0;
+    let offset = 0;
+    for (let currentLine = 1; currentLine < lineNumber; currentLine += 1) {
+      const newline = /\r\n|\r|\n/u.exec(this.#elements.source.value.slice(offset));
+      if (!newline) return this.#elements.source.value.length;
+      offset += newline.index + newline[0].length;
+    }
+    return offset;
   }
 
   #automaticPreviewSyncAvailable(): boolean {

@@ -1235,7 +1235,7 @@ test("synchronizes the source caret and rendered Preview in both directions", as
     element.focus();
     element.setSelectionRange(offset, offset);
   }, source.indexOf("Second passage."));
-  await page.getByRole("button", { name: "Reveal source cursor in Preview" }).click();
+  await page.getByRole("button", { name: "Reveal centered source passage in Preview" }).click();
   await expect(secondPassage).toHaveAttribute("data-preview-sync-active", "true");
 
   const firstPassage = page.locator("#preview p", { hasText: "First passage." });
@@ -1245,6 +1245,34 @@ test("synchronizes the source caret and rendered Preview in both directions", as
     .poll(async () => await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart))
     .toBe(source.indexOf("First passage."));
   await expect(firstPassage).toHaveAttribute("data-preview-sync-active", "true");
+});
+
+test("synchronizes Preview from the centered editor passage instead of a stale caret", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const workspaceId = await createWorkspace(page, "Source viewport synchronization");
+  const source = Array.from({ length: 40 }, (_, index) => `## Section ${index + 1}\n\nPassage ${index + 1}.\n`).join("\n");
+  await page.goto(`/workspaces/${workspaceId}`);
+  const editor = page.locator("#source-editor");
+  await editor.fill(source);
+  const passage = page.locator("#preview p", { hasText: "Passage 30." });
+  await expect(passage).toBeVisible();
+
+  await editor.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(0, 0));
+  await page.locator("#source-editor-highlight .source-editor-line", { hasText: "Passage 30." }).evaluate((line) => {
+    const editor = document.querySelector<HTMLTextAreaElement>("#source-editor");
+    if (!editor || !(line instanceof HTMLElement)) throw new Error("Expected source editor line");
+    editor.scrollTop = line.offsetTop + line.clientHeight / 2 - editor.clientHeight / 2;
+  });
+
+  await page.getByRole("button", { name: "Reveal centered source passage in Preview" }).click();
+  const centerOffset = await passage.evaluate((element) => {
+    const previewScroll = document.querySelector("#preview-scroll");
+    if (!previewScroll) throw new Error("Expected Preview scroller");
+    const passageBounds = element.getBoundingClientRect();
+    const previewBounds = previewScroll.getBoundingClientRect();
+    return passageBounds.top + passageBounds.height / 2 - (previewBounds.top + previewBounds.height / 2);
+  });
+  expect(centerOffset).toBeCloseTo(0, 0);
 });
 
 test("keeps Markdown comment blocks in source and out of publication", async ({ page }) => {
