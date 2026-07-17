@@ -687,7 +687,7 @@
   }
 
   .project-tree-actions .editor-command-menu {
-    width: min(13rem, calc(100vw - 1rem));
+    width: min(10.5rem, calc(100vw - 1rem));
   }
 
   .project-file-row:hover,

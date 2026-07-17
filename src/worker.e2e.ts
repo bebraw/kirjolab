@@ -1360,6 +1360,23 @@ test("uploads project images, inserts relative Markdown, and renders authorized 
   const api = `/api/workspaces/${workspaceId}`;
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.locator("#project-file-list")).toContainText("figures/");
+  const figuresFolder = page.locator(".project-folder-row", { hasText: "figures/" });
+  await figuresFolder.locator("summary").click();
+  const folderMenu = figuresFolder.locator(".editor-command-menu");
+  await expect(folderMenu.getByRole("button", { name: "Move or rename" })).toBeVisible();
+  await expect(folderMenu.getByRole("button", { name: "Delete empty folder" })).toBeVisible();
+  const folderMenuFit = await folderMenu.evaluate((menu) => {
+    const rail = menu.closest(".source-rail");
+    if (!rail) throw new Error("Expected Files rail");
+    const menuBounds = menu.getBoundingClientRect();
+    const railBounds = rail.getBoundingClientRect();
+    return {
+      leftClipped: menuBounds.left < railBounds.left,
+      rightClipped: menuBounds.right > railBounds.right,
+    };
+  });
+  expect(folderMenuFit).toEqual({ leftClipped: false, rightClipped: false });
+  await figuresFolder.locator("summary").click();
 
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
   await page.locator("#project-image-upload").setInputFiles({ name: "result chart.png", mimeType: "image/png", buffer: png });

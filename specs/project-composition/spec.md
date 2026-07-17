@@ -91,8 +91,8 @@ collaborative, and unambiguous about what preview and export mean.
   images of at most 20 MiB each. It inserts a relative Markdown image reference
   at the collaborative caret. Preview resolves that path relative to the
   originating source-map span, including references authored in supporting
-  files. Image action menus remain within the rail so every action label stays
-  visible and interactive.
+  files. Project-tree action menus remain within the rail so every image and
+  folder action label stays visible and interactive.
 - The authoring toolbar inserts an existing file with a path relative to the
   active file. **Create and include** creates a supporting file and inserts its
   directive at the remembered collaborative caret, so authors do not have to
