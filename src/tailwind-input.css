@@ -870,7 +870,7 @@
   @media (min-width: 72rem) {
     .workspace-grid {
       grid-template-columns: 17rem minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(28rem, 1.05fr);
-      grid-template-rows: minmax(38rem, calc(100vh - 4rem - 1px));
+      grid-template-rows: minmax(0, calc(100dvh - 4rem - 1px));
     }
 
     .surface-switcher {
@@ -3785,7 +3785,7 @@
     position: fixed;
     inset: auto 1rem 1rem auto;
     z-index: 50;
-    display: flex;
+    display: none;
     align-items: center;
     gap: 1rem;
     max-width: min(24rem, calc(100vw - 2rem));
@@ -3814,6 +3814,7 @@
   }
 
   .toast[data-visible="true"] {
+    display: flex;
     transform: translateY(0);
   }
 }

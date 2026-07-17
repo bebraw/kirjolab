@@ -9245,8 +9245,8 @@ class WorkspaceApp {
     } else {
       this.#elements.toast.textContent = message;
     }
-    this.#presentToast();
     this.#elements.toast.dataset.visible = "true";
+    this.#presentToast();
     this.#toastTimer = window.setTimeout(() => {
       delete this.#elements.toast.dataset.visible;
       if (this.#elements.toast.matches(":popover-open")) this.#elements.toast.hidePopover();

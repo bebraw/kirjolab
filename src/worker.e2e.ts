@@ -627,6 +627,25 @@ test("keeps the workspace within a compact desktop viewport", async ({ page }) =
       scrollWidth: document.documentElement.scrollWidth,
     })),
   ).toMatchObject({ clientWidth: 1100, scrollWidth: 1100 });
+
+  await page.setViewportSize({ width: 2048, height: 566 });
+  const shortWideLayout = await page.evaluate(() => {
+    const workspace = document.querySelector<HTMLElement>("#workspace-surfaces")!.getBoundingClientRect();
+    const editor = document.querySelector<HTMLElement>("#source-editor-shell")!.getBoundingClientRect();
+    const toast = document.querySelector<HTMLElement>("#toast")!;
+    return {
+      documentFits: document.documentElement.scrollHeight <= document.documentElement.clientHeight,
+      workspaceFits: workspace.bottom <= innerHeight,
+      editorFillsRow: Math.abs(editor.bottom - workspace.bottom) <= 1,
+      toastDisplay: getComputedStyle(toast).display,
+    };
+  });
+  expect(shortWideLayout).toEqual({
+    documentFits: true,
+    workspaceFits: true,
+    editorFillsRow: true,
+    toastDisplay: "none",
+  });
 });
 
 test("keeps workspace and Library navigation usable on a phone", async ({ page }) => {

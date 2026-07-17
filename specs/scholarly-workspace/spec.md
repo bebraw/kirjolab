@@ -40,10 +40,11 @@ mode for authenticated hosted collaboration.
   Layouts narrower than the split pane's declared minimum width switch between
   one Authoring or Context surface while preserving both states and without
   introducing horizontal page overflow.
-  On desktop, the workspace has one full-height content row: Authoring and
-  Context reach its lower edge without an empty footer track. The manuscript
-  textarea owns vertical scrolling within that row and does not expose a native
-  resize handle that conflicts with the fixed pane layout.
+  On desktop, including short wide viewports, the workspace has one
+  viewport-bounded content row: Authoring and Context reach its lower edge
+  without an empty footer track. The manuscript textarea owns vertical
+  scrolling within that row and does not expose a native resize handle that
+  conflicts with the fixed pane layout.
   While Preview is active, a compact control at the pane boundary synchronizes
   the source caret and rendered passage in either direction. Preview content
   clicks navigate to source, while deliberate source navigation follows in
