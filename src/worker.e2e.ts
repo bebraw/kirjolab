@@ -3743,7 +3743,7 @@ test("imports BibTeX into stable publication resources", async ({ page }) => {
     mimeType: "application/x-bibtex",
     buffer: Buffer.from(`@article{inspectable2026,
   author = {Doe, Jane and Researcher, Alex},
-  title = {Inspectable Reference Workflows},
+  title = {{I}nspectable {R}eference {W}orkflows},
   year = {2026},
   journal = {Journal of Open Evidence},
   doi = {https://doi.org/10.5555/inspectable.2026}
@@ -3762,10 +3762,21 @@ test("imports BibTeX into stable publication resources", async ({ page }) => {
     ? value.publications.find((publication) => publication.citationKey === "inspectable2026")
     : undefined;
   expect(imported).toMatchObject({
-    title: "Inspectable Reference Workflows",
+    title: "{I}nspectable {R}eference {W}orkflows",
     doi: "10.5555/inspectable.2026",
     metadataSource: "bibtex",
   });
+
+  await page.getByRole("tab", { name: "Library" }).click();
+  const importedCard = page
+    .locator("#reference-library-list .library-reference-row")
+    .filter({ hasText: "Inspectable Reference Workflows" });
+  await expect(importedCard.getByRole("heading", { name: "Inspectable Reference Workflows" })).toBeVisible();
+  await openLibraryReferenceDetails(importedCard);
+  await expect(importedCard.getByLabel("title for Inspectable Reference Workflows")).toHaveValue("{I}nspectable {R}eference {W}orkflows");
+  await page.locator("#reference-filter-query").fill("inspectable reference workflows");
+  await expect(importedCard).toBeVisible();
+  await page.locator("#reference-filter-query").fill("");
 
   await page.locator("#bibliography-upload").setInputFiles({
     name: "updated-references.bib",

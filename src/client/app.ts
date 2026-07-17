@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { bibTeXDisplayText } from "../domain/bibliography";
 import {
   buildWorkspaceKnowledgeGraph,
   isKnowledgeSearchResults,
@@ -4199,7 +4200,10 @@ class WorkspaceApp {
     const references = this.#librarySnapshot?.references ?? [];
     for (const select of [this.#elements.citationAssertionCiting, this.#elements.citationAssertionCited]) {
       const current = select.value;
-      select.replaceChildren(new Option("Choose source…", ""), ...references.map((reference) => new Option(reference.title, reference.id)));
+      select.replaceChildren(
+        new Option("Choose source…", ""),
+        ...references.map((reference) => new Option(bibTeXDisplayText(reference.title), reference.id)),
+      );
       if (references.some((reference) => reference.id === current)) select.value = current;
     }
   }
@@ -4486,18 +4490,19 @@ class WorkspaceApp {
     const keyState = this.#librarySnapshot?.referenceKeyStates[reference.id] ?? "final";
     const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
     const artifacts = this.#librarySnapshot?.artifacts.filter((artifact) => artifact.referenceId === reference.id) ?? [];
+    const displayTitle = bibTeXDisplayText(reference.title) || "Untitled reference";
     const main = document.createElement("div");
     main.className = "library-reference-main";
     const title = document.createElement("h3");
     title.className = "library-reference-title";
-    title.textContent = reference.title || "Untitled reference";
-    title.title = reference.title || "Untitled reference";
+    title.textContent = displayTitle;
+    title.title = displayTitle;
     const details = document.createElement("p");
     details.className = "library-reference-meta";
     details.textContent = [
-      reference.authors.join("; "),
+      bibTeXDisplayText(reference.authors.join("; ")),
       reference.year,
-      reference.venue,
+      bibTeXDisplayText(reference.venue),
       reference.referenceKey,
       keyState === "provisional" ? "provisional" : "",
       reference.type,
@@ -4557,7 +4562,7 @@ class WorkspaceApp {
       input.name = name;
       input.value = value;
       input.placeholder = name;
-      input.setAttribute("aria-label", `${name} for ${reference.title}`);
+      input.setAttribute("aria-label", `${name} for ${displayTitle}`);
       metadataFields.set(name, input);
       metadataBody.append(input);
     }
@@ -4567,7 +4572,7 @@ class WorkspaceApp {
     abstract.name = "abstract";
     abstract.value = reference.abstract;
     abstract.placeholder = "abstract";
-    abstract.setAttribute("aria-label", `Abstract for ${reference.title}`);
+    abstract.setAttribute("aria-label", `Abstract for ${displayTitle}`);
     metadataFields.set("abstract", abstract);
     metadataBody.append(
       abstract,
@@ -4579,7 +4584,7 @@ class WorkspaceApp {
     tags.name = "tags";
     tags.value = (this.#librarySnapshot?.tags[reference.id] ?? []).join(", ");
     tags.placeholder = "Private tags, comma separated";
-    tags.setAttribute("aria-label", `Private tags for ${reference.title}`);
+    tags.setAttribute("aria-label", `Private tags for ${displayTitle}`);
     metadataBody.append(tags);
     const collections = document.createElement("input");
     collections.className = "field mt-2";
@@ -4587,7 +4592,7 @@ class WorkspaceApp {
     collections.name = "collections";
     collections.value = (this.#librarySnapshot?.collections[reference.id] ?? []).join(", ");
     collections.placeholder = "Collections, comma separated";
-    collections.setAttribute("aria-label", `Collections for ${reference.title}`);
+    collections.setAttribute("aria-label", `Collections for ${displayTitle}`);
     metadataBody.append(collections);
     const privateActions = document.createElement("div");
     privateActions.className = "mt-2 flex flex-wrap gap-2";
@@ -4597,7 +4602,7 @@ class WorkspaceApp {
       actionButton(
         reference.archivedAt ? "Restore" : "Archive",
         "button-secondary",
-        () => void this.#setReferenceArchived(reference.id, reference.archivedAt === null, reference.title),
+        () => void this.#setReferenceArchived(reference.id, reference.archivedAt === null, displayTitle),
       ),
     );
     metadataBody.append(privateActions);
@@ -4606,21 +4611,21 @@ class WorkspaceApp {
     readingStatus.className = "field mt-3";
     readingStatus.id = `${fieldPrefix}-reading-status`;
     readingStatus.name = "readingStatus";
-    readingStatus.setAttribute("aria-label", `Reading status for ${reference.title}`);
+    readingStatus.setAttribute("aria-label", `Reading status for ${displayTitle}`);
     for (const value of ["unread", "reading", "read"] as const) readingStatus.append(new Option(value, value));
     readingStatus.value = reading?.status ?? "unread";
     const priority = document.createElement("select");
     priority.className = "field mt-2";
     priority.id = `${fieldPrefix}-priority`;
     priority.name = "priority";
-    priority.setAttribute("aria-label", `Reading priority for ${reference.title}`);
+    priority.setAttribute("aria-label", `Reading priority for ${displayTitle}`);
     for (const value of ["low", "normal", "high"] as const) priority.append(new Option(`Priority: ${value}`, value));
     priority.value = reading?.priority ?? "normal";
     const rating = document.createElement("select");
     rating.className = "field mt-2";
     rating.id = `${fieldPrefix}-rating`;
     rating.name = "rating";
-    rating.setAttribute("aria-label", `Rating for ${reference.title}`);
+    rating.setAttribute("aria-label", `Rating for ${displayTitle}`);
     rating.append(new Option("No rating", ""));
     for (let value = 1; value <= 5; value += 1) rating.append(new Option(`${value} star${value === 1 ? "" : "s"}`, String(value)));
     rating.value = reading?.rating === null || reading?.rating === undefined ? "" : String(reading.rating);
@@ -4640,7 +4645,7 @@ class WorkspaceApp {
     noteInput.id = `${fieldPrefix}-private-note`;
     noteInput.name = "privateNote";
     noteInput.placeholder = "Add a private note";
-    noteInput.setAttribute("aria-label", `Private note for ${reference.title}`);
+    noteInput.setAttribute("aria-label", `Private note for ${displayTitle}`);
     noteInput.maxLength = 20_000;
     const addNote = actionButton(
       "Save private note",
@@ -4772,7 +4777,7 @@ class WorkspaceApp {
     select.className = "field mt-3";
     select.setAttribute("aria-label", `Identify ${artifact.name} as a reference`);
     select.append(new Option("Choose identified source…", ""));
-    for (const reference of references) select.append(new Option(reference.title, reference.id));
+    for (const reference of references) select.append(new Option(bibTeXDisplayText(reference.title), reference.id));
     const identify = actionButton(
       "Identify PDF",
       "button-primary mt-2 w-full justify-center",
@@ -5579,10 +5584,15 @@ class WorkspaceApp {
       const card = document.createElement("article");
       card.className = "resource-card";
       card.dataset.publicationResourceId = publication.id;
-      card.append(resourceLabel(`${publication.type} · ${publication.metadataSource}`), resourceTitle(publication.title));
+      card.append(
+        resourceLabel(`${publication.type} · ${publication.metadataSource}`),
+        resourceTitle(bibTeXDisplayText(publication.title)),
+      );
       const details = document.createElement("p");
       details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
-      details.textContent = [publication.authors.join("; "), publication.year, publication.venue].filter(Boolean).join(" · ");
+      details.textContent = [bibTeXDisplayText(publication.authors.join("; ")), publication.year, bibTeXDisplayText(publication.venue)]
+        .filter(Boolean)
+        .join(" · ");
       card.append(details);
       const actions = document.createElement("div");
       actions.className = "mt-3 flex flex-wrap items-center gap-2";
@@ -6520,7 +6530,7 @@ class WorkspaceApp {
       row.className = "resource-card mt-2 flex items-center justify-between gap-3";
       const copy = document.createElement("div");
       copy.className = "min-w-0";
-      copy.append(resourceLabel(`Reference · ${publication.citationKey}`), resourceTitle(publication.title));
+      copy.append(resourceLabel(`Reference · ${publication.citationKey}`), resourceTitle(bibTeXDisplayText(publication.title)));
       row.append(
         copy,
         actionButton("Open reference", "button-secondary shrink-0", () => this.#openPublicationContext(publication)),
@@ -6840,11 +6850,11 @@ class WorkspaceApp {
     const publication = this.#snapshot.publications.find((item) => item.id === tab.id);
     if (!publication) return;
 
-    this.#elements.contextPublicationTitle.textContent = publication.title;
+    this.#elements.contextPublicationTitle.textContent = bibTeXDisplayText(publication.title);
     this.#elements.contextPublicationMeta.textContent = [
-      publication.authors.join("; "),
+      bibTeXDisplayText(publication.authors.join("; ")),
       publication.year,
-      publication.venue,
+      bibTeXDisplayText(publication.venue),
       publication.doi ? `doi:${publication.doi}` : "",
     ]
       .filter(Boolean)

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bibTeXDisplayText,
   bibTeXPublicationProjectionsEqual,
   mergeBibTeX,
   normalizeDoi,
@@ -10,6 +11,16 @@ import {
 } from "./bibliography";
 
 describe("BibTeX bibliography domain", () => {
+  it("decodes protective markup for display without changing parsed fields", () => {
+    const source = String.raw`@misc{display, title={{H}{T}{M}{L} {F}irst}, author={Veps{\"a}l{\"a}inen}, note={Set \{A\} with {\LaTeX} \& {TeX}}}`;
+    const [entry] = parseBibTeX(source);
+    expect(entry?.fields.title).toBe("{H}{T}{M}{L} {F}irst");
+    expect(bibTeXDisplayText(entry?.fields.title ?? "")).toBe("HTML First");
+    expect(bibTeXDisplayText(entry?.fields.author ?? "")).toBe("Vepsäläinen");
+    expect(bibTeXDisplayText(entry?.fields.note ?? "")).toBe("Set {A} with LaTeX & TeX");
+    expect(serializeBibTeX(entry ? [entry] : [])).toContain("title = {{H}{T}{M}{L} {F}irst}");
+  });
+
   it("parses braced, quoted, numeric, nested, and parenthesized entries", () => {
     expect(
       parseBibTeX(`

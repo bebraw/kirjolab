@@ -38,6 +38,13 @@ describe("reference library filters", () => {
 
     expect(ids({ query: "  JOURNAL " })).toEqual(["complete"]);
     expect(ids({ query: "10/EXAMPLE" })).toEqual(["complete"]);
+    const markedUp = {
+      ...library,
+      references: library.references.map((reference) =>
+        reference.id === "complete" ? { ...reference, title: "{H}{T}{M}{L} {M}ethods" } : reference,
+      ),
+    };
+    expect(filterReferenceLibrary(markedUp, new Set(), { ...filters, query: "html methods" }).map((item) => item.id)).toEqual(["complete"]);
     expect(ids({ query: "missing" })).toEqual([]);
     expect(ids({ type: "article" })).toEqual(["complete"]);
     expect(ids({ readingStatus: "reading" })).toEqual(["complete"]);

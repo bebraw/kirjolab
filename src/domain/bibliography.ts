@@ -31,6 +31,22 @@ const preferredFields = [
   "abstract",
 ];
 
+const bibTeXAccentMarks: Readonly<Record<string, string>> = {
+  '"': "\u0308",
+  "'": "\u0301",
+  "`": "\u0300",
+  "^": "\u0302",
+  "~": "\u0303",
+  "=": "\u0304",
+  ".": "\u0307",
+  u: "\u0306",
+  v: "\u030c",
+  H: "\u030b",
+  c: "\u0327",
+  k: "\u0328",
+  r: "\u030a",
+};
+
 export function parseBibTeX(source: string): BibTeXEntry[] {
   const entries: BibTeXEntry[] = [];
   const header = /@([a-z]+)\s*([({])/giu;
@@ -77,6 +93,29 @@ export function normalizeDoi(value: string): string {
     .trim()
     .replace(/^https?:\/\/(?:dx\.)?doi\.org\//iu, "")
     .toLowerCase();
+}
+
+export function bibTeXDisplayText(value: string): string {
+  const decodeAccent = (_match: string, accent: string, letter: string): string =>
+    `${letter}${bibTeXAccentMarks[accent] ?? ""}`.normalize("NFC");
+  const decoded = value
+    .replace(/\{\\(["'`^~=.uvHckr])([A-Za-z])\}/gu, decodeAccent)
+    .replace(/\\(["'`^~=.uvHckr])\{([A-Za-z])\}/gu, decodeAccent)
+    .replace(/\\(LaTeX|TeX)\b/gu, "$1")
+    .replaceAll("\\textendash", "–")
+    .replaceAll("\\textemdash", "—");
+  let display = "";
+  for (let index = 0; index < decoded.length; index += 1) {
+    const character = decoded[index] ?? "";
+    const escaped = decoded[index + 1];
+    if (character === "\\" && escaped && "{}%&_#".includes(escaped)) {
+      display += escaped;
+      index += 1;
+    } else if (character !== "{" && character !== "}") {
+      display += character;
+    }
+  }
+  return display.replaceAll(/\s+/gu, " ").trim();
 }
 
 export function projectBibTeXPublication(entry: BibTeXEntry): BibTeXPublicationProjection {

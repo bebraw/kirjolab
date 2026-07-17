@@ -29,6 +29,9 @@ memory and makes citation aliases compete with stable source identity.
   time, and actor provenance.
 - BibTeX is bounded interchange and derived export, not live authority.
   Import retains the incoming key only as a suggested project alias.
+- Human-facing titles, authors, and venues decode protective BibTeX braces and
+  common accent markup for display, accessible names, search, and sorting. The
+  stored metadata and derived BibTeX retain their round-trip-safe source text.
 - A project links a stable library identity through one case-insensitive local
   citation alias and a bounded bibliographic snapshot. Alias rename rewrites
   exact `:cite[...]`, `:citet[...]`, and `:citep[...]` keys across all project

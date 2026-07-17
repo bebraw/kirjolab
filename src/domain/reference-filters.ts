@@ -1,4 +1,5 @@
 import type { BibliographicRecord, ReferenceLibrarySnapshot } from "./reference-library";
+import { bibTeXDisplayText } from "./bibliography";
 
 export interface ReferenceLibraryFilters {
   readonly query: string;
@@ -22,10 +23,10 @@ export function filterReferenceLibrary(
     const state = reading.get(reference.id);
     const searchable = [
       reference.referenceKey,
-      reference.title,
-      reference.authors.join(" "),
+      bibTeXDisplayText(reference.title),
+      bibTeXDisplayText(reference.authors.join(" ")),
       reference.year,
-      reference.venue,
+      bibTeXDisplayText(reference.venue),
       reference.doi,
       reference.url,
     ]
@@ -53,14 +54,16 @@ function compareReferences(
   sort: ReferenceLibraryFilters["sort"],
   reading: ReadonlyMap<string, ReferenceLibrarySnapshot["reading"][number]>,
 ): number {
-  if (sort === "title") return left.title.localeCompare(right.title);
-  if (sort === "year") return right.year.localeCompare(left.year) || left.title.localeCompare(right.title);
+  const leftTitle = bibTeXDisplayText(left.title);
+  const rightTitle = bibTeXDisplayText(right.title);
+  if (sort === "title") return leftTitle.localeCompare(rightTitle);
+  if (sort === "year") return right.year.localeCompare(left.year) || leftTitle.localeCompare(rightTitle);
   if (sort === "priority") {
     const weight = { high: 0, normal: 1, low: 2 } as const;
     return (
       weight[reading.get(left.id)?.priority ?? "normal"] - weight[reading.get(right.id)?.priority ?? "normal"] ||
-      left.title.localeCompare(right.title)
+      leftTitle.localeCompare(rightTitle)
     );
   }
-  return right.updatedAt.localeCompare(left.updatedAt) || left.title.localeCompare(right.title);
+  return right.updatedAt.localeCompare(left.updatedAt) || leftTitle.localeCompare(rightTitle);
 }
