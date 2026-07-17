@@ -54,18 +54,18 @@ specific to the researcher's passage and subject to normal review.
 
 ### Definition of Done
 
-- [ ] A reviewed initial inventory covers qualifying a claim, contrasting
+- [x] A reviewed initial inventory covers qualifying a claim, contrasting
       findings, introducing evidence, and stating a limitation.
-- [ ] Every accepted pattern passes licence, provenance, recurrence, slot,
+- [x] Every accepted pattern passes licence, provenance, recurrence, slot,
       review, and source-similarity validation.
-- [ ] CC BY sources have a shipped attribution notice and machine-readable
+- [x] CC BY sources have a shipped attribution notice and machine-readable
       ledger.
-- [ ] A researcher can select a rhetorical purpose and receive three to five
+- [x] A researcher can select a rhetorical purpose and receive three to five
       contextual alternatives for the visible target.
-- [ ] A chosen alternative enters exact before-and-after candidate review and
+- [x] A chosen alternative enters exact before-and-after candidate review and
       cannot directly mutate canonical Markdown.
-- [ ] The operation works from rhetorical purpose alone when no pattern applies.
-- [ ] Unit and browser tests cover inventory validation, prompt bounds,
+- [x] The operation works from rhetorical purpose alone when no pattern applies.
+- [x] Unit and browser tests cover inventory validation, prompt bounds,
       alternative parsing, selection, and stale-target behavior.
 
 ### Regression Guardrails

@@ -195,6 +195,22 @@ describe("OpenAICompatibleBrowserProvider", () => {
     expect(body.messages[1]?.content).not.toContain("PLOS");
   });
 
+  it("can phrase from rhetorical purpose alone when no pattern applies", async () => {
+    const content = JSON.stringify({
+      alternatives: [
+        { text: "The result may help editors.", rationale: "Qualifies the inference." },
+        { text: "The result appears useful for editors.", rationale: "Uses calibrated language." },
+        { text: "The observation is consistent with a benefit for editors.", rationale: "Avoids certainty." },
+      ],
+    });
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content));
+    await expect(createProvider({ fetcher }).phrasePassage({ ...phrasingOperation, patterns: [] })).resolves.toMatchObject({
+      alternatives: expect.any(Array),
+    });
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as { messages: Array<{ content: string }> };
+    expect(JSON.parse(body.messages[1]?.content ?? "")).toMatchObject({ vettedPatterns: [] });
+  });
+
   it("rejects unbounded, duplicate, unchanged, and repeated phrasing alternatives", async () => {
     const provider = createProvider({ fetcher: vi.fn<typeof fetch>() });
     await expect(provider.phrasePassage({ ...phrasingOperation, patterns: Array(6).fill(phrasingOperation.patterns[0]) })).rejects.toThrow(

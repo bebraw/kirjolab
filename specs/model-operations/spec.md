@@ -189,7 +189,7 @@ All mutation operations preserve a human review boundary.
       replace the visible selection.
 - [x] A researcher can derive a focused query from the current claim, inspect
       DOI-verifiable provider records, and explicitly save one to the Library.
-- [ ] A researcher can choose a rhetorical purpose, compare three to five
+- [x] A researcher can choose a rhetorical purpose, compare three to five
       contextual phrasing alternatives, and promote one into exact candidate
       review without directly changing the manuscript.
 

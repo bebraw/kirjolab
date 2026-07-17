@@ -1,6 +1,6 @@
 # ADR-140: Derive Phrasing Guidance from Licensed Papers
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-16
 
