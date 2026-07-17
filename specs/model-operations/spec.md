@@ -71,6 +71,10 @@ All mutation operations preserve a human review boundary.
   companion when provider CORS blocks direct browser access. A saved local
   choice remains visible before refresh; successful discovery replaces stale
   choices with identifiers reported by the configured endpoint.
+- Connection diagnostics distinguish a direct browser/CORS failure from an
+  unavailable companion. Bounded companion error details and targeted guidance
+  for origin rejection or an incomplete chat-completions URL remain visible in
+  both discovery and generation status.
 - Generation requests use JSON Schema response formats for passage revisions
   and claim drafts. The adapter accepts plain replacement text as a
   compatibility fallback, but rejects malformed or unexpected JSON envelopes.

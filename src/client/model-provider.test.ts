@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   discoverOpenAICompatibleModels,
+  explainLocalModelNetworkError,
   OpenAICompatibleBrowserProvider,
   type DraftClaimRequest,
   type ClarityDrillRequest,
@@ -823,6 +824,29 @@ describe("OpenAICompatibleBrowserProvider", () => {
       const provider = createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(response) });
       await expect(provider.reviseSelection(operation)).rejects.toThrow(message);
     }
+  });
+
+  it("turns local HTTP failures into actionable setup guidance", async () => {
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "Origin not allowed" }), { status: 403 })),
+      }).reviseSelection(operation),
+    ).rejects.toThrow("Origin not allowed");
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "Not found" }), { status: 404 })),
+      }).reviseSelection(operation),
+    ).rejects.toThrow("endpoint ends with /v1/chat/completions");
+  });
+
+  it("distinguishes direct-provider CORS from companion connection failures", () => {
+    const networkError = new TypeError("Failed to fetch");
+    expect(
+      (explainLocalModelNetworkError(networkError, new URL("http://127.0.0.1:1234/v1/chat/completions"), "discovery") as Error).message,
+    ).toContain("switch to Local companion");
+    expect(
+      (explainLocalModelNetworkError(networkError, new URL("http://127.0.0.1:8790/v1/chat/completions"), "request") as Error).message,
+    ).toContain("allowed Kirjolab origin");
   });
 
   it("explains reasoning-only responses instead of treating them as blank prose", async () => {

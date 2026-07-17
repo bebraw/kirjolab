@@ -353,12 +353,12 @@ export class OpenAICompatibleBrowserProvider implements ModelProvider {
           messages,
         }),
       });
-      if (!response.ok) throw new Error(`Local model request failed (${response.status})`);
+      if (!response.ok) throw await localModelHttpError(response, "request");
       return completionContent(await readBoundedJson(response));
     } catch (error) {
       if (timedOut) throw new DOMException("Local model request timed out after 120 seconds", "TimeoutError");
       if (options.signal?.aborted) throw abortError(options.signal.reason);
-      throw error;
+      throw explainLocalModelNetworkError(error, this.#endpoint, "request");
     } finally {
       clearTimeout(timeout);
       options.signal?.removeEventListener("abort", abortFromCaller);
@@ -390,12 +390,12 @@ export async function discoverOpenAICompatibleModels(
       headers: { accept: "application/json" },
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`Local model discovery failed (${response.status})`);
+    if (!response.ok) throw await localModelHttpError(response, "discovery");
     return modelIdsFromResponse(await readBoundedJson(response));
   } catch (error) {
     if (timedOut) throw new DOMException("Local model discovery timed out after 10 seconds", "TimeoutError");
     if (options.signal?.aborted) throw abortError(options.signal.reason);
-    throw error;
+    throw explainLocalModelNetworkError(error, endpoint, "discovery");
   } finally {
     clearTimeout(timeout);
     options.signal?.removeEventListener("abort", abortFromCaller);
@@ -891,6 +891,36 @@ function modelListEndpoint(completionEndpoint: URL): URL {
   endpoint.search = "";
   endpoint.hash = "";
   return endpoint;
+}
+
+async function localModelHttpError(response: Response, action: "request" | "discovery"): Promise<Error> {
+  let detail = "";
+  try {
+    const value = await readBoundedJson(response);
+    if (isRecord(value) && typeof value.error === "string" && value.error.trim().length <= 1_000) detail = value.error.trim();
+  } catch {
+    // Non-JSON provider errors retain their status without exposing unbounded text.
+  }
+  const label = action === "request" ? "request" : "discovery";
+  const guidance =
+    response.status === 404 && action === "request"
+      ? " Check that the endpoint ends with /v1/chat/completions."
+      : response.status === 403
+        ? " Check the companion's allowed Kirjolab origin."
+        : "";
+  return new Error(`Local model ${label} failed (${response.status})${detail ? `: ${detail}` : "."}${guidance}`);
+}
+
+export function explainLocalModelNetworkError(error: unknown, endpoint: URL, action: "request" | "discovery"): unknown {
+  if (!(error instanceof TypeError) || !/(?:failed to fetch|networkerror|network request failed)/iu.test(error.message)) return error;
+  const task = action === "request" ? "send a request" : "discover models";
+  return endpoint.port === "8790"
+    ? new TypeError(
+        `Could not ${task} through the local companion. Start it with npm run dev, then verify its allowed Kirjolab origin and full upstream /v1/chat/completions URL.`,
+      )
+    : new TypeError(
+        `The browser could not ${task} from the local provider. If the provider is running, switch to Local companion because browser CORS may be blocking access.`,
+      );
 }
 
 function isLoopbackHostname(hostname: string): boolean {
