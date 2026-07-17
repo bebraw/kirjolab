@@ -219,6 +219,22 @@ interface GitHubRepositoryOption {
   readonly defaultBranch: string;
 }
 
+interface LatexImportPreview {
+  readonly digest: string;
+  readonly archive: {
+    readonly files: readonly { readonly path: string; readonly kind: string; readonly bytes: number }[];
+    readonly rootCandidates: readonly string[];
+  };
+  readonly conversion: {
+    readonly seed: { readonly files: readonly { readonly path: string; readonly content: string }[]; readonly bibliography: string };
+    readonly report: {
+      readonly rootPath: string;
+      readonly bibliographyPath: string | null;
+      readonly diagnostics: readonly { readonly severity: "error" | "warning" | "info"; readonly message: string }[];
+    };
+  } | null;
+}
+
 interface Elements {
   preferencesMenu: HTMLDetailsElement;
   preferencesModelStatus: HTMLElement;
@@ -256,6 +272,18 @@ interface Elements {
   newWorkspaceTemplateStatus: HTMLElement;
   newWorkspaceSubmit: HTMLButtonElement;
   cancelNewWorkspace: HTMLButtonElement;
+  openLatexImport: HTMLButtonElement;
+  latexImportDialog: HTMLDialogElement;
+  latexImportForm: HTMLFormElement;
+  latexImportTitle: HTMLInputElement;
+  latexImportArchive: HTMLInputElement;
+  latexRootField: HTMLElement;
+  latexImportRoot: HTMLSelectElement;
+  latexImportPreview: HTMLElement;
+  latexImportStatus: HTMLElement;
+  confirmLatexImport: HTMLButtonElement;
+  previewLatexImport: HTMLButtonElement;
+  cancelLatexImport: HTMLButtonElement;
   openGitHubImport: HTMLButtonElement;
   gitHubImportDialog: HTMLDialogElement;
   gitHubImportForm: HTMLFormElement;
@@ -705,6 +733,8 @@ class WorkspaceApp {
   #projectHistory: ProjectRevisionSummary[] = [];
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
+  #latexImportDigest: string | null = null;
+  #latexImportBibliographyPath: string | null = null;
   #gitHubImportPreviewId: string | null = null;
   #gitHubPullPreviewId: string | null = null;
   #gitHubPublishPreviewId: string | null = null;
@@ -902,6 +932,28 @@ class WorkspaceApp {
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
     this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
+    this.#elements.openLatexImport.addEventListener("click", () => {
+      this.#elements.newWorkspaceDialog.close();
+      this.#resetLatexImport();
+      this.#elements.latexImportDialog.showModal();
+      this.#elements.latexImportTitle.focus();
+    });
+    this.#elements.cancelLatexImport.addEventListener("click", () => this.#elements.latexImportDialog.close());
+    this.#elements.latexImportForm.addEventListener("submit", (event) => void this.#previewLatexImport(event));
+    this.#elements.latexImportArchive.addEventListener("change", () => {
+      this.#resetLatexImportPreview();
+      this.#elements.latexRootField.hidden = true;
+      this.#elements.latexImportRoot.replaceChildren();
+      const archive = this.#elements.latexImportArchive.files?.[0];
+      if (archive && !this.#elements.latexImportTitle.value.trim()) {
+        this.#elements.latexImportTitle.value = archive.name.replace(/\.zip$/iu, "").replaceAll(/[_-]+/gu, " ");
+      }
+    });
+    this.#elements.latexImportRoot.addEventListener("change", () => {
+      this.#resetLatexImportPreview();
+      this.#elements.latexImportStatus.textContent = "Preview the selected root before creating the project.";
+    });
+    this.#elements.confirmLatexImport.addEventListener("click", () => void this.#confirmLatexImport());
     this.#elements.openGitHubImport.addEventListener("click", () => {
       this.#elements.newWorkspaceDialog.close();
       this.#gitHubImportPreviewId = null;
@@ -1408,6 +1460,128 @@ class WorkspaceApp {
     const created: unknown = [workspace];
     if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Project catalog returned invalid data");
     location.assign(created[0].href);
+  }
+
+  #resetLatexImport(): void {
+    this.#elements.latexImportForm.reset();
+    this.#elements.latexRootField.hidden = true;
+    this.#elements.latexImportRoot.replaceChildren();
+    this.#elements.latexImportStatus.textContent = "";
+    this.#resetLatexImportPreview();
+  }
+
+  #resetLatexImportPreview(): void {
+    this.#latexImportDigest = null;
+    this.#latexImportBibliographyPath = null;
+    this.#elements.confirmLatexImport.disabled = true;
+    this.#elements.latexImportPreview.replaceChildren(statusText("Preview to inspect the converted Markdown and diagnostics."));
+  }
+
+  async #previewLatexImport(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const archive = this.#elements.latexImportArchive.files?.[0];
+    if (!archive) return;
+    if (archive.size > 20 * 1024 * 1024) {
+      this.#elements.latexImportStatus.textContent = "LaTeX archive exceeds 20 MiB.";
+      return;
+    }
+    this.#resetLatexImportPreview();
+    this.#elements.previewLatexImport.disabled = true;
+    this.#elements.latexImportStatus.textContent = "Inspecting and converting the archive on the server…";
+    try {
+      const query = new URLSearchParams();
+      if (this.#elements.latexImportRoot.value) query.set("root", this.#elements.latexImportRoot.value);
+      const response = await fetch(`/api/latex-import-previews${query.size ? `?${query.toString()}` : ""}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/zip" },
+        body: archive,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isLatexImportPreview(value)) throw new Error("LaTeX import returned an invalid preview");
+      this.#renderLatexImportRoots(value);
+      if (!value.conversion) {
+        this.#elements.latexImportStatus.textContent = "Choose a root document, then preview again.";
+        return;
+      }
+      this.#latexImportDigest = value.digest;
+      this.#latexImportBibliographyPath = value.conversion.report.bibliographyPath;
+      const heading = document.createElement("p");
+      heading.className = "text-sm font-semibold text-app-text";
+      const imageCount = value.archive.files.filter((file) => file.kind === "image").length;
+      heading.textContent = `${value.conversion.seed.files.length} Markdown files · ${imageCount} figure inputs detected · ${value.conversion.seed.bibliography ? "bibliography selected" : "no bibliography"}`;
+      const files = document.createElement("div");
+      files.className = "mt-3 space-y-2";
+      for (const file of value.conversion.seed.files.slice(0, 12)) {
+        const details = document.createElement("details");
+        details.className = "rounded-app border border-app-line px-3 py-2";
+        const summary = document.createElement("summary");
+        summary.className = "cursor-pointer font-sans text-xs font-semibold text-app-text";
+        summary.textContent = `${file.path} · ${formatBytes(new TextEncoder().encode(file.content).byteLength)}`;
+        const source = document.createElement("pre");
+        source.className = "mt-2 max-h-48 overflow-auto whitespace-pre-wrap font-mono text-xs leading-5 text-app-text-soft";
+        source.textContent = file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.content;
+        details.append(summary, source);
+        files.append(details);
+      }
+      const diagnostics = document.createElement("ul");
+      diagnostics.className = "mt-3 space-y-1 font-sans text-xs text-app-text-soft";
+      for (const diagnostic of value.conversion.report.diagnostics.slice(0, 20)) {
+        const item = document.createElement("li");
+        item.textContent = `${diagnostic.severity === "error" ? "Blocked" : diagnostic.severity === "warning" ? "Review" : "Note"}: ${diagnostic.message}`;
+        diagnostics.append(item);
+      }
+      this.#elements.latexImportPreview.replaceChildren(heading, files, diagnostics);
+      const blocking = value.conversion.report.diagnostics.filter((diagnostic) => diagnostic.severity === "error").length;
+      this.#elements.confirmLatexImport.disabled = blocking > 0;
+      this.#elements.latexImportStatus.textContent = blocking
+        ? `${blocking} blocking diagnostic${blocking === 1 ? " requires" : "s require"} review.`
+        : "Preview ready. Confirmation repeats conversion before creating the project.";
+    } catch (error) {
+      this.#elements.latexImportStatus.textContent = error instanceof Error ? error.message : "Could not preview the LaTeX archive.";
+    } finally {
+      this.#elements.previewLatexImport.disabled = false;
+    }
+  }
+
+  #renderLatexImportRoots(value: LatexImportPreview): void {
+    const selected = value.conversion?.report.rootPath ?? this.#elements.latexImportRoot.value;
+    const options = value.archive.rootCandidates.map((path) => new Option(path, path, path === selected, path === selected));
+    if (value.archive.rootCandidates.length > 1 && !selected) options.unshift(new Option("Choose a root document", "", true, true));
+    this.#elements.latexImportRoot.replaceChildren(...options);
+    this.#elements.latexRootField.hidden = value.archive.rootCandidates.length <= 1;
+    if (selected) this.#elements.latexImportRoot.value = selected;
+  }
+
+  async #confirmLatexImport(): Promise<void> {
+    const archive = this.#elements.latexImportArchive.files?.[0];
+    if (!archive || !this.#latexImportDigest) return;
+    this.#elements.confirmLatexImport.disabled = true;
+    this.#elements.latexImportStatus.textContent = "Repeating conversion and creating the project…";
+    try {
+      const query = new URLSearchParams({
+        title: this.#elements.latexImportTitle.value,
+        previewDigest: this.#latexImportDigest,
+        root: this.#elements.latexImportRoot.value,
+      });
+      if (this.#latexImportBibliographyPath) query.set("bibliography", this.#latexImportBibliographyPath);
+      const response = await fetch(`/api/latex-imports?${query.toString()}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/zip" },
+        body: archive,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isRecord(value) || !isRecord(value.workspace) || typeof value.workspace.href !== "string") {
+        throw new Error("LaTeX import returned invalid project data");
+      }
+      location.assign(value.workspace.href);
+    } catch (error) {
+      this.#elements.latexImportStatus.textContent = error instanceof Error ? error.message : "Could not import the LaTeX project.";
+      this.#elements.confirmLatexImport.disabled = false;
+    }
   }
 
   async #previewGitHubImport(event: SubmitEvent): Promise<void> {
@@ -9161,6 +9335,18 @@ function collectElements(): Elements {
     newWorkspaceTemplateStatus: requiredElement("new-workspace-template-status", HTMLElement),
     newWorkspaceSubmit: requiredElement("create-workspace", HTMLButtonElement),
     cancelNewWorkspace: requiredElement("cancel-new-workspace", HTMLButtonElement),
+    openLatexImport: requiredElement("open-latex-import", HTMLButtonElement),
+    latexImportDialog: requiredElement("latex-import-dialog", HTMLDialogElement),
+    latexImportForm: requiredElement("latex-import-form", HTMLFormElement),
+    latexImportTitle: requiredElement("latex-import-title", HTMLInputElement),
+    latexImportArchive: requiredElement("latex-import-archive", HTMLInputElement),
+    latexRootField: requiredElement("latex-root-field", HTMLElement),
+    latexImportRoot: requiredElement("latex-import-root", HTMLSelectElement),
+    latexImportPreview: requiredElement("latex-import-preview", HTMLElement),
+    latexImportStatus: requiredElement("latex-import-status", HTMLElement),
+    confirmLatexImport: requiredElement("confirm-latex-import", HTMLButtonElement),
+    previewLatexImport: requiredElement("preview-latex-import", HTMLButtonElement),
+    cancelLatexImport: requiredElement("cancel-latex-import", HTMLButtonElement),
     openGitHubImport: requiredElement("open-github-import", HTMLButtonElement),
     gitHubImportDialog: requiredElement("github-import-dialog", HTMLDialogElement),
     gitHubImportForm: requiredElement("github-import-form", HTMLFormElement),
@@ -9779,6 +9965,44 @@ function isGitHubPublishPreview(value: unknown): value is {
     Array.isArray(value.plan.skippedLocalPaths) &&
     value.plan.skippedLocalPaths.every((path) => typeof path === "string") &&
     Array.isArray(value.plan.blocking)
+  );
+}
+
+function isLatexImportPreview(value: unknown): value is LatexImportPreview {
+  if (!isRecord(value) || typeof value.digest !== "string" || !/^[a-f0-9]{64}$/u.test(value.digest) || !isRecord(value.archive)) {
+    return false;
+  }
+  if (
+    !Array.isArray(value.archive.files) ||
+    !value.archive.files.every(
+      (file) =>
+        isRecord(file) &&
+        typeof file.path === "string" &&
+        typeof file.kind === "string" &&
+        typeof file.bytes === "number" &&
+        Number.isSafeInteger(file.bytes) &&
+        file.bytes >= 0,
+    ) ||
+    !Array.isArray(value.archive.rootCandidates) ||
+    !value.archive.rootCandidates.every((path) => typeof path === "string")
+  ) {
+    return false;
+  }
+  if (value.conversion === null) return true;
+  if (!isRecord(value.conversion) || !isRecord(value.conversion.seed) || !isRecord(value.conversion.report)) return false;
+  return (
+    Array.isArray(value.conversion.seed.files) &&
+    value.conversion.seed.files.every((file) => isRecord(file) && typeof file.path === "string" && typeof file.content === "string") &&
+    typeof value.conversion.seed.bibliography === "string" &&
+    typeof value.conversion.report.rootPath === "string" &&
+    (value.conversion.report.bibliographyPath === null || typeof value.conversion.report.bibliographyPath === "string") &&
+    Array.isArray(value.conversion.report.diagnostics) &&
+    value.conversion.report.diagnostics.every(
+      (diagnostic) =>
+        isRecord(diagnostic) &&
+        (diagnostic.severity === "error" || diagnostic.severity === "warning" || diagnostic.severity === "info") &&
+        typeof diagnostic.message === "string",
+    )
   );
 }
 

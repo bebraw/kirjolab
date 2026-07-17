@@ -808,11 +808,32 @@ export function renderHomePage(
         <footer class="template-browser-footer">
           <p class="ui-status" id="new-workspace-template-status" role="status">Templates create independent projects without research history.</p>
           <div class="ui-cluster justify-end">
+            <button class="button-secondary" id="open-latex-import" type="button">Import LaTeX</button>
             <button class="button-secondary" id="open-github-import" type="button">Import GitHub</button>
             <button class="button-secondary" id="cancel-new-workspace" type="button">Cancel</button>
             <button class="button-primary" id="create-workspace" type="submit" disabled>Create project</button>
           </div>
         </footer>
+      </form>
+    </dialog>
+
+    <dialog class="new-workspace-dialog ui-dialog" id="latex-import-dialog">
+      <form class="p-5" id="latex-import-form">
+        <p class="eyebrow">One-time migration</p>
+        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Import a LaTeX archive</h2>
+        <p class="mt-2 text-sm leading-6 text-app-text-soft">The server converts a bounded Overleaf ZIP into reviewable Markdown. Uploaded LaTeX is not stored or executed.</p>
+        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+          <label class="field-label">Project title<input class="field" id="latex-import-title" maxlength="120" required placeholder="Paper title"></label>
+          <label class="field-label">Overleaf archive<input class="field" id="latex-import-archive" type="file" accept=".zip,application/zip" required></label>
+          <label class="field-label sm:col-span-2" id="latex-root-field" hidden>Root document<select class="field" id="latex-import-root"></select></label>
+        </div>
+        <div class="mt-5 border-t border-app-line pt-4" id="latex-import-preview" aria-live="polite"><p class="ui-status">Choose an archive to inspect it without creating a project.</p></div>
+        <p class="ui-status mt-3" id="latex-import-status" role="status"></p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="button-secondary" id="cancel-latex-import" type="button">Cancel</button>
+          <button class="button-secondary" id="preview-latex-import" type="submit">Preview import</button>
+          <button class="button-primary" id="confirm-latex-import" type="button" disabled>Create project</button>
+        </div>
       </form>
     </dialog>
 
