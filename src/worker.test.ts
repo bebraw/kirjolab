@@ -78,6 +78,16 @@ describe("worker", () => {
     });
   });
 
+  it("serves the public phrasing source ledger", async () => {
+    const response = await handleRequest(new Request("http://example.com/phrasing-guidance/sources.json"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
+    const body = (await response.json()) as { inventoryVersion: string; sources: Array<{ id: string; license: string }> };
+    expect(body.inventoryVersion).toBe("2026-07-17.1");
+    expect(body.sources[0]).toMatchObject({ id: "plos-biology-2002212", license: "CC-BY-4.0" });
+  });
+
   it("returns the authenticated session representation", async () => {
     const response = await handleRequest(new Request("http://example.com/api/session"));
 

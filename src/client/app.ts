@@ -48,6 +48,7 @@ import {
   type ProjectFile,
 } from "../domain/project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
+import { isPhrasingPurposeId, phrasingPatternsForPurpose, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import { parseResearchQuestions, researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate, summarizeResearchDiary } from "../domain/writing-workflows";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
@@ -145,6 +146,7 @@ import {
   type ModelClarityQuestion,
   type ModelClarityRewrites,
   type ModelIdeas,
+  type ModelPhrasingAlternatives,
   type ModelTable,
   type ModelEvidenceItem,
   type ModelReasoningEffort,
@@ -589,6 +591,9 @@ interface Elements {
   assistantTableCaption: HTMLInputElement;
   assistantTableColumns: HTMLTextAreaElement;
   assistantTableRows: HTMLTextAreaElement;
+  assistantPhrasingPurpose: HTMLSelectElement;
+  assistantPhrasingPurposeField: HTMLElement;
+  assistantPhrasingAttribution: HTMLDetailsElement;
   modelClaimRelation: HTMLSelectElement;
   modelClaimRelationField: HTMLElement;
   assistantOperationEyebrow: HTMLElement;
@@ -1129,6 +1134,7 @@ class WorkspaceApp {
       this.#elements.assistantTableCaption,
       this.#elements.assistantTableColumns,
       this.#elements.assistantTableRows,
+      this.#elements.assistantPhrasingPurpose,
     ]) {
       input.addEventListener("input", () => this.#updateModelAvailability());
     }
@@ -1165,6 +1171,7 @@ class WorkspaceApp {
       this.#elements.llmConnection.focus();
     });
     this.#renderModelOperationOptions();
+    this.#renderPhrasingPurposeOptions();
     this.#elements.modelOperation.addEventListener("change", () => this.#updateModelTask(true));
     this.#elements.assistantTargetScope.addEventListener("change", () => {
       this.#renderAssistantTargetPreview();
@@ -2506,10 +2513,24 @@ class WorkspaceApp {
     this.#elements.modelOperation.value = assistantOperationDefinition(current).id;
   }
 
+  #renderPhrasingPurposeOptions(): void {
+    this.#elements.assistantPhrasingPurpose.replaceChildren(
+      ...phrasingPurposes().map((purpose) => {
+        const option = document.createElement("option");
+        option.value = purpose.id;
+        option.textContent = purpose.label;
+        return option;
+      }),
+    );
+  }
+
   #updateModelTask(resetInstruction = false): void {
     const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
     const draftsClaim = operation.id === "draft-claim";
+    const phrasesPassage = operation.id === "phrase-passage";
     this.#elements.modelClaimRelationField.hidden = !draftsClaim;
+    this.#elements.assistantPhrasingPurposeField.hidden = !phrasesPassage;
+    this.#elements.assistantPhrasingAttribution.hidden = !phrasesPassage;
     this.#elements.assistantTableFields.hidden = operation.id !== "build-table";
     this.#elements.assistantTargetScopeField.hidden = operation.scopes.length === 0;
     const currentScope = this.#elements.assistantTargetScope.value;
@@ -2532,7 +2553,9 @@ class WorkspaceApp {
     if (resetInstruction) this.#elements.assistantInteractiveResult.replaceChildren();
     this.#elements.modelStatus.textContent = draftsClaim
       ? "Select at least one annotation to ground the claim draft."
-      : "Choose a target and the required evidence, then generate a reviewable draft.";
+      : phrasesPassage
+        ? "Choose a rhetorical purpose, then compare contextual alternatives before opening exact review."
+        : "Choose a target and the required evidence, then generate a reviewable draft.";
     this.#renderAssistantTargetPreview();
     this.#updateModelAvailability();
   }
@@ -7048,6 +7071,12 @@ class WorkspaceApp {
     );
   }
 
+  #phrasingPurpose(): PhrasingPurpose {
+    const value = this.#elements.assistantPhrasingPurpose.value;
+    const purposes = phrasingPurposes();
+    return (isPhrasingPurposeId(value) ? purposes.find(({ id }) => id === value) : undefined) ?? purposes[0]!;
+  }
+
   #validTableRequirements(): boolean {
     try {
       this.#tableRequirements();
@@ -7251,6 +7280,21 @@ class WorkspaceApp {
       }
       if (!passage) throw new Error("Select manuscript text first");
       const sourceRevision = this.#revision;
+      if (operation.id === "phrase-passage") {
+        const purpose = this.#phrasingPurpose();
+        const patterns = phrasingPatternsForPurpose(purpose.id);
+        const result = await provider.phrasePassage({
+          selectedPassage: passage.excerpt,
+          instruction,
+          evidence: evidence.items,
+          purpose,
+          patterns,
+        });
+        this.#renderPhrasingAlternatives({ passage, evidence, instruction, sourceRevision }, purpose, result);
+        this.#elements.modelStatus.textContent = "Choose one alternative to open exact before-and-after review.";
+        this.#assistantWorkflow.send({ type: "REVIEW" });
+        return;
+      }
       if (operation.id === "find-references") {
         const formulated = await provider.formulateReferenceQuery({
           selectedPassage: passage.excerpt,
@@ -7412,6 +7456,66 @@ class WorkspaceApp {
       list.append(card);
     }
     this.#elements.assistantInteractiveResult.replaceChildren(list);
+  }
+
+  #renderPhrasingAlternatives(input: AssistantDraftContext, purpose: PhrasingPurpose, result: ModelPhrasingAlternatives): void {
+    const list = document.createElement("div");
+    list.className = "grid gap-3";
+    for (const [index, alternative] of result.alternatives.entries()) {
+      const card = document.createElement("section");
+      card.className = "resource-card";
+      const label = document.createElement("p");
+      label.className = "eyebrow";
+      label.textContent = `${purpose.label} · option ${index + 1}`;
+      const text = document.createElement("p");
+      text.className = "mt-2 whitespace-pre-wrap text-sm";
+      text.textContent = alternative.text;
+      const rationale = document.createElement("p");
+      rationale.className = "mt-2 text-xs text-app-text-soft";
+      rationale.textContent = alternative.rationale;
+      const choose = document.createElement("button");
+      choose.className = "button-secondary mt-3";
+      choose.type = "button";
+      choose.textContent = "Review this alternative";
+      choose.addEventListener(
+        "click",
+        () => void this.#choosePhrasingAlternative(input, purpose, alternative.text, result.providerLabel, result.model),
+      );
+      card.append(label, text, rationale, choose);
+      list.append(card);
+    }
+    this.#elements.assistantInteractiveResult.replaceChildren(list);
+  }
+
+  async #choosePhrasingAlternative(
+    input: AssistantDraftContext,
+    purpose: PhrasingPurpose,
+    replacement: string,
+    providerLabel: string,
+    model: string,
+  ): Promise<void> {
+    if (!this.#assistantWorkflow.getSnapshot().matches("reviewing")) return;
+    this.#assistantWorkflow.send({ type: "CONTINUE" });
+    this.#updateModelAvailability();
+    try {
+      await this.#persistRevisionCandidate({
+        passage: input.passage,
+        evidence: input.evidence.references,
+        instruction: `${input.instruction}\nRhetorical purpose: ${purpose.label}`.slice(0, 4_000),
+        sourceRevision: input.sourceRevision,
+        replacement,
+        providerLabel,
+        model,
+      });
+      this.#elements.modelStatus.textContent = "Phrasing alternative ready for exact before-and-after review.";
+      this.#assistantWorkflow.send({ type: "COMPLETE" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save the phrasing alternative";
+      this.#assistantWorkflow.send({ type: "FAIL", message });
+      this.#elements.modelStatus.textContent = message;
+    } finally {
+      this.#updateModelAvailability();
+    }
   }
 
   #renderReferenceDiscovery(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {
@@ -9392,6 +9496,9 @@ function collectElements(): Elements {
     assistantTableCaption: requiredElement("assistant-table-caption", HTMLInputElement),
     assistantTableColumns: requiredElement("assistant-table-columns", HTMLTextAreaElement),
     assistantTableRows: requiredElement("assistant-table-rows", HTMLTextAreaElement),
+    assistantPhrasingPurpose: requiredElement("assistant-phrasing-purpose", HTMLSelectElement),
+    assistantPhrasingPurposeField: requiredElement("assistant-phrasing-purpose-field", HTMLElement),
+    assistantPhrasingAttribution: requiredElement("assistant-phrasing-attribution", HTMLDetailsElement),
     modelClaimRelation: requiredElement("model-claim-relation", HTMLSelectElement),
     modelClaimRelationField: requiredElement("model-claim-relation-field", HTMLElement),
     assistantOperationEyebrow: requiredElement("assistant-operation-eyebrow", HTMLElement),

@@ -496,6 +496,9 @@ export function renderHomePage(
                   <option value="extends">Extends</option>
                 </select>
               </label>
+              <label class="field-label" id="assistant-phrasing-purpose-field" hidden>Rhetorical purpose
+                <select class="field" id="assistant-phrasing-purpose"></select>
+              </label>
               <fieldset class="contents" id="assistant-table-fields" hidden>
                 <label class="field-label">Caption
                   <input class="field" id="assistant-table-caption" type="text" maxlength="500" placeholder="Optional table caption">
@@ -514,6 +517,11 @@ export function renderHomePage(
             </div>
             <p class="mt-2 text-xs leading-5 text-app-text-soft" id="assistant-target-preview" aria-live="polite">Place the caret in a sentence or select the exact text to revise.</p>
             <div class="mt-4" id="assistant-interactive-result" aria-live="polite"></div>
+            <details class="mt-4 text-xs leading-5 text-app-text-soft" id="assistant-phrasing-attribution" hidden>
+              <summary class="cursor-pointer font-semibold">About the phrasing inventory</summary>
+              <p class="mt-2">Patterns are independently derived from CC BY PLOS articles and adapted by the configured local model. No Academic Phrasebank content is included.</p>
+              <p class="mt-2"><a class="link" href="/phrasing-guidance/sources.json" target="_blank" rel="noopener noreferrer">Source ledger</a> · <a class="link" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · <a class="link" href="https://api.plos.org/text-and-data-mining.html" target="_blank" rel="noopener noreferrer">PLOS corpus access</a></p>
+            </details>
             <button class="assistant-connection-link" id="open-preferences-from-assistant" type="button">Connection settings</button>
             <p class="ui-status mt-3" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
             <div class="mt-4" id="candidate-list">

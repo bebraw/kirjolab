@@ -15,6 +15,7 @@ describe("assistant operation registry", () => {
       "draft-claim",
       "clarity-drill",
       "ideate",
+      "phrase-passage",
       "find-references",
       "build-table",
     ]);
@@ -37,6 +38,13 @@ describe("assistant operation registry", () => {
       { id: "draft-claim", defaultScope: null, scopes: [], evidence: "annotations", enabled: true },
       { id: "clarity-drill", defaultScope: "sentence", scopes: ["sentence", "paragraph", "section"], evidence: "optional", enabled: true },
       { id: "ideate", defaultScope: "section", scopes: ["selection", "paragraph", "section"], evidence: "optional", enabled: true },
+      {
+        id: "phrase-passage",
+        defaultScope: "sentence",
+        scopes: ["sentence", "selection", "paragraph"],
+        evidence: "optional",
+        enabled: true,
+      },
       { id: "find-references", defaultScope: "sentence", scopes: ["sentence", "selection", "paragraph"], evidence: "none", enabled: true },
       { id: "build-table", defaultScope: "caret", scopes: ["caret", "selection"], evidence: "optional", enabled: true },
     ]);
@@ -86,6 +94,15 @@ describe("assistant operation registry", () => {
         "Ideation prompt",
         "Suggest concrete directions that deepen the argument without repeating the current text.",
         "Generate ideas",
+      ],
+      [
+        "Phrase a rhetorical move",
+        "Licensed phrasing guidance",
+        "Compare contextual alternatives",
+        "Uses a rhetorical purpose and reviewed conventional patterns. Choosing an alternative opens exact review before apply.",
+        "Phrasing goal",
+        "Adapt the passage without changing its evidence, claim, or citation syntax.",
+        "Suggest alternatives",
       ],
       [
         "Find references",

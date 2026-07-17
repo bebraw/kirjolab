@@ -3846,12 +3846,29 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
                     },
                   ],
                 })
-              : JSON.stringify({
-                  rewrites: [
-                    { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
-                    { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
-                  ],
-                });
+              : schemaName === "kirjolab_phrasing_alternatives"
+                ? JSON.stringify({
+                    alternatives: [
+                      {
+                        text: "The findings suggest that this workflow may reduce review time.",
+                        rationale: "Qualifies the inference.",
+                      },
+                      {
+                        text: "This workflow appears to reduce review time under the tested conditions.",
+                        rationale: "Bounds the claim to observed conditions.",
+                      },
+                      {
+                        text: "The observed results are consistent with faster review.",
+                        rationale: "Avoids causal certainty.",
+                      },
+                    ],
+                  })
+                : JSON.stringify({
+                    rewrites: [
+                      { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
+                      { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
+                    ],
+                  });
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -3900,6 +3917,27 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   expect(requests).toHaveLength(3);
 
   await page.getByRole("tab", { name: "Writing assistant" }).click();
+  await page.locator("#model-operation").selectOption("phrase-passage");
+  await expect(page.locator("#assistant-phrasing-purpose-field")).toBeVisible();
+  await page.locator("#assistant-phrasing-purpose").selectOption("qualify-claim");
+  await page.getByRole("button", { name: "Suggest alternatives" }).click();
+  await expect(page.getByText("The findings suggest that this workflow may reduce review time.")).toBeVisible();
+  const phrasingRequest = requests[3];
+  expect(phrasingRequest).toMatchObject({
+    messages: [
+      expect.any(Object),
+      expect.objectContaining({
+        content: expect.stringContaining('"rhetoricalPurpose":{"id":"qualify-claim"'),
+      }),
+    ],
+  });
+  expect(JSON.stringify(phrasingRequest)).not.toContain("10.1371");
+  await page.getByRole("button", { name: "Review this alternative" }).first().click();
+  await expect(page.locator("#context-candidate-after")).toHaveText("The findings suggest that this workflow may reduce review time.");
+  await expect(editor).toHaveValue(source);
+  expect(requests).toHaveLength(4);
+
+  await page.getByRole("tab", { name: "Writing assistant" }).click();
   await page.locator("#model-operation").selectOption("build-table");
   await page.locator("#assistant-table-caption").fill("Review outcomes");
   await page.locator("#assistant-table-columns").fill("Workflow\nReview time");
@@ -3908,7 +3946,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await expect(page.locator("#assistant-interactive-result pre")).toContainText("| Workflow | Review time |");
   await page.getByRole("button", { name: "Insert table" }).click();
   await expect(editor).toHaveValue(/\| Kirjolab \| 8 min \|/u);
-  expect(requests).toHaveLength(4);
+  expect(requests).toHaveLength(5);
 
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await page.locator("#model-operation").selectOption("find-references");
@@ -3917,7 +3955,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await expect(page.getByRole("link", { name: "Verify DOI" })).toHaveAttribute("href", "https://doi.org/10.5555/discovery");
   await page.getByRole("button", { name: "Save to library" }).click();
   await expect(page.getByRole("button", { name: "Saved to library" })).toBeDisabled();
-  expect(requests).toHaveLength(5);
+  expect(requests).toHaveLength(6);
 });
 
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {

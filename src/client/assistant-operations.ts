@@ -1,4 +1,11 @@
-export type AssistantOperationId = "revise-selection" | "draft-claim" | "clarity-drill" | "ideate" | "find-references" | "build-table";
+export type AssistantOperationId =
+  | "revise-selection"
+  | "draft-claim"
+  | "clarity-drill"
+  | "ideate"
+  | "phrase-passage"
+  | "find-references"
+  | "build-table";
 
 export type AssistantTargetScope = "caret" | "selection" | "sentence" | "paragraph" | "section";
 
@@ -78,6 +85,20 @@ const definitions: readonly AssistantOperationDefinition[] = [
     actionLabel: "Generate ideas",
     scopes: ["selection", "paragraph", "section"],
     defaultScope: "section",
+    evidence: "optional",
+    enabled: true,
+  },
+  {
+    id: "phrase-passage",
+    label: "Phrase a rhetorical move",
+    eyebrow: "Licensed phrasing guidance",
+    title: "Compare contextual alternatives",
+    description: "Uses a rhetorical purpose and reviewed conventional patterns. Choosing an alternative opens exact review before apply.",
+    instructionLabel: "Phrasing goal",
+    defaultInstruction: "Adapt the passage without changing its evidence, claim, or citation syntax.",
+    actionLabel: "Suggest alternatives",
+    scopes: ["sentence", "selection", "paragraph"],
+    defaultScope: "sentence",
     evidence: "optional",
     enabled: true,
   },

@@ -22,6 +22,7 @@ import { renderNotFoundPage } from "./views/not-found";
 import { renderReadOnlySharePage } from "./views/read-only-share";
 import { cssResponse, faviconResponse, htmlResponse, pdfResponse, scriptResponse } from "./views/shared";
 import { renderUiInventoryPage } from "./views/ui-inventory";
+import phrasingGuidanceSources from "../phrasing-guidance/sources.json";
 
 export { BackupCoordinator, BackupRecovery, DocumentRoom, ProjectTemplateCatalog, ReferenceLibrary, WorkspaceAccess, WorkspaceCatalog };
 
@@ -72,6 +73,13 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
 
   if (url.pathname === "/api/health") {
     return createHealthResponse(exampleRoutes.map((route) => route.path));
+  }
+
+  if (url.pathname === "/phrasing-guidance/sources.json") {
+    if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
+    return Response.json(phrasingGuidanceSources, {
+      headers: { "cache-control": "public, max-age=3600", "content-disposition": 'inline; filename="sources.json"' },
+    });
   }
 
   if (url.pathname === "/__ui") {
