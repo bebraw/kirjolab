@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "inventoryVersion": "2026-07-17.1",
-  "extractionVersion": "plos-jats-patterns-v1",
+  "inventoryVersion": "2026-07-17.2",
+  "extractionVersion": "plos-jats-patterns-v2",
   "reviewedAt": "2026-07-17",
   "taxonomy": [
     {
@@ -31,11 +31,11 @@
       "purposeId": "qualify-claim",
       "template": "These findings suggest that {claim}.",
       "slots": [{ "name": "claim", "type": "clause" }],
-      "sourceIds": ["plos-biology-2002212", "plos-biology-2006930", "plos-pathogens-1011871"],
+      "sourceIds": ["plos-biology-2002212", "plos-biology-2006930", "plos-pathogens-1011871", "plos-comp-biology-1012382"],
       "review": {
         "decision": "accepted",
         "reviewedBy": "Kirjolab maintainers",
-        "extractionVersion": "plos-jats-patterns-v1",
+        "extractionVersion": "plos-jats-patterns-v2",
         "distinctiveSourceLanguage": false,
         "method": "manual-source-comparison-v1"
       }
@@ -52,7 +52,7 @@
       "review": {
         "decision": "accepted",
         "reviewedBy": "Kirjolab maintainers",
-        "extractionVersion": "plos-jats-patterns-v1",
+        "extractionVersion": "plos-jats-patterns-v2",
         "distinctiveSourceLanguage": false,
         "method": "manual-source-comparison-v1"
       }
@@ -62,11 +62,11 @@
       "purposeId": "introduce-evidence",
       "template": "This interpretation is supported by {evidence}.",
       "slots": [{ "name": "evidence", "type": "evidence-reference" }],
-      "sourceIds": ["plos-medicine-1002467", "plos-pathogens-1007870", "plos-one-0258286"],
+      "sourceIds": ["plos-medicine-1002467", "plos-pathogens-1007870", "plos-one-0258286", "plos-comp-biology-1005734"],
       "review": {
         "decision": "accepted",
         "reviewedBy": "Kirjolab maintainers",
-        "extractionVersion": "plos-jats-patterns-v1",
+        "extractionVersion": "plos-jats-patterns-v2",
         "distinctiveSourceLanguage": false,
         "method": "manual-source-comparison-v1"
       }
@@ -76,11 +76,11 @@
       "purposeId": "state-limitation",
       "template": "These findings should be interpreted in light of {limitation}.",
       "slots": [{ "name": "limitation", "type": "noun-phrase" }],
-      "sourceIds": ["plos-one-0125761", "plos-medicine-1001117", "plos-biology-2002212"],
+      "sourceIds": ["plos-one-0125761", "plos-medicine-1001117", "plos-biology-2002212", "plos-comp-biology-1009979"],
       "review": {
         "decision": "accepted",
         "reviewedBy": "Kirjolab maintainers",
-        "extractionVersion": "plos-jats-patterns-v1",
+        "extractionVersion": "plos-jats-patterns-v2",
         "distinctiveSourceLanguage": false,
         "method": "manual-source-comparison-v1"
       }

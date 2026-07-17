@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "inventoryVersion": "2026-07-17.1",
+  "inventoryVersion": "2026-07-17.2",
   "retrievalService": {
     "name": "PLOS JATS corpus",
     "url": "https://api.plos.org/text-and-data-mining.html"
@@ -96,6 +96,48 @@
         "retrievedAt": "2026-07-17"
       },
       "patternIds": ["contrast-prior"]
+    },
+    {
+      "id": "plos-comp-biology-1012382",
+      "doi": "10.1371/journal.pcbi.1012382",
+      "title": "Structural and mechanistic diversity in p53-mediated regulation of organismal longevity across taxonomical orders",
+      "authors": ["Romani Osbourne", "Kelly M. Thayer"],
+      "venue": "PLOS Computational Biology",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/ploscompbiol/article/file?id=10.1371/journal.pcbi.1012382&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["qualify-suggests"]
+    },
+    {
+      "id": "plos-comp-biology-1005734",
+      "doi": "10.1371/journal.pcbi.1005734",
+      "title": "Sequence features of viral and human Internal Ribosome Entry Sites predictive of their activity",
+      "authors": ["Alexey A. Gritsenko", "Shira Weingarten-Gabbay", "Shani Elias-Kirma", "Ronit Nir", "Dick de Ridder", "Eran Segal"],
+      "venue": "PLOS Computational Biology",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/ploscompbiol/article/file?id=10.1371/journal.pcbi.1005734&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["evidence-supported-by"]
+    },
+    {
+      "id": "plos-comp-biology-1009979",
+      "doi": "10.1371/journal.pcbi.1009979",
+      "title": "Short-term and long-term epidemiological impacts of sustained vector control in various dengue endemic settings: A modelling study",
+      "authors": ["Haoyang Sun", "Joel Koo", "Borame L. Dickens", "Hannah E. Clapham", "Alex R. Cook"],
+      "venue": "PLOS Computational Biology",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/ploscompbiol/article/file?id=10.1371/journal.pcbi.1009979&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["limitation-interpreted-light"]
     },
     {
       "id": "plos-biology-3001225",

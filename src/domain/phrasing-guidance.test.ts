@@ -15,8 +15,8 @@ const attributionPath = "phrasing-guidance/ATTRIBUTION.md";
 describe("phrasing guidance inventory", () => {
   it("exposes the reviewed release without source metadata", () => {
     expect(phrasingGuidanceRelease()).toEqual({
-      inventoryVersion: "2026-07-17.1",
-      extractionVersion: "plos-jats-patterns-v1",
+      inventoryVersion: "2026-07-17.2",
+      extractionVersion: "plos-jats-patterns-v2",
       reviewedAt: "2026-07-17",
     });
     expect(phrasingPurposes().map(({ id }) => id)).toEqual([
@@ -41,6 +41,16 @@ describe("phrasing guidance inventory", () => {
   it("validates licences, provenance, recurrence, similarity review, and attribution", async () => {
     const attribution = await readFile(attributionPath, "utf8");
     expect(() => validatePhrasingGuidanceArtifacts(inventory, sources, attribution)).not.toThrow();
+  });
+
+  it("includes PLOS Computational Biology evidence for every rhetorical purpose", () => {
+    const computationalSourceIds = new Set(
+      sources.sources.filter(({ venue }) => venue === "PLOS Computational Biology").map(({ id }) => id),
+    );
+
+    for (const pattern of inventory.patterns) {
+      expect(pattern.sourceIds.some((sourceId) => computationalSourceIds.has(sourceId))).toBe(true);
+    }
   });
 
   it("fails closed on a disallowed licence", async () => {

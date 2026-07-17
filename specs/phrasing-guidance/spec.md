@@ -17,6 +17,9 @@ specific to the researcher's passage and subject to normal review.
 - Corpus sources are limited to CC0 and CC BY papers whose machine-readable
   licence and designated retrieval route are recorded. Unknown, custom, NC, ND,
   and SA licences fail validation.
+- Every rhetorical purpose in the initial inventory has support from PLOS
+  Computational Biology, so computational research conventions remain
+  represented alongside the broader biomedical corpus.
 - An accepted pattern is short, contains only typed reusable slots, and records
   recurrence across at least three articles, three independent author groups,
   and two publication venues. Automated recurrence is evidence only; each item
@@ -76,6 +79,8 @@ specific to the researcher's passage and subject to normal review.
   bounded and unique. Every source and pattern relationship is reciprocal.
 - Each pattern has at least three supporting sources with disjoint normalized
   author groups and at least two venues.
+- Each pattern retains at least one supporting PLOS Computational Biology
+  source.
 - Source-similarity review is tied to the current extraction version and records
   that no accepted pattern contains a distinctive source fragment.
 - The model receives at most five purpose-matched patterns and no corpus source

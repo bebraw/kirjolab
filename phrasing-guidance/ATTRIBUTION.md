@@ -1,6 +1,6 @@
 # Phrasing Guidance Attribution
 
-Inventory version `2026-07-17.1` was independently derived from the PLOS JATS
+Inventory version `2026-07-17.2` was independently derived from the PLOS JATS
 corpus. The supporting articles listed in [`sources.json`](./sources.json) are
 copyright their respective authors and distributed under the Creative Commons
 Attribution 4.0 International (CC BY) licence.

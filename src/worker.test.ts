@@ -84,7 +84,7 @@ describe("worker", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
     const body = (await response.json()) as { inventoryVersion: string; sources: Array<{ id: string; license: string }> };
-    expect(body.inventoryVersion).toBe("2026-07-17.1");
+    expect(body.inventoryVersion).toBe("2026-07-17.2");
     expect(body.sources[0]).toMatchObject({ id: "plos-biology-2002212", license: "CC-BY-4.0" });
   });
 
