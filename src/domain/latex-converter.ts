@@ -341,9 +341,10 @@ function convertLatexFile(
     return protectBlock(`\`\`\`tikz\n${whole.trim()}\n\`\`\``);
   });
   for (const environment of ["lstlisting", "verbatim", "minted"] as const) {
-    source = replaceEnvironment(source, environment, (body) =>
-      protectBlock(`\`\`\`\n${body.replace(/^\{[^}]*\}\s*/u, "").trim()}\n\`\`\``),
-    );
+    source = replaceEnvironment(source, environment, (body, _whole, _from, options) => {
+      const listing = codeListing(body, environment, options);
+      return protectBlock(fencedCode(listing.source, listing.language));
+    });
   }
   source = stripComments(source);
   source = replaceEnvironment(source, "tabularx", (body) => tableMarkdown(body, 2));
@@ -543,10 +544,79 @@ function stripComments(source: string): string {
     .join("\n");
 }
 
-function replaceEnvironment(source: string, environment: string, replace: (body: string, whole: string, from: number) => string): string {
+function replaceEnvironment(
+  source: string,
+  environment: string,
+  replace: (body: string, whole: string, from: number, options?: string) => string,
+): string {
   const escaped = environment.replaceAll("*", "\\*");
-  const pattern = new RegExp(`\\\\begin\\s*\\{${escaped}\\}(?:\\[[^\\]]*\\])?([\\s\\S]*?)\\\\end\\s*\\{${escaped}\\}`, "gu");
-  return source.replace(pattern, (whole: string, body: string, offset: number) => replace(body, whole, offset));
+  const beginPattern = new RegExp(`\\\\begin\\s*\\{${escaped}\\}(?:\\[([^\\]]*)\\])?`, "gu");
+  const endPattern = new RegExp(`\\\\end\\s*\\{${escaped}\\}`, "gu");
+  let converted = "";
+  let cursor = 0;
+  while (cursor < source.length) {
+    beginPattern.lastIndex = cursor;
+    const begin = nextUncommentedMatch(source, beginPattern);
+    if (!begin) break;
+    const bodyStart = begin.index + begin[0].length;
+    endPattern.lastIndex = bodyStart;
+    const end = nextUncommentedMatch(source, endPattern);
+    if (!end) break;
+    const wholeEnd = end.index + end[0].length;
+    const whole = source.slice(begin.index, wholeEnd);
+    converted += source.slice(cursor, begin.index);
+    converted += replace(source.slice(bodyStart, end.index), whole, begin.index, begin[1]);
+    cursor = wholeEnd;
+  }
+  return `${converted}${source.slice(cursor)}`;
+}
+
+function nextUncommentedMatch(source: string, pattern: RegExp): RegExpExecArray | null {
+  let match = pattern.exec(source);
+  while (match && latexCommentedAt(source, match.index)) match = pattern.exec(source);
+  return match;
+}
+
+function latexCommentedAt(source: string, offset: number): boolean {
+  const lineStart = source.lastIndexOf("\n", offset - 1) + 1;
+  for (let index = lineStart; index < offset; index += 1) {
+    if (source[index] !== "%") continue;
+    let escapes = 0;
+    for (let cursor = index - 1; cursor >= lineStart && source[cursor] === "\\"; cursor -= 1) escapes += 1;
+    if (escapes % 2 === 0) return true;
+  }
+  return false;
+}
+
+function codeListing(
+  body: string,
+  environment: "lstlisting" | "verbatim" | "minted",
+  options?: string,
+): { readonly source: string; readonly language?: string } {
+  let source = body;
+  let language = /(?:^|,)\s*language\s*=\s*(?:\{([^{}]*)\}|([^,]+))/iu
+    .exec(options ?? "")
+    ?.slice(1)
+    .find(Boolean);
+  if (environment !== "verbatim") {
+    const positionalLanguage = /^\s*\{([^{}\r\n]*)\}/u.exec(source);
+    if (positionalLanguage) {
+      language ??= positionalLanguage[1];
+      source = source.slice(positionalLanguage[0].length);
+    }
+  }
+  source = source.replace(/^\r?\n/u, "").replace(/\r?\n$/u, "");
+  const normalizedLanguage = language?.trim().toLocaleLowerCase();
+  return {
+    source,
+    ...(normalizedLanguage && /^[a-z0-9_+.-]{1,32}$/u.test(normalizedLanguage) ? { language: normalizedLanguage } : {}),
+  };
+}
+
+function fencedCode(source: string, language?: string): string {
+  const longestRun = Math.max(0, ...[...source.matchAll(/`+/gu)].map((match) => match[0].length));
+  const fence = "`".repeat(Math.max(3, longestRun + 1));
+  return `${fence}${language ?? ""}\n${source}\n${fence}`;
 }
 
 function listMarkdown(body: string, ordered: boolean): string {

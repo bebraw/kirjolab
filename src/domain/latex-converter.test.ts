@@ -53,7 +53,7 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A \texttt{nested} note
     expect(result.seed.files[2]?.content).toContain("**weight**");
     expect(result.seed.files[2]?.content).toContain("[^latex-sections-introduction-1]");
     expect(result.seed.files[2]?.content).toContain("[^latex-sections-introduction-1]: A `nested` note");
-    expect(result.seed.files[2]?.content).toContain("```\n<p>Hello</p>\n```");
+    expect(result.seed.files[2]?.content).toContain("```html\n<p>Hello</p>\n```");
     expect(result.report.sourceFiles).not.toContain("publisher-preamble.tex");
     expect(result.report.ignoredFiles).toContain("unused.bib");
     expect(result.report.diagnostics).not.toEqual(expect.arrayContaining([expect.objectContaining({ path: "publisher-preamble.tex" })]));
@@ -81,6 +81,63 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A \texttt{nested} note
     expect(result.seed.files[0]?.content).toContain("boxplot prepared={median=10");
     expect(result.seed.files[0]?.content).toContain("% retain this authored comment");
     expect(result.report.diagnostics).toContainEqual(expect.objectContaining({ code: "tikz-preserved", severity: "info" }));
+  });
+
+  it("preserves code listings in figures with their language and authored contents", () => {
+    const inspection = analyzeLatexArchiveFiles([
+      tex(
+        "main.tex",
+        String.raw`\documentclass{article}\begin{document}
+The example at \autoref{fig:summary} based on \cite{mozilladetails2025} illustrates the usage.
+
+\begin{figure}[h]
+% https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/details
+%\begin{minted}{html}
+\begin{lstlisting}{html}
+<details>
+  <summary>What is HTML First?</summary>
+  A paradigm that favors the usage of HTML before other
+  technologies.
+</details>
+\end{lstlisting}
+%\end{minted}
+    \caption{\texttt{details} and \texttt{summary} elements work in tandem to enable foldable containers using pure HTML.}
+    %\Description{Details and summary elements work in tandem to enable foldable containers using pure HTML.}
+    \label{fig:summary}
+\end{figure}
+\end{document}`,
+      ),
+    ]);
+
+    const result = convertLatexInspection(inspection, { rootPath: "main.tex" });
+    const markdown = result.seed.files[0]?.content ?? "";
+
+    expect(markdown).toContain(":ref[fig:summary]");
+    expect(markdown).toContain(":cite[mozilladetails2025]");
+    expect(markdown).toContain(
+      "```html\n<details>\n  <summary>What is HTML First?</summary>\n  A paradigm that favors the usage of HTML before other\n  technologies.\n</details>\n```",
+    );
+    expect(markdown).toContain("`details` and `summary` elements work in tandem");
+    expect(markdown).toContain("::anchor[fig:summary]");
+    expect(markdown).not.toContain("Description");
+    expect(markdown).not.toContain("minted");
+  });
+
+  it("recognizes standard listing language options and uses a safe Markdown fence", () => {
+    const inspection = analyzeLatexArchiveFiles([
+      tex(
+        "main.tex",
+        String.raw`\documentclass{article}\begin{document}
+\begin{lstlisting}[language=JavaScript]
+const fence = ${"```"};
+\end{lstlisting}
+\end{document}`,
+      ),
+    ]);
+
+    const result = convertLatexInspection(inspection, { rootPath: "main.tex" });
+
+    expect(result.seed.files[0]?.content).toContain("````javascript\nconst fence = ```;\n````");
   });
 
   it("translates a bounded horizontal prepared boxplot to a native figure", () => {

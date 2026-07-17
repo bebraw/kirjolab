@@ -34,6 +34,10 @@ not translate cleanly.
 - `\cite`, `\citep`, and `\citet` preserve citation aliases and map to
   Kirjolab citation modes. `\label` and `\autoref` map to stable heading ids,
   anchors, and `:ref` directives where the target can be resolved.
+- `lstlisting`, `minted`, and `verbatim` bodies remain literal fenced code,
+  including when nested in a figure. Recognized positional or `language=`
+  metadata becomes a sanitized Markdown fence language without altering the
+  authored code indentation or interpreting commented-out environments.
 - Supported raster images and inert SVGs become project assets below
   `figures/`. Publisher classes, style files, fonts, binaries, generated
   auxiliaries, and unrelated manuals remain ignored import inputs.
