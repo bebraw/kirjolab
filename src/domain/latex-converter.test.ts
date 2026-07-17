@@ -77,6 +77,23 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A note}.
     expect(result.report.diagnostics).toContainEqual(expect.objectContaining({ code: "tikz-preserved", severity: "info" }));
   });
 
+  it("resolves graphic search paths into project assets and relative Markdown links", () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const inspection = analyzeLatexArchiveFiles([
+      tex(
+        "main.tex",
+        String.raw`\documentclass{article}\usepackage{graphicx}\graphicspath{{./images/}}\begin{document}\input{sections/result}\end{document}`,
+      ),
+      tex("sections/result.tex", String.raw`\includegraphics[width=3cm]{plot}`),
+      { path: "images/plot.png", kind: "image", bytes: png },
+    ]);
+
+    const result = convertLatexInspection(inspection, { rootPath: "main.tex" });
+
+    expect(result.assets).toEqual([{ path: "figures/plot.png", mediaType: "image/png", bytes: png }]);
+    expect(result.seed.files[1]?.content).toContain("![Imported figure](../figures/plot.png)");
+  });
+
   it("reports include cycles and keeps the converted files reviewable", () => {
     const inspection = analyzeLatexArchiveFiles([
       tex("main.tex", String.raw`\documentclass{article}\begin{document}\input{part}\end{document}`),

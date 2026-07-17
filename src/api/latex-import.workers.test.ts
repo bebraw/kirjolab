@@ -16,9 +16,12 @@ describe("LaTeX import API in the Workers runtime", () => {
     const catalog = env.WORKSPACE_CATALOGS.getByName(identity.ownerKey);
     const workspacesBeforePreview = await catalog.listWorkspaces();
     const archive = zipSync({
-      "main.tex": strToU8(String.raw`\documentclass{article}\begin{document}\input{section}\bibliography{refs}\end{document}`),
-      "section.tex": strToU8(String.raw`\section{Result}\label{sec:result}Evidence \cite{source}.`),
+      "main.tex": strToU8(
+        String.raw`\documentclass{article}\graphicspath{{./images/}}\begin{document}\input{section}\bibliography{refs}\end{document}`,
+      ),
+      "section.tex": strToU8(String.raw`\section{Result}\label{sec:result}Evidence \cite{source}.\includegraphics{result}`),
       "refs.bib": strToU8("@article{source, title={Source}}"),
+      "images/result.png": new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
     });
     const previewResponse = await handleLatexImportApi(zipRequest("http://example.com/api/latex-import-previews", archive), env, identity);
 
@@ -27,6 +30,7 @@ describe("LaTeX import API in the Workers runtime", () => {
     expect(preview.digest).toMatch(/^[a-f0-9]{64}$/u);
     expect(preview.conversion).toMatchObject({
       seed: { entryPath: "main.md", files: [{ path: "main.md" }, { path: "section.md" }] },
+      assets: [{ path: "figures/result.png", mediaType: "image/png", bytes: 8 }],
       report: { rootPath: "main.tex", bibliographyPath: "refs.bib" },
     });
     expect(await catalog.listWorkspaces()).toEqual(workspacesBeforePreview);
@@ -45,7 +49,10 @@ describe("LaTeX import API in the Workers runtime", () => {
     expect(snapshot.title).toBe("Imported paper");
     expect(snapshot.files.map((file) => file.path)).toEqual(["main.md", "section.md"]);
     expect(snapshot.files[1]?.content).toContain(":cite[source]");
+    expect(snapshot.files[1]?.content).toContain("![Imported figure](figures/result.png)");
     expect(snapshot.bibliography).toContain("@article{source");
+    expect(snapshot.assets).toEqual([expect.objectContaining({ path: "figures/result.png", mediaType: "image/png", size: 8 })]);
+    expect(await env.PAPERS.get(snapshot.assets[0]!.objectKey)).not.toBeNull();
   });
 
   it("requires an explicit root for ambiguous archives", async () => {

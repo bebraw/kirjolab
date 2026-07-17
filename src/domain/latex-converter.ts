@@ -1,4 +1,5 @@
 import type { ProjectTemplateFileSeed, ProjectTemplateSeed } from "./project-templates";
+import { resolveProjectPath } from "./project-files";
 import { defaultProjectPublicationProfile } from "./workspace";
 import type {
   LatexArchiveFile,
@@ -24,7 +25,14 @@ export interface LatexConversionReport {
 
 export interface LatexConversionPreview {
   readonly seed: ProjectTemplateSeed;
+  readonly assets: readonly LatexConversionAsset[];
   readonly report: LatexConversionReport;
+}
+
+export interface LatexConversionAsset {
+  readonly path: string;
+  readonly mediaType: "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/avif" | "image/svg+xml";
+  readonly bytes: Uint8Array;
 }
 
 const maximumTikzBlocks = 32;
@@ -58,13 +66,15 @@ export function convertLatexInspection(inspection: LatexArchiveInspection, selec
   );
   const bibliographyPath = selectBibliography(inspection.files, bibliographyReferences, selection.bibliographyPath);
   const pathMap = markdownPathMap(reachablePaths, selection.rootPath);
+  const images = referencedImages(inspection.files, reachablePaths, pathMap);
+  diagnostics.push(...images.diagnostics);
   const files: ProjectTemplateFileSeed[] = [];
   let tikzBlocks = 0;
 
   for (const path of reachablePaths) {
     const file = inspection.files.find((candidate) => candidate.path === path);
     if (!file?.text) continue;
-    const conversion = convertLatexFile(file, path === selection.rootPath, includesBySource.get(path) ?? [], pathMap);
+    const conversion = convertLatexFile(file, path === selection.rootPath, includesBySource.get(path) ?? [], pathMap, images.paths);
     tikzBlocks += conversion.tikzBlocks;
     diagnostics.push(...conversion.diagnostics);
     files.push({ path: pathMap.get(path)!, content: conversion.markdown });
@@ -84,6 +94,7 @@ export function convertLatexInspection(inspection: LatexArchiveInspection, selec
   };
   return {
     seed,
+    assets: images.assets,
     report: {
       schemaVersion: 1,
       rootPath: selection.rootPath,
@@ -155,11 +166,121 @@ function markdownPathMap(paths: readonly string[], rootPath: string): Map<string
   return result;
 }
 
+function referencedImages(
+  files: readonly LatexArchiveFile[],
+  sourcePaths: readonly string[],
+  markdownPaths: ReadonlyMap<string, string>,
+): {
+  readonly assets: readonly LatexConversionAsset[];
+  readonly paths: ReadonlyMap<string, string>;
+  readonly diagnostics: readonly LatexImportDiagnostic[];
+} {
+  const imageFiles = files.filter((file) => file.kind === "image");
+  const imagePaths = new Set(imageFiles.map((file) => file.path));
+  const searchFolders = files
+    .filter((file) => sourcePaths.includes(file.path) && file.text)
+    .flatMap((file) => graphicSearchFolders(file.text ?? ""));
+  const assets = new Map<string, LatexConversionAsset>();
+  const paths = new Map<string, string>();
+  const diagnostics: LatexImportDiagnostic[] = [];
+
+  for (const sourcePath of sourcePaths) {
+    const source = files.find((file) => file.path === sourcePath)?.text ?? "";
+    for (const match of stripComments(source).matchAll(/\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]+)\}/gu)) {
+      const requested = (match[1] ?? "").trim();
+      const candidates = resolveImageCandidates(sourcePath, requested, searchFolders, imagePaths);
+      if (candidates.length !== 1) {
+        diagnostics.push({
+          code: candidates.length === 0 ? "missing-image" : "ambiguous-image",
+          severity: "warning",
+          path: sourcePath,
+          from: match.index,
+          to: match.index + match[0].length,
+          message:
+            candidates.length === 0
+              ? `Referenced figure was not found: ${requested}`
+              : `Referenced figure matches more than one archive file: ${requested}`,
+        });
+        continue;
+      }
+      const archivePath = candidates[0]!;
+      const image = imageFiles.find((file) => file.path === archivePath)!;
+      const assetPath = archivePath.startsWith("figures/") ? archivePath : `figures/${archivePath.split("/").at(-1)!}`;
+      const existing = assets.get(assetPath.toLocaleLowerCase());
+      if (existing && !equalBytes(existing.bytes, image.bytes)) {
+        diagnostics.push({
+          code: "ambiguous-image",
+          severity: "warning",
+          path: sourcePath,
+          message: `Referenced figures collide at project path: ${assetPath}`,
+        });
+        continue;
+      }
+      assets.set(assetPath.toLocaleLowerCase(), { path: assetPath, mediaType: imageMediaType(archivePath), bytes: image.bytes });
+      paths.set(imageReferenceKey(sourcePath, requested), assetPath);
+    }
+  }
+  for (const asset of assets.values()) {
+    if ([...markdownPaths.values()].some((path) => path.toLocaleLowerCase() === asset.path.toLocaleLowerCase())) {
+      throw new LatexConversionError("unsupported-environment", `Figure path collides with converted Markdown: ${asset.path}`);
+    }
+  }
+  return { assets: [...assets.values()].sort((left, right) => left.path.localeCompare(right.path)), paths, diagnostics };
+}
+
+function graphicSearchFolders(source: string): string[] {
+  return [...stripComments(source).matchAll(/\\graphicspath\s*\{((?:\{[^}]*\})+)\}/gu)].flatMap((match) =>
+    [...(match[1] ?? "").matchAll(/\{([^}]*)\}/gu)].flatMap((folder) => {
+      const normalized = (folder[1] ?? "").trim().replace(/^\.\//u, "").replace(/\/$/u, "");
+      return normalized ? [normalized] : [];
+    }),
+  );
+}
+
+function resolveImageCandidates(
+  sourcePath: string,
+  requested: string,
+  searchFolders: readonly string[],
+  imagePaths: ReadonlySet<string>,
+): string[] {
+  if (!requested || requested.startsWith("/") || requested.includes("\\") || requested.includes("..")) return [];
+  const extensions = ["", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg"];
+  const bases = new Set<string>();
+  const relative = resolveProjectPath(sourcePath, requested);
+  if (relative) bases.add(relative);
+  bases.add(requested.replace(/^\.\//u, ""));
+  for (const folder of searchFolders) bases.add(`${folder}/${requested.replace(/^\.\//u, "")}`);
+  const candidates = new Set<string>();
+  for (const base of bases) {
+    for (const extension of extensions) if (imagePaths.has(`${base}${extension}`)) candidates.add(`${base}${extension}`);
+  }
+  return [...candidates].sort((left, right) => left.localeCompare(right));
+}
+
+function imageReferenceKey(sourcePath: string, requested: string): string {
+  return `${sourcePath}\0${requested}`;
+}
+
+function imageMediaType(path: string): LatexConversionAsset["mediaType"] {
+  const extension = path.slice(path.lastIndexOf(".")).toLocaleLowerCase();
+  if (extension === ".png") return "image/png";
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".gif") return "image/gif";
+  if (extension === ".webp") return "image/webp";
+  if (extension === ".avif") return "image/avif";
+  return "image/svg+xml";
+}
+
+function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
+  return left.byteLength === right.byteLength && left.every((byte, index) => byte === right[index]);
+}
+
 function convertLatexFile(
   file: LatexArchiveFile,
   root: boolean,
   includes: readonly LatexIncludeReference[],
   pathMap: ReadonlyMap<string, string>,
+  imagePaths: ReadonlyMap<string, string>,
 ): { readonly markdown: string; readonly diagnostics: readonly LatexImportDiagnostic[]; readonly tikzBlocks: number } {
   let source = stripComments(file.text ?? "");
   if (root) source = documentBody(source);
@@ -221,7 +342,11 @@ function convertLatexFile(
   source = replaceSimpleCommand(source, ["label"], (value) => `\n\n::anchor[${value.trim()}]\n\n`);
   source = replaceSimpleCommand(source, ["url"], (value) => `<${value.trim()}>`);
   source = source.replace(/\\href\s*\{([^}]*)\}\s*\{([^}]*)\}/gu, "[$2]($1)");
-  source = source.replace(/\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]+)\}/gu, "![Imported figure]($1)");
+  source = source.replace(/\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]+)\}/gu, (_whole, requested: string) => {
+    const target = imagePaths.get(imageReferenceKey(file.path, requested.trim()));
+    const current = pathMap.get(file.path);
+    return target && current ? `![Imported figure](${relativeMarkdownPath(current, target)})` : `[Missing figure: ${requested.trim()}]`;
+  });
   source = source.replace(/\\\[\s*([\s\S]*?)\s*\\\]/gu, "\n\n$$$$\n$1\n$$$$\n\n");
   source = source.replace(/\\begin\s*\{(?:figure\*?|table\*?|center|description)\}(?:\[[^\]]*\])?/gu, "\n");
   source = source.replace(/\\end\s*\{(?:figure\*?|table\*?|center|description)\}/gu, "\n");

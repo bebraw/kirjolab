@@ -227,6 +227,7 @@ interface LatexImportPreview {
   };
   readonly conversion: {
     readonly seed: { readonly files: readonly { readonly path: string; readonly content: string }[]; readonly bibliography: string };
+    readonly assets: readonly { readonly path: string; readonly mediaType: string; readonly bytes: number }[];
     readonly report: {
       readonly rootPath: string;
       readonly bibliographyPath: string | null;
@@ -1509,7 +1510,7 @@ class WorkspaceApp {
       this.#latexImportBibliographyPath = value.conversion.report.bibliographyPath;
       const heading = document.createElement("p");
       heading.className = "text-sm font-semibold text-app-text";
-      const imageCount = value.archive.files.filter((file) => file.kind === "image").length;
+      const imageCount = value.conversion.assets.length;
       heading.textContent = `${value.conversion.seed.files.length} Markdown files · ${imageCount} figure inputs detected · ${value.conversion.seed.bibliography ? "bibliography selected" : "no bibliography"}`;
       const files = document.createElement("div");
       files.className = "mt-3 space-y-2";
@@ -9994,6 +9995,16 @@ function isLatexImportPreview(value: unknown): value is LatexImportPreview {
     Array.isArray(value.conversion.seed.files) &&
     value.conversion.seed.files.every((file) => isRecord(file) && typeof file.path === "string" && typeof file.content === "string") &&
     typeof value.conversion.seed.bibliography === "string" &&
+    Array.isArray(value.conversion.assets) &&
+    value.conversion.assets.every(
+      (asset) =>
+        isRecord(asset) &&
+        typeof asset.path === "string" &&
+        typeof asset.mediaType === "string" &&
+        typeof asset.bytes === "number" &&
+        Number.isSafeInteger(asset.bytes) &&
+        asset.bytes > 0,
+    ) &&
     typeof value.conversion.report.rootPath === "string" &&
     (value.conversion.report.bibliographyPath === null || typeof value.conversion.report.bibliographyPath === "string") &&
     Array.isArray(value.conversion.report.diagnostics) &&

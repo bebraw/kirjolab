@@ -6,7 +6,8 @@ import {
   type LatexArchiveInspection,
 } from "../domain/latex-import";
 import { isProjectTemplateSeed } from "../domain/project-templates";
-import { isCreateWorkspaceInput } from "../domain/workspace";
+import { isInertSvgImage } from "../domain/project-files";
+import { isCreateWorkspaceInput, type ProjectAsset } from "../domain/workspace";
 import type { AuthIdentity } from "../security/auth";
 
 const supportedArchiveTypes = new Set(["application/zip", "application/x-zip-compressed"]);
@@ -37,7 +38,10 @@ export async function handleLatexImportApi(request: Request, env: Env, identity:
       const conversion = rootPath
         ? convertLatexInspection(inspection, { rootPath, ...(bibliographyPath ? { bibliographyPath } : {}) })
         : null;
-      return Response.json({ digest, archive: publicInspection(inspection), conversion }, { headers: { "cache-control": "no-store" } });
+      return Response.json(
+        { digest, archive: publicInspection(inspection), conversion: conversion ? publicConversion(conversion) : null },
+        { headers: { "cache-control": "no-store" } },
+      );
     }
 
     const title = url.searchParams.get("title") ?? "";
@@ -49,11 +53,16 @@ export async function handleLatexImportApi(request: Request, env: Env, identity:
     const conversion = convertLatexInspection(inspection, { rootPath, ...(bibliographyPath ? { bibliographyPath } : {}) });
     if (conversion.report.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
       return Response.json(
-        { error: "LaTeX conversion has blocking diagnostics", code: "conversion-blocked", conversion },
+        { error: "LaTeX conversion has blocking diagnostics", code: "conversion-blocked", conversion: publicConversion(conversion) },
         { status: 422, headers: { "cache-control": "no-store" } },
       );
     }
     if (!isProjectTemplateSeed(conversion.seed)) return jsonError("Converted project exceeds project bounds", 422, "invalid-seed");
+    const invalidAsset = conversion.assets.find(
+      (asset) =>
+        asset.bytes.byteLength <= 0 || asset.bytes.byteLength > 20 * 1024 * 1024 || !hasImageSignature(asset.mediaType, asset.bytes),
+    );
+    if (invalidAsset) return jsonError(`Converted figure is invalid: ${invalidAsset.path}`, 422, "invalid-asset");
 
     const normalizedTitle = title.trim();
     const id = crypto.randomUUID();
@@ -61,9 +70,17 @@ export async function handleLatexImportApi(request: Request, env: Env, identity:
     const access = env.WORKSPACE_ACCESS.getByName(id);
     await access.initializeOwner(identity.email);
     const room = env.DOCUMENT_ROOMS.getByName(id);
-    await room.seedFromTemplate(id, normalizedTitle, conversion.seed);
-    const workspace = await catalog.registerWorkspace(id, normalizedTitle);
-    return Response.json({ workspace, report: conversion.report }, { status: 201, headers: { "cache-control": "no-store" } });
+    const storedAssets: ProjectAsset[] = [];
+    try {
+      for (const asset of conversion.assets) storedAssets.push(await storeAsset(env, id, asset));
+      await room.seedFromTemplate(id, normalizedTitle, conversion.seed);
+      for (const asset of storedAssets) await room.registerProjectAsset(id, asset);
+      const workspace = await catalog.registerWorkspace(id, normalizedTitle);
+      return Response.json({ workspace, report: conversion.report }, { status: 201, headers: { "cache-control": "no-store" } });
+    } catch (error) {
+      await Promise.all(storedAssets.map(async (asset) => await env.PAPERS.delete(asset.objectKey)));
+      throw error;
+    }
   } catch (error) {
     if (error instanceof LatexArchiveFailure) return jsonError(error.message, archiveFailureStatus(error), error.code);
     if (error instanceof LatexConversionError) return jsonError(error.message, 400, error.code);
@@ -81,6 +98,46 @@ function publicInspection(inspection: LatexArchiveInspection) {
     bibliographies: inspection.bibliographies,
     diagnostics: inspection.diagnostics,
   };
+}
+
+function publicConversion(conversion: ReturnType<typeof convertLatexInspection>) {
+  return {
+    seed: conversion.seed,
+    assets: conversion.assets.map((asset) => ({ path: asset.path, mediaType: asset.mediaType, bytes: asset.bytes.byteLength })),
+    report: conversion.report,
+  };
+}
+
+async function storeAsset(
+  env: Env,
+  workspaceId: string,
+  asset: ReturnType<typeof convertLatexInspection>["assets"][number],
+): Promise<ProjectAsset> {
+  const id = crypto.randomUUID();
+  const objectKey = `${workspaceId}/assets/${id}`;
+  const stored = await env.PAPERS.put(objectKey, asset.bytes, { httpMetadata: { contentType: asset.mediaType } });
+  const now = new Date().toISOString();
+  return {
+    id,
+    path: asset.path,
+    mediaType: asset.mediaType,
+    size: asset.bytes.byteLength,
+    objectKey,
+    fingerprint: `r2-etag:${stored.etag.replaceAll('"', "")}`,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function hasImageSignature(mediaType: ProjectAsset["mediaType"], bytes: Uint8Array): boolean {
+  const ascii = (start: number, end: number): string => new TextDecoder().decode(bytes.subarray(start, end));
+  if (mediaType === "image/png")
+    return bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => bytes[index] === byte);
+  if (mediaType === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (mediaType === "image/gif") return ascii(0, 6) === "GIF87a" || ascii(0, 6) === "GIF89a";
+  if (mediaType === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
+  if (mediaType === "image/avif") return ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12));
+  return isInertSvgImage(bytes);
 }
 
 async function archiveDigest(bytes: Uint8Array): Promise<string> {

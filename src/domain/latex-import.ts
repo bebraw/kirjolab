@@ -11,10 +11,12 @@ export type LatexArchiveFileKind = "tex" | "bibtex" | "image" | "ignored";
 export type LatexImportDiagnosticCode =
   | "ambiguous-root"
   | "include-cycle"
+  | "ambiguous-image"
   | "invalid-bibliography-selection"
   | "invalid-root-selection"
   | "missing-bibliography"
   | "missing-include"
+  | "missing-image"
   | "missing-root"
   | "tikz-preserved"
   | "unsupported-environment"
