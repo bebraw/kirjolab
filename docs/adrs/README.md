@@ -21,9 +21,11 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                       | Status   | Summary                            |
-| ----------------------------------------- | -------- | ---------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
+| ADR                                                                  | Status   | Summary                                                                                              |
+| -------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md)                            | Proposed | Template for drafting future ADRs.                                                                   |
+| [ADR-143](./proposed/ADR-143-coordinate-project-review-studies.md)   | Proposed | Coordinate protocol-driven SLR and MLR state through a project-associated review-study authority.    |
+| [ADR-144](./proposed/ADR-144-derive-review-outputs-from-evidence.md) | Proposed | Derive analysis, reporting, manuscript artifacts, and portable packages from pinned review evidence. |
 
 ## Accepted ADRs
 
