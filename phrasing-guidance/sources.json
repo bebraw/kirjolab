@@ -1,0 +1,237 @@
+{
+  "schemaVersion": 1,
+  "inventoryVersion": "2026-07-17.1",
+  "retrievalService": {
+    "name": "PLOS JATS corpus",
+    "url": "https://api.plos.org/text-and-data-mining.html"
+  },
+  "sources": [
+    {
+      "id": "plos-biology-2002212",
+      "doi": "10.1371/journal.pbio.2002212",
+      "title": "Can cancer researchers accurately judge whether preclinical reports will reproduce?",
+      "authors": ["Daniel Benjamin", "David R. Mandel", "Jonathan Kimmelman"],
+      "venue": "PLOS Biology",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plosbiology/article/file?id=10.1371/journal.pbio.2002212&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["qualify-suggests", "limitation-interpreted-light"]
+    },
+    {
+      "id": "plos-biology-2006930",
+      "doi": "10.1371/journal.pbio.2006930",
+      "title": "Reproducible research practices, transparency, and open access data in the biomedical literature, 2015–2017",
+      "authors": ["Joshua D. Wallach", "Kevin W. Boyack", "John P. A. Ioannidis"],
+      "venue": "PLOS Biology",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plosbiology/article/file?id=10.1371/journal.pbio.2006930&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["qualify-suggests"]
+    },
+    {
+      "id": "plos-pathogens-1011871",
+      "doi": "10.1371/journal.ppat.1011871",
+      "title": "Exposure to Mycobacterium remodels alveolar macrophages and the early innate response to Mycobacterium tuberculosis infection",
+      "authors": [
+        "Dat Mai",
+        "Ana Jahn",
+        "Tara Murray",
+        "Michael Morikubo",
+        "Pamelia N. Lim",
+        "Maritza M. Cervantes",
+        "Linh K. Pham",
+        "Johannes Nemeth",
+        "Kevin Urdahl",
+        "Alan H. Diercks",
+        "Alan Aderem",
+        "Alissa C. Rothchild"
+      ],
+      "venue": "PLOS Pathogens",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plospathogens/article/file?id=10.1371/journal.ppat.1011871&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["qualify-suggests"]
+    },
+    {
+      "id": "plos-one-0166284",
+      "doi": "10.1371/journal.pone.0166284",
+      "title": "Tumor Cell-Derived Exosomes from the Prostate Cancer Cell Line TRAMP-C1 Impair Osteoclast Formation and Differentiation",
+      "authors": ["Terese Karlsson", "Marie Lundholm", "Anders Widmark", "Emma Persson"],
+      "venue": "PLOS ONE",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0166284&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["contrast-prior"]
+    },
+    {
+      "id": "plos-comp-biology-1009028",
+      "doi": "10.1371/journal.pcbi.1009028",
+      "title": "Learning divisive normalization in primary visual cortex",
+      "authors": [
+        "Max F. Burg",
+        "Santiago A. Cadena",
+        "George H. Denfield",
+        "Edgar Y. Walker",
+        "Andreas S. Tolias",
+        "Matthias Bethge",
+        "Alexander S. Ecker"
+      ],
+      "venue": "PLOS Computational Biology",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/ploscompbiol/article/file?id=10.1371/journal.pcbi.1009028&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["contrast-prior"]
+    },
+    {
+      "id": "plos-biology-3001225",
+      "doi": "10.1371/journal.pbio.3001225",
+      "title": "Plasmid fitness costs are caused by specific genetic conflicts enabling resolution by compensatory mutation",
+      "authors": [
+        "James P. J. Hall",
+        "Rosanna C. T. Wright",
+        "Ellie Harrison",
+        "Katie J. Muddiman",
+        "A. Jamie Wood",
+        "Steve Paterson",
+        "Michael A. Brockhurst"
+      ],
+      "venue": "PLOS Biology",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plosbiology/article/file?id=10.1371/journal.pbio.3001225&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["contrast-prior"]
+    },
+    {
+      "id": "plos-medicine-1002467",
+      "doi": "10.1371/journal.pmed.1002467",
+      "title": "Effects of women’s groups practising participatory learning and action on preventive and care-seeking behaviours to reduce neonatal mortality: A meta-analysis of cluster-randomised trials",
+      "authors": [
+        "Nadine Seward",
+        "Melissa Neuman",
+        "Tim Colbourn",
+        "David Osrin",
+        "Sonia Lewycka",
+        "Kishwar Azad",
+        "Anthony Costello",
+        "Sushmita Das",
+        "Edward Fottrell",
+        "Abdul Kuddus",
+        "Dharma Manandhar",
+        "Nirmala Nair",
+        "Bejoy Nambiar",
+        "Neena Shah More",
+        "Tambosi Phiri",
+        "Prasanta Tripathy",
+        "Audrey Prost"
+      ],
+      "venue": "PLOS Medicine",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plosmedicine/article/file?id=10.1371/journal.pmed.1002467&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["evidence-supported-by"]
+    },
+    {
+      "id": "plos-pathogens-1007870",
+      "doi": "10.1371/journal.ppat.1007870",
+      "title": "Antigenic cartography of immune responses to Plasmodium falciparum erythrocyte membrane protein 1 (PfEMP1)",
+      "authors": [
+        "James Tuju",
+        "Margaret J. Mackinnon",
+        "Abdirahman I. Abdi",
+        "Henry Karanja",
+        "Jennifer N. Musyoki",
+        "George M. Warimwe",
+        "Evelyn N. Gitau",
+        "Kevin Marsh",
+        "Peter C. Bull",
+        "Britta C. Urban"
+      ],
+      "venue": "PLOS Pathogens",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plospathogens/article/file?id=10.1371/journal.ppat.1007870&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["evidence-supported-by"]
+    },
+    {
+      "id": "plos-one-0258286",
+      "doi": "10.1371/journal.pone.0258286",
+      "title": "Considering equity in global health collaborations: A qualitative study on experiences of equity",
+      "authors": ["Marlyn C. Faure", "Nchangwi S. Munung", "Ntobeko A. B. Ntusi", "Bridget Pratt", "Jantina de Vries"],
+      "venue": "PLOS ONE",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0258286&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["evidence-supported-by"]
+    },
+    {
+      "id": "plos-one-0125761",
+      "doi": "10.1371/journal.pone.0125761",
+      "title": "Psychological Resilience after Hurricane Sandy: The Influence of Individual- and Community-Level Factors on Mental Health after a Large-Scale Natural Disaster",
+      "authors": ["Sarah R. Lowe", "Laura Sampson", "Oliver Gruebner", "Sandro Galea"],
+      "venue": "PLOS ONE",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0125761&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["limitation-interpreted-light"]
+    },
+    {
+      "id": "plos-medicine-1001117",
+      "doi": "10.1371/journal.pmed.1001117",
+      "title": "STrengthening the Reporting of OBservational studies in Epidemiology – Molecular Epidemiology (STROBE-ME): An Extension of the STROBE Statement",
+      "authors": [
+        "Valentina Gallo",
+        "Matthias Egger",
+        "Valerie McCormack",
+        "Peter B. Farmer",
+        "John P. A. Ioannidis",
+        "Micheline Kirsch-Volders",
+        "Giuseppe Matullo",
+        "David H. Phillips",
+        "Bernadette Schoket",
+        "Ulf Stromberg",
+        "Roel Vermeulen",
+        "Christopher Wild",
+        "Miquel Porta",
+        "Paolo Vineis"
+      ],
+      "venue": "PLOS Medicine",
+      "license": "CC-BY-4.0",
+      "retrieval": {
+        "route": "plos-jats-manuscript",
+        "url": "https://journals.plos.org/plosmedicine/article/file?id=10.1371/journal.pmed.1001117&type=manuscript",
+        "retrievedAt": "2026-07-17"
+      },
+      "patternIds": ["limitation-interpreted-light"]
+    }
+  ]
+}
