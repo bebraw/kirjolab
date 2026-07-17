@@ -977,6 +977,28 @@ class WorkspaceApp {
     this.#elements.workspaceCatalogFilter.addEventListener("input", () => this.#renderWorkspaceCatalogList());
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
+    this.#elements.newWorkspaceDialog.addEventListener("keydown", (event) => {
+      if (event.key !== "Tab") return;
+      const focusable = [
+        ...this.#elements.newWorkspaceDialog.querySelectorAll<HTMLElement>(
+          "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], summary",
+        ),
+      ].filter((element) => element.offsetParent !== null);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        last.focus();
+        event.preventDefault();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        first.focus();
+        event.preventDefault();
+      }
+    });
+    this.#elements.newWorkspaceDialog.addEventListener("close", () => {
+      if (document.querySelector("dialog[open]")) return;
+      this.#elements.newWorkspace.closest("details")?.querySelector<HTMLElement>("summary")?.focus();
+    });
     this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
     this.#elements.openLatexImport.addEventListener("click", () => {
       this.#elements.newWorkspaceDialog.close();

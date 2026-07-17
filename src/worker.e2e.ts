@@ -3329,6 +3329,13 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   const guidedTemplate = page.locator('[data-template-id="builtin-guided"]');
   await expect(guidedTemplate).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator(".template-choice", { has: guidedTemplate })).toHaveAttribute("data-selected", "false");
+  await page.locator("#cancel-new-workspace").focus();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#new-workspace-title")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".header-action-menu summary")).toBeFocused();
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
   await page.setViewportSize({ width: 1024, height: 768 });
   const desktopBrowser = await page.locator(".template-browser").evaluate((browser) => {
     const index = browser.querySelector<HTMLElement>(".template-browser-index")!.getBoundingClientRect();
