@@ -13,8 +13,8 @@ not translate cleanly.
 
 - The New project surface offers **Import LaTeX archive** beside template and
   GitHub import workflows.
-- Archive inspection and Pandoc conversion run locally in the browser. The
-  original ZIP is never uploaded as part of normal import.
+- Archive inspection and conservative conversion run in the authenticated
+  Worker. Uploaded ZIP bytes are transient request data and are never stored.
 - The importer accepts one bounded ZIP, rejects encrypted entries, traversal,
   absolute and backslash paths, symlinks, duplicate normalized paths, invalid
   UTF-8 manuscript files, excessive expansion ratios, and archive resource
@@ -25,9 +25,8 @@ not translate cleanly.
 - Archive-local `\input` and `\include` edges become project-relative
   `::include[path]` directives. Cycles, missing inputs, and paths outside the
   archive fail closed and remain navigable in the preview.
-- A pinned, self-hosted Pandoc WebAssembly runtime is loaded only after a valid
-  archive reaches conversion. It receives an explicit virtual filesystem with
-  no network or system-command capability.
+- The converter recognizes a documented scholarly LaTeX subset without running
+  TeX, loading packages, expanding arbitrary macros, or accessing the network.
 - The Kirjolab adapter maps common sections, emphasis, lists, links, math,
   footnotes, citations, labels, cross-references, code listings, tables,
   figures, captions, and bibliography placement into supported scientific
@@ -41,24 +40,20 @@ not translate cleanly.
 - BibTeX databases referenced by the resolved manuscript enter the existing
   reviewed library import and project-alias workflow. Unreferenced databases
   are reported and remain unselected by default.
-- TikZ and PGFPlots environments become canonical fenced `tikz` blocks.
-  Preview rendering uses the separately pinned browser sandbox from ADR-142;
-  failed rendering never changes the source block.
-- Confirmation sends a normalized `LatexImportSeed`, not TeX, to a dedicated
-  authenticated project-creation endpoint. The Worker independently validates
-  all text, folders, entry selection, publication settings, bibliography
-  aliases, and image bytes before initializing the normal project authorities.
+- TikZ and PGFPlots environments become canonical fenced `tikz` blocks and are
+  reported as preserved, unrendered source under ADR-142.
+- Confirmation uploads the archive again with reviewed selections to a
+  dedicated authenticated project-creation endpoint. The Worker repeats
+  inspection and conversion before initializing normal project authorities.
 - Import is explicit and one-way. Reimport creates another project; it does not
   synchronize with Overleaf or maintain a LaTeX shadow tree.
 
 ### API Contracts
 
-- `POST /api/latex-imports` accepts one bounded, browser-derived import seed and
-  returns a created workspace summary after server validation and normal
-  project initialization.
-- The seed contains a title, normalized Markdown files, optional entry path,
-  folders, publication settings, selected bibliography source, supported image
-  resources, and a versioned conversion report.
+- `POST /api/latex-import-previews` accepts one bounded ZIP plus optional root
+  and bibliography selections and returns a non-mutating versioned preview.
+- `POST /api/latex-imports` accepts the same archive, a title, and reviewed
+  selections, repeats conversion, and returns the created workspace summary.
 - Conversion reports contain stable diagnostic codes, severity, source path,
   bounded source ranges, and a human-readable message. They never contain
   executable HTML or unbounded archive excerpts.
@@ -72,22 +67,19 @@ not translate cleanly.
 - Markdown project result: existing 512-file and 2 MiB composition limits.
 - Individual TeX or BibTeX text input: at most 2 MiB.
 - Images: existing project media types and 20 MiB per-asset limit.
-- TikZ source: at most 128 KiB per block, 32 blocks per project, one active
-  compilation, a 10-second deadline, and at most 2 MiB of generated SVG.
+- TikZ source: at most 128 KiB per block and 32 blocks per project.
 
 ### Anti-Patterns
 
 - Do not execute an imported document, package, script, filter, or shell command
   in the Worker.
-- Do not upload the original archive merely to perform conversion.
-- Do not treat Pandoc Markdown output as trusted canonical input without the
-  Kirjolab adaptation and server validation passes.
+- Do not store the uploaded archive or treat it as project authority.
+- Do not execute TeX, package hooks, filters, or generated code during import.
 - Do not preserve publisher layout by embedding raw LaTeX or trusted HTML into
   canonical Markdown.
 - Do not silently choose among multiple roots, bibliography databases, or
   conflicting normalized paths.
-- Do not inject generated TikZ SVG directly into the DOM or persist it as an
-  authored asset without inert-SVG validation and explicit materialization.
+- Do not claim a TikZ preview exists when only its source was preserved.
 
 ## Contract
 
@@ -102,26 +94,24 @@ not translate cleanly.
 - [ ] The supplied HTML First archive imports its six manuscript sections,
       abstract, title metadata, citations, footnotes, code listings, tables,
       bibliography, and biography with explicit diagnostics for lost layout.
-- [ ] Core TikZ renders locally to sanitized SVG; PGFPlots behavior is covered
-      by a representative archive fixture before it is declared supported.
+- [ ] TikZ and PGFPlots source is preserved losslessly with explicit unrendered
+      diagnostics and bounded block counts and sizes.
 - [ ] Malicious and over-limit archives fail closed without project, library,
       R2, or catalog writes.
 - [ ] Domain, Workers-runtime, and browser tests cover conversion, validation,
-      review, confirmation, renderer failure, and sanitization.
+      review, confirmation, and preserved TikZ handling.
 
 ### Regression Guardrails
 
 - Canonical project state contains Markdown, stable library relationships, and
-  explicitly accepted assets; it never depends on transient TeX, Pandoc AST,
-  TikZ worker state, or generated preview SVG.
+  explicitly accepted assets; it never depends on transient TeX or generated
+  preview state.
 - Import preview is non-mutating and confirmation is a separate deliberate
   action.
 - Every accepted path is normalized and archive-relative; no include, image,
   bibliography, or virtual-filesystem access can escape the selected archive.
-- The browser runtime performs no network retrieval during conversion or TikZ
-  compilation.
-- Generated SVG receives independent validation even when compilation succeeds.
-- Projects without LaTeX import or TikZ do not download either optional runtime.
+- Import performs no network retrieval or authored-code execution.
+- Projects without LaTeX import receive no optional conversion runtime.
 
 ### Verification
 
@@ -132,8 +122,7 @@ not translate cleanly.
   all-or-nothing project initialization, asset validation, and absence of writes
   after rejected input.
 - **Browser tests:** archive selection, ambiguous-root choice, preview rendering,
-  explicit confirmation, progress and error states, lazy runtime loading, and
-  disposable TikZ worker termination.
+  explicit confirmation, progress, and error states.
 
 ### Scenarios
 
@@ -156,19 +145,20 @@ not translate cleanly.
 **Scenario: Reject an escaping include**
 
 - Given: imported TeX requests `\input{../../private}`
-- When: the browser inspects the archive
+- When: the Worker inspects the archive
 - Then: the edge is rejected, no external file is read, and confirmation stays
   blocked with a source-qualified diagnostic
 
-**Scenario: Preserve a failed TikZ figure**
+**Scenario: Preserve a TikZ figure**
 
-- Given: a TikZ block requires an unavailable package or exceeds its deadline
-- When: Preview attempts local rendering
-- Then: the worker is terminated, the canonical source block remains visible,
-  and a diagnostic explains why no SVG is shown
+- Given: a selected manuscript contains a bounded TikZ or PGFPlots environment
+- When: the Worker converts the archive
+- Then: the canonical source block remains visible and a diagnostic explains
+  that no renderer was run
 
 ## Current Milestone
 
 - Accepted architecture in ADR-141 and ADR-142.
-- Implementation pending: archive conversion, reviewed project creation, and
-  sandboxed TikZ preview.
+- Archive safety inspection is implemented.
+- Implementation pending: server conversion, reviewed project creation, and
+  preserved TikZ handling.

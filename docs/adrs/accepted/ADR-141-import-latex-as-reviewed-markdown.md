@@ -9,89 +9,75 @@
 Researchers may have older papers in Overleaf archives whose durable scholarly
 content is split across LaTeX files, BibTeX databases, and figures. Kirjolab
 keeps Markdown canonical, composes projects through explicit includes, and
-models references in a shared owner library. A useful import therefore needs to
-recover content and structure without making TeX another editable authority or
-attempting to preserve publisher-specific typesetting machinery.
+models references in a shared owner library. Import should recover content and
+structure without making TeX another editable authority or preserving
+publisher-specific typesetting machinery.
 
 LaTeX is a programmable macro language. Running an uploaded document through a
-native TeX installation in the hosted Worker would create filesystem, resource,
-and command-execution risks that conflict with the existing bounded export
-architecture. A hand-written text replacement pipeline would avoid execution
-but would be unreliable around nested syntax, environments, citations, math,
-and custom commands.
-
-Pandoc provides a maintained LaTeX reader and a WebAssembly build that operates
-against an explicitly supplied virtual filesystem. Browser-local conversion can
-keep the original archive off the server while producing a reviewable project
-seed for normal server validation and project creation.
+native TeX installation in the trusted Worker would create filesystem,
+resource, and command-execution risks. Shipping a complete converter to every
+browser would make the normal client materially heavier for an occasional,
+latency-insensitive migration workflow.
 
 ## Decision
 
-Add an explicit, previewed LaTeX archive import workflow. The browser will:
+Add a two-stage, server-side LaTeX archive import workflow:
 
-1. read a bounded ZIP archive without executing its contents;
-2. validate and normalize every archive path before extraction;
-3. identify candidate root documents and resolve only archive-local
-   `\input` and `\include` relationships;
-4. use a pinned, lazily loaded Pandoc WebAssembly runtime to parse supported
-   LaTeX content;
-5. adapt the resulting structure into Kirjolab Markdown, citations,
-   cross-references, footnotes, code fences, and `::include[path]` directives;
-6. retain supported figures and bibliography inputs as separately identified
-   import resources; and
-7. present the complete derived file tree, entry file, diagnostics, ignored
-   files, and bibliography plan before confirmation.
+1. An authenticated preview endpoint accepts one bounded ZIP as transient
+   request data.
+2. The Worker validates and normalizes every archive path before extraction.
+3. It identifies candidate root documents and resolves archive-local `\input`
+   and `\include` relationships without executing TeX.
+4. A conservative TypeScript converter maps a documented scholarly LaTeX
+   subset into Kirjolab Markdown, citations, references, footnotes, code
+   fences, and `::include[path]` directives.
+5. The response presents the derived file tree, entry file, diagnostics,
+   ignored files, bibliography plan, and preserved TikZ blocks.
+6. Confirmation uploads the archive again with a title and reviewed root and
+   bibliography selections. The Worker repeats inspection and conversion
+   rather than trusting browser-supplied derived content.
+7. Only after full validation does the Worker initialize a normal project.
 
-Confirmation sends only the bounded derived import seed and accepted binary
-resources to the Worker. The Worker revalidates paths, UTF-8 text, file counts,
-sizes, entry identity, image media types, and inert SVG rules before creating a
-normal independent project. Imported Markdown becomes canonical immediately;
-the source TeX and Pandoc syntax tree are transient conversion inputs and never
-participate in editing, collaboration, composition, or export.
+Uploaded ZIP and source TeX are transient request inputs and are never stored.
+Imported Markdown becomes canonical immediately; TeX never participates in
+editing, collaboration, composition, or export.
 
 Publisher classes, packages, fonts, compiled manuals, auxiliary files, and
-layout-only commands are ignored with diagnostics. Unsupported content is
-never silently deleted: the preview identifies its source path and construct,
-and retains a bounded source excerpt as inert review material when doing so is
-safe and useful.
-
-The initial importer targets common scholarly LaTeX rather than arbitrary TeX
-compatibility. Custom macros may be expanded only when their definitions and
-uses remain within the imported virtual filesystem and Pandoc's sandboxed
-reader can resolve them without external programs or network access.
+layout-only commands are ignored with source-qualified diagnostics. Unsupported
+or ambiguous constructs are never guessed or silently deleted. The first
+importer explicitly targets common scholarly LaTeX, not arbitrary TeX
+compatibility.
 
 ## Trigger
 
 An Overleaf archive for “The Case for HTML First Web Development” demonstrated
 that existing papers map naturally onto Kirjolab's file composition and
-bibliography models while also containing substantial publisher boilerplate
-that should not become canonical project source.
+bibliography models while also containing publisher boilerplate that should not
+become canonical project source. The project owner chose server-side logic to
+keep the client light and accepted one-off conversion latency.
 
 ## Consequences
 
 **Positive:**
 
-- Researchers can migrate multi-file Overleaf papers without flattening their
-  authored structure.
-- Conversion remains local until an explicit reviewed confirmation.
-- Pandoc handles common LaTeX structure more reliably than project-specific
-  regular expressions.
-- Imported projects immediately follow existing Markdown, reference, history,
-  and export contracts.
+- Researchers can migrate multi-file archives without flattening authored
+  structure.
+- Conversion stays out of the normal client bundle and uses the same code for
+  preview and confirmation.
+- Uploaded source remains transient and never becomes project authority.
+- Imported projects immediately follow existing Markdown and history contracts.
 
 **Negative:**
 
-- The pinned Pandoc WebAssembly runtime is a large optional browser asset and
-  adds GPL-2.0-or-later distribution obligations.
+- A conservative converter supports less LaTeX than Pandoc or TeX Live and
+  needs compatibility fixtures from real archives.
 - Conversion cannot reproduce publisher layout, arbitrary macros, shell-escape
-  workflows, or every package environment.
-- Import diagnostics and compatibility fixtures require ongoing maintenance as
-  real archives expose new constructs.
+  workflows, or package-defined environments.
+- The archive is uploaded twice when a preview is confirmed.
 
 **Neutral:**
 
-- LaTeX remains an export target as well as a one-way import format; it does not
-  become a canonical round-trip representation.
+- LaTeX remains a one-way import and an export target, not a round-trip format.
 - Shared-library reconciliation may report duplicate or incomplete BibTeX
   records for separate review instead of fabricating metadata.
 
@@ -99,16 +85,15 @@ that should not become canonical project source.
 
 ### Run a native TeX and Pandoc service
 
-This offers broad package compatibility but introduces a separate isolated
-execution service, operational state, and a materially larger attack surface.
-It is disproportionate for the initial migration workflow.
+This offers broad compatibility but introduces a separate isolated execution
+service, operational state, and a materially larger attack surface. It may be
+reconsidered if the conservative converter proves insufficient.
 
-### Implement a TypeScript-only LaTeX subset
+### Run Pandoc WebAssembly in the browser
 
-A small parser could cover headings and emphasis, but scholarly archives depend
-on nested environments, macro expansion, citations, math, and tables. The
-maintenance burden would quickly approach that of a document converter while
-remaining less compatible.
+This provides stronger conversion without server execution, but adds a large
+optional client asset and GPL distribution obligations. It conflicts with the
+decision to keep the client light.
 
 ### Flatten the compiled PDF back into Markdown
 

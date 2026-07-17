@@ -38,14 +38,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Confine every operation to its configured subtree, retain a three-way sync
   base, apply pulls through existing Yjs texts, and publish reviewed changes as
   one non-forced direct commit by default; never synchronize in the background.
-- Import LaTeX archives only through a bounded, browser-local, explicitly
-  reviewed conversion into canonical Markdown, library relationships, and
-  inert project assets. Never execute uploaded TeX in the hosted Worker or keep
-  TeX as a shadow authored representation.
-- Preserve explicit TikZ source as canonical fenced Markdown and render it only
-  through a pinned, lazily loaded, resource-bounded browser worker. Treat every
-  generated SVG as untrusted until it passes the inert-SVG boundary; never make
-  preview cache state a publication dependency.
+- Import LaTeX archives only through a bounded, authenticated Worker workflow
+  that separates non-mutating inspection from reviewed project creation. Keep
+  Markdown canonical; never retain TeX as a second editable authority or
+  execute uploaded TeX.
+- Preserve explicit TikZ source as canonical fenced Markdown. Do not render it
+  until a separately approved isolated server boundary can compile it and its
+  SVG output can pass inert-SVG validation.
 - Treat portable project Markdown and stable shared-library records as the
   canonical authored artifacts. Keep BibTeX as bounded derived interchange and
   export, not a second project-local metadata authority.

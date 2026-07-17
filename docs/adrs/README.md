@@ -162,8 +162,8 @@ ADRs are grouped by lifecycle status:
 | [ADR-138](./implemented/ADR-138-accept-snowball-candidates-atomically.md)                 | Implemented          | Verify and atomically accept a backward-snowball candidate with its extracted citation assertion.             |
 | [ADR-139](./implemented/ADR-139-map-preview-elements-through-composition-source-spans.md) | Implemented          | Map rendered Preview elements back through composition source spans without making DOM offsets authoritative. |
 | [ADR-140](./implemented/ADR-140-derive-phrasing-guidance-from-licensed-papers.md)         | Implemented          | Derive reviewed scholarly phrasing guidance from independently licensed paper corpora.                        |
-| [ADR-141](./accepted/ADR-141-import-latex-as-reviewed-markdown.md)                        | Accepted             | Convert bounded LaTeX archives locally into reviewed canonical Markdown projects.                             |
-| [ADR-142](./accepted/ADR-142-render-tikz-in-a-browser-sandbox.md)                         | Accepted             | Render preserved TikZ source through a bounded browser worker and sanitize derived SVG.                       |
+| [ADR-141](./accepted/ADR-141-import-latex-as-reviewed-markdown.md)                        | Accepted             | Convert bounded LaTeX archives on the server into reviewed canonical Markdown projects.                       |
+| [ADR-142](./accepted/ADR-142-preserve-tikz-until-isolated-rendering.md)                   | Accepted             | Preserve TikZ source until a separately approved isolated renderer exists.                                    |
 
 ## Creating A New ADR
 
