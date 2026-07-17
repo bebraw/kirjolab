@@ -368,12 +368,13 @@ function convertLatexFile(
     return "\n";
   });
   for (const match of uniqueCommandMatches(source)) {
+    const from = match.index ?? 0;
     diagnostics.push({
       code: "unsupported-command",
       severity: "warning",
       path: file.path,
-      from: match.index,
-      to: match.index + match[0].length,
+      from,
+      to: from + match[0].length,
       message: `Unsupported LaTeX command remains for review: \\${match[1]}`,
     });
   }

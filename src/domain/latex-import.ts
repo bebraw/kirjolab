@@ -96,6 +96,8 @@ interface CentralDirectoryEntry {
 }
 
 const supportedImages = new Set([".avif", ".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
+const maximumExpansionRatio = 1_000;
+const expansionRatioMinimumBytes = 1024 * 1024;
 const documentClassPattern = /\\documentclass(?:\[[^\]]*\])?\s*\{/u;
 const documentBeginPattern = /\\begin\s*\{document\}/u;
 const inputPattern = /\\(?:input|include)\s*\{([^}]+)\}/gu;
@@ -257,6 +259,12 @@ function readCentralDirectory(bytes: Uint8Array): readonly CentralDirectoryEntry
     expandedBytes += expandedSize;
     if (expandedBytes > latexArchiveMaximumExpandedBytes) {
       throw new LatexArchiveFailure("archive-expanded-size", "Expanded LaTeX archive exceeds 64 MiB");
+    }
+    if (
+      expandedSize >= expansionRatioMinimumBytes &&
+      (compressedSize === 0 || expandedSize / Math.max(1, compressedSize) > maximumExpansionRatio)
+    ) {
+      throw new LatexArchiveFailure("archive-expanded-size", `ZIP entry has an excessive expansion ratio: ${path}`);
     }
     entries.push({ path: directory ? `${path}/` : path, directory, compressedSize, expandedSize });
     cursor = next;
