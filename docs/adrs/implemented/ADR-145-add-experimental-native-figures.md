@@ -1,6 +1,6 @@
 # ADR-145: Add Experimental Native Figures
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-17
 
@@ -85,3 +85,15 @@ figure does not need.
 
 This would increase the normal client payload for a one-off migration and move
 TeX processing onto every authoring device.
+
+## Implementation
+
+`src/domain/native-figures.ts` validates version 1 boxplots and derives fixed
+HAST geometry. The Markdown transform inserts that geometry before the existing
+sanitizer, which admits only the renderer's fixed SVG vocabulary. Invalid
+figures remain visible with source-positioned diagnostics.
+
+The LaTeX converter recognizes complete horizontal PGFPlots prepared boxplots,
+including matching y-axis labels, plain captions, axis labels, and figure ids.
+It emits native syntax plus a `tikz-translated` diagnostic; every unsupported
+block still follows ADR-142.

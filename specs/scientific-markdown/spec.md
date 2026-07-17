@@ -16,6 +16,8 @@ second Markdown dialect.
 - `src/domain/markdown.ts` supplies synchronous mdast and hast transforms for
   citations, references, aliases, anchors, heading numbering, table alignment,
   authored-HTML escaping, and final allowlist sanitization.
+- `src/domain/native-figures.ts` validates versioned bounded figure directives
+  and derives deterministic SVG geometry before final sanitization.
 - The pure-JavaScript renderer executes in the browser under a
   content-fingerprinted `/markdown-module-{sha256}.js` URL. The Worker serves
   that immutable asset but does not parse canonical documents or proxy
@@ -63,6 +65,11 @@ second Markdown dialect.
   editor-only document model.
 - Quoted and unquoted single-token directive attributes are accepted, matching
   the source project's examples.
+- Experimental version 1 `:::figure{kind="boxplot" version=1}` containers
+  accept bounded five-number `::box` summaries and one `::caption`. Valid
+  figures render as accessible horizontal boxplots; invalid figures stay
+  visible and receive source-positioned diagnostics. The complete contract is
+  defined in `specs/native-figures/spec.md`.
 
 ### Security Boundary
 
@@ -73,6 +80,9 @@ second Markdown dialect.
   attributes may provide ids and classes; event handlers, inline styles, and
   other arbitrary attributes are removed.
 - Semantic HTML escapes bibliography, directive, and heading values.
+- Native figures select no authored elements or attributes: their bounded text
+  and finite values become escaped labels and fixed geometry only. The final
+  sanitizer admits only the SVG vocabulary used by that renderer.
 - Only the typed client inserts preview HTML into the DOM.
 - HTML responses apply a restrictive Content Security Policy. Same-origin
   scripts and workers remain available for the typed client and renderer,
@@ -113,6 +123,8 @@ second Markdown dialect.
 - [x] Raw HTML and unsafe URL protocols cannot execute in the preview.
 - [x] Authored heading attributes cannot introduce executable or unreviewed
       HTML properties.
+- [x] Native version 1 boxplots render deterministic sanitized SVG, while
+      malformed directives remain visible with bounded diagnostics.
 - [x] HTML responses enforce the preview's browser security boundary with CSP.
 - [x] Unit tests cover syntax semantics and a browser test proves runtime
       startup.
@@ -161,3 +173,11 @@ second Markdown dialect.
 - When: the preview renders
 - Then: raw markup is displayed as text and unsafe target or element attributes
   are absent
+
+**Scenario: Researcher authors a native boxplot**
+
+- Given: a version 1 figure contains labelled ordered five-number summaries and
+  one caption
+- When: the preview renders
+- Then: it shows a deterministic accessible horizontal boxplot without loading
+  a plotting runtime or storing generated SVG

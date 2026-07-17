@@ -1,6 +1,6 @@
 # ADR-142: Preserve TikZ Until Isolated Rendering
 
-**Status:** Partially superseded by [ADR-145](../accepted/ADR-145-add-experimental-native-figures.md)
+**Status:** Partially superseded by [ADR-145](./ADR-145-add-experimental-native-figures.md)
 
 **Date:** 2026-07-17
 
