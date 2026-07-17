@@ -19,6 +19,7 @@ export type LatexImportDiagnosticCode =
   | "missing-image"
   | "missing-root"
   | "tikz-preserved"
+  | "unsupported-command"
   | "unsupported-environment"
   | "unsafe-bibliography"
   | "unsafe-include"

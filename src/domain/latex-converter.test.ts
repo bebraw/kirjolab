@@ -26,7 +26,7 @@ describe("LaTeX conversion", () => {
         String.raw`\section{Introduction}\label{sec:introduction}
 As \citet{one} argues, compare \citep{two, three}. See \autoref{sec:method}.
 \begin{enumerate}\item First \item Second\end{enumerate}
-Text with \textbf{weight}, \emph{emphasis}, and \footnote{A note}.
+Text with \textbf{weight}, \emph{emphasis}, and \footnote{A \texttt{nested} note}.
 \begin{lstlisting}{html}
 <p>Hello</p>
 \end{lstlisting}`,
@@ -50,8 +50,8 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A note}.
     expect(result.seed.files[2]?.content).toContain(":ref[sec:method]");
     expect(result.seed.files[2]?.content).toContain("1. First");
     expect(result.seed.files[2]?.content).toContain("**weight**");
-    expect(result.seed.files[2]?.content).toContain("[^latex-1]");
-    expect(result.seed.files[2]?.content).toContain("[^latex-1]: A note");
+    expect(result.seed.files[2]?.content).toContain("[^latex-sections-introduction-1]");
+    expect(result.seed.files[2]?.content).toContain("[^latex-sections-introduction-1]: A `nested` note");
     expect(result.seed.files[2]?.content).toContain("```\n<p>Hello</p>\n```");
     expect(result.report.sourceFiles).not.toContain("publisher-preamble.tex");
     expect(result.report.ignoredFiles).toContain("unused.bib");
@@ -64,6 +64,7 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A note}.
         "main.tex",
         String.raw`\documentclass{article}\begin{document}
 \begin{tikzpicture}
+% retain this authored comment
 \begin{axis}\addplot coordinates {(0,0) (1,1)};\end{axis}
 \end{tikzpicture}
 \end{document}`,
@@ -74,6 +75,7 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A note}.
 
     expect(result.seed.files[0]?.content).toContain("```tikz");
     expect(result.seed.files[0]?.content).toContain("\\begin{axis}");
+    expect(result.seed.files[0]?.content).toContain("% retain this authored comment");
     expect(result.report.diagnostics).toContainEqual(expect.objectContaining({ code: "tikz-preserved", severity: "info" }));
   });
 
@@ -92,6 +94,34 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A note}.
 
     expect(result.assets).toEqual([{ path: "figures/plot.png", mediaType: "image/png", bytes: png }]);
     expect(result.seed.files[1]?.content).toContain("![Imported figure](../figures/plot.png)");
+  });
+
+  it("converts ordinary tabular data and discards LaTeX comment environments", () => {
+    const inspection = analyzeLatexArchiveFiles([
+      tex(
+        "main.tex",
+        String.raw`\documentclass{article}\begin{document}
+\begin{comment}Hidden draft\end{comment}
+\begin{table}\caption{Results}\begin{tabular}{cl}
+\toprule Variant & Score \\
+\midrule Original & 58 \\
+Modified & 90 \\
+\bottomrule
+\end{tabular}\end{table}
+\end{document}`,
+      ),
+    ]);
+
+    const result = convertLatexInspection(inspection, { rootPath: "main.tex" });
+    const markdown = result.seed.files[0]!.content;
+
+    expect(markdown).toContain("| Variant | Score |");
+    expect(markdown).toContain("| --- | --- |");
+    expect(markdown).toContain("| Modified | 90 |");
+    expect(markdown).not.toContain("Hidden draft");
+    expect(result.report.diagnostics).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ message: expect.stringContaining("tabular") })]),
+    );
   });
 
   it("reports include cycles and keeps the converted files reviewable", () => {

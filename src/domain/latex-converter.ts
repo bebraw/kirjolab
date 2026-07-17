@@ -282,7 +282,7 @@ function convertLatexFile(
   pathMap: ReadonlyMap<string, string>,
   imagePaths: ReadonlyMap<string, string>,
 ): { readonly markdown: string; readonly diagnostics: readonly LatexImportDiagnostic[]; readonly tikzBlocks: number } {
-  let source = stripComments(file.text ?? "");
+  let source = file.text ?? "";
   if (root) source = documentBody(source);
   const diagnostics: LatexImportDiagnostic[] = [];
   const footnotes: string[] = [];
@@ -309,6 +309,10 @@ function convertLatexFile(
       protectBlock(`\`\`\`\n${body.replace(/^\{[^}]*\}\s*/u, "").trim()}\n\`\`\``),
     );
   }
+  source = replaceEnvironment(source, "comment", () => "");
+  source = stripComments(source);
+  source = replaceEnvironment(source, "tabularx", (body) => tableMarkdown(body, 2));
+  source = replaceEnvironment(source, "tabular", (body) => tableMarkdown(body, 1));
   source = replaceEnvironment(source, "abstract", (body) => `\n\n## Abstract {#abstract}\n\n${body.trim()}\n\n`);
   for (const environment of ["itemize", "enumerate"] as const) {
     source = replaceEnvironment(source, environment, (body) => listMarkdown(body, environment === "enumerate"));
@@ -330,11 +334,6 @@ function convertLatexFile(
   source = replaceSimpleCommand(source, ["textbf", "bf"], (value) => `**${value}**`);
   source = replaceSimpleCommand(source, ["textit", "emph", "textsl"], (value) => `*${value}*`);
   source = replaceSimpleCommand(source, ["texttt"], (value) => `\`${value}\``);
-  source = replaceSimpleCommand(source, ["footnote"], (value, index) => {
-    const id = `latex-${index + 1}`;
-    footnotes.push(`[^${id}]: ${value.trim()}`);
-    return `[^${id}]`;
-  });
   source = replaceSimpleCommand(source, ["citet"], (value) => `:citet[${citationKeys(value)}]`);
   source = replaceSimpleCommand(source, ["citep"], (value) => `:citep[${citationKeys(value)}]`);
   source = replaceSimpleCommand(source, ["cite"], (value) => `:cite[${citationKeys(value)}]`);
@@ -342,6 +341,11 @@ function convertLatexFile(
   source = replaceSimpleCommand(source, ["label"], (value) => `\n\n::anchor[${value.trim()}]\n\n`);
   source = replaceSimpleCommand(source, ["url"], (value) => `<${value.trim()}>`);
   source = source.replace(/\\href\s*\{([^}]*)\}\s*\{([^}]*)\}/gu, "[$2]($1)");
+  source = replaceSimpleCommand(source, ["footnote"], (value, index) => {
+    const id = `latex-${footnoteScope(file.path)}-${index + 1}`;
+    footnotes.push(`[^${id}]: ${value.trim()}`);
+    return `[^${id}]`;
+  });
   source = source.replace(/\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]+)\}/gu, (_whole, requested: string) => {
     const target = imagePaths.get(imageReferenceKey(file.path, requested.trim()));
     const current = pathMap.get(file.path);
@@ -363,6 +367,16 @@ function convertLatexFile(
     });
     return "\n";
   });
+  for (const match of uniqueCommandMatches(source)) {
+    diagnostics.push({
+      code: "unsupported-command",
+      severity: "warning",
+      path: file.path,
+      from: match.index,
+      to: match.index + match[0].length,
+      message: `Unsupported LaTeX command remains for review: \\${match[1]}`,
+    });
+  }
   source = unescapeLatex(source)
     .replaceAll(/\n[ \t]+/gu, "\n")
     .replaceAll(/[ \t]+\n/gu, "\n")
@@ -420,6 +434,36 @@ function listMarkdown(body: string, ordered: boolean): string {
   return `\n\n${items.map((item, index) => `${ordered ? `${index + 1}.` : "-"} ${item.trim()}`).join("\n")}\n\n`;
 }
 
+function tableMarkdown(body: string, argumentCount: number): string {
+  let rowsSource = body.trimStart();
+  for (let index = 0; index < argumentCount; index += 1) rowsSource = removeLeadingBraceGroup(rowsSource).trimStart();
+  rowsSource = rowsSource.replace(/\\(?:toprule|midrule|bottomrule|hline)\b/gu, "");
+  const rows = rowsSource
+    .split(/\\\\(?:\[[^\]]*\])?/gu)
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row) => row.split(/\s*&\s*/gu).map((cell) => cell.replaceAll("|", "\\|").replaceAll(/\s+/gu, " ").trim()));
+  const columns = Math.max(0, ...rows.map((row) => row.length));
+  if (rows.length === 0 || columns === 0) return "";
+  const normalized = rows.map((row) => [...row, ...Array.from({ length: columns - row.length }, () => "")]);
+  const line = (cells: readonly string[]): string => `| ${cells.join(" | ")} |`;
+  return `\n\n${line(normalized[0]!)}\n${line(Array.from({ length: columns }, () => "---"))}\n${normalized
+    .slice(1)
+    .map((row) => line(row))
+    .join("\n")}\n\n`;
+}
+
+function removeLeadingBraceGroup(value: string): string {
+  if (!value.startsWith("{")) return value;
+  let depth = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] === "{") depth += 1;
+    else if (value[index] === "}") depth -= 1;
+    if (depth === 0) return value.slice(index + 1);
+  }
+  return value;
+}
+
 function replaceSourceCommand(source: string, requestedPath: string, replacement: string): string {
   const escaped = requestedPath.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   return source.replace(new RegExp(`\\\\(?:input|include)\\s*\\{\\s*${escaped}\\s*\\}`, "u"), replacement);
@@ -437,14 +481,49 @@ function replaceSectionCommands(source: string): string {
 function replaceSimpleCommand(source: string, commands: readonly string[], replace: (value: string, index: number) => string): string {
   let count = 0;
   for (const command of commands) {
-    const pattern = new RegExp(`\\\\${command}\\s*\\{([^{}]*)\\}`, "gu");
-    let previous = "";
-    while (previous !== source) {
-      previous = source;
-      source = source.replace(pattern, (_whole: string, value: string) => replace(value, count++));
+    const pattern = new RegExp(`\\\\${command}(?![A-Za-z])(?:\\s*\\[[^\\]]*\\])*\\s*\\{`, "gu");
+    let cursor = 0;
+    while (cursor < source.length) {
+      pattern.lastIndex = cursor;
+      const match = pattern.exec(source);
+      if (!match) break;
+      const open = match.index + match[0].lastIndexOf("{");
+      const close = matchingBrace(source, open);
+      if (close < 0) {
+        cursor = open + 1;
+        continue;
+      }
+      const replacement = replace(source.slice(open + 1, close), count++);
+      source = `${source.slice(0, match.index)}${replacement}${source.slice(close + 1)}`;
+      cursor = match.index + replacement.length;
     }
   }
   return source;
+}
+
+function matchingBrace(source: string, open: number): number {
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === "\\") {
+      index += 1;
+      continue;
+    }
+    if (source[index] === "{") depth += 1;
+    else if (source[index] === "}") depth -= 1;
+    if (depth === 0) return index;
+  }
+  return -1;
+}
+
+function uniqueCommandMatches(source: string): RegExpMatchArray[] {
+  const matches = [...source.matchAll(/\\([A-Za-z@]+)\b/gu)];
+  const seen = new Set<string>();
+  return matches.filter((match) => {
+    const command = match[1] ?? "";
+    if (seen.has(command)) return false;
+    seen.add(command);
+    return true;
+  });
 }
 
 function citationKeys(value: string): string {
@@ -455,13 +534,19 @@ function citationKeys(value: string): string {
     .join(", ");
 }
 
+function footnoteScope(path: string): string {
+  return path
+    .replace(/\.tex$/iu, "")
+    .replaceAll(/[^a-z0-9]+/giu, "-")
+    .replaceAll(/^-|-$/gu, "")
+    .toLocaleLowerCase();
+}
+
 function unescapeLatex(source: string): string {
   return source
     .replaceAll("~", " ")
     .replace(/\\([%&#_$])/gu, "$1")
-    .replaceAll("\\textbackslash{}", "\\")
-    .replaceAll(/---/gu, "—")
-    .replaceAll(/--/gu, "–");
+    .replaceAll("\\textbackslash{}", "\\");
 }
 
 function literalToken(index: number): string {
