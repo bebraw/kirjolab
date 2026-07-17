@@ -86,18 +86,18 @@ not translate cleanly.
 
 ### Definition of Done
 
-- [ ] A researcher can select an Overleaf ZIP and review its detected root,
+- [x] A researcher can select an Overleaf ZIP and review its detected root,
       derived Markdown tree, entry file, figures, bibliography, ignored files,
       and diagnostics without a server mutation.
-- [ ] Confirming a valid preview creates a normal independent Kirjolab project
+- [x] Confirming a valid preview creates a normal independent Kirjolab project
       whose Markdown composition, citations, figures, and history work through
       existing authorities.
-- [ ] The supplied HTML First archive imports its six manuscript sections,
+- [x] The supplied HTML First archive imports its six manuscript sections,
       abstract, title metadata, citations, footnotes, code listings, tables,
       bibliography, and biography with explicit diagnostics for lost layout.
-- [ ] TikZ and PGFPlots source is preserved losslessly with explicit unrendered
+- [x] TikZ and PGFPlots source is preserved losslessly with explicit unrendered
       diagnostics and bounded block counts and sizes.
-- [ ] Malicious and over-limit archives fail closed without project, library,
+- [x] Malicious and over-limit archives fail closed without project, library,
       R2, or catalog writes.
 - [ ] Domain, Workers-runtime, and browser tests cover conversion, validation,
       review, confirmation, and preserved TikZ handling.
@@ -159,7 +159,11 @@ not translate cleanly.
 
 ## Current Milestone
 
-- Accepted architecture in ADR-141 and ADR-142.
-- Archive safety inspection is implemented.
-- Implementation pending: server conversion, reviewed project creation, and
-  preserved TikZ handling.
+- Server-side archive inspection, reviewed conversion, digest-bound project
+  creation, bibliography seeding, referenced figure storage, and lossless TikZ
+  preservation are implemented under ADR-141 and ADR-142.
+- The supplied HTML First archive converts into ten Markdown files with its
+  selected bibliography and referenced biography figure; layout-only commands
+  remain explicit review warnings.
+- A real TikZ/PGFPlots archive and browser-level end-to-end coverage remain
+  follow-up verification before claiming a rendering compatibility tier.

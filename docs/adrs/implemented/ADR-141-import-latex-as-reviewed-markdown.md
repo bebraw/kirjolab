@@ -1,6 +1,6 @@
 # ADR-141: Import LaTeX as Reviewed Markdown
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-17
 
@@ -80,6 +80,17 @@ keep the client light and accepted one-off conversion latency.
 - LaTeX remains a one-way import and an export target, not a round-trip format.
 - Shared-library reconciliation may report duplicate or incomplete BibTeX
   records for separate review instead of fabricating metadata.
+
+## Implementation
+
+- `src/domain/latex-import.ts` validates and inspects bounded ZIP archives.
+- `src/domain/latex-converter.ts` converts the selected include graph, BibTeX,
+  common scholarly structure, tables, code, citations, footnotes, figures, and
+  preserved TikZ into a normal project seed.
+- `src/api/latex-import.ts` exposes non-mutating preview and digest-bound
+  confirmation endpoints and stores only confirmed project state and assets.
+- The New project surface presents root selection, Markdown excerpts,
+  diagnostics, and explicit confirmation without adding a client converter.
 
 ## Alternatives Considered
 

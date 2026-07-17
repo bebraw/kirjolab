@@ -1,6 +1,6 @@
 # ADR-142: Preserve TikZ Until Isolated Rendering
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-17
 
@@ -54,6 +54,13 @@ server-side boundary for future rendering.
 - Fenced TikZ is canonical authored source; any future SVG is derived output.
 - A representative archive is still required before claiming a rendering
   compatibility tier.
+
+## Implementation
+
+The server converter recognizes bounded `tikzpicture` environments before any
+comment or command adaptation, retains their exact source in fenced `tikz`
+blocks, and emits an informational `tikz-preserved` diagnostic. It performs no
+rendering or TeX execution.
 
 ## Alternatives Considered
 
