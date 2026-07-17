@@ -3252,7 +3252,9 @@ class WorkspaceApp {
     if (offsets.length === 0) return;
     const target = this.#nearestPreviewSourceElement(offsets);
     if (!target) return;
-    target.scrollIntoView({ block: "center" });
+    const previewBounds = this.#elements.previewScroll.getBoundingClientRect();
+    const targetBounds = target.getBoundingClientRect();
+    this.#elements.previewScroll.scrollTop += targetBounds.top + targetBounds.height / 2 - (previewBounds.top + previewBounds.height / 2);
     this.#markPreviewSyncTarget(target);
   }
 

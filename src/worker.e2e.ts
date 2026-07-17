@@ -1305,6 +1305,7 @@ test("synchronizes Preview from the centered editor passage instead of a stale c
       ),
     )
     .toBeLessThan(1);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
   await editor.evaluate((element: HTMLTextAreaElement) => {
     element.scrollTop = 0;

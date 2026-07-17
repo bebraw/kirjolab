@@ -37,8 +37,9 @@ Preview offset may belong to a supporting file.
 
 - **Source to Preview:** Preserve source focus and selection, map the logical
   source line nearest the editor viewport center, center the nearest matching
-  rendered element, and briefly identify it. Deliberate caret navigation still
-  follows the caret automatically while both panes are visible.
+  rendered element within the Preview scroller without moving the outer page,
+  and briefly identify it. Deliberate caret navigation still follows the caret
+  automatically while both panes are visible.
 - **Preview to source:** Select the owning project file, enter Write mode, place
   the caret at the mapped source offset, center its logical line in the editor,
   and show Authoring on a single-pane layout. Direct Preview clicks reveal the
@@ -53,6 +54,7 @@ Preview offset may belong to a supporting file.
 - Do not infer correspondence by matching rendered text.
 - Do not persist Preview DOM offsets or use them as durable manuscript anchors.
 - Do not follow every input event or steal source focus while typing.
+- Do not let Preview synchronization scroll the outer workspace document.
 - Do not let Sync override citations, links, or other interactive Preview
   elements.
 
