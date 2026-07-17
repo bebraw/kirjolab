@@ -196,7 +196,10 @@ describe("authentication security boundary", () => {
     await expect(verifyAccessJwt(future, keys, configuration, now)).rejects.toThrow();
     const wrongAlgorithm = await signToken(pair.privateKey, { alg: "HS256", kid: "access-key" }, payload);
     await expect(verifyAccessJwt(wrongAlgorithm, keys, configuration, now)).rejects.toThrow();
-    const tampered = `${token.slice(0, -2)}aa`;
+    const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
+    if (!encodedHeader || !encodedPayload || !encodedSignature) throw new Error("Expected a three-part JWT");
+    const tamperedSignature = `${encodedSignature.startsWith("a") ? "b" : "a"}${encodedSignature.slice(1)}`;
+    const tampered = `${encodedHeader}.${encodedPayload}.${tamperedSignature}`;
     await expect(verifyAccessJwt(tampered, keys, configuration, now)).rejects.toThrow();
   });
 });
