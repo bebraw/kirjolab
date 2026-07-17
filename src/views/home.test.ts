@@ -121,7 +121,8 @@ describe("renderHomePage", () => {
     expect(html.match(/class="editor-toolbar-group"/gu)).toHaveLength(2);
     expect(html).not.toContain('id="project-file-switcher"');
     expect(html).toContain('class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"');
-    expect(html).toContain('class="source-editor" id="source-editor" spellcheck="true"');
+    expect(html).toContain('placeholder="Start a chapter section with ## Heading"');
+    expect(html).toContain("Chapter sections start at heading level two.");
     expect(html).toContain('id="source-completion" role="listbox" aria-label="Source suggestions" hidden');
     expect(html).toContain('id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"');
     expect(html).toContain('id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span>');

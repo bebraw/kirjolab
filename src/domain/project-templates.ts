@@ -190,7 +190,7 @@ Identify disagreements, missing evidence, and useful next questions.
 
 const builtInTemplates: readonly ProjectTemplateRecord[] = [
   builtIn("builtin-guided", "Guided starter", "Learn Kirjolab through a small composed paper and in-project syntax guide.", guidedSeed),
-  builtIn("builtin-blank", "Blank project", "Start with an empty main.md and figures folder.", blankSeed),
+  builtIn("builtin-blank", "Blank project", "Start with an empty main.md; chapter sections begin with ## headings.", blankSeed),
   builtIn(
     "builtin-research-article",
     "Research article",

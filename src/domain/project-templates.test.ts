@@ -21,6 +21,7 @@ describe("project templates", () => {
       "builtin-literature-review",
     ]);
     expect(builtInProjectTemplate("builtin-blank")?.seed.files).toEqual([{ path: "main.md", content: "" }]);
+    expect(builtInProjectTemplate("builtin-blank")?.description).toContain("## headings");
     expect(builtInProjectTemplate("builtin-research-article")?.seed.files.map((file) => file.path)).toContain("sections/methods.md");
     expect(builtInProjectTemplate("builtin-literature-review")?.seed.files.map((file) => file.path)).toContain(
       "sections/search-strategy.md",

@@ -15,6 +15,8 @@ without copying private research or creating a live dependency on the source.
   personal templates and ship from an application-owned registry.
 - The initial built-ins are Guided starter, Blank project, Research article,
   and Literature review. Built-in ids and content are stable application data.
+- Blank-project preview and the empty editor explain that chapter sections
+  begin with level-two (`##`) headings while keeping `main.md` genuinely empty.
 - An owner-keyed `ProjectTemplateCatalog` Durable Object stores at most 50
   personal template records with bounded name, description, sanitized seed,
   and timestamps. It is separate from project navigation and collaboration.

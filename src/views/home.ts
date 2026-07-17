@@ -336,7 +336,7 @@ export function renderHomePage(
         <label class="sr-only" for="source-editor">Markdown source</label>
         <div class="source-editor-shell" id="source-editor-shell" data-vim-mode="off">
           <pre class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"></pre>
-          <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help" aria-autocomplete="list" aria-controls="source-completion"></textarea>
+          <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help" aria-autocomplete="list" aria-controls="source-completion" placeholder="Start a chapter section with ## Heading"></textarea>
           <div class="source-completion" id="source-completion" role="listbox" aria-label="Source suggestions" hidden></div>
         </div>
         <section class="project-map" id="project-map" aria-labelledby="project-map-heading" hidden>
@@ -368,7 +368,7 @@ export function renderHomePage(
             </section>
           </div>
         </section>
-        <p class="sr-only" id="editor-help">Collaborative Markdown source. Select text to link it to an annotation. Undo with Command-Z or Control-Z; redo with Command-Shift-Z, Control-Shift-Z, or Control-Y.</p>
+        <p class="sr-only" id="editor-help">Collaborative Markdown source. Chapter sections start at heading level two. Select text to link it to an annotation. Undo with Command-Z or Control-Z; redo with Command-Shift-Z, Control-Shift-Z, or Control-Y.</p>
       </section>
 
       <div class="authoring-context-resizer" id="authoring-context-resizer" role="separator" aria-label="Resize authoring and context panes" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" tabindex="0"></div>
