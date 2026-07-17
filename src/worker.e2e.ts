@@ -3240,7 +3240,7 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
   await page.locator("#new-workspace-title").fill("Independent inquiry");
-  await page.getByRole("button", { name: "Use Guided starter" }).click();
+  await page.locator('[data-template-id="builtin-guided"]').click();
   await page.locator("#new-workspace-dialog").getByRole("button", { name: "Create project" }).click();
   await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
 
@@ -3323,9 +3323,8 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await page.locator('[data-template-id="builtin-literature-review"]').click();
   await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/search-strategy.md");
   await expect(page.locator("#new-workspace-template-preview")).toContainText("Publication setup");
-  await expect(page.locator("#new-workspace-template-id")).toHaveValue("");
-  await page.getByRole("button", { name: "Use Literature review" }).click();
   await expect(page.locator("#new-workspace-template-id")).toHaveValue("builtin-literature-review");
+  await expect(page.locator("#new-workspace-template-preview")).toContainText("Selected starting point");
   await expect(page.locator("#create-workspace")).toBeEnabled();
   await page.locator("#new-workspace-title").fill("Review workflow");
   await page.locator("#create-workspace").click();
@@ -3367,7 +3366,7 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await page.getByRole("button", { name: "New project" }).click();
   await page.locator(`[data-template-id="${personal.id}"]`).click();
   await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/lab-checklist.md");
-  await page.getByRole("button", { name: "Use Lab review workflow" }).click();
+  await expect(page.locator("#new-workspace-template-id")).toHaveValue(personal.id);
   await page.locator("#new-workspace-title").fill("Reusable review");
   await page.locator("#create-workspace").click();
   await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
