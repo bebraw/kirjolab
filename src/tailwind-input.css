@@ -3090,6 +3090,68 @@
     text-underline-offset: 0.2em;
   }
 
+  .native-figure {
+    margin: 2rem 0;
+  }
+
+  .native-figure-graphic {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    color: var(--color-app-text);
+  }
+
+  .native-figure-grid {
+    stroke: var(--color-app-line);
+    stroke-width: 1;
+  }
+
+  .native-figure-whisker,
+  .native-figure-median {
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  .native-figure-median {
+    stroke-width: 2.5;
+  }
+
+  .native-figure-box {
+    fill: var(--color-app-accent-ghost);
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  .native-figure-tick,
+  .native-figure-mark-label,
+  .native-figure-axis-label-x,
+  .native-figure-axis-label-y {
+    fill: currentColor;
+    font-size: 12px;
+  }
+
+  .native-figure-tick,
+  .native-figure-axis-label-x {
+    text-anchor: middle;
+  }
+
+  .native-figure-mark-label {
+    dominant-baseline: middle;
+    text-anchor: end;
+  }
+
+  .native-figure-axis-label-x,
+  .native-figure-axis-label-y {
+    font-weight: 600;
+  }
+
+  .native-figure figcaption {
+    margin-top: 0.75rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.85rem;
+  }
+
   .prose-preview .footnotes {
     margin-top: 2.5rem;
     border-top: 1px solid var(--color-app-line);

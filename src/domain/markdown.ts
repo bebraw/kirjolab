@@ -22,6 +22,7 @@ import {
 } from "./scholarly-export";
 import type { CitationStyle } from "./workspace";
 import { projectMarkdownComments, type MarkdownCommentRange } from "./markdown-comments";
+import { parseNativeFigure, renderNativeFigure } from "./native-figures";
 
 export interface Diagnostic {
   severity: "error" | "warning";
@@ -68,6 +69,9 @@ const safeElements = [
   "code",
   "del",
   "em",
+  "figcaption",
+  "figure",
+  "g",
   "h1",
   "h2",
   "h3",
@@ -81,6 +85,7 @@ const safeElements = [
   "p",
   "pre",
   "section",
+  "svg",
   "span",
   "strong",
   "sup",
@@ -90,7 +95,11 @@ const safeElements = [
   "th",
   "thead",
   "tr",
+  "title",
   "ul",
+  "line",
+  "rect",
+  "text",
 ];
 
 const previewSchema: Schema = {
@@ -100,6 +109,8 @@ const previewSchema: Schema = {
     a: ["ariaDescribedBy", "ariaLabel", "className", "dataFootnoteBackref", "dataFootnoteRef", "href", "id", "title"],
     button: ["ariaLabel", "className", "dataCitation", "dataLocator", ["type", "button"]],
     code: ["className"],
+    figure: ["className", "id"],
+    figcaption: ["className"],
     h1: ["className", "id"],
     h2: ["className", "id"],
     h3: ["className", "id"],
@@ -109,7 +120,13 @@ const previewSchema: Schema = {
     input: ["checked", "disabled", ["type", "checkbox"]],
     li: ["className", "id"],
     ol: ["className", "start"],
+    pre: ["className"],
     section: ["className", "dataFootnotes"],
+    svg: ["ariaLabelledBy", "className", "role", "viewBox"],
+    line: ["className", "x1", "x2", "y1", "y2"],
+    rect: ["className", "height", "width", "x", "y"],
+    text: ["className", "id", "x", "y"],
+    title: ["id"],
     span: ["ariaLabel", "className", "dataCitation", "id"],
     td: [["style", safeTableAlignmentPattern]],
     th: [["style", safeTableAlignmentPattern]],
@@ -155,7 +172,7 @@ export function renderWorkspaceMarkdown(
       .use(removeMarkdownComments)
       .use(escapeAuthoredHtml)
       .use(readHeadingAttributes)
-      .use(renderSemanticDirectives, { bibliography, citedIds, references, citationStyle })
+      .use(renderSemanticDirectives, { bibliography, citedIds, references, citationStyle, diagnostics })
       .use(remarkRehype)
       .use(annotatePreviewSourcePositions)
       .use(renderNumberedHeadings)
@@ -163,7 +180,7 @@ export function renderWorkspaceMarkdown(
       .use(rehypeSanitize, previewSchema)
       .use(rehypeStringify)
       .processSync(normalized);
-    return { html: String(result), diagnostics };
+    return { html: String(result), diagnostics: diagnostics.sort((left, right) => left.from - right.from) };
   } catch (error) {
     return {
       html: `<pre><code>${escapeHtml(normalized)}</code></pre>`,
@@ -295,16 +312,70 @@ interface SemanticOptions {
   citedIds: ReadonlySet<string>;
   references: Map<string, ReferenceEntry>;
   citationStyle: CitationStyle;
+  diagnostics: Diagnostic[];
 }
 
 function renderSemanticDirectives(options: SemanticOptions) {
-  return (tree: MdastRoot): void => {
+  return (tree: MdastRoot, file: { value: unknown }): void => {
+    const source = String(file.value);
     visit(tree, (node, index, parent) => {
       if (node.type !== "textDirective" && node.type !== "leafDirective" && node.type !== "containerDirective") return;
       if (index === undefined || !parent) return;
       const directive: Directives = node;
       const content = mdastText(directive).trim();
       const directiveName = directive.name.toLocaleLowerCase();
+      if (directive.type === "containerDirective" && directiveName === "figure") {
+        const parsed = parseNativeFigure(directive);
+        if (parsed.figure) {
+          const rendered = renderNativeFigure(parsed.figure, directive.position?.start.offset ?? 0);
+          directive.children = [];
+          directive.data = {
+            ...directive.data,
+            hName: rendered.tagName,
+            hProperties: rendered.properties,
+            hChildren: rendered.children,
+          };
+        } else {
+          options.diagnostics.push(
+            ...parsed.issues.map((issue) => ({ severity: "error" as const, message: issue.message, from: issue.from, to: issue.to })),
+          );
+          const from = directive.position?.start.offset ?? 0;
+          const to = directive.position?.end.offset ?? from;
+          directive.children = [];
+          directive.data = {
+            ...directive.data,
+            hName: "pre",
+            hProperties: { className: ["native-figure-error"] },
+            hChildren: [
+              {
+                type: "element",
+                tagName: "code",
+                properties: {},
+                children: [{ type: "text", value: source.slice(from, to) }],
+              },
+            ],
+          };
+        }
+        return [SKIP];
+      }
+      if ((directiveName === "box" || directiveName === "caption") && directive.type === "leafDirective") {
+        const from = directive.position?.start.offset ?? 0;
+        const to = directive.position?.end.offset ?? from;
+        options.diagnostics.push({
+          severity: "error",
+          message: `::${directiveName} must be inside a :::figure container`,
+          from,
+          to,
+        });
+        directive.children = [];
+        directive.data = {
+          ...directive.data,
+          hName: "code",
+          hProperties: { className: ["native-figure-error"] },
+          hChildren: [{ type: "text", value: source.slice(from, to) }],
+        };
+        return;
+      }
       if (directive.type === "textDirective" && isCitationDirectiveName(directiveName)) {
         const locator = attributeValue(directive.attributes?.locator);
         const prefix = attributeValue(directive.attributes?.prefix);
@@ -540,10 +611,13 @@ function validateReferenceDeclarations(source: string): Diagnostic[] {
       if ((match[2]?.trim() ?? "") || (match[3]?.trim() ?? "")) {
         diagnostics.push(toDiagnostic("Bibliography marker must be exactly ::bibliography[]", match));
       } else if (bibliographyMarkers > 1) diagnostics.push(toDiagnostic("Duplicate bibliography marker", match));
-    } else if (kind !== "alias" && kind !== "anchor") diagnostics.push(toDiagnostic(`Unsupported leaf directive: ::${kind}`, match));
+    } else if (kind !== "alias" && kind !== "anchor" && kind !== "box" && kind !== "caption") {
+      diagnostics.push(toDiagnostic(`Unsupported leaf directive: ::${kind}`, match));
+    }
   }
   for (const match of source.matchAll(/^:::[ \t]*([a-z][a-z-]*)\b.*$/gimu)) {
-    diagnostics.push(toDiagnostic(`Unsupported container directive: :::${match[1]?.toLowerCase() ?? ""}`, match));
+    const kind = match[1]?.toLowerCase() ?? "";
+    if (kind !== "figure") diagnostics.push(toDiagnostic(`Unsupported container directive: :::${kind}`, match));
   }
   for (const heading of source.matchAll(/\{#([a-zA-Z0-9:_-]+)\}/gu)) {
     if (heading[1]) declarations.push({ target: heading[1], match: heading });

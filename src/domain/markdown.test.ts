@@ -13,6 +13,51 @@ function withoutSourcePositions(html: string): string {
 }
 
 describe("renderWorkspaceMarkdown", () => {
+  it("renders an accessible deterministic native boxplot", () => {
+    const source = `:::figure{#fcp-summary kind="boxplot" version=1 x-label="Time (ms)" y-label="Variant"}
+::box[SSR & FCP]{min=1613 q1=1627 median=1628 q3=1632 max=1641}
+::box[Islands]{min=838 q1=838 median=838 q3=846 max=858}
+::caption[First Contentful Paint across five benchmark runs.]
+:::`;
+
+    const rendered = renderWorkspaceMarkdown(source, "");
+    const html = withoutSourcePositions(rendered.html);
+
+    expect(rendered.diagnostics).toEqual([]);
+    expect(html).toContain('<figure id="fcp-summary" class="native-figure native-figure-boxplot">');
+    expect(html).toContain('<svg viewBox="0 0 720 168" role="img" aria-labelledby="native-figure-title-0"');
+    expect(html).toContain('<title id="native-figure-title-0">First Contentful Paint across five benchmark runs.</title>');
+    expect(html).toContain('class="native-figure-box"');
+    expect(html).toContain("SSR &#x26; FCP");
+    expect(html).toContain("<figcaption>First Contentful Paint across five benchmark runs.</figcaption>");
+    expect(html).not.toMatch(/(?:NaN|Infinity)/u);
+  });
+
+  it("keeps invalid native figure syntax visible and reports its source range", () => {
+    const source = `:::figure{kind="boxplot" version=1}
+::box[Broken]{min=5 q1=4 median=3 q3=2 max=1}
+::caption[Needs correction]
+:::`;
+    const rendered = renderWorkspaceMarkdown(source, "");
+
+    expect(rendered.diagnostics).toContainEqual({
+      severity: "error",
+      message: "Box values must satisfy min <= q1 <= median <= q3 <= max",
+      from: source.indexOf("::box"),
+      to: source.indexOf("\n::caption"),
+    });
+    expect(rendered.html).toContain('class="native-figure-error"');
+    expect(rendered.html).toContain(":::figure");
+    expect(rendered.html).not.toContain("<svg");
+  });
+
+  it("rejects native figure children outside their container", () => {
+    const rendered = renderWorkspaceMarkdown("::box[Loose]{min=1 q1=2 median=3 q3=4 max=5}", "");
+
+    expect(rendered.diagnostics.map((diagnostic) => diagnostic.message)).toEqual(["::box must be inside a :::figure container"]);
+    expect(rendered.html).toContain("::box[Loose]");
+  });
+
   it("retains sanitized source offsets on rendered elements", () => {
     const rendered = renderWorkspaceMarkdown("## Evidence\n\nMapped paragraph.", "");
 
