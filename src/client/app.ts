@@ -3156,17 +3156,26 @@ class WorkspaceApp {
       .elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
       ?.closest<HTMLElement>("[data-source-from][data-source-to]");
     const target = centered && this.#elements.preview.contains(centered) ? centered : this.#nearestPreviewSourceElement();
-    if (target) this.#syncSourceFromPreviewElement(target);
+    if (target) this.#syncSourceFromPreviewElement(target, true);
   }
 
-  #syncSourceFromPreviewElement(target: HTMLElement): void {
+  #syncSourceFromPreviewElement(target: HTMLElement, centerEditor = false): void {
     const previewOffset = Number.parseInt(target.dataset.sourceFrom ?? "", 10);
     if (!Number.isSafeInteger(previewOffset)) return;
     const location = sourceLocationForPreviewOffset(this.#previewSourceMap, previewOffset);
     if (!location) return;
     this.#showWorkspaceSurface("authoring");
     this.#focusProjectRange(location.fileId, location.offset, location.offset);
+    if (centerEditor) this.#centerSourceOffset(location.offset);
     this.#markPreviewSyncTarget(target);
+  }
+
+  #centerSourceOffset(sourceOffset: number): void {
+    const beforeOffset = this.#elements.source.value.slice(0, Math.max(0, sourceOffset));
+    const lineNumber = [...beforeOffset.matchAll(/\r\n|\r|\n/gu)].length + 1;
+    const line = this.#elements.sourceHighlight.querySelector<HTMLElement>(`.source-editor-line[data-line-number="${lineNumber}"]`);
+    if (!line) return;
+    this.#elements.source.scrollTop = line.offsetTop + line.offsetHeight / 2 - this.#elements.source.clientHeight / 2;
   }
 
   #syncPreviewFromSource(explicit = true): void {

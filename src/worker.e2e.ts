@@ -1265,14 +1265,39 @@ test("synchronizes Preview from the centered editor passage instead of a stale c
   });
 
   await page.getByRole("button", { name: "Reveal centered source passage in Preview" }).click();
-  const centerOffset = await passage.evaluate((element) => {
-    const previewScroll = document.querySelector("#preview-scroll");
-    if (!previewScroll) throw new Error("Expected Preview scroller");
-    const passageBounds = element.getBoundingClientRect();
-    const previewBounds = previewScroll.getBoundingClientRect();
-    return passageBounds.top + passageBounds.height / 2 - (previewBounds.top + previewBounds.height / 2);
+  await expect
+    .poll(async () =>
+      Math.abs(
+        await passage.evaluate((element) => {
+          const previewScroll = document.querySelector("#preview-scroll");
+          if (!previewScroll) throw new Error("Expected Preview scroller");
+          const passageBounds = element.getBoundingClientRect();
+          const previewBounds = previewScroll.getBoundingClientRect();
+          return passageBounds.top + passageBounds.height / 2 - (previewBounds.top + previewBounds.height / 2);
+        }),
+      ),
+    )
+    .toBeLessThan(1);
+
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.scrollTop = 0;
   });
-  expect(centerOffset).toBeCloseTo(0, 0);
+  await page.getByRole("button", { name: "Reveal centered Preview passage in source" }).click();
+  await expect
+    .poll(async () => await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart))
+    .toBe(source.indexOf("Passage 30."));
+  const sourceLine = page.locator("#source-editor-highlight .source-editor-line", { hasText: "Passage 30." });
+  await expect
+    .poll(async () =>
+      Math.abs(
+        await sourceLine.evaluate((line) => {
+          const editor = document.querySelector<HTMLTextAreaElement>("#source-editor");
+          if (!editor || !(line instanceof HTMLElement)) throw new Error("Expected source editor line");
+          return line.offsetTop + line.clientHeight / 2 - (editor.scrollTop + editor.clientHeight / 2);
+        }),
+      ),
+    )
+    .toBeLessThan(1);
 });
 
 test("keeps Markdown comment blocks in source and out of publication", async ({ page }) => {

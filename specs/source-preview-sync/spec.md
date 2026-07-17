@@ -40,8 +40,9 @@ Preview offset may belong to a supporting file.
   rendered element, and briefly identify it. Deliberate caret navigation still
   follows the caret automatically while both panes are visible.
 - **Preview to source:** Select the owning project file, enter Write mode, place
-  the caret at the mapped source offset, and show Authoring on a single-pane
-  layout.
+  the caret at the mapped source offset, center its logical line in the editor,
+  and show Authoring on a single-pane layout. Direct Preview clicks reveal the
+  mapped source without forcing viewport centering.
 - **Unavailable mapping:** Keep the current panes and selections unchanged.
 - **Narrow layouts:** Hide the divider control because both panes are not
   simultaneously visible. Direct Preview clicks remain available and return
