@@ -2648,9 +2648,31 @@ test("converges source edits across two writers", async ({ page, context }) => {
   await page.locator("#manuscript-comment-form").getByRole("button", { name: "Add comment" }).click();
   await expect(collaborator.locator("#manuscript-comment-list")).toContainText("Keep this collaboration claim concrete.");
   await collaborator.getByRole("tab", { name: /Comments/ }).click();
+
+  await collaborator.locator("#source-editor").evaluate((element: HTMLTextAreaElement, text: string) => {
+    const start = element.value.indexOf(text);
+    element.focus();
+    element.setRangeText("", start, start + text.length, "start");
+    element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentForward" }));
+  }, selectedText);
+  const sourceAfterDeletion = sourceBeforeComment.replace(selectedText, "");
+  await expect(page.locator("#source-editor")).toHaveValue(sourceAfterDeletion);
+  await expect(page.locator("#manuscript-comment-list").getByRole("button", { name: "Re-anchor to selection" })).toBeVisible();
+
+  const revisedText = "first writer";
+  await page.locator("#source-editor").evaluate((element: HTMLTextAreaElement, text: string) => {
+    const start = element.value.indexOf(text);
+    element.focus();
+    element.setSelectionRange(start, start + text.length);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  }, revisedText);
+  await page.locator("#manuscript-comment-list").getByRole("button", { name: "Re-anchor to selection" }).click();
+  await expect(page.locator("#manuscript-comment-list blockquote")).toHaveText(revisedText);
+  await expect(page.locator("#manuscript-comment-list").getByRole("button", { name: "Open linked passage" })).toBeVisible();
+
   await collaborator.locator("#manuscript-comment-list").getByRole("button", { name: "Resolve" }).click();
   await expect(page.locator("#manuscript-comment-list")).toContainText("resolved");
-  await expect(page.locator("#source-editor")).toHaveValue(sourceBeforeComment);
+  await expect(page.locator("#source-editor")).toHaveValue(sourceAfterDeletion);
   await collaborator.close();
 });
 
