@@ -4289,3 +4289,19 @@
 .review-model-candidate blockquote {
   @apply border-l-2 border-app-accent pl-3 font-serif text-sm leading-6 text-app-text;
 }
+
+.review-report-grid {
+  @apply grid gap-4 p-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)];
+}
+
+.review-report-grid img {
+  @apply mx-auto max-h-[44rem] w-full object-contain;
+}
+
+.review-report-grid figcaption {
+  @apply mt-3 font-sans text-xs leading-5 text-app-text-soft;
+}
+
+.review-report-links {
+  @apply mt-4 grid gap-2 font-sans text-sm font-semibold text-app-accent;
+}

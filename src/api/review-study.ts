@@ -4,6 +4,15 @@ import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-sc
 import type { ReviewModelOperation } from "../domain/review-model";
 import { parseEvidencePointer, type ExtractionValue } from "../domain/review-evidence";
 import { reviewSynthesisCsv, reviewSynthesisMarkdown } from "../domain/review-synthesis";
+import {
+  buildReviewPackage,
+  reviewAuthorityJson,
+  reviewBibliographyBibTeX,
+  reviewExtractionCsv,
+  reviewPrismaData,
+  reviewPrismaSvg,
+  stableReviewJson,
+} from "../domain/review-export";
 import type { AuthIdentity } from "../security/auth";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
@@ -152,6 +161,29 @@ export async function handleReviewStudyApi(
     const result = await room.upsertReviewArtifact(workspaceId, body.path, content, body.expectedProjectRevision);
     if (!result.ok) throw new Error(result.error);
     return noStore({ path: body.path, reviewRevision: synthesis.revision, project: result.value });
+  }
+  if (suffix.startsWith("/review-study/export/") && request.method === "GET") {
+    const authority = await study.getExportAuthority(identity.email);
+    if (suffix === "/review-study/export/review.json") {
+      return download(reviewAuthorityJson(authority), "application/json; charset=utf-8", "review.json");
+    }
+    if (suffix === "/review-study/export/extraction.csv") {
+      return download(reviewExtractionCsv(authority), "text/csv; charset=utf-8", "extraction.csv");
+    }
+    if (suffix === "/review-study/export/bibliography.bib") {
+      return download(reviewBibliographyBibTeX(authority), "application/x-bibtex; charset=utf-8", "bibliography.bib");
+    }
+    const prisma = reviewPrismaData(authority);
+    if (suffix === "/review-study/export/prisma.json") {
+      return download(stableReviewJson(prisma), "application/json; charset=utf-8", "prisma.json");
+    }
+    if (suffix === "/review-study/export/prisma.svg") {
+      return download(reviewPrismaSvg(prisma), "image/svg+xml; charset=utf-8", "prisma.svg");
+    }
+    if (suffix === "/review-study/export/review.zip") {
+      if (!workspaceId) throw new Error("Workspace is unavailable for review export");
+      return binaryDownload(await buildReviewPackage(workspaceId, authority), "application/zip", "review.zip");
+    }
   }
   return Response.json({ error: "Review-study route not found" }, { status: 404 });
 }
@@ -384,6 +416,12 @@ function noStore(value: unknown): Response {
 }
 
 function download(content: string, contentType: string, filename: string): Response {
+  return new Response(content, {
+    headers: { "cache-control": "no-store", "content-type": contentType, "content-disposition": `attachment; filename="${filename}"` },
+  });
+}
+
+function binaryDownload(content: Uint8Array, contentType: string, filename: string): Response {
   return new Response(content, {
     headers: { "cache-control": "no-store", "content-type": contentType, "content-disposition": `attachment; filename="${filename}"` },
   });

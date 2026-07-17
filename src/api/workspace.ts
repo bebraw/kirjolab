@@ -90,7 +90,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     }
     if (suffix === "/settings" && request.method === "DELETE") {
       if (role !== "owner") return jsonError("Only the workspace owner can permanently delete a project", 403);
-      return await permanentlyDeleteWorkspace(workspaceId, room, access, catalog, env, identity);
+      return await permanentlyDeleteWorkspace(workspaceId, room, reviewStudy, access, catalog, env, identity);
     }
     if (suffix === "/" && request.method === "GET") {
       const library = await projectOwnerLibrary(env, access, identity.email);
@@ -361,6 +361,7 @@ async function saveWorkspaceTemplate(
 async function permanentlyDeleteWorkspace(
   workspaceId: string,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  reviewStudy: DurableObjectStub<import("../durable-objects/review-study").ReviewStudy>,
   access: DurableObjectStub<import("../durable-objects/workspace-access").WorkspaceAccess>,
   catalog: DurableObjectStub<import("../durable-objects/workspace-catalog").WorkspaceCatalog>,
   env: Env,
@@ -380,7 +381,7 @@ async function permanentlyDeleteWorkspace(
   const publicAccess = env.WORKSPACE_ACCESS.getByName(locator);
   await Promise.all([publicAccess.revokeMappedReadOnlyShare(), publicAccess.revokeMappedEditShare()]);
   for (const member of members) await env.WORKSPACE_CATALOGS.getByName(await ownerKeyForEmail(member.email)).removeWorkspace(workspaceId);
-  await room.deleteWorkspaceData();
+  await Promise.all([room.deleteWorkspaceData(), reviewStudy.deleteReviewData()]);
   await access.deleteWorkspaceAccess(identity.email);
   await catalog.removeWorkspace(workspaceId);
   return new Response(null, { status: 204 });

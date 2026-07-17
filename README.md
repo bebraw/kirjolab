@@ -30,6 +30,8 @@ is supported on macOS.
   project
 - Accelerate screening and typed extraction with auditable local-model
   candidates that require explicit researcher disposition.
+- Export lossless JSON, long-form CSV, scoped BibTeX, accessible PRISMA flow,
+  and a deterministic digest-manifested review package.
 - Follow a DOI-backed reference trail from trusted seed papers, review
   backward-snowball candidates, and save each accepted source with its
   discovery provenance.

@@ -279,9 +279,9 @@ state.
       revision and can enter the manuscript as named review artifacts.
 - [x] Local models can propose screening and extraction candidates that require
       explicit human acceptance and produce an auditable disclosure.
-- [ ] JSON, CSV, BibTeX, PRISMA JSON/SVG, and deterministic review ZIP exports
+- [x] JSON, CSV, BibTeX, PRISMA JSON/SVG, and deterministic review ZIP exports
       derive from the same review revision.
-- [ ] Project history, backup, and deletion cover the review-study authority and
+- [x] Project history, backup, and deletion cover the review-study authority and
       its pinned revisions.
 - [ ] Domain, Workers-runtime, browser, export, security, and accessibility
       tests cover the critical workflow.

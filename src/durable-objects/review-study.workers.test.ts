@@ -61,6 +61,21 @@ describe("ReviewStudy in the Workers runtime", () => {
     ]);
   });
 
+  it("deletes the complete review authority with the project", async () => {
+    const study = env.REVIEW_STUDIES.getByName(`review-delete-${crypto.randomUUID()}`);
+    await study.getSnapshot();
+    await study.deleteReviewData();
+    expect(
+      await runInDurableObject(
+        study,
+        (_instance: ReviewStudy, state) =>
+          state.storage.sql
+            .exec<{ count: number }>("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+            .one().count,
+      ),
+    ).toBe(0);
+  });
+
   it("imports immutable occurrences and merges only reviewed duplicates", async () => {
     const study = env.REVIEW_STUDIES.getByName(`review-search-${crypto.randomUUID()}`);
     const initial = await study.getSnapshot();

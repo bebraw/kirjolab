@@ -1,6 +1,7 @@
 import type { ReferenceLibrarySnapshot } from "./reference-library";
 import type { ProjectTemplateRecord } from "./project-templates";
 import type { WorkspaceMember, WorkspaceSnapshot, WorkspaceSummary } from "./workspace";
+import type { ReviewExportAuthority } from "./review-export";
 
 export const ownerBackupSchemaVersion = "kirjolab-owner-backup-v1" as const;
 export const maximumOwnerBackupBytes = 10 * 1024 * 1024;
@@ -10,6 +11,8 @@ export interface OwnerWorkspaceBackup {
   readonly members: readonly WorkspaceMember[];
   readonly snapshot: WorkspaceSnapshot;
   readonly revisionSeed: string;
+  readonly review?: ReviewExportAuthority | null;
+  readonly reviewRevisionSeed?: string | null;
 }
 
 export interface OwnerBackupState {
@@ -36,6 +39,7 @@ export interface OwnerBackupRecovery {
     readonly workspaceId: string;
     readonly access: string | null;
     readonly document: string | null;
+    readonly review?: string | null;
   }[];
 }
 

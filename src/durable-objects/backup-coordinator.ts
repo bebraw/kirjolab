@@ -267,14 +267,26 @@ export class BackupCoordinator extends DurableObject<Env> {
       const access = this.env.WORKSPACE_ACCESS.getByName(storageKey);
       if ((await access.getRole(owner.email)) !== "owner") continue;
       const room = this.env.DOCUMENT_ROOMS.getByName(storageKey);
-      const [accessBackup, documentBackup] = await Promise.all([access.getBackupSnapshot(owner.email), room.getBackupSnapshot(summary.id)]);
+      const review = this.env.REVIEW_STUDIES.getByName(storageKey);
+      const [accessBackup, documentBackup, reviewBackup] = await Promise.all([
+        access.getBackupSnapshot(owner.email),
+        room.getBackupSnapshot(summary.id),
+        review.getBackupSnapshot(owner.email),
+      ]);
       workspaces.push({
         summary,
         members: accessBackup.members,
         snapshot: documentBackup.snapshot,
         revisionSeed: documentBackup.revisionSeed,
+        review: reviewBackup.authority,
+        reviewRevisionSeed: reviewBackup.revisionSeed,
       });
-      recoveryWorkspaces.push({ workspaceId: summary.id, access: accessBackup.bookmark, document: documentBackup.bookmark });
+      recoveryWorkspaces.push({
+        workspaceId: summary.id,
+        access: accessBackup.bookmark,
+        document: documentBackup.bookmark,
+        review: reviewBackup.bookmark,
+      });
     }
     workspaces.sort((left, right) => left.summary.id.localeCompare(right.summary.id));
     recoveryWorkspaces.sort((left, right) => left.workspaceId.localeCompare(right.workspaceId));

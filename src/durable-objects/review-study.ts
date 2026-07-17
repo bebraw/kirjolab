@@ -40,6 +40,7 @@ import {
   type ReviewEvidenceSnapshot,
 } from "../domain/review-evidence";
 import { buildReviewSynthesis, type ReviewSynthesis } from "../domain/review-synthesis";
+import type { ReviewExportAuthority } from "../domain/review-export";
 import {
   parseExtractionModelResult,
   parseScreeningModelResult,
@@ -49,6 +50,7 @@ import {
   type ReviewModelSnapshot,
 } from "../domain/review-model";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { currentRecoveryBookmark } from "./recovery";
 
 const migrations = [
   {
@@ -744,6 +746,10 @@ export class ReviewStudy extends DurableObject<Env> {
   }
 
   getModelSnapshot(actor: string): ReviewModelSnapshot {
+    return this.modelSnapshot(actor);
+  }
+
+  private modelSnapshot(actor: string | null): ReviewModelSnapshot {
     const protocol = this.getSnapshot().protocol;
     const rows = this.ctx.storage.sql
       .exec<ModelCandidateRow>("SELECT * FROM review_model_candidates ORDER BY created_at ASC, id ASC")
@@ -753,7 +759,7 @@ export class ReviewStudy extends DurableObject<Env> {
       candidates: rows
         .map((row) => modelCandidateFromRow(row, protocol))
         .filter((candidate) => {
-          if (candidate.disposition !== "pending" || protocol.modelAssistance.mode !== "human-first") return true;
+          if (actor === null || candidate.disposition !== "pending" || protocol.modelAssistance.mode !== "human-first") return true;
           if (candidate.operation === "screen-record") {
             return (
               this.ctx.storage.sql
@@ -909,6 +915,42 @@ export class ReviewStudy extends DurableObject<Env> {
       this.getScreeningSnapshot(actor),
       this.getEvidenceSnapshot(actor),
     );
+  }
+
+  getExportAuthority(actor: string): ReviewExportAuthority {
+    const protocol = this.getSnapshot();
+    const search = this.getSearchSnapshot();
+    const screening = this.getScreeningSnapshot(actor);
+    const evidence = this.getEvidenceSnapshot(actor);
+    const model = this.modelSnapshot(null);
+    const synthesis = buildReviewSynthesis(protocol, search, screening, evidence);
+    const revision = Math.max(
+      protocol.revision,
+      search.revision,
+      screening.revision,
+      evidence.revision,
+      model.revision,
+      synthesis.revision,
+    );
+    return { revision, protocol, search, screening, evidence, model, synthesis };
+  }
+
+  async getBackupSnapshot(actor: string): Promise<{
+    authority: ReviewExportAuthority | null;
+    revisionSeed: string | null;
+    bookmark: string | null;
+  }> {
+    if (this.protocolRows().length === 0) return { authority: null, revisionSeed: null, bookmark: null };
+    const authority = this.getExportAuthority(actor);
+    return {
+      authority,
+      revisionSeed: `review:${authority.revision}:protocol:${authority.protocol.protocol.revision}`,
+      bookmark: await currentRecoveryBookmark(this.ctx.storage, this.env.AUTH_MODE),
+    };
+  }
+
+  async deleteReviewData(): Promise<void> {
+    await this.ctx.storage.deleteAll();
   }
 
   private appendProtocol(content: ReviewProtocolContent, status: "draft" | "frozen", rationale: string, actor: string): void {

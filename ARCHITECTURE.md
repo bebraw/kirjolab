@@ -122,6 +122,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep local-model review assistance browser-to-loopback. Store the operation,
   provider, model, prompt version, authorized source scope, result, and human
   disposition; model candidates remain inert until explicit acceptance.
+- Back up and permanently delete each review authority with its owning project.
+  Derive history, interchange files, PRISMA flow, and the deterministic review
+  package from one revision-pinned authority snapshot.
 - Coordinate each personal reference library through a separate SQLite-backed
   Durable Object keyed by verified owner identity. Stable source identity must
   not depend on a DOI, title, filename, or project citation alias.

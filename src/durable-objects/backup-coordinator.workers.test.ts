@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import type { OwnerBackupManifest } from "../domain/backups";
 import { builtInProjectTemplate } from "../domain/project-templates";
+import { defaultReviewProtocol } from "../domain/review-study";
 
 describe("BackupCoordinator in the Workers runtime", () => {
   it("creates immutable owner backups only when state changes and reports source failures", async () => {
@@ -13,12 +14,19 @@ describe("BackupCoordinator in the Workers runtime", () => {
     const catalog = env.WORKSPACE_CATALOGS.getByName(ownerKey);
     const access = env.WORKSPACE_ACCESS.getByName(workspaceId);
     const room = env.DOCUMENT_ROOMS.getByName(workspaceId);
+    const review = env.REVIEW_STUDIES.getByName(workspaceId);
     const coordinator = env.BACKUP_COORDINATOR.getByName(`backup-${crypto.randomUUID()}`);
     const templates = env.PROJECT_TEMPLATE_CATALOGS.getByName(ownerKey);
 
     await catalog.registerWorkspace(workspaceId, "Backup fixture");
     await access.initializeOwner(ownerEmail);
     await room.initializeWorkspace("Backup fixture");
+    const initialReview = await review.getSnapshot("slr", ownerEmail);
+    await review.replaceProtocol({
+      expectedRevision: initialReview.revision,
+      content: { ...defaultReviewProtocol(), objective: "Backed-up review" },
+      actor: ownerEmail,
+    });
     await env.PAPERS.put(sourceKey, new TextEncoder().encode("pdf fixture"), {
       httpMetadata: { contentType: "application/pdf" },
     });
@@ -54,6 +62,8 @@ describe("BackupCoordinator in the Workers runtime", () => {
     expect(manifest.state.workspaces).toHaveLength(1);
     expect(manifest.state.templates).toEqual([expect.objectContaining({ id: personalTemplate.id, name: "Backed-up template" })]);
     expect(manifest.state.workspaces[0]?.members).toEqual([expect.objectContaining({ email: ownerEmail, role: "owner" })]);
+    expect(manifest.state.workspaces[0]?.review).toMatchObject({ protocol: { protocol: { objective: "Backed-up review" } } });
+    expect(manifest.state.workspaces[0]?.reviewRevisionSeed).toBe("review:2:protocol:2");
     expect(manifest.binaries).toEqual([
       expect.objectContaining({ sourceKey, size: 11, backupKey: expect.stringMatching(`^backups/blobs/${ownerKey}/`) }),
     ]);

@@ -54,11 +54,13 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   const appraiseStep = required("review-step-appraise", HTMLButtonElement);
   const extractStep = required("review-step-extract", HTMLButtonElement);
   const synthesizeStep = required("review-step-synthesize", HTMLButtonElement);
+  const reportStep = required("review-step-report", HTMLButtonElement);
   const searchContent = required("review-search-content", HTMLElement);
   const screenContent = required("review-screen-content", HTMLElement);
   const appraiseContent = required("review-appraise-content", HTMLElement);
   const extractContent = required("review-extract-content", HTMLElement);
   const synthesisContent = required("review-synthesis-content", HTMLElement);
+  const reportContent = required("review-report-content", HTMLElement);
   let snapshot: ReviewStudySnapshot | null = null;
   let searchSnapshot: ReviewSearchSnapshot | null = null;
   let importPreview: ReviewImportPreview | null = null;
@@ -84,10 +86,12 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   appraiseStep.addEventListener("click", () => void showEvidence("appraise"));
   extractStep.addEventListener("click", () => void showEvidence("extract"));
   synthesizeStep.addEventListener("click", () => void showSynthesis());
+  reportStep.addEventListener("click", showReport);
   required("back-to-review-search", HTMLButtonElement).addEventListener("click", () => void showSearch());
   required("back-to-review-screen", HTMLButtonElement).addEventListener("click", () => void showScreen());
   required("back-to-review-appraise", HTMLButtonElement).addEventListener("click", () => void showEvidence("appraise"));
   required("back-to-review-extract", HTMLButtonElement).addEventListener("click", () => void showEvidence("extract"));
+  required("back-to-review-synthesis", HTMLButtonElement).addEventListener("click", () => void showSynthesis());
   required("publish-review-synthesis", HTMLButtonElement).addEventListener("click", () => void publishSynthesis());
   required("review-screen-stage", HTMLSelectElement).addEventListener("change", renderScreening);
   required("review-screen-filter", HTMLSelectElement).addEventListener("change", renderScreening);
@@ -173,12 +177,14 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     appraiseContent.hidden = true;
     extractContent.hidden = true;
     synthesisContent.hidden = true;
+    reportContent.hidden = true;
     planStep.setAttribute("aria-current", "step");
     searchStep.removeAttribute("aria-current");
     screenStep.removeAttribute("aria-current");
     appraiseStep.removeAttribute("aria-current");
     extractStep.removeAttribute("aria-current");
     synthesizeStep.removeAttribute("aria-current");
+    reportStep.removeAttribute("aria-current");
   }
 
   async function showSearch(): Promise<void> {
@@ -189,12 +195,14 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     appraiseContent.hidden = true;
     extractContent.hidden = true;
     synthesisContent.hidden = true;
+    reportContent.hidden = true;
     planStep.removeAttribute("aria-current");
     searchStep.setAttribute("aria-current", "step");
     screenStep.removeAttribute("aria-current");
     appraiseStep.removeAttribute("aria-current");
     extractStep.removeAttribute("aria-current");
     synthesizeStep.removeAttribute("aria-current");
+    reportStep.removeAttribute("aria-current");
     populateSearchSources(snapshot);
     await loadSearchSnapshot();
   }
@@ -221,12 +229,14 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     appraiseContent.hidden = true;
     extractContent.hidden = true;
     synthesisContent.hidden = true;
+    reportContent.hidden = true;
     planStep.removeAttribute("aria-current");
     searchStep.removeAttribute("aria-current");
     screenStep.setAttribute("aria-current", "step");
     appraiseStep.removeAttribute("aria-current");
     extractStep.removeAttribute("aria-current");
     synthesizeStep.removeAttribute("aria-current");
+    reportStep.removeAttribute("aria-current");
     await loadScreening();
   }
 
@@ -255,7 +265,9 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     appraiseContent.hidden = mode !== "appraise";
     extractContent.hidden = mode !== "extract";
     synthesisContent.hidden = true;
-    for (const step of [planStep, searchStep, screenStep, appraiseStep, extractStep, synthesizeStep]) step.removeAttribute("aria-current");
+    reportContent.hidden = true;
+    for (const step of [planStep, searchStep, screenStep, appraiseStep, extractStep, synthesizeStep, reportStep])
+      step.removeAttribute("aria-current");
     (mode === "appraise" ? appraiseStep : extractStep).setAttribute("aria-current", "step");
     await loadEvidence();
   }
@@ -292,7 +304,9 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     appraiseContent.hidden = true;
     extractContent.hidden = true;
     synthesisContent.hidden = false;
-    for (const step of [planStep, searchStep, screenStep, appraiseStep, extractStep, synthesizeStep]) step.removeAttribute("aria-current");
+    reportContent.hidden = true;
+    for (const step of [planStep, searchStep, screenStep, appraiseStep, extractStep, synthesizeStep, reportStep])
+      step.removeAttribute("aria-current");
     synthesizeStep.setAttribute("aria-current", "step");
     setSynthesisStatus("Deriving analysis from the current review revision…");
     try {
@@ -300,10 +314,25 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       synthesis = parseReviewSynthesis(await response.json());
       renderSynthesis(synthesis);
+      reportStep.disabled = false;
       setSynthesisStatus(`Synthesis derived from review revision ${synthesis.revision}.`);
     } catch (error) {
       setSynthesisStatus(errorMessage(error));
     }
+  }
+
+  function showReport(): void {
+    if (reportStep.disabled) return;
+    form.hidden = true;
+    searchContent.hidden = true;
+    screenContent.hidden = true;
+    appraiseContent.hidden = true;
+    extractContent.hidden = true;
+    synthesisContent.hidden = true;
+    reportContent.hidden = false;
+    for (const step of [planStep, searchStep, screenStep, appraiseStep, extractStep, synthesizeStep, reportStep])
+      step.removeAttribute("aria-current");
+    reportStep.setAttribute("aria-current", "step");
   }
 
   async function publishSynthesis(): Promise<void> {
