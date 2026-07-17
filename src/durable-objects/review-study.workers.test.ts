@@ -55,6 +55,7 @@ describe("ReviewStudy in the Workers runtime", () => {
     ).toEqual([
       { version: 1, name: "store-review-protocol-revisions" },
       { version: 2, name: "store-search-runs-and-reviewed-duplicates" },
+      { version: 3, name: "store-append-only-screening-decisions" },
     ]);
   });
 
@@ -89,5 +90,73 @@ describe("ReviewStudy in the Workers runtime", () => {
     expect(merged.counts).toEqual({ identified: 2, unique: 1, duplicatesRemoved: 1 });
     expect(new Set(merged.occurrences.map((occurrence) => occurrence.recordId))).toEqual(new Set([candidate.leftId]));
     expect(merged.duplicateCandidates[0]).toMatchObject({ status: "merged", resolvedBy: "reviewer@example.com" });
+  });
+
+  it("blinds independent screening decisions and preserves adjudicated conflicts", async () => {
+    const study = env.REVIEW_STUDIES.getByName(`review-screen-${crypto.randomUUID()}`);
+    const initial = await study.getSnapshot();
+    const content = {
+      ...defaultReviewProtocol(),
+      screening: { reviewersPerStage: 2 as const, blinded: true },
+      inclusionCriteria: ["Addresses the research question"],
+      exclusionCriteria: ["Not empirical"],
+      sources: [{ id: "source", name: "Source", url: "", dialect: "generic" as const, fieldScope: "all-fields" as const }],
+    };
+    await study.replaceProtocol({ expectedRevision: initial.revision, content, actor: "owner@example.com" });
+    await study.freezeProtocol(2, "owner@example.com");
+    const bibtex = "@article{study, title={Screen Me}, author={Doe, Jane}, year={2025}, abstract={Evidence}}";
+    const preview = await previewReviewBibTeX(bibtex);
+    const searched = await study.confirmSearchRun({
+      expectedRevision: 3,
+      sourceId: "source",
+      query: "evidence",
+      searchedAt: "2026-07-17T09:00:00Z",
+      bibtex,
+      digest: preview.digest,
+      actor: "owner@example.com",
+    });
+    const recordId = searched.records[0]!.id;
+    const first = await study.submitScreeningDecision(
+      searched.revision,
+      recordId,
+      "title-abstract",
+      "include",
+      "Relevant",
+      "Addresses the research question",
+      "reviewer-a@example.com",
+    );
+    expect(first.records[0]?.titleAbstract).toMatchObject({ outcome: "pending", decisions: [{ reviewer: "reviewer-a@example.com" }] });
+    expect((await study.getScreeningSnapshot("reviewer-b@example.com")).records[0]?.titleAbstract.decisions).toEqual([]);
+    const second = await study.submitScreeningDecision(
+      first.revision,
+      recordId,
+      "title-abstract",
+      "exclude",
+      "Not empirical",
+      "Not empirical",
+      "reviewer-b@example.com",
+    );
+    expect(second.records[0]?.titleAbstract).toMatchObject({ outcome: "conflict" });
+    expect(second.records[0]?.titleAbstract.decisions).toHaveLength(2);
+    const adjudicated = await study.adjudicateScreening(
+      second.revision,
+      recordId,
+      "title-abstract",
+      "include",
+      "Reviewers reached consensus",
+      "lead@example.com",
+    );
+    expect(adjudicated.records[0]?.titleAbstract).toMatchObject({ outcome: "include", adjudication: { adjudicator: "lead@example.com" } });
+    expect(adjudicated.records[0]?.titleAbstract.decisions).toHaveLength(2);
+    const fullText = await study.submitScreeningDecision(
+      adjudicated.revision,
+      recordId,
+      "full-text",
+      "include",
+      "Eligible",
+      "Addresses the research question",
+      "reviewer-a@example.com",
+    );
+    expect(fullText.records[0]?.fullText.outcome).toBe("pending");
   });
 });

@@ -19,6 +19,16 @@ import {
   type ReviewSearchRun,
   type ReviewSearchSnapshot,
 } from "../domain/review-search";
+import {
+  fullTextScreeningAllowed,
+  screeningStageState,
+  type ReviewScreeningSnapshot,
+  type ScreeningAdjudication,
+  type ScreeningDecision,
+  type ScreeningDecisionValue,
+  type ScreeningRecordState,
+  type ScreeningStage,
+} from "../domain/review-screening";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 
 const migrations = [
@@ -93,6 +103,36 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 3,
+    name: "store-append-only-screening-decisions",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE screening_decisions (
+          id TEXT PRIMARY KEY,
+          record_id TEXT NOT NULL REFERENCES review_records(id),
+          stage TEXT NOT NULL CHECK (stage IN ('title-abstract', 'full-text')),
+          reviewer TEXT NOT NULL,
+          decision TEXT NOT NULL CHECK (decision IN ('include', 'exclude', 'uncertain')),
+          reason TEXT NOT NULL,
+          criterion TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE screening_adjudications (
+          id TEXT PRIMARY KEY,
+          record_id TEXT NOT NULL REFERENCES review_records(id),
+          stage TEXT NOT NULL CHECK (stage IN ('title-abstract', 'full-text')),
+          outcome TEXT NOT NULL CHECK (outcome IN ('include', 'exclude')),
+          reason TEXT NOT NULL,
+          adjudicator TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX screening_decisions_record_stage_idx ON screening_decisions(record_id, stage, created_at);
+        CREATE INDEX screening_adjudications_record_stage_idx ON screening_adjudications(record_id, stage, created_at);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface MetaRow extends Record<string, SqlStorageValue> {
@@ -147,6 +187,27 @@ interface DuplicateCandidateRow extends Record<string, SqlStorageValue> {
   status: "pending" | "merged" | "distinct" | "superseded";
   resolved_at: string | null;
   resolved_by: string | null;
+}
+
+interface ScreeningDecisionRow extends Record<string, SqlStorageValue> {
+  id: string;
+  record_id: string;
+  stage: ScreeningStage;
+  reviewer: string;
+  decision: ScreeningDecisionValue;
+  reason: string;
+  criterion: string;
+  created_at: string;
+}
+
+interface ScreeningAdjudicationRow extends Record<string, SqlStorageValue> {
+  id: string;
+  record_id: string;
+  stage: ScreeningStage;
+  outcome: "include" | "exclude";
+  reason: string;
+  adjudicator: string;
+  created_at: string;
 }
 
 export interface ReplaceReviewProtocolInput {
@@ -309,6 +370,12 @@ export class ReviewStudy extends DurableObject<Env> {
       .exec<DuplicateCandidateRow>("SELECT * FROM duplicate_candidates WHERE id = ?", candidateId)
       .toArray()[0];
     if (!candidateRow || candidateRow.status !== "pending") throw new Error("Review duplicate candidate is unavailable");
+    const screeningCount = this.ctx.storage.sql
+      .exec<{
+        count: number;
+      }>("SELECT COUNT(*) AS count FROM screening_decisions WHERE record_id = ? OR record_id = ?", candidateRow.left_id, candidateRow.right_id)
+      .one().count;
+    if (screeningCount > 0) throw new Error("Resolve duplicate candidates before screening their records");
     const now = new Date().toISOString();
     this.ctx.storage.transactionSync(() => {
       if (action === "merge") {
@@ -341,6 +408,108 @@ export class ReviewStudy extends DurableObject<Env> {
       this.advanceRevision();
     });
     return this.getSearchSnapshot();
+  }
+
+  getScreeningSnapshot(actor: string): ReviewScreeningSnapshot {
+    const protocol = this.getSnapshot().protocol;
+    const decisions = this.ctx.storage.sql
+      .exec<ScreeningDecisionRow>("SELECT * FROM screening_decisions ORDER BY created_at ASC, id ASC")
+      .toArray()
+      .map(decisionFromRow);
+    const adjudications = this.ctx.storage.sql
+      .exec<ScreeningAdjudicationRow>("SELECT * FROM screening_adjudications ORDER BY created_at ASC, id ASC")
+      .toArray()
+      .map(adjudicationFromRow);
+    const records = this.ctx.storage.sql
+      .exec<ReviewRecordRow>("SELECT * FROM review_records WHERE state = 'active' ORDER BY id ASC")
+      .toArray()
+      .map(recordFromRow)
+      .map((record) =>
+        screeningRecord(record, decisions, adjudications, protocol.screening.reviewersPerStage, protocol.screening.blinded, actor),
+      );
+    return {
+      revision: this.currentRevision(),
+      reviewersPerStage: protocol.screening.reviewersPerStage,
+      blinded: protocol.screening.blinded,
+      records,
+      counts: screeningCounts(records),
+    };
+  }
+
+  submitScreeningDecision(
+    expectedRevision: number,
+    recordId: string,
+    stage: ScreeningStage,
+    decision: ScreeningDecisionValue,
+    reason: string,
+    criterion: string,
+    actor: string,
+  ): ReviewScreeningSnapshot {
+    this.assertRevision(expectedRevision, this.currentRevision());
+    const record = this.ctx.storage.sql
+      .exec<ReviewRecordRow>("SELECT * FROM review_records WHERE id = ? AND state = 'active'", recordId)
+      .toArray()[0];
+    if (!record) throw new Error("Review screening record is unavailable");
+    if (stage !== "title-abstract" && stage !== "full-text") throw new Error("Review screening stage is invalid");
+    if (decision !== "include" && decision !== "exclude" && decision !== "uncertain")
+      throw new Error("Review screening decision is invalid");
+    const reasonValue = boundedScreeningText(reason, "Screening reason", 2_000, decision !== "exclude");
+    const criterionValue = boundedScreeningText(criterion, "Screening criterion", 1_000, true);
+    if (stage === "full-text") {
+      const state = this.getScreeningSnapshot(actor).records.find((candidate) => candidate.record.id === recordId);
+      if (!state || !fullTextScreeningAllowed(state)) throw new Error("Full-text screening requires title-and-abstract inclusion");
+    }
+    const priorCount = this.ctx.storage.sql
+      .exec<{
+        count: number;
+      }>("SELECT COUNT(*) AS count FROM screening_decisions WHERE record_id = ? AND stage = ? AND reviewer = ?", recordId, stage, actor)
+      .one().count;
+    if (priorCount >= 20) throw new Error("Screening decision revision limit reached");
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO screening_decisions (id, record_id, stage, reviewer, decision, reason, criterion, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        crypto.randomUUID(),
+        recordId,
+        stage,
+        actor,
+        decision,
+        reasonValue,
+        criterionValue,
+        new Date().toISOString(),
+      );
+      this.advanceRevision();
+    });
+    return this.getScreeningSnapshot(actor);
+  }
+
+  adjudicateScreening(
+    expectedRevision: number,
+    recordId: string,
+    stage: ScreeningStage,
+    outcome: "include" | "exclude",
+    reason: string,
+    actor: string,
+  ): ReviewScreeningSnapshot {
+    this.assertRevision(expectedRevision, this.currentRevision());
+    const state = this.getScreeningSnapshot(actor).records.find((candidate) => candidate.record.id === recordId);
+    const stageState = stage === "title-abstract" ? state?.titleAbstract : state?.fullText;
+    if (!stageState || stageState.outcome !== "conflict") throw new Error("Only a screening conflict can be adjudicated");
+    if (outcome !== "include" && outcome !== "exclude") throw new Error("Screening adjudication outcome is invalid");
+    const reasonValue = boundedScreeningText(reason, "Adjudication reason", 2_000, false);
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO screening_adjudications (id, record_id, stage, outcome, reason, adjudicator, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        crypto.randomUUID(),
+        recordId,
+        stage,
+        outcome,
+        reasonValue,
+        actor,
+        new Date().toISOString(),
+      );
+      this.advanceRevision();
+    });
+    return this.getScreeningSnapshot(actor);
   }
 
   private appendProtocol(content: ReviewProtocolContent, status: "draft" | "frozen", rationale: string, actor: string): void {
@@ -411,6 +580,9 @@ function protocolContent(protocol: ReviewProtocolRevision): ReviewProtocolConten
     conceptGroups: protocol.conceptGroups,
     sources: protocol.sources,
     knownRelevantStudies: protocol.knownRelevantStudies,
+    inclusionCriteria: protocol.inclusionCriteria,
+    exclusionCriteria: protocol.exclusionCriteria,
+    screening: protocol.screening,
   };
 }
 
@@ -494,4 +666,66 @@ function isReviewImportRecord(value: unknown): value is ReviewImportRecord {
 function validTimestamp(value: string, label: string): string {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) throw new Error(`${label} is invalid`);
   return new Date(value).toISOString();
+}
+
+function decisionFromRow(row: ScreeningDecisionRow): ScreeningDecision {
+  return {
+    id: row.id,
+    recordId: row.record_id,
+    stage: row.stage,
+    reviewer: row.reviewer,
+    decision: row.decision,
+    reason: row.reason,
+    criterion: row.criterion,
+    createdAt: row.created_at,
+  };
+}
+
+function adjudicationFromRow(row: ScreeningAdjudicationRow): ScreeningAdjudication {
+  return {
+    id: row.id,
+    recordId: row.record_id,
+    stage: row.stage,
+    outcome: row.outcome,
+    reason: row.reason,
+    adjudicator: row.adjudicator,
+    createdAt: row.created_at,
+  };
+}
+
+function screeningRecord(
+  record: ReviewRecord,
+  decisions: readonly ScreeningDecision[],
+  adjudications: readonly ScreeningAdjudication[],
+  reviewersPerStage: 1 | 2,
+  blinded: boolean,
+  actor: string,
+): ScreeningRecordState {
+  const stateFor = (stage: ScreeningStage) => {
+    const stageDecisions = decisions.filter((decision) => decision.recordId === record.id && decision.stage === stage);
+    const reviewers = new Set(stageDecisions.map((decision) => decision.reviewer.toLocaleLowerCase()));
+    const visibleDecisions =
+      blinded && reviewers.size < reviewersPerStage ? stageDecisions.filter((decision) => decision.reviewer === actor) : stageDecisions;
+    const adjudication = adjudications.filter((item) => item.recordId === record.id && item.stage === stage).at(-1) ?? null;
+    const derived = screeningStageState(stageDecisions, adjudication, reviewersPerStage);
+    return { ...derived, decisions: visibleDecisions };
+  };
+  return { record, titleAbstract: stateFor("title-abstract"), fullText: stateFor("full-text") };
+}
+
+function screeningCounts(records: readonly ScreeningRecordState[]): ReviewScreeningSnapshot["counts"] {
+  return {
+    titleAbstractPending: records.filter((record) => record.titleAbstract.outcome === "pending").length,
+    titleAbstractIncluded: records.filter((record) => record.titleAbstract.outcome === "include").length,
+    fullTextPending: records.filter((record) => record.titleAbstract.outcome === "include" && record.fullText.outcome === "pending").length,
+    fullTextIncluded: records.filter((record) => record.fullText.outcome === "include").length,
+    conflicts: records.filter((record) => record.titleAbstract.outcome === "conflict" || record.fullText.outcome === "conflict").length,
+  };
+}
+
+function boundedScreeningText(value: string, label: string, maximum: number, allowEmpty: boolean): string {
+  if (typeof value !== "string") throw new Error(`${label} is invalid`);
+  const normalized = value.trim();
+  if ((!allowEmpty && !normalized) || normalized.length > maximum) throw new Error(`${label} is invalid`);
+  return normalized;
 }

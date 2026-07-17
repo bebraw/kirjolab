@@ -3924,6 +3924,95 @@
     display: none;
   }
 
+  .review-screen-content {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: 0;
+  }
+
+  .review-screen-content[hidden] {
+    display: none;
+  }
+
+  .review-screen-toolbar {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--color-app-line);
+    background: var(--color-app-paper);
+    padding: 1rem 1.25rem;
+  }
+
+  .review-screen-toolbar h3 {
+    margin-top: 0.15rem;
+    font-size: 1.2rem;
+    font-weight: 650;
+  }
+
+  .review-screen-toolbar p:last-child {
+    margin-top: 0.2rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.72rem;
+  }
+
+  .review-screen-controls {
+    display: flex;
+    gap: 0.65rem;
+  }
+
+  .review-screen-list {
+    display: grid;
+    align-content: start;
+    gap: 0.75rem;
+    overflow-y: auto;
+    padding: 1rem 1.25rem;
+  }
+
+  .review-screen-card {
+    border: 1px solid var(--color-app-line);
+    background: var(--color-app-paper);
+    padding: 1rem;
+  }
+
+  .review-screen-card header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .review-screen-card h4 {
+    font-weight: 650;
+  }
+
+  .review-screen-meta,
+  .review-screen-abstract {
+    margin-top: 0.35rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.75rem;
+    line-height: 1.55;
+  }
+
+  .review-screen-form {
+    display: grid;
+    grid-template-columns: 0.8fr 1fr 1.4fr auto;
+    gap: 0.65rem;
+    margin-top: 0.8rem;
+    border-top: 1px solid var(--color-app-line);
+    padding-top: 0.8rem;
+  }
+
+  .review-screen-form button {
+    align-self: end;
+  }
+
+  .review-decision-history {
+    margin-top: 0.6rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.7rem;
+  }
+
   .review-search-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.55fr);
@@ -4044,6 +4133,30 @@
 
   .review-picoc-grid label:last-child {
     grid-column: 1 / -1;
+  }
+
+  .review-screening-policy {
+    display: grid;
+    grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  .review-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    border: 1px solid var(--color-app-line);
+    padding: 0.65rem;
+  }
+
+  .review-checkbox span {
+    display: grid;
+    font-size: 0.75rem;
+  }
+
+  .review-checkbox small {
+    color: var(--color-app-text-soft);
   }
 
   .review-query-preview {

@@ -107,6 +107,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   revisions immutable, generate source-specific queries from one logical
   concept model, and require an explicit rationale for every post-freeze
   amendment.
+- Keep review screening decisions append-only and reviewer-attributed. Derive
+  stage outcomes from the configured independent-review policy, blind pending
+  peer decisions when requested, and resolve conflicts through separate
+  adjudications instead of overwriting either judgment.
 - Coordinate each personal reference library through a separate SQLite-backed
   Durable Object keyed by verified owner identity. Stable source identity must
   not depend on a DOI, title, filename, or project citation alias.

@@ -58,6 +58,12 @@ export interface ReviewProtocolContent {
   readonly conceptGroups: readonly ReviewConceptGroup[];
   readonly sources: readonly ReviewSearchSource[];
   readonly knownRelevantStudies: readonly KnownRelevantStudy[];
+  readonly inclusionCriteria: readonly string[];
+  readonly exclusionCriteria: readonly string[];
+  readonly screening: {
+    readonly reviewersPerStage: 1 | 2;
+    readonly blinded: boolean;
+  };
 }
 
 export interface ReviewProtocolRevision extends ReviewProtocolContent {
@@ -90,6 +96,9 @@ export function defaultReviewProtocol(profile: ReviewProfile = "slr"): ReviewPro
     conceptGroups: [],
     sources: [],
     knownRelevantStudies: [],
+    inclusionCriteria: [],
+    exclusionCriteria: [],
+    screening: { reviewersPerStage: 1, blinded: false },
   };
 }
 
@@ -141,11 +150,34 @@ export function parseReviewProtocolContent(value: unknown): ReviewProtocolConten
       };
     },
   );
+  const inclusionCriteria = parseArray(value.inclusionCriteria ?? [], 128, "inclusion criteria", (item) =>
+    boundedText(item, "Inclusion criterion", 1_000),
+  );
+  const exclusionCriteria = parseArray(value.exclusionCriteria ?? [], 128, "exclusion criteria", (item) =>
+    boundedText(item, "Exclusion criterion", 1_000),
+  );
+  uniqueStrings(inclusionCriteria, "Inclusion criteria");
+  uniqueStrings(exclusionCriteria, "Exclusion criteria");
+  const screeningValue = isRecord(value.screening) ? value.screening : { reviewersPerStage: 1, blinded: false };
+  if ((screeningValue.reviewersPerStage !== 1 && screeningValue.reviewersPerStage !== 2) || typeof screeningValue.blinded !== "boolean") {
+    throw new Error("Screening policy is invalid");
+  }
   uniqueIds(researchQuestions, "Research questions");
   uniqueIds(conceptGroups, "Concept groups");
   uniqueIds(sources, "Search sources");
   uniqueIds(knownRelevantStudies, "Known relevant studies");
-  return { profile: value.profile, objective, picoc, researchQuestions, conceptGroups, sources, knownRelevantStudies };
+  return {
+    profile: value.profile,
+    objective,
+    picoc,
+    researchQuestions,
+    conceptGroups,
+    sources,
+    knownRelevantStudies,
+    inclusionCriteria,
+    exclusionCriteria,
+    screening: { reviewersPerStage: screeningValue.reviewersPerStage, blinded: screeningValue.blinded },
+  };
 }
 
 export function materializeProtocolRevision(

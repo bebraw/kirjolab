@@ -116,7 +116,21 @@ describe("review-study API in the Workers runtime", () => {
       identity,
       "/review-study/search-runs",
     );
-    await expect(confirm.json()).resolves.toMatchObject({ revision: 4, counts: { identified: 1, unique: 1 } });
+    const confirmed = (await confirm.json()) as { revision: number; records: { id: string }[] };
+    expect(confirmed).toMatchObject({ revision: 4, counts: { identified: 1, unique: 1 } });
+    const screening = await handleReviewStudyApi(
+      jsonRequest("http://example.com/screen", {
+        expectedRevision: confirmed.revision,
+        stage: "title-abstract",
+        decision: "include",
+        reason: "Relevant",
+        criterion: "",
+      }),
+      study,
+      identity,
+      `/review-study/records/${confirmed.records[0]!.id}/screening-decisions`,
+    );
+    await expect(screening.json()).resolves.toMatchObject({ revision: 5, counts: { titleAbstractIncluded: 1 } });
   });
 });
 

@@ -271,7 +271,7 @@ state.
       review source-specific field-scoped query renderings.
 - [x] Immutable search runs can import BibTeX occurrences and preserve source
       counts through reviewed deduplication.
-- [ ] One or two reviewers can complete staged screening, inspect conflicts,
+- [x] One or two reviewers can complete staged screening, inspect conflicts,
       and adjudicate without overwriting original decisions.
 - [ ] Included records support evidence-linked quality appraisal and typed data
       extraction with explicit missingness.

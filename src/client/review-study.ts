@@ -17,6 +17,14 @@ import {
   type ReviewRecord,
   type ReviewSearchSnapshot,
 } from "../domain/review-search";
+import {
+  fullTextScreeningAllowed,
+  parseReviewScreeningSnapshot,
+  type ReviewScreeningSnapshot,
+  type ScreeningDecisionValue,
+  type ScreeningRecordState,
+  type ScreeningStage,
+} from "../domain/review-screening";
 
 const facets = ["population", "intervention", "comparison", "outcome", "context"] as const;
 const dialects = new Set<SearchDialect>(["generic", "scopus", "web-of-science", "ieee-xplore", "acm-dl"]);
@@ -30,10 +38,13 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   const freeze = required("freeze-review-protocol", HTMLButtonElement);
   const planStep = required("review-step-plan", HTMLButtonElement);
   const searchStep = required("review-step-search", HTMLButtonElement);
+  const screenStep = required("review-step-screen", HTMLButtonElement);
   const searchContent = required("review-search-content", HTMLElement);
+  const screenContent = required("review-screen-content", HTMLElement);
   let snapshot: ReviewStudySnapshot | null = null;
   let searchSnapshot: ReviewSearchSnapshot | null = null;
   let importPreview: ReviewImportPreview | null = null;
+  let screeningSnapshot: ReviewScreeningSnapshot | null = null;
 
   open.addEventListener("click", () => {
     dialog.showModal();
@@ -48,6 +59,10 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   planStep.addEventListener("click", showPlan);
   required("back-to-review-plan", HTMLButtonElement).addEventListener("click", showPlan);
   searchStep.addEventListener("click", () => void showSearch());
+  screenStep.addEventListener("click", () => void showScreen());
+  required("back-to-review-search", HTMLButtonElement).addEventListener("click", () => void showSearch());
+  required("review-screen-stage", HTMLSelectElement).addEventListener("change", renderScreening);
+  required("review-screen-filter", HTMLSelectElement).addEventListener("change", renderScreening);
   required("review-search-source", HTMLSelectElement).addEventListener("change", () => {
     if (snapshot) syncSourceQuery(snapshot);
   });
@@ -62,6 +77,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       snapshot = parseReviewStudySnapshot(await response.json());
       render(snapshot);
+      await loadSearchSnapshot();
       setStatus(`Protocol revision ${snapshot.revision} loaded.`);
     } catch (error) {
       setStatus(errorMessage(error));
@@ -86,7 +102,11 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         method,
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ expectedRevision: snapshot.revision, content, ...(rationale ? { rationale } : {}) }),
+        body: JSON.stringify({
+          expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot),
+          content,
+          ...(rationale ? { rationale } : {}),
+        }),
       });
       await expectOk(response);
       snapshot = parseReviewStudySnapshot(await response.json());
@@ -105,7 +125,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ expectedRevision: snapshot.revision }),
+        body: JSON.stringify({ expectedRevision: currentRevision(snapshot, searchSnapshot, screeningSnapshot) }),
       });
       await expectOk(response);
       snapshot = parseReviewStudySnapshot(await response.json());
@@ -119,16 +139,20 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   function showPlan(): void {
     form.hidden = false;
     searchContent.hidden = true;
+    screenContent.hidden = true;
     planStep.setAttribute("aria-current", "step");
     searchStep.removeAttribute("aria-current");
+    screenStep.removeAttribute("aria-current");
   }
 
   async function showSearch(): Promise<void> {
     if (!snapshot || snapshot.protocol.status !== "frozen") return;
     form.hidden = true;
     searchContent.hidden = false;
+    screenContent.hidden = true;
     planStep.removeAttribute("aria-current");
     searchStep.setAttribute("aria-current", "step");
+    screenStep.removeAttribute("aria-current");
     populateSearchSources(snapshot);
     await loadSearchSnapshot();
   }
@@ -140,9 +164,34 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       searchSnapshot = parseReviewSearchSnapshot(await response.json());
       renderSearchSnapshot(searchSnapshot);
+      screenStep.disabled = searchSnapshot.counts.unique === 0;
       setSearchStatus("Search runs preserve the exact source, query, date, and import digest.");
     } catch (error) {
       setSearchStatus(errorMessage(error));
+    }
+  }
+
+  async function showScreen(): Promise<void> {
+    if (screenStep.disabled) return;
+    form.hidden = true;
+    searchContent.hidden = true;
+    screenContent.hidden = false;
+    planStep.removeAttribute("aria-current");
+    searchStep.removeAttribute("aria-current");
+    screenStep.setAttribute("aria-current", "step");
+    await loadScreening();
+  }
+
+  async function loadScreening(): Promise<void> {
+    setScreenStatus("Loading screening decisions…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/screening`, { credentials: "same-origin" });
+      await expectOk(response);
+      screeningSnapshot = parseReviewScreeningSnapshot(await response.json());
+      renderScreening();
+      setScreenStatus("Decisions are append-only and attributed to the signed-in reviewer.");
+    } catch (error) {
+      setScreenStatus(errorMessage(error));
     }
   }
 
@@ -192,6 +241,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       clearImportPreview();
       required("review-search-bibtex", HTMLTextAreaElement).value = "";
       renderSearchSnapshot(searchSnapshot);
+      screenStep.disabled = searchSnapshot.counts.unique === 0;
       setImportStatus("Immutable search run recorded.");
     } catch (error) {
       setImportStatus(errorMessage(error));
@@ -215,12 +265,90 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       searchSnapshot = parseReviewSearchSnapshot(await response.json());
       renderSearchSnapshot(searchSnapshot);
+      screenStep.disabled = searchSnapshot.counts.unique === 0;
       setSearchStatus(
         action === "merge" ? "Duplicate merged; both source occurrences remain in provenance." : "Records marked as distinct.",
       );
     } catch (error) {
       setSearchStatus(errorMessage(error));
     }
+  }
+
+  async function submitDecision(recordId: string, stage: ScreeningStage, formElement: HTMLFormElement): Promise<void> {
+    if (!screeningSnapshot) return;
+    const data = new FormData(formElement);
+    setScreenStatus("Recording screening decision…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/records/${recordId}/screening-decisions`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: screeningSnapshot.revision,
+          stage,
+          decision: screeningDecisionValue(data.get("decision")),
+          criterion: String(data.get("criterion") ?? ""),
+          reason: String(data.get("reason") ?? ""),
+        }),
+      });
+      await expectOk(response);
+      screeningSnapshot = parseReviewScreeningSnapshot(await response.json());
+      renderScreening();
+      setScreenStatus("Screening decision recorded.");
+    } catch (error) {
+      setScreenStatus(errorMessage(error));
+    }
+  }
+
+  async function adjudicate(recordId: string, stage: ScreeningStage, outcome: "include" | "exclude"): Promise<void> {
+    if (!screeningSnapshot) return;
+    const reason = window.prompt("Record the consensus rationale:")?.trim();
+    if (!reason) return;
+    setScreenStatus("Recording adjudication…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/records/${recordId}/screening-adjudications`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedRevision: screeningSnapshot.revision, stage, outcome, reason }),
+      });
+      await expectOk(response);
+      screeningSnapshot = parseReviewScreeningSnapshot(await response.json());
+      renderScreening();
+      setScreenStatus("Conflict adjudicated without replacing reviewer decisions.");
+    } catch (error) {
+      setScreenStatus(errorMessage(error));
+    }
+  }
+
+  function renderScreening(): void {
+    if (!screeningSnapshot || !snapshot) return;
+    const protocolSnapshot = snapshot;
+    const stage = screeningStageValue(required("review-screen-stage", HTMLSelectElement).value);
+    const filter = required("review-screen-filter", HTMLSelectElement).value;
+    const states = screeningSnapshot.records.filter((state) => {
+      if (stage === "full-text" && !fullTextScreeningAllowed(state)) return false;
+      const outcome = screeningStateFor(state, stage).outcome;
+      return filter === "all" || outcome === filter;
+    });
+    required("review-screen-policy", HTMLElement).textContent =
+      `${screeningSnapshot.reviewersPerStage === 2 ? "Two independent reviewers" : "One reviewer"} per stage${screeningSnapshot.blinded ? " · pending decisions blinded" : ""}`;
+    required("review-screen-counts", HTMLElement).textContent =
+      `${stage === "title-abstract" ? screeningSnapshot.counts.titleAbstractPending : screeningSnapshot.counts.fullTextPending} pending · ${screeningSnapshot.counts.conflicts} conflicts`;
+    const list = required("review-screen-list", HTMLElement);
+    list.replaceChildren(
+      ...(states.length
+        ? states.map((state) =>
+            screeningCard(
+              state,
+              stage,
+              protocolSnapshot,
+              (recordId, formElement) => submitDecision(recordId, stage, formElement),
+              (recordId, outcome) => adjudicate(recordId, stage, outcome),
+            ),
+          )
+        : [emptyState("No records match this screening view.")]),
+    );
   }
 
   function renderSearchSnapshot(value: ReviewSearchSnapshot): void {
@@ -253,6 +381,10 @@ function render(snapshot: ReviewStudySnapshot): void {
   required("review-known-studies", HTMLTextAreaElement).value = protocol.knownRelevantStudies
     .map((study) => `${study.title} | ${study.abstract.replaceAll(/\s+/gu, " ")}`)
     .join("\n");
+  required("review-inclusion-criteria", HTMLTextAreaElement).value = protocol.inclusionCriteria.join("\n");
+  required("review-exclusion-criteria", HTMLTextAreaElement).value = protocol.exclusionCriteria.join("\n");
+  required("review-reviewer-count", HTMLSelectElement).value = String(protocol.screening.reviewersPerStage);
+  required("review-blinded", HTMLInputElement).checked = protocol.screening.blinded;
   required("review-protocol-state", HTMLElement).textContent =
     `${protocol.status === "frozen" ? "Frozen" : "Draft"} · r${snapshot.revision}`;
   required("freeze-review-protocol", HTMLButtonElement).disabled = protocol.status === "frozen";
@@ -354,6 +486,117 @@ function renderDuplicateCandidate(
   return item;
 }
 
+function screeningCard(
+  state: ScreeningRecordState,
+  stage: ScreeningStage,
+  protocolSnapshot: ReviewStudySnapshot,
+  submit: (recordId: string, form: HTMLFormElement) => Promise<void>,
+  adjudicate: (recordId: string, outcome: "include" | "exclude") => Promise<void>,
+): HTMLElement {
+  const stageState = screeningStateFor(state, stage);
+  const card = document.createElement("article");
+  card.className = "review-screen-card";
+  const header = document.createElement("header");
+  const identity = document.createElement("div");
+  const title = document.createElement("h4");
+  title.textContent = state.record.metadata.title;
+  const meta = document.createElement("p");
+  meta.className = "review-screen-meta";
+  meta.textContent = `${state.record.metadata.authors.join("; ") || "Unknown authors"} · ${state.record.metadata.year || "No year"} · ${state.record.metadata.venue || "No venue"}`;
+  identity.append(title, meta);
+  const badge = document.createElement("span");
+  badge.className = "count-badge";
+  badge.textContent = stageState.outcome;
+  header.append(identity, badge);
+  const abstract = document.createElement("p");
+  abstract.className = "review-screen-abstract";
+  abstract.textContent = state.record.metadata.abstract || "No abstract was present in the imported record.";
+  card.append(header, abstract);
+
+  if (stageState.outcome === "conflict") {
+    const actions = document.createElement("div");
+    actions.className = "review-duplicate-actions";
+    actions.append(
+      actionButton("Adjudicate include", () => void adjudicate(state.record.id, "include")),
+      actionButton("Adjudicate exclude", () => void adjudicate(state.record.id, "exclude")),
+    );
+    card.append(actions);
+  } else {
+    const form = document.createElement("form");
+    form.className = "review-screen-form";
+    form.append(
+      selectField("Decision", "decision", ["include", "exclude", "uncertain"]),
+      selectField("Criterion", "criterion", [
+        "",
+        ...protocolSnapshot.protocol.inclusionCriteria,
+        ...protocolSnapshot.protocol.exclusionCriteria,
+      ]),
+      inputField("Reason", "reason", "Required when excluding"),
+    );
+    const save = document.createElement("button");
+    save.className = "button-primary";
+    save.type = "submit";
+    save.textContent = stageState.decisions.length > 0 ? "Revise decision" : "Record decision";
+    form.append(save);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void submit(state.record.id, form);
+    });
+    card.append(form);
+  }
+  if (stageState.decisions.length > 0) {
+    const history = document.createElement("p");
+    history.className = "review-decision-history";
+    history.textContent = stageState.decisions
+      .map((decision) => `${decision.reviewer}: ${decision.decision}${decision.reason ? ` — ${decision.reason}` : ""}`)
+      .join(" · ");
+    card.append(history);
+  }
+  return card;
+}
+
+function screeningStateFor(state: ScreeningRecordState, stage: ScreeningStage) {
+  return stage === "title-abstract" ? state.titleAbstract : state.fullText;
+}
+
+function selectField(labelText: string, name: string, values: readonly string[]): HTMLLabelElement {
+  const label = document.createElement("label");
+  label.className = "field-label";
+  label.textContent = labelText;
+  const select = document.createElement("select");
+  select.className = "field";
+  select.name = name;
+  for (const value of values) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value || "No criterion";
+    select.append(option);
+  }
+  label.append(select);
+  return label;
+}
+
+function inputField(labelText: string, name: string, placeholder: string): HTMLLabelElement {
+  const label = document.createElement("label");
+  label.className = "field-label";
+  label.textContent = labelText;
+  const input = document.createElement("input");
+  input.className = "field";
+  input.name = name;
+  input.maxLength = 2_000;
+  input.placeholder = placeholder;
+  label.append(input);
+  return label;
+}
+
+function screeningStageValue(value: string): ScreeningStage {
+  return value === "full-text" ? "full-text" : "title-abstract";
+}
+
+function screeningDecisionValue(value: FormDataEntryValue | null): ScreeningDecisionValue {
+  return value === "exclude" || value === "uncertain" ? value : "include";
+}
+
 function actionButton(label: string, action: () => void): HTMLButtonElement {
   const button = document.createElement("button");
   button.className = "button-secondary";
@@ -383,6 +626,14 @@ function localDateTime(date: Date): string {
 function formatDate(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function currentRevision(
+  protocol: ReviewStudySnapshot,
+  search: ReviewSearchSnapshot | null,
+  screening: ReviewScreeningSnapshot | null,
+): number {
+  return Math.max(protocol.revision, search?.revision ?? 0, screening?.revision ?? 0);
 }
 
 function renderQueries(protocol: ReviewStudySnapshot["protocol"]): void {
@@ -467,6 +718,12 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
     conceptGroups,
     sources,
     knownRelevantStudies,
+    inclusionCriteria: nonEmptyLines(required("review-inclusion-criteria", HTMLTextAreaElement).value),
+    exclusionCriteria: nonEmptyLines(required("review-exclusion-criteria", HTMLTextAreaElement).value),
+    screening: {
+      reviewersPerStage: required("review-reviewer-count", HTMLSelectElement).value === "2" ? 2 : 1,
+      blinded: required("review-blinded", HTMLInputElement).checked,
+    },
   };
 }
 
@@ -505,6 +762,10 @@ function setImportStatus(message: string): void {
 
 function setSearchStatus(message: string): void {
   required("review-search-status", HTMLElement).textContent = message;
+}
+
+function setScreenStatus(message: string): void {
+  required("review-screen-status", HTMLElement).textContent = message;
 }
 
 function errorMessage(error: unknown): string {

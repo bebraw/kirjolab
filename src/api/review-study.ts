@@ -1,5 +1,6 @@
 import { parseReviewProtocolContent } from "../domain/review-study";
 import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search";
+import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
 import type { AuthIdentity } from "../security/auth";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
@@ -55,7 +56,78 @@ export async function handleReviewStudyApi(
       await study.resolveDuplicate(body.expectedRevision, duplicateMatch[1], body.action, body.canonicalRecordId, identity.email),
     );
   }
+  if (suffix === "/review-study/screening" && request.method === "GET") return noStore(await study.getScreeningSnapshot(identity.email));
+  const screeningMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/screening-decisions$/iu.exec(suffix);
+  if (screeningMatch?.[1] && request.method === "POST") {
+    const body = await screeningDecisionRequest(request);
+    return noStore(
+      await study.submitScreeningDecision(
+        body.expectedRevision,
+        screeningMatch[1],
+        body.stage,
+        body.decision,
+        body.reason,
+        body.criterion,
+        identity.email,
+      ),
+    );
+  }
+  const adjudicationMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/screening-adjudications$/iu.exec(suffix);
+  if (adjudicationMatch?.[1] && request.method === "POST") {
+    const body = await screeningAdjudicationRequest(request);
+    return noStore(
+      await study.adjudicateScreening(body.expectedRevision, adjudicationMatch[1], body.stage, body.outcome, body.reason, identity.email),
+    );
+  }
   return Response.json({ error: "Review-study route not found" }, { status: 404 });
+}
+
+async function screeningDecisionRequest(request: Request): Promise<{
+  expectedRevision: number;
+  stage: ScreeningStage;
+  decision: ScreeningDecisionValue;
+  reason: string;
+  criterion: string;
+}> {
+  const value: unknown = await request.json();
+  if (
+    !isRecord(value) ||
+    typeof value.expectedRevision !== "number" ||
+    !Number.isSafeInteger(value.expectedRevision) ||
+    (value.stage !== "title-abstract" && value.stage !== "full-text") ||
+    (value.decision !== "include" && value.decision !== "exclude" && value.decision !== "uncertain") ||
+    typeof value.reason !== "string" ||
+    typeof value.criterion !== "string"
+  ) {
+    throw new Error("Review screening decision request is invalid");
+  }
+  return {
+    expectedRevision: value.expectedRevision,
+    stage: value.stage,
+    decision: value.decision,
+    reason: value.reason,
+    criterion: value.criterion,
+  };
+}
+
+async function screeningAdjudicationRequest(request: Request): Promise<{
+  expectedRevision: number;
+  stage: ScreeningStage;
+  outcome: "include" | "exclude";
+  reason: string;
+}> {
+  const value: unknown = await request.json();
+  if (
+    !isRecord(value) ||
+    typeof value.expectedRevision !== "number" ||
+    !Number.isSafeInteger(value.expectedRevision) ||
+    (value.stage !== "title-abstract" && value.stage !== "full-text") ||
+    (value.outcome !== "include" && value.outcome !== "exclude") ||
+    typeof value.reason !== "string"
+  ) {
+    throw new Error("Review screening adjudication request is invalid");
+  }
+  return { expectedRevision: value.expectedRevision, stage: value.stage, outcome: value.outcome, reason: value.reason };
 }
 
 async function searchRunRequest(request: Request) {
