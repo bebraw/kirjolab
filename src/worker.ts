@@ -6,6 +6,7 @@ import { handleWorkspaceApi } from "./api/workspace";
 import { handleProjectTemplateApi } from "./api/project-templates";
 import { handleGitHubConnectionApi } from "./api/github-connection";
 import { handleGitHubImportApi } from "./api/github-sync";
+import { handleLatexImportApi } from "./api/latex-import";
 import { handleReferenceLibraryApi } from "./api/reference-library";
 import { exampleRoutes } from "./app-routes";
 import { buildExportBundle } from "./domain/export-pipeline";
@@ -145,6 +146,11 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   if (url.pathname === "/api/github/import-previews" || url.pathname === "/api/github/imports") {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await handleGitHubImportApi(request, env, identity);
+  }
+
+  if (url.pathname === "/api/latex-import-previews" || url.pathname === "/api/latex-imports") {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await handleLatexImportApi(request, env, identity);
   }
 
   if (

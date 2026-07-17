@@ -53,7 +53,8 @@ not translate cleanly.
 - `POST /api/latex-import-previews` accepts one bounded ZIP plus optional root
   and bibliography selections and returns a non-mutating versioned preview.
 - `POST /api/latex-imports` accepts the same archive, a title, and reviewed
-  selections, repeats conversion, and returns the created workspace summary.
+  selections plus the preview digest, repeats conversion, and returns the
+  created workspace summary. A digest mismatch fails as stale review.
 - Conversion reports contain stable diagnostic codes, severity, source path,
   bounded source ranges, and a human-readable message. They never contain
   executable HTML or unbounded archive excerpts.

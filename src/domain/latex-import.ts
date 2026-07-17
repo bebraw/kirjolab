@@ -320,7 +320,7 @@ function activeLatex(source: string): string {
         if (line[index] !== "%") continue;
         let backslashes = 0;
         for (let cursor = index - 1; cursor >= 0 && line[cursor] === "\\"; cursor -= 1) backslashes += 1;
-        if (backslashes % 2 === 0) return line.slice(0, index);
+        if (backslashes % 2 === 0) return `${line.slice(0, index)}${" ".repeat(line.length - index)}`;
       }
       return line;
     })

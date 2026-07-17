@@ -46,6 +46,12 @@ Escaped \% sign.
         resolvedPath: "sections/introduction.tex",
       }),
     ]);
+    expect(result.includes[0]?.from).toBe(
+      String.raw`\documentclass{article}
+\begin{document}
+% \input{missing}
+`.length,
+    );
     expect(result.bibliographies).toEqual([
       expect.objectContaining({ sourcePath: "_main.tex", requestedPath: "references/web", resolvedPath: "references/web.bib" }),
     ]);
