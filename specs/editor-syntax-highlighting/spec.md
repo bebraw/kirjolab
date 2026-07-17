@@ -17,7 +17,9 @@ preserving the native collaborative textarea and exact source text.
 - **Presentation:** `#source-editor-highlight` is an inert, `aria-hidden` mirror
   behind the transparent textarea glyphs. It uses safe text nodes, shows a
   line-number gutter whose rows follow wrapped logical lines, and follows the
-  textarea scroll position.
+  textarea scroll position. The textarea, mirror, and gutter share one integral
+  line-height token and opt out of Safari text autosizing so fractional native
+  control rounding cannot accumulate into vertical drift.
 - **Semantics:** unified/remark preview parsing and validation remain authoritative;
   highlight classes are visual hints only.
 - **Edit history:** each project file owns a browser-local Yjs undo manager.
@@ -54,6 +56,8 @@ preserving the native collaborative textarea and exact source text.
       refresh the mirrored presentation.
 - [x] Visible line numbers stay aligned with logical lines as prose wraps and
       scroll with the manuscript.
+- [x] Text, caret, and mirror geometry stay aligned at the top, middle, and end
+      of a long document under an iPad-sized WebKit viewport.
 - [x] Forced-colors mode falls back to visible native textarea text.
 - [x] Unit and browser tests cover classification, safe mirrored rendering,
       scroll synchronization, editing, and collaborative updates.
@@ -65,7 +69,9 @@ preserving the native collaborative textarea and exact source text.
 - The textarea value, selection offsets, and Yjs state remain authoritative.
 - Highlight output must never execute or interpret authored HTML.
 - The mirror must stay text-identical and aligned during scrolling and
-  wrapping; line-number decoration must not enter its text content.
+  wrapping; line-number decoration must not enter its text content. Source
+  editor surfaces must retain the shared integral line height and disabled text
+  autosizing that prevent cumulative Safari drift.
 - Unsupported or incomplete syntax remains readable as ordinary source.
 - Undo history is ephemeral, scoped per file, and never enters project or
   collaboration state.
@@ -98,3 +104,10 @@ preserving the native collaborative textarea and exact source text.
 - Given: the browser reports forced colors
 - When: the editor is displayed
 - Then: the mirror is hidden and native textarea text remains visible
+
+**Scenario: Researcher edits a long document on iPad**
+
+- Given: the source contains enough lines to scroll beyond one viewport
+- When: the researcher places the caret near the middle or end in Safari
+- Then: the native caret, mirrored text, and line-number row remain vertically
+  aligned at the same scroll position

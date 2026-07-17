@@ -798,6 +798,7 @@ test("keeps the local editor target visible after focus moves to Context", async
 });
 
 test("highlights Markdown without replacing the native editor", async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
   const workspaceId = await createWorkspace(page, "Highlighted source");
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
@@ -806,6 +807,7 @@ test("highlights Markdown without replacing the native editor", async ({ page })
     "",
     "Use :cite[smith2024], **careful emphasis**, and [context](https://example.test).",
     '<img src=x onerror="document.body.dataset.injected=true">',
+    `Long wrapped prose ${"word ".repeat(80)}`,
     ...Array.from({ length: 80 }, (_, index) => `- Supporting line ${index + 1}`),
   ].join("\n");
   const editor = page.locator("#source-editor");
@@ -845,12 +847,27 @@ test("highlights Markdown without replacing the native editor", async ({ page })
       };
     }),
   ).toEqual({ sameWidth: true, font: true, padding: true, wrappedLineNumberStaysAligned: true, whiteSpace: "pre-wrap" });
-  const scroll = await editor.evaluate((element: HTMLTextAreaElement) => {
-    element.scrollTop = 240;
-    element.dispatchEvent(new Event("scroll"));
-    return element.scrollTop;
+  const verticalExtent = await page.locator(".source-editor-shell").evaluate((shell) => {
+    const textarea = shell.querySelector<HTMLTextAreaElement>("#source-editor")!;
+    const mirror = shell.querySelector<HTMLElement>("#source-editor-highlight")!;
+    return {
+      textarea: textarea.scrollHeight,
+      mirror: mirror.scrollHeight,
+      lineHeight: getComputedStyle(textarea).lineHeight,
+    };
   });
-  await expect.poll(async () => await highlight.evaluate((element) => element.scrollTop)).toBe(scroll);
+  expect(verticalExtent.lineHeight).toBe("27px");
+  expect(Math.abs(verticalExtent.textarea - verticalExtent.mirror), JSON.stringify(verticalExtent)).toBeLessThanOrEqual(1);
+  const scrollPositions = await editor.evaluate((element: HTMLTextAreaElement) => {
+    const mirror = document.querySelector<HTMLElement>("#source-editor-highlight")!;
+    const maximum = element.scrollHeight - element.clientHeight;
+    return [0, maximum / 2, maximum].map((position) => {
+      element.scrollTop = position;
+      element.dispatchEvent(new Event("scroll"));
+      return { textarea: element.scrollTop, mirror: mirror.scrollTop };
+    });
+  });
+  expect(scrollPositions.every(({ textarea, mirror }) => Math.abs(textarea - mirror) <= 1)).toBe(true);
 
   await page.emulateMedia({ forcedColors: "active" });
   expect(

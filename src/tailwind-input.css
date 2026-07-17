@@ -2382,6 +2382,7 @@
     min-height: 34rem;
     resize: none;
     color: transparent;
+    line-height: var(--source-editor-line-height);
     caret-color: var(--color-app-ink);
     -webkit-text-fill-color: transparent;
   }
@@ -2389,8 +2390,11 @@
   .source-editor-shell {
     --source-editor-gutter: clamp(2.5rem, 8vw, 3.25rem);
     --source-editor-inline-padding: clamp(1.25rem, 4vw, 3rem);
+    --source-editor-line-height: 1.6875rem;
     position: relative;
     min-height: 34rem;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   .project-map {
@@ -2579,7 +2583,7 @@
     color: var(--color-app-ink);
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
     font-size: 0.9rem;
-    line-height: 1.85;
+    line-height: var(--source-editor-line-height);
     pointer-events: none;
     tab-size: 2;
   }
@@ -2602,7 +2606,7 @@
     content: attr(data-line-number);
     font-size: 0.7rem;
     font-variant-numeric: tabular-nums;
-    line-height: 2.38;
+    line-height: var(--source-editor-line-height);
     text-align: end;
   }
 
