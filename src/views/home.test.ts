@@ -23,6 +23,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
     expect(html).toContain('id="preferences-menu" data-settings-menu');
     expect(html).toContain('id="citation-completion-scope" aria-label="Citation suggestion scope"');
+    expect(html).toContain('id="choose-model-evidence" type="button">Choose evidence</button>');
     expect(html).toContain('id="application-version">Loading…</code>');
     expect(html).toContain('id="copy-application-version" type="button" aria-label="Copy application version"');
     expect(html).toContain('aria-label="Open preferences" title="Preferences"');

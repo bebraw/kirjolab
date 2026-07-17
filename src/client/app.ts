@@ -270,6 +270,7 @@ interface Elements {
   applicationVersion: HTMLElement;
   copyApplicationVersion: HTMLButtonElement;
   citationCompletionScope: HTMLSelectElement;
+  chooseModelEvidence: HTMLButtonElement;
   openPreferencesFromAssistant: HTMLButtonElement;
   collaboratorSelections: HTMLElement;
   workspaceSwitcher: HTMLSelectElement;
@@ -1267,6 +1268,7 @@ class WorkspaceApp {
       this.#elements.preferencesMenu.open = true;
       this.#elements.llmConnection.focus();
     });
+    this.#elements.chooseModelEvidence.addEventListener("click", () => this.#chooseModelEvidence());
     this.#renderModelOperationOptions();
     this.#renderPhrasingPurposeOptions();
     this.#elements.modelOperation.addEventListener("change", () => this.#updateModelTask(true));
@@ -7530,6 +7532,21 @@ class WorkspaceApp {
     this.#updateModelAvailability();
   }
 
+  #chooseModelEvidence(): void {
+    this.#showRail("research");
+    const control = document.querySelector<HTMLInputElement>("[data-model-evidence-key]");
+    if (!control) {
+      this.#elements.modelStatus.textContent = "Add a PDF highlight or researcher-authored claim before choosing model evidence.";
+      this.#showToast("No project evidence is available yet.");
+      return;
+    }
+    const collection = control.closest("details");
+    if (collection instanceof HTMLDetailsElement) collection.open = true;
+    control.scrollIntoView({ behavior: "smooth", block: "center" });
+    control.focus({ preventScroll: true });
+    this.#elements.modelStatus.textContent = "Choose one or more evidence resources in the Research rail, then return to the assistant.";
+  }
+
   #modelEvidence(): { items: ModelEvidenceItem[]; references: ModelEvidenceReference[] } {
     if (!this.#snapshot) return { items: [], references: [] };
     const items: ModelEvidenceItem[] = [];
@@ -7594,8 +7611,8 @@ class WorkspaceApp {
       evidenceMissing
     ) {
       this.#elements.modelStatus.textContent = draftsClaim
-        ? "Select at least one annotation first. Claims cannot ground a new claim draft."
-        : "Choose a valid manuscript target and any required evidence first.";
+        ? "Choose at least one annotation as evidence. Claims cannot ground a new claim draft."
+        : "Choose a valid manuscript target, then use Choose evidence for any required grounding.";
       return;
     }
     let provider: OpenAICompatibleBrowserProvider;
@@ -9550,6 +9567,7 @@ function collectElements(): Elements {
     applicationVersion: requiredElement("application-version", HTMLElement),
     copyApplicationVersion: requiredElement("copy-application-version", HTMLButtonElement),
     citationCompletionScope: requiredElement("citation-completion-scope", HTMLSelectElement),
+    chooseModelEvidence: requiredElement("choose-model-evidence", HTMLButtonElement),
     openPreferencesFromAssistant: requiredElement("open-preferences-from-assistant", HTMLButtonElement),
     collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
     workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),

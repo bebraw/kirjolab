@@ -119,6 +119,10 @@ All mutation operations preserve a human review boundary.
   with the authoring workflow. Passage selection, instruction, and evidence are
   primary; endpoint and model connection fields remain available under
   secondary settings instead of occupying persistent chrome.
+- The assistant keeps a visible **Choose evidence** action beside its status.
+  It opens the Research rail, expands the collection containing the first
+  available grounding control, and focuses that control; an empty project
+  explains that a highlight or claim must be created first.
 - The active manuscript caret or selection is retained as Yjs-relative
   positions and refreshes after keyboard movement, pointer clicks, selections,
   and edits. Editor chrome always reports its file and line, while the existing
