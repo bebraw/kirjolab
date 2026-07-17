@@ -51,6 +51,12 @@ export interface RenderedDocument {
   diagnostics: Diagnostic[];
 }
 
+export type HeadingNumbers = Readonly<Record<number, string>>;
+
+export interface MarkdownRenderOptions {
+  readonly headingNumbers?: HeadingNumbers;
+}
+
 // Stryker disable Regex: unified owns Markdown parsing; these expressions only locate the small semantic-directive validation surface.
 const directivePattern = /(?<!:):([a-z][a-z-]*)\[([^\]]*)\](?:\{([^}]*)\})?/giu;
 const attributePattern = /([a-z][a-z-]*)=(?:"([^"]*)"|([^\s}]+))/giu;
@@ -143,6 +149,7 @@ export function renderWorkspaceMarkdown(
   source: string,
   bibliographySource: string,
   citationStyle: CitationStyle = "apa",
+  options: MarkdownRenderOptions = {},
 ): RenderedDocument {
   const normalized = source.replaceAll("\r\n", "\n");
   const comments = projectMarkdownComments(normalized);
@@ -175,7 +182,7 @@ export function renderWorkspaceMarkdown(
       .use(renderSemanticDirectives, { bibliography, citedIds, references, citationStyle, diagnostics })
       .use(remarkRehype)
       .use(annotatePreviewSourcePositions)
-      .use(renderNumberedHeadings)
+      .use(renderNumberedHeadings, options.headingNumbers)
       .use(normalizeTableAlignment)
       .use(rehypeSanitize, previewSchema)
       .use(rehypeStringify)
@@ -195,6 +202,21 @@ export function renderWorkspaceMarkdown(
       ],
     };
   }
+}
+
+export function headingNumbersByOffset(source: string): HeadingNumbers {
+  const normalized = source.replaceAll("\r\n", "\n");
+  const masked = projectMarkdownComments(normalized).masked;
+  const tree = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml", "toml"]).use(remarkDirective).parse(masked);
+  const counters = { h2: 0, h3: 0 };
+  const numbers: Record<number, string> = {};
+  visit(tree, "heading", (node: Heading) => {
+    if (node.depth !== 2 && node.depth !== 3) return;
+    const offset = node.position?.start.offset;
+    if (offset === undefined) return;
+    numbers[offset] = getHeadingNumber(`h${node.depth}`, counters);
+  });
+  return numbers;
 }
 
 function annotatePreviewSourcePositions() {
@@ -447,7 +469,7 @@ function renderSemanticDirectives(options: SemanticOptions) {
   };
 }
 
-function renderNumberedHeadings() {
+function renderNumberedHeadings(headingNumbers: HeadingNumbers = {}) {
   return (tree: HastRoot): void => {
     const counters = { h2: 0, h3: 0 };
     const foundIds: Record<string, number> = {};
@@ -460,7 +482,9 @@ function renderNumberedHeadings() {
       const raw = hastText(node);
       const explicitId = typeof node.properties.id === "string" ? node.properties.id : undefined;
       const slug = explicitId ?? getUniqueSlug(raw, foundIds);
-      const number = getHeadingNumber(node.tagName, counters);
+      const generatedNumber = getHeadingNumber(node.tagName, counters);
+      const number =
+        node.position?.start.offset === undefined ? generatedNumber : (headingNumbers[node.position.start.offset] ?? generatedNumber);
       node.properties.id = slug;
       node.children.unshift({
         type: "element",

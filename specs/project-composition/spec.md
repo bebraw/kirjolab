@@ -59,8 +59,11 @@ collaborative, and unambiguous about what preview and export mean.
   another entry first.
 - Preview follows file selection. Selecting the effective entry shows the composed paper;
   selecting a supporting Markdown file shows only that file's authored content
-  without expanding its includes. A quiet context label identifies the active
-  path and whether Preview is composed or isolated. Markdown export, word
+  without expanding its includes. Its headings retain the numbers assigned by
+  the file's first source-mapped occurrence in the entry composition, including
+  numbering changes caused by nested includes; an untranscluded file numbers
+  itself locally. A quiet context label identifies the active path and whether
+  Preview is composed or isolated. Markdown export, word
   statistics, history, project search, and every publication path continue to
   compose from the persisted effective entry.
 - The workspace exposes project files as a dedicated navigation mode, separate

@@ -2890,7 +2890,18 @@ class WorkspaceApp {
       return;
     }
     if (renderVersion !== this.#previewRenderVersion) return;
-    const rendered = runtime.renderWorkspaceMarkdown(renderedSource, bibliography, this.#snapshot?.publicationProfile.citationStyle);
+    const headingNumbers: Record<number, string> = {};
+    if (filePreview?.mode === "isolated" && publicationComposition) {
+      for (const [outputOffset, number] of Object.entries(runtime.headingNumbersByOffset(publicationComposition.content))) {
+        const span = sourceSpanAt(publicationComposition.sourceMap, Number(outputOffset));
+        if (!span || span.fileId !== filePreview.fileId) continue;
+        const sourceOffset = span.sourceStart + Number(outputOffset) - span.outputStart;
+        headingNumbers[sourceOffset] ??= number;
+      }
+    }
+    const rendered = runtime.renderWorkspaceMarkdown(renderedSource, bibliography, this.#snapshot?.publicationProfile.citationStyle, {
+      headingNumbers,
+    });
     this.#elements.preview.innerHTML = rendered.html;
     this.#previewSourceMap = filePreview?.sourceMap ?? [];
     this.#resolveProjectPreviewImages(renderedSource, filePreview?.sourceMap ?? []);

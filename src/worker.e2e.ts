@@ -1258,11 +1258,19 @@ test("synchronizes Preview from the centered editor passage instead of a stale c
   await expect(passage).toBeVisible();
 
   await editor.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(0, 0));
-  await page.locator("#source-editor-highlight .source-editor-line", { hasText: "Passage 30." }).evaluate((line) => {
-    const editor = document.querySelector<HTMLTextAreaElement>("#source-editor");
-    if (!editor || !(line instanceof HTMLElement)) throw new Error("Expected source editor line");
-    editor.scrollTop = line.offsetTop + line.clientHeight / 2 - editor.clientHeight / 2;
-  });
+  const sourceLine = page.locator("#source-editor-highlight .source-editor-line", { hasText: "Passage 30." });
+  await expect
+    .poll(async () =>
+      Math.abs(
+        await sourceLine.evaluate((line) => {
+          const editor = document.querySelector<HTMLTextAreaElement>("#source-editor");
+          if (!editor || !(line instanceof HTMLElement)) throw new Error("Expected source editor line");
+          editor.scrollTop = line.offsetTop + line.clientHeight / 2 - editor.clientHeight / 2;
+          return line.offsetTop + line.clientHeight / 2 - (editor.scrollTop + editor.clientHeight / 2);
+        }),
+      ),
+    )
+    .toBeLessThan(1);
 
   await page.getByRole("button", { name: "Reveal centered source passage in Preview" }).click();
   await expect
@@ -1286,7 +1294,6 @@ test("synchronizes Preview from the centered editor passage instead of a stale c
   await expect
     .poll(async () => await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart))
     .toBe(source.indexOf("Passage 30."));
-  const sourceLine = page.locator("#source-editor-highlight .source-editor-line", { hasText: "Passage 30." });
   await expect
     .poll(async () =>
       Math.abs(
@@ -2962,19 +2969,20 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.locator("#save-status")).toHaveText("Saved");
   const source = page.locator("#source-editor");
-  await source.fill("Before\nAfter\n");
-  await source.evaluate((element: HTMLTextAreaElement) => {
+  const entrySource = "## Introduction\n\nBefore\nAfter\n";
+  await source.fill(entrySource);
+  await source.evaluate((element: HTMLTextAreaElement, selection: number) => {
     element.focus();
-    element.setSelectionRange(7, 7);
+    element.setSelectionRange(selection, selection);
     element.dispatchEvent(new Event("select", { bubbles: true }));
-  });
+  }, entrySource.indexOf("After"));
 
   const fileMenu = page.locator(".action-menu", { has: page.locator("#create-and-include-project-file") });
   await fileMenu.locator("summary").click();
   await page.locator("#create-and-include-project-file").click();
   await page.locator("#project-file-path").fill("chapters/method.md");
   await page.locator("#project-file-form").getByRole("button", { name: "Save file" }).click();
-  await expect(source).toHaveValue("Before\n\n::include[chapters/method.md]\nAfter\n");
+  await expect(source).toHaveValue("## Introduction\n\nBefore\n\n::include[chapters/method.md]\nAfter\n");
   await expect(page.locator(".project-folder-row", { hasText: "chapters/" })).toBeVisible();
   await expect(page.locator(".project-file-row", { hasText: "method.md" })).toBeVisible();
 
@@ -2994,6 +3002,7 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await expect(page.locator("#source-editor-highlight")).toHaveText("## Method\n\nDescribe the procedure.\n");
   await expect(page.locator("#source-editor-highlight .markdown-token-heading")).toContainText("Method");
   await expect(page.locator("#preview-file-context")).toHaveText("chapters/method.md · isolated file");
+  await expect(page.locator("#preview h2 .section-number")).toHaveText("2 ");
   await expect(page.locator("#preview")).toContainText("Describe the procedure.");
   await expect(page.locator("#preview")).not.toContainText("Before");
 

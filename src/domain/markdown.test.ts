@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBibliography, renderWorkspaceMarkdown, slugify } from "./markdown";
+import { headingNumbersByOffset, parseBibliography, renderWorkspaceMarkdown, slugify } from "./markdown";
 
 const bibliography = `@article{merton1942,
   author = {Merton, Robert K.},
@@ -203,6 +203,23 @@ unfinished`;
     expect(html).toContain("<p>line one\nline two</p>");
     expect(html).toContain("<b>Four</b>");
     expect(renderWorkspaceMarkdown("", "")).toEqual({ html: "", diagnostics: [] });
+  });
+
+  it("derives composed heading numbers and applies source-positioned overrides", () => {
+    const source = "## Introduction\n\n::: comment\n## Hidden\n:::\n\n```md\n## Literal\n```\n\n## Method\n\n### Detail\n";
+    const methodOffset = source.indexOf("## Method");
+    const detailOffset = source.indexOf("### Detail");
+
+    expect(headingNumbersByOffset(source)).toEqual({ 0: "1", [methodOffset]: "2", [detailOffset]: "2.1" });
+
+    const isolated = "## Method\n\n### Detail\n";
+    const html = withoutSourcePositions(
+      renderWorkspaceMarkdown(isolated, "", "apa", {
+        headingNumbers: { 0: "2", [isolated.indexOf("### Detail")]: "2.1" },
+      }).html,
+    );
+    expect(html).toContain('<h2 id="method"><span class="section-number">2 </span>Method</h2>');
+    expect(html).toContain('<h3 id="detail"><span class="section-number">2.1 </span>Detail</h3>');
   });
 
   it("renders the documented GFM surface through the JavaScript pipeline", () => {

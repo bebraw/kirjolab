@@ -1,6 +1,6 @@
 import type * as Markdown from "../domain/markdown";
 
-export type MarkdownRuntime = Pick<typeof Markdown, "renderWorkspaceMarkdown">;
+export type MarkdownRuntime = Pick<typeof Markdown, "headingNumbersByOffset" | "renderWorkspaceMarkdown">;
 
 declare const __MARKDOWN_RUNTIME_URL__: string;
 
