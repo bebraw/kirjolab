@@ -7355,11 +7355,16 @@ class WorkspaceApp {
     const file = this.#elements.bibliographyUpload.files?.[0];
     if (!file) return;
     this.#showToast(`Importing ${file.name}…`);
-    const response = await jsonFetch(`${apiBase}/bibliography/import`, { bibtex: await file.text() });
-    await expectOk(response);
-    this.#elements.bibliographyUpload.value = "";
-    await this.#resourceRefresh.request();
-    this.#showToast("References merged by citation key.");
+    try {
+      const response = await jsonFetch(`${apiBase}/bibliography/import`, { bibtex: await file.text() });
+      await expectOk(response);
+      await this.#resourceRefresh.request();
+      this.#showToast("References merged by citation key.");
+    } catch (error) {
+      this.#showToast(error instanceof Error ? error.message : "Could not import the BibTeX file.");
+    } finally {
+      this.#elements.bibliographyUpload.value = "";
+    }
   }
 
   async #enrichPublication(publicationId: string): Promise<void> {

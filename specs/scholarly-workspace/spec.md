@@ -729,6 +729,13 @@ mode for authenticated hosted collaboration.
 - Then: each stable source retains per-field provenance and its imported key is
   only a suggested project alias
 
+**Scenario: Rejected bibliography import remains recoverable**
+
+- Given: an owner chooses a project BibTeX file with no valid entries
+- When: the bounded import rejects the file
+- Then: the server error replaces the importing state, the file control resets,
+  and the researcher can choose another file without reloading
+
 **Scenario: Removing a project reference keeps working memory**
 
 - Given: a project link has a stable owner-library source

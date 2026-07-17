@@ -3709,6 +3709,14 @@ test("imports BibTeX into stable publication resources", async ({ page }) => {
   await page.goto(`/workspaces/${workspaceId}`);
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   await page.locator("#bibliography-upload").setInputFiles({
+    name: "broken.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from("not bibtex at all"),
+  });
+  await expect(page.locator("#toast")).toHaveText("No valid BibTeX entries found");
+  await expect(page.locator("#bibliography-upload")).toHaveValue("");
+
+  await page.locator("#bibliography-upload").setInputFiles({
     name: "references.bib",
     mimeType: "application/x-bibtex",
     buffer: Buffer.from(`@article{inspectable2026,
