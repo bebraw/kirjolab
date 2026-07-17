@@ -4540,6 +4540,7 @@ class WorkspaceApp {
     const metadataBody = document.createElement("div");
     metadataBody.className = "library-reference-detail-body";
     metadataEditor.append(metadataBody);
+    const fieldPrefix = `library-reference-${reference.id}`;
     const metadataFields = new Map<string, HTMLInputElement | HTMLTextAreaElement>();
     for (const [name, value] of [
       ["type", reference.type],
@@ -4552,6 +4553,8 @@ class WorkspaceApp {
     ] as const) {
       const input = document.createElement("input");
       input.className = "field mt-2";
+      input.id = `${fieldPrefix}-${name}`;
+      input.name = name;
       input.value = value;
       input.placeholder = name;
       input.setAttribute("aria-label", `${name} for ${reference.title}`);
@@ -4560,8 +4563,11 @@ class WorkspaceApp {
     }
     const abstract = document.createElement("textarea");
     abstract.className = "field mt-2 min-h-20";
+    abstract.id = `${fieldPrefix}-abstract`;
+    abstract.name = "abstract";
     abstract.value = reference.abstract;
     abstract.placeholder = "abstract";
+    abstract.setAttribute("aria-label", `Abstract for ${reference.title}`);
     metadataFields.set("abstract", abstract);
     metadataBody.append(
       abstract,
@@ -4569,14 +4575,19 @@ class WorkspaceApp {
     );
     const tags = document.createElement("input");
     tags.className = "field mt-3";
+    tags.id = `${fieldPrefix}-tags`;
+    tags.name = "tags";
     tags.value = (this.#librarySnapshot?.tags[reference.id] ?? []).join(", ");
     tags.placeholder = "Private tags, comma separated";
     tags.setAttribute("aria-label", `Private tags for ${reference.title}`);
     metadataBody.append(tags);
     const collections = document.createElement("input");
     collections.className = "field mt-2";
+    collections.id = `${fieldPrefix}-collections`;
+    collections.name = "collections";
     collections.value = (this.#librarySnapshot?.collections[reference.id] ?? []).join(", ");
     collections.placeholder = "Collections, comma separated";
+    collections.setAttribute("aria-label", `Collections for ${reference.title}`);
     metadataBody.append(collections);
     const privateActions = document.createElement("div");
     privateActions.className = "mt-2 flex flex-wrap gap-2";
@@ -4593,14 +4604,23 @@ class WorkspaceApp {
     const reading = this.#librarySnapshot?.reading.find((item) => item.referenceId === reference.id);
     const readingStatus = document.createElement("select");
     readingStatus.className = "field mt-3";
+    readingStatus.id = `${fieldPrefix}-reading-status`;
+    readingStatus.name = "readingStatus";
+    readingStatus.setAttribute("aria-label", `Reading status for ${reference.title}`);
     for (const value of ["unread", "reading", "read"] as const) readingStatus.append(new Option(value, value));
     readingStatus.value = reading?.status ?? "unread";
     const priority = document.createElement("select");
     priority.className = "field mt-2";
+    priority.id = `${fieldPrefix}-priority`;
+    priority.name = "priority";
+    priority.setAttribute("aria-label", `Reading priority for ${reference.title}`);
     for (const value of ["low", "normal", "high"] as const) priority.append(new Option(`Priority: ${value}`, value));
     priority.value = reading?.priority ?? "normal";
     const rating = document.createElement("select");
     rating.className = "field mt-2";
+    rating.id = `${fieldPrefix}-rating`;
+    rating.name = "rating";
+    rating.setAttribute("aria-label", `Rating for ${reference.title}`);
     rating.append(new Option("No rating", ""));
     for (let value = 1; value <= 5; value += 1) rating.append(new Option(`${value} star${value === 1 ? "" : "s"}`, String(value)));
     rating.value = reading?.rating === null || reading?.rating === undefined ? "" : String(reading.rating);
@@ -4617,7 +4637,10 @@ class WorkspaceApp {
 
     const noteInput = document.createElement("textarea");
     noteInput.className = "field mt-3 min-h-16";
+    noteInput.id = `${fieldPrefix}-private-note`;
+    noteInput.name = "privateNote";
     noteInput.placeholder = "Add a private note";
+    noteInput.setAttribute("aria-label", `Private note for ${reference.title}`);
     noteInput.maxLength = 20_000;
     const addNote = actionButton(
       "Save private note",

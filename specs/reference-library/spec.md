@@ -92,6 +92,9 @@ memory and makes citation aliases compete with stable source identity.
   exposes a compact row-level **PDF** action so opening the private reader never
   depends on expanding metadata details; references without an artifact omit
   the action.
+- Every metadata, organization, reading-state, and private-note control in the
+  per-reference disclosure has a stable identifier and a reference-qualified
+  accessible name. Placeholder text is guidance, not the control's only label.
 - An attached private PDF opens from its library record in a kind-qualified
   context tab. Reading uses the owner-private stream and local page state. Text
   selection creates only an ephemeral private-highlight draft. Selection

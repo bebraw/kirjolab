@@ -1807,6 +1807,17 @@ test("keeps private library research separate from project citations", async ({ 
   await page.getByRole("tab", { name: "Library" }).click();
 
   await openLibraryReferenceDetails(card);
+  await expect(card.getByLabel("Reading status for Private Research Guide")).toBeVisible();
+  await expect(card.getByLabel("Reading priority for Private Research Guide")).toBeVisible();
+  await expect(card.getByLabel("Rating for Private Research Guide")).toBeVisible();
+  await expect(card.getByLabel("Collections for Private Research Guide")).toBeVisible();
+  await expect(card.getByLabel("Abstract for Private Research Guide")).toBeVisible();
+  await expect(card.getByLabel("Private note for Private Research Guide")).toBeVisible();
+  expect(
+    await card
+      .locator(".library-reference-details input, .library-reference-details textarea, .library-reference-details select")
+      .evaluateAll((elements) => elements.every((element) => Boolean(element.id || element.getAttribute("name")))),
+  ).toBe(true);
   const tags = card.getByLabel("Private tags for Private Research Guide");
   await tags.fill("methods, revisit");
   await card.getByRole("button", { name: "Save tags" }).click();
