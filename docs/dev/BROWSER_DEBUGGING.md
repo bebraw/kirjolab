@@ -21,7 +21,7 @@ Keep this browser window open while debugging. The separate `--user-data-dir` ke
 Start the repository server:
 
 ```bash
-npm run studio:start
+npm run dev
 ```
 
 Then open Kirjolab in the debug Chrome window:
