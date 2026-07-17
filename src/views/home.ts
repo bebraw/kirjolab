@@ -229,8 +229,8 @@ export function renderHomePage(
               <div class="rail-collection-body" id="publication-list"><div class="empty-state">No project references yet.</div></div>
             </details>
           </div>
-          <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf">
-          <input class="sr-only" id="bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain">
+          <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf" aria-label="Upload project PDF">
+          <input class="sr-only" id="bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain" aria-label="Import project BibTeX">
         </section>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="comments-rail-panel" role="tabpanel" aria-labelledby="show-comments-rail" hidden>

@@ -57,6 +57,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="authoring-context-resizer" role="separator"');
     expect(html).toContain("Annotate this paper");
     expect(html).toContain("Import BibTeX");
+    expect(html).toContain('id="pdf-upload" type="file" accept="application/pdf" aria-label="Upload project PDF"');
+    expect(html).toContain('aria-label="Import project BibTeX"');
     expect(html).toContain('id="open-citation-network"');
     expect(html).toContain('id="citation-network" aria-labelledby="citation-network-heading"');
     expect(html).toContain('id="filter-project-citations" type="button" aria-pressed="false"');

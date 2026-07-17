@@ -247,6 +247,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 
 ## Contract
 
+- Project PDF and BibTeX import controls expose distinct accessible names even
+  when their native file inputs are visually hidden behind task buttons.
+
 ### Definition of Done
 
 - [x] The right-hand preview becomes a tabbed context pane with a permanent
