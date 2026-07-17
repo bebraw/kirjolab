@@ -5,6 +5,7 @@ import {
   type DraftClaimRequest,
   type ClarityDrillRequest,
   type IdeationRequest,
+  type PhrasingAlternativeRequest,
   type TableSyntaxRequest,
   type OpenAICompatibleBrowserProviderOptions,
   type ReviseSelectionRequest,
@@ -31,6 +32,15 @@ const clarityOperation = {
   evidence: [],
 } as const satisfies ClarityDrillRequest;
 const ideationOperation = clarityOperation satisfies IdeationRequest;
+const phrasingOperation = {
+  ...clarityOperation,
+  purpose: {
+    id: "qualify-claim",
+    label: "Qualify a claim",
+    description: "State what the evidence supports without presenting the inference as certain.",
+  },
+  patterns: [{ id: "qualify-suggests", template: "These findings suggest that {claim}." }],
+} as const satisfies PhrasingAlternativeRequest;
 const tableOperation = {
   instruction: "Make labels concise.",
   caption: "Results",
@@ -156,6 +166,60 @@ describe("OpenAICompatibleBrowserProvider", () => {
         },
       },
     });
+  });
+
+  it("returns contextual phrasing alternatives without source metadata", async () => {
+    const content = JSON.stringify({
+      alternatives: [
+        { text: "The findings suggest that this approach may help editors.", rationale: "Uses calibrated modality." },
+        { text: "This approach appears to help editors under the tested conditions.", rationale: "Bounds the claim." },
+        { text: "The observed results are consistent with a benefit for editors.", rationale: "Avoids causal certainty." },
+      ],
+    });
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content));
+    const result = await createProvider({ fetcher }).phrasePassage(phrasingOperation);
+    expect(result.alternatives).toHaveLength(3);
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as {
+      response_format: { json_schema: { name: string } };
+      messages: Array<{ content: string }>;
+    };
+    expect(body.response_format.json_schema.name).toBe("kirjolab_phrasing_alternatives");
+    expect(JSON.parse(body.messages[1]?.content ?? "")).toEqual({
+      instruction: phrasingOperation.instruction,
+      selectedPassage: phrasingOperation.selectedPassage,
+      rhetoricalPurpose: phrasingOperation.purpose,
+      vettedPatterns: phrasingOperation.patterns,
+      orderedEvidence: [],
+    });
+    expect(body.messages[1]?.content).not.toContain("10.1371");
+    expect(body.messages[1]?.content).not.toContain("PLOS");
+  });
+
+  it("rejects unbounded, duplicate, unchanged, and repeated phrasing alternatives", async () => {
+    const provider = createProvider({ fetcher: vi.fn<typeof fetch>() });
+    await expect(provider.phrasePassage({ ...phrasingOperation, patterns: Array(6).fill(phrasingOperation.patterns[0]) })).rejects.toThrow(
+      "at most 5 patterns",
+    );
+    await expect(
+      provider.phrasePassage({ ...phrasingOperation, patterns: [phrasingOperation.patterns[0], phrasingOperation.patterns[0]] }),
+    ).rejects.toThrow("must be unique");
+
+    const alternatives = [
+      { text: phrasingOperation.selectedPassage, rationale: "Unchanged." },
+      { text: "A distinct alternative.", rationale: "Different." },
+      { text: "Another alternative.", rationale: "Also different." },
+    ];
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(JSON.stringify({ alternatives }))),
+      }).phrasePassage(phrasingOperation),
+    ).rejects.toThrow("must change the target passage");
+    alternatives[0] = { text: alternatives[1]!.text.toUpperCase(), rationale: "Repeated." };
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(JSON.stringify({ alternatives }))),
+      }).phrasePassage(phrasingOperation),
+    ).rejects.toThrow("must be distinct");
   });
 
   it("asks one clarity question and returns bounded rewrite choices", async () => {
