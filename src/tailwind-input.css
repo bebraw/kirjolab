@@ -686,6 +686,10 @@
     display: none;
   }
 
+  .project-tree-actions .editor-command-menu {
+    width: min(13rem, calc(100vw - 1rem));
+  }
+
   .project-file-row:hover,
   .project-file-row[data-active="true"] {
     background: var(--color-app-accent-ghost);

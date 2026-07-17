@@ -1366,6 +1366,21 @@ test("uploads project images, inserts relative Markdown, and renders authorized 
   const asset = page.locator(".project-asset-row", { hasText: "result chart.png" });
   await expect(asset).toBeVisible();
   await asset.locator("summary").click();
+  const assetMenu = asset.locator(".editor-command-menu");
+  await expect(assetMenu.getByRole("button", { name: "Insert image" })).toBeVisible();
+  await expect(assetMenu.getByRole("link", { name: "Open image" })).toBeVisible();
+  await expect(assetMenu.getByRole("button", { name: "Delete image" })).toBeVisible();
+  const assetMenuFit = await assetMenu.evaluate((menu) => {
+    const rail = menu.closest(".source-rail");
+    if (!rail) throw new Error("Expected Files rail");
+    const menuBounds = menu.getBoundingClientRect();
+    const railBounds = rail.getBoundingClientRect();
+    return {
+      leftClipped: menuBounds.left < railBounds.left,
+      rightClipped: menuBounds.right > railBounds.right,
+    };
+  });
+  expect(assetMenuFit).toEqual({ leftClipped: false, rightClipped: false });
   await asset.getByRole("button", { name: "Insert image" }).click();
   await expect(page.locator("#source-editor")).toHaveValue(/!\[result chart\]\(<figures\/result chart\.png>\)/u);
   const previewImage = page.locator("#preview img");
