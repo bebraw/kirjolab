@@ -32,11 +32,11 @@ without copying private research or creating a live dependency on the source.
   instantiates an independent `DocumentRoom`, records revision zero, and then
   registers the project in the owner catalog. Blank and built-in creation use
   the same path as personal templates.
-- The New project surface separates browsing from choosing. It previews each
-  template's bounded file and folder structure, bibliography presence, and
-  publication setup before an explicit **Use template** action enables project
-  creation. Personal templates can be removed there; removal hides the template
-  immediately, offers **Undo** for six seconds, and only then deletes it.
+- The New project surface previews each template's bounded file and folder
+  structure, bibliography presence, and publication setup. Clicking a template
+  row selects and previews it in one action; **Create project** remains the only
+  confirmation. Personal templates can be removed there; removal hides the
+  template immediately, offers **Undo** for six seconds, and only then deletes it.
   Project settings exposes **Save as template** for creating or explicitly
   replacing one.
 

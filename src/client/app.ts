@@ -2069,7 +2069,7 @@ class WorkspaceApp {
     label.type = "button";
     label.dataset.templateId = template.id;
     label.setAttribute("aria-pressed", String(this.#previewedProjectTemplateId === template.id));
-    label.addEventListener("click", () => this.#previewProjectTemplate(template.id));
+    label.addEventListener("click", () => this.#chooseProjectTemplate(template));
     const name = document.createElement("span");
     name.className = "template-choice-name";
     name.textContent = template.name;
@@ -2088,22 +2088,6 @@ class WorkspaceApp {
       row.append(remove);
     }
     return row;
-  }
-
-  #previewProjectTemplate(templateId: string): void {
-    const template = this.#projectTemplates.find((candidate) => candidate.id === templateId);
-    if (!template) return;
-    this.#previewedProjectTemplateId = templateId;
-    for (const button of this.#elements.newWorkspaceTemplateList.querySelectorAll<HTMLButtonElement>("[data-template-id]")) {
-      button.setAttribute("aria-pressed", String(button.dataset.templateId === templateId));
-    }
-    const selected = this.#projectTemplates.find((candidate) => candidate.id === this.#elements.newWorkspaceTemplateId.value);
-    this.#elements.newWorkspaceTemplateStatus.textContent = selected
-      ? selected.id === template.id
-        ? `Using “${selected.name}”. The new project will be an independent copy.`
-        : `Previewing “${template.name}”. “${selected.name}” remains chosen.`
-      : `Previewing “${template.name}”. Choose Use template when it fits.`;
-    this.#renderProjectTemplatePreview();
   }
 
   #renderProjectTemplatePreview(): void {
@@ -2144,23 +2128,24 @@ class WorkspaceApp {
     values[0]!.textContent = humanizeTemplateValue(preview.submissionTemplate);
     values[1]!.textContent = `${preview.citationStyle.toUpperCase()} · ${preview.locale}`;
     values[2]!.textContent = preview.paperSize === "a4" ? "A4" : "US Letter";
-    const choose = document.createElement("button");
-    choose.className = "button-primary template-preview-choose";
-    choose.type = "button";
     const selected = this.#elements.newWorkspaceTemplateId.value === template.id;
-    choose.textContent = selected ? "Template selected" : `Use ${template.name}`;
-    choose.setAttribute("aria-pressed", String(selected));
-    choose.addEventListener("click", () => this.#chooseProjectTemplate(template));
-    article.append(header, facts, structure, publication, choose);
+    const selection = document.createElement("p");
+    selection.className = "template-preview-choose text-xs text-app-text-soft";
+    selection.textContent = selected ? "Selected starting point" : "Choose a starting point from the template list.";
+    article.append(header, facts, structure, publication, selection);
     this.#elements.newWorkspaceTemplatePreview.replaceChildren(article);
   }
 
   #chooseProjectTemplate(template: ProjectTemplateSummary): void {
+    this.#previewedProjectTemplateId = template.id;
     this.#elements.newWorkspaceTemplateId.value = template.id;
     this.#elements.newWorkspaceSubmit.disabled = false;
     this.#elements.newWorkspaceTemplateStatus.textContent = `Using “${template.name}”. The new project will be an independent copy.`;
     for (const row of this.#elements.newWorkspaceTemplateList.querySelectorAll<HTMLElement>(".template-choice")) {
       row.dataset.selected = String(row.querySelector<HTMLElement>("[data-template-id]")?.dataset.templateId === template.id);
+    }
+    for (const button of this.#elements.newWorkspaceTemplateList.querySelectorAll<HTMLButtonElement>("[data-template-id]")) {
+      button.setAttribute("aria-pressed", String(button.dataset.templateId === template.id));
     }
     this.#renderProjectTemplatePreview();
   }
