@@ -2,7 +2,9 @@ import type * as Markdown from "../domain/markdown";
 
 export type MarkdownRuntime = Pick<typeof Markdown, "renderWorkspaceMarkdown">;
 
-const markdownRuntimeUrl = "/markdown-module-1.js";
+declare const __MARKDOWN_RUNTIME_URL__: string;
+
+const markdownRuntimeUrl = typeof __MARKDOWN_RUNTIME_URL__ === "undefined" ? "/markdown-module-development.js" : __MARKDOWN_RUNTIME_URL__;
 let runtimePromise: Promise<MarkdownRuntime> | null = null;
 
 export async function loadMarkdownRuntime(): Promise<MarkdownRuntime> {

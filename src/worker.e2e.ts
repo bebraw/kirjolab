@@ -595,6 +595,9 @@ test("follows and remembers the selected appearance", async ({ page }) => {
   await expect(page.locator("#preferences-menu")).not.toHaveAttribute("open", "");
   await expect(page.locator("#preferences-menu > summary")).toBeFocused();
   await page.locator("#preferences-menu > summary").click();
+  await expect(page.locator("#application-version")).toHaveText(/^[a-f0-9]{16}$/u);
+  await page.locator("#copy-application-version").click();
+  await expect(page.locator("#toast")).toContainText("Copied application version");
 
   await expect(appearance).toHaveValue("system");
   await appearance.selectOption("dark");
@@ -4361,18 +4364,33 @@ test("serves stable health and browser assets", async ({ request }) => {
     ],
   });
 
-  const [styles, client] = await Promise.all([request.get("/styles.css"), request.get("/app.js")]);
-  expect(styles.ok(), await styles.text()).toBe(true);
-  expect(client.ok(), await client.text()).toBe(true);
+  const [styles, client, serviceWorker] = await Promise.all([
+    request.get("/styles.css"),
+    request.get("/app.js"),
+    request.get("/service-worker.js"),
+  ]);
+  const [stylesBody, clientBody, serviceWorkerBody] = await Promise.all([styles.text(), client.text(), serviceWorker.text()]);
+  expect(styles.ok(), stylesBody).toBe(true);
+  expect(client.ok(), clientBody).toBe(true);
+  expect(serviceWorker.ok(), serviceWorkerBody).toBe(true);
   expect(styles.headers()["content-type"]).toContain("text/css");
   expect(client.headers()["content-type"]).toContain("text/javascript");
 
-  const pdfRuntime = await request.get("/pdfjs-module-6.1.200-compat-1.js");
+  const pdfRuntimePath = clientBody.match(/\/pdfjs-module-[a-f0-9]{16}\.js/u)?.[0];
+  const markdownRuntimePath = clientBody.match(/\/markdown-module-[a-f0-9]{16}\.js/u)?.[0];
+  const offlineCacheName = serviceWorkerBody.match(/kirjolab-offline-shell-[a-f0-9]{16}/u)?.[0];
+  expect(pdfRuntimePath).toBeTruthy();
+  expect(markdownRuntimePath).toBeTruthy();
+  expect(offlineCacheName).toBeTruthy();
+  expect(clientBody).toContain(offlineCacheName);
+  expect(serviceWorkerBody).toContain(markdownRuntimePath);
+
+  const pdfRuntime = await request.get(pdfRuntimePath!);
   expect(pdfRuntime.ok()).toBe(true);
   expect(pdfRuntime.headers()["content-type"]).toContain("javascript");
   expect(pdfRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
 
-  const markdownRuntime = await request.get("/markdown-module-1.js");
+  const markdownRuntime = await request.get(markdownRuntimePath!);
   expect(markdownRuntime.ok()).toBe(true);
   expect(markdownRuntime.headers()["content-type"]).toContain("javascript");
   expect(markdownRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");

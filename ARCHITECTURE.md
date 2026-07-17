@@ -225,6 +225,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Cache only authenticated workspace navigation and the allowlisted authoring
   shell for offline fallback. Never service-worker-cache project/library APIs,
   WebSockets, exports, model requests, or private PDF bytes.
+- Publish immutable browser runtimes under content-fingerprinted URLs. Derive
+  the service-worker cache namespace from the built shell so a shell change
+  installs a new cache generation and activation removes older Kirjolab shell
+  caches.
 - Materialize every causally new collaborative update into readable Markdown
   and bibliography text, but acknowledge duplicate or replayed Yjs state at the
   current revision without persistence, rebroadcast, or a revision increase.

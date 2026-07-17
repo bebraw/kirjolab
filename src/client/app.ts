@@ -125,7 +125,12 @@ import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHist
 import { loadMarkdownRuntime } from "./markdown-runtime";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
-import { cacheOfflineNavigation, clearOfflineShellCaches, registerOfflineServiceWorker } from "./offline-service-worker";
+import {
+  applicationVersion,
+  cacheOfflineNavigation,
+  clearOfflineShellCaches,
+  registerOfflineServiceWorker,
+} from "./offline-service-worker";
 import {
   clearAllOfflineWorkspaces,
   createOfflineWorkspaceStore,
@@ -239,6 +244,8 @@ interface LatexImportPreview {
 interface Elements {
   preferencesMenu: HTMLDetailsElement;
   preferencesModelStatus: HTMLElement;
+  applicationVersion: HTMLElement;
+  copyApplicationVersion: HTMLButtonElement;
   citationCompletionScope: HTMLSelectElement;
   openPreferencesFromAssistant: HTMLButtonElement;
   collaboratorSelections: HTMLElement;
@@ -812,6 +819,7 @@ class WorkspaceApp {
   }
 
   async start(): Promise<void> {
+    this.#elements.applicationVersion.textContent = applicationVersion;
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
     if (appMode === "library") {
@@ -850,6 +858,11 @@ class WorkspaceApp {
   #bindUi(): void {
     this.#restoreModelPreferences();
     this.#restoreCitationCompletionScope();
+    this.#elements.copyApplicationVersion.addEventListener("click", () => {
+      void copyText(applicationVersion)
+        .then(() => this.#showToast(`Copied application version ${applicationVersion}.`))
+        .catch(() => this.#showToast("Could not copy the application version"));
+    });
     window.addEventListener("online", () => this.#connect());
     window.addEventListener("offline", () => {
       this.#collaborationWorkflow.send({ type: "OFFLINE" });
@@ -8997,7 +9010,9 @@ class WorkspaceApp {
 
   async #prepareOfflineShell(): Promise<void> {
     try {
-      const registered = await registerOfflineServiceWorker(navigator.serviceWorker);
+      const registered = await registerOfflineServiceWorker(navigator.serviceWorker, () => {
+        void this.#persistOfflineWorkspace().finally(() => location.reload());
+      });
       if (!registered || typeof caches === "undefined") return;
       if (await cacheOfflineNavigation(caches, fetch, location.href)) document.body.dataset.offlineReady = "true";
     } catch {
@@ -9302,6 +9317,8 @@ function collectElements(): Elements {
   return {
     preferencesMenu: requiredElement("preferences-menu", HTMLDetailsElement),
     preferencesModelStatus: requiredElement("preferences-model-status", HTMLElement),
+    applicationVersion: requiredElement("application-version", HTMLElement),
+    copyApplicationVersion: requiredElement("copy-application-version", HTMLButtonElement),
     citationCompletionScope: requiredElement("citation-completion-scope", HTMLSelectElement),
     openPreferencesFromAssistant: requiredElement("open-preferences-from-assistant", HTMLButtonElement),
     collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
@@ -10086,6 +10103,25 @@ function downloadTextFile(name: string, content: string): void {
   link.download = name;
   link.click();
   URL.revokeObjectURL(href);
+}
+
+async function copyText(value: string): Promise<void> {
+  try {
+    await navigator.clipboard?.writeText(value);
+    if (navigator.clipboard) return;
+  } catch {
+    // Fall back when clipboard permission is unavailable in a browser or installed PWA.
+  }
+  const input = document.createElement("textarea");
+  input.value = value;
+  input.readOnly = true;
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.append(input);
+  input.select();
+  const copied = document.execCommand("copy");
+  input.remove();
+  if (!copied) throw new Error("Clipboard unavailable");
 }
 
 function uploadStateLabel(state: PdfUploadQueueSnapshot["items"][number]["state"]): string {

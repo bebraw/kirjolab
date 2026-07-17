@@ -23,6 +23,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
     expect(html).toContain('id="preferences-menu" data-settings-menu');
     expect(html).toContain('id="citation-completion-scope" aria-label="Citation suggestion scope"');
+    expect(html).toContain('id="application-version">Loading…</code>');
+    expect(html).toContain('id="copy-application-version" type="button" aria-label="Copy application version"');
     expect(html).toContain('aria-label="Open preferences" title="Preferences"');
     expect(html).toContain('id="account-menu" data-action-menu');
     expect(html).toContain('class="account-trigger" aria-label="Account for local@kirjolab.invalid" title="Account"');

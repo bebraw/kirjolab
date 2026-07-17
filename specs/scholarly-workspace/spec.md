@@ -23,11 +23,10 @@ mode for authenticated hosted collaboration.
   and keeps implementation detail in feature documentation rather than the
   task surface.
 - **Browser runtime loading:** The generated application module is minified and
-  excludes the Markdown pipeline and PDF.js. The immutable versioned
-  `/markdown-module-1.js` pure-JavaScript runtime loads concurrently with
-  workspace data; PDF viewing and metadata extraction load
-  `/pdfjs-module-6.1.200-compat-1.js` on first use. Consumers share each cached module
-  thereafter.
+  excludes the Markdown pipeline and PDF.js. Content-fingerprinted immutable
+  Markdown and PDF.js runtime URLs are compiled into each application build.
+  Markdown loads concurrently with workspace data; PDF.js loads on first use.
+  Consumers share each cached module thereafter.
 - **Appearance:** The shell uses one semantic `app-*` token palette with light
   and dark values. Appearance follows the operating-system color scheme by
   default; a browser-local System, Light, or Dark preference may override it
@@ -87,9 +86,11 @@ mode for authenticated hosted collaboration.
 - **Personal preferences:** A compact panel beside the Kirjolab heading owns
   browser-local, cross-project choices that are normally configured once:
   appearance, Vim editing, and the local model connection, endpoint, model,
-  and reasoning effort. Project layout, sharing, export, and publication
-  controls remain in their task-specific surfaces. Writing assistant links
-  back to the shared panel rather than duplicating model controls.
+  and reasoning effort. The same panel exposes a copyable application version
+  derived from the built offline shell for error and cache reporting. Project
+  layout, sharing, export, and publication controls remain in their
+  task-specific surfaces. Writing assistant links back to the shared panel
+  rather than duplicating model controls.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
 - **Schema lifecycle:** Every SQLite-backed document, catalog, and access
@@ -142,6 +143,10 @@ mode for authenticated hosted collaboration.
   workspace snapshot per identity and project. Existing Markdown files remain
   editable offline; restart derives one pending Yjs delta and sends it only
   after the ordinary server-led `sync` boundary.
+- **Offline shell updates:** Browser builds derive the Kirjolab Cache Storage
+  namespace from emitted shell content. An existing registration checks for an
+  update on startup; activation removes old shell generations, persists an
+  open offline workspace, and reloads the controlled page once.
 - **Collaborator selections:** A client may send only an exact-key, bounded
   `protocol: 1` selection message for the current file and revision. The room
   supplies its socket identity, validates the range, broadcasts it only to
@@ -427,6 +432,8 @@ mode for authenticated hosted collaboration.
 - [x] Header Preferences opens and closes with pointer or keyboard, keeps
       personal appearance, Vim, and model settings together, and persists them
       locally across projects and refreshes.
+- [x] Header Preferences exposes a copyable application version matching the
+      active build-derived offline shell generation.
 - [x] Writing assistant opens the shared model preferences without duplicating
       connection fields inside its task workflow.
 - [x] Insert-menu file paths truncate safely beside compact syntax help instead
@@ -588,6 +595,10 @@ mode for authenticated hosted collaboration.
 
 ### Verification
 
+- Browser-shell tooling tests cover deterministic content fingerprints, and
+  browser tests resolve the emitted runtime URLs from the built application,
+  verify immutable responses, and verify the matching service-worker cache
+  generation.
 - `src/domain/**/*.test.ts` covers semantic rendering, validation, guards, and
   model-operation helpers.
 - `src/worker.test.ts` covers routing, generated assets, and missing-binding

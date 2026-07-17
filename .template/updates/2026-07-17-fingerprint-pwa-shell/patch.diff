@@ -1,0 +1,28 @@
+diff --git a/src/client/offline-service-worker.ts b/src/client/offline-service-worker.ts
+--- a/src/client/offline-service-worker.ts
++++ b/src/client/offline-service-worker.ts
+@@
+ export const offlineShellCachePrefix = "kirjolab-offline-shell-";
++declare const __OFFLINE_SHELL_CACHE_NAME__: string;
++export const offlineShellCacheName = __OFFLINE_SHELL_CACHE_NAME__;
+@@
+-  const cache = await storage.open(`${offlineShellCachePrefix}v1`);
++  const cache = await storage.open(offlineShellCacheName);
+diff --git a/src/client/service-worker.ts b/src/client/service-worker.ts
+--- a/src/client/service-worker.ts
++++ b/src/client/service-worker.ts
+@@
+-import { offlineShellCachePrefix } from "./offline-service-worker";
++import { offlineShellCacheName, offlineShellCachePrefix } from "./offline-service-worker";
+@@
+-const cacheName = `${offlineShellCachePrefix}v1`;
+-const shellPaths = new Set(["/app.js", "/styles.css", "/runtime.js"]);
++declare const __RUNTIME_URL__: string;
++const cacheName = offlineShellCacheName;
++const shellPaths = new Set(["/app.js", "/styles.css", __RUNTIME_URL__]);
+diff --git a/src/worker.ts b/src/worker.ts
+--- a/src/worker.ts
++++ b/src/worker.ts
+@@
+-  if (url.pathname === "/runtime.js") {
++  if (/^\/runtime-[a-f0-9]{16}\.js$/u.test(url.pathname)) {

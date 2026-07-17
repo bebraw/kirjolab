@@ -16,9 +16,10 @@ second Markdown dialect.
 - `src/domain/markdown.ts` supplies synchronous mdast and hast transforms for
   citations, references, aliases, anchors, heading numbering, table alignment,
   authored-HTML escaping, and final allowlist sanitization.
-- The pure-JavaScript renderer executes in the browser as the versioned
-  `/markdown-module-1.js` runtime. The Worker serves that immutable asset but
-  does not parse canonical documents or proxy request-per-edit preview work.
+- The pure-JavaScript renderer executes in the browser under a
+  content-fingerprinted `/markdown-module-{sha256}.js` URL. The Worker serves
+  that immutable asset but does not parse canonical documents or proxy
+  request-per-edit preview work.
 - The runtime loads in parallel with workspace data. Preview renders discard
   stale asynchronous results and fall back to authored source when the runtime
   cannot load.

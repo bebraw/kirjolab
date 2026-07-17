@@ -61,7 +61,9 @@ If local CI warns with `No such remote 'origin'`, add `GITHUB_REPO=owner/repo` t
   long operations, isolated parallel jobs, and pause-on-failure using
   `npm run ci:local`.
 - Rebuild the generated stylesheet manually with `npm run build:css`.
-- Rebuild the versioned JavaScript Markdown runtime with `npm run build:markdown-runtime`.
+- Rebuild the content-fingerprinted application, service worker, Markdown
+  runtime, and PDF.js runtime together with `npm run build:browser-shell` after
+  the stylesheet exists. `npm run build` preserves the required order.
 - Run the fast local gate with `npm run quality:gate:fast`.
 - Run the baseline quality gate with `npm run quality:gate`.
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
@@ -121,9 +123,11 @@ The GitHub Actions CI workflow splits fast checks, browser checks, and mutation 
 The starter UI now follows the same Tailwind v4 baseline shape as `thesis-journey-tracker`: Tailwind input lives in `src/tailwind-input.css`, generated CSS is written to `.generated/styles.css`, and Wrangler runs `npm run build:css` automatically before local development.
 
 The offline authoring service worker is compiled from
-`src/client/service-worker.ts` into `.generated/service-worker.txt`. The Worker
-serves that generated artifact at `/service-worker.js`; like the generated CSS,
-the local output is disposable and ignored by Git.
+`src/client/service-worker.ts` into `.generated/service-worker.txt`. The browser
+shell build fingerprints immutable runtime filenames and derives the offline
+cache generation from emitted content before compiling the final application
+and service worker. The Worker serves the generated service worker at
+`/service-worker.js`; all local output remains disposable and ignored by Git.
 
 ### Local Model Companion
 

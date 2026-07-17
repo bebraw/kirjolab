@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-17-fingerprint-pwa-shell",
+  "title": "Fingerprint immutable PWA shell assets",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-143-fingerprint-browser-shell-assets.md"],
+  "touches": ["package.json", "scripts/", "src/client/", "src/worker.ts", "docs/", "specs/"],
+  "checks": ["npm run build", "npm run quality:gate", "npm run ci:local"]
+}

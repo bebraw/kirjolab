@@ -1,11 +1,13 @@
 /// <reference lib="webworker" />
 
-import { offlineShellCachePrefix } from "./offline-service-worker";
+import { offlineShellCacheName, offlineShellCachePrefix } from "./offline-service-worker";
 
 declare const self: ServiceWorkerGlobalScope;
 
-const cacheName = `${offlineShellCachePrefix}v1`;
-const shellPaths = new Set(["/app.js", "/styles.css", "/favicon.svg", "/markdown-module-1.js"]);
+declare const __MARKDOWN_RUNTIME_URL__: string;
+
+const cacheName = offlineShellCacheName;
+const shellPaths = new Set(["/app.js", "/styles.css", "/favicon.svg", __MARKDOWN_RUNTIME_URL__]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

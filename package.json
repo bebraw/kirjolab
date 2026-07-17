@@ -37,18 +37,16 @@
       "2026-07-14-oxlint-correctness-gate",
       "2026-07-15-quality-gate-progress",
       "2026-07-16-keep-mutation-explicit",
-      "2026-07-16-deterministic-worker-types"
+      "2026-07-16-deterministic-worker-types",
+      "2026-07-17-fingerprint-pwa-shell"
     ]
   },
   "scripts": {
-    "build": "npm run build:css && npm run build:client && npm run build:service-worker && npm run build:markdown-runtime && npm run build:pdf-runtime && npm run build:pdf-worker",
-    "build:client": "mkdir -p ./.generated && esbuild src/client/app.ts --bundle --format=esm --target=es2022 --minify --outfile=.generated/app.txt",
+    "build": "npm run build:css && npm run build:browser-shell && npm run build:pdf-worker",
+    "build:browser-shell": "node ./scripts/build-browser-shell.mjs",
     "build:css": "mkdir -p ./.generated && tailwindcss -i ./src/tailwind-input.css -o ./.generated/styles.css --minify",
     "build:model-companion": "mkdir -p ./.generated && esbuild src/model-companion.ts --bundle --platform=node --format=esm --target=node24 --outfile=.generated/model-companion.mjs",
-    "build:markdown-runtime": "mkdir -p ./.generated/assets && rm -f ./.generated/assets/markdown-module-0.9.5.js ./.generated/assets/satteri_napi.wasm32-wasi.wasm ./.generated/assets/satteri-wasi-worker.mjs && esbuild src/domain/markdown.ts --bundle --format=esm --target=es2022 --minify --outfile=.generated/assets/markdown-module-1.js",
-    "build:pdf-runtime": "mkdir -p ./.generated/assets && rm -f ./.generated/assets/pdfjs-module-6.1.200.js && esbuild node_modules/pdfjs-dist/legacy/build/pdf.mjs --bundle --format=esm --target=es2022 --minify --outfile=.generated/assets/pdfjs-module-6.1.200-compat-1.js",
     "build:pdf-worker": "mkdir -p ./.generated && esbuild node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs --bundle --format=esm --target=es2022 --minify --outfile=.generated/pdf-worker.txt",
-    "build:service-worker": "mkdir -p ./.generated && esbuild src/client/service-worker.ts --bundle --format=iife --target=es2022 --minify --outfile=.generated/service-worker.txt",
     "ci:local": "node ./scripts/run-local-ci.mjs",
     "ci:local:retry": "agent-ci retry",
     "deploy": "node ./scripts/deploy-production.mjs",
@@ -76,7 +74,7 @@
     "test": "vitest run --passWithNoTests",
     "test:affected": "node ./scripts/run-affected-tests.mjs",
     "test:coverage": "node ./scripts/run-coverage-gate.mjs",
-    "test:tooling": "node --test scripts/run-quality-gate.test.mjs",
+    "test:tooling": "node --test scripts/*.test.mjs",
     "test:workers": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false vitest run --config vitest.workers.config.mts",
     "typecheck": "node ./node_modules/typescript-7/bin/tsc --noEmit && node ./node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.client.json && npm run typecheck:workers",
     "typecheck:workers": "node ./node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.workers-test.json",

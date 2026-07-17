@@ -39,6 +39,8 @@ with an authored passage.
   and the eraser; annotation deletion is explicit and blocked by claim usage.
 - The generated PDF.js worker is served from `/pdf.worker.js` and stays version
   matched with the display-layer dependency.
+- The lazy PDF.js display runtime uses a content-fingerprinted immutable URL
+  compiled into the matching application build.
 
 ### Anti-Patterns
 

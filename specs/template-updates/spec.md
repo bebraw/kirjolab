@@ -44,6 +44,7 @@ copying unrelated starter structure.
   - `2026-07-14-prettier-content-cache`
   - `2026-07-14-oxlint-correctness-gate`
   - `2026-07-15-quality-gate-progress`
+  - `2026-07-17-fingerprint-pwa-shell`
 
 ### Anti-Patterns
 

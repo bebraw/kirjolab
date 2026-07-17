@@ -169,6 +169,34 @@
     color: var(--color-app-accent-strong);
   }
 
+  .application-version-copy {
+    display: flex;
+    min-height: 2.45rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    overflow: hidden;
+    border: 1px solid var(--color-app-line);
+    border-radius: 0.2rem;
+    padding-inline: 0.7rem;
+    color: var(--color-app-accent-strong);
+    font-size: 0.68rem;
+    font-weight: 750;
+  }
+
+  .application-version-copy:hover {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+  }
+
+  .application-version-copy code {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-app-text);
+    font-family: var(--font-mono);
+    text-overflow: ellipsis;
+  }
+
   .preferences-model-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
