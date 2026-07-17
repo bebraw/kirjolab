@@ -3783,14 +3783,15 @@
 
   .toast {
     position: fixed;
-    right: 1rem;
-    bottom: 1rem;
+    inset: auto 1rem 1rem auto;
     z-index: 50;
     display: flex;
     align-items: center;
     gap: 1rem;
     max-width: min(24rem, calc(100vw - 2rem));
+    margin: 0;
     transform: translateY(150%);
+    border: 0;
     border-radius: 0.2rem;
     background: var(--color-app-ink);
     padding: 0.8rem 1rem;

@@ -33,8 +33,10 @@ without copying private research or creating a live dependency on the source.
 - The New project surface separates browsing from choosing. It previews each
   template's bounded file and folder structure, bibliography presence, and
   publication setup before an explicit **Use template** action enables project
-  creation. Personal templates can be removed there. Project settings exposes
-  **Save as template** for creating or explicitly replacing one.
+  creation. Personal templates can be removed there; removal hides the template
+  immediately, offers **Undo** for six seconds, and only then deletes it.
+  Project settings exposes **Save as template** for creating or explicitly
+  replacing one.
 
 ### API Contracts
 

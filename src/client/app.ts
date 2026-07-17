@@ -207,12 +207,27 @@ const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
 const modelPreferencesStorageKey = "kirjolab:model-preferences";
 const citationCompletionScopeStorageKey = "kirjolab:citation-completion-scope";
-const projectImageDeleteGraceMs = 6_000;
+const deferredDeleteGraceMs = 6_000;
 
 interface ToastAction {
   readonly label: string;
   readonly run: () => void;
   readonly durationMs?: number;
+}
+
+interface DeferredDeletion {
+  readonly key: string;
+  readonly deletedMessage: string;
+  readonly restoredMessage: string;
+  readonly failedMessage: string;
+  readonly hide: () => void;
+  readonly restore: () => void;
+  readonly commit: () => Promise<void>;
+}
+
+interface PendingDeletion {
+  readonly deletion: DeferredDeletion;
+  readonly timer: number;
 }
 
 interface GitHubInstallationOption {
@@ -715,8 +730,10 @@ class WorkspaceApp {
   #modelDiscoveryBusy = false;
   #hasBootstrapSnapshot = false;
   #toastTimer: number | undefined;
+  readonly #hiddenProjectFileIds = new Set<string>();
+  readonly #hiddenProjectFolderIds = new Set<string>();
   readonly #hiddenProjectImageIds = new Set<string>();
-  readonly #pendingProjectImageDeletions = new Map<string, number>();
+  readonly #pendingDeletions = new Map<string, PendingDeletion>();
   #editingAnnotationId: string | null = null;
   #highlightTool: "paint" | "erase" = "paint";
   #lastHighlightStroke: { annotationId: string; fragmentId: string } | null = null;
@@ -758,6 +775,7 @@ class WorkspaceApp {
   #gitHubRepositories: readonly GitHubRepositoryOption[] = [];
   #gitHubPickerRequest = 0;
   #projectTemplates: ProjectTemplateSummary[] = [];
+  readonly #hiddenProjectTemplateIds = new Set<string>();
   #previewedProjectTemplateId = "";
   #previewRenderVersion = 0;
   #previewSourceMap: readonly CompositionSourceSpan[] = [];
@@ -927,13 +945,15 @@ class WorkspaceApp {
       const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
       this.#elements.workspaceSettingsTitle.value = current?.title ?? "";
       this.#elements.workspaceEntryFile.replaceChildren(
-        ...(this.#snapshot?.files ?? []).map((file) => {
-          const option = document.createElement("option");
-          option.value = file.id;
-          option.textContent = file.path;
-          option.selected = file.id === this.#snapshot?.entryFileId;
-          return option;
-        }),
+        ...(this.#snapshot?.files ?? [])
+          .filter((file) => !this.#hiddenProjectFileIds.has(file.id))
+          .map((file) => {
+            const option = document.createElement("option");
+            option.value = file.id;
+            option.textContent = file.path;
+            option.selected = file.id === this.#snapshot?.entryFileId;
+            return option;
+          }),
       );
       this.#elements.workspaceCitationStyle.value = this.#snapshot?.publicationProfile.citationStyle ?? "apa";
       this.#elements.workspaceCitationLocale.value = this.#snapshot?.publicationProfile.locale ?? "en-US";
@@ -1089,7 +1109,7 @@ class WorkspaceApp {
     this.#elements.projectImageUpload.addEventListener("change", () => void this.#uploadProjectImages());
     this.#elements.createAndIncludeProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create-and-include"));
     this.#elements.renameProjectFile.addEventListener("click", () => this.#openProjectFileDialog("rename"));
-    this.#elements.deleteProjectFile.addEventListener("click", () => void this.#deleteProjectFile());
+    this.#elements.deleteProjectFile.addEventListener("click", () => this.#deleteProjectFile());
     this.#elements.cancelProjectFile.addEventListener("click", () => this.#elements.projectFileDialog.close());
     this.#elements.projectFileForm.addEventListener("submit", (event) => void this.#saveProjectFile(event));
     this.#elements.editorInsertMenu.addEventListener("click", (event) => this.#insertSourceSyntax(event));
@@ -2011,17 +2031,18 @@ class WorkspaceApp {
   }
 
   #renderProjectTemplates(): void {
+    const visibleTemplates = this.#projectTemplates.filter((template) => !this.#hiddenProjectTemplateIds.has(template.id));
     const selected = this.#elements.newWorkspaceTemplateId.value;
-    if (!this.#projectTemplates.some((template) => template.id === selected)) {
+    if (!visibleTemplates.some((template) => template.id === selected)) {
       this.#elements.newWorkspaceTemplateId.value = "";
       this.#elements.newWorkspaceSubmit.disabled = true;
     }
-    if (!this.#projectTemplates.some((template) => template.id === this.#previewedProjectTemplateId)) {
-      this.#previewedProjectTemplateId = this.#projectTemplates[0]?.id ?? "";
+    if (!visibleTemplates.some((template) => template.id === this.#previewedProjectTemplateId)) {
+      this.#previewedProjectTemplateId = visibleTemplates[0]?.id ?? "";
     }
     this.#elements.newWorkspaceTemplateList.replaceChildren();
     for (const source of ["built-in", "personal"] as const) {
-      const templates = this.#projectTemplates.filter((template) => template.source === source);
+      const templates = visibleTemplates.filter((template) => template.source === source);
       if (source === "personal" && templates.length === 0) continue;
       const group = document.createElement("section");
       group.className = "template-choice-group";
@@ -2059,7 +2080,7 @@ class WorkspaceApp {
       remove.type = "button";
       remove.textContent = "Remove";
       remove.title = `Delete template ${template.name}`;
-      remove.addEventListener("click", () => void this.#deleteProjectTemplate(template));
+      remove.addEventListener("click", () => this.#deleteProjectTemplate(template));
       row.append(remove);
     }
     return row;
@@ -2140,13 +2161,32 @@ class WorkspaceApp {
     this.#renderProjectTemplatePreview();
   }
 
-  async #deleteProjectTemplate(template: ProjectTemplateSummary): Promise<void> {
-    if (!confirm(`Delete the personal template “${template.name}”? Existing projects will not change.`)) return;
-    await expectOk(
-      await fetch(`/api/project-templates/${encodeURIComponent(template.id)}`, { method: "DELETE", credentials: "same-origin" }),
-    );
-    await this.#refreshProjectTemplates();
-    this.#showToast(`Deleted template “${template.name}”.`);
+  #deleteProjectTemplate(template: ProjectTemplateSummary): void {
+    this.#deferDeletion({
+      key: `project-template:${template.id}`,
+      deletedMessage: `Deleted template “${template.name}”.`,
+      restoredMessage: `Restored template “${template.name}”.`,
+      failedMessage: `Could not delete template “${template.name}”.`,
+      hide: () => {
+        this.#hiddenProjectTemplateIds.add(template.id);
+        this.#renderProjectTemplates();
+        this.#renderTemplateReplacementOptions();
+      },
+      restore: () => {
+        this.#hiddenProjectTemplateIds.delete(template.id);
+        this.#renderProjectTemplates();
+        this.#renderTemplateReplacementOptions();
+      },
+      commit: async () => {
+        await expectOk(
+          await fetch(`/api/project-templates/${encodeURIComponent(template.id)}`, {
+            method: "DELETE",
+            credentials: "same-origin",
+          }),
+        );
+        await this.#refreshProjectTemplates();
+      },
+    });
   }
 
   async #openSaveTemplate(): Promise<void> {
@@ -2168,10 +2208,13 @@ class WorkspaceApp {
   #renderTemplateReplacementOptions(): void {
     const selected = this.#elements.saveTemplateTarget.value;
     this.#elements.saveTemplateTarget.replaceChildren(new Option("Create a new template", ""));
-    for (const template of this.#projectTemplates.filter((candidate) => candidate.source === "personal")) {
+    const personalTemplates = this.#projectTemplates.filter(
+      (candidate) => candidate.source === "personal" && !this.#hiddenProjectTemplateIds.has(candidate.id),
+    );
+    for (const template of personalTemplates) {
       this.#elements.saveTemplateTarget.append(new Option(`Replace ${template.name}`, template.id));
     }
-    if (this.#projectTemplates.some((template) => template.id === selected && template.source === "personal")) {
+    if (personalTemplates.some((template) => template.id === selected)) {
       this.#elements.saveTemplateTarget.value = selected;
     }
   }
@@ -3292,10 +3335,12 @@ class WorkspaceApp {
 
   #liveProjectFiles(): ProjectFile[] {
     if (!this.#snapshot) return [];
-    return this.#snapshot.files.map((file) => ({
-      ...file,
-      content: this.#document.getText(projectFileCollaborationTextName(file, this.#snapshot?.entryFileId ?? "")).toString(),
-    }));
+    return this.#snapshot.files
+      .filter((file) => !this.#hiddenProjectFileIds.has(file.id))
+      .map((file) => ({
+        ...file,
+        content: this.#document.getText(projectFileCollaborationTextName(file, this.#snapshot?.entryFileId ?? "")).toString(),
+      }));
   }
 
   #previewProjectFiles(): ProjectFile[] {
@@ -3303,7 +3348,7 @@ class WorkspaceApp {
     const collaboration = this.#collaborationWorkflow.getSnapshot();
     return collaborationSynced(collaboration) || collaboration.context.offlineAvailable
       ? this.#liveProjectFiles()
-      : [...this.#snapshot.files];
+      : this.#snapshot.files.filter((file) => !this.#hiddenProjectFileIds.has(file.id));
   }
 
   #renderProjectFiles(): void {
@@ -3317,8 +3362,12 @@ class WorkspaceApp {
     this.#elements.projectFileList.replaceChildren();
     this.#elements.includeProjectFileList.replaceChildren();
     const items = [
-      ...snapshot.folders.map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
-      ...snapshot.files.map((file) => ({ kind: "file" as const, path: file.path, file })),
+      ...snapshot.folders
+        .filter((folder) => !this.#hiddenProjectFolderIds.has(folder.id))
+        .map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
+      ...snapshot.files
+        .filter((file) => !this.#hiddenProjectFileIds.has(file.id))
+        .map((file) => ({ kind: "file" as const, path: file.path, file })),
       ...snapshot.assets
         .filter((asset) => !this.#hiddenProjectImageIds.has(asset.id))
         .map((asset) => ({ kind: "asset" as const, path: asset.path, asset })),
@@ -3346,7 +3395,7 @@ class WorkspaceApp {
         const remove = document.createElement("button");
         remove.type = "button";
         remove.textContent = "Delete empty folder";
-        remove.addEventListener("click", () => void this.#deleteProjectFolder(item.folder.id));
+        remove.addEventListener("click", () => this.#deleteProjectFolder(item.folder.id));
         menu.append(rename, remove);
         actions.append(summary, menu);
         row.append(label, actions);
@@ -3441,7 +3490,7 @@ class WorkspaceApp {
   #selectProjectFile(fileId: string): void {
     const snapshot = this.#snapshot;
     const file = snapshot?.files.find((item) => item.id === fileId);
-    if (!snapshot || !file || fileId === this.#activeFileId) return;
+    if (!snapshot || !file || this.#hiddenProjectFileIds.has(fileId) || fileId === this.#activeFileId) return;
     this.#unbindSourceEditor();
     this.#activeFileId = fileId;
     this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
@@ -3543,32 +3592,67 @@ class WorkspaceApp {
     this.#projectFolderId = null;
   }
 
-  async #deleteProjectFile(): Promise<void> {
+  #deleteProjectFile(): void {
     const snapshot = this.#snapshot;
     const file = snapshot?.files.find((item) => item.id === this.#activeFileId);
     if (!snapshot || !file || file.id === snapshot.entryFileId) return;
-    const response = await fetch(`${apiBase}/files/${encodeURIComponent(file.id)}`, { method: "DELETE", credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
-    this.#snapshot = value;
-    this.#activeFileId = null;
-    this.#selectProjectFile(value.entryFileId);
-    this.#renderProjectFiles();
-    void this.#renderPreview();
-    this.#showToast(`Deleted ${file.path}.`);
+    this.#deferDeletion({
+      key: `project-file:${file.id}`,
+      deletedMessage: `Deleted ${file.path}.`,
+      restoredMessage: `Restored ${file.path}.`,
+      failedMessage: `Could not delete ${file.path}.`,
+      hide: () => {
+        this.#hiddenProjectFileIds.add(file.id);
+        this.#activeFileId = null;
+        this.#selectProjectFile(snapshot.entryFileId);
+      },
+      restore: () => {
+        this.#hiddenProjectFileIds.delete(file.id);
+        this.#selectProjectFile(file.id);
+      },
+      commit: async () => {
+        const response = await fetch(`${apiBase}/files/${encodeURIComponent(file.id)}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+        });
+        await expectOk(response);
+        const value: unknown = await response.json();
+        if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
+        this.#snapshot = value;
+        this.#renderProjectFiles();
+        void this.#renderPreview();
+      },
+    });
   }
 
-  async #deleteProjectFolder(folderId: string): Promise<void> {
+  #deleteProjectFolder(folderId: string): void {
     const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
     if (!folder) return;
-    const response = await fetch(`${apiBase}/folders/${encodeURIComponent(folder.id)}`, { method: "DELETE", credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isWorkspaceSnapshot(value)) throw new Error("Project folder operation returned an invalid workspace");
-    this.#snapshot = value;
-    this.#renderProjectFiles();
-    this.#showToast(`Deleted ${folder.path}.`);
+    this.#deferDeletion({
+      key: `project-folder:${folder.id}`,
+      deletedMessage: `Deleted ${folder.path}.`,
+      restoredMessage: `Restored ${folder.path}.`,
+      failedMessage: `Could not delete ${folder.path}.`,
+      hide: () => {
+        this.#hiddenProjectFolderIds.add(folder.id);
+        this.#renderProjectFiles();
+      },
+      restore: () => {
+        this.#hiddenProjectFolderIds.delete(folder.id);
+        this.#renderProjectFiles();
+      },
+      commit: async () => {
+        const response = await fetch(`${apiBase}/folders/${encodeURIComponent(folder.id)}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+        });
+        await expectOk(response);
+        const value: unknown = await response.json();
+        if (!isWorkspaceSnapshot(value)) throw new Error("Project folder operation returned an invalid workspace");
+        this.#snapshot = value;
+        this.#renderProjectFiles();
+      },
+    });
   }
 
   async #uploadProjectImages(): Promise<void> {
@@ -3615,48 +3699,66 @@ class WorkspaceApp {
   }
 
   #deleteProjectImage(asset: ProjectAsset): void {
-    if (this.#hiddenProjectImageIds.has(asset.id)) return;
-    this.#hiddenProjectImageIds.add(asset.id);
-    this.#renderProjectFiles();
-    void this.#renderPreview();
-    const timer = window.setTimeout(() => void this.#commitProjectImageDeletion(asset), projectImageDeleteGraceMs);
-    this.#pendingProjectImageDeletions.set(asset.id, timer);
-    this.#showToast(`Deleted ${asset.path}.`, {
-      label: "Undo",
-      durationMs: projectImageDeleteGraceMs,
-      run: () => this.#undoProjectImageDeletion(asset),
+    this.#deferDeletion({
+      key: `project-image:${asset.id}`,
+      deletedMessage: `Deleted ${asset.path}.`,
+      restoredMessage: `Restored ${asset.path}.`,
+      failedMessage: `Could not delete ${asset.path}.`,
+      hide: () => {
+        this.#hiddenProjectImageIds.add(asset.id);
+        this.#renderProjectFiles();
+        void this.#renderPreview();
+      },
+      restore: () => {
+        this.#hiddenProjectImageIds.delete(asset.id);
+        this.#renderProjectFiles();
+        void this.#renderPreview();
+      },
+      commit: async () => {
+        const response = await fetch(`${apiBase}/assets/${encodeURIComponent(asset.id)}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+        });
+        await expectOk(response);
+        const value: unknown = await response.json();
+        if (!isWorkspaceSnapshot(value)) throw new Error("Image deletion returned an invalid workspace");
+        this.#snapshot = value;
+        this.#renderProjectFiles();
+        void this.#renderPreview();
+      },
     });
   }
 
-  #undoProjectImageDeletion(asset: ProjectAsset): void {
-    const timer = this.#pendingProjectImageDeletions.get(asset.id);
-    if (timer === undefined) return;
-    window.clearTimeout(timer);
-    this.#pendingProjectImageDeletions.delete(asset.id);
-    this.#hiddenProjectImageIds.delete(asset.id);
-    this.#renderProjectFiles();
-    void this.#renderPreview();
-    this.#showToast(`Restored ${asset.path}.`);
+  #deferDeletion(deletion: DeferredDeletion): void {
+    if (this.#pendingDeletions.has(deletion.key)) return;
+    deletion.hide();
+    const timer = window.setTimeout(() => void this.#commitDeferredDeletion(deletion.key), deferredDeleteGraceMs);
+    this.#pendingDeletions.set(deletion.key, { deletion, timer });
+    this.#showToast(deletion.deletedMessage, {
+      label: "Undo",
+      durationMs: deferredDeleteGraceMs,
+      run: () => this.#undoDeferredDeletion(deletion.key),
+    });
   }
 
-  async #commitProjectImageDeletion(asset: ProjectAsset): Promise<void> {
-    if (!this.#pendingProjectImageDeletions.delete(asset.id)) return;
+  #undoDeferredDeletion(key: string): void {
+    const pending = this.#pendingDeletions.get(key);
+    if (!pending) return;
+    window.clearTimeout(pending.timer);
+    this.#pendingDeletions.delete(key);
+    pending.deletion.restore();
+    this.#showToast(pending.deletion.restoredMessage);
+  }
+
+  async #commitDeferredDeletion(key: string): Promise<void> {
+    const pending = this.#pendingDeletions.get(key);
+    if (!pending) return;
+    this.#pendingDeletions.delete(key);
     try {
-      const response = await fetch(`${apiBase}/assets/${encodeURIComponent(asset.id)}`, {
-        method: "DELETE",
-        credentials: "same-origin",
-      });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isWorkspaceSnapshot(value)) throw new Error("Image deletion returned an invalid workspace");
-      this.#snapshot = value;
-      this.#renderProjectFiles();
-      void this.#renderPreview();
+      await pending.deletion.commit();
     } catch {
-      this.#hiddenProjectImageIds.delete(asset.id);
-      this.#renderProjectFiles();
-      void this.#renderPreview();
-      this.#showToast(`Could not delete ${asset.path}.`);
+      pending.deletion.restore();
+      this.#showToast(pending.deletion.failedMessage);
     }
   }
 
@@ -9143,8 +9245,35 @@ class WorkspaceApp {
     } else {
       this.#elements.toast.textContent = message;
     }
+    this.#presentToast();
     this.#elements.toast.dataset.visible = "true";
-    this.#toastTimer = window.setTimeout(() => delete this.#elements.toast.dataset.visible, action?.durationMs ?? 3_200);
+    this.#toastTimer = window.setTimeout(() => {
+      delete this.#elements.toast.dataset.visible;
+      if (this.#elements.toast.matches(":popover-open")) this.#elements.toast.hidePopover();
+    }, action?.durationMs ?? 3_200);
+  }
+
+  #presentToast(): void {
+    const modal = document.querySelector<HTMLDialogElement>("dialog:modal");
+    if (modal) {
+      if (this.#elements.toast.matches(":popover-open")) this.#elements.toast.hidePopover();
+      this.#elements.toast.removeAttribute("popover");
+      modal.append(this.#elements.toast);
+      modal.addEventListener(
+        "close",
+        () => {
+          if (!this.#elements.toast.dataset.visible || this.#elements.toast.closest("dialog") !== modal) return;
+          document.body.append(this.#elements.toast);
+          this.#elements.toast.setAttribute("popover", "manual");
+          this.#elements.toast.showPopover();
+        },
+        { once: true },
+      );
+      return;
+    }
+    if (this.#elements.toast.parentElement !== document.body) document.body.append(this.#elements.toast);
+    this.#elements.toast.setAttribute("popover", "manual");
+    if (!this.#elements.toast.matches(":popover-open")) this.#elements.toast.showPopover();
   }
 }
 

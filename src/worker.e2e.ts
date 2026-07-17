@@ -3066,7 +3066,25 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await page.locator("#project-file-path").fill("appendices/notes");
   await page.locator("#project-file-form").getByRole("button", { name: "Save folder" }).click();
   await expect(page.locator(".project-folder-row", { hasText: "appendices/" })).toBeVisible();
-  await expect(page.locator(".project-folder-row", { hasText: "notes/" })).toBeVisible();
+  const movedNotesFolder = page.locator(".project-folder-row", { hasText: "notes/" });
+  await expect(movedNotesFolder).toBeVisible();
+  await movedNotesFolder.locator("summary").click();
+  await movedNotesFolder.getByRole("button", { name: "Delete empty folder" }).click();
+  await expect(movedNotesFolder).toBeHidden();
+  await expect(page.locator("#toast")).toContainText("Deleted appendices/notes.");
+  await page.locator("#toast").getByRole("button", { name: "Undo" }).click();
+  await expect(movedNotesFolder).toBeVisible();
+  await expect(page.locator("#toast")).toHaveText("Restored appendices/notes.");
+
+  await movedNotesFolder.locator("summary").click();
+  const folderDeletion = page.waitForResponse(
+    (response) => response.request().method() === "DELETE" && response.url().includes("/folders/"),
+  );
+  await movedNotesFolder.getByRole("button", { name: "Delete empty folder" }).click();
+  await expect(movedNotesFolder).toBeHidden();
+  const folderDeletionValue: unknown = await (await folderDeletion).json();
+  if (!isWorkspaceSnapshot(folderDeletionValue)) throw new Error("Expected a workspace snapshot after deleting a folder");
+  expect(folderDeletionValue.folders.some((folder) => folder.path === "appendices/notes")).toBe(false);
 
   await fileMenu.locator("summary").click();
   await page.locator("#rename-project-file").click();
@@ -3099,6 +3117,24 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   await page.locator("#project-file-path").fill("chapters/revised-method.md");
   await page.locator("#project-file-form").getByRole("button", { name: "Save file" }).click();
   await expect(page.locator("#preview-file-context")).toHaveText("chapters/revised-method.md · composed paper");
+
+  const mainFile = page.locator(".project-file-row", { hasText: "main.md" });
+  await mainFile.click();
+  await fileMenu.locator("summary").click();
+  await page.locator("#delete-project-file").click();
+  await expect(mainFile).toBeHidden();
+  await expect(page.locator("#toast")).toContainText("Deleted main.md.");
+  await page.locator("#toast").getByRole("button", { name: "Undo" }).click();
+  await expect(mainFile).toBeVisible();
+  await expect(page.locator("#toast")).toHaveText("Restored main.md.");
+
+  await fileMenu.locator("summary").click();
+  const fileDeletion = page.waitForResponse((response) => response.request().method() === "DELETE" && response.url().includes("/files/"));
+  await page.locator("#delete-project-file").click();
+  await expect(mainFile).toBeHidden();
+  const fileDeletionValue: unknown = await (await fileDeletion).json();
+  if (!isWorkspaceSnapshot(fileDeletionValue)) throw new Error("Expected a workspace snapshot after deleting a file");
+  expect(fileDeletionValue.files.some((file) => file.path === "main.md")).toBe(false);
 });
 
 test("completes include paths relative to the active project file", async ({ page }) => {
@@ -3340,6 +3376,27 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   }
   const instantiatedSnapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${instantiatedSummary.id}`);
   expect(instantiatedSnapshot.files.some((file) => file.path === "sections/replacement-only.md")).toBe(true);
+
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  const personalTemplate = page.locator(`[data-template-id="${personal.id}"]`);
+  const personalTemplateRow = page.locator(".template-choice", { has: personalTemplate });
+  await personalTemplateRow.getByRole("button", { name: "Remove" }).click();
+  await expect(personalTemplateRow).toBeHidden();
+  await expect(page.locator("#toast")).toContainText("Deleted template “Lab review workflow”.");
+  await page.locator("#toast").getByRole("button", { name: "Undo" }).click();
+  await expect(personalTemplateRow).toBeVisible();
+  await expect(page.locator("#toast")).toHaveText("Restored template “Lab review workflow”.");
+
+  const templateDeletion = page.waitForResponse(
+    (response) => response.request().method() === "DELETE" && response.url().includes("/api/project-templates/"),
+  );
+  await personalTemplateRow.getByRole("button", { name: "Remove" }).click();
+  await expect(personalTemplateRow).toBeHidden();
+  expect((await templateDeletion).ok()).toBe(true);
+  const remainingTemplates: unknown = await (await page.request.get("/api/project-templates")).json();
+  if (!Array.isArray(remainingTemplates)) throw new Error("Expected project template summaries after deletion");
+  expect(remainingTemplates.some((template) => isRecord(template) && template.id === personal.id)).toBe(false);
 });
 
 test("gates GitHub project import behind a user connection", async ({ page }) => {
