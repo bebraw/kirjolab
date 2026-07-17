@@ -417,7 +417,8 @@ mode for authenticated hosted collaboration.
 - [x] The split workspace activates only when all minimum-width tracks fit;
       compact desktop windows remain free of horizontal page overflow.
 - [x] Desktop Authoring fills the workspace content row without an empty footer
-      track or native manuscript resize affordance.
+      track or native manuscript resize affordance; long pane content scrolls
+      locally without extending the outer document past the viewport.
 - [x] Writing assistant remains a permanent, keyboard-accessible Context tab
       instead of extending the workspace below the fold.
 - [x] Initial collaboration synchronization resolves the editor status from
