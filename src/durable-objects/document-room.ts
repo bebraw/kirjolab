@@ -90,6 +90,7 @@ import {
   type CreateClaimCandidateInput,
   type CreateClaimPassageLinkInput,
   type CreateManuscriptCommentInput,
+  type ReanchorManuscriptCommentInput,
   type CreatePassageLinkInput,
   type CreatePublicationPdfLinkInput,
   type ModelCandidate,
@@ -2578,6 +2579,45 @@ export class DocumentRoom extends DurableObject<Env> {
     const updatedAt = new Date().toISOString();
     this.#persistResourceRevision("comment-resolve", () => {
       this.ctx.storage.sql.exec("UPDATE manuscript_comments SET status = 'resolved', updated_at = ? WHERE id = ?", updatedAt, commentId);
+    });
+    return this.#comment(commentId);
+  }
+
+  reanchorManuscriptComment(commentId: string, input: ReanchorManuscriptCommentInput): ManuscriptComment {
+    const existing = this.#comment(commentId);
+    if (existing.status !== "open") throw new Error("Only an open comment can be re-anchored");
+    const workspace = this.#workspaceRow();
+    const target = this.#projectText(input.fileId);
+    const source = target.text.toString();
+    if (
+      input.sourceRevision !== workspace.revision ||
+      source !== target.file.content ||
+      input.end > source.length ||
+      source.slice(input.start, input.end) !== input.excerpt
+    ) {
+      throw new Error("Document selection is stale");
+    }
+    const anchor = createManuscriptAnchor(this.#document, input.start, input.end, workspace.revision, target.file.id, target.text);
+    const updatedAt = new Date().toISOString();
+    this.#persistResourceRevision("comment-reanchor", () => {
+      this.ctx.storage.sql.exec(
+        `UPDATE manuscript_comments
+         SET start_offset = ?, end_offset = ?, excerpt = ?, anchor_version = 1,
+             relative_start = ?, relative_end = ?, quote_prefix = ?, quote_suffix = ?,
+             anchored_revision = ?, project_file_id = ?, updated_at = ?
+         WHERE id = ?`,
+        input.start,
+        input.end,
+        input.excerpt,
+        anchor.relativeStart,
+        anchor.relativeEnd,
+        anchor.prefix,
+        anchor.suffix,
+        anchor.anchoredRevision,
+        anchor.fileId,
+        updatedAt,
+        commentId,
+      );
     });
     return this.#comment(commentId);
   }

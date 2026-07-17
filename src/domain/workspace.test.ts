@@ -7,6 +7,7 @@ import {
   isCreateClaimCandidateInput,
   isCreateClaimPassageLinkInput,
   isCreateManuscriptCommentInput,
+  isReanchorManuscriptCommentInput,
   isCreatePassageLinkInput,
   isCreatePublicationPdfLinkInput,
   isAcceptPublicationIntakeInput,
@@ -87,6 +88,7 @@ describe("workspace input guards", () => {
         body: "Review this passage.",
       }),
     ).toBe(true);
+    expect(isReanchorManuscriptCommentInput({ fileId: "main-file", start: 0, end: 4, excerpt: "text", sourceRevision: 0 })).toBe(true);
     expect(isCreateWorkspaceInput({ title: "New study" })).toBe(true);
     expect(isCreateWorkspaceInput({ title: "New study", templateId: "builtin-blank" })).toBe(true);
     expect(isInviteWorkspaceMemberInput({ email: "researcher@example.org" })).toBe(true);
@@ -496,6 +498,8 @@ describe("workspace input guards", () => {
       expect(isCreateManuscriptCommentInput({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
     }
     expect(isCreateManuscriptCommentInput(null)).toBe(false);
+    expect(isReanchorManuscriptCommentInput({ ...valid, body: undefined })).toBe(true);
+    expect(isReanchorManuscriptCommentInput({ ...valid, excerpt: "" })).toBe(false);
   });
 
   it("enforces every candidate boundary", () => {

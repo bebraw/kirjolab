@@ -21,6 +21,10 @@ ephemeral rather than a scholarly resource.
 - Resolution changes lifecycle state without deleting the comment. Both create
   and resolve operations create logical project-history revisions without
   advancing the manuscript concurrency revision.
+- An open stale comment can be explicitly re-anchored to the researcher's
+  current exact manuscript selection. The comment id, body, attribution, and
+  lifecycle remain unchanged; the new live selector and the previous selector
+  are retained through project revision history.
 - The browser resolves each anchor against live Yjs state, exposes changed or
   stale status, and navigates only a resolved range.
 - The left project rail exposes Comments as a peer of Files and Research. Its
@@ -36,6 +40,9 @@ ephemeral rather than a scholarly resource.
   `excerpt`, `sourceRevision`, and `body` and returns an attributed comment.
 - `POST /api/workspaces/{id}/comments/{commentId}/resolve` returns the retained
   comment with `status: "resolved"`.
+- `POST /api/workspaces/{id}/comments/{commentId}/reanchor` accepts a current
+  exact manuscript passage and returns the same open comment with its new live
+  selector.
 - The normal workspace snapshot includes open and resolved comments with
   immutable selectors and derived resolutions.
 
@@ -43,7 +50,8 @@ ephemeral rather than a scholarly resource.
 
 - Do not write comment text or lifecycle markers into Markdown.
 - Do not trust a client-provided author or collaborator identity.
-- Do not relocate a stale comment by fuzzy quote matching or original offsets.
+- Do not relocate a stale comment automatically by fuzzy quote matching or
+  original offsets; re-anchoring requires an explicit current selection.
 - Do not persist collaborator selections or ordinary reading position.
 - Do not delete a comment merely because it is resolved.
 - Do not put the comment composer in a modal, editor-bottom drawer, or research
@@ -55,6 +63,8 @@ ephemeral rather than a scholarly resource.
 
 - [x] A collaborator can select manuscript text and create a bounded comment.
 - [x] Comments retain stable author identity and follow surviving Yjs edits.
+- [x] An open stale comment can be re-anchored explicitly without creating a
+      replacement thread or losing its earlier historical selector.
 - [x] Resolved comments remain visible and recoverable through revision history.
 - [x] Comment creation and history have a dedicated left-rail mode beside the
       manuscript instead of occupying the editor column.

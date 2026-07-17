@@ -288,6 +288,31 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(shifted?.resolution).toMatchObject({ status: "resolved", text: excerpt, exactMatch: true });
     expect(shifted?.resolution.status === "resolved" ? shifted.resolution.start : -1).toBe(start + "Preface.\n\n".length);
 
+    const beforeReplacement = await stub.getSnapshot(workspaceId);
+    const replacement = "Revised evidence becomes argument";
+    await applyAuthoredSource(stub, beforeReplacement.source.replace(excerpt, replacement));
+    expect((await stub.getSnapshot(workspaceId)).comments.find((item) => item.id === comment.id)?.resolution.status).toBe("stale");
+    const current = await stub.getSnapshot(workspaceId);
+    const replacementStart = current.source.indexOf(replacement);
+    const reanchored = await stub.reanchorManuscriptComment(comment.id, {
+      fileId: current.entryFileId,
+      start: replacementStart,
+      end: replacementStart + replacement.length,
+      excerpt: replacement,
+      sourceRevision: current.revision,
+    });
+    expect(reanchored).toMatchObject({
+      id: comment.id,
+      body: comment.body,
+      status: "open",
+      resolution: { status: "resolved", text: replacement, exactMatch: true },
+    });
+    const reanchorRevision = (await stub.listRevisions()).find((revision) => revision.reason === "comment-reanchor");
+    expect(reanchorRevision).toBeDefined();
+    expect((await stub.getRevision(reanchorRevision!.revision - 1)).comments).toContainEqual(
+      expect.objectContaining({ id: comment.id, anchor: expect.objectContaining({ exact: excerpt }) }),
+    );
+
     const resolved = await stub.resolveManuscriptComment(comment.id);
     expect(resolved.status).toBe("resolved");
     const commentRevision = (await stub.listRevisions()).find((revision) => revision.reason === "comment-resolve");

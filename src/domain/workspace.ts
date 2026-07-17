@@ -577,6 +577,8 @@ export interface CreateManuscriptCommentInput extends ManuscriptPassageInput {
   body: string;
 }
 
+export type ReanchorManuscriptCommentInput = ManuscriptPassageInput;
+
 export interface CreateCandidateInput {
   providerAdapter: "openai-compatible";
   providerLabel: string;
@@ -739,6 +741,10 @@ export function isCreatePassageLinkInput(value: unknown): value is CreatePassage
 
 export function isCreateManuscriptCommentInput(value: unknown): value is CreateManuscriptCommentInput {
   return isRecord(value) && isManuscriptPassageInput(value) && isStringWithin(value.body, 8_000, true);
+}
+
+export function isReanchorManuscriptCommentInput(value: unknown): value is ReanchorManuscriptCommentInput {
+  return isManuscriptPassageInput(value);
 }
 
 export function isUpsertClaimInput(value: unknown): value is UpsertClaimInput {

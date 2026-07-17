@@ -6,6 +6,7 @@ import {
   isCreateClaimCandidateInput,
   isCreateClaimPassageLinkInput,
   isCreateManuscriptCommentInput,
+  isReanchorManuscriptCommentInput,
   isCreatePassageLinkInput,
   isCreatePublicationPdfLinkInput,
   isAcceptPublicationIntakeInput,
@@ -233,7 +234,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       if (!member) return jsonError("Workspace member is unavailable", 403);
       return await createManuscriptComment(request, room, member.id, member.email);
     }
-    if (suffix.startsWith("/comments/") && request.method === "POST") return await resolveManuscriptComment(suffix, room);
+    if (suffix.startsWith("/comments/") && request.method === "POST") return await mutateManuscriptComment(request, suffix, room);
     if (suffix === "/candidates" && request.method === "POST") return await createCandidate(request, room);
     if (suffix === "/claim-candidates" && request.method === "POST") return await createClaimCandidate(request, room);
     if (suffix.startsWith("/candidates/") && request.method === "POST") return await updateCandidate(workspaceId, suffix, room);
@@ -1079,13 +1080,17 @@ async function createManuscriptComment(
   return Response.json(await room.createManuscriptComment(body, authorId, authorLabel), { status: 201 });
 }
 
-async function resolveManuscriptComment(
+async function mutateManuscriptComment(
+  request: Request,
   suffix: string,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
 ): Promise<Response> {
-  const match = /^\/comments\/([0-9a-f-]{36})\/resolve$/iu.exec(suffix);
-  if (!match?.[1]) return jsonError("Manuscript comment route not found", 404);
-  return Response.json(await room.resolveManuscriptComment(match[1]));
+  const match = /^\/comments\/([0-9a-f-]{36})\/(resolve|reanchor)$/iu.exec(suffix);
+  if (!match?.[1] || !match[2]) return jsonError("Manuscript comment route not found", 404);
+  if (match[2] === "resolve") return Response.json(await room.resolveManuscriptComment(match[1]));
+  const body: unknown = await request.json();
+  if (!isReanchorManuscriptCommentInput(body)) return jsonError("Invalid manuscript comment anchor", 400);
+  return Response.json(await room.reanchorManuscriptComment(match[1], body));
 }
 
 async function createCandidate(

@@ -5836,6 +5836,11 @@ class WorkspaceApp {
       open.disabled = comment.resolution.status !== "resolved";
       actions.append(open);
       if (comment.status === "open") {
+        if (comment.resolution.status === "stale") {
+          actions.append(
+            actionButton("Re-anchor to selection", "button-secondary", () => void this.#reanchorManuscriptComment(comment.id)),
+          );
+        }
         actions.append(actionButton("Resolve", "button-secondary", () => void this.#resolveManuscriptComment(comment.id)));
       }
       card.append(meta, body, excerpt, actions);
@@ -5874,6 +5879,25 @@ class WorkspaceApp {
     await expectOk(response);
     await this.#resourceRefresh.request();
     this.#showToast("Comment resolved; its revision history is preserved.");
+  }
+
+  async #reanchorManuscriptComment(commentId: string): Promise<void> {
+    if (!this.#hasStableDocumentBase()) {
+      this.#showToast("Wait for the manuscript to finish synchronizing before re-anchoring.");
+      return;
+    }
+    const passage = this.#selectedAuthoringPassage();
+    if (!passage) {
+      this.#showToast("Select the revised manuscript passage before re-anchoring the comment.");
+      return;
+    }
+    const response = await jsonFetch(`${apiBase}/comments/${encodeURIComponent(commentId)}/reanchor`, {
+      ...passage,
+      sourceRevision: this.#revision,
+    });
+    await expectOk(response);
+    await this.#resourceRefresh.request();
+    this.#showToast("Comment linked to the selected passage; earlier anchors remain in project history.");
   }
 
   #openClaimDialog(claim?: ClaimResource): void {
