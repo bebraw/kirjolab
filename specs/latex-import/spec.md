@@ -165,5 +165,9 @@ not translate cleanly.
 - The supplied HTML First archive converts into ten Markdown files with its
   selected bibliography and referenced biography figure; layout-only commands
   remain explicit review warnings.
-- A real TikZ/PGFPlots archive and browser-level end-to-end coverage remain
-  follow-up verification before claiming a rendering compatibility tier.
+- The Edge-Powered Islands archive confirms project-root input lookup and the
+  PGFPlots boxplot source pattern. Its chart inputs are commented out in the
+  selected manuscript, so they remain correctly ignored; a minimized active
+  boxplot fixture verifies lossless fenced-source preservation.
+- Browser-level end-to-end coverage and an isolated renderer remain follow-up
+  work before claiming a visual rendering compatibility tier.

@@ -65,7 +65,9 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A \texttt{nested} note
         String.raw`\documentclass{article}\begin{document}
 \begin{tikzpicture}
 % retain this authored comment
-\begin{axis}\addplot coordinates {(0,0) (1,1)};\end{axis}
+\begin{axis}
+\addplot+[boxplot prepared={median=10, upper quartile=12, lower quartile=8}] coordinates {};
+\end{axis}
 \end{tikzpicture}
 \end{document}`,
       ),
@@ -75,8 +77,26 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A \texttt{nested} note
 
     expect(result.seed.files[0]?.content).toContain("```tikz");
     expect(result.seed.files[0]?.content).toContain("\\begin{axis}");
+    expect(result.seed.files[0]?.content).toContain("boxplot prepared={median=10");
     expect(result.seed.files[0]?.content).toContain("% retain this authored comment");
     expect(result.report.diagnostics).toContainEqual(expect.objectContaining({ code: "tikz-preserved", severity: "info" }));
+  });
+
+  it("does not preserve TikZ disabled by a LaTeX comment environment", () => {
+    const inspection = analyzeLatexArchiveFiles([
+      tex(
+        "main.tex",
+        String.raw`\documentclass{article}\begin{document}
+\begin{comment}\begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}\end{comment}
+Visible
+\end{document}`,
+      ),
+    ]);
+
+    const result = convertLatexInspection(inspection, { rootPath: "main.tex" });
+
+    expect(result.seed.files[0]?.content).toBe("Visible\n");
+    expect(result.report.diagnostics).not.toEqual(expect.arrayContaining([expect.objectContaining({ code: "tikz-preserved" })]));
   });
 
   it("resolves graphic search paths into project assets and relative Markdown links", () => {

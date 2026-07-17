@@ -289,6 +289,7 @@ function convertLatexFile(
   const literalBlocks: string[] = [];
   let tikzBlocks = 0;
 
+  source = replaceEnvironment(source, "comment", () => "");
   source = replaceEnvironment(source, "tikzpicture", (body, whole, from) => {
     if (new TextEncoder().encode(whole).byteLength > maximumTikzBytes) {
       throw new LatexConversionError("unsupported-environment", `TikZ block exceeds 128 KiB in ${file.path}`);
@@ -309,7 +310,6 @@ function convertLatexFile(
       protectBlock(`\`\`\`\n${body.replace(/^\{[^}]*\}\s*/u, "").trim()}\n\`\`\``),
     );
   }
-  source = replaceEnvironment(source, "comment", () => "");
   source = stripComments(source);
   source = replaceEnvironment(source, "tabularx", (body) => tableMarkdown(body, 2));
   source = replaceEnvironment(source, "tabular", (body) => tableMarkdown(body, 1));

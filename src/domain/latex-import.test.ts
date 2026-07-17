@@ -108,6 +108,19 @@ Escaped \% sign.
     expect(result.bibliographies.map((item) => item.resolvedPath)).toEqual(["a.bib", "b.bib"]);
   });
 
+  it("falls back to safe project-root inputs used by Overleaf chapters", () => {
+    const files = [
+      text("main.tex", String.raw`\documentclass{article}\begin{document}\input{chapters/results}\end{document}`),
+      text("chapters/results.tex", String.raw`\input{tables/results}`),
+      text("tables/results.tex", "Result table"),
+    ];
+
+    const result = analyzeLatexArchiveFiles(files);
+
+    expect(result.includes.map((reference) => reference.resolvedPath)).toEqual(["chapters/results.tex", "tables/results.tex"]);
+    expect(result.diagnostics).toEqual([]);
+  });
+
   it("rejects empty, oversized, malformed, and unsafe archives", async () => {
     await expect(inspectLatexArchive(new Uint8Array())).rejects.toMatchObject({ code: "archive-size" });
     await expect(inspectLatexArchive(new Uint8Array(latexArchiveMaximumCompressedBytes + 1))).rejects.toMatchObject({

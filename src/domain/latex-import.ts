@@ -371,11 +371,15 @@ function latexBibliographies(file: LatexArchiveFile, paths: ReadonlySet<string>)
 
 function resolveArchiveReference(sourcePath: string, requestedPath: string, paths: ReadonlySet<string>, extension: string): string | null {
   if (!safeArchiveReference(sourcePath, requestedPath)) return null;
-  const resolved = resolveProjectPath(sourcePath, requestedPath);
-  if (!resolved) return null;
-  if (paths.has(resolved)) return resolved;
-  const withExtension = resolved.toLocaleLowerCase().endsWith(extension) ? resolved : `${resolved}${extension}`;
-  return paths.has(withExtension) ? withExtension : null;
+  const relative = resolveProjectPath(sourcePath, requestedPath);
+  const rootRelative = normalizeProjectPath(requestedPath);
+  for (const resolved of [relative, rootRelative]) {
+    if (!resolved) continue;
+    if (paths.has(resolved)) return resolved;
+    const withExtension = resolved.toLocaleLowerCase().endsWith(extension) ? resolved : `${resolved}${extension}`;
+    if (paths.has(withExtension)) return withExtension;
+  }
+  return null;
 }
 
 function safeArchiveReference(sourcePath: string, requestedPath: string): boolean {
