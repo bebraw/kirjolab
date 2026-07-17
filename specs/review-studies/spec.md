@@ -283,7 +283,7 @@ state.
       derive from the same review revision.
 - [x] Project history, backup, and deletion cover the review-study authority and
       its pinned revisions.
-- [ ] Domain, Workers-runtime, browser, export, security, and accessibility
+- [x] Domain, Workers-runtime, browser, export, security, and accessibility
       tests cover the critical workflow.
 
 ### Regression Guardrails
