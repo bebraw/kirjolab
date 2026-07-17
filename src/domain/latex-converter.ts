@@ -290,11 +290,46 @@ function convertLatexFile(
   let tikzBlocks = 0;
 
   source = replaceEnvironment(source, "comment", () => "");
+  source = replaceEnvironment(source, "figure", (body, whole, from) => {
+    const matches = [...body.matchAll(/\\begin\s*\{tikzpicture\}[\s\S]*?\\end\s*\{tikzpicture\}/gu)];
+    if (matches.length !== 1) return whole;
+    const tikz = matches[0]?.[0] ?? "";
+    if (new TextEncoder().encode(tikz).byteLength > maximumTikzBytes) {
+      throw new LatexConversionError("unsupported-environment", `TikZ block exceeds 128 KiB in ${file.path}`);
+    }
+    const caption = normalizePgfCaption(/\\caption\s*\{([^{}]*)\}/u.exec(body)?.[1]);
+    const id = /\\label\s*\{([a-z][a-z0-9:_-]{0,63})\}/iu.exec(body)?.[1];
+    const nativeFigure = translatePreparedBoxplot(tikz, caption, id);
+    if (!nativeFigure) return whole;
+    tikzBlocks += 1;
+    const tikzFrom = from + whole.indexOf(tikz);
+    diagnostics.push({
+      code: "tikz-translated",
+      severity: "info",
+      path: file.path,
+      from: tikzFrom,
+      to: tikzFrom + tikz.length,
+      message: "PGFPlots prepared boxplot was translated to an experimental native figure",
+    });
+    return protectBlock(nativeFigure);
+  });
   source = replaceEnvironment(source, "tikzpicture", (body, whole, from) => {
     if (new TextEncoder().encode(whole).byteLength > maximumTikzBytes) {
       throw new LatexConversionError("unsupported-environment", `TikZ block exceeds 128 KiB in ${file.path}`);
     }
     tikzBlocks += 1;
+    const nativeFigure = translatePreparedBoxplot(whole);
+    if (nativeFigure) {
+      diagnostics.push({
+        code: "tikz-translated",
+        severity: "info",
+        path: file.path,
+        from,
+        to: from + whole.length,
+        message: "PGFPlots prepared boxplot was translated to an experimental native figure",
+      });
+      return protectBlock(nativeFigure);
+    }
     diagnostics.push({
       code: "tikz-preserved",
       severity: "info",
@@ -391,6 +426,90 @@ function convertLatexFile(
     literalBlocks.push(block);
     return `\n\n${token}\n\n`;
   }
+}
+
+interface PreparedBoxplotMark {
+  readonly label: string;
+  readonly min: number;
+  readonly q1: number;
+  readonly median: number;
+  readonly q3: number;
+  readonly max: number;
+}
+
+function translatePreparedBoxplot(source: string, caption?: string, id?: string): string | null {
+  const axis = /\\begin\s*\{axis\}\s*\[([\s\S]*?)\]/u.exec(source)?.[1];
+  if (!axis) return null;
+  const direction = /boxplot\s*\/\s*draw\s+direction\s*=\s*([xy])/u.exec(axis)?.[1];
+  if (direction && direction !== "x") return null;
+  const labelsSource = /yticklabels\s*=\s*\{([^{}]*)\}/u.exec(axis)?.[1];
+  if (!labelsSource) return null;
+  const labels = labelsSource.split(",").map(normalizePgfText);
+  if (labels.some((label) => label === null)) return null;
+
+  const summaries = [...source.matchAll(/\\addplot\+\s*\[([\s\S]*?)\]\s*coordinates\s*\{\s*\}\s*;/gu)];
+  if (summaries.length === 0 || summaries.length > 32 || summaries.length !== labels.length) return null;
+  const marks: PreparedBoxplotMark[] = [];
+  for (const [index, summary] of summaries.entries()) {
+    const prepared = /boxplot\s+prepared\s*=\s*\{([^{}]*)\}/u.exec(summary[1] ?? "")?.[1];
+    const label = labels[index];
+    if (!prepared || !label) return null;
+    const values = new Map(
+      prepared.split(",").map((item) => {
+        const [name, ...value] = item.split("=");
+        return [name?.trim().toLocaleLowerCase() ?? "", value.join("=").trim()] as const;
+      }),
+    );
+    const min = pgfNumber(values.get("lower whisker"));
+    const q1 = pgfNumber(values.get("lower quartile"));
+    const median = pgfNumber(values.get("median"));
+    const q3 = pgfNumber(values.get("upper quartile"));
+    const max = pgfNumber(values.get("upper whisker"));
+    if (min === null || q1 === null || median === null || q3 === null || max === null) return null;
+    if (!(min <= q1 && q1 <= median && median <= q3 && q3 <= max)) return null;
+    marks.push({ label, min, q1, median, q3, max });
+  }
+
+  const xLabel = axisText(axis, "xlabel");
+  const yLabel = axisText(axis, "ylabel");
+  if (xLabel === null || yLabel === null) return null;
+  const title = axisText(axis, "title");
+  if (title === null) return null;
+  const attributes = [...(id ? [`#${id}`] : []), 'kind="boxplot"', "version=1"];
+  if (xLabel) attributes.push(`x-label="${xLabel}"`);
+  if (yLabel) attributes.push(`y-label="${yLabel}"`);
+  const boxes = marks.map(
+    (mark) => `::box[${mark.label}]{min=${mark.min} q1=${mark.q1} median=${mark.median} q3=${mark.q3} max=${mark.max}}`,
+  );
+  return `:::figure{${attributes.join(" ")}}\n${boxes.join("\n")}\n::caption[${caption || title || "Imported PGFPlots boxplot."}]\n:::`;
+}
+
+function axisText(axis: string, name: string): string | undefined | null {
+  const match = new RegExp(`(?:^|,)\\s*${name}\\s*=\\s*(?:\\{([^{}]*)\\}|\\$([^$\\n]*)\\$|([^,\\n]+))`, "u").exec(axis);
+  const raw = match?.[1] ?? match?.[2] ?? match?.[3];
+  return raw === undefined ? undefined : normalizePgfText(raw);
+}
+
+function normalizePgfText(value: string): string | null {
+  const normalized = value
+    .trim()
+    .replace(/^\$|\$$/gu, "")
+    .replaceAll("\\&", "&")
+    .replaceAll("--", "–");
+  if (!normalized || normalized.length > 120 || /[\]{}"\\\n\r]/u.test(normalized)) return null;
+  return normalized;
+}
+
+function normalizePgfCaption(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim().replaceAll("\\&", "&").replaceAll("--", "–");
+  return normalized && normalized.length <= 500 && !/[\]{}\\\n\r]/u.test(normalized) ? normalized : undefined;
+}
+
+function pgfNumber(value: string | undefined): number | null {
+  if (value === undefined || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/iu.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && Math.abs(parsed) <= 1e12 ? parsed : null;
 }
 
 function documentBody(source: string): string {

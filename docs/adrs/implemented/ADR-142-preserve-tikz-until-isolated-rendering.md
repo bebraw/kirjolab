@@ -1,6 +1,6 @@
 # ADR-142: Preserve TikZ Until Isolated Rendering
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-145](../accepted/ADR-145-add-experimental-native-figures.md)
 
 **Date:** 2026-07-17
 
@@ -15,7 +15,9 @@ Worker is not an acceptable substitute.
 ## Decision
 
 Preserve imported TikZ and PGFPlots environments as canonical fenced `tikz`
-code blocks. The initial import workflow does not render them.
+code blocks. The initial import workflow does not render them. ADR-145 later
+allows a narrowly recognized prepared-boxplot subset to become native Markdown;
+this preservation rule continues to govern everything unsupported.
 
 Each preserved block receives a source-qualified informational diagnostic so a
 researcher can distinguish retained source from a rendered figure. Import

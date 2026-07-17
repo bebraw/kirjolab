@@ -40,7 +40,9 @@ not translate cleanly.
 - BibTeX databases referenced by the resolved manuscript enter the existing
   reviewed library import and project-alias workflow. Unreferenced databases
   are reported and remain unselected by default.
-- TikZ and PGFPlots environments become canonical fenced `tikz` blocks and are
+- A narrowly recognized horizontal PGFPlots `boxplot prepared` figure becomes
+  an experimental version 1 native boxplot directive under ADR-145. All other
+  TikZ and PGFPlots environments become canonical fenced `tikz` blocks and are
   reported as preserved, unrendered source under ADR-142.
 - Confirmation uploads the archive again with reviewed selections to a
   dedicated authenticated project-creation endpoint. The Worker repeats
@@ -80,7 +82,8 @@ not translate cleanly.
   canonical Markdown.
 - Do not silently choose among multiple roots, bibliography databases, or
   conflicting normalized paths.
-- Do not claim a TikZ preview exists when only its source was preserved.
+- Do not claim general TikZ compatibility when only one native boxplot subset
+  was translated or source was preserved.
 
 ## Contract
 
@@ -95,8 +98,9 @@ not translate cleanly.
 - [x] The supplied HTML First archive imports its six manuscript sections,
       abstract, title metadata, citations, footnotes, code listings, tables,
       bibliography, and biography with explicit diagnostics for lost layout.
-- [x] TikZ and PGFPlots source is preserved losslessly with explicit unrendered
-      diagnostics and bounded block counts and sizes.
+- [x] Recognized prepared boxplots become native figures; every unsupported TikZ
+      or PGFPlots block is preserved losslessly with explicit diagnostics and
+      bounded block counts and sizes.
 - [x] Malicious and over-limit archives fail closed without project, library,
       R2, or catalog writes.
 - [ ] Domain, Workers-runtime, and browser tests cover conversion, validation,
@@ -150,7 +154,15 @@ not translate cleanly.
 - Then: the edge is rejected, no external file is read, and confirmation stays
   blocked with a source-qualified diagnostic
 
-**Scenario: Preserve a TikZ figure**
+**Scenario: Translate a prepared boxplot**
+
+- Given: a selected manuscript contains a bounded horizontal PGFPlots prepared
+  boxplot with complete summaries, matching labels, and a plain caption
+- When: the Worker converts the archive
+- Then: canonical Markdown contains a version 1 native boxplot and a diagnostic
+  identifies the experimental translation
+
+**Scenario: Preserve an unsupported TikZ figure**
 
 - Given: a selected manuscript contains a bounded TikZ or PGFPlots environment
 - When: the Worker converts the archive
@@ -160,14 +172,15 @@ not translate cleanly.
 ## Current Milestone
 
 - Server-side archive inspection, reviewed conversion, digest-bound project
-  creation, bibliography seeding, referenced figure storage, and lossless TikZ
-  preservation are implemented under ADR-141 and ADR-142.
+  creation, bibliography seeding, referenced figure storage, prepared-boxplot
+  translation, and lossless unsupported-TikZ preservation are implemented under
+  ADR-141, ADR-142, and ADR-145.
 - The supplied HTML First archive converts into ten Markdown files with its
   selected bibliography and referenced biography figure; layout-only commands
   remain explicit review warnings.
 - The Edge-Powered Islands archive confirms project-root input lookup and the
-  PGFPlots boxplot source pattern. Its chart inputs are commented out in the
-  selected manuscript, so they remain correctly ignored; a minimized active
-  boxplot fixture verifies lossless fenced-source preservation.
+  PGFPlots prepared-boxplot source pattern. Its chart inputs are commented out
+  in the selected manuscript, so they remain correctly ignored; minimized active
+  fixtures verify native translation and lossless fallback.
 - Browser-level end-to-end coverage and an isolated renderer remain follow-up
   work before claiming a visual rendering compatibility tier.

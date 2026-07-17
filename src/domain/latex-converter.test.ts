@@ -2,6 +2,7 @@ import { strToU8 } from "fflate";
 import { describe, expect, it } from "vitest";
 import { analyzeLatexArchiveFiles, type LatexArchiveFile } from "./latex-import";
 import { convertLatexInspection, LatexConversionError } from "./latex-converter";
+import { renderWorkspaceMarkdown } from "./markdown";
 
 const tex = (path: string, source: string): LatexArchiveFile => ({ path, kind: "tex", bytes: strToU8(source), text: source });
 const bib = (path: string, source: string): LatexArchiveFile => ({ path, kind: "bibtex", bytes: strToU8(source), text: source });
@@ -80,6 +81,44 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A \texttt{nested} note
     expect(result.seed.files[0]?.content).toContain("boxplot prepared={median=10");
     expect(result.seed.files[0]?.content).toContain("% retain this authored comment");
     expect(result.report.diagnostics).toContainEqual(expect.objectContaining({ code: "tikz-preserved", severity: "info" }));
+  });
+
+  it("translates a bounded horizontal prepared boxplot to a native figure", () => {
+    const inspection = analyzeLatexArchiveFiles([
+      tex(
+        "main.tex",
+        String.raw`\documentclass{article}\begin{document}
+\begin{figure}
+\begin{tikzpicture}
+\begin{axis}[
+xlabel=$Time (ms)$,
+ylabel=$Variant$,
+yticklabels={SSR -- FCP, Islands -- FCP}
+]
+\addplot+[boxplot prepared={lower whisker=1613, lower quartile=1627, median=1628, upper quartile=1632, upper whisker=1641}] coordinates {};
+\addplot+[boxplot prepared={lower whisker=838, lower quartile=838, median=838, upper quartile=846, upper whisker=858}] coordinates {};
+\end{axis}
+\end{tikzpicture}
+\caption{FCP and SRT behavior across five runs.}
+\label{graph:fcp-summary}
+\end{figure}
+\end{document}`,
+      ),
+    ]);
+
+    const result = convertLatexInspection(inspection, { rootPath: "main.tex" });
+    const markdown = result.seed.files[0]?.content ?? "";
+
+    expect(markdown).toContain(':::figure{#graph:fcp-summary kind="boxplot" version=1 x-label="Time (ms)" y-label="Variant"}');
+    expect(markdown).toContain("::box[SSR – FCP]{min=1613 q1=1627 median=1628 q3=1632 max=1641}");
+    expect(markdown).toContain("::caption[FCP and SRT behavior across five runs.]");
+    expect(markdown.match(/FCP and SRT behavior across five runs\./gu)).toHaveLength(1);
+    expect(markdown).not.toContain("```tikz");
+    expect(result.report.diagnostics).toContainEqual(expect.objectContaining({ code: "tikz-translated", severity: "info" }));
+    expect(result.report.diagnostics).not.toEqual(expect.arrayContaining([expect.objectContaining({ code: "tikz-preserved" })]));
+    const rendered = renderWorkspaceMarkdown(markdown, "");
+    expect(rendered.diagnostics).toEqual([]);
+    expect(rendered.html).toContain('<figure id="graph:fcp-summary" class="native-figure native-figure-boxplot"');
   });
 
   it("does not preserve TikZ disabled by a LaTeX comment environment", () => {
