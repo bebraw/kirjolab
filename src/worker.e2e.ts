@@ -1404,11 +1404,29 @@ test("uploads project images, inserts relative Markdown, and renders authorized 
   await expect(previewImage).toBeVisible();
   await expect(previewImage).toHaveAttribute("src", /\/api\/workspaces\/[^/]+\/assets\//u);
 
-  const imageResponse = await page.request.get(await previewImage.getAttribute("src").then((value) => value ?? ""));
+  const imageUrl = await previewImage.getAttribute("src").then((value) => value ?? "");
+  const imageResponse = await page.request.get(imageUrl);
   expect(imageResponse.ok()).toBe(true);
   expect(imageResponse.headers()["content-type"]).toBe("image/png");
   expect(imageResponse.headers()["x-content-type-options"]).toBe("nosniff");
   expect(await imageResponse.body()).toEqual(png);
+
+  await asset.getByRole("button", { name: "Delete image" }).click();
+  await expect(asset).toBeHidden();
+  await expect(page.locator("#toast")).toContainText("Deleted figures/result chart.png.");
+  await page.locator("#toast").getByRole("button", { name: "Undo" }).click();
+  await expect(asset).toBeVisible();
+  await expect(page.locator("#toast")).toHaveText("Restored figures/result chart.png.");
+  expect((await page.request.get(imageUrl)).ok()).toBe(true);
+
+  await asset.locator("summary").click();
+  const deletion = page.waitForResponse((response) => response.request().method() === "DELETE" && response.url() === imageResponse.url());
+  await asset.getByRole("button", { name: "Delete image" }).click();
+  await expect(asset).toBeHidden();
+  const deletionResponse = await deletion;
+  expect(deletionResponse.ok()).toBe(true);
+  expect(await deletionResponse.json()).toMatchObject({ assets: [] });
+
   const svg = Buffer.from(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20"><defs><linearGradient id="ink"><stop stop-color="#1d4ed8"/></linearGradient></defs><rect width="40" height="20" rx="3" fill="url(#ink)"/></svg>',
   );

@@ -207,6 +207,13 @@ const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
 const modelPreferencesStorageKey = "kirjolab:model-preferences";
 const citationCompletionScopeStorageKey = "kirjolab:citation-completion-scope";
+const projectImageDeleteGraceMs = 6_000;
+
+interface ToastAction {
+  readonly label: string;
+  readonly run: () => void;
+  readonly durationMs?: number;
+}
 
 interface GitHubInstallationOption {
   readonly id: number;
@@ -708,6 +715,8 @@ class WorkspaceApp {
   #modelDiscoveryBusy = false;
   #hasBootstrapSnapshot = false;
   #toastTimer: number | undefined;
+  readonly #hiddenProjectImageIds = new Set<string>();
+  readonly #pendingProjectImageDeletions = new Map<string, number>();
   #editingAnnotationId: string | null = null;
   #highlightTool: "paint" | "erase" = "paint";
   #lastHighlightStroke: { annotationId: string; fragmentId: string } | null = null;
@@ -3310,7 +3319,9 @@ class WorkspaceApp {
     const items = [
       ...snapshot.folders.map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
       ...snapshot.files.map((file) => ({ kind: "file" as const, path: file.path, file })),
-      ...snapshot.assets.map((asset) => ({ kind: "asset" as const, path: asset.path, asset })),
+      ...snapshot.assets
+        .filter((asset) => !this.#hiddenProjectImageIds.has(asset.id))
+        .map((asset) => ({ kind: "asset" as const, path: asset.path, asset })),
     ].sort((left, right) => left.path.localeCompare(right.path) || left.kind.localeCompare(right.kind));
     for (const item of items) {
       const depth = item.path.split("/").length - 1;
@@ -3373,7 +3384,7 @@ class WorkspaceApp {
         const remove = document.createElement("button");
         remove.type = "button";
         remove.textContent = "Delete image";
-        remove.addEventListener("click", () => void this.#deleteProjectImage(asset));
+        remove.addEventListener("click", () => this.#deleteProjectImage(asset));
         menu.append(insert, open, remove);
         actions.append(summary, menu);
         row.append(preview, label, actions);
@@ -3603,18 +3614,50 @@ class WorkspaceApp {
     this.#showToast(`Inserted ${asset.path}.`);
   }
 
-  async #deleteProjectImage(asset: ProjectAsset): Promise<void> {
-    const response = await fetch(`${apiBase}/assets/${encodeURIComponent(asset.id)}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isWorkspaceSnapshot(value)) throw new Error("Image deletion returned an invalid workspace");
-    this.#snapshot = value;
+  #deleteProjectImage(asset: ProjectAsset): void {
+    if (this.#hiddenProjectImageIds.has(asset.id)) return;
+    this.#hiddenProjectImageIds.add(asset.id);
     this.#renderProjectFiles();
     void this.#renderPreview();
-    this.#showToast(`Deleted ${asset.path}.`);
+    const timer = window.setTimeout(() => void this.#commitProjectImageDeletion(asset), projectImageDeleteGraceMs);
+    this.#pendingProjectImageDeletions.set(asset.id, timer);
+    this.#showToast(`Deleted ${asset.path}.`, {
+      label: "Undo",
+      durationMs: projectImageDeleteGraceMs,
+      run: () => this.#undoProjectImageDeletion(asset),
+    });
+  }
+
+  #undoProjectImageDeletion(asset: ProjectAsset): void {
+    const timer = this.#pendingProjectImageDeletions.get(asset.id);
+    if (timer === undefined) return;
+    window.clearTimeout(timer);
+    this.#pendingProjectImageDeletions.delete(asset.id);
+    this.#hiddenProjectImageIds.delete(asset.id);
+    this.#renderProjectFiles();
+    void this.#renderPreview();
+    this.#showToast(`Restored ${asset.path}.`);
+  }
+
+  async #commitProjectImageDeletion(asset: ProjectAsset): Promise<void> {
+    if (!this.#pendingProjectImageDeletions.delete(asset.id)) return;
+    try {
+      const response = await fetch(`${apiBase}/assets/${encodeURIComponent(asset.id)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isWorkspaceSnapshot(value)) throw new Error("Image deletion returned an invalid workspace");
+      this.#snapshot = value;
+      this.#renderProjectFiles();
+      void this.#renderPreview();
+    } catch {
+      this.#hiddenProjectImageIds.delete(asset.id);
+      this.#renderProjectFiles();
+      void this.#renderPreview();
+      this.#showToast(`Could not delete ${asset.path}.`);
+    }
   }
 
   #resolveProjectPreviewImages(source: string, sourceMap: readonly CompositionSourceSpan[]): void {
@@ -3629,7 +3672,7 @@ class WorkspaceApp {
       const span = sourceMap.length > 0 && match?.index !== undefined ? sourceSpanAt(sourceMap, match.index) : undefined;
       const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "";
       const path = resolveProjectPath(fromPath, requested);
-      const asset = snapshot.assets.find((candidate) => candidate.path === path);
+      const asset = snapshot.assets.find((candidate) => candidate.path === path && !this.#hiddenProjectImageIds.has(candidate.id));
       if (asset) image.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
     });
   }
@@ -9086,11 +9129,22 @@ class WorkspaceApp {
     this.#elements.revisionBadge.textContent = `r${this.#revision}`;
   }
 
-  #showToast(message: string): void {
+  #showToast(message: string, action?: ToastAction): void {
     window.clearTimeout(this.#toastTimer);
-    this.#elements.toast.textContent = message;
+    if (action) {
+      const label = document.createElement("span");
+      label.textContent = message;
+      const button = document.createElement("button");
+      button.className = "toast-action";
+      button.type = "button";
+      button.textContent = action.label;
+      button.addEventListener("click", action.run, { once: true });
+      this.#elements.toast.replaceChildren(label, button);
+    } else {
+      this.#elements.toast.textContent = message;
+    }
     this.#elements.toast.dataset.visible = "true";
-    this.#toastTimer = window.setTimeout(() => delete this.#elements.toast.dataset.visible, 3200);
+    this.#toastTimer = window.setTimeout(() => delete this.#elements.toast.dataset.visible, action?.durationMs ?? 3_200);
   }
 }
 

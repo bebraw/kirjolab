@@ -3786,6 +3786,9 @@
     right: 1rem;
     bottom: 1rem;
     z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
     max-width: min(24rem, calc(100vw - 2rem));
     transform: translateY(150%);
     border-radius: 0.2rem;
@@ -3795,6 +3798,18 @@
     font-family: var(--font-sans);
     font-size: 0.78rem;
     transition: transform 180ms ease;
+  }
+
+  .toast-action {
+    flex: none;
+    border-bottom: 1px solid currentColor;
+    color: var(--color-app-accent-soft);
+    font-weight: 700;
+  }
+
+  .toast-action:hover,
+  .toast-action:focus-visible {
+    color: var(--color-app-on-accent);
   }
 
   .toast[data-visible="true"] {
