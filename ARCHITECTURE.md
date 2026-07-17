@@ -323,6 +323,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   target drafts. Persist only a researcher-promoted draft through the ordinary
   candidate boundary; do not store discarded ideas or mutate prose from the
   exploratory response.
+- Ship academic phrasing guidance only as a reviewed, versioned inventory
+  derived from allowlisted CC0 or CC BY papers retrieved through designated
+  corpus interfaces. Keep a machine-readable source ledger and attribution,
+  require independent-source recurrence and similarity review, and pass only
+  purpose-matched patterns to a typed local-model operation whose alternatives
+  enter the ordinary targeted candidate boundary.
 - Accept complex syntax requirements through typed operation-specific controls.
   For tables, validate bounded structured cells and requested dimensions, render
   portable GFM deterministically in the client, expose the exact syntax for

@@ -43,6 +43,11 @@ All mutation operations preserve a human review boundary.
   rationale, and complete target replacement draft. Ideas remain transient;
   promoting one creates an evidence-optional targeted candidate captured against
   the original source revision.
+- `phrase-passage` accepts one independently authored rhetorical purpose and up
+  to five matching patterns from the reviewed licensed-paper inventory. It
+  returns three to five complete contextual alternatives with rationales. The
+  alternatives are transient; choosing one creates an ordinary targeted
+  revision candidate against the captured exact passage and source revision.
 - `build-table` accepts separate caption, column, and pipe-delimited row fields
   instead of forcing complex requirements into one prompt. The model returns
   bounded structured cells with the requested dimensions; the client validates
@@ -146,6 +151,8 @@ All mutation operations preserve a human review boundary.
   the companion on a non-loopback interface, or allow wildcard origins.
 - Do not add chat, RAG, embeddings, automatic citations, or direct model writes
   in this slice.
+- Do not retrieve corpus or Academic Phrasebank content at runtime or expose
+  model alternatives as direct insertion actions.
 
 ## Contract
 
@@ -182,6 +189,9 @@ All mutation operations preserve a human review boundary.
       replace the visible selection.
 - [x] A researcher can derive a focused query from the current claim, inspect
       DOI-verifiable provider records, and explicitly save one to the Library.
+- [ ] A researcher can choose a rhetorical purpose, compare three to five
+      contextual phrasing alternatives, and promote one into exact candidate
+      review without directly changing the manuscript.
 
 ### Regression Guardrails
 
@@ -233,6 +243,9 @@ All mutation operations preserve a human review boundary.
 - Reference-query output may contain only search terms and a rationale. Titles,
   authors, dates, venues, abstracts, URLs, and DOI identities must come from a
   validated external metadata response, and no result is saved automatically.
+- Phrasing guidance may contain at most five purpose-matched vetted patterns and
+  no source metadata or excerpts. The model must return three to five bounded,
+  distinct complete alternatives; only a chosen alternative may be persisted.
 
 ### Scenarios
 
@@ -315,3 +328,11 @@ All mutation operations preserve a human review boundary.
 - Then: Kirjolab merges shared identities, labels every contributing provider,
   links a stable identifier for verification, and saves nothing until the
   researcher explicitly imports a chosen record to Library
+
+**Scenario: A rhetorical move yields reviewable alternatives**
+
+- Given: a visible manuscript target and an independently authored rhetorical
+  purpose
+- When: the researcher requests phrasing help and chooses one alternative
+- Then: only the chosen complete draft opens as a targeted revision candidate
+  while canonical Markdown and the other transient alternatives remain unchanged
