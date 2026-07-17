@@ -1,6 +1,6 @@
 # ADR-144: Derive Review Outputs from Evidence
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-07-17
 

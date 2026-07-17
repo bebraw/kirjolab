@@ -1,6 +1,6 @@
 # ADR-143: Coordinate Project Review Studies
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-07-17
 
