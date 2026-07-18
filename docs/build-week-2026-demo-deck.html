@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kirjolab · Build Week demo deck</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #20211e;
+        --soft: #676860;
+        --paper: #f3f0e8;
+        --paper-deep: #e7e1d5;
+        --line: #c8c2b6;
+        --accent: #b65331;
+        --green: #174f3d;
+        --cream: #fffdf7;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: var(--ink);
+      }
+
+      body {
+        font-family:
+          Inter,
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        color: var(--ink);
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: none;
+        overflow: hidden;
+        background: var(--paper);
+      }
+
+      .slide[aria-hidden="false"] {
+        display: grid;
+      }
+
+      .frame {
+        position: relative;
+        width: min(100vw, calc(100vh * 16 / 9));
+        height: min(100vh, calc(100vw * 9 / 16));
+        margin: auto;
+        padding: clamp(48px, 5.4vw, 104px) clamp(54px, 7.2vw, 138px);
+        overflow: hidden;
+      }
+
+      .frame::before {
+        position: absolute;
+        top: 0;
+        left: clamp(54px, 7.2vw, 138px);
+        right: clamp(54px, 7.2vw, 138px);
+        height: 2px;
+        content: "";
+        background: var(--ink);
+      }
+
+      .eyebrow,
+      .folio,
+      .kicker {
+        font-size: clamp(12px, 1.05vw, 20px);
+        font-weight: 750;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow {
+        color: var(--soft);
+      }
+
+      .folio {
+        position: absolute;
+        right: clamp(54px, 7.2vw, 138px);
+        bottom: clamp(32px, 3.2vw, 62px);
+        color: var(--soft);
+      }
+
+      h1,
+      h2,
+      blockquote {
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: 600;
+        letter-spacing: -0.052em;
+      }
+
+      h1 {
+        max-width: 11ch;
+        margin: 0;
+        font-size: clamp(64px, 8.2vw, 158px);
+        line-height: 0.9;
+      }
+
+      h2 {
+        max-width: 14ch;
+        margin: 0;
+        font-size: clamp(50px, 6.2vw, 120px);
+        line-height: 0.95;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .lead {
+        max-width: 31ch;
+        color: #4e5049;
+        font-size: clamp(22px, 2.1vw, 40px);
+        line-height: 1.35;
+      }
+
+      .title .frame {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 6vh;
+      }
+
+      .title-copy {
+        align-self: center;
+      }
+
+      .title .lead {
+        margin-top: 4vh;
+      }
+
+      .accent-rule {
+        width: clamp(72px, 7vw, 134px);
+        height: clamp(6px, 0.55vw, 11px);
+        margin-top: 5vh;
+        background: var(--accent);
+      }
+
+      .problem {
+        background: var(--cream);
+      }
+
+      .problem .frame,
+      .build .frame {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        gap: 5vh;
+      }
+
+      .problem-grid {
+        align-self: end;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        margin-bottom: 5vh;
+        background: var(--line);
+        border: 1px solid var(--line);
+      }
+
+      .problem-card {
+        min-height: 20vh;
+        padding: clamp(22px, 2.2vw, 42px);
+        background: var(--paper);
+      }
+
+      .problem-card b {
+        display: block;
+        margin-bottom: 2.2vh;
+        color: var(--accent);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(35px, 3.5vw, 68px);
+        font-weight: 600;
+      }
+
+      .problem-card span {
+        color: var(--soft);
+        font-size: clamp(17px, 1.35vw, 26px);
+        line-height: 1.45;
+      }
+
+      .loop {
+        background: var(--green);
+        color: var(--cream);
+      }
+
+      .loop .frame::before,
+      .dark .frame::before {
+        background: #718b80;
+      }
+
+      .loop .frame {
+        display: grid;
+        grid-template-columns: 0.78fr 1.22fr;
+        align-items: center;
+        gap: 7vw;
+      }
+
+      .loop h2 {
+        max-width: 9ch;
+      }
+
+      .loop .eyebrow {
+        margin-bottom: 3vh;
+        color: #a8c0b5;
+      }
+
+      .loop-list {
+        display: grid;
+        gap: 1.6vh;
+      }
+
+      .loop-step {
+        display: grid;
+        grid-template-columns: 3.2em 1fr;
+        align-items: center;
+        gap: 1.2vw;
+        padding: 1.8vh 0;
+        border-bottom: 1px solid #557367;
+        font-size: clamp(22px, 2vw, 38px);
+      }
+
+      .loop-step b {
+        color: #e59a76;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.66em;
+        letter-spacing: 0.08em;
+      }
+
+      .principle {
+        background: var(--paper-deep);
+      }
+
+      .principle .frame {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      blockquote {
+        align-self: center;
+        max-width: 15ch;
+        margin: 0;
+        font-size: clamp(58px, 7.2vw, 138px);
+        line-height: 0.96;
+      }
+
+      blockquote em {
+        color: var(--accent);
+        font-style: normal;
+      }
+
+      .principle-note {
+        max-width: 48ch;
+        color: var(--soft);
+        font-size: clamp(19px, 1.55vw, 30px);
+        line-height: 1.45;
+      }
+
+      .portable .frame {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        align-items: center;
+        gap: 8vw;
+      }
+
+      .portable-copy .eyebrow {
+        margin-bottom: 3vh;
+      }
+
+      .portable-copy .lead {
+        margin-top: 4vh;
+      }
+
+      .stack {
+        display: grid;
+        gap: 2vh;
+      }
+
+      .stack-row {
+        padding: 2.4vh 2vw;
+        border: 1px solid var(--line);
+        background: var(--cream);
+      }
+
+      .stack-row strong {
+        display: block;
+        margin-bottom: 0.7vh;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(25px, 2.3vw, 44px);
+      }
+
+      .stack-row span {
+        color: var(--soft);
+        font-size: clamp(16px, 1.25vw, 24px);
+      }
+
+      .build {
+        background: var(--ink);
+        color: var(--cream);
+      }
+
+      .build .frame::before {
+        background: #5d5e59;
+      }
+
+      .build .eyebrow {
+        color: #e59a76;
+      }
+
+      .build h2 {
+        max-width: 15ch;
+      }
+
+      .build-grid {
+        align-self: end;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        margin-bottom: 8vh;
+        background: #55564f;
+        border: 1px solid #55564f;
+      }
+
+      .build-card {
+        min-height: 17vh;
+        padding: clamp(20px, 2vw, 38px);
+        background: #292a27;
+      }
+
+      .build-card strong {
+        display: block;
+        margin-bottom: 1vh;
+        color: var(--cream);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(23px, 2vw, 38px);
+      }
+
+      .build-card span {
+        color: #b9bab3;
+        font-size: clamp(15px, 1.15vw, 22px);
+        line-height: 1.45;
+      }
+
+      .verification {
+        position: absolute;
+        right: clamp(54px, 7.2vw, 138px);
+        bottom: clamp(30px, 3vw, 58px);
+        left: clamp(54px, 7.2vw, 138px);
+        display: flex;
+        justify-content: space-between;
+        gap: 2vw;
+        padding-top: 2vh;
+        border-top: 1px solid #55564f;
+        color: #c8c8c1;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: clamp(12px, 1vw, 19px);
+      }
+
+      .verification b {
+        color: #ef9b76;
+        letter-spacing: 0.06em;
+      }
+
+      .close {
+        background: var(--cream);
+      }
+
+      .close .frame {
+        display: grid;
+        align-content: center;
+      }
+
+      .close h1 {
+        max-width: none;
+      }
+
+      .close .lead {
+        margin-top: 4vh;
+        color: var(--accent);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(28px, 2.8vw, 54px);
+      }
+
+      .close .kicker {
+        position: absolute;
+        bottom: clamp(44px, 5vw, 96px);
+        color: var(--soft);
+      }
+
+      .controls {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 20;
+        display: flex;
+        gap: 6px;
+        opacity: 0;
+        transition: opacity 120ms ease;
+      }
+
+      body:hover .controls,
+      .controls:focus-within {
+        opacity: 1;
+      }
+
+      .controls button {
+        width: 38px;
+        height: 38px;
+        border: 1px solid #77786f;
+        border-radius: 50%;
+        background: #20211ee6;
+        color: white;
+        cursor: pointer;
+        font-size: 18px;
+      }
+
+      @media print {
+        html,
+        body {
+          overflow: visible;
+          background: white;
+        }
+
+        .slide,
+        .slide[aria-hidden="true"] {
+          position: relative;
+          display: grid;
+          width: 13.333in;
+          height: 7.5in;
+          break-after: page;
+        }
+
+        .frame {
+          width: 13.333in;
+          height: 7.5in;
+        }
+
+        .controls {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="slide title" id="title" aria-hidden="false">
+      <div class="frame">
+        <p class="eyebrow">OpenAI Build Week 2026 · Work &amp; Productivity</p>
+        <div class="title-copy">
+          <h1>Kirjolab</h1>
+          <p class="lead">An integrated workspace where scholarly evidence becomes traceable prose.</p>
+          <div class="accent-rule"></div>
+        </div>
+        <p class="folio">01 / 07</p>
+      </div>
+    </section>
+
+    <section class="slide problem" id="problem" aria-hidden="true">
+      <div class="frame">
+        <p class="eyebrow">The gap</p>
+        <h2>Every citation has a backstory.</h2>
+        <div class="problem-grid">
+          <div class="problem-card"><b>01</b><span>The source lives in a library.</span></div>
+          <div class="problem-card"><b>02</b><span>The evidence stays in a PDF.</span></div>
+          <div class="problem-card"><b>03</b><span>The reasoning drifts into notes or chat.</span></div>
+          <div class="problem-card"><b>04</b><span>Only the citation reaches the manuscript.</span></div>
+        </div>
+        <p class="folio">02 / 07</p>
+      </div>
+    </section>
+
+    <section class="slide loop" id="loop" aria-hidden="true">
+      <div class="frame">
+        <div>
+          <p class="eyebrow">One scholarly loop</p>
+          <h2>Research and writing share the same context.</h2>
+        </div>
+        <div class="loop-list">
+          <div class="loop-step"><b>01</b><span>Read a source</span></div>
+          <div class="loop-step"><b>02</b><span>Preserve exact evidence</span></div>
+          <div class="loop-step"><b>03</b><span>Shape a defensible claim</span></div>
+          <div class="loop-step"><b>04</b><span>Draft with the source beside you</span></div>
+          <div class="loop-step"><b>05</b><span>Export portable work</span></div>
+        </div>
+        <p class="folio">03 / 07</p>
+      </div>
+    </section>
+
+    <section class="slide principle" id="principle" aria-hidden="true">
+      <div class="frame">
+        <p class="eyebrow">The model boundary</p>
+        <blockquote>A I <em>proposes.</em><br />The researcher decides.</blockquote>
+        <p class="principle-note">
+          Explicit target. Explicit evidence. Recorded model identity. Reviewable candidate. No silent manuscript mutation.
+        </p>
+        <p class="folio">04 / 07</p>
+      </div>
+    </section>
+
+    <section class="slide portable" id="portable" aria-hidden="true">
+      <div class="frame">
+        <div class="portable-copy">
+          <p class="eyebrow">Durable by design</p>
+          <h2>The work remains yours.</h2>
+          <p class="lead">Runtime state supports the project. It never becomes the only usable copy.</p>
+        </div>
+        <div class="stack">
+          <div class="stack-row"><strong>Portable source</strong><span>Markdown, BibTeX, figures, and attachments</span></div>
+          <div class="stack-row">
+            <strong>Recoverable collaboration</strong><span>Live editing, comments, history, and offline manuscript state</span>
+          </div>
+          <div class="stack-row"><strong>Publication projections</strong><span>Scientific preview, PDF, LaTeX, and statistics</span></div>
+        </div>
+        <p class="folio">05 / 07</p>
+      </div>
+    </section>
+
+    <section class="slide build dark" id="build-week" aria-hidden="true">
+      <div class="frame">
+        <p class="eyebrow">Built during the submission period</p>
+        <h2>One integrated scholarly workspace.</h2>
+        <div class="build-grid">
+          <div class="build-card">
+            <strong>Research context</strong><span>Library, PDF intake, annotations, claims, and evidence links</span>
+          </div>
+          <div class="build-card">
+            <strong>Reviewable A I</strong><span>Typed local-model operations, explicit context, and human disposition</span>
+          </div>
+          <div class="build-card">
+            <strong>Authoring system</strong><span>Collaboration, scientific import and export, recovery, and structured reviews</span>
+          </div>
+        </div>
+        <div class="verification">
+          <span>8ef9892..CURRENT · July 13 onward</span>
+          <b>VERIFICATION REQUIRED · INSERT QUALIFYING G P T 5.6 SESSION FACTS</b>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide close" id="close" aria-hidden="true">
+      <div class="frame">
+        <h1>Kirjolab</h1>
+        <p class="lead">Evidence becomes prose.</p>
+        <p class="kicker">Inspect the trail. Keep the source. Decide what changes.</p>
+        <p class="folio">07 / 07</p>
+      </div>
+    </section>
+
+    <nav class="controls" aria-label="Slide controls">
+      <button id="previous" type="button" aria-label="Previous slide">←</button>
+      <button id="next" type="button" aria-label="Next slide">→</button>
+    </nav>
+
+    <script>
+      const slides = [...document.querySelectorAll(".slide")];
+
+      function requestedIndex() {
+        const id = location.hash.slice(1);
+        const index = slides.findIndex((slide) => slide.id === id);
+        return index < 0 ? 0 : index;
+      }
+
+      function show(index) {
+        const target = Math.max(0, Math.min(index, slides.length - 1));
+        slides.forEach((slide, slideIndex) => slide.setAttribute("aria-hidden", String(slideIndex !== target)));
+        history.replaceState(null, "", `#${slides[target].id}`);
+      }
+
+      document.querySelector("#previous").addEventListener("click", () => show(requestedIndex() - 1));
+      document.querySelector("#next").addEventListener("click", () => show(requestedIndex() + 1));
+      addEventListener("hashchange", () => show(requestedIndex()));
+      addEventListener("keydown", (event) => {
+        if (["ArrowRight", "PageDown", " "].includes(event.key)) show(requestedIndex() + 1);
+        if (["ArrowLeft", "PageUp"].includes(event.key)) show(requestedIndex() - 1);
+        if (event.key === "Home") show(0);
+        if (event.key === "End") show(slides.length - 1);
+      });
+      show(requestedIndex());
+    </script>
+  </body>
+</html>
