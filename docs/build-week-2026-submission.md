@@ -178,6 +178,48 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Verify and document GPT-5.6 use during the submission period.
 - [ ] Keep the working project available through the judging period.
 
+## Codex and GPT-5.6 Evidence Gate
+
+**Submission blocker:** the qualifying session and its active model have not yet
+been recorded in this repository. Do not submit until both are verified from the
+original Codex thread in which most of the focused review-study functionality was
+built.
+
+Required evidence packet:
+
+| Evidence                         | Required value                                   | Status     |
+| -------------------------------- | ------------------------------------------------ | ---------- |
+| Qualifying Codex thread          | Original thread containing most core work        | Unverified |
+| Active model                     | GPT-5.6 shown for the qualifying work            | Unverified |
+| Codex feedback identifier        | Identifier returned through the `/feedback` flow | Unverified |
+| Session-to-commit correspondence | Focused commits attributable to that thread      | Unverified |
+| Human decision record            | Product, architecture, and design choices        | Drafted    |
+
+Verification procedure:
+
+1. Reopen the original qualifying Codex thread; do not create a replacement
+   submission-preparation thread.
+2. Use `/status` to inspect and capture the thread identifier and active model.
+   `/status` is supporting evidence and does not replace the contest's required
+   `/feedback` identifier.
+3. Run `/feedback` in that original thread and complete the displayed flow with
+   logs included when offered.
+4. Record the exact returned identifier and the exact model label in the private
+   Devpost draft before copying either into public documentation.
+5. Compare the thread transcript with `2a953f6..71126f6` and identify the commits
+   containing the majority of the core functionality.
+6. Capture dated screenshots or exported session evidence as a backup in case
+   the judging team requests verification.
+
+The public description should explain where Codex accelerated implementation,
+testing, and review. It should also identify the decisions retained by the
+author: the review authority, provenance model, human-disposition boundary,
+portable artifacts, and focused contest scope.
+
+The Codex manual documents `/status` as the session-configuration view and
+`/feedback` as the feedback-and-logs flow. The Build Week rules, not the general
+Codex manual, are the source of truth for the contest-specific identifier.
+
 ## Scope Guardrails
 
 - Do not demo the entire Kirjolab feature inventory.
