@@ -182,6 +182,25 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Verify and document GPT-5.6 use during the submission period.
 - [ ] Keep the working project available through the judging period.
 
+### Owner-only handoff
+
+These actions require the entrant's accounts, original Codex thread, or release
+authority and are intentionally not performed by repository automation:
+
+| Action                     | Exact completion condition                                                                                     |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Join challenge             | Devpost shows Kirjolab Review under the entrant's projects in Work & Productivity.                             |
+| Complete description       | The draft is pasted into Devpost with verified GPT-5.6 and session facts.                                      |
+| Publish repository updates | Local submission commits are pushed to public `main`, and GitHub recognizes the MIT license.                   |
+| Publish demo               | The approved sub-three-minute MP4 is uploaded as a public YouTube video and linked in Devpost.                 |
+| Provide working project    | A deployed judge URL is smoke-tested, or Devpost explicitly directs judges to the credential-free local guide. |
+| Provide Codex evidence     | The qualifying original thread supplies its `/feedback` identifier and exact active model.                     |
+| Maintain availability      | Repository, video, and working project remain unchanged and accessible until the judging period ends August 5. |
+
+Before pressing **Submit**, open every public link in a signed-out browser
+window and confirm that no private credentials, research material, or local-only
+paths appear in the Devpost entry.
+
 Judge setup and synthetic sample data are maintained in the
 [Build Week judge guide](./build-week-2026-judge-guide.md). The local macOS path
 is credential-free; the final hosted URL remains a submission blocker until it
