@@ -139,25 +139,24 @@ implementation; Codex then helps inspect the existing system, propose focused
 changes, implement them, and run the same local quality gates used for human
 review.
 
-For the Build Week review-study extension, Codex accelerated work across the
-domain model, Durable Object persistence, authenticated API, browser workflow,
-deterministic exports, and automated tests. The author retained the product and
-architecture decisions, including the versioned review authority, append-only
-research decisions, exact evidence requirements, local-model boundary, and rule
-that model candidates require explicit researcher disposition.
+During Build Week, Codex accelerated work across Kirjolab's integrated research
+context, evidence-backed claims, local-model operations, collaboration,
+scientific import and export, structured reviews, and automated tests. The
+author retained the product and architecture decisions, including portable
+Markdown authority, explicit scholarly relationships, the local-model boundary,
+and the rule that model candidates require researcher disposition.
 
 The implementation was followed by exploratory browser reviews. Findings were
 recorded before fixes, and the corrected workflows were re-run through focused
-tests and the native local CI gate. The focused contest scope, eligible commit
+tests and the native local CI gate. The contest scope, eligible commit
 range, demo outline, and remaining evidence requirements are documented in
 [the Build Week submission notes](./docs/build-week-2026-submission.md).
 
 Build Week judges can follow the
 [credential-free macOS walkthrough](./docs/build-week-2026-judge-guide.md),
-which includes synthetic sample data and the focused Plan → Search → Screen →
-Appraise → Extract → Synthesize → Report path. The submission notes distinguish
-the eligible review-study implementation from Kirjolab's pre-existing writing,
-library, collaboration, and deployment foundations.
+which includes an integrated research-to-authoring path and an optional
+structured-review deep dive. The submission notes distinguish the July 13 onward
+implementation range from Kirjolab's earlier foundation.
 
 ## Project Guide
 
