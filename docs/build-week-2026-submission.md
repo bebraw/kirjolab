@@ -172,6 +172,8 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [x] Draft the English Devpost project description.
 - [ ] Add verified GPT-5.6/session facts and paste the description into Devpost.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
+- [x] Draft the timed three-minute demo script and shot plan.
+- [ ] Approve and record the final human narration.
 - [x] License the repository for public judging under MIT.
 - [x] Verify that the GitHub repository is publicly visible.
 - [ ] Push the submission materials and MIT license to public `main`.
@@ -210,6 +212,11 @@ The English submission copy is maintained in the
 [Devpost description draft](./build-week-2026-devpost-description.md). It is
 ready except for the qualifying GPT-5.6 and session facts that only the original
 Codex thread can establish.
+
+The timed narration and shot sequence are maintained in the
+[three-minute demo script](./build-week-2026-demo-script.md). The generated
+review cut must retain its verification warning until the original Codex thread
+facts are inserted.
 
 ### Repository route
 
