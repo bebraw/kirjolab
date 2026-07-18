@@ -155,8 +155,8 @@ range, demo outline, and remaining evidence requirements are documented in
 Build Week judges can follow the
 [credential-free macOS walkthrough](./docs/build-week-2026-judge-guide.md),
 which includes an integrated research-to-authoring path and an optional
-structured-review deep dive. The submission notes distinguish the July 13 onward
-implementation range from Kirjolab's earlier foundation.
+structured-review deep dive. The submission notes distinguish the official
+submission-period implementation range from Kirjolab's earlier foundation.
 
 ## Project Guide
 

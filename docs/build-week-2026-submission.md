@@ -58,18 +58,18 @@ implementation range from the earlier foundation.
 
 ### Integrated Build Week range
 
-- **Pre-period baseline:** `8ef9892edc29b8604e58f81e122d0d86f9febd30`
-  on July 12 at 22:13 EEST
-- **First period commit:** `49810b211316f14ee68ff378123ee6e8525366db`
-  on July 13 at 09:40 EEST
-- **Current reviewed submission head:** `3f4ac9e`
-- **Diff:** 305 commits, 437 files, 78,181 insertions, 15,785 deletions
+- **Pre-period baseline:** `e6a7bdfc9fd33f784873f83d2c290e8a6297ef2f`
+  on July 13 at 17:44 EEST
+- **First period commit:** `2beffd8238bd760ddf742a9a35e6dac10490836`
+  on July 13 at 21:15 EEST
+- **Current reviewed submission head:** `35e503e`
+- **Diff:** 264 commits, 394 files, 68,468 insertions, 15,743 deletions
 
 Inspect that range with:
 
 ```bash
-git log --reverse --stat 8ef9892..3f4ac9e
-git diff --stat 8ef9892..3f4ac9e
+git log --reverse --stat e6a7bdf..35e503e
+git diff --stat e6a7bdf..35e503e
 ```
 
 This broader range includes the integrated research context, editor and preview
@@ -178,7 +178,7 @@ cited prose—inside one portable authoring workflow.
   evidence, model identity, and accept or reject controls.
 - **2:15–2:35 — Collaborate and export:** Show comments or history and portable
   source plus publication projections.
-- **2:35–2:56 — Build Week and close:** Identify the full July 13 onward range,
+- **2:35–2:56 — Build Week and close:** Identify the submission-period range,
   verified Codex/GPT-5.6 contribution, and core product principle.
 
 ## Submission Requirements
@@ -200,8 +200,10 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Approve and record the final human narration.
 - [x] License the repository for public judging under MIT.
 - [x] Verify that the GitHub repository is publicly visible.
-- [ ] Push the submission materials and MIT license to public `main`.
-- [ ] Make a working project available to judges.
+- [x] Verify the submission materials through `35e503e` and MIT license on
+      public `main`.
+- [x] Provide a credential-free test build through the public repository and
+      judge guide.
 - [x] Document setup, sample data, the eligible implementation delta, and Codex
       collaboration in the README.
 - [ ] Provide the qualifying `/feedback` Codex Session ID.
@@ -217,9 +219,9 @@ authority and are intentionally not performed by repository automation:
 | -------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Join challenge             | Devpost shows Kirjolab under the entrant's projects in Work & Productivity.                                    |
 | Complete description       | The draft is pasted into Devpost with verified GPT-5.6 and session facts.                                      |
-| Publish repository updates | Local submission commits are pushed to public `main`, and GitHub recognizes the MIT license.                   |
+| Publish repository updates | Final local corrections are pushed to public `main`; GitHub already recognizes the MIT license.                |
 | Publish demo               | The approved sub-three-minute MP4 is uploaded as a public YouTube video and linked in Devpost.                 |
-| Provide working project    | A deployed judge URL is smoke-tested, or Devpost explicitly directs judges to the credential-free local guide. |
+| Provide working project    | Devpost links the public test build and judge guide; add a hosted URL only if judges can access it freely.     |
 | Provide Codex evidence     | The qualifying original thread supplies its `/feedback` identifier and exact active model.                     |
 | Maintain availability      | Repository, video, and working project remain unchanged and accessible until the judging period ends August 5. |
 
@@ -228,9 +230,9 @@ window and confirm that no private credentials, research material, or local-only
 paths appear in the Devpost entry.
 
 Judge setup and synthetic sample data are maintained in the
-[Build Week judge guide](./build-week-2026-judge-guide.md). The local macOS path
-is credential-free; the final hosted URL remains a submission blocker until it
-has been deployed and smoke-tested.
+[Build Week judge guide](./build-week-2026-judge-guide.md). The public repository
+and credential-free macOS path provide the permitted test build. A hosted URL is
+optional and must not be listed unless it is accessible to judges.
 
 The English submission copy is maintained in the
 [Devpost description draft](./build-week-2026-devpost-description.md). It is
@@ -265,9 +267,13 @@ private-repository invitation path. Before submission, verify that the remote
 default branch contains the eligible commits, submission notes, judge guide, and
 license.
 
-Public visibility was verified on July 18, 2026. At that check, remote `main`
-ended at `6dbdf4d` and did not yet contain the local submission commits through
-`0dff528`; pushing remains an owner action.
+Public visibility and the MIT license were verified on July 18, 2026. After a
+fresh fetch, remote `main` matched local `35e503e` and included the integrated
+demo notes and slide set. Push any later final corrections before submission.
+
+The production Worker was also verified as deployed on July 18, but it uses
+Cloudflare Access. Do not give judges that URL unless their access is arranged;
+the public test build above is the unrestricted evaluation route.
 
 ## Codex and GPT-5.6 Evidence Gate
 
@@ -296,7 +302,7 @@ Verification procedure:
    logs included when offered.
 4. Record the exact returned identifier and the exact model label in the private
    Devpost draft before copying either into public documentation.
-5. Compare the thread transcript with `8ef9892..3f4ac9e` and identify the commits
+5. Compare the thread transcript with `e6a7bdf..35e503e` and identify the commits
    containing the majority of the core functionality.
 6. Capture dated screenshots or exported session evidence as a backup in case
    the judging team requests verification.
@@ -309,6 +315,21 @@ portable artifacts, and contest scope.
 The Codex manual documents `/status` as the session-configuration view and
 `/feedback` as the feedback-and-logs flow. The Build Week rules, not the general
 Codex manual, are the source of truth for the contest-specific identifier.
+
+## Final Submission Order
+
+1. Record the narration yourself against the integrated cut, adjust pauses to
+   the screen actions, and keep the final export shorter than three minutes.
+2. Reopen the qualifying Codex thread, capture `/status`, run `/feedback`, and
+   record the exact GPT-5.6 model label and returned Session ID.
+3. Replace the visible verification warning and the placeholders in the Devpost
+   draft, then render and watch the final video end to end.
+4. Upload the final video to public YouTube and copy its URL.
+5. Push the final documentation corrections to public `main`.
+6. Join the challenge in Work & Productivity and paste the English description,
+   repository/test-build URL, judge guide, YouTube URL, and Session ID.
+7. Open every submitted link in a signed-out browser, submit before the deadline,
+   and preserve access through August 5 at 5:00 PM PDT.
 
 ## Scope Guardrails
 

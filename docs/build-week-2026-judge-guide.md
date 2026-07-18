@@ -154,7 +154,7 @@ formatting, lint, type, security, and production-dependency checks.
 
 ## Hosted Evaluation
 
-**Submission blocker:** record the final judge URL and access instructions in the
-Devpost draft after the production instance has been deployed and smoke-tested.
-The local path above remains the reproducible fallback and requires no judge
-account or private credential.
+The public repository and the local path above are the credential-free test
+build. They require no judge account or private data. The production Worker is
+protected by Cloudflare Access; list it in Devpost only if judge access has been
+explicitly arranged and smoke-tested.

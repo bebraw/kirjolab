@@ -101,3 +101,11 @@ Codex thread:
 - concise description of the verified GPT-5.6 contribution
 
 Do not infer those values from a submission-preparation thread.
+
+## Submission Links
+
+- **Source and test build:** <https://github.com/bebraw/kirjolab>
+- **Judge walkthrough:**
+  <https://github.com/bebraw/kirjolab/blob/main/docs/build-week-2026-judge-guide.md>
+- **Public YouTube demo:** insert after upload
+- **Hosted app:** omit unless unrestricted judge access has been arranged
