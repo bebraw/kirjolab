@@ -196,7 +196,7 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
 - [x] Draft the timed three-minute demo script and shot plan.
 - [x] Produce and validate the initial SLR-focused review cut.
-- [ ] Produce the integrated research-to-authoring cut with the styled slide set.
+- [x] Produce the integrated research-to-authoring cut with the styled slide set.
 - [ ] Approve and record the final human narration.
 - [x] License the repository for public judging under MIT.
 - [x] Verify that the GitHub repository is publicly visible.
@@ -247,6 +247,15 @@ The superseded SLR-focused review cut is generated at
 from version control. It was validated on July 18 at 2:52.72, 1920×1080, with
 H.264 video and AAC narration. Keep it only as production evidence; the public
 demonstration should use the integrated script and styled slide set.
+
+The integrated review cut is generated at
+`.generated/build-week-demo/integrated/kirjolab-build-week-integrated-review-cut.mp4`.
+It was validated on July 18 at 2:58, 1920×1080, with H.264 video, 48 kHz AAC
+narration, and normalized audio headroom. Its title, Build Week, and closing
+frames come from the committed
+[demo slide set](./build-week-2026-demo-deck.html). It remains a review artifact
+until the qualifying GPT-5.6 contribution and `/feedback` session ID replace the
+visible verification marker and synthetic narration.
 
 ### Repository route
 
