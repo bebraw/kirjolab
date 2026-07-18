@@ -52,6 +52,63 @@ The most important product boundary is **AI proposes; the researcher decides**.
 Model output is a reviewable candidate with provenance. Rejection changes no
 canonical review or manuscript state.
 
+## Eligible Implementation Delta
+
+Kirjolab existed before the July 13 submission-period start. The entry asks
+judges to evaluate the review-study extension, not the pre-existing product.
+
+### Primary review-study range
+
+- **Baseline:** `2a953f60dfd477deb7fd19d73158dd7ab73f7e03`
+- **First review-study commit:**
+  `918f2ad8c3d583ba82cd9ea7e36189a67a6d9ce5` on July 17 at 13:12 EEST
+- **Reviewed implementation head:** `71126f6` on July 17 at 17:08 EEST
+- **Diff:** 30 commits, 69 files, 8,747 insertions, 155 deletions
+
+Inspect that range with:
+
+```bash
+git log --reverse --stat 2a953f6..71126f6
+git diff --stat 2a953f6..71126f6
+```
+
+The focused feature sequence is:
+
+1. `918f2ad` — accept the review-study architecture and feature contract.
+2. `f00d710` — add protocol planning and source-query generation.
+3. `dd1ead6` — add immutable search imports and deduplication.
+4. `96b2bf3` — add staged screening and adjudication.
+5. `a699124` — add evidence-linked appraisal and extraction.
+6. `e84c86b` — add revision-pinned synthesis and manuscript artifacts.
+7. `7fe3d0e` — add reviewable local-model candidates.
+8. `8abd277` — add reproducible reports and deterministic exports.
+9. `be0c249..71126f6` — audit the running workflow, repair findings, and
+   complete browser coverage.
+
+### Pre-existing product boundaries
+
+The following capabilities provide context but are not claimed as the focused
+contest-period implementation:
+
+- the core Markdown workspace and scientific preview
+- Yjs collaboration and Durable Object document coordination
+- the reference library, PDF reader, annotations, and evidence links
+- the general local-model provider boundary
+- project history, backup, sharing, and production deployment foundations
+
+The submission may show those surfaces only where the new review workflow uses
+them—for example, selecting existing PDF evidence or publishing synthesis into
+an existing manuscript.
+
+### Dated verification evidence
+
+- [`specs/review-studies/spec.md`](../specs/review-studies/spec.md) records the
+  implemented feature contract and scenarios.
+- [`docs/ui-review-notes-2026-07-17.md`](./ui-review-notes-2026-07-17.md)
+  records a complete running review-study walkthrough and its findings.
+- [`docs/ui-review-follow-up-2026-07-17.md`](./ui-review-follow-up-2026-07-17.md)
+  records the corrections, browser re-review, and passing local CI results.
+
 ## Judging-Criteria Case
 
 ### Technological implementation
