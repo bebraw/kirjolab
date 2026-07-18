@@ -343,9 +343,12 @@ describe("ReviewStudy in the Workers runtime", () => {
       "accepted",
       "reviewer@example.com",
     );
-    expect((await study.getEvidenceSnapshot("reviewer@example.com")).records[0]).toMatchObject({
-      extractionComplete: true,
-      extractionValues: [{ value: "survey" }],
+    expect(await study.getEvidenceSnapshot("reviewer@example.com")).toMatchObject({
+      protocol: {
+        researchQuestions: content.researchQuestions,
+        extractionFields: content.extractionFields,
+      },
+      records: [{ extractionComplete: true, extractionValues: [{ value: "survey" }] }],
     });
   });
 });

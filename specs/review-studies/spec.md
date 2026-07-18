@@ -158,6 +158,8 @@ state.
 - The extraction form displays the latest recorded value, missingness reason,
   evidence pointer, reviewer, and time. Saving a later value is labelled as a
   superseding append-only action rather than presenting a blank form.
+- Evidence snapshots retain the protocol's research-question identities so
+  RQ-linked extraction fields validate and render consistently in the browser.
 
 ### Synthesis and Manuscript Integration
 

@@ -677,7 +677,11 @@ export class ReviewStudy extends DurableObject<Env> {
     return {
       revision: this.currentRevision(),
       protocolRevision: protocol.revision,
-      protocol: { qualityAssessment: protocol.qualityAssessment, extractionFields: protocol.extractionFields },
+      protocol: {
+        researchQuestions: protocol.researchQuestions,
+        qualityAssessment: protocol.qualityAssessment,
+        extractionFields: protocol.extractionFields,
+      },
       records: records.map((record) =>
         summarizeEvidenceRecord(
           record,

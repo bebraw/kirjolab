@@ -102,12 +102,13 @@ describe("review appraisal and extraction evidence", () => {
       revision: 6,
       protocolRevision: 2,
       protocol: {
+        researchQuestions: [{ id: "rq1", text: "What changed?" }],
         qualityAssessment: {
           questions: [{ id: "q1", text: "Clear?" }],
           answers: [{ id: "yes", label: "Yes", weight: 1, rejects: false }],
           minimumScore: 1,
         },
-        extractionFields: [{ id: "year", label: "Year", type: "integer", values: [], researchQuestionIds: [] }],
+        extractionFields: [{ id: "year", label: "Year", type: "integer", values: [], researchQuestionIds: ["rq1"] }],
       },
       records: [
         {
@@ -158,6 +159,10 @@ describe("review appraisal and extraction evidence", () => {
     };
     expect(parseReviewEvidenceSnapshot(value)).toMatchObject({
       revision: 6,
+      protocol: {
+        researchQuestions: [{ id: "rq1", text: "What changed?" }],
+        extractionFields: [{ id: "year", researchQuestionIds: ["rq1"] }],
+      },
       records: [{ qualityScore: 1, qualityComplete: true, extractionComplete: true }],
     });
     expect(() => parseReviewEvidenceSnapshot({ protocol: {}, records: "bad" })).toThrow("invalid");

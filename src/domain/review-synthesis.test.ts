@@ -74,7 +74,11 @@ describe("review synthesis", () => {
       {
         revision: 5,
         protocolRevision: 2,
-        protocol: { qualityAssessment: protocol.qualityAssessment, extractionFields: protocol.extractionFields },
+        protocol: {
+          researchQuestions: protocol.researchQuestions,
+          qualityAssessment: protocol.qualityAssessment,
+          extractionFields: protocol.extractionFields,
+        },
         records: [
           {
             record,

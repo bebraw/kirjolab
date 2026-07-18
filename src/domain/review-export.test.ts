@@ -192,7 +192,11 @@ function fixture(): ReviewExportAuthority {
   const evidence: ReviewEvidenceSnapshot = {
     revision: 7,
     protocolRevision: 2,
-    protocol: { qualityAssessment: protocolRevision.qualityAssessment, extractionFields: protocolRevision.extractionFields },
+    protocol: {
+      researchQuestions: protocolRevision.researchQuestions,
+      qualityAssessment: protocolRevision.qualityAssessment,
+      extractionFields: protocolRevision.extractionFields,
+    },
     records: [
       {
         record,

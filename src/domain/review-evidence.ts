@@ -66,7 +66,7 @@ export interface EvidenceRecordState {
 export interface ReviewEvidenceSnapshot {
   readonly revision: number;
   readonly protocolRevision: number;
-  readonly protocol: Pick<ReviewProtocolRevision, "qualityAssessment" | "extractionFields">;
+  readonly protocol: Pick<ReviewProtocolRevision, "researchQuestions" | "qualityAssessment" | "extractionFields">;
   readonly records: readonly EvidenceRecordState[];
 }
 
@@ -140,13 +140,18 @@ export function parseReviewEvidenceSnapshot(value: unknown): ReviewEvidenceSnaps
     throw new Error("Review evidence snapshot is invalid");
   const protocolContent = parseReviewProtocolContent({
     ...defaultReviewProtocol(),
+    researchQuestions: value.protocol.researchQuestions,
     qualityAssessment: value.protocol.qualityAssessment,
     extractionFields: value.protocol.extractionFields,
   });
   return {
     revision: integer(value.revision),
     protocolRevision: integer(value.protocolRevision),
-    protocol: { qualityAssessment: protocolContent.qualityAssessment, extractionFields: protocolContent.extractionFields },
+    protocol: {
+      researchQuestions: protocolContent.researchQuestions,
+      qualityAssessment: protocolContent.qualityAssessment,
+      extractionFields: protocolContent.extractionFields,
+    },
     records: value.records.map((item) => parseEvidenceRecordState(item, protocolContent)),
   };
 }
