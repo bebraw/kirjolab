@@ -169,7 +169,8 @@ Source of truth:
 Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 
 - [ ] Join the challenge and choose Work & Productivity.
-- [ ] Provide an English project description.
+- [x] Draft the English Devpost project description.
+- [ ] Add verified GPT-5.6/session facts and paste the description into Devpost.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
 - [x] License the repository for public judging under MIT.
 - [x] Verify that the GitHub repository is publicly visible.
@@ -185,6 +186,11 @@ Judge setup and synthetic sample data are maintained in the
 [Build Week judge guide](./build-week-2026-judge-guide.md). The local macOS path
 is credential-free; the final hosted URL remains a submission blocker until it
 has been deployed and smoke-tested.
+
+The English submission copy is maintained in the
+[Devpost description draft](./build-week-2026-devpost-description.md). It is
+ready except for the qualifying GPT-5.6 and session facts that only the original
+Codex thread can establish.
 
 ### Repository route
 
