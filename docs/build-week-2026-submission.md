@@ -178,6 +178,11 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Verify and document GPT-5.6 use during the submission period.
 - [ ] Keep the working project available through the judging period.
 
+Judge setup and synthetic sample data are maintained in the
+[Build Week judge guide](./build-week-2026-judge-guide.md). The local macOS path
+is credential-free; the final hosted URL remains a submission blocker until it
+has been deployed and smoke-tested.
+
 ## Codex and GPT-5.6 Evidence Gate
 
 **Submission blocker:** the qualifying session and its active model have not yet
