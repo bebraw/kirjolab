@@ -171,7 +171,8 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Join the challenge and choose Work & Productivity.
 - [ ] Provide an English project description.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
-- [ ] Make the repository and a working project available to judges.
+- [x] License the repository for public judging under MIT.
+- [ ] Make the public repository and a working project available to judges.
 - [ ] Document setup, sample data, the eligible implementation delta, and Codex
       collaboration in the README.
 - [ ] Provide the qualifying `/feedback` Codex Session ID.
@@ -182,6 +183,14 @@ Judge setup and synthetic sample data are maintained in the
 [Build Week judge guide](./build-week-2026-judge-guide.md). The local macOS path
 is credential-free; the final hosted URL remains a submission blocker until it
 has been deployed and smoke-tested.
+
+### Repository route
+
+Use the public repository at <https://github.com/bebraw/kirjolab>. The root MIT
+license permits judging, testing, reuse, and distribution without requiring the
+private-repository invitation path. Before submission, verify that the remote
+default branch contains the eligible commits, submission notes, judge guide, and
+license.
 
 ## Codex and GPT-5.6 Evidence Gate
 

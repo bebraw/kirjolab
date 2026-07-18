@@ -181,3 +181,7 @@ This repository also retains reusable tooling from its starter-template roots:
 
 These directories are not required for running Kirjolab. They exist to keep
 maintenance practices explicit and portable.
+
+## License
+
+Kirjolab is available under the [MIT License](./LICENSE).
