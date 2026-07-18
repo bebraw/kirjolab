@@ -190,11 +190,14 @@ Source of truth:
 
 Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 
-- [ ] Join the challenge and choose Work & Productivity.
+- [x] Join the challenge, create the initial Devpost submission draft, and
+      choose Work & Productivity.
 - [x] Draft the English Devpost project description.
 - [x] Add verified GPT-5.6 and qualifying Session ID facts to the submission
       materials.
 - [ ] Paste the completed description into Devpost.
+- [x] Produce ten validated 3:2 project-media images under the 5 MB limit.
+- [ ] Upload and curate the project-media set in Devpost.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
 - [x] Draft the timed three-minute demo script and shot plan.
 - [x] Produce and validate the initial SLR-focused review cut.
@@ -202,7 +205,7 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Approve and record the final human narration.
 - [x] License the repository for public judging under MIT.
 - [x] Verify that the GitHub repository is publicly visible.
-- [x] Verify the submission materials through `35e503e` and MIT license on
+- [x] Verify the submission materials through `a2b1dd4` and MIT license on
       public `main`.
 - [x] Provide a credential-free test build through the public repository and
       judge guide.
@@ -268,8 +271,17 @@ default branch contains the eligible commits, submission notes, judge guide, and
 license.
 
 Public visibility and the MIT license were verified on July 18, 2026. After a
-fresh fetch, remote `main` matched local `35e503e` and included the integrated
-demo notes and slide set. Push any later final corrections before submission.
+fresh fetch, remote `main` matched local `a2b1dd4` and included the verified
+Codex evidence, integrated demo notes, and slide set. Signed-out HTTP requests
+also returned `200` for the repository, raw README, raw MIT license, and raw
+judge guide. Push any later final corrections before submission.
+
+The prepared Devpost media set is in
+`.generated/build-week-media/upload/`. It contains ten `2880x1920` PNG files,
+each below 650 KB, ordered to tell the integrated research-to-authoring story.
+Captions are maintained in `.generated/build-week-media/captions.md`. These
+local production artifacts are intentionally excluded from version control and
+still need to be uploaded to Devpost.
 
 The production Worker was also verified as deployed on July 18, but it uses
 Cloudflare Access. Do not give judges that URL unless their access is arranged;
