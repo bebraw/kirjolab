@@ -172,8 +172,10 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Provide an English project description.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
 - [x] License the repository for public judging under MIT.
-- [ ] Make the public repository and a working project available to judges.
-- [ ] Document setup, sample data, the eligible implementation delta, and Codex
+- [x] Verify that the GitHub repository is publicly visible.
+- [ ] Push the submission materials and MIT license to public `main`.
+- [ ] Make a working project available to judges.
+- [x] Document setup, sample data, the eligible implementation delta, and Codex
       collaboration in the README.
 - [ ] Provide the qualifying `/feedback` Codex Session ID.
 - [ ] Verify and document GPT-5.6 use during the submission period.
@@ -191,6 +193,10 @@ license permits judging, testing, reuse, and distribution without requiring the
 private-repository invitation path. Before submission, verify that the remote
 default branch contains the eligible commits, submission notes, judge guide, and
 license.
+
+Public visibility was verified on July 18, 2026. At that check, remote `main`
+ended at `6dbdf4d` and did not yet contain the local submission commits through
+`0dff528`; pushing remains an owner action.
 
 ## Codex and GPT-5.6 Evidence Gate
 

@@ -152,6 +152,13 @@ tests and the native local CI gate. The focused contest scope, eligible commit
 range, demo outline, and remaining evidence requirements are documented in
 [the Build Week submission notes](./docs/build-week-2026-submission.md).
 
+Build Week judges can follow the
+[credential-free macOS walkthrough](./docs/build-week-2026-judge-guide.md),
+which includes synthetic sample data and the focused Plan → Search → Screen →
+Appraise → Extract → Synthesize → Report path. The submission notes distinguish
+the eligible review-study implementation from Kirjolab's pre-existing writing,
+library, collaboration, and deployment foundations.
+
 ## Project Guide
 
 - [VISION.md](./VISION.md) explains the product direction.
