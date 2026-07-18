@@ -173,6 +173,7 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Add verified GPT-5.6/session facts and paste the description into Devpost.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
 - [x] Draft the timed three-minute demo script and shot plan.
+- [x] Produce and validate a local sub-three-minute review cut.
 - [ ] Approve and record the final human narration.
 - [x] License the repository for public judging under MIT.
 - [x] Verify that the GitHub repository is publicly visible.
@@ -217,6 +218,14 @@ The timed narration and shot sequence are maintained in the
 [three-minute demo script](./build-week-2026-demo-script.md). The generated
 review cut must retain its verification warning until the original Codex thread
 facts are inserted.
+
+The local review cut is generated at
+`.generated/build-week-demo/kirjolab-build-week-review-cut.mp4` and is excluded
+from version control. It was validated on July 18 at 2:52.72, 1920×1080, with
+H.264 video and AAC narration. It is a review artifact, not the final public
+demonstration: replace the synthetic narration after verifying the qualifying
+GPT-5.6 contribution and `/feedback` session ID, then upload the approved cut to
+YouTube.
 
 ### Repository route
 
