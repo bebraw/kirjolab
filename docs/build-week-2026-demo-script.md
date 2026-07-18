@@ -6,9 +6,9 @@
 structured SLR/MLR workflow is an advanced extension and does not appear in the
 initial video.
 
-**Review-cut note:** Replace the final Build Week sentence with facts verified
-from the qualifying Codex thread before publication. The review video must
-display **VERIFICATION REQUIRED** during that sentence.
+**Evidence note:** The qualifying Codex thread was verified as **Fix iPad PDF
+review issues**, using `gpt-5.6-sol`, with Session ID
+`019f6472-5ece-7cd3-b66f-ba344ba9e812`.
 
 ## Shot and Narration Plan
 
@@ -83,16 +83,14 @@ usable copy.
 
 ### 2:35–2:50 — Build Week implementation
 
-**Visual:** Styled Build Week slide with the contest-period range and major
-capability groups. Show **VERIFICATION REQUIRED** in the review cut.
+**Visual:** Styled Build Week slide with the contest-period range, major
+capability groups, verified model, and qualifying Session ID.
 
-**Review-cut narration:**
+**Narration:**
 
-During Build Week, Codex accelerated this integrated workspace across research
-context, evidence-backed claims, local-model workflows, collaboration, export,
-and the later structured-review extension. Before publication, this sentence
-must add the exact verified G P T five point six contribution and qualifying
-Codex session identifier.
+During Build Week, I used G P T five point six through Codex to implement and
+test Kirjolab's integrated PDF, library, writing-assistant, template, and editor
+workflows. The qualifying Codex session is shown here.
 
 ### 2:50–2:56 — Close
 
@@ -111,5 +109,5 @@ Kirjolab. Evidence becomes prose. A I proposes; the researcher decides.
 - Keep text legible at 1080p and avoid rapid scrolling.
 - Use the committed slide set for title, principle, Build Week, and closing
   frames; do not use raw unstyled HTML cards.
-- Replace the review-cut verification marker before public upload.
-- Confirm the final audio explicitly covers verified Codex and GPT-5.6 use.
+- Render the final cut from the verified Build Week slide before public upload.
+- Confirm the final audio explicitly covers the verified Codex and GPT-5.6 use.

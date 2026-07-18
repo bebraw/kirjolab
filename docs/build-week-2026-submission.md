@@ -192,7 +192,9 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 
 - [ ] Join the challenge and choose Work & Productivity.
 - [x] Draft the English Devpost project description.
-- [ ] Add verified GPT-5.6/session facts and paste the description into Devpost.
+- [x] Add verified GPT-5.6 and qualifying Session ID facts to the submission
+      materials.
+- [ ] Paste the completed description into Devpost.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
 - [x] Draft the timed three-minute demo script and shot plan.
 - [x] Produce and validate the initial SLR-focused review cut.
@@ -206,8 +208,8 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
       judge guide.
 - [x] Document setup, sample data, the eligible implementation delta, and Codex
       collaboration in the README.
-- [ ] Provide the qualifying `/feedback` Codex Session ID.
-- [ ] Verify and document GPT-5.6 use during the submission period.
+- [x] Provide the qualifying `/feedback` Codex Session ID.
+- [x] Verify and document GPT-5.6 use during the submission period.
 - [ ] Keep the working project available through the judging period.
 
 ### Owner-only handoff
@@ -218,11 +220,11 @@ authority and are intentionally not performed by repository automation:
 | Action                     | Exact completion condition                                                                                     |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Join challenge             | Devpost shows Kirjolab under the entrant's projects in Work & Productivity.                                    |
-| Complete description       | The draft is pasted into Devpost with verified GPT-5.6 and session facts.                                      |
+| Complete description       | The completed draft is pasted into Devpost.                                                                    |
 | Publish repository updates | Final local corrections are pushed to public `main`; GitHub already recognizes the MIT license.                |
 | Publish demo               | The approved sub-three-minute MP4 is uploaded as a public YouTube video and linked in Devpost.                 |
 | Provide working project    | Devpost links the public test build and judge guide; add a hosted URL only if judges can access it freely.     |
-| Provide Codex evidence     | The qualifying original thread supplies its `/feedback` identifier and exact active model.                     |
+| Provide Codex evidence     | Completed: qualifying thread, model, and `/feedback` Session ID are recorded below.                            |
 | Maintain availability      | Repository, video, and working project remain unchanged and accessible until the judging period ends August 5. |
 
 Before pressing **Submit**, open every public link in a signed-out browser
@@ -236,13 +238,12 @@ optional and must not be listed unless it is accessible to judges.
 
 The English submission copy is maintained in the
 [Devpost description draft](./build-week-2026-devpost-description.md). It is
-ready except for the qualifying GPT-5.6 and session facts that only the original
-Codex thread can establish.
+complete with the verified GPT-5.6 and Session ID facts and is ready to paste.
 
 The timed narration and shot sequence are maintained in the
 [three-minute demo script](./build-week-2026-demo-script.md). The generated
-integrated cut must retain its verification warning until the original Codex thread
-facts are inserted.
+integrated review cut still contains its earlier verification warning. The final
+cut must be rendered from the updated verified slide and human narration.
 
 The superseded SLR-focused review cut is generated at
 `.generated/build-week-demo/kirjolab-build-week-review-cut.mp4` and is excluded
@@ -256,8 +257,7 @@ It was validated on July 18 at 2:58, 1920×1080, with H.264 video, 48 kHz AAC
 narration, and normalized audio headroom. Its title, Build Week, and closing
 frames come from the committed
 [demo slide set](./build-week-2026-demo-deck.html). It remains a review artifact
-until the qualifying GPT-5.6 contribution and `/feedback` session ID replace the
-visible verification marker and synthetic narration.
+until it is re-rendered with the verified slide and final human narration.
 
 ### Repository route
 
@@ -275,37 +275,32 @@ The production Worker was also verified as deployed on July 18, but it uses
 Cloudflare Access. Do not give judges that URL unless their access is arranged;
 the public test build above is the unrestricted evaluation route.
 
-## Codex and GPT-5.6 Evidence Gate
+## Codex and GPT-5.6 Evidence
 
-**Submission blocker:** the qualifying session and its active model have not yet
-been recorded in this repository. Do not submit until both are verified from the
-original Codex thread in which most of the contest-period functionality was built.
+The qualifying session and active model were verified on July 18 from the
+original, largest integrated implementation thread and uploaded through the
+required `/feedback` flow.
 
 Required evidence packet:
 
-| Evidence                         | Required value                                   | Status     |
-| -------------------------------- | ------------------------------------------------ | ---------- |
-| Qualifying Codex thread          | Original thread containing most core work        | Unverified |
-| Active model                     | GPT-5.6 shown for the qualifying work            | Unverified |
-| Codex feedback identifier        | Identifier returned through the `/feedback` flow | Unverified |
-| Session-to-commit correspondence | Focused commits attributable to that thread      | Unverified |
-| Human decision record            | Product, architecture, and design choices        | Drafted    |
+| Evidence                         | Verified value                                                            | Status   |
+| -------------------------------- | ------------------------------------------------------------------------- | -------- |
+| Qualifying Codex thread          | **Fix iPad PDF review issues**                                            | Verified |
+| Active model                     | GPT-5.6, exact label `gpt-5.6-sol`                                        | Verified |
+| Codex feedback identifier        | `019f6472-5ece-7cd3-b66f-ba344ba9e812`                                    | Verified |
+| Session-to-commit correspondence | Largest integrated session; 63-commit range `0aefbbb..0d2094c`            | Verified |
+| Human decision record            | Product, architecture, design, review boundaries, and focused commit flow | Drafted  |
 
-Verification procedure:
+Verification record:
 
-1. Reopen the original qualifying Codex thread; do not create a replacement
-   submission-preparation thread.
-2. Use `/status` to inspect and capture the thread identifier and active model.
-   `/status` is supporting evidence and does not replace the contest's required
-   `/feedback` identifier.
-3. Run `/feedback` in that original thread and complete the displayed flow with
-   logs included when offered.
-4. Record the exact returned identifier and the exact model label in the private
-   Devpost draft before copying either into public documentation.
-5. Compare the thread transcript with `e6a7bdf..35e503e` and identify the commits
-   containing the majority of the core functionality.
-6. Capture dated screenshots or exported session evidence as a backup in case
-   the judging team requests verification.
+1. `/status` in the original thread displayed the thread name, exact model label,
+   and Session ID recorded above.
+2. `/feedback` uploaded that existing thread and returned the same Session ID.
+3. Local transcript and Git history inspection identified it as the largest
+   integrated eligible-period session: 68 user turns, 63 commits, and a
+   150-file implementation range spanning PDF, library, assistant, templates,
+   editor, preview, citations, settings, and design-system work.
+4. Preserve the `/status` capture as backup evidence in case judges request it.
 
 The public description should explain where Codex accelerated implementation,
 testing, and review. It should also identify the decisions retained by the
@@ -320,15 +315,12 @@ Codex manual, are the source of truth for the contest-specific identifier.
 
 1. Record the narration yourself against the integrated cut, adjust pauses to
    the screen actions, and keep the final export shorter than three minutes.
-2. Reopen the qualifying Codex thread, capture `/status`, run `/feedback`, and
-   record the exact GPT-5.6 model label and returned Session ID.
-3. Replace the visible verification warning and the placeholders in the Devpost
-   draft, then render and watch the final video end to end.
-4. Upload the final video to public YouTube and copy its URL.
-5. Push the final documentation corrections to public `main`.
-6. Join the challenge in Work & Productivity and paste the English description,
+2. Render from the verified slide and watch the final video end to end.
+3. Upload the final video to public YouTube and copy its URL.
+4. Push the final documentation corrections to public `main`.
+5. Join the challenge in Work & Productivity and paste the English description,
    repository/test-build URL, judge guide, YouTube URL, and Session ID.
-7. Open every submitted link in a signed-out browser, submit before the deadline,
+6. Open every submitted link in a signed-out browser, submit before the deadline,
    and preserve access through August 5 at 5:00 PM PDT.
 
 ## Scope Guardrails

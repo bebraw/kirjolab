@@ -91,16 +91,18 @@ Next steps include richer scholarly-provider adapters, deeper evaluations of
 evidence-grounded model operations, additional publication projections, and
 continued refinement of the structured-review extension.
 
-## Build Week Evidence to Insert Before Submission
+## How We Used GPT-5.6 and Codex
 
-Replace this section in the Devpost form with verified facts from the qualifying
-Codex thread:
+The qualifying Codex thread, **Fix iPad PDF review issues**, used GPT-5.6 under
+the exact model label `gpt-5.6-sol`. It was the largest single integrated
+implementation session in the submission period. Codex helped implement and
+test PDF annotation, the research library, reviewable writing assistance,
+project templates, editor and preview behavior, citations, settings, and the
+internal design system. The author directed the product boundaries, reviewed
+the results, and required focused commits and quality gates throughout.
 
-- exact GPT-5.6 model label
-- qualifying `/feedback` Codex Session ID
-- concise description of the verified GPT-5.6 contribution
-
-Do not infer those values from a submission-preparation thread.
+The `/feedback` flow uploaded the qualifying thread under Session ID
+`019f6472-5ece-7cd3-b66f-ba344ba9e812`.
 
 ## Submission Links
 

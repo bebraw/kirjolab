@@ -146,6 +146,12 @@ author retained the product and architecture decisions, including portable
 Markdown authority, explicit scholarly relationships, the local-model boundary,
 and the rule that model candidates require researcher disposition.
 
+The largest single integrated implementation thread used GPT-5.6 under the
+exact model label `gpt-5.6-sol`. The qualifying `/feedback` upload is Session ID
+`019f6472-5ece-7cd3-b66f-ba344ba9e812`; it covers PDF annotation, the research
+library, reviewable writing assistance, templates, editor and preview behavior,
+citations, settings, and the internal design system.
+
 The implementation was followed by exploratory browser reviews. Findings were
 recorded before fixes, and the corrected workflows were re-run through focused
 tests and the native local CI gate. The contest scope, eligible commit
