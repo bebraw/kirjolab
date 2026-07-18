@@ -131,6 +131,27 @@ container parity path can pause after a failure; resume it with
 `npm run ci:local:container:retry -- --name <runner-name>`. More setup and
 troubleshooting details are in [docs/development.md](./docs/development.md).
 
+## Building With Codex
+
+Kirjolab is developed collaboratively with Codex. Repository-owned instructions,
+specifications, and architecture decisions define the boundaries before
+implementation; Codex then helps inspect the existing system, propose focused
+changes, implement them, and run the same local quality gates used for human
+review.
+
+For the Build Week review-study extension, Codex accelerated work across the
+domain model, Durable Object persistence, authenticated API, browser workflow,
+deterministic exports, and automated tests. The author retained the product and
+architecture decisions, including the versioned review authority, append-only
+research decisions, exact evidence requirements, local-model boundary, and rule
+that model candidates require explicit researcher disposition.
+
+The implementation was followed by exploratory browser reviews. Findings were
+recorded before fixes, and the corrected workflows were re-run through focused
+tests and the native local CI gate. The focused contest scope, eligible commit
+range, demo outline, and remaining evidence requirements are documented in
+[the Build Week submission notes](./docs/build-week-2026-submission.md).
+
 ## Project Guide
 
 - [VISION.md](./VISION.md) explains the product direction.
