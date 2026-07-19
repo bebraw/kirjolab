@@ -60,6 +60,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       { version: 5, name: "store-review-model-candidates" },
       { version: 6, name: "allow-rationales-for-negative-appraisal" },
       { version: 7, name: "make-review-revisions-reconstructible" },
+      { version: 8, name: "retain-review-import-provenance-and-capacity" },
     ]);
   });
 
@@ -73,10 +74,7 @@ describe("ReviewStudy in the Workers runtime", () => {
     });
 
     await runInDurableObject(study, (instance: ReviewStudy, state) => {
-      state.storage.sql.exec(
-        "UPDATE review_meta SET history_floor_revision = ? WHERE singleton = 1",
-        current.revision,
-      );
+      state.storage.sql.exec("UPDATE review_meta SET history_floor_revision = ? WHERE singleton = 1", current.revision);
       expect(() => instance.getExportAuthorityAtRevision(current.revision - 1, "owner@example.com")).toThrow(
         `predates reconstructible history floor ${current.revision}`,
       );
@@ -123,10 +121,25 @@ describe("ReviewStudy in the Workers runtime", () => {
       searchedAt: "2026-07-17T09:00:00Z",
       bibtex,
       digest: preview.digest,
+      ...importProvenance(2, "scopus-results.bib"),
       actor: "owner@example.com",
     });
     expect(imported.counts).toEqual({ identified: 2, unique: 2, duplicatesRemoved: 0 });
     expect(imported.runs).toHaveLength(1);
+    expect(imported.runs[0]).toMatchObject({ reportedResultCount: 2, importBatchIds: [expect.any(String)] });
+    expect(imported.batches).toEqual([
+      expect.objectContaining({
+        id: imported.runs[0]!.importBatchIds[0],
+        runId: imported.runs[0]!.id,
+        filename: "scopus-results.bib",
+        format: "bibtex",
+        mediaType: "application/x-bibtex",
+        parserVersion: "kirjolab-bibtex-v1",
+        reportedResultCount: 2,
+        byteCount: new TextEncoder().encode(bibtex).byteLength,
+      }),
+    ]);
+    expect(new Set(imported.occurrences.map((occurrence) => occurrence.batchId))).toEqual(new Set(imported.runs[0]!.importBatchIds));
     expect(imported.duplicateCandidates).toHaveLength(1);
     const authorityAtImport = await study.getExportAuthorityAtRevision(imported.revision, "reviewer@example.com");
     const candidate = imported.duplicateCandidates[0]!;
@@ -140,6 +153,72 @@ describe("ReviewStudy in the Workers runtime", () => {
       counts: { identified: 2, unique: 2, duplicatesRemoved: 0 },
       duplicateCandidates: [{ status: "pending", resolvedAt: null, resolvedBy: null }],
     });
+  });
+
+  it("enforces aggregate search-run, batch, occurrence, and record limits atomically", async () => {
+    const study = env.REVIEW_STUDIES.getByName(`review-import-limits-${crypto.randomUUID()}`);
+    const initial = await study.getSnapshot();
+    await study.replaceProtocol({
+      expectedRevision: initial.revision,
+      content: {
+        ...defaultReviewProtocol(),
+        sources: [
+          {
+            id: "source",
+            name: "Source",
+            url: "",
+            dialect: "generic",
+            fieldScope: "all-fields",
+            sourceClass: "bibliographic-database",
+            evidenceClass: "formal",
+            greySourceClass: null,
+          },
+        ],
+      },
+      actor: "owner@example.com",
+    });
+    await study.freezeProtocol(2, "owner@example.com");
+    const bibtex = "@article{study, title={Bounded Study}, year={2025}}";
+    const preview = await previewReviewBibTeX(bibtex);
+    const input = {
+      expectedRevision: 3,
+      sourceId: "source",
+      query: "bounded",
+      searchedAt: "2026-07-17T09:00:00Z",
+      bibtex,
+      digest: preview.digest,
+      ...importProvenance(1),
+      actor: "owner@example.com",
+    };
+    const setCounts = async (searchRuns: number, batches: number, occurrences: number, records: number): Promise<void> => {
+      await runInDurableObject(study, (_instance: ReviewStudy, state) => {
+        state.storage.sql.exec(
+          "UPDATE review_meta SET search_run_count = ?, import_batch_count = ?, occurrence_count = ?, record_count = ? WHERE singleton = 1",
+          searchRuns,
+          batches,
+          occurrences,
+          records,
+        );
+      });
+    };
+    const expectImportFailure = async (message: string): Promise<void> => {
+      await runInDurableObject(study, async (instance: ReviewStudy) => {
+        await expect(instance.confirmSearchRun(input)).rejects.toThrow(message);
+      });
+    };
+
+    await setCounts(256, 0, 0, 0);
+    await expectImportFailure("search run limit");
+    await setCounts(0, 1_024, 0, 0);
+    await expectImportFailure("import batch limit");
+    await setCounts(0, 0, 100_000, 0);
+    await expectImportFailure("occurrence limit");
+    await setCounts(0, 0, 0, 50_000);
+    await expectImportFailure("record limit");
+    expect((await study.getSnapshot()).revision).toBe(3);
+
+    await setCounts(0, 0, 0, 0);
+    await expect(study.confirmSearchRun(input)).resolves.toMatchObject({ revision: 4, counts: { identified: 1, unique: 1 } });
   });
 
   it("blinds independent screening decisions and preserves adjudicated conflicts", async () => {
@@ -163,6 +242,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       searchedAt: "2026-07-17T09:00:00Z",
       bibtex,
       digest: preview.digest,
+      ...importProvenance(1),
       actor: "owner@example.com",
     });
     const recordId = searched.records[0]!.id;
@@ -238,6 +318,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       searchedAt: "2026-07-17T09:00:00Z",
       bibtex,
       digest: preview.digest,
+      ...importProvenance(1),
       actor: "owner@example.com",
     });
     const recordId = searched.records[0]!.id;
@@ -330,6 +411,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       searchedAt: "2026-07-17T09:00:00Z",
       bibtex,
       digest: preview.digest,
+      ...importProvenance(1),
       actor: "owner@example.com",
     });
     const recordId = searched.records[0]!.id;
@@ -345,10 +427,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       result: { decision: "include", criterion: "Empirical", rationale: "Reports a study.", evidence: "survey" },
       actor: "reviewer@example.com",
     });
-    const authorityWithPendingModel = await study.getExportAuthorityAtRevision(
-      screeningCandidate.revision,
-      "reviewer@example.com",
-    );
+    const authorityWithPendingModel = await study.getExportAuthorityAtRevision(screeningCandidate.revision, "reviewer@example.com");
     expect((await study.getScreeningSnapshot("reviewer@example.com")).records[0]?.titleAbstract.outcome).toBe("pending");
     const acceptedScreen = await study.resolveModelCandidate(
       screeningCandidate.revision,
@@ -409,3 +488,7 @@ describe("ReviewStudy in the Workers runtime", () => {
     });
   });
 });
+
+function importProvenance(reportedResultCount: number, filename = "source-results.bib") {
+  return { filename, mediaType: "application/x-bibtex" as const, reportedResultCount };
+}

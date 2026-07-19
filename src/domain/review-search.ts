@@ -1,6 +1,22 @@
 import { normalizeDoi, parseBibTeX, projectBibTeXPublication } from "./bibliography";
 
-export const reviewImportLimits = { bibtexBytes: 32 * 1024 * 1024, records: 20_000 } as const;
+export const reviewImportLimits = {
+  bibtexBytes: 32 * 1024 * 1024,
+  records: 20_000,
+  filenameCharacters: 255,
+  reportedResults: 1_000_000_000,
+} as const;
+export const reviewAggregateLimits = {
+  searchRuns: 256,
+  importBatches: 1_024,
+  occurrences: 100_000,
+  records: 50_000,
+} as const;
+export const reviewBibTeXImport = {
+  format: "bibtex",
+  mediaType: "application/x-bibtex",
+  parserVersion: "kirjolab-bibtex-v1",
+} as const;
 
 export interface ReviewImportRecord {
   readonly citationKey: string;
@@ -18,6 +34,10 @@ export interface ReviewImportRecord {
 
 export interface ReviewImportPreview {
   readonly digest: string;
+  readonly format: typeof reviewBibTeXImport.format;
+  readonly mediaType: typeof reviewBibTeXImport.mediaType;
+  readonly byteCount: number;
+  readonly parserVersion: typeof reviewBibTeXImport.parserVersion;
   readonly detectedEntries: number;
   readonly skippedEntries: number;
   readonly records: readonly ReviewImportRecord[];
@@ -42,14 +62,29 @@ export interface ReviewSearchRun {
   readonly importedAt: string;
   readonly importedBy: string;
   readonly digest: string;
+  readonly reportedResultCount: number;
   readonly detectedEntries: number;
   readonly skippedEntries: number;
   readonly occurrenceCount: number;
+  readonly importBatchIds: readonly string[];
+}
+
+export interface ReviewImportBatch {
+  readonly id: string;
+  readonly runId: string;
+  readonly format: typeof reviewBibTeXImport.format;
+  readonly filename: string;
+  readonly mediaType: typeof reviewBibTeXImport.mediaType;
+  readonly byteCount: number;
+  readonly digest: string;
+  readonly parserVersion: string;
+  readonly reportedResultCount: number;
 }
 
 export interface ReviewImportedOccurrence {
   readonly id: string;
   readonly runId: string;
+  readonly batchId: string;
   readonly recordId: string;
   readonly citationKey: string;
   readonly imported: ReviewImportRecord;
@@ -72,6 +107,7 @@ export interface ReviewDuplicateCandidate extends ReviewDuplicateMatch {
 export interface ReviewSearchSnapshot {
   readonly revision: number;
   readonly runs: readonly ReviewSearchRun[];
+  readonly batches: readonly ReviewImportBatch[];
   readonly occurrences: readonly ReviewImportedOccurrence[];
   readonly records: readonly ReviewRecord[];
   readonly duplicateCandidates: readonly ReviewDuplicateCandidate[];
@@ -104,9 +140,29 @@ export async function previewReviewBibTeX(source: string): Promise<ReviewImportP
   });
   return {
     digest: await sha256(bytes),
+    ...reviewBibTeXImport,
+    byteCount: bytes.byteLength,
     detectedEntries,
     skippedEntries: Math.max(0, detectedEntries - entries.length),
     records,
+  };
+}
+
+export interface ReviewDuplicateKeys {
+  readonly doi: string;
+  readonly titleAuthorYear: string;
+  readonly titleYear: string;
+}
+
+export function reviewDuplicateKeys(record: Pick<ReviewImportRecord, "doi" | "title" | "authors" | "year">): ReviewDuplicateKeys {
+  const doi = normalizeDoi(record.doi);
+  const title = normalize(record.title);
+  const author = normalize(record.authors[0] ?? "");
+  const year = record.year.trim();
+  return {
+    doi,
+    titleAuthorYear: title && author && year ? `${title}|${author}|${year}` : "",
+    titleYear: title && year ? `${title}|${year}` : "",
   };
 }
 
@@ -144,11 +200,22 @@ export function findReviewDuplicateMatches(
 }
 
 export function parseReviewImportPreview(value: unknown): ReviewImportPreview {
-  if (!isRecord(value) || typeof value.digest !== "string" || !Array.isArray(value.records))
+  if (
+    !isRecord(value) ||
+    typeof value.digest !== "string" ||
+    value.format !== reviewBibTeXImport.format ||
+    value.mediaType !== reviewBibTeXImport.mediaType ||
+    value.parserVersion !== reviewBibTeXImport.parserVersion ||
+    !Array.isArray(value.records)
+  )
     throw new Error("Review import preview is invalid");
   const records = value.records.map(parseImportRecord);
   return {
     digest: value.digest,
+    format: value.format,
+    mediaType: value.mediaType,
+    byteCount: positiveInteger(value.byteCount, "byte count"),
+    parserVersion: value.parserVersion,
     detectedEntries: integer(value.detectedEntries, "detected entries"),
     skippedEntries: integer(value.skippedEntries, "skipped entries"),
     records,
@@ -159,6 +226,7 @@ export function parseReviewSearchSnapshot(value: unknown): ReviewSearchSnapshot 
   if (
     !isRecord(value) ||
     !Array.isArray(value.runs) ||
+    !Array.isArray(value.batches) ||
     !Array.isArray(value.occurrences) ||
     !Array.isArray(value.records) ||
     !Array.isArray(value.duplicateCandidates) ||
@@ -179,16 +247,20 @@ export function parseReviewSearchSnapshot(value: unknown): ReviewSearchSnapshot 
       importedAt: text(run.importedAt),
       importedBy: text(run.importedBy),
       digest: text(run.digest),
+      reportedResultCount: integer(run.reportedResultCount, "reported result count"),
       detectedEntries: integer(run.detectedEntries, "detected entries"),
       skippedEntries: integer(run.skippedEntries, "skipped entries"),
       occurrenceCount: integer(run.occurrenceCount, "occurrence count"),
+      importBatchIds: textArray(run.importBatchIds, "Review import batch ids are invalid"),
     } satisfies ReviewSearchRun;
   });
+  const batches = value.batches.map(parseImportBatch);
   const occurrences = value.occurrences.map((occurrence) => {
     if (!isRecord(occurrence)) throw new Error("Review occurrence is invalid");
     return {
       id: text(occurrence.id),
       runId: text(occurrence.runId),
+      batchId: text(occurrence.batchId),
       recordId: text(occurrence.recordId),
       citationKey: text(occurrence.citationKey),
       imported: parseImportRecord(occurrence.imported),
@@ -238,6 +310,7 @@ export function parseReviewSearchSnapshot(value: unknown): ReviewSearchSnapshot 
   return {
     revision,
     runs,
+    batches,
     occurrences,
     records,
     duplicateCandidates,
@@ -254,15 +327,29 @@ function duplicateSignals(
   right: Pick<ReviewImportRecord, "doi" | "title" | "authors" | "year">,
 ): DuplicateSignal[] {
   const signals: DuplicateSignal[] = [];
-  const leftDoi = normalizeDoi(left.doi);
-  const rightDoi = normalizeDoi(right.doi);
-  if (leftDoi && leftDoi === rightDoi) signals.push("doi");
-  const titleMatches = normalize(left.title) !== "" && normalize(left.title) === normalize(right.title);
-  const yearMatches = left.year.trim() !== "" && left.year.trim() === right.year.trim();
-  const authorMatches = normalize(left.authors[0] ?? "") !== "" && normalize(left.authors[0] ?? "") === normalize(right.authors[0] ?? "");
-  if (titleMatches && authorMatches && yearMatches) signals.push("title-author-year");
-  else if (titleMatches && yearMatches) signals.push("title-year");
+  const leftKeys = reviewDuplicateKeys(left);
+  const rightKeys = reviewDuplicateKeys(right);
+  if (leftKeys.doi && leftKeys.doi === rightKeys.doi) signals.push("doi");
+  if (leftKeys.titleAuthorYear && leftKeys.titleAuthorYear === rightKeys.titleAuthorYear) signals.push("title-author-year");
+  else if (leftKeys.titleYear && leftKeys.titleYear === rightKeys.titleYear) signals.push("title-year");
   return signals;
+}
+
+function parseImportBatch(value: unknown): ReviewImportBatch {
+  if (!isRecord(value) || value.format !== reviewBibTeXImport.format || value.mediaType !== reviewBibTeXImport.mediaType) {
+    throw new Error("Review import batch is invalid");
+  }
+  return {
+    id: text(value.id),
+    runId: text(value.runId),
+    format: value.format,
+    filename: text(value.filename),
+    mediaType: value.mediaType,
+    byteCount: integer(value.byteCount, "batch byte count"),
+    digest: text(value.digest),
+    parserVersion: text(value.parserVersion),
+    reportedResultCount: integer(value.reportedResultCount, "reported result count"),
+  };
 }
 
 function normalize(value: string): string {
@@ -309,6 +396,17 @@ function isDuplicateSignal(value: unknown): value is DuplicateSignal {
 
 function integer(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new Error(`Review ${label} is invalid`);
+  return value;
+}
+
+function positiveInteger(value: unknown, label: string): number {
+  const parsed = integer(value, label);
+  if (parsed === 0) throw new Error(`Review ${label} is invalid`);
+  return parsed;
+}
+
+function textArray(value: unknown, message: string): string[] {
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) throw new Error(message);
   return value;
 }
 

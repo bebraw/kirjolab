@@ -1,5 +1,5 @@
 import { parseReviewProtocolContent } from "../domain/review-study";
-import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search";
+import { previewReviewBibTeX, reviewBibTeXImport, reviewImportLimits } from "../domain/review-search";
 import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
 import type { ReviewModelOperation } from "../domain/review-model";
 import { parseEvidencePointer, type ExtractionValue } from "../domain/review-evidence";
@@ -378,20 +378,37 @@ async function searchRunRequest(request: Request) {
   if (
     typeof value.expectedRevision !== "number" ||
     !Number.isSafeInteger(value.expectedRevision) ||
+    value.expectedRevision < 1 ||
     typeof value.sourceId !== "string" ||
+    !value.sourceId.trim() ||
+    value.sourceId.length > 128 ||
     typeof value.query !== "string" ||
+    !value.query.trim() ||
+    value.query.length > 20_000 ||
     typeof value.searchedAt !== "string" ||
-    typeof value.digest !== "string"
+    Number.isNaN(Date.parse(value.searchedAt)) ||
+    typeof value.digest !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(value.digest) ||
+    typeof value.filename !== "string" ||
+    !validReviewImportFilename(value.filename) ||
+    value.mediaType !== reviewBibTeXImport.mediaType ||
+    typeof value.reportedResultCount !== "number" ||
+    !Number.isSafeInteger(value.reportedResultCount) ||
+    value.reportedResultCount < 0 ||
+    value.reportedResultCount > reviewImportLimits.reportedResults
   ) {
     throw new Error("Review search run request is invalid");
   }
   return {
     expectedRevision: value.expectedRevision,
-    sourceId: value.sourceId,
+    sourceId: value.sourceId.trim(),
     query: value.query,
     searchedAt: value.searchedAt,
     bibtex: value.bibtex,
     digest: value.digest,
+    filename: value.filename.trim(),
+    mediaType: value.mediaType,
+    reportedResultCount: value.reportedResultCount,
   };
 }
 
@@ -448,6 +465,25 @@ function parseRevision(value: unknown): number {
 function assertRequestSize(request: Request): void {
   const length = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(length) && length > maximumProtocolRequestBytes) throw new Error("Review protocol request is too large");
+}
+
+function validReviewImportFilename(value: string): boolean {
+  const filename = value.trim();
+  return (
+    filename.length > 0 &&
+    filename.length <= reviewImportLimits.filenameCharacters &&
+    /\.bib$/iu.test(filename) &&
+    !filename.includes("/") &&
+    !filename.includes("\\") &&
+    !hasAsciiControlCharacter(filename)
+  );
+}
+
+function hasAsciiControlCharacter(value: string): boolean {
+  return [...value].some((character) => {
+    const codePoint = character.codePointAt(0)!;
+    return codePoint <= 0x1f || codePoint === 0x7f;
+  });
 }
 
 function noStore(value: unknown): Response {

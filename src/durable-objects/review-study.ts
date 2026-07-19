@@ -9,10 +9,14 @@ import {
   type ReviewStudySnapshot,
 } from "../domain/review-study";
 import {
-  findReviewDuplicateMatches,
   previewReviewBibTeX,
+  reviewAggregateLimits,
+  reviewBibTeXImport,
+  reviewDuplicateKeys,
+  reviewImportLimits,
   type ReviewDuplicateCandidate,
   type ReviewDuplicateMatch,
+  type ReviewImportBatch,
   type ReviewImportRecord,
   type ReviewImportedOccurrence,
   type ReviewRecord,
@@ -271,11 +275,108 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 8,
+    name: "retain-review-import-provenance-and-capacity",
+    apply(sql): undefined {
+      sql.exec(`
+        ALTER TABLE review_meta ADD COLUMN search_run_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE review_meta ADD COLUMN import_batch_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE review_meta ADD COLUMN occurrence_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE review_meta ADD COLUMN record_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE search_runs ADD COLUMN reported_result_count INTEGER NOT NULL DEFAULT 0;
+
+        CREATE TABLE review_import_batches (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES search_runs(id),
+          format TEXT NOT NULL CHECK (format = 'bibtex'),
+          filename TEXT NOT NULL,
+          media_type TEXT NOT NULL CHECK (media_type = 'application/x-bibtex'),
+          byte_count INTEGER NOT NULL CHECK (byte_count >= 0),
+          digest TEXT NOT NULL,
+          parser_version TEXT NOT NULL,
+          reported_result_count INTEGER NOT NULL CHECK (reported_result_count >= 0),
+          created_revision INTEGER NOT NULL
+        );
+        ALTER TABLE imported_occurrences ADD COLUMN batch_id TEXT REFERENCES review_import_batches(id);
+        CREATE INDEX review_import_batches_run_idx ON review_import_batches(run_id, created_revision);
+        CREATE INDEX imported_occurrences_batch_idx ON imported_occurrences(batch_id, created_revision);
+
+        CREATE TABLE review_record_duplicate_keys (
+          record_id TEXT PRIMARY KEY REFERENCES review_records(id),
+          doi_key TEXT NOT NULL,
+          title_author_year_key TEXT NOT NULL,
+          title_year_key TEXT NOT NULL,
+          created_revision INTEGER NOT NULL
+        );
+        CREATE INDEX review_record_doi_key_idx ON review_record_duplicate_keys(doi_key, created_revision, record_id);
+        CREATE INDEX review_record_title_author_year_key_idx
+          ON review_record_duplicate_keys(title_author_year_key, created_revision, record_id);
+        CREATE INDEX review_record_title_year_key_idx
+          ON review_record_duplicate_keys(title_year_key, created_revision, record_id);
+      `);
+
+      const legacyRuns = sql
+        .exec<{
+          id: string;
+          digest: string;
+          detected_entries: number;
+          created_revision: number;
+        }>("SELECT id, digest, detected_entries, created_revision FROM search_runs ORDER BY id ASC")
+        .toArray();
+      for (const run of legacyRuns) {
+        const batchId = `legacy-${run.id}`;
+        sql.exec(
+          "INSERT INTO review_import_batches (id, run_id, format, filename, media_type, byte_count, digest, parser_version, reported_result_count, created_revision) VALUES (?, ?, 'bibtex', 'unrecorded-pre-v8.bib', 'application/x-bibtex', 0, ?, 'legacy-unrecorded', ?, ?)",
+          batchId,
+          run.id,
+          run.digest,
+          run.detected_entries,
+          run.created_revision,
+        );
+        sql.exec("UPDATE search_runs SET reported_result_count = ? WHERE id = ?", run.detected_entries, run.id);
+        sql.exec("UPDATE imported_occurrences SET batch_id = ? WHERE run_id = ?", batchId, run.id);
+      }
+
+      const legacyRecords = sql
+        .exec<{
+          id: string;
+          metadata_json: string;
+          created_revision: number;
+        }>("SELECT id, metadata_json, created_revision FROM review_records ORDER BY id ASC")
+        .toArray();
+      for (const row of legacyRecords) {
+        const keys = reviewDuplicateKeys(importRecord(row.metadata_json));
+        sql.exec(
+          "INSERT INTO review_record_duplicate_keys (record_id, doi_key, title_author_year_key, title_year_key, created_revision) VALUES (?, ?, ?, ?, ?)",
+          row.id,
+          keys.doi,
+          keys.titleAuthorYear,
+          keys.titleYear,
+          row.created_revision,
+        );
+      }
+
+      sql.exec(`
+        UPDATE review_meta SET
+          search_run_count = (SELECT COUNT(*) FROM search_runs),
+          import_batch_count = (SELECT COUNT(*) FROM review_import_batches),
+          occurrence_count = (SELECT COUNT(*) FROM imported_occurrences),
+          record_count = (SELECT COUNT(*) FROM review_records)
+        WHERE singleton = 1;
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface MetaRow extends Record<string, SqlStorageValue> {
   revision: number;
   history_floor_revision: number;
+  search_run_count: number;
+  import_batch_count: number;
+  occurrence_count: number;
+  record_count: number;
 }
 
 interface ProtocolRow extends Record<string, SqlStorageValue> {
@@ -301,6 +402,20 @@ interface SearchRunRow extends Record<string, SqlStorageValue> {
   skipped_entries: number;
   occurrence_count: number;
   created_revision: number;
+  reported_result_count: number;
+}
+
+interface ImportBatchRow extends Record<string, SqlStorageValue> {
+  id: string;
+  run_id: string;
+  format: typeof reviewBibTeXImport.format;
+  filename: string;
+  media_type: typeof reviewBibTeXImport.mediaType;
+  byte_count: number;
+  digest: string;
+  parser_version: string;
+  reported_result_count: number;
+  created_revision: number;
 }
 
 interface ReviewRecordRow extends Record<string, SqlStorageValue> {
@@ -319,6 +434,7 @@ interface OccurrenceRow extends Record<string, SqlStorageValue> {
   citation_key: string;
   imported_json: string;
   created_revision: number;
+  batch_id: string;
 }
 
 interface DuplicateCandidateRow extends Record<string, SqlStorageValue> {
@@ -400,6 +516,13 @@ interface ModelCandidateRow extends Record<string, SqlStorageValue> {
   disposed_revision: number | null;
 }
 
+interface DuplicateKeyMatchRow extends Record<string, SqlStorageValue> {
+  record_id: string;
+  doi_match_id: string | null;
+  title_author_year_match_id: string | null;
+  title_year_match_id: string | null;
+}
+
 export interface ReplaceReviewProtocolInput {
   readonly expectedRevision: number;
   readonly content: ReviewProtocolContent;
@@ -418,6 +541,9 @@ export interface ConfirmReviewSearchRunInput {
   readonly searchedAt: string;
   readonly bibtex: string;
   readonly digest: string;
+  readonly filename: string;
+  readonly mediaType: typeof reviewBibTeXImport.mediaType;
+  readonly reportedResultCount: number;
   readonly actor: string;
 }
 
@@ -483,20 +609,30 @@ export class ReviewStudy extends DurableObject<Env> {
   }
 
   private searchSnapshotAtRevision(revision: number): ReviewSearchSnapshot {
+    const batches = this.ctx.storage.sql
+      .exec<ImportBatchRow>(
+        "SELECT * FROM review_import_batches WHERE created_revision <= ? ORDER BY created_revision ASC, id ASC",
+        revision,
+      )
+      .toArray()
+      .map(importBatchFromRow);
+    const batchIdsByRun = new Map<string, string[]>();
+    for (const batch of batches) {
+      const ids = batchIdsByRun.get(batch.runId) ?? [];
+      ids.push(batch.id);
+      batchIdsByRun.set(batch.runId, ids);
+    }
     const runs = this.ctx.storage.sql
       .exec<SearchRunRow>("SELECT * FROM search_runs WHERE created_revision <= ? ORDER BY imported_at ASC, id ASC", revision)
       .toArray()
-      .map(runFromRow);
+      .map((row) => runFromRow(row, batchIdsByRun.get(row.id) ?? []));
     const recordRows = this.ctx.storage.sql
       .exec<ReviewRecordRow>("SELECT * FROM review_records WHERE created_revision <= ? ORDER BY id ASC", revision)
       .toArray();
     const records = recordRows.map((row) => recordFromRowAtRevision(row, revision));
     const recordById = new Map(records.map((record) => [record.id, record] as const));
     const occurrences = this.ctx.storage.sql
-      .exec<OccurrenceRow>(
-        "SELECT * FROM imported_occurrences WHERE created_revision <= ? ORDER BY run_id ASC, id ASC",
-        revision,
-      )
+      .exec<OccurrenceRow>("SELECT * FROM imported_occurrences WHERE created_revision <= ? ORDER BY run_id ASC, id ASC", revision)
       .toArray()
       .map(occurrenceFromRow)
       .map((occurrence) => ({ ...occurrence, recordId: canonicalRecordIdAtRevision(occurrence.recordId, recordById) }));
@@ -512,6 +648,7 @@ export class ReviewStudy extends DurableObject<Env> {
     return {
       revision,
       runs,
+      batches,
       occurrences,
       records,
       duplicateCandidates,
@@ -528,16 +665,19 @@ export class ReviewStudy extends DurableObject<Env> {
     const query = input.query.trim();
     if (!query || query.length > 20_000) throw new Error("Review search query is invalid");
     const searchedAt = validTimestamp(input.searchedAt, "Review search date");
+    const provenance = reviewImportProvenance(input);
     const preview = await previewReviewBibTeX(input.bibtex);
     if (preview.digest !== input.digest) throw new Error("Review import changed after preview");
     this.assertRevision(input.expectedRevision, this.currentRevision());
     const now = new Date().toISOString();
     const runId = crypto.randomUUID();
+    const batchId = crypto.randomUUID();
     const createdRecords = preview.records.map((metadata) => ({ id: crypto.randomUUID(), metadata }));
     this.ctx.storage.transactionSync(() => {
+      this.assertImportCapacity(preview.records.length);
       const revision = this.advanceRevision();
       this.ctx.storage.sql.exec(
-        "INSERT INTO search_runs (id, protocol_revision, source_id, source_name, query, searched_at, imported_at, imported_by, digest, detected_entries, skipped_entries, occurrence_count, created_revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO search_runs (id, protocol_revision, source_id, source_name, query, searched_at, imported_at, imported_by, digest, detected_entries, skipped_entries, occurrence_count, created_revision, reported_result_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         runId,
         current.protocol.revision,
         source.id,
@@ -551,6 +691,20 @@ export class ReviewStudy extends DurableObject<Env> {
         preview.skippedEntries,
         preview.records.length,
         revision,
+        provenance.reportedResultCount,
+      );
+      this.ctx.storage.sql.exec(
+        "INSERT INTO review_import_batches (id, run_id, format, filename, media_type, byte_count, digest, parser_version, reported_result_count, created_revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        batchId,
+        runId,
+        preview.format,
+        provenance.filename,
+        provenance.mediaType,
+        preview.byteCount,
+        preview.digest,
+        preview.parserVersion,
+        provenance.reportedResultCount,
+        revision,
       );
       for (const record of createdRecords) {
         this.ctx.storage.sql.exec(
@@ -559,23 +713,32 @@ export class ReviewStudy extends DurableObject<Env> {
           JSON.stringify(record.metadata),
           revision,
         );
+        const keys = reviewDuplicateKeys(record.metadata);
         this.ctx.storage.sql.exec(
-          "INSERT INTO imported_occurrences (id, run_id, record_id, citation_key, imported_json, created_revision) VALUES (?, ?, ?, ?, ?, ?)",
+          "INSERT INTO review_record_duplicate_keys (record_id, doi_key, title_author_year_key, title_year_key, created_revision) VALUES (?, ?, ?, ?, ?)",
+          record.id,
+          keys.doi,
+          keys.titleAuthorYear,
+          keys.titleYear,
+          revision,
+        );
+        this.ctx.storage.sql.exec(
+          "INSERT INTO imported_occurrences (id, run_id, record_id, citation_key, imported_json, created_revision, batch_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
           crypto.randomUUID(),
           runId,
           record.id,
           record.metadata.citationKey,
           JSON.stringify(record.metadata),
           revision,
+          batchId,
         );
       }
-      const allRecords = this.ctx.storage.sql
-        .exec<ReviewRecordRow>("SELECT * FROM review_records WHERE state = 'active'")
-        .toArray()
-        .map(recordFromRow);
-      for (const match of findReviewDuplicateMatches(allRecords.map((record) => ({ id: record.id, ...record.metadata })))) {
-        this.insertDuplicateCandidate(match, revision);
-      }
+      for (const match of this.duplicateMatchesForRevision(revision)) this.insertDuplicateCandidate(match, revision);
+      this.ctx.storage.sql.exec(
+        "UPDATE review_meta SET search_run_count = search_run_count + 1, import_batch_count = import_batch_count + 1, occurrence_count = occurrence_count + ?, record_count = record_count + ? WHERE singleton = 1",
+        preview.records.length,
+        preview.records.length,
+      );
     });
     return this.getSearchSnapshot();
   }
@@ -645,17 +808,11 @@ export class ReviewStudy extends DurableObject<Env> {
   private screeningSnapshotAtRevision(revision: number, actor: string): ReviewScreeningSnapshot {
     const protocol = this.studySnapshotAtRevision(revision).protocol;
     const decisions = this.ctx.storage.sql
-      .exec<ScreeningDecisionRow>(
-        "SELECT * FROM screening_decisions WHERE revision <= ? ORDER BY created_at ASC, id ASC",
-        revision,
-      )
+      .exec<ScreeningDecisionRow>("SELECT * FROM screening_decisions WHERE revision <= ? ORDER BY created_at ASC, id ASC", revision)
       .toArray()
       .map(decisionFromRow);
     const adjudications = this.ctx.storage.sql
-      .exec<ScreeningAdjudicationRow>(
-        "SELECT * FROM screening_adjudications WHERE revision <= ? ORDER BY created_at ASC, id ASC",
-        revision,
-      )
+      .exec<ScreeningAdjudicationRow>("SELECT * FROM screening_adjudications WHERE revision <= ? ORDER BY created_at ASC, id ASC", revision)
       .toArray()
       .map(adjudicationFromRow);
     const records = this.ctx.storage.sql
@@ -771,17 +928,11 @@ export class ReviewStudy extends DurableObject<Env> {
       .filter((record) => record.state === "active")
       .filter((record) => includedIds.has(record.id));
     const qualityValues = this.ctx.storage.sql
-      .exec<QualityValueRow>(
-        "SELECT * FROM quality_assessment_values WHERE revision <= ? ORDER BY created_at ASC, id ASC",
-        revision,
-      )
+      .exec<QualityValueRow>("SELECT * FROM quality_assessment_values WHERE revision <= ? ORDER BY created_at ASC, id ASC", revision)
       .toArray()
       .map(qualityValueFromRow);
     const extractionValues = this.ctx.storage.sql
-      .exec<ExtractionValueRow>(
-        "SELECT * FROM extracted_data_values WHERE revision <= ? ORDER BY created_at ASC, id ASC",
-        revision,
-      )
+      .exec<ExtractionValueRow>("SELECT * FROM extracted_data_values WHERE revision <= ? ORDER BY created_at ASC, id ASC", revision)
       .toArray()
       .map(extractionValueFromRow);
     return {
@@ -1116,9 +1267,7 @@ export class ReviewStudy extends DurableObject<Env> {
   }
 
   private revisionMeta(): MetaRow {
-    return this.ctx.storage.sql
-      .exec<MetaRow>("SELECT revision, history_floor_revision FROM review_meta WHERE singleton = 1")
-      .one();
+    return this.ctx.storage.sql.exec<MetaRow>("SELECT * FROM review_meta WHERE singleton = 1").one();
   }
 
   private studySnapshotAtRevision(revision: number): ReviewStudySnapshot {
@@ -1143,9 +1292,7 @@ export class ReviewStudy extends DurableObject<Env> {
     if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("Review revision is invalid");
     const meta = this.revisionMeta();
     if (revision < meta.history_floor_revision) {
-      throw new Error(
-        `Review revision ${revision} predates reconstructible history floor ${meta.history_floor_revision}`,
-      );
+      throw new Error(`Review revision ${revision} predates reconstructible history floor ${meta.history_floor_revision}`);
     }
     if (revision > meta.revision) throw new Error(`Review revision ${revision} is unavailable; current ${meta.revision}`);
     if (revision === 0 || !this.protocolRows().some((row) => row.revision <= revision)) {
@@ -1170,6 +1317,76 @@ export class ReviewStudy extends DurableObject<Env> {
       match.confidence,
       revision,
     );
+  }
+
+  private assertImportCapacity(importedRecords: number): void {
+    const meta = this.revisionMeta();
+    if (meta.search_run_count >= reviewAggregateLimits.searchRuns) throw new Error("Review search run limit reached");
+    if (meta.import_batch_count >= reviewAggregateLimits.importBatches) throw new Error("Review import batch limit reached");
+    if (meta.occurrence_count + importedRecords > reviewAggregateLimits.occurrences) {
+      throw new Error("Review occurrence limit exceeded");
+    }
+    if (meta.record_count + importedRecords > reviewAggregateLimits.records) throw new Error("Review record limit exceeded");
+  }
+
+  private duplicateMatchesForRevision(revision: number): ReviewDuplicateMatch[] {
+    const rows = this.ctx.storage.sql
+      .exec<DuplicateKeyMatchRow>(
+        `SELECT
+          candidate.record_id,
+          (
+            SELECT MIN(existing.record_id)
+            FROM review_record_duplicate_keys existing
+            JOIN review_records record ON record.id = existing.record_id AND record.state = 'active'
+            WHERE candidate.doi_key <> ''
+              AND existing.doi_key = candidate.doi_key
+              AND (existing.created_revision < candidate.created_revision
+                OR (existing.created_revision = candidate.created_revision AND existing.record_id < candidate.record_id))
+          ) AS doi_match_id,
+          (
+            SELECT MIN(existing.record_id)
+            FROM review_record_duplicate_keys existing
+            JOIN review_records record ON record.id = existing.record_id AND record.state = 'active'
+            WHERE candidate.title_author_year_key <> ''
+              AND existing.title_author_year_key = candidate.title_author_year_key
+              AND (existing.created_revision < candidate.created_revision
+                OR (existing.created_revision = candidate.created_revision AND existing.record_id < candidate.record_id))
+          ) AS title_author_year_match_id,
+          (
+            SELECT MIN(existing.record_id)
+            FROM review_record_duplicate_keys existing
+            JOIN review_records record ON record.id = existing.record_id AND record.state = 'active'
+            WHERE candidate.title_year_key <> ''
+              AND existing.title_year_key = candidate.title_year_key
+              AND (existing.created_revision < candidate.created_revision
+                OR (existing.created_revision = candidate.created_revision AND existing.record_id < candidate.record_id))
+          ) AS title_year_match_id
+        FROM review_record_duplicate_keys candidate
+        JOIN review_records record ON record.id = candidate.record_id AND record.state = 'active'
+        WHERE candidate.created_revision = ?
+        ORDER BY candidate.record_id ASC`,
+        revision,
+      )
+      .toArray();
+    const matches = new Map<string, { leftId: string; rightId: string; signals: Set<ReviewDuplicateMatch["signals"][number]> }>();
+    for (const row of rows) {
+      addDuplicateKeyMatch(matches, row.record_id, row.doi_match_id, "doi");
+      addDuplicateKeyMatch(matches, row.record_id, row.title_author_year_match_id, "title-author-year");
+      if (row.title_year_match_id !== row.title_author_year_match_id) {
+        addDuplicateKeyMatch(matches, row.record_id, row.title_year_match_id, "title-year");
+      }
+    }
+    return [...matches.values()]
+      .map(({ leftId, rightId, signals }) => {
+        const values = [...signals];
+        return {
+          leftId,
+          rightId,
+          signals: values,
+          confidence: values.includes("doi") || values.includes("title-author-year") ? "exact" : "probable",
+        } satisfies ReviewDuplicateMatch;
+      })
+      .sort((left, right) => left.leftId.localeCompare(right.leftId) || left.rightId.localeCompare(right.rightId));
   }
 
   private assertEvidenceRecord(recordId: string, actor: string): void {
@@ -1221,7 +1438,7 @@ function protocolContent(protocol: ReviewProtocolRevision): ReviewProtocolConten
   };
 }
 
-function runFromRow(row: SearchRunRow): ReviewSearchRun {
+function runFromRow(row: SearchRunRow, importBatchIds: readonly string[]): ReviewSearchRun {
   return {
     id: row.id,
     protocolRevision: row.protocol_revision,
@@ -1232,9 +1449,25 @@ function runFromRow(row: SearchRunRow): ReviewSearchRun {
     importedAt: row.imported_at,
     importedBy: row.imported_by,
     digest: row.digest,
+    reportedResultCount: row.reported_result_count,
     detectedEntries: row.detected_entries,
     skippedEntries: row.skipped_entries,
     occurrenceCount: row.occurrence_count,
+    importBatchIds,
+  };
+}
+
+function importBatchFromRow(row: ImportBatchRow): ReviewImportBatch {
+  return {
+    id: row.id,
+    runId: row.run_id,
+    format: row.format,
+    filename: row.filename,
+    mediaType: row.media_type,
+    byteCount: row.byte_count,
+    digest: row.digest,
+    parserVersion: row.parser_version,
+    reportedResultCount: row.reported_result_count,
   };
 }
 
@@ -1242,6 +1475,7 @@ function occurrenceFromRow(row: OccurrenceRow): ReviewImportedOccurrence {
   return {
     id: row.id,
     runId: row.run_id,
+    batchId: row.batch_id,
     recordId: row.record_id,
     citationKey: row.citation_key,
     imported: importRecord(row.imported_json),
@@ -1305,11 +1539,7 @@ function candidateFromRowAtRevision(row: DuplicateCandidateRow, revision: number
 }
 
 function compareDuplicateCandidates(left: ReviewDuplicateCandidate, right: ReviewDuplicateCandidate): number {
-  return (
-    right.status.localeCompare(left.status) ||
-    left.confidence.localeCompare(right.confidence) ||
-    left.id.localeCompare(right.id)
-  );
+  return right.status.localeCompare(left.status) || left.confidence.localeCompare(right.confidence) || left.id.localeCompare(right.id);
 }
 
 function modelCandidateRowAtRevision(row: ModelCandidateRow, revision: number): ModelCandidateRow {
@@ -1395,6 +1625,54 @@ function isReviewImportRecord(value: unknown): value is ReviewImportRecord {
     "warnings" in value &&
     Array.isArray(value.warnings)
   );
+}
+
+function reviewImportProvenance(input: ConfirmReviewSearchRunInput): {
+  filename: string;
+  mediaType: typeof reviewBibTeXImport.mediaType;
+  reportedResultCount: number;
+} {
+  const filename = typeof input.filename === "string" ? input.filename.trim() : "";
+  if (
+    !filename ||
+    filename.length > reviewImportLimits.filenameCharacters ||
+    !/\.bib$/iu.test(filename) ||
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    hasAsciiControlCharacter(filename)
+  ) {
+    throw new Error("Review import filename is invalid");
+  }
+  if (input.mediaType !== reviewBibTeXImport.mediaType) throw new Error("Review import media type is invalid");
+  if (
+    !Number.isSafeInteger(input.reportedResultCount) ||
+    input.reportedResultCount < 0 ||
+    input.reportedResultCount > reviewImportLimits.reportedResults
+  ) {
+    throw new Error("Review reported result count is invalid");
+  }
+  return { filename, mediaType: input.mediaType, reportedResultCount: input.reportedResultCount };
+}
+
+function hasAsciiControlCharacter(value: string): boolean {
+  return [...value].some((character) => {
+    const codePoint = character.codePointAt(0)!;
+    return codePoint <= 0x1f || codePoint === 0x7f;
+  });
+}
+
+function addDuplicateKeyMatch(
+  matches: Map<string, { leftId: string; rightId: string; signals: Set<ReviewDuplicateMatch["signals"][number]> }>,
+  candidateId: string,
+  matchId: string | null,
+  signal: ReviewDuplicateMatch["signals"][number],
+): void {
+  if (!matchId || matchId === candidateId) return;
+  const [leftId, rightId] = candidateId < matchId ? [candidateId, matchId] : [matchId, candidateId];
+  const key = `${leftId}\u0000${rightId}`;
+  const match = matches.get(key) ?? { leftId, rightId, signals: new Set<ReviewDuplicateMatch["signals"][number]>() };
+  match.signals.add(signal);
+  matches.set(key, match);
 }
 
 function validTimestamp(value: string, label: string): string {

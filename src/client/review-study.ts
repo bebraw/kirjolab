@@ -11,6 +11,7 @@ import {
 import {
   parseReviewImportPreview,
   parseReviewSearchSnapshot,
+  reviewBibTeXImport,
   type ReviewDuplicateCandidate,
   type ReviewImportPreview,
   type ReviewRecord,
@@ -370,6 +371,8 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       importPreview = parseReviewImportPreview(await response.json());
       renderImportPreview(importPreview);
+      const reportedResults = required("review-reported-result-count", HTMLInputElement);
+      if (!reportedResults.value) reportedResults.value = String(importPreview.detectedEntries);
       required("confirm-review-import", HTMLButtonElement).disabled = false;
       setImportStatus("Preview ready. Confirm only if the source, query, date, and record counts are correct.");
     } catch (error) {
@@ -383,6 +386,12 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     const sourceId = required("review-search-source", HTMLSelectElement).value;
     const searchedAt = required("review-searched-at", HTMLInputElement).value;
     if (!searchedAt) return setImportStatus("Record when this source search was executed.");
+    const filename = required("review-import-filename", HTMLInputElement).value.trim();
+    if (!filename) return setImportStatus("Record the imported BibTeX filename.");
+    const reportedResultCount = required("review-reported-result-count", HTMLInputElement).valueAsNumber;
+    if (!Number.isSafeInteger(reportedResultCount) || reportedResultCount < 0) {
+      return setImportStatus("Record the non-negative result count reported by the source.");
+    }
     setImportStatus("Recording immutable search run…");
     try {
       const response = await fetch(`${apiBase}/review-study/search-runs`, {
@@ -396,12 +405,16 @@ export function bindReviewStudyPlanning(apiBase: string): void {
           searchedAt: new Date(searchedAt).toISOString(),
           bibtex: required("review-search-bibtex", HTMLTextAreaElement).value,
           digest: importPreview.digest,
+          filename,
+          mediaType: reviewBibTeXImport.mediaType,
+          reportedResultCount,
         }),
       });
       await expectOk(response);
       searchSnapshot = parseReviewSearchSnapshot(await response.json());
       clearImportPreview();
       required("review-search-bibtex", HTMLTextAreaElement).value = "";
+      required("review-reported-result-count", HTMLInputElement).value = "";
       renderSearchSnapshot(searchSnapshot);
       screenStep.disabled = searchSnapshot.counts.unique === 0;
       setImportStatus("Immutable search run recorded.");
@@ -732,7 +745,9 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     required("review-search-run-count", HTMLElement).textContent = String(value.runs.length);
     required("review-search-counts", HTMLElement).textContent = `${value.counts.unique} unique · ${value.counts.duplicatesRemoved} removed`;
     const runs = required("review-search-runs", HTMLElement);
-    runs.replaceChildren(...(value.runs.length ? value.runs.map(renderSearchRun) : [emptyState("No source searches imported.")]));
+    runs.replaceChildren(
+      ...(value.runs.length ? value.runs.map((run) => renderSearchRun(run, value.batches)) : [emptyState("No source searches imported.")]),
+    );
     const candidates = required("review-duplicate-list", HTMLElement);
     const pending = value.duplicateCandidates.filter((candidate) => candidate.status === "pending");
     candidates.replaceChildren(
@@ -819,6 +834,7 @@ function renderImportPreview(preview: ReviewImportPreview): void {
     metric(preview.records.length, "valid records"),
     metric(preview.skippedEntries, "skipped entries"),
     metric(preview.records.filter((record) => record.warnings.length > 0).length, "with warnings"),
+    metric(preview.byteCount, "UTF-8 bytes"),
   );
   container.append(summary);
 }
@@ -838,20 +854,28 @@ function metric(value: number, label: string): HTMLElement {
   return element;
 }
 
-function renderSearchRun(run: ReviewSearchSnapshot["runs"][number]): HTMLElement {
+function renderSearchRun(run: ReviewSearchSnapshot["runs"][number], batches: ReviewSearchSnapshot["batches"]): HTMLElement {
   const item = document.createElement("article");
   item.className = "review-query-item";
   const title = document.createElement("strong");
   title.textContent = `${run.sourceName} · ${run.occurrenceCount} records`;
   const meta = document.createElement("p");
   meta.className = "review-field-help";
-  meta.textContent = `Searched ${formatDate(run.searchedAt)} · imported by ${run.importedBy} · protocol r${run.protocolRevision}`;
+  meta.textContent = `Searched ${formatDate(run.searchedAt)} · ${run.reportedResultCount} reported · imported by ${run.importedBy} · protocol r${run.protocolRevision}`;
   const query = document.createElement("pre");
   query.textContent = run.query;
-  const digest = document.createElement("p");
-  digest.className = "review-field-help";
-  digest.textContent = `SHA-256 ${run.digest.slice(0, 16)}…`;
-  item.append(title, meta, query, digest);
+  const provenance = document.createElement("p");
+  provenance.className = "review-field-help";
+  const imported = batches.filter((batch) => run.importBatchIds.includes(batch.id));
+  provenance.textContent = imported.length
+    ? imported
+        .map(
+          (batch) =>
+            `${batch.filename} · ${batch.format} · ${batch.mediaType} · ${batch.byteCount.toLocaleString()} bytes · ${batch.parserVersion} · SHA-256 ${batch.digest.slice(0, 16)}…`,
+        )
+        .join("\n")
+    : `SHA-256 ${run.digest.slice(0, 16)}…`;
+  item.append(title, meta, query, provenance);
   return item;
 }
 

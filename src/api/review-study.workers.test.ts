@@ -103,21 +103,47 @@ describe("review-study API in the Workers runtime", () => {
       "/review-study/search-import-previews",
     );
     const preview = (await previewResponse.json()) as { digest: string };
+    const confirmation = {
+      expectedRevision: 3,
+      sourceId: "acm",
+      query: "[[Title: study]]",
+      searchedAt: "2026-07-17T10:00:00Z",
+      bibtex,
+      digest: preview.digest,
+      filename: "acm-results.bib",
+      mediaType: "application/x-bibtex",
+      reportedResultCount: 1,
+    };
+    for (const invalid of [
+      { ...confirmation, filename: "../results.bib" },
+      { ...confirmation, mediaType: "text/plain" },
+      { ...confirmation, reportedResultCount: -1 },
+    ]) {
+      await expect(
+        handleReviewStudyApi(jsonRequest("http://example.com/runs", invalid), study, identity, "/review-study/search-runs"),
+      ).rejects.toThrow("search run request");
+    }
     const confirm = await handleReviewStudyApi(
-      jsonRequest("http://example.com/runs", {
-        expectedRevision: 3,
-        sourceId: "acm",
-        query: "[[Title: study]]",
-        searchedAt: "2026-07-17T10:00:00Z",
-        bibtex,
-        digest: preview.digest,
-      }),
+      jsonRequest("http://example.com/runs", confirmation),
       study,
       identity,
       "/review-study/search-runs",
     );
-    const confirmed = (await confirm.json()) as { revision: number; records: { id: string }[] };
+    const confirmed = (await confirm.json()) as {
+      revision: number;
+      records: { id: string }[];
+      runs: { importBatchIds: string[]; reportedResultCount: number }[];
+      batches: { filename: string; parserVersion: string; byteCount: number }[];
+      occurrences: { batchId: string }[];
+    };
     expect(confirmed).toMatchObject({ revision: 4, counts: { identified: 1, unique: 1 } });
+    expect(confirmed.runs[0]).toMatchObject({ reportedResultCount: 1, importBatchIds: [expect.any(String)] });
+    expect(confirmed.batches[0]).toMatchObject({
+      filename: "acm-results.bib",
+      parserVersion: "kirjolab-bibtex-v1",
+      byteCount: new TextEncoder().encode(bibtex).byteLength,
+    });
+    expect(confirmed.occurrences[0]?.batchId).toBe(confirmed.runs[0]?.importBatchIds[0]);
     const screening = await handleReviewStudyApi(
       jsonRequest("http://example.com/screen", {
         expectedRevision: confirmed.revision,
