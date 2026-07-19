@@ -1,6 +1,6 @@
 # ADR-146: Coordinate Project Review Studies
 
-**Status:** Implemented
+**Status:** Superseded by [ADR-151](./ADR-151-model-reviews-as-independent-resources.md)
 
 **Date:** 2026-07-17
 

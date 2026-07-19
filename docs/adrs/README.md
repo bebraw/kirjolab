@@ -21,10 +21,9 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                                                     | Status   | Summary                                                                              |
-| ----------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ |
-| [ADR-151](./proposed/ADR-151-model-reviews-as-independent-resources.md) | Proposed | Model reviews independently and connect them to projects through many-to-many links. |
-| [ADR-000](./proposed/ADR-000-template.md)                               | Proposed | Template for drafting future ADRs.                                                   |
+| ADR                                       | Status   | Summary                            |
+| ----------------------------------------- | -------- | ---------------------------------- |
+| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
 
 ## Accepted ADRs
 
@@ -35,10 +34,11 @@ No ADRs are currently accepted but unimplemented.
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
 | [ADR-152](./implemented/ADR-152-use-a-capability-scoped-share-editor.md)                  | Implemented          | Reuse one editor shell for bearer links without widening server capabilities.                                 |
-| [ADR-150](./implemented/ADR-150-establish-task-oriented-browser-routes.md)                | Implemented          | Make the dashboard, Library, editor, and project-associated review distinct browser destinations.             |
+| [ADR-151](./implemented/ADR-151-model-reviews-as-independent-resources.md)                | Implemented          | Model reviews independently and connect them to projects through provenance-bearing many-to-many links.       |
+| [ADR-150](./implemented/ADR-150-establish-task-oriented-browser-routes.md)                | Partially superseded | Establish task routes; ADR-151 replaces its transitional workspace-qualified review route.                    |
 | [ADR-148](./implemented/ADR-148-prefer-native-local-ci.md)                                | Implemented          | Run routine local readiness natively and reserve Agent CI containers for explicit parity checks.              |
 | [ADR-147](./implemented/ADR-147-derive-review-outputs-from-evidence.md)                   | Implemented          | Derive review outputs and portable packages from pinned evidence.                                             |
-| [ADR-146](./implemented/ADR-146-coordinate-project-review-studies.md)                     | Implemented          | Coordinate protocol-driven SLR and MLR state through a project-associated authority.                          |
+| [ADR-146](./implemented/ADR-146-coordinate-project-review-studies.md)                     | Superseded           | Originally coordinated each review through one project; ADR-151 replaces that ownership boundary.             |
 | [ADR-001](./implemented/ADR-001-use-architecture-decision-records.md)                     | Accepted             | Use ADRs to capture significant architectural decisions in this repo.                                         |
 | [ADR-002](./implemented/ADR-002-make-architectural-decisions-explicit.md)                 | Accepted             | Require explicit ADR updates for lasting architectural decisions.                                             |
 | [ADR-003](./implemented/ADR-003-require-spec-updates-and-high-coverage.md)                | Accepted             | Treat completed feature work as spec work and gate `src/` code on high unit coverage.                         |

@@ -1,6 +1,7 @@
 # ADR-150: Establish Task-Oriented Browser Routes
 
-**Status:** Implemented
+**Status:** Partially superseded by
+[ADR-151](./ADR-151-model-reviews-as-independent-resources.md)
 
 **Date:** 2026-07-19
 
@@ -23,27 +24,28 @@ browser surface. A concise dashboard is also a better application entry point:
 it can expose recent authorized work and direct actions without opening a
 project, restoring an offline manuscript, or connecting collaboration.
 
-Review storage cannot be made independent as a routing side effect. The
-implemented review authority is still one project-associated `ReviewStudy`,
-addressed and authorized through a workspace. The browser information
-architecture therefore needs an honest transitional route while the separate
-resource decision is evaluated.
+At the time of this decision, review storage could not be made independent as a
+routing side effect. The implemented review authority was still one
+project-associated `ReviewStudy`, addressed and authorized through a
+workspace. The first browser information architecture therefore needed an
+honest transitional route while the separate resource decision was evaluated.
 
 ## Decision
 
-Use task-oriented browser routes while retaining the current storage and API
-identities:
+Use task-oriented browser routes. The original implementation retained the
+existing storage and API identities for every route; ADR-151 later superseded
+that constraint for review routes only. The current browser routes are:
 
-| Browser route               | Meaning                                                |
-| --------------------------- | ------------------------------------------------------ |
-| `/`                         | Condensed dashboard over authorized recent work        |
-| `/library`                  | Existing owner-private reference Library               |
-| `/library/pdfs/{id}`        | Existing owner-private PDF reader                      |
-| `/editor`                   | Resume route to the first active authorized project    |
-| `/editor/{workspaceId}`     | Editor for one authorized project                      |
-| `/review`                   | Catalog of currently project-linked evidence reviews   |
-| `/review/{workspaceId}`     | Review workflow associated with one authorized project |
-| `/workspaces/{workspaceId}` | Compatibility redirect to `/editor/{workspaceId}`      |
+| Browser route               | Meaning                                             |
+| --------------------------- | --------------------------------------------------- |
+| `/`                         | Condensed dashboard over authorized recent work     |
+| `/library`                  | Existing owner-private reference Library            |
+| `/library/pdfs/{id}`        | Existing owner-private PDF reader                   |
+| `/editor`                   | Resume route to the first active authorized project |
+| `/editor/{workspaceId}`     | Editor for one authorized project                   |
+| `/review`                   | Catalog of authorized independent reviews           |
+| `/review/{reviewId}`        | Review workflow for one authorized review           |
+| `/workspaces/{workspaceId}` | Compatibility redirect to `/editor/{workspaceId}`   |
 
 The dashboard is the application entry point and must not implicitly choose or
 create a project, load manuscript state, or open a collaboration socket. Its
@@ -58,20 +60,22 @@ working. The editor continues to validate the bounded query parameters defined
 by ADR-116. `/editor` redirects to the first active catalog entry, which is the
 compatible `demo` workspace by default, and preserves its query string.
 
-The `/review` index lists the review currently associated with each active
-project. `/review/{workspaceId}` changes browser placement only: its final
-segment is a workspace id, not an independent review id. Review authorization,
-storage, backup, deletion, history coordination, and all nested
-`/api/workspaces/{id}/review-study` routes remain project-associated. The surface
-must not imply that several reviews can already be linked to one project or
-that a review survives deletion of its owning project.
+The original `/review` index derived one review from each active project, and
+`/review/{workspaceId}` changed browser placement without changing identity or
+authorization. ADR-151 replaces that transitional contract: `/review` now
+projects the review catalog, and `/review/{reviewId}` uses a stable review id
+with independent membership, storage, backup, and deletion. A legacy
+workspace-qualified review location registers the existing study behind a
+locator and redirects to its stable review-id route when it can be resolved.
 
-Keep `/api/workspaces` and existing workspace-scoped APIs unchanged. Continue
-using `workspace` for storage, API, and coordination identities while using
-project and editor terminology in user-facing navigation. Update the
-network-first offline authoring allowlist to recognize canonical editor routes;
-the dashboard, Library data, review data, APIs, and private PDFs remain outside
-the service-worker data cache.
+Keep `/api/workspaces` and project-scoped APIs unchanged. Canonical review
+requests now use `/api/reviews/{reviewId}`; the workspace-scoped review-study
+routes remain bounded migration adapters. Continue using `workspace` for
+project storage and coordination identities while using project and editor
+terminology in user-facing navigation. Update the network-first offline
+authoring allowlist to recognize canonical editor routes; the dashboard,
+Library data, review data, APIs, and private PDFs remain outside the
+service-worker data cache.
 
 ## Trigger
 
@@ -98,20 +102,17 @@ designed safely.
 
 - `editor` is narrower than the full project surface, which also contains
   research, comments, collaboration, history, and export.
-- The transitional review URL looks first-class while its identity and
-  lifecycle remain project-bound, so interface copy and documentation must
-  state that limitation accurately.
+- Legacy workspace-qualified review locations require a catalog lookup,
+  registration, and redirect until those migration adapters can be retired.
 - The editor resume route adds one redirect before reaching its canonical
   id-qualified location.
 
 **Neutral:**
 
-- Workspace ids, project membership, review revisions, and owner-private
-  Library authorization remain unchanged.
-- Independent review resources and explicit project links require the separate
-  proposed
-  [ADR-151](../proposed/ADR-151-model-reviews-as-independent-resources.md)
-  decision.
+- Workspace ids, project membership, and owner-private Library authorization
+  remain unchanged; project membership no longer authorizes a linked review.
+- Independent review resources and explicit project links are governed by
+  [ADR-151](./ADR-151-model-reviews-as-independent-resources.md).
 
 ## Alternatives Considered
 
@@ -129,9 +130,9 @@ change to a broad compatibility migration with no user-facing benefit.
 
 ### Wait until reviews are independent
 
-This would avoid a transitional review route but delay the dashboard and
-editor improvements. A workspace-qualified review route can expose the current
-truth while ADR-151 evaluates the independent resource model.
+This would have avoided a transitional review route but delayed the dashboard
+and editor improvements. The workspace-qualified review route exposed the
+then-current truth while the independent resource model was evaluated.
 
 ### Use `/projects` instead of `/editor`
 

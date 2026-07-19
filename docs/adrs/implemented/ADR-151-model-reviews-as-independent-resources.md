@@ -1,11 +1,11 @@
 # ADR-151: Model Reviews as Independent Resources
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-19
 
-**Would supersede:**
-[ADR-146](../accepted/ADR-146-coordinate-project-review-studies.md)
+**Supersedes:**
+[ADR-146](./ADR-146-coordinate-project-review-studies.md)
 
 ## Context
 
@@ -49,7 +49,7 @@ revision, generator/schema identity, and publication provenance. Several
 reviews may contribute without path or directive collisions, and later review
 activity never rewrites a project automatically.
 
-Use `/review/{reviewId}` as the eventual canonical browser representation and
+Use `/review/{reviewId}` as the canonical browser representation and
 `/api/reviews/{reviewId}` as the independent API boundary. Retain the current
 workspace-qualified browser and API routes as bounded migration adapters until
 every legacy review has a stable review identity and callers have moved to the
@@ -102,13 +102,28 @@ decision can be reviewed on its own merits.
 - ADR-147's evidence-derived output rule remains valid and gains an explicit
   review identity at project boundaries.
 
+## Implementation
+
+The implementation adds an owner-scoped `ReviewCatalog`, independently
+addressed `ReviewAccess` and `ReviewStudy` Durable Objects, canonical
+review-id browser and API routes, and explicit many-to-many project links.
+Legacy project reviews are registered lazily with stable review ids while their
+existing workspace storage keys remain behind catalog locators.
+
+Review publication requires an active project link and records the review,
+link, revision, generator, and artifact provenance in project state. Project
+deletion unlinks independent reviews rather than deleting them; review deletion
+is a separate owner-authorized lifecycle. Owner backup schema v3 restores the
+review catalog, access, links, and study payload independently while retaining
+v1 and project-associated v2 recovery compatibility.
+
 ## Alternatives Considered
 
 ### Retain one review per project
 
 This preserves the current implementation but cannot represent several SLRs
-feeding one manuscript or one review supporting several outputs without copying
-state or creating artificial projects.
+feeding one manuscript or one review supporting several outputs without
+copying state or creating artificial projects.
 
 ### Allow several reviews but keep each owned by one project
 
