@@ -336,7 +336,7 @@ describe("independent reviews API in the Workers runtime", () => {
 
     const artifactContent = "# Preserved companion synthesis\n";
     const pin: ReviewArtifactPin = {
-      path: "review/companion-synthesis.md",
+      path: `review/${secondReview.id}/companion-synthesis.md`,
       reviewId: secondReview.id,
       linkId: secondToFirst.id,
       publicationId: crypto.randomUUID(),

@@ -26,6 +26,7 @@ import {
   stableReviewJson,
 } from "../domain/review-export";
 import type { AuthIdentity } from "../security/auth";
+import { canonicalReviewArtifactPath } from "../domain/workspace";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
 
@@ -311,7 +312,7 @@ async function synthesisPublishRequest(
     throw new Error("Review publication project link does not match its target");
   }
   const artifactId = typeof value.artifactId === "string" ? value.artifactId.trim() : "synthesis";
-  if (!/^[a-z0-9_-]{1,80}$/iu.test(artifactId)) throw new Error("Review publication artifact identity is invalid");
+  if (!/^[a-z0-9_-]{1,80}$/u.test(artifactId)) throw new Error("Review publication artifact identity is invalid");
   const publicationId =
     typeof value.publicationId === "string" && value.publicationId.trim()
       ? value.publicationId.trim()
@@ -324,10 +325,10 @@ async function synthesisPublishRequest(
       ? value.analysisDefinitionId.trim()
       : "review-synthesis-report";
   if (analysisDefinitionId.length > 128) throw new Error("Review analysis definition is invalid");
-  const path = typeof value.path === "string" ? value.path.trim() : `review/${context.reviewId}/${artifactId}.md`;
-  if (!/^review\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.md$/iu.test(path) || path.length > 500) {
-    throw new Error("Review synthesis path is invalid");
-  }
+  const canonicalPath = canonicalReviewArtifactPath(context.reviewId, artifactId);
+  if (!canonicalPath) throw new Error("Review publication review identity is invalid");
+  const path = typeof value.path === "string" ? value.path.trim() : canonicalPath;
+  if (path !== canonicalPath) throw new Error("Review synthesis path must use its review and artifact identities");
   return {
     expectedProjectRevision: value.expectedProjectRevision,
     reviewRevision: value.reviewRevision,

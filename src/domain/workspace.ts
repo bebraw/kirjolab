@@ -1029,6 +1029,16 @@ export function isReviewArtifactPin(value: unknown): value is ReviewArtifactPin 
   );
 }
 
+export function canonicalReviewArtifactPath(reviewId: string, artifactId: string): string | null {
+  if (!/^[a-z0-9-]{1,128}$/u.test(reviewId) || !/^[a-z0-9_-]{1,80}$/u.test(artifactId)) return null;
+  return `review/${reviewId}/${artifactId}.md`;
+}
+
+export function isCanonicalReviewArtifactPath(path: string, reviewId: string): boolean {
+  const match = /^review\/([a-z0-9-]{1,128})\/([a-z0-9_-]{1,80})\.md$/u.exec(path);
+  return Boolean(match?.[1] === reviewId && match[2] && canonicalReviewArtifactPath(reviewId, match[2]) === path);
+}
+
 export function isProjectReviewLink(value: unknown): value is ProjectReviewLink {
   if (!isRecord(value)) return false;
   const createdAt = typeof value.createdAt === "string" ? new Date(value.createdAt) : null;

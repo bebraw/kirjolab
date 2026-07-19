@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canonicalReviewArtifactPath,
   isAddAnnotationFragmentInput,
   isCreateAnnotationInput,
   isCreateAnnotationLinkInput,
@@ -15,6 +16,7 @@ import {
   isProjectPublicationProfile,
   isProjectReviewLink,
   isReviewArtifactPin,
+  isCanonicalReviewArtifactPath,
   isPublicationIntakePreview,
   isCreateWorkspaceInput,
   isInviteWorkspaceMemberInput,
@@ -27,6 +29,25 @@ import {
   isWorkspaceMembers,
   isWorkspaceSummaries,
 } from "./workspace";
+
+describe("review artifact publication paths", () => {
+  const reviewId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+  it("uses one flat artifact namespace under the exact review identity", () => {
+    const path = `review/${reviewId}/synthesis.md`;
+    expect(canonicalReviewArtifactPath(reviewId, "synthesis")).toBe(path);
+    expect(isCanonicalReviewArtifactPath(path, reviewId)).toBe(true);
+    expect(isCanonicalReviewArtifactPath("review/22222222-2222-4222-8222-222222222222/synthesis.md", reviewId)).toBe(false);
+    expect(isCanonicalReviewArtifactPath(`review/${reviewId}/nested/synthesis.md`, reviewId)).toBe(false);
+  });
+
+  it("rejects unsafe or non-canonical identity segments", () => {
+    expect(canonicalReviewArtifactPath("../review", "synthesis")).toBeNull();
+    expect(canonicalReviewArtifactPath(reviewId, "nested/synthesis")).toBeNull();
+    expect(canonicalReviewArtifactPath(reviewId.toUpperCase(), "synthesis")).toBeNull();
+    expect(canonicalReviewArtifactPath(reviewId, "Synthesis")).toBeNull();
+  });
+});
 
 describe("workspace input guards", () => {
   it("accepts complete resource inputs", () => {

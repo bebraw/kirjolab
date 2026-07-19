@@ -72,6 +72,7 @@ import {
   isModelCandidate,
   isProjectPublicationProfile,
   isProjectReviewLink,
+  isCanonicalReviewArtifactPath,
   isReviewArtifactPin,
   legacyReviewArtifactProvenance,
   defaultProjectPublicationProfile,
@@ -1739,6 +1740,13 @@ export class DocumentRoom extends DurableObject<Env> {
     if (content.length > 2_000_000) return { ok: false, code: "content-too-large", error: "Review artifact exceeds 2 MB" };
     if (!isReviewArtifactPin(pin) || pin.path !== path || (await sha256Text(content)) !== pin.digest) {
       return { ok: false, code: "invalid-pin", error: "Review artifact pin is invalid or does not match its Markdown" };
+    }
+    if (!isCanonicalReviewArtifactPath(path, pin.reviewId)) {
+      return {
+        ok: false,
+        code: "invalid-path",
+        error: "Review artifacts require a review/{reviewId}/{artifactId}.md path",
+      };
     }
     const link = this.listReviewLinks(workspaceId).find((candidate) => candidate.id === pin.linkId);
     if (!link || link.status !== "active" || link.reviewId !== pin.reviewId) {

@@ -17,7 +17,7 @@ describe("review synthesis project artifact", () => {
       generatedAt: "2026-07-19T10:00:00.000Z",
     });
 
-    const created = await room.upsertReviewArtifact("project", "review/synthesis.md", firstContent, initial.revision, firstPin);
+    const created = await room.upsertReviewArtifact("project", firstPin.path, firstContent, initial.revision, firstPin);
     expect(created).toMatchObject({ ok: true, value: { revision: initial.revision + 1, reviewArtifactPins: [firstPin] } });
     if (!created.ok) throw new Error(created.error);
     expect(created.value.files.find((file) => file.path === firstPin.path)?.content).toBe(firstContent);
@@ -49,7 +49,7 @@ describe("review synthesis project artifact", () => {
     const edited = await room.replaceProjectFileContent(
       "project",
       entry.id,
-      "# Article\n\n::review-artifact[review/synthesis.md]\n",
+      `# Article\n\n::review-artifact[${firstPin.path}]\n`,
       created.value.revision,
     );
     if (!edited.ok) throw new Error(edited.error);
@@ -84,9 +84,9 @@ describe("review synthesis project artifact", () => {
     const room = env.DOCUMENT_ROOMS.getByName(`review-artifact-authored-collision-${crypto.randomUUID()}`);
     await linkReview(room);
     const authoredContent = "# Author-maintained analysis\n";
-    const authored = await room.createProjectFile("project", "review/synthesis.md", authoredContent);
     const generatedContent = "# Generated synthesis\n";
     const pin = await artifactPin(generatedContent);
+    const authored = await room.createProjectFile("project", pin.path, authoredContent);
 
     await expect(room.upsertReviewArtifact("project", pin.path, generatedContent, authored.revision, pin)).resolves.toMatchObject({
       ok: false,
@@ -157,7 +157,7 @@ describe("review synthesis project artifact", () => {
     expect(unchanged.files.find((file) => file.path === currentPin.path)?.content).toBe(currentContent);
   });
 
-  it("requires an active shared link identity and rejects cross-review path collisions", async () => {
+  it("requires an active shared link identity and rejects wrong-review path namespaces", async () => {
     const room = env.DOCUMENT_ROOMS.getByName(`review-artifact-links-${crypto.randomUUID()}`);
     const initial = await room.getSnapshot("project");
     await linkReview(room);
@@ -174,6 +174,7 @@ describe("review synthesis project artifact", () => {
 
     const otherContent = "# Review B\n";
     const otherPin = await artifactPin(otherContent, {
+      path: firstPin.path,
       reviewId: "review-b",
       linkId: "link-b",
       publicationId: "publication-b",
@@ -181,7 +182,7 @@ describe("review synthesis project artifact", () => {
     });
     await expect(
       room.upsertReviewArtifact("project", otherPin.path, otherContent, created.value.revision, otherPin),
-    ).resolves.toMatchObject({ ok: false, code: "artifact-path-conflict" });
+    ).resolves.toMatchObject({ ok: false, code: "invalid-path" });
 
     await room.unlinkReview("project", firstPin.linkId, "owner@example.test");
     const afterUnlinkContent = "# Review A after unlink\n";
@@ -301,9 +302,10 @@ describe("review synthesis project artifact", () => {
 });
 
 async function artifactPin(content: string, overrides: Partial<ReviewArtifactPin> = {}): Promise<ReviewArtifactPin> {
+  const reviewId = overrides.reviewId ?? "review-a";
   return {
-    path: "review/synthesis.md",
-    reviewId: "review-a",
+    path: `review/${reviewId}/synthesis.md`,
+    reviewId,
     linkId: "link-a",
     publicationId: "publication-a",
     reviewRevision: 1,

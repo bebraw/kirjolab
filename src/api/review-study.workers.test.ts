@@ -444,12 +444,33 @@ describe("review-study API in the Workers runtime", () => {
     const reviewId = crypto.randomUUID();
     const linkId = crypto.randomUUID();
     await room.linkReview("project", linkId, reviewId, key, identity.email, new Date().toISOString());
+    const publicationPath = `review/${reviewId}/synthesis.md`;
+
+    await expect(
+      handleReviewStudyApi(
+        jsonRequest("http://example.com/publish", {
+          expectedProjectRevision: initialProject.revision,
+          reviewRevision: frozen.revision,
+          path: `review/${crypto.randomUUID()}/synthesis.md`,
+        }),
+        study,
+        identity,
+        "/review-study/synthesis/publish",
+        room,
+        "project",
+        { reviewId, linkId },
+      ),
+    ).rejects.toThrow("path must use its review and artifact identities");
+    await expect(room.getSnapshot("project")).resolves.toMatchObject({
+      revision: initialProject.revision,
+      reviewArtifactPins: [],
+    });
 
     const published = await handleReviewStudyApi(
       jsonRequest("http://example.com/publish", {
         expectedProjectRevision: initialProject.revision,
         reviewRevision: frozen.revision,
-        path: "review/synthesis.md",
+        path: publicationPath,
       }),
       study,
       identity,
@@ -474,7 +495,7 @@ describe("review-study API in the Workers runtime", () => {
       };
       project: { revision: number };
     };
-    expect(payload.directive).toBe("::review-artifact[review/synthesis.md]");
+    expect(payload.directive).toBe(`::review-artifact[${publicationPath}]`);
     expect(payload.pin).toMatchObject({
       reviewRevision: frozen.revision,
       protocolRevision: frozen.protocol.revision,
@@ -490,7 +511,7 @@ describe("review-study API in the Workers runtime", () => {
     const project = await room.getSnapshot("project");
     expect(project.revision).toBe(payload.project.revision);
     expect(project.reviewArtifactPins).toEqual([expect.objectContaining(payload.pin)]);
-    expect(project.files.find((file) => file.path === "review/synthesis.md")?.content).toContain(`review-revision=${frozen.revision}`);
+    expect(project.files.find((file) => file.path === publicationPath)?.content).toContain(`review-revision=${frozen.revision}`);
 
     await study.amendProtocol({
       expectedRevision: frozen.revision,
@@ -518,7 +539,7 @@ describe("review-study API in the Workers runtime", () => {
       jsonRequest("http://example.com/publish", {
         expectedProjectRevision: initialProject.revision,
         reviewRevision: draft.revision,
-        path: "review/synthesis.md",
+        path: `review/${reviewId}/synthesis.md`,
       }),
       study,
       identity,
