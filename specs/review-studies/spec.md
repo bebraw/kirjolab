@@ -608,6 +608,9 @@ published deliberately into several writing projects.
 - Review deletion atomically tombstones ReviewAccess and retains its member and
   link cleanup snapshot before the first cross-object await. The tombstone
   immediately rejects new membership and project-link mutations.
+- Membership and project projection writers revalidate ReviewAccess after
+  their external write and remove any catalog or DocumentRoom projection that
+  resumed after the deletion fence.
 - Review mutations do not change Markdown or private-library state as an
   implicit side effect.
 - Review revisions advance once per successful logical mutation and stale

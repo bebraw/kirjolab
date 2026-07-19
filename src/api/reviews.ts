@@ -191,53 +191,53 @@ export async function ensureLegacyReviewResource(
   const projectLink = existingProjectLink ?? (await access.createProjectLink(owner.email, workspaceId));
   const createdProjectLink = existingProjectLink === null;
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
+  const registeredCatalogs: DurableObjectStub<import("../durable-objects/review-catalog").ReviewCatalog>[] = [];
   try {
-    await room.linkReview(workspaceId, projectLink.id, initialization.reviewId, storageKey, projectLink.createdBy, projectLink.createdAt);
-  } catch (error) {
-    const projection = await room.listReviewLinks(workspaceId).catch(() => []);
-    const reconciled = projection.some(
-      (candidate) =>
-        candidate.id === projectLink.id &&
-        candidate.reviewId === initialization.reviewId &&
-        candidate.reviewAccessLocator === storageKey &&
-        candidate.status === "active",
-    );
-    if (!reconciled) {
-      if (createdProjectLink) await access.unlinkProject(owner.email, projectLink.id);
-      throw error;
-    }
-  }
+    await writeReviewProjectProjection(access, room, projectLink, storageKey);
 
-  const snapshot = await study.getSnapshot("slr", identity.email);
-  const ownerCatalog = env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, owner.email));
-  const authoritative = await ownerCatalog.getReview(initialization.reviewId);
-  const registration = {
-    reviewId: initialization.reviewId,
-    title: authoritative?.title ?? workspace.title,
-    profile: authoritative?.profile ?? snapshot.protocol.profile,
-    storageKey,
-    legacyWorkspaceId: workspaceId,
-    createdAt: authoritative?.createdAt ?? workspace.createdAt,
-    updatedAt: authoritative?.updatedAt ?? workspace.updatedAt,
-    archivedAt: authoritative?.archivedAt ?? null,
-  } as const;
-  let currentRecord: ReviewCatalogRecord | null = null;
-  for (const member of initialization.members) {
-    const record = await env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, member.email)).registerLegacyReview({
-      ...registration,
-      role: member.role,
-    });
-    if (member.email === currentEmail) currentRecord = record;
+    const snapshot = await study.getSnapshot("slr", identity.email);
+    const ownerCatalog = env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, owner.email));
+    const authoritative = await ownerCatalog.getReview(initialization.reviewId);
+    const registration = {
+      reviewId: initialization.reviewId,
+      title: authoritative?.title ?? workspace.title,
+      profile: authoritative?.profile ?? snapshot.protocol.profile,
+      storageKey,
+      legacyWorkspaceId: workspaceId,
+      createdAt: authoritative?.createdAt ?? workspace.createdAt,
+      updatedAt: authoritative?.updatedAt ?? workspace.updatedAt,
+      archivedAt: authoritative?.archivedAt ?? null,
+    } as const;
+    let currentRecord: ReviewCatalogRecord | null = null;
+    for (const member of initialization.members) {
+      const memberCatalog = env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, member.email));
+      registeredCatalogs.push(memberCatalog);
+      const record = await memberCatalog.registerLegacyReview({ ...registration, role: member.role });
+      await confirmReviewMemberProjection(access, memberCatalog, initialization.reviewId, member);
+      if (member.email === currentEmail) currentRecord = record;
+    }
+    if (!currentRecord) return null;
+    return {
+      record: currentRecord,
+      role: currentRecord.role,
+      deletedAt: null,
+      access,
+      study,
+      projectLink,
+    };
+  } catch (error) {
+    const status = await access.getAccessStatus();
+    if (status.deletedAt !== null) {
+      await Promise.all(registeredCatalogs.map(async (catalog) => await catalog.removeReview(initialization.reviewId)));
+      await unlinkReviewProjectionIfActive(room, workspaceId, projectLink.id, owner.email);
+      throw new Error("Review access was deleted during legacy review registration");
+    }
+    if (createdProjectLink) {
+      await unlinkReviewProjectionIfActive(room, workspaceId, projectLink.id, owner.email);
+      await rollbackReviewAccessLink(access, owner.email, projectLink.id);
+    }
+    throw error;
   }
-  if (!currentRecord) return null;
-  return {
-    record: currentRecord,
-    role: currentRecord.role,
-    deletedAt: null,
-    access,
-    study,
-    projectLink,
-  };
 }
 
 export async function reviewProjectLinkViews(
@@ -286,7 +286,8 @@ async function inviteReviewMember(request: Request, env: Env, identity: AuthIden
   if (resource.role !== "owner") throw new Error("Only the review owner can manage review access");
   const email = await reviewMemberEmailRequest(request);
   const member = await resource.access.addMember(identity.email, email);
-  await env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, member.email)).registerReview({
+  const memberCatalog = env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, member.email));
+  await memberCatalog.registerReview({
     id: resource.record.id,
     title: resource.record.title,
     profile: resource.record.profile,
@@ -297,7 +298,21 @@ async function inviteReviewMember(request: Request, env: Env, identity: AuthIden
     updatedAt: resource.record.updatedAt,
     archivedAt: resource.record.archivedAt,
   });
+  await confirmReviewMemberProjection(resource.access, memberCatalog, resource.record.id, member);
   return member;
+}
+
+export async function confirmReviewMemberProjection(
+  access: DurableObjectStub<import("../durable-objects/review-access").ReviewAccess>,
+  catalog: DurableObjectStub<import("../durable-objects/review-catalog").ReviewCatalog>,
+  reviewId: string,
+  member: ReviewMember,
+): Promise<void> {
+  const [role, status] = await Promise.all([access.getRole(member.email), access.getAccessStatus()]);
+  if (role === member.role && status.deletedAt === null) return;
+  await catalog.removeReview(reviewId);
+  if (status.deletedAt !== null) throw new Error("Review access was deleted during member projection");
+  throw new Error("Review membership changed during catalog projection");
 }
 
 async function removeReviewMember(request: Request, env: Env, identity: AuthIdentity, resource: ReviewResource): Promise<void> {
@@ -319,16 +334,9 @@ async function createReviewProjectLink(
   if (!project) throw new Error("Project access denied");
   const link = await resource.access.createProjectLink(identity.email, workspaceId);
   try {
-    await project.room.linkReview(
-      workspaceId,
-      link.id,
-      resource.record.id,
-      resource.record.locator.storageKey,
-      link.createdBy,
-      link.createdAt,
-    );
+    await writeReviewProjectProjection(resource.access, project.room, link, resource.record.locator.storageKey);
   } catch (error) {
-    await resource.access.unlinkProject(identity.email, link.id);
+    await rollbackReviewAccessLink(resource.access, identity.email, link.id);
     throw error;
   }
   return {
@@ -336,6 +344,31 @@ async function createReviewProjectLink(
     project: { id: project.summary.id, title: project.summary.title, href: project.summary.href },
     permission: "available",
   };
+}
+
+export async function writeReviewProjectProjection(
+  access: DurableObjectStub<import("../durable-objects/review-access").ReviewAccess>,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  link: ProjectReviewLink,
+  storageKey: string,
+): Promise<void> {
+  try {
+    try {
+      await room.linkReview(link.workspaceId, link.id, link.reviewId, storageKey, link.createdBy, link.createdAt);
+    } catch (error) {
+      const projection = await room.listReviewLinks(link.workspaceId).catch(() => []);
+      if (!matchingActiveProjectProjection(projection, link, storageKey)) throw error;
+    }
+    const status = await access.getAccessStatus();
+    if (status.deletedAt !== null) throw new Error("Review access was deleted during project projection");
+    const authoritative = await access.getProjectLink(link.createdBy, link.id);
+    if (!authoritative || authoritative.status !== "active") {
+      throw new Error("Review project link changed during project projection");
+    }
+  } catch (error) {
+    await unlinkReviewProjectionIfActive(room, link.workspaceId, link.id, link.createdBy);
+    throw error;
+  }
 }
 
 async function unlinkReviewProject(env: Env, identity: AuthIdentity, resource: ReviewResource, linkId: string): Promise<void> {
@@ -356,10 +389,7 @@ async function deleteReviewResource(env: Env, identity: AuthIdentity, resource: 
   if (!owner) throw new Error("Review owner is unavailable during deletion");
   for (const link of links) {
     const room = env.DOCUMENT_ROOMS.getByName(workspaceStorageKey(identity, link.workspaceId));
-    const projection = await room.listReviewLinks(link.workspaceId);
-    if (projection.some((candidate) => candidate.id === link.id && candidate.status === "active")) {
-      await room.unlinkReview(link.workspaceId, link.id, identity.email);
-    }
+    await unlinkReviewProjectionIfActive(room, link.workspaceId, link.id, identity.email);
   }
   for (const member of members) {
     if (member.email === owner.email) continue;
@@ -369,6 +399,49 @@ async function deleteReviewResource(env: Env, identity: AuthIdentity, resource: 
   await env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, owner.email)).removeReview(resource.record.id);
   const { members: _members, projectLinks: _projectLinks, ...boundary } = deletion;
   return noStore(boundary);
+}
+
+async function rollbackReviewAccessLink(
+  access: DurableObjectStub<import("../durable-objects/review-access").ReviewAccess>,
+  actor: string,
+  linkId: string,
+): Promise<void> {
+  const status = await access.getAccessStatus();
+  if (status.deletedAt !== null) return;
+  try {
+    const link = await access.getProjectLink(actor, linkId);
+    if (link?.status === "active") await access.unlinkProject(actor, linkId);
+  } catch (error) {
+    if ((await access.getAccessStatus()).deletedAt === null) throw error;
+  }
+}
+
+async function unlinkReviewProjectionIfActive(
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  workspaceId: string,
+  linkId: string,
+  actor: string,
+): Promise<void> {
+  const projection = await room.listReviewLinks(workspaceId);
+  if (projection.some((candidate) => candidate.id === linkId && candidate.status === "active")) {
+    await room.unlinkReview(workspaceId, linkId, actor);
+  }
+}
+
+function matchingActiveProjectProjection(
+  projection: readonly import("../domain/workspace").ProjectReviewLink[],
+  link: ProjectReviewLink,
+  storageKey: string,
+): boolean {
+  return projection.some(
+    (candidate) =>
+      candidate.id === link.id &&
+      candidate.reviewId === link.reviewId &&
+      candidate.reviewAccessLocator === storageKey &&
+      candidate.createdBy === link.createdBy &&
+      candidate.createdAt === link.createdAt &&
+      candidate.status === "active",
+  );
 }
 
 async function reviewWorkflowProjectContext(

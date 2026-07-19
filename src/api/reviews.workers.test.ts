@@ -4,7 +4,14 @@ import type { ReviewMember, ReviewSummary } from "../domain/review-catalog";
 import { defaultReviewProtocol } from "../domain/review-study";
 import type { ReviewArtifactPin } from "../domain/workspace";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
-import { discoverLegacyReviews, ensureLegacyReviewResource, handleReviewsApi, type ReviewProjectLinkView } from "./reviews";
+import {
+  confirmReviewMemberProjection,
+  discoverLegacyReviews,
+  ensureLegacyReviewResource,
+  handleReviewsApi,
+  writeReviewProjectProjection,
+  type ReviewProjectLinkView,
+} from "./reviews";
 import { handleWorkspaceApi } from "./workspace";
 
 interface ReviewDetail {
@@ -455,6 +462,39 @@ describe("independent reviews API in the Workers runtime", () => {
     await expect(access.getAccessStatus()).resolves.toMatchObject({ reviewId: review.id, deletedAt: tombstone.deletedAt });
     await expect(access.getRole(owner.email)).resolves.toBe("owner");
     await expect(access.getRole(member.email)).resolves.toBeNull();
+  });
+
+  it("compensates member and project projections that resume after the deletion fence", async () => {
+    const owner = await testIdentity("deletion-projection-owner");
+    const member = await testIdentity("deletion-projection-member");
+    const project = await createProject(owner, "Late projection project");
+    const review = await createReview(owner, "Late projection review", "mlr");
+    const record = await env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id);
+    if (!record) throw new Error("Review catalog record is unavailable");
+    const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
+    const stagedMember = await access.addMember(owner.email, member.email);
+    const stagedLink = await access.createProjectLink(owner.email, project.id);
+    await access.beginReviewDeletion(owner.email);
+
+    const memberCatalog = env.REVIEW_CATALOGS.getByName(member.ownerKey);
+    await memberCatalog.registerReview({
+      id: record.id,
+      title: record.title,
+      profile: record.profile,
+      role: stagedMember.role,
+      storageKey: record.locator.storageKey,
+      legacyWorkspaceId: record.locator.legacyWorkspaceId,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      archivedAt: record.archivedAt,
+    });
+    await expect(confirmReviewMemberProjection(access, memberCatalog, record.id, stagedMember)).rejects.toThrow("deleted");
+    await expect(memberCatalog.getReview(record.id)).resolves.toBeNull();
+
+    await expect(writeReviewProjectProjection(access, project.room, stagedLink, record.locator.storageKey)).rejects.toThrow("deleted");
+    await expect(project.room.listReviewLinks(project.id)).resolves.toEqual([
+      expect.objectContaining({ id: stagedLink.id, status: "unlinked", unlinkedBy: owner.email }),
+    ]);
   });
 
   it("supports many-to-many links, soft unlinking, and review deletion without rewriting project materializations", async () => {
