@@ -400,6 +400,7 @@ async function permanentlyDeleteWorkspace(
   identity: AuthIdentity,
 ): Promise<Response> {
   if (workspaceId === demoWorkspaceId) return jsonError("The demo project cannot be deleted", 409);
+  await ensureLegacyReviewResource(env, identity, workspaceId, true);
   const [snapshot, members, reviewLinks] = await Promise.all([
     room.getSnapshot(workspaceId),
     access.listMembers(identity.email),

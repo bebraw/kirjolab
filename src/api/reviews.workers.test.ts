@@ -205,6 +205,63 @@ describe("independent reviews API in the Workers runtime", () => {
     );
   });
 
+  it("registers and preserves an unregistered legacy review before deleting its project", async () => {
+    const owner = await testIdentity("legacy-deletion-owner");
+    const member = await testIdentity("legacy-deletion-member");
+    const project = await createProject(owner, "Legacy project to delete");
+    await addProjectMember(project, owner, member);
+    const study = env.REVIEW_STUDIES.getByName(project.id);
+    const initial = await study.getSnapshot("mlr", owner.email);
+    const preserved = await study.replaceProtocol({
+      expectedRevision: initial.revision,
+      content: {
+        ...defaultReviewProtocol("mlr"),
+        objective: "Preserve this unregistered review when its project is deleted",
+      },
+      rationale: "Seed legacy review data before project deletion",
+      actor: owner.email,
+    });
+    await expect(env.REVIEW_CATALOGS.getByName(owner.ownerKey).listReviews()).resolves.toEqual([]);
+    await expect(env.REVIEW_CATALOGS.getByName(member.ownerKey).listReviews()).resolves.toEqual([]);
+    await expect(project.room.listReviewLinks(project.id)).resolves.toEqual([]);
+
+    const deletion = await handleWorkspaceApi(
+      new Request(`http://example.com/api/workspaces/${project.id}/settings`, { method: "DELETE" }),
+      env,
+      owner,
+    );
+    expect(deletion.status).toBe(204);
+
+    const ownerReviews = await env.REVIEW_CATALOGS.getByName(owner.ownerKey).listReviews();
+    const memberReviews = await env.REVIEW_CATALOGS.getByName(member.ownerKey).listReviews();
+    expect(ownerReviews).toEqual([expect.objectContaining({ title: project.title, profile: "mlr", role: "owner", archivedAt: null })]);
+    expect(memberReviews).toEqual([
+      expect.objectContaining({ id: ownerReviews[0]?.id, title: project.title, profile: "mlr", role: "member" }),
+    ]);
+    const detailResponse = await handleReviewsApi(new Request(`http://example.com/api/reviews/${ownerReviews[0]?.id}`), env, owner);
+    expect(detailResponse.status).toBe(200);
+    await expect(responseJson<ReviewDetail>(detailResponse)).resolves.toMatchObject({
+      review: { id: ownerReviews[0]?.id, title: project.title, profile: "mlr", role: "owner" },
+      members: expect.arrayContaining([
+        expect.objectContaining({ email: owner.email, role: "owner" }),
+        expect.objectContaining({ email: member.email, role: "member" }),
+      ]),
+      projectLinks: [
+        expect.objectContaining({
+          workspaceId: project.id,
+          status: "unlinked",
+          unlinkedBy: owner.email,
+          project: null,
+          permission: "project-access-required",
+        }),
+      ],
+    });
+    await expect(study.getSnapshot()).resolves.toMatchObject({
+      revision: preserved.revision,
+      protocol: { profile: "mlr", objective: "Preserve this unregistered review when its project is deleted" },
+    });
+  });
+
   it("deletes a linked project without deleting its independent review", async () => {
     const owner = await testIdentity("project-deletion-owner");
     const reviewMember = await testIdentity("project-deletion-review-member");
