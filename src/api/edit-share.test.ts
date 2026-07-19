@@ -41,6 +41,7 @@ const snapshot: WorkspaceSnapshot = {
   claimLinks: [],
   comments: [],
   candidates: [],
+  reviewArtifactPins: [],
 };
 
 describe("edit share API", () => {

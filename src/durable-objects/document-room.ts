@@ -71,6 +71,7 @@ import {
   isCreateClaimCandidateInput,
   isModelCandidate,
   isProjectPublicationProfile,
+  isReviewArtifactPin,
   defaultProjectPublicationProfile,
   type ApplyCandidateResult,
   type AnnotationLinkResult,
@@ -107,6 +108,7 @@ import {
   type PublicationResource,
   type ProjectReferenceLink,
   type ProjectPublicationProfile,
+  type ReviewArtifactPin,
   type UpsertClaimInput,
   type WorkspaceSnapshot,
 } from "../domain/workspace";
@@ -121,7 +123,7 @@ export type ProjectFileReplaceResult = DocumentRoomOperationResult<
 >;
 export type ReviewArtifactResult = DocumentRoomOperationResult<
   WorkspaceSnapshot,
-  "content-too-large" | "revision-conflict" | "file-not-found" | "invalid-path"
+  "content-too-large" | "revision-conflict" | "file-not-found" | "invalid-path" | "invalid-pin" | "stale-pin"
 >;
 
 export type ProjectReferenceUnlinkResult = DocumentRoomOperationResult<WorkspaceSnapshot, "reference-not-linked" | "citation-alias-in-use">;
@@ -266,6 +268,16 @@ interface ProjectReferenceRow extends Record<string, SqlStorageValue> {
   snapshot_json: string;
   created_at: string;
   updated_at: string;
+}
+
+interface ReviewArtifactPinRow extends Record<string, SqlStorageValue> {
+  path: string;
+  review_revision: number;
+  protocol_revision: number;
+  analysis_definition_id: string;
+  analysis_definition_revision: number;
+  digest: string;
+  generated_at: string;
 }
 
 interface ResearchShareRow extends Record<string, SqlStorageValue> {
@@ -502,6 +514,7 @@ const revisionTables = [
   "project_references",
   "project_research_shares",
   "project_reference_pdf_links",
+  "review_artifact_pins",
 ] as const;
 
 type RevisionTable = (typeof revisionTables)[number];
@@ -582,9 +595,19 @@ const revisionTableColumns: Readonly<Record<RevisionTable, readonly string[]>> =
   project_references: ["id", "reference_id", "citation_alias", "snapshot_json", "created_at", "updated_at"],
   project_research_shares: ["id", "project_id", "reference_id", "resource_id", "kind", "snapshot_json", "created_at", "revoked_at"],
   project_reference_pdf_links: ["id", "publication_id", "pdf_id", "created_at"],
+  review_artifact_pins: [
+    "path",
+    "review_revision",
+    "protocol_revision",
+    "analysis_definition_id",
+    "analysis_definition_revision",
+    "digest",
+    "generated_at",
+  ],
 };
 
 const revisionDeleteOrder: readonly RevisionTable[] = [
+  "review_artifact_pins",
   "manuscript_comments",
   "passage_links",
   "claim_passage_links",
@@ -608,6 +631,7 @@ const revisionInsertOrder: readonly RevisionTable[] = [
   "publications",
   "claims",
   "project_files",
+  "review_artifact_pins",
   "project_folders",
   "project_assets",
   "project_references",
@@ -798,6 +822,7 @@ export class DocumentRoom extends DurableObject<Env> {
       claimLinks: this.#claimLinks(),
       comments: this.#comments(),
       candidates: this.#candidates(),
+      reviewArtifactPins: this.#reviewArtifactPins(),
     };
   }
 
@@ -1569,17 +1594,85 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.getSnapshot(workspaceId);
   }
 
-  upsertReviewArtifact(workspaceId: string, pathValue: string, content: string, expectedRevision: number): ReviewArtifactResult {
+  async upsertReviewArtifact(
+    workspaceId: string,
+    pathValue: string,
+    content: string,
+    expectedRevision: number,
+    pin: ReviewArtifactPin,
+  ): Promise<ReviewArtifactResult> {
     const path = normalizeProjectPath(pathValue);
     if (!path || !path.startsWith("review/") || !path.endsWith(".md")) {
       return { ok: false, code: "invalid-path", error: "Review artifacts require a review/*.md path" };
     }
-    if (this.#workspaceRow().revision !== expectedRevision) {
+    if (content.length > 2_000_000) return { ok: false, code: "content-too-large", error: "Review artifact exceeds 2 MB" };
+    if (!isReviewArtifactPin(pin) || pin.path !== path || (await sha256Text(content)) !== pin.digest) {
+      return { ok: false, code: "invalid-pin", error: "Review artifact pin is invalid or does not match its Markdown" };
+    }
+    const previous = this.#workspaceRow();
+    if (previous.revision !== expectedRevision) {
       return { ok: false, code: "revision-conflict", error: "Project changed since this review artifact loaded" };
     }
-    const existing = this.#projectFiles().find((file) => file.path === path);
-    if (existing) return this.replaceProjectFileContent(workspaceId, existing.id, content, expectedRevision);
-    return { ok: true, value: this.createProjectFile(workspaceId, path, content) };
+    const previousPin = this.#reviewArtifactPins().find((candidate) => candidate.path === path);
+    if (previousPin && isStaleReviewArtifactPin(pin, previousPin)) {
+      return { ok: false, code: "stale-pin", error: "Review artifact pin is older than the materialized project artifact" };
+    }
+
+    const existing = this.#projectFileRows().find((file) => file.path === path);
+    const fileId = existing?.id ?? crypto.randomUUID();
+    const yTextName = existing?.y_text_name ?? `file:${fileId}`;
+    const text = this.#document.getText(yTextName);
+    const stateVector = Y.encodeStateVector(this.#document);
+    if (text.toString() !== content) {
+      this.#document.transact(() => {
+        if (text.length > 0) text.delete(0, text.length);
+        if (content) text.insert(0, content);
+      }, "review-artifact");
+    }
+    const now = new Date().toISOString();
+    const persisted = this.#persistDocument(
+      previous,
+      {},
+      () => {
+        if (!existing) {
+          this.#ensureProjectFolders(folderAncestors(path), now);
+          this.ctx.storage.sql.exec(
+            `INSERT INTO project_files (id, path, media_type, y_text_name, content, created_at, updated_at)
+             VALUES (?, ?, 'text/markdown', ?, ?, ?, ?)`,
+            fileId,
+            path,
+            yTextName,
+            content,
+            now,
+            now,
+          );
+        }
+        this.ctx.storage.sql.exec(
+          `INSERT INTO review_artifact_pins
+             (path, review_revision, protocol_revision, analysis_definition_id, analysis_definition_revision, digest, generated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(path) DO UPDATE SET
+             review_revision = excluded.review_revision,
+             protocol_revision = excluded.protocol_revision,
+             analysis_definition_id = excluded.analysis_definition_id,
+             analysis_definition_revision = excluded.analysis_definition_revision,
+             digest = excluded.digest,
+             generated_at = excluded.generated_at`,
+          pin.path,
+          pin.reviewRevision,
+          pin.protocolRevision,
+          pin.analysisDefinitionId,
+          pin.analysisDefinitionRevision,
+          pin.digest,
+          pin.generatedAt,
+        );
+      },
+      "review-artifact-upsert",
+    );
+    this.#broadcast(Y.encodeStateAsUpdate(this.#document, stateVector));
+    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
+    this.#broadcastResources();
+    return { ok: true, value: this.getSnapshot(workspaceId) };
   }
 
   setProjectEntryFile(workspaceId: string, fileId: string): WorkspaceSnapshot {
@@ -3482,6 +3575,24 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 26,
+        name: "pin-materialized-review-artifacts",
+        apply(sql): undefined {
+          sql.exec(`
+            CREATE TABLE IF NOT EXISTS review_artifact_pins (
+              path TEXT PRIMARY KEY REFERENCES project_files(path) ON UPDATE CASCADE ON DELETE CASCADE,
+              review_revision INTEGER NOT NULL CHECK (review_revision > 0),
+              protocol_revision INTEGER NOT NULL CHECK (protocol_revision > 0),
+              analysis_definition_id TEXT NOT NULL,
+              analysis_definition_revision INTEGER NOT NULL CHECK (analysis_definition_revision > 0),
+              digest TEXT NOT NULL,
+              generated_at TEXT NOT NULL
+            );
+          `);
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -3795,6 +3906,13 @@ export class DocumentRoom extends DurableObject<Env> {
       .exec<ProjectAssetRow>("SELECT * FROM project_assets ORDER BY path COLLATE NOCASE, id")
       .toArray()
       .map(projectAssetFromRow);
+  }
+
+  #reviewArtifactPins(): ReviewArtifactPin[] {
+    return this.ctx.storage.sql
+      .exec<ReviewArtifactPinRow>("SELECT * FROM review_artifact_pins ORDER BY path COLLATE NOCASE")
+      .toArray()
+      .map(reviewArtifactPinFromRow);
   }
 
   #ensureProjectFolders(paths: readonly string[], now: string): void {
@@ -4343,6 +4461,17 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
       updated_at: sqlString(row, "updated_at"),
     }),
   );
+  const reviewArtifactPins = revisionRows(state, "review_artifact_pins").map((row) =>
+    reviewArtifactPinFromRow({
+      path: sqlString(row, "path"),
+      review_revision: sqlNumber(row, "review_revision"),
+      protocol_revision: sqlNumber(row, "protocol_revision"),
+      analysis_definition_id: sqlString(row, "analysis_definition_id"),
+      analysis_definition_revision: sqlNumber(row, "analysis_definition_revision"),
+      digest: sqlString(row, "digest"),
+      generated_at: sqlString(row, "generated_at"),
+    }),
+  );
   const composition = files.some((file) => file.id === state.workspace.entryFileId)
     ? composeProject(files, state.workspace.entryFileId).content
     : state.workspace.source;
@@ -4362,6 +4491,7 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
     annotations,
     claims,
     comments,
+    reviewArtifactPins,
     relationships: {
       annotationPassages: state.tables.passage_links.length,
       claimEvidence: state.tables.claim_evidence_links.length,
@@ -4373,9 +4503,13 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
 
 function parseStoredProjectRevision(value: string): StoredProjectRevision {
   const parsed: unknown = JSON.parse(value);
-  if (!isRecordValue(parsed) || parsed.version !== 1 || !isRecordValue(parsed.workspace) || !isStoredRevisionTables(parsed.tables)) {
+  if (!isRecordValue(parsed) || parsed.version !== 1 || !isRecordValue(parsed.workspace) || !isRecordValue(parsed.tables)) {
     throw new Error("Stored project revision is invalid");
   }
+  const tables: unknown = Object.hasOwn(parsed.tables, "review_artifact_pins")
+    ? parsed.tables
+    : { ...parsed.tables, review_artifact_pins: [] };
+  if (!isStoredRevisionTables(tables)) throw new Error("Stored project revision is invalid");
   const workspace = parsed.workspace;
   if (
     typeof workspace.title !== "string" ||
@@ -4399,7 +4533,7 @@ function parseStoredProjectRevision(value: string): StoredProjectRevision {
         ? workspace.publicationProfile
         : defaultProjectPublicationProfile,
     },
-    tables: parsed.tables,
+    tables,
   };
 }
 
@@ -4669,6 +4803,20 @@ function projectAssetFromRow(row: ProjectAssetRow): ProjectAsset {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function reviewArtifactPinFromRow(row: ReviewArtifactPinRow): ReviewArtifactPin {
+  const pin: ReviewArtifactPin = {
+    path: row.path,
+    reviewRevision: row.review_revision,
+    protocolRevision: row.protocol_revision,
+    analysisDefinitionId: row.analysis_definition_id,
+    analysisDefinitionRevision: row.analysis_definition_revision,
+    digest: row.digest,
+    generatedAt: row.generated_at,
+  };
+  if (!isReviewArtifactPin(pin)) throw new Error("Stored review artifact pin is invalid");
+  return pin;
 }
 
 function projectAssetMediaType(value: string): ProjectAsset["mediaType"] {
@@ -5099,4 +5247,19 @@ function githubPullPreviewFromRow(row: GitHubPullPreviewRow): GitHubPullPreview 
     comparison: JSON.parse(row.comparison_json) as readonly GitHubSyncChange[],
     plan: JSON.parse(row.plan_json) as GitHubPullPlan,
   };
+}
+
+function isStaleReviewArtifactPin(candidate: ReviewArtifactPin, current: ReviewArtifactPin): boolean {
+  return (
+    candidate.reviewRevision < current.reviewRevision ||
+    candidate.protocolRevision < current.protocolRevision ||
+    (candidate.analysisDefinitionId === current.analysisDefinitionId &&
+      candidate.analysisDefinitionRevision < current.analysisDefinitionRevision) ||
+    candidate.generatedAt < current.generatedAt
+  );
+}
+
+async function sha256Text(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

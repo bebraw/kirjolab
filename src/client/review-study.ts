@@ -344,7 +344,11 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ expectedProjectRevision: projectValue.revision, path: "review/synthesis.md" }),
+        body: JSON.stringify({
+          expectedProjectRevision: projectValue.revision,
+          reviewRevision: synthesis.revision,
+          path: "review/synthesis.md",
+        }),
       });
       await expectOk(response);
       setSynthesisStatus(`Published review/synthesis.md from review revision ${synthesis.revision}.`);

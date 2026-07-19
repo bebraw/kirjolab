@@ -3,7 +3,12 @@ import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search
 import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
 import type { ReviewModelOperation } from "../domain/review-model";
 import { parseEvidencePointer, type ExtractionValue } from "../domain/review-evidence";
-import { reviewSynthesisCsv, reviewSynthesisMarkdown } from "../domain/review-synthesis";
+import {
+  blockingReviewSynthesisDiagnostics,
+  reviewSynthesisCsv,
+  reviewSynthesisMarkdown,
+  reviewSynthesisReportDefinition,
+} from "../domain/review-synthesis";
 import {
   buildReviewPackage,
   reviewAuthorityJson,
@@ -157,11 +162,34 @@ export async function handleReviewStudyApi(
   if (suffix === "/review-study/synthesis/publish" && request.method === "POST") {
     if (!room || !workspaceId) throw new Error("Project room is unavailable for review publication");
     const body = await synthesisPublishRequest(request);
-    const synthesis = await study.getSynthesis(identity.email);
-    const content = `<!-- kirjolab-review-artifact revision=${synthesis.revision} -->\n${reviewSynthesisMarkdown(synthesis)}`;
-    const result = await room.upsertReviewArtifact(workspaceId, body.path, content, body.expectedProjectRevision);
+    const synthesis = await study.getSynthesisAtRevision(body.reviewRevision, identity.email);
+    const blockingDiagnostics = blockingReviewSynthesisDiagnostics(synthesis);
+    if (blockingDiagnostics.length > 0) {
+      return Response.json(
+        {
+          code: "review-synthesis-blocked",
+          error: "Review synthesis has blocking diagnostics and cannot be published",
+          reviewRevision: synthesis.revision,
+          diagnostics: blockingDiagnostics,
+        },
+        { status: 409, headers: { "cache-control": "no-store" } },
+      );
+    }
+    const definition = reviewSynthesisReportDefinition(synthesis);
+    const content = `<!-- kirjolab-review-artifact definition=${definition.id} definition-revision=${definition.revision} review-revision=${definition.reviewRevision} protocol-revision=${definition.protocolRevision} -->\n${reviewSynthesisMarkdown(synthesis)}`;
+    const generatedAt = new Date().toISOString();
+    const pin = {
+      path: body.path,
+      reviewRevision: definition.reviewRevision,
+      protocolRevision: definition.protocolRevision,
+      analysisDefinitionId: definition.id,
+      analysisDefinitionRevision: definition.revision,
+      digest: await sha256Text(content),
+      generatedAt,
+    };
+    const result = await room.upsertReviewArtifact(workspaceId, body.path, content, body.expectedProjectRevision, pin);
     if (!result.ok) throw new Error(result.error);
-    return noStore({ path: body.path, reviewRevision: synthesis.revision, project: result.value });
+    return noStore({ path: body.path, pin, project: result.value });
   }
   if (suffix.startsWith("/review-study/export/") && request.method === "GET") {
     const authority = await study.getExportAuthority(identity.email);
@@ -189,16 +217,25 @@ export async function handleReviewStudyApi(
   return Response.json({ error: "Review-study route not found" }, { status: 404 });
 }
 
-async function synthesisPublishRequest(request: Request): Promise<{ expectedProjectRevision: number; path: string }> {
+async function synthesisPublishRequest(
+  request: Request,
+): Promise<{ expectedProjectRevision: number; reviewRevision: number; path: string }> {
   const value: unknown = await request.json();
-  if (!isRecord(value) || typeof value.expectedProjectRevision !== "number" || !Number.isSafeInteger(value.expectedProjectRevision)) {
+  if (
+    !isRecord(value) ||
+    typeof value.expectedProjectRevision !== "number" ||
+    !Number.isSafeInteger(value.expectedProjectRevision) ||
+    typeof value.reviewRevision !== "number" ||
+    !Number.isSafeInteger(value.reviewRevision) ||
+    value.reviewRevision < 1
+  ) {
     throw new Error("Review synthesis publication request is invalid");
   }
   const path = typeof value.path === "string" ? value.path.trim() : "review/synthesis.md";
   if (!/^review\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.md$/iu.test(path) || path.length > 500) {
     throw new Error("Review synthesis path is invalid");
   }
-  return { expectedProjectRevision: value.expectedProjectRevision, path };
+  return { expectedProjectRevision: value.expectedProjectRevision, reviewRevision: value.reviewRevision, path };
 }
 
 async function modelCandidateRequest(request: Request): Promise<{
@@ -427,6 +464,11 @@ function binaryDownload(content: Uint8Array, contentType: string, filename: stri
   return new Response(content, {
     headers: { "cache-control": "no-store", "content-type": contentType, "content-disposition": `attachment; filename="${filename}"` },
   });
+}
+
+async function sha256Text(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -8,7 +8,9 @@ import type {
   PdfResource,
   ProjectReferenceLink,
   PublicationPdfLink,
+  ReviewArtifactPin,
 } from "./workspace";
+import { isReviewArtifactPin } from "./workspace";
 import type { ResearchShareSnapshot } from "./reference-library";
 
 export interface ProjectMilestone {
@@ -51,6 +53,7 @@ export interface ProjectRevisionContent {
   readonly annotations: readonly AnnotationResource[];
   readonly claims: readonly ClaimResource[];
   readonly comments: readonly ManuscriptComment[];
+  readonly reviewArtifactPins: readonly ReviewArtifactPin[];
   readonly relationships: ProjectRelationshipCounts;
 }
 
@@ -230,6 +233,8 @@ export function isProjectRevisionContent(value: unknown): value is ProjectRevisi
     Array.isArray(value.annotations) &&
     Array.isArray(value.claims) &&
     Array.isArray(value.comments) &&
+    Array.isArray(value.reviewArtifactPins) &&
+    value.reviewArtifactPins.every(isReviewArtifactPin) &&
     isRecord(value.relationships) &&
     typeof value.relationships.annotationPassages === "number" &&
     Number.isSafeInteger(value.relationships.annotationPassages) &&

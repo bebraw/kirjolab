@@ -43,6 +43,7 @@ const snapshot: WorkspaceSnapshot = {
   claimLinks: [],
   comments: [],
   candidates: [],
+  reviewArtifactPins: [],
 };
 
 describe("read-only project viewer", () => {

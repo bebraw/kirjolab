@@ -13,6 +13,7 @@ import {
   isAcceptPublicationIntakeInput,
   isPreviewPublicationIntakeInput,
   isProjectPublicationProfile,
+  isReviewArtifactPin,
   isPublicationIntakePreview,
   isCreateWorkspaceInput,
   isInviteWorkspaceMemberInput,
@@ -147,6 +148,7 @@ describe("workspace input guards", () => {
           },
         ],
         candidates: [],
+        reviewArtifactPins: [],
       }),
     ).toBe(true);
   });
@@ -746,6 +748,7 @@ describe("workspace input guards", () => {
       claimLinks: [],
       comments: [],
       candidates: [],
+      reviewArtifactPins: [],
     };
     for (const change of [
       { id: "" },
@@ -764,6 +767,7 @@ describe("workspace input guards", () => {
       { claimEvidenceLinks: null },
       { claimLinks: null },
       { candidates: null },
+      { reviewArtifactPins: null },
     ]) {
       expect(isWorkspaceSnapshot({ ...valid, ...change }), JSON.stringify(change)).toBe(false);
     }
@@ -828,6 +832,40 @@ describe("workspace input guards", () => {
         candidates: [{ id: "legacy", provider: "local", model: "model", sourceIds: [], proposedSource: "document" }],
       }),
     ).toBe(false);
+
+    const reviewArtifactPin = {
+      path: "review/synthesis.md",
+      reviewRevision: 7,
+      protocolRevision: 3,
+      analysisDefinitionId: "synthesis-default",
+      analysisDefinitionRevision: 2,
+      digest: "a".repeat(64),
+      generatedAt: "2026-07-19T10:00:00.000Z",
+    };
+    expect(isReviewArtifactPin(reviewArtifactPin)).toBe(true);
+    expect(isWorkspaceSnapshot({ ...valid, reviewArtifactPins: [reviewArtifactPin] })).toBe(true);
+    for (const change of [
+      { path: "review/../synthesis.md" },
+      { path: "synthesis.md" },
+      { path: "review/synthesis.csv" },
+      { reviewRevision: -1 },
+      { reviewRevision: 1.5 },
+      { protocolRevision: -1 },
+      { analysisDefinitionId: "" },
+      { analysisDefinitionId: " padded " },
+      { analysisDefinitionId: "x".repeat(129) },
+      { analysisDefinitionRevision: -1 },
+      { digest: "A".repeat(64) },
+      { digest: "a".repeat(63) },
+      { generatedAt: "2026-07-19" },
+      { generatedAt: "invalid" },
+      { extra: true },
+    ]) {
+      const candidate = { ...reviewArtifactPin, ...change };
+      expect(isReviewArtifactPin(candidate), JSON.stringify(change)).toBe(false);
+      expect(isWorkspaceSnapshot({ ...valid, reviewArtifactPins: [candidate] }), JSON.stringify(change)).toBe(false);
+    }
+    expect(isReviewArtifactPin(null)).toBe(false);
 
     const profile = valid.publicationProfile;
     for (const citationStyle of ["apa", "chicago-author-date", "ieee"]) {

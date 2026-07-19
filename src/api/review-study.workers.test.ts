@@ -132,6 +132,86 @@ describe("review-study API in the Workers runtime", () => {
     );
     await expect(screening.json()).resolves.toMatchObject({ revision: 5, counts: { titleAbstractIncluded: 1 } });
   });
+
+  it("publishes one exact review revision with an atomic project pin", async () => {
+    const key = `review-api-publish-${crypto.randomUUID()}`;
+    const study = env.REVIEW_STUDIES.getByName(key);
+    const room = env.DOCUMENT_ROOMS.getByName(key);
+    const initialReview = await study.getSnapshot("slr", identity.email);
+    const frozen = await study.freezeProtocol(initialReview.revision, identity.email);
+    const initialProject = await room.getSnapshot("project");
+
+    const published = await handleReviewStudyApi(
+      jsonRequest("http://example.com/publish", {
+        expectedProjectRevision: initialProject.revision,
+        reviewRevision: frozen.revision,
+        path: "review/synthesis.md",
+      }),
+      study,
+      identity,
+      "/review-study/synthesis/publish",
+      room,
+      "project",
+    );
+    expect(published.status).toBe(200);
+    const payload = (await published.json()) as {
+      pin: { reviewRevision: number; protocolRevision: number; analysisDefinitionId: string; digest: string };
+      project: { revision: number };
+    };
+    expect(payload.pin).toMatchObject({
+      reviewRevision: frozen.revision,
+      protocolRevision: frozen.protocol.revision,
+      analysisDefinitionId: "review-synthesis-report",
+    });
+    expect(payload.pin.digest).toMatch(/^[a-f0-9]{64}$/u);
+
+    const project = await room.getSnapshot("project");
+    expect(project.revision).toBe(payload.project.revision);
+    expect(project.reviewArtifactPins).toEqual([expect.objectContaining(payload.pin)]);
+    expect(project.files.find((file) => file.path === "review/synthesis.md")?.content).toContain(`review-revision=${frozen.revision}`);
+
+    await study.amendProtocol({
+      expectedRevision: frozen.revision,
+      content: frozen.protocol,
+      rationale: "Later review activity",
+      actor: identity.email,
+    });
+    await expect(room.getSnapshot("project")).resolves.toMatchObject({
+      revision: payload.project.revision,
+      reviewArtifactPins: [{ reviewRevision: frozen.revision }],
+    });
+  });
+
+  it("returns structured blocking diagnostics without changing the project", async () => {
+    const key = `review-api-blocked-${crypto.randomUUID()}`;
+    const study = env.REVIEW_STUDIES.getByName(key);
+    const room = env.DOCUMENT_ROOMS.getByName(key);
+    const draft = await study.getSnapshot("slr", identity.email);
+    const initialProject = await room.getSnapshot("project");
+
+    const response = await handleReviewStudyApi(
+      jsonRequest("http://example.com/publish", {
+        expectedProjectRevision: initialProject.revision,
+        reviewRevision: draft.revision,
+        path: "review/synthesis.md",
+      }),
+      study,
+      identity,
+      "/review-study/synthesis/publish",
+      room,
+      "project",
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "review-synthesis-blocked",
+      reviewRevision: draft.revision,
+      diagnostics: [{ code: "protocol-draft", blocking: true }],
+    });
+    await expect(room.getSnapshot("project")).resolves.toMatchObject({
+      revision: initialProject.revision,
+      reviewArtifactPins: [],
+    });
+  });
 });
 
 function jsonRequest(url: string, body: unknown, method: "POST" | "PUT" = "POST"): Request {

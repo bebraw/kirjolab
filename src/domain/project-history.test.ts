@@ -36,6 +36,7 @@ const base: ProjectRevisionContent = {
   annotations: [],
   claims: [],
   comments: [],
+  reviewArtifactPins: [],
   relationships: { annotationPassages: 0, claimEvidence: 0, claimPassages: 0, comments: 0 },
 };
 
@@ -197,6 +198,7 @@ describe("project revision comparison", () => {
       { annotations: null },
       { claims: null },
       { comments: null },
+      { reviewArtifactPins: null },
       { relationships: null },
       { relationships: { ...base.relationships, annotationPassages: 1.5 } },
       { relationships: { ...base.relationships, claimEvidence: "1" } },

@@ -4,7 +4,7 @@ import {
   type ManuscriptAnchorResolution,
   type ManuscriptAnchorSelector,
 } from "./manuscript-anchor";
-import type { ProjectAsset, ProjectComposition, ProjectFile, ProjectFolder } from "./project-files";
+import { normalizeProjectPath, type ProjectAsset, type ProjectComposition, type ProjectFile, type ProjectFolder } from "./project-files";
 import type { BibliographicSnapshot } from "./reference-library";
 import type { ResearchShareSnapshot } from "./reference-library";
 
@@ -424,6 +424,16 @@ export interface ModelClaimCandidate {
 
 export type ModelCandidate = ModelRevisionCandidate | ModelClaimCandidate;
 
+export interface ReviewArtifactPin {
+  readonly path: string;
+  readonly reviewRevision: number;
+  readonly protocolRevision: number;
+  readonly analysisDefinitionId: string;
+  readonly analysisDefinitionRevision: number;
+  readonly digest: string;
+  readonly generatedAt: string;
+}
+
 export interface WorkspaceSnapshot {
   id: string;
   title: string;
@@ -448,6 +458,7 @@ export interface WorkspaceSnapshot {
   claimLinks: ClaimPassageLink[];
   comments: ManuscriptComment[];
   candidates: ModelCandidate[];
+  reviewArtifactPins: ReviewArtifactPin[];
 }
 
 export type ApplyCandidateResult = { ok: true; snapshot: WorkspaceSnapshot } | { ok: false; error: string };
@@ -943,7 +954,39 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
     Array.isArray(value.comments) &&
     value.comments.every(isManuscriptComment) &&
     Array.isArray(value.candidates) &&
-    value.candidates.every(isModelCandidate)
+    value.candidates.every(isModelCandidate) &&
+    Array.isArray(value.reviewArtifactPins) &&
+    value.reviewArtifactPins.every(isReviewArtifactPin)
+  );
+}
+
+export function isReviewArtifactPin(value: unknown): value is ReviewArtifactPin {
+  if (!isRecord(value)) return false;
+  const path = typeof value.path === "string" ? normalizeProjectPath(value.path) : null;
+  const generatedAt = typeof value.generatedAt === "string" ? new Date(value.generatedAt) : null;
+  if (path === null || generatedAt === null) return false;
+  return (
+    hasExactKeys(value, [
+      "path",
+      "reviewRevision",
+      "protocolRevision",
+      "analysisDefinitionId",
+      "analysisDefinitionRevision",
+      "digest",
+      "generatedAt",
+    ]) &&
+    path === value.path &&
+    path.startsWith("review/") &&
+    path.endsWith(".md") &&
+    isPositiveInteger(value.reviewRevision) &&
+    isPositiveInteger(value.protocolRevision) &&
+    isStringWithin(value.analysisDefinitionId, 128, true) &&
+    value.analysisDefinitionId === value.analysisDefinitionId.trim() &&
+    isPositiveInteger(value.analysisDefinitionRevision) &&
+    typeof value.digest === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.digest) &&
+    Number.isFinite(generatedAt.getTime()) &&
+    generatedAt.toISOString() === value.generatedAt
   );
 }
 

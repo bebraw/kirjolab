@@ -134,6 +134,7 @@ const snapshot: WorkspaceSnapshot = {
   ],
   comments: [],
   candidates: [],
+  reviewArtifactPins: [],
 };
 
 describe("knowledge navigation", () => {

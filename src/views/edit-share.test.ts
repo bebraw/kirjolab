@@ -35,6 +35,7 @@ const snapshot: WorkspaceSnapshot = {
   claimLinks: [],
   comments: [],
   candidates: [],
+  reviewArtifactPins: [],
 };
 
 describe("editable project viewer", () => {
