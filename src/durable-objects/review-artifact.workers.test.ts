@@ -29,6 +29,21 @@ describe("review synthesis project artifact", () => {
     await expect(
       room.replaceProjectFileContent("project", artifactFile.id, "# Hand-edited synthesis\n", created.value.revision),
     ).resolves.toMatchObject({ ok: false, code: "pinned-artifact" });
+    const artifactFolder = created.value.folders.find((folder) => folder.path === "review")!;
+    await runInDurableObject(room, (instance: DocumentRoom) => {
+      expect(() => instance.renameProjectFile("project", artifactFile.id, "review/renamed.md")).toThrow(
+        "Pinned review artifacts must be regenerated",
+      );
+      expect(() => instance.deleteProjectFile("project", artifactFile.id)).toThrow("Pinned review artifacts must be regenerated");
+      expect(() => instance.renameProjectFolder("project", artifactFolder.id, "evidence-review")).toThrow(
+        "Pinned review artifacts must be regenerated",
+      );
+    });
+    await expect(room.getSnapshot("project")).resolves.toMatchObject({
+      revision: created.value.revision,
+      reviewArtifactPins: [firstPin],
+      files: expect.arrayContaining([expect.objectContaining({ id: artifactFile.id, path: firstPin.path, content: firstContent })]),
+    });
 
     const entry = created.value.files.find((file) => file.id === created.value.entryFileId)!;
     const edited = await room.replaceProjectFileContent(
@@ -63,6 +78,25 @@ describe("review synthesis project artifact", () => {
     expect(restored.files.find((file) => file.path === firstPin.path)?.content).toBe(firstContent);
     await expect(room.listReviewLinks("project")).resolves.toEqual([expect.objectContaining({ id: firstPin.linkId, status: "unlinked" })]);
     await expect(room.getRevision(replaced.value.revision)).resolves.toMatchObject({ reviewArtifactPins: [secondPin] });
+  });
+
+  it("never overwrites an unpinned authored file during review publication", async () => {
+    const room = env.DOCUMENT_ROOMS.getByName(`review-artifact-authored-collision-${crypto.randomUUID()}`);
+    await linkReview(room);
+    const authoredContent = "# Author-maintained analysis\n";
+    const authored = await room.createProjectFile("project", "review/synthesis.md", authoredContent);
+    const generatedContent = "# Generated synthesis\n";
+    const pin = await artifactPin(generatedContent);
+
+    await expect(room.upsertReviewArtifact("project", pin.path, generatedContent, authored.revision, pin)).resolves.toMatchObject({
+      ok: false,
+      code: "artifact-path-conflict",
+    });
+    await expect(room.getSnapshot("project")).resolves.toMatchObject({
+      revision: authored.revision,
+      reviewArtifactPins: [],
+      files: expect.arrayContaining([expect.objectContaining({ path: pin.path, content: authoredContent })]),
+    });
   });
 
   it("rejects stale or invalid pins without changing the project", async () => {

@@ -1756,6 +1756,14 @@ export class DocumentRoom extends DurableObject<Env> {
         error: "Review artifact path is already owned by another review",
       };
     }
+    const existing = this.#projectFileRows().find((file) => file.path === path);
+    if (existing && !previousPin) {
+      return {
+        ok: false,
+        code: "artifact-path-conflict",
+        error: "Review publication cannot overwrite an authored project file",
+      };
+    }
     if (previousPin && isStaleReviewArtifactPin(pin, previousPin)) {
       return { ok: false, code: "stale-pin", error: "Review artifact pin is older than the materialized project artifact" };
     }
@@ -1763,7 +1771,6 @@ export class DocumentRoom extends DurableObject<Env> {
       return { ok: false, code: "publication-conflict", error: "Review publication identity already belongs to another artifact" };
     }
 
-    const existing = this.#projectFileRows().find((file) => file.path === path);
     const fileId = existing?.id ?? crypto.randomUUID();
     const yTextName = existing?.y_text_name ?? `file:${fileId}`;
     const text = this.#document.getText(yTextName);
@@ -1894,6 +1901,9 @@ export class DocumentRoom extends DurableObject<Env> {
     const files = this.#projectFiles();
     const target = files.find((file) => file.id === fileId);
     if (!target) throw new Error("Project file not found");
+    if (this.#reviewArtifactPins().some((pin) => pin.path === target.path)) {
+      throw new Error("Pinned review artifacts must be regenerated from their review revision");
+    }
     if (files.some((file) => file.id !== fileId && (file.path === nextPath || nextPath.startsWith(`${file.path}/`)))) {
       throw new Error("A project file already uses this path");
     }
@@ -1979,6 +1989,10 @@ export class DocumentRoom extends DurableObject<Env> {
     const movedFolders = folders.filter((folder) => folder.path === target.path || folder.path.startsWith(`${target.path}/`));
     const movedFiles = this.#projectFiles().filter((file) => file.path.startsWith(`${target.path}/`));
     const movedAssets = this.#projectAssets().filter((asset) => asset.path.startsWith(`${target.path}/`));
+    const pinnedReviewArtifactPaths = new Set(this.#reviewArtifactPins().map((pin) => pin.path));
+    if (movedFiles.some((file) => pinnedReviewArtifactPaths.has(file.path))) {
+      throw new Error("Pinned review artifacts must be regenerated from their review revision");
+    }
     const nextFolderPaths = new Map(movedFolders.map((folder) => [folder.path, replacePathPrefix(folder.path, target.path, nextPath)]));
     const movedFilePaths = new Map(movedFiles.map((file) => [file.path, replacePathPrefix(file.path, target.path, nextPath)]));
     const movedAssetPaths = new Map(movedAssets.map((asset) => [asset.path, replacePathPrefix(asset.path, target.path, nextPath)]));
@@ -2195,6 +2209,9 @@ export class DocumentRoom extends DurableObject<Env> {
     const files = this.#projectFiles();
     const target = files.find((file) => file.id === fileId);
     if (!target) throw new Error("Project file not found");
+    if (this.#reviewArtifactPins().some((pin) => pin.path === target.path)) {
+      throw new Error("Pinned review artifacts must be regenerated from their review revision");
+    }
     const inbound = inboundProjectIncludes(files, target.path);
     if (inbound.length > 0) throw new Error(`Remove ${inbound.length} inbound include directive(s) before deleting this file`);
     const persisted = this.#persistDocument(
