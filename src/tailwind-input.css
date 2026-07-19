@@ -162,7 +162,7 @@
     font-size: clamp(2.4rem, 6vw, 5rem);
     font-weight: 650;
     letter-spacing: -0.065em;
-    line-height: 1.04;
+    line-height: 1.1;
   }
 
   .dashboard-intro > div > p:last-child,

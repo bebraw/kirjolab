@@ -151,8 +151,9 @@ entries.
   unlink or deletion must not remove the project or rewrite retained
   materialized artifacts.
 - Dashboard Library data remains owner-private and non-cacheable.
-- Wrapped dashboard and review hero headings keep enough line height to prevent
-  descenders and ascenders from colliding while retaining the compact editorial
+- At the 1440 × 960 desktop layout, the dashboard hero wraps after “the” and the
+  review hero wraps after “the” and “method”; adjacent painted glyph envelopes
+  retain at least `0.08em` clearance without losing the compact editorial
   hierarchy.
 - Legacy project redirects must not drop query parameters owned by editor
   navigation.
