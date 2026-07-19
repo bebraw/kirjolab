@@ -227,6 +227,48 @@ describe("review synthesis", () => {
     });
     expect(parseReviewSynthesis(synthesis)).toEqual(synthesis);
   });
+
+  it("uses final inclusion as authority and diagnoses incomplete review state", () => {
+    const input = fixture();
+    const record = input.screening.records[0]!;
+    const excluded = buildReviewSynthesis(
+      input.protocol,
+      input.search,
+      {
+        ...input.screening,
+        records: [
+          {
+            ...record,
+            finalInclusion: {
+              outcome: "exclude",
+              decision: { ...record.finalInclusion.decision!, id: "final-exclusion", outcome: "exclude" },
+            },
+          },
+        ],
+      },
+      input.evidence,
+    );
+    expect(excluded.flow).toMatchObject({ fullTextExcluded: 1, included: 0 });
+    expect(excluded.matrix).toEqual([]);
+    expect(excluded.rqCoverage).toEqual([{ id: "rq1", question: "What works?", studies: 0 }]);
+
+    const pending = buildReviewSynthesis(
+      input.protocol,
+      input.search,
+      {
+        ...input.screening,
+        records: [{ ...record, finalInclusion: { outcome: "pending", decision: null } }],
+      },
+      input.evidence,
+    );
+    expect(pending.diagnostics).toContainEqual(expect.objectContaining({ code: "screening-incomplete", recordIds: ["record"] }));
+
+    const missing = buildReviewSynthesis(input.protocol, { ...input.search, occurrences: [] }, input.screening, {
+      ...input.evidence,
+      records: [],
+    });
+    expect(missing.diagnostics.map(({ code }) => code)).toEqual(["included-evidence-missing", "record-provenance-missing"]);
+  });
 });
 
 function fixture(): {

@@ -3,6 +3,7 @@ import { defaultReviewProtocol, materializeProtocolRevision, type ExtractionFiel
 import {
   effectiveExtractionValues,
   parseEvidencePointer,
+  parseExtractionValueShape,
   parseReviewEvidenceSnapshot,
   summarizeEvidenceRecord,
   validateExtractionValue,
@@ -110,6 +111,22 @@ describe("review appraisal and extraction evidence", () => {
     expect(() => validateExtractionValue(integer, 2026, "also missing")).toThrow("cannot have");
     expect(() => validateExtractionValue(integer, null, null)).toThrow("require a reason");
     expect(() => validateExtractionValue(integer, null, "x".repeat(2_001))).toThrow("missingness");
+  });
+
+  it("parses each transport-safe extraction value shape", () => {
+    expect(parseExtractionValueShape(null)).toBeNull();
+    expect(parseExtractionValueShape("finding")).toBe("finding");
+    expect(parseExtractionValueShape(true)).toBe(true);
+    expect(parseExtractionValueShape(2.5)).toBe(2.5);
+    expect(parseExtractionValueShape(["survey", "experiment"])).toEqual(["survey", "experiment"]);
+    expect(parseExtractionValueShape({ kind: "web-passage", resourceId: " page-1 ", selectorId: " passage-1 " })).toEqual({
+      kind: "web-passage",
+      resourceId: "page-1",
+      selectorId: "passage-1",
+    });
+    expect(() => parseExtractionValueShape([])).toThrow("Extracted data value");
+    expect(() => parseExtractionValueShape(["survey", "survey"])).toThrow("Extracted data value");
+    expect(() => parseExtractionValueShape(Number.POSITIVE_INFINITY)).toThrow("Extracted data value");
   });
 
   it("derives required, optional, conditional, single, and repeatable completion", () => {

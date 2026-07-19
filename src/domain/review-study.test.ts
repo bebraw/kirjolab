@@ -451,6 +451,144 @@ describe("review study protocol", () => {
     ).toThrow("must name");
   });
 
+  it("rejects malformed nested protocol contracts", () => {
+    const protocol = defaultReviewProtocol();
+    const mlr = defaultReviewProtocol("mlr");
+
+    expect(() => parseReviewProtocolContent({ ...protocol, picoc: null })).toThrow("PICOC");
+    expect(() => parseReviewProtocolContent({ ...protocol, researchQuestions: [null] })).toThrow("Research question");
+    expect(() => parseReviewProtocolContent({ ...protocol, conceptGroups: [null] })).toThrow("Concept group");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...protocol,
+        conceptGroups: [{ id: "group", label: "Group", facet: "invalid", terms: [] }],
+      }),
+    ).toThrow("PICOC facet");
+    expect(() => parseReviewProtocolContent({ ...protocol, sources: [null] })).toThrow("Search source");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...protocol,
+        sources: [{ id: "source", name: "Source", url: "", dialect: "invalid", fieldScope: "all-fields" }],
+      }),
+    ).toThrow("syntax");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...protocol,
+        sources: [
+          {
+            id: "source",
+            name: "Source",
+            url: "",
+            dialect: "generic",
+            fieldScope: "all-fields",
+            sourceClass: "invalid",
+          },
+        ],
+      }),
+    ).toThrow("classification");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...protocol,
+        methodConfiguration: {
+          ...protocol.methodConfiguration,
+          sourceClasses: ["bibliographic-database"],
+        },
+        sources: [{ id: "source", name: "Source", url: "", dialect: "generic", fieldScope: "all-fields" }],
+      }),
+    ).toThrow("unavailable in the method configuration");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...mlr,
+        sources: [
+          {
+            id: "source",
+            name: "Source",
+            url: "",
+            dialect: "generic",
+            fieldScope: "all-fields",
+            sourceClass: "organization-site",
+            evidenceClass: "formal",
+            greySourceClass: "government",
+          },
+        ],
+      }),
+    ).toThrow("inconsistent");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...mlr,
+        methodConfiguration: { ...mlr.methodConfiguration, greySourceClasses: ["industry"] },
+        sources: [
+          {
+            id: "source",
+            name: "Source",
+            url: "",
+            dialect: "generic",
+            fieldScope: "all-fields",
+            sourceClass: "organization-site",
+            evidenceClass: "grey",
+            greySourceClass: "government",
+          },
+        ],
+      }),
+    ).toThrow("Grey source class is unavailable");
+    expect(() => parseReviewProtocolContent({ ...protocol, knownRelevantStudies: [null] })).toThrow("Known relevant study");
+    expect(() => parseReviewProtocolContent({ ...protocol, screening: { reviewersPerStage: 3, blinded: false } })).toThrow(
+      "Screening policy",
+    );
+    expect(() =>
+      parseReviewProtocolContent({
+        ...protocol,
+        qualityAssessment: { ...protocol.qualityAssessment, questions: [null] },
+      }),
+    ).toThrow("Quality question");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...protocol,
+        qualityAssessment: { ...protocol.qualityAssessment, minimumScore: "high" },
+      }),
+    ).toThrow("minimum score");
+    expect(() => parseReviewProtocolContent({ ...protocol, extractionFields: [null] })).toThrow("Extraction field");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...protocol,
+        extractionFields: [{ id: "field", label: "Field", type: "invalid", values: [], researchQuestionIds: [] }],
+      }),
+    ).toThrow("Extraction field");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...protocol,
+        extractionFields: [
+          {
+            id: "field",
+            label: "Field",
+            type: "text",
+            values: [],
+            researchQuestionIds: [],
+            requiredness: "sometimes",
+            cardinality: "single",
+          },
+        ],
+      }),
+    ).toThrow("occurrence policy");
+    expect(() =>
+      parseReviewProtocolContent({
+        ...protocol,
+        extractionFields: [
+          {
+            id: "field",
+            label: "Field",
+            type: "text",
+            values: [],
+            researchQuestionIds: [],
+            requiredness: "required",
+            cardinality: "single",
+            condition: "Only when applicable",
+          },
+        ],
+      }),
+    ).toThrow("Only conditional");
+  });
+
   it("validates snapshot revision consistency", () => {
     const protocol = materializeProtocolRevision(defaultReviewProtocol(), 1, "draft", "Created", "owner");
     expect(parseReviewStudySnapshot({ revision: 1, protocol, protocolHistory: [protocol] }).protocol).toEqual(protocol);

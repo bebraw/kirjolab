@@ -192,6 +192,190 @@ describe("review reproducibility export", () => {
     expect(csv).toContain('"\'+SUM(1,1)"');
     expect(csv).toContain("'@reviewer");
   });
+
+  it("exports final exclusions, exact selectors, and append-only audit events", async () => {
+    const authority = fixture();
+    const record = authority.screening.records[0]!;
+    const extraction = authority.evidence.records[0]!.extractionValues[0]!;
+    const screening: ReviewScreeningSnapshot = {
+      ...authority.screening,
+      records: [
+        {
+          ...record,
+          fullText: {
+            ...record.fullText,
+            adjudication: {
+              id: "adjudication-full-text",
+              recordId: record.record.id,
+              stage: "full-text",
+              protocolRevision: 2,
+              outcome: "include",
+              reason: "Eligible after discussion",
+              criterionId: null,
+              criterionText: "",
+              adjudicator: "lead@example.com",
+              createdAt: "2026-07-17T11:30:00.000Z",
+            },
+          },
+          finalInclusion: {
+            outcome: "exclude",
+            decision: {
+              id: "final-exclusion",
+              recordId: record.record.id,
+              protocolRevision: 2,
+              outcome: "exclude",
+              reason: "Below the appraisal threshold",
+              criterionId: "quality-threshold",
+              criterionText: "Fails quality threshold",
+              reviewer: "lead@example.com",
+              createdAt: "2026-07-17T14:00:00.000Z",
+            },
+          },
+        },
+      ],
+      counts: {
+        ...authority.screening.counts,
+        finalInclusionIncluded: 0,
+        finalInclusionExcluded: 1,
+      },
+    };
+    const evidence: ReviewEvidenceSnapshot = {
+      ...authority.evidence,
+      records: [
+        {
+          ...authority.evidence.records[0]!,
+          qualityValues: [
+            {
+              id: "quality-1",
+              recordId: record.record.id,
+              protocolRevision: 2,
+              questionId: "method-quality",
+              criterionId: "method-quality",
+              criterionText: "Is the method credible?",
+              answerId: "yes",
+              evidence: null,
+              rationale: "Reported clearly",
+              reviewer: "reviewer@example.com",
+              createdAt: "2026-07-17T11:45:00.000Z",
+            },
+          ],
+          extractionValues: [
+            extraction,
+            { ...extraction, id: "value-array", value: ["Alpha", "Beta"], evidence: null },
+            {
+              ...extraction,
+              id: "value-selector",
+              value: { kind: "web-passage", resourceId: "share-1", selectorId: "snapshot-1" },
+              evidence: {
+                kind: "web-passage",
+                resourceId: "share-1",
+                selectorId: "snapshot-1",
+                quote: "A cited web passage",
+                page: null,
+                location: "Results",
+              },
+            },
+            { ...extraction, id: "value-missing", value: null, missingReason: "Not reported", evidence: null },
+          ],
+        },
+      ],
+    };
+    const changed: ReviewExportAuthority = {
+      ...authority,
+      search: {
+        ...authority.search,
+        duplicateCandidates: [
+          {
+            id: "duplicate-resolved",
+            leftId: record.record.id,
+            rightId: "record-2",
+            signals: ["title-year"],
+            confidence: "probable",
+            status: "not-duplicate",
+            resolvedAt: "2026-07-17T11:15:00.000Z",
+            resolvedBy: "lead@example.com",
+          },
+        ],
+      },
+      screening,
+      evidence,
+      model: {
+        revision: 7,
+        candidates: [
+          {
+            id: "model-pending",
+            operation: "screen-record",
+            recordId: record.record.id,
+            stage: "title-abstract",
+            provider: "Local",
+            model: "review-model",
+            promptTemplateVersion: "v1",
+            sourceScope: ["title"],
+            result: { decision: "include", criterion: "", rationale: "Likely eligible", evidence: "Title" },
+            createdAt: "2026-07-17T12:15:00.000Z",
+            createdBy: "reviewer@example.com",
+            disposition: "pending",
+            disposedAt: null,
+            disposedBy: null,
+          },
+        ],
+      },
+      reassessment: {
+        revision: 7,
+        obligations: [
+          {
+            id: "reassessment-open",
+            amendmentProtocolRevision: 2,
+            stage: "screening",
+            recordId: null,
+            status: "open",
+            createdRevision: 7,
+            completedRevision: null,
+            completedAt: null,
+            completedBy: null,
+            completionRationale: null,
+          },
+          {
+            id: "reassessment-complete",
+            amendmentProtocolRevision: 2,
+            stage: "extraction",
+            recordId: record.record.id,
+            status: "completed",
+            createdRevision: 6,
+            completedRevision: 7,
+            completedAt: "2026-07-17T13:00:00.000Z",
+            completedBy: "lead@example.com",
+            completionRationale: null,
+          },
+        ],
+      },
+    };
+
+    expect(reviewPrismaData(changed).exclusionReasons.fullText).toEqual({ "Fails quality threshold": 1 });
+    expect(reviewBibliographyBibTeX(changed)).toContain("kirjolab_status = {excluded-final}");
+    const csv = reviewExtractionCsv(changed);
+    expect(csv).toContain('"[""Alpha"",""Beta""]"');
+    expect(csv).toContain("web-passage,share-1,snapshot-1");
+    expect(csv).toContain("Not reported");
+
+    const history = JSON.parse(reviewHistoryJson(changed)) as {
+      events: Array<{ kind: string; subject: string; detail: string }>;
+    };
+    expect(history.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "duplicate-resolution", subject: "duplicate-resolved" }),
+        expect.objectContaining({ kind: "screening-adjudication", subject: "adjudication-full-text" }),
+        expect.objectContaining({ kind: "final-inclusion-decision", subject: "final-exclusion", detail: "exclude" }),
+        expect.objectContaining({ kind: "quality-value", subject: "quality-1" }),
+        expect.objectContaining({ kind: "model-candidate", subject: "model-pending", detail: "screen-record:pending" }),
+        expect.objectContaining({ kind: "reassessment-completion", subject: "reassessment-complete", detail: "extraction:" }),
+      ]),
+    );
+    expect(history.events).not.toContainEqual(expect.objectContaining({ subject: "reassessment-open" }));
+
+    const files = unzipSync(await buildReviewPackage("workspace-1", changed));
+    expect(JSON.parse(strFromU8(files["manifest.json"]!))).toMatchObject({ generatedAt: "2026-07-17T14:00:00.000Z" });
+  });
 });
 
 function fixture(): ReviewExportAuthority {

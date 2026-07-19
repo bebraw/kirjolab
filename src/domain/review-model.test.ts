@@ -160,5 +160,11 @@ describe("review model candidates", () => {
         candidates: [{ ...extractionCandidate, result: { fieldId: "year", value: [], missingReason: null, rationale: "Bad" } }],
       }),
     ).toThrow("extraction candidate");
+    expect(() =>
+      parseReviewModelSnapshot({
+        revision: 1,
+        candidates: [{ ...extractionCandidate, result: { fieldId: "year", value: 2025, missingReason: null } }],
+      }),
+    ).toThrow("extraction candidate");
   });
 });

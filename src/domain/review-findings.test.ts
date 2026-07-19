@@ -163,6 +163,34 @@ describe("review findings", () => {
       }),
     ).toThrow("time");
   });
+
+  it("rejects malformed finding fields and event evidence", () => {
+    expect(() => parseReviewFindingInput({ ...input(), evidence: [] })).toThrow("requires exact evidence");
+    expect(() => parseReviewFindingInput({ ...input(), extractionValueIds: ["extraction-1", "extraction-1"] })).toThrow("unique");
+    expect(() => parseReviewFindingInput({ ...input(), researchQuestionId: "?" })).toThrow("ID is invalid");
+    expect(() => parseReviewFindingInput({ ...input(), statement: 3 })).toThrow("statement is invalid");
+
+    const original = finding("finding-1", 4);
+    expect(() => parseReviewFindingsSnapshot({ revision: 10, findings: [{ ...original, extra: true }] })).toThrow("finding is invalid");
+    expect(() => parseReviewFindingsSnapshot({ revision: 10, findings: [{ ...original, evidence: [null] }] })).toThrow(
+      "evidence link is invalid",
+    );
+    expect(() =>
+      parseReviewFindingsSnapshot({
+        revision: 10,
+        findings: [{ ...original, evidence: [{ ...original.evidence[0], contributorKind: "code" }] }],
+      }),
+    ).toThrow("contributor kind is invalid");
+    expect(() =>
+      parseReviewFindingsSnapshot({
+        revision: 10,
+        findings: [{ ...original, evidence: [{ ...original.evidence[0], pointer: null }] }],
+      }),
+    ).toThrow("evidence pointer is invalid");
+    expect(() => parseReviewFindingsSnapshot({ revision: 10, findings: [{ ...original, createdAt: "2026-07-19" }] })).toThrow(
+      "time is invalid",
+    );
+  });
 });
 
 function input(): ReviewFindingInput {
