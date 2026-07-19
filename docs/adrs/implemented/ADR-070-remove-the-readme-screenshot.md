@@ -1,6 +1,6 @@
 # ADR-070: Remove the README Screenshot
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-153](./ADR-153-keep-build-week-media-capture-local.md)
 
 **Date:** 2026-07-12
 

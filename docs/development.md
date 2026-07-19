@@ -89,6 +89,9 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Check committed Worker bindings without rewriting them with
   `npm run worker:types:check`.
 - Run Lighthouse with `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`.
+- Refresh the ignored Build Week submission images through a dedicated debug
+  Chrome session with `npm run media:build-week`; check an existing set without
+  recapturing it with `npm run media:build-week -- --validate`.
 - Format the repo with `npm run format`.
 - Check formatting with `npm run format:check`.
 - Run default Oxlint correctness checks with `npm run lint`.
@@ -229,13 +232,19 @@ The TypeScript setup is generic too. `tsconfig.json` covers repo-level `.ts` fil
 
 Fallow provides advisory codebase readability diagnostics. `npm run diagnostics:readability` runs a changed-code audit for complexity, duplication, dependency hygiene, and cleanup findings while relaxing CRAP-score noise from untested tooling scripts. `npm run diagnostics:health` reports whole-repo health scoring, hotspots, and refactoring targets. `npm run diagnostics:codebase` runs both. These commands use `--no-cache`, so normal diagnostics do not create a persistent `.fallow/` cache. If a contributor runs cached Fallow commands manually, `.fallow/` is ignored and should stay untracked.
 
-The README includes a committed application screenshot at `docs/screenshots/home.png`. Refresh that asset manually when the starter UI changes materially, but keep screenshot capture out of the automated development loop, CI, and remote workflows.
+Build Week submission media is captured manually with
+`npm run media:build-week` after starting the dedicated loopback-only Chrome
+session documented in [Browser Debugging](./dev/BROWSER_DEBUGGING.md). The
+project-specific command seeds synthetic data in an isolated end-to-end Worker,
+owns a fresh browser context, validates the staged images and captions, and then
+replaces `.generated/build-week-media/`. It stays outside routine development,
+CI, remote workflows, README media, and the reusable template baseline.
 
 Template update packs live under `.template/updates/`. Use them to port later template maintenance changes into projects that already use this template or one of its capability kits. Each pack has metadata, a migration guide, and a focused patch to try first; when the patch does not apply cleanly, use the guide to adapt the change to the target project's conventions.
 
 ## Write Boundaries
 
-Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`, including versioned Markdown and PDF runtime assets under `.generated/assets/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
+Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`, including versioned Markdown and PDF runtime assets under `.generated/assets/`; ignored Build Week submission images and captions belong in `.generated/build-week-media/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
 
 When adding a new tool or workflow that writes files, document the target path in the same change and prefer ignored local output unless the artifact is intentionally reviewed.
 

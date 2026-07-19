@@ -278,11 +278,24 @@ judge guide. Push any later final corrections before submission.
 
 The prepared Devpost media set is in
 `.generated/build-week-media/upload/`. It contains fifteen `2880x1920` PNG
-files, each below 700 KB, ordered from the dashboard through authoring,
+files, each below the 5 MB upload limit, ordered from the dashboard through authoring,
 evidence, accountless sharing, portable output, and independent reviews.
 Captions are maintained in `.generated/build-week-media/captions.md`. These
 local production artifacts are intentionally excluded from version control and
 still need to be uploaded to Devpost.
+
+Reproduce the set through the dedicated loopback Chrome session documented in
+[Browser Debugging](./dev/BROWSER_DEBUGGING.md):
+
+```bash
+npm run media:build-week
+npm run media:build-week -- --validate
+```
+
+The committed manifest in `scripts/capture-build-week-media.mjs` is the source
+of truth for upload order and captions. Capture remains manual and outside CI;
+the command uses only synthetic data and replaces the ignored output after the
+complete staged set passes validation.
 
 The production Worker was also verified as deployed on July 18, but it uses
 Cloudflare Access. Do not give judges that URL unless their access is arranged;

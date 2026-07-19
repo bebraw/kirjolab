@@ -63,6 +63,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check . --cache --cache-strategy content --cache-location .cache/prettier",
     "lighthouse": "node ./scripts/run-lighthouse.mjs",
+    "media:build-week": "node ./scripts/capture-build-week-media.mjs",
     "lint": "oxlint --max-warnings 0",
     "model:companion": "npm run build:model-companion && node --env-file-if-exists=.env ./.generated/model-companion.mjs",
     "mutation": "NODE_OPTIONS=--max-old-space-size=8192 stryker run",

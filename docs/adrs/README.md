@@ -33,6 +33,7 @@ No ADRs are currently accepted but unimplemented.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-153](./implemented/ADR-153-keep-build-week-media-capture-local.md)                   | Implemented          | Keep Build Week media capture manual, isolated, validated, and outside the template and CI baselines.         |
 | [ADR-152](./implemented/ADR-152-use-a-capability-scoped-share-editor.md)                  | Implemented          | Reuse one editor shell for bearer links without widening server capabilities.                                 |
 | [ADR-151](./implemented/ADR-151-model-reviews-as-independent-resources.md)                | Implemented          | Model reviews independently and connect them to projects through provenance-bearing many-to-many links.       |
 | [ADR-150](./implemented/ADR-150-establish-task-oriented-browser-routes.md)                | Partially superseded | Establish task routes; ADR-151 replaces its transitional workspace-qualified review route.                    |
@@ -108,7 +109,7 @@ No ADRs are currently accepted but unimplemented.
 | [ADR-067](./implemented/ADR-067-adjust-highlight-strokes-nondestructively.md)             | Implemented          | Correct touch-selected quotation and normalized geometry without replacing evidence identity or source PDFs.  |
 | [ADR-068](./implemented/ADR-068-use-bounded-submission-templates.md)                      | Implemented          | Resolve common submission targets to pinned safe layout presets shared by LaTeX and direct PDF exports.       |
 | [ADR-069](./implemented/ADR-069-use-csl-json-and-bounded-library-archives.md)             | Implemented          | Exchange Zotero-compatible CSL JSON and bounded metadata-only private-library archives.                       |
-| [ADR-070](./implemented/ADR-070-remove-the-readme-screenshot.md)                          | Implemented          | Prefer no README screenshot over a stale representation of the application.                                   |
+| [ADR-070](./implemented/ADR-070-remove-the-readme-screenshot.md)                          | Partially superseded | Prefer no README screenshot; ADR-153 narrows its broader screenshot-tooling prohibition.                      |
 | [ADR-071](./implemented/ADR-071-host-reference-library-in-context.md)                     | Implemented          | Keep the private reference library in a permanent Context tab instead of a modal.                             |
 | [ADR-072](./implemented/ADR-072-report-local-ci-progress.md)                              | Implemented          | Format Agent CI events and heartbeat long-running local validation without changing workflow semantics.       |
 | [ADR-073](./implemented/ADR-073-host-writing-assistant-in-context.md)                     | Implemented          | Keep Writing assistant in a permanent Context tab instead of a full-width drawer.                             |
