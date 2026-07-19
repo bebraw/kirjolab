@@ -25,26 +25,29 @@ rollback workflow without adding a second identity system.
 - Binary backup objects are immutable and content-addressed under a reserved
   `backups/` prefix. A manifest is committed only after every referenced binary
   is present in that prefix.
-- Owner manifests use `kirjolab-owner-backup-v2`. Each backed-up workspace
-  carries a reference to a canonical, content-addressed ReviewStudy payload
-  under `backups/reviews/{ownerKey}/{payloadDigest}.json`; the potentially large
+- Owner manifests use `kirjolab-owner-backup-v3`. Independent reviews are a
+  top-level owner collection beside workspaces. Each entry retains its catalog
+  record, independent access and link ledger, exact revision seed, and a
+  reference to a canonical content-addressed ReviewStudy payload under
+  `backups/reviews/{ownerKey}/{payloadDigest}.json`; the potentially large
   relational review authority is never embedded in the 10 MiB owner manifest.
 - A review payload contains the allowlisted authoritative ReviewStudy tables
   plus its exact review revision, protocol revision, and reconstructible history
   floor. Its reference pins byte count, payload SHA-256, and a separately
   calculated digest of the complete unblinded export authority. Existing v1
-  owner manifests remain readable but do not gain a synthesized live review
-  restore.
+  and project-associated v2 owner manifests remain readable; v2 drills retain
+  their historical workspace-keyed restore semantics, while v1 does not gain a
+  synthesized live review restore.
 - Authoritative project image asset keys are binary backup references alongside
   workspace PDFs; their logical metadata remains in each workspace snapshot.
 - Owner-created project template seeds and their recovery bookmark are included
   as logical owner state; templates contain no binary objects.
 - Recovery drills target isolated recovery Durable Object names and never
-  mutate canonical owner or workspace identities. For every v2 review
-  reference, the drill checks the R2 object, restores its relational payload
-  into `review-drill:{ownerKey}:{manifestDigest}:{workspaceId}`, reads the live
-  restored authority back, and verifies both payload and authority digests plus
-  all pinned revisions.
+  mutate canonical owner, project, or review identities. For every v3 review,
+  the drill restores its catalog projection, ReviewAccess state, and relational
+  ReviewStudy payload under isolated review-id-keyed identities, reads the live
+  authorities back, and verifies payload and authority digests, memberships,
+  links, locators, and pinned revisions.
 - Backup payloads and logs never contain Access tokens. R2 paths use opaque
   owner keys rather than email addresses.
 
@@ -70,15 +73,18 @@ rollback workflow without adding a second identity system.
       non-cacheable.
 - [x] Durable Object recovery bookmarks are included for every backed-up
       catalog, template catalog, library, access object, document room, and
-      review study.
+      independent review catalog, access object, and study.
 - [x] Review-study state is stored as a bounded canonical external payload;
       owner manifests retain only owner-scoped content-addressed references and
       exact revision seeds.
 - [x] A recovery drill restores logical data into isolated identities and
       verifies the manifest digest without overwriting production.
-- [x] A v2 recovery drill performs a live isolated ReviewStudy restore, compares
-      payload and unblinded-authority digests and revisions, and reports the
-      number of review authorities checked.
+- [x] A v3 recovery drill performs isolated ReviewCatalog, ReviewAccess, and
+      ReviewStudy restores keyed by review id, compares access state, payload
+      and unblinded-authority digests and revisions, and reports the number of
+      review authorities checked.
+- [x] Valid v1 and v2 manifests remain readable and preserve their historical
+      drill behavior.
 - [x] Production logs, smoke checks, versions, and rollback commands are
       documented.
 - [x] Full quality gate, local Agent CI, generated type check, startup check,
@@ -124,17 +130,20 @@ rollback workflow without adding a second identity system.
 
 **Recovery drill**
 
-- Given a successful v2 backup manifest with review payload references
+- Given a successful v3 backup manifest with independent review payload
+  references
 - When an operator starts a drill
-- Then the restored logical state and each live restored review use isolated
-  recovery identities, their payload and authority digests and revisions match
-  the references, `reviewsChecked` matches the referenced review count, and
-  canonical production data remains unchanged
+- Then the restored logical state, catalog, access ledger, and each live
+  restored review use isolated review-id-keyed recovery identities; their
+  payload and authority digests, memberships, links, locators, and revisions
+  match the references; `reviewsChecked` matches the referenced review count;
+  and canonical production data remains unchanged
 
 **Legacy manifest drill**
 
-- Given a valid `kirjolab-owner-backup-v1` manifest
+- Given a valid `kirjolab-owner-backup-v1` or project-associated
+  `kirjolab-owner-backup-v2` manifest
 - When an operator starts a drill
-- Then Kirjolab verifies and restores the legacy logical manifest without
-  pretending that its embedded review projection is a live relational review
-  restore
+- Then Kirjolab verifies and restores the legacy logical manifest using that
+  schema's historical semantics, without pretending that v1's embedded review
+  projection is a live relational review restore

@@ -5,8 +5,9 @@
 ### Context
 
 Hosted collaboration must identify each researcher and prevent unauthorized
-workspace discovery, API reads, mutations, PDF access, and WebSocket joins.
-Owners need a minimal way to grant access to a known collaborator.
+project or review discovery, API reads, mutations, PDF access, and WebSocket
+joins. Owners need a minimal way to grant access to a known collaborator
+without accidentally widening access to another resource.
 
 ### Architecture
 
@@ -19,6 +20,14 @@ Owners need a minimal way to grant access to a known collaborator.
 - `WorkspaceAccess` stores one owner and zero or more members in SQLite. Every
   member receives an opaque stable person id; normalized email remains a unique
   mutable access attribute rather than the hypermedia identity.
+- `ReviewAccess` stores the independent owner, members, storage locator, and
+  project-link ledger for one review. `ReviewCatalog` exposes only the reviews
+  the current identity may discover. Project membership never grants review
+  access, review membership never grants project or Library access, and a
+  project-review link grants neither.
+- The first access to a legacy project-associated review seeds its independent
+  review membership once from the then-current project members. Later project
+  invitations and removals do not mutate review membership.
 - Workspace catalog, access, document-room, and R2 lookups use opaque or hashed
   storage identities rather than plaintext hosted email values.
 - `GET /api/session` exposes only the current email and authentication mode.
@@ -93,7 +102,9 @@ Owners need a minimal way to grant access to a known collaborator.
 - Permanent deletion first unregisters shared-library dependencies and removes
   project-owned R2 objects and revokes both public capabilities, then erases
   document, access, and catalog state.
-  It never deletes canonical private-library references.
+  It marks its active review links unlinked but does not delete the independent
+  reviews or their evidence. It never deletes canonical private-library
+  references.
 - An exact same-origin `Origin` is required for browser mutations and
   WebSocket upgrades, including authenticated `GET` upgrade requests.
 - The document channel accepts bounded binary Yjs updates and one exact,
@@ -122,6 +133,9 @@ Owners need a minimal way to grant access to a known collaborator.
   local mode, or imply that Cloudflare Access logout is scoped only to Kirjolab.
 - Do not use plaintext emails as Durable Object or R2 storage keys.
 - Do not let members invite additional members in this slice.
+- Do not infer review authorization from project membership, infer project or
+  Library authorization from review membership, or treat a project-review link
+  as an access grant.
 - Do not return plaintext share-link secrets to members, unauthenticated status
   callers, cacheable responses, logs, or general workspace APIs.
 - Do not treat a capability label, read-only control, hidden action, or other
@@ -137,6 +151,10 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Access JWT verification covers signature, issuer, audience, and time.
 - [x] Workspace creation initializes an owner role.
 - [x] Owners can invite a normalized collaborator email.
+- [x] Review owners can manage an independent review membership without
+      changing project or Library permissions.
+- [x] Legacy review membership is seeded once from the project and then evolves
+      independently.
 - [x] Owners can create, rotate, and revoke a read-only bearer link.
 - [x] Owners can return to the Share control and copy the same active read-only
       or edit link without rotating it.
@@ -157,6 +175,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - [x] Invited collaborators discover and open the shared workspace.
 - [x] Owners can rename, archive, restore, duplicate, and permanently delete a
       non-demo project through explicit project settings.
+- [x] Permanent project deletion unlinks, but does not delete, an independent
+      review.
 - [x] Uninvited identities cannot discover or read the workspace.
 - [x] PDF routes and WebSocket upgrades pass through the same authorization.
 - [x] Cross-origin browser mutations are rejected.
@@ -173,6 +193,8 @@ Owners need a minimal way to grant access to a known collaborator.
 - Local mode must reject non-loopback hostnames.
 - Membership must be checked before resolving document or R2 state.
 - Only the owner role may add a member.
+- Review and project authorization must be checked independently. Links between
+  those resources must not create, copy, or imply membership.
 - Only the owner may mutate project lifecycle; the demo project cannot be
   archived or permanently deleted.
 - Hypermedia representations must address people by stored person id rather
@@ -196,7 +218,8 @@ Owners need a minimal way to grant access to a known collaborator.
   token. Writes require an exact same-origin `Origin`, bounded content, and the
   current project revision.
 - Permanent project deletion must revoke both locator-scoped capabilities before
-  erasing the document room.
+  erasing the document room, must unlink active review associations, and must
+  not delete any linked review authority.
 - Public share locators must not expose owner-derived storage keys, and target
   mappings must not be returned before bearer-token validation succeeds.
 - Every shared PDF request must independently validate the current bearer token

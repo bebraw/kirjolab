@@ -22,6 +22,15 @@ files.
 - Every intermediate carries the exact composed Markdown, citation-scoped
   BibTeX, composition spans, mapped diagnostics, statistics, and pinned schema
   identity.
+- A `::review-artifact[path]` directive resolves only when the target is a
+  project-owned materialization with a retained provenance pin. Preview and all
+  publication outputs consume those same pinned bytes without reading the live
+  review or requiring the review to remain linked.
+- Each review-artifact pin records the review, project-link and deterministic
+  publication identities; exact review, protocol, analysis-definition, and
+  project revisions; generator and schema; digest, publisher, and timestamp.
+  This provenance travels with the export intermediate and archival project
+  state.
 - Generated LaTeX spans identify `main.tex` line ranges and their authored
   file ID, path, source range, line, and include chain.
 - LaTeX and direct PDF share one scholarly-syntax projection. Reference
@@ -130,6 +139,8 @@ journal uses the same counting policy.
   byte limits from project composition.
 - The hosted renderer does not fetch remote images, execute TeX, evaluate
   scripts, or include owner-private library data.
+- Export never follows a review link or reads ReviewStudy authority. A review
+  deletion or unlink cannot alter previously materialized project bytes.
 - Download responses are private and non-cacheable.
 - Archive names are normalized to relative, traversal-free paths.
 
@@ -195,3 +206,5 @@ journal uses the same counting policy.
 - Browser tests exercise the unified dialog and all primary artifact routes
   through local `workerd`.
 - Project-history tests cover revision word deltas.
+- Review-artifact tests cover pin-only composition, full provenance retention,
+  deterministic export, and survival after unlink or review deletion.

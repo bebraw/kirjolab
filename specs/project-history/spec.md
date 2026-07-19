@@ -22,6 +22,10 @@ continues to use a narrow source revision for stale-selection checks.
   and the rows for project files, references, research shares, PDFs,
   annotations, claims, manuscript comments, and their typed relationships in
   the same transaction as the logical mutation.
+- A materialized review artifact and its immutable provenance pin are project
+  state and therefore participate in project history, restore, comparison, and
+  revision seeding. The live many-to-many project-review link ledger is
+  operational access state outside revision snapshots.
 - Consecutive manuscript updates within 30 seconds refresh one untagged working
   checkpoint instead of creating one full snapshot per keystroke. A milestone
   freezes that checkpoint; the next edit starts another revision. Explicit
@@ -36,6 +40,9 @@ continues to use a narrow source revision for stale-selection checks.
   records a new head. It never deletes the target or intervening revisions.
   Connected browsers receive a server-owned `reset` control and reload from an
   empty local Yjs document so newer CRDT operations cannot merge back in.
+- Restoring an older project revision restores the materialized review files
+  and pins captured there but never reactivates, removes, or otherwise rewrites
+  a live project-review link.
 - A revision seed creates a new owner-controlled workspace with revision zero,
   rewrites project-scoped research-share identity to the new workspace, and
   does not copy collaborators or milestones.
@@ -79,6 +86,9 @@ continues to use a narrow source revision for stale-selection checks.
 - Restore must preserve every older revision and milestone.
 - Seed must not inherit workspace membership or point research shares at the
   source workspace id.
+- Seed may retain historical materialized review artifacts and their provenance
+  pins, but it must not copy the source project's live review links or grant
+  access to any review.
 - Stored SQL identifiers are fixed application table/column names; revision
   payloads must never create arbitrary SQL structure.
 
