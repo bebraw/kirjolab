@@ -52,6 +52,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   review tab without removing the assistant destination.
 - Publication and PDF tabs remain open in stable order until explicitly closed.
   Opening later resources never replaces an earlier tab.
+- Publication context lists already connected papers before any attachment
+  control. The project-PDF picker is hidden when no unattached project PDF
+  exists; when available, it is labelled as adding a paper from the project so
+  it cannot be mistaken for the reference's existing library attachment.
 - Candidate tabs follow the same close, dedupe, retention, and local-scroll
   rules. Their review renders immutable original/replacement text and evidence
   snapshots, with navigation to current evidence resources when available.

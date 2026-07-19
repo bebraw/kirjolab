@@ -7119,8 +7119,11 @@ class WorkspaceApp {
 
     const linkedIds = new Set(links.map((link) => link.pdfId));
     const available = this.#snapshot.pdfs.filter((pdf) => !linkedIds.has(pdf.id));
+    this.#elements.publicationPdfLinkForm.hidden = available.length === 0;
+    const linkLabel = this.#elements.publicationPdfLinkForm.querySelector<HTMLElement>("[data-publication-pdf-link-label]");
+    if (linkLabel) linkLabel.textContent = papers.length > 0 ? "Add another paper from this project" : "Add a paper from this project";
     this.#elements.publicationPdfLink.replaceChildren();
-    this.#elements.publicationPdfLink.append(new Option(available.length === 0 ? "No project PDFs available" : "Choose a project PDF", ""));
+    this.#elements.publicationPdfLink.append(new Option("Choose a project PDF", ""));
     for (const pdf of available) this.#elements.publicationPdfLink.append(new Option(pdf.name, pdf.id));
     this.#elements.publicationPdfLink.disabled = available.length === 0;
     const submit = this.#elements.publicationPdfLinkForm.querySelector<HTMLButtonElement>('button[type="submit"]');
@@ -7607,7 +7610,7 @@ class WorkspaceApp {
     const response = await jsonFetch(`${apiBase}/publication-pdf-links`, { publicationId: tab.id, pdfId });
     await expectOk(response);
     await this.#resourceRefresh.request();
-    this.#showToast("Paper connected to this publication.");
+    this.#showToast("Project PDF added to this reference.");
   }
 
   async #unlinkPublicationPdf(linkId: string): Promise<void> {

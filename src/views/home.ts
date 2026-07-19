@@ -572,15 +572,15 @@ export function renderHomePage(
               <button class="button-primary justify-center" id="insert-context-citation" type="button" disabled>Insert citation</button>
               <button class="button-secondary justify-center" id="open-paper" type="button" disabled>Open linked paper</button>
             </div>
-            <form class="context-link-form" id="publication-pdf-link-form">
-              <label class="field-label" for="publication-pdf-link">Connect a project PDF
-                <select class="field" id="publication-pdf-link" disabled><option value="">Import a PDF first</option></select>
-              </label>
-              <button class="button-secondary justify-center" type="submit" disabled>Connect paper</button>
-            </form>
             <div class="context-linked-resources" id="context-publication-pdfs">
               <p class="empty-state">No paper connected to this reference yet.</p>
             </div>
+            <form class="context-link-form" id="publication-pdf-link-form" hidden>
+              <label class="field-label" for="publication-pdf-link"><span data-publication-pdf-link-label>Add a paper from this project</span>
+                <select class="field" id="publication-pdf-link" disabled><option value="">Choose a project PDF</option></select>
+              </label>
+              <button class="button-secondary justify-center" type="submit" disabled>Add paper</button>
+            </form>
           </div>
         </section>
 

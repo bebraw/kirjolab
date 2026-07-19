@@ -2523,10 +2523,13 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   const publicationTabId = await page.getByRole("tab", { name: "The Normative Structure of Science" }).getAttribute("id");
   await expect(page.locator("#context-publication-panel")).toHaveAttribute("aria-labelledby", publicationTabId ?? "missing");
   await expect(page.locator("#context-publication-pdfs")).toContainText("No paper connected");
+  await expect(page.locator("#publication-pdf-link-form")).toBeVisible();
+  await expect(page.locator("#publication-pdf-link-form")).toContainText("Add a paper from this project");
 
   await page.locator("#publication-pdf-link").selectOption({ label: "context-paper.pdf" });
-  await page.locator("#publication-pdf-link-form").getByRole("button", { name: "Connect paper" }).click();
+  await page.locator("#publication-pdf-link-form").getByRole("button", { name: "Add paper" }).click();
   await expect(page.locator("#context-publication-pdfs")).toContainText("context-paper.pdf");
+  await expect(page.locator("#publication-pdf-link-form")).toBeHidden();
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).publicationPdfLinks.length).toBe(1);
   const graphResponse = await page.request.get(`${api}/graph`);
   const graph: unknown = await graphResponse.json();
