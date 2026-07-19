@@ -1,11 +1,7 @@
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { renderSharedEditorPage, resolveSharedEditorFile } from "./shared-editor";
 
-export function resolveReadOnlyShareFile(
-  snapshot: WorkspaceSnapshot,
-  requestedFileId: string | null,
-  legacyView: string | null = null,
-) {
+export function resolveReadOnlyShareFile(snapshot: WorkspaceSnapshot, requestedFileId: string | null, legacyView: string | null = null) {
   const legacyFileId = legacyView?.startsWith("file:") ? legacyView.slice("file:".length) : null;
   return resolveSharedEditorFile(snapshot, requestedFileId ?? legacyFileId);
 }
