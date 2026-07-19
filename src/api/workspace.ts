@@ -199,14 +199,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     }
     if (suffix.startsWith("/reference-pdfs/") && request.method === "GET") {
       const library = await projectOwnerLibrary(env, access, identity.email);
-      return await downloadProjectReferencePdf(
-        request,
-        workspaceId,
-        suffix.slice("/reference-pdfs/".length),
-        env,
-        room,
-        library,
-      );
+      return await downloadProjectReferencePdf(request, workspaceId, suffix.slice("/reference-pdfs/".length), env, room, library);
     }
     if (suffix === "/assets" && request.method === "POST") return await uploadProjectAsset(request, workspaceId, storageKey, env, room);
     if (suffix.startsWith("/assets/") && request.method === "GET") {
@@ -1008,10 +1001,7 @@ async function downloadProjectReferencePdf(
 ): Promise<Response> {
   const [workspace, librarySnapshot] = await Promise.all([room.getSnapshot(workspaceId), library.getSnapshot(true)]);
   const artifact = librarySnapshot.artifacts.find((item) => item.id === artifactId);
-  if (
-    !artifact?.referenceId ||
-    !workspace.projectReferences.some((link) => link.referenceId === artifact.referenceId)
-  ) {
+  if (!artifact?.referenceId || !workspace.projectReferences.some((link) => link.referenceId === artifact.referenceId)) {
     return jsonError("Reference PDF not found", 404);
   }
   return (

@@ -1972,9 +1972,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   const referencePdfsResponse = await page.request.get(`${api}/reference-pdfs`);
   expect(referencePdfsResponse.status()).toBe(200);
   const referencePdfs = (await referencePdfsResponse.json()) as Array<{ id: string; name: string; referenceId: string }>;
-  expect(referencePdfs).toEqual([
-    expect.objectContaining({ name: "climate_adaptation.pdf", referenceId: expect.any(String) }),
-  ]);
+  expect(referencePdfs).toEqual([expect.objectContaining({ name: "climate_adaptation.pdf", referenceId: expect.any(String) })]);
   const referencePdfId = referencePdfs[0]!.id;
   const invited = await page.request.post(`${api}/members`, {
     headers: { origin: "http://127.0.0.1:8788" },
@@ -1994,12 +1992,12 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   expect((await memberPdf.body()).toString("ascii", 0, 4)).toBe("%PDF");
   await memberContext.close();
 
-  const readOnlyLink = (await (
-    await page.request.post(`${api}/share-link`, { headers: { origin: "http://127.0.0.1:8788" } })
-  ).json()) as { href: string };
-  const editLink = (await (
-    await page.request.post(`${api}/edit-link`, { headers: { origin: "http://127.0.0.1:8788" } })
-  ).json()) as { href: string };
+  const readOnlyLink = (await (await page.request.post(`${api}/share-link`, { headers: { origin: "http://127.0.0.1:8788" } })).json()) as {
+    href: string;
+  };
+  const editLink = (await (await page.request.post(`${api}/edit-link`, { headers: { origin: "http://127.0.0.1:8788" } })).json()) as {
+    href: string;
+  };
   expect((await page.request.get(`${readOnlyLink.href}/reference-pdfs/${referencePdfId}`)).status()).toBe(404);
   expect((await page.request.get(`${editLink.href}/reference-pdfs/${referencePdfId}`)).status()).toBe(404);
 

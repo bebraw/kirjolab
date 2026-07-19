@@ -5458,11 +5458,7 @@ class WorkspaceApp {
     await this.#refreshReferenceLibrary();
   }
 
-  async #sharePrivateResearch(
-    referenceId: string,
-    kind: "note" | "highlight" | "web-snapshot",
-    resourceId: string,
-  ): Promise<void> {
+  async #sharePrivateResearch(referenceId: string, kind: "note" | "highlight" | "web-snapshot", resourceId: string): Promise<void> {
     const response = await jsonFetch(`${apiBase}/research-shares`, { referenceId, kind, resourceId });
     await this.#acceptWorkspaceMutation(response);
     this.#renderReferenceLibrary();

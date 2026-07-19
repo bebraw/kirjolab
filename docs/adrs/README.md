@@ -33,7 +33,7 @@ No accepted decisions are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [ADR-155](./implemented/ADR-155-authorize-linked-pdfs-by-project-membership.md)           | Implemented          | Grant authenticated project members linked-reference PDF access while excluding public bearer links.         |
+| [ADR-155](./implemented/ADR-155-authorize-linked-pdfs-by-project-membership.md)           | Implemented          | Grant authenticated project members linked-reference PDF access while excluding public bearer links.          |
 | [ADR-154](./implemented/ADR-154-refine-linked-pdf-reference-keys.md)                      | Implemented          | Keep PDF-origin keys refinable and propagate generated aliases without overwriting researcher choices.        |
 | [ADR-153](./implemented/ADR-153-keep-build-week-media-capture-local.md)                   | Implemented          | Keep Build Week media capture manual, isolated, validated, and outside the template and CI baselines.         |
 | [ADR-152](./implemented/ADR-152-use-a-capability-scoped-share-editor.md)                  | Implemented          | Reuse one editor shell for bearer links without widening server capabilities.                                 |
