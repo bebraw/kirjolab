@@ -3909,12 +3909,8 @@ test("derives collaborative project bibliography from shared-library aliases", a
   const link = snapshot.projectReferences.find((item) => item.citationAlias === "collaborative2026");
   if (!link) throw new Error("Expected a shared-library project link");
 
-  await Promise.all([page.getByRole("tab", { name: "Files" }).click(), collaborator.getByRole("tab", { name: "Files" }).click()]);
-  await Promise.all([
-    page.locator("summary").filter({ hasText: "Bibliography" }).click(),
-    collaborator.locator("summary").filter({ hasText: "Bibliography" }).click(),
-  ]);
   await expect(page.locator("#bibliography-editor")).toHaveAttribute("readonly", "");
+  await expect(page.locator("#bibliography-editor")).toBeHidden();
   await expect(collaborator.locator("#bibliography-editor")).toHaveValue(/@article\{collaborative2026/u);
   await page.getByRole("tab", { name: "Library" }).click();
   const referenceCard = page
@@ -3946,30 +3942,34 @@ test("derives collaborative project bibliography from shared-library aliases", a
   await collaborator.close();
 });
 
-test("imports BibTeX into stable publication resources", async ({ page }) => {
+test("keeps legacy project BibTeX import compatible without exposing it in the project UI", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Stable shared import");
   const api = `/api/workspaces/${workspaceId}`;
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
-  await page.locator("#bibliography-upload").setInputFiles({
-    name: "broken.bib",
-    mimeType: "application/x-bibtex",
-    buffer: Buffer.from("not bibtex at all"),
-  });
-  await expect(page.locator("#toast")).toHaveText("No valid BibTeX entries found");
-  await expect(page.locator("#bibliography-upload")).toHaveValue("");
+  await expect(page.locator("#bibliography-upload")).toHaveCount(0);
+  await expect(page.getByLabel("Import project BibTeX")).toHaveCount(0);
 
-  await page.locator("#bibliography-upload").setInputFiles({
-    name: "references.bib",
-    mimeType: "application/x-bibtex",
-    buffer: Buffer.from(`@article{inspectable2026,
+  const invalidImport = await page.request.post(`${api}/bibliography/import`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { bibtex: "not bibtex at all" },
+  });
+  expect(invalidImport.status()).toBe(400);
+  expect(await invalidImport.json()).toEqual({ error: "No valid BibTeX entries found" });
+
+  const validImport = await page.request.post(`${api}/bibliography/import`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: {
+      bibtex: `@article{inspectable2026,
   author = {Doe, Jane and Researcher, Alex},
   title = {{I}nspectable {R}eference {W}orkflows},
   year = {2026},
   journal = {Journal of Open Evidence},
   doi = {https://doi.org/10.5555/inspectable.2026}
-}`),
+}`,
+    },
   });
+  expect(validImport.status()).toBe(200);
 
   await expect(page.locator("#publication-list")).toContainText("Inspectable Reference Workflows");
   await expect(page.locator("#publication-list")).toContainText("10.5555/inspectable.2026");
@@ -3999,16 +3999,18 @@ test("imports BibTeX into stable publication resources", async ({ page }) => {
   await expect(importedCard).toBeVisible();
   await page.locator("#reference-filter-query").fill("");
 
-  await page.locator("#bibliography-upload").setInputFiles({
-    name: "updated-references.bib",
-    mimeType: "application/x-bibtex",
-    buffer: Buffer.from(`@article{Inspectable2026,
+  const updatedImport = await page.request.post(`${api}/bibliography/import`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: {
+      bibtex: `@article{Inspectable2026,
   author = {Doe, Jane},
   title = {Updated Reference Workflows},
   year = {2027},
   doi = {10.5555/inspectable.2026}
-}`),
+}`,
+    },
   });
+  expect(updatedImport.status()).toBe(200);
   await expect(page.locator("#publication-list")).toContainText("Updated Reference Workflows");
   const updatedResponse = await page.request.get(api);
   const updatedValue: unknown = await updatedResponse.json();

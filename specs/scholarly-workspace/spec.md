@@ -82,9 +82,9 @@ collaboration.
   to Write; changing modes never changes canonical or collaborative state.
 - **Left project rail:** Files, Research, and Comments are peer local navigation
   modes. Comments contains the selected-passage composer and durable comment
-  history without taking vertical space from the manuscript editor. Files owns
-  the collapsed read-only project bibliography projection beside the authored
-  file list. Their persistent switcher uses compact icons with accessible names,
+  history without taking vertical space from the manuscript editor. Derived
+  bibliography state stays outside ordinary editor rails. Their persistent
+  switcher uses compact icons with accessible names,
   native hover titles, and a visible open-comment count.
   Research is limited to the actionable Project evidence, Claims, and
   References inventories; project search and graph controls belong to Map.
@@ -410,8 +410,8 @@ collaboration.
       comments without mutating Markdown.
 - [x] Comments use a dedicated left-rail mode instead of an editor-bottom
       drawer or modal.
-- [x] The derived project bibliography is inspectable as secondary Files-rail
-      context without shortening the manuscript editor.
+- [x] The derived project bibliography stays internal to collaboration and
+      explicit import/export boundaries instead of appearing in editor rails.
 - [x] Crowded left-rail navigation remains identifiable through labelled icons,
       hover titles, selected state, and the visible comment count.
 - [x] Empty projects do not show legacy Papers or Highlights controls; existing
@@ -761,12 +761,13 @@ collaboration.
 - Then: each stable source retains per-field provenance and its imported key is
   only a suggested project alias
 
-**Scenario: Rejected bibliography import remains recoverable**
+**Scenario: Rejected bibliography file import remains recoverable**
 
-- Given: an owner chooses a project BibTeX file with no valid entries
+- Given: an owner chooses a BibTeX reference file in the private Library with no
+  valid entries
 - When: the bounded import rejects the file
-- Then: the server error replaces the importing state, the file control resets,
-  and the researcher can choose another file without reloading
+- Then: the server error replaces the importing state, the Library file control
+  resets, and the researcher can choose another file without reloading
 
 **Scenario: Removing a project reference keeps working memory**
 

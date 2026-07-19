@@ -252,8 +252,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 
 ## Contract
 
-- Project PDF and BibTeX import controls expose distinct accessible names even
-  when their native file inputs are visually hidden behind task buttons.
+- The project PDF import control exposes a distinct accessible name even when
+  its native file input is visually hidden behind a task button. Bibliographic
+  file import belongs to the private Library intake boundary, not this rail.
 
 ### Definition of Done
 

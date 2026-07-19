@@ -3022,8 +3022,7 @@
     background: var(--color-app-raised);
   }
 
-  .source-editor,
-  .bibliography-editor {
+  .source-editor {
     display: block;
     width: 100%;
     resize: vertical;
@@ -3779,29 +3778,8 @@
     }
   }
 
-  .bibliography-editor {
-    min-height: 12rem;
-    padding: 0.5rem 1rem 1rem;
-    font-size: 0.75rem;
-  }
-
-  .rail-bibliography-editor {
-    min-height: 12rem;
-    border: 1px solid var(--color-app-line);
-    border-radius: 0.2rem;
-    background: var(--color-app-canvas);
-    padding: 0.75rem;
-    font-size: 0.68rem;
-    line-height: 1.6;
-  }
-
-  .source-editor:focus,
-  .bibliography-editor:focus {
+  .source-editor:focus {
     outline: none;
-  }
-
-  .bibliography-editor:focus {
-    background: var(--color-app-raised);
   }
 
   .preview-scroll {

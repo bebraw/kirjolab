@@ -27,14 +27,13 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                                         | Status   | Summary                                                                                        |
-| --------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
-| [ADR-156](./accepted/ADR-156-keep-bibtex-at-interoperability-boundaries.md) | Accepted | Remove BibTeX from ordinary project UI while preserving explicit import and export boundaries. |
+No accepted ADRs are awaiting implementation.
 
 ## Implemented ADRs
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-156](./implemented/ADR-156-keep-bibtex-at-interoperability-boundaries.md)            | Implemented          | Remove BibTeX from ordinary project UI while preserving explicit import and export boundaries.                |
 | [ADR-155](./implemented/ADR-155-authorize-linked-pdfs-by-project-membership.md)           | Implemented          | Grant authenticated project members linked-reference PDF access while excluding public bearer links.          |
 | [ADR-154](./implemented/ADR-154-refine-linked-pdf-reference-keys.md)                      | Implemented          | Keep PDF-origin keys refinable and propagate generated aliases without overwriting researcher choices.        |
 | [ADR-153](./implemented/ADR-153-keep-build-week-media-capture-local.md)                   | Implemented          | Keep Build Week media capture manual, isolated, validated, and outside the template and CI baselines.         |

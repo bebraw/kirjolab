@@ -1,6 +1,6 @@
 # ADR-156: Keep BibTeX at Interoperability Boundaries
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-19
 

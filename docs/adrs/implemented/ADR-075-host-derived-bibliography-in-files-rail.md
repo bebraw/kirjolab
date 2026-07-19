@@ -1,7 +1,7 @@
 # ADR-075: Host Derived Bibliography in the Files Rail
 
 **Status:** Superseded by
-[ADR-156](../accepted/ADR-156-keep-bibtex-at-interoperability-boundaries.md)
+[ADR-156](./ADR-156-keep-bibtex-at-interoperability-boundaries.md)
 
 **Date:** 2026-07-13
 

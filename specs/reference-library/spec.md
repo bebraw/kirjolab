@@ -40,9 +40,9 @@ memory and makes citation aliases compete with stable source identity.
 - Project bibliography text is derived from linked snapshots. Normal export
   includes only aliases cited by composed `main.md`; archival export may use
   every explicit project link.
-- The read-only derived BibTeX projection is secondary project-file context. It
-  remains collapsed in the Files rail rather than occupying the manuscript
-  editor or becoming an editable library authority.
+- The derived BibTeX projection remains internal collaboration state and an
+  explicit import/export boundary. It does not appear in the Files or Research
+  rails and never becomes an editable library authority.
 - Existing workspace BibTeX migrates lazily and idempotently into the owner
   library, then becomes project links and derived bibliography.
 - A PDF upload creates a provisional `misc` source immediately, derives only a
@@ -92,8 +92,9 @@ memory and makes citation aliases compete with stable source identity.
   PDF pushes history, page changes replace that location with an optional
   `page` query, direct navigation restores the authorized artifact, and Back
   returns to `/library` without creating project or collaborative state.
-- The default Library view keeps one **Add reference** control for PDF, website,
-  BibTeX, and CSL intake without intake-time metadata overrides. Search stays
+- The default Library view keeps one **Add reference** control with PDF and
+  website intake first. BibTeX and CSL JSON remain secondary, explicitly named
+  reference-file imports without intake-time metadata overrides. Search stays
   visible; filters and maintenance tools use separate compact menus. References
   render as dense two-line rows suitable for large collections, while metadata,
   organization, reading state, and attached research remain available through
@@ -258,8 +259,8 @@ memory and makes citation aliases compete with stable source identity.
   identity.
 - Do not copy the full private record into a project when it is merely cited.
 - Do not keep an editable project bibliography as a second authority.
-- Do not give the derived project bibliography a primary editor, Library tab,
-  or modal surface.
+- Do not expose the derived project bibliography in ordinary editor rails, a
+  primary editor, a Library tab, or a modal surface.
 - Do not silently identify a PDF from uncertain or incomplete metadata.
 - Do not delete a library source because one project unlinks it.
 - Do not flatten provider, extraction, model, or manual citation evidence into

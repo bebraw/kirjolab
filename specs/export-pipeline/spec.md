@@ -89,8 +89,9 @@ files.
 
 - The workspace header exposes one **Export** control rather than one button
   per extension.
-- The export dialog offers PDF, LaTeX project ZIP, composed Markdown, cited
-  BibTeX, and archival source ZIP.
+- The export dialog presents PDF, LaTeX project ZIP, composed Markdown, and the
+  archival source ZIP as primary formats. Cited BibTeX remains available as a
+  bibliography file under a collapsed **Interoperability files** section.
 - A live word-count badge opens the same dialog. Statistics show the composed
   total plus per-file and per-heading counts.
 - Revision comparison reports composed line changes and the before, after, and

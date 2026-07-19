@@ -551,7 +551,6 @@ interface Elements {
   projectEvidence: HTMLDetailsElement;
   projectEvidenceCount: HTMLElement;
   pdfList: HTMLElement;
-  bibliographyUpload: HTMLInputElement;
   knowledgeSearchForm: HTMLFormElement;
   knowledgeSearchInput: HTMLInputElement;
   knowledgeSearchResults: HTMLElement;
@@ -1209,7 +1208,6 @@ class WorkspaceApp {
       this.#flushPendingUpdates();
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
-    this.#elements.bibliographyUpload.addEventListener("change", () => void this.#importBibliography());
     this.#elements.knowledgeSearchForm.addEventListener("submit", (event) => void this.#searchKnowledge(event));
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
     this.#elements.libraryHighlightForm.addEventListener("submit", (event) => void this.#saveLibraryHighlight(event));
@@ -7721,22 +7719,6 @@ class WorkspaceApp {
     this.#showToast("PDF imported without modifying the source file.");
   }
 
-  async #importBibliography(): Promise<void> {
-    const file = this.#elements.bibliographyUpload.files?.[0];
-    if (!file) return;
-    this.#showToast(`Importing ${file.name}…`);
-    try {
-      const response = await jsonFetch(`${apiBase}/bibliography/import`, { bibtex: await file.text() });
-      await expectOk(response);
-      await this.#resourceRefresh.request();
-      this.#showToast("References merged by citation key.");
-    } catch (error) {
-      this.#showToast(error instanceof Error ? error.message : "Could not import the BibTeX file.");
-    } finally {
-      this.#elements.bibliographyUpload.value = "";
-    }
-  }
-
   async #enrichPublication(publicationId: string): Promise<void> {
     this.#showToast("Looking up DOI metadata from Crossref…");
     const response = await fetch(`${apiBase}/publications/${publicationId}/enrich`, {
@@ -10315,7 +10297,6 @@ function collectElements(): Elements {
     projectEvidence: requiredElement("project-evidence", HTMLDetailsElement),
     projectEvidenceCount: requiredElement("project-evidence-count", HTMLElement),
     pdfList: requiredElement("pdf-list", HTMLElement),
-    bibliographyUpload: requiredElement("bibliography-upload", HTMLInputElement),
     knowledgeSearchForm: requiredElement("knowledge-search-form", HTMLFormElement),
     knowledgeSearchInput: requiredElement("knowledge-search-input", HTMLInputElement),
     knowledgeSearchResults: requiredElement("knowledge-search-results", HTMLElement),

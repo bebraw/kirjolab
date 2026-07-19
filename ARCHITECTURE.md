@@ -51,7 +51,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   unsupported imported figures.
 - Treat portable project Markdown and stable shared-library records as the
   canonical authored artifacts. Keep BibTeX as bounded derived interchange and
-  export, not a second project-local metadata authority.
+  export, not a second project-local metadata authority or an ordinary project
+  editing surface.
 - Preserve standalone `::: comment` blocks in canonical project Markdown while
   treating their contents as inert in composition, semantic analysis, preview,
   path rewrites, statistics, and publication outputs. Keep attributed

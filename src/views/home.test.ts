@@ -60,9 +60,10 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="preview-file-context"');
     expect(html).toContain('id="authoring-context-resizer" role="separator"');
     expect(html).toContain("Annotate this paper");
-    expect(html).toContain("Import BibTeX");
+    expect(html).toContain("Import reference file");
+    expect(html).toContain("BibTeX (.bib)");
     expect(html).toContain('id="pdf-upload" type="file" accept="application/pdf" aria-label="Upload project PDF"');
-    expect(html).toContain('aria-label="Import project BibTeX"');
+    expect(html).not.toContain('aria-label="Import project BibTeX"');
     expect(html).toContain('id="open-citation-network"');
     expect(html).toContain('id="citation-network" aria-labelledby="citation-network-heading"');
     expect(html).toContain('id="filter-project-citations" type="button" aria-pressed="false"');
@@ -116,7 +117,7 @@ describe("renderHomePage", () => {
     expect(html).not.toContain('id="project-file-count"');
     expect(html).not.toContain("Files · A–Z");
     expect(html).not.toContain("Project files</p>");
-    expect(html).toContain("<summary><span>Bibliography</span></summary>");
+    expect(html).not.toContain("<summary><span>Bibliography</span></summary>");
     expect(html).toContain('class="count-badge rail-mode-count" id="manuscript-comment-count"');
     expect(html).toContain('id="comments-rail-panel" role="tabpanel"');
     expect(html).toContain('id="guide-rail-panel" role="tabpanel"');
@@ -127,8 +128,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="download-reviewer-response" type="button" disabled>Export letter</button>');
     expect(html).toContain('id="manuscript-comment-form"');
     expect(html).not.toContain('id="manuscript-comments"');
-    expect(html).toContain('id="derived-project-bibliography"');
-    expect(html).toContain('class="bibliography-editor rail-bibliography-editor" id="bibliography-editor"');
+    expect(html).not.toContain('id="derived-project-bibliography"');
+    expect(html).toContain('id="bibliography-editor" hidden aria-hidden="true" readonly');
     expect(html).toContain('class="button-secondary hidden" id="open-source-citation"');
     expect(html).toContain('class="editor-toolbar ui-toolbar"');
     expect(html.match(/class="editor-toolbar-group"/gu)).toHaveLength(2);

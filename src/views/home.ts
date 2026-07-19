@@ -204,14 +204,7 @@ export function renderHomePage(
           </div>
           <div class="mt-4 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
           <input class="sr-only" id="project-image-upload" type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml">
-          <details class="rail-collection mt-4" id="derived-project-bibliography">
-            <summary><span>Bibliography</span></summary>
-            <div class="pb-4">
-              <p class="mb-3 text-xs leading-5 text-app-text-soft">Generated BibTeX from project references. Read only.</p>
-              <label class="sr-only" for="bibliography-editor">Derived project BibTeX</label>
-              <textarea class="bibliography-editor rail-bibliography-editor" id="bibliography-editor" spellcheck="false" readonly></textarea>
-            </div>
-          </details>
+          <textarea id="bibliography-editor" hidden aria-hidden="true" readonly></textarea>
         </section>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail" hidden>
@@ -238,7 +231,6 @@ export function renderHomePage(
             </details>
           </div>
           <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf" aria-label="Upload project PDF">
-          <input class="sr-only" id="bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain" aria-label="Import project BibTeX">
         </section>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="comments-rail-panel" role="tabpanel" aria-labelledby="show-comments-rail" hidden>
@@ -424,8 +416,9 @@ export function renderHomePage(
                     <button class="button-primary justify-center" type="submit">Add URL</button>
                   </form>
                   <div class="library-menu-divider"></div>
-                  <label class="library-menu-action" title="Import references from a BibTeX file"><span>Import BibTeX</span><input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
-                  <label class="library-menu-action" title="Import references from a CSL JSON file"><span>Import CSL JSON</span><input class="sr-only" id="library-csl-upload" type="file" accept=".json,application/json"></label>
+                  <p class="eyebrow px-3 pt-2">Import reference file</p>
+                  <label class="library-menu-action" title="Import references from a BibTeX file"><span><strong>Bibliography file</strong><small>BibTeX (.bib)</small></span><input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
+                  <label class="library-menu-action" title="Import references from a CSL JSON file"><span><strong>Reference data file</strong><small>CSL JSON (.json)</small></span><input class="sr-only" id="library-csl-upload" type="file" accept=".json,application/json"></label>
                 </div>
               </details>
             </header>
@@ -822,9 +815,14 @@ export function renderHomePage(
           <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/document.pdf"><span class="eyebrow">Ready to share</span><strong class="mt-2 block font-sans">PDF</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Formatted document</span></a>
           <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/latex.zip"><span class="eyebrow">Publisher</span><strong class="mt-2 block font-sans">LaTeX project</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Source and bibliography</span></a>
           <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/document.md"><span class="eyebrow">Plain text</span><strong class="mt-2 block font-sans">Markdown</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Composed manuscript</span></a>
-          <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/bibliography.bib"><span class="eyebrow">References</span><strong class="mt-2 block font-sans">BibTeX</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Cited sources</span></a>
           <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/source.zip"><span class="eyebrow">Archive</span><strong class="mt-2 block font-sans">Source bundle</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">Files and evidence</span></a>
         </div>
+        <details class="rail-collection mt-5">
+          <summary><span>Interoperability files</span></summary>
+          <div class="pb-4 pt-3">
+            <a class="resource-card block" href="/api/workspaces/${escapedWorkspaceId}/export/bibliography.bib"><span class="eyebrow">Cited references</span><strong class="mt-2 block font-sans">Bibliography file</strong><span class="mt-1 block text-xs leading-5 text-app-text-soft">BibTeX (.bib)</span></a>
+          </div>
+        </details>
         <section class="mt-6 border-t border-app-line pt-5">
           <div class="flex items-center justify-between gap-3"><p class="eyebrow">Publication statistics</p><a class="font-sans text-xs font-semibold text-app-accent" href="/api/workspaces/${escapedWorkspaceId}/export/statistics.json">Download JSON</a></div>
           <div class="mt-3" id="export-statistics" aria-live="polite"><div class="empty-state">Loading composed word counts…</div></div>
