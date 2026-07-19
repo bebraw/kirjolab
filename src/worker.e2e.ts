@@ -4604,6 +4604,134 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   expect(await bibliography.text()).toContain("@article{merton1942");
 });
 
+test("keeps protocol criteria stable through final review inclusion", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Stable review decisions");
+  const api = `/api/workspaces/${workspaceId}`;
+
+  await page.goto(`/review/${workspaceId}`);
+  await expect(page.locator("#review-protocol-status")).toContainText("Protocol revision");
+  await page.locator("#review-objective").fill("Establish whether explicit workflow gates improve evidence review traceability.");
+  await page.locator("#review-questions").fill("How do explicit workflow gates affect traceability?");
+  await page.locator("#review-concepts").fill("Workflow :: workflow gate; staged review\nOutcome :: traceability; provenance");
+  await page.locator("#review-sources").fill("Evidence index | https://evidence.example | generic | all-fields | manual-search | formal |");
+  await page.locator("#review-inclusion-criteria").fill("Reports an empirical review workflow | title-abstract; full-text");
+  await page.locator("#review-exclusion-criteria").fill("Does not report review outcomes | title-abstract; full-text");
+  await page.locator("#review-extraction-fields").fill("Finding | text | | RQ1 | required | single |");
+  await page.getByRole("button", { name: "Save protocol" }).click();
+  await expect(page.locator("#review-protocol-status")).toHaveText("Protocol saved.");
+
+  const draftValue: unknown = await (await page.request.get(`${api}/review-study`)).json();
+  if (!isRecord(draftValue) || !isRecord(draftValue.protocol) || !Array.isArray(draftValue.protocol.eligibilityCriteria)) {
+    throw new Error("Expected saved eligibility criteria");
+  }
+  const draftCriteria = new Map(
+    draftValue.protocol.eligibilityCriteria.map((criterion) => {
+      if (!isRecord(criterion) || typeof criterion.id !== "string" || typeof criterion.text !== "string") {
+        throw new Error("Expected a structured eligibility criterion");
+      }
+      return [criterion.text, criterion.id] as const;
+    }),
+  );
+  const inclusionCriterionId = draftCriteria.get("Reports an empirical review workflow");
+  if (!inclusionCriterionId) throw new Error("Expected the inclusion criterion id");
+
+  await page.locator("#freeze-review-protocol").click();
+  await expect(page.locator("#review-protocol-status")).toHaveText("Protocol frozen. Future changes will be recorded as amendments.");
+  await expect(page.locator("#review-protocol-state")).toContainText("Frozen");
+  await expect(page.locator("#review-step-search")).toBeEnabled();
+
+  const frozenValue: unknown = await (await page.request.get(`${api}/review-study`)).json();
+  if (!isRecord(frozenValue) || !isRecord(frozenValue.protocol) || !Array.isArray(frozenValue.protocol.eligibilityCriteria)) {
+    throw new Error("Expected frozen eligibility criteria");
+  }
+  const frozenCriteria = new Map(
+    frozenValue.protocol.eligibilityCriteria.map((criterion) => {
+      if (!isRecord(criterion) || typeof criterion.id !== "string" || typeof criterion.text !== "string") {
+        throw new Error("Expected a frozen structured criterion");
+      }
+      return [criterion.text, criterion.id] as const;
+    }),
+  );
+  expect(frozenCriteria).toEqual(draftCriteria);
+
+  await page.locator("#review-step-search").click();
+  await expect(page.locator("#review-search-content")).toBeVisible();
+  await page.locator("#review-reported-result-count").fill("1");
+  await page.locator("#review-search-bibtex").fill(`@article{workflow2026,
+  title = {Explicit workflow gates preserve review traceability},
+  author = {Doe, Jane},
+  year = {2026},
+  journal = {Journal of Evidence Workflows},
+  abstract = {An empirical study of staged screening and auditable evidence review.},
+  doi = {10.5555/workflow.2026}
+}`);
+  await page.locator("#preview-review-import").click();
+  await expect(page.locator("#review-import-status")).toContainText("Preview ready");
+  await expect(page.locator("#confirm-review-import")).toBeEnabled();
+  await page.locator("#confirm-review-import").click();
+  await expect(page.locator("#review-import-status")).toHaveText("Immutable search run recorded.");
+  await expect(page.locator("#review-search-counts")).toContainText("1 unique");
+  await expect(page.locator("#review-step-screen")).toBeEnabled();
+
+  await page.locator("#review-step-screen").click();
+  const recordCard = page.locator("#review-screen-list .review-screen-card").filter({
+    hasText: "Explicit workflow gates preserve review traceability",
+  });
+  await expect(recordCard).toBeVisible();
+  await expect(page.locator("#review-step-appraise")).toBeDisabled();
+  await expect(page.locator("#review-step-extract")).toBeDisabled();
+
+  let decisionForm = recordCard.locator("form.review-screen-form").first();
+  await decisionForm.locator('select[name="decision"]').selectOption("include");
+  await decisionForm.locator('select[name="criterionId"]').selectOption(inclusionCriterionId);
+  await decisionForm.locator('input[name="reason"]').fill("The title and abstract describe an empirical workflow study.");
+  await decisionForm.getByRole("button", { name: "Record decision" }).click();
+  await expect(page.locator("#review-screen-status")).toHaveText("Screening decision recorded.");
+  await expect(recordCard.locator(".count-badge")).toHaveText("include");
+
+  await page.locator("#review-screen-stage").selectOption("full-text");
+  await expect(recordCard).toBeVisible();
+  decisionForm = recordCard.locator("form.review-screen-form").first();
+  await decisionForm.locator('select[name="decision"]').selectOption("include");
+  await decisionForm.locator('select[name="criterionId"]').selectOption(inclusionCriterionId);
+  await decisionForm.locator('input[name="reason"]').fill("The full text reports the staged review outcomes.");
+  await decisionForm.getByRole("button", { name: "Record decision" }).click();
+  await expect(page.locator("#review-screen-status")).toHaveText("Screening decision recorded.");
+  await expect(page.locator("#review-step-appraise")).toBeDisabled();
+  await expect(page.locator("#review-step-extract")).toBeDisabled();
+
+  const finalForm = recordCard.locator("form.review-screen-form").filter({ hasText: "Final inclusion" });
+  await finalForm.locator('select[name="outcome"]').selectOption("include");
+  await finalForm.locator('input[name="reason"]').fill("The eligible study enters the synthesis corpus.");
+  await finalForm.getByRole("button", { name: "Record final inclusion" }).click();
+  await expect(page.locator("#review-screen-status")).toHaveText("Final inclusion recorded separately from full-text eligibility.");
+  await expect(page.locator("#review-step-appraise")).toBeEnabled();
+  await expect(page.locator("#review-step-extract")).toBeEnabled();
+
+  const screeningValue: unknown = await (await page.request.get(`${api}/review-study/screening`)).json();
+  if (!isRecord(screeningValue) || !Array.isArray(screeningValue.records) || !isRecord(screeningValue.records[0])) {
+    throw new Error("Expected the screened review record");
+  }
+  const screenedRecord = screeningValue.records[0];
+  if (!isRecord(screenedRecord.titleAbstract) || !isRecord(screenedRecord.fullText) || !isRecord(screenedRecord.finalInclusion)) {
+    throw new Error("Expected staged and final screening state");
+  }
+  expect(screenedRecord.titleAbstract.decisions).toEqual(
+    expect.arrayContaining([expect.objectContaining({ criterionId: inclusionCriterionId })]),
+  );
+  expect(screenedRecord.fullText.decisions).toEqual(
+    expect.arrayContaining([expect.objectContaining({ criterionId: inclusionCriterionId })]),
+  );
+  expect(screenedRecord.finalInclusion).toMatchObject({ outcome: "include" });
+
+  await page.locator("#review-step-appraise").click();
+  await expect(page.locator("#review-appraise-content")).toBeVisible();
+  await expect(page.locator("#review-appraise-list")).toContainText("Explicit workflow gates preserve review traceability");
+  await page.locator("#review-step-extract").click();
+  await expect(page.locator("#review-extract-content")).toBeVisible();
+  await expect(page.locator("#review-extract-list")).toContainText("Finding");
+});
+
 test("serves stable health and browser assets", async ({ request }) => {
   const response = await request.get("/api/health");
   expect(response.ok()).toBe(true);
