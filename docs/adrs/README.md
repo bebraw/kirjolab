@@ -28,10 +28,7 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                                  | Status   | Summary                                                                              |
-| -------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ |
-| [ADR-147](./accepted/ADR-147-derive-review-outputs-from-evidence.md) | Accepted | Derive review outputs and portable packages from pinned evidence.                    |
-| [ADR-146](./accepted/ADR-146-coordinate-project-review-studies.md)   | Accepted | Coordinate protocol-driven SLR and MLR state through a project-associated authority. |
+No ADRs are currently accepted but unimplemented.
 
 ## Implemented ADRs
 
@@ -39,6 +36,8 @@ ADRs are grouped by lifecycle status:
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
 | [ADR-150](./implemented/ADR-150-establish-task-oriented-browser-routes.md)                | Implemented          | Make the dashboard, Library, editor, and project-associated review distinct browser destinations.             |
 | [ADR-148](./implemented/ADR-148-prefer-native-local-ci.md)                                | Implemented          | Run routine local readiness natively and reserve Agent CI containers for explicit parity checks.              |
+| [ADR-147](./implemented/ADR-147-derive-review-outputs-from-evidence.md)                   | Implemented          | Derive review outputs and portable packages from pinned evidence.                                             |
+| [ADR-146](./implemented/ADR-146-coordinate-project-review-studies.md)                     | Implemented          | Coordinate protocol-driven SLR and MLR state through a project-associated authority.                          |
 | [ADR-001](./implemented/ADR-001-use-architecture-decision-records.md)                     | Accepted             | Use ADRs to capture significant architectural decisions in this repo.                                         |
 | [ADR-002](./implemented/ADR-002-make-architectural-decisions-explicit.md)                 | Accepted             | Require explicit ADR updates for lasting architectural decisions.                                             |
 | [ADR-003](./implemented/ADR-003-require-spec-updates-and-high-coverage.md)                | Accepted             | Treat completed feature work as spec work and gate `src/` code on high unit coverage.                         |

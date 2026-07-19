@@ -1,6 +1,6 @@
 # ADR-147: Derive Review Outputs from Evidence
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-17
 
