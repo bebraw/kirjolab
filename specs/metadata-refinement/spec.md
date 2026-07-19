@@ -42,7 +42,8 @@ enough to overwrite canonical metadata without review.
   fields record `openalex`, `crossref`, `datacite`, or `semantic-scholar`
   provenance.
 - UUIDs, PDF bytes, unselected values, and finalized reference keys remain
-  unchanged. Reviewed values may improve a private-only provisional key.
+  unchanged. Reviewed values may improve a PDF-origin key before or after
+  project linking, with matching generated aliases rewritten safely.
 
 ### API Contract
 

@@ -20,7 +20,8 @@ should be easy to review and reuse later without becoming canonical silently.
 - The library verifies the artifact/reference relationship, bounds every value,
   updates only selected fields, and records `pdf-metadata` provenance for those fields.
 - Reference UUID, unselected metadata, and PDF bytes remain unchanged. Reviewed
-  values may improve a private-only provisional key; finalized keys remain unchanged.
+  values may improve a PDF-origin key before or after project linking. A linked
+  generated alias follows the change unless it was customized or would collide.
 
 ### API Contract
 

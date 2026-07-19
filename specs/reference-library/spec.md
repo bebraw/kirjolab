@@ -20,10 +20,11 @@ memory and makes citation aliases compete with stable source identity.
 - Each source also has one unique author-facing reference key. New
   keys prefer normalized first-author surname plus publication year, add a
   topical suffix for collisions, and use explicit `source`/`undated` fallbacks
-  when intake metadata is sparse. A new PDF key remains provisional while the
-  source is private-only, may improve with reviewed metadata, and becomes
-  permanently final on its first project link. Imported, captured, migrated,
-  and already finalized keys remain stable. UUIDs remain the relational identity.
+  when intake metadata is sparse. A PDF-origin key remains refinable after
+  project linking and may improve with manual or reviewed metadata. Matching
+  generated project aliases and canonical citations follow the refinement;
+  custom or colliding aliases remain unchanged. Imported and non-PDF keys
+  become final when exposed to a project. UUIDs remain the relational identity.
 - Type-specific required fields follow common BibTeX entry types. DOI is not
   universally required. Every editable metadata field stores method, capture
   time, and actor provenance.
@@ -58,8 +59,8 @@ memory and makes citation aliases compete with stable source identity.
   provider order. Records are grouped by normalized DOI before the researcher
   chooses one source per field. Acceptance refetches and verifies every selected
   provider, then commits the mixed fields once with provider-specific
-  provenance. This may improve a private-only provisional key but never changes
-  a finalized key.
+  provenance. This may improve a PDF-origin refinable key before or after it is
+  linked to a project.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - Archiving a reference requires explicit confirmation that names the target
@@ -207,6 +208,10 @@ memory and makes citation aliases compete with stable source identity.
 - `POST /api/workspaces/{id}/references` links a source snapshot and local
   alias. Patch renames the alias; sync refreshes metadata; delete unlinks only
   after its citations are removed.
+- When PDF metadata changes its generated key, each registered project rewrites
+  that alias only if it still exactly matches the previous generated key and
+  the replacement is locally available. The rewrite and bibliography update
+  share one project revision; custom and colliding aliases remain stable.
 - Workspace reads refresh changed linked metadata from the project owner's
   private library while exposing only the linked bibliographic record.
 
@@ -225,9 +230,9 @@ memory and makes citation aliases compete with stable source identity.
 
 - Do not make citation keys, DOI values, titles, or filenames stable source
   identities.
-- Do not mutate a finalized reference key when metadata changes or a project
-  unlinks it; it is an author-facing handle over the UUID, not a replacement
-  relational identity.
+- Do not mutate imported or non-PDF finalized keys. PDF-origin generated keys
+  may refine because the UUID, not the author-facing key, is the relational
+  identity.
 - Do not copy the full private record into a project when it is merely cited.
 - Do not keep an editable project bibliography as a second authority.
 - Do not give the derived project bibliography a primary editor, Library tab,
@@ -253,7 +258,8 @@ memory and makes citation aliases compete with stable source identity.
   derived bibliography, cited-only filtering, alias rewrites, and selective
   provider-specific provenance.
 - Key tests cover surname/year generation, sparse fallbacks, topical and numeric
-  collision suffixes, provisional improvement, and permanent first-link finalization.
+  collision suffixes, linked PDF refinement, generated-alias rewrites, and
+  preservation of custom aliases.
 - Browser coverage opens a private artifact, saves and revisits a private
   page-and-quote highlight, restores reading state, keeps project evidence
   controls unavailable, and proves that capture does not mutate the workspace

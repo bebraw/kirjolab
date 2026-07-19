@@ -158,7 +158,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     });
   });
 
-  it("improves provisional PDF keys until their first project link finalizes them", async () => {
+  it("keeps PDF-origin keys refinable after project linking", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`pdf-drafts-${crypto.randomUUID()}`);
     const artifact = (id: string): LibraryPdfArtifact => ({
       id,
@@ -330,17 +330,17 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       ).toThrow("invalid");
     });
     await library.registerProjectDependency("project-a", first.reference.id);
-    expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("final");
-    const finalized = await library.updateReferenceMetadata(
+    expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("provisional");
+    const linkedRefinement = await library.updateReferenceMetadata(
       first.reference.id,
       { ...dataCiteEnriched, year: "2027" },
       "owner@example.test",
     );
-    expect(finalized.referenceKey).toBe("smith2027");
+    expect(linkedRefinement.referenceKey).toBe("smith2027");
     await library.unregisterProjectDependency("project-a", first.reference.id);
-    const unlinked = await library.updateReferenceMetadata(first.reference.id, { ...finalized, year: "2028" }, "owner@example.test");
-    expect(unlinked.referenceKey).toBe("smith2027");
-    expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("final");
+    const unlinked = await library.updateReferenceMetadata(first.reference.id, { ...linkedRefinement, year: "2028" }, "owner@example.test");
+    expect(unlinked.referenceKey).toBe("smith2028");
+    expect((await library.getSnapshot()).referenceKeyStates[first.reference.id]).toBe("provisional");
     await runInDurableObject(library, (instance: ReferenceLibrary) => {
       expect(() =>
         instance.applyReviewedCrossrefMetadata(
@@ -530,6 +530,11 @@ describe("ReferenceLibrary in the Workers runtime", () => {
           .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
           .toArray(),
       ).toContainEqual({ version: 7, name: "finalize-provisional-reference-keys" });
+      expect(
+        state.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
+          .toArray(),
+      ).toContainEqual({ version: 10, name: "refine-linked-pdf-reference-keys" });
       expect(() => instance.createCitationAssertions([], "owner")).toThrow("between 1 and 128");
       expect(() => instance.findReferencesByDois(Array.from({ length: 129 }, () => "10.1000/x"))).toThrow("Too many");
       expect(() => instance.reviewCitationAssertion(crypto.randomUUID(), { decision: "confirmed", note: "" }, "owner")).toThrow(

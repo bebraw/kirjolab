@@ -485,6 +485,22 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 10,
+    name: "refine-linked-pdf-reference-keys",
+    apply(sql): undefined {
+      sql.exec(`
+        UPDATE library_references
+        SET reference_key_state = 'provisional'
+        WHERE reference_key_state = 'final'
+          AND reference_key LIKE 'sourceundated%' COLLATE NOCASE
+          AND EXISTS (
+            SELECT 1 FROM artifacts WHERE artifacts.reference_id = library_references.id
+          );
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -1434,7 +1450,12 @@ export class ReferenceLibrary extends DurableObject<Env> {
   registerProjectDependency(projectId: string, referenceId: string): void {
     this.#reference(referenceId);
     this.ctx.storage.transactionSync(() => {
-      this.ctx.storage.sql.exec("UPDATE library_references SET reference_key_state = 'final' WHERE id = ?", referenceId);
+      this.ctx.storage.sql.exec(
+        `UPDATE library_references SET reference_key_state = 'final'
+         WHERE id = ? AND reference_key_state = 'provisional'
+           AND NOT EXISTS (SELECT 1 FROM artifacts WHERE artifacts.reference_id = library_references.id)`,
+        referenceId,
+      );
       this.ctx.storage.sql.exec(
         "INSERT OR IGNORE INTO project_dependencies (project_id, reference_id, linked_at) VALUES (?, ?, ?)",
         projectId,

@@ -1515,6 +1515,27 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.getSnapshot(workspaceId);
   }
 
+  refineGeneratedProjectReferenceAlias(
+    workspaceId: string,
+    referenceId: string,
+    previousAliasValue: string,
+    nextAliasValue: string,
+  ): boolean {
+    const previousAlias = previousAliasValue.trim();
+    const nextAlias = nextAliasValue.trim();
+    if (!isValidCitationKey(previousAlias) || !isValidCitationKey(nextAlias)) throw new Error("Citation alias is invalid");
+    const rows = this.#projectReferenceRows();
+    const row = rows.find((item) => item.reference_id === referenceId);
+    if (!row || row.citation_alias !== previousAlias) return false;
+    if (
+      rows.some((item) => item.reference_id !== referenceId && item.citation_alias.toLocaleLowerCase() === nextAlias.toLocaleLowerCase())
+    ) {
+      return false;
+    }
+    this.renameProjectReferenceAlias(workspaceId, referenceId, nextAlias);
+    return true;
+  }
+
   unlinkProjectReference(workspaceId: string, referenceId: string): ProjectReferenceUnlinkResult {
     const rows = this.#projectReferenceRows();
     const row = rows.find((item) => item.reference_id === referenceId);

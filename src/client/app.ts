@@ -4519,7 +4519,7 @@ class WorkspaceApp {
       reference.year,
       bibTeXDisplayText(reference.venue),
       reference.referenceKey,
-      keyState === "provisional" ? "provisional" : "",
+      keyState === "provisional" ? "refinable key" : "",
       reference.type,
       reference.archivedAt ? "archived" : "",
     ]

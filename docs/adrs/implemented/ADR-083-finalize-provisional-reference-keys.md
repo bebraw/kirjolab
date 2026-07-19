@@ -1,6 +1,6 @@
 # ADR-083: Finalize Provisional Reference Keys
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-154](./ADR-154-refine-linked-pdf-reference-keys.md)
 
 **Date:** 2026-07-13
 
@@ -38,6 +38,9 @@ library snapshot; it is not copied into project bibliographic snapshots.
 This decision partially supersedes only the key-immutability clauses in
 ADR-076, ADR-079, and ADR-080. Their other intake and review boundaries remain
 in force.
+
+ADR-154 later supersedes the first-project-link finalization rule for
+PDF-origin references while retaining it for imported and non-PDF sources.
 
 ## Consequences
 

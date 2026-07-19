@@ -560,6 +560,33 @@ describe("reference library API", () => {
     expect(missing.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("propagates a refined generated key to matching project aliases", async () => {
+    const fixture = apiFixture();
+    fixture.library.updateReferenceMetadata.mockResolvedValueOnce({ ...reference, referenceKey: "doe2026", updatedAt: now });
+    const response = await handleReferenceLibraryApi(
+      jsonRequest(
+        `/api/library/references/${reference.id}`,
+        {
+          type: "article",
+          title: "Edited",
+          authors: ["Doe, Jane"],
+          year: "2026",
+          venue: "Journal",
+          doi: "",
+          url: "",
+          abstract: "",
+        },
+        "PATCH",
+      ),
+      fixture.env,
+      identity,
+    );
+
+    expect(response.status).toBe(200);
+    expect(fixture.getDocumentRoomByName).toHaveBeenCalledWith("project");
+    expect(fixture.refineGeneratedProjectReferenceAlias).toHaveBeenCalledWith("project", reference.id, "guide", "doe2026");
+  });
+
   it("streams only an owner-library PDF inline without cacheable access", async () => {
     const bucket = new MemoryR2Bucket();
     await bucket.put("libraries/owner/guide.pdf", new Uint8Array([37, 80, 68, 70]), {
@@ -1448,11 +1475,16 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     getCitationNetwork: vi.fn(async () => citationNetwork),
   };
   const getByName = vi.fn(() => library);
+  const refineGeneratedProjectReferenceAlias = vi.fn(async () => true);
+  const getDocumentRoomByName = vi.fn(() => ({ refineGeneratedProjectReferenceAlias }));
   return {
     library,
     getByName,
+    refineGeneratedProjectReferenceAlias,
+    getDocumentRoomByName,
     env: {
       REFERENCE_LIBRARIES: { getByName },
+      DOCUMENT_ROOMS: { getByName: getDocumentRoomByName },
       PAPERS: bucket,
       CROSSREF_MAILTO: "",
     },

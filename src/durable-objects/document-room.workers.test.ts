@@ -614,15 +614,23 @@ describe("DocumentRoom in the Workers runtime", () => {
     expect(linked.projectReferences[0]?.snapshot).not.toHaveProperty("abstract");
 
     await applyAuthoredSource(stub, `${initial.source}\n\n:cite[doe2026]\n`);
+    expect(await stub.refineGeneratedProjectReferenceAlias(workspaceId, reference.id, "doe2026", "doe2027")).toBe(true);
+    expect((await stub.getSnapshot(workspaceId)).source).toContain(":cite[doe2027]");
+    expect((await stub.getSnapshot(workspaceId)).bibliography).toContain("@article{doe2027");
     const renamed = await stub.renameProjectReferenceAlias(workspaceId, reference.id, "sharedMemory");
     expect(renamed.source).toContain(":cite[sharedMemory]");
     expect(renamed.bibliography).toContain("@article{sharedMemory");
+    expect(await stub.refineGeneratedProjectReferenceAlias(workspaceId, reference.id, "doe2027", "doe2028")).toBe(false);
+    const blockingReference = { ...reference, id: crypto.randomUUID(), referenceKey: "blocked" };
+    await stub.linkProjectReference(workspaceId, blockingReference, "blocked");
+    expect(await stub.refineGeneratedProjectReferenceAlias(workspaceId, reference.id, "sharedMemory", "blocked")).toBe(false);
     expect(await stub.unlinkProjectReference(workspaceId, reference.id)).toEqual({
       ok: false,
       code: "citation-alias-in-use",
       error: "Remove citations using this alias before unlinking the reference",
     });
     await applyAuthoredSource(stub, initial.source);
+    operationValue(await stub.unlinkProjectReference(workspaceId, blockingReference.id));
     expect(operationValue(await stub.unlinkProjectReference(workspaceId, reference.id)).projectReferences).toEqual([]);
   });
 

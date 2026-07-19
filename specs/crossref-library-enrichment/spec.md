@@ -21,7 +21,8 @@ authoritative metadata provider without silently overwriting reviewed fields.
 - The owner-keyed library authority verifies DOI stability and uniqueness, then
   applies only selected fields with `crossref` provenance.
 - UUID, PDF artifacts, and unselected values and provenance remain unchanged.
-  Reviewed values may improve a private-only provisional key; finalized keys remain unchanged.
+  Reviewed values may improve a PDF-origin key before or after project linking.
+  Matching generated project aliases follow the change; custom aliases remain unchanged.
 
 ### API Contract
 
@@ -65,7 +66,7 @@ authoritative metadata provider without silently overwriting reviewed fields.
 - Given: a library record has a reviewed DOI and partial metadata
 - When: the researcher previews Crossref and accepts selected fields
 - Then: only those values change with Crossref provenance; a private-only
-  provisional key may improve, while a finalized key remains stable
+  PDF-origin key may improve, while imported and non-PDF finalized keys remain stable
 
 **Scenario: Crossref metadata changes after preview**
 

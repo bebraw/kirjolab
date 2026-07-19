@@ -61,6 +61,7 @@ import {
 } from "../domain/library-interchange";
 import { renderAnnotatedPdf } from "./annotated-pdf";
 import { downloadR2Object } from "./r2-download";
+import { workspaceStorageKey } from "./reviews";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumWebRawBytes = 2 * 1024 * 1024;
@@ -159,6 +160,16 @@ interface ReferenceLibraryApi {
 
 interface ReferenceLibraryApiEnv {
   readonly REFERENCE_LIBRARIES: { getByName(name: string): ReferenceLibraryApi };
+  readonly DOCUMENT_ROOMS?: {
+    getByName(name: string): {
+      refineGeneratedProjectReferenceAlias(
+        workspaceId: string,
+        referenceId: string,
+        previousAlias: string,
+        nextAlias: string,
+      ): Promise<boolean>;
+    };
+  };
   readonly PAPERS: Pick<R2Bucket, "put" | "get" | "delete">;
   readonly CROSSREF_MAILTO: string;
   readonly OPENALEX_API_KEY?: string;
@@ -342,7 +353,12 @@ export async function handleReferenceLibraryApi(
     if (action === "pdf-metadata" && request.method === "POST") {
       const body: unknown = await request.json();
       if (!isReviewedPdfMetadataInput(body)) return jsonError("Invalid reviewed PDF metadata", 400);
-      return Response.json(await library.applyReviewedPdfMetadata(referenceId, body.artifactId, body.fields, identity.email), noStore());
+      return Response.json(
+        await mutateReferenceMetadata(referenceId, identity, env, library, () =>
+          library.applyReviewedPdfMetadata(referenceId, body.artifactId, body.fields, identity.email),
+        ),
+        noStore(),
+      );
     }
     if (!action && request.method === "PATCH") {
       const body: unknown = await request.json();
@@ -362,20 +378,19 @@ export async function handleReferenceLibraryApi(
         body.abstract.length > 20_000
       )
         return jsonError("Invalid bibliographic metadata", 400);
+      const fields = {
+        type: body.type,
+        title: body.title,
+        authors: body.authors,
+        year: body.year,
+        venue: body.venue,
+        doi: body.doi,
+        url: body.url,
+        abstract: body.abstract,
+      };
       return Response.json(
-        await library.updateReferenceMetadata(
-          referenceId,
-          {
-            type: body.type,
-            title: body.title,
-            authors: body.authors,
-            year: body.year,
-            venue: body.venue,
-            doi: body.doi,
-            url: body.url,
-            abstract: body.abstract,
-          },
-          identity.email,
+        await mutateReferenceMetadata(referenceId, identity, env, library, () =>
+          library.updateReferenceMetadata(referenceId, fields, identity.email),
         ),
         noStore(),
       );
@@ -523,7 +538,9 @@ async function acceptCrossrefMetadata(
     return jsonError("Crossref metadata changed; review it again", 409);
   }
   return Response.json(
-    await library.applyReviewedCrossrefMetadata(referenceId, reference.doi, complete, body.fields, identity.email),
+    await mutateReferenceMetadata(referenceId, identity, env, library, () =>
+      library.applyReviewedCrossrefMetadata(referenceId, reference.doi, complete, body.fields, identity.email),
+    ),
     noStore(),
   );
 }
@@ -589,16 +606,17 @@ async function acceptMetadataRefinement(
     }
     selections.push({ provider: selection.provider, metadata, fields: selection.fields });
   }
-  const updated =
+  const updated = await mutateReferenceMetadata(referenceId, identity, env, library, () =>
     selections.length === 1 && !("selections" in body)
-      ? await library.applyReviewedProviderMetadata(
+      ? library.applyReviewedProviderMetadata(
           referenceId,
           selections[0]!.metadata,
           selections[0]!.fields,
           selections[0]!.provider,
           identity.email,
         )
-      : await library.applyReviewedProviderMetadataBatch(referenceId, selections, identity.email);
+      : library.applyReviewedProviderMetadataBatch(referenceId, selections, identity.email),
+  );
   return Response.json(updated, noStore());
 }
 
@@ -726,6 +744,26 @@ async function libraryReference(referenceId: string, library: ReferenceLibraryAp
   const reference = (await library.getReferences([referenceId]))[0];
   if (!reference) throw new Error("Reference not found");
   return reference;
+}
+
+async function mutateReferenceMetadata(
+  referenceId: string,
+  identity: AuthIdentity,
+  env: ReferenceLibraryApiEnv,
+  library: ReferenceLibraryApi,
+  mutate: () => Promise<BibliographicRecord>,
+): Promise<BibliographicRecord> {
+  const [previous, impact] = await Promise.all([libraryReference(referenceId, library), library.getDeletionImpact(referenceId)]);
+  const updated = await mutate();
+  if (updated.referenceKey === previous.referenceKey || !env.DOCUMENT_ROOMS) return updated;
+  await Promise.allSettled(
+    impact.projectIds.map((projectId) =>
+      env
+        .DOCUMENT_ROOMS!.getByName(workspaceStorageKey(identity, projectId))
+        .refineGeneratedProjectReferenceAlias(projectId, referenceId, previous.referenceKey, updated.referenceKey),
+    ),
+  );
+  return updated;
 }
 
 async function duplicateDoiResponse(reference: BibliographicRecord, library: ReferenceLibraryApi): Promise<Response | null> {
