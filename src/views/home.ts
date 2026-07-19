@@ -573,7 +573,7 @@ export function renderHomePage(
               <button class="button-secondary justify-center" id="open-paper" type="button" disabled>Open linked paper</button>
             </div>
             <form class="context-link-form" id="publication-pdf-link-form">
-              <label class="field-label" for="publication-pdf-link">Linked paper
+              <label class="field-label" for="publication-pdf-link">Connect a project PDF
                 <select class="field" id="publication-pdf-link" disabled><option value="">Import a PDF first</option></select>
               </label>
               <button class="button-secondary justify-center" type="submit" disabled>Connect paper</button>

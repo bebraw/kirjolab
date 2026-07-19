@@ -161,6 +161,12 @@ memory and makes citation aliases compete with stable source identity.
   those defaults: first add the bibliographic record, then explicitly review
   artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
   highlight retains a separate share or revoke action.
+- A project publication context resolves every authorized paper representation
+  for the stable reference identity. The owner sees attached private-library
+  PDFs without converting them into project resources; active artifact shares
+  appear to project members as read-only shared PDFs; legacy project-local PDFs
+  remain explicitly connectable and disconnectable. Labels distinguish these
+  scopes, and opening a private PDF never shares it implicitly.
 - In a project, each saved private text highlight exposes **Cite in manuscript**.
   The action uses the remembered manuscript caret, links only the bibliographic
   snapshot when the source is not yet in the project, and inserts the resulting
@@ -290,6 +296,9 @@ memory and makes citation aliases compete with stable source identity.
   without resubmitting successful PDFs.
 - Browser coverage advances the reader's project-use states explicitly and
   proves PDF and highlight sharing can be revoked independently.
+- Browser coverage proves a project-linked bibliographic reference exposes its
+  attached private-library PDF in publication context even when the project has
+  no project-local PDF or artifact share.
 - Shell and browser coverage prove `/library` starts from the owner-library API
   alone and retains PDF import, annotation, and annotated-export controls.
 

@@ -38,7 +38,7 @@ interface OpenPdfOptions {
   annotations: AnnotationResource[];
   page?: number;
   focusAnnotationId?: string;
-  mode?: "evidence" | "private-highlight";
+  mode?: "evidence" | "private-highlight" | "read-only";
   privateHighlights?: readonly LibraryHighlight[];
 }
 
@@ -58,7 +58,7 @@ export class PdfEvidenceViewer {
   #pageText = "";
   #focusedAnnotationId: string | undefined;
   #draftSelection: PdfSelectionCapture | null = null;
-  #mode: "evidence" | "private-highlight" = "evidence";
+  #mode: "evidence" | "private-highlight" | "read-only" = "evidence";
   #privateHighlightSelection = false;
   #selectedPrivateHighlightId: string | null = null;
   #zoom = 1;
@@ -329,7 +329,11 @@ export class PdfEvidenceViewer {
     for (const button of this.#elements.previousPages) button.disabled = this.#pageNumber === 1;
     for (const button of this.#elements.nextPages) button.disabled = this.#pageNumber === documentModel.numPages;
     this.#elements.status.textContent =
-      this.#mode === "private-highlight" ? "Private library PDF · select text to highlight" : "Select text to capture evidence";
+      this.#mode === "private-highlight"
+        ? "Private library PDF · select text to highlight"
+        : this.#mode === "read-only"
+          ? "Shared project PDF · read only"
+          : "Select text to capture evidence";
     this.#lifecycle.send({ type: "RENDERED", renderRequest });
     this.#onPageChange(this.#pageNumber);
   }
@@ -341,6 +345,7 @@ export class PdfEvidenceViewer {
   }
 
   #queueSelectionCapture(): void {
+    if (this.#mode === "read-only") return;
     window.clearTimeout(this.#selectionCaptureTimer);
     this.#selectionCaptureTimer = window.setTimeout(() => this.#captureSelection(), 80);
   }

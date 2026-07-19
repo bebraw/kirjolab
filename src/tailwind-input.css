@@ -2576,6 +2576,10 @@
     font: 0.68rem var(--font-sans);
   }
 
+  .context-pdf-panel[data-readonly-pdf="true"] .library-pdf-annotation-tools {
+    display: none;
+  }
+
   .library-pdf-page-controls,
   .library-pdf-annotation-tools {
     display: flex;

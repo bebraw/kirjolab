@@ -71,6 +71,7 @@ import {
   type MetadataRefinementCandidate,
   type MetadataRefinementPreview,
   type ReferenceLibrarySnapshot,
+  type ResearchShareSnapshot,
   type WebSnapshot,
   type WebSnapshotComparison,
 } from "../domain/reference-library";
@@ -265,6 +266,20 @@ interface LatexImportPreview {
       readonly diagnostics: readonly { readonly severity: "error" | "warning" | "info"; readonly message: string }[];
     };
   } | null;
+}
+
+type ArtifactResearchShare = Omit<ResearchShareSnapshot, "kind" | "content"> & {
+  readonly kind: "artifact";
+  readonly content: Extract<ResearchShareSnapshot["content"], { readonly kind: "artifact" }>;
+};
+
+type PublicationPaperOption =
+  | { readonly kind: "project"; readonly pdf: PdfResource; readonly linkId: string }
+  | { readonly kind: "library"; readonly artifact: LibraryPdfArtifact; readonly shared: boolean }
+  | { readonly kind: "shared"; readonly share: ArtifactResearchShare };
+
+function isArtifactResearchShare(share: ResearchShareSnapshot): share is ArtifactResearchShare {
+  return share.kind === "artifact" && share.content.kind === "artifact";
 }
 
 interface Elements {
@@ -1491,6 +1506,10 @@ class WorkspaceApp {
           if (!this.#librarySnapshot) await this.#refreshReferenceLibrary();
           const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === target.id);
           if (artifact) await this.#openLibraryPdf(artifact, route.page, false);
+          else {
+            const share = this.#sharedPdf(target.id);
+            if (share) await this.#openSharedPdf(share, route.page, false);
+          }
         }
       } catch (error) {
         this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
@@ -5506,7 +5525,12 @@ class WorkspaceApp {
     return {
       publicationIds: new Set(this.#snapshot?.publications.map((publication) => publication.id) ?? []),
       pdfIds: new Set(this.#snapshot?.pdfs.map((pdf) => pdf.id) ?? []),
-      libraryPdfIds: new Set(this.#librarySnapshot?.artifacts.map((artifact) => artifact.id) ?? []),
+      libraryPdfIds: new Set([
+        ...(this.#librarySnapshot?.artifacts.map((artifact) => artifact.id) ?? []),
+        ...(this.#snapshot?.researchShares
+          .filter((share) => share.revokedAt === null && isArtifactResearchShare(share))
+          .map((share) => share.resourceId) ?? []),
+      ]),
       candidateIds: new Set(this.#snapshot?.candidates.map((candidate) => candidate.id) ?? []),
     };
   }
@@ -6617,15 +6641,17 @@ class WorkspaceApp {
     this.#elements.contextAssistantPanel.hidden = activeKey !== RESEARCH_ASSISTANT_KEY;
     this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
     const activePdf = activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf";
-    const activeLibraryPdf = activeTab?.kind === "library-pdf";
+    const activeLibraryArtifact =
+      activeTab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id) : undefined;
+    const activeLibraryPdf = Boolean(activeLibraryArtifact);
+    const activeSharedPdf = activeTab?.kind === "library-pdf" && !activeLibraryArtifact && Boolean(this.#sharedPdf(activeTab.id));
     this.#elements.contextPdfPanel.hidden = !activePdf;
-    this.#elements.contextPdfPanel.dataset.libraryPdf = String(activeLibraryPdf);
-    this.#elements.annotationComposer.hidden = activeLibraryPdf;
+    this.#elements.contextPdfPanel.dataset.libraryPdf = String(activeTab?.kind === "library-pdf");
+    this.#elements.contextPdfPanel.dataset.readonlyPdf = String(activeSharedPdf);
+    this.#elements.annotationComposer.hidden = activeLibraryPdf || activeSharedPdf;
     this.#elements.libraryHighlightComposer.hidden = !activeLibraryPdf;
     if (!activeLibraryPdf) this.#setLibraryPdfInspector(false);
-    this.#renderLibraryHighlightComposer(
-      activeTab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id) : undefined,
-    );
+    this.#renderLibraryHighlightComposer(activeLibraryArtifact);
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.previewSyncControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
@@ -6985,7 +7011,11 @@ class WorkspaceApp {
     }
     if (tab.kind === "pdf") return this.#snapshot?.pdfs.find((pdf) => pdf.id === tab.id)?.name ?? "Paper";
     if (tab.kind === "library-pdf") {
-      return this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === tab.id)?.name ?? "Private PDF";
+      return (
+        this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === tab.id)?.name ??
+        (this.#sharedPdf(tab.id)?.content.kind === "artifact" ? this.#sharedPdf(tab.id)?.content.name : undefined) ??
+        "Shared PDF"
+      );
     }
     const candidate = this.#snapshot?.candidates.find((item) => item.id === tab.id);
     return candidate ? `Revision · ${candidate.model} · ${candidate.id.slice(0, 4)}` : "Revision";
@@ -7039,28 +7069,36 @@ class WorkspaceApp {
 
     this.#updateCitationInsertionAvailability();
     const links = this.#snapshot.publicationPdfLinks.filter((link) => link.publicationId === publication.id);
-    const linkedPdfs = links
-      .map((link) => ({ link, pdf: this.#snapshot?.pdfs.find((pdf) => pdf.id === link.pdfId) }))
-      .filter((item): item is { link: (typeof links)[number]; pdf: PdfResource } => Boolean(item.pdf));
-    this.#elements.openPaper.disabled = linkedPdfs.length !== 1;
-    this.#elements.openPaper.textContent = linkedPdfs.length > 1 ? "Choose a paper below" : "Open linked paper";
+    const papers = this.#publicationPaperOptions(publication.id);
+    this.#elements.openPaper.disabled = papers.length !== 1;
+    this.#elements.openPaper.textContent = papers.length > 1 ? "Choose a paper below" : "Open linked paper";
 
     this.#elements.contextPublicationPdfs.replaceChildren();
-    if (linkedPdfs.length === 0) {
+    if (papers.length === 0) {
       this.#elements.contextPublicationPdfs.append(emptyState("No paper connected to this reference yet."));
     } else {
-      for (const { link, pdf } of linkedPdfs) {
+      for (const paper of papers) {
         const row = document.createElement("div");
         row.className = "resource-card mt-2 flex items-center justify-between gap-3";
         const copy = document.createElement("div");
         copy.className = "min-w-0";
-        copy.append(resourceLabel(`PDF · ${formatBytes(pdf.size)}`), resourceTitle(pdf.name));
+        const name = paper.kind === "project" ? paper.pdf.name : paper.kind === "library" ? paper.artifact.name : paper.share.content.name;
+        const size = paper.kind === "project" ? paper.pdf.size : paper.kind === "library" ? paper.artifact.size : paper.share.content.size;
+        const sourceLabel =
+          paper.kind === "project"
+            ? "Project PDF"
+            : paper.kind === "library"
+              ? paper.shared
+                ? "Library PDF · shared with project"
+                : "Private library PDF"
+              : "Shared project PDF";
+        copy.append(resourceLabel(`${sourceLabel} · ${formatBytes(size)}`), resourceTitle(name));
         const actions = document.createElement("div");
         actions.className = "flex shrink-0 gap-2";
-        actions.append(
-          actionButton("Open", "button-secondary", () => void this.#showPaper(pdf)),
-          actionButton("Disconnect", "button-secondary", () => void this.#unlinkPublicationPdf(link.id)),
-        );
+        actions.append(actionButton("Open", "button-secondary", () => void this.#openPublicationPaper(paper)));
+        if (paper.kind === "project") {
+          actions.append(actionButton("Disconnect", "button-secondary", () => void this.#unlinkPublicationPdf(paper.linkId)));
+        }
         row.append(copy, actions);
         this.#elements.contextPublicationPdfs.append(row);
       }
@@ -7069,11 +7107,55 @@ class WorkspaceApp {
     const linkedIds = new Set(links.map((link) => link.pdfId));
     const available = this.#snapshot.pdfs.filter((pdf) => !linkedIds.has(pdf.id));
     this.#elements.publicationPdfLink.replaceChildren();
-    this.#elements.publicationPdfLink.append(new Option(available.length === 0 ? "No unlinked PDFs available" : "Choose a PDF", ""));
+    this.#elements.publicationPdfLink.append(new Option(available.length === 0 ? "No project PDFs available" : "Choose a project PDF", ""));
     for (const pdf of available) this.#elements.publicationPdfLink.append(new Option(pdf.name, pdf.id));
     this.#elements.publicationPdfLink.disabled = available.length === 0;
     const submit = this.#elements.publicationPdfLinkForm.querySelector<HTMLButtonElement>('button[type="submit"]');
     if (submit) submit.disabled = available.length === 0;
+  }
+
+  #publicationPaperOptions(publicationId: string): PublicationPaperOption[] {
+    if (!this.#snapshot) return [];
+    const projectPapers = this.#snapshot.publicationPdfLinks.flatMap((link) => {
+      if (link.publicationId !== publicationId) return [];
+      const pdf = this.#snapshot?.pdfs.find((item) => item.id === link.pdfId);
+      return pdf ? [{ kind: "project" as const, pdf, linkId: link.id }] : [];
+    });
+    const sharedPapers = this.#snapshot.researchShares.filter(
+      (share): share is ArtifactResearchShare =>
+        share.referenceId === publicationId && share.revokedAt === null && isArtifactResearchShare(share),
+    );
+    const libraryPapers = (this.#librarySnapshot?.artifacts ?? [])
+      .filter((artifact) => artifact.referenceId === publicationId)
+      .map((artifact) => ({
+        kind: "library" as const,
+        artifact,
+        shared: sharedPapers.some((share) => share.resourceId === artifact.id),
+      }));
+    const localArtifactIds = new Set(libraryPapers.map((paper) => paper.artifact.id));
+    const sharedOnlyPapers = sharedPapers
+      .filter((share) => !localArtifactIds.has(share.resourceId))
+      .map((share) => ({ kind: "shared" as const, share }));
+    return [...libraryPapers, ...sharedOnlyPapers, ...projectPapers];
+  }
+
+  #sharedPdf(resourceId: string): ArtifactResearchShare | undefined {
+    const share = this.#snapshot?.researchShares.find(
+      (item) => item.resourceId === resourceId && item.revokedAt === null && item.kind === "artifact" && item.content.kind === "artifact",
+    );
+    return share && isArtifactResearchShare(share) ? share : undefined;
+  }
+
+  async #openPublicationPaper(paper: PublicationPaperOption): Promise<void> {
+    if (paper.kind === "project") {
+      await this.#showPaper(paper.pdf);
+      return;
+    }
+    if (paper.kind === "library") {
+      await this.#openLibraryPdf(paper.artifact);
+      return;
+    }
+    await this.#openSharedPdf(paper.share);
   }
 
   #openPreviewCitation(event: MouseEvent): boolean {
@@ -7539,9 +7621,8 @@ class WorkspaceApp {
   async #openOnlyLinkedPaper(): Promise<void> {
     const tab = this.#activeResourceTab();
     if (tab?.kind !== "publication" || !this.#snapshot) return;
-    const links = this.#snapshot.publicationPdfLinks.filter((item) => item.publicationId === tab.id);
-    const pdf = links.length === 1 ? this.#snapshot.pdfs.find((item) => item.id === links[0]?.pdfId) : undefined;
-    if (pdf) await this.#showPaper(pdf);
+    const papers = this.#publicationPaperOptions(tab.id);
+    if (papers.length === 1) await this.#openPublicationPaper(papers[0]!);
   }
 
   async #loadActivePdf(force: boolean): Promise<void> {
@@ -7549,7 +7630,8 @@ class WorkspaceApp {
     if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return;
     const workspacePdf = tab.kind === "pdf" ? this.#snapshot?.pdfs.find((item) => item.id === tab.id) : undefined;
     const libraryPdf = tab.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
-    if (!workspacePdf && !libraryPdf) return;
+    const sharedPdf = tab.kind === "library-pdf" && !libraryPdf ? this.#sharedPdf(tab.id) : undefined;
+    if (!workspacePdf && !libraryPdf && !sharedPdf) return;
     if (workspacePdf) this.#elements.annotationPdf.value = workspacePdf.id;
     const annotations = workspacePdf
       ? (this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === workspacePdf.id) ?? [])
@@ -7561,7 +7643,9 @@ class WorkspaceApp {
       ? `${apiBase}/pdfs/${encodeURIComponent(workspacePdf.id)}`
       : libraryPdf
         ? `/api/library/pdfs/${encodeURIComponent(libraryPdf.id)}`
-        : null;
+        : sharedPdf
+          ? `${apiBase}/research-shares/${encodeURIComponent(sharedPdf.id)}/content`
+          : null;
     if (!pdfUrl) return;
     this.#pdfViewer.updateAnnotations(annotations);
     this.#pdfViewer.updatePrivateHighlights(privateHighlights);
@@ -7575,7 +7659,7 @@ class WorkspaceApp {
         annotations,
         page: tab.page,
         ...(tab.focusedAnnotationId ? { focusAnnotationId: tab.focusedAnnotationId } : {}),
-        mode: workspacePdf ? "evidence" : "private-highlight",
+        mode: workspacePdf ? "evidence" : libraryPdf ? "private-highlight" : "read-only",
         privateHighlights,
       });
       const active = this.#activeResourceTab();
@@ -8512,6 +8596,18 @@ class WorkspaceApp {
       history.pushState({ view: "library-pdf", artifactId: artifact.id }, "", route);
     }
     if (appMode === "workspace") this.#syncWorkspaceRoute("push");
+    await this.#loadActivePdf(page !== undefined);
+  }
+
+  async #openSharedPdf(share: ArtifactResearchShare, page?: number, updateHistory = true): Promise<void> {
+    this.#captureActiveContextState();
+    this.#contextState = openResearchResource(this.#contextState, { kind: "library-pdf", id: share.resourceId });
+    const key = researchResourceKey({ kind: "library-pdf", id: share.resourceId });
+    if (page !== undefined) this.#contextState = setPdfResearchLocation(this.#contextState, key, { page });
+    this.#renderResearchContext(false);
+    this.#showWorkspaceSurface("context", false);
+    this.#focusContextTab(key);
+    if (appMode === "workspace" && updateHistory) this.#syncWorkspaceRoute("push");
     await this.#loadActivePdf(page !== undefined);
   }
 

@@ -1960,6 +1960,16 @@ test("keeps private library research separate from project citations", async ({ 
   expect(citedSnapshot.projectReferences.some((link) => link.citationAlias === "sourceundatedclimate")).toBe(true);
   expect(citedSnapshot.researchShares).toHaveLength(0);
 
+  const linkedPublication = page.locator("#publication-list article").filter({ hasText: "climate adaptation" });
+  await linkedPublication.getByRole("button", { name: "Open in context" }).click();
+  await expect(page.locator("#context-publication-pdfs")).toContainText("Private library PDF");
+  await expect(page.locator("#context-publication-pdfs")).toContainText("climate_adaptation.pdf");
+  await expect(page.locator("#publication-pdf-link")).toHaveValue("");
+  await expect(page.locator("#publication-pdf-link")).toContainText("No project PDFs available");
+  await page.locator("#open-paper").click();
+  await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
+
   const projectUse = page.locator("#library-project-use");
   await page.getByText("Project sharing", { exact: true }).click();
   await expect(projectUse).toContainText("Step 2 of 3 · Rights");
