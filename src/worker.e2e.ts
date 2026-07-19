@@ -1678,7 +1678,8 @@ test("authors textual and parenthetical citation aliases", async ({ page }) => {
   expect(exportedSource).toContain(":citep[merton1942]");
 });
 
-test("keeps private library research separate from project citations", async ({ page }) => {
+test("shares linked reference PDFs with members but not public links", async ({ page, browser }) => {
+  test.slow();
   await page.addInitScript(() => {
     Object.defineProperty(Promise, "withResolvers", { configurable: true, value: undefined, writable: true });
   });
@@ -1960,34 +1961,53 @@ test("keeps private library research separate from project citations", async ({ 
   expect(citedSnapshot.projectReferences.some((link) => link.citationAlias === "sourceundatedclimate")).toBe(true);
   expect(citedSnapshot.researchShares).toHaveLength(0);
 
-  const linkedPublication = page.locator("#publication-list article").filter({ hasText: "climate adaptation" });
-  await linkedPublication.getByRole("button", { name: "Open in context" }).click();
-  await expect(page.locator("#context-publication-pdfs")).toContainText("Private library PDF");
-  await expect(page.locator("#context-publication-pdfs")).toContainText("climate_adaptation.pdf");
-  await expect(page.locator("#publication-pdf-link")).toHaveValue("");
-  await expect(page.locator("#publication-pdf-link")).toContainText("No project PDFs available");
-  await page.locator("#open-paper").click();
-  await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
-
   const projectUse = page.locator("#library-project-use");
   await page.getByText("Project sharing", { exact: true }).click();
-  await expect(projectUse).toContainText("Step 2 of 3 · Rights");
+  await expect(projectUse).toContainText("Available to project members");
+  await expect(projectUse).toContainText("Public read-only and edit links never include reference PDFs");
   await expect(projectUse.getByRole("button", { name: "Add reference to project" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Share highlight with project" })).toBeEnabled();
-  await projectUse.getByLabel("PDF sharing rights").selectOption("shareable");
-  await projectUse.getByRole("button", { name: "Save rights decision" }).click();
-  await expect(page.locator("#toast")).toHaveText("PDF rights decision saved.");
-  await expect(projectUse).toContainText("Step 3 of 3 · PDF snapshot");
-  await projectUse.getByRole("button", { name: "Share PDF with project" }).click();
-  await expect(projectUse).toContainText("Shared with current project");
+  await expect(projectUse.getByRole("button", { name: /Share PDF|Revoke PDF/u })).toHaveCount(0);
+
+  const referencePdfsResponse = await page.request.get(`${api}/reference-pdfs`);
+  expect(referencePdfsResponse.status()).toBe(200);
+  const referencePdfs = (await referencePdfsResponse.json()) as Array<{ id: string; name: string; referenceId: string }>;
+  expect(referencePdfs).toEqual([
+    expect.objectContaining({ name: "climate_adaptation.pdf", referenceId: expect.any(String) }),
+  ]);
+  const referencePdfId = referencePdfs[0]!.id;
+  const invited = await page.request.post(`${api}/members`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { email: "linked-pdf-reader@example.org" },
+  });
+  expect(invited.status()).toBe(201);
+  const memberContext = await browser.newContext({
+    baseURL: "http://127.0.0.1:8788",
+    extraHTTPHeaders: { "x-kirjolab-local-user": "linked-pdf-reader@example.org" },
+  });
+  const memberPdfs = await memberContext.request.get(`${api}/reference-pdfs`);
+  expect(memberPdfs.status()).toBe(200);
+  expect(await memberPdfs.json()).toEqual(referencePdfs);
+  const memberPdf = await memberContext.request.get(`${api}/reference-pdfs/${referencePdfId}`);
+  expect([200, 206]).toContain(memberPdf.status());
+  expect(memberPdf.headers()["content-type"]).toContain("application/pdf");
+  expect((await memberPdf.body()).toString("ascii", 0, 4)).toBe("%PDF");
+  await memberContext.close();
+
+  const readOnlyLink = (await (
+    await page.request.post(`${api}/share-link`, { headers: { origin: "http://127.0.0.1:8788" } })
+  ).json()) as { href: string };
+  const editLink = (await (
+    await page.request.post(`${api}/edit-link`, { headers: { origin: "http://127.0.0.1:8788" } })
+  ).json()) as { href: string };
+  expect((await page.request.get(`${readOnlyLink.href}/reference-pdfs/${referencePdfId}`)).status()).toBe(404);
+  expect((await page.request.get(`${editLink.href}/reference-pdfs/${referencePdfId}`)).status()).toBe(404);
+
   await page.getByRole("button", { name: "Share highlight with project" }).click();
   await expect(page.getByRole("button", { name: "Revoke highlight share" })).toBeVisible();
-  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).researchShares.length).toBe(2);
+  await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).researchShares.length).toBe(1);
   await page.getByRole("button", { name: "Revoke highlight share" }).click();
   await expect(page.getByRole("button", { name: "Share highlight with project" })).toBeVisible();
-  await projectUse.getByRole("button", { name: "Revoke PDF share" }).click();
-  await expect(projectUse).toContainText("Step 3 of 3 · PDF snapshot");
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).researchShares.length).toBe(0);
   await page.getByRole("tab", { name: "Library" }).click();
 

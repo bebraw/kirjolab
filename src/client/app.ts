@@ -58,6 +58,7 @@ import {
   crossrefMetadataFields,
   isMetadataRefinementPreview,
   isPdfDraftResult,
+  isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
   libraryPdfRectsOverlap,
   type BibliographicRecord,
@@ -70,8 +71,8 @@ import {
   type LibraryPdfArtifact,
   type MetadataRefinementCandidate,
   type MetadataRefinementPreview,
+  type ProjectReferencePdf,
   type ReferenceLibrarySnapshot,
-  type ResearchShareSnapshot,
   type WebSnapshot,
   type WebSnapshotComparison,
 } from "../domain/reference-library";
@@ -268,19 +269,10 @@ interface LatexImportPreview {
   } | null;
 }
 
-type ArtifactResearchShare = Omit<ResearchShareSnapshot, "kind" | "content"> & {
-  readonly kind: "artifact";
-  readonly content: Extract<ResearchShareSnapshot["content"], { readonly kind: "artifact" }>;
-};
-
 type PublicationPaperOption =
   | { readonly kind: "project"; readonly pdf: PdfResource; readonly linkId: string }
-  | { readonly kind: "library"; readonly artifact: LibraryPdfArtifact; readonly shared: boolean }
-  | { readonly kind: "shared"; readonly share: ArtifactResearchShare };
-
-function isArtifactResearchShare(share: ResearchShareSnapshot): share is ArtifactResearchShare {
-  return share.kind === "artifact" && share.content.kind === "artifact";
-}
+  | { readonly kind: "library"; readonly artifact: LibraryPdfArtifact }
+  | { readonly kind: "reference"; readonly pdf: ProjectReferencePdf };
 
 interface Elements {
   preferencesMenu: HTMLDetailsElement;
@@ -781,6 +773,7 @@ class WorkspaceApp {
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
+  #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
   readonly #expandedLibraryReferences = new Set<string>();
   #libraryPdfUploadBusy = false;
   #pdfDrawingDraftLine: SVGElement | null = null;
@@ -1345,6 +1338,7 @@ class WorkspaceApp {
     if (!isWorkspaceSnapshot(value)) throw new Error("Project returned an invalid snapshot");
     const snapshot = collaborationSynced(this.#collaborationWorkflow.getSnapshot()) ? this.#resolveSnapshotAnchors(value) : value;
     this.#snapshot = snapshot;
+    await this.#refreshProjectReferencePdfs(false);
     if (!this.#hasBootstrapSnapshot) {
       this.#hasBootstrapSnapshot = true;
       this.#revision = snapshot.revision;
@@ -1507,8 +1501,8 @@ class WorkspaceApp {
           const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === target.id);
           if (artifact) await this.#openLibraryPdf(artifact, route.page, false);
           else {
-            const share = this.#sharedPdf(target.id);
-            if (share) await this.#openSharedPdf(share, route.page, false);
+            const pdf = this.#projectReferencePdf(target.id);
+            if (pdf) await this.#openProjectReferencePdf(pdf, route.page, false);
           }
         }
       } catch (error) {
@@ -4140,6 +4134,7 @@ class WorkspaceApp {
     if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
     this.#captureActiveContextState();
     this.#librarySnapshot = value;
+    await this.#refreshProjectReferencePdfs(false);
     this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
     this.#renderReferenceLibrary();
     this.#renderResearchContext();
@@ -4710,7 +4705,18 @@ class WorkspaceApp {
       resources.append(this.#privateResearchRow(reference.id, "note", note.id, `Note · ${note.body.slice(0, 100)}`, linked !== undefined));
     }
     for (const artifact of artifacts) {
-      const row = this.#privateResearchRow(reference.id, "artifact", artifact.id, `PDF · ${artifact.name}`, linked !== undefined);
+      const row = document.createElement("div");
+      row.className = "rounded-sm border border-app-line p-2";
+      const text = document.createElement("p");
+      text.className = "font-sans text-xs leading-5 text-app-text-soft";
+      text.textContent = `PDF · ${artifact.name}`;
+      row.append(text);
+      if (linked) {
+        const access = document.createElement("p");
+        access.className = "mt-1 font-sans text-xs leading-5 text-app-text-soft";
+        access.textContent = "Available to signed-in project members; excluded from public links.";
+        row.append(access);
+      }
       const rights = document.createElement("select");
       rights.className = "field mt-2";
       for (const value of ["private", "unknown", "shareable"] as const) rights.append(new Option(`Rights: ${value}`, value));
@@ -4788,7 +4794,7 @@ class WorkspaceApp {
 
   #privateResearchRow(
     referenceId: string,
-    kind: "artifact" | "note" | "highlight" | "web-snapshot",
+    kind: "note" | "highlight" | "web-snapshot",
     resourceId: string,
     label: string,
     referenceLinked: boolean,
@@ -5454,7 +5460,7 @@ class WorkspaceApp {
 
   async #sharePrivateResearch(
     referenceId: string,
-    kind: "artifact" | "note" | "highlight" | "web-snapshot",
+    kind: "note" | "highlight" | "web-snapshot",
     resourceId: string,
   ): Promise<void> {
     const response = await jsonFetch(`${apiBase}/research-shares`, { referenceId, kind, resourceId });
@@ -5486,9 +5492,23 @@ class WorkspaceApp {
     const value: unknown = await response.json();
     if (!isWorkspaceSnapshot(value)) throw new Error("Project mutation returned an invalid snapshot");
     this.#snapshot = value;
+    await this.#refreshProjectReferencePdfs(false);
     this.#renderResources();
     this.#renderProjectFiles();
     void this.#renderPreview();
+  }
+
+  async #refreshProjectReferencePdfs(render = true): Promise<void> {
+    if (appMode !== "workspace") {
+      this.#projectReferencePdfs = [];
+      return;
+    }
+    const response = await fetch(`${apiBase}/reference-pdfs`, { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isProjectReferencePdfs(value)) throw new Error("Project reference PDFs returned invalid metadata");
+    this.#projectReferencePdfs = value;
+    if (render) this.#renderResources();
   }
 
   #renderResources(): void {
@@ -5527,9 +5547,7 @@ class WorkspaceApp {
       pdfIds: new Set(this.#snapshot?.pdfs.map((pdf) => pdf.id) ?? []),
       libraryPdfIds: new Set([
         ...(this.#librarySnapshot?.artifacts.map((artifact) => artifact.id) ?? []),
-        ...(this.#snapshot?.researchShares
-          .filter((share) => share.revokedAt === null && isArtifactResearchShare(share))
-          .map((share) => share.resourceId) ?? []),
+        ...this.#projectReferencePdfs.map((pdf) => pdf.id),
       ]),
       candidateIds: new Set(this.#snapshot?.candidates.map((candidate) => candidate.id) ?? []),
     };
@@ -6644,11 +6662,12 @@ class WorkspaceApp {
     const activeLibraryArtifact =
       activeTab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id) : undefined;
     const activeLibraryPdf = Boolean(activeLibraryArtifact);
-    const activeSharedPdf = activeTab?.kind === "library-pdf" && !activeLibraryArtifact && Boolean(this.#sharedPdf(activeTab.id));
+    const activeProjectReferencePdf =
+      activeTab?.kind === "library-pdf" && !activeLibraryArtifact && Boolean(this.#projectReferencePdf(activeTab.id));
     this.#elements.contextPdfPanel.hidden = !activePdf;
     this.#elements.contextPdfPanel.dataset.libraryPdf = String(activeTab?.kind === "library-pdf");
-    this.#elements.contextPdfPanel.dataset.readonlyPdf = String(activeSharedPdf);
-    this.#elements.annotationComposer.hidden = activeLibraryPdf || activeSharedPdf;
+    this.#elements.contextPdfPanel.dataset.readonlyPdf = String(activeProjectReferencePdf);
+    this.#elements.annotationComposer.hidden = activeLibraryPdf || activeProjectReferencePdf;
     this.#elements.libraryHighlightComposer.hidden = !activeLibraryPdf;
     if (!activeLibraryPdf) this.#setLibraryPdfInspector(false);
     this.#renderLibraryHighlightComposer(activeLibraryArtifact);
@@ -7013,8 +7032,8 @@ class WorkspaceApp {
     if (tab.kind === "library-pdf") {
       return (
         this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === tab.id)?.name ??
-        (this.#sharedPdf(tab.id)?.content.kind === "artifact" ? this.#sharedPdf(tab.id)?.content.name : undefined) ??
-        "Shared PDF"
+        this.#projectReferencePdf(tab.id)?.name ??
+        "Reference PDF"
       );
     }
     const candidate = this.#snapshot?.candidates.find((item) => item.id === tab.id);
@@ -7082,16 +7101,14 @@ class WorkspaceApp {
         row.className = "resource-card mt-2 flex items-center justify-between gap-3";
         const copy = document.createElement("div");
         copy.className = "min-w-0";
-        const name = paper.kind === "project" ? paper.pdf.name : paper.kind === "library" ? paper.artifact.name : paper.share.content.name;
-        const size = paper.kind === "project" ? paper.pdf.size : paper.kind === "library" ? paper.artifact.size : paper.share.content.size;
+        const name = paper.kind === "library" ? paper.artifact.name : paper.pdf.name;
+        const size = paper.kind === "library" ? paper.artifact.size : paper.pdf.size;
         const sourceLabel =
           paper.kind === "project"
             ? "Project PDF"
             : paper.kind === "library"
-              ? paper.shared
-                ? "Library PDF · shared with project"
-                : "Private library PDF"
-              : "Shared project PDF";
+              ? "Your library PDF"
+              : "Linked reference PDF · project members";
         copy.append(resourceLabel(`${sourceLabel} · ${formatBytes(size)}`), resourceTitle(name));
         const actions = document.createElement("div");
         actions.className = "flex shrink-0 gap-2";
@@ -7121,29 +7138,18 @@ class WorkspaceApp {
       const pdf = this.#snapshot?.pdfs.find((item) => item.id === link.pdfId);
       return pdf ? [{ kind: "project" as const, pdf, linkId: link.id }] : [];
     });
-    const sharedPapers = this.#snapshot.researchShares.filter(
-      (share): share is ArtifactResearchShare =>
-        share.referenceId === publicationId && share.revokedAt === null && isArtifactResearchShare(share),
-    );
     const libraryPapers = (this.#librarySnapshot?.artifacts ?? [])
       .filter((artifact) => artifact.referenceId === publicationId)
-      .map((artifact) => ({
-        kind: "library" as const,
-        artifact,
-        shared: sharedPapers.some((share) => share.resourceId === artifact.id),
-      }));
+      .map((artifact) => ({ kind: "library" as const, artifact }));
     const localArtifactIds = new Set(libraryPapers.map((paper) => paper.artifact.id));
-    const sharedOnlyPapers = sharedPapers
-      .filter((share) => !localArtifactIds.has(share.resourceId))
-      .map((share) => ({ kind: "shared" as const, share }));
-    return [...libraryPapers, ...sharedOnlyPapers, ...projectPapers];
+    const linkedReferencePapers = this.#projectReferencePdfs
+      .filter((pdf) => pdf.referenceId === publicationId && !localArtifactIds.has(pdf.id))
+      .map((pdf) => ({ kind: "reference" as const, pdf }));
+    return [...libraryPapers, ...linkedReferencePapers, ...projectPapers];
   }
 
-  #sharedPdf(resourceId: string): ArtifactResearchShare | undefined {
-    const share = this.#snapshot?.researchShares.find(
-      (item) => item.resourceId === resourceId && item.revokedAt === null && item.kind === "artifact" && item.content.kind === "artifact",
-    );
-    return share && isArtifactResearchShare(share) ? share : undefined;
+  #projectReferencePdf(resourceId: string): ProjectReferencePdf | undefined {
+    return this.#projectReferencePdfs.find((pdf) => pdf.id === resourceId);
   }
 
   async #openPublicationPaper(paper: PublicationPaperOption): Promise<void> {
@@ -7155,7 +7161,7 @@ class WorkspaceApp {
       await this.#openLibraryPdf(paper.artifact);
       return;
     }
-    await this.#openSharedPdf(paper.share);
+    await this.#openProjectReferencePdf(paper.pdf);
   }
 
   #openPreviewCitation(event: MouseEvent): boolean {
@@ -7630,8 +7636,8 @@ class WorkspaceApp {
     if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return;
     const workspacePdf = tab.kind === "pdf" ? this.#snapshot?.pdfs.find((item) => item.id === tab.id) : undefined;
     const libraryPdf = tab.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
-    const sharedPdf = tab.kind === "library-pdf" && !libraryPdf ? this.#sharedPdf(tab.id) : undefined;
-    if (!workspacePdf && !libraryPdf && !sharedPdf) return;
+    const projectReferencePdf = tab.kind === "library-pdf" && !libraryPdf ? this.#projectReferencePdf(tab.id) : undefined;
+    if (!workspacePdf && !libraryPdf && !projectReferencePdf) return;
     if (workspacePdf) this.#elements.annotationPdf.value = workspacePdf.id;
     const annotations = workspacePdf
       ? (this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === workspacePdf.id) ?? [])
@@ -7643,8 +7649,8 @@ class WorkspaceApp {
       ? `${apiBase}/pdfs/${encodeURIComponent(workspacePdf.id)}`
       : libraryPdf
         ? `/api/library/pdfs/${encodeURIComponent(libraryPdf.id)}`
-        : sharedPdf
-          ? `${apiBase}/research-shares/${encodeURIComponent(sharedPdf.id)}/content`
+        : projectReferencePdf
+          ? `${apiBase}/reference-pdfs/${encodeURIComponent(projectReferencePdf.id)}`
           : null;
     if (!pdfUrl) return;
     this.#pdfViewer.updateAnnotations(annotations);
@@ -8599,10 +8605,10 @@ class WorkspaceApp {
     await this.#loadActivePdf(page !== undefined);
   }
 
-  async #openSharedPdf(share: ArtifactResearchShare, page?: number, updateHistory = true): Promise<void> {
+  async #openProjectReferencePdf(pdf: ProjectReferencePdf, page?: number, updateHistory = true): Promise<void> {
     this.#captureActiveContextState();
-    this.#contextState = openResearchResource(this.#contextState, { kind: "library-pdf", id: share.resourceId });
-    const key = researchResourceKey({ kind: "library-pdf", id: share.resourceId });
+    this.#contextState = openResearchResource(this.#contextState, { kind: "library-pdf", id: pdf.id });
+    const key = researchResourceKey({ kind: "library-pdf", id: pdf.id });
     if (page !== undefined) this.#contextState = setPdfResearchLocation(this.#contextState, key, { page });
     this.#renderResearchContext(false);
     this.#showWorkspaceSurface("context", false);
@@ -8899,7 +8905,7 @@ class WorkspaceApp {
     citation.textContent = `:cite[${alias}]`;
     if (!linked) {
       this.#elements.libraryProjectUse.append(
-        resourceLabel("Step 1 of 3 · Reference"),
+        resourceLabel("Reference not in project"),
         projectUseDescription("Add the bibliographic record to this project's reference set. This does not insert a citation."),
         citation,
         actionButton(
@@ -8910,55 +8916,13 @@ class WorkspaceApp {
       );
       return;
     }
-    if (artifact.rights !== "shareable") {
-      const rights = document.createElement("select");
-      rights.className = "field mt-3";
-      rights.setAttribute("aria-label", "PDF sharing rights");
-      rights.append(
-        new Option("Private — do not share", "private"),
-        new Option("Unknown — not reviewed", "unknown"),
-        new Option("Shareable — permission confirmed", "shareable"),
-      );
-      rights.value = artifact.rights;
-      this.#elements.libraryProjectUse.append(
-        resourceLabel("Step 2 of 3 · Rights"),
-        projectUseDescription(
-          "Confirm whether this PDF may be shared with project collaborators. Upload or ownership alone is not permission.",
-        ),
-        citation,
-        rights,
-        actionButton("Save rights decision", "button-primary mt-2", () => void this.#saveProjectUseRights(artifact.id, rights.value)),
-      );
-      return;
-    }
-    const share = this.#snapshot?.researchShares.find((item) => item.kind === "artifact" && item.resourceId === artifact.id);
-    this.#elements.libraryProjectUse.append(citation);
-    if (share) {
-      this.#elements.libraryProjectUse.prepend(
-        resourceLabel("Shared with current project"),
-        projectUseDescription("Authorized project members can open this immutable PDF snapshot. Private highlights remain separate."),
-      );
-      this.#elements.libraryProjectUse.append(
-        actionButton("Revoke PDF share", "button-secondary mt-3", () => void this.#revokePrivateResearch(share.id)),
-      );
-      return;
-    }
-    this.#elements.libraryProjectUse.prepend(
-      resourceLabel("Step 3 of 3 · PDF snapshot"),
-      projectUseDescription("Share this immutable PDF snapshot with the current project. Saved private highlights are not included."),
-    );
     this.#elements.libraryProjectUse.append(
-      actionButton(
-        "Share PDF with project",
-        "button-primary mt-3",
-        () => void this.#sharePrivateResearch(reference.id, "artifact", artifact.id),
+      resourceLabel("Available to project members"),
+      projectUseDescription(
+        "People signed in as project members can open this PDF. Public read-only and edit links never include reference PDFs; private annotations stay in your library.",
       ),
+      citation,
     );
-  }
-
-  async #saveProjectUseRights(artifactId: string, rights: string): Promise<void> {
-    await this.#setArtifactRights(artifactId, rights);
-    this.#showToast("PDF rights decision saved.");
   }
 
   async #saveLibraryHighlight(event: SubmitEvent): Promise<void> {

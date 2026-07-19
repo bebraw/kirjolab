@@ -9,6 +9,7 @@ import {
   isLibraryHighlightImportCandidate,
   isMetadataRefinementPreview,
   isPdfDraftResult,
+  isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
   likelyReferenceIdentity,
   libraryPdfRectsOverlap,
@@ -46,6 +47,15 @@ const capturedWebSnapshot = {
 } as const;
 
 describe("shared reference library", () => {
+  it("accepts only safe project reference PDF descriptors", () => {
+    const pdf = { id: "pdf-1", referenceId: "ref-1", name: "paper.pdf", size: 42, fingerprint: "r2-etag:test" };
+    expect(isProjectReferencePdfs([pdf])).toBe(true);
+    expect(isProjectReferencePdfs([{ ...pdf, objectKey: "libraries/owner/private.pdf" }])).toBe(false);
+    expect(isProjectReferencePdfs([{ ...pdf, referenceId: null }])).toBe(false);
+    expect(isProjectReferencePdfs([{ ...pdf, size: -1 }])).toBe(false);
+    expect(isProjectReferencePdfs({ pdfs: [pdf] })).toBe(false);
+  });
+
   it("accepts only bounded imported PDF highlight candidates", () => {
     const candidate = {
       page: 2,

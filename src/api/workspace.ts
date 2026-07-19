@@ -35,6 +35,7 @@ import { assertExportable, buildExportBundle, ExportPipelineError } from "../dom
 import { fetchCrossrefWork, fingerprintPublicationMetadata } from "../integrations/crossref";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { downloadR2Object } from "./r2-download";
+import type { ProjectReferencePdf } from "../domain/reference-library";
 import { handleGitHubWorkspaceSyncApi } from "./github-sync";
 import { handleReviewStudyApi } from "./review-study";
 import { ensureLegacyReviewResource, workspaceStorageKey } from "./reviews";
@@ -190,6 +191,23 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return new Response(null, { status: 204 });
     }
     if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);
+    if (suffix === "/reference-pdfs" && request.method === "GET") {
+      const library = await projectOwnerLibrary(env, access, identity.email);
+      return Response.json(await listProjectReferencePdfs(workspaceId, room, library), {
+        headers: { "cache-control": "private, no-store" },
+      });
+    }
+    if (suffix.startsWith("/reference-pdfs/") && request.method === "GET") {
+      const library = await projectOwnerLibrary(env, access, identity.email);
+      return await downloadProjectReferencePdf(
+        request,
+        workspaceId,
+        suffix.slice("/reference-pdfs/".length),
+        env,
+        room,
+        library,
+      );
+    }
     if (suffix === "/assets" && request.method === "POST") return await uploadProjectAsset(request, workspaceId, storageKey, env, room);
     if (suffix.startsWith("/assets/") && request.method === "GET") {
       return await downloadProjectAsset(suffix.slice("/assets/".length), env, room);
@@ -941,7 +959,7 @@ async function sharePrivateResearch(
     !isRecord(body) ||
     typeof body.referenceId !== "string" ||
     typeof body.resourceId !== "string" ||
-    (body.kind !== "artifact" && body.kind !== "note" && body.kind !== "highlight" && body.kind !== "web-snapshot")
+    (body.kind !== "note" && body.kind !== "highlight" && body.kind !== "web-snapshot")
   ) {
     return jsonError("Invalid private research share", 400);
   }
@@ -956,6 +974,52 @@ async function sharePrivateResearch(
     await library.revokeResearchShare(share.id);
     throw error;
   }
+}
+
+async function listProjectReferencePdfs(
+  workspaceId: string,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
+): Promise<ProjectReferencePdf[]> {
+  const [workspace, librarySnapshot] = await Promise.all([room.getSnapshot(workspaceId), library.getSnapshot(true)]);
+  const linkedReferenceIds = new Set(workspace.projectReferences.map((link) => link.referenceId));
+  return librarySnapshot.artifacts.flatMap((artifact) =>
+    artifact.referenceId && linkedReferenceIds.has(artifact.referenceId)
+      ? [
+          {
+            id: artifact.id,
+            referenceId: artifact.referenceId,
+            name: artifact.name,
+            size: artifact.size,
+            fingerprint: artifact.fingerprint,
+          },
+        ]
+      : [],
+  );
+}
+
+async function downloadProjectReferencePdf(
+  request: Request,
+  workspaceId: string,
+  artifactId: string,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
+): Promise<Response> {
+  const [workspace, librarySnapshot] = await Promise.all([room.getSnapshot(workspaceId), library.getSnapshot(true)]);
+  const artifact = librarySnapshot.artifacts.find((item) => item.id === artifactId);
+  if (
+    !artifact?.referenceId ||
+    !workspace.projectReferences.some((link) => link.referenceId === artifact.referenceId)
+  ) {
+    return jsonError("Reference PDF not found", 404);
+  }
+  return (
+    (await downloadR2Object(request, env.PAPERS, artifact.objectKey, {
+      cacheControl: "private, no-store",
+      contentDisposition: `inline; filename="${safeFilename(artifact.name)}"`,
+    })) ?? jsonError("Reference PDF not found", 404)
+  );
 }
 
 async function accessSharedResearch(

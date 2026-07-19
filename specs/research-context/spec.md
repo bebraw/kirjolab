@@ -60,11 +60,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Each PDF tab retains its page, within-page scroll, and focused annotation.
   Reopening or focusing an existing PDF target restores that local reading
   context rather than loading a duplicate tab.
-- Private library PDFs use distinct `library-pdf:` identities, retain local
-  page and scroll state, and reuse the reader in private-highlight mode. Project
-  intake, citation, highlighting, and annotation controls are unavailable in
-  that mode. A selection remains ephemeral until the owner explicitly saves a
-  page, quote, and optional comment to the private library.
+- Library-backed PDFs use distinct `library-pdf:` identities and retain local
+  page and scroll state. Owners read their own artifacts in private-highlight
+  mode; other authenticated project members read linked-reference artifacts in
+  read-only mode. Project annotation controls are unavailable in both modes. An
+  owner selection remains ephemeral until explicitly saved to the library.
 - Private library PDF page navigation and annotation modes share a persistent
   left icon rail. Annotation editors, overview, and project sharing appear in
   a transient inspector only when requested or required. Page-anchored note
@@ -84,10 +84,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - The same compact row exposes annotated export only after a private annotation
   exists. Export downloads an owner-authorized derived copy and does not change
   the context tab, source artifact, project state, or research-share state.
-- A private PDF context may expose the existing project-reference and private-
-  research sharing commands as a staged project-use section. Reference linkage,
-  rights review, PDF sharing, highlight sharing, and revocation remain distinct
-  commands whose current state is derived from authorized snapshots.
+- A private PDF context exposes whether its reference is linked. Once linked,
+  it states that signed-in project members can read the PDF and that public
+  links cannot. Highlight sharing and revocation remain separate explicit
+  commands derived from authorized snapshots.
 - The semantic preview and `PdfEvidenceViewer` remain independent views behind
   one context-pane controller. Switching tabs must not recreate a resource
   identity or mutate the manuscript, PDF, or annotation records.

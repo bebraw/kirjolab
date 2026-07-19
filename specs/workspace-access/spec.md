@@ -48,6 +48,9 @@ without accidentally widening access to another resource.
   protected by its server-side capability check.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
+- Authenticated members may list and stream owner-library PDFs only when their
+  references are currently linked to the project. Each request revalidates
+  membership and both relationships; unrelated owner-library state is hidden.
 - `POST /api/workspaces/{id}/share-link` lets only the owner create or rotate
   one read-only bearer link; `DELETE` revokes it and `GET` returns the active
   link to the owner with `Cache-Control: no-store`.
@@ -62,8 +65,8 @@ without accidentally widening access to another resource.
   for the read-only mode of the shared editor shell. It exposes individual
   authored project files through a read-only source surface beside the current
   rendered PDF. It includes no member identities, private research, project
-  APIs, stored PDFs, other exports, history, comments, or mutable collaboration
-  channel.
+  APIs, project PDFs, linked-reference PDFs, other exports, history, comments,
+  or mutable collaboration channel.
 - `GET /share/{workspace-id}.{secret}/document.pdf` revalidates the same bearer
   secret before reading the mapped document and renders the canonical bounded
   PDF on demand with inline, no-store, same-origin-only response headers.
@@ -88,6 +91,9 @@ without accidentally widening access to another resource.
   replacement revalidates the capability, requires an exact same-origin
   `Origin`, enforces the 2 MB content bound, and rejects a stale expected
   revision instead of overwriting concurrent work.
+- Neither `/share/*` nor `/edit/*` has a reference-artifact route. A bearer
+  secret never substitutes for authenticated project membership, even when its
+  editor capability can mutate manuscript files.
 - `GET /edit/{locator}.{secret}/socket` revalidates the edit capability and
   exact same-origin `Origin` before joining writer presence. The socket receives
   and sends current-revision caret/selection controls but never receives Yjs

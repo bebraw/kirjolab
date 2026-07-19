@@ -1,6 +1,6 @@
 # ADR-155: Authorize Linked PDFs by Project Membership
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-19
 

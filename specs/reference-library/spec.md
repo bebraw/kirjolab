@@ -63,6 +63,11 @@ memory and makes citation aliases compete with stable source identity.
   linked to a project.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
+- An authenticated project member may stream PDFs attached to the project
+  owner's linked references through a project-scoped read-only endpoint. The
+  endpoint exposes bounded display metadata, never owner object keys or general
+  Library state. Unlinking the reference or removing membership revokes future
+  access; public read-only and edit bearers never receive this capability.
 - Archiving a reference requires explicit confirmation that names the target
   and explains that it will leave the active Library until restored. Cancelling
   confirmation performs no mutation; restoring an archived reference remains

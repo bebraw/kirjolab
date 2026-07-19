@@ -175,6 +175,34 @@ export interface LibraryPdfArtifact {
   readonly createdAt: string;
 }
 
+/** Safe project-facing metadata for an owner's PDF attached to a linked reference. */
+export interface ProjectReferencePdf {
+  readonly id: string;
+  readonly referenceId: string;
+  readonly name: string;
+  readonly size: number;
+  readonly fingerprint: string;
+}
+
+export function isProjectReferencePdfs(value: unknown): value is ProjectReferencePdf[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        isRecord(item) &&
+        Object.keys(item).length === 5 &&
+        ["id", "referenceId", "name", "size", "fingerprint"].every((key) => key in item) &&
+        typeof item.id === "string" &&
+        typeof item.referenceId === "string" &&
+        typeof item.name === "string" &&
+        typeof item.size === "number" &&
+        Number.isInteger(item.size) &&
+        item.size >= 0 &&
+        typeof item.fingerprint === "string",
+    )
+  );
+}
+
 export interface PdfDraftResult {
   readonly reference: BibliographicRecord;
   readonly artifact: LibraryPdfArtifact;
