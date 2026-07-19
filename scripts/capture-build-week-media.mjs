@@ -44,8 +44,9 @@ export const BUILD_WEEK_MEDIA = Object.freeze([
       "Evidence trail — A manuscript claim stays linked to the exact PDF highlight that supports it, so provenance remains inspectable.",
   },
   {
-    filename: "05-pdf-annotation.png",
-    caption: "PDF annotation — Read and mark up a research paper beside the manuscript while the original PDF remains unchanged.",
+    filename: "05-reference-annotation.png",
+    caption:
+      "Reference annotation — Select a passage, add a private note, and save its page and geometry without modifying the original PDF.",
   },
   {
     filename: "06-evidence-map.png",
@@ -523,7 +524,7 @@ async function seedProject(api, onWorkspace) {
   const editLink = asRecord(await json(await api.post(`${workspaceApi}/edit-link`), "edit share link"), "edit share link");
   const editHref = requiredString(editLink, "href", "edit share link");
   if (!editHref.startsWith("/edit/")) throw new Error("Edit share link is invalid");
-  return { annotationId, editHref, pdfId, workspaceId };
+  return { editHref, workspaceId };
 }
 
 async function seedReview(api, workspaceId) {
@@ -756,11 +757,7 @@ async function captureScreens(browserContext, stagingDirectory, state) {
     await settle(page);
     await writer.shot(page, "04-evidence-trail.png");
 
-    await page.locator(`#pdf-list button[data-pdf-id="${state.pdfId}"]`).click();
-    await page.locator("#paper-reader").waitFor({ state: "visible" });
-    await page.locator("#paper-page-indicator").getByText(/1 \/ /u).waitFor();
-    await settle(page, 800);
-    await writer.shot(page, "05-pdf-annotation.png");
+    await captureReferenceAnnotation(browserContext, writer);
 
     await page.locator("#show-map-mode").click();
     await page.locator("#project-map").waitFor({ state: "visible" });
@@ -855,6 +852,56 @@ async function captureScreens(browserContext, stagingDirectory, state) {
     await settle(page, 600);
     await writer.shot(page, "15-independent-review.png");
     writer.assertComplete();
+  } finally {
+    await page.close();
+  }
+}
+
+async function captureReferenceAnnotation(browserContext, writer) {
+  const page = await browserContext.newPage();
+  try {
+    await page.goto(`${baseURL}/library`, { waitUntil: "domcontentloaded" });
+    await page.locator("#library-pdf-upload").setInputFiles({
+      buffer: createBuildWeekEvidencePdf(),
+      mimeType: "application/pdf",
+      name: "traceable-evidence.pdf",
+    });
+    const pdfRow = page
+      .locator("#reference-library-list .library-reference-row")
+      .filter({ has: page.getByRole("button", { exact: true, name: "PDF" }) });
+    await pdfRow.waitFor();
+    await pdfRow.getByRole("button", { exact: true, name: "PDF" }).click();
+    await page.getByRole("tab", { name: "traceable-evidence.pdf" }).waitFor();
+    await page.locator("#toast").waitFor({ state: "hidden" });
+    await page
+      .locator("#library-paper-page-indicator")
+      .getByText(/1 \/ 1/u)
+      .waitFor();
+    const passage = page.locator("#paper-text-layer span").filter({ hasText: "Annotations remain separate from the original PDF" }).first();
+    await passage.waitFor();
+    await page.locator("#library-text-tool").click();
+    await page.waitForFunction(() => document.querySelector("#library-text-tool")?.getAttribute("aria-pressed") === "true");
+    await passage.evaluate((element) => {
+      const textLayer = element.closest("#paper-text-layer");
+      const selection = window.getSelection();
+      if (!textLayer || !selection || !element.firstChild) throw new Error("Expected selectable synthetic PDF text");
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      textLayer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    });
+    await page.locator("#paper-highlights [data-draft='true']").first().waitFor();
+    await page.locator("#library-highlight-form").waitFor({ state: "visible" });
+    await page.locator("#library-highlight-status").getByText("Page 1 selection ready.", { exact: true }).waitFor();
+    const note = page.locator("#library-highlight-comment");
+    await note.fill("Reusable evidence note");
+    await note.evaluate((element) => {
+      element.scrollLeft = 0;
+      element.blur();
+    });
+    await settle(page);
+    await writer.shot(page, "05-reference-annotation.png");
   } finally {
     await page.close();
   }
