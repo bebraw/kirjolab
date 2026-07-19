@@ -1,10 +1,22 @@
 import type { ReferenceLibrarySnapshot } from "./reference-library";
 import type { ProjectTemplateRecord } from "./project-templates";
+import {
+  isIsoTimestamp,
+  isReviewId,
+  isReviewProfile,
+  isReviewRole,
+  isReviewStorageKey,
+  isWorkspaceRouteId,
+  reviewResourceLimits,
+  type ReviewAccessBackupState,
+  type ReviewCatalogRecord,
+} from "./review-catalog";
 import type { WorkspaceMember, WorkspaceSnapshot, WorkspaceSummary } from "./workspace";
 import type { ReviewExportAuthority } from "./review-export";
 import { parseReviewBackupReference, type ReviewBackupReference } from "./review-backup";
 
-export const ownerBackupSchemaVersion = "kirjolab-owner-backup-v2" as const;
+export const ownerBackupSchemaVersion = "kirjolab-owner-backup-v3" as const;
+export const projectAssociatedReviewOwnerBackupSchemaVersion = "kirjolab-owner-backup-v2" as const;
 export const legacyOwnerBackupSchemaVersion = "kirjolab-owner-backup-v1" as const;
 export const maximumOwnerBackupBytes = 10 * 1024 * 1024;
 
@@ -13,6 +25,11 @@ export interface OwnerWorkspaceBackup {
   readonly members: readonly WorkspaceMember[];
   readonly snapshot: WorkspaceSnapshot;
   readonly revisionSeed: string;
+}
+
+export interface OwnerReviewBackup {
+  readonly catalogRecord: ReviewCatalogRecord;
+  readonly access: ReviewAccessBackupState;
   readonly reviewPayload: ReviewBackupReference | null;
   readonly reviewRevisionSeed: string | null;
 }
@@ -23,6 +40,24 @@ export interface OwnerBackupState {
   readonly library: ReferenceLibrarySnapshot;
   readonly templates?: readonly ProjectTemplateRecord[];
   readonly workspaces: readonly OwnerWorkspaceBackup[];
+  readonly reviews: readonly OwnerReviewBackup[];
+}
+
+export interface ProjectAssociatedReviewOwnerWorkspaceBackup {
+  readonly summary: WorkspaceSummary;
+  readonly members: readonly WorkspaceMember[];
+  readonly snapshot: WorkspaceSnapshot;
+  readonly revisionSeed: string;
+  readonly reviewPayload: ReviewBackupReference | null;
+  readonly reviewRevisionSeed: string | null;
+}
+
+export interface ProjectAssociatedReviewOwnerBackupState {
+  readonly ownerKey: string;
+  readonly catalog: readonly WorkspaceSummary[];
+  readonly library: ReferenceLibrarySnapshot;
+  readonly templates?: readonly ProjectTemplateRecord[];
+  readonly workspaces: readonly ProjectAssociatedReviewOwnerWorkspaceBackup[];
 }
 
 export interface LegacyOwnerWorkspaceBackup {
@@ -60,6 +95,12 @@ export interface OwnerBackupRecovery {
     readonly document: string | null;
     readonly review?: string | null;
   }[];
+  readonly reviewCatalog?: string | null;
+  readonly reviews?: readonly {
+    readonly reviewId: string;
+    readonly access: string | null;
+    readonly study: string | null;
+  }[];
 }
 
 export interface OwnerBackupManifest {
@@ -67,6 +108,15 @@ export interface OwnerBackupManifest {
   readonly createdAt: string;
   readonly digest: string;
   readonly state: OwnerBackupState;
+  readonly binaries: readonly BackupBinaryObject[];
+  readonly recovery: OwnerBackupRecovery;
+}
+
+export interface ProjectAssociatedReviewOwnerBackupManifest {
+  readonly schemaVersion: typeof projectAssociatedReviewOwnerBackupSchemaVersion;
+  readonly createdAt: string;
+  readonly digest: string;
+  readonly state: ProjectAssociatedReviewOwnerBackupState;
   readonly binaries: readonly BackupBinaryObject[];
   readonly recovery: OwnerBackupRecovery;
 }
@@ -80,7 +130,7 @@ export interface LegacyOwnerBackupManifest {
   readonly recovery: OwnerBackupRecovery;
 }
 
-export type ParsedOwnerBackupManifest = OwnerBackupManifest | LegacyOwnerBackupManifest;
+export type ParsedOwnerBackupManifest = OwnerBackupManifest | ProjectAssociatedReviewOwnerBackupManifest | LegacyOwnerBackupManifest;
 
 export interface OwnerBackupStatus {
   readonly ownerKey: string;
@@ -121,9 +171,12 @@ export interface BackupBinaryReferences {
 }
 
 export async function ownerBackupDigest(
-  state: OwnerBackupState | LegacyOwnerBackupState,
+  state: OwnerBackupState | ProjectAssociatedReviewOwnerBackupState | LegacyOwnerBackupState,
   binaries: readonly BackupBinaryObject[],
-  schemaVersion: typeof ownerBackupSchemaVersion | typeof legacyOwnerBackupSchemaVersion = ownerBackupSchemaVersion,
+  schemaVersion:
+    | typeof ownerBackupSchemaVersion
+    | typeof projectAssociatedReviewOwnerBackupSchemaVersion
+    | typeof legacyOwnerBackupSchemaVersion = ownerBackupSchemaVersion,
 ): Promise<string> {
   return await sha256Hex(
     canonicalJson({
@@ -156,7 +209,9 @@ export function parseOwnerBackupManifest(json: string): ParsedOwnerBackupManifes
   } catch {
     throw new Error("Owner backup manifest is invalid");
   }
-  if (!isOwnerBackupManifest(value) && !isLegacyOwnerBackupManifest(value)) throw new Error("Owner backup manifest is invalid");
+  if (!isOwnerBackupManifest(value) && !isProjectAssociatedReviewOwnerBackupManifest(value) && !isLegacyOwnerBackupManifest(value)) {
+    throw new Error("Owner backup manifest is invalid");
+  }
   return value;
 }
 
@@ -206,6 +261,12 @@ function isOwnerBackupManifest(value: unknown): value is OwnerBackupManifest {
   return value.binaries.every(isBackupBinary);
 }
 
+function isProjectAssociatedReviewOwnerBackupManifest(value: unknown): value is ProjectAssociatedReviewOwnerBackupManifest {
+  if (!isRecord(value) || value.schemaVersion !== projectAssociatedReviewOwnerBackupSchemaVersion) return false;
+  if (!isManifestEnvelope(value) || !isProjectAssociatedReviewOwnerBackupState(value.state)) return false;
+  return value.binaries.every(isBackupBinary);
+}
+
 function isLegacyOwnerBackupManifest(value: unknown): value is LegacyOwnerBackupManifest {
   if (!isRecord(value) || value.schemaVersion !== legacyOwnerBackupSchemaVersion) return false;
   if (!isManifestEnvelope(value) || !isLegacyOwnerBackupState(value.state)) return false;
@@ -229,6 +290,39 @@ function isManifestEnvelope(value: Record<string, unknown>): value is Record<str
 }
 
 function isOwnerBackupState(value: Record<string, unknown>): value is Record<string, unknown> & OwnerBackupState {
+  if (!isBackupStateEnvelope(value) || !Array.isArray(value.reviews) || value.reviews.length > reviewResourceLimits.catalogEntries) {
+    return false;
+  }
+  if (
+    !value.workspaces.every(
+      (workspace) =>
+        isRecord(workspace) && !("review" in workspace) && !("reviewPayload" in workspace) && !("reviewRevisionSeed" in workspace),
+    )
+  ) {
+    return false;
+  }
+  const reviews = value.reviews.filter((review): review is Record<string, unknown> => isRecord(review));
+  if (reviews.length !== value.reviews.length) return false;
+  const ownerReviews = reviews.filter((review): review is Record<string, unknown> & OwnerReviewBackup =>
+    isOwnerReviewBackup(review, value.ownerKey),
+  );
+  if (ownerReviews.length !== reviews.length) return false;
+  const ids = ownerReviews.map((review) => review.catalogRecord.id);
+  const storageKeys = ownerReviews.map((review) => review.catalogRecord.locator.storageKey);
+  const legacyWorkspaceIds = ownerReviews.flatMap((review) => {
+    const workspaceId = review.catalogRecord.locator.legacyWorkspaceId;
+    return workspaceId === null ? [] : [workspaceId];
+  });
+  return (
+    new Set(ids).size === ids.length &&
+    new Set(storageKeys).size === storageKeys.length &&
+    new Set(legacyWorkspaceIds).size === legacyWorkspaceIds.length
+  );
+}
+
+function isProjectAssociatedReviewOwnerBackupState(
+  value: Record<string, unknown>,
+): value is Record<string, unknown> & ProjectAssociatedReviewOwnerBackupState {
   if (!isBackupStateEnvelope(value)) return false;
   return value.workspaces.every((workspace) => {
     if (
@@ -249,6 +343,116 @@ function isOwnerBackupState(value: Record<string, unknown>): value is Record<str
       return false;
     }
   });
+}
+
+function isOwnerReviewBackup(value: Record<string, unknown>, ownerKey: string): value is Record<string, unknown> & OwnerReviewBackup {
+  if (!isReviewCatalogRecord(value.catalogRecord) || !isReviewAccessBackupState(value.access, value.catalogRecord.id)) return false;
+  if (value.catalogRecord.role !== "owner" || value.access.deletedAt !== null) return false;
+  if (value.reviewRevisionSeed !== null && typeof value.reviewRevisionSeed !== "string") return false;
+  if (value.reviewPayload === null) return value.reviewRevisionSeed === null;
+  try {
+    const reference = parseReviewBackupReference(value.reviewPayload, ownerKey);
+    const seed = parseReviewRevisionSeed(value.reviewRevisionSeed);
+    return seed !== null && seed.reviewRevision === reference.reviewRevision && seed.protocolRevision === reference.protocolRevision;
+  } catch {
+    return false;
+  }
+}
+
+function isReviewCatalogRecord(value: unknown): value is ReviewCatalogRecord {
+  if (!isRecord(value) || !isRecord(value.locator)) return false;
+  return (
+    typeof value.id === "string" &&
+    isReviewId(value.id) &&
+    typeof value.title === "string" &&
+    value.title === value.title.trim() &&
+    value.title.length > 0 &&
+    value.title.length <= reviewResourceLimits.titleCharacters &&
+    isReviewProfile(value.profile) &&
+    value.href === `/review/${value.id}` &&
+    isReviewRole(value.role) &&
+    typeof value.createdAt === "string" &&
+    isIsoTimestamp(value.createdAt) &&
+    typeof value.updatedAt === "string" &&
+    isIsoTimestamp(value.updatedAt) &&
+    (value.archivedAt === null || (typeof value.archivedAt === "string" && isIsoTimestamp(value.archivedAt))) &&
+    value.locator.reviewId === value.id &&
+    typeof value.locator.storageKey === "string" &&
+    isReviewStorageKey(value.locator.storageKey) &&
+    (value.locator.legacyWorkspaceId === null ||
+      (typeof value.locator.legacyWorkspaceId === "string" && isWorkspaceRouteId(value.locator.legacyWorkspaceId)))
+  );
+}
+
+function isReviewAccessBackupState(value: unknown, reviewId: string): value is ReviewAccessBackupState {
+  if (
+    !isRecord(value) ||
+    value.reviewId !== reviewId ||
+    (value.legacySeededAt !== null && (typeof value.legacySeededAt !== "string" || !isIsoTimestamp(value.legacySeededAt))) ||
+    (value.deletedAt !== null && (typeof value.deletedAt !== "string" || !isIsoTimestamp(value.deletedAt))) ||
+    !Array.isArray(value.members) ||
+    value.members.length > reviewResourceLimits.members ||
+    !Array.isArray(value.projectLinks) ||
+    value.projectLinks.length > reviewResourceLimits.projectLinks
+  ) {
+    return false;
+  }
+  const members = value.members.filter((member): member is Record<string, unknown> => isRecord(member));
+  const links = value.projectLinks.filter((link): link is Record<string, unknown> => isRecord(link));
+  if (
+    members.length !== value.members.length ||
+    links.length !== value.projectLinks.length ||
+    !members.every(isReviewBackupMember) ||
+    !links.every((link) => isReviewBackupProjectLink(link, reviewId))
+  ) {
+    return false;
+  }
+  if (new Set(members.map((member) => member.id)).size !== members.length) return false;
+  if (new Set(members.map((member) => member.email)).size !== members.length) return false;
+  if (new Set(links.map((link) => link.id)).size !== links.length) return false;
+  const activeWorkspaceIds = links.filter((link) => link.status === "active").map((link) => link.workspaceId);
+  if (new Set(activeWorkspaceIds).size !== activeWorkspaceIds.length) return false;
+  const ownerCount = members.filter((member) => member.role === "owner").length;
+  return value.deletedAt === null ? ownerCount === 1 : members.length === 0 && !links.some((link) => link.status === "active");
+}
+
+function isReviewBackupMember(value: Record<string, unknown>): boolean {
+  return (
+    typeof value.id === "string" &&
+    (isReviewId(value.id) || /^[a-f0-9]{32}$/iu.test(value.id)) &&
+    typeof value.email === "string" &&
+    isNormalizedReviewEmail(value.email) &&
+    isReviewRole(value.role) &&
+    typeof value.addedAt === "string" &&
+    isIsoTimestamp(value.addedAt)
+  );
+}
+
+function isReviewBackupProjectLink(value: Record<string, unknown>, reviewId: string): boolean {
+  if (
+    typeof value.id !== "string" ||
+    !isReviewId(value.id) ||
+    value.reviewId !== reviewId ||
+    typeof value.workspaceId !== "string" ||
+    !isWorkspaceRouteId(value.workspaceId) ||
+    typeof value.createdBy !== "string" ||
+    !isNormalizedReviewEmail(value.createdBy) ||
+    typeof value.createdAt !== "string" ||
+    !isIsoTimestamp(value.createdAt)
+  ) {
+    return false;
+  }
+  return value.status === "active"
+    ? value.unlinkedAt === null && value.unlinkedBy === null
+    : value.status === "unlinked" &&
+        typeof value.unlinkedAt === "string" &&
+        isIsoTimestamp(value.unlinkedAt) &&
+        typeof value.unlinkedBy === "string" &&
+        isNormalizedReviewEmail(value.unlinkedBy);
+}
+
+function isNormalizedReviewEmail(value: string): boolean {
+  return value === value.trim().toLowerCase() && value.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value);
 }
 
 function isLegacyOwnerBackupState(value: Record<string, unknown>): value is Record<string, unknown> & LegacyOwnerBackupState {

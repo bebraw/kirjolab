@@ -7,7 +7,10 @@ import {
   ownerBackupManifestJson,
   ownerBackupSchemaVersion,
   parseOwnerBackupManifest,
+  projectAssociatedReviewOwnerBackupSchemaVersion,
   type LegacyOwnerBackupManifest,
+  type ProjectAssociatedReviewOwnerBackupManifest,
+  type ProjectAssociatedReviewOwnerBackupState,
 } from "../domain/backups";
 import { builtInProjectTemplate } from "../domain/project-templates";
 import { defaultReviewProtocol } from "../domain/review-study";
@@ -25,12 +28,24 @@ describe("BackupCoordinator in the Workers runtime", () => {
     const access = env.WORKSPACE_ACCESS.getByName(workspaceId);
     const room = env.DOCUMENT_ROOMS.getByName(workspaceId);
     const review = env.REVIEW_STUDIES.getByName(workspaceId);
+    const reviewAccess = env.REVIEW_ACCESS.getByName(workspaceId);
+    const reviewCatalog = env.REVIEW_CATALOGS.getByName(ownerKey);
     const coordinator = env.BACKUP_COORDINATOR.getByName(`backup-${crypto.randomUUID()}`);
     const templates = env.PROJECT_TEMPLATE_CATALOGS.getByName(ownerKey);
 
     await catalog.registerWorkspace(workspaceId, "Backup fixture");
-    await access.initializeOwner(ownerEmail);
+    const workspaceOwner = await access.initializeOwner(ownerEmail);
     await room.initializeWorkspace("Backup fixture");
+    const legacyReview = await reviewAccess.initializeLegacyMembers([workspaceOwner]);
+    const projectLink = await reviewAccess.createProjectLink(ownerEmail, workspaceId);
+    await reviewCatalog.registerLegacyReview({
+      reviewId: legacyReview.reviewId,
+      title: "Backup fixture review",
+      profile: "slr",
+      role: "owner",
+      storageKey: workspaceId,
+      legacyWorkspaceId: workspaceId,
+    });
     const initialReview = await review.getSnapshot("slr", ownerEmail);
     await review.replaceProtocol({
       expectedRevision: initialReview.revision,
@@ -64,7 +79,7 @@ describe("BackupCoordinator in the Workers runtime", () => {
     expect(manifestObject).not.toBeNull();
     const manifestJson = await manifestObject!.text();
     const manifest = parseOwnerBackupManifest(manifestJson);
-    if (manifest.schemaVersion !== ownerBackupSchemaVersion) throw new Error("Expected a v2 backup manifest");
+    if (manifest.schemaVersion !== ownerBackupSchemaVersion) throw new Error("Expected a v3 backup manifest");
     expect(manifest).toMatchObject({
       schemaVersion: ownerBackupSchemaVersion,
       digest: created.digest,
@@ -72,9 +87,27 @@ describe("BackupCoordinator in the Workers runtime", () => {
       recovery: { catalog: null, library: null },
     });
     expect(manifest.state.workspaces).toHaveLength(1);
+    expect(manifest.state.reviews).toHaveLength(1);
     expect(manifest.state.templates).toEqual([expect.objectContaining({ id: personalTemplate.id, name: "Backed-up template" })]);
     expect(manifest.state.workspaces[0]?.members).toEqual([expect.objectContaining({ email: ownerEmail, role: "owner" })]);
-    const reviewPayload = manifest.state.workspaces[0]?.reviewPayload;
+    expect(manifest.state.workspaces[0]).not.toHaveProperty("reviewPayload");
+    expect(manifest.state.workspaces[0]).not.toHaveProperty("reviewRevisionSeed");
+    const reviewBackup = manifest.state.reviews[0];
+    expect(reviewBackup).toMatchObject({
+      catalogRecord: {
+        id: legacyReview.reviewId,
+        title: "Backup fixture review",
+        profile: "slr",
+        role: "owner",
+        locator: { storageKey: workspaceId, legacyWorkspaceId: workspaceId },
+      },
+      access: {
+        reviewId: legacyReview.reviewId,
+        members: [expect.objectContaining({ email: ownerEmail, role: "owner" })],
+        projectLinks: [projectLink],
+      },
+    });
+    const reviewPayload = reviewBackup?.reviewPayload;
     expect(reviewPayload).toMatchObject({
       schemaVersion: "kirjolab-review-backup-v1",
       backupKey: expect.stringMatching(`^backups/reviews/${ownerKey}/[a-f0-9]{64}\\.json$`),
@@ -87,7 +120,7 @@ describe("BackupCoordinator in the Workers runtime", () => {
     expect(reviewPayloadObject).not.toBeNull();
     const reviewPayloadBody = await reviewPayloadObject!.text();
     expect(reviewPayloadBody).toContain("Backed-up review");
-    expect(manifest.state.workspaces[0]?.reviewRevisionSeed).toBe("review:2:protocol:2");
+    expect(reviewBackup?.reviewRevisionSeed).toBe("review:2:protocol:2");
     expect(manifest.binaries).toEqual([
       expect.objectContaining({ sourceKey, size: 11, backupKey: expect.stringMatching(`^backups/blobs/${ownerKey}/`) }),
     ]);
@@ -125,17 +158,35 @@ describe("BackupCoordinator in the Workers runtime", () => {
     ).toEqual([
       { version: 1, name: "create-isolated-backup-recovery" },
       { version: 2, name: "record-recovered-review-studies" },
+      { version: 3, name: "address-independent-review-recoveries" },
     ]);
     const recoveredReviews = await recovery.getRestoredReviewStudies();
+    const reviewRecoveryIdentity = `review-drill:${changed.digest}:${legacyReview.reviewId}`;
+    const reviewCatalogRecoveryIdentity = `review-catalog-drill:${changed.digest}`;
     expect(recoveredReviews).toEqual([
       expect.objectContaining({
-        workspaceId,
-        recoveryIdentity: `review-drill:${ownerKey}:${changed.digest}:${workspaceId}`,
+        reviewId: legacyReview.reviewId,
+        workspaceId: null,
+        catalogRecoveryIdentity: reviewCatalogRecoveryIdentity,
+        accessRecoveryIdentity: reviewRecoveryIdentity,
+        recoveryIdentity: reviewRecoveryIdentity,
         payloadDigest: reviewPayload.payloadDigest,
         authorityDigest: reviewPayload.authorityDigest,
         reviewRevision: reviewPayload.reviewRevision,
       }),
     ]);
+    expect((await env.REVIEW_CATALOGS.getByName(reviewCatalogRecoveryIdentity).getBackupSnapshot()).records).toEqual([
+      expect.objectContaining({
+        id: legacyReview.reviewId,
+        locator: { reviewId: legacyReview.reviewId, storageKey: reviewRecoveryIdentity, legacyWorkspaceId: workspaceId },
+      }),
+    ]);
+    const recoveredAccess = await env.REVIEW_ACCESS.getByName(reviewRecoveryIdentity).getBackupSnapshot(ownerEmail);
+    expect(recoveredAccess).toMatchObject({
+      reviewId: legacyReview.reviewId,
+      members: [expect.objectContaining({ email: ownerEmail, role: "owner" })],
+      projectLinks: [projectLink],
+    });
     const recoveredReview = env.REVIEW_STUDIES.getByName(recoveredReviews[0]!.recoveryIdentity);
     expect(await recoveredReview.getBackupVerification()).toEqual({
       payloadDigest: reviewPayload.payloadDigest,
@@ -184,6 +235,163 @@ describe("BackupCoordinator in the Workers runtime", () => {
       lastBackedUpAt: changed.lastBackedUpAt,
       error: "A referenced backup source is missing",
     });
+  });
+
+  it("restores independent review catalog and access state when no study payload exists", async () => {
+    const ownerKey = await sha256Hex(crypto.randomUUID());
+    const ownerEmail = "blank-review-owner@example.test";
+    const catalog = env.REVIEW_CATALOGS.getByName(ownerKey);
+    const review = await catalog.createReview({ title: "Blank independent review", profile: "mlr" });
+    const access = env.REVIEW_ACCESS.getByName(review.locator.storageKey);
+    await access.initializeOwner(review.id, ownerEmail);
+    const coordinator = env.BACKUP_COORDINATOR.getByName(`blank-review-backup-${crypto.randomUUID()}`);
+
+    const backup = await coordinator.runOwnerBackup(ownerKey, ownerEmail);
+    expect(backup).toMatchObject({ outcome: "created", error: null });
+    if (!backup.digest || !backup.manifestKey) throw new Error("Expected blank-review backup identities");
+    const manifestObject = await env.PAPERS.get(backup.manifestKey);
+    if (!manifestObject) throw new Error("Expected the blank-review manifest");
+    const manifest = parseOwnerBackupManifest(await manifestObject.text());
+    if (manifest.schemaVersion !== ownerBackupSchemaVersion) throw new Error("Expected a v3 backup manifest");
+    expect(manifest.state.reviews).toEqual([
+      expect.objectContaining({
+        catalogRecord: expect.objectContaining({ id: review.id, title: review.title, profile: "mlr" }),
+        access: expect.objectContaining({ reviewId: review.id }),
+        reviewPayload: null,
+        reviewRevisionSeed: null,
+      }),
+    ]);
+
+    const drill = await coordinator.runRecoveryDrill(ownerKey);
+    expect(drill).toMatchObject({ outcome: "verified", reviewsChecked: 0, error: null });
+    const catalogRecoveryIdentity = `review-catalog-drill:${backup.digest}`;
+    const reviewRecoveryIdentity = `review-drill:${backup.digest}:${review.id}`;
+    expect((await env.REVIEW_CATALOGS.getByName(catalogRecoveryIdentity).getBackupSnapshot()).records).toEqual([
+      expect.objectContaining({
+        id: review.id,
+        locator: { reviewId: review.id, storageKey: reviewRecoveryIdentity, legacyWorkspaceId: null },
+      }),
+    ]);
+    expect(await env.REVIEW_ACCESS.getByName(reviewRecoveryIdentity).getBackupSnapshot(ownerEmail)).toMatchObject({
+      reviewId: review.id,
+      members: [expect.objectContaining({ email: ownerEmail, role: "owner" })],
+      projectLinks: [],
+    });
+    expect(await env.REVIEW_STUDIES.getByName(reviewRecoveryIdentity).hasReviewData()).toBe(false);
+  });
+
+  it("keeps v2 project-associated review recovery drills compatible", async () => {
+    const ownerKey = await sha256Hex(crypto.randomUUID());
+    const ownerEmail = "v2-owner@example.test";
+    const workspaceId = crypto.randomUUID();
+    const coordinator = env.BACKUP_COORDINATOR.getByName(`v2-backup-${crypto.randomUUID()}`);
+    const catalog = env.WORKSPACE_CATALOGS.getByName(ownerKey);
+    const access = env.WORKSPACE_ACCESS.getByName(workspaceId);
+    const room = env.DOCUMENT_ROOMS.getByName(workspaceId);
+    const review = env.REVIEW_STUDIES.getByName(workspaceId);
+
+    await catalog.registerWorkspace(workspaceId, "Legacy review project");
+    await access.initializeOwner(ownerEmail);
+    await room.initializeWorkspace("Legacy review project");
+    const initialReview = await review.getSnapshot("slr", ownerEmail);
+    await review.replaceProtocol({
+      expectedRevision: initialReview.revision,
+      content: { ...defaultReviewProtocol(), objective: "Legacy v2 review" },
+      actor: ownerEmail,
+    });
+    const [catalogBackup, accessBackup, documentBackup, reviewBackup] = await Promise.all([
+      catalog.getBackupSnapshot(),
+      access.getBackupSnapshot(ownerEmail),
+      room.getBackupSnapshot(workspaceId),
+      review.createBackupSnapshot(ownerKey),
+    ]);
+    if (!reviewBackup.reference || !reviewBackup.revisionSeed) throw new Error("Expected a v2 review backup payload");
+    const summary = catalogBackup.workspaces.find((workspace) => workspace.id === workspaceId);
+    if (!summary) throw new Error("Expected the v2 workspace summary");
+    const state: ProjectAssociatedReviewOwnerBackupState = {
+      ownerKey,
+      catalog: [summary],
+      library: {
+        references: [],
+        referenceKeyStates: {},
+        artifacts: [],
+        webSources: [],
+        webSnapshots: [],
+        notes: [],
+        highlights: [],
+        tags: {},
+        collections: {},
+        reading: [],
+      },
+      templates: [],
+      workspaces: [
+        {
+          summary,
+          members: accessBackup.members,
+          snapshot: documentBackup.snapshot,
+          revisionSeed: documentBackup.revisionSeed,
+          reviewPayload: reviewBackup.reference,
+          reviewRevisionSeed: reviewBackup.revisionSeed,
+        },
+      ],
+    };
+    const digest = await ownerBackupDigest(state, [], projectAssociatedReviewOwnerBackupSchemaVersion);
+    const manifest: ProjectAssociatedReviewOwnerBackupManifest = {
+      schemaVersion: projectAssociatedReviewOwnerBackupSchemaVersion,
+      createdAt: "2026-07-18T00:00:00.000Z",
+      digest,
+      state,
+      binaries: [],
+      recovery: {
+        catalog: catalogBackup.bookmark,
+        library: null,
+        templates: null,
+        workspaces: [
+          {
+            workspaceId,
+            access: accessBackup.bookmark,
+            document: documentBackup.bookmark,
+            review: reviewBackup.bookmark,
+          },
+        ],
+      },
+    };
+    const manifestKey = `backups/manifests/${ownerKey}/v2.json`;
+    await env.PAPERS.put(manifestKey, ownerBackupManifestJson(manifest));
+    await coordinator.registerOwner(ownerKey, ownerEmail);
+    await runInDurableObject(coordinator, (_instance: BackupCoordinator, durableState) => {
+      durableState.storage.sql.exec(
+        `INSERT INTO backup_status
+         (owner_key, outcome, digest, manifest_key, last_checked_at, last_backed_up_at, error)
+         VALUES (?, 'created', ?, ?, ?, ?, NULL)`,
+        ownerKey,
+        digest,
+        manifestKey,
+        manifest.createdAt,
+        manifest.createdAt,
+      );
+    });
+
+    const drill = await coordinator.runRecoveryDrill(ownerKey);
+    expect(drill).toMatchObject({
+      outcome: "verified",
+      digest,
+      manifestKey,
+      binariesChecked: 0,
+      reviewsChecked: 1,
+      error: null,
+    });
+    const recovered = await env.BACKUP_RECOVERIES.getByName(drill.recoveryIdentity!).getRestoredReviewStudies();
+    expect(recovered).toEqual([
+      expect.objectContaining({
+        reviewId: null,
+        workspaceId,
+        catalogRecoveryIdentity: null,
+        accessRecoveryIdentity: null,
+        recoveryIdentity: `review-drill:${ownerKey}:${digest}:${workspaceId}`,
+        payloadDigest: reviewBackup.reference.payloadDigest,
+      }),
+    ]);
   });
 
   it("keeps v1 manifest-only recovery drills compatible", async () => {

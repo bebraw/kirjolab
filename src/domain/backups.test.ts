@@ -8,6 +8,7 @@ import {
   ownerBackupManifestKey,
   ownerBackupSchemaVersion,
   parseOwnerBackupManifest,
+  projectAssociatedReviewOwnerBackupSchemaVersion,
   referencedBinaryKeys,
   type BackupBinaryReferences,
   type BackupBinaryObject,
@@ -33,6 +34,7 @@ const emptyState = {
     reading: [],
   },
   workspaces: [],
+  reviews: [],
 } satisfies OwnerBackupState;
 
 describe("owner backup projection", () => {
@@ -42,6 +44,7 @@ describe("owner backup projection", () => {
       library: { ...emptyState.library, tags: {}, references: [] },
       catalog: [],
       ownerKey: emptyState.ownerKey,
+      reviews: [],
     } satisfies OwnerBackupState;
     expect(await ownerBackupDigest(emptyState, [])).toBe(await ownerBackupDigest(reordered, []));
     expect(await ownerBackupDigest({ ...emptyState, ownerKey: "b".repeat(64) }, [])).not.toBe(await ownerBackupDigest(emptyState, []));
@@ -125,6 +128,7 @@ describe("owner backup projection", () => {
       { ...manifest, state: { ...manifest.state, ownerKey: "invalid" } },
       { ...manifest, state: { ...manifest.state, catalog: null } },
       { ...manifest, state: { ...manifest.state, workspaces: null } },
+      { ...manifest, state: { ...manifest.state, reviews: null } },
       { ...manifest, state: { ...manifest.state, library: null } },
       { ...manifest, binaries: null },
       { ...manifest, recovery: null },
@@ -163,12 +167,18 @@ describe("owner backup projection", () => {
       protocolRevision: 3,
       historyFloorRevision: 1,
     };
+    const projectAssociatedState = {
+      ownerKey: emptyState.ownerKey,
+      catalog: emptyState.catalog,
+      library: emptyState.library,
+      workspaces: emptyState.workspaces,
+    };
     const manifest = {
-      schemaVersion: ownerBackupSchemaVersion,
+      schemaVersion: projectAssociatedReviewOwnerBackupSchemaVersion,
       createdAt: "2026-07-19T00:00:00.000Z",
       digest: "f".repeat(64),
       state: {
-        ...emptyState,
+        ...projectAssociatedState,
         catalog: [{ id: "workspace-1" }],
         workspaces: [
           {
@@ -205,9 +215,101 @@ describe("owner backup projection", () => {
     }
   });
 
+  it("stores independently addressed review catalog, access, links, and payload state in v3 manifests", () => {
+    const reviewId = "11111111-1111-4111-8111-111111111111";
+    const ownerId = "22222222-2222-4222-8222-222222222222";
+    const linkId = "33333333-3333-4333-8333-333333333333";
+    const timestamp = "2026-07-19T00:00:00.000Z";
+    const reference: ReviewBackupReference = {
+      schemaVersion: reviewBackupSchemaVersion,
+      backupKey: `backups/reviews/${emptyState.ownerKey}/${"d".repeat(64)}.json`,
+      byteCount: 1024,
+      payloadDigest: "d".repeat(64),
+      authorityDigest: "e".repeat(64),
+      reviewRevision: 8,
+      protocolRevision: 3,
+      historyFloorRevision: 1,
+    };
+    const review = {
+      catalogRecord: {
+        id: reviewId,
+        title: "Independent evidence review",
+        profile: "slr" as const,
+        href: `/review/${reviewId}`,
+        role: "owner" as const,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        archivedAt: null,
+        locator: { reviewId, storageKey: `review:${reviewId}`, legacyWorkspaceId: null },
+      },
+      access: {
+        reviewId,
+        legacySeededAt: null,
+        deletedAt: null,
+        members: [{ id: ownerId, email: "owner@example.test", role: "owner" as const, addedAt: timestamp }],
+        projectLinks: [
+          {
+            id: linkId,
+            reviewId,
+            workspaceId: "workspace-1",
+            createdBy: "owner@example.test",
+            createdAt: timestamp,
+            status: "active" as const,
+            unlinkedAt: null,
+            unlinkedBy: null,
+          },
+        ],
+      },
+      reviewPayload: reference,
+      reviewRevisionSeed: "review:8:protocol:3",
+    };
+    const manifest: OwnerBackupManifest = {
+      schemaVersion: ownerBackupSchemaVersion,
+      createdAt: timestamp,
+      digest: "f".repeat(64),
+      state: { ...emptyState, reviews: [review] },
+      binaries: [],
+      recovery: {
+        catalog: null,
+        library: null,
+        workspaces: [],
+        reviewCatalog: null,
+        reviews: [{ reviewId, access: null, study: null }],
+      },
+    };
+
+    expect(parseOwnerBackupManifest(ownerBackupManifestJson(manifest))).toEqual(manifest);
+    expect(ownerBackupManifestJson(manifest)).not.toContain('"review":');
+    for (const invalidReview of [
+      { ...review, catalogRecord: { ...review.catalogRecord, id: "invalid" } },
+      { ...review, catalogRecord: { ...review.catalogRecord, locator: { ...review.catalogRecord.locator, reviewId: linkId } } },
+      { ...review, access: { ...review.access, reviewId: linkId } },
+      { ...review, access: { ...review.access, members: [] } },
+      { ...review, reviewPayload: null, reviewRevisionSeed: "review:8:protocol:3" },
+      { ...review, reviewRevisionSeed: "review:7:protocol:3" },
+    ]) {
+      expect(() =>
+        parseOwnerBackupManifest(JSON.stringify({ ...manifest, state: { ...manifest.state, reviews: [invalidReview] } })),
+      ).toThrow("Owner backup manifest is invalid");
+    }
+    expect(() =>
+      parseOwnerBackupManifest(
+        JSON.stringify({
+          ...manifest,
+          state: {
+            ...manifest.state,
+            workspaces: [{ summary: { id: "workspace-1" }, reviewPayload: reference, reviewRevisionSeed: "review:8:protocol:3" }],
+          },
+        }),
+      ),
+    ).toThrow("Owner backup manifest is invalid");
+  });
+
   it("parses immutable v1 manifests and verifies them with their original digest schema", async () => {
     const legacyState = {
-      ...emptyState,
+      ownerKey: emptyState.ownerKey,
+      catalog: emptyState.catalog,
+      library: emptyState.library,
       workspaces: [],
     };
     const legacyManifest: LegacyOwnerBackupManifest = {

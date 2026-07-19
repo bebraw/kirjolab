@@ -8,6 +8,7 @@ import {
   ownerBackupManifestKey,
   ownerBackupSchemaVersion,
   parseOwnerBackupManifest,
+  projectAssociatedReviewOwnerBackupSchemaVersion,
   referencedBinaryKeys,
   type BackupBinaryObject,
   type OwnerBackupDrillStatus,
@@ -15,6 +16,7 @@ import {
   type OwnerBackupRecovery,
   type OwnerBackupState,
   type OwnerBackupStatus,
+  type OwnerReviewBackup,
   type OwnerWorkspaceBackup,
 } from "../domain/backups";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
@@ -185,8 +187,10 @@ export class BackupCoordinator extends DurableObject<Env> {
       reviewsChecked = (await recovery.getRestoredReviewStudies()).length;
       const expectedReviews =
         manifest.schemaVersion === ownerBackupSchemaVersion
-          ? manifest.state.workspaces.filter((workspace) => workspace.reviewPayload !== null).length
-          : 0;
+          ? manifest.state.reviews.filter((review) => review.reviewPayload !== null).length
+          : manifest.schemaVersion === projectAssociatedReviewOwnerBackupSchemaVersion
+            ? manifest.state.workspaces.filter((workspace) => workspace.reviewPayload !== null).length
+            : 0;
       if (reviewsChecked !== expectedReviews) throw new Error("Recovered review study count verification failed");
       this.#recordDrill(
         ownerKey,
@@ -287,10 +291,12 @@ export class BackupCoordinator extends DurableObject<Env> {
 
   async #ownerState(owner: OwnerRow): Promise<{ state: OwnerBackupState; recovery: OwnerBackupRecovery }> {
     const catalog = this.env.WORKSPACE_CATALOGS.getByName(owner.owner_key);
+    const reviewCatalog = this.env.REVIEW_CATALOGS.getByName(owner.owner_key);
     const library = this.env.REFERENCE_LIBRARIES.getByName(owner.owner_key);
     const templates = this.env.PROJECT_TEMPLATE_CATALOGS.getByName(owner.owner_key);
-    const [catalogBackup, libraryBackup, templateBackup] = await Promise.all([
+    const [catalogBackup, reviewCatalogBackup, libraryBackup, templateBackup] = await Promise.all([
       catalog.getBackupSnapshot(),
+      reviewCatalog.getBackupSnapshot(),
       library.getBackupSnapshot(),
       templates.getBackupSnapshot(),
     ]);
@@ -303,29 +309,49 @@ export class BackupCoordinator extends DurableObject<Env> {
       const access = this.env.WORKSPACE_ACCESS.getByName(storageKey);
       if ((await access.getRole(owner.email)) !== "owner") continue;
       const room = this.env.DOCUMENT_ROOMS.getByName(storageKey);
-      const review = this.env.REVIEW_STUDIES.getByName(storageKey);
-      const [accessBackup, documentBackup, reviewBackup] = await Promise.all([
-        access.getBackupSnapshot(owner.email),
-        room.getBackupSnapshot(summary.id),
-        review.createBackupSnapshot(owner.owner_key),
-      ]);
+      const [accessBackup, documentBackup] = await Promise.all([access.getBackupSnapshot(owner.email), room.getBackupSnapshot(summary.id)]);
       workspaces.push({
         summary,
         members: accessBackup.members,
         snapshot: documentBackup.snapshot,
         revisionSeed: documentBackup.revisionSeed,
-        reviewPayload: reviewBackup.reference,
-        reviewRevisionSeed: reviewBackup.revisionSeed,
       });
       recoveryWorkspaces.push({
         workspaceId: summary.id,
         access: accessBackup.bookmark,
         document: documentBackup.bookmark,
-        review: reviewBackup.bookmark,
+      });
+    }
+
+    const reviews: OwnerReviewBackup[] = [];
+    const recoveryReviews: NonNullable<OwnerBackupRecovery["reviews"]>[number][] = [];
+    for (const record of reviewCatalogBackup.records) {
+      if (record.role !== "owner") continue;
+      const access = this.env.REVIEW_ACCESS.getByName(record.locator.storageKey);
+      if ((await access.getRole(owner.email)) !== "owner") throw new Error("Review catalog and access ownership do not match");
+      const study = this.env.REVIEW_STUDIES.getByName(record.locator.storageKey);
+      const [accessBackup, reviewBackup] = await Promise.all([
+        access.getBackupSnapshot(owner.email),
+        study.createBackupSnapshot(owner.owner_key),
+      ]);
+      if (accessBackup.reviewId !== record.id) throw new Error("Review catalog and access identities do not match");
+      const { bookmark: accessBookmark, ...accessState } = accessBackup;
+      reviews.push({
+        catalogRecord: record,
+        access: accessState,
+        reviewPayload: reviewBackup.reference,
+        reviewRevisionSeed: reviewBackup.revisionSeed,
+      });
+      recoveryReviews.push({
+        reviewId: record.id,
+        access: accessBookmark,
+        study: reviewBackup.bookmark,
       });
     }
     workspaces.sort((left, right) => left.summary.id.localeCompare(right.summary.id));
     recoveryWorkspaces.sort((left, right) => left.workspaceId.localeCompare(right.workspaceId));
+    reviews.sort((left, right) => left.catalogRecord.id.localeCompare(right.catalogRecord.id));
+    recoveryReviews.sort((left, right) => left.reviewId.localeCompare(right.reviewId));
     return {
       state: {
         ownerKey: owner.owner_key,
@@ -333,12 +359,15 @@ export class BackupCoordinator extends DurableObject<Env> {
         library: libraryBackup.snapshot,
         templates: templateBackup.templates,
         workspaces,
+        reviews,
       },
       recovery: {
         catalog: catalogBackup.bookmark,
         library: libraryBackup.bookmark,
         templates: templateBackup.bookmark,
         workspaces: recoveryWorkspaces,
+        reviewCatalog: reviewCatalogBackup.bookmark,
+        reviews: recoveryReviews,
       },
     };
   }
