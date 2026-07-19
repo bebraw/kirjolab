@@ -59,7 +59,32 @@ describe("ReviewStudy in the Workers runtime", () => {
       { version: 4, name: "store-evidence-linked-appraisal-and-extraction" },
       { version: 5, name: "store-review-model-candidates" },
       { version: 6, name: "allow-rationales-for-negative-appraisal" },
+      { version: 7, name: "make-review-revisions-reconstructible" },
     ]);
+  });
+
+  it("fails closed below an adopted history floor", async () => {
+    const study = env.REVIEW_STUDIES.getByName(`review-history-floor-${crypto.randomUUID()}`);
+    const first = await study.getSnapshot();
+    const current = await study.replaceProtocol({
+      expectedRevision: first.revision,
+      content: { ...defaultReviewProtocol(), objective: "Adopt reconstructible history" },
+      actor: "owner@example.com",
+    });
+
+    await runInDurableObject(study, (instance: ReviewStudy, state) => {
+      state.storage.sql.exec(
+        "UPDATE review_meta SET history_floor_revision = ? WHERE singleton = 1",
+        current.revision,
+      );
+      expect(() => instance.getExportAuthorityAtRevision(current.revision - 1, "owner@example.com")).toThrow(
+        `predates reconstructible history floor ${current.revision}`,
+      );
+      expect(() => instance.getSynthesisAtRevision(current.revision - 1, "owner@example.com")).toThrow(
+        `predates reconstructible history floor ${current.revision}`,
+      );
+      expect(instance.getExportAuthorityAtRevision(current.revision, "owner@example.com").revision).toBe(current.revision);
+    });
   });
 
   it("deletes the complete review authority with the project", async () => {
@@ -103,11 +128,18 @@ describe("ReviewStudy in the Workers runtime", () => {
     expect(imported.counts).toEqual({ identified: 2, unique: 2, duplicatesRemoved: 0 });
     expect(imported.runs).toHaveLength(1);
     expect(imported.duplicateCandidates).toHaveLength(1);
+    const authorityAtImport = await study.getExportAuthorityAtRevision(imported.revision, "reviewer@example.com");
     const candidate = imported.duplicateCandidates[0]!;
     const merged = await study.resolveDuplicate(imported.revision, candidate.id, "merge", candidate.leftId, "reviewer@example.com");
+    expect(merged.revision).toBe(imported.revision + 1);
     expect(merged.counts).toEqual({ identified: 2, unique: 1, duplicatesRemoved: 1 });
     expect(new Set(merged.occurrences.map((occurrence) => occurrence.recordId))).toEqual(new Set([candidate.leftId]));
     expect(merged.duplicateCandidates[0]).toMatchObject({ status: "merged", resolvedBy: "reviewer@example.com" });
+    expect(await study.getExportAuthorityAtRevision(imported.revision, "reviewer@example.com")).toEqual(authorityAtImport);
+    expect(authorityAtImport.search).toMatchObject({
+      counts: { identified: 2, unique: 2, duplicatesRemoved: 0 },
+      duplicateCandidates: [{ status: "pending", resolvedAt: null, resolvedBy: null }],
+    });
   });
 
   it("blinds independent screening decisions and preserves adjudicated conflicts", async () => {
@@ -257,11 +289,24 @@ describe("ReviewStudy in the Workers runtime", () => {
     );
     expect(missing.records[0]).toMatchObject({ extractionComplete: true });
     expect(missing.records[0]?.extractionValues).toHaveLength(2);
-    expect(await study.getSynthesis("reviewer@example.com")).toMatchObject({
+    const synthesisAtMissing = await study.getSynthesisAtRevision(missing.revision, "reviewer@example.com");
+    expect(synthesisAtMissing).toMatchObject({
       revision: missing.revision,
       flow: { identified: 1, included: 1 },
       matrix: [{ title: "Evidence Study", Year: 2025, "Key finding": "Missing: Not reported" }],
     });
+    const revised = await study.submitExtractionValue(
+      missing.revision,
+      recordId,
+      "year",
+      2026,
+      null,
+      { quote: "Corrected to 2026", page: 1, location: "Front matter" },
+      "reviewer@example.com",
+    );
+    expect(revised.revision).toBe(missing.revision + 1);
+    expect(await study.getSynthesisAtRevision(missing.revision, "reviewer@example.com")).toEqual(synthesisAtMissing);
+    expect(await study.getSynthesis("reviewer@example.com")).toMatchObject({ matrix: [{ Year: 2026 }] });
   });
 
   it("records model provenance and applies candidates only after human acceptance", async () => {
@@ -300,6 +345,10 @@ describe("ReviewStudy in the Workers runtime", () => {
       result: { decision: "include", criterion: "Empirical", rationale: "Reports a study.", evidence: "survey" },
       actor: "reviewer@example.com",
     });
+    const authorityWithPendingModel = await study.getExportAuthorityAtRevision(
+      screeningCandidate.revision,
+      "reviewer@example.com",
+    );
     expect((await study.getScreeningSnapshot("reviewer@example.com")).records[0]?.titleAbstract.outcome).toBe("pending");
     const acceptedScreen = await study.resolveModelCandidate(
       screeningCandidate.revision,
@@ -307,7 +356,15 @@ describe("ReviewStudy in the Workers runtime", () => {
       "accepted",
       "reviewer@example.com",
     );
+    expect(acceptedScreen.revision).toBe(screeningCandidate.revision + 1);
     expect(acceptedScreen.candidates[0]).toMatchObject({ disposition: "accepted", model: "local-model" });
+    expect(await study.getExportAuthorityAtRevision(screeningCandidate.revision, "reviewer@example.com")).toEqual(
+      authorityWithPendingModel,
+    );
+    expect(authorityWithPendingModel).toMatchObject({
+      model: { candidates: [{ disposition: "pending", disposedAt: null, disposedBy: null }] },
+      screening: { records: [{ titleAbstract: { outcome: "pending", decisions: [] } }] },
+    });
     const titleState = await study.getScreeningSnapshot("reviewer@example.com");
     expect(titleState.records[0]?.titleAbstract.outcome).toBe("include");
     const full = await study.submitScreeningDecision(
