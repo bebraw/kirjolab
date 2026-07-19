@@ -152,6 +152,11 @@ memory and makes citation aliases compete with stable source identity.
   those defaults: first add the bibliographic record, then explicitly review
   artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
   highlight retains a separate share or revoke action.
+- In a project, each saved private text highlight exposes **Cite in manuscript**.
+  The action uses the remembered manuscript caret, links only the bibliographic
+  snapshot when the source is not yet in the project, and inserts the resulting
+  project citation alias with the highlight page as its locator. It does not
+  share the private highlight or PDF artifact.
 
 ### API Contracts
 
@@ -235,6 +240,8 @@ memory and makes citation aliases compete with stable source identity.
   duplicate its permanent tab with generic header and rail launchers.
 - Do not combine project reference linkage, an artifact-rights declaration,
   PDF sharing, or highlight sharing into one ambiguous action.
+- Do not require project PDF or highlight sharing merely to cite the identified
+  source and page represented by a private highlight.
 - Do not create a temporary or hidden project to host standalone library work.
 
 ### Validation

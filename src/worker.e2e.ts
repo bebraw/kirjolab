@@ -1930,12 +1930,26 @@ test("keeps private library research separate from project citations", async ({ 
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await expect(page.locator("#library-highlight-status")).toHaveText("Showing saved private highlight on page 1.");
 
+  const editor = page.locator("#source-editor");
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(element.value.length, element.value.length);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await page
+    .locator("#library-highlight-list article")
+    .filter({ hasText: "Revised reading insight" })
+    .getByRole("button", { name: "Cite in manuscript" })
+    .click();
+  await expect(editor).toHaveValue(/:cite\[sourceundatedclimate\]\{locator="p\. 1"\}/u);
+  const citedSnapshot = await readWorkspaceSnapshot(page, api);
+  expect(citedSnapshot.projectReferences.some((link) => link.citationAlias === "sourceundatedclimate")).toBe(true);
+  expect(citedSnapshot.researchShares).toHaveLength(0);
+
   const projectUse = page.locator("#library-project-use");
   await page.getByText("Project sharing", { exact: true }).click();
-  await expect(projectUse).toContainText("Step 1 of 3 · Reference");
-  await expect(projectUse.getByRole("button", { name: "Share PDF with project" })).toHaveCount(0);
-  await projectUse.getByRole("button", { name: "Add reference to project" }).click();
   await expect(projectUse).toContainText("Step 2 of 3 · Rights");
+  await expect(projectUse.getByRole("button", { name: "Add reference to project" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Share highlight with project" })).toBeEnabled();
   await projectUse.getByLabel("PDF sharing rights").selectOption("shareable");
   await projectUse.getByRole("button", { name: "Save rights decision" }).click();

@@ -49,6 +49,7 @@ import {
   type ProjectFile,
 } from "../domain/project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
+import { suggestCitationKey } from "../domain/publication-intake";
 import { isPhrasingPurposeId, phrasingPatternsForPurpose, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import { parseResearchQuestions, researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate, summarizeResearchDiary } from "../domain/writing-workflows";
@@ -7453,12 +7454,16 @@ class WorkspaceApp {
   }
 
   #insertPublicationCitation(publication: PublicationResource, locator?: string): void {
+    this.#insertCitation(publication.citationKey, locator);
+  }
+
+  #insertCitation(citationKey: string, locator?: string): void {
     const index = this.#resolvedAuthoringCaret();
     if (index === null) {
       this.#showToast("Place the manuscript caret before inserting a citation.");
       return;
     }
-    const insertion = createCitationInsertion(this.#activeFileText.toString(), index, publication.citationKey, locator);
+    const insertion = createCitationInsertion(this.#activeFileText.toString(), index, citationKey, locator);
     if (!insertion) {
       this.#showToast("This reference key cannot be represented by citation syntax.");
       return;
@@ -7469,7 +7474,35 @@ class WorkspaceApp {
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
     this.#rememberAuthoringSelection();
-    this.#showToast(`Inserted :cite[${publication.citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
+    this.#showToast(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
+  }
+
+  async #citeLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
+    if (this.#resolvedAuthoringCaret() === null) {
+      this.#showToast("Place the manuscript caret before citing a highlight.");
+      return;
+    }
+    const reference = this.#librarySnapshot?.references.find((item) => item.id === highlight.referenceId);
+    if (!reference) {
+      this.#showToast("The highlighted source is no longer available in the library.");
+      return;
+    }
+    let projectReference = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
+    if (!projectReference) {
+      const reservedAliases = this.#snapshot?.projectReferences.map((item) => item.citationAlias) ?? [];
+      const preferredAlias = reservedAliases.some((alias) => alias.toLocaleLowerCase() === reference.referenceKey.toLocaleLowerCase())
+        ? suggestCitationKey({ authors: [...reference.authors], year: reference.year }, reservedAliases)
+        : reference.referenceKey;
+      const response = await jsonFetch(`${apiBase}/references`, {
+        referenceId: reference.id,
+        citationAlias: preferredAlias,
+      });
+      await this.#acceptWorkspaceMutation(response);
+      projectReference = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
+      this.#renderReferenceLibrary();
+    }
+    if (!projectReference) throw new Error("Project reference was not created");
+    this.#insertCitation(projectReference.citationAlias, `p. ${highlight.page}`);
   }
 
   async #linkActivePublicationPdf(event: SubmitEvent): Promise<void> {
@@ -8599,7 +8632,11 @@ class WorkspaceApp {
           );
       shareAction.disabled = !share && !linked;
       shareAction.title = linked ? "" : "Add the bibliographic reference to this project first";
-      if (appMode === "workspace") actions.append(shareAction);
+      if (appMode === "workspace") {
+        const citeAction = actionButton("Cite in manuscript", "button-primary", () => void this.#citeLibraryHighlight(highlight));
+        citeAction.title = "Add this source to the project if needed, then cite this page at the remembered manuscript caret";
+        actions.append(citeAction, shareAction);
+      }
       card.append(actions);
       this.#elements.libraryHighlightList.append(card);
     }
