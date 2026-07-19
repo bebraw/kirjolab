@@ -62,14 +62,14 @@ implementation range from the earlier foundation.
   on July 13 at 17:44 EEST
 - **First period commit:** `2beffd8238bd760ddf742a9a35e6dac10490836`
   on July 13 at 21:15 EEST
-- **Current reviewed submission head:** `35e503e`
-- **Diff:** 264 commits, 394 files, 68,468 insertions, 15,743 deletions
+- **Core product head before final submission collateral:** `99f51e5`
+- **Diff:** 319 commits, 425 files, 87,020 insertions, 15,885 deletions
 
 Inspect that range with:
 
 ```bash
-git log --reverse --stat e6a7bdf..35e503e
-git diff --stat e6a7bdf..35e503e
+git log --reverse --stat e6a7bdf..99f51e5
+git diff --stat e6a7bdf..99f51e5
 ```
 
 This broader range includes the integrated research context, editor and preview
@@ -198,6 +198,8 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Paste the completed description into Devpost.
 - [x] Produce fifteen validated 3:2 project-media images under the 5 MB limit.
 - [ ] Upload and curate the project-media set in Devpost.
+- [x] Produce an eight-page PDF judge brief and editable slide source.
+- [ ] Upload the PDF judge brief as the optional submission file.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
 - [x] Draft the timed three-minute demo script and shot plan.
 - [x] Produce and validate the initial SLR-focused review cut.
@@ -283,6 +285,14 @@ evidence, accountless sharing, portable output, and independent reviews.
 Captions are maintained in `.generated/build-week-media/captions.md`. These
 local production artifacts are intentionally excluded from version control and
 still need to be uploaded to Devpost.
+
+The optional submission attachment is the eight-page
+[`build-week-2026-judge-brief.pdf`](./build-week-2026-judge-brief.pdf). It is a
+2.6 MB standalone summary of the problem, integrated product flow, human-review
+boundary, portable architecture, submission-period scope, and verified
+Codex/GPT-5.6 contribution. The editable source is
+[`build-week-2026-judge-brief.pptx`](./build-week-2026-judge-brief.pptx). Upload
+the PDF directly rather than wrapping it in a ZIP file.
 
 Reproduce the set through the dedicated loopback Chrome session documented in
 [Browser Debugging](./dev/BROWSER_DEBUGGING.md):
