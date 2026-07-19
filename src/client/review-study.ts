@@ -1767,7 +1767,7 @@ function queryItem(label: string, query: string, diagnostics: readonly string[])
 }
 
 function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolContent {
-  const profile = required("review-profile", HTMLSelectElement).value === "mlr" ? "mlr" : "slr";
+  const profile = previous.profile;
   const researchQuestions = nonEmptyLines(required("review-questions", HTMLTextAreaElement).value).map<ReviewResearchQuestion>(
     (text, index) => ({
       id: previous.researchQuestions[index]?.id ?? `rq_${crypto.randomUUID()}`,

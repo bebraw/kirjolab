@@ -53,6 +53,22 @@ describe("independent reviews API in the Workers runtime", () => {
     });
     expect(multivocalRecord?.locator.storageKey).toBe(`review:${multivocal.id}`);
     expect(multivocalRecord?.locator.storageKey).not.toBe(systematicRecord?.locator.storageKey);
+
+    const profileChange = await handleReviewsApi(
+      new Request(`http://example.com/api/reviews/${systematic.id}/settings`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ profile: "mlr" }),
+      }),
+      env,
+      owner,
+    );
+    expect(profileChange.status).toBe(409);
+    await expect(profileChange.json()).resolves.toEqual({ error: "Review method profile cannot change after creation" });
+    await expect(catalog.getReview(systematic.id)).resolves.toMatchObject({ profile: "slr" });
+    await expect(env.REVIEW_STUDIES.getByName(systematicRecord!.locator.storageKey).getSnapshot()).resolves.toMatchObject({
+      protocol: { profile: "slr" },
+    });
   });
 
   it("does not derive review access from project membership or project access from review membership", async () => {
@@ -326,6 +342,42 @@ describe("independent reviews API in the Workers runtime", () => {
       revision: preserved.revision,
       protocol: { profile: "mlr", objective: "This review must survive manuscript deletion" },
     });
+  });
+
+  it("finishes catalog cleanup idempotently from a durable review deletion tombstone", async () => {
+    const owner = await testIdentity("deletion-retry-owner");
+    const member = await testIdentity("deletion-retry-member");
+    const review = await createReview(owner, "Retryable deletion", "slr");
+    const invitation = await handleReviewsApi(
+      jsonRequest(`http://example.com/api/reviews/${review.id}/members`, { email: member.email }),
+      env,
+      owner,
+    );
+    expect(invitation.status).toBe(201);
+    const record = await env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id);
+    if (!record) throw new Error("Review catalog record is unavailable");
+    const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
+    const study = env.REVIEW_STUDIES.getByName(record.locator.storageKey);
+
+    await study.deleteReviewData();
+    const tombstone = await access.deleteReviewAccess(owner.email);
+    await expect(env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id)).resolves.not.toBeNull();
+    await expect(env.REVIEW_CATALOGS.getByName(member.ownerKey).getReview(review.id)).resolves.not.toBeNull();
+    const hidden = await handleReviewsApi(new Request(`http://example.com/api/reviews/${review.id}`), env, owner);
+    expect(hidden.status).toBe(404);
+
+    const deletion = await handleReviewsApi(
+      new Request(`http://example.com/api/reviews/${review.id}/settings`, { method: "DELETE" }),
+      env,
+      owner,
+    );
+    expect(deletion.status).toBe(200);
+    await expect(deletion.json()).resolves.toEqual(tombstone);
+    await expect(env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id)).resolves.toBeNull();
+    await expect(env.REVIEW_CATALOGS.getByName(member.ownerKey).getReview(review.id)).resolves.toBeNull();
+    await expect(access.getAccessStatus()).resolves.toMatchObject({ reviewId: review.id, deletedAt: tombstone.deletedAt });
+    await expect(access.getRole(owner.email)).resolves.toBe("owner");
+    await expect(access.getRole(member.email)).resolves.toBeNull();
   });
 
   it("supports many-to-many links, soft unlinking, and review deletion without rewriting project materializations", async () => {

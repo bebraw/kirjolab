@@ -199,13 +199,10 @@ export class ReviewCatalog extends DurableObject<Env> {
   updateReview(id: string, input: UpdateReviewCatalogInput): ReviewCatalogRecord {
     const current = this.requiredReview(id);
     const title = input.title === undefined ? current.title : normalizeReviewTitle(input.title);
-    const profile = input.profile === undefined ? current.profile : input.profile;
-    if (!isReviewProfile(profile)) throw new Error("Review profile is invalid");
     const archivedAt = input.archived === undefined ? current.archivedAt : input.archived ? new Date().toISOString() : null;
     this.ctx.storage.sql.exec(
-      "UPDATE reviews SET title = ?, profile = ?, updated_at = ?, archived_at = ? WHERE id = ?",
+      "UPDATE reviews SET title = ?, updated_at = ?, archived_at = ? WHERE id = ?",
       title,
-      profile,
       new Date().toISOString(),
       archivedAt,
       id,

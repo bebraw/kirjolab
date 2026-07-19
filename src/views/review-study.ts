@@ -23,7 +23,7 @@ export function renderReviewStudySurface(review: ReviewSummary, projectLinks: re
     <form class="review-study-content" id="review-protocol-form">
       <section class="review-study-intro">
         <div><p class="eyebrow">Protocol</p><h3>Frame the review before searching</h3><p>Research questions, concepts, and source-specific queries remain versioned together. Freeze the protocol before the first search; later changes require a rationale.</p></div>
-        <label class="field-label review-profile-field">Review profile<select class="field" id="review-profile"><option value="slr">Systematic literature review (SLR)</option><option value="mlr">Multivocal literature review (MLR)</option></select></label>
+        <label class="field-label review-profile-field">Review profile<select class="field" id="review-profile" disabled><option value="slr">Systematic literature review (SLR)</option><option value="mlr">Multivocal literature review (MLR)</option></select><small>Chosen when this review was created.</small></label>
       </section>
       <div class="review-study-grid">
         <div class="review-study-form-stack">

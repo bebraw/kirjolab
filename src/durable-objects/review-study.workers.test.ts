@@ -99,6 +99,38 @@ describe("ReviewStudy in the Workers runtime", () => {
     });
   });
 
+  it("keeps the review method profile immutable after creation", async () => {
+    const study = env.REVIEW_STUDIES.getByName(`review-profile-${crypto.randomUUID()}`);
+    const initial = await study.getSnapshot("slr", "owner@example.com");
+    await runInDurableObject(study, (instance: ReviewStudy) => {
+      expect(() =>
+        instance.replaceProtocol({
+          expectedRevision: initial.revision,
+          content: defaultReviewProtocol("mlr"),
+          actor: "owner@example.com",
+        }),
+      ).toThrow("profile cannot change");
+    });
+    const frozen = await study.freezeProtocol(initial.revision, "owner@example.com");
+    await runInDurableObject(study, (instance: ReviewStudy) => {
+      expect(() =>
+        instance.amendProtocol({
+          expectedRevision: frozen.revision,
+          content: {
+            ...defaultReviewProtocol("mlr"),
+            amendmentImpact: { stages: ["search"], recordIds: [] },
+          },
+          rationale: "Attempt to change the method profile",
+          actor: "owner@example.com",
+        }),
+      ).toThrow("profile cannot change");
+    });
+    await expect(study.getSnapshot()).resolves.toMatchObject({
+      revision: frozen.revision,
+      protocol: { profile: "slr", status: "frozen" },
+    });
+  });
+
   it("rejects stale writers and records its migration", async () => {
     const study = env.REVIEW_STUDIES.getByName("review-conflict");
     await study.getSnapshot();

@@ -14,6 +14,7 @@ import { handleReviewStudyApi } from "./review-study";
 export interface ReviewResource {
   readonly record: ReviewCatalogRecord;
   readonly role: "owner" | "member";
+  readonly deletedAt: string | null;
   readonly access: DurableObjectStub<import("../durable-objects/review-access").ReviewAccess>;
   readonly study: DurableObjectStub<import("../durable-objects/review-study").ReviewStudy>;
 }
@@ -52,6 +53,8 @@ export async function handleReviewsApi(request: Request, env: Env, identity: Aut
   try {
     const resource = await resolveReviewResource(env, identity, reviewId);
     if (!resource) return jsonError("Review not found", 404);
+    const isDeletionRequest = suffix === "/settings" && request.method === "DELETE";
+    if (resource.deletedAt !== null && !isDeletionRequest) return jsonError("Review not found", 404);
 
     if (suffix === "/" && request.method === "GET") {
       const [members, projectLinks] = await Promise.all([
@@ -123,7 +126,7 @@ export async function createReviewResource(
     await catalog.removeReview(record.id);
     throw error;
   }
-  return { record, role: "owner", access, study };
+  return { record, role: "owner", deletedAt: null, access, study };
 }
 
 export async function resolveReviewResource(env: Env, identity: AuthIdentity, reviewId: string): Promise<ReviewResource | null> {
@@ -132,7 +135,8 @@ export async function resolveReviewResource(env: Env, identity: AuthIdentity, re
   const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
   const role = await access.getRole(identity.email);
   if (!role) throw new Error("Review access denied");
-  return { record, role, access, study: env.REVIEW_STUDIES.getByName(record.locator.storageKey) };
+  const status = await access.getAccessStatus();
+  return { record, role, deletedAt: status.deletedAt, access, study: env.REVIEW_STUDIES.getByName(record.locator.storageKey) };
 }
 
 export async function discoverLegacyReviews(env: Env, identity: AuthIdentity): Promise<ReviewSummary[]> {
@@ -228,6 +232,7 @@ export async function ensureLegacyReviewResource(
   return {
     record: currentRecord,
     role: currentRecord.role,
+    deletedAt: null,
     access,
     study,
     projectLink,
@@ -343,10 +348,11 @@ async function unlinkReviewProject(env: Env, identity: AuthIdentity, resource: R
 }
 
 async function deleteReviewResource(env: Env, identity: AuthIdentity, resource: ReviewResource): Promise<Response> {
-  const [members, links] = await Promise.all([
-    resource.access.listMembers(identity.email),
-    resource.access.listProjectLinks(identity.email, true),
-  ]);
+  const deletion = await resource.access.getDeletionSnapshot(identity.email);
+  const members = deletion.members;
+  const links = deletion.projectLinks;
+  const owner = members.find((member) => member.role === "owner");
+  if (!owner) throw new Error("Review owner is unavailable during deletion");
   for (const link of links) {
     if (link.status !== "active") continue;
     const room = env.DOCUMENT_ROOMS.getByName(workspaceStorageKey(identity, link.workspaceId));
@@ -355,11 +361,13 @@ async function deleteReviewResource(env: Env, identity: AuthIdentity, resource: 
       await room.unlinkReview(link.workspaceId, link.id, identity.email);
     }
   }
-  await resource.study.deleteReviewData();
-  const boundary = await resource.access.deleteReviewAccess(identity.email);
   for (const member of members) {
+    if (member.email === owner.email) continue;
     await env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, member.email)).removeReview(resource.record.id);
   }
+  await resource.study.deleteReviewData();
+  const boundary = await resource.access.deleteReviewAccess(identity.email);
+  await env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, owner.email)).removeReview(resource.record.id);
   return noStore(boundary);
 }
 
@@ -422,18 +430,17 @@ async function createReviewRequest(request: Request): Promise<{ title: string; p
   return { title, profile: value.profile };
 }
 
-async function updateReviewRequest(request: Request): Promise<{ title?: string; profile?: "slr" | "mlr"; archived?: boolean }> {
+async function updateReviewRequest(request: Request): Promise<{ title?: string; archived?: boolean }> {
   const value: unknown = await request.json();
   if (!isRecord(value)) throw new Error("Review settings request is invalid");
+  if (value.profile !== undefined) throw new Error("Review method profile cannot change after creation");
   const title = value.title === undefined ? undefined : typeof value.title === "string" ? value.title.trim() : "";
-  const profile = value.profile === undefined ? undefined : isReviewProfile(value.profile) ? value.profile : null;
   const archived = value.archived === undefined ? undefined : typeof value.archived === "boolean" ? value.archived : null;
-  if ((title !== undefined && (!title || title.length > 120)) || profile === null || archived === null) {
+  if ((title !== undefined && (!title || title.length > 120)) || archived === null) {
     throw new Error("Review settings request is invalid");
   }
   return {
     ...(title === undefined ? {} : { title }),
-    ...(profile === undefined ? {} : { profile }),
     ...(archived === undefined ? {} : { archived }),
   };
 }

@@ -29,8 +29,8 @@ describe("ReviewCatalog in the Workers runtime", () => {
     expect(await catalog.listReviews()).toEqual([withoutLocator(created)]);
     expect(await other.listReviews()).toEqual([]);
 
-    const archived = await catalog.updateReview(created.id, { title: "Reusable review", profile: "mlr", archived: true });
-    expect(archived).toMatchObject({ id: created.id, title: "Reusable review", profile: "mlr" });
+    const archived = await catalog.updateReview(created.id, { title: "Reusable review", archived: true });
+    expect(archived).toMatchObject({ id: created.id, title: "Reusable review", profile: "slr" });
     expect(archived.archivedAt).not.toBeNull();
     const restored = await catalog.updateReview(created.id, { archived: false });
     expect(restored.archivedAt).toBeNull();
@@ -245,6 +245,7 @@ describe("ReviewAccess in the Workers runtime", () => {
     const access = env.REVIEW_ACCESS.getByName(`linked-review-access-${crypto.randomUUID()}`);
     const reviewId = crypto.randomUUID();
     const owner = await access.initializeOwner(reviewId, "owner@example.test");
+    const member = await access.addMember(owner.email, "member@example.test");
     const first = await access.createProjectLink(owner.email, "project-a");
 
     expect(await access.createProjectLink(owner.email, "project-a")).toEqual(first);
@@ -264,8 +265,17 @@ describe("ReviewAccess in the Workers runtime", () => {
     ]);
     const boundary = await access.deleteReviewAccess(owner.email);
     expect(boundary).toEqual({ reviewId, deletedAt: expect.any(String), unlinkedProjectIds: ["project-a"] });
-    expect(await access.getRole(owner.email)).toBeNull();
+    expect(await access.getRole(owner.email)).toBe("owner");
+    expect(await access.getRole(member.email)).toBeNull();
     expect(await access.getAccessStatus()).toEqual({ reviewId, legacySeededAt: null, deletedAt: boundary.deletedAt });
+    expect(await access.getDeletionSnapshot(owner.email)).toEqual({
+      members: [owner, member],
+      projectLinks: expect.arrayContaining([
+        expect.objectContaining({ id: replacement.id, status: "unlinked", unlinkedAt: boundary.deletedAt }),
+      ]),
+      deletedAt: boundary.deletedAt,
+    });
+    expect(await access.deleteReviewAccess(owner.email)).toEqual(boundary);
     await runInDurableObject(access, (instance: ReviewAccess) => {
       expect(() => instance.initializeOwner(reviewId, owner.email)).toThrow("deleted");
     });
@@ -279,7 +289,7 @@ describe("ReviewAccess in the Workers runtime", () => {
         }>("SELECT workspace_id, status FROM project_review_links ORDER BY created_at ASC, id ASC")
         .toArray(),
     }));
-    expect(retained.memberCount).toBe(0);
+    expect(retained.memberCount).toBe(2);
     expect(retained.links).toEqual([
       { workspace_id: "project-a", status: "unlinked" },
       { workspace_id: "project-a", status: "unlinked" },

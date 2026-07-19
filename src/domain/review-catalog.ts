@@ -92,6 +92,12 @@ export interface ReviewDeletionBoundary {
   readonly unlinkedProjectIds: readonly string[];
 }
 
+export interface ReviewDeletionSnapshot {
+  readonly members: readonly ReviewMember[];
+  readonly projectLinks: readonly ProjectReviewLink[];
+  readonly deletedAt: string | null;
+}
+
 export interface CreateReviewCatalogInput {
   readonly title: string;
   readonly profile: ReviewProfile;
@@ -123,7 +129,6 @@ export interface RegisterLegacyReviewInput {
 
 export interface UpdateReviewCatalogInput {
   readonly title?: string;
-  readonly profile?: ReviewProfile;
   readonly archived?: boolean;
 }
 

@@ -69,8 +69,10 @@ published deliberately into several writing projects.
   project relationships as resource context rather than treating one project
   as the owner.
 - A review uses one common lifecycle plus a versioned `slr` or `mlr` method
-  profile. Question-framework and appraisal templates are configuration, not
-  hard-coded universal methodology.
+  profile selected at creation. The profile is immutable because it defines the
+  method defaults and catalog identity; changing method family requires a new
+  review. Question-framework and appraisal templates remain versioned
+  configuration, not hard-coded universal methodology.
 - Every review projection can be reconstructed at an exact retained review
   revision. Protocol, search, deduplication, screening, final inclusion,
   evidence, model, finding, synthesis, and export projections filter their
@@ -406,10 +408,12 @@ published deliberately into several writing projects.
   ReviewStudy, then marks that project's active review links unlinked and
   deletes only project-owned state and materializations. It does not delete an
   independent ReviewStudy. Permanent review deletion marks all active links
-  unlinked, deletes review data and membership, and removes each member's
-  catalog entry without deleting projects or rewriting retained project-history
-  artifacts. Content-addressed backup retention remains an operator lifecycle,
-  not active review state.
+  unlinked, deletes review data, and removes each member's catalog entry without
+  deleting projects or rewriting retained project-history artifacts. A compact
+  ReviewAccess deletion tombstone retains the owner, membership fan-out, links,
+  and deletion time long enough for interrupted cross-object cleanup to be
+  retried; deleted reviews remain hidden from ordinary reads. Content-addressed
+  backup retention remains an operator lifecycle, not active review state.
 
 ### API Contracts
 
@@ -418,7 +422,7 @@ published deliberately into several writing projects.
   public summary. Catalog responses never expose the storage locator.
 - `GET /api/reviews/{reviewId}` returns the authorized review summary, members,
   and permission-qualified active and unlinked project-link views.
-  `PATCH /settings` changes owner-controlled title, profile, or lifecycle, and
+  `PATCH /settings` changes owner-controlled title or lifecycle, and
   `DELETE /settings` permanently deletes the independent review.
 - `GET`, `POST`, and `DELETE /members` inspect, invite, or remove review
   members. `GET` and `POST /project-links` inspect link history or create an
@@ -526,6 +530,8 @@ published deliberately into several writing projects.
   state.
 - Do not use a workspace id as the canonical review identity, expose catalog
   storage locators, or move legacy ReviewStudy data merely to adopt UUID URLs.
+- Do not change a review's SLR or MLR profile after creation or let catalog and
+  protocol authorities advertise different profiles.
 - Do not infer review access from project membership, project access from review
   membership, or either permission from a project-review link.
 - Do not hard-delete link rows when unlinking, delete a review with its project,
@@ -591,6 +597,10 @@ published deliberately into several writing projects.
   not weaken any of those checks.
 - Project unlink or deletion leaves the live review intact. Review unlink or
   deletion leaves projects and retained materialized artifact pins intact.
+- Review deletion removes collaborator catalog projections before destroying
+  study/access authority, retains an owner-resolvable tombstone until final
+  catalog cleanup, and is idempotent after interruption between Durable Object
+  calls.
 - Review mutations do not change Markdown or private-library state as an
   implicit side effect.
 - Review revisions advance once per successful logical mutation and stale

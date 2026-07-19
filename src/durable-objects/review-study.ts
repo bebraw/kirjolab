@@ -941,6 +941,7 @@ export class ReviewStudy extends DurableObject<Env> {
     this.assertRevision(input.expectedRevision, current.revision);
     if (current.protocol.status === "frozen") throw new Error("Frozen protocol must be amended with a rationale");
     const content = parseReviewProtocolContent(input.content);
+    if (content.profile !== current.protocol.profile) throw new Error("Review method profile cannot change after creation");
     if (content.amendmentImpact !== null) throw new Error("Draft protocol edits cannot declare amendment impact");
     this.appendProtocol(content, "draft", input.rationale ?? "Protocol edited", input.actor);
     return this.getSnapshot();
@@ -960,6 +961,7 @@ export class ReviewStudy extends DurableObject<Env> {
     if (current.protocol.status !== "frozen") throw new Error("Only a frozen protocol requires an amendment");
     if (!input.rationale.trim()) throw new Error("Protocol amendment rationale is required");
     const content = parseReviewProtocolContent(input.content);
+    if (content.profile !== current.protocol.profile) throw new Error("Review method profile cannot change after creation");
     if (!content.amendmentImpact || content.amendmentImpact.stages.length === 0) {
       throw new Error("Protocol amendment impact must name at least one affected stage");
     }

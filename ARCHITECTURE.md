@@ -116,8 +116,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   stable identity, actor, creation time, and `active` or `unlinked` state.
   Unlinking or deleting a project must not delete the live review or previously
   materialized project artifacts; deleting a review is a separate owner action
-  that unlinks active relationships and removes its study, access, and catalog
-  authority without rewriting retained project history.
+  that unlinks active relationships, removes its study and catalog authority,
+  and retains only a bounded access tombstone needed for idempotent cleanup,
+  without rewriting retained project history.
 - Keep `/review/{reviewId}` and `/api/reviews/{reviewId}` canonical. Treat
   `/review/{workspaceId}` and `/api/workspaces/{workspaceId}/review-study` as
   bounded legacy adapters: atomically assign one stable review UUID, seed
@@ -126,8 +127,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   catalog locator instead of moving review data. Later project membership
   changes must not alter the independently seeded review membership.
 - Keep protocol revisions immutable, configure SLR and MLR source, search,
-  stopping, credibility, and synthesis rules as structured profile data, and
-  generate source-specific queries from one logical concept model. Require
+  stopping, credibility, and synthesis rules as structured profile data, keep
+  the selected SLR or MLR profile immutable after review creation, and generate
+  source-specific queries from one logical concept model. Require
   every post-freeze amendment to declare its rationale and affected stages or
   records, then retain explicit reassessment obligations without rewriting
   earlier protocol-bound events.

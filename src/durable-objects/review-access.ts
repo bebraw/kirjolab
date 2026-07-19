@@ -11,6 +11,7 @@ import {
   type ReviewAccessBackupState,
   type ReviewAccessStatus,
   type ReviewDeletionBoundary,
+  type ReviewDeletionSnapshot,
   type ReviewLegacyInitialization,
   type ReviewMember,
   type ReviewMemberSeed,
@@ -156,15 +157,25 @@ export class ReviewAccess extends DurableObject<Env> {
 
   getRole(emailValue: string): ReviewRole | null {
     const state = this.state();
-    if (!state || state.deleted_at !== null) return null;
+    if (!state) return null;
     const email = normalizeReviewEmail(emailValue);
     const row = this.ctx.storage.sql.exec<ReviewMemberRow>("SELECT * FROM review_members WHERE email = ?", email).toArray()[0];
-    return row?.role === "owner" || row?.role === "member" ? row.role : null;
+    if (row?.role !== "owner" && row?.role !== "member") return null;
+    return state.deleted_at === null || row.role === "owner" ? row.role : null;
   }
 
   listMembers(requesterEmail: string): ReviewMember[] {
     this.requireRole(requesterEmail);
     return this.memberRows().map(memberFromRow);
+  }
+
+  getDeletionSnapshot(requesterEmail: string): ReviewDeletionSnapshot {
+    const state = this.requireDeletionOwner(requesterEmail).state;
+    return {
+      members: this.memberRows().map(memberFromRow),
+      projectLinks: this.projectLinkRows().map(projectLinkFromRow),
+      deletedAt: state.deleted_at,
+    };
   }
 
   async getBackupSnapshot(ownerEmail: string): Promise<ReviewAccessBackupSnapshot> {
@@ -289,8 +300,8 @@ export class ReviewAccess extends DurableObject<Env> {
   }
 
   deleteReviewAccess(requesterEmail: string): ReviewDeletionBoundary {
-    const owner = this.requireOwner(requesterEmail);
-    const state = this.activeState();
+    const { owner, state } = this.requireDeletionOwner(requesterEmail);
+    if (state.deleted_at !== null) return this.deletionBoundary(state, owner.email);
     const activeLinks = this.ctx.storage.sql
       .exec<ProjectReviewLinkRow>("SELECT * FROM project_review_links WHERE status = 'active' ORDER BY workspace_id ASC")
       .toArray();
@@ -301,13 +312,23 @@ export class ReviewAccess extends DurableObject<Env> {
         deletedAt,
         owner.email,
       );
-      this.ctx.storage.sql.exec("DELETE FROM review_members");
       this.ctx.storage.sql.exec("UPDATE review_access_state SET deleted_at = ? WHERE singleton = 1", deletedAt);
     });
     return {
       reviewId: state.review_id,
       deletedAt,
       unlinkedProjectIds: activeLinks.map((link) => link.workspace_id),
+    };
+  }
+
+  private deletionBoundary(state: ReviewAccessStateRow, ownerEmail: string): ReviewDeletionBoundary {
+    if (state.deleted_at === null) throw new Error("Review access is not deleted");
+    return {
+      reviewId: state.review_id,
+      deletedAt: state.deleted_at,
+      unlinkedProjectIds: this.projectLinkRows()
+        .filter((link) => link.unlinked_at === state.deleted_at && link.unlinked_by === ownerEmail)
+        .map((link) => link.workspace_id),
     };
   }
 
@@ -340,6 +361,15 @@ export class ReviewAccess extends DurableObject<Env> {
     const member = this.requireRole(emailValue);
     if (member.role !== "owner") throw new Error("Only the review owner can manage review access");
     return member;
+  }
+
+  private requireDeletionOwner(emailValue: string): { owner: ReviewMember; state: ReviewAccessStateRow } {
+    const state = this.state();
+    if (!state) throw new Error("Review access is not initialized");
+    const email = normalizeReviewEmail(emailValue);
+    const row = this.ctx.storage.sql.exec<ReviewMemberRow>("SELECT * FROM review_members WHERE email = ?", email).toArray()[0];
+    if (!row || row.role !== "owner") throw new Error("Only the review owner can manage review access");
+    return { owner: memberFromRow(row), state };
   }
 
   private owner(): ReviewMember | null {
