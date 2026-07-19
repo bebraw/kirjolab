@@ -2526,6 +2526,17 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#publication-pdf-link-form")).toBeVisible();
   await expect(page.locator("#publication-pdf-link-form")).toContainText("Add a paper from this project");
 
+  await page.getByRole("tab", { name: "Research" }).click();
+  await page.locator("#publication-list").evaluate((list) => (list.previousElementSibling as HTMLElement | null)?.click());
+  await page.getByRole("button", { name: "Manage in library" }).click();
+  await expect(page.locator("#context-library-tab")).toHaveAttribute("aria-selected", "true");
+  const managedReference = page.locator("#reference-library-list .library-reference-row").filter({
+    hasText: "The Normative Structure of Science",
+  });
+  await expect(managedReference).toBeFocused();
+  await expect(managedReference.locator(".library-reference-details")).toHaveAttribute("open", "");
+  await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
+
   await page.locator("#publication-pdf-link").selectOption({ label: "context-paper.pdf" });
   await page.locator("#publication-pdf-link-form").getByRole("button", { name: "Add paper" }).click();
   await expect(page.locator("#context-publication-pdfs")).toContainText("context-paper.pdf");

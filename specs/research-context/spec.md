@@ -161,8 +161,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   separate, labelled commands. Context navigation has no implicit mutation
   side effects.
 - Activating **Library** refreshes the current owner's authorized library in
-  place. Contextual **Manage in library** actions focus that same tab instead of
-  opening a modal or creating another tab.
+  place. Contextual **Manage in library** actions focus that same tab, clear
+  filters that would hide the selected reference, reveal its row, and open its
+  details instead of opening a modal or creating another tab.
 - On narrow screens, only Authoring or Context is presented as the primary
   surface. A keyboard-operable switch changes surfaces without discarding the
   current tab or any per-tab reading position.

@@ -4125,6 +4125,31 @@ class WorkspaceApp {
     await this.#refreshReferenceLibrary();
   }
 
+  async #openReferenceLibraryEntry(referenceId: string): Promise<void> {
+    await this.#openReferenceLibrary();
+    if (!this.#librarySnapshot?.references.some((reference) => reference.id === referenceId) && !this.#showArchivedReferences) {
+      this.#showArchivedReferences = true;
+      this.#elements.showArchivedReferences.setAttribute("aria-pressed", "true");
+      await this.#refreshReferenceLibrary();
+    }
+    this.#elements.referenceFilterQuery.value = "";
+    this.#elements.referenceFilterType.value = "";
+    this.#elements.referenceFilterReading.value = "all";
+    this.#elements.referenceFilterOrganization.value = "";
+    this.#elements.referenceFilterLinkage.value = "all";
+    this.#elements.referenceFilterCompleteness.value = "all";
+    this.#expandedLibraryReferences.add(referenceId);
+    this.#renderReferenceLibrary();
+    const card = this.#elements.referenceLibraryList.querySelector<HTMLElement>(`[data-reference-id="${CSS.escape(referenceId)}"]`);
+    if (!card) {
+      this.#showToast("That reference is no longer available in the Library.");
+      return;
+    }
+    card.tabIndex = -1;
+    card.scrollIntoView({ block: "center" });
+    card.focus({ preventScroll: true });
+  }
+
   async #refreshReferenceLibrary(): Promise<void> {
     const response = await fetch(`/api/library${this.#showArchivedReferences ? "?archived=include" : ""}`, {
       credentials: "same-origin",
@@ -5663,7 +5688,7 @@ class WorkspaceApp {
       const projectReference = this.#snapshot?.projectReferences.find((link) => link.referenceId === publication.id);
       if (projectReference) {
         actions.append(resourceLabel(`alias:${projectReference.citationAlias}`));
-        actions.append(actionButton("Manage in library", "button-secondary", () => void this.#openReferenceLibrary()));
+        actions.append(actionButton("Manage in library", "button-secondary", () => void this.#openReferenceLibraryEntry(publication.id)));
       }
       if (publication.doi) {
         actions.append(resourceLabel(`doi:${publication.doi}`));
