@@ -237,6 +237,63 @@ describe("BackupCoordinator in the Workers runtime", () => {
     });
   });
 
+  it("registers unregistered legacy studies from archived projects before scheduled v3 backups", async () => {
+    const ownerKey = await sha256Hex(crypto.randomUUID());
+    const ownerEmail = `archived-review-owner-${crypto.randomUUID()}@example.test`;
+    const workspaceId = crypto.randomUUID();
+    const catalog = env.WORKSPACE_CATALOGS.getByName(ownerKey);
+    const access = env.WORKSPACE_ACCESS.getByName(workspaceId);
+    const room = env.DOCUMENT_ROOMS.getByName(workspaceId);
+    const study = env.REVIEW_STUDIES.getByName(workspaceId);
+    const coordinator = env.BACKUP_COORDINATOR.getByName(`archived-review-backup-${crypto.randomUUID()}`);
+
+    await catalog.registerWorkspace(workspaceId, "Archived legacy review");
+    await access.initializeOwner(ownerEmail);
+    await room.initializeWorkspace("Archived legacy review");
+    const initial = await study.getSnapshot("mlr", ownerEmail);
+    await study.replaceProtocol({
+      expectedRevision: initial.revision,
+      content: { ...defaultReviewProtocol("mlr"), objective: "Preserve archived legacy evidence" },
+      actor: ownerEmail,
+    });
+    const archived = await catalog.updateWorkspace(workspaceId, null, true);
+    expect(archived.archivedAt).not.toBeNull();
+    await expect(env.REVIEW_CATALOGS.getByName(ownerKey).getBackupSnapshot()).resolves.toMatchObject({ records: [] });
+
+    await coordinator.registerOwner(ownerKey, ownerEmail);
+    await expect(coordinator.runScheduledBackups()).resolves.toEqual({
+      checked: 1,
+      created: 1,
+      unchanged: 0,
+      failed: 0,
+      truncated: false,
+    });
+    const status = await coordinator.getStatus(ownerKey);
+    expect(status).toMatchObject({ outcome: "created", error: null });
+    if (!status.manifestKey) throw new Error("Expected the archived-review backup manifest");
+    const manifestObject = await env.PAPERS.get(status.manifestKey);
+    if (!manifestObject) throw new Error("Expected the archived-review backup object");
+    const manifest = parseOwnerBackupManifest(await manifestObject.text());
+    if (manifest.schemaVersion !== ownerBackupSchemaVersion) throw new Error("Expected a v3 backup manifest");
+    expect(manifest.state.catalog).toEqual([expect.objectContaining({ id: workspaceId, archivedAt: archived.archivedAt })]);
+    expect(manifest.state.reviews).toEqual([
+      expect.objectContaining({
+        catalogRecord: expect.objectContaining({
+          title: "Archived legacy review",
+          profile: "mlr",
+          role: "owner",
+          locator: expect.objectContaining({ storageKey: workspaceId, legacyWorkspaceId: workspaceId }),
+        }),
+        reviewPayload: expect.objectContaining({ reviewRevision: 2, protocolRevision: 2 }),
+      }),
+    ]);
+    const registered = (await env.REVIEW_CATALOGS.getByName(ownerKey).getBackupSnapshot()).records[0];
+    expect(registered?.id).toBe(manifest.state.reviews[0]?.catalogRecord.id);
+    await expect(room.listReviewLinks(workspaceId)).resolves.toEqual([
+      expect.objectContaining({ reviewId: registered?.id, status: "active" }),
+    ]);
+  });
+
   it("restores independent review catalog and access state when no study payload exists", async () => {
     const ownerKey = await sha256Hex(crypto.randomUUID());
     const ownerEmail = "blank-review-owner@example.test";

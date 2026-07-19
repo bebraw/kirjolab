@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { ensureLegacyReviewResource, workspaceStorageKey } from "../api/reviews";
 import {
   backupBlobKey,
   isOwnedBinaryKey,
@@ -19,6 +20,8 @@ import {
   type OwnerReviewBackup,
   type OwnerWorkspaceBackup,
 } from "../domain/backups";
+import { localOwnerId } from "../domain/workspace";
+import type { AuthIdentity } from "../security/auth";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 
 const maximumOwnersPerRun = 50;
@@ -294,13 +297,21 @@ export class BackupCoordinator extends DurableObject<Env> {
     const reviewCatalog = this.env.REVIEW_CATALOGS.getByName(owner.owner_key);
     const library = this.env.REFERENCE_LIBRARIES.getByName(owner.owner_key);
     const templates = this.env.PROJECT_TEMPLATE_CATALOGS.getByName(owner.owner_key);
-    const [catalogBackup, reviewCatalogBackup, libraryBackup, templateBackup] = await Promise.all([
+    const [catalogBackup, libraryBackup, templateBackup] = await Promise.all([
       catalog.getBackupSnapshot(),
-      reviewCatalog.getBackupSnapshot(),
       library.getBackupSnapshot(),
       templates.getBackupSnapshot(),
     ]);
     if (catalogBackup.workspaces.length > maximumWorkspacesPerOwner) throw new Error("Owner workspace catalog exceeds backup bound");
+    const identity = backupIdentity(owner);
+    for (const summary of catalogBackup.workspaces) {
+      const storageKey = workspaceStorageKey(identity, summary.id);
+      const role = await this.env.WORKSPACE_ACCESS.getByName(storageKey).getRole(owner.email);
+      if (!role || !(await this.env.REVIEW_STUDIES.getByName(storageKey).hasReviewData())) continue;
+      const registration = await ensureLegacyReviewResource(this.env, identity, summary.id, true);
+      if (role === "owner" && !registration) throw new Error("Legacy review registration did not preserve owner access");
+    }
+    const reviewCatalogBackup = await reviewCatalog.getBackupSnapshot();
 
     const workspaces: OwnerWorkspaceBackup[] = [];
     const recoveryWorkspaces: OwnerBackupRecovery["workspaces"][number][] = [];
@@ -530,6 +541,15 @@ function normalizedOwnerKey(value: string): string {
   const ownerKey = value.trim().toLowerCase();
   if (!/^[a-f0-9]{64}$/u.test(ownerKey)) throw new Error("Backup owner key is invalid");
   return ownerKey;
+}
+
+function backupIdentity(owner: OwnerRow): AuthIdentity {
+  return {
+    subject: `backup:${owner.owner_key}`,
+    email: owner.email,
+    ownerKey: owner.owner_key,
+    mode: owner.owner_key === localOwnerId ? "local" : "access",
+  };
 }
 
 function normalizedEmail(value: string): string {
