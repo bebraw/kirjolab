@@ -366,7 +366,7 @@ async function reviewWorkflowProjectContext(
   const links = await resource.access.listProjectLinks(identity.email);
   const url = new URL(request.url);
   let requestedLinkId = url.searchParams.get("projectLinkId") ?? request.headers.get("x-kirjolab-project-link-id");
-  if (!requestedLinkId && request.method === "POST" && /\/synthesis\/publish$/u.test(url.pathname)) {
+  if (!requestedLinkId && request.method === "POST" && url.pathname.endsWith("/synthesis/publish")) {
     const value: unknown = await request.clone().json();
     if (isRecord(value) && typeof value.projectLinkId === "string") requestedLinkId = value.projectLinkId;
   }
