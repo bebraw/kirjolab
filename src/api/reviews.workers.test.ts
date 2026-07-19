@@ -243,6 +243,20 @@ describe("independent reviews API in the Workers runtime", () => {
         expect.objectContaining({ id: secondToFirst.id, reviewId: secondReview.id, status: "active" }),
       ]),
     );
+    const projectReviewLinks = await handleWorkspaceApi(
+      new Request(`http://example.com/api/workspaces/${firstProject.id}/reviews`),
+      env,
+      owner,
+    );
+    expect(projectReviewLinks.status).toBe(200);
+    const publicProjectReviewLinks = await responseJson<Record<string, unknown>[]>(projectReviewLinks);
+    expect(publicProjectReviewLinks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: firstToFirst.id, reviewId: firstReview.id, permission: "available" }),
+        expect.objectContaining({ id: secondToFirst.id, reviewId: secondReview.id, permission: "available" }),
+      ]),
+    );
+    expect(publicProjectReviewLinks.every((link) => !("reviewAccessLocator" in link))).toBe(true);
     await expect(secondProject.room.listReviewLinks(secondProject.id)).resolves.toEqual([
       expect.objectContaining({ id: firstToSecond.id, reviewId: firstReview.id, status: "active" }),
     ]);

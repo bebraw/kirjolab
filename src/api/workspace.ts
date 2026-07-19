@@ -110,7 +110,14 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
           const review = await env.REVIEW_CATALOGS.getByName(identity.ownerKey).getReview(link.reviewId);
           const reviewRole = review ? await env.REVIEW_ACCESS.getByName(review.locator.storageKey).getRole(identity.email) : null;
           return {
-            ...link,
+            id: link.id,
+            projectId: link.projectId,
+            reviewId: link.reviewId,
+            status: link.status,
+            createdBy: link.createdBy,
+            createdAt: link.createdAt,
+            unlinkedBy: link.unlinkedBy,
+            unlinkedAt: link.unlinkedAt,
             review: review && reviewRole ? { id: review.id, title: review.title, profile: review.profile, href: review.href } : null,
             permission: review && reviewRole ? "available" : "review-access-required",
           };
