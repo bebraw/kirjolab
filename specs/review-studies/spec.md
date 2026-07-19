@@ -13,35 +13,57 @@ Review studies connect those capabilities without making Markdown, a personal
 library, or a flat interchange file authoritative for collaborative review
 state.
 
+[ADR-151](../../docs/adrs/implemented/ADR-151-model-reviews-as-independent-resources.md)
+defines reviews as independent collaborative resources whose evidence can be
+published deliberately into several writing projects.
+
 ### Architecture
 
-- `ReviewStudy` is a project-associated SQLite-backed Durable Object addressed
-  by the workspace storage key. It is the coordination atom for one review and
-  has an independent monotonic revision.
-- `/review` lists the review associated with each active authorized project;
-  `/review/{workspaceId}` opens one of those project-linked reviews. These are
-  focused browser surfaces over the current authority, not independent review
-  identities.
-- The ordinary workspace access check authorizes every review API request.
-  Project access does not grant access to owner-private library records or
-  artifacts; bibliographic snapshots and rights-checked research sharing retain
-  their existing boundaries.
+- `ReviewCatalog` is a SQLite-backed catalog per authenticated identity. It
+  stores discoverable review UUID, title, `slr` or `mlr` profile, role,
+  lifecycle, and activity metadata while keeping the storage locator internal
+  to server-side catalog records.
+- `ReviewAccess` is the independent SQLite-backed authority for one review's
+  owner, members, deletion state, and complete active and unlinked project-link
+  ledger. `ReviewStudy` remains a separately addressed SQLite-backed authority
+  for structured review state and its monotonic revision. Both resolve through
+  the catalog locator rather than a public workspace id.
+- New reviews use a stable UUID and `review:{reviewId}` storage key. A legacy
+  project-associated review receives the same stable UUID contract while its
+  existing workspace storage key remains behind a locator; registration moves
+  no ReviewStudy data.
+- `/review` lists the current identity's catalog and creates reviews without a
+  writing project. `/review/{reviewId}` is the canonical focused browser
+  representation, and `/api/reviews/{reviewId}` is the canonical API boundary.
+  `/review/{workspaceId}` and
+  `/api/workspaces/{workspaceId}/review-study` remain bounded legacy adapters.
+- Legacy registration atomically assigns one stable review UUID, snapshots the
+  then-current project members into independent review membership exactly once,
+  creates an explicit project link, and registers the same locator and
+  role-qualified summary in each seeded member's catalog. Later project
+  membership changes do not alter review membership.
+- Review membership authorizes review-only operations. Project membership does
+  not grant review access; review membership does not grant project or owner-
+  private Library access; and a project-review link grants neither. Operations
+  that resolve project evidence or publish into a project require an explicitly
+  selected active link plus independent access to both resources.
 - `src/domain/review-study.ts` owns portable types, bounds, validation, query
   rendering, projections, report calculations, and interchange contracts.
 - `src/durable-objects/review-study.ts` owns versioned structured persistence,
   atomic mutation, reviewer decisions, and append-only provenance.
-- `src/api/review-study.ts` exposes authenticated, same-origin workspace routes
-  and never trusts browser-computed counts, identities, or derived reports.
-- The project editor links to one **Review study** surface using the existing
-  thin design system. The focused review route follows Plan, Search, Screen,
-  Appraise, Extract, Synthesize, and Report without embedding the workflow in
-  manuscript authoring chrome.
-- The route parameter remains the owning workspace id. The current system has
-  no independent durable review catalog, review membership, or many-to-many
-  project-review link; the `/review` index derives its rows from active
-  workspace summaries.
-  [ADR-151](../../docs/adrs/proposed/ADR-151-model-reviews-as-independent-resources.md)
-  proposes those capabilities but does not describe implemented behavior.
+- `src/domain/review-catalog.ts` owns independent review, membership, locator,
+  project-link, backup, and bound contracts. `src/durable-objects/review-catalog.ts`
+  and `src/durable-objects/review-access.ts` own their corresponding atomic
+  SQLite authorities.
+- `src/api/reviews.ts` resolves review catalog and access before dispatching to
+  `src/api/review-study.ts`. Both boundaries require authentication, enforce
+  same-origin mutation checks, and never trust browser-computed counts,
+  identities, links, or derived reports.
+- The focused review route follows Plan, Search, Screen, Appraise, Extract,
+  Synthesize, and Report without embedding the workflow in manuscript authoring
+  chrome. It exposes review membership, lifecycle, and explicit many-to-many
+  project relationships as resource context rather than treating one project
+  as the owner.
 - A review uses one common lifecycle plus a versioned `slr` or `mlr` method
   profile. Question-framework and appraisal templates are configuration, not
   hard-coded universal methodology.
@@ -50,13 +72,28 @@ state.
   evidence, model, finding, synthesis, and export projections filter their
   append-only events at that boundary; requests below the recorded history
   floor fail instead of approximating old state.
-- Every logical workspace history snapshot pins the review revision used by
-  review-derived manuscript artifacts. The pin also records the protocol and
-  analysis-definition revisions plus the materialized Markdown digest. A
-  review mutation does not advance the collaborative Markdown revision.
+- Project history owns only explicitly materialized review artifacts, never the
+  live ReviewStudy. Each artifact pin records the review, link, publication,
+  review/protocol/analysis revisions, generator/schema, publisher, generation
+  time, and Markdown digest. A review mutation does not advance a project
+  revision or rewrite a pinned materialization.
 
 ### Core Resource Model
 
+- **Review catalog record:** the current identity's role-qualified projection of
+  one stable UUID review, including title, profile, lifecycle, activity, and a
+  server-private locator. Public catalog and detail responses omit the locator.
+- **Review locator:** an immutable mapping from review UUID to its physical
+  ReviewAccess and ReviewStudy storage key plus an optional legacy workspace
+  identity. It permits legacy continuity without making storage identity part
+  of the URL contract.
+- **Review member:** an opaque member identity, normalized email access
+  attribute, `owner` or `member` role, and addition time. The owner alone
+  manages review settings, membership, project links, and permanent deletion.
+- **Project-review link:** a stable many-to-many association with review UUID,
+  workspace identity, creator and creation time, and `active` or `unlinked`
+  state with attributed unlink provenance. An unlinked row remains history and
+  grants no authority.
 - **Protocol revision:** objectives, method profile, question framework,
   research questions, concept groups, eligibility criteria, method rules,
   appraisal instrument, extraction schema, amendment impact, and search-source
@@ -97,9 +134,10 @@ state.
   research question, contributing appraisal or extraction values, and exact
   evidence selectors. A later finding may supersede one earlier finding without
   deleting it or branching the supersession chain.
-- **Review artifact pin:** a project-history binding between a `review/*.md`
-  artifact, one exact review and protocol revision, one analysis-definition
-  revision, the content digest, and generation time.
+- **Review artifact pin:** a project-history binding between a
+  `review/{reviewId}/*.md` artifact and the exact review, project link,
+  publication identity, review and protocol revision, analysis definition and
+  revision, generator/schema, publisher, generation time, and content digest.
 - **Model candidate:** a provenance-bearing suggestion that never mutates a
   canonical decision, judgment, extraction, code, or finding before review.
 
@@ -222,11 +260,13 @@ state.
 - Evidence selectors identify an authorized project PDF annotation or fragment,
   a project-shared PDF highlight, or a project-shared captured-web passage by
   `kind`, resource id, selector id, exact quote, page where applicable, and
-  bounded location. The API resolves the resource and selector against the
-  current authorized project snapshot before accepting a new value. Legacy
-  pointers without stable resource identity remain visibly
-  `legacy-unresolved` and cannot be submitted as new evidence. Review data
-  never broadens access to a private source.
+  bounded location. The request selects an active project-review link, and the
+  API independently verifies review membership, project membership, link
+  status, resource identity, and selector identity against that project
+  snapshot before accepting a new value. Legacy pointers without stable
+  resource identity remain visibly `legacy-unresolved` and cannot be submitted
+  as new evidence. Review access never broadens access to project evidence or a
+  private Library source.
 - A record is complete only when every quality question and every extraction
   field not marked optional has an effective value. Conditional expressions are
   retained as protocol data but are not yet evaluated by a native rule engine.
@@ -258,12 +298,23 @@ state.
   contributors and requires exact evidence for every contributor. Supersession
   preserves the complete finding history while synthesis exposes the current
   non-superseded findings.
-- `::review-artifact[review/path.md]` is the bounded canonical directive for a
-  published review artifact. Preview and every publication target use the same
-  composition resolver and require a matching artifact pin in the project
-  snapshot. A pinned artifact file cannot be edited through ordinary project
-  mutations; it must be regenerated through the revision-checked review
-  publication route.
+- Publication selects one explicit active project link, verifies access to the
+  review and linked project, and checks both the exact review revision and
+  expected project revision. It materializes a named analysis under
+  `review/{reviewId}/{artifactId}.md`, so several reviews can contribute to one
+  project without path or publication-identity collisions and one review can
+  publish independently into several projects.
+- The project pin retains review UUID, project-link UUID, publication and
+  artifact identity, review/protocol/analysis revisions, generator/schema,
+  publisher, generation time, and content digest. Unlinking either resource or
+  later mutating or deleting the review never rewrites that retained project
+  materialization.
+- `::review-artifact[review/{reviewId}/{artifactId}.md]` is the bounded
+  canonical directive for a published review artifact. Preview and every
+  publication target use the same composition resolver and require a matching
+  artifact pin in the project snapshot. A pinned artifact file cannot be edited
+  through ordinary project mutations; it must be regenerated through the
+  revision-checked review publication route.
 - Updating a review never silently changes an immutable project milestone or a
   previously materialized publication bundle.
 - Native scope covers descriptive, qualitative, and mixed-evidence synthesis.
@@ -275,9 +326,10 @@ state.
 - Screening assistance returns one proposed decision, criterion where
   applicable, rationale, and exact title/abstract evidence.
 - Extraction assistance returns typed proposed values and exact source
-  selectors. Candidate creation and acceptance both resolve those selectors
-  against the authorized project evidence snapshot before canonical review data
-  can change. A model never invents `not reported` content.
+  selectors. Candidate creation and acceptance both select an active project
+  link and resolve those selectors through independent review and project
+  authorization before canonical review data can change. A model never invents
+  `not reported` content.
 - Native model assistance currently covers screening and extraction candidates.
   Any later coding or synthesis assistance must return bounded candidate codes,
   themes, or findings with contributing value ids and evidence selectors rather
@@ -294,8 +346,9 @@ state.
 
 - Reporting derives from one exact review revision through the existing
   source-mapped export boundary.
-- The review package manifest records schema, generator, project, review
-  revision, protocol revision, generation time, files, and SHA-256 digests.
+- The review package manifest records schema, generator, stable review UUID,
+  review revision, protocol revision, generation time, files, and SHA-256
+  digests. It is independent of any linked writing project.
 - Lossless structured authority JSON is the primary review interchange
   representation and includes reassessment plus append-only finding history.
   CSV provides long-form extraction values; the content-addressed relational
@@ -313,7 +366,7 @@ state.
   `bibliography.bib`, PRISMA JSON/SVG, search history, event history, model
   disclosure, and separate analysis definitions, diagnostics, contributors,
   reassessment history, and complete evidence-linked finding history. Its
-  manifest pins the schema, generator, workspace, review and protocol
+  manifest pins the schema, generator, review UUID, review and protocol
   revisions, generation time, byte counts, and SHA-256 file digests.
 - DOCX may become an optional publication target but never becomes canonical
   review, analysis, or manuscript state.
@@ -321,34 +374,59 @@ state.
 ### History, Backup, and Recovery
 
 - Project-history snapshots retain each materialized review-artifact pin, while
-  the ReviewStudy reconstructs its own protocol, reassessment, search,
-  screening, evidence, model, finding, and synthesis projections at any retained
-  review revision.
-- Owner backup schema v2 stores no embedded review projection. Each workspace
-  records a content-addressed reference to a canonical ReviewStudy payload in
-  R2 with byte count, payload digest, unblinded-authority digest, review and
-  protocol revisions, history floor, and revision seed.
-- The payload is bounded to 64 MiB and serializes only the allowlisted
-  authoritative relational tables. Backup verification rejects non-canonical
-  bytes, an owner-scope mismatch, a digest or byte-count mismatch, or revision
-  metadata that disagrees with the payload.
-- Recovery drills restore v2 review payloads into manifest-derived isolated
-  ReviewStudy identities, query the live restored authority, and compare both
-  digests and every pinned revision. They never overwrite the canonical review.
-  Legacy owner-backup v1 manifests remain readable through a manifest-only
-  compatibility path.
-- Permanent project deletion deletes its ReviewStudy storage. Content-addressed
-  backup retention remains an operator lifecycle and is not treated as active
-  project state.
+  the independent ReviewStudy reconstructs its own protocol, reassessment,
+  search, screening, evidence, model, finding, and synthesis projections at any
+  retained review revision. Project snapshots do not own the live review.
+- Owner backup schema v3 stores independent reviews as a top-level collection
+  beside workspaces. Each entry retains the exact catalog record and locator,
+  ReviewAccess state with membership and the complete active and unlinked link
+  ledger, revision seed, and a content-addressed reference to the canonical
+  ReviewStudy payload in R2.
+- The review payload is bounded to 64 MiB and serializes only allowlisted
+  authoritative relational tables. Its reference pins byte count, payload
+  digest, unblinded-authority digest, review and protocol revisions, and history
+  floor. Verification rejects non-canonical bytes, owner-scope or review-id
+  mismatches, digest or byte-count mismatches, and revision metadata that
+  disagrees with the payload.
+- Recovery drills restore v3 catalog, access, link, and ReviewStudy authorities
+  into manifest-derived isolated identities, read them back through the live
+  Durable Objects, and compare both digests, membership, links, locators, and
+  every pinned revision. They never overwrite canonical review objects.
+  Project-associated v2 and legacy v1 owner manifests remain readable under
+  their historical compatibility semantics.
+- Permanent project deletion marks that project's active review links unlinked
+  and deletes only project-owned state and materializations. It does not delete
+  an independent ReviewStudy. Permanent review deletion marks all active links
+  unlinked, deletes review data and membership, and removes each member's
+  catalog entry without deleting projects or rewriting retained project-history
+  artifacts. Content-addressed backup retention remains an operator lifecycle,
+  not active review state.
 
 ### API Contracts
 
-- Every abbreviated route below is relative to `/api/workspaces/{id}` and
-  retains normal workspace authorization.
-- `GET /api/workspaces/{id}/review-study` returns the authorized review
-  snapshot.
-- `PUT /api/workspaces/{id}/review-study/protocol` replaces the current
-  editable protocol using revision preconditions.
+- `GET /api/reviews` lists role-qualified summaries from the current identity's
+  catalog; `POST /api/reviews` creates an independent review and returns its
+  public summary. Catalog responses never expose the storage locator.
+- `GET /api/reviews/{reviewId}` returns the authorized review summary, members,
+  and permission-qualified active and unlinked project-link views.
+  `PATCH /settings` changes owner-controlled title, profile, or lifecycle, and
+  `DELETE /settings` permanently deletes the independent review.
+- `GET`, `POST`, and `DELETE /members` inspect, invite, or remove review
+  members. `GET` and `POST /project-links` inspect link history or create an
+  owner-authorized link, and `DELETE /project-links/{linkId}` soft-unlinks one
+  active relationship. Membership and link mutations mirror catalog or project
+  projections without transferring authority.
+- `GET /api/workspaces/{workspaceId}/reviews` returns the project's active and
+  unlinked relationship projections after project authorization; it includes a
+  review title and canonical link only when the caller independently has review
+  access, otherwise it returns a review-access-required state.
+- Every workflow route below is relative to `/api/reviews/{reviewId}` and
+  retains independent review authorization.
+  `/api/workspaces/{workspaceId}/review-study` remains an authenticated legacy
+  adapter that registers and resolves the stable review before dispatch.
+- `GET /review-study` returns the authorized review snapshot.
+- `PUT /review-study/protocol` replaces the current editable protocol using
+  revision preconditions.
   `POST /review-study/protocol/freeze` freezes it and
   `POST /review-study/protocol/amend` creates an editable successor with a
   rationale and explicit amendment impact.
@@ -375,16 +453,28 @@ state.
   human disposition.
 - `/review-study/synthesis`, `/review-study/synthesis.csv`, and
   `/review-study/synthesis.md` expose the same revision-pinned synthesis.
-  `POST /review-study/synthesis/publish` writes a revision-checked
-  `review/*.md` project artifact through the owning document room.
+  The canonical `POST /review-study/synthesis/publish` request supplies
+  `projectLinkId`, `expectedProjectRevision`, `reviewRevision`, `artifactId`,
+  `analysisDefinitionId`, and a bounded `review/{reviewId}/*.md` path. The
+  server resolves one active link, derives a bounded publication identity when
+  omitted, writes only through the independently authorized document room, and
+  returns the directive plus complete provenance pin.
 - `/review-study/export/{artifact}` returns `review.json`, `extraction.csv`,
   `bibliography.bib`, `prisma.json`, `prisma.svg`, or `review.zip` with
   `Cache-Control: no-store`.
-- All mutations require normal workspace write authorization, same-origin
-  validation, a current review revision, and bounded validated input.
+- Review mutations require review membership, same-origin validation, a current
+  review revision where applicable, and bounded validated input. Owner-only
+  settings, membership, link, and deletion routes enforce the catalog role.
+  Evidence-bearing mutations and publication additionally require an active
+  selected project link and independent project authorization; publication
+  checks the exact project revision as well.
 
 ### Bounds and Security
 
+- One identity catalog retains at most 200 reviews; one review retains at most
+  200 members and 5,000 historical project links. Review titles contain at most
+  120 characters, and review, member, link, and publication identities are
+  bounded and validated before storage.
 - One review retains at most 128 research questions, 128 concept groups, 1,024
   active terms, 128 sources, 512 criteria or typed schema fields, 256 search
   runs, 1,024 import batches, 100,000 occurrences, and 50,000 review records.
@@ -398,6 +488,9 @@ state.
   export to prevent spreadsheet formula execution.
 - Imported markup is inert text. Review UI never inserts database or model HTML
   into the DOM.
+- Public review summaries omit storage locators. Project-link presentation
+  exposes project title and navigation only after an independent project access
+  check; otherwise it presents an access-required state.
 - Review routes are private and non-cacheable. Read-only and edit-share
   capabilities do not receive review-study APIs unless a later rights decision
   explicitly adds them.
@@ -422,16 +515,25 @@ state.
   syntax or edit a pinned artifact by hand.
 - Do not let review access disclose private PDFs, notes, captures, or library
   state.
-- Do not treat `/review/{workspaceId}` as an independent review identity or
-  claim that one project can already own or link several review authorities.
-- Do not let the focused review browser route bypass workspace membership,
-  backup, history, or deletion behavior.
+- Do not use a workspace id as the canonical review identity, expose catalog
+  storage locators, or move legacy ReviewStudy data merely to adopt UUID URLs.
+- Do not infer review access from project membership, project access from review
+  membership, or either permission from a project-review link.
+- Do not hard-delete link rows when unlinking, delete a review with its project,
+  delete a project with its review, or rewrite pinned materializations after
+  either resource is unlinked or deleted.
+- Do not resolve project evidence or publication through an implicit owning
+  project. Select and authorize an active link, pin both revisions, and retain
+  complete review, link, publication, analysis, generator, and digest
+  provenance.
 
 ## Contract
 
 ### Definition of Done
 
-- [x] A project can initialize, edit, freeze, and amend an SLR or MLR protocol.
+- [x] A researcher can create an independent SLR or MLR, manage its review
+      membership and lifecycle, and edit, freeze, or amend its protocol without
+      selecting a writing project.
 - [x] Researchers can build concept groups, calibrate a logical query, and
       review source-specific field-scoped query renderings.
 - [x] Immutable search runs can import BibTeX occurrences and preserve source
@@ -452,11 +554,16 @@ state.
       explicit human acceptance and produce an auditable disclosure.
 - [x] JSON, CSV, BibTeX, PRISMA JSON/SVG, and deterministic review ZIP exports
       derive from the same review revision.
-- [x] Project history, backup, and deletion cover the review-study authority and
-      its pinned revisions.
-- [x] `/review` lists active project-linked reviews and
-      `/review/{workspaceId}` opens one while retaining project authorization
-      and nested workspace APIs.
+- [x] Explicit soft links support several reviews per project and several
+      projects per review without implying access; revision-checked publication
+      creates collision-free, fully pinned project artifacts.
+- [x] Owner backup v3, recovery, and permanent deletion treat catalog, access,
+      links, and ReviewStudy as an independent authority, while project history
+      retains only its materialized pins.
+- [x] `/review` lists the independent role-qualified catalog,
+      `/review/{reviewId}` and `/api/reviews/{reviewId}` are canonical, and
+      workspace-qualified browser and API routes remain bounded legacy
+      adapters.
 - [x] Domain and Workers-runtime suites cover versioning, exact historical
       projections, export, backup, authorization, and evidence contracts; a
       browser workflow covers planning through explicit final inclusion and
@@ -466,8 +573,15 @@ state.
 
 - Existing writing, library, evidence, collaboration, history, backup, and
   export workflows remain usable for projects without a review study.
-- A focused review route must resolve through the owning workspace and must not
-  create a second review, access model, backup boundary, or deletion lifecycle.
+- A focused canonical route must resolve its UUID through the current identity's
+  ReviewCatalog and ReviewAccess. A legacy workspace route must register the
+  same stable UUID and membership snapshot exactly once, retain the original
+  storage locator, and never create a duplicate ReviewStudy under concurrency.
+- Project membership, review membership, and private Library ownership remain
+  independent. Project-link creation, evidence selection, and publication must
+  not weaken any of those checks.
+- Project unlink or deletion leaves the live review intact. Review unlink or
+  deletion leaves projects and retained materialized artifact pins intact.
 - Review mutations do not change Markdown or private-library state as an
   implicit side effect.
 - Review revisions advance once per successful logical mutation and stale
@@ -481,21 +595,29 @@ state.
 - Model failure or rejection leaves canonical review and manuscript state
   unchanged.
 - Exported archives remain traversal-free, private, deterministic, and bounded.
+- A v3 recovery drill restores catalog, access, links, and ReviewStudy into
+  isolated identities and never overwrites canonical review or project state;
+  v1 and v2 inputs retain their historical compatibility behavior.
 
 ### Verification
 
 - Pure domain tests cover guards, bounds, query rendering, duplicate grouping,
   stage projection, appraisal/extraction typing, analysis calculations, CSV
   safety, PRISMA flow derivation, and deterministic manifests.
-- Workers tests cover schema migration, eviction, authorization adapters,
-  atomic revisions, protocol freeze/amendment, import, deduplication,
-  independent decisions, adjudication, evidence selectors, candidate review,
-  backup, restore, and deletion.
-- Browser tests cover structured protocol planning, freezing, immutable import,
-  title-and-abstract and full-text decisions, separate final inclusion, and
-  evidence-stage gating. Domain and Workers tests cover the lower-level
-  conflict, exact-selector, synthesis, artifact-pin, disclosure, export,
-  backup, and restore boundaries.
+- Workers tests cover ReviewCatalog, ReviewAccess, and ReviewStudy schema
+  migration and eviction; atomic legacy identity seeding; catalog and membership
+  authorization; many-to-many soft links; canonical and compatibility adapters;
+  atomic revisions; protocol freeze/amendment; import; deduplication;
+  independent decisions; adjudication; evidence selectors; candidate review;
+  independent v3 backup, restore, and deletion; and v1/v2 compatibility.
+- View and client tests cover independent creation controls and navigation,
+  project-link permission states, canonical UUID APIs, and explicit publication
+  requests. Browser tests cover the canonical independent review workflow,
+  structured protocol planning, freezing, immutable import, title-and-abstract
+  and full-text decisions, separate final inclusion, and evidence-stage gating.
+  Domain and Workers tests cover the lower-level conflict, exact-selector,
+  synthesis publication, artifact-pin provenance, disclosure, export, backup,
+  and restore boundaries.
 - The full quality gate and local Agent CI pass before the feature is treated as
   ready.
 
@@ -511,11 +633,29 @@ state.
 
 **Scenario: Researcher opens focused review work**
 
-- Given: an authorized project has its project-associated review study
-- When: the researcher opens `/review/{workspaceId}`
+- Given: an authorized review appears in the researcher's independent catalog
+- When: the researcher opens `/review/{reviewId}`
 - Then: Kirjolab renders the review workflow outside manuscript authoring chrome
-  while using the same workspace access check, review authority, and nested API
-  routes
+  after resolving ReviewAccess, without selecting a writing project or granting
+  access to one
+
+**Scenario: Legacy review registration is stable**
+
+- Given: a project-associated ReviewStudy exists under its workspace storage
+  key and has not yet entered a ReviewCatalog
+- When: authorized project members concurrently use the legacy browser or API
+  route
+- Then: ReviewAccess assigns exactly one review UUID and membership snapshot,
+  every seeded member receives the same locator, the project link is explicit,
+  and no ReviewStudy rows move
+
+**Scenario: One review supports several manuscripts**
+
+- Given: a review owner can access two writing projects
+- When: they link both projects to the review
+- Then: each stable link remains an access-neutral relationship and either
+  project can receive its own revision-pinned publication without copying or
+  re-identifying the live review
 
 **Scenario: Search occurrences survive deduplication**
 
@@ -549,10 +689,11 @@ state.
 
 **Scenario: Extraction remains grounded**
 
-- Given: a finally included paper with a rights-checked shared PDF
+- Given: a finally included paper and an active link to a project whose
+  rights-checked shared PDF the reviewer can access
 - When: a reviewer records a key finding from a selected passage
 - Then: the typed extraction value retains its RQ, reviewer, schema revision,
-  PDF selector, and exact source quotation
+  project-link context, PDF selector, and exact source quotation
 
 **Scenario: A finding remains evidence-linked**
 
@@ -563,10 +704,13 @@ state.
 
 **Scenario: Review evidence enters the manuscript**
 
-- Given: a named analysis over a pinned review revision
-- When: the author inserts its review-artifact directive
-- Then: preview and export render the same table or figure and expose the
-  analysis definition and contributing evidence
+- Given: a named analysis over a pinned review revision and an active authorized
+  link to a writing project at an exact revision
+- When: the reviewer publishes it and the author inserts the returned review-
+  artifact directive
+- Then: preview and export render the same materialization and its pin exposes
+  the review, link, publication, both revisions, analysis, generator, publisher,
+  time, digest, and contributing evidence
 
 **Scenario: Model assistance remains transparent**
 
@@ -574,6 +718,13 @@ state.
 - When: a researcher accepts, edits, or rejects a local-model proposal
 - Then: the human disposition and complete bounded model provenance enter the
   disclosure while rejection changes no canonical review data
+
+**Scenario: Linked lifecycles remain independent**
+
+- Given: a project retains a materialized artifact from a linked review
+- When: the link is removed or either live resource is permanently deleted
+- Then: the other live resource is not deleted, the link remains auditable as
+  unlinked, and the project's retained artifact pin is never rewritten
 
 **Scenario: Researcher archives a reproducible review**
 

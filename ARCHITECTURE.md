@@ -102,17 +102,35 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Escape authored raw HTML and sanitize the final preview tree after all syntax plugins; allow only the elements, properties, and URL protocols required by the scientific-writing vocabulary before inserting output into the DOM.
 - Return a restrictive Content Security Policy on application HTML as an independent browser-execution boundary; do not permit inline or evaluated scripts.
 - Coordinate each collaborative composed project through its own SQLite-backed Durable Object.
-- Coordinate the current one-per-project review study through its own
-  SQLite-backed Durable Object addressed by the authenticated workspace
-  storage key. `/review` lists those project-linked workflows and
-  `/review/{workspaceId}` is the focused browser surface for one of them; these
-  routes do not introduce an independent review identity, access model, or
-  lifecycle. Keep protocol revisions immutable, configure SLR and MLR source,
-  search, stopping, credibility, and synthesis rules as structured profile
-  data, and generate source-specific queries from one logical concept model.
-  Require every post-freeze amendment to declare its rationale and affected
-  stages or records, then retain explicit reassessment obligations without
-  rewriting earlier protocol-bound events.
+- Coordinate every review through three independent SQLite-backed authorities:
+  an identity-scoped `ReviewCatalog` for discoverable summaries and private
+  storage locators, a review-scoped `ReviewAccess` for membership, lifecycle,
+  and project-link history, and a `ReviewStudy` for the structured workflow and
+  its monotonic revision. Give each review a stable UUID that is independent of
+  workspace identity; never expose its storage locator as public catalog data.
+- Keep review, project, and owner-private Library authorization independent. A
+  project-review link grants access to neither endpoint, and project-backed
+  evidence or publication requires both review membership and access to the
+  selected linked project.
+- Represent project-review relationships as many-to-many soft links with
+  stable identity, actor, creation time, and `active` or `unlinked` state.
+  Unlinking or deleting a project must not delete the live review or previously
+  materialized project artifacts; deleting a review is a separate owner action
+  that unlinks active relationships and removes its study, access, and catalog
+  authority without rewriting retained project history.
+- Keep `/review/{reviewId}` and `/api/reviews/{reviewId}` canonical. Treat
+  `/review/{workspaceId}` and `/api/workspaces/{workspaceId}/review-study` as
+  bounded legacy adapters: atomically assign one stable review UUID, seed
+  membership once from the then-current project members, create the explicit
+  project link, and retain the existing workspace storage key behind the
+  catalog locator instead of moving review data. Later project membership
+  changes must not alter the independently seeded review membership.
+- Keep protocol revisions immutable, configure SLR and MLR source, search,
+  stopping, credibility, and synthesis rules as structured profile data, and
+  generate source-specific queries from one logical concept model. Require
+  every post-freeze amendment to declare its rationale and affected stages or
+  records, then retain explicit reassessment obligations without rewriting
+  earlier protocol-bound events.
 - Keep review screening decisions append-only and reviewer-attributed. Derive
   stage outcomes from the configured independent-review policy, blind pending
   peer decisions when requested, and resolve conflicts through separate
@@ -120,31 +138,36 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   a separate append-only decision after full-text eligibility; only its current
   includes enter evidence and synthesis.
 - Keep review quality answers and extracted values typed, revisioned, and
-  pinned to the protocol and stable criterion ids/text. Require exact project-
-  authorized resource and selector identity plus quotation/location for
-  present claims and an explicit missingness reason when an extraction value is
-  absent; derive checklist scores and completeness instead of persisting them
-  as authority. New evidence must never use a legacy unresolved selector.
+  pinned to the protocol and stable criterion ids/text. Require an explicitly
+  selected active project link, review and project authorization, exact
+  resource and selector identity, and quotation/location for present claims;
+  require an explicit missingness reason when an extraction value is absent.
+  Derive checklist scores and completeness instead of persisting them as
+  authority. New evidence must never use a legacy unresolved selector.
 - Derive review flow counts, source yields, RQ coverage, and evidence matrices
   from versioned analysis definitions over one exact retained review revision.
   Keep RQ findings append-only and require every declared appraisal or
   extraction contributor to retain exact evidence. Publish a reviewed
-  synthesis only through a revision-checked `review/*.md` project artifact,
-  bind it to project history by analysis revision and digest, and resolve
-  `::review-artifact[...]` identically in preview and publication. Never let
-  background review changes rewrite manuscript files or ordinary edits mutate
-  a pinned artifact.
+  synthesis only through an explicitly selected active project link and a
+  revision-checked `review/{reviewId}/*.md` project artifact. Bind the
+  materialization to project history with review, link, publication, protocol,
+  and analysis identities and revisions, generator/schema identity, publisher,
+  time, and digest; resolve `::review-artifact[...]` identically in preview and
+  publication. Never let background review changes rewrite manuscript files or
+  ordinary edits mutate a pinned artifact.
 - Keep local-model review assistance browser-to-loopback. Store the operation,
   provider, model, prompt version, authorized source scope, result, and human
   disposition; model candidates remain inert until explicit acceptance.
-- Back up and permanently delete each review authority with its owning project.
-  Store the full allowlisted relational authority as a bounded, canonical,
-  content-addressed R2 payload referenced by the owner manifest, with separate
-  payload and unblinded-authority digests and exact revision metadata. Restore
-  drills must hydrate and verify live ReviewStudy state under manifest-derived
-  isolated identities and never address canonical review objects. Derive
-  history, interchange files, PRISMA flow, and the deterministic review package
-  from one revision-pinned authority snapshot.
+- Back up reviews independently of projects. Owner backup schema v3 stores each
+  review's catalog record and locator, access state, complete active and
+  unlinked project-link ledger, revision seed, and a bounded canonical
+  content-addressed R2 payload for the allowlisted relational ReviewStudy
+  authority. Restore drills hydrate and verify isolated `ReviewCatalog`,
+  `ReviewAccess`, and `ReviewStudy` identities, compare payload and unblinded-
+  authority digests plus exact revisions, and never address canonical review
+  objects. Derive history, interchange files, PRISMA flow, and the deterministic
+  review package from one revision-pinned authority snapshot; retain explicit
+  compatibility for project-associated v2 and legacy v1 owner manifests.
 - Coordinate each personal reference library through a separate SQLite-backed
   Durable Object keyed by verified owner identity. Stable source identity must
   not depend on a DOI, title, filename, or project citation alias.
@@ -255,9 +278,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Serve browser scripts with explicit same-origin resource policies so module
   workers remain loadable without cross-origin fallback behavior.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
-- Use `/` as a bounded dashboard over authorized recent work. Opening it must
-  not choose or create a workspace, restore manuscript state, or connect a
-  collaboration socket.
+- Use `/` as a bounded dashboard over authorized recent projects, owner-private
+  Library records, and independent reviews. Opening it must not choose or
+  create a workspace, restore manuscript state, or connect a collaboration
+  socket. Catalog discovery may perform only the bounded, idempotent
+  registration of existing legacy project-associated review data; it must not
+  initialize a new review workflow.
 - Keep `/editor/{id}` as the canonical browser identity for an editable
   project and `/api/workspaces/{id}` as its stable API identity. `/editor`
   redirects to the first active authorized catalog entry, using the compatible
