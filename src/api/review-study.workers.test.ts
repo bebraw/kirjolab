@@ -458,7 +458,7 @@ describe("review-study API in the Workers runtime", () => {
         "/review-study/synthesis/publish",
         room,
         "project",
-        { reviewId, linkId },
+        { reviewId, linkId, profile: "slr" },
       ),
     ).rejects.toThrow("path must use its review and artifact identities");
     await expect(room.getSnapshot("project")).resolves.toMatchObject({
@@ -477,7 +477,7 @@ describe("review-study API in the Workers runtime", () => {
       "/review-study/synthesis/publish",
       room,
       "project",
-      { reviewId, linkId },
+      { reviewId, linkId, profile: "slr" },
     );
     expect(published.status).toBe(200);
     const payload = (await published.json()) as {
@@ -546,7 +546,7 @@ describe("review-study API in the Workers runtime", () => {
       "/review-study/synthesis/publish",
       room,
       "project",
-      { reviewId, linkId },
+      { reviewId, linkId, profile: "slr" },
     );
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toMatchObject({

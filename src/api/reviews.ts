@@ -102,7 +102,7 @@ export async function handleReviewsApi(request: Request, env: Env, identity: Aut
       workflowSuffix,
       projectContext?.room,
       projectContext?.workspaceId,
-      { reviewId, linkId: projectContext?.link.id ?? null },
+      { reviewId, linkId: projectContext?.link.id ?? null, profile: resource.record.profile },
     );
   } catch (error) {
     return reviewError(error);
@@ -120,9 +120,10 @@ export async function createReviewResource(
   const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
   const study = env.REVIEW_STUDIES.getByName(record.locator.storageKey);
   try {
-    await access.initializeOwner(record.id, identity.email);
     await study.getSnapshot(profile, identity.email);
+    await access.initializeOwner(record.id, identity.email);
   } catch (error) {
+    await study.deleteReviewData();
     await catalog.removeReview(record.id);
     throw error;
   }

@@ -54,6 +54,28 @@ describe("independent reviews API in the Workers runtime", () => {
     expect(multivocalRecord?.locator.storageKey).toBe(`review:${multivocal.id}`);
     expect(multivocalRecord?.locator.storageKey).not.toBe(systematicRecord?.locator.storageKey);
 
+    const uninitializedId = crypto.randomUUID();
+    const uninitializedAt = new Date().toISOString();
+    const uninitialized = await catalog.registerReview({
+      id: uninitializedId,
+      title: "Uninitialized multivocal study",
+      profile: "mlr",
+      role: "owner",
+      storageKey: `review:${uninitializedId}`,
+      legacyWorkspaceId: null,
+      createdAt: uninitializedAt,
+      updatedAt: uninitializedAt,
+      archivedAt: null,
+    });
+    await env.REVIEW_ACCESS.getByName(uninitialized.locator.storageKey).initializeOwner(uninitialized.id, owner.email);
+    const canonicalStudy = await handleReviewsApi(
+      new Request(`http://example.com/api/reviews/${uninitialized.id}/review-study`),
+      env,
+      owner,
+    );
+    expect(canonicalStudy.status).toBe(200);
+    await expect(canonicalStudy.json()).resolves.toMatchObject({ protocol: { profile: "mlr" } });
+
     const profileChange = await handleReviewsApi(
       new Request(`http://example.com/api/reviews/${systematic.id}/settings`, {
         method: "PATCH",

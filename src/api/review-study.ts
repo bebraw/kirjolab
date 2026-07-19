@@ -1,4 +1,4 @@
-import { parseReviewProtocolContent } from "../domain/review-study";
+import { parseReviewProtocolContent, type ReviewProfile } from "../domain/review-study";
 import { previewReviewBibTeX, reviewBibTeXImport, reviewImportLimits } from "../domain/review-search";
 import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
 import type { ReviewModelOperation } from "../domain/review-model";
@@ -33,6 +33,7 @@ const maximumProtocolRequestBytes = 2 * 1024 * 1024;
 export interface ReviewStudyApiContext {
   readonly reviewId: string;
   readonly linkId: string | null;
+  readonly profile: ReviewProfile;
 }
 
 export async function handleReviewStudyApi(
@@ -45,10 +46,11 @@ export async function handleReviewStudyApi(
   context: ReviewStudyApiContext = {
     reviewId: "legacy-project-review",
     linkId: "legacy-project-review-link",
+    profile: "slr",
   },
 ): Promise<Response> {
   if (suffix === "/review-study" && request.method === "GET") {
-    return noStore(await study.getSnapshot("slr", identity.email));
+    return noStore(await study.getSnapshot(context.profile, identity.email));
   }
   if (suffix === "/review-study/protocol" && request.method === "PUT") {
     const body = await protocolRequest(request);

@@ -86,10 +86,12 @@ export class ReviewCatalog extends DurableObject<Env> {
       if (existing.locator.storageKey !== normalized.storageKey || existing.locator.legacyWorkspaceId !== normalized.legacyWorkspaceId) {
         throw new Error("Review catalog identity conflicts with its existing locator");
       }
+      if (existing.profile !== normalized.profile) {
+        throw new Error("Review method profile cannot change after creation");
+      }
       this.ctx.storage.sql.exec(
-        "UPDATE reviews SET title = ?, profile = ?, role = ?, updated_at = ?, archived_at = ? WHERE id = ?",
+        "UPDATE reviews SET title = ?, role = ?, updated_at = ?, archived_at = ? WHERE id = ?",
         normalized.title,
-        normalized.profile,
         normalized.role,
         normalized.updatedAt,
         normalized.archivedAt,

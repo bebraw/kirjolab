@@ -84,7 +84,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
         suffix,
         activeLink ? room : undefined,
         activeLink ? workspaceId : undefined,
-        { reviewId: review.record.id, linkId: activeLink?.id ?? null },
+        { reviewId: review.record.id, linkId: activeLink?.id ?? null, profile: review.record.profile },
       );
     }
     if (suffix === "/settings" && request.method === "PATCH") {

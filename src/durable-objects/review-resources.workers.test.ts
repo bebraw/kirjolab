@@ -60,16 +60,25 @@ describe("ReviewCatalog in the Workers runtime", () => {
     });
     const repeated = await ownerCatalog.registerLegacyReview({
       title: "Renamed independent review",
-      profile: "mlr",
+      profile: "slr",
       role: "owner",
       storageKey: "owner-key:demo",
       legacyWorkspaceId: "demo",
       updatedAt: "2026-07-19T09:00:00.000Z",
     });
 
-    expect(repeated).toMatchObject({ id: legacy.id, title: "Renamed independent review", profile: "mlr", createdAt });
+    expect(repeated).toMatchObject({ id: legacy.id, title: "Renamed independent review", profile: "slr", createdAt });
     expect(await ownerCatalog.getReviewByLegacyWorkspaceId("demo")).toEqual(repeated);
     await runInDurableObject(ownerCatalog, (instance: ReviewCatalog) => {
+      expect(() =>
+        instance.registerLegacyReview({
+          title: "Conflicting profile",
+          profile: "mlr",
+          role: "owner",
+          storageKey: "owner-key:demo",
+          legacyWorkspaceId: "demo",
+        }),
+      ).toThrow("profile cannot change");
       expect(() =>
         instance.registerLegacyReview({
           reviewId: crypto.randomUUID(),

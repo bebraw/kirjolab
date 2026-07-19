@@ -592,6 +592,10 @@ published deliberately into several writing projects.
   ReviewCatalog and ReviewAccess. A legacy workspace route must register the
   same stable UUID and membership snapshot exactly once, retain the original
   storage locator, and never create a duplicate ReviewStudy under concurrency.
+- A review's SLR or MLR profile is immutable once registered. Creation
+  initializes ReviewStudy with that profile before ReviewAccess makes the
+  resource resolvable, and canonical reads use the catalog profile when
+  initializing an unexpectedly empty study.
 - Project membership, review membership, and private Library ownership remain
   independent. Project-link creation, evidence selection, and publication must
   not weaken any of those checks.
