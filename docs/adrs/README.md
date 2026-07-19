@@ -28,18 +28,10 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-| ADR                                                                           | Status      | Summary                                                                                             |
-| ----------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------- |
-| [ADR-147](./accepted/ADR-147-derive-review-outputs-from-evidence.md)          | Accepted    | Derive review outputs and portable packages from pinned evidence.                                   |
-| [ADR-146](./accepted/ADR-146-coordinate-project-review-studies.md)            | Accepted    | Coordinate protocol-driven SLR and MLR state through a project-associated authority.                |
-| [ADR-132](./accepted/ADR-132-synchronize-projects-with-github.md)             | Accepted    | Manually synchronize bounded GitHub subtrees through previewed pulls and reviewed direct publishes. |
-| [ADR-089](./implemented/ADR-089-require-a-fail-closed-production-release.md)  | Implemented | Require production identity, hostname, dry-run, smoke, version, and rollback evidence.              |
-| [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md) | Implemented | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.                 |
-| [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)             | Implemented | Use semantic light/dark tokens with a browser-local system-aware preference.                        |
-| [ADR-092](./implemented/ADR-092-prewarm-agent-ci-dependencies-explicitly.md)  | Implemented | Prewarm dependencies once and give parallel local CI jobs isolated writable views.                  |
-| [ADR-093](./implemented/ADR-093-scope-prettier-to-owned-files.md)             | Implemented | Keep duplicated and vendored skill references outside the Prettier ownership boundary.              |
-| [ADR-094](./implemented/ADR-094-cache-prettier-checks-by-content.md)          | Implemented | Cache successful Prettier checks by file content under ignored local state.                         |
-| [ADR-095](./implemented/ADR-095-decouple-public-share-locators.md)            | Implemented | Route public shares through opaque locators instead of requiring globally unique workspace ids.     |
+| ADR                                                                  | Status   | Summary                                                                              |
+| -------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ |
+| [ADR-147](./accepted/ADR-147-derive-review-outputs-from-evidence.md) | Accepted | Derive review outputs and portable packages from pinned evidence.                    |
+| [ADR-146](./accepted/ADR-146-coordinate-project-review-studies.md)   | Accepted | Coordinate protocol-driven SLR and MLR state through a project-associated authority. |
 
 ## Implemented ADRs
 
@@ -135,6 +127,13 @@ ADRs are grouped by lifecycle status:
 | [ADR-086](./implemented/ADR-086-coordinate-batch-pdf-intake-in-browser.md)                | Implemented          | Coordinate bounded sequential PDF intake and retry state in the browser.                                      |
 | [ADR-087](./implemented/ADR-087-reconcile-exact-pdf-duplicates.md)                        | Implemented          | Resolve exact owner-library PDF repeats to their canonical source and remove redundant stored bytes.          |
 | [ADR-088](./implemented/ADR-088-project-structured-publication-markdown.md)               | Implemented          | Project bounded tables and footnotes once for deterministic LaTeX and PDF publication exports.                |
+| [ADR-089](./implemented/ADR-089-require-a-fail-closed-production-release.md)              | Implemented          | Require production identity, hostname, dry-run, smoke, version, and rollback evidence.                        |
+| [ADR-090](./implemented/ADR-090-combine-pitr-with-change-aware-r2-backups.md)             | Implemented          | Combine 30-day Durable Object PITR with change-aware logical and binary R2 backups.                           |
+| [ADR-091](./implemented/ADR-091-use-system-aware-token-themes.md)                         | Implemented          | Use semantic light/dark tokens with a browser-local system-aware preference.                                  |
+| [ADR-092](./implemented/ADR-092-prewarm-agent-ci-dependencies-explicitly.md)              | Implemented          | Prewarm dependencies once and give parallel local CI jobs isolated writable views.                            |
+| [ADR-093](./implemented/ADR-093-scope-prettier-to-owned-files.md)                         | Implemented          | Keep duplicated and vendored skill references outside the Prettier ownership boundary.                        |
+| [ADR-094](./implemented/ADR-094-cache-prettier-checks-by-content.md)                      | Implemented          | Cache successful Prettier checks by file content under ignored local state.                                   |
+| [ADR-095](./implemented/ADR-095-decouple-public-share-locators.md)                        | Implemented          | Route public shares through opaque locators instead of requiring globally unique workspace ids.               |
 | [ADR-098](./implemented/ADR-098-ignore-static-mutants-locally.md)                         | Implemented          | Ignore costly static mutants locally while retaining them in clean GitHub mutation runs.                      |
 | [ADR-099](./implemented/ADR-099-persist-project-folders-and-atomic-tree-moves.md)         | Implemented          | Persist empty folders and move project subtrees with atomic include rewrites.                                 |
 | [ADR-100](./implemented/ADR-100-order-reviewed-scholarly-metadata-providers.md)           | Partially superseded | Try reviewed OpenAlex discovery first and retain Crossref, DataCite, and Semantic Scholar coverage.           |
@@ -160,6 +159,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-129](./implemented/ADR-129-codify-a-thin-internal-design-system.md)                  | Implemented          | Codify foundations, primitives, state contracts, and typed icons without a component framework.               |
 | [ADR-130](./implemented/ADR-130-emit-quality-gate-progress.md)                            | Implemented          | Report full-gate phase transitions and heartbeats without changing its fail-fast sequence.                    |
 | [ADR-131](./implemented/ADR-131-navigate-citations-by-page-locator.md)                    | Implemented          | Insert page locators from project PDFs and use them for unambiguous citation navigation.                      |
+| [ADR-132](./implemented/ADR-132-synchronize-projects-with-github.md)                      | Implemented          | Manually synchronize bounded GitHub subtrees through previewed pulls and reviewed direct publishes.           |
 | [ADR-133](./implemented/ADR-133-resolve-optional-project-entry-files.md)                  | Implemented          | Resolve an omitted project entry to `main.md` or the first Markdown path, then persist its identity.          |
 | [ADR-135](./implemented/ADR-135-add-inert-markdown-comment-blocks.md)                     | Implemented          | Preserve portable block comments while excluding them from every derived manuscript surface.                  |
 | [ADR-136](./implemented/ADR-136-federate-library-reference-discovery.md)                  | Implemented          | Search several scholarly metadata providers and merge reviewable results without mutating the library.        |
