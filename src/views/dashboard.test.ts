@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ReferenceLibrarySnapshot } from "../domain/reference-library";
+import type { ReviewSummary } from "../domain/review-catalog";
 import type { WorkspaceSummary } from "../domain/workspace";
 import { renderDashboardPage } from "./dashboard";
 
@@ -61,9 +62,22 @@ const library: ReferenceLibrarySnapshot = {
   reading: [],
 };
 
+const reviews: readonly ReviewSummary[] = [
+  {
+    id: "00000000-0000-4000-8000-000000000151",
+    title: "Recent systematic review",
+    profile: "slr",
+    href: "/review/00000000-0000-4000-8000-000000000151",
+    role: "owner",
+    createdAt: "2026-07-19T08:00:00.000Z",
+    updatedAt: "2026-07-19T11:00:00.000Z",
+    archivedAt: null,
+  },
+];
+
 describe("renderDashboardPage", () => {
   it("renders a compact recent-work dashboard without loading the editor application", () => {
-    const html = renderDashboardPage(workspaces, library);
+    const html = renderDashboardPage(workspaces, library, reviews);
 
     expect(html).toContain('data-app-mode="dashboard"');
     expect(html).toContain('<h1 id="dashboard-heading">Pick up the thread.</h1>');
@@ -74,7 +88,10 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('href="/library">Add references</a>');
     expect(html).toContain("2 projects");
     expect(html).toContain("1 sources · 0 PDFs");
+    expect(html).toContain("1 review");
+    expect(html).toContain("Recent systematic review");
     expect(html).not.toContain("Archived project");
+    expect(html.indexOf("Recent systematic review")).toBeLessThan(html.indexOf("A recent source"));
     expect(html.indexOf("A recent source")).toBeLessThan(html.indexOf("Recent project"));
 
     expect(html).not.toContain('<script type="module" src="/app.js"></script>');
@@ -83,12 +100,13 @@ describe("renderDashboardPage", () => {
   });
 
   it("renders a useful empty state without an existing project or library snapshot", () => {
-    const html = renderDashboardPage([], null, "person@example.org", "access");
+    const html = renderDashboardPage([], null, [], "person@example.org", "access");
 
     expect(html).toContain('<a class="primary-navigation-link" href="/editor">Editor</a>');
-    expect(html).toContain("Create a writing project or add a source to begin.");
+    expect(html).toContain("Create a writing project, evidence review, or source to begin.");
     expect(html).toContain("0 projects");
     expect(html).toContain("0 sources · 0 PDFs");
+    expect(html).toContain("0 reviews");
     expect(html).toContain('<a href="/cdn-cgi/access/logout">Log out</a>');
   });
 });

@@ -1,6 +1,8 @@
 import { bindReviewStudyPlanning } from "./review-study";
 
-const workspaceId = document.body.dataset.workspaceId;
-if (!workspaceId || !/^[a-z0-9-]{1,64}$/iu.test(workspaceId)) throw new Error("Invalid linked project identity");
+const reviewId = document.body.dataset.reviewId;
+if (!reviewId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(reviewId)) {
+  throw new Error("Invalid review identity");
+}
 
-bindReviewStudyPlanning(`/api/workspaces/${workspaceId}`);
+bindReviewStudyPlanning(`/api/reviews/${reviewId}`);

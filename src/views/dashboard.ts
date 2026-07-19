@@ -1,10 +1,11 @@
 import type { ReferenceLibrarySnapshot } from "../domain/reference-library";
+import type { ReviewSummary } from "../domain/review-catalog";
 import type { WorkspaceSummary } from "../domain/workspace";
 import { renderProductHeader } from "./app-navigation";
 import { escapeHtml } from "./shared";
 
 interface DashboardActivity {
-  readonly kind: "Editor" | "Library";
+  readonly kind: "Editor" | "Library" | "Review";
   readonly title: string;
   readonly detail: string;
   readonly href: string;
@@ -14,12 +15,14 @@ interface DashboardActivity {
 export function renderDashboardPage(
   workspaces: readonly WorkspaceSummary[],
   library: ReferenceLibrarySnapshot | null,
+  reviews: readonly ReviewSummary[] = [],
   identityEmail = "local@kirjolab.invalid",
   identityMode: "local" | "access" = "local",
 ): string {
   const activeProjects = workspaces.filter((workspace) => workspace.archivedAt === null);
+  const activeReviews = reviews.filter((review) => review.archivedAt === null);
   const editorHref = activeProjects[0]?.href ?? "/editor";
-  const activities = dashboardActivities(activeProjects, library);
+  const activities = dashboardActivities(activeProjects, library, activeReviews);
   const artifactCount = library?.artifacts.length ?? 0;
   const referenceCount = library?.references.length ?? 0;
 
@@ -55,7 +58,7 @@ export function renderDashboardPage(
           <a href="/editor">All projects</a>
         </header>
         <div class="dashboard-activity-list">
-          ${activities.length > 0 ? activities.map(renderActivity).join("") : '<div class="empty-state">Create a writing project or add a source to begin.</div>'}
+          ${activities.length > 0 ? activities.map(renderActivity).join("") : '<div class="empty-state">Create a writing project, evidence review, or source to begin.</div>'}
         </div>
       </section>
 
@@ -71,7 +74,7 @@ export function renderDashboardPage(
             <span class="dashboard-area-index">02</span><span><strong>Library</strong><small>Read and organize private research material.</small></span><span class="dashboard-area-meta">${referenceCount} sources · ${artifactCount} PDFs</span><span aria-hidden="true">→</span>
           </a>
           <a class="dashboard-area-row" href="/review">
-            <span class="dashboard-area-index">03</span><span><strong>Evidence reviews</strong><small>Plan, screen, extract, synthesize, and report.</small></span><span class="dashboard-area-meta">Project-linked</span><span aria-hidden="true">→</span>
+            <span class="dashboard-area-index">03</span><span><strong>Evidence reviews</strong><small>Plan, screen, extract, synthesize, and report.</small></span><span class="dashboard-area-meta">${activeReviews.length} ${activeReviews.length === 1 ? "review" : "reviews"}</span><span aria-hidden="true">→</span>
           </a>
         </div>
       </section>
@@ -83,6 +86,7 @@ export function renderDashboardPage(
 function dashboardActivities(
   workspaces: readonly WorkspaceSummary[],
   library: ReferenceLibrarySnapshot | null,
+  reviews: readonly ReviewSummary[],
 ): readonly DashboardActivity[] {
   const projects: DashboardActivity[] = workspaces.map((workspace) => ({
     kind: "Editor",
@@ -98,7 +102,14 @@ function dashboardActivities(
     href: "/library",
     updatedAt: reference.updatedAt,
   }));
-  return [...projects, ...references].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).slice(0, 8);
+  const reviewActivities: DashboardActivity[] = reviews.map((review) => ({
+    kind: "Review",
+    title: review.title,
+    detail: review.profile === "mlr" ? "Multivocal literature review" : "Systematic literature review",
+    href: review.href,
+    updatedAt: review.updatedAt,
+  }));
+  return [...projects, ...references, ...reviewActivities].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).slice(0, 8);
 }
 
 function renderActivity(activity: DashboardActivity): string {

@@ -47,7 +47,13 @@ import { OpenAICompatibleBrowserProvider, type ModelReasoningEffort } from "./mo
 
 const facets = ["population", "intervention", "comparison", "outcome", "context"] as const;
 
+export interface ReviewPublicationTarget {
+  readonly projectLinkId: string;
+  readonly workspaceId: string;
+}
+
 export function bindReviewStudyPlanning(apiBase: string): void {
+  const reviewId = reviewIdentityFromApiBase(apiBase);
   const form = required("review-protocol-form", HTMLFormElement);
   const freeze = required("freeze-review-protocol", HTMLButtonElement);
   const planStep = required("review-step-plan", HTMLButtonElement);
@@ -64,6 +70,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   const synthesisContent = required("review-synthesis-content", HTMLElement);
   const reportContent = required("review-report-content", HTMLElement);
   const prismaImage = required("review-prisma-flow", HTMLImageElement);
+  const publicationProject = required("review-publication-project", HTMLSelectElement);
   let snapshot: ReviewStudySnapshot | null = null;
   let reassessmentSnapshot: ReviewReassessmentSnapshot | null = null;
   let searchSnapshot: ReviewSearchSnapshot | null = null;
@@ -431,9 +438,12 @@ export function bindReviewStudyPlanning(apiBase: string): void {
 
   async function publishSynthesis(): Promise<void> {
     if (!synthesis) return;
-    setSynthesisStatus("Publishing review/synthesis.md…");
     try {
-      const projectResponse = await fetch(apiBase, { credentials: "same-origin" });
+      const target = selectedPublicationTarget(publicationProject);
+      if (!target) return setSynthesisStatus("Choose an accessible linked writing project before publishing.");
+      const path = reviewSynthesisPublicationPath(reviewId);
+      setSynthesisStatus(`Publishing ${path}…`);
+      const projectResponse = await fetch(reviewPublicationProjectApi(target), { credentials: "same-origin" });
       await expectOk(projectResponse);
       const projectValue: unknown = await projectResponse.json();
       if (!isRevisionRecord(projectValue)) throw new Error("Project revision is unavailable");
@@ -441,19 +451,15 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          expectedProjectRevision: projectValue.revision,
-          reviewRevision: synthesis.revision,
-          path: "review/synthesis.md",
-        }),
+        body: JSON.stringify(reviewSynthesisPublicationRequest(reviewId, target, projectValue.revision, synthesis.revision)),
       });
       await expectOk(response);
       const published: unknown = await response.json();
       const directive =
         typeof published === "object" && published !== null && "directive" in published && typeof published.directive === "string"
           ? published.directive
-          : "::review-artifact[review/synthesis.md]";
-      setSynthesisStatus(`Published review/synthesis.md from review revision ${synthesis.revision}. Add ${directive} in the editor.`);
+          : `::review-artifact[${path}]`;
+      setSynthesisStatus(`Published ${path} from review revision ${synthesis.revision}. Add ${directive} in the editor.`);
     } catch (error) {
       setSynthesisStatus(errorMessage(error));
     }
@@ -1532,6 +1538,68 @@ function synthesisStatusText(value: string): HTMLParagraphElement {
   paragraph.className = "review-screen-meta";
   paragraph.textContent = value;
   return paragraph;
+}
+
+export function reviewIdentityFromApiBase(apiBase: string): string {
+  const match = /^\/api\/reviews\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/iu.exec(apiBase);
+  if (!match?.[1]) throw new Error("Review API base is invalid");
+  return match[1].toLowerCase();
+}
+
+export function reviewSynthesisPublicationPath(reviewId: string): string {
+  if (!isUuid(reviewId)) throw new Error("Review identity is invalid");
+  return `review/${reviewId.toLowerCase()}/synthesis.md`;
+}
+
+export function reviewPublicationProjectApi(target: ReviewPublicationTarget): string {
+  assertPublicationTarget(target);
+  return `/api/workspaces/${encodeURIComponent(target.workspaceId)}`;
+}
+
+export function reviewSynthesisPublicationRequest(
+  reviewId: string,
+  target: ReviewPublicationTarget,
+  expectedProjectRevision: number,
+  reviewRevision: number,
+): {
+  readonly projectLinkId: string;
+  readonly expectedProjectRevision: number;
+  readonly reviewRevision: number;
+  readonly artifactId: "synthesis";
+  readonly analysisDefinitionId: "review-synthesis-report";
+  readonly path: string;
+} {
+  assertPublicationTarget(target);
+  if (!Number.isSafeInteger(expectedProjectRevision) || expectedProjectRevision < 0) {
+    throw new Error("Project revision is invalid");
+  }
+  if (!Number.isSafeInteger(reviewRevision) || reviewRevision < 1) throw new Error("Review revision is invalid");
+  return {
+    projectLinkId: target.projectLinkId.toLowerCase(),
+    expectedProjectRevision,
+    reviewRevision,
+    artifactId: "synthesis",
+    analysisDefinitionId: "review-synthesis-report",
+    path: reviewSynthesisPublicationPath(reviewId),
+  };
+}
+
+function selectedPublicationTarget(select: HTMLSelectElement): ReviewPublicationTarget | null {
+  const option = select.selectedOptions.item(0);
+  if (!option?.value) return null;
+  const target = { projectLinkId: option.value, workspaceId: option.dataset.workspaceId ?? "" };
+  assertPublicationTarget(target);
+  return target;
+}
+
+function assertPublicationTarget(target: ReviewPublicationTarget): void {
+  if (!isUuid(target.projectLinkId) || !/^[a-z0-9-]{1,64}$/iu.test(target.workspaceId)) {
+    throw new Error("Review publication target is invalid");
+  }
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
 }
 
 function isRevisionRecord(value: unknown): value is { revision: number } {

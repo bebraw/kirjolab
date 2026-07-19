@@ -8,6 +8,15 @@ import { handleGitHubConnectionApi } from "./api/github-connection";
 import { handleGitHubImportApi } from "./api/github-sync";
 import { handleLatexImportApi } from "./api/latex-import";
 import { handleReferenceLibraryApi } from "./api/reference-library";
+import {
+  createReviewResource,
+  discoverLegacyReviews,
+  ensureLegacyReviewResource,
+  handleReviewsApi,
+  publicReview,
+  resolveReviewResource,
+  reviewProjectLinkViews,
+} from "./api/reviews";
 import { exampleRoutes } from "./app-routes";
 import { buildExportBundle } from "./domain/export-pipeline";
 import { DocumentRoom } from "./durable-objects/document-room";
@@ -186,13 +195,14 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   }
 
   if (url.pathname === "/") {
-    const [workspaces, library] = env
+    const [workspaces, library, reviews] = env
       ? await Promise.all([
           env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).listWorkspaces(),
           env.REFERENCE_LIBRARIES.getByName(identity.ownerKey).getSnapshot(),
+          discoverLegacyReviews(env, identity),
         ])
-      : [fallbackWorkspaces(), null];
-    return htmlResponse(renderDashboardPage(workspaces, library, identity.email, identity.mode), 200, url);
+      : [fallbackWorkspaces(), null, fallbackReviews()];
+    return htmlResponse(renderDashboardPage(workspaces, library, reviews, identity.email, identity.mode), 200, url);
   }
 
   if (url.pathname === "/library" || /^\/library\/pdfs\/[^/]+$/u.test(url.pathname)) {
@@ -215,15 +225,83 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   }
 
   if (url.pathname === "/review") {
-    const workspaces = env ? await env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).listWorkspaces() : fallbackWorkspaces();
-    return htmlResponse(renderReviewsPage(workspaces, identity.email, identity.mode), 200, url);
+    if (request.method === "POST") {
+      if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+      try {
+        const form = await request.formData();
+        const title = String(form.get("title") ?? "").trim();
+        const profile = form.get("profile");
+        if (!title || title.length > 120 || (profile !== "slr" && profile !== "mlr")) {
+          return Response.json({ error: "Review creation request is invalid" }, { status: 400 });
+        }
+        const resource = await createReviewResource(env, identity, title, profile);
+        return redirectResponse(resource.record.href, 303);
+      } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : "Review creation failed" }, { status: 400 });
+      }
+    }
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return Response.json({ error: "Method not allowed" }, { status: 405 });
+    }
+    const reviews = env ? await discoverLegacyReviews(env, identity) : fallbackReviews();
+    return htmlResponse(renderReviewsPage(reviews, identity.email, identity.mode), 200, url);
+  }
+
+  const reviewProjectLinksPage = /^\/review\/([a-f0-9-]{36})\/project-links$/iu.exec(url.pathname);
+  if (reviewProjectLinksPage?.[1]) {
+    if (request.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    const form = await request.formData();
+    const workspaceId = String(form.get("workspaceId") ?? "");
+    const apiRequest = new Request(`${url.origin}/api/reviews/${reviewProjectLinksPage[1]}/project-links`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ workspaceId }),
+    });
+    const response = await handleReviewsApi(apiRequest, env, identity);
+    if (response.ok) return redirectResponse(`/review/${reviewProjectLinksPage[1]}`, 303);
+    return response;
   }
 
   const reviewPage = /^\/review\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
   if (reviewPage?.[1]) {
-    const summary = env ? await env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).getWorkspace(reviewPage[1]) : fallbackWorkspaces()[0];
-    if (!summary) return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
-    return htmlResponse(renderReviewPage(summary, identity.email, identity.mode), 200, url);
+    if (!env) {
+      if (reviewPage[1] === "demo") return redirectResponse(`/review/${fallbackReviewId}${url.search}`, 308);
+      const review = fallbackReviews().find((candidate) => candidate.id === reviewPage[1]);
+      if (!review) return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+      return htmlResponse(
+        renderReviewPage(review, fallbackReviewMembers(), fallbackReviewProjectLinks(), identity.email, identity.mode),
+        200,
+        url,
+      );
+    }
+    try {
+      const resource = await resolveReviewResource(env, identity, reviewPage[1]);
+      if (!resource) {
+        const legacy = await ensureLegacyReviewResource(env, identity, reviewPage[1]);
+        if (!legacy) return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+        return redirectResponse(`${legacy.record.href}${url.search}`, 308);
+      }
+      const [members, projectLinks, workspaces] = await Promise.all([
+        resource.access.listMembers(identity.email),
+        reviewProjectLinkViews(env, identity, resource.access),
+        env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).listWorkspaces(),
+      ]);
+      const activeWorkspaceIds = new Set(projectLinks.filter((link) => link.status === "active").map((link) => link.workspaceId));
+      const linkableProjects = workspaces.filter((workspace) => workspace.archivedAt === null && !activeWorkspaceIds.has(workspace.id));
+      return htmlResponse(
+        renderReviewPage(publicReview(resource.record), members, projectLinks, identity.email, identity.mode, linkableProjects),
+        200,
+        url,
+      );
+    } catch {
+      return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+    }
+  }
+
+  if (url.pathname === "/api/reviews" || url.pathname.startsWith("/api/reviews/")) {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await handleReviewsApi(request, env, identity);
   }
 
   if (url.pathname === "/api/workspaces" || url.pathname.startsWith("/api/workspaces/")) {
@@ -244,11 +322,58 @@ function fallbackWorkspaces() {
   return [{ id: "demo", title: "Evidence becomes prose", href: "/editor/demo", createdAt: now, updatedAt: now, archivedAt: null }];
 }
 
+const fallbackReviewId = "00000000-0000-4000-8000-000000000151";
+
+function fallbackReviews() {
+  const now = new Date().toISOString();
+  return [
+    {
+      id: fallbackReviewId,
+      title: "Evidence becomes prose",
+      profile: "slr" as const,
+      href: `/review/${fallbackReviewId}`,
+      role: "owner" as const,
+      createdAt: now,
+      updatedAt: now,
+      archivedAt: null,
+    },
+  ];
+}
+
+function fallbackReviewMembers() {
+  return [
+    {
+      id: "00000000-0000-4000-8000-000000000001",
+      email: "local@kirjolab.invalid",
+      role: "owner" as const,
+      addedAt: new Date().toISOString(),
+    },
+  ];
+}
+
+function fallbackReviewProjectLinks() {
+  const createdAt = new Date().toISOString();
+  return [
+    {
+      id: "00000000-0000-4000-8000-000000000002",
+      reviewId: fallbackReviewId,
+      workspaceId: "demo",
+      createdBy: "local@kirjolab.invalid",
+      createdAt,
+      status: "active" as const,
+      unlinkedAt: null,
+      unlinkedBy: null,
+      project: { id: "demo", title: "Evidence becomes prose", href: "/editor/demo" },
+      permission: "available" as const,
+    },
+  ];
+}
+
 function firstActiveWorkspaceId(workspaces: readonly { readonly id: string; readonly archivedAt: string | null }[]): string {
   return workspaces.find((workspace) => workspace.archivedAt === null)?.id ?? "demo";
 }
 
-function redirectResponse(location: string, status: 302 | 308): Response {
+function redirectResponse(location: string, status: 302 | 303 | 308): Response {
   return new Response(null, { status, headers: { location, "cache-control": "no-store" } });
 }
 

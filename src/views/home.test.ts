@@ -71,8 +71,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="citation-network-list" aria-live="polite"');
     expect(html).toContain("Follow references from trusted seeds, review each candidate, and retain how every source was found.");
     expect(html).toContain('id="publication-list"');
-    expect(html).toContain('<a class="review-study-launch" href="/review/demo">');
-    expect(html).toContain("Open the linked SLR or MLR workspace");
+    expect(html).toContain('<a class="review-study-launch" href="/review">');
+    expect(html).toContain("Open the review catalog to link an SLR or MLR");
     expect(html).not.toContain('id="review-study-dialog"');
     expect(html).not.toContain('id="open-review-study"');
     expect(html).toContain('id="knowledge-search-form"');

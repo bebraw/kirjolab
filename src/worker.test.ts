@@ -70,19 +70,27 @@ describe("worker", () => {
     expect(response.status).toBe(200);
     const body = await response.text();
     expect(body).toContain('data-app-mode="review-index"');
-    expect(body).toContain('id="linked-reviews-heading"');
-    expect(body).toContain('href="/review/demo"');
+    expect(body).toContain('id="independent-reviews-heading"');
+    expect(body).toContain('href="/review/00000000-0000-4000-8000-000000000151"');
+    expect(body).toContain('method="post" action="/review"');
     expect(body).not.toContain('<script type="module" src="/review-app.js"></script>');
   });
 
-  it("renders a standalone evidence review with its linked writing project", async () => {
-    const response = await handleRequest(new Request("http://example.com/review/demo"));
+  it("redirects the legacy review route to a canonical review resource", async () => {
+    const response = await handleRequest(new Request("http://example.com/review/demo?stage=screen"));
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe("/review/00000000-0000-4000-8000-000000000151?stage=screen");
+  });
+
+  it("renders a standalone independent evidence review", async () => {
+    const response = await handleRequest(new Request("http://example.com/review/00000000-0000-4000-8000-000000000151"));
 
     expect(response.status).toBe(200);
     const body = await response.text();
-    expect(body).toContain('data-app-mode="review" data-workspace-id="demo"');
+    expect(body).toContain('data-app-mode="review" data-review-id="00000000-0000-4000-8000-000000000151"');
     expect(body).toContain('<script type="module" src="/review-app.js"></script>');
-    expect(body).toContain('<span class="review-context-label">Linked writing project</span>');
+    expect(body).toContain("Explicit project links");
     expect(body).toContain('<a href="/editor/demo">Open in Editor');
     expect(body).toContain('id="review-protocol-form"');
   });

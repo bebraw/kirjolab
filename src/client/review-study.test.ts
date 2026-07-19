@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { latestExtractionValue, researchQuestionReference, resolveResearchQuestionReferences } from "./review-study";
+import {
+  latestExtractionValue,
+  researchQuestionReference,
+  resolveResearchQuestionReferences,
+  reviewIdentityFromApiBase,
+  reviewPublicationProjectApi,
+  reviewSynthesisPublicationPath,
+  reviewSynthesisPublicationRequest,
+} from "./review-study";
 
 const questions = [
   { id: "rq_internal_first", text: "What changed?" },
@@ -69,5 +77,38 @@ describe("review-study extraction state", () => {
 
     expect(latestExtractionValue(values, "effect")?.id).toBe("second");
     expect(latestExtractionValue(values, "missing")).toBeNull();
+  });
+});
+
+describe("independent review publication", () => {
+  const reviewId = "11111111-1111-4111-8111-111111111111";
+  const target = {
+    projectLinkId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    workspaceId: "writing-project",
+  } as const;
+
+  it("derives the review identity from the canonical API base", () => {
+    expect(reviewIdentityFromApiBase(`/api/reviews/${reviewId}`)).toBe(reviewId);
+    expect(() => reviewIdentityFromApiBase("/api/workspaces/writing-project")).toThrow("API base");
+  });
+
+  it("builds the selected-project revision request and explicit publication provenance", () => {
+    expect(reviewPublicationProjectApi(target)).toBe("/api/workspaces/writing-project");
+    expect(reviewSynthesisPublicationPath(reviewId)).toBe(`review/${reviewId}/synthesis.md`);
+    expect(reviewSynthesisPublicationRequest(reviewId, target, 17, 9)).toEqual({
+      projectLinkId: target.projectLinkId,
+      expectedProjectRevision: 17,
+      reviewRevision: 9,
+      artifactId: "synthesis",
+      analysisDefinitionId: "review-synthesis-report",
+      path: `review/${reviewId}/synthesis.md`,
+    });
+  });
+
+  it("rejects malformed publication identities and revisions", () => {
+    expect(() => reviewPublicationProjectApi({ ...target, workspaceId: "private/project" })).toThrow("target");
+    expect(() => reviewSynthesisPublicationRequest("review", target, 1, 1)).toThrow("identity");
+    expect(() => reviewSynthesisPublicationRequest(reviewId, target, -1, 1)).toThrow("Project revision");
+    expect(() => reviewSynthesisPublicationRequest(reviewId, target, 1, 0)).toThrow("Review revision");
   });
 });

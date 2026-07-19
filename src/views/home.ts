@@ -216,8 +216,8 @@ export function renderHomePage(
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail" hidden>
           <div><p class="eyebrow">Research</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Sources &amp; evidence</h1></div>
-          <a class="review-study-launch" href="/review/${escapedWorkspaceId}">
-            <span><strong>Evidence review</strong><small>Open the linked SLR or MLR workspace</small></span><span aria-hidden="true">→</span>
+          <a class="review-study-launch" href="/review">
+            <span><strong>Evidence reviews</strong><small>Open the review catalog to link an SLR or MLR</small></span><span aria-hidden="true">→</span>
           </a>
           <div class="research-inventory" id="research-inventory">
             <details class="rail-collection" id="project-evidence" hidden>
