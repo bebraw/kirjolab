@@ -10,10 +10,12 @@ from an immutable PDF into an anchored annotation, connect it to manuscript
 text, ask a local model for a grounded revision, review the candidate, and
 export portable source.
 
-The compatible `demo` workspace remains the root experience, while additional
-UUID workspaces are discovered through the local-owner catalog. The current
-surface supports loopback local identity and a fail-closed Cloudflare Access
-mode for authenticated hosted collaboration.
+The compatible `demo` workspace remains the default active catalog entry, while
+authorized projects open canonically at `/editor/{workspaceId}`. `/editor`
+redirects to the first active project. `/` is now the application dashboard and
+does not bootstrap a workspace. The current editor supports loopback local
+identity and a fail-closed Cloudflare Access mode for authenticated hosted
+collaboration.
 
 ### Architecture
 
@@ -22,6 +24,13 @@ mode for authenticated hosted collaboration.
   `.generated/app.txt`. Persistent interface copy names the user's next action
   and keeps implementation detail in feature documentation rather than the
   task surface.
+- **Browser entry:** `/editor` redirects to the first active authorized project,
+  using the compatible `demo` workspace by default, and
+  `/editor/{workspaceId}` opens its canonical editor. Legacy
+  `/workspaces/{workspaceId}` browser locations redirect to the canonical
+  editor route with their query string intact. The `/` dashboard links into the
+  editor but does not fetch a workspace snapshot, restore offline source, or
+  open collaboration itself. Workspace APIs retain their existing paths.
 - **Browser runtime loading:** The generated application module is minified and
   excludes the Markdown pipeline and PDF.js. Content-fingerprinted immutable
   Markdown and PDF.js runtime URLs are compiled into each application build.
@@ -80,6 +89,10 @@ mode for authenticated hosted collaboration.
   New PDF intake remains in Library → Add reference.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
+  Dashboard and Projects-browser links use `/editor/{workspaceId}`; creating or
+  selecting a project navigates there before its state and collaboration are
+  initialized. `/editor` remains the concise resume entry and resolves through
+  the authorized catalog.
   Infrequent project-management and file-mutation actions stay grouped in
   labelled menus so the persistent chrome prioritizes authoring and export.
   User-facing copy calls the editable unit a project; workspace remains an
@@ -139,11 +152,11 @@ mode for authenticated hosted collaboration.
   replaces only the path inside the directive in one collaborative text
   transaction.
 - **Offline authoring:** A service worker retains the allowlisted authoring
-  shell and previously authorized workspace navigation. IndexedDB stores the
-  current Yjs document, last acknowledged server vector, and last authorized
-  workspace snapshot per identity and project. Existing Markdown files remain
-  editable offline; restart derives one pending Yjs delta and sends it only
-  after the ordinary server-led `sync` boundary.
+  shell and previously authorized canonical editor navigation. IndexedDB
+  stores the current Yjs document, last acknowledged server vector, and last
+  authorized workspace snapshot per identity and project. Existing Markdown
+  files remain editable offline; restart derives one pending Yjs delta and
+  sends it only after the ordinary server-led `sync` boundary.
 - **Offline shell updates:** Browser builds derive the Kirjolab Cache Storage
   namespace from emitted shell content. An existing registration checks for an
   update on startup; activation removes old shell generations, persists an
@@ -334,6 +347,10 @@ mode for authenticated hosted collaboration.
   server-led `sync` event may enter its live state.
 - Do not cache API responses, WebSockets, exports, model operations, library
   state, or PDF bytes as part of offline authoring.
+- Do not initialize a workspace, restore offline manuscript state, or connect
+  collaboration while rendering the `/` dashboard.
+- Do not generate new `/workspaces/{id}` browser links or treat that legacy
+  redirect as a second navigation-state authority.
 - Do not treat the offline browser copy as project history, a portable backup,
   or authorization for server-side mutations.
 - Do not let a REST metadata refresh assign source, bibliography, or displayed
@@ -444,6 +461,9 @@ mode for authenticated hosted collaboration.
       free of architecture terminology that does not change the user's choice.
 - [x] Project creation, navigation, access, search, and errors use one
       consistent user-facing noun.
+- [x] The demo and UUID projects open at canonical `/editor` routes, legacy
+      workspace links redirect without losing valid query state, and the root
+      dashboard does not initialize collaboration.
 - [x] Normal-sized secondary text maintains at least 4.5:1 contrast across the
       canvas, paper, and editor surfaces.
 - [x] The complete workspace follows the system light/dark scheme by default
@@ -617,7 +637,7 @@ mode for authenticated hosted collaboration.
 
 **Scenario: Collaborative source becomes a preview**
 
-- Given: the demo workspace is open in a browser
+- Given: the demo workspace is open at `/editor/demo` in a browser
 - When: server state and the versioned synchronization control arrive, then a
   writer changes the Markdown source
 - Then: the update stays queued until its durable acknowledgement,

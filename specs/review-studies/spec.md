@@ -18,6 +18,10 @@ state.
 - `ReviewStudy` is a project-associated SQLite-backed Durable Object addressed
   by the workspace storage key. It is the coordination atom for one review and
   has an independent monotonic revision.
+- `/review` lists the review associated with each active authorized project;
+  `/review/{workspaceId}` opens one of those project-linked reviews. These are
+  focused browser surfaces over the current authority, not independent review
+  identities.
 - The ordinary workspace access check authorizes every review API request.
   Project access does not grant access to owner-private library records or
   artifacts; bibliographic snapshots and rights-checked research sharing retain
@@ -28,9 +32,16 @@ state.
   atomic mutation, reviewer decisions, and append-only provenance.
 - `src/api/review-study.ts` exposes authenticated, same-origin workspace routes
   and never trusts browser-computed counts, identities, or derived reports.
-- The workspace UI hosts one **Review study** surface using the existing thin
-  design system. Its task navigation follows Plan, Search, Screen, Appraise,
-  Extract, Synthesize, and Report without replacing manuscript authoring.
+- The project editor links to one **Review study** surface using the existing
+  thin design system. The focused review route follows Plan, Search, Screen,
+  Appraise, Extract, Synthesize, and Report without embedding the workflow in
+  manuscript authoring chrome.
+- The route parameter remains the owning workspace id. The current system has
+  no independent durable review catalog, review membership, or many-to-many
+  project-review link; the `/review` index derives its rows from active
+  workspace summaries.
+  [ADR-151](../../docs/adrs/proposed/ADR-151-model-reviews-as-independent-resources.md)
+  proposes those capabilities but does not describe implemented behavior.
 - A review uses one common lifecycle plus a versioned `slr` or `mlr` method
   profile. Question-framework and appraisal templates are configuration, not
   hard-coded universal methodology.
@@ -217,22 +228,34 @@ state.
 
 ### API Contracts
 
-- `GET /api/workspaces/{id}/review` returns the authorized review snapshot.
-- `PUT /api/workspaces/{id}/review/protocol` replaces the current editable
-  protocol using revision preconditions.
-- `POST /api/workspaces/{id}/review/protocol/freeze` freezes the current
-  protocol; `POST /amendments` creates a new editable successor.
-- `/review/search-runs` creates and reads immutable runs; nested `/imports`
-  previews or confirms bounded bibliographic batches.
-- `/review/duplicates` lists candidates and records explicit resolutions.
-- `/review/records/{recordId}/decisions` appends screening decisions;
-  `/adjudications` resolves conflicts without deleting decisions.
-- `/review/records/{recordId}/appraisals` and `/extractions` append typed
-  reviewer values under the pinned instrument or schema.
-- `/review/analyses` stores and evaluates bounded definitions.
-- `/review/model-candidates` creates, accepts, or rejects typed local-model
-  proposals through the normal provider boundary.
-- `/review/export/{artifact}` returns `review.json`, `extraction.csv`,
+- Every abbreviated route below is relative to `/api/workspaces/{id}` and
+  retains normal workspace authorization.
+- `GET /api/workspaces/{id}/review-study` returns the authorized review
+  snapshot.
+- `PUT /api/workspaces/{id}/review-study/protocol` replaces the current
+  editable protocol using revision preconditions.
+  `POST /review-study/protocol/freeze` freezes it and
+  `POST /review-study/protocol/amend` creates an editable successor with a
+  rationale.
+- `POST /review-study/search-import-previews` validates bounded BibTeX without
+  mutation; `GET` or `POST /review-study/search-runs` reads or confirms
+  immutable runs.
+- `POST /review-study/duplicate-candidates/{candidateId}/resolve` records an
+  explicit duplicate resolution without discarding occurrences.
+- `GET /review-study/screening` returns the reviewer projection.
+  `/review-study/records/{recordId}/screening-decisions` appends a decision and
+  `/screening-adjudications` resolves conflicts without deleting decisions.
+- `GET /review-study/evidence` returns the authorized evidence projection.
+  `/review-study/records/{recordId}/quality-values` and `/extraction-values`
+  append typed reviewer values under the pinned instrument or schema.
+- `/review-study/model-candidates` creates or lists typed local-model proposals;
+  `/review-study/model-candidates/{candidateId}/{accept|reject}` records the
+  human disposition.
+- `/review-study/synthesis`, `/review-study/synthesis.csv`, and
+  `/review-study/synthesis.md` expose the same revision-pinned synthesis.
+  `POST /review-study/synthesis/publish` writes a revision-checked
+  `review/*.md` project artifact through the owning document room.
+- `/review-study/export/{artifact}` returns `review.json`, `extraction.csv`,
   `bibliography.bib`, `prisma.json`, `prisma.svg`, or `review.zip` with
   `Cache-Control: no-store`.
 - All mutations require normal workspace write authorization, same-origin
@@ -273,6 +296,10 @@ state.
   and export code.
 - Do not let review access disclose private PDFs, notes, captures, or library
   state.
+- Do not treat `/review/{workspaceId}` as an independent review identity or
+  claim that one project can already own or link several review authorities.
+- Do not let the focused review browser route bypass workspace membership,
+  backup, history, or deletion behavior.
 
 ## Contract
 
@@ -295,6 +322,9 @@ state.
       derive from the same review revision.
 - [x] Project history, backup, and deletion cover the review-study authority and
       its pinned revisions.
+- [x] `/review` lists active project-linked reviews and
+      `/review/{workspaceId}` opens one while retaining project authorization
+      and nested workspace APIs.
 - [x] Domain, Workers-runtime, browser, export, security, and accessibility
       tests cover the critical workflow.
 
@@ -302,6 +332,8 @@ state.
 
 - Existing writing, library, evidence, collaboration, history, backup, and
   export workflows remain usable for projects without a review study.
+- A focused review route must resolve through the owning workspace and must not
+  create a second review, access model, backup boundary, or deletion lifecycle.
 - Review mutations do not change Markdown or private-library state as an
   implicit side effect.
 - Review revisions advance once per successful logical mutation and stale
@@ -338,6 +370,14 @@ state.
 - When: the researcher reviews generated source queries and freezes the protocol
 - Then: every planning resource receives one immutable protocol revision and
   later edits require a documented amendment
+
+**Scenario: Researcher opens focused review work**
+
+- Given: an authorized project has its project-associated review study
+- When: the researcher opens `/review/{workspaceId}`
+- Then: Kirjolab renders the review workflow outside manuscript authoring chrome
+  while using the same workspace access check, review authority, and nested API
+  routes
 
 **Scenario: Search occurrences survive deduplication**
 

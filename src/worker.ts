@@ -20,8 +20,10 @@ import { BackupCoordinator } from "./durable-objects/backup-coordinator";
 import { BackupRecovery } from "./durable-objects/backup-recovery";
 import { authenticateRequest, isSameOriginMutation, type AuthIdentity } from "./security/auth";
 import { renderHomePage } from "./views/home";
+import { renderDashboardPage } from "./views/dashboard";
 import { renderNotFoundPage } from "./views/not-found";
 import { renderReadOnlySharePage } from "./views/read-only-share";
+import { renderReviewPage, renderReviewsPage } from "./views/reviews";
 import { cssResponse, faviconResponse, htmlResponse, pdfResponse, scriptResponse } from "./views/shared";
 import { renderUiInventoryPage } from "./views/ui-inventory";
 import phrasingGuidanceSources from "../phrasing-guidance/sources.json";
@@ -59,6 +61,10 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
 
   if (url.pathname === "/app.js") {
     return scriptResponse(await loadClientScript());
+  }
+
+  if (url.pathname === "/review-app.js") {
+    return scriptResponse(await loadReviewClientScript());
   }
 
   if (url.pathname === "/service-worker.js") {
@@ -177,16 +183,44 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   }
 
   if (url.pathname === "/") {
-    return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email, identity.mode), 200, url);
+    const [workspaces, library] = env
+      ? await Promise.all([
+          env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).listWorkspaces(),
+          env.REFERENCE_LIBRARIES.getByName(identity.ownerKey).getSnapshot(),
+        ])
+      : [fallbackWorkspaces(), null];
+    return htmlResponse(renderDashboardPage(workspaces, library, identity.email, identity.mode), 200, url);
   }
 
   if (url.pathname === "/library" || /^\/library\/pdfs\/[^/]+$/u.test(url.pathname)) {
     return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email, identity.mode, "library"), 200, url);
   }
 
-  const workspacePage = /^\/workspaces\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
-  if (workspacePage?.[1]) {
-    return htmlResponse(renderHomePage(exampleRoutes, workspacePage[1], identity.email, identity.mode), 200, url);
+  if (url.pathname === "/editor") {
+    const workspaceId = env ? firstActiveWorkspaceId(await env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).listWorkspaces()) : "demo";
+    return redirectResponse(`/editor/${encodeURIComponent(workspaceId)}${url.search}`, 302);
+  }
+
+  const legacyWorkspacePage = /^\/workspaces\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
+  if (legacyWorkspacePage?.[1]) {
+    return redirectResponse(`/editor/${encodeURIComponent(legacyWorkspacePage[1])}${url.search}`, 308);
+  }
+
+  const editorPage = /^\/editor\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
+  if (editorPage?.[1]) {
+    return htmlResponse(renderHomePage(exampleRoutes, editorPage[1], identity.email, identity.mode), 200, url);
+  }
+
+  if (url.pathname === "/review") {
+    const workspaces = env ? await env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).listWorkspaces() : fallbackWorkspaces();
+    return htmlResponse(renderReviewsPage(workspaces, identity.email, identity.mode), 200, url);
+  }
+
+  const reviewPage = /^\/review\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
+  if (reviewPage?.[1]) {
+    const summary = env ? await env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).getWorkspace(reviewPage[1]) : fallbackWorkspaces()[0];
+    if (!summary) return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+    return htmlResponse(renderReviewPage(summary, identity.email, identity.mode), 200, url);
   }
 
   if (url.pathname === "/api/workspaces" || url.pathname.startsWith("/api/workspaces/")) {
@@ -200,6 +234,19 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   }
 
   return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+}
+
+function fallbackWorkspaces() {
+  const now = new Date().toISOString();
+  return [{ id: "demo", title: "Evidence becomes prose", href: "/editor/demo", createdAt: now, updatedAt: now, archivedAt: null }];
+}
+
+function firstActiveWorkspaceId(workspaces: readonly { readonly id: string; readonly archivedAt: string | null }[]): string {
+  return workspaces.find((workspace) => workspace.archivedAt === null)?.id ?? "demo";
+}
+
+function redirectResponse(location: string, status: 302 | 308): Response {
+  return new Response(null, { status, headers: { location, "cache-control": "no-store" } });
 }
 
 export async function runScheduledBackups(env: Env): Promise<void> {
@@ -229,6 +276,18 @@ async function loadClientScript(): Promise<string> {
   }
 
   const script = await import("../.generated/app.txt");
+  return script.default;
+}
+
+async function loadReviewClientScript(): Promise<string> {
+  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
+  if (typeof WebSocketPair === "undefined") {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    return await readFile(fileURLToPath(new URL("../.generated/review-app.txt", import.meta.url).href), "utf8");
+  }
+
+  const script = await import("../.generated/review-app.txt");
   return script.default;
 }
 

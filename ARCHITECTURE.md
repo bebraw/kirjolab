@@ -102,11 +102,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Escape authored raw HTML and sanitize the final preview tree after all syntax plugins; allow only the elements, properties, and URL protocols required by the scientific-writing vocabulary before inserting output into the DOM.
 - Return a restrictive Content Security Policy on application HTML as an independent browser-execution boundary; do not permit inline or evaluated scripts.
 - Coordinate each collaborative composed project through its own SQLite-backed Durable Object.
-- Coordinate each project review study through its own SQLite-backed Durable
-  Object addressed by the authenticated workspace storage key. Keep protocol
-  revisions immutable, generate source-specific queries from one logical
-  concept model, and require an explicit rationale for every post-freeze
-  amendment.
+- Coordinate the current one-per-project review study through its own
+  SQLite-backed Durable Object addressed by the authenticated workspace
+  storage key. `/review` lists those project-linked workflows and
+  `/review/{workspaceId}` is the focused browser surface for one of them; these
+  routes do not introduce an independent review identity, access model, or
+  lifecycle. Keep protocol revisions immutable, generate source-specific
+  queries from one logical concept model, and require an explicit rationale for
+  every post-freeze amendment.
 - Keep review screening decisions append-only and reviewer-attributed. Derive
   stage outcomes from the configured independent-review policy, blind pending
   peer decisions when requested, and resolve conflicts through separate
@@ -235,7 +238,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Serve browser scripts with explicit same-origin resource policies so module
   workers remain loadable without cross-origin fallback behavior.
 - Discover workspaces through a separate SQLite-backed catalog per authenticated identity; never use one catalog as the collaboration atom for all documents.
-- Keep stable workspace browser and API identities at `/workspaces/{id}` and `/api/workspaces/{id}`.
+- Use `/` as a bounded dashboard over authorized recent work. Opening it must
+  not choose or create a workspace, restore manuscript state, or connect a
+  collaboration socket.
+- Keep `/editor/{id}` as the canonical browser identity for an editable
+  project and `/api/workspaces/{id}` as its stable API identity. `/editor`
+  redirects to the first active authorized catalog entry, using the compatible
+  `demo` workspace by default. Redirect legacy `/workspaces/{id}` browser
+  locations to `/editor/{id}` while preserving their query strings; do not
+  rename workspace APIs or storage identities as a browser-navigation side
+  effect.
 - Address public read-only shares through opaque, persisted locators that map
   to validated workspace storage targets only after bearer-token verification;
   never require a browser workspace id to be globally routable.
@@ -249,9 +261,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   vector so existing Markdown files remain editable offline. Reconstruct only
   the state-vector delta on restart, send it after the normal server-led sync,
   and clear local copies on reset and hosted logout.
-- Cache only authenticated workspace navigation and the allowlisted authoring
-  shell for offline fallback. Never service-worker-cache project/library APIs,
-  WebSockets, exports, model requests, or private PDF bytes.
+- Cache only authenticated canonical editor navigation and the allowlisted
+  authoring shell for offline fallback. Never service-worker-cache dashboard,
+  review, or Library data, project/library APIs, WebSockets, exports, model
+  requests, or private PDF bytes.
 - Publish immutable browser runtimes under content-fingerprinted URLs. Derive
   the service-worker cache namespace from the built shell so a shell change
   installs a new cache generation and activation removes older Kirjolab shell
@@ -303,8 +316,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   reading position local to the browser and scoped to its authorized workspace.
   Never write routine reading navigation into Yjs, Durable Object resources, or
   collaboration control messages.
-- Project bounded, reconstructible workspace UI selections into query
-  parameters only after validating stable ids against authorized snapshots.
+- Project bounded, reconstructible editor UI selections into query parameters
+  only after validating stable ids against authorized snapshots.
   Push meaningful context-target navigation, replace incidental view and page
   changes, preserve unrelated query parameters, and keep drafts, scroll,
   selection, pane sizing, and inactive-tab session state out of URLs.

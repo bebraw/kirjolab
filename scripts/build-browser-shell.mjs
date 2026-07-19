@@ -46,6 +46,14 @@ export async function buildBrowserShell(root = projectRoot) {
 
   await buildClient(root, appOutput, runtimeDefines, shellVersion);
   await build({
+    entryPoints: [join(root, "src/client/review-app.ts")],
+    bundle: true,
+    format: "esm",
+    target: "es2022",
+    minify: true,
+    outfile: join(outputRoot, "review-app.txt"),
+  });
+  await build({
     entryPoints: [join(root, "src/client/service-worker.ts")],
     bundle: true,
     format: "iife",

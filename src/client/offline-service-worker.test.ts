@@ -57,12 +57,12 @@ describe("offline service worker lifecycle", () => {
     const put = vi.fn().mockResolvedValue(undefined);
     const storage = { keys: vi.fn(), delete: vi.fn(), open: vi.fn().mockResolvedValue({ put }) };
     const fetcher = vi.fn().mockResolvedValue(new Response("project", { status: 200 }));
-    await expect(cacheOfflineNavigation(storage, fetcher, "https://write.example/workspaces/paper")).resolves.toBe(true);
+    await expect(cacheOfflineNavigation(storage, fetcher, "https://write.example/editor/paper")).resolves.toBe(true);
     expect(storage.open).toHaveBeenCalledWith(offlineShellCacheName);
-    expect(put).toHaveBeenCalledWith(expect.objectContaining({ url: "https://write.example/workspaces/paper" }), expect.any(Response));
+    expect(put).toHaveBeenCalledWith(expect.objectContaining({ url: "https://write.example/editor/paper" }), expect.any(Response));
 
     fetcher.mockResolvedValueOnce(new Response("denied", { status: 403 }));
-    await expect(cacheOfflineNavigation(storage, fetcher, "https://write.example/workspaces/private")).resolves.toBe(false);
+    await expect(cacheOfflineNavigation(storage, fetcher, "https://write.example/editor/private")).resolves.toBe(false);
     expect(put).toHaveBeenCalledTimes(1);
   });
 });

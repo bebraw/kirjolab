@@ -357,7 +357,7 @@ function summaryFromRow(row: WorkspaceCatalogRow): WorkspaceSummary {
   return {
     id: row.id,
     title: row.title,
-    href: `/workspaces/${row.id}`,
+    href: `/editor/${row.id}`,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     archivedAt: row.archived_at,

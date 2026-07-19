@@ -38,9 +38,8 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith("/cdn-cgi/")) return;
-  const workspaceNavigation =
-    request.mode === "navigate" && (url.pathname === "/" || /^\/workspaces\/[a-z0-9-]{1,64}$/iu.test(url.pathname));
-  if (!workspaceNavigation && !shellPaths.has(url.pathname)) return;
+  const editorNavigation = request.mode === "navigate" && /^\/editor\/[a-z0-9-]{1,64}$/iu.test(url.pathname);
+  if (!editorNavigation && !shellPaths.has(url.pathname)) return;
   event.respondWith(networkFirst(request));
 });
 

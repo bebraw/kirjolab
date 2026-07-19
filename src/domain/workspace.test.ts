@@ -106,7 +106,7 @@ describe("workspace input guards", () => {
     expect(isWorkspaceMembers([{ id: "person-1", email: "owner@example.org", role: "owner", addedAt: "now" }])).toBe(true);
     expect(
       isWorkspaceSummaries([
-        { id: "workspace", title: "Study", href: "/workspaces/workspace", createdAt: "now", updatedAt: "now", archivedAt: null },
+        { id: "workspace", title: "Study", href: "/editor/workspace", createdAt: "now", updatedAt: "now", archivedAt: null },
       ]),
     ).toBe(true);
     expect(isCreateCandidateInput(validCandidateInput())).toBe(true);
@@ -184,7 +184,7 @@ describe("workspace input guards", () => {
     const validSummary = {
       id: "workspace",
       title: "Study",
-      href: "/workspaces/workspace",
+      href: "/editor/workspace",
       createdAt: "created",
       updatedAt: "updated",
       archivedAt: null,

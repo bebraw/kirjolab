@@ -44,9 +44,6 @@ import { OpenAICompatibleBrowserProvider, type ModelReasoningEffort } from "./mo
 const facets = ["population", "intervention", "comparison", "outcome", "context"] as const;
 
 export function bindReviewStudyPlanning(apiBase: string): void {
-  const open = required("open-review-study", HTMLButtonElement);
-  const close = required("close-review-study", HTMLButtonElement);
-  const dialog = required("review-study-dialog", HTMLDialogElement);
   const form = required("review-protocol-form", HTMLFormElement);
   const freeze = required("freeze-review-protocol", HTMLButtonElement);
   const planStep = required("review-step-plan", HTMLButtonElement);
@@ -71,11 +68,6 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   let synthesis: ReviewSynthesis | null = null;
   let modelSnapshot: ReviewModelSnapshot | null = null;
 
-  open.addEventListener("click", () => {
-    dialog.showModal();
-    void load();
-  });
-  close.addEventListener("click", () => dialog.close());
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     void save();
@@ -103,6 +95,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   required("preview-review-import", HTMLButtonElement).addEventListener("click", () => void previewImport());
   required("confirm-review-import", HTMLButtonElement).addEventListener("click", () => void confirmImport());
   required("review-search-bibtex", HTMLTextAreaElement).addEventListener("input", clearImportPreview);
+  void load();
 
   async function load(): Promise<void> {
     setStatus("Loading protocol…");

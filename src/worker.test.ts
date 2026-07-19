@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { exampleRoutes } from "./app-routes";
 import worker, { handleRequest } from "./worker";
 import { ensureGeneratedStylesheet } from "./test-support";
 
@@ -12,7 +13,7 @@ describe("worker", () => {
     expect(await response.text()).toContain("data-ui-inventory");
   });
 
-  it("renders the Kirjolab workspace", async () => {
+  it("renders the Kirjolab dashboard without the editor application shell", async () => {
     const response = await handleRequest(new Request("http://example.com/"));
 
     expect(response.status).toBe(200);
@@ -26,16 +27,64 @@ describe("worker", () => {
 
     const body = await response.text();
     expect(body).toContain("KIRJOLAB");
-    expect(body).toContain('id="context-preview-tab"');
+    expect(body).toContain('data-app-mode="dashboard"');
+    expect(body).toContain('id="recent-work-heading"');
+    expect(body).not.toContain('<script type="module" src="/app.js"></script>');
+    expect(body).not.toContain('id="context-preview-tab"');
+    expect(body).not.toContain('id="workspace-surfaces"');
   });
 
-  it("renders a stable workspace resource", async () => {
-    const response = await handleRequest(new Request("http://example.com/workspaces/abc-123"));
+  it("redirects the editor index to the default project and preserves its query", async () => {
+    const response = await handleRequest(new Request("http://example.com/editor"));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/editor/demo");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+
+    const createResponse = await handleRequest(new Request("http://example.com/editor?create=1"));
+    expect(createResponse.status).toBe(302);
+    expect(createResponse.headers.get("location")).toBe("/editor/demo?create=1");
+  });
+
+  it("renders a stable writing-project editor", async () => {
+    const response = await handleRequest(new Request("http://example.com/editor/abc-123"));
 
     expect(response.status).toBe(200);
     const body = await response.text();
     expect(body).toContain('data-workspace-id="abc-123"');
     expect(body).toContain("/api/workspaces/abc-123/export/document.md");
+    expect(body).toContain('<a class="primary-navigation-link" href="/editor/abc-123" aria-current="page">Editor</a>');
+  });
+
+  it("permanently redirects legacy workspace links while preserving route state", async () => {
+    const response = await handleRequest(new Request("http://example.com/workspaces/abc-123?rail=research&context=pdf%3Apaper-1&page=3"));
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe("/editor/abc-123?rail=research&context=pdf%3Apaper-1&page=3");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("renders the evidence-review hub", async () => {
+    const response = await handleRequest(new Request("http://example.com/review"));
+
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(body).toContain('data-app-mode="review-index"');
+    expect(body).toContain('id="linked-reviews-heading"');
+    expect(body).toContain('href="/review/demo"');
+    expect(body).not.toContain('<script type="module" src="/review-app.js"></script>');
+  });
+
+  it("renders a standalone evidence review with its linked writing project", async () => {
+    const response = await handleRequest(new Request("http://example.com/review/demo"));
+
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(body).toContain('data-app-mode="review" data-workspace-id="demo"');
+    expect(body).toContain('<script type="module" src="/review-app.js"></script>');
+    expect(body).toContain('<span class="review-context-label">Linked writing project</span>');
+    expect(body).toContain('<a href="/editor/demo">Open in Editor');
+    expect(body).toContain('id="review-protocol-form"');
   });
 
   it("renders the private library without a workspace resource", async () => {
@@ -63,18 +112,7 @@ describe("worker", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       name: "kirjolab",
-      routes: [
-        "/",
-        "/library",
-        "/library/pdfs/:id",
-        "/workspaces/:id",
-        "/share/:token",
-        "/edit/:token",
-        "/api/workspaces",
-        "/api/workspaces/demo",
-        "/api/session",
-        "/api/health",
-      ],
+      routes: exampleRoutes.map((route) => route.path),
     });
   });
 
@@ -168,6 +206,15 @@ describe("worker", () => {
     expect(response.headers.get("content-type")).toContain("text/javascript");
     expect(response.headers.get("cross-origin-resource-policy")).toBe("same-origin");
     expect(response.headers.get("cross-origin-embedder-policy")).toBe("require-corp");
+    await expect(response.text()).resolves.toBe("export {};");
+  });
+
+  it("serves the standalone review client", async () => {
+    const response = await handleRequest(new Request("http://example.com/review-app.js"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/javascript");
+    expect(response.headers.get("cross-origin-resource-policy")).toBe("same-origin");
     await expect(response.text()).resolves.toBe("export {};");
   });
 

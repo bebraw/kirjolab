@@ -161,7 +161,7 @@ test("creates, rotates, and revokes a read-only project link", async ({ page }) 
   const activeStatus = (await (await page.request.get(api)).json()) as Record<string, unknown>;
   expect(activeStatus).toMatchObject({ active: true, createdAt: expect.any(String), href: first.href });
   expect(activeStatus).not.toHaveProperty("token");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await page.locator("#share-workspace").click();
   await expect(page.locator("#read-only-share-link")).toHaveValue(`${origin}${first.href}`);
   await page.locator("#close-share-workspace").click();
@@ -211,7 +211,7 @@ test("creates, rotates, and revokes a read-only project link", async ({ page }) 
 });
 
 test("shares the owner-scoped demo through an opaque public locator", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor/demo");
   const response = await page.request.post("/api/workspaces/demo/share-link", {
     headers: { origin: "http://127.0.0.1:8788" },
   });
@@ -238,7 +238,7 @@ test("creates, edits through, rotates, and revokes a scoped edit link", async ({
   const activeStatus = (await activeStatusResponse.json()) as Record<string, unknown>;
   expect(activeStatus).toMatchObject({ active: true, createdAt: expect.any(String), href: first.href });
   expect(activeStatus).not.toHaveProperty("token");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await page.locator("#share-workspace").click();
   await expect(page.locator("#edit-share-link")).toHaveValue(`${origin}${first.href}`);
   await page.locator("#close-share-workspace").click();
@@ -295,7 +295,7 @@ test("creates, edits through, rotates, and revokes a scoped edit link", async ({
   await editor.locator("#edit-source").fill("# Edited externally\n\nA scoped link update.\n");
   await expect(editor.locator("#edit-save-status")).toHaveText(`Saved · revision ${editSnapshot.revision + 1}`);
 
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#source-editor")).toHaveValue("# Edited externally\n\nA scoped link update.\n");
   const stale = await page.request.patch(`${first.href}/files/${main!.id}`, {
     headers: { origin },
@@ -327,7 +327,7 @@ test("refreshes a read-only project after live document edits", async ({ page, b
 
   await reader.goto(`${share.href}?view=markdown`);
   await expect(reader.locator("#shared-live-status")).toContainText("Live · revision");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#save-status")).toHaveText("Saved");
   await page.locator("#source-editor").fill("# Live review\n\nUpdated for the reader without a manual reload.\n");
   await expect(page.locator("#save-status")).toHaveText("Saved");
@@ -443,7 +443,7 @@ test("keeps GitHub publish confirmation visible after refreshing sync state", as
     await route.fulfill({ json: { commitSha } });
   });
 
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "Project settings" }).click();
@@ -487,7 +487,7 @@ test("previews and confirms incoming GitHub changes", async ({ page }) => {
     await route.fulfill({ json: { binding: {} } });
   });
 
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "Project settings" }).click();
@@ -536,7 +536,7 @@ test("requires an explicit GitHub conflict resolution", async ({ page }) => {
     await route.fulfill({ json: { binding: {} } });
   });
 
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "Project settings" }).click();
@@ -551,7 +551,7 @@ test("requires an explicit GitHub conflict resolution", async ({ page }) => {
 
 test("switches and remembers focused workspace views", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Focus modes");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   const layout = page.locator("#workspace-layout");
   await layout.selectOption("editor");
@@ -586,7 +586,7 @@ test("switches and remembers focused workspace views", async ({ page }) => {
 });
 
 test("follows and remembers the selected appearance", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor/demo");
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   const appearance = page.locator("#theme-preference");
   await page.locator("#preferences-menu > summary").click();
@@ -617,7 +617,7 @@ test("follows and remembers the selected appearance", async ({ page }) => {
 test("keeps the workspace within a compact desktop viewport", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 });
   const workspaceId = await createWorkspace(page, "Compact desktop");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
 
   await expect(page.locator("#show-authoring-surface")).toBeVisible();
   await expect(page.locator("#show-context-surface")).toBeVisible();
@@ -651,7 +651,7 @@ test("keeps the workspace within a compact desktop viewport", async ({ page }) =
 test("keeps workspace and Library navigation usable on a phone", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Phone layout");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
 
   const workspaceLayout = await page.evaluate(() => {
     const headerGroups = [...document.querySelectorAll<HTMLElement>(".app-header-row > div")].map((group) => group.getBoundingClientRect());
@@ -694,7 +694,7 @@ test("keeps shared, editable, and missing views usable on a narrow phone", async
   const edit = (await editResponse.json()) as { href: string };
   await page.setViewportSize({ width: 320, height: 568 });
 
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#workspace-switcher")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 
@@ -717,7 +717,7 @@ test("keeps shared, editable, and missing views usable on a narrow phone", async
 test("keeps editor controls visible at a compact split width", async ({ page }) => {
   await page.setViewportSize({ width: 1197, height: 800 });
   const workspaceId = await createWorkspace(page, "Compact split toolbar");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
 
   await expect(page.locator("#project-file-switcher")).toHaveCount(0);
   await expect(page.locator("#files-rail-panel")).toBeVisible();
@@ -784,7 +784,7 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
 
 test("keeps the local editor target visible after focus moves to Context", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Remembered editor target");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   const editor = page.locator("#source-editor");
   await editor.fill("# Target\n\nVisible selection remains anchored.");
 
@@ -822,7 +822,7 @@ test("keeps the local editor target visible after focus moves to Context", async
 test("highlights Markdown without replacing the native editor", async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1180 });
   const workspaceId = await createWorkspace(page, "Highlighted source");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   const source = [
     "## Findings {#findings}",
@@ -904,7 +904,7 @@ test("highlights Markdown without replacing the native editor", async ({ page })
 
 test("undoes local Markdown edits without reverting collaborators", async ({ page, context }) => {
   const workspaceId = await createWorkspace(page, "Undoable source editing");
-  const path = `/workspaces/${workspaceId}`;
+  const path = `/editor/${workspaceId}`;
   await page.goto(path);
   const collaborator = await context.newPage();
   await collaborator.goto(path);
@@ -955,7 +955,7 @@ test("undoes local Markdown edits without reverting collaborators", async ({ pag
 
 test("restores offline manuscript edits and synchronizes them after reconnect", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Offline train draft");
-  const path = `/workspaces/${workspaceId}`;
+  const path = `/editor/${workspaceId}`;
   await page.goto(path);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await expect.poll(async () => await page.locator("body").getAttribute("data-offline-ready")).toBe("true");
@@ -989,7 +989,7 @@ test("restores offline manuscript edits and synchronizes them after reconnect", 
 
 test("offers opt-in Vim editing over the collaborative textarea", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Vim source editing");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   const editor = page.locator("#source-editor");
   const toggle = page.locator("#vim-toggle");
@@ -1036,7 +1036,7 @@ test("offers opt-in Vim editing over the collaborative textarea", async ({ page 
 test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Live WYSIWYM workspace");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
 
   await expect(page.getByRole("link", { name: "KIRJOLAB" })).toBeVisible();
   const accountSummary = page.locator("#account-menu summary");
@@ -1210,7 +1210,7 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
 
 test("styles rendered Markdown headings in descending size order", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Heading hierarchy workspace");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await page.locator("#source-editor").fill("# Research manuscript\n\n## Evidence\n\n### Analysis\n\n#### Detail\n\nBody text.\n");
 
   await expect(page.locator("#preview h1")).toHaveText("Research manuscript");
@@ -1227,7 +1227,7 @@ test("synchronizes the source caret and rendered Preview in both directions", as
   await page.setViewportSize({ width: 1440, height: 900 });
   const workspaceId = await createWorkspace(page, "Source Preview synchronization");
   const source = "# Synchronized paper\n\nFirst passage.\n\n## Findings\n\nSecond passage.\n";
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   const editor = page.locator("#source-editor");
   await editor.fill(source);
 
@@ -1270,7 +1270,7 @@ test("synchronizes Preview from the centered editor passage instead of a stale c
   await page.setViewportSize({ width: 1440, height: 900 });
   const workspaceId = await createWorkspace(page, "Source viewport synchronization");
   const source = Array.from({ length: 40 }, (_, index) => `## Section ${index + 1}\n\nPassage ${index + 1}.\n`).join("\n");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   const editor = page.locator("#source-editor");
   await editor.fill(source);
   const passage = page.locator("#preview p", { hasText: "Passage 30." });
@@ -1345,7 +1345,7 @@ test("keeps Markdown comment blocks in source and out of publication", async ({ 
 
 Published ending.
 `;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await page.locator("#source-editor").fill(source);
 
   await expect(page.locator("#source-editor")).toHaveValue(source);
@@ -1360,7 +1360,7 @@ Published ending.
 test("maps broken export composition back to authored source without losing recovery output", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Broken export diagnostics");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await page.locator("#source-editor").fill("# Broken\n::include[missing.md]\n");
   await expect(page.locator("#diagnostic-summary")).toContainText("issues");
@@ -1383,7 +1383,7 @@ test("maps broken export composition back to authored source without losing reco
 test("uploads project images, inserts relative Markdown, and renders authorized bytes", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Illustrated project");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#project-file-list")).toContainText("figures/");
   const figuresFolder = page.locator(".project-folder-row", { hasText: "figures/" });
   await figuresFolder.locator("summary").click();
@@ -1496,7 +1496,7 @@ test("uploads project images, inserts relative Markdown, and renders authorized 
 test("authors textual and parenthetical citation aliases", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Citation aliases");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   const source = "## Argument\n\nAs :citet[merton1942] argues, compare :citep[merton1942].\n";
   const editor = page.locator("#source-editor");
   await editor.fill(source);
@@ -1527,7 +1527,7 @@ test("keeps private library research separate from project citations", async ({ 
   });
   const workspaceId = await createWorkspace(page, "Private library boundary");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
 
   await page.getByRole("tab", { name: "Library" }).click();
@@ -1875,7 +1875,7 @@ test("uploads a bounded PDF batch with partial success and retry", async ({ page
     await route.continue();
   });
 
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await page.getByRole("tab", { name: "Library" }).click();
   await page.locator("#library-pdf-upload").setInputFiles([
@@ -1912,7 +1912,7 @@ test("uploads a bounded PDF batch with partial success and retry", async ({ page
 test("resolves an exact PDF repeat and reveals its archived Library source", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Exact PDF identity");
   const bytes = createEvidencePdf("Canonical duplicate evidence.");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await page.getByRole("tab", { name: "Library" }).click();
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "canonical_repeat.pdf",
@@ -1951,7 +1951,7 @@ test("resolves an exact PDF repeat and reveals its archived Library source", asy
 
 test("reviews bounded PDF metadata before enriching a library record", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "PDF metadata review");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await page.getByRole("tab", { name: "Library" }).click();
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "metadata_review.pdf",
@@ -1990,7 +1990,7 @@ test("reviews bounded PDF metadata before enriching a library record", async ({ 
 
 test("reviews a selected provider match and fields during PDF metadata refinement", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Provider metadata refinement");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await page.getByRole("tab", { name: "Library" }).click();
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "provider_review.pdf",
@@ -2081,7 +2081,7 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
 
 test("round-trips CSL JSON and portable library metadata", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Library interchange");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await page.getByRole("tab", { name: "Library" }).click();
   await page.locator("#library-csl-upload").setInputFiles({
     name: "zotero-export.json",
@@ -2109,7 +2109,7 @@ test("round-trips CSL JSON and portable library metadata", async ({ page }) => {
 
 test("records and reviews source citation assertions in an accessible shared network", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Citation assertion network");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
 
   await page.getByRole("tab", { name: "Library" }).click();
@@ -2241,7 +2241,7 @@ test("records and reviews source citation assertions in an accessible shared net
 test("keeps resource-keyed research context beside authoring", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Research context boundary");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await openResearchRail(page);
   await expect(page.locator("#project-evidence")).toBeHidden();
@@ -2445,7 +2445,7 @@ test("reviews DOI metadata before adding and connecting an imported paper", asyn
   const origin = "http://127.0.0.1:8788";
   const workspaceId = await createWorkspace(page, "Reviewed DOI intake");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await openResearchRail(page);
 
@@ -2540,7 +2540,7 @@ test("reviews DOI metadata before adding and connecting an imported paper", asyn
 test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Editable highlight lifecycle");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await openResearchRail(page);
   await page.locator("#pdf-upload").setInputFiles({
@@ -2610,7 +2610,7 @@ test("auto-saves, extends, undoes, erases, and deletes PDF highlights", async ({
 
 test("converges source edits across two writers", async ({ page, context }) => {
   const collaborator = await context.newPage();
-  await Promise.all([page.goto("/"), collaborator.goto("/")]);
+  await Promise.all([page.goto("/editor/demo"), collaborator.goto("/editor/demo")]);
   await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
   await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
 
@@ -2690,12 +2690,12 @@ test("converges source edits across two writers", async ({ page, context }) => {
 test("does not revise a manuscript when collaborators only reconnect", async ({ page, context }) => {
   const workspaceId = await createWorkspace(page, "Connection boundary");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   const baseline = await readWorkspaceSnapshot(page, api);
 
   const collaborator = await context.newPage();
-  await collaborator.goto(`/workspaces/${workspaceId}`);
+  await collaborator.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
   await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
 
@@ -2713,7 +2713,7 @@ test("does not revise a manuscript when collaborators only reconnect", async ({ 
 
 test("keeps a focused caret attached to manuscript text during a remote insertion", async ({ page, context }) => {
   const workspaceId = await createWorkspace(page, "Caret boundary");
-  const path = `/workspaces/${workspaceId}`;
+  const path = `/editor/${workspaceId}`;
   await page.goto(path);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
 
@@ -2749,7 +2749,7 @@ test("keeps a focused caret attached to manuscript text during a remote insertio
 test("invalidates shared resources without replacing the collaborative manuscript", async ({ page, context }) => {
   const workspaceId = await createWorkspace(page, "Resource invalidation boundary");
   const api = `/api/workspaces/${workspaceId}`;
-  const path = `/workspaces/${workspaceId}`;
+  const path = `/editor/${workspaceId}`;
   await page.goto(path);
   const collaborator = await context.newPage();
   await collaborator.goto(path);
@@ -2814,7 +2814,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
   const claim: unknown = await claimResponse.json();
   if (!isRecord(claim) || typeof claim.id !== "string") throw new Error("Expected a claim");
 
-  const path = `/workspaces/${workspaceId}`;
+  const path = `/editor/${workspaceId}`;
   await page.goto(path);
   const collaborator = await context.newPage();
   await collaborator.goto(path);
@@ -3028,7 +3028,7 @@ test("reports a deleted passage anchor as stale instead of guessing", async ({ p
   const annotation: unknown = await annotationResponse.json();
   if (!isRecord(annotation) || typeof annotation.id !== "string") throw new Error("Expected an annotation");
 
-  const path = `/workspaces/${workspaceId}`;
+  const path = `/editor/${workspaceId}`;
   await page.goto(path);
   const collaborator = await context.newPage();
   await collaborator.goto(path);
@@ -3074,7 +3074,7 @@ test("reports a deleted passage anchor as stale instead of guessing", async ({ p
 
 test("creates and inserts transcluded project files", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Transclusion authoring");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#save-status")).toHaveText("Saved");
   const source = page.locator("#source-editor");
   const entrySource = "## Introduction\n\nBefore\nAfter\n";
@@ -3197,7 +3197,7 @@ test("creates and inserts transcluded project files", async ({ page }) => {
 
 test("completes include paths relative to the active project file", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Include completion");
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#save-status")).toHaveText("Saved");
 
   await page.locator("#new-project-file-rail").click();
@@ -3228,7 +3228,7 @@ test("completes include paths relative to the active project file", async ({ pag
 });
 
 test("isolates clients that send unsupported collaboration frames", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor/demo");
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
 
   const beforeValue: unknown = await (await page.request.get("/api/workspaces/demo")).json();
@@ -3269,13 +3269,13 @@ test("isolates clients that send unsupported collaboration frames", async ({ pag
 });
 
 test("creates, shares, and navigates isolated workspaces", async ({ page, browser }) => {
-  await page.goto("/");
+  await page.goto("/editor/demo");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
   await page.locator("#new-workspace-title").fill("Independent inquiry");
   await page.locator('[data-template-id="builtin-guided"]').click();
   await page.locator("#new-workspace-dialog").getByRole("button", { name: "Create project" }).click();
-  await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
+  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
 
   const workspaceId = new URL(page.url()).pathname.split("/").at(-1);
   if (!workspaceId) throw new Error("Expected a workspace id");
@@ -3307,7 +3307,7 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
     extraHTTPHeaders: { "x-kirjolab-local-user": "collaborator@example.org" },
   });
   const collaborator = await collaboratorContext.newPage();
-  await collaborator.goto(`/workspaces/${workspaceId}`);
+  await collaborator.goto(`/editor/${workspaceId}`);
   await expect(collaborator.locator("#source-editor")).toHaveValue(isolatedSource);
   await expect(collaborator.locator("#workspace-switcher")).toHaveValue(workspaceId);
   await collaboratorContext.close();
@@ -3325,13 +3325,13 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   expect(isWorkspaceSummaries(catalog)).toBe(true);
   expect(isWorkspaceSummaries(catalog) ? catalog.some((workspace) => workspace.id === workspaceId) : false).toBe(true);
 
-  await page.goto("/");
+  await page.goto("/editor/demo");
   await expect(page.locator("#workspace-switcher")).toHaveValue("demo");
   await expect(page.locator("#source-editor")).not.toHaveValue(isolatedSource);
 });
 
 test("starts from built-in and promoted personal project templates", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor/demo");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
   await expect(page.locator("#new-workspace-template-list")).toContainText("Literature review");
@@ -3372,9 +3372,11 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#create-workspace")).toBeEnabled();
   await page.locator("#new-workspace-title").fill("Review workflow");
   await page.locator("#create-workspace").click();
-  await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
+  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
 
-  const reviewApi = `/api${new URL(page.url()).pathname}`;
+  const reviewWorkspaceId = new URL(page.url()).pathname.split("/").at(-1);
+  if (!reviewWorkspaceId) throw new Error("Expected a review workspace id");
+  const reviewApi = `/api/workspaces/${reviewWorkspaceId}`;
   const reviewSnapshot = await readWorkspaceSnapshot(page, reviewApi);
   expect(reviewSnapshot.files.some((file) => file.path === "sections/search-strategy.md")).toBe(true);
   expect(reviewSnapshot.files.some((file) => file.path === "KIRJOLAB.md")).toBe(false);
@@ -3413,9 +3415,11 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#new-workspace-template-id")).toHaveValue(personal.id);
   await page.locator("#new-workspace-title").fill("Reusable review");
   await page.locator("#create-workspace").click();
-  await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/u);
+  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
 
-  const personalApi = `/api${new URL(page.url()).pathname}`;
+  const personalWorkspaceId = new URL(page.url()).pathname.split("/").at(-1);
+  if (!personalWorkspaceId) throw new Error("Expected a personal-template workspace id");
+  const personalApi = `/api/workspaces/${personalWorkspaceId}`;
   const personalSnapshot = await readWorkspaceSnapshot(page, personalApi);
   expect(personalSnapshot.files.some((file) => file.path === "sections/lab-checklist.md")).toBe(true);
   const replacementFile = await page.request.post(`${personalApi}/files`, {
@@ -3518,7 +3522,7 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
       },
     });
   });
-  await page.goto("/");
+  await page.goto("/editor/demo");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
   await page.getByRole("button", { name: "Import GitHub" }).click();
@@ -3543,7 +3547,7 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
 test("names, compares, restores, and branches immutable project revisions", async ({ page, browser }) => {
   const workspaceId = await createWorkspace(page, "Revision workflow");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   await page.locator("#source-editor").fill("# Revised manuscript\n\nA versioned claim.\n");
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toContain("A versioned claim.");
@@ -3663,7 +3667,7 @@ test("starts a fresh project with a syntax guide and discoverable transclusion e
 test("derives collaborative project bibliography from shared-library aliases", async ({ page, context }) => {
   const workspaceId = await createWorkspace(page, "Derived project bibliography");
   const api = `/api/workspaces/${workspaceId}`;
-  const path = `/workspaces/${workspaceId}`;
+  const path = `/editor/${workspaceId}`;
   await page.goto(path);
   const collaborator = await context.newPage();
   await collaborator.goto(path);
@@ -3728,7 +3732,7 @@ test("derives collaborative project bibliography from shared-library aliases", a
 test("imports BibTeX into stable publication resources", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Stable shared import");
   const api = `/api/workspaces/${workspaceId}`;
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   await page.locator("#bibliography-upload").setInputFiles({
     name: "broken.bib",
@@ -3799,7 +3803,7 @@ test("imports BibTeX into stable publication resources", async ({ page }) => {
 });
 
 test("persists and atomically replaces evidence-backed claims", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor/demo");
   const origin = "http://127.0.0.1:8788";
   const workspaceResponse = await page.request.post("/api/workspaces", {
     headers: { origin },
@@ -3899,7 +3903,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
 });
 
 test("selects the explicit local companion connection", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor/demo");
   await openWritingAssistant(page, true);
   await page.locator("#llm-connection").selectOption("companion");
   await expect(page.locator("#llm-endpoint")).toHaveValue("http://127.0.0.1:8790/v1/chat/completions");
@@ -3923,7 +3927,7 @@ test("discovers loaded local models for the writing assistant", async ({ page })
       body: JSON.stringify({ data: [{ id: "qwen/qwen3.5-9b" }, { id: "gemma/local" }] }),
     });
   });
-  await page.goto("/");
+  await page.goto("/editor/demo");
   await openWritingAssistant(page, true);
   await expect(page.locator("#llm-model")).toHaveValue("");
   await page.getByRole("button", { name: "Find loaded models" }).click();
@@ -3992,7 +3996,7 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
     });
   });
 
-  const path = `/workspaces/${workspaceId}`;
+  const path = `/editor/${workspaceId}`;
   await page.goto(path);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await expect(page.locator("#annotation-list")).toContainText("Model grounding");
@@ -4153,7 +4157,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
     });
   });
 
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   const editor = page.locator("#source-editor");
   const source = "# Review\n\nThis workflow is better for everyone.\n";
@@ -4281,7 +4285,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
     });
   });
 
-  await page.goto(`/workspaces/${workspaceId}`);
+  await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible({ timeout: 10_000 });
   await openResearchRail(page);
   const initialSource =
@@ -4610,6 +4614,10 @@ test("serves stable health and browser assets", async ({ request }) => {
       "/",
       "/library",
       "/library/pdfs/:id",
+      "/editor",
+      "/editor/:id",
+      "/review",
+      "/review/:id",
       "/workspaces/:id",
       "/share/:token",
       "/edit/:token",

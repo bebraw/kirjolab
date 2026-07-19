@@ -1,5 +1,6 @@
 import { escapeHtml } from "./shared";
 import { renderIcon } from "../ui/icons";
+import { renderPrimaryNavigation } from "./app-navigation";
 
 export function renderHomePage(
   routes: Array<{ path: string; purpose: string }>,
@@ -10,6 +11,8 @@ export function renderHomePage(
 ): string {
   const escapedWorkspaceId = escapeHtml(workspaceId);
   const escapedIdentityEmail = escapeHtml(identityEmail);
+  const editorHref = appMode === "library" ? "/editor" : `/editor/${escapedWorkspaceId}`;
+  const primaryNavigation = renderPrimaryNavigation(appMode === "library" ? "library" : "editor", editorHref);
   const workspaceLayoutOptions = `<option value="split">Split</option><option value="editor">Editor only</option>
               <option value="context">Context only</option><option value="pdf">PDF only</option>`;
   const workspaceLayoutControl =
@@ -118,12 +121,17 @@ export function renderHomePage(
             </div>
           </details>
           <span class="hidden h-4 w-px bg-app-line sm:block"></span>
-          <a class="header-library-link" href="/library"${appMode === "library" ? ' aria-current="page"' : ""}>Library</a>
+          ${primaryNavigation}
           <label class="sr-only" for="workspace-switcher">Current project</label>
           <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading project…</option></select>
           <details class="action-menu header-action-menu ui-menu" data-action-menu>
             <summary class="button-secondary shrink-0">Project</summary>
             <div class="editor-command-menu ui-menu-panel" aria-label="Project actions">
+              <div class="mobile-global-links">
+                <a href="/"><strong>Dashboard</strong></a>
+                <a href="/library"><strong>Library</strong></a>
+                <a href="/review"><strong>Evidence reviews</strong></a>
+              </div>
               <button id="manage-workspaces" type="button"><strong>Open projects</strong></button>
               <button id="workspace-settings" type="button"><strong>Project settings</strong></button>
               <button id="new-workspace" type="button"><strong>New project</strong></button>
@@ -208,9 +216,9 @@ export function renderHomePage(
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="research-rail-panel" role="tabpanel" aria-labelledby="show-research-rail" hidden>
           <div><p class="eyebrow">Research</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Sources &amp; evidence</h1></div>
-          <button class="review-study-launch" id="open-review-study" type="button">
-            <span><strong>Review study</strong><small>Plan and conduct an SLR or MLR</small></span><span aria-hidden="true">→</span>
-          </button>
+          <a class="review-study-launch" href="/review/${escapedWorkspaceId}">
+            <span><strong>Evidence review</strong><small>Open the linked SLR or MLR workspace</small></span><span aria-hidden="true">→</span>
+          </a>
           <div class="research-inventory" id="research-inventory">
             <details class="rail-collection" id="project-evidence" hidden>
               <summary><span>Project evidence</span><span class="count-badge" id="project-evidence-count">0</span></summary>
@@ -775,60 +783,6 @@ export function renderHomePage(
   
     </main>
 
-<dialog class="review-study-dialog ui-dialog" id="review-study-dialog">
-  <div class="review-study-shell">
-    <header class="review-study-header">
-      <div><p class="eyebrow">Review study</p><h2>Systematic evidence workflow</h2></div>
-      <div class="flex items-center gap-2"><span class="count-badge" id="review-protocol-state">Draft</span><button class="button-secondary" id="close-review-study" type="button">Close</button></div>
-    </header>
-    <nav class="review-study-steps" aria-label="Review study stages">
-      <button id="review-step-plan" type="button" aria-current="step">1. Plan</button><button id="review-step-search" type="button" disabled>2. Search</button><button id="review-step-screen" type="button" disabled>3. Screen</button><button id="review-step-appraise" type="button" disabled>4. Appraise</button><button id="review-step-extract" type="button" disabled>5. Extract</button><button id="review-step-synthesize" type="button" disabled>6. Synthesize</button><button id="review-step-report" type="button" disabled>7. Report</button>
-    </nav>
-    <form class="review-study-content" id="review-protocol-form">
-      <section class="review-study-intro">
-        <div><p class="eyebrow">Protocol</p><h3>Frame the review before searching</h3><p>Research questions, concepts, and source-specific queries remain versioned together. Freeze the protocol before the first search; later changes require a rationale.</p></div>
-        <label class="field-label review-profile-field">Review profile<select class="field" id="review-profile"><option value="slr">Systematic literature review (SLR)</option><option value="mlr">Multivocal literature review (MLR)</option></select></label>
-      </section>
-      <div class="review-study-grid">
-        <div class="review-study-form-stack">
-          <section class="review-study-card"><label class="field-label" for="review-objective">Objective<textarea class="field" id="review-objective" rows="3" maxlength="4000" placeholder="What should this review establish?"></textarea></label></section>
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">PICOC</p><h4>Question frame</h4></div><small>Leave non-applicable facets blank.</small></div><div class="review-picoc-grid">${["population", "intervention", "comparison", "outcome", "context"].map((facet) => `<label class="field-label">${facet[0]!.toUpperCase()}${facet.slice(1)}<input class="field" id="review-picoc-${facet}" maxlength="1000"></label>`).join("")}</div></section>
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">RQs</p><h4>Research questions</h4></div><small>One question per line.</small></div><textarea class="field" id="review-questions" rows="4" maxlength="20000" placeholder="What evidence answers the review objective?"></textarea></section>
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Concepts</p><h4>Keywords and synonyms</h4></div><small><code>Label :: term; synonym</code>, one group per line.</small></div><textarea class="field font-mono" id="review-concepts" rows="6" maxlength="40000" placeholder="Population :: computer science education; CSEd&#10;Intervention :: artificial intelligence; AI"></textarea></section>
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Sources</p><h4>Databases and query syntax</h4></div><small><code>Name | URL | dialect | scope</code></small></div><textarea class="field font-mono" id="review-sources" rows="5" maxlength="40000" placeholder="Scopus | https://scopus.com | scopus | title-abstract-keywords&#10;ACM Digital Library | https://dl.acm.org | acm-dl | title-abstract"></textarea><p class="review-field-help">Dialects: generic, scopus, web-of-science, ieee-xplore, acm-dl. Scopes: all-fields, title-abstract, title-abstract-keywords.</p></section>
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Calibration</p><h4>Known relevant studies</h4></div><small><code>Title | Abstract</code>, one study per line.</small></div><textarea class="field" id="review-known-studies" rows="4" maxlength="80000" placeholder="A known relevant title | Its abstract text"></textarea></section>
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Selection</p><h4>Eligibility criteria</h4></div><small>One testable criterion per line.</small></div><div class="review-picoc-grid"><label class="field-label">Inclusion criteria<textarea class="field" id="review-inclusion-criteria" rows="5" maxlength="20000"></textarea></label><label class="field-label">Exclusion criteria<textarea class="field" id="review-exclusion-criteria" rows="5" maxlength="20000"></textarea></label></div><div class="review-screening-policy"><label class="field-label">Independent reviewers per stage<select class="field" id="review-reviewer-count"><option value="1">One reviewer</option><option value="2">Two reviewers</option></select></label><label class="field-label">Local-model assistance<select class="field" id="review-model-mode"><option value="off">Off</option><option value="human-first">Human first</option><option value="assisted">Assisted</option></select></label><label class="review-checkbox"><input id="review-blinded" type="checkbox"><span><strong>Blind pending decisions</strong><small>Hide the other reviewer until both decide.</small></span></label></div></section>
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Quality</p><h4>Assessment checklist</h4></div><small>One question per line.</small></div><textarea class="field" id="review-quality-questions" rows="5" maxlength="40000"></textarea><div class="review-screening-policy"><label class="field-label">Answer weights <small><code>Label | weight | reject</code></small><textarea class="field font-mono" id="review-quality-answers" rows="4" maxlength="10000"></textarea></label><label class="field-label">Minimum score<input class="field" id="review-quality-minimum" type="number" step="0.1" placeholder="No threshold"></label></div></section>
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Extraction</p><h4>Typed data form</h4></div><small><code>Label | type | enum values | RQs</code></small></div><textarea class="field font-mono" id="review-extraction-fields" rows="6" maxlength="40000" aria-describedby="review-extraction-help" placeholder="Study design | string | | RQ1&#10;Year | integer | |&#10;Eligible | boolean | |&#10;Method | enum | survey; experiment; case study | RQ1; RQ2"></textarea><p class="review-field-help" id="review-extraction-help">Link fields with RQ1, RQ2, and so on, following the research-question order above.</p></section>
-        </div>
-        <aside class="review-query-preview">
-          <div class="review-study-card-heading"><div><p class="eyebrow">Live preview</p><h4>Search plan</h4></div><span class="count-badge" id="review-calibration">0 / 0 seeds</span></div>
-          <div class="review-query-list" id="review-query-list"><div class="empty-state">Add concept groups and sources to generate query variants.</div></div>
-        </aside>
-      </div>
-      <footer class="review-study-footer"><p id="review-protocol-status" role="status" aria-live="polite">Loading protocol…</p><div><button class="button-secondary" id="freeze-review-protocol" type="button">Freeze protocol</button><button class="button-primary" type="submit">Save protocol</button></div></footer>
-    </form>
-    <section class="review-search-content" id="review-search-content" hidden>
-      <div class="review-search-grid">
-        <div class="review-study-form-stack">
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Immutable run</p><h3>Import source results</h3></div><span class="count-badge">BibTeX</span></div><div class="review-search-fields"><label class="field-label">Source<select class="field" id="review-search-source"></select></label><label class="field-label">Search executed at<input class="field" id="review-searched-at" type="datetime-local"></label><label class="field-label review-search-query-field">Exact query used<textarea class="field font-mono" id="review-search-query" rows="4" maxlength="20000"></textarea></label><label class="field-label review-search-query-field">BibTeX results<textarea class="field font-mono" id="review-search-bibtex" rows="8" maxlength="33554432" placeholder="Paste the exact source export here"></textarea></label></div><div class="review-search-actions"><button class="button-secondary" id="preview-review-import" type="button">Preview import</button><button class="button-primary" id="confirm-review-import" type="button" disabled>Confirm immutable run</button></div><p class="review-field-help" id="review-import-status" role="status">Preview validates records without changing the review.</p><div id="review-import-preview"></div></section>
-          <section class="review-study-card"><div class="review-study-card-heading"><div><p class="eyebrow">Provenance</p><h3>Search runs</h3></div><span class="count-badge" id="review-search-run-count">0</span></div><div class="review-query-list" id="review-search-runs"><div class="empty-state">No source searches imported.</div></div></section>
-        </div>
-        <aside class="review-query-preview"><div class="review-study-card-heading"><div><p class="eyebrow">Deduplication</p><h3>Review candidates</h3></div><span class="count-badge" id="review-search-counts">0 unique</span></div><p class="review-field-help">Every source occurrence is retained. Merging changes only the canonical review record.</p><div class="review-query-list mt-3" id="review-duplicate-list"><div class="empty-state">No duplicate candidates.</div></div></aside>
-      </div>
-      <footer class="review-study-footer"><p id="review-search-status" role="status" aria-live="polite">Search runs preserve the exact source, query, date, and import digest.</p><div><button class="button-secondary" id="back-to-review-plan" type="button">Back to plan</button></div></footer>
-    </section>
-    <section class="review-screen-content" id="review-screen-content" hidden>
-      <header class="review-screen-toolbar"><div><p class="eyebrow">Study selection</p><h3>Independent staged screening</h3><p id="review-screen-policy">One reviewer per stage</p></div><div class="review-screen-controls"><label class="field-label">Stage<select class="field" id="review-screen-stage"><option value="title-abstract">Title and abstract</option><option value="full-text">Full text</option></select></label><label class="field-label">Show<select class="field" id="review-screen-filter"><option value="all">All records</option><option value="pending">Pending</option><option value="conflict">Conflicts</option><option value="include">Included</option><option value="exclude">Excluded</option></select></label></div></header>
-      <div class="review-screen-list" id="review-screen-list"><div class="empty-state">No records available for screening.</div></div>
-      <footer class="review-study-footer"><p id="review-screen-status" role="status" aria-live="polite">Decisions are append-only and attributed to the signed-in reviewer.</p><div><span class="count-badge" id="review-screen-counts">0 pending</span><button class="button-secondary" id="back-to-review-search" type="button">Back to search</button></div></footer>
-    </section>
-    <section class="review-screen-content" id="review-appraise-content" hidden><header class="review-screen-toolbar"><div><p class="eyebrow">Quality assessment</p><h3>Evidence-linked appraisal</h3><p>Positive answers require an exact quotation. Negative answers may instead record an explicit absence rationale.</p></div></header><div class="review-screen-list" id="review-appraise-list"><div class="empty-state">No full-text inclusions are ready for appraisal.</div></div><footer class="review-study-footer"><p id="review-appraise-status" role="status" aria-live="polite">Scores are derived from the frozen checklist.</p><div><button class="button-secondary" id="back-to-review-screen" type="button">Back to screening</button></div></footer></section>
-    <section class="review-screen-content" id="review-extract-content" hidden><header class="review-screen-toolbar"><div><p class="eyebrow">Data extraction</p><h3>Typed evidence form</h3><p>Present values require evidence; absent values require an explicit reason.</p></div></header><div class="review-screen-list" id="review-extract-list"><div class="empty-state">No full-text inclusions are ready for extraction.</div></div><footer class="review-study-footer"><p id="review-extract-status" role="status" aria-live="polite">Extraction remains traceable to each study.</p><div><button class="button-secondary" id="back-to-review-appraise" type="button">Back to appraisal</button></div></footer></section>
-    <section class="review-screen-content" id="review-synthesis-content" hidden><header class="review-screen-toolbar"><div><p class="eyebrow">Analysis</p><h3>Revision-pinned synthesis</h3><p>Process accounting and evidence matrices are derived from reviewed data.</p></div><div class="review-search-actions"><a class="button-secondary" href="/api/workspaces/${escapedWorkspaceId}/review-study/synthesis.csv">Download CSV</a><a class="button-secondary" href="/api/workspaces/${escapedWorkspaceId}/review-study/synthesis.md">Download Markdown</a><button class="button-primary" id="publish-review-synthesis" type="button">Publish to project</button></div></header><div class="review-screen-list" id="review-synthesis-view"><div class="empty-state">Complete extraction to derive synthesis.</div></div><footer class="review-study-footer"><p id="review-synthesis-status" role="status" aria-live="polite">Publishing writes review/synthesis.md after checking the current project revision.</p><div><button class="button-secondary" id="back-to-review-extract" type="button">Back to extraction</button></div></footer></section>
-    <section class="review-screen-content" id="review-report-content" hidden><header class="review-screen-toolbar"><div><p class="eyebrow">Reproducibility</p><h3>Review package</h3><p>Every format below derives from the same current review revision.</p></div><div class="review-search-actions"><a class="button-primary" href="/api/workspaces/${escapedWorkspaceId}/review-study/export/review.zip">Download review ZIP</a></div></header><div class="review-report-grid"><figure class="review-study-card"><img id="review-prisma-flow" data-src="/api/workspaces/${escapedWorkspaceId}/review-study/export/prisma.svg" loading="lazy" alt="PRISMA flow diagram derived from the current review revision"><figcaption>Accessible PRISMA flow. JSON remains the calculation authority.</figcaption></figure><section class="review-study-card"><h4>Inspect individual artifacts</h4><div class="review-report-links"><a href="/api/workspaces/${escapedWorkspaceId}/review-study/export/review.json">Lossless review JSON</a><a href="/api/workspaces/${escapedWorkspaceId}/review-study/export/extraction.csv">Long-form extraction CSV</a><a href="/api/workspaces/${escapedWorkspaceId}/review-study/export/bibliography.bib">Scoped BibTeX</a><a href="/api/workspaces/${escapedWorkspaceId}/review-study/export/prisma.json">PRISMA JSON</a><a href="/api/workspaces/${escapedWorkspaceId}/review-study/export/prisma.svg">PRISMA SVG</a></div></section></div><footer class="review-study-footer"><p role="status">The ZIP manifest lists schema versions, revision pins, byte counts, and SHA-256 digests.</p><div><button class="button-secondary" id="back-to-review-synthesis" type="button">Back to synthesis</button></div></footer></section>
-  </div>
-</dialog>
 
 <dialog class="reference-library-dialog ui-dialog" id="export-dialog">
       <div class="p-5">

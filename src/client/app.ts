@@ -198,7 +198,6 @@ import {
   type IncludeCompletionCandidate,
   type IncludeCompletionContext,
 } from "./include-completions";
-import { bindReviewStudyPlanning } from "./review-study";
 
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
@@ -851,7 +850,6 @@ class WorkspaceApp {
   async start(): Promise<void> {
     this.#elements.applicationVersion.textContent = applicationVersion;
     this.#bindUi();
-    if (appMode === "workspace") bindReviewStudyPlanning(apiBase);
     this.#elements.workspaceSurfaces.dataset.ready = "true";
     if (appMode === "library") {
       this.#elements.workspaceSurfaces.dataset.activeSurface = "context";
@@ -884,6 +882,10 @@ class WorkspaceApp {
     }
     await this.#restoreWorkspaceRoute();
     this.#connect();
+    if (new URL(location.href).searchParams.get("create") === "1") {
+      history.replaceState(history.state, "", location.pathname);
+      await this.#openNewWorkspace();
+    }
   }
 
   #bindUi(): void {
@@ -936,7 +938,7 @@ class WorkspaceApp {
     });
     this.#elements.workspaceSwitcher.addEventListener("change", () => {
       const selected = this.#elements.workspaceSwitcher.value;
-      if (selected && selected !== workspaceId) location.assign(`/workspaces/${encodeURIComponent(selected)}`);
+      if (selected && selected !== workspaceId) location.assign(`/editor/${encodeURIComponent(selected)}`);
     });
     this.#elements.workspaceLayout.addEventListener("change", () => void this.#setWorkspaceLayout(this.#elements.workspaceLayout.value));
     this.#elements.manageWorkspaces.addEventListener("click", () => {
@@ -9244,7 +9246,7 @@ class WorkspaceApp {
       {
         id: record.snapshot.id,
         title: record.snapshot.title,
-        href: `/workspaces/${encodeURIComponent(record.snapshot.id)}`,
+        href: `/editor/${encodeURIComponent(record.snapshot.id)}`,
         createdAt: record.savedAt,
         updatedAt: record.savedAt,
         archivedAt: null,

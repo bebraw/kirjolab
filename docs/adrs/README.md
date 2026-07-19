@@ -21,9 +21,10 @@ ADRs are grouped by lifecycle status:
 
 ## Proposed ADRs
 
-| ADR                                       | Status   | Summary                            |
-| ----------------------------------------- | -------- | ---------------------------------- |
-| [ADR-000](./proposed/ADR-000-template.md) | Proposed | Template for drafting future ADRs. |
+| ADR                                                                     | Status   | Summary                                                                              |
+| ----------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ |
+| [ADR-151](./proposed/ADR-151-model-reviews-as-independent-resources.md) | Proposed | Model reviews independently and connect them to projects through many-to-many links. |
+| [ADR-000](./proposed/ADR-000-template.md)                               | Proposed | Template for drafting future ADRs.                                                   |
 
 ## Accepted ADRs
 
@@ -44,6 +45,7 @@ ADRs are grouped by lifecycle status:
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-150](./implemented/ADR-150-establish-task-oriented-browser-routes.md)                | Implemented          | Make the dashboard, Library, editor, and project-associated review distinct browser destinations.             |
 | [ADR-148](./implemented/ADR-148-prefer-native-local-ci.md)                                | Implemented          | Run routine local readiness natively and reserve Agent CI containers for explicit parity checks.              |
 | [ADR-001](./implemented/ADR-001-use-architecture-decision-records.md)                     | Accepted             | Use ADRs to capture significant architectural decisions in this repo.                                         |
 | [ADR-002](./implemented/ADR-002-make-architectural-decisions-explicit.md)                 | Accepted             | Require explicit ADR updates for lasting architectural decisions.                                             |
@@ -86,7 +88,7 @@ ADRs are grouped by lifecycle status:
 | [ADR-039](./implemented/ADR-039-require-reviewable-model-operations.md)                   | Implemented          | Route local-capable model work through provenance-aware candidate review and apply.                           |
 | [ADR-040](./implemented/ADR-040-use-durable-objects-and-r2-for-vertical-slice.md)         | Implemented          | Use Yjs and per-document Durable Objects for collaboration, with R2 for immutable PDFs.                       |
 | [ADR-041](./implemented/ADR-041-render-pdfs-with-pdfjs.md)                                | Implemented          | Render one selectable PDF page with PDF.js and store normalized external highlight geometry.                  |
-| [ADR-042](./implemented/ADR-042-use-per-owner-workspace-catalogs.md)                      | Implemented          | Discover isolated document rooms through a separate SQLite catalog per owner identity.                        |
+| [ADR-042](./implemented/ADR-042-use-per-owner-workspace-catalogs.md)                      | Partially superseded | Discover isolated document rooms through a separate SQLite catalog per owner identity.                        |
 | [ADR-043](./implemented/ADR-043-use-cloudflare-access-and-memberships.md)                 | Implemented          | Verify Cloudflare Access JWTs and authorize document access through owner/member roles.                       |
 | [ADR-044](./implemented/ADR-044-model-publications-separately-from-bibtex.md)             | Implemented          | Keep BibTeX canonical while materializing stable publications and explicit DOI enrichment.                    |
 | [ADR-045](./implemented/ADR-045-use-satteri-for-scientific-markdown.md)                   | Superseded           | Previously parsed scientific Markdown with Satteri in an isolated browser WASM runtime.                       |

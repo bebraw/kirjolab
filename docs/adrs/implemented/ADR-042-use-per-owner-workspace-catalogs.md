@@ -1,6 +1,7 @@
 # ADR-042: Use Per-Owner Workspace Catalog Durable Objects
 
-**Status:** Implemented
+**Status:** Partially superseded by
+[ADR-150](./ADR-150-establish-task-oriented-browser-routes.md)
 
 **Date:** 2026-07-10
 

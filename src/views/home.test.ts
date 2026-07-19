@@ -9,7 +9,11 @@ describe("renderHomePage", () => {
     expect(html).toContain("KIRJOLAB");
     expect(html).toContain('data-app-mode="workspace" data-workspace-id="demo" data-identity-email="local@kirjolab.invalid"');
     expect(html).toContain('class="action-menu header-action-menu ui-menu" data-action-menu');
-    expect(html).toContain('<a class="header-library-link" href="/library">Library</a>');
+    expect(html).toContain('<nav class="primary-navigation" aria-label="Primary navigation">');
+    expect(html).toContain('<a class="primary-navigation-link" href="/">Dashboard</a>');
+    expect(html).toContain('<a class="primary-navigation-link" href="/library">Library</a>');
+    expect(html).toContain('<a class="primary-navigation-link" href="/editor/demo" aria-current="page">Editor</a>');
+    expect(html).toContain('<a class="primary-navigation-link" href="/review">Reviews</a>');
     expect(html).not.toContain('class="library-header-context"');
     expect(html).toContain('id="manage-workspaces" type="button"><strong>Open projects</strong></button>');
     expect(html).toContain('id="editor-more-menu" data-action-menu');
@@ -67,6 +71,10 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="citation-network-list" aria-live="polite"');
     expect(html).toContain("Follow references from trusted seeds, review each candidate, and retain how every source was found.");
     expect(html).toContain('id="publication-list"');
+    expect(html).toContain('<a class="review-study-launch" href="/review/demo">');
+    expect(html).toContain("Open the linked SLR or MLR workspace");
+    expect(html).not.toContain('id="review-study-dialog"');
+    expect(html).not.toContain('id="open-review-study"');
     expect(html).toContain('id="knowledge-search-form"');
     expect(html).toContain('id="knowledge-connection-list"');
     expect(html).toContain('id="show-write-mode" type="button" aria-pressed="true">Write</button>');
@@ -188,9 +196,11 @@ describe("renderHomePage", () => {
     expect(html).toContain('src="/app.js"');
     expect(html).toContain('href="/styles.css"');
     expect(html).toContain("/api/workspaces/demo");
-    expect(html).toContain("Collaborative scholarly workspace");
+    expect(html).toContain("Recent scholarly work dashboard");
     expect(html).toContain("Portable workspace resource");
-    expect(html).toContain("Stable workspace resource");
+    expect(html).toContain("Stable writing-project editor");
+    expect(html).toContain("Evidence review catalog");
+    expect(html).toContain("Legacy writing-project redirect");
     expect(html).toContain(
       '<button type="button" data-insert-syntax="bibliography"><strong>Bibliography</strong><code>::bibliography[]</code></button>',
     );
@@ -205,7 +215,8 @@ describe("renderHomePage", () => {
     const html = renderHomePage(exampleRoutes, "demo", "person@example.org", "local", "library");
 
     expect(html).toContain('data-app-mode="library"');
-    expect(html).toContain('<a class="header-library-link" href="/library" aria-current="page">Library</a>');
+    expect(html).toContain('<a class="primary-navigation-link" href="/library" aria-current="page">Library</a>');
+    expect(html).toContain('<a class="primary-navigation-link" href="/editor">Editor</a>');
     expect(html).toContain('id="library-pdf-upload"');
     expect(html).toContain('id="library-highlight-composer"');
     expect(html).toContain('id="export-library-annotated-pdf"');
