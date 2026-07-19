@@ -594,8 +594,8 @@ published deliberately into several writing projects.
   storage locator, and never create a duplicate ReviewStudy under concurrency.
 - A review's SLR or MLR profile is immutable once registered. Creation
   initializes ReviewStudy with that profile before ReviewAccess makes the
-  resource resolvable, and canonical reads use the catalog profile when
-  initializing an unexpectedly empty study.
+  resource resolvable, and every canonical workflow operation validates the
+  catalog profile before using or initializing the study.
 - Project membership, review membership, and private Library ownership remain
   independent. Project-link creation, evidence selection, and publication must
   not weaken any of those checks.

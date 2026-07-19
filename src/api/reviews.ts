@@ -120,7 +120,7 @@ export async function createReviewResource(
   const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
   const study = env.REVIEW_STUDIES.getByName(record.locator.storageKey);
   try {
-    await study.getSnapshot(profile, identity.email);
+    await study.initializeProfile(profile, identity.email);
     await access.initializeOwner(record.id, identity.email);
   } catch (error) {
     await study.deleteReviewData();

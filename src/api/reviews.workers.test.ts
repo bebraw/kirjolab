@@ -69,12 +69,46 @@ describe("independent reviews API in the Workers runtime", () => {
     });
     await env.REVIEW_ACCESS.getByName(uninitialized.locator.storageKey).initializeOwner(uninitialized.id, owner.email);
     const canonicalStudy = await handleReviewsApi(
-      new Request(`http://example.com/api/reviews/${uninitialized.id}/review-study`),
+      new Request(`http://example.com/api/reviews/${uninitialized.id}/review-study/protocol`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: 1,
+          content: { ...defaultReviewProtocol("mlr"), objective: "Initialize MLR before any canonical read" },
+        }),
+      }),
       env,
       owner,
     );
     expect(canonicalStudy.status).toBe(200);
-    await expect(canonicalStudy.json()).resolves.toMatchObject({ protocol: { profile: "mlr" } });
+    await expect(canonicalStudy.json()).resolves.toMatchObject({
+      revision: 2,
+      protocol: { profile: "mlr", objective: "Initialize MLR before any canonical read" },
+    });
+
+    const conflictingId = crypto.randomUUID();
+    const conflicting = await catalog.registerReview({
+      id: conflictingId,
+      title: "Conflicting study profile",
+      profile: "mlr",
+      role: "owner",
+      storageKey: `review:${conflictingId}`,
+      legacyWorkspaceId: null,
+      createdAt: uninitializedAt,
+      updatedAt: uninitializedAt,
+      archivedAt: null,
+    });
+    await env.REVIEW_ACCESS.getByName(conflicting.locator.storageKey).initializeOwner(conflicting.id, owner.email);
+    await env.REVIEW_STUDIES.getByName(conflicting.locator.storageKey).initializeProfile("slr", owner.email);
+    const conflictingStudy = await handleReviewsApi(
+      new Request(`http://example.com/api/reviews/${conflicting.id}/review-study`),
+      env,
+      owner,
+    );
+    expect(conflictingStudy.status).toBe(409);
+    await expect(conflictingStudy.json()).resolves.toEqual({
+      error: "Review method profile conflicts with the initialized study",
+    });
 
     const profileChange = await handleReviewsApi(
       new Request(`http://example.com/api/reviews/${systematic.id}/settings`, {

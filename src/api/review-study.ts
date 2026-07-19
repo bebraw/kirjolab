@@ -49,8 +49,9 @@ export async function handleReviewStudyApi(
     profile: "slr",
   },
 ): Promise<Response> {
+  const initialized = await study.initializeProfile(context.profile, identity.email);
   if (suffix === "/review-study" && request.method === "GET") {
-    return noStore(await study.getSnapshot(context.profile, identity.email));
+    return noStore(initialized);
   }
   if (suffix === "/review-study/protocol" && request.method === "PUT") {
     const body = await protocolRequest(request);

@@ -21,6 +21,34 @@ describe("ReviewStudy in the Workers runtime", () => {
     expect(await study.hasReviewData()).toBe(true);
   });
 
+  it("initializes one immutable profile under concurrent requests", async () => {
+    const sameProfile = env.REVIEW_STUDIES.getByName(`review-profile-same-${crypto.randomUUID()}`);
+    const [first, second] = await Promise.all([
+      sameProfile.initializeProfile("mlr", "first@example.test"),
+      sameProfile.initializeProfile("mlr", "second@example.test"),
+    ]);
+    expect(first).toMatchObject({ revision: 1, protocol: { profile: "mlr" } });
+    expect(second).toMatchObject({ revision: 1, protocol: { profile: "mlr" } });
+    expect(
+      await runInDurableObject(
+        sameProfile,
+        (_instance: ReviewStudy, state) =>
+          state.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM protocol_revisions").one().count,
+      ),
+    ).toBe(1);
+
+    const conflicting = env.REVIEW_STUDIES.getByName(`review-profile-conflict-${crypto.randomUUID()}`);
+    const results = await Promise.allSettled([
+      conflicting.initializeProfile("slr", "slr@example.test"),
+      conflicting.initializeProfile("mlr", "mlr@example.test"),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    const winner = results.find((result) => result.status === "fulfilled");
+    if (!winner || winner.status !== "fulfilled") throw new Error("Review profile initialization had no winner");
+    expect((await conflicting.getSnapshot()).protocol.profile).toBe(winner.value.protocol.profile);
+  });
+
   it("persists isolated immutable protocol revisions", async () => {
     const study = env.REVIEW_STUDIES.getByName("review-a");
     const other = env.REVIEW_STUDIES.getByName("review-b");

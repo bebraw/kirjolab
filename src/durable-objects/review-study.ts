@@ -927,6 +927,14 @@ export class ReviewStudy extends DurableObject<Env> {
     return this.protocolRows().length > 0;
   }
 
+  initializeProfile(profile: ReviewProfile, actor = "system"): ReviewStudySnapshot {
+    const snapshot = this.getSnapshot(profile, actor);
+    if (snapshot.protocol.profile !== profile) {
+      throw new Error("Review method profile conflicts with the initialized study");
+    }
+    return snapshot;
+  }
+
   getSnapshot(profile: ReviewProfile = "slr", actor = "system"): ReviewStudySnapshot {
     const rows = this.protocolRows();
     if (rows.length === 0) {
