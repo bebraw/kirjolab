@@ -51,8 +51,8 @@ project graph as an alternative modality for the text editor.
 **Negative:**
 
 - Map temporarily hides the manuscript textarea and its editing controls.
-- Dense projects can still produce overlapping visual nodes; the connection
-  cards remain the dependable complete representation.
+- Dense projects can make the normal-flow visual projection taller; the
+  connection cards remain the dependable complete relationship representation.
 - The authoring toolbar gains one persistent two-option control.
 
 **Neutral:**

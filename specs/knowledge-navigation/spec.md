@@ -29,6 +29,11 @@ connection without reconstructing identity from a citation key or filename.
   derived project graph, workspace search, and typed connections while keeping
   every node and connection available as an ordinary keyboard-operable resource
   action.
+- The visual projection keeps project context above normal-flow lanes for
+  source material, evidence and reasoning, and manuscript resources. Decorative
+  connectors are redrawn from measured card geometry when the authoring pane
+  changes size; compact panes retain the grouped actions even when connectors
+  are hidden.
 - The Research rail remains a compact inventory of project evidence, claims,
   and references. It does not duplicate search, project graph, or library
   citation-network controls.
@@ -61,6 +66,8 @@ connection without reconstructing identity from a citation key or filename.
       returning to Write.
 - [x] The project map pairs its visual projection with searchable resource cards
       and a typed connection list.
+- [x] The project map groups resources by their role in the evidence-to-prose
+      path without clipping or overlapping cards in supported pane sizes.
 - [x] Explicit publication/PDF associations project as navigable
       `has-artifact` connections.
 - [x] Project membership, shared-note provenance, and model evidence project as
@@ -80,6 +87,10 @@ connection without reconstructing identity from a citation key or filename.
 - Client code must validate API representations before rendering them.
 - Live source edits may update derived citation navigation but must never mutate
   canonical Markdown as a side effect.
+- Visual map cards must stay contained and non-overlapping as the authoring pane
+  reflows. Connector coordinates must use the rendered canvas dimensions rather
+  than a fixed aspect ratio, and compact layouts must preserve every resource
+  action when decorative connectors are hidden.
 
 ### Scenarios
 

@@ -126,6 +126,7 @@ import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHist
 import { loadMarkdownRuntime } from "./markdown-runtime";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
+import { groupProjectMapNodes, projectMapLaneDefinitions, projectMapNodeGroup } from "./project-map-layout";
 import {
   applicationVersion,
   cacheOfflineNavigation,
@@ -469,6 +470,7 @@ interface Elements {
   editorWriteActions: HTMLElement;
   projectMap: HTMLElement;
   projectMapTotal: HTMLElement;
+  projectMapCanvas: HTMLElement;
   projectMapGraph: SVGSVGElement;
   projectMapNodes: HTMLElement;
   projectMapOverview: HTMLElement;
@@ -721,6 +723,8 @@ class WorkspaceApp {
   readonly #metadataRefinement = createMetadataRefinementActor();
   readonly #projectHistoryWorkflow = createProjectHistoryActor();
   #snapshot: WorkspaceSnapshot | null = null;
+  #renderedProjectMapGraph: WorkspaceKnowledgeGraph | null = null;
+  #projectMapResizeObserver: ResizeObserver | null = null;
   #revision = 0;
   #socket: WebSocket | null = null;
   #serverDocument: Y.Doc | null = null;
@@ -6122,7 +6126,7 @@ class WorkspaceApp {
 
   #renderKnowledgeGraph(graph: WorkspaceKnowledgeGraph): void {
     this.#elements.connectionCount.textContent = String(graph.edges.length);
-    this.#elements.projectMapTotal.textContent = `${graph.nodes.length} ${graph.nodes.length === 1 ? "resource" : "resources"}`;
+    this.#elements.projectMapTotal.textContent = `${graph.nodes.length} ${graph.nodes.length === 1 ? "resource" : "resources"} · ${graph.edges.length} ${graph.edges.length === 1 ? "link" : "links"}`;
     this.#renderProjectMap(graph);
     this.#elements.knowledgeConnectionList.replaceChildren();
     if (graph.edges.length === 0) {
@@ -6152,49 +6156,190 @@ class WorkspaceApp {
   }
 
   #renderProjectMap(graph: WorkspaceKnowledgeGraph): void {
-    const svgNamespace = "http://www.w3.org/2000/svg";
+    this.#renderedProjectMapGraph = graph;
+    this.#projectMapResizeObserver?.disconnect();
+    this.#projectMapResizeObserver = null;
     this.#elements.projectMapGraph.replaceChildren();
     this.#elements.projectMapNodes.replaceChildren();
     if (graph.nodes.length === 0) return;
 
-    const points = new Map<string, { x: number; y: number }>();
-    const orbit = graph.nodes.filter((node) => node.kind !== "project" && node.kind !== "document");
-    for (const node of graph.nodes) {
-      if (node.kind === "project") points.set(node.id, { x: 500, y: 300 });
-      else if (node.kind === "document") points.set(node.id, { x: 500, y: 205 });
-    }
-    orbit.forEach((node, index) => {
-      const angle = -Math.PI / 2 + (index * Math.PI * 2) / Math.max(orbit.length, 1);
-      points.set(node.id, { x: 500 + Math.cos(angle) * 405, y: 310 + Math.sin(angle) * 235 });
-    });
-
-    for (const edge of graph.edges) {
-      const from = points.get(edge.from);
-      const to = points.get(edge.to);
-      if (!from || !to) continue;
-      const line = document.createElementNS(svgNamespace, "line");
-      line.setAttribute("x1", String(from.x));
-      line.setAttribute("y1", String(from.y));
-      line.setAttribute("x2", String(to.x));
-      line.setAttribute("y2", String(to.y));
-      line.setAttribute("data-relation", edge.relation);
-      this.#elements.projectMapGraph.append(line);
-    }
-
-    for (const node of graph.nodes) {
-      const point = points.get(node.id);
-      if (!point) continue;
+    const createNode = (node: KnowledgeGraphNode): HTMLButtonElement => {
       const button = actionButton(node.label, "project-map-node", () => this.#focusKnowledgeResource(node.id));
-      button.style.left = `${point.x / 10}%`;
-      button.style.top = `${point.y / 6}%`;
       button.dataset.kind = node.kind;
-      button.title = `${node.kind}: ${node.label}`;
+      button.dataset.lane = projectMapNodeGroup(node.kind);
+      button.dataset.resourceId = node.id;
+      const kindLabel = node.kind.replaceAll("-", " ");
+      button.title = `${kindLabel}: ${node.label}`;
       const kind = document.createElement("span");
-      kind.textContent = node.kind;
+      kind.textContent = kindLabel;
       const label = document.createElement("strong");
       label.textContent = node.label;
       button.replaceChildren(kind, label);
-      this.#elements.projectMapNodes.append(button);
+      button.addEventListener("pointerenter", () => this.#updateProjectMapEmphasis(node.id));
+      button.addEventListener("pointerleave", () => {
+        const focused = this.#elements.projectMapNodes.querySelector<HTMLButtonElement>(".project-map-node:focus-visible");
+        this.#updateProjectMapEmphasis(focused?.dataset.resourceId ?? null);
+      });
+      button.addEventListener("focus", () => {
+        requestAnimationFrame(() => {
+          if (button.matches(":focus-visible")) this.#updateProjectMapEmphasis(node.id);
+        });
+      });
+      button.addEventListener("blur", () => {
+        requestAnimationFrame(() => {
+          const focused = this.#elements.projectMapNodes.querySelector<HTMLButtonElement>(".project-map-node:focus-visible");
+          this.#updateProjectMapEmphasis(focused?.dataset.resourceId ?? null);
+        });
+      });
+      return button;
+    };
+
+    const grouped = groupProjectMapNodes(graph.nodes);
+    const contextNodes = document.createElement("div");
+    contextNodes.className = "project-map-context-nodes";
+    contextNodes.setAttribute("role", "group");
+    contextNodes.setAttribute("aria-label", "Project context");
+    contextNodes.append(...grouped.context.map(createNode));
+
+    const lanes = document.createElement("div");
+    lanes.className = "project-map-lanes";
+    for (const definition of projectMapLaneDefinitions) {
+      const section = document.createElement("section");
+      section.className = "project-map-lane";
+      section.dataset.lane = definition.id;
+      const heading = document.createElement("h3");
+      heading.className = "project-map-lane-heading";
+      heading.id = `project-map-${definition.id}-heading`;
+      heading.textContent = definition.label;
+      section.setAttribute("aria-labelledby", heading.id);
+      const laneNodes = document.createElement("div");
+      laneNodes.className = "project-map-lane-nodes";
+      const resources = grouped.lanes[definition.id];
+      if (resources.length === 0) laneNodes.append(emptyState("No resources yet."));
+      else laneNodes.append(...resources.map(createNode));
+      section.append(heading, laneNodes);
+      lanes.append(section);
+    }
+
+    this.#elements.projectMapNodes.append(contextNodes, lanes);
+    this.#projectMapResizeObserver = new ResizeObserver(() => this.#drawProjectMapEdges());
+    this.#projectMapResizeObserver.observe(this.#elements.projectMapCanvas);
+    requestAnimationFrame(() => this.#drawProjectMapEdges());
+  }
+
+  #drawProjectMapEdges(): void {
+    const graph = this.#renderedProjectMapGraph;
+    const canvas = this.#elements.projectMapCanvas;
+    const svg = this.#elements.projectMapGraph;
+    const canvasBounds = canvas.getBoundingClientRect();
+    if (!graph || canvasBounds.width === 0 || canvasBounds.height === 0) return;
+
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    svg.replaceChildren();
+    svg.setAttribute("viewBox", `0 0 ${canvasBounds.width} ${canvasBounds.height}`);
+
+    const definitions = document.createElementNS(svgNamespace, "defs");
+    const marker = document.createElementNS(svgNamespace, "marker");
+    marker.id = "project-map-arrow";
+    marker.setAttribute("viewBox", "0 0 5 5");
+    marker.setAttribute("refX", "4.5");
+    marker.setAttribute("refY", "2.5");
+    marker.setAttribute("markerWidth", "5");
+    marker.setAttribute("markerHeight", "5");
+    marker.setAttribute("orient", "auto-start-reverse");
+    const arrow = document.createElementNS(svgNamespace, "path");
+    arrow.setAttribute("d", "M 0 0 L 5 2.5 L 0 5 z");
+    arrow.setAttribute("fill", "context-stroke");
+    marker.append(arrow);
+    definitions.append(marker);
+    svg.append(definitions);
+
+    const nodeElements = new Map(
+      [...this.#elements.projectMapNodes.querySelectorAll<HTMLButtonElement>(".project-map-node")].flatMap((node) =>
+        node.dataset.resourceId ? [[node.dataset.resourceId, node] as const] : [],
+      ),
+    );
+    const labels: SVGTextElement[] = [];
+    for (const edge of graph.edges) {
+      const fromElement = nodeElements.get(edge.from);
+      const toElement = nodeElements.get(edge.to);
+      if (!fromElement || !toElement) continue;
+      const fromBounds = fromElement.getBoundingClientRect();
+      const toBounds = toElement.getBoundingClientRect();
+      const fromCenter = {
+        x: fromBounds.left - canvasBounds.left + fromBounds.width / 2,
+        y: fromBounds.top - canvasBounds.top + fromBounds.height / 2,
+      };
+      const toCenter = {
+        x: toBounds.left - canvasBounds.left + toBounds.width / 2,
+        y: toBounds.top - canvasBounds.top + toBounds.height / 2,
+      };
+      const boundaryPoint = (bounds: DOMRect, center: { x: number; y: number }, toward: { x: number; y: number }) => {
+        const deltaX = toward.x - center.x;
+        const deltaY = toward.y - center.y;
+        const horizontalScale = deltaX === 0 ? Number.POSITIVE_INFINITY : (bounds.width / 2 + 3) / Math.abs(deltaX);
+        const verticalScale = deltaY === 0 ? Number.POSITIVE_INFINITY : (bounds.height / 2 + 3) / Math.abs(deltaY);
+        const scale = Math.min(horizontalScale, verticalScale);
+        return { x: center.x + deltaX * scale, y: center.y + deltaY * scale };
+      };
+      const start = boundaryPoint(fromBounds, fromCenter, toCenter);
+      const end = boundaryPoint(toBounds, toCenter, fromCenter);
+      const path = document.createElementNS(svgNamespace, "path");
+      path.setAttribute("class", "project-map-edge");
+      path.setAttribute("data-project-map-connector", "");
+      path.setAttribute("data-from", edge.from);
+      path.setAttribute("data-to", edge.to);
+      path.setAttribute("data-relation", edge.relation);
+      path.setAttribute("marker-end", "url(#project-map-arrow)");
+      if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) {
+        const middleX = (start.x + end.x) / 2;
+        path.setAttribute("d", `M ${start.x} ${start.y} C ${middleX} ${start.y}, ${middleX} ${end.y}, ${end.x} ${end.y}`);
+      } else {
+        const middleY = (start.y + end.y) / 2;
+        path.setAttribute("d", `M ${start.x} ${start.y} C ${start.x} ${middleY}, ${end.x} ${middleY}, ${end.x} ${end.y}`);
+      }
+      const title = document.createElementNS(svgNamespace, "title");
+      title.textContent = `${edge.relation}: ${fromElement.title} → ${toElement.title}`;
+      path.append(title);
+      svg.append(path);
+
+      const relationLabel = document.createElementNS(svgNamespace, "text");
+      relationLabel.setAttribute("class", "project-map-edge-label");
+      relationLabel.setAttribute("data-project-map-connector", "");
+      relationLabel.setAttribute("data-from", edge.from);
+      relationLabel.setAttribute("data-to", edge.to);
+      relationLabel.setAttribute("x", String((start.x + end.x) / 2));
+      relationLabel.setAttribute("y", String((start.y + end.y) / 2 - 6));
+      relationLabel.textContent = edge.relation.replaceAll("-", " ");
+      labels.push(relationLabel);
+    }
+    svg.append(...labels);
+    const focused = this.#elements.projectMapNodes.querySelector<HTMLButtonElement>(".project-map-node:focus-visible");
+    this.#updateProjectMapEmphasis(focused?.dataset.resourceId ?? null);
+  }
+
+  #updateProjectMapEmphasis(resourceId: string | null): void {
+    const graph = this.#renderedProjectMapGraph;
+    if (!graph || !resourceId) {
+      for (const node of this.#elements.projectMapNodes.querySelectorAll<HTMLElement>(".project-map-node")) {
+        delete node.dataset.emphasis;
+      }
+      for (const connector of this.#elements.projectMapGraph.querySelectorAll<SVGElement>("[data-project-map-connector]")) {
+        delete connector.dataset.emphasis;
+      }
+      return;
+    }
+
+    const incidentEdges = graph.edges.filter((edge) => edge.from === resourceId || edge.to === resourceId);
+    const connectedResources = new Set(
+      incidentEdges.flatMap((edge) => [edge.from, edge.to]).filter((candidate) => candidate !== resourceId),
+    );
+    for (const node of this.#elements.projectMapNodes.querySelectorAll<HTMLElement>(".project-map-node")) {
+      const nodeId = node.dataset.resourceId;
+      node.dataset.emphasis = nodeId === resourceId ? "active" : nodeId && connectedResources.has(nodeId) ? "connected" : "muted";
+    }
+    for (const connector of this.#elements.projectMapGraph.querySelectorAll<SVGElement>("[data-project-map-connector]")) {
+      connector.dataset.emphasis = connector.dataset.from === resourceId || connector.dataset.to === resourceId ? "active" : "muted";
     }
   }
 
@@ -6272,7 +6417,10 @@ class WorkspaceApp {
     this.#elements.showWriteMode.setAttribute("aria-pressed", String(writing));
     this.#elements.showMapMode.setAttribute("aria-pressed", String(!writing));
     if (writing) this.#elements.source.focus();
-    else this.#elements.projectMap.querySelector<HTMLButtonElement>(".project-map-node")?.focus();
+    else {
+      requestAnimationFrame(() => this.#drawProjectMapEdges());
+      this.#elements.projectMap.querySelector<HTMLButtonElement>(".project-map-node")?.focus();
+    }
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -9845,6 +9993,7 @@ function collectElements(): Elements {
     editorWriteActions: requiredElement("editor-write-actions", HTMLElement),
     projectMap: requiredElement("project-map", HTMLElement),
     projectMapTotal: requiredElement("project-map-total", HTMLElement),
+    projectMapCanvas: requiredElement("project-map-canvas", HTMLElement),
     projectMapGraph: requiredElement("project-map-graph", SVGSVGElement),
     projectMapNodes: requiredElement("project-map-nodes", HTMLElement),
     projectMapOverview: requiredElement("project-map-overview", HTMLElement),

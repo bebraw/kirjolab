@@ -363,9 +363,17 @@ export function renderHomePage(
           </form>
           <div class="hidden space-y-2" id="knowledge-search-results" aria-live="polite"></div>
           <div id="project-map-overview">
+            <div class="project-map-legend" aria-label="Evidence map key">
+              <div class="project-map-legend-items">
+                <span class="project-map-legend-item" data-lane="source">Source material</span>
+                <span class="project-map-legend-item" data-lane="evidence">Evidence &amp; reasoning</span>
+                <span class="project-map-legend-item" data-lane="manuscript">Manuscript</span>
+              </div>
+              <p>Focus a resource to trace its direct links.</p>
+            </div>
             <div class="project-map-canvas" id="project-map-canvas">
-              <svg id="project-map-graph" viewBox="0 0 1000 600" role="img" aria-label="Project evidence graph"></svg>
-              <div class="project-map-nodes" id="project-map-nodes"></div>
+              <svg id="project-map-graph" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true" focusable="false"></svg>
+              <div class="project-map-nodes" id="project-map-nodes" role="group" aria-label="Project resources"></div>
             </div>
             <section class="project-map-connections" aria-labelledby="project-map-connections-heading">
               <div class="project-map-connections-header">

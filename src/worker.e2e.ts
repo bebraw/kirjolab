@@ -71,6 +71,62 @@ test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }
   }
 });
 
+async function readProjectMapGeometry(page: Page) {
+  return page.locator("#project-map-canvas").evaluate((canvas) => {
+    const canvasBounds = canvas.getBoundingClientRect();
+    const nodes = [...canvas.querySelectorAll<HTMLElement>(".project-map-node")].map((node) => ({
+      id: node.dataset.resourceId ?? node.textContent ?? "unknown",
+      bounds: node.getBoundingClientRect(),
+    }));
+    const overlaps: string[] = [];
+    for (const [index, node] of nodes.entries()) {
+      for (const other of nodes.slice(index + 1)) {
+        const overlapX = Math.min(node.bounds.right, other.bounds.right) - Math.max(node.bounds.left, other.bounds.left);
+        const overlapY = Math.min(node.bounds.bottom, other.bounds.bottom) - Math.max(node.bounds.top, other.bounds.top);
+        if (overlapX > 1 && overlapY > 1) overlaps.push(`${node.id} / ${other.id}`);
+      }
+    }
+    const graph = canvas.querySelector<SVGSVGElement>("#project-map-graph");
+    const viewBox = graph?.viewBox.baseVal;
+    const graphVisible = graph?.checkVisibility() ?? false;
+    const screenMatrix = graph?.getScreenCTM();
+    const nodeById = new Map(nodes.map((node) => [node.id, node.bounds]));
+    const connectorsAligned =
+      !graphVisible ||
+      !graph ||
+      !screenMatrix ||
+      [...graph.querySelectorAll<SVGPathElement>(".project-map-edge")].every((path) => {
+        const from = path.dataset.from ? nodeById.get(path.dataset.from) : undefined;
+        const to = path.dataset.to ? nodeById.get(path.dataset.to) : undefined;
+        if (!from || !to) return false;
+        const start = path.getPointAtLength(0).matrixTransform(screenMatrix);
+        const end = path.getPointAtLength(path.getTotalLength()).matrixTransform(screenMatrix);
+        const touches = (point: DOMPoint, bounds: DOMRect) =>
+          point.x >= bounds.left - 5 && point.x <= bounds.right + 5 && point.y >= bounds.top - 5 && point.y <= bounds.bottom + 5;
+        return touches(start, from) && touches(end, to);
+      });
+    return {
+      canvasHeight: canvasBounds.height,
+      canvasWidth: canvasBounds.width,
+      contained: nodes.every(
+        (node) =>
+          node.bounds.left >= canvasBounds.left - 1 &&
+          node.bounds.right <= canvasBounds.right + 1 &&
+          node.bounds.top >= canvasBounds.top - 1 &&
+          node.bounds.bottom <= canvasBounds.bottom + 1,
+      ),
+      connectorsAligned,
+      edgeCount: graph?.querySelectorAll(".project-map-edge").length ?? 0,
+      graphVisible,
+      horizontalOverflow: canvas.scrollWidth - canvas.clientWidth,
+      lanes: [...canvas.querySelectorAll<HTMLElement>(".project-map-lane-heading")].map((heading) => heading.textContent),
+      overlaps,
+      viewBoxHeight: viewBox?.height ?? 0,
+      viewBoxWidth: viewBox?.width ?? 0,
+    };
+  });
+}
+
 async function selectLocalModel(page: Page, model: string): Promise<void> {
   const selector = page.locator("#llm-model");
   await selector.evaluate((element: HTMLSelectElement, value) => {
@@ -4330,6 +4386,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
 });
 
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
   const workspaceId = await createWorkspace(page, "Evidence to prose loop");
   const api = `/api/workspaces/${workspaceId}`;
   const modelRequests: unknown[] = [];
@@ -4471,8 +4528,36 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(page.locator("#source-editor-shell")).toBeHidden();
   await expect(page.locator("#project-map")).toBeVisible();
   await expect.poll(async () => page.locator("#project-map-nodes .project-map-node").count()).toBeGreaterThan(4);
+  await expect(page.locator("#project-map-nodes .project-map-node").first()).toBeFocused();
   await expect(page.locator("#project-map-nodes")).toContainText("Inspectable evidence keeps scholarly claims accountable.");
   await expect(page.locator("#knowledge-connection-list")).toContainText("supports");
+  await expect.poll(async () => page.locator("#project-map-graph .project-map-edge").count()).toBeGreaterThan(0);
+  const desktopMap = await readProjectMapGeometry(page);
+  expect(desktopMap.contained).toBe(true);
+  expect(desktopMap.connectorsAligned).toBe(true);
+  expect(desktopMap.horizontalOverflow).toBeLessThanOrEqual(1);
+  expect(desktopMap.lanes).toEqual(["Source material", "Evidence & reasoning", "Manuscript"]);
+  expect(desktopMap.overlaps).toEqual([]);
+  expect(desktopMap.graphVisible).toBe(true);
+  expect(desktopMap.viewBoxWidth).toBeCloseTo(desktopMap.canvasWidth, 0);
+  expect(desktopMap.viewBoxHeight).toBeCloseTo(desktopMap.canvasHeight, 0);
+  const mapClaim = page.locator('.project-map-node[data-kind="claim"]').first();
+  await mapClaim.hover();
+  await expect(page.locator('#project-map-graph .project-map-edge[data-emphasis="active"]')).not.toHaveCount(0);
+  await expect(page.locator('#project-map-nodes .project-map-node[data-emphasis="muted"]')).not.toHaveCount(0);
+  await page.mouse.move(0, 0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Authoring", exact: true }).click();
+  await expect(page.locator("#project-map")).toBeVisible();
+  await expect.poll(async () => (await readProjectMapGeometry(page)).graphVisible).toBe(false);
+  const phoneMap = await readProjectMapGeometry(page);
+  expect(phoneMap.contained).toBe(true);
+  expect(phoneMap.connectorsAligned).toBe(true);
+  expect(phoneMap.horizontalOverflow).toBeLessThanOrEqual(1);
+  expect(phoneMap.overlaps).toEqual([]);
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await expect.poll(async () => (await readProjectMapGeometry(page)).graphVisible).toBe(true);
 
   await page.locator("#knowledge-search-input").fill("human synthesis accountable");
   await page.locator("#knowledge-search-form").getByRole("button", { name: "Find" }).click();
