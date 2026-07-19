@@ -19,6 +19,9 @@ rollback workflow without adding a second identity system.
   recovery bookmarks, builds owner-scoped logical snapshots, and stores backup
   metadata in R2.
 - A daily UTC Cron Trigger asks the coordinator to inspect registered owners.
+  Before snapshotting review catalogs, the coordinator idempotently registers
+  legacy ReviewStudy data reachable from active or archived project catalog
+  entries so scheduled backup does not depend on a prior UI migration.
   The coordinator computes a stable digest over canonical owner state and
   referenced R2 object identities. It writes a new manifest only when that
   digest differs from the last successful backup.

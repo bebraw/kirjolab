@@ -42,6 +42,10 @@ published deliberately into several writing projects.
   creates an explicit project link, and registers the same locator and
   role-qualified summary in each seeded member's catalog. Later project
   membership changes do not alter review membership.
+- Legacy registration idempotently reconciles the authoritative ReviewAccess
+  link into the project's DocumentRoom projection even after a partial prior
+  attempt. A later project member excluded from the frozen review membership is
+  skipped during discovery without gaining review access or failing the page.
 - Review membership authorizes review-only operations. Project membership does
   not grant review access; review membership does not grant project or owner-
   private Library access; and a project-review link grants neither. Operations
@@ -382,6 +386,10 @@ published deliberately into several writing projects.
   ReviewAccess state with membership and the complete active and unlinked link
   ledger, revision seed, and a content-addressed reference to the canonical
   ReviewStudy payload in R2.
+- Before taking the v3 ReviewCatalog snapshot, the backup coordinator registers
+  accessible legacy ReviewStudy data discovered through both active and
+  archived project catalog entries. This removes UI access as a prerequisite
+  for preserving a legacy review.
 - The review payload is bounded to 64 MiB and serializes only allowlisted
   authoritative relational tables. Its reference pins byte count, payload
   digest, unblinded-authority digest, review and protocol revisions, and history
@@ -394,9 +402,10 @@ published deliberately into several writing projects.
   every pinned revision. They never overwrite canonical review objects.
   Project-associated v2 and legacy v1 owner manifests remain readable under
   their historical compatibility semantics.
-- Permanent project deletion marks that project's active review links unlinked
-  and deletes only project-owned state and materializations. It does not delete
-  an independent ReviewStudy. Permanent review deletion marks all active links
+- Permanent project deletion first registers any existing unregistered legacy
+  ReviewStudy, then marks that project's active review links unlinked and
+  deletes only project-owned state and materializations. It does not delete an
+  independent ReviewStudy. Permanent review deletion marks all active links
   unlinked, deletes review data and membership, and removes each member's
   catalog entry without deleting projects or rewriting retained project-history
   artifacts. Content-addressed backup retention remains an operator lifecycle,
@@ -606,7 +615,8 @@ published deliberately into several writing projects.
   safety, PRISMA flow derivation, and deterministic manifests.
 - Workers tests cover ReviewCatalog, ReviewAccess, and ReviewStudy schema
   migration and eviction; atomic legacy identity seeding; catalog and membership
-  authorization; many-to-many soft links; canonical and compatibility adapters;
+  authorization; partial-link reconciliation; archived pre-backup registration;
+  legacy preservation on project deletion; many-to-many soft links; canonical and compatibility adapters;
   atomic revisions; protocol freeze/amendment; import; deduplication;
   independent decisions; adjudication; evidence selectors; candidate review;
   independent v3 backup, restore, and deletion; and v1/v2 compatibility.
