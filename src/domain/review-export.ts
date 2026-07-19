@@ -5,7 +5,7 @@ import type { ReviewModelSnapshot } from "./review-model";
 import type { ReviewScreeningSnapshot, ScreeningRecordState, ScreeningStage } from "./review-screening";
 import type { ReviewSearchSnapshot } from "./review-search";
 import type { ReviewStudySnapshot } from "./review-study";
-import type { ReviewSynthesis } from "./review-synthesis";
+import { reviewAnalysisDefinitionSchemaVersion, type ReviewSynthesis } from "./review-synthesis";
 
 export const reviewExportSchemaVersion = "kirjolab-review-package-v1" as const;
 const archiveTimestamp = new Date("1980-01-01T00:00:00.000Z");
@@ -201,6 +201,22 @@ export function reviewPrismaSvg(data: PrismaFlowData): string {
 export async function buildReviewPackage(workspaceId: string, authority: ReviewExportAuthority): Promise<Uint8Array> {
   const prisma = reviewPrismaData(authority);
   const files: Record<string, string> = {
+    "analysis-contributors.json": stableJson({
+      schemaVersion: reviewAnalysisDefinitionSchemaVersion,
+      reviewRevision: authority.revision,
+      contributors: authority.synthesis.contributors,
+    }),
+    "analysis-definitions.json": stableJson({
+      schemaVersion: reviewAnalysisDefinitionSchemaVersion,
+      reviewRevision: authority.revision,
+      protocolRevision: authority.protocol.protocol.revision,
+      definitions: authority.synthesis.definitions,
+    }),
+    "analysis-diagnostics.json": stableJson({
+      schemaVersion: reviewAnalysisDefinitionSchemaVersion,
+      reviewRevision: authority.revision,
+      diagnostics: authority.synthesis.diagnostics,
+    }),
     "review.json": reviewAuthorityJson(authority),
     "extraction.csv": reviewExtractionCsv(authority),
     "bibliography.bib": reviewBibliographyBibTeX(authority),
@@ -281,7 +297,8 @@ function authorityTimestamp(authority: ReviewExportAuthority): string {
 }
 
 function csvCell(value: string): string {
-  return /[",\r\n]/u.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+  const escaped = /^[=+@-]/u.test(value) ? `'${value}` : value;
+  return /[",\r\n]/u.test(escaped) ? `"${escaped.replaceAll('"', '""')}"` : escaped;
 }
 
 function stableJson(value: unknown): string {

@@ -32,6 +32,9 @@ describe("review reproducibility export", () => {
     expect(first).toEqual(second);
     const files = unzipSync(first);
     expect(Object.keys(files).sort()).toEqual([
+      "analysis-contributors.json",
+      "analysis-definitions.json",
+      "analysis-diagnostics.json",
       "bibliography.bib",
       "extraction.csv",
       "history.json",
@@ -47,8 +50,24 @@ describe("review reproducibility export", () => {
       files: Array<{ path: string; sha256: string; bytes: number }>;
     };
     expect(manifest.reviewRevision).toBe(7);
-    expect(manifest.files).toHaveLength(8);
+    expect(manifest.files).toHaveLength(11);
     expect(manifest.files.every((file) => /^[a-f0-9]{64}$/u.test(file.sha256) && file.bytes > 0)).toBe(true);
+    const analysisDefinitions = JSON.parse(strFromU8(files["analysis-definitions.json"]!)) as {
+      definitions: Array<Record<string, unknown>>;
+    };
+    expect(analysisDefinitions).toMatchObject({
+      schemaVersion: "kirjolab-review-analysis-v1",
+      reviewRevision: 7,
+      protocolRevision: 2,
+    });
+    expect(analysisDefinitions.definitions[0]).toMatchObject({
+      id: "review-process-analysis",
+      revision: 1,
+      reviewRevision: 7,
+      protocolRevision: 2,
+    });
+    expect(JSON.parse(strFromU8(files["analysis-diagnostics.json"]!))).toMatchObject({ diagnostics: [] });
+    expect(strFromU8(files["analysis-contributors.json"]!)).not.toContain("reviewer@example.com");
   });
 
   it("reports exclusions, adjudications, model disclosure, and empty extraction tables", () => {
@@ -122,6 +141,31 @@ describe("review reproducibility export", () => {
       },
     };
     expect(reviewBibliographyBibTeX(fullTextExcluded)).toContain("kirjolab_status = {excluded-full-text}");
+  });
+
+  it("escapes formula-looking CSV cells before spreadsheet import", () => {
+    const authority = fixture();
+    const record = authority.evidence.records[0]!;
+    const dangerous: ReviewExportAuthority = {
+      ...authority,
+      evidence: {
+        ...authority.evidence,
+        records: [
+          {
+            ...record,
+            record: { ...record.record, id: "@record", metadata: { ...record.record.metadata, title: "=CMD()" } },
+            extractionValues: [{ ...record.extractionValues[0]!, fieldId: "-field", value: "+SUM(1,1)", reviewer: "@reviewer" }],
+          },
+        ],
+      },
+    };
+
+    const csv = reviewExtractionCsv(dangerous);
+    expect(csv).toContain("'@record");
+    expect(csv).toContain("'=CMD()");
+    expect(csv).toContain("'-field");
+    expect(csv).toContain('"\'+SUM(1,1)"');
+    expect(csv).toContain("'@reviewer");
   });
 });
 
