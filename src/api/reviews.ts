@@ -349,13 +349,12 @@ async function unlinkReviewProject(env: Env, identity: AuthIdentity, resource: R
 }
 
 async function deleteReviewResource(env: Env, identity: AuthIdentity, resource: ReviewResource): Promise<Response> {
-  const deletion = await resource.access.getDeletionSnapshot(identity.email);
+  const deletion = await resource.access.beginReviewDeletion(identity.email);
   const members = deletion.members;
   const links = deletion.projectLinks;
   const owner = members.find((member) => member.role === "owner");
   if (!owner) throw new Error("Review owner is unavailable during deletion");
   for (const link of links) {
-    if (link.status !== "active") continue;
     const room = env.DOCUMENT_ROOMS.getByName(workspaceStorageKey(identity, link.workspaceId));
     const projection = await room.listReviewLinks(link.workspaceId);
     if (projection.some((candidate) => candidate.id === link.id && candidate.status === "active")) {
@@ -367,8 +366,8 @@ async function deleteReviewResource(env: Env, identity: AuthIdentity, resource: 
     await env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, member.email)).removeReview(resource.record.id);
   }
   await resource.study.deleteReviewData();
-  const boundary = await resource.access.deleteReviewAccess(identity.email);
   await env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, owner.email)).removeReview(resource.record.id);
+  const { members: _members, projectLinks: _projectLinks, ...boundary } = deletion;
   return noStore(boundary);
 }
 

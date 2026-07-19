@@ -92,10 +92,9 @@ export interface ReviewDeletionBoundary {
   readonly unlinkedProjectIds: readonly string[];
 }
 
-export interface ReviewDeletionSnapshot {
+export interface ReviewDeletionSnapshot extends ReviewDeletionBoundary {
   readonly members: readonly ReviewMember[];
   readonly projectLinks: readonly ProjectReviewLink[];
-  readonly deletedAt: string | null;
 }
 
 export interface CreateReviewCatalogInput {

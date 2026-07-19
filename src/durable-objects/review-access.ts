@@ -169,12 +169,12 @@ export class ReviewAccess extends DurableObject<Env> {
     return this.memberRows().map(memberFromRow);
   }
 
-  getDeletionSnapshot(requesterEmail: string): ReviewDeletionSnapshot {
-    const state = this.requireDeletionOwner(requesterEmail).state;
+  beginReviewDeletion(requesterEmail: string): ReviewDeletionSnapshot {
+    const boundary = this.deleteReviewAccess(requesterEmail);
     return {
+      ...boundary,
       members: this.memberRows().map(memberFromRow),
       projectLinks: this.projectLinkRows().map(projectLinkFromRow),
-      deletedAt: state.deleted_at,
     };
   }
 

@@ -605,6 +605,9 @@ published deliberately into several writing projects.
   study/access authority, retains an owner-resolvable tombstone until final
   catalog cleanup, and is idempotent after interruption between Durable Object
   calls.
+- Review deletion atomically tombstones ReviewAccess and retains its member and
+  link cleanup snapshot before the first cross-object await. The tombstone
+  immediately rejects new membership and project-link mutations.
 - Review mutations do not change Markdown or private-library state as an
   implicit side effect.
 - Review revisions advance once per successful logical mutation and stale

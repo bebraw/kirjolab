@@ -116,9 +116,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   stable identity, actor, creation time, and `active` or `unlinked` state.
   Unlinking or deleting a project must not delete the live review or previously
   materialized project artifacts; deleting a review is a separate owner action
-  that unlinks active relationships, removes its study and catalog authority,
-  and retains only a bounded access tombstone needed for idempotent cleanup,
-  without rewriting retained project history.
+  that atomically tombstones access before cross-object cleanup, unlinks active
+  relationships, removes its study and catalog authority, and retains only a
+  bounded access tombstone needed for idempotent cleanup, without rewriting
+  retained project history.
 - Keep `/review/{reviewId}` and `/api/reviews/{reviewId}` canonical. Treat
   `/review/{workspaceId}` and `/api/workspaces/{workspaceId}/review-study` as
   bounded legacy adapters: atomically assign one stable review UUID, seed

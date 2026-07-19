@@ -403,6 +403,8 @@ describe("independent reviews API in the Workers runtime", () => {
   it("finishes catalog cleanup idempotently from a durable review deletion tombstone", async () => {
     const owner = await testIdentity("deletion-retry-owner");
     const member = await testIdentity("deletion-retry-member");
+    const lateMember = await testIdentity("deletion-retry-late-member");
+    const project = await createProject(owner, "Deletion retry project");
     const review = await createReview(owner, "Retryable deletion", "slr");
     const invitation = await handleReviewsApi(
       jsonRequest(`http://example.com/api/reviews/${review.id}/members`, { email: member.email }),
@@ -410,17 +412,32 @@ describe("independent reviews API in the Workers runtime", () => {
       owner,
     );
     expect(invitation.status).toBe(201);
+    const link = await linkProject(owner, review.id, project.id);
     const record = await env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id);
     if (!record) throw new Error("Review catalog record is unavailable");
     const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
     const study = env.REVIEW_STUDIES.getByName(record.locator.storageKey);
 
     await study.deleteReviewData();
-    const tombstone = await access.deleteReviewAccess(owner.email);
+    const tombstone = await access.beginReviewDeletion(owner.email);
+    const { members: _members, projectLinks: _projectLinks, ...boundary } = tombstone;
+    await expect(project.room.listReviewLinks(project.id)).resolves.toEqual([expect.objectContaining({ id: link.id, status: "active" })]);
     await expect(env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id)).resolves.not.toBeNull();
     await expect(env.REVIEW_CATALOGS.getByName(member.ownerKey).getReview(review.id)).resolves.not.toBeNull();
     const hidden = await handleReviewsApi(new Request(`http://example.com/api/reviews/${review.id}`), env, owner);
     expect(hidden.status).toBe(404);
+    const lateInvitation = await handleReviewsApi(
+      jsonRequest(`http://example.com/api/reviews/${review.id}/members`, { email: lateMember.email }),
+      env,
+      owner,
+    );
+    expect(lateInvitation.status).toBe(404);
+    const lateLink = await handleReviewsApi(
+      jsonRequest(`http://example.com/api/reviews/${review.id}/project-links`, { workspaceId: project.id }),
+      env,
+      owner,
+    );
+    expect(lateLink.status).toBe(404);
 
     const deletion = await handleReviewsApi(
       new Request(`http://example.com/api/reviews/${review.id}/settings`, { method: "DELETE" }),
@@ -428,9 +445,13 @@ describe("independent reviews API in the Workers runtime", () => {
       owner,
     );
     expect(deletion.status).toBe(200);
-    await expect(deletion.json()).resolves.toEqual(tombstone);
+    await expect(deletion.json()).resolves.toEqual(boundary);
     await expect(env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id)).resolves.toBeNull();
     await expect(env.REVIEW_CATALOGS.getByName(member.ownerKey).getReview(review.id)).resolves.toBeNull();
+    await expect(env.REVIEW_CATALOGS.getByName(lateMember.ownerKey).getReview(review.id)).resolves.toBeNull();
+    await expect(project.room.listReviewLinks(project.id)).resolves.toEqual([
+      expect.objectContaining({ id: link.id, status: "unlinked", unlinkedBy: owner.email }),
+    ]);
     await expect(access.getAccessStatus()).resolves.toMatchObject({ reviewId: review.id, deletedAt: tombstone.deletedAt });
     await expect(access.getRole(owner.email)).resolves.toBe("owner");
     await expect(access.getRole(member.email)).resolves.toBeNull();

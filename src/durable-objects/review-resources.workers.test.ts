@@ -272,20 +272,24 @@ describe("ReviewAccess in the Workers runtime", () => {
     expect(detached).toEqual([
       expect.objectContaining({ id: secondProject.id, status: "unlinked", unlinkedBy: "project-owner@example.test" }),
     ]);
-    const boundary = await access.deleteReviewAccess(owner.email);
-    expect(boundary).toEqual({ reviewId, deletedAt: expect.any(String), unlinkedProjectIds: ["project-a"] });
+    const deletion = await access.beginReviewDeletion(owner.email);
+    expect(deletion).toMatchObject({ reviewId, deletedAt: expect.any(String), unlinkedProjectIds: ["project-a"] });
     expect(await access.getRole(owner.email)).toBe("owner");
     expect(await access.getRole(member.email)).toBeNull();
-    expect(await access.getAccessStatus()).toEqual({ reviewId, legacySeededAt: null, deletedAt: boundary.deletedAt });
-    expect(await access.getDeletionSnapshot(owner.email)).toEqual({
+    expect(await access.getAccessStatus()).toEqual({ reviewId, legacySeededAt: null, deletedAt: deletion.deletedAt });
+    expect(deletion).toEqual({
+      reviewId,
       members: [owner, member],
       projectLinks: expect.arrayContaining([
-        expect.objectContaining({ id: replacement.id, status: "unlinked", unlinkedAt: boundary.deletedAt }),
+        expect.objectContaining({ id: replacement.id, status: "unlinked", unlinkedAt: deletion.deletedAt }),
       ]),
-      deletedAt: boundary.deletedAt,
+      deletedAt: deletion.deletedAt,
+      unlinkedProjectIds: ["project-a"],
     });
-    expect(await access.deleteReviewAccess(owner.email)).toEqual(boundary);
+    expect(await access.beginReviewDeletion(owner.email)).toEqual(deletion);
     await runInDurableObject(access, (instance: ReviewAccess) => {
+      expect(() => instance.addMember(owner.email, "late-member@example.test")).toThrow("deleted");
+      expect(() => instance.createProjectLink(owner.email, "late-project")).toThrow("deleted");
       expect(() => instance.initializeOwner(reviewId, owner.email)).toThrow("deleted");
     });
 
