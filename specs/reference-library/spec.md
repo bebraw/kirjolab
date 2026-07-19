@@ -112,6 +112,14 @@ memory and makes citation aliases compete with stable source identity.
   creating a second resource. Geometry, quotation text, and distinct comments
   are combined within their existing bounds. Non-overlapping selections remain
   separate highlights.
+- The private reader can explicitly inspect an imported PDF for existing
+  highlights. Standard PDF highlight annotations retain their bounded geometry
+  and optional comment; flattened yellow page graphics are detected from a
+  bounded client-side render and matched back to the PDF text layer. Candidates
+  without recoverable text are ignored. The researcher reviews selection and
+  may edit each private note before one explicit, atomic import. Detection never
+  uploads page pixels, silently saves a candidate, shares research, or mutates a
+  project. A scan reads at most 200 pages and returns at most 128 candidates.
 - The private reader stays focused on the page: its idle annotation surface is
   a compact Select, Text, Note, and Draw toolbar. One typed interaction
   transition authority keeps tool selection, note composition, saved-resource
@@ -181,6 +189,10 @@ memory and makes citation aliases compete with stable source identity.
   confirmed deletion routes mutate only the authenticated owner's library.
 - Highlight creation accepts at most 512 normalized rectangles. Missing or
   malformed geometry fails closed; migrated legacy rows contain an empty list.
+- `POST /api/library/references/{referenceId}/highlight-imports` atomically
+  creates 1–128 reviewed owner-private highlights for one identified artifact.
+  Each candidate uses the ordinary bounded page, quote, comment, and normalized
+  rectangle validation.
 - `PATCH /api/library/references/{referenceId}/highlights/{highlightId}` updates
   only the bounded private comment for an owner-matching highlight.
 - `POST /api/library/references/{referenceId}/pdf-markups` creates an
@@ -269,6 +281,11 @@ memory and makes citation aliases compete with stable source identity.
   highlights remain one multi-quad annotation. Browser
   coverage opens attached PDFs directly from collapsed library rows and verifies
   that references without artifacts expose no PDF action.
+- Pure tests cover yellow-region recovery, text reconstruction, candidate
+  bounds, and bulk-import validation. Real-`workerd` coverage proves reviewed
+  candidates commit atomically. Browser coverage detects a flattened yellow
+  highlight, presents its quote for review, imports it privately, and leaves
+  project state untouched.
 - Browser coverage proves bounded batch progress, partial success, and retry
   without resubmitting successful PDFs.
 - Browser coverage advances the reader's project-use states explicitly and

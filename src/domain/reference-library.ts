@@ -201,6 +201,13 @@ export interface LibraryHighlight {
   readonly updatedAt: string;
 }
 
+export interface LibraryHighlightImportCandidate {
+  readonly page: number;
+  readonly quote: string;
+  readonly comment: string;
+  readonly rects: readonly LibraryPdfRect[];
+}
+
 export interface LibraryPdfPoint {
   readonly x: number;
   readonly y: number;
@@ -603,6 +610,24 @@ function isLibraryHighlight(value: unknown): value is LibraryHighlight {
     value.rects.every(isLibraryPdfRect) &&
     typeof value.createdAt === "string" &&
     typeof value.updatedAt === "string"
+  );
+}
+
+export function isLibraryHighlightImportCandidate(value: unknown): value is LibraryHighlightImportCandidate {
+  return (
+    isRecord(value) &&
+    typeof value.page === "number" &&
+    Number.isInteger(value.page) &&
+    value.page > 0 &&
+    typeof value.quote === "string" &&
+    value.quote.length > 0 &&
+    value.quote.length <= 20_000 &&
+    typeof value.comment === "string" &&
+    value.comment.length <= 8_000 &&
+    Array.isArray(value.rects) &&
+    value.rects.length > 0 &&
+    value.rects.length <= 512 &&
+    value.rects.every(isLibraryPdfRect)
   );
 }
 

@@ -739,6 +739,22 @@ export function renderHomePage(
               <details class="library-annotation-details" id="library-annotation-details">
                 <summary><span>Annotations</span></summary>
                 <div class="library-annotation-details-body">
+                  <section class="library-highlight-import" aria-labelledby="library-highlight-import-title">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <strong id="library-highlight-import-title">Highlights in this PDF</strong>
+                        <p class="mt-1 text-xs leading-5 text-app-text-soft" id="library-highlight-import-status" role="status" aria-live="polite">Detect native annotations and flattened yellow highlights for review.</p>
+                      </div>
+                      <button class="button-secondary" id="detect-library-pdf-highlights" type="button">Detect highlights</button>
+                    </div>
+                    <form class="mt-3" id="library-highlight-import-form" hidden>
+                      <div class="space-y-2" id="library-highlight-import-list"></div>
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        <button class="button-primary" type="submit">Import selected</button>
+                        <button class="button-secondary" id="cancel-library-highlight-import" type="button">Cancel</button>
+                      </div>
+                    </form>
+                  </section>
                   <div class="space-y-2" id="library-highlight-list"><p class="empty-state">No private annotations yet.</p></div>
                   <details class="library-project-details">
                     <summary>Project sharing</summary>

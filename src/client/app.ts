@@ -144,6 +144,7 @@ import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { createPdfAnnotationActor, pdfAnnotationTool, type PdfAnnotationSnapshot, type PdfAnnotationTool } from "./pdf-annotation-machine";
 import { createPublicationIntakeActor, publicationIntakeBusy } from "./publication-intake-machine";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
+import { detectImportedPdfHighlights, type PdfHighlightImportCandidate, type PdfHighlightDetection } from "./pdf-highlight-import";
 import { adjustSelectionRects } from "./pdf-selection";
 import { uploadPdfBatch, type ExistingPdfUpload, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
@@ -570,6 +571,11 @@ interface Elements {
   openLibraryPdfInspector: HTMLButtonElement;
   closeLibraryPdfInspector: HTMLButtonElement;
   libraryAnnotationDetails: HTMLDetailsElement;
+  detectLibraryPdfHighlights: HTMLButtonElement;
+  libraryHighlightImportForm: HTMLFormElement;
+  libraryHighlightImportList: HTMLElement;
+  libraryHighlightImportStatus: HTMLElement;
+  cancelLibraryHighlightImport: HTMLButtonElement;
   libraryHighlightForm: HTMLFormElement;
   libraryHighlightStatus: HTMLElement;
   libraryHighlightPage: HTMLInputElement;
@@ -765,6 +771,7 @@ class WorkspaceApp {
   #pdfDrawingDraftLine: SVGElement | null = null;
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
   #editingLibraryHighlightId: string | null = null;
+  #pdfHighlightDetection: { readonly artifactId: string; readonly result: PdfHighlightDetection } | null = null;
   #openPdfNoteId: string | null = null;
   #failedLibraryPdfUploads: readonly File[] = [];
   #showArchivedReferences = false;
@@ -1205,6 +1212,9 @@ class WorkspaceApp {
     this.#elements.libraryDrawTool.addEventListener("click", () => this.#setLibraryPdfTool("draw"));
     this.#elements.openLibraryPdfInspector.addEventListener("click", () => this.#setLibraryPdfInspector(true, true));
     this.#elements.closeLibraryPdfInspector.addEventListener("click", () => this.#closeLibraryPdfInspector());
+    this.#elements.detectLibraryPdfHighlights.addEventListener("click", () => void this.#detectLibraryPdfHighlights());
+    this.#elements.libraryHighlightImportForm.addEventListener("submit", (event) => void this.#importDetectedPdfHighlights(event));
+    this.#elements.cancelLibraryHighlightImport.addEventListener("click", () => this.#resetPdfHighlightImport());
     this.#elements.libraryDrawWidth.addEventListener("input", () => {
       this.#elements.libraryDrawWidthValue.value = this.#elements.libraryDrawWidth.value;
     });
@@ -8579,6 +8589,7 @@ class WorkspaceApp {
   #renderLibraryHighlightComposer(artifact: LibraryPdfArtifact | undefined): void {
     if (!artifact || !this.#librarySnapshot) return;
     if (this.#elements.libraryHighlightComposer.dataset.artifactId !== artifact.id) {
+      this.#resetPdfHighlightImport();
       this.#elements.libraryHighlightComposer.dataset.artifactId = artifact.id;
       this.#elements.libraryHighlightPage.value = "1";
       this.#elements.libraryHighlightQuote.value = "";
@@ -8658,6 +8669,124 @@ class WorkspaceApp {
       this.#elements.libraryHighlightList.append(card);
     }
     this.#renderPdfMarkups();
+  }
+
+  async #detectLibraryPdfHighlights(): Promise<void> {
+    const artifact = this.#activeLibraryPdf();
+    if (!artifact?.referenceId) return;
+    this.#elements.detectLibraryPdfHighlights.disabled = true;
+    this.#elements.libraryHighlightImportStatus.textContent = "Scanning PDF annotations and page highlights…";
+    this.#elements.libraryHighlightImportForm.hidden = true;
+    this.#elements.libraryHighlightImportList.replaceChildren();
+    try {
+      const result = await detectImportedPdfHighlights(`/api/library/pdfs/${encodeURIComponent(artifact.id)}`);
+      if (this.#activeLibraryPdf()?.id !== artifact.id) return;
+      const saved = this.#librarySnapshot?.highlights.filter((highlight) => highlight.artifactId === artifact.id) ?? [];
+      const candidates = result.candidates.filter(
+        (candidate) =>
+          !saved.some((highlight) => highlight.page === candidate.page && libraryPdfRectsOverlap(highlight.rects, candidate.rects)),
+      );
+      const reviewed = { ...result, candidates };
+      this.#pdfHighlightDetection = { artifactId: artifact.id, result: reviewed };
+      this.#renderPdfHighlightImportReview(reviewed);
+    } catch (error) {
+      this.#pdfHighlightDetection = null;
+      this.#elements.libraryHighlightImportStatus.textContent =
+        error instanceof Error ? `Could not inspect this PDF: ${error.message}` : "Could not inspect this PDF.";
+    } finally {
+      this.#elements.detectLibraryPdfHighlights.disabled = false;
+    }
+  }
+
+  #renderPdfHighlightImportReview(result: PdfHighlightDetection): void {
+    this.#elements.libraryHighlightImportList.replaceChildren();
+    if (result.candidates.length === 0) {
+      this.#elements.libraryHighlightImportForm.hidden = true;
+      this.#elements.libraryHighlightImportStatus.textContent = `No new highlights found across ${result.pagesScanned} scanned page${result.pagesScanned === 1 ? "" : "s"}.`;
+      return;
+    }
+    const nativeCount = result.candidates.filter((candidate) => candidate.source === "annotation").length;
+    const flattenedCount = result.candidates.length - nativeCount;
+    this.#elements.libraryHighlightImportStatus.textContent = [
+      `${result.candidates.length} candidate${result.candidates.length === 1 ? "" : "s"} found`,
+      nativeCount ? `${nativeCount} native` : "",
+      flattenedCount ? `${flattenedCount} flattened` : "",
+      result.truncated ? "scan limit reached" : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    for (const candidate of result.candidates) {
+      const row = document.createElement("article");
+      row.className = "resource-card";
+      row.dataset.highlightImportId = candidate.id;
+      const selection = document.createElement("label");
+      selection.className = "flex items-start gap-2";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = true;
+      checkbox.dataset.highlightImportSelection = "true";
+      const content = document.createElement("span");
+      content.className = "min-w-0";
+      content.append(
+        resourceLabel(`Page ${candidate.page} · ${candidate.source === "annotation" ? "PDF annotation" : "Detected yellow highlight"}`),
+        resourceTitle(candidate.quote),
+      );
+      selection.append(checkbox, content);
+      const comment = document.createElement("input");
+      comment.className = "field mt-2";
+      comment.maxLength = 8_000;
+      comment.placeholder = "Add a private note (optional)";
+      comment.setAttribute("aria-label", `Private note for detected highlight on page ${candidate.page}`);
+      comment.value = candidate.comment;
+      comment.dataset.highlightImportComment = "true";
+      row.append(selection, comment);
+      this.#elements.libraryHighlightImportList.append(row);
+    }
+    this.#elements.libraryHighlightImportForm.hidden = false;
+  }
+
+  async #importDetectedPdfHighlights(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const detection = this.#pdfHighlightDetection;
+    const artifact = this.#activeLibraryPdf();
+    if (!detection || !artifact?.referenceId || detection.artifactId !== artifact.id) return;
+    const candidatesById = new Map(detection.result.candidates.map((candidate) => [candidate.id, candidate]));
+    const selected: Array<PdfHighlightImportCandidate & { comment: string }> = [];
+    for (const row of this.#elements.libraryHighlightImportList.querySelectorAll<HTMLElement>("[data-highlight-import-id]")) {
+      const checkbox = row.querySelector<HTMLInputElement>("[data-highlight-import-selection]");
+      const candidate = candidatesById.get(row.dataset.highlightImportId ?? "");
+      if (!checkbox?.checked || !candidate) continue;
+      selected.push({
+        ...candidate,
+        comment: row.querySelector<HTMLInputElement>("[data-highlight-import-comment]")?.value.trim() ?? "",
+      });
+    }
+    if (selected.length === 0) {
+      this.#showToast("Select at least one detected highlight to import.");
+      return;
+    }
+    const submit = this.#elements.libraryHighlightImportForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/highlight-imports`, {
+        artifactId: artifact.id,
+        candidates: selected.map(({ page, quote, comment, rects }) => ({ page, quote, comment, rects })),
+      });
+      await expectOk(response);
+      this.#resetPdfHighlightImport(`${selected.length} highlight${selected.length === 1 ? "" : "s"} imported privately.`);
+      await this.#refreshReferenceLibrary();
+      this.#showToast(`${selected.length} PDF highlight${selected.length === 1 ? "" : "s"} imported to your library.`);
+    } finally {
+      if (submit) submit.disabled = false;
+    }
+  }
+
+  #resetPdfHighlightImport(message = "Detect native annotations and flattened yellow highlights for review."): void {
+    this.#pdfHighlightDetection = null;
+    this.#elements.libraryHighlightImportForm.hidden = true;
+    this.#elements.libraryHighlightImportList.replaceChildren();
+    this.#elements.libraryHighlightImportStatus.textContent = message;
+    this.#elements.detectLibraryPdfHighlights.disabled = false;
   }
 
   #renderLibraryProjectUse(artifact: LibraryPdfArtifact): void {
@@ -10129,6 +10258,11 @@ function collectElements(): Elements {
     openLibraryPdfInspector: requiredElement("open-library-pdf-inspector", HTMLButtonElement),
     closeLibraryPdfInspector: requiredElement("close-library-pdf-inspector", HTMLButtonElement),
     libraryAnnotationDetails: requiredElement("library-annotation-details", HTMLDetailsElement),
+    detectLibraryPdfHighlights: requiredElement("detect-library-pdf-highlights", HTMLButtonElement),
+    libraryHighlightImportForm: requiredElement("library-highlight-import-form", HTMLFormElement),
+    libraryHighlightImportList: requiredElement("library-highlight-import-list", HTMLElement),
+    libraryHighlightImportStatus: requiredElement("library-highlight-import-status", HTMLElement),
+    cancelLibraryHighlightImport: requiredElement("cancel-library-highlight-import", HTMLButtonElement),
     libraryHighlightForm: requiredElement("library-highlight-form", HTMLFormElement),
     libraryHighlightStatus: requiredElement("library-highlight-status", HTMLElement),
     libraryHighlightPage: requiredElement("library-highlight-page", HTMLInputElement),

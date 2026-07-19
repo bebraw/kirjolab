@@ -448,6 +448,42 @@ describe("reference library API", () => {
         )
       ).status,
     ).toBe(201);
+    expect(
+      (
+        await handleReferenceLibraryApi(
+          jsonRequest(`/api/library/references/${id}/highlight-imports`, {
+            artifactId: "artifact",
+            candidates: [
+              {
+                page: 3,
+                quote: "Imported evidence",
+                comment: "Recovered from PDF",
+                rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+              },
+            ],
+          }),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(201);
+    expect(fixture.library.importHighlights).toHaveBeenCalledWith(id, "artifact", [
+      {
+        page: 3,
+        quote: "Imported evidence",
+        comment: "Recovered from PDF",
+        rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+      },
+    ]);
+    expect(
+      (
+        await handleReferenceLibraryApi(
+          jsonRequest(`/api/library/references/${id}/highlight-imports`, { artifactId: "artifact", candidates: [] }),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(400);
     const highlightId = "44444444-4444-4444-8444-444444444444";
     expect(
       (
@@ -1336,6 +1372,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
         updatedAt: now,
       }),
     ),
+    importHighlights: vi.fn(async () => []),
     updateHighlightComment: vi.fn(async (referenceId: string, id: string, comment: string) => ({
       id,
       referenceId,

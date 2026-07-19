@@ -6,6 +6,7 @@ import {
   extractWebDocument,
   isCrossrefLibraryPreview,
   isCrossrefMetadata,
+  isLibraryHighlightImportCandidate,
   isMetadataRefinementPreview,
   isPdfDraftResult,
   isReferenceLibrarySnapshot,
@@ -45,6 +46,20 @@ const capturedWebSnapshot = {
 } as const;
 
 describe("shared reference library", () => {
+  it("accepts only bounded imported PDF highlight candidates", () => {
+    const candidate = {
+      page: 2,
+      quote: "Recovered evidence",
+      comment: "Private note",
+      rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+    };
+    expect(isLibraryHighlightImportCandidate(candidate)).toBe(true);
+    expect(isLibraryHighlightImportCandidate({ ...candidate, page: 0 })).toBe(false);
+    expect(isLibraryHighlightImportCandidate({ ...candidate, quote: "" })).toBe(false);
+    expect(isLibraryHighlightImportCandidate({ ...candidate, rects: [] })).toBe(false);
+    expect(isLibraryHighlightImportCandidate({ ...candidate, rects: [{ x: -0.1, y: 0.2, width: 0.3, height: 0.04 }] })).toBe(false);
+  });
+
   it("accepts only complete PDF draft results", () => {
     const reference = referenceFromBibTeX(
       { type: "misc", citationKey: "guide", fields: { title: "Private Guide" } },

@@ -1,7 +1,12 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
-import { createEvidencePdf, createMetadataEvidencePdf, createTwoPageEvidencePdf } from "./test-support/pdf-fixture";
+import {
+  createEvidencePdf,
+  createHighlightedEvidencePdf,
+  createMetadataEvidencePdf,
+  createTwoPageEvidencePdf,
+} from "./test-support/pdf-fixture";
 
 test("renders shared primitive states in the local UI inventory", async ({ page }) => {
   await page.goto("/__ui");
@@ -162,7 +167,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "student_submission.pdf",
     mimeType: "application/pdf",
-    buffer: createEvidencePdf(),
+    buffer: createHighlightedEvidencePdf(),
   });
   const studentPdf = page.locator("#reference-library-list .library-reference-row").filter({ hasText: /student submission/iu });
   await expect(studentPdf).toBeVisible();
@@ -220,6 +225,15 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
+  await page.getByRole("button", { name: "Annotations", exact: true }).click();
+  await page.locator("#detect-library-pdf-highlights").click();
+  await expect(page.locator("#library-highlight-import-status")).toContainText("1 candidate found");
+  await expect(page.locator("#library-highlight-import-list")).toContainText("Knowledge grows through inspectable evidence.");
+  await page.getByLabel("Private note for detected highlight on page 1").fill("Imported from the PDF");
+  await page.getByRole("button", { name: "Import selected" }).click();
+  await expect(page.locator("#toast")).toHaveText("1 PDF highlight imported to your library.");
+  await expect(page.locator("#library-highlight-list")).toContainText("Imported from the PDF");
+  await page.getByRole("button", { name: "Annotations", exact: true }).click();
   const fittedCanvasWidth = Number(await page.locator("#paper-canvas").getAttribute("width"));
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -6, deltaMode: 0 });
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -6, deltaMode: 0 });

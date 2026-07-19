@@ -2,6 +2,10 @@ export function createEvidencePdf(text = "Knowledge grows through inspectable ev
   return createPdf([text]);
 }
 
+export function createHighlightedEvidencePdf(): Buffer {
+  return createPdf(["Knowledge grows through inspectable evidence."], undefined, true);
+}
+
 export function createTwoPageEvidencePdf(): Buffer {
   return createPdf(["First page keeps its reading position.", "Second page verifies restored PDF context."]);
 }
@@ -14,7 +18,7 @@ export function createMetadataEvidencePdf(): Buffer {
   });
 }
 
-function createPdf(pageTexts: string[], information?: Readonly<Record<string, string>>): Buffer {
+function createPdf(pageTexts: string[], information?: Readonly<Record<string, string>>, highlighted = false): Buffer {
   const pageIds = pageTexts.map((_, index) => 3 + index);
   const fontId = 3 + pageTexts.length;
   const contentIds = pageTexts.map((_, index) => fontId + 1 + index);
@@ -27,7 +31,8 @@ function createPdf(pageTexts: string[], information?: Readonly<Record<string, st
     ),
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     ...pageTexts.map((text) => {
-      const content = `BT /F1 18 Tf 72 700 Td (${text}) Tj ET`;
+      const highlight = highlighted ? "q 1 0.92 0 rg 68 694 350 24 re f Q\n" : "";
+      const content = `${highlight}BT /F1 18 Tf 72 700 Td (${text}) Tj ET`;
       return `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`;
     }),
   ];

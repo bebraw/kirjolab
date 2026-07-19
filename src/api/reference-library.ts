@@ -3,12 +3,14 @@ import {
   crossrefMetadataFields,
   extractWebDocument,
   isReferenceLibrarySnapshot,
+  isLibraryHighlightImportCandidate,
   maximumMetadataRefinementCandidates,
   normalizeWebSourceUrl,
   type BibliographicRecord,
   type CrossrefMetadata,
   type CrossrefMetadataField,
   type LibraryHighlight,
+  type LibraryHighlightImportCandidate,
   type LibraryNote,
   type LibraryPdfArtifact,
   type LibraryPdfDrawing,
@@ -121,6 +123,11 @@ interface ReferenceLibraryApi {
     rects: unknown,
   ): Promise<LibraryHighlight>;
   updateHighlightComment(referenceId: string, highlightId: string, comment: string): Promise<LibraryHighlight>;
+  importHighlights(
+    referenceId: string,
+    artifactId: string,
+    candidates: readonly LibraryHighlightImportCandidate[],
+  ): Promise<LibraryHighlight[]>;
   createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, body: string): Promise<LibraryPdfNote>;
   createPdfDrawing(
     referenceId: string,
@@ -344,7 +351,7 @@ export async function handleReferenceLibraryApi(
       return Response.json(await library.updateHighlightComment(highlightMatch[1], highlightMatch[2], body.comment), noStore());
     }
     const referenceMatch =
-      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|citation-candidates|pdf-metadata))?$/iu.exec(
+      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|highlight-imports|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|citation-candidates|pdf-metadata))?$/iu.exec(
         suffix,
       );
     if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
@@ -427,6 +434,23 @@ export async function handleReferenceLibraryApi(
         return jsonError("Invalid private highlight", 400);
       }
       return Response.json(await library.createHighlight(referenceId, body.artifactId, body.page, body.quote, body.comment, body.rects), {
+        status: 201,
+        ...noStore(),
+      });
+    }
+    if (action === "highlight-imports" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (
+        !isRecord(body) ||
+        typeof body.artifactId !== "string" ||
+        !Array.isArray(body.candidates) ||
+        body.candidates.length < 1 ||
+        body.candidates.length > 128 ||
+        !body.candidates.every(isLibraryHighlightImportCandidate)
+      ) {
+        return jsonError("Invalid PDF highlight import", 400);
+      }
+      return Response.json(await library.importHighlights(referenceId, body.artifactId, body.candidates), {
         status: 201,
         ...noStore(),
       });

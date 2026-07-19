@@ -23,6 +23,7 @@ import {
   type CrossrefMetadata,
   type CrossrefMetadataField,
   type LibraryHighlight,
+  type LibraryHighlightImportCandidate,
   type LibraryNote,
   type LibraryPdfArtifact,
   type LibraryPdfDrawing,
@@ -1034,6 +1035,15 @@ export class ReferenceLibrary extends DurableObject<Env> {
       now,
     );
     return highlight;
+  }
+
+  importHighlights(referenceId: string, artifactId: string, candidates: readonly LibraryHighlightImportCandidate[]): LibraryHighlight[] {
+    if (candidates.length < 1 || candidates.length > 128) throw new Error("Import between 1 and 128 PDF highlights");
+    return this.ctx.storage.transactionSync(() =>
+      candidates.map((candidate) =>
+        this.createHighlight(referenceId, artifactId, candidate.page, candidate.quote, candidate.comment, candidate.rects),
+      ),
+    );
   }
 
   updateHighlightComment(referenceId: string, highlightId: string, commentValue: string): LibraryHighlight {

@@ -158,6 +158,66 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     });
   });
 
+  it("imports reviewed PDF highlights atomically into the private library", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`highlight-import-${crypto.randomUUID()}`);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "marked.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/owner/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-19T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const imported = await library.importHighlights(draft.reference.id, draft.artifact.id, [
+      {
+        page: 2,
+        quote: "First recovered passage",
+        comment: "Native annotation note",
+        rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+      },
+      {
+        page: 3,
+        quote: "Flattened yellow passage",
+        comment: "",
+        rects: [{ x: 0.2, y: 0.4, width: 0.4, height: 0.04 }],
+      },
+    ]);
+    expect(imported).toHaveLength(2);
+    expect((await library.getSnapshot()).highlights).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ page: 2, quote: "First recovered passage", comment: "Native annotation note" }),
+        expect.objectContaining({ page: 3, quote: "Flattened yellow passage", comment: "" }),
+      ]),
+    );
+
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() =>
+        instance.importHighlights(draft.reference.id, draft.artifact.id, [
+          {
+            page: 4,
+            quote: "Would otherwise save",
+            comment: "",
+            rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+          },
+          {
+            page: 5,
+            quote: "Invalid geometry",
+            comment: "",
+            rects: [{ x: -1, y: 0.2, width: 0.3, height: 0.04 }],
+          },
+        ]),
+      ).toThrow("Invalid private highlight");
+    });
+    expect((await library.getSnapshot()).highlights).toHaveLength(2);
+  });
+
   it("keeps PDF-origin keys refinable after project linking", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`pdf-drafts-${crypto.randomUUID()}`);
     const artifact = (id: string): LibraryPdfArtifact => ({
