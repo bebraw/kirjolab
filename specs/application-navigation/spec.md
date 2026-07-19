@@ -151,6 +151,9 @@ entries.
   unlink or deletion must not remove the project or rewrite retained
   materialized artifacts.
 - Dashboard Library data remains owner-private and non-cacheable.
+- Wrapped dashboard and review hero headings keep enough line height to prevent
+  descenders and ascenders from colliding while retaining the compact editorial
+  hierarchy.
 - Legacy project redirects must not drop query parameters owned by editor
   navigation.
 - Editor offline fallback remains identity-and-workspace scoped and cannot make

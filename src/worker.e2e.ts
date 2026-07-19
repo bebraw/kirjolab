@@ -18,6 +18,43 @@ test("renders shared primitive states in the local UI inventory", async ({ page 
   await expect(page.getByRole("group", { name: "Static dialog example" })).toBeVisible();
 });
 
+test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
+  const examples = [
+    { path: "/", selector: "#dashboard-heading", lines: ["Pick up the", "thread."] },
+    { path: "/review", selector: "#reviews-heading", lines: ["Keep the", "method", "reusable."] },
+  ] as const;
+
+  for (const example of examples) {
+    await page.goto(example.path);
+    const metrics = await page.locator(example.selector).evaluate((heading, lines) => {
+      const style = getComputedStyle(heading);
+      const context = document.createElement("canvas").getContext("2d");
+      if (!context) throw new Error("Expected a canvas text context");
+      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const range = document.createRange();
+      range.selectNodeContents(heading);
+      const lineRects = [...range.getClientRects()];
+      const glyphs = lines.map((line) => context.measureText(line));
+      return {
+        gaps: glyphs
+          .slice(0, -1)
+          .map(
+            (current, index) =>
+              lineRects[index + 1]!.top -
+              lineRects[index]!.top -
+              current.actualBoundingBoxDescent -
+              glyphs[index + 1]!.actualBoundingBoxAscent,
+          ),
+        lineCount: lineRects.length,
+      };
+    }, example.lines);
+
+    expect(metrics.lineCount).toBe(example.lines.length);
+    expect(Math.min(...metrics.gaps)).toBeGreaterThanOrEqual(1);
+  }
+});
+
 async function selectLocalModel(page: Page, model: string): Promise<void> {
   const selector = page.locator("#llm-model");
   await selector.evaluate((element: HTMLSelectElement, value) => {
