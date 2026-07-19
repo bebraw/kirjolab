@@ -299,7 +299,7 @@ describe("ReviewAccess in the Workers runtime", () => {
         .exec<{
           workspace_id: string;
           status: string;
-        }>("SELECT workspace_id, status FROM project_review_links ORDER BY created_at ASC, id ASC")
+        }>("SELECT workspace_id, status FROM project_review_links ORDER BY workspace_id ASC, created_at ASC, id ASC")
         .toArray(),
     }));
     expect(retained.memberCount).toBe(2);
