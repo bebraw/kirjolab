@@ -71,7 +71,9 @@ import {
   isCreateClaimCandidateInput,
   isModelCandidate,
   isProjectPublicationProfile,
+  isProjectReviewLink,
   isReviewArtifactPin,
+  legacyReviewArtifactProvenance,
   defaultProjectPublicationProfile,
   type ApplyCandidateResult,
   type AnnotationLinkResult,
@@ -108,6 +110,7 @@ import {
   type PublicationResource,
   type ProjectReferenceLink,
   type ProjectPublicationProfile,
+  type ProjectReviewLink,
   type ReviewArtifactPin,
   type UpsertClaimInput,
   type WorkspaceSnapshot,
@@ -123,7 +126,15 @@ export type ProjectFileReplaceResult = DocumentRoomOperationResult<
 >;
 export type ReviewArtifactResult = DocumentRoomOperationResult<
   WorkspaceSnapshot,
-  "content-too-large" | "revision-conflict" | "file-not-found" | "invalid-path" | "invalid-pin" | "stale-pin"
+  | "content-too-large"
+  | "revision-conflict"
+  | "file-not-found"
+  | "invalid-path"
+  | "invalid-pin"
+  | "stale-pin"
+  | "review-link-unavailable"
+  | "artifact-path-conflict"
+  | "publication-conflict"
 >;
 
 export type ProjectReferenceUnlinkResult = DocumentRoomOperationResult<WorkspaceSnapshot, "reference-not-linked" | "citation-alias-in-use">;
@@ -272,12 +283,30 @@ interface ProjectReferenceRow extends Record<string, SqlStorageValue> {
 
 interface ReviewArtifactPinRow extends Record<string, SqlStorageValue> {
   path: string;
+  review_id: string;
+  link_id: string;
+  publication_id: string;
   review_revision: number;
   protocol_revision: number;
   analysis_definition_id: string;
   analysis_definition_revision: number;
+  generator: string;
+  generator_schema: string;
   digest: string;
+  published_by: string;
   generated_at: string;
+}
+
+interface ProjectReviewLinkRow extends Record<string, SqlStorageValue> {
+  id: string;
+  project_id: string;
+  review_id: string;
+  review_access_locator: string;
+  status: string;
+  created_by: string;
+  created_at: string;
+  unlinked_by: string | null;
+  unlinked_at: string | null;
 }
 
 interface ResearchShareRow extends Record<string, SqlStorageValue> {
@@ -597,11 +626,17 @@ const revisionTableColumns: Readonly<Record<RevisionTable, readonly string[]>> =
   project_reference_pdf_links: ["id", "publication_id", "pdf_id", "created_at"],
   review_artifact_pins: [
     "path",
+    "review_id",
+    "link_id",
+    "publication_id",
     "review_revision",
     "protocol_revision",
     "analysis_definition_id",
     "analysis_definition_revision",
+    "generator",
+    "generator_schema",
     "digest",
+    "published_by",
     "generated_at",
   ],
 };
@@ -1595,6 +1630,101 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.getSnapshot(workspaceId);
   }
 
+  listReviewLinks(workspaceId: string): ProjectReviewLink[] {
+    assertProjectReviewLinkField(workspaceId, 128, "Project identity");
+    return this.ctx.storage.sql
+      .exec<ProjectReviewLinkRow>(
+        `SELECT * FROM project_review_links
+         WHERE project_id = ?
+         ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, created_at DESC, id`,
+        workspaceId,
+      )
+      .toArray()
+      .map(projectReviewLinkFromRow);
+  }
+
+  linkReview(
+    workspaceId: string,
+    linkId: string,
+    reviewId: string,
+    reviewAccessLocator: string,
+    actor: string,
+    createdAt: string,
+  ): ProjectReviewLink {
+    assertProjectReviewLinkField(workspaceId, 128, "Project identity");
+    assertProjectReviewLinkField(linkId, 128, "Review link identity");
+    assertProjectReviewLinkField(reviewId, 128, "Review identity");
+    assertProjectReviewLinkField(reviewAccessLocator, 256, "Review access locator");
+    assertProjectReviewLinkField(actor, 320, "Review link actor");
+    assertCanonicalTimestamp(createdAt, "Review link creation time");
+    const links = this.listReviewLinks(workspaceId);
+    const existing = links.find((link) => link.id === linkId);
+    if (existing) {
+      if (
+        existing.status !== "active" ||
+        existing.reviewId !== reviewId ||
+        existing.reviewAccessLocator !== reviewAccessLocator ||
+        existing.createdBy !== actor ||
+        existing.createdAt !== createdAt
+      ) {
+        throw new Error("Review link identity already has different provenance");
+      }
+      return existing;
+    }
+    const active = links.find((link) => link.reviewId === reviewId && link.status === "active");
+    if (active) {
+      throw new Error("Review already has another active project link identity");
+    }
+    const link: ProjectReviewLink = {
+      id: linkId,
+      projectId: workspaceId,
+      reviewId,
+      reviewAccessLocator,
+      status: "active",
+      createdBy: actor,
+      createdAt,
+      unlinkedBy: null,
+      unlinkedAt: null,
+    };
+    if (!isProjectReviewLink(link)) throw new Error("Project review link is invalid");
+    this.ctx.storage.sql.exec(
+      `INSERT INTO project_review_links
+       (id, project_id, review_id, review_access_locator, status, created_by, created_at, unlinked_by, unlinked_at)
+       VALUES (?, ?, ?, ?, 'active', ?, ?, NULL, NULL)`,
+      link.id,
+      link.projectId,
+      link.reviewId,
+      link.reviewAccessLocator,
+      link.createdBy,
+      link.createdAt,
+    );
+    this.#broadcastResources();
+    return link;
+  }
+
+  unlinkReview(workspaceId: string, linkId: string, actor: string): ProjectReviewLink {
+    assertProjectReviewLinkField(workspaceId, 128, "Project identity");
+    assertProjectReviewLinkField(linkId, 128, "Review link identity");
+    assertProjectReviewLinkField(actor, 320, "Review unlink actor");
+    const current = this.listReviewLinks(workspaceId).find((link) => link.id === linkId);
+    if (!current) throw new Error("Project review link not found");
+    if (current.status === "unlinked") return current;
+    const unlinkedAt = new Date().toISOString();
+    this.ctx.storage.sql.exec(
+      `UPDATE project_review_links
+       SET status = 'unlinked', unlinked_by = ?, unlinked_at = ?
+       WHERE id = ? AND project_id = ? AND status = 'active'`,
+      actor,
+      unlinkedAt,
+      linkId,
+      workspaceId,
+    );
+    const unlinked = this.listReviewLinks(workspaceId).find((link) => link.id === linkId);
+    if (!unlinked || unlinked.status !== "unlinked") throw new Error("Project review link could not be unlinked");
+    this.#broadcastResources();
+    return unlinked;
+  }
+
   async upsertReviewArtifact(
     workspaceId: string,
     pathValue: string,
@@ -1610,13 +1740,27 @@ export class DocumentRoom extends DurableObject<Env> {
     if (!isReviewArtifactPin(pin) || pin.path !== path || (await sha256Text(content)) !== pin.digest) {
       return { ok: false, code: "invalid-pin", error: "Review artifact pin is invalid or does not match its Markdown" };
     }
+    const link = this.listReviewLinks(workspaceId).find((candidate) => candidate.id === pin.linkId);
+    if (!link || link.status !== "active" || link.reviewId !== pin.reviewId) {
+      return { ok: false, code: "review-link-unavailable", error: "Review artifact publication requires an active project link" };
+    }
     const previous = this.#workspaceRow();
     if (previous.revision !== expectedRevision) {
       return { ok: false, code: "revision-conflict", error: "Project changed since this review artifact loaded" };
     }
     const previousPin = this.#reviewArtifactPins().find((candidate) => candidate.path === path);
+    if (previousPin && previousPin.reviewId !== pin.reviewId) {
+      return {
+        ok: false,
+        code: "artifact-path-conflict",
+        error: "Review artifact path is already owned by another review",
+      };
+    }
     if (previousPin && isStaleReviewArtifactPin(pin, previousPin)) {
       return { ok: false, code: "stale-pin", error: "Review artifact pin is older than the materialized project artifact" };
+    }
+    if (this.#reviewArtifactPins().some((candidate) => candidate.path !== path && candidate.publicationId === pin.publicationId)) {
+      return { ok: false, code: "publication-conflict", error: "Review publication identity already belongs to another artifact" };
     }
 
     const existing = this.#projectFileRows().find((file) => file.path === path);
@@ -1650,21 +1794,34 @@ export class DocumentRoom extends DurableObject<Env> {
         }
         this.ctx.storage.sql.exec(
           `INSERT INTO review_artifact_pins
-             (path, review_revision, protocol_revision, analysis_definition_id, analysis_definition_revision, digest, generated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)
+             (path, review_id, link_id, publication_id, review_revision, protocol_revision, analysis_definition_id,
+              analysis_definition_revision, generator, generator_schema, digest, published_by, generated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(path) DO UPDATE SET
+             review_id = excluded.review_id,
+             link_id = excluded.link_id,
+             publication_id = excluded.publication_id,
              review_revision = excluded.review_revision,
              protocol_revision = excluded.protocol_revision,
              analysis_definition_id = excluded.analysis_definition_id,
              analysis_definition_revision = excluded.analysis_definition_revision,
+             generator = excluded.generator,
+             generator_schema = excluded.generator_schema,
              digest = excluded.digest,
+             published_by = excluded.published_by,
              generated_at = excluded.generated_at`,
           pin.path,
+          pin.reviewId,
+          pin.linkId,
+          pin.publicationId,
           pin.reviewRevision,
           pin.protocolRevision,
           pin.analysisDefinitionId,
           pin.analysisDefinitionRevision,
+          pin.generator,
+          pin.generatorSchema,
           pin.digest,
+          pin.publishedBy,
           pin.generatedAt,
         );
       },
@@ -3602,6 +3759,57 @@ export class DocumentRoom extends DurableObject<Env> {
           return undefined;
         },
       },
+      {
+        version: 27,
+        name: "link-independent-reviews",
+        apply(sql): undefined {
+          const pinColumns = new Set(
+            sql
+              .exec<{ name: string }>("PRAGMA table_info(review_artifact_pins)")
+              .toArray()
+              .map((column) => column.name),
+          );
+          const provenanceColumns = [
+            ["review_id", "TEXT NOT NULL DEFAULT 'legacy-project-review'"],
+            ["link_id", "TEXT NOT NULL DEFAULT 'legacy-project-review-link'"],
+            ["publication_id", "TEXT NOT NULL DEFAULT 'legacy-review-publication'"],
+            ["generator", "TEXT NOT NULL DEFAULT 'kirjolab-review-synthesis'"],
+            ["generator_schema", "TEXT NOT NULL DEFAULT 'kirjolab-review-analysis-v1'"],
+            ["published_by", "TEXT NOT NULL DEFAULT 'legacy-unattributed'"],
+          ] as const;
+          for (const [name, definition] of provenanceColumns) {
+            if (!pinColumns.has(name)) sql.exec(`ALTER TABLE review_artifact_pins ADD COLUMN ${name} ${definition}`);
+          }
+          sql.exec(`
+            UPDATE review_artifact_pins
+            SET publication_id = 'legacy-' || digest,
+                link_id = 'legacy-' || substr(digest, 1, 64)
+            WHERE review_id = 'legacy-project-review';
+
+            CREATE TABLE IF NOT EXISTS project_review_links (
+              id TEXT PRIMARY KEY,
+              project_id TEXT NOT NULL,
+              review_id TEXT NOT NULL,
+              review_access_locator TEXT NOT NULL,
+              status TEXT NOT NULL CHECK (status IN ('active', 'unlinked')),
+              created_by TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              unlinked_by TEXT,
+              unlinked_at TEXT,
+              CHECK (
+                (status = 'active' AND unlinked_by IS NULL AND unlinked_at IS NULL) OR
+                (status = 'unlinked' AND unlinked_by IS NOT NULL AND unlinked_at IS NOT NULL)
+              )
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS project_review_links_active_review
+            ON project_review_links(project_id, review_id)
+            WHERE status = 'active';
+            CREATE INDEX IF NOT EXISTS project_review_links_review
+            ON project_review_links(review_id, status, created_at DESC);
+          `);
+          return undefined;
+        },
+      },
     ];
   }
 
@@ -4477,11 +4685,17 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
   const reviewArtifactPins = revisionRows(state, "review_artifact_pins").map((row) =>
     reviewArtifactPinFromRow({
       path: sqlString(row, "path"),
+      review_id: sqlString(row, "review_id"),
+      link_id: sqlString(row, "link_id"),
+      publication_id: sqlString(row, "publication_id"),
       review_revision: sqlNumber(row, "review_revision"),
       protocol_revision: sqlNumber(row, "protocol_revision"),
       analysis_definition_id: sqlString(row, "analysis_definition_id"),
       analysis_definition_revision: sqlNumber(row, "analysis_definition_revision"),
+      generator: sqlString(row, "generator"),
+      generator_schema: sqlString(row, "generator_schema"),
       digest: sqlString(row, "digest"),
+      published_by: sqlString(row, "published_by"),
       generated_at: sqlString(row, "generated_at"),
     }),
   );
@@ -4519,9 +4733,7 @@ function parseStoredProjectRevision(value: string): StoredProjectRevision {
   if (!isRecordValue(parsed) || parsed.version !== 1 || !isRecordValue(parsed.workspace) || !isRecordValue(parsed.tables)) {
     throw new Error("Stored project revision is invalid");
   }
-  const tables: unknown = Object.hasOwn(parsed.tables, "review_artifact_pins")
-    ? parsed.tables
-    : { ...parsed.tables, review_artifact_pins: [] };
+  const tables: unknown = normalizeStoredRevisionReviewArtifactPins(parsed.tables);
   if (!isStoredRevisionTables(tables)) throw new Error("Stored project revision is invalid");
   const workspace = parsed.workspace;
   if (
@@ -4547,6 +4759,29 @@ function parseStoredProjectRevision(value: string): StoredProjectRevision {
         : defaultProjectPublicationProfile,
     },
     tables,
+  };
+}
+
+function normalizeStoredRevisionReviewArtifactPins(tables: Record<string, unknown>): Record<string, unknown> {
+  const withPins = Object.hasOwn(tables, "review_artifact_pins") ? tables : { ...tables, review_artifact_pins: [] };
+  const pins = withPins.review_artifact_pins;
+  if (!Array.isArray(pins)) return withPins;
+  return { ...withPins, review_artifact_pins: pins.map(normalizeStoredReviewArtifactPin) };
+}
+
+function normalizeStoredReviewArtifactPin(value: unknown): unknown {
+  if (!isRecordValue(value)) return value;
+  const provenanceColumns = ["review_id", "link_id", "publication_id", "generator", "generator_schema", "published_by"];
+  if (provenanceColumns.some((column) => Object.hasOwn(value, column))) return value;
+  const digest = typeof value.digest === "string" && /^[a-f0-9]{64}$/u.test(value.digest) ? value.digest : "";
+  return {
+    ...value,
+    review_id: legacyReviewArtifactProvenance.reviewId,
+    link_id: digest ? `legacy-${digest}` : legacyReviewArtifactProvenance.linkId,
+    publication_id: digest ? `legacy-${digest}` : legacyReviewArtifactProvenance.publicationId,
+    generator: legacyReviewArtifactProvenance.generator,
+    generator_schema: legacyReviewArtifactProvenance.generatorSchema,
+    published_by: legacyReviewArtifactProvenance.publishedBy,
   };
 }
 
@@ -4821,15 +5056,47 @@ function projectAssetFromRow(row: ProjectAssetRow): ProjectAsset {
 function reviewArtifactPinFromRow(row: ReviewArtifactPinRow): ReviewArtifactPin {
   const pin: ReviewArtifactPin = {
     path: row.path,
+    reviewId: row.review_id,
+    linkId: row.link_id,
+    publicationId: row.publication_id,
     reviewRevision: row.review_revision,
     protocolRevision: row.protocol_revision,
     analysisDefinitionId: row.analysis_definition_id,
     analysisDefinitionRevision: row.analysis_definition_revision,
+    generator: row.generator,
+    generatorSchema: row.generator_schema,
     digest: row.digest,
+    publishedBy: row.published_by,
     generatedAt: row.generated_at,
   };
   if (!isReviewArtifactPin(pin)) throw new Error("Stored review artifact pin is invalid");
   return pin;
+}
+
+function projectReviewLinkFromRow(row: ProjectReviewLinkRow): ProjectReviewLink {
+  if (row.status !== "active" && row.status !== "unlinked") throw new Error("Stored project review link is invalid");
+  const link: ProjectReviewLink = {
+    id: row.id,
+    projectId: row.project_id,
+    reviewId: row.review_id,
+    reviewAccessLocator: row.review_access_locator,
+    status: row.status,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    unlinkedBy: row.unlinked_by,
+    unlinkedAt: row.unlinked_at,
+  };
+  if (!isProjectReviewLink(link)) throw new Error("Stored project review link is invalid");
+  return link;
+}
+
+function assertProjectReviewLinkField(value: string, maximumLength: number, label: string): void {
+  if (!value || value.length > maximumLength || value !== value.trim()) throw new Error(`${label} is invalid`);
+}
+
+function assertCanonicalTimestamp(value: string, label: string): void {
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString() !== value) throw new Error(`${label} is invalid`);
 }
 
 function projectAssetMediaType(value: string): ProjectAsset["mediaType"] {
@@ -5264,11 +5531,12 @@ function githubPullPreviewFromRow(row: GitHubPullPreviewRow): GitHubPullPreview 
 
 function isStaleReviewArtifactPin(candidate: ReviewArtifactPin, current: ReviewArtifactPin): boolean {
   return (
-    candidate.reviewRevision < current.reviewRevision ||
-    candidate.protocolRevision < current.protocolRevision ||
-    (candidate.analysisDefinitionId === current.analysisDefinitionId &&
-      candidate.analysisDefinitionRevision < current.analysisDefinitionRevision) ||
-    candidate.generatedAt < current.generatedAt
+    candidate.reviewId === current.reviewId &&
+    (candidate.reviewRevision < current.reviewRevision ||
+      candidate.protocolRevision < current.protocolRevision ||
+      (candidate.analysisDefinitionId === current.analysisDefinitionId &&
+        candidate.analysisDefinitionRevision < current.analysisDefinitionRevision) ||
+      candidate.generatedAt < current.generatedAt)
   );
 }
 

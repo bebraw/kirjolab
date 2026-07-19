@@ -21,11 +21,17 @@ export interface ProjectFolder {
 
 export interface ReviewArtifactBinding {
   readonly path: string;
+  readonly reviewId: string;
+  readonly linkId: string;
+  readonly publicationId: string;
   readonly reviewRevision: number;
   readonly protocolRevision: number;
   readonly analysisDefinitionId: string;
   readonly analysisDefinitionRevision: number;
+  readonly generator: string;
+  readonly generatorSchema: string;
   readonly digest: string;
+  readonly publishedBy: string;
   readonly generatedAt: string;
 }
 
@@ -527,15 +533,25 @@ function isComposableReviewArtifactBinding(value: ReviewArtifactBinding): boolea
     path === value.path &&
     path.startsWith("review/") &&
     path.endsWith(".md") &&
+    isTrimmedBoundedString(value.reviewId, 128) &&
+    isTrimmedBoundedString(value.linkId, 128) &&
+    isTrimmedBoundedString(value.publicationId, 128) &&
     Number.isSafeInteger(value.reviewRevision) &&
     value.reviewRevision > 0 &&
     Number.isSafeInteger(value.protocolRevision) &&
     value.protocolRevision > 0 &&
     Number.isSafeInteger(value.analysisDefinitionRevision) &&
     value.analysisDefinitionRevision > 0 &&
-    value.analysisDefinitionId.trim().length > 0 &&
-    /^[a-f0-9]{64}$/u.test(value.digest)
+    isTrimmedBoundedString(value.analysisDefinitionId, 128) &&
+    isTrimmedBoundedString(value.generator, 128) &&
+    isTrimmedBoundedString(value.generatorSchema, 128) &&
+    /^[a-f0-9]{64}$/u.test(value.digest) &&
+    isTrimmedBoundedString(value.publishedBy, 320)
   );
+}
+
+function isTrimmedBoundedString(value: string, maximumLength: number): boolean {
+  return value.length > 0 && value.length <= maximumLength && value === value.trim();
 }
 
 function compareProjectPaths(left: string, right: string): number {

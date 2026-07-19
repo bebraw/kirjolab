@@ -57,11 +57,17 @@ describe("source-mapped export pipeline", () => {
   it("resolves the same pinned review artifact into preview and publication output", () => {
     const pin: ReviewArtifactBinding = {
       path: "review/synthesis.md",
+      reviewId: "review-a",
+      linkId: "link-a",
+      publicationId: "publication-a",
       reviewRevision: 7,
       protocolRevision: 2,
       analysisDefinitionId: "review-synthesis-report",
       analysisDefinitionRevision: 1,
+      generator: "kirjolab-review-synthesis",
+      generatorSchema: "kirjolab-review-analysis-v1",
       digest: "a".repeat(64),
+      publishedBy: "researcher@example.test",
       generatedAt: createdAt,
     };
     const files = [

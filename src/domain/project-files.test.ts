@@ -27,11 +27,17 @@ function file(id: string, path: string, content: string): ProjectFile {
 function reviewArtifact(path = "review/synthesis.md"): ReviewArtifactBinding {
   return {
     path,
+    reviewId: "review-a",
+    linkId: "link-a",
+    publicationId: "publication-a",
     reviewRevision: 7,
     protocolRevision: 2,
     analysisDefinitionId: "review-synthesis-report",
     analysisDefinitionRevision: 1,
+    generator: "kirjolab-review-synthesis",
+    generatorSchema: "kirjolab-review-analysis-v1",
     digest: "a".repeat(64),
+    publishedBy: "researcher@example.test",
     generatedAt: timestamp,
   };
 }

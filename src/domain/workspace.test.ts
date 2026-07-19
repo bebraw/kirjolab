@@ -13,6 +13,7 @@ import {
   isAcceptPublicationIntakeInput,
   isPreviewPublicationIntakeInput,
   isProjectPublicationProfile,
+  isProjectReviewLink,
   isReviewArtifactPin,
   isPublicationIntakePreview,
   isCreateWorkspaceInput,
@@ -835,11 +836,17 @@ describe("workspace input guards", () => {
 
     const reviewArtifactPin = {
       path: "review/synthesis.md",
+      reviewId: "review-a",
+      linkId: "link-a",
+      publicationId: "publication-a",
       reviewRevision: 7,
       protocolRevision: 3,
       analysisDefinitionId: "synthesis-default",
       analysisDefinitionRevision: 2,
+      generator: "kirjolab-review-synthesis",
+      generatorSchema: "kirjolab-review-analysis-v1",
       digest: "a".repeat(64),
+      publishedBy: "researcher@example.test",
       generatedAt: "2026-07-19T10:00:00.000Z",
     };
     expect(isReviewArtifactPin(reviewArtifactPin)).toBe(true);
@@ -848,6 +855,10 @@ describe("workspace input guards", () => {
       { path: "review/../synthesis.md" },
       { path: "synthesis.md" },
       { path: "review/synthesis.csv" },
+      { reviewId: "" },
+      { reviewId: " padded " },
+      { linkId: "" },
+      { publicationId: "" },
       { reviewRevision: -1 },
       { reviewRevision: 1.5 },
       { protocolRevision: -1 },
@@ -855,8 +866,11 @@ describe("workspace input guards", () => {
       { analysisDefinitionId: " padded " },
       { analysisDefinitionId: "x".repeat(129) },
       { analysisDefinitionRevision: -1 },
+      { generator: "" },
+      { generatorSchema: "" },
       { digest: "A".repeat(64) },
       { digest: "a".repeat(63) },
+      { publishedBy: "" },
       { generatedAt: "2026-07-19" },
       { generatedAt: "invalid" },
       { extra: true },
@@ -866,6 +880,37 @@ describe("workspace input guards", () => {
       expect(isWorkspaceSnapshot({ ...valid, reviewArtifactPins: [candidate] }), JSON.stringify(change)).toBe(false);
     }
     expect(isReviewArtifactPin(null)).toBe(false);
+
+    const projectReviewLink = {
+      id: "link-a",
+      projectId: "project-a",
+      reviewId: "review-a",
+      reviewAccessLocator: "review-access:review-a",
+      status: "active",
+      createdBy: "researcher@example.test",
+      createdAt: "2026-07-19T09:00:00.000Z",
+      unlinkedBy: null,
+      unlinkedAt: null,
+    };
+    expect(isProjectReviewLink(projectReviewLink)).toBe(true);
+    expect(
+      isProjectReviewLink({
+        ...projectReviewLink,
+        status: "unlinked",
+        unlinkedBy: "researcher@example.test",
+        unlinkedAt: "2026-07-19T11:00:00.000Z",
+      }),
+    ).toBe(true);
+    for (const change of [
+      { id: "" },
+      { reviewId: " padded " },
+      { reviewAccessLocator: "" },
+      { createdAt: "2026-07-19" },
+      { status: "unlinked" },
+      { status: "active", unlinkedBy: "researcher@example.test", unlinkedAt: "2026-07-19T11:00:00.000Z" },
+    ]) {
+      expect(isProjectReviewLink({ ...projectReviewLink, ...change }), JSON.stringify(change)).toBe(false);
+    }
 
     const profile = valid.publicationProfile;
     for (const citationStyle of ["apa", "chicago-author-date", "ieee"]) {

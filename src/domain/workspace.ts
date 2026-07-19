@@ -424,13 +424,40 @@ export interface ModelClaimCandidate {
 
 export type ModelCandidate = ModelRevisionCandidate | ModelClaimCandidate;
 
+export const legacyReviewArtifactProvenance = {
+  reviewId: "legacy-project-review",
+  linkId: "legacy-project-review-link",
+  publicationId: "legacy-review-publication",
+  generator: "kirjolab-review-synthesis",
+  generatorSchema: "kirjolab-review-analysis-v1",
+  publishedBy: "legacy-unattributed",
+} as const;
+
+export interface ProjectReviewLink {
+  readonly id: string;
+  readonly projectId: string;
+  readonly reviewId: string;
+  readonly reviewAccessLocator: string;
+  readonly status: "active" | "unlinked";
+  readonly createdBy: string;
+  readonly createdAt: string;
+  readonly unlinkedBy: string | null;
+  readonly unlinkedAt: string | null;
+}
+
 export interface ReviewArtifactPin {
   readonly path: string;
+  readonly reviewId: string;
+  readonly linkId: string;
+  readonly publicationId: string;
   readonly reviewRevision: number;
   readonly protocolRevision: number;
   readonly analysisDefinitionId: string;
   readonly analysisDefinitionRevision: number;
+  readonly generator: string;
+  readonly generatorSchema: string;
   readonly digest: string;
+  readonly publishedBy: string;
   readonly generatedAt: string;
 }
 
@@ -968,25 +995,71 @@ export function isReviewArtifactPin(value: unknown): value is ReviewArtifactPin 
   return (
     hasExactKeys(value, [
       "path",
+      "reviewId",
+      "linkId",
+      "publicationId",
       "reviewRevision",
       "protocolRevision",
       "analysisDefinitionId",
       "analysisDefinitionRevision",
+      "generator",
+      "generatorSchema",
       "digest",
+      "publishedBy",
       "generatedAt",
     ]) &&
     path === value.path &&
     path.startsWith("review/") &&
     path.endsWith(".md") &&
+    isTrimmedBoundedString(value.reviewId, 128) &&
+    isTrimmedBoundedString(value.linkId, 128) &&
+    isTrimmedBoundedString(value.publicationId, 128) &&
     isPositiveInteger(value.reviewRevision) &&
     isPositiveInteger(value.protocolRevision) &&
     isStringWithin(value.analysisDefinitionId, 128, true) &&
     value.analysisDefinitionId === value.analysisDefinitionId.trim() &&
     isPositiveInteger(value.analysisDefinitionRevision) &&
+    isTrimmedBoundedString(value.generator, 128) &&
+    isTrimmedBoundedString(value.generatorSchema, 128) &&
     typeof value.digest === "string" &&
     /^[a-f0-9]{64}$/u.test(value.digest) &&
+    isTrimmedBoundedString(value.publishedBy, 320) &&
     Number.isFinite(generatedAt.getTime()) &&
     generatedAt.toISOString() === value.generatedAt
+  );
+}
+
+export function isProjectReviewLink(value: unknown): value is ProjectReviewLink {
+  if (!isRecord(value)) return false;
+  const createdAt = typeof value.createdAt === "string" ? new Date(value.createdAt) : null;
+  const unlinkedAt = typeof value.unlinkedAt === "string" ? new Date(value.unlinkedAt) : null;
+  return (
+    hasExactKeys(value, [
+      "id",
+      "projectId",
+      "reviewId",
+      "reviewAccessLocator",
+      "status",
+      "createdBy",
+      "createdAt",
+      "unlinkedBy",
+      "unlinkedAt",
+    ]) &&
+    isTrimmedBoundedString(value.id, 128) &&
+    isTrimmedBoundedString(value.projectId, 128) &&
+    isTrimmedBoundedString(value.reviewId, 128) &&
+    isTrimmedBoundedString(value.reviewAccessLocator, 256) &&
+    (value.status === "active" || value.status === "unlinked") &&
+    isTrimmedBoundedString(value.createdBy, 320) &&
+    createdAt !== null &&
+    Number.isFinite(createdAt.getTime()) &&
+    createdAt.toISOString() === value.createdAt &&
+    (value.status === "active"
+      ? value.unlinkedBy === null && value.unlinkedAt === null
+      : isTrimmedBoundedString(value.unlinkedBy, 320) &&
+        unlinkedAt !== null &&
+        Number.isFinite(unlinkedAt.getTime()) &&
+        unlinkedAt.toISOString() === value.unlinkedAt)
   );
 }
 
@@ -1335,6 +1408,10 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isStringWithin(value: unknown, maximumLength: number, required = false): value is string {
   return typeof value === "string" && value.length <= maximumLength && (!required || value.trim().length > 0);
+}
+
+function isTrimmedBoundedString(value: unknown, maximumLength: number): value is string {
+  return isStringWithin(value, maximumLength, true) && value === value.trim();
 }
 
 function isEmail(value: unknown): value is string {
