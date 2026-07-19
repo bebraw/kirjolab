@@ -27,6 +27,7 @@ const verifiedDrill: OwnerBackupDrillStatus = {
   recoveryIdentity: `drill:${identity.ownerKey}:${createdStatus.digest}`,
   checkedAt: "2026-07-13T01:00:00.000Z",
   binariesChecked: 2,
+  reviewsChecked: 1,
   error: null,
 };
 

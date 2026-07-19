@@ -1,10 +1,11 @@
 import { strToU8, zipSync, type Zippable } from "fflate";
 import { serializeBibTeX, type BibTeXEntry } from "./bibliography";
-import type { ReviewEvidenceSnapshot } from "./review-evidence";
+import type { ReviewEvidenceSnapshot, ReviewSourceSelectorValue } from "./review-evidence";
+import type { ReviewFindingsSnapshot } from "./review-findings";
 import type { ReviewModelSnapshot } from "./review-model";
 import type { ReviewScreeningSnapshot, ScreeningRecordState, ScreeningStage } from "./review-screening";
 import type { ReviewSearchSnapshot } from "./review-search";
-import type { ReviewStudySnapshot } from "./review-study";
+import type { ReviewReassessmentSnapshot, ReviewStudySnapshot } from "./review-study";
 import { reviewAnalysisDefinitionSchemaVersion, type ReviewSynthesis } from "./review-synthesis";
 
 export const reviewExportSchemaVersion = "kirjolab-review-package-v1" as const;
@@ -13,10 +14,12 @@ const archiveTimestamp = new Date("1980-01-01T00:00:00.000Z");
 export interface ReviewExportAuthority {
   readonly revision: number;
   readonly protocol: ReviewStudySnapshot;
+  readonly reassessment: ReviewReassessmentSnapshot;
   readonly search: ReviewSearchSnapshot;
   readonly screening: ReviewScreeningSnapshot;
   readonly evidence: ReviewEvidenceSnapshot;
   readonly model: ReviewModelSnapshot;
+  readonly findings: ReviewFindingsSnapshot;
   readonly synthesis: ReviewSynthesis;
 }
 
@@ -94,6 +97,17 @@ export function reviewHistoryJson(authority: ReviewExportAuthority): string {
             ),
           ]
         : []),
+      ...(record.finalInclusion.decision
+        ? [
+            historyEvent(
+              "final-inclusion-decision",
+              record.finalInclusion.decision.id,
+              record.finalInclusion.decision.createdAt,
+              record.finalInclusion.decision.reviewer,
+              record.finalInclusion.decision.outcome,
+            ),
+          ]
+        : []),
     ]),
     ...authority.evidence.records.flatMap((record) => [
       ...record.qualityValues.map((value) => historyEvent("quality-value", value.id, value.createdAt, value.reviewer, value.answerId)),
@@ -108,6 +122,22 @@ export function reviewHistoryJson(authority: ReviewExportAuthority): string {
         `${candidate.operation}:${candidate.disposition}`,
       ),
     ),
+    ...authority.reassessment.obligations.flatMap((obligation) =>
+      obligation.status === "completed" && obligation.completedAt !== null && obligation.completedBy !== null
+        ? [
+            historyEvent(
+              "reassessment-completion",
+              obligation.id,
+              obligation.completedAt,
+              obligation.completedBy,
+              `${obligation.stage}:${obligation.completionRationale ?? ""}`,
+            ),
+          ]
+        : [],
+    ),
+    ...authority.findings.findings.map((finding) =>
+      historyEvent("review-finding", finding.id, finding.createdAt, finding.createdBy, finding.researchQuestionId),
+    ),
   ].sort(
     (left, right) => left.at.localeCompare(right.at) || left.kind.localeCompare(right.kind) || left.subject.localeCompare(right.subject),
   );
@@ -115,16 +145,46 @@ export function reviewHistoryJson(authority: ReviewExportAuthority): string {
 }
 
 export function reviewExtractionCsv(authority: ReviewExportAuthority): string {
-  const columns = ["recordId", "title", "fieldId", "field", "value", "missingReason", "quote", "page", "location", "reviewer", "createdAt"];
+  const columns = [
+    "recordId",
+    "title",
+    "protocolRevision",
+    "fieldId",
+    "criterionId",
+    "criterionText",
+    "field",
+    "value",
+    "valueSelectorKind",
+    "valueResourceId",
+    "valueSelectorId",
+    "missingReason",
+    "evidenceSelectorKind",
+    "evidenceResourceId",
+    "evidenceSelectorId",
+    "quote",
+    "page",
+    "location",
+    "reviewer",
+    "createdAt",
+  ];
   const fields = new Map(authority.evidence.protocol.extractionFields.map((field) => [field.id, field.label] as const));
   const rows = authority.evidence.records.flatMap((record) =>
     record.extractionValues.map((entry) => [
       record.record.id,
       record.record.metadata.title,
+      String(entry.protocolRevision),
       entry.fieldId,
+      entry.criterionId,
+      entry.criterionText,
       fields.get(entry.fieldId) ?? entry.fieldId,
-      entry.value === null ? "" : String(entry.value),
+      extractionCell(entry.value),
+      sourceSelector(entry.value)?.kind ?? "",
+      sourceSelector(entry.value)?.resourceId ?? "",
+      sourceSelector(entry.value)?.selectorId ?? "",
       entry.missingReason ?? "",
+      entry.evidence?.kind ?? "",
+      entry.evidence?.resourceId ?? "",
+      entry.evidence?.selectorId ?? "",
       entry.evidence?.quote ?? "",
       entry.evidence?.page === null || entry.evidence?.page === undefined ? "" : String(entry.evidence.page),
       entry.evidence?.location ?? "",
@@ -133,6 +193,33 @@ export function reviewExtractionCsv(authority: ReviewExportAuthority): string {
     ]),
   );
   return `${columns.map(csvCell).join(",")}\n${rows.map((row) => row.map(csvCell).join(",")).join("\n")}${rows.length ? "\n" : ""}`;
+}
+
+function extractionCell(value: ReviewEvidenceSnapshot["records"][number]["extractionValues"][number]["value"]): string {
+  if (value === null) return "";
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function sourceSelector(
+  value: ReviewEvidenceSnapshot["records"][number]["extractionValues"][number]["value"],
+): { readonly kind: string; readonly resourceId: string; readonly selectorId: string } | null {
+  return isSourceSelectorValue(value) ? value : null;
+}
+
+function isSourceSelectorValue(value: unknown): value is ReviewSourceSelectorValue {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    "kind" in value &&
+    (value.kind === "pdf-annotation" || value.kind === "web-passage") &&
+    "resourceId" in value &&
+    typeof value.resourceId === "string" &&
+    "selectorId" in value &&
+    typeof value.selectorId === "string"
+  );
 }
 
 export function reviewBibliographyBibTeX(authority: ReviewExportAuthority): string {
@@ -217,6 +304,19 @@ export async function buildReviewPackage(workspaceId: string, authority: ReviewE
       reviewRevision: authority.revision,
       diagnostics: authority.synthesis.diagnostics,
     }),
+    "analysis-findings.json": stableJson({
+      schemaVersion: reviewAnalysisDefinitionSchemaVersion,
+      reviewRevision: authority.revision,
+      protocolRevision: authority.protocol.protocol.revision,
+      findings: authority.synthesis.findings,
+    }),
+    "finding-history.json": stableJson({
+      schemaVersion: reviewAnalysisDefinitionSchemaVersion,
+      reviewRevision: authority.revision,
+      protocolRevision: authority.protocol.protocol.revision,
+      findings: authority.findings.findings,
+    }),
+    "reassessment.json": stableJson(authority.reassessment),
     "review.json": reviewAuthorityJson(authority),
     "extraction.csv": reviewExtractionCsv(authority),
     "bibliography.bib": reviewBibliographyBibTeX(authority),
@@ -257,7 +357,9 @@ export function stableReviewJson(value: unknown): string {
 
 function screeningStatus(record: ScreeningRecordState | undefined): string {
   if (!record) return "unclassified";
-  if (record.fullText.outcome === "include") return "included";
+  if (record.finalInclusion.outcome === "include") return "included";
+  if (record.finalInclusion.outcome === "exclude") return "excluded-final";
+  if (record.fullText.outcome === "include") return "awaiting-final-inclusion";
   if (record.fullText.outcome === "exclude") return "excluded-full-text";
   if (record.titleAbstract.outcome === "exclude") return "excluded-title-abstract";
   return record.titleAbstract.outcome;
@@ -266,10 +368,17 @@ function screeningStatus(record: ScreeningRecordState | undefined): string {
 function exclusionReasons(records: readonly ScreeningRecordState[], stage: ScreeningStage): Readonly<Record<string, number>> {
   const reasons = new Map<string, number>();
   for (const record of records) {
+    if (stage === "full-text" && record.finalInclusion.outcome === "exclude" && record.finalInclusion.decision) {
+      const reason = record.finalInclusion.decision.criterionText || record.finalInclusion.decision.reason || "Unspecified";
+      reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+      continue;
+    }
     const state = stage === "title-abstract" ? record.titleAbstract : record.fullText;
     if (state.outcome !== "exclude") continue;
     const reason =
+      state.adjudication?.criterionText ||
       state.adjudication?.reason ||
+      [...state.decisions].reverse().find((decision) => decision.decision === "exclude")?.criterionText ||
       [...state.decisions].reverse().find((decision) => decision.decision === "exclude")?.reason ||
       "Unspecified";
     reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
@@ -286,12 +395,15 @@ function authorityTimestamp(authority: ReviewExportAuthority): string {
       ...record.fullText.decisions.map((decision) => decision.createdAt),
       record.titleAbstract.adjudication?.createdAt ?? "",
       record.fullText.adjudication?.createdAt ?? "",
+      record.finalInclusion.decision?.createdAt ?? "",
     ]),
     ...authority.evidence.records.flatMap((record) => [
       ...record.qualityValues.map((value) => value.createdAt),
       ...record.extractionValues.map((value) => value.createdAt),
     ]),
     ...authority.model.candidates.map((candidate) => candidate.disposedAt ?? candidate.createdAt),
+    ...authority.reassessment.obligations.flatMap((obligation) => (obligation.completedAt ? [obligation.completedAt] : [])),
+    ...authority.findings.findings.map((finding) => finding.createdAt),
   ].filter(Boolean);
   return values.sort().at(-1) ?? authority.protocol.protocol.createdAt;
 }

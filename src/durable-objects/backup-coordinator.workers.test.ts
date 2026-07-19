@@ -1,8 +1,18 @@
 import { env } from "cloudflare:workers";
+import { runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import type { OwnerBackupManifest } from "../domain/backups";
+import {
+  legacyOwnerBackupSchemaVersion,
+  ownerBackupDigest,
+  ownerBackupManifestJson,
+  ownerBackupSchemaVersion,
+  parseOwnerBackupManifest,
+  type LegacyOwnerBackupManifest,
+} from "../domain/backups";
 import { builtInProjectTemplate } from "../domain/project-templates";
 import { defaultReviewProtocol } from "../domain/review-study";
+import { BackupCoordinator } from "./backup-coordinator";
+import { BackupRecovery } from "./backup-recovery";
 
 describe("BackupCoordinator in the Workers runtime", () => {
   it("creates immutable owner backups only when state changes and reports source failures", async () => {
@@ -52,9 +62,11 @@ describe("BackupCoordinator in the Workers runtime", () => {
 
     const manifestObject = await env.PAPERS.get(created.manifestKey!);
     expect(manifestObject).not.toBeNull();
-    const manifest = JSON.parse(await manifestObject!.text()) as OwnerBackupManifest;
+    const manifestJson = await manifestObject!.text();
+    const manifest = parseOwnerBackupManifest(manifestJson);
+    if (manifest.schemaVersion !== ownerBackupSchemaVersion) throw new Error("Expected a v2 backup manifest");
     expect(manifest).toMatchObject({
-      schemaVersion: "kirjolab-owner-backup-v1",
+      schemaVersion: ownerBackupSchemaVersion,
       digest: created.digest,
       state: { ownerKey, catalog: [{ id: workspaceId, title: "Backup fixture" }] },
       recovery: { catalog: null, library: null },
@@ -62,7 +74,19 @@ describe("BackupCoordinator in the Workers runtime", () => {
     expect(manifest.state.workspaces).toHaveLength(1);
     expect(manifest.state.templates).toEqual([expect.objectContaining({ id: personalTemplate.id, name: "Backed-up template" })]);
     expect(manifest.state.workspaces[0]?.members).toEqual([expect.objectContaining({ email: ownerEmail, role: "owner" })]);
-    expect(manifest.state.workspaces[0]?.review).toMatchObject({ protocol: { protocol: { objective: "Backed-up review" } } });
+    const reviewPayload = manifest.state.workspaces[0]?.reviewPayload;
+    expect(reviewPayload).toMatchObject({
+      schemaVersion: "kirjolab-review-backup-v1",
+      backupKey: expect.stringMatching(`^backups/reviews/${ownerKey}/[a-f0-9]{64}\\.json$`),
+      reviewRevision: 2,
+      protocolRevision: 2,
+    });
+    if (!reviewPayload) throw new Error("Expected a review backup payload");
+    expect(manifestJson).not.toContain("Backed-up review");
+    const reviewPayloadObject = await env.PAPERS.get(reviewPayload.backupKey);
+    expect(reviewPayloadObject).not.toBeNull();
+    const reviewPayloadBody = await reviewPayloadObject!.text();
+    expect(reviewPayloadBody).toContain("Backed-up review");
     expect(manifest.state.workspaces[0]?.reviewRevisionSeed).toBe("review:2:protocol:2");
     expect(manifest.binaries).toEqual([
       expect.objectContaining({ sourceKey, size: 11, backupKey: expect.stringMatching(`^backups/blobs/${ownerKey}/`) }),
@@ -86,11 +110,41 @@ describe("BackupCoordinator in the Workers runtime", () => {
       digest: changed.digest,
       manifestKey: changed.manifestKey,
       binariesChecked: 1,
+      reviewsChecked: 1,
       error: null,
     });
     expect(drill.recoveryIdentity).toMatch(new RegExp(`^drill:${ownerKey}:`, "u"));
     const recovery = env.BACKUP_RECOVERIES.getByName(drill.recoveryIdentity!);
     expect(await recovery.getRestoredManifest()).toContain(`"digest":"${changed.digest}"`);
+    expect(
+      await runInDurableObject(recovery, (_instance: BackupRecovery, durableState) =>
+        durableState.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
+          .toArray(),
+      ),
+    ).toEqual([
+      { version: 1, name: "create-isolated-backup-recovery" },
+      { version: 2, name: "record-recovered-review-studies" },
+    ]);
+    const recoveredReviews = await recovery.getRestoredReviewStudies();
+    expect(recoveredReviews).toEqual([
+      expect.objectContaining({
+        workspaceId,
+        recoveryIdentity: `review-drill:${ownerKey}:${changed.digest}:${workspaceId}`,
+        payloadDigest: reviewPayload.payloadDigest,
+        authorityDigest: reviewPayload.authorityDigest,
+        reviewRevision: reviewPayload.reviewRevision,
+      }),
+    ]);
+    const recoveredReview = env.REVIEW_STUDIES.getByName(recoveredReviews[0]!.recoveryIdentity);
+    expect(await recoveredReview.getBackupVerification()).toEqual({
+      payloadDigest: reviewPayload.payloadDigest,
+      authorityDigest: reviewPayload.authorityDigest,
+      reviewRevision: reviewPayload.reviewRevision,
+      protocolRevision: reviewPayload.protocolRevision,
+      historyFloorRevision: reviewPayload.historyFloorRevision,
+    });
+    expect((await review.getSnapshot()).protocol.objective).toBe("Backed-up review");
     const chunkedManifest = JSON.stringify({
       ...manifest,
       state: { ...manifest.state, library: { ...manifest.state.library, recoveryPadding: `${"x".repeat(300_000)}😀` } },
@@ -98,12 +152,26 @@ describe("BackupCoordinator in the Workers runtime", () => {
     await recovery.restoreManifest(chunkedManifest);
     expect(await recovery.getRestoredManifest()).toBe(chunkedManifest);
 
+    await env.PAPERS.delete(reviewPayload.backupKey);
+    expect(await coordinator.runRecoveryDrill(ownerKey)).toMatchObject({
+      outcome: "failed",
+      digest: changed.digest,
+      manifestKey: changed.manifestKey,
+      binariesChecked: 1,
+      reviewsChecked: 0,
+      error: "A review backup payload is unavailable or has the wrong size",
+    });
+    await env.PAPERS.put(reviewPayload.backupKey, reviewPayloadBody, {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+
     await env.PAPERS.delete(manifest.binaries[0]!.backupKey);
     expect(await coordinator.runRecoveryDrill(ownerKey)).toMatchObject({
       outcome: "failed",
       digest: changed.digest,
       manifestKey: changed.manifestKey,
       binariesChecked: 0,
+      reviewsChecked: 0,
       error: "A backup binary is unavailable or has the wrong size",
     });
 
@@ -117,14 +185,82 @@ describe("BackupCoordinator in the Workers runtime", () => {
       error: "A referenced backup source is missing",
     });
   });
+
+  it("keeps v1 manifest-only recovery drills compatible", async () => {
+    const ownerKey = await sha256Hex(crypto.randomUUID());
+    const ownerEmail = "legacy-owner@example.test";
+    const coordinator = env.BACKUP_COORDINATOR.getByName(`legacy-backup-${crypto.randomUUID()}`);
+    const state = {
+      ownerKey,
+      catalog: [],
+      library: {
+        references: [],
+        referenceKeyStates: {},
+        artifacts: [],
+        webSources: [],
+        webSnapshots: [],
+        notes: [],
+        highlights: [],
+        tags: {},
+        collections: {},
+        reading: [],
+      },
+      workspaces: [],
+    };
+    const digest = await ownerBackupDigest(state, [], legacyOwnerBackupSchemaVersion);
+    const manifest: LegacyOwnerBackupManifest = {
+      schemaVersion: legacyOwnerBackupSchemaVersion,
+      createdAt: "2026-07-17T00:00:00.000Z",
+      digest,
+      state,
+      binaries: [],
+      recovery: { catalog: null, library: null, workspaces: [] },
+    };
+    const manifestKey = `backups/manifests/${ownerKey}/legacy.json`;
+    await env.PAPERS.put(manifestKey, ownerBackupManifestJson(manifest));
+    await coordinator.registerOwner(ownerKey, ownerEmail);
+    await runInDurableObject(coordinator, (_instance: BackupCoordinator, durableState) => {
+      durableState.storage.sql.exec(
+        `INSERT INTO backup_status
+         (owner_key, outcome, digest, manifest_key, last_checked_at, last_backed_up_at, error)
+         VALUES (?, 'created', ?, ?, ?, ?, NULL)`,
+        ownerKey,
+        digest,
+        manifestKey,
+        manifest.createdAt,
+        manifest.createdAt,
+      );
+    });
+
+    await expect(coordinator.runRecoveryDrill(ownerKey)).resolves.toMatchObject({
+      outcome: "verified",
+      digest,
+      manifestKey,
+      binariesChecked: 0,
+      reviewsChecked: 0,
+      error: null,
+    });
+    expect(
+      await runInDurableObject(coordinator, (_instance: BackupCoordinator, durableState) =>
+        durableState.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
+          .toArray(),
+      ),
+    ).toEqual([
+      { version: 1, name: "create-backup-coordinator" },
+      { version: 2, name: "record-isolated-recovery-drills" },
+      { version: 3, name: "count-verified-review-recoveries" },
+    ]);
+  });
 });
 
 async function backupArtifactCount(ownerKey: string): Promise<number> {
-  const [manifests, blobs] = await Promise.all([
+  const [manifests, blobs, reviews] = await Promise.all([
     env.PAPERS.list({ prefix: `backups/manifests/${ownerKey}/` }),
     env.PAPERS.list({ prefix: `backups/blobs/${ownerKey}/` }),
+    env.PAPERS.list({ prefix: `backups/reviews/${ownerKey}/` }),
   ]);
-  return manifests.objects.length + blobs.objects.length;
+  return manifests.objects.length + blobs.objects.length + reviews.objects.length;
 }
 
 async function sha256Hex(value: string): Promise<string> {

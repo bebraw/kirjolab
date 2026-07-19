@@ -3,9 +3,13 @@ import {
   defaultReviewProtocol,
   materializeProtocolRevision,
   parseReviewProtocolContent,
+  type ReviewEligibilityCriterion,
   type ReviewProfile,
+  type ReviewProtocolImpactStage,
   type ReviewProtocolContent,
   type ReviewProtocolRevision,
+  type ReviewReassessmentObligation,
+  type ReviewReassessmentSnapshot,
   type ReviewStudySnapshot,
 } from "../domain/review-study";
 import {
@@ -26,6 +30,7 @@ import {
 import {
   fullTextScreeningAllowed,
   screeningStageState,
+  type FinalInclusionDecision,
   type ReviewScreeningSnapshot,
   type ScreeningAdjudication,
   type ScreeningDecision,
@@ -35,6 +40,8 @@ import {
 } from "../domain/review-screening";
 import {
   parseEvidencePointer,
+  parseExtractionValueShape,
+  effectiveExtractionValues,
   summarizeEvidenceRecord,
   validateExtractionValue,
   validateQualityAssessment,
@@ -44,8 +51,29 @@ import {
   type ReviewEvidencePointer,
   type ReviewEvidenceSnapshot,
 } from "../domain/review-evidence";
+import {
+  materializeReviewFinding,
+  parseReviewFindingInput,
+  reviewFindingLimits,
+  type ReviewFindingInput,
+  type ReviewFindingsSnapshot,
+} from "../domain/review-findings";
 import { buildReviewSynthesis, type ReviewSynthesis } from "../domain/review-synthesis";
 import type { ReviewExportAuthority } from "../domain/review-export";
+import {
+  materializeReviewBackupArtifact,
+  parseReviewBackupReference,
+  reviewBackupAuthorityDigest,
+  reviewBackupPayloadDigest,
+  reviewBackupSchemaVersion,
+  reviewBackupTableNames,
+  verifyReviewBackupPayload,
+  type ReviewBackupReference,
+  type ReviewBackupRow,
+  type ReviewBackupTableName,
+  type ReviewBackupVerification,
+  type ReviewStudyBackupPayload,
+} from "../domain/review-backup";
 import {
   parseExtractionModelResult,
   parseScreeningModelResult,
@@ -54,7 +82,7 @@ import {
   type ReviewModelOperation,
   type ReviewModelSnapshot,
 } from "../domain/review-model";
-import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { runSQLiteMigrations, type SQLiteMigration, type SQLiteMigrationSql } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
 const migrations = [
@@ -368,7 +396,277 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 9,
+    name: "pin-review-workflow-to-protocol-revisions",
+    apply(sql): undefined {
+      sql.exec(`
+        ALTER TABLE review_meta ADD COLUMN import_byte_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE screening_decisions ADD COLUMN protocol_revision INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE screening_decisions ADD COLUMN criterion_id TEXT;
+        ALTER TABLE screening_decisions ADD COLUMN criterion_text TEXT NOT NULL DEFAULT '';
+        ALTER TABLE screening_adjudications ADD COLUMN protocol_revision INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE screening_adjudications ADD COLUMN criterion_id TEXT;
+        ALTER TABLE screening_adjudications ADD COLUMN criterion_text TEXT NOT NULL DEFAULT '';
+        ALTER TABLE quality_assessment_values ADD COLUMN protocol_revision INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE quality_assessment_values ADD COLUMN criterion_id TEXT;
+        ALTER TABLE quality_assessment_values ADD COLUMN criterion_text TEXT NOT NULL DEFAULT '';
+        ALTER TABLE extracted_data_values ADD COLUMN protocol_revision INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE extracted_data_values ADD COLUMN criterion_id TEXT;
+        ALTER TABLE extracted_data_values ADD COLUMN criterion_text TEXT NOT NULL DEFAULT '';
+
+        CREATE TABLE final_inclusion_decisions (
+          id TEXT PRIMARY KEY,
+          record_id TEXT NOT NULL REFERENCES review_records(id),
+          protocol_revision INTEGER NOT NULL CHECK (protocol_revision > 0),
+          outcome TEXT NOT NULL CHECK (outcome IN ('include', 'exclude')),
+          reason TEXT NOT NULL,
+          criterion_id TEXT,
+          criterion_text TEXT NOT NULL,
+          reviewer TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          revision INTEGER NOT NULL
+        );
+        CREATE INDEX final_inclusion_record_revision_idx
+          ON final_inclusion_decisions(record_id, revision, id);
+
+        CREATE TABLE review_reassessment_obligations (
+          id TEXT PRIMARY KEY,
+          amendment_protocol_revision INTEGER NOT NULL CHECK (amendment_protocol_revision > 0),
+          stage TEXT NOT NULL CHECK (stage IN ('search', 'deduplication', 'title-abstract', 'full-text', 'appraisal', 'extraction', 'synthesis', 'reporting')),
+          record_id TEXT REFERENCES review_records(id),
+          created_revision INTEGER NOT NULL,
+          completed_revision INTEGER,
+          completed_at TEXT,
+          completed_by TEXT,
+          completion_rationale TEXT
+        );
+        CREATE INDEX review_reassessment_revision_idx
+          ON review_reassessment_obligations(created_revision, completed_revision, id);
+        CREATE INDEX review_reassessment_protocol_idx
+          ON review_reassessment_obligations(amendment_protocol_revision, stage, record_id);
+
+        CREATE TABLE review_findings (
+          id TEXT PRIMARY KEY,
+          review_revision INTEGER NOT NULL CHECK (review_revision > 0),
+          protocol_revision INTEGER NOT NULL CHECK (protocol_revision > 0),
+          research_question_id TEXT NOT NULL,
+          statement TEXT NOT NULL,
+          interpretation TEXT NOT NULL,
+          extraction_value_ids_json TEXT NOT NULL,
+          appraisal_value_ids_json TEXT NOT NULL,
+          evidence_json TEXT NOT NULL,
+          supersedes_id TEXT REFERENCES review_findings(id),
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX review_findings_revision_idx ON review_findings(review_revision, id);
+        CREATE INDEX review_findings_rq_idx ON review_findings(research_question_id, review_revision, id);
+        CREATE UNIQUE INDEX review_findings_supersedes_idx ON review_findings(supersedes_id) WHERE supersedes_id IS NOT NULL;
+
+        CREATE INDEX screening_decisions_protocol_idx
+          ON screening_decisions(protocol_revision, criterion_id, revision);
+        CREATE INDEX screening_adjudications_protocol_idx
+          ON screening_adjudications(protocol_revision, criterion_id, revision);
+        CREATE INDEX quality_values_protocol_idx
+          ON quality_assessment_values(protocol_revision, criterion_id, revision);
+        CREATE INDEX extraction_values_protocol_idx
+          ON extracted_data_values(protocol_revision, criterion_id, revision);
+      `);
+
+      backfillPinnedReviewWorkflow(sql);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
+
+interface MigrationProtocolState {
+  readonly revision: number;
+  readonly content: ReviewProtocolContent;
+}
+
+interface MigrationProtocolRow extends Record<string, SqlStorageValue> {
+  revision: number;
+  payload_json: string;
+}
+
+interface MigrationScreeningDecisionRow extends Record<string, SqlStorageValue> {
+  id: string;
+  stage: ScreeningStage;
+  decision: ScreeningDecisionValue;
+  criterion: string;
+  revision: number;
+}
+
+interface MigrationScreeningAdjudicationRow extends Record<string, SqlStorageValue> {
+  id: string;
+  record_id: string;
+  stage: ScreeningStage;
+  outcome: "include" | "exclude";
+  revision: number;
+}
+
+interface MigrationPinnedCriterionRow extends Record<string, SqlStorageValue> {
+  criterion_id: string | null;
+  criterion_text: string;
+}
+
+interface MigrationEvidenceValueRow extends Record<string, SqlStorageValue> {
+  id: string;
+  criterion_id: string;
+  evidence_json: string | null;
+  revision: number;
+}
+
+interface MigrationModelCandidateRow extends Record<string, SqlStorageValue> {
+  id: string;
+  operation: ReviewModelOperation;
+  stage: ScreeningStage | null;
+  result_json: string;
+  created_revision: number;
+}
+
+function backfillPinnedReviewWorkflow(sql: SQLiteMigrationSql): void {
+  sql.exec(`
+    UPDATE review_meta SET import_byte_count = COALESCE((SELECT SUM(byte_count) FROM review_import_batches), 0)
+    WHERE singleton = 1;
+  `);
+  const protocols = sql
+    .exec<MigrationProtocolRow>("SELECT revision, payload_json FROM protocol_revisions ORDER BY revision ASC")
+    .toArray()
+    .map((row) => {
+      const content = parseReviewProtocolContent(JSON.parse(row.payload_json));
+      sql.exec("UPDATE protocol_revisions SET payload_json = ? WHERE revision = ?", JSON.stringify(content), row.revision);
+      return { revision: row.revision, content } satisfies MigrationProtocolState;
+    });
+
+  const decisions = sql
+    .exec<MigrationScreeningDecisionRow>(
+      "SELECT id, stage, decision, criterion, revision FROM screening_decisions ORDER BY revision ASC, id ASC",
+    )
+    .toArray();
+  for (const row of decisions) {
+    const protocol = migrationProtocolAtRevision(protocols, row.revision);
+    const criterion = protocol ? migrationCriterion(protocol.content.eligibilityCriteria, row.criterion, row.stage, row.decision) : null;
+    sql.exec(
+      "UPDATE screening_decisions SET protocol_revision = ?, criterion_id = ?, criterion_text = ? WHERE id = ?",
+      protocol?.revision ?? 0,
+      criterion?.id ?? null,
+      criterion?.text ?? row.criterion,
+      row.id,
+    );
+  }
+
+  const adjudications = sql
+    .exec<MigrationScreeningAdjudicationRow>(
+      "SELECT id, record_id, stage, outcome, revision FROM screening_adjudications ORDER BY revision ASC, id ASC",
+    )
+    .toArray();
+  for (const row of adjudications) {
+    const protocol = migrationProtocolAtRevision(protocols, row.revision);
+    const matchingDecision = sql
+      .exec<MigrationPinnedCriterionRow>(
+        "SELECT criterion_id, criterion_text FROM screening_decisions WHERE record_id = ? AND stage = ? AND decision = ? AND revision <= ? ORDER BY revision DESC, id DESC LIMIT 1",
+        row.record_id,
+        row.stage,
+        row.outcome,
+        row.revision,
+      )
+      .toArray()[0];
+    sql.exec(
+      "UPDATE screening_adjudications SET protocol_revision = ?, criterion_id = ?, criterion_text = ? WHERE id = ?",
+      protocol?.revision ?? 0,
+      matchingDecision?.criterion_id ?? null,
+      matchingDecision?.criterion_text ?? "",
+      row.id,
+    );
+  }
+
+  const qualityValues = sql
+    .exec<MigrationEvidenceValueRow>(
+      "SELECT id, question_id AS criterion_id, evidence_json, revision FROM quality_assessment_values ORDER BY revision ASC, id ASC",
+    )
+    .toArray();
+  for (const row of qualityValues) {
+    const protocol = migrationProtocolAtRevision(protocols, row.revision);
+    const question = protocol?.content.qualityAssessment.questions.find((candidate) => candidate.id === row.criterion_id);
+    const evidence = parseEvidencePointer(JSON.parse(row.evidence_json ?? "null"), false, true);
+    sql.exec(
+      "UPDATE quality_assessment_values SET protocol_revision = ?, criterion_id = ?, criterion_text = ?, evidence_json = ? WHERE id = ?",
+      protocol?.revision ?? 0,
+      row.criterion_id,
+      question?.text ?? row.criterion_id,
+      JSON.stringify(evidence),
+      row.id,
+    );
+  }
+
+  const extractionValues = sql
+    .exec<MigrationEvidenceValueRow>(
+      "SELECT id, field_id AS criterion_id, evidence_json, revision FROM extracted_data_values ORDER BY revision ASC, id ASC",
+    )
+    .toArray();
+  for (const row of extractionValues) {
+    const protocol = migrationProtocolAtRevision(protocols, row.revision);
+    const field = protocol?.content.extractionFields.find((candidate) => candidate.id === row.criterion_id);
+    const evidence = row.evidence_json ? parseEvidencePointer(JSON.parse(row.evidence_json), false, true) : null;
+    sql.exec(
+      "UPDATE extracted_data_values SET protocol_revision = ?, criterion_id = ?, criterion_text = ?, evidence_json = ? WHERE id = ?",
+      protocol?.revision ?? 0,
+      row.criterion_id,
+      field?.label ?? row.criterion_id,
+      evidence ? JSON.stringify(evidence) : null,
+      row.id,
+    );
+  }
+
+  const modelCandidates = sql
+    .exec<MigrationModelCandidateRow>(
+      "SELECT id, operation, stage, result_json, created_revision FROM review_model_candidates ORDER BY created_revision ASC, id ASC",
+    )
+    .toArray();
+  for (const row of modelCandidates) {
+    const result: unknown = JSON.parse(row.result_json);
+    if (!isRecordValue(result)) continue;
+    if (row.operation === "screen-record" && row.stage !== null) {
+      const parsed = parseScreeningModelResult(result);
+      const protocol = migrationProtocolAtRevision(protocols, row.created_revision);
+      const criterion = protocol
+        ? migrationCriterion(protocol.content.eligibilityCriteria, parsed.criterion, row.stage, parsed.decision)
+        : null;
+      if (criterion)
+        sql.exec(
+          "UPDATE review_model_candidates SET result_json = ? WHERE id = ?",
+          JSON.stringify({ ...parsed, criterion: criterion.id }),
+          row.id,
+        );
+    } else if (row.operation === "extract-field" && result.evidence !== null && result.evidence !== undefined) {
+      const evidence = parseEvidencePointer(result.evidence, false, true);
+      sql.exec("UPDATE review_model_candidates SET result_json = ? WHERE id = ?", JSON.stringify({ ...result, evidence }), row.id);
+    }
+  }
+}
+
+function migrationProtocolAtRevision(protocols: readonly MigrationProtocolState[], revision: number): MigrationProtocolState | undefined {
+  let selected: MigrationProtocolState | undefined;
+  for (const protocol of protocols) {
+    if (protocol.revision > revision) break;
+    selected = protocol;
+  }
+  return selected;
+}
+
+function migrationCriterion(
+  criteria: readonly ReviewEligibilityCriterion[],
+  legacyValue: string,
+  stage: ScreeningStage,
+  decision: ScreeningDecisionValue,
+): ReviewEligibilityCriterion | undefined {
+  const applicable = criteria.filter(
+    (criterion) => criterion.applicableStages.includes(stage) && (decision === "uncertain" || criterion.kind === decision),
+  );
+  return applicable.find((criterion) => criterion.id === legacyValue) ?? applicable.find((criterion) => criterion.text === legacyValue);
+}
 
 interface MetaRow extends Record<string, SqlStorageValue> {
   revision: number;
@@ -377,6 +675,7 @@ interface MetaRow extends Record<string, SqlStorageValue> {
   import_batch_count: number;
   occurrence_count: number;
   record_count: number;
+  import_byte_count: number;
 }
 
 interface ProtocolRow extends Record<string, SqlStorageValue> {
@@ -458,6 +757,9 @@ interface ScreeningDecisionRow extends Record<string, SqlStorageValue> {
   decision: ScreeningDecisionValue;
   reason: string;
   criterion: string;
+  protocol_revision: number;
+  criterion_id: string | null;
+  criterion_text: string;
   created_at: string;
   revision: number;
 }
@@ -466,11 +768,54 @@ interface ScreeningAdjudicationRow extends Record<string, SqlStorageValue> {
   id: string;
   record_id: string;
   stage: ScreeningStage;
+  protocol_revision: number;
   outcome: "include" | "exclude";
   reason: string;
+  criterion_id: string | null;
+  criterion_text: string;
   adjudicator: string;
   created_at: string;
   revision: number;
+}
+
+interface FinalInclusionDecisionRow extends Record<string, SqlStorageValue> {
+  id: string;
+  record_id: string;
+  protocol_revision: number;
+  outcome: "include" | "exclude";
+  reason: string;
+  criterion_id: string | null;
+  criterion_text: string;
+  reviewer: string;
+  created_at: string;
+  revision: number;
+}
+
+interface ReassessmentObligationRow extends Record<string, SqlStorageValue> {
+  id: string;
+  amendment_protocol_revision: number;
+  stage: ReviewProtocolImpactStage;
+  record_id: string | null;
+  created_revision: number;
+  completed_revision: number | null;
+  completed_at: string | null;
+  completed_by: string | null;
+  completion_rationale: string | null;
+}
+
+interface ReviewFindingRow extends Record<string, SqlStorageValue> {
+  id: string;
+  review_revision: number;
+  protocol_revision: number;
+  research_question_id: string;
+  statement: string;
+  interpretation: string;
+  extraction_value_ids_json: string;
+  appraisal_value_ids_json: string;
+  evidence_json: string;
+  supersedes_id: string | null;
+  created_by: string;
+  created_at: string;
 }
 
 interface QualityValueRow extends Record<string, SqlStorageValue> {
@@ -480,6 +825,9 @@ interface QualityValueRow extends Record<string, SqlStorageValue> {
   answer_id: string;
   evidence_json: string;
   rationale: string;
+  protocol_revision: number;
+  criterion_id: string | null;
+  criterion_text: string;
   reviewer: string;
   created_at: string;
   revision: number;
@@ -492,6 +840,9 @@ interface ExtractionValueRow extends Record<string, SqlStorageValue> {
   value_json: string;
   missing_reason: string | null;
   evidence_json: string | null;
+  protocol_revision: number;
+  criterion_id: string | null;
+  criterion_text: string;
   reviewer: string;
   created_at: string;
   revision: number;
@@ -521,6 +872,10 @@ interface DuplicateKeyMatchRow extends Record<string, SqlStorageValue> {
   doi_match_id: string | null;
   title_author_year_match_id: string | null;
   title_year_match_id: string | null;
+}
+
+interface BackupTableInfoRow extends Record<string, SqlStorageValue> {
+  name: string;
 }
 
 export interface ReplaceReviewProtocolInput {
@@ -581,8 +936,9 @@ export class ReviewStudy extends DurableObject<Env> {
     const current = this.getSnapshot();
     this.assertRevision(input.expectedRevision, current.revision);
     if (current.protocol.status === "frozen") throw new Error("Frozen protocol must be amended with a rationale");
-    parseReviewProtocolContent(input.content);
-    this.appendProtocol(input.content, "draft", input.rationale ?? "Protocol edited", input.actor);
+    const content = parseReviewProtocolContent(input.content);
+    if (content.amendmentImpact !== null) throw new Error("Draft protocol edits cannot declare amendment impact");
+    this.appendProtocol(content, "draft", input.rationale ?? "Protocol edited", input.actor);
     return this.getSnapshot();
   }
 
@@ -599,9 +955,46 @@ export class ReviewStudy extends DurableObject<Env> {
     this.assertRevision(input.expectedRevision, current.revision);
     if (current.protocol.status !== "frozen") throw new Error("Only a frozen protocol requires an amendment");
     if (!input.rationale.trim()) throw new Error("Protocol amendment rationale is required");
-    parseReviewProtocolContent(input.content);
-    this.appendProtocol(input.content, "frozen", input.rationale, input.actor);
+    const content = parseReviewProtocolContent(input.content);
+    if (!content.amendmentImpact || content.amendmentImpact.stages.length === 0) {
+      throw new Error("Protocol amendment impact must name at least one affected stage");
+    }
+    this.assertAmendmentImpactRecords(content.amendmentImpact.recordIds);
+    this.appendProtocol(content, "frozen", input.rationale, input.actor, (revision) => {
+      this.insertReassessmentObligations(revision, content.amendmentImpact!);
+    });
     return this.getSnapshot();
+  }
+
+  getReassessmentSnapshot(): ReviewReassessmentSnapshot {
+    return this.reassessmentSnapshotAtRevision(this.currentRevision());
+  }
+
+  completeReassessmentObligation(
+    expectedRevision: number,
+    obligationId: string,
+    rationale: string,
+    actor: string,
+  ): ReviewReassessmentSnapshot {
+    this.assertRevision(expectedRevision, this.currentRevision());
+    const obligation = this.ctx.storage.sql
+      .exec<ReassessmentObligationRow>("SELECT * FROM review_reassessment_obligations WHERE id = ?", obligationId)
+      .toArray()[0];
+    if (!obligation || obligation.completed_revision !== null) throw new Error("Review reassessment obligation is unavailable");
+    const rationaleValue = boundedScreeningText(rationale, "Reassessment completion rationale", 2_000, false);
+    const actorValue = boundedScreeningText(actor, "Reassessment actor", 320, false);
+    this.ctx.storage.transactionSync(() => {
+      const revision = this.advanceRevision();
+      this.ctx.storage.sql.exec(
+        "UPDATE review_reassessment_obligations SET completed_revision = ?, completed_at = ?, completed_by = ?, completion_rationale = ? WHERE id = ? AND completed_revision IS NULL",
+        revision,
+        new Date().toISOString(),
+        actorValue,
+        rationaleValue,
+        obligationId,
+      );
+    });
+    return this.getReassessmentSnapshot();
   }
 
   getSearchSnapshot(): ReviewSearchSnapshot {
@@ -674,7 +1067,7 @@ export class ReviewStudy extends DurableObject<Env> {
     const batchId = crypto.randomUUID();
     const createdRecords = preview.records.map((metadata) => ({ id: crypto.randomUUID(), metadata }));
     this.ctx.storage.transactionSync(() => {
-      this.assertImportCapacity(preview.records.length);
+      this.assertImportCapacity(preview.records.length, preview.byteCount);
       const revision = this.advanceRevision();
       this.ctx.storage.sql.exec(
         "INSERT INTO search_runs (id, protocol_revision, source_id, source_name, query, searched_at, imported_at, imported_by, digest, detected_entries, skipped_entries, occurrence_count, created_revision, reported_result_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -735,9 +1128,10 @@ export class ReviewStudy extends DurableObject<Env> {
       }
       for (const match of this.duplicateMatchesForRevision(revision)) this.insertDuplicateCandidate(match, revision);
       this.ctx.storage.sql.exec(
-        "UPDATE review_meta SET search_run_count = search_run_count + 1, import_batch_count = import_batch_count + 1, occurrence_count = occurrence_count + ?, record_count = record_count + ? WHERE singleton = 1",
+        "UPDATE review_meta SET search_run_count = search_run_count + 1, import_batch_count = import_batch_count + 1, occurrence_count = occurrence_count + ?, record_count = record_count + ?, import_byte_count = import_byte_count + ? WHERE singleton = 1",
         preview.records.length,
         preview.records.length,
+        preview.byteCount,
       );
     });
     return this.getSearchSnapshot();
@@ -805,23 +1199,38 @@ export class ReviewStudy extends DurableObject<Env> {
     return this.screeningSnapshotAtRevision(this.currentRevision(), actor);
   }
 
-  private screeningSnapshotAtRevision(revision: number, actor: string): ReviewScreeningSnapshot {
+  private screeningSnapshotAtRevision(revision: number, actor: string | null): ReviewScreeningSnapshot {
     const protocol = this.studySnapshotAtRevision(revision).protocol;
     const decisions = this.ctx.storage.sql
-      .exec<ScreeningDecisionRow>("SELECT * FROM screening_decisions WHERE revision <= ? ORDER BY created_at ASC, id ASC", revision)
+      .exec<ScreeningDecisionRow>("SELECT * FROM screening_decisions WHERE revision <= ? ORDER BY revision ASC, id ASC", revision)
       .toArray()
       .map(decisionFromRow);
     const adjudications = this.ctx.storage.sql
-      .exec<ScreeningAdjudicationRow>("SELECT * FROM screening_adjudications WHERE revision <= ? ORDER BY created_at ASC, id ASC", revision)
+      .exec<ScreeningAdjudicationRow>("SELECT * FROM screening_adjudications WHERE revision <= ? ORDER BY revision ASC, id ASC", revision)
       .toArray()
       .map(adjudicationFromRow);
+    const finalInclusionDecisions = this.ctx.storage.sql
+      .exec<FinalInclusionDecisionRow>(
+        "SELECT * FROM final_inclusion_decisions WHERE revision <= ? ORDER BY revision ASC, id ASC",
+        revision,
+      )
+      .toArray()
+      .map(finalInclusionDecisionFromRow);
     const records = this.ctx.storage.sql
       .exec<ReviewRecordRow>("SELECT * FROM review_records WHERE created_revision <= ? ORDER BY id ASC", revision)
       .toArray()
       .map((row) => recordFromRowAtRevision(row, revision))
       .filter((record) => record.state === "active")
       .map((record) =>
-        screeningRecord(record, decisions, adjudications, protocol.screening.reviewersPerStage, protocol.screening.blinded, actor),
+        screeningRecord(
+          record,
+          decisions,
+          adjudications,
+          finalInclusionDecisions,
+          protocol.screening.reviewersPerStage,
+          protocol.screening.blinded,
+          actor,
+        ),
       );
     return {
       revision,
@@ -838,10 +1247,11 @@ export class ReviewStudy extends DurableObject<Env> {
     stage: ScreeningStage,
     decision: ScreeningDecisionValue,
     reason: string,
-    criterion: string,
+    criterionId: string | null,
     actor: string,
   ): ReviewScreeningSnapshot {
     this.assertRevision(expectedRevision, this.currentRevision());
+    const protocol = this.getSnapshot().protocol;
     const record = this.ctx.storage.sql
       .exec<ReviewRecordRow>("SELECT * FROM review_records WHERE id = ? AND state = 'active'", recordId)
       .toArray()[0];
@@ -850,7 +1260,7 @@ export class ReviewStudy extends DurableObject<Env> {
     if (decision !== "include" && decision !== "exclude" && decision !== "uncertain")
       throw new Error("Review screening decision is invalid");
     const reasonValue = boundedScreeningText(reason, "Screening reason", 2_000, decision !== "exclude");
-    const criterionValue = boundedScreeningText(criterion, "Screening criterion", 1_000, true);
+    const criterion = applicableScreeningCriterion(protocol, criterionId, stage, decision);
     if (stage === "full-text") {
       const state = this.getScreeningSnapshot(actor).records.find((candidate) => candidate.record.id === recordId);
       if (!state || !fullTextScreeningAllowed(state)) throw new Error("Full-text screening requires title-and-abstract inclusion");
@@ -864,16 +1274,19 @@ export class ReviewStudy extends DurableObject<Env> {
     this.ctx.storage.transactionSync(() => {
       const revision = this.advanceRevision();
       this.ctx.storage.sql.exec(
-        "INSERT INTO screening_decisions (id, record_id, stage, reviewer, decision, reason, criterion, created_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO screening_decisions (id, record_id, stage, reviewer, decision, reason, criterion, created_at, revision, protocol_revision, criterion_id, criterion_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         crypto.randomUUID(),
         recordId,
         stage,
         actor,
         decision,
         reasonValue,
-        criterionValue,
+        criterion.text,
         new Date().toISOString(),
         revision,
+        protocol.revision,
+        criterion.id,
+        criterion.text,
       );
     });
     return this.getScreeningSnapshot(actor);
@@ -893,16 +1306,67 @@ export class ReviewStudy extends DurableObject<Env> {
     if (!stageState || stageState.outcome !== "conflict") throw new Error("Only a screening conflict can be adjudicated");
     if (outcome !== "include" && outcome !== "exclude") throw new Error("Screening adjudication outcome is invalid");
     const reasonValue = boundedScreeningText(reason, "Adjudication reason", 2_000, false);
+    const protocol = this.getSnapshot().protocol;
+    const matchingDecision = [...stageState.decisions].reverse().find((decision) => decision.decision === outcome);
+    if (!matchingDecision?.criterionId) throw new Error("Screening adjudication requires an applicable criterion");
+    const criterion = applicableScreeningCriterion(protocol, matchingDecision.criterionId, stage, outcome);
     this.ctx.storage.transactionSync(() => {
       const revision = this.advanceRevision();
       this.ctx.storage.sql.exec(
-        "INSERT INTO screening_adjudications (id, record_id, stage, outcome, reason, adjudicator, created_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO screening_adjudications (id, record_id, stage, outcome, reason, adjudicator, created_at, revision, protocol_revision, criterion_id, criterion_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         crypto.randomUUID(),
         recordId,
         stage,
         outcome,
         reasonValue,
         actor,
+        new Date().toISOString(),
+        revision,
+        protocol.revision,
+        criterion.id,
+        criterion.text,
+      );
+    });
+    return this.getScreeningSnapshot(actor);
+  }
+
+  decideFinalInclusion(
+    expectedRevision: number,
+    recordId: string,
+    outcome: "include" | "exclude",
+    criterionId: string | null,
+    reason: string,
+    actor: string,
+  ): ReviewScreeningSnapshot {
+    this.assertRevision(expectedRevision, this.currentRevision());
+    if (outcome !== "include" && outcome !== "exclude") throw new Error("Final inclusion outcome is invalid");
+    const state = this.getScreeningSnapshot(actor).records.find((candidate) => candidate.record.id === recordId);
+    if (!state || state.fullText.outcome !== "include") {
+      throw new Error("Final inclusion requires full-text screening inclusion");
+    }
+    const protocol = this.getSnapshot().protocol;
+    const criterion = criterionId === null ? null : applicableScreeningCriterion(protocol, criterionId, "full-text", outcome);
+    if (outcome === "exclude" && criterion === null) {
+      throw new Error("Final exclusion requires an applicable exclusion criterion");
+    }
+    const reasonValue = boundedScreeningText(reason, "Final inclusion reason", 2_000, false);
+    const reviewer = boundedScreeningText(actor, "Final inclusion reviewer", 320, false);
+    const priorCount = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM final_inclusion_decisions WHERE record_id = ?", recordId)
+      .one().count;
+    if (priorCount >= 20) throw new Error("Final inclusion decision revision limit reached");
+    this.ctx.storage.transactionSync(() => {
+      const revision = this.advanceRevision();
+      this.ctx.storage.sql.exec(
+        "INSERT INTO final_inclusion_decisions (id, record_id, protocol_revision, outcome, reason, criterion_id, criterion_text, reviewer, created_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        crypto.randomUUID(),
+        recordId,
+        protocol.revision,
+        outcome,
+        reasonValue,
+        criterion?.id ?? null,
+        criterion?.text ?? "",
+        reviewer,
         new Date().toISOString(),
         revision,
       );
@@ -914,11 +1378,11 @@ export class ReviewStudy extends DurableObject<Env> {
     return this.evidenceSnapshotAtRevision(this.currentRevision(), actor);
   }
 
-  private evidenceSnapshotAtRevision(revision: number, actor: string): ReviewEvidenceSnapshot {
+  private evidenceSnapshotAtRevision(revision: number, actor: string | null): ReviewEvidenceSnapshot {
     const protocol = this.studySnapshotAtRevision(revision).protocol;
     const includedIds = new Set(
       this.screeningSnapshotAtRevision(revision, actor)
-        .records.filter((record) => record.fullText.outcome === "include")
+        .records.filter((record) => record.finalInclusion.outcome === "include")
         .map((record) => record.record.id),
     );
     const records = this.ctx.storage.sql
@@ -928,11 +1392,11 @@ export class ReviewStudy extends DurableObject<Env> {
       .filter((record) => record.state === "active")
       .filter((record) => includedIds.has(record.id));
     const qualityValues = this.ctx.storage.sql
-      .exec<QualityValueRow>("SELECT * FROM quality_assessment_values WHERE revision <= ? ORDER BY created_at ASC, id ASC", revision)
+      .exec<QualityValueRow>("SELECT * FROM quality_assessment_values WHERE revision <= ? ORDER BY revision ASC, id ASC", revision)
       .toArray()
       .map(qualityValueFromRow);
     const extractionValues = this.ctx.storage.sql
-      .exec<ExtractionValueRow>("SELECT * FROM extracted_data_values WHERE revision <= ? ORDER BY created_at ASC, id ASC", revision)
+      .exec<ExtractionValueRow>("SELECT * FROM extracted_data_values WHERE revision <= ? ORDER BY revision ASC, id ASC", revision)
       .toArray()
       .map(extractionValueFromRow);
     return {
@@ -965,8 +1429,8 @@ export class ReviewStudy extends DurableObject<Env> {
   ): ReviewEvidenceSnapshot {
     this.assertRevision(expectedRevision, this.currentRevision());
     const protocol = this.getSnapshot().protocol;
-    if (!protocol.qualityAssessment.questions.some((question) => question.id === questionId))
-      throw new Error("Quality question is unavailable");
+    const question = protocol.qualityAssessment.questions.find((candidate) => candidate.id === questionId);
+    if (!question) throw new Error("Quality question is unavailable");
     const answer = protocol.qualityAssessment.answers.find((candidate) => candidate.id === answerId);
     if (!answer) throw new Error("Quality answer is unavailable");
     this.assertEvidenceRecord(recordId, actor);
@@ -975,7 +1439,7 @@ export class ReviewStudy extends DurableObject<Env> {
     this.ctx.storage.transactionSync(() => {
       const revision = this.advanceRevision();
       this.ctx.storage.sql.exec(
-        "INSERT INTO quality_assessment_values (id, record_id, question_id, answer_id, evidence_json, rationale, reviewer, created_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO quality_assessment_values (id, record_id, question_id, answer_id, evidence_json, rationale, reviewer, created_at, revision, protocol_revision, criterion_id, criterion_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         crypto.randomUUID(),
         recordId,
         questionId,
@@ -985,6 +1449,9 @@ export class ReviewStudy extends DurableObject<Env> {
         actor,
         new Date().toISOString(),
         revision,
+        protocol.revision,
+        question.id,
+        question.text,
       );
     });
     return this.getEvidenceSnapshot(actor);
@@ -1010,7 +1477,7 @@ export class ReviewStudy extends DurableObject<Env> {
     this.ctx.storage.transactionSync(() => {
       const revision = this.advanceRevision();
       this.ctx.storage.sql.exec(
-        "INSERT INTO extracted_data_values (id, record_id, field_id, value_json, missing_reason, evidence_json, reviewer, created_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO extracted_data_values (id, record_id, field_id, value_json, missing_reason, evidence_json, reviewer, created_at, revision, protocol_revision, criterion_id, criterion_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         crypto.randomUUID(),
         recordId,
         fieldId,
@@ -1020,9 +1487,68 @@ export class ReviewStudy extends DurableObject<Env> {
         actor,
         new Date().toISOString(),
         revision,
+        protocol.revision,
+        field.id,
+        field.label,
       );
     });
     return this.getEvidenceSnapshot(actor);
+  }
+
+  getFindingsSnapshot(): ReviewFindingsSnapshot {
+    return this.findingsSnapshotAtRevision(this.currentRevision());
+  }
+
+  createFinding(expectedRevision: number, input: ReviewFindingInput, actor: string): ReviewFindingsSnapshot {
+    this.assertRevision(expectedRevision, this.currentRevision());
+    const parsed = parseReviewFindingInput(input);
+    const protocol = this.getSnapshot().protocol;
+    if (!protocol.researchQuestions.some((question) => question.id === parsed.researchQuestionId)) {
+      throw new Error("Review finding research question is unavailable");
+    }
+    const evidence = this.getEvidenceSnapshot(actor);
+    const contributors = currentFindingContributors(evidence);
+    assertFindingContributors(parsed, contributors);
+    if (parsed.supersedesId !== null) {
+      const superseded = this.ctx.storage.sql
+        .exec<ReviewFindingRow>("SELECT * FROM review_findings WHERE id = ?", parsed.supersedesId)
+        .toArray()[0];
+      if (!superseded || superseded.research_question_id !== parsed.researchQuestionId) {
+        throw new Error("Review finding supersedes an unavailable current finding for its research question");
+      }
+      const successor = this.ctx.storage.sql
+        .exec<{ count: number }>("SELECT COUNT(*) AS count FROM review_findings WHERE supersedes_id = ?", parsed.supersedesId)
+        .one().count;
+      if (successor > 0) throw new Error("Review finding supersession cannot branch");
+    }
+    const count = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM review_findings").one().count;
+    if (count >= reviewFindingLimits.findings) throw new Error("Review finding limit reached");
+    this.ctx.storage.transactionSync(() => {
+      const revision = this.advanceRevision();
+      const finding = materializeReviewFinding(parsed, {
+        id: crypto.randomUUID(),
+        reviewRevision: revision,
+        protocolRevision: protocol.revision,
+        createdBy: actor,
+        createdAt: new Date().toISOString(),
+      });
+      this.ctx.storage.sql.exec(
+        "INSERT INTO review_findings (id, review_revision, protocol_revision, research_question_id, statement, interpretation, extraction_value_ids_json, appraisal_value_ids_json, evidence_json, supersedes_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        finding.id,
+        finding.reviewRevision,
+        finding.protocolRevision,
+        finding.researchQuestionId,
+        finding.statement,
+        finding.interpretation,
+        JSON.stringify(finding.extractionValueIds),
+        JSON.stringify(finding.appraisalValueIds),
+        JSON.stringify(finding.evidence),
+        finding.supersedesId,
+        finding.createdBy,
+        finding.createdAt,
+      );
+    });
+    return this.getFindingsSnapshot();
   }
 
   getModelSnapshot(actor: string): ReviewModelSnapshot {
@@ -1033,7 +1559,7 @@ export class ReviewStudy extends DurableObject<Env> {
     const protocol = this.studySnapshotAtRevision(revision).protocol;
     const rows = this.ctx.storage.sql
       .exec<ModelCandidateRow>(
-        "SELECT * FROM review_model_candidates WHERE created_revision <= ? ORDER BY created_at ASC, id ASC",
+        "SELECT * FROM review_model_candidates WHERE created_revision <= ? ORDER BY created_revision ASC, id ASC",
         revision,
       )
       .toArray();
@@ -1099,8 +1625,7 @@ export class ReviewStudy extends DurableObject<Env> {
       if (!record.metadata.title.includes(result.evidence) && !record.metadata.abstract.includes(result.evidence)) {
         throw new Error("Screening candidate evidence must quote the supplied title or abstract exactly");
       }
-      const criteria = [...protocol.inclusionCriteria, ...protocol.exclusionCriteria];
-      if (result.criterion && !criteria.includes(result.criterion)) throw new Error("Screening candidate criterion is unavailable");
+      applicableScreeningCriterion(protocol, result.criterion, input.stage, result.decision);
     } else if (input.operation === "extract-field") {
       if (input.stage !== null) throw new Error("Extraction candidates do not use a screening stage");
       this.assertEvidenceRecord(input.recordId, input.actor);
@@ -1164,24 +1689,30 @@ export class ReviewStudy extends DurableObject<Env> {
       );
       if (disposition === "accepted" && candidate.operation === "screen-record") {
         const result = candidate.result as import("../domain/review-model").ScreeningModelResult;
+        const criterion = applicableScreeningCriterion(protocol, result.criterion, candidate.stage!, result.decision);
         this.ctx.storage.sql.exec(
-          "INSERT INTO screening_decisions (id, record_id, stage, reviewer, decision, reason, criterion, created_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO screening_decisions (id, record_id, stage, reviewer, decision, reason, criterion, created_at, revision, protocol_revision, criterion_id, criterion_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           crypto.randomUUID(),
           candidate.recordId,
           candidate.stage,
           actor,
           result.decision,
           `${result.rationale}\nEvidence: ${result.evidence}`,
-          result.criterion,
+          criterion.text,
           now,
           revision,
+          protocol.revision,
+          criterion.id,
+          criterion.text,
         );
       }
       if (disposition === "accepted" && candidate.operation === "extract-field") {
         const result = candidate.result as import("../domain/review-model").ExtractionModelResult;
         this.assertEvidenceRecord(candidate.recordId, actor);
+        const field = protocol.extractionFields.find((candidate) => candidate.id === result.fieldId);
+        if (!field) throw new Error("Extraction candidate field is unavailable");
         this.ctx.storage.sql.exec(
-          "INSERT INTO extracted_data_values (id, record_id, field_id, value_json, missing_reason, evidence_json, reviewer, created_at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO extracted_data_values (id, record_id, field_id, value_json, missing_reason, evidence_json, reviewer, created_at, revision, protocol_revision, criterion_id, criterion_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           crypto.randomUUID(),
           candidate.recordId,
           result.fieldId,
@@ -1191,6 +1722,9 @@ export class ReviewStudy extends DurableObject<Env> {
           actor,
           now,
           revision,
+          protocol.revision,
+          field.id,
+          field.label,
         );
       }
     });
@@ -1209,6 +1743,8 @@ export class ReviewStudy extends DurableObject<Env> {
       this.searchSnapshotAtRevision(revision),
       this.screeningSnapshotAtRevision(revision, actor),
       this.evidenceSnapshotAtRevision(revision, actor),
+      this.findingsSnapshotAtRevision(revision),
+      this.reassessmentSnapshotAtRevision(revision),
     );
   }
 
@@ -1218,27 +1754,94 @@ export class ReviewStudy extends DurableObject<Env> {
   }
 
   getExportAuthorityAtRevision(revision: number, actor: string): ReviewExportAuthority {
+    return this.exportAuthorityAtRevision(revision, actor);
+  }
+
+  private exportAuthorityAtRevision(revision: number, actor: string | null): ReviewExportAuthority {
     this.assertReconstructibleRevision(revision);
     const protocol = this.studySnapshotAtRevision(revision);
     const search = this.searchSnapshotAtRevision(revision);
     const screening = this.screeningSnapshotAtRevision(revision, actor);
     const evidence = this.evidenceSnapshotAtRevision(revision, actor);
     const model = this.modelSnapshotAtRevision(revision, null);
-    const synthesis = buildReviewSynthesis(protocol, search, screening, evidence);
-    return { revision, protocol, search, screening, evidence, model, synthesis };
+    const findings = this.findingsSnapshotAtRevision(revision);
+    const reassessment = this.reassessmentSnapshotAtRevision(revision);
+    const synthesis = buildReviewSynthesis(protocol, search, screening, evidence, findings, reassessment);
+    return { revision, protocol, search, screening, evidence, model, findings, reassessment, synthesis };
   }
 
-  async getBackupSnapshot(actor: string): Promise<{
-    authority: ReviewExportAuthority | null;
+  async createBackupSnapshot(ownerKey: string): Promise<{
+    reference: ReviewBackupReference | null;
     revisionSeed: string | null;
     bookmark: string | null;
   }> {
-    if (this.protocolRows().length === 0) return { authority: null, revisionSeed: null, bookmark: null };
-    const authority = this.getExportAuthority(actor);
+    if (this.protocolRows().length === 0) return { reference: null, revisionSeed: null, bookmark: null };
+    const payload = this.reviewBackupPayload();
+    const artifact = await materializeReviewBackupArtifact(ownerKey, payload, this.backupAuthorityAtRevision(payload.reviewRevision));
+    const existing = await this.env.PAPERS.get(artifact.reference.backupKey);
+    if (existing) {
+      if (existing.size !== artifact.reference.byteCount || (await existing.text()) !== artifact.body) {
+        throw new Error("Content-addressed review backup payload conflicts with existing storage");
+      }
+    } else {
+      await this.env.PAPERS.put(artifact.reference.backupKey, artifact.body, {
+        httpMetadata: { contentType: "application/json; charset=utf-8" },
+        customMetadata: {
+          schemaVersion: artifact.reference.schemaVersion,
+          payloadDigest: artifact.reference.payloadDigest,
+          authorityDigest: artifact.reference.authorityDigest,
+        },
+      });
+    }
     return {
-      authority,
-      revisionSeed: `review:${authority.revision}:protocol:${authority.protocol.protocol.revision}`,
+      reference: artifact.reference,
+      revisionSeed: `review:${payload.reviewRevision}:protocol:${payload.protocolRevision}`,
       bookmark: await currentRecoveryBookmark(this.ctx.storage, this.env.AUTH_MODE),
+    };
+  }
+
+  async restoreBackupPayload(ownerKey: string, reference: ReviewBackupReference): Promise<ReviewBackupVerification> {
+    const parsedReference = parseReviewBackupReference(reference, ownerKey);
+    const object = await this.env.PAPERS.get(parsedReference.backupKey);
+    if (!object || object.size !== parsedReference.byteCount) {
+      throw new Error("Review backup payload is unavailable or has the wrong size");
+    }
+    const payload = await verifyReviewBackupPayload(ownerKey, parsedReference, await object.text());
+    this.assertRestorableBackupPayload(payload);
+
+    if (this.protocolRows().length > 0) {
+      const current = await this.getBackupVerification();
+      if (reviewBackupVerificationMatches(parsedReference, current)) return current;
+      throw new Error("Review backup restore target already contains different review data");
+    }
+
+    try {
+      this.restoreReviewBackupTables(payload);
+      const verification = await this.getBackupVerification();
+      if (!reviewBackupVerificationMatches(parsedReference, verification)) {
+        throw new Error("Recovered review authority verification failed");
+      }
+      return verification;
+    } catch (error) {
+      this.clearReviewBackupTables();
+      throw error;
+    }
+  }
+
+  async getBackupVerification(): Promise<ReviewBackupVerification> {
+    if (this.protocolRows().length === 0) throw new Error("Review backup verification is unavailable");
+    const payload = this.reviewBackupPayload();
+    const authority = this.backupAuthorityAtRevision(payload.reviewRevision);
+    const [payloadDigest, authorityDigest] = await Promise.all([
+      reviewBackupPayloadDigest(payload),
+      reviewBackupAuthorityDigest(authority),
+    ]);
+    return {
+      payloadDigest,
+      authorityDigest,
+      reviewRevision: payload.reviewRevision,
+      protocolRevision: payload.protocolRevision,
+      historyFloorRevision: payload.historyFloorRevision,
     };
   }
 
@@ -1246,7 +1849,131 @@ export class ReviewStudy extends DurableObject<Env> {
     await this.ctx.storage.deleteAll();
   }
 
-  private appendProtocol(content: ReviewProtocolContent, status: "draft" | "frozen", rationale: string, actor: string): void {
+  private backupAuthorityAtRevision(revision: number): ReviewExportAuthority {
+    return this.exportAuthorityAtRevision(revision, null);
+  }
+
+  private reviewBackupPayload(): ReviewStudyBackupPayload {
+    const meta = this.revisionMeta();
+    const protocol = this.protocolRows().at(-1);
+    if (!protocol) throw new Error("Review backup payload is unavailable");
+    return {
+      schemaVersion: reviewBackupSchemaVersion,
+      reviewRevision: meta.revision,
+      protocolRevision: protocol.revision,
+      historyFloorRevision: meta.history_floor_revision,
+      tables: reviewBackupTableNames.map((name) => ({ name, rows: this.reviewBackupRows(name) })),
+    };
+  }
+
+  private reviewBackupRows(tableName: ReviewBackupTableName): ReviewBackupRow[] {
+    return this.ctx.storage.sql
+      .exec<Record<string, SqlStorageValue>>(`SELECT * FROM ${quoteSqlIdentifier(tableName)}`)
+      .toArray()
+      .map((row) =>
+        Object.fromEntries(Object.entries(row).map(([column, value]) => [column, reviewBackupCell(value, tableName, column)] as const)),
+      );
+  }
+
+  private reviewBackupColumns(tableName: ReviewBackupTableName): string[] {
+    return this.ctx.storage.sql
+      .exec<BackupTableInfoRow>(`PRAGMA table_info(${quoteSqlIdentifier(tableName)})`)
+      .toArray()
+      .map((row) => row.name);
+  }
+
+  private assertRestorableBackupPayload(payload: ReviewStudyBackupPayload): void {
+    const tables = new Map(payload.tables.map((table) => [table.name, table] as const));
+    const protocols = tables.get("protocol_revisions")?.rows ?? [];
+    const latestProtocolRevision = protocols.reduce(
+      (latest, row) => Math.max(latest, reviewBackupInteger(row.revision, "Protocol revision")),
+      0,
+    );
+    if (latestProtocolRevision !== payload.protocolRevision) {
+      throw new Error("Review backup protocol revision does not match its table authority");
+    }
+    for (const tableName of reviewBackupTableNames) {
+      const table = tables.get(tableName);
+      if (!table) throw new Error("Review backup table is unavailable");
+      const expectedColumns = [...this.reviewBackupColumns(tableName)].sort(compareText);
+      for (const row of table.rows) {
+        const actualColumns = Object.keys(row).sort(compareText);
+        if (actualColumns.length !== expectedColumns.length || actualColumns.some((column, index) => column !== expectedColumns[index])) {
+          throw new Error(`Review backup table schema does not match ${tableName}`);
+        }
+      }
+    }
+  }
+
+  private restoreReviewBackupTables(payload: ReviewStudyBackupPayload): void {
+    const tables = new Map(payload.tables.map((table) => [table.name, table] as const));
+    const searchRunCount = tables.get("search_runs")!.rows.length;
+    const importBatchRows = tables.get("review_import_batches")!.rows;
+    const occurrenceCount = tables.get("imported_occurrences")!.rows.length;
+    const recordCount = tables.get("review_records")!.rows.length;
+    const importByteCount = importBatchRows.reduce(
+      (total, row) => total + reviewBackupInteger(row.byte_count, "Review import byte count", true),
+      0,
+    );
+    if (!Number.isSafeInteger(importByteCount)) throw new Error("Review import byte count is invalid");
+
+    this.ctx.storage.transactionSync(() => {
+      this.deleteReviewBackupRows();
+      this.ctx.storage.sql.exec("PRAGMA defer_foreign_keys = ON");
+      for (const tableName of reviewBackupTableNames) {
+        const columns = this.reviewBackupColumns(tableName);
+        const placeholders = columns.map(() => "?").join(", ");
+        const columnList = columns.map(quoteSqlIdentifier).join(", ");
+        const rows = restorableReviewBackupRows(tableName, tables.get(tableName)!.rows);
+        for (const row of rows) {
+          this.ctx.storage.sql.exec(
+            `INSERT INTO ${quoteSqlIdentifier(tableName)} (${columnList}) VALUES (${placeholders})`,
+            ...columns.map((column) => row[column]!),
+          );
+        }
+      }
+      this.ctx.storage.sql.exec(
+        `UPDATE review_meta SET
+          revision = ?, history_floor_revision = ?, search_run_count = ?, import_batch_count = ?,
+          occurrence_count = ?, record_count = ?, import_byte_count = ?
+         WHERE singleton = 1`,
+        payload.reviewRevision,
+        payload.historyFloorRevision,
+        searchRunCount,
+        importBatchRows.length,
+        occurrenceCount,
+        recordCount,
+        importByteCount,
+      );
+    });
+  }
+
+  private clearReviewBackupTables(): void {
+    this.ctx.storage.transactionSync(() => {
+      this.deleteReviewBackupRows();
+      this.ctx.storage.sql.exec(
+        `UPDATE review_meta SET
+          revision = 0, history_floor_revision = 0, search_run_count = 0, import_batch_count = 0,
+          occurrence_count = 0, record_count = 0, import_byte_count = 0
+         WHERE singleton = 1`,
+      );
+    });
+  }
+
+  private deleteReviewBackupRows(): void {
+    for (const tableName of [...reviewBackupTableNames].reverse()) {
+      this.ctx.storage.sql.exec(`DELETE FROM ${quoteSqlIdentifier(tableName)}`);
+    }
+  }
+
+  private appendProtocol(
+    content: ReviewProtocolContent,
+    status: "draft" | "frozen",
+    rationale: string,
+    actor: string,
+    afterPersist?: (revision: number) => void,
+  ): number {
+    let appendedRevision = 0;
     this.ctx.storage.transactionSync(() => {
       const revision = this.advanceRevision();
       const protocol = materializeProtocolRevision(content, revision, status, rationale, actor);
@@ -1259,7 +1986,69 @@ export class ReviewStudy extends DurableObject<Env> {
         protocol.createdAt,
         protocol.createdBy,
       );
+      afterPersist?.(revision);
+      appendedRevision = revision;
     });
+    return appendedRevision;
+  }
+
+  private reassessmentSnapshotAtRevision(revision: number): ReviewReassessmentSnapshot {
+    const obligations = this.ctx.storage.sql
+      .exec<ReassessmentObligationRow>(
+        "SELECT * FROM review_reassessment_obligations WHERE created_revision <= ? ORDER BY created_revision ASC, stage ASC, record_id ASC, id ASC",
+        revision,
+      )
+      .toArray()
+      .map((row) => reassessmentObligationFromRowAtRevision(row, revision));
+    return { revision, obligations };
+  }
+
+  private findingsSnapshotAtRevision(revision: number): ReviewFindingsSnapshot {
+    const findings = this.ctx.storage.sql
+      .exec<ReviewFindingRow>(
+        "SELECT * FROM review_findings WHERE review_revision <= ? ORDER BY review_revision ASC, created_at ASC, id ASC",
+        revision,
+      )
+      .toArray()
+      .map(findingFromRow);
+    return { revision, findings };
+  }
+
+  private assertAmendmentImpactRecords(recordIds: readonly string[]): void {
+    if (recordIds.length === 0) return;
+    const activeIds = new Set(
+      this.ctx.storage.sql
+        .exec<{ id: string }>("SELECT id FROM review_records WHERE state = 'active' ORDER BY id ASC")
+        .toArray()
+        .map((row) => row.id),
+    );
+    if (recordIds.some((recordId) => !activeIds.has(recordId))) {
+      throw new Error("Protocol amendment impact references an unavailable active review record");
+    }
+  }
+
+  private insertReassessmentObligations(
+    amendmentProtocolRevision: number,
+    impact: NonNullable<ReviewProtocolContent["amendmentImpact"]>,
+  ): void {
+    const activeRecordIds = this.ctx.storage.sql
+      .exec<{ id: string }>("SELECT id FROM review_records WHERE state = 'active' ORDER BY id ASC")
+      .toArray()
+      .map((row) => row.id);
+    const scopedRecordIds = impact.recordIds.length > 0 ? impact.recordIds : activeRecordIds;
+    for (const stage of impact.stages) {
+      const recordIds = reassessmentStageIsRecordScoped(stage) ? (scopedRecordIds.length > 0 ? scopedRecordIds : [null]) : [null];
+      for (const recordId of recordIds) {
+        this.ctx.storage.sql.exec(
+          "INSERT INTO review_reassessment_obligations (id, amendment_protocol_revision, stage, record_id, created_revision, completed_revision, completed_at, completed_by, completion_rationale) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)",
+          crypto.randomUUID(),
+          amendmentProtocolRevision,
+          stage,
+          recordId,
+          amendmentProtocolRevision,
+        );
+      }
+    }
   }
 
   private currentRevision(): number {
@@ -1319,7 +2108,7 @@ export class ReviewStudy extends DurableObject<Env> {
     );
   }
 
-  private assertImportCapacity(importedRecords: number): void {
+  private assertImportCapacity(importedRecords: number, importedBytes: number): void {
     const meta = this.revisionMeta();
     if (meta.search_run_count >= reviewAggregateLimits.searchRuns) throw new Error("Review search run limit reached");
     if (meta.import_batch_count >= reviewAggregateLimits.importBatches) throw new Error("Review import batch limit reached");
@@ -1327,6 +2116,9 @@ export class ReviewStudy extends DurableObject<Env> {
       throw new Error("Review occurrence limit exceeded");
     }
     if (meta.record_count + importedRecords > reviewAggregateLimits.records) throw new Error("Review record limit exceeded");
+    if (meta.import_byte_count + importedBytes > reviewImportLimits.bibtexBytes) {
+      throw new Error("Review aggregate import byte limit exceeded");
+    }
   }
 
   private duplicateMatchesForRevision(revision: number): ReviewDuplicateMatch[] {
@@ -1391,9 +2183,9 @@ export class ReviewStudy extends DurableObject<Env> {
 
   private assertEvidenceRecord(recordId: string, actor: string): void {
     const included = this.getScreeningSnapshot(actor).records.some(
-      (record) => record.record.id === recordId && record.fullText.outcome === "include",
+      (record) => record.record.id === recordId && record.finalInclusion.outcome === "include",
     );
-    if (!included) throw new Error("Appraisal and extraction require full-text inclusion");
+    if (!included) throw new Error("Appraisal and extraction require final inclusion");
   }
 
   private assertEvidenceRevisionLimit(table: string, fieldColumn: string, recordId: string, fieldId: string, actor: string): void {
@@ -1429,8 +2221,9 @@ function protocolContent(protocol: ReviewProtocolRevision): ReviewProtocolConten
     conceptGroups: protocol.conceptGroups,
     sources: protocol.sources,
     knownRelevantStudies: protocol.knownRelevantStudies,
-    inclusionCriteria: protocol.inclusionCriteria,
-    exclusionCriteria: protocol.exclusionCriteria,
+    eligibilityCriteria: protocol.eligibilityCriteria,
+    methodConfiguration: protocol.methodConfiguration,
+    amendmentImpact: protocol.amendmentImpact,
     screening: protocol.screening,
     modelAssistance: protocol.modelAssistance,
     qualityAssessment: protocol.qualityAssessment,
@@ -1542,6 +2335,26 @@ function compareDuplicateCandidates(left: ReviewDuplicateCandidate, right: Revie
   return right.status.localeCompare(left.status) || left.confidence.localeCompare(right.confidence) || left.id.localeCompare(right.id);
 }
 
+function reassessmentObligationFromRowAtRevision(row: ReassessmentObligationRow, revision: number): ReviewReassessmentObligation {
+  const completed = row.completed_revision !== null && row.completed_revision <= revision;
+  return {
+    id: row.id,
+    amendmentProtocolRevision: row.amendment_protocol_revision,
+    stage: row.stage,
+    recordId: row.record_id,
+    status: completed ? "completed" : "open",
+    createdRevision: row.created_revision,
+    completedRevision: completed ? row.completed_revision : null,
+    completedAt: completed ? row.completed_at : null,
+    completedBy: completed ? row.completed_by : null,
+    completionRationale: completed ? row.completion_rationale : null,
+  };
+}
+
+function reassessmentStageIsRecordScoped(stage: ReviewProtocolImpactStage): boolean {
+  return stage === "title-abstract" || stage === "full-text" || stage === "appraisal" || stage === "extraction";
+}
+
 function modelCandidateRowAtRevision(row: ModelCandidateRow, revision: number): ModelCandidateRow {
   const disposed = row.disposed_revision !== null && row.disposed_revision <= revision;
   return {
@@ -1580,7 +2393,7 @@ function modelCandidateFromRow(row: ModelCandidateRow, protocol: ReviewProtocolR
 function storedExtractionResult(value: unknown, protocol: ReviewProtocolRevision): ExtractionModelResult {
   if (!isRecordValue(value) || typeof value.fieldId !== "string") throw new Error("Stored extraction model candidate is invalid");
   const field = protocol.extractionFields.find((candidate) => candidate.id === value.fieldId);
-  if (field) return parseExtractionModelResult(value, field);
+  if (field) return parseExtractionModelResult(value, field, true);
   if (
     (value.value !== null && typeof value.value !== "string" && typeof value.value !== "number" && typeof value.value !== "boolean") ||
     (value.missingReason !== null && typeof value.missingReason !== "string") ||
@@ -1592,7 +2405,7 @@ function storedExtractionResult(value: unknown, protocol: ReviewProtocolRevision
     fieldId: value.fieldId,
     value: value.value,
     missingReason: value.missingReason,
-    evidence: value.evidence === null ? null : parseEvidencePointer(value.evidence, false),
+    evidence: value.evidence === null ? null : parseEvidencePointer(value.evidence, false, true),
     rationale: value.rationale,
   };
 }
@@ -1685,10 +2498,12 @@ function decisionFromRow(row: ScreeningDecisionRow): ScreeningDecision {
     id: row.id,
     recordId: row.record_id,
     stage: row.stage,
+    protocolRevision: row.protocol_revision,
     reviewer: row.reviewer,
     decision: row.decision,
     reason: row.reason,
-    criterion: row.criterion,
+    criterionId: row.criterion_id,
+    criterionText: row.criterion_text,
     createdAt: row.created_at,
   };
 }
@@ -1698,9 +2513,26 @@ function adjudicationFromRow(row: ScreeningAdjudicationRow): ScreeningAdjudicati
     id: row.id,
     recordId: row.record_id,
     stage: row.stage,
+    protocolRevision: row.protocol_revision,
     outcome: row.outcome,
     reason: row.reason,
+    criterionId: row.criterion_id,
+    criterionText: row.criterion_text,
     adjudicator: row.adjudicator,
+    createdAt: row.created_at,
+  };
+}
+
+function finalInclusionDecisionFromRow(row: FinalInclusionDecisionRow): FinalInclusionDecision {
+  return {
+    id: row.id,
+    recordId: row.record_id,
+    protocolRevision: row.protocol_revision,
+    outcome: row.outcome,
+    reason: row.reason,
+    criterionId: row.criterion_id,
+    criterionText: row.criterion_text,
+    reviewer: row.reviewer,
     createdAt: row.created_at,
   };
 }
@@ -1709,20 +2541,29 @@ function screeningRecord(
   record: ReviewRecord,
   decisions: readonly ScreeningDecision[],
   adjudications: readonly ScreeningAdjudication[],
+  finalInclusionDecisions: readonly FinalInclusionDecision[],
   reviewersPerStage: 1 | 2,
   blinded: boolean,
-  actor: string,
+  actor: string | null,
 ): ScreeningRecordState {
   const stateFor = (stage: ScreeningStage) => {
     const stageDecisions = decisions.filter((decision) => decision.recordId === record.id && decision.stage === stage);
     const reviewers = new Set(stageDecisions.map((decision) => decision.reviewer.toLocaleLowerCase()));
     const visibleDecisions =
-      blinded && reviewers.size < reviewersPerStage ? stageDecisions.filter((decision) => decision.reviewer === actor) : stageDecisions;
+      actor !== null && blinded && reviewers.size < reviewersPerStage
+        ? stageDecisions.filter((decision) => decision.reviewer === actor)
+        : stageDecisions;
     const adjudication = adjudications.filter((item) => item.recordId === record.id && item.stage === stage).at(-1) ?? null;
     const derived = screeningStageState(stageDecisions, adjudication, reviewersPerStage);
     return { ...derived, decisions: visibleDecisions };
   };
-  return { record, titleAbstract: stateFor("title-abstract"), fullText: stateFor("full-text") };
+  const finalDecision = finalInclusionDecisions.filter((decision) => decision.recordId === record.id).at(-1) ?? null;
+  return {
+    record,
+    titleAbstract: stateFor("title-abstract"),
+    fullText: stateFor("full-text"),
+    finalInclusion: { outcome: finalDecision?.outcome ?? "pending", decision: finalDecision },
+  };
 }
 
 function screeningCounts(records: readonly ScreeningRecordState[]): ReviewScreeningSnapshot["counts"] {
@@ -1731,8 +2572,26 @@ function screeningCounts(records: readonly ScreeningRecordState[]): ReviewScreen
     titleAbstractIncluded: records.filter((record) => record.titleAbstract.outcome === "include").length,
     fullTextPending: records.filter((record) => record.titleAbstract.outcome === "include" && record.fullText.outcome === "pending").length,
     fullTextIncluded: records.filter((record) => record.fullText.outcome === "include").length,
+    finalInclusionPending: records.filter((record) => record.fullText.outcome === "include" && record.finalInclusion.outcome === "pending")
+      .length,
+    finalInclusionIncluded: records.filter((record) => record.finalInclusion.outcome === "include").length,
+    finalInclusionExcluded: records.filter((record) => record.finalInclusion.outcome === "exclude").length,
     conflicts: records.filter((record) => record.titleAbstract.outcome === "conflict" || record.fullText.outcome === "conflict").length,
   };
+}
+
+function applicableScreeningCriterion(
+  protocol: ReviewProtocolRevision,
+  criterionId: string | null,
+  stage: ScreeningStage,
+  decision: ScreeningDecisionValue,
+): ReviewEligibilityCriterion {
+  if (stage !== "title-abstract" && stage !== "full-text") throw new Error("Review screening stage is invalid");
+  const criterion = protocol.eligibilityCriteria.find((candidate) => candidate.id === criterionId);
+  if (!criterion || !criterion.applicableStages.includes(stage) || (decision !== "uncertain" && criterion.kind !== decision)) {
+    throw new Error("Screening criterion is unavailable or inapplicable");
+  }
+  return criterion;
 }
 
 function boundedScreeningText(value: string, label: string, maximum: number, allowEmpty: boolean): string {
@@ -1743,12 +2602,16 @@ function boundedScreeningText(value: string, label: string, maximum: number, all
 }
 
 function qualityValueFromRow(row: QualityValueRow): QualityAssessmentValue {
+  if (!row.criterion_id) throw new Error("Stored quality criterion is invalid");
   return {
     id: row.id,
     recordId: row.record_id,
+    protocolRevision: row.protocol_revision,
     questionId: row.question_id,
+    criterionId: row.criterion_id,
+    criterionText: row.criterion_text,
     answerId: row.answer_id,
-    evidence: parseEvidencePointer(JSON.parse(row.evidence_json), false),
+    evidence: parseEvidencePointer(JSON.parse(row.evidence_json), false, true),
     rationale: row.rationale,
     reviewer: row.reviewer,
     createdAt: row.created_at,
@@ -1757,17 +2620,128 @@ function qualityValueFromRow(row: QualityValueRow): QualityAssessmentValue {
 
 function extractionValueFromRow(row: ExtractionValueRow): ExtractedDataValue {
   const value: unknown = JSON.parse(row.value_json);
-  if (value !== null && typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
-    throw new Error("Stored extraction value is invalid");
-  }
+  if (!row.criterion_id) throw new Error("Stored extraction criterion is invalid");
   return {
     id: row.id,
     recordId: row.record_id,
+    protocolRevision: row.protocol_revision,
     fieldId: row.field_id,
-    value,
+    criterionId: row.criterion_id,
+    criterionText: row.criterion_text,
+    value: parseExtractionValueShape(value),
     missingReason: row.missing_reason,
-    evidence: row.evidence_json ? parseEvidencePointer(JSON.parse(row.evidence_json), true) : null,
+    evidence: row.evidence_json ? parseEvidencePointer(JSON.parse(row.evidence_json), true, true) : null,
     reviewer: row.reviewer,
     createdAt: row.created_at,
   };
+}
+
+function findingFromRow(row: ReviewFindingRow) {
+  return materializeReviewFinding(
+    {
+      researchQuestionId: row.research_question_id,
+      statement: row.statement,
+      interpretation: row.interpretation,
+      extractionValueIds: JSON.parse(row.extraction_value_ids_json),
+      appraisalValueIds: JSON.parse(row.appraisal_value_ids_json),
+      evidence: JSON.parse(row.evidence_json),
+      supersedesId: row.supersedes_id,
+    },
+    {
+      id: row.id,
+      reviewRevision: row.review_revision,
+      protocolRevision: row.protocol_revision,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+    },
+  );
+}
+
+interface CurrentFindingContributors {
+  readonly extraction: ReadonlyMap<string, ExtractedDataValue>;
+  readonly appraisal: ReadonlyMap<string, QualityAssessmentValue>;
+}
+
+function currentFindingContributors(snapshot: ReviewEvidenceSnapshot): CurrentFindingContributors {
+  const extraction = new Map<string, ExtractedDataValue>();
+  const appraisal = new Map<string, QualityAssessmentValue>();
+  for (const record of snapshot.records) {
+    for (const value of effectiveExtractionValues(record.extractionValues, snapshot.protocol.extractionFields)) {
+      extraction.set(value.id, value);
+    }
+    const latestAppraisal = new Map<string, QualityAssessmentValue>();
+    for (const value of record.qualityValues) latestAppraisal.set(value.questionId, value);
+    for (const value of latestAppraisal.values()) appraisal.set(value.id, value);
+  }
+  return { extraction, appraisal };
+}
+
+function assertFindingContributors(input: ReviewFindingInput, contributors: CurrentFindingContributors): void {
+  if (input.extractionValueIds.some((id) => !contributors.extraction.has(id))) {
+    throw new Error("Review finding extraction contributor is not a current evidence value");
+  }
+  if (input.appraisalValueIds.some((id) => !contributors.appraisal.has(id))) {
+    throw new Error("Review finding appraisal contributor is not a current evidence value");
+  }
+  for (const link of input.evidence) {
+    const contributor =
+      link.contributorKind === "extraction"
+        ? contributors.extraction.get(link.contributorId)
+        : contributors.appraisal.get(link.contributorId);
+    if (!contributor?.evidence || !sameEvidencePointer(link.pointer, contributor.evidence)) {
+      throw new Error("Review finding evidence must equal its contributor evidence pointer");
+    }
+  }
+}
+
+function sameEvidencePointer(left: ReviewEvidencePointer, right: ReviewEvidencePointer): boolean {
+  return (
+    left.kind === right.kind &&
+    left.resourceId === right.resourceId &&
+    left.selectorId === right.selectorId &&
+    left.quote === right.quote &&
+    left.page === right.page &&
+    left.location === right.location
+  );
+}
+
+function reviewBackupVerificationMatches(reference: ReviewBackupReference, verification: ReviewBackupVerification): boolean {
+  return (
+    verification.payloadDigest === reference.payloadDigest &&
+    verification.authorityDigest === reference.authorityDigest &&
+    verification.reviewRevision === reference.reviewRevision &&
+    verification.protocolRevision === reference.protocolRevision &&
+    verification.historyFloorRevision === reference.historyFloorRevision
+  );
+}
+
+function reviewBackupCell(value: SqlStorageValue, tableName: ReviewBackupTableName, columnName: string): string | number | null {
+  if (value === null || typeof value === "string" || (typeof value === "number" && Number.isFinite(value))) return value;
+  throw new Error(`Review backup table ${tableName}.${columnName} contains an unsupported value`);
+}
+
+function reviewBackupInteger(value: string | number | null | undefined, label: string, allowZero = false): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || (allowZero ? value < 0 : value < 1)) {
+    throw new Error(`${label} is invalid`);
+  }
+  return value;
+}
+
+function restorableReviewBackupRows(tableName: ReviewBackupTableName, rows: readonly ReviewBackupRow[]): readonly ReviewBackupRow[] {
+  if (tableName !== "review_findings") return rows;
+  return [...rows].sort((left, right) => {
+    const revisionDifference =
+      reviewBackupInteger(left.review_revision, "Review finding revision") -
+      reviewBackupInteger(right.review_revision, "Review finding revision");
+    return revisionDifference || compareText(String(left.id), String(right.id));
+  });
+}
+
+function quoteSqlIdentifier(value: string): string {
+  if (!/^[a-z][a-z0-9_]*$/u.test(value)) throw new Error("Review backup SQL identifier is invalid");
+  return `"${value}"`;
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }

@@ -7,7 +7,13 @@ import {
 } from "./review-study";
 import type { ReviewRecord } from "./review-search";
 
+export type ReviewSourceSelectorKind = "pdf-annotation" | "web-passage";
+export type ReviewEvidenceSelectorKind = ReviewSourceSelectorKind | "legacy-unresolved";
+
 export interface ReviewEvidencePointer {
+  readonly kind: ReviewEvidenceSelectorKind;
+  readonly resourceId: string;
+  readonly selectorId: string;
   readonly quote: string;
   readonly page: number | null;
   readonly location: string;
@@ -16,7 +22,10 @@ export interface ReviewEvidencePointer {
 export interface QualityAssessmentValue {
   readonly id: string;
   readonly recordId: string;
+  readonly protocolRevision: number;
   readonly questionId: string;
+  readonly criterionId: string;
+  readonly criterionText: string;
   readonly answerId: string;
   readonly evidence: ReviewEvidencePointer | null;
   readonly rationale: string;
@@ -40,12 +49,21 @@ export function validateQualityAssessment(
   return { evidence: pointer, rationale: rationaleValue };
 }
 
-export type ExtractionValue = string | number | boolean | null;
+export interface ReviewSourceSelectorValue {
+  readonly kind: ReviewSourceSelectorKind;
+  readonly resourceId: string;
+  readonly selectorId: string;
+}
+
+export type ExtractionValue = string | number | boolean | readonly string[] | ReviewSourceSelectorValue | null;
 
 export interface ExtractedDataValue {
   readonly id: string;
   readonly recordId: string;
+  readonly protocolRevision: number;
   readonly fieldId: string;
+  readonly criterionId: string;
+  readonly criterionText: string;
   readonly value: ExtractionValue;
   readonly missingReason: string | null;
   readonly evidence: ReviewEvidencePointer | null;
@@ -70,7 +88,7 @@ export interface ReviewEvidenceSnapshot {
   readonly records: readonly EvidenceRecordState[];
 }
 
-export function parseEvidencePointer(value: unknown, required: boolean): ReviewEvidencePointer | null {
+export function parseEvidencePointer(value: unknown, required: boolean, allowLegacy = false): ReviewEvidencePointer | null {
   if (value === null && !required) return null;
   if (!isRecord(value) || typeof value.quote !== "string" || typeof value.location !== "string") {
     throw new Error("Review evidence pointer is invalid");
@@ -84,7 +102,33 @@ export function parseEvidencePointer(value: unknown, required: boolean): ReviewE
   ) {
     throw new Error("Review evidence page is invalid");
   }
-  return { quote, page: value.page, location };
+  if (value.kind === undefined && value.resourceId === undefined && value.selectorId === undefined && allowLegacy) {
+    return {
+      kind: "legacy-unresolved",
+      resourceId: "legacy-unresolved",
+      selectorId: "legacy-unresolved",
+      quote,
+      page: value.page,
+      location,
+    };
+  }
+  if (
+    allowLegacy &&
+    value.kind === "legacy-unresolved" &&
+    value.resourceId === "legacy-unresolved" &&
+    value.selectorId === "legacy-unresolved"
+  ) {
+    return {
+      kind: "legacy-unresolved",
+      resourceId: "legacy-unresolved",
+      selectorId: "legacy-unresolved",
+      quote,
+      page: value.page,
+      location,
+    };
+  }
+  const selector = parseSourceSelectorValue({ kind: value.kind, resourceId: value.resourceId, selectorId: value.selectorId });
+  return { ...selector, quote, page: value.page, location };
 }
 
 export function validateExtractionValue(
@@ -102,12 +146,54 @@ export function validateExtractionValue(
     return { value: null, missingReason: reason };
   }
   if (reason) throw new Error("Present extraction values cannot have a missingness reason");
-  if (field.type === "string" && typeof value === "string" && value.trim() && value.length <= 20_000)
+  if (field.type === "text" && typeof value === "string" && value.trim() && value.length <= 20_000)
     return { value: value.trim(), missingReason: null };
   if (field.type === "integer" && typeof value === "number" && Number.isSafeInteger(value)) return { value, missingReason: null };
+  if (field.type === "decimal" && typeof value === "number" && Number.isFinite(value)) return { value, missingReason: null };
   if (field.type === "boolean" && typeof value === "boolean") return { value, missingReason: null };
-  if (field.type === "enum" && typeof value === "string" && field.values.includes(value)) return { value, missingReason: null };
+  if (field.type === "date" && typeof value === "string" && isCalendarDate(value)) return { value, missingReason: null };
+  if (field.type === "single-choice" && typeof value === "string" && field.values.includes(value)) {
+    return { value, missingReason: null };
+  }
+  if (
+    field.type === "multiple-choice" &&
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.length <= field.values.length &&
+    value.every((entry): entry is string => typeof entry === "string" && field.values.includes(entry)) &&
+    new Set(value).size === value.length
+  ) {
+    return { value: [...value], missingReason: null };
+  }
+  if (field.type === "source-selector") return { value: parseSourceSelectorValue(value), missingReason: null };
   throw new Error("Extraction value does not match its field type");
+}
+
+export function parseExtractionValueShape(value: unknown): ExtractionValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    value.every((entry): entry is string => typeof entry === "string") &&
+    new Set(value).size === value.length
+  ) {
+    return [...value];
+  }
+  if (isRecord(value)) return parseSourceSelectorValue(value);
+  throw new Error("Extracted data value is invalid");
+}
+
+export function effectiveExtractionValues(
+  values: readonly ExtractedDataValue[],
+  fields: readonly ExtractionFieldDefinition[],
+): ExtractedDataValue[] {
+  return fields.flatMap((field) => {
+    const matching = values.filter((value) => value.fieldId === field.id);
+    if (field.cardinality === "repeatable") return matching;
+    return matching.length > 0 ? [matching.at(-1)!] : [];
+  });
 }
 
 export function summarizeEvidenceRecord(
@@ -117,7 +203,7 @@ export function summarizeEvidenceRecord(
   extractionValues: readonly ExtractedDataValue[],
 ): EvidenceRecordState {
   const latestQuality = latestBy(qualityValues, (value) => value.questionId);
-  const latestExtraction = latestBy(extractionValues, (value) => value.fieldId);
+  const effectiveExtraction = effectiveExtractionValues(extractionValues, protocol.extractionFields);
   const answerById = new Map(protocol.qualityAssessment.answers.map((answer) => [answer.id, answer] as const));
   const selectedAnswers = latestQuality
     .map((value) => answerById.get(value.answerId))
@@ -131,7 +217,9 @@ export function summarizeEvidenceRecord(
       latestQuality.some((value) => value.questionId === question.id),
     ),
     extractionValues,
-    extractionComplete: protocol.extractionFields.every((field) => latestExtraction.some((value) => value.fieldId === field.id)),
+    extractionComplete: protocol.extractionFields.every(
+      (field) => field.requiredness === "optional" || effectiveExtraction.some((value) => value.fieldId === field.id),
+    ),
   };
 }
 
@@ -144,15 +232,17 @@ export function parseReviewEvidenceSnapshot(value: unknown): ReviewEvidenceSnaps
     qualityAssessment: value.protocol.qualityAssessment,
     extractionFields: value.protocol.extractionFields,
   });
+  const protocolRevision = integer(value.protocolRevision);
+  if (protocolRevision < 1) throw new Error("Review evidence protocol revision is invalid");
   return {
     revision: integer(value.revision),
-    protocolRevision: integer(value.protocolRevision),
+    protocolRevision,
     protocol: {
       researchQuestions: protocolContent.researchQuestions,
       qualityAssessment: protocolContent.qualityAssessment,
       extractionFields: protocolContent.extractionFields,
     },
-    records: value.records.map((item) => parseEvidenceRecordState(item, protocolContent)),
+    records: value.records.map((item) => parseEvidenceRecordState(item, protocolContent, protocolRevision)),
   };
 }
 
@@ -165,6 +255,7 @@ function latestBy<Value>(values: readonly Value[], key: (value: Value) => string
 function parseEvidenceRecordState(
   value: unknown,
   protocol: Pick<ReviewProtocolRevision, "qualityAssessment" | "extractionFields">,
+  protocolRevision: number,
 ): EvidenceRecordState {
   if (
     !isRecord(value) ||
@@ -202,43 +293,99 @@ function parseEvidenceRecordState(
       warnings: metadata.warnings,
     },
   };
-  const qualityValues = value.qualityValues.map(parseQualityValue);
-  const extractionValues = value.extractionValues.map(parseExtractionValue);
+  const questionById = new Map(protocol.qualityAssessment.questions.map((question) => [question.id, question] as const));
+  const qualityValues = value.qualityValues.map((item) => parseQualityValue(item, protocolRevision, questionById));
+  const fieldById = new Map(protocol.extractionFields.map((field) => [field.id, field] as const));
+  const extractionValues = value.extractionValues.map((item) => {
+    if (!isRecord(item) || typeof item.fieldId !== "string") throw new Error("Extracted data value is invalid");
+    const field = fieldById.get(item.fieldId);
+    if (!field) throw new Error("Extracted data value references an unavailable field");
+    return parseExtractionValue(item, field, protocolRevision);
+  });
   return summarizeEvidenceRecord(record, protocol, qualityValues, extractionValues);
 }
 
-function parseQualityValue(value: unknown): QualityAssessmentValue {
+function parseQualityValue(
+  value: unknown,
+  protocolRevision: number,
+  questionById: ReadonlyMap<string, { readonly id: string; readonly text: string }>,
+): QualityAssessmentValue {
   if (!isRecord(value)) throw new Error("Quality assessment value is invalid");
+  const questionId = text(value.questionId);
+  const question = questionById.get(questionId);
+  if (!question) throw new Error("Quality assessment value references an unavailable question");
   return {
     id: text(value.id),
     recordId: text(value.recordId),
-    questionId: text(value.questionId),
+    protocolRevision: storedProtocolRevision(value.protocolRevision, protocolRevision),
+    questionId,
+    criterionId: value.criterionId === undefined ? question.id : text(value.criterionId),
+    criterionText: value.criterionText === undefined ? question.text : text(value.criterionText),
     answerId: text(value.answerId),
-    evidence: parseEvidencePointer(value.evidence, false),
+    evidence: parseEvidencePointer(value.evidence, false, true),
     rationale: text(value.rationale),
     reviewer: text(value.reviewer),
     createdAt: text(value.createdAt),
   };
 }
 
-function parseExtractionValue(value: unknown): ExtractedDataValue {
-  if (
-    !isRecord(value) ||
-    (value.value !== null && typeof value.value !== "string" && typeof value.value !== "number" && typeof value.value !== "boolean") ||
-    (value.missingReason !== null && typeof value.missingReason !== "string")
-  ) {
+function parseExtractionValue(value: unknown, field: ExtractionFieldDefinition, protocolRevision: number): ExtractedDataValue {
+  if (!isRecord(value) || (value.missingReason !== null && typeof value.missingReason !== "string")) {
     throw new Error("Extracted data value is invalid");
   }
+  const validated = validateExtractionValue(field, value.value, value.missingReason);
   return {
     id: text(value.id),
     recordId: text(value.recordId),
-    fieldId: text(value.fieldId),
-    value: value.value,
-    missingReason: value.missingReason,
-    evidence: parseEvidencePointer(value.evidence, false),
+    protocolRevision: storedProtocolRevision(value.protocolRevision, protocolRevision),
+    fieldId: field.id,
+    criterionId: value.criterionId === undefined ? field.id : text(value.criterionId),
+    criterionText: value.criterionText === undefined ? field.label : text(value.criterionText),
+    value: validated.value,
+    missingReason: validated.missingReason,
+    evidence: parseEvidencePointer(value.evidence, false, true),
     reviewer: text(value.reviewer),
     createdAt: text(value.createdAt),
   };
+}
+
+function storedProtocolRevision(value: unknown, fallback: number): number {
+  if (value === undefined) return fallback;
+  const revision = integer(value);
+  if (revision < 1) throw new Error("Review evidence protocol revision is invalid");
+  return revision;
+}
+
+function parseSourceSelectorValue(value: unknown): ReviewSourceSelectorValue {
+  if (
+    !isRecord(value) ||
+    (value.kind !== "pdf-annotation" && value.kind !== "web-passage") ||
+    typeof value.resourceId !== "string" ||
+    !value.resourceId.trim() ||
+    value.resourceId.length > 128 ||
+    typeof value.selectorId !== "string" ||
+    !value.selectorId.trim() ||
+    value.selectorId.length > 128 ||
+    Object.keys(value).some((key) => key !== "kind" && key !== "resourceId" && key !== "selectorId")
+  ) {
+    throw new Error("Review source selector value is invalid");
+  }
+  return { kind: value.kind, resourceId: value.resourceId.trim(), selectorId: value.selectorId.trim() };
+}
+
+function isCalendarDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (year < 1 || month < 1 || month > 12 || day < 1) return false;
+  const monthLengths = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return day <= monthLengths[month - 1]!;
+}
+
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
 }
 
 function integer(value: unknown): number {

@@ -1,3 +1,6 @@
+import { validateExtractionValue, type ExtractionValue, type ReviewEvidencePointer } from "../domain/review-evidence";
+import type { ExtractionFieldType } from "../domain/review-study";
+
 const maximumEndpointLength = 2_048;
 const maximumModelLength = 256;
 const maximumProviderLabelLength = 256;
@@ -186,8 +189,11 @@ export interface ReviewExtractionRequest {
   readonly title: string;
   readonly fieldId: string;
   readonly fieldLabel: string;
-  readonly fieldType: "string" | "integer" | "boolean" | "enum";
+  readonly fieldType: ExtractionFieldType;
   readonly allowedValues: readonly string[];
+  readonly selectorKind: "pdf-annotation" | "web-passage";
+  readonly resourceId: string;
+  readonly selectorId: string;
   readonly quote: string;
   readonly page: number | null;
   readonly location: string;
@@ -195,9 +201,9 @@ export interface ReviewExtractionRequest {
 
 export interface ReviewExtractionSuggestion {
   readonly fieldId: string;
-  readonly value: string | number | boolean | null;
+  readonly value: ExtractionValue;
   readonly missingReason: string | null;
-  readonly evidence: { readonly quote: string; readonly page: number | null; readonly location: string } | null;
+  readonly evidence: ReviewEvidencePointer | null;
   readonly rationale: string;
   readonly adapter: string;
   readonly providerLabel: string;
@@ -742,15 +748,40 @@ function reviewExtractionResponseFormat(): JsonSchemaResponseFormat {
         type: "object",
         properties: {
           fieldId: { type: "string" },
-          value: { type: ["string", "number", "boolean", "null"] },
+          value: {
+            anyOf: [
+              { type: "string" },
+              { type: "number" },
+              { type: "boolean" },
+              { type: "null" },
+              { type: "array", minItems: 1, maxItems: 128, uniqueItems: true, items: { type: "string" } },
+              {
+                type: "object",
+                properties: {
+                  kind: { type: "string", enum: ["pdf-annotation", "web-passage"] },
+                  resourceId: { type: "string" },
+                  selectorId: { type: "string" },
+                },
+                required: ["kind", "resourceId", "selectorId"],
+                additionalProperties: false,
+              },
+            ],
+          },
           missingReason: { type: ["string", "null"] },
           evidence: {
             anyOf: [
               { type: "null" },
               {
                 type: "object",
-                properties: { quote: { type: "string" }, page: { type: ["integer", "null"] }, location: { type: "string" } },
-                required: ["quote", "page", "location"],
+                properties: {
+                  kind: { type: "string", enum: ["pdf-annotation", "web-passage"] },
+                  resourceId: { type: "string" },
+                  selectorId: { type: "string" },
+                  quote: { type: "string" },
+                  page: { type: ["integer", "null"] },
+                  location: { type: "string" },
+                },
+                required: ["kind", "resourceId", "selectorId", "quote", "page", "location"],
                 additionalProperties: false,
               },
             ],
@@ -1146,39 +1177,50 @@ function reviewExtractionFromContent(
   const value = parsedObject(content, "review extraction candidate");
   exactKeys(value, ["fieldId", "value", "missingReason", "evidence", "rationale"], "review extraction candidate");
   if (value.fieldId !== request.fieldId) throw new TypeError("Review extraction field changed");
-  if (value.value !== null && typeof value.value !== "string" && typeof value.value !== "number" && typeof value.value !== "boolean") {
-    throw new TypeError("Review extraction value is invalid");
-  }
   if (value.missingReason !== null && typeof value.missingReason !== "string") throw new TypeError("Missing reason is invalid");
   if ((value.value === null) === (value.missingReason === null)) throw new TypeError("Extraction must contain a value or missing reason");
+  const validated = validateExtractionValue(
+    {
+      id: request.fieldId,
+      label: request.fieldLabel,
+      type: request.fieldType,
+      values: request.allowedValues,
+      researchQuestionIds: [],
+      requiredness: "required",
+      cardinality: "single",
+      condition: null,
+    },
+    value.value,
+    value.missingReason,
+  );
   let evidence: ReviewExtractionSuggestion["evidence"] = null;
   if (value.evidence !== null) {
     if (!isRecord(value.evidence)) throw new TypeError("Extraction evidence is invalid");
-    exactKeys(value.evidence, ["quote", "page", "location"], "extraction evidence");
-    if (value.evidence.quote !== request.quote || value.evidence.page !== request.page || value.evidence.location !== request.location) {
+    exactKeys(value.evidence, ["kind", "resourceId", "selectorId", "quote", "page", "location"], "extraction evidence");
+    if (
+      value.evidence.kind !== request.selectorKind ||
+      value.evidence.resourceId !== request.resourceId ||
+      value.evidence.selectorId !== request.selectorId ||
+      value.evidence.quote !== request.quote ||
+      value.evidence.page !== request.page ||
+      value.evidence.location !== request.location
+    ) {
       throw new TypeError("Extraction evidence must copy the authorized source selector exactly");
     }
-    evidence = { quote: request.quote, page: request.page, location: request.location };
+    evidence = {
+      kind: request.selectorKind,
+      resourceId: request.resourceId,
+      selectorId: request.selectorId,
+      quote: request.quote,
+      page: request.page,
+      location: request.location,
+    };
   }
-  if (value.value !== null && !evidence) throw new TypeError("Extraction value requires evidence");
-  if (value.value !== null && request.fieldType === "integer" && (!Number.isSafeInteger(value.value) || typeof value.value !== "number")) {
-    throw new TypeError("Extraction value must be an integer");
-  }
-  if (value.value !== null && request.fieldType === "boolean" && typeof value.value !== "boolean")
-    throw new TypeError("Extraction value must be boolean");
-  if (value.value !== null && request.fieldType === "string" && typeof value.value !== "string")
-    throw new TypeError("Extraction value must be text");
-  if (
-    value.value !== null &&
-    request.fieldType === "enum" &&
-    (typeof value.value !== "string" || !request.allowedValues.includes(value.value))
-  ) {
-    throw new TypeError("Extraction value must use an allowed option");
-  }
+  if (validated.value !== null && !evidence) throw new TypeError("Extraction value requires evidence");
   return {
     fieldId: request.fieldId,
-    value: value.value,
-    missingReason: value.missingReason === null ? null : boundedRequiredString(value.missingReason, 2_000, "Missing reason").trim(),
+    value: validated.value,
+    missingReason: validated.missingReason,
     evidence,
     rationale: boundedRequiredString(value.rationale, 2_000, "Extraction rationale").trim(),
   };

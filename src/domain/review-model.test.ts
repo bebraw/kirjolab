@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { parseExtractionModelResult, parseReviewModelSnapshot, parseScreeningModelResult, type ReviewModelCandidate } from "./review-model";
 
-const field = { id: "year", label: "Year", type: "integer" as const, values: [], researchQuestionIds: [] };
+const field = {
+  id: "year",
+  label: "Year",
+  type: "integer" as const,
+  values: [],
+  researchQuestionIds: [],
+  requiredness: "required" as const,
+  cardinality: "single" as const,
+  condition: null,
+};
 
 describe("review model candidates", () => {
   it("validates bounded screening and evidence-linked extraction proposals", () => {
@@ -14,7 +23,14 @@ describe("review model candidates", () => {
           fieldId: "year",
           value: 2025,
           missingReason: null,
-          evidence: { quote: "Published in 2025", page: 1, location: "Front matter" },
+          evidence: {
+            kind: "pdf-annotation",
+            resourceId: "pdf-1",
+            selectorId: "annotation-year",
+            quote: "Published in 2025",
+            page: 1,
+            location: "Front matter",
+          },
           rationale: "The year is explicit",
         },
         field,
@@ -26,6 +42,56 @@ describe("review model candidates", () => {
         field,
       ),
     ).toMatchObject({ value: null, missingReason: "Not reported", evidence: null });
+  });
+
+  it("validates multiple-choice and source-selector proposals", () => {
+    const multiple = {
+      ...field,
+      id: "methods",
+      type: "multiple-choice" as const,
+      values: ["survey", "interview"],
+      cardinality: "repeatable" as const,
+    };
+    expect(
+      parseExtractionModelResult(
+        {
+          fieldId: "methods",
+          value: ["survey", "interview"],
+          missingReason: null,
+          evidence: {
+            kind: "pdf-annotation",
+            resourceId: "pdf-1",
+            selectorId: "annotation-method",
+            quote: "Survey and interviews",
+            page: 2,
+            location: "Method",
+          },
+          rationale: "Both methods are explicit",
+        },
+        multiple,
+      ),
+    ).toMatchObject({ value: ["survey", "interview"] });
+
+    const selector = { ...field, id: "passage", type: "source-selector" as const };
+    expect(
+      parseExtractionModelResult(
+        {
+          fieldId: "passage",
+          value: { kind: "web-passage", resourceId: "shared-web", selectorId: "passage-1" },
+          missingReason: null,
+          evidence: {
+            kind: "web-passage",
+            resourceId: "share-1",
+            selectorId: "snapshot-1",
+            quote: "Selected passage",
+            page: null,
+            location: "Results",
+          },
+          rationale: "The selected passage is relevant",
+        },
+        selector,
+      ),
+    ).toMatchObject({ value: { kind: "web-passage", resourceId: "shared-web", selectorId: "passage-1" } });
   });
 
   it("parses the auditable disclosure and rejects malformed or invented candidates", () => {
@@ -55,7 +121,14 @@ describe("review model candidates", () => {
         fieldId: "year",
         value: 2025,
         missingReason: null,
-        evidence: { quote: "Published in 2025", page: 1, location: "Front matter" },
+        evidence: {
+          kind: "pdf-annotation",
+          resourceId: "pdf-1",
+          selectorId: "annotation-year",
+          quote: "Published in 2025",
+          page: 1,
+          location: "Front matter",
+        },
         rationale: "The publication year is explicit",
       },
       disposition: "accepted",

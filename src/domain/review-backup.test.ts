@@ -197,6 +197,8 @@ function exportAuthority(objective = "Map practices"): ReviewExportAuthority {
     },
     records: [],
   };
+  const findings = { revision: 7, findings: [] };
+  const reassessment = { revision: 7, obligations: [] };
   return {
     revision: 7,
     protocol,
@@ -204,7 +206,9 @@ function exportAuthority(objective = "Map practices"): ReviewExportAuthority {
     screening,
     evidence,
     model: { revision: 7, candidates: [] },
-    synthesis: buildReviewSynthesis(protocol, search, screening, evidence),
+    findings,
+    reassessment,
+    synthesis: buildReviewSynthesis(protocol, search, screening, evidence, findings, reassessment),
   };
 }
 

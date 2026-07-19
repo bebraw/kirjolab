@@ -66,6 +66,14 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 3,
+    name: "count-verified-review-recoveries",
+    apply(sql): undefined {
+      sql.exec("ALTER TABLE backup_drills ADD COLUMN reviews_checked INTEGER NOT NULL DEFAULT 0;");
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 interface OwnerRow extends Record<string, SqlStorageValue> {
@@ -93,6 +101,7 @@ interface DrillRow extends Record<string, SqlStorageValue> {
   recovery_identity: string | null;
   checked_at: string;
   binaries_checked: number;
+  reviews_checked: number;
   error: string | null;
 }
 
@@ -143,6 +152,7 @@ export class BackupCoordinator extends DurableObject<Env> {
     const checkedAt = new Date().toISOString();
     const backup = this.getStatus(ownerKey);
     let binariesChecked = 0;
+    let reviewsChecked = 0;
     try {
       if (!backup.manifestKey || !backup.digest) throw new Error("No successful backup is available");
       const manifestObject = await this.env.PAPERS.get(backup.manifestKey);
@@ -152,7 +162,7 @@ export class BackupCoordinator extends DurableObject<Env> {
       const manifest = parseOwnerBackupManifest(manifestJson);
       if (manifest.state.ownerKey !== ownerKey || manifest.digest !== backup.digest)
         throw new Error("Backup manifest identity does not match status");
-      if ((await ownerBackupDigest(manifest.state, manifest.binaries)) !== manifest.digest)
+      if ((await ownerBackupDigest(manifest.state, manifest.binaries, manifest.schemaVersion)) !== manifest.digest)
         throw new Error("Backup manifest digest verification failed");
 
       for (const binary of manifest.binaries) {
@@ -169,12 +179,38 @@ export class BackupCoordinator extends DurableObject<Env> {
       const restoredJson = await recovery.getRestoredManifest();
       if (!restoredJson) throw new Error("Recovered logical state is unavailable");
       const restored = parseOwnerBackupManifest(restoredJson);
-      if ((await ownerBackupDigest(restored.state, restored.binaries)) !== manifest.digest) {
+      if ((await ownerBackupDigest(restored.state, restored.binaries, restored.schemaVersion)) !== manifest.digest) {
         throw new Error("Recovered logical state digest verification failed");
       }
-      this.#recordDrill(ownerKey, "verified", manifest.digest, backup.manifestKey, recoveryIdentity, checkedAt, binariesChecked, null);
+      reviewsChecked = (await recovery.getRestoredReviewStudies()).length;
+      const expectedReviews =
+        manifest.schemaVersion === ownerBackupSchemaVersion
+          ? manifest.state.workspaces.filter((workspace) => workspace.reviewPayload !== null).length
+          : 0;
+      if (reviewsChecked !== expectedReviews) throw new Error("Recovered review study count verification failed");
+      this.#recordDrill(
+        ownerKey,
+        "verified",
+        manifest.digest,
+        backup.manifestKey,
+        recoveryIdentity,
+        checkedAt,
+        binariesChecked,
+        reviewsChecked,
+        null,
+      );
     } catch (error) {
-      this.#recordDrill(ownerKey, "failed", backup.digest, backup.manifestKey, null, checkedAt, binariesChecked, backupError(error));
+      this.#recordDrill(
+        ownerKey,
+        "failed",
+        backup.digest,
+        backup.manifestKey,
+        null,
+        checkedAt,
+        binariesChecked,
+        reviewsChecked,
+        backupError(error),
+      );
     }
     return this.getRecoveryDrillStatus(ownerKey);
   }
@@ -271,14 +307,14 @@ export class BackupCoordinator extends DurableObject<Env> {
       const [accessBackup, documentBackup, reviewBackup] = await Promise.all([
         access.getBackupSnapshot(owner.email),
         room.getBackupSnapshot(summary.id),
-        review.getBackupSnapshot(owner.email),
+        review.createBackupSnapshot(owner.owner_key),
       ]);
       workspaces.push({
         summary,
         members: accessBackup.members,
         snapshot: documentBackup.snapshot,
         revisionSeed: documentBackup.revisionSeed,
-        review: reviewBackup.authority,
+        reviewPayload: reviewBackup.reference,
         reviewRevisionSeed: reviewBackup.revisionSeed,
       });
       recoveryWorkspaces.push({
@@ -379,12 +415,13 @@ export class BackupCoordinator extends DurableObject<Env> {
     recoveryIdentity: string | null,
     checkedAt: string,
     binariesChecked: number,
+    reviewsChecked: number,
     error: string | null,
   ): void {
     this.ctx.storage.sql.exec(
       `INSERT INTO backup_drills
-       (owner_key, outcome, digest, manifest_key, recovery_identity, checked_at, binaries_checked, error)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       (owner_key, outcome, digest, manifest_key, recovery_identity, checked_at, binaries_checked, reviews_checked, error)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(owner_key) DO UPDATE SET
          outcome = excluded.outcome,
          digest = excluded.digest,
@@ -392,6 +429,7 @@ export class BackupCoordinator extends DurableObject<Env> {
          recovery_identity = excluded.recovery_identity,
          checked_at = excluded.checked_at,
          binaries_checked = excluded.binaries_checked,
+         reviews_checked = excluded.reviews_checked,
          error = excluded.error`,
       ownerKey,
       outcome,
@@ -400,6 +438,7 @@ export class BackupCoordinator extends DurableObject<Env> {
       recoveryIdentity,
       checkedAt,
       binariesChecked,
+      reviewsChecked,
       error,
     );
   }
@@ -439,6 +478,7 @@ function drillStatusFromRow(row: DrillRow): OwnerBackupDrillStatus {
     recoveryIdentity: row.recovery_identity,
     checkedAt: row.checked_at,
     binariesChecked: row.binaries_checked,
+    reviewsChecked: row.reviews_checked,
     error: row.error,
   };
 }
@@ -452,6 +492,7 @@ function emptyDrillStatus(ownerKey: string): OwnerBackupDrillStatus {
     recoveryIdentity: null,
     checkedAt: null,
     binariesChecked: 0,
+    reviewsChecked: 0,
     error: null,
   };
 }

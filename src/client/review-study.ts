@@ -1,8 +1,11 @@
 import {
+  defaultReviewMethodConfiguration,
+  parseReviewReassessmentSnapshot,
   parseReviewStudySnapshot,
   type ReviewConceptGroup,
   type ReviewProtocolContent,
   type ReviewResearchQuestion,
+  type ReviewReassessmentSnapshot,
   type ReviewSearchSource,
   type ReviewStudySnapshot,
   type SearchDialect,
@@ -62,6 +65,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   const reportContent = required("review-report-content", HTMLElement);
   const prismaImage = required("review-prisma-flow", HTMLImageElement);
   let snapshot: ReviewStudySnapshot | null = null;
+  let reassessmentSnapshot: ReviewReassessmentSnapshot | null = null;
   let searchSnapshot: ReviewSearchSnapshot | null = null;
   let importPreview: ReviewImportPreview | null = null;
   let screeningSnapshot: ReviewScreeningSnapshot | null = null;
@@ -105,6 +109,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       snapshot = parseReviewStudySnapshot(await response.json());
       render(snapshot);
+      await loadReassessments();
       await loadSearchSnapshot();
       setStatus(`Protocol revision ${snapshot.revision} loaded.`);
     } catch (error) {
@@ -115,13 +120,16 @@ export function bindReviewStudyPlanning(apiBase: string): void {
   async function save(): Promise<void> {
     if (!snapshot) return;
     try {
-      const content = readContent(snapshot.protocol);
+      let content = readContent(snapshot.protocol);
       let endpoint = "/review-study/protocol";
       let method: "PUT" | "POST" = "PUT";
       let rationale: string | undefined;
       if (snapshot.protocol.status === "frozen") {
         rationale = window.prompt("Why is the frozen protocol changing?")?.trim();
         if (!rationale) return setStatus("A frozen protocol can change only with an amendment rationale.");
+        const impact = amendmentImpactFromPrompts();
+        if (!impact) return setStatus("An amendment must identify the affected workflow stages.");
+        content = { ...content, amendmentImpact: impact };
         endpoint = "/review-study/protocol/amend";
         method = "POST";
       }
@@ -139,6 +147,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       snapshot = parseReviewStudySnapshot(await response.json());
       render(snapshot);
+      await loadReassessments();
       setStatus(snapshot.protocol.status === "frozen" ? "Protocol amendment recorded." : "Protocol saved.");
     } catch (error) {
       setStatus(errorMessage(error));
@@ -160,7 +169,36 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       await expectOk(response);
       snapshot = parseReviewStudySnapshot(await response.json());
       render(snapshot);
+      await loadReassessments();
       setStatus("Protocol frozen. Future changes will be recorded as amendments.");
+    } catch (error) {
+      setStatus(errorMessage(error));
+    }
+  }
+
+  async function loadReassessments(): Promise<void> {
+    const response = await fetch(`${apiBase}/review-study/reassessments`, { credentials: "same-origin" });
+    await expectOk(response);
+    reassessmentSnapshot = parseReviewReassessmentSnapshot(await response.json());
+    renderReassessments(reassessmentSnapshot, completeReassessment);
+  }
+
+  async function completeReassessment(id: string): Promise<void> {
+    if (!reassessmentSnapshot) return;
+    const rationale = window.prompt("How was this amendment impact reassessed?")?.trim();
+    if (!rationale) return;
+    setStatus("Completing reassessment obligation…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/reassessments/${id}/complete`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedRevision: reassessmentSnapshot.revision, rationale }),
+      });
+      await expectOk(response);
+      reassessmentSnapshot = parseReviewReassessmentSnapshot(await response.json());
+      renderReassessments(reassessmentSnapshot, completeReassessment);
+      setStatus("Reassessment completed without rewriting the earlier judgments.");
     } catch (error) {
       setStatus(errorMessage(error));
     }
@@ -244,7 +282,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       screeningSnapshot = parseReviewScreeningSnapshot(await response.json());
       await loadModelSnapshot();
       renderScreening();
-      const hasIncluded = screeningSnapshot.counts.fullTextIncluded > 0;
+      const hasIncluded = screeningSnapshot.counts.finalInclusionIncluded > 0;
       appraiseStep.disabled = !hasIncluded;
       extractStep.disabled = !hasIncluded;
       setScreenStatus("Decisions are append-only and attributed to the signed-in reviewer.");
@@ -309,9 +347,67 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       const response = await fetch(`${apiBase}/review-study/synthesis`, { credentials: "same-origin" });
       await expectOk(response);
       synthesis = parseReviewSynthesis(await response.json());
-      renderSynthesis(synthesis);
+      renderSynthesis(synthesis, recordFinding);
       reportStep.disabled = false;
       setSynthesisStatus(`Synthesis derived from review revision ${synthesis.revision}.`);
+    } catch (error) {
+      setSynthesisStatus(errorMessage(error));
+    }
+  }
+
+  async function recordFinding(researchQuestionId: string): Promise<void> {
+    if (!synthesis) return;
+    if (!evidenceSnapshot) {
+      const response = await fetch(`${apiBase}/review-study/evidence`, { credentials: "same-origin" });
+      await expectOk(response);
+      evidenceSnapshot = parseReviewEvidenceSnapshot(await response.json());
+    }
+    const fieldIds = new Set(
+      evidenceSnapshot.protocol.extractionFields
+        .filter((field) => field.researchQuestionIds.includes(researchQuestionId))
+        .map((field) => field.id),
+    );
+    const contributors = evidenceSnapshot.records.flatMap((record) =>
+      record.extractionValues.filter((value) => fieldIds.has(value.fieldId) && value.evidence !== null),
+    );
+    if (contributors.length === 0) {
+      setSynthesisStatus("Record an evidence-linked extraction for this research question before creating a finding.");
+      return;
+    }
+    const statement = window.prompt("State the evidence-linked finding:")?.trim();
+    if (!statement) return;
+    const interpretation = window.prompt("Optional interpretation:", "")?.trim() ?? "";
+    const contributorId = window.prompt(
+      `Contributing extraction ID (${contributors.map((value) => value.id).join(", ")}):`,
+      contributors[0]!.id,
+    );
+    const contributor = contributors.find((value) => value.id === contributorId?.trim());
+    if (!contributor?.evidence) return setSynthesisStatus("Choose one of the listed evidence-linked extraction IDs.");
+    setSynthesisStatus("Recording append-only review finding…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/findings`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: synthesis.revision,
+          finding: {
+            researchQuestionId,
+            statement,
+            interpretation,
+            extractionValueIds: [contributor.id],
+            appraisalValueIds: [],
+            evidence: [{ contributorKind: "extraction", contributorId: contributor.id, pointer: contributor.evidence }],
+            supersedesId: null,
+          },
+        }),
+      });
+      await expectOk(response);
+      const synthesisResponse = await fetch(`${apiBase}/review-study/synthesis`, { credentials: "same-origin" });
+      await expectOk(synthesisResponse);
+      synthesis = parseReviewSynthesis(await synthesisResponse.json());
+      renderSynthesis(synthesis, recordFinding);
+      setSynthesisStatus(`Finding recorded at review revision ${synthesis.revision}.`);
     } catch (error) {
       setSynthesisStatus(errorMessage(error));
     }
@@ -352,7 +448,12 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         }),
       });
       await expectOk(response);
-      setSynthesisStatus(`Published review/synthesis.md from review revision ${synthesis.revision}.`);
+      const published: unknown = await response.json();
+      const directive =
+        typeof published === "object" && published !== null && "directive" in published && typeof published.directive === "string"
+          ? published.directive
+          : "::review-artifact[review/synthesis.md]";
+      setSynthesisStatus(`Published review/synthesis.md from review revision ${synthesis.revision}. Add ${directive} in the editor.`);
     } catch (error) {
       setSynthesisStatus(errorMessage(error));
     }
@@ -462,7 +563,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
           expectedRevision: latestReviewRevision(screeningSnapshot.revision, modelSnapshot?.revision),
           stage,
           decision: screeningDecisionValue(data.get("decision")),
-          criterion: String(data.get("criterion") ?? ""),
+          criterionId: String(data.get("criterionId") ?? "").trim() || null,
           reason: String(data.get("reason") ?? ""),
         }),
       });
@@ -484,8 +585,12 @@ export function bindReviewStudyPlanning(apiBase: string): void {
       const suggestion = await provider.screenReviewRecord({
         title: state.record.metadata.title,
         abstract: state.record.metadata.abstract,
-        inclusionCriteria: snapshot.protocol.inclusionCriteria,
-        exclusionCriteria: snapshot.protocol.exclusionCriteria,
+        inclusionCriteria: snapshot.protocol.eligibilityCriteria
+          .filter((criterion) => criterion.kind === "include" && criterion.applicableStages.includes("title-abstract"))
+          .map((criterion) => criterion.text),
+        exclusionCriteria: snapshot.protocol.eligibilityCriteria
+          .filter((criterion) => criterion.kind === "exclude" && criterion.applicableStages.includes("title-abstract"))
+          .map((criterion) => criterion.text),
       });
       const response = await fetch(`${apiBase}/review-study/model-candidates`, {
         method: "POST",
@@ -539,6 +644,9 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         fieldLabel: field.label,
         fieldType: field.type,
         allowedValues: field.values,
+        selectorKind: pointer.kind,
+        resourceId: pointer.resourceId,
+        selectorId: pointer.selectorId,
         quote: pointer.quote,
         page: pointer.page,
         location: pointer.location,
@@ -619,6 +727,32 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     }
   }
 
+  async function decideFinalInclusion(recordId: string, formElement: HTMLFormElement): Promise<void> {
+    if (!screeningSnapshot) return;
+    const data = new FormData(formElement);
+    const outcome = data.get("outcome") === "exclude" ? "exclude" : "include";
+    setScreenStatus("Recording final inclusion decision…");
+    try {
+      const response = await fetch(`${apiBase}/review-study/records/${recordId}/final-inclusion-decisions`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision: screeningSnapshot.revision,
+          outcome,
+          criterionId: String(data.get("criterionId") ?? "").trim() || null,
+          reason: String(data.get("reason") ?? ""),
+        }),
+      });
+      await expectOk(response);
+      screeningSnapshot = parseReviewScreeningSnapshot(await response.json());
+      renderScreening();
+      setScreenStatus("Final inclusion recorded separately from full-text eligibility.");
+    } catch (error) {
+      setScreenStatus(errorMessage(error));
+    }
+  }
+
   function renderScreening(): void {
     if (!screeningSnapshot || !snapshot) return;
     const protocolSnapshot = snapshot;
@@ -632,7 +766,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
     required("review-screen-policy", HTMLElement).textContent =
       `${screeningSnapshot.reviewersPerStage === 2 ? "Two independent reviewers" : "One reviewer"} per stage${screeningSnapshot.blinded ? " · pending decisions blinded" : ""}`;
     required("review-screen-counts", HTMLElement).textContent =
-      `${stage === "title-abstract" ? screeningSnapshot.counts.titleAbstractPending : screeningSnapshot.counts.fullTextPending} pending · ${screeningSnapshot.counts.conflicts} conflicts`;
+      `${stage === "title-abstract" ? screeningSnapshot.counts.titleAbstractPending : screeningSnapshot.counts.fullTextPending} pending · ${screeningSnapshot.counts.conflicts} conflicts · ${screeningSnapshot.counts.finalInclusionIncluded} finally included`;
     const list = required("review-screen-list", HTMLElement);
     list.replaceChildren(
       ...(states.length
@@ -643,6 +777,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
               protocolSnapshot,
               (recordId, formElement) => submitDecision(recordId, stage, formElement),
               (recordId, outcome) => adjudicate(recordId, stage, outcome),
+              decideFinalInclusion,
               stage === "title-abstract" && protocolSnapshot.protocol.modelAssistance.mode !== "off"
                 ? (record) => generateScreeningCandidate(record)
                 : null,
@@ -698,7 +833,7 @@ export function bindReviewStudyPlanning(apiBase: string): void {
         body: JSON.stringify({
           expectedRevision: latestReviewRevision(evidenceSnapshot.revision, modelSnapshot?.revision),
           fieldId,
-          value: missingReason ? null : extractionValueFromForm(data.get("value"), fieldType),
+          value: missingReason ? null : extractionValueFromForm(data, fieldType),
           missingReason: missingReason || null,
           evidence: missingReason ? null : evidenceFromForm(data),
         }),
@@ -768,13 +903,22 @@ function render(snapshot: ReviewStudySnapshot): void {
     .map((group) => `${group.label} :: ${group.terms.join("; ")}`)
     .join("\n");
   required("review-sources", HTMLTextAreaElement).value = protocol.sources
-    .map((source) => `${source.name} | ${source.url} | ${source.dialect} | ${source.fieldScope}`)
+    .map(
+      (source) =>
+        `${source.name} | ${source.url} | ${source.dialect} | ${source.fieldScope} | ${source.sourceClass} | ${source.evidenceClass} | ${source.greySourceClass ?? ""}`,
+    )
     .join("\n");
   required("review-known-studies", HTMLTextAreaElement).value = protocol.knownRelevantStudies
     .map((study) => `${study.title} | ${study.abstract.replaceAll(/\s+/gu, " ")}`)
     .join("\n");
-  required("review-inclusion-criteria", HTMLTextAreaElement).value = protocol.inclusionCriteria.join("\n");
-  required("review-exclusion-criteria", HTMLTextAreaElement).value = protocol.exclusionCriteria.join("\n");
+  required("review-inclusion-criteria", HTMLTextAreaElement).value = protocol.eligibilityCriteria
+    .filter((criterion) => criterion.kind === "include")
+    .map((criterion) => `${criterion.text} | ${criterion.applicableStages.join("; ")}`)
+    .join("\n");
+  required("review-exclusion-criteria", HTMLTextAreaElement).value = protocol.eligibilityCriteria
+    .filter((criterion) => criterion.kind === "exclude")
+    .map((criterion) => `${criterion.text} | ${criterion.applicableStages.join("; ")}`)
+    .join("\n");
   required("review-reviewer-count", HTMLSelectElement).value = String(protocol.screening.reviewersPerStage);
   required("review-model-mode", HTMLSelectElement).value = protocol.modelAssistance.mode;
   required("review-blinded", HTMLInputElement).checked = protocol.screening.blinded;
@@ -791,7 +935,7 @@ function render(snapshot: ReviewStudySnapshot): void {
       (field) =>
         `${field.label} | ${field.type} | ${field.values.join("; ")} | ${field.researchQuestionIds
           .map((id) => researchQuestionReference(id, protocol.researchQuestions))
-          .join("; ")}`,
+          .join("; ")} | ${field.requiredness} | ${field.cardinality} | ${field.condition ?? ""}`,
     )
     .join("\n");
   required("review-protocol-state", HTMLElement).textContent =
@@ -800,6 +944,26 @@ function render(snapshot: ReviewStudySnapshot): void {
   required("review-step-search", HTMLButtonElement).disabled = protocol.status !== "frozen";
   required("review-calibration", HTMLElement).textContent = `${protocol.calibration.matched} / ${protocol.calibration.total} seeds`;
   renderQueries(protocol);
+}
+
+function renderReassessments(snapshot: ReviewReassessmentSnapshot, complete: (id: string) => Promise<void>): void {
+  const list = required("review-reassessment-list", HTMLElement);
+  const open = snapshot.obligations.filter((obligation) => obligation.status === "open");
+  list.replaceChildren(
+    ...(open.length
+      ? open.map((obligation) => {
+          const item = document.createElement("article");
+          item.className = "review-query-item";
+          const description = document.createElement("p");
+          description.textContent = `Protocol r${obligation.amendmentProtocolRevision} · ${obligation.stage}${obligation.recordId ? ` · record ${obligation.recordId}` : " · whole review"}`;
+          item.append(
+            description,
+            actionButton("Mark reassessed", () => void complete(obligation.id)),
+          );
+          return item;
+        })
+      : [emptyState("No amendment reassessment is outstanding.")]),
+  );
 }
 
 function populateSearchSources(snapshot: ReviewStudySnapshot): void {
@@ -910,6 +1074,7 @@ function screeningCard(
   protocolSnapshot: ReviewStudySnapshot,
   submit: (recordId: string, form: HTMLFormElement) => Promise<void>,
   adjudicate: (recordId: string, outcome: "include" | "exclude") => Promise<void>,
+  decideFinalInclusion: (recordId: string, form: HTMLFormElement) => Promise<void>,
   generateCandidate: ((record: ScreeningRecordState) => Promise<void>) | null,
   candidates: readonly ReviewModelCandidate[],
   resolveCandidate: (candidate: ReviewModelCandidate, action: "accept" | "reject") => Promise<void>,
@@ -947,11 +1112,7 @@ function screeningCard(
     form.className = "review-screen-form";
     form.append(
       selectField("Decision", "decision", ["include", "exclude", "uncertain"]),
-      selectField("Criterion", "criterion", [
-        "",
-        ...protocolSnapshot.protocol.inclusionCriteria,
-        ...protocolSnapshot.protocol.exclusionCriteria,
-      ]),
+      criterionSelectField(protocolSnapshot.protocol.eligibilityCriteria.filter((criterion) => criterion.applicableStages.includes(stage))),
       inputField("Reason", "reason", "Required when excluding"),
     );
     const save = document.createElement("button");
@@ -975,7 +1136,55 @@ function screeningCard(
       .join(" · ");
     card.append(history);
   }
+  if (stage === "full-text" && stageState.outcome === "include") {
+    const final = document.createElement("form");
+    final.className = "review-screen-form";
+    const heading = document.createElement("strong");
+    heading.textContent =
+      state.finalInclusion.outcome === "pending" ? "Final inclusion" : `Final inclusion: ${state.finalInclusion.outcome}`;
+    final.append(
+      heading,
+      selectField("Outcome", "outcome", ["include", "exclude"]),
+      criterionSelectField(
+        protocolSnapshot.protocol.eligibilityCriteria.filter(
+          (criterion) => criterion.kind === "exclude" && criterion.applicableStages.includes("full-text"),
+        ),
+      ),
+      inputField("Rationale", "reason", "Why this record enters or leaves the synthesis corpus"),
+    );
+    const save = document.createElement("button");
+    save.className = "button-primary";
+    save.type = "submit";
+    save.textContent = state.finalInclusion.decision ? "Supersede final decision" : "Record final inclusion";
+    final.append(save);
+    final.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void decideFinalInclusion(state.record.id, final);
+    });
+    card.append(final);
+  }
   return card;
+}
+
+function criterionSelectField(criteria: ReviewStudySnapshot["protocol"]["eligibilityCriteria"]): HTMLLabelElement {
+  const label = document.createElement("label");
+  label.className = "field-label";
+  label.textContent = "Criterion";
+  const select = document.createElement("select");
+  select.className = "field";
+  select.name = "criterionId";
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "No criterion";
+  select.append(empty);
+  for (const criterion of criteria) {
+    const option = document.createElement("option");
+    option.value = criterion.id;
+    option.textContent = `${criterion.kind === "include" ? "Include" : "Exclude"}: ${criterion.text}`;
+    select.append(option);
+  }
+  label.append(select);
+  return label;
 }
 
 function screeningStateFor(state: ScreeningRecordState, stage: ScreeningStage) {
@@ -1117,8 +1326,30 @@ export function latestExtractionValue(values: readonly ExtractedDataValue[], fie
 }
 
 function populateRecordedExtraction(form: HTMLFormElement, recorded: ExtractedDataValue): void {
-  setFormControlValue(form, "value", recorded.value === null ? "" : String(recorded.value));
+  if (Array.isArray(recorded.value)) {
+    const select = form.elements.namedItem("value");
+    if (select instanceof HTMLSelectElement) {
+      for (const option of select.options) option.selected = recorded.value.includes(option.value);
+    }
+  } else if (isSourceSelector(recorded.value)) {
+    setFormControlValue(form, "valueKind", recorded.value.kind);
+    setFormControlValue(form, "valueResourceId", recorded.value.resourceId);
+    setFormControlValue(form, "valueSelectorId", recorded.value.selectorId);
+  } else {
+    setFormControlValue(form, "value", recorded.value === null ? "" : String(recorded.value));
+  }
   setFormControlValue(form, "missingReason", recorded.missingReason ?? "");
+  setFormControlValue(form, "evidenceKind", recorded.evidence?.kind === "legacy-unresolved" ? "" : (recorded.evidence?.kind ?? ""));
+  setFormControlValue(
+    form,
+    "evidenceResourceId",
+    recorded.evidence?.resourceId === "legacy-unresolved" ? "" : (recorded.evidence?.resourceId ?? ""),
+  );
+  setFormControlValue(
+    form,
+    "evidenceSelectorId",
+    recorded.evidence?.selectorId === "legacy-unresolved" ? "" : (recorded.evidence?.selectorId ?? ""),
+  );
   setFormControlValue(form, "quote", recorded.evidence?.quote ?? "");
   setFormControlValue(form, "page", recorded.evidence?.page === null ? "" : String(recorded.evidence?.page ?? ""));
   setFormControlValue(form, "location", recorded.evidence?.location ?? "");
@@ -1143,26 +1374,52 @@ function evidenceCardHeader(record: EvidenceRecordState, status: string): HTMLEl
   return card;
 }
 
-function evidenceFields(): [HTMLLabelElement, HTMLLabelElement, HTMLLabelElement] {
+function evidenceFields(): [HTMLLabelElement, HTMLLabelElement, HTMLLabelElement, HTMLLabelElement, HTMLLabelElement, HTMLLabelElement] {
+  const kind = selectField("Shared source kind", "evidenceKind", ["pdf-annotation", "web-passage"]);
+  const resourceId = inputField("Shared resource ID", "evidenceResourceId", "Project PDF or research-share ID");
+  const selectorId = inputField("Selector ID", "evidenceSelectorId", "Annotation, fragment, highlight, or snapshot ID");
   const quote = inputField("Exact quotation", "quote", "Required evidence passage");
   const page = inputField("Page", "page", "Optional page");
   page.querySelector("input")!.type = "number";
   page.querySelector("input")!.min = "1";
   const location = inputField("Location", "location", "Section, URL, or locator");
-  return [quote, page, location];
+  return [kind, resourceId, selectorId, quote, page, location];
 }
 
 function extractionInput(field: ReviewEvidenceSnapshot["protocol"]["extractionFields"][number]): HTMLLabelElement {
-  if (field.type === "enum") return selectField("Value", "value", field.values);
+  if (field.type === "single-choice") return selectField("Value", "value", field.values);
+  if (field.type === "multiple-choice") {
+    const label = selectField("Value", "value", field.values);
+    label.querySelector("select")!.multiple = true;
+    return label;
+  }
+  if (field.type === "source-selector") {
+    const group = document.createElement("label");
+    group.className = "field-label";
+    group.textContent = "Value source selector";
+    group.append(
+      selectField("Kind", "valueKind", ["pdf-annotation", "web-passage"]),
+      inputField("Resource ID", "valueResourceId", "Shared resource ID"),
+      inputField("Selector ID", "valueSelectorId", "Authorized selector ID"),
+    );
+    return group;
+  }
   if (field.type === "boolean") return selectField("Value", "value", ["true", "false"]);
   const label = inputField("Value", "value", field.type === "integer" ? "Whole number" : "Extracted value");
-  if (field.type === "integer") label.querySelector("input")!.type = "number";
+  if (field.type === "integer" || field.type === "decimal") {
+    label.querySelector("input")!.type = "number";
+    label.querySelector("input")!.step = field.type === "integer" ? "1" : "any";
+  }
+  if (field.type === "date") label.querySelector("input")!.type = "date";
   return label;
 }
 
 function evidenceFromForm(data: FormData) {
   const pageValue = String(data.get("page") ?? "").trim();
   return {
+    kind: data.get("evidenceKind") === "web-passage" ? ("web-passage" as const) : ("pdf-annotation" as const),
+    resourceId: String(data.get("evidenceResourceId") ?? ""),
+    selectorId: String(data.get("evidenceSelectorId") ?? ""),
     quote: String(data.get("quote") ?? ""),
     page: pageValue ? Number(pageValue) : null,
     location: String(data.get("location") ?? ""),
@@ -1173,20 +1430,32 @@ function optionalEvidenceFromForm(data: FormData) {
   return String(data.get("quote") ?? "").trim() ? evidenceFromForm(data) : null;
 }
 
-function extractionValueFromForm(value: FormDataEntryValue | null, fieldType: string): ExtractionValue {
-  const textValue = String(value ?? "");
-  if (fieldType === "integer") return Number(textValue);
+function extractionValueFromForm(data: FormData, fieldType: string): ExtractionValue {
+  const textValue = String(data.get("value") ?? "");
+  if (fieldType === "integer" || fieldType === "decimal") return Number(textValue);
   if (fieldType === "boolean") return textValue === "true";
+  if (fieldType === "multiple-choice") return data.getAll("value").map(String);
+  if (fieldType === "source-selector") {
+    return {
+      kind: data.get("valueKind") === "web-passage" ? "web-passage" : "pdf-annotation",
+      resourceId: String(data.get("valueResourceId") ?? ""),
+      selectorId: String(data.get("valueSelectorId") ?? ""),
+    };
+  }
   return textValue;
 }
 
+function isSourceSelector(value: ExtractionValue): value is Exclude<ExtractionValue, string | number | boolean | readonly string[] | null> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function syncEvidenceSteps(snapshot: ReviewScreeningSnapshot, appraiseStep: HTMLButtonElement, extractStep: HTMLButtonElement): void {
-  const disabled = snapshot.counts.fullTextIncluded === 0;
+  const disabled = snapshot.counts.finalInclusionIncluded === 0;
   appraiseStep.disabled = disabled;
   extractStep.disabled = disabled;
 }
 
-function renderSynthesis(synthesis: ReviewSynthesis): void {
+function renderSynthesis(synthesis: ReviewSynthesis, recordFinding: (researchQuestionId: string) => Promise<void>): void {
   const view = required("review-synthesis-view", HTMLElement);
   view.replaceChildren();
   const flow = document.createElement("section");
@@ -1209,9 +1478,25 @@ function renderSynthesis(synthesis: ReviewSynthesis): void {
   rqHeading.textContent = "Research-question coverage";
   rq.append(
     rqHeading,
-    ...synthesis.rqCoverage.map((coverage, index) =>
-      synthesisStatusText(`RQ${index + 1} · ${coverage.studies} studies · ${coverage.question}`),
-    ),
+    ...synthesis.rqCoverage.map((coverage, index) => {
+      const row = document.createElement("div");
+      row.className = "review-duplicate-actions";
+      row.append(
+        synthesisStatusText(`RQ${index + 1} · ${coverage.studies} studies · ${coverage.question}`),
+        actionButton("Record finding", () => void recordFinding(coverage.id)),
+      );
+      return row;
+    }),
+  );
+  const findings = document.createElement("section");
+  findings.className = "review-study-card";
+  const findingsHeading = document.createElement("h4");
+  findingsHeading.textContent = "Evidence-linked findings";
+  findings.append(
+    findingsHeading,
+    ...(synthesis.findings.length
+      ? synthesis.findings.map((finding) => synthesisStatusText(`${finding.researchQuestionId} · ${finding.statement}`))
+      : [synthesisStatusText("No reviewed findings have been recorded yet.")]),
   );
   const matrix = document.createElement("section");
   matrix.className = "review-study-card review-matrix";
@@ -1239,7 +1524,7 @@ function renderSynthesis(synthesis: ReviewSynthesis): void {
   }
   table.append(head, body);
   matrix.append(matrixHeading, table);
-  view.append(flow, rq, matrix);
+  view.append(flow, rq, findings, matrix);
 }
 
 function synthesisStatusText(value: string): HTMLParagraphElement {
@@ -1414,6 +1699,7 @@ function queryItem(label: string, query: string, diagnostics: readonly string[])
 }
 
 function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolContent {
+  const profile = required("review-profile", HTMLSelectElement).value === "mlr" ? "mlr" : "slr";
   const researchQuestions = nonEmptyLines(required("review-questions", HTMLTextAreaElement).value).map<ReviewResearchQuestion>(
     (text, index) => ({
       id: previous.researchQuestions[index]?.id ?? `rq_${crypto.randomUUID()}`,
@@ -1432,10 +1718,27 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
     return { id: previous.conceptGroups[index]?.id ?? `concept_${crypto.randomUUID()}`, label, facet, terms };
   });
   const sources = nonEmptyLines(required("review-sources", HTMLTextAreaElement).value).map<ReviewSearchSource>((line, index) => {
-    const [name = "", url = "", dialectValue = "", scopeValue = ""] = line.split("|").map((part) => part.trim());
+    const [name = "", url = "", dialectValue = "", scopeValue = "", sourceClassValue = "", evidenceClassValue = "", greyClassValue = ""] =
+      line.split("|").map((part) => part.trim());
     if (!name || !isDialect(dialectValue) || !isScope(scopeValue))
       throw new Error(`Source line ${index + 1} has an invalid name, dialect, or scope`);
-    return { id: previous.sources[index]?.id ?? `source_${crypto.randomUUID()}`, name, url, dialect: dialectValue, fieldScope: scopeValue };
+    const prior = previous.sources[index];
+    const sourceClass = sourceClassValue || prior?.sourceClass || defaultSourceClass(dialectValue);
+    const evidenceClass = evidenceClassValue || prior?.evidenceClass || "formal";
+    const greySourceClass = greyClassValue || prior?.greySourceClass || null;
+    if (!isSourceClass(sourceClass) || !isEvidenceClass(evidenceClass) || !isGreySourceClass(greySourceClass)) {
+      throw new Error(`Source line ${index + 1} has an invalid source classification`);
+    }
+    return {
+      id: prior?.id ?? `source_${crypto.randomUUID()}`,
+      name,
+      url,
+      dialect: dialectValue,
+      fieldScope: scopeValue,
+      sourceClass,
+      evidenceClass,
+      greySourceClass,
+    };
   });
   const knownRelevantStudies = nonEmptyLines(required("review-known-studies", HTMLTextAreaElement).value).map((line, index) => {
     const separator = line.indexOf("|");
@@ -1459,11 +1762,22 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
     };
   });
   const minimumValue = required("review-quality-minimum", HTMLInputElement).value.trim();
+  const eligibilityCriteria = [
+    ...readEligibilityCriteria("include", required("review-inclusion-criteria", HTMLTextAreaElement).value, previous),
+    ...readEligibilityCriteria("exclude", required("review-exclusion-criteria", HTMLTextAreaElement).value, previous),
+  ];
   const extractionFields = nonEmptyLines(required("review-extraction-fields", HTMLTextAreaElement).value).map((line, index) => {
-    const [label = "", typeValue = "", valuesValue = "", rqValue = ""] = line.split("|").map((part) => part.trim());
+    const [label = "", typeValue = "", valuesValue = "", rqValue = "", requirednessValue = "", cardinalityValue = "", conditionValue = ""] =
+      line.split("|").map((part) => part.trim());
     if (!label || !isExtractionType(typeValue)) throw new Error(`Extraction field line ${index + 1} is invalid`);
+    const prior = previous.extractionFields[index];
+    const requiredness = requirednessValue || prior?.requiredness || "required";
+    const cardinality = cardinalityValue || prior?.cardinality || "single";
+    if (!isExtractionRequiredness(requiredness) || !isExtractionCardinality(cardinality)) {
+      throw new Error(`Extraction field line ${index + 1} has an invalid occurrence policy`);
+    }
     return {
-      id: previous.extractionFields[index]?.id ?? `field_${crypto.randomUUID()}`,
+      id: prior?.id ?? `field_${crypto.randomUUID()}`,
       label,
       type: typeValue,
       values: valuesValue
@@ -1471,10 +1785,13 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
         .map((value) => value.trim())
         .filter(Boolean),
       researchQuestionIds: resolveResearchQuestionReferences(rqValue, researchQuestions),
+      requiredness,
+      cardinality,
+      condition: conditionValue || null,
     };
   });
   return {
-    profile: required("review-profile", HTMLSelectElement).value === "mlr" ? "mlr" : "slr",
+    profile,
     objective: required("review-objective", HTMLTextAreaElement).value,
     picoc: {
       population: required("review-picoc-population", HTMLInputElement).value,
@@ -1487,8 +1804,9 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
     conceptGroups,
     sources,
     knownRelevantStudies,
-    inclusionCriteria: nonEmptyLines(required("review-inclusion-criteria", HTMLTextAreaElement).value),
-    exclusionCriteria: nonEmptyLines(required("review-exclusion-criteria", HTMLTextAreaElement).value),
+    eligibilityCriteria,
+    methodConfiguration: profile === previous.profile ? previous.methodConfiguration : defaultReviewMethodConfiguration(profile),
+    amendmentImpact: previous.amendmentImpact,
     screening: {
       reviewersPerStage: required("review-reviewer-count", HTMLSelectElement).value === "2" ? 2 : 1,
       blinded: required("review-blinded", HTMLInputElement).checked,
@@ -1510,6 +1828,57 @@ function readContent(previous: ReviewStudySnapshot["protocol"]): ReviewProtocolC
   };
 }
 
+function readEligibilityCriteria(
+  kind: "include" | "exclude",
+  value: string,
+  previous: ReviewStudySnapshot["protocol"],
+): ReviewProtocolContent["eligibilityCriteria"] {
+  const prior = previous.eligibilityCriteria.filter((criterion) => criterion.kind === kind);
+  return nonEmptyLines(value).map((line, index) => {
+    const [text = "", stagesValue = ""] = line.split("|").map((part) => part.trim());
+    const applicableStages = (
+      stagesValue
+        ? stagesValue
+            .split(";")
+            .map((stage) => stage.trim())
+            .filter(Boolean)
+        : (prior[index]?.applicableStages ?? ["title-abstract", "full-text"])
+    ) as string[];
+    if (!text || applicableStages.length === 0 || applicableStages.some((stage) => stage !== "title-abstract" && stage !== "full-text")) {
+      throw new Error(`${kind === "include" ? "Inclusion" : "Exclusion"} criterion line ${index + 1} is invalid`);
+    }
+    return {
+      id: prior[index]?.id ?? `${kind}_${crypto.randomUUID()}`,
+      kind,
+      text,
+      applicableStages: applicableStages as ("title-abstract" | "full-text")[],
+    };
+  });
+}
+
+function amendmentImpactFromPrompts(): NonNullable<ReviewProtocolContent["amendmentImpact"]> | null {
+  const stageInput = window.prompt(
+    "Which stages must be reassessed? Separate stages with semicolons.",
+    "title-abstract; full-text; appraisal; extraction; synthesis; reporting",
+  );
+  if (stageInput === null) return null;
+  const stageTokens = stageInput
+    .split(";")
+    .map((stage) => stage.trim())
+    .filter(Boolean);
+  if (stageTokens.length === 0 || stageTokens.some((stage) => !isProtocolImpactStage(stage))) return null;
+  const stages = stageTokens.filter(isProtocolImpactStage);
+  const recordInput = window.prompt("Optional affected review record IDs, separated with semicolons.", "");
+  if (recordInput === null) return null;
+  return {
+    stages,
+    recordIds: recordInput
+      .split(";")
+      .map((id) => id.trim())
+      .filter(Boolean),
+  };
+}
+
 function nonEmptyLines(value: string): string[] {
   return value
     .split("\n")
@@ -1525,8 +1894,73 @@ function isScope(value: string): value is SearchFieldScope {
   return value === "all-fields" || value === "title-abstract" || value === "title-abstract-keywords";
 }
 
+function defaultSourceClass(dialect: SearchDialect): ReviewSearchSource["sourceClass"] {
+  if (dialect === "scopus" || dialect === "web-of-science") return "bibliographic-database";
+  if (dialect === "ieee-xplore" || dialect === "acm-dl") return "publisher-library";
+  return "manual-search";
+}
+
+function isSourceClass(value: string): value is ReviewSearchSource["sourceClass"] {
+  return (
+    value === "bibliographic-database" ||
+    value === "publisher-library" ||
+    value === "citation-search" ||
+    value === "manual-search" ||
+    value === "web-search" ||
+    value === "organization-site" ||
+    value === "grey-repository"
+  );
+}
+
+function isEvidenceClass(value: string): value is ReviewSearchSource["evidenceClass"] {
+  return value === "formal" || value === "grey";
+}
+
+function isGreySourceClass(value: string | null): value is ReviewSearchSource["greySourceClass"] {
+  return (
+    value === null ||
+    value === "government" ||
+    value === "industry" ||
+    value === "professional-association" ||
+    value === "research-institute" ||
+    value === "community" ||
+    value === "news-media" ||
+    value === "other"
+  );
+}
+
 function isExtractionType(value: string): value is ReviewProtocolContent["extractionFields"][number]["type"] {
-  return value === "string" || value === "integer" || value === "boolean" || value === "enum";
+  return (
+    value === "text" ||
+    value === "integer" ||
+    value === "decimal" ||
+    value === "boolean" ||
+    value === "date" ||
+    value === "single-choice" ||
+    value === "multiple-choice" ||
+    value === "source-selector"
+  );
+}
+
+function isExtractionRequiredness(value: string): value is ReviewProtocolContent["extractionFields"][number]["requiredness"] {
+  return value === "required" || value === "optional" || value === "conditional";
+}
+
+function isExtractionCardinality(value: string): value is ReviewProtocolContent["extractionFields"][number]["cardinality"] {
+  return value === "single" || value === "repeatable";
+}
+
+function isProtocolImpactStage(value: string): value is NonNullable<ReviewProtocolContent["amendmentImpact"]>["stages"][number] {
+  return (
+    value === "search" ||
+    value === "deduplication" ||
+    value === "title-abstract" ||
+    value === "full-text" ||
+    value === "appraisal" ||
+    value === "extraction" ||
+    value === "synthesis" ||
+    value === "reporting"
+  );
 }
 
 export function resolveResearchQuestionReferences(value: string, researchQuestions: readonly ReviewResearchQuestion[]): string[] {

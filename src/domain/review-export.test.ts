@@ -1,5 +1,6 @@
 import { strFromU8, unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
+import { materializeReviewFinding } from "./review-findings";
 import { buildReviewSynthesis } from "./review-synthesis";
 import { defaultReviewProtocol, materializeProtocolRevision } from "./review-study";
 import {
@@ -35,13 +36,16 @@ describe("review reproducibility export", () => {
       "analysis-contributors.json",
       "analysis-definitions.json",
       "analysis-diagnostics.json",
+      "analysis-findings.json",
       "bibliography.bib",
       "extraction.csv",
+      "finding-history.json",
       "history.json",
       "manifest.json",
       "model-disclosure.json",
       "prisma.json",
       "prisma.svg",
+      "reassessment.json",
       "review.json",
       "search-history.json",
     ]);
@@ -50,7 +54,7 @@ describe("review reproducibility export", () => {
       files: Array<{ path: string; sha256: string; bytes: number }>;
     };
     expect(manifest.reviewRevision).toBe(7);
-    expect(manifest.files).toHaveLength(11);
+    expect(manifest.files).toHaveLength(14);
     expect(manifest.files.every((file) => /^[a-f0-9]{64}$/u.test(file.sha256) && file.bytes > 0)).toBe(true);
     const analysisDefinitions = JSON.parse(strFromU8(files["analysis-definitions.json"]!)) as {
       definitions: Array<Record<string, unknown>>;
@@ -68,6 +72,22 @@ describe("review reproducibility export", () => {
     });
     expect(JSON.parse(strFromU8(files["analysis-diagnostics.json"]!))).toMatchObject({ diagnostics: [] });
     expect(strFromU8(files["analysis-contributors.json"]!)).not.toContain("reviewer@example.com");
+    expect(JSON.parse(strFromU8(files["analysis-findings.json"]!))).toMatchObject({
+      findings: [{ id: "finding-current", supersedesId: "finding-original" }],
+    });
+    expect(JSON.parse(strFromU8(files["finding-history.json"]!))).toMatchObject({
+      findings: [{ id: "finding-original" }, { id: "finding-current", supersedesId: "finding-original" }],
+    });
+    expect(JSON.parse(strFromU8(files["reassessment.json"]!))).toMatchObject({
+      revision: 7,
+      obligations: [{ id: "reassessment-1", status: "completed" }],
+    });
+    expect(JSON.parse(strFromU8(files["review.json"]!))).toMatchObject({
+      reassessment: { obligations: [{ id: "reassessment-1" }] },
+      findings: { findings: [{ id: "finding-original" }, { id: "finding-current" }] },
+    });
+    expect(reviewHistoryJson(authority)).toContain("finding-original");
+    expect(reviewHistoryJson(authority)).toContain("reassessment-completion");
   });
 
   it("reports exclusions, adjudications, model disclosure, and empty extraction tables", () => {
@@ -82,13 +102,17 @@ describe("review reproducibility export", () => {
           id: "adjudication-1",
           recordId: record.record.id,
           stage: "title-abstract" as const,
+          protocolRevision: 2,
           outcome: "exclude" as const,
           reason: "Wrong population",
+          criterionId: "wrong-population",
+          criterionText: "Wrong population",
           adjudicator: "lead@example.com",
           createdAt: "2026-07-17T11:00:00.000Z",
         },
       },
       fullText: { outcome: "pending" as const, decisions: [], adjudication: null },
+      finalInclusion: { outcome: "pending" as const, decision: null },
     };
     const changed: ReviewExportAuthority = {
       ...authority,
@@ -131,6 +155,7 @@ describe("review reproducibility export", () => {
         records: [
           {
             ...record,
+            finalInclusion: { outcome: "pending", decision: null },
             fullText: {
               outcome: "exclude",
               decisions: [{ ...record.fullText.decisions[0]!, decision: "exclude", reason: "No full text" }],
@@ -173,7 +198,18 @@ function fixture(): ReviewExportAuthority {
   const content = {
     ...defaultReviewProtocol(),
     researchQuestions: [{ id: "rq1", text: "What works?" }],
-    extractionFields: [{ id: "finding", label: "Finding", type: "string" as const, values: [], researchQuestionIds: ["rq1"] }],
+    extractionFields: [
+      {
+        id: "finding",
+        label: "Finding",
+        type: "text" as const,
+        values: [],
+        researchQuestionIds: ["rq1"],
+        requiredness: "required" as const,
+        cardinality: "single" as const,
+        condition: null,
+      },
+    ],
   };
   const protocolRevision = materializeProtocolRevision(content, 2, "frozen", "Frozen", "owner@example.com", timestamp);
   const protocol = { revision: 7, protocol: protocolRevision, protocolHistory: [protocolRevision] };
@@ -246,9 +282,32 @@ function fixture(): ReviewExportAuthority {
         record,
         titleAbstract: { outcome: "include", decisions: [titleDecision], adjudication: null },
         fullText: { outcome: "include", decisions: [fullDecision], adjudication: null },
+        finalInclusion: {
+          outcome: "include",
+          decision: {
+            id: "final-inclusion",
+            recordId: record.id,
+            protocolRevision: 2,
+            outcome: "include",
+            reason: "Eligible after appraisal",
+            criterionId: null,
+            criterionText: "",
+            reviewer: "reviewer@example.com",
+            createdAt: timestamp,
+          },
+        },
       },
     ],
-    counts: { titleAbstractPending: 0, titleAbstractIncluded: 1, fullTextPending: 0, fullTextIncluded: 1, conflicts: 0 },
+    counts: {
+      titleAbstractPending: 0,
+      titleAbstractIncluded: 1,
+      fullTextPending: 0,
+      fullTextIncluded: 1,
+      finalInclusionPending: 0,
+      finalInclusionIncluded: 1,
+      finalInclusionExcluded: 0,
+      conflicts: 0,
+    },
   };
   const evidence: ReviewEvidenceSnapshot = {
     revision: 7,
@@ -269,10 +328,20 @@ function fixture(): ReviewExportAuthority {
           {
             id: "value-1",
             recordId: record.id,
+            protocolRevision: 2,
             fieldId: "finding",
+            criterionId: "finding",
+            criterionText: "Finding",
             value: "Effective",
             missingReason: null,
-            evidence: { quote: "Exact, quoted evidence", page: 4, location: "Results" },
+            evidence: {
+              kind: "pdf-annotation",
+              resourceId: "pdf-1",
+              selectorId: "annotation-1",
+              quote: "Exact, quoted evidence",
+              page: 4,
+              location: "Results",
+            },
             reviewer: "reviewer@example.com",
             createdAt: timestamp,
           },
@@ -282,8 +351,63 @@ function fixture(): ReviewExportAuthority {
     ],
   };
   const model = { revision: 7, candidates: [] };
-  const synthesis = buildReviewSynthesis(protocol, search, screening, evidence);
-  return { revision: 7, protocol, search, screening, evidence, model, synthesis };
+  const extraction = evidence.records[0]!.extractionValues[0]!;
+  const originalFinding = materializeReviewFinding(
+    {
+      researchQuestionId: "rq1",
+      statement: "The included study reports an effect.",
+      interpretation: "Initial interpretation.",
+      extractionValueIds: [extraction.id],
+      appraisalValueIds: [],
+      evidence: [{ contributorKind: "extraction", contributorId: extraction.id, pointer: extraction.evidence! }],
+      supersedesId: null,
+    },
+    {
+      id: "finding-original",
+      reviewRevision: 6,
+      protocolRevision: 2,
+      createdBy: "reviewer@example.com",
+      createdAt: "2026-07-17T11:00:00.000Z",
+    },
+  );
+  const currentFinding = materializeReviewFinding(
+    {
+      researchQuestionId: "rq1",
+      statement: "The included study reports an effective result.",
+      interpretation: "Revised interpretation.",
+      extractionValueIds: [extraction.id],
+      appraisalValueIds: [],
+      evidence: [{ contributorKind: "extraction", contributorId: extraction.id, pointer: extraction.evidence! }],
+      supersedesId: originalFinding.id,
+    },
+    {
+      id: "finding-current",
+      reviewRevision: 7,
+      protocolRevision: 2,
+      createdBy: "reviewer@example.com",
+      createdAt: "2026-07-17T12:00:00.000Z",
+    },
+  );
+  const findings = { revision: 7, findings: [originalFinding, currentFinding] };
+  const reassessment = {
+    revision: 7,
+    obligations: [
+      {
+        id: "reassessment-1",
+        amendmentProtocolRevision: 2,
+        stage: "extraction" as const,
+        recordId: record.id,
+        status: "completed" as const,
+        createdRevision: 6,
+        completedRevision: 7,
+        completedAt: "2026-07-17T12:30:00.000Z",
+        completedBy: "reviewer@example.com",
+        completionRationale: "Rechecked extracted values.",
+      },
+    ],
+  };
+  const synthesis = buildReviewSynthesis(protocol, search, screening, evidence, findings, reassessment);
+  return { revision: 7, protocol, reassessment, search, screening, evidence, model, findings, synthesis };
 }
 
 function decision(recordId: string, stage: "title-abstract" | "full-text"): ScreeningDecision {
@@ -291,10 +415,12 @@ function decision(recordId: string, stage: "title-abstract" | "full-text"): Scre
     id: `decision-${stage}`,
     recordId,
     stage,
+    protocolRevision: 2,
     reviewer: "reviewer@example.com",
     decision: "include",
     reason: "Eligible",
-    criterion: "",
+    criterionId: null,
+    criterionText: "",
     createdAt: timestamp,
   };
 }

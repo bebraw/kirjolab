@@ -1,7 +1,15 @@
-import type { ReviewEvidenceSnapshot, EvidenceRecordState, ExtractedDataValue } from "./review-evidence";
+import {
+  effectiveExtractionValues,
+  type ExtractionValue,
+  type ReviewEvidenceSnapshot,
+  type EvidenceRecordState,
+  type ExtractedDataValue,
+  type ReviewSourceSelectorValue,
+} from "./review-evidence";
+import { currentReviewFindings, parseReviewFindingsSnapshot, type ReviewFinding, type ReviewFindingsSnapshot } from "./review-findings";
 import type { ReviewScreeningSnapshot } from "./review-screening";
 import type { ReviewSearchSnapshot } from "./review-search";
-import type { ReviewStudySnapshot } from "./review-study";
+import type { ReviewReassessmentSnapshot, ReviewStudySnapshot } from "./review-study";
 
 export const reviewAnalysisDefinitionSchemaVersion = "kirjolab-review-analysis-v1" as const;
 
@@ -9,7 +17,7 @@ export type ReviewAnalysisType = "process" | "evidence" | "report";
 
 export interface ReviewAnalysisFilter {
   readonly field: string;
-  readonly operator: "equals" | "latest-by";
+  readonly operator: "equals" | "effective-by-cardinality";
   readonly value: string;
 }
 
@@ -29,6 +37,7 @@ export type ReviewSynthesisDiagnosticCode =
   | "review-revision-mismatch"
   | "protocol-draft"
   | "protocol-revision-mismatch"
+  | "protocol-reassessment-open"
   | "duplicate-resolution-incomplete"
   | "screening-incomplete"
   | "screening-conflict"
@@ -63,6 +72,7 @@ export interface ReviewSynthesis {
   readonly definitions: readonly ReviewAnalysisDefinition[];
   readonly diagnostics: readonly ReviewSynthesisDiagnostic[];
   readonly contributors: readonly ReviewSynthesisContributor[];
+  readonly findings: readonly ReviewFinding[];
   readonly flow: {
     readonly identified: number;
     readonly duplicatesRemoved: number;
@@ -83,9 +93,18 @@ export function buildReviewSynthesis(
   search: ReviewSearchSnapshot,
   screening: ReviewScreeningSnapshot,
   evidence: ReviewEvidenceSnapshot,
+  findings?: ReviewFindingsSnapshot,
+  reassessment?: ReviewReassessmentSnapshot,
 ): ReviewSynthesis {
-  const revision = Math.max(protocol.revision, search.revision, screening.revision, evidence.revision);
-  const included = screening.records.filter((record) => record.fullText.outcome === "include");
+  const revision = Math.max(
+    protocol.revision,
+    search.revision,
+    screening.revision,
+    evidence.revision,
+    findings?.revision ?? 0,
+    reassessment?.revision ?? 0,
+  );
+  const included = screening.records.filter((record) => record.finalInclusion.outcome === "include");
   const includedIds = new Set(included.map((record) => record.record.id));
   const sourceYields = search.runs.map((run) => ({
     source: run.sourceName,
@@ -103,7 +122,7 @@ export function buildReviewSynthesis(
     const studies = evidence.records.filter(
       (record) =>
         includedIds.has(record.record.id) &&
-        latestExtraction(record).some((value) => fieldIds.includes(value.fieldId) && value.value !== null),
+        synthesisExtraction(record, evidence).some((value) => fieldIds.includes(value.fieldId) && value.value !== null),
     ).length;
     return { id: question.id, question: question.text, studies };
   });
@@ -111,15 +130,18 @@ export function buildReviewSynthesis(
     revision,
     protocolRevision: protocol.protocol.revision,
     definitions: analysisDefinitions(revision, protocol.protocol.revision, evidence),
-    diagnostics: synthesisDiagnostics(protocol, search, screening, evidence),
+    diagnostics: synthesisDiagnostics(protocol, search, screening, evidence, findings, reassessment),
     contributors: synthesisContributors(search, screening, evidence),
+    findings: findings ? currentReviewFindings(findings) : [],
     flow: {
       identified: search.counts.identified,
       duplicatesRemoved: search.counts.duplicatesRemoved,
       titleAbstractScreened: screening.records.length,
       titleAbstractExcluded: screening.records.filter((record) => record.titleAbstract.outcome === "exclude").length,
       fullTextAssessed: screening.records.filter((record) => record.titleAbstract.outcome === "include").length,
-      fullTextExcluded: screening.records.filter((record) => record.fullText.outcome === "exclude").length,
+      fullTextExcluded: screening.records.filter(
+        (record) => record.fullText.outcome === "exclude" || record.finalInclusion.outcome === "exclude",
+      ).length,
       included: included.length,
     },
     sourceYields,
@@ -141,6 +163,12 @@ export function reviewSynthesisMarkdown(synthesis: ReviewSynthesis): string {
     .map((source) => `| ${escapeTable(source.source)} | ${source.imported} | ${source.uniqueOccurrences} |`)
     .join("\n");
   const rqRows = synthesis.rqCoverage.map((rq) => `| ${escapeTable(rq.id)} | ${escapeTable(rq.question)} | ${rq.studies} |`).join("\n");
+  const findingRows = synthesis.findings
+    .map(
+      (finding) =>
+        `| ${escapeTable(finding.researchQuestionId)} | ${escapeTable(finding.statement)} | ${escapeTable(finding.interpretation || "—")} | ${finding.extractionValueIds.length + finding.appraisalValueIds.length} |`,
+    )
+    .join("\n");
   const matrixColumns = ["Study", "Year", "Quality", ...synthesis.extractionColumns];
   const matrixRows = synthesis.matrix
     .map((row) =>
@@ -175,6 +203,12 @@ ${sourceRows}
 | RQ | Question | Studies with extracted evidence |
 | --- | --- | ---: |
 ${rqRows}
+
+## Evidence-linked findings
+
+| RQ | Finding | Interpretation | Contributing values |
+| --- | --- | --- | ---: |
+${findingRows}
 
 ## Evidence matrix
 
@@ -218,6 +252,7 @@ export function parseReviewSynthesis(value: unknown): ReviewSynthesis {
       : legacyAnalysisDefinitions(revision, protocolRevision, extractionColumns),
     diagnostics: Array.isArray(value.diagnostics) ? value.diagnostics.map(parseSynthesisDiagnostic) : [],
     contributors: Array.isArray(value.contributors) ? value.contributors.map(parseSynthesisContributor) : [],
+    findings: Array.isArray(value.findings) ? parseReviewFindingsSnapshot({ revision, findings: value.findings }).findings : [],
     flow: {
       identified: integer(value.flow.identified),
       duplicatesRemoved: integer(value.flow.duplicatesRemoved),
@@ -282,8 +317,8 @@ function analysisDefinitions(
       type: "evidence",
       filters: [
         { field: "record.state", operator: "equals", value: "active" },
-        { field: "screening.fullText.outcome", operator: "equals", value: "include" },
-        { field: "extraction.fieldId", operator: "latest-by", value: "fieldId" },
+        { field: "screening.finalInclusion.outcome", operator: "equals", value: "include" },
+        { field: "extraction.fieldId", operator: "effective-by-cardinality", value: "fieldId" },
       ],
       columns: ["recordId", "title", "authors", "year", "qualityScore", "qualityRejected", ...extractionColumns],
       dimensions: ["researchQuestion", ...researchQuestionDimensions],
@@ -293,8 +328,8 @@ function analysisDefinitions(
       id: "review-synthesis-report",
       type: "report",
       filters: [{ field: "diagnostic.blocking", operator: "equals", value: "false" }],
-      columns: ["studyFlow", "sourceYield", "researchQuestionCoverage", "evidenceMatrix"],
-      dimensions: ["process", "evidence"],
+      columns: ["studyFlow", "sourceYield", "researchQuestionCoverage", "evidenceLinkedFindings", "evidenceMatrix"],
+      dimensions: ["process", "evidence", "researchQuestionFinding"],
     },
   ];
 }
@@ -310,7 +345,16 @@ function legacyAnalysisDefinitions(
     protocol: {
       researchQuestions: [],
       qualityAssessment: { questions: [], answers: [], minimumScore: null },
-      extractionFields: extractionColumns.map((label) => ({ id: label, label, type: "string", values: [], researchQuestionIds: [] })),
+      extractionFields: extractionColumns.map((label) => ({
+        id: label,
+        label,
+        type: "text",
+        values: [],
+        researchQuestionIds: [],
+        requiredness: "required",
+        cardinality: "single",
+        condition: null,
+      })),
     },
     records: [],
   });
@@ -321,9 +365,18 @@ function synthesisDiagnostics(
   search: ReviewSearchSnapshot,
   screening: ReviewScreeningSnapshot,
   evidence: ReviewEvidenceSnapshot,
+  findings?: ReviewFindingsSnapshot,
+  reassessment?: ReviewReassessmentSnapshot,
 ): readonly ReviewSynthesisDiagnostic[] {
   const diagnostics: ReviewSynthesisDiagnostic[] = [];
-  const revisions = [protocol.revision, search.revision, screening.revision, evidence.revision];
+  const revisions = [
+    protocol.revision,
+    search.revision,
+    screening.revision,
+    evidence.revision,
+    ...(findings ? [findings.revision] : []),
+    ...(reassessment ? [reassessment.revision] : []),
+  ];
   if (new Set(revisions).size !== 1) {
     diagnostics.push(diagnostic("review-revision-mismatch", `Review inputs do not share one exact revision (${revisions.join(", ")}).`));
   }
@@ -335,6 +388,18 @@ function synthesisDiagnostics(
       diagnostic(
         "protocol-revision-mismatch",
         `Evidence uses protocol revision ${evidence.protocolRevision}, but the review uses protocol revision ${protocol.protocol.revision}.`,
+      ),
+    );
+  }
+
+  const openReassessments = reassessment?.obligations.filter((obligation) => obligation.status === "open") ?? [];
+  if (openReassessments.length > 0) {
+    diagnostics.push(
+      diagnostic(
+        "protocol-reassessment-open",
+        `${openReassessments.length} protocol amendment reassessment obligation${openReassessments.length === 1 ? " remains" : "s remain"} open.`,
+        openReassessments.flatMap((obligation) => (obligation.recordId === null ? [] : [obligation.recordId])),
+        openReassessments.map((obligation) => obligation.id),
       ),
     );
   }
@@ -368,7 +433,8 @@ function synthesisDiagnostics(
     (record) =>
       record.titleAbstract.outcome === "pending" ||
       record.titleAbstract.outcome === "uncertain" ||
-      (record.titleAbstract.outcome === "include" && (record.fullText.outcome === "pending" || record.fullText.outcome === "uncertain")),
+      (record.titleAbstract.outcome === "include" && (record.fullText.outcome === "pending" || record.fullText.outcome === "uncertain")) ||
+      (record.fullText.outcome === "include" && record.finalInclusion.outcome === "pending"),
   );
   if (incompleteScreening.length > 0) {
     diagnostics.push(
@@ -382,7 +448,7 @@ function synthesisDiagnostics(
   }
 
   const includedIds = new Set(
-    screening.records.filter((record) => record.fullText.outcome === "include").map((record) => record.record.id),
+    screening.records.filter((record) => record.finalInclusion.outcome === "include").map((record) => record.record.id),
   );
   const evidenceByRecord = new Map(evidence.records.map((record) => [record.record.id, record] as const));
   const missingEvidenceRecords = [...includedIds].filter((recordId) => !evidenceByRecord.has(recordId));
@@ -414,7 +480,7 @@ function synthesisDiagnostics(
         "extraction-incomplete",
         `${extractionIncomplete.length} included record${extractionIncomplete.length === 1 ? " has" : "s have"} incomplete extraction.`,
         extractionIncomplete.map((record) => record.record.id),
-        extractionIncomplete.flatMap((record) => latestExtraction(record).map((value) => value.id)),
+        extractionIncomplete.flatMap((record) => synthesisExtraction(record, evidence).map((value) => value.id)),
       ),
     );
   }
@@ -434,7 +500,7 @@ function synthesisDiagnostics(
     );
   }
   const extractionWithoutProvenance = includedEvidence.flatMap((record) =>
-    latestExtraction(record)
+    synthesisExtraction(record, evidence)
       .filter((value) => value.value !== null && value.evidence === null)
       .map((value) => ({ recordId: record.record.id, valueId: value.id })),
   );
@@ -497,25 +563,27 @@ function synthesisContributors(
     return {
       recordId,
       occurrenceIds: sortedStrings(search.occurrences.filter((value) => value.recordId === recordId).map((value) => value.id)),
-      screeningDecisionIds: sortedStrings(stages.flatMap((stage) => stage.decisions.map((value) => value.id))),
+      screeningDecisionIds: sortedStrings([
+        ...stages.flatMap((stage) => stage.decisions.map((value) => value.id)),
+        ...(screeningRecord?.finalInclusion.decision ? [screeningRecord.finalInclusion.decision.id] : []),
+      ]),
       screeningAdjudicationIds: sortedStrings(stages.flatMap((stage) => (stage.adjudication ? [stage.adjudication.id] : []))),
       appraisalValueIds: sortedStrings(
         evidenceRecord ? latestValues(evidenceRecord.qualityValues, (value) => value.questionId).map((value) => value.id) : [],
       ),
-      extractionValueIds: sortedStrings(evidenceRecord ? latestExtraction(evidenceRecord).map((value) => value.id) : []),
+      extractionValueIds: sortedStrings(evidenceRecord ? synthesisExtraction(evidenceRecord, evidence).map((value) => value.id) : []),
     };
   });
 }
 
 function screeningContributorIds(record: ReviewScreeningSnapshot["records"][number]): string[] {
-  return [record.titleAbstract, record.fullText].flatMap((stage) => [
-    ...stage.decisions.map((decision) => decision.id),
-    ...(stage.adjudication ? [stage.adjudication.id] : []),
-  ]);
+  return [record.titleAbstract, record.fullText]
+    .flatMap((stage) => [...stage.decisions.map((decision) => decision.id), ...(stage.adjudication ? [stage.adjudication.id] : [])])
+    .concat(record.finalInclusion.decision ? [record.finalInclusion.decision.id] : []);
 }
 
 function synthesisRow(record: EvidenceRecordState, evidence: ReviewEvidenceSnapshot): Record<string, string | number | boolean | null> {
-  const latest = new Map(latestExtraction(record).map((value) => [value.fieldId, value] as const));
+  const effective = synthesisExtraction(record, evidence);
   const row: Record<string, string | number | boolean | null> = {
     recordId: record.record.id,
     title: record.record.metadata.title,
@@ -525,14 +593,32 @@ function synthesisRow(record: EvidenceRecordState, evidence: ReviewEvidenceSnaps
     qualityRejected: record.qualityRejected,
   };
   for (const field of evidence.protocol.extractionFields) {
-    const value = latest.get(field.id);
-    row[field.label] = value?.value ?? (value?.missingReason ? `Missing: ${value.missingReason}` : null);
+    row[field.label] = synthesisCell(effective.filter((value) => value.fieldId === field.id));
   }
   return row;
 }
 
-function latestExtraction(record: EvidenceRecordState): ExtractedDataValue[] {
-  return latestValues(record.extractionValues, (value) => value.fieldId);
+function synthesisExtraction(record: EvidenceRecordState, evidence: ReviewEvidenceSnapshot): ExtractedDataValue[] {
+  return effectiveExtractionValues(record.extractionValues, evidence.protocol.extractionFields);
+}
+
+function synthesisCell(values: readonly ExtractedDataValue[]): string | number | boolean | null {
+  if (values.length === 0) return null;
+  const rendered = values.map((value) =>
+    value.value === null ? (value.missingReason ? `Missing: ${value.missingReason}` : null) : extractionValueText(value.value),
+  );
+  if (rendered.length === 1) return rendered[0] ?? null;
+  return rendered.map((value) => (value === null ? "Not reported" : String(value))).join("; ");
+}
+
+function extractionValueText(value: Exclude<ExtractionValue, null>): string | number | boolean {
+  if (isSourceSelectorValue(value)) return `${value.kind}:${value.resourceId}#${value.selectorId}`;
+  if (typeof value === "object") return value.join("; ");
+  return value;
+}
+
+function isSourceSelectorValue(value: Exclude<ExtractionValue, null>): value is ReviewSourceSelectorValue {
+  return typeof value === "object" && !Array.isArray(value);
 }
 
 function csvCell(value: string | number | boolean | null): string {
@@ -561,10 +647,17 @@ function parseAnalysisDefinition(value: unknown): ReviewAnalysisDefinition {
     protocolRevision: integer(value.protocolRevision),
     generatorSchema: reviewAnalysisDefinitionSchemaVersion,
     filters: value.filters.map((filter) => {
-      if (!isRecord(filter) || (filter.operator !== "equals" && filter.operator !== "latest-by")) {
+      if (
+        !isRecord(filter) ||
+        (filter.operator !== "equals" && filter.operator !== "effective-by-cardinality" && filter.operator !== "latest-by")
+      ) {
         throw new Error("Review analysis filter is invalid");
       }
-      return { field: text(filter.field), operator: filter.operator, value: text(filter.value) };
+      return {
+        field: text(filter.field),
+        operator: filter.operator === "latest-by" ? "effective-by-cardinality" : filter.operator,
+        value: text(filter.value),
+      };
     }),
     columns: value.columns.map(text),
     dimensions: value.dimensions.map(text),
@@ -640,6 +733,7 @@ function isDiagnosticCode(value: unknown): value is ReviewSynthesisDiagnosticCod
     value === "review-revision-mismatch" ||
     value === "protocol-draft" ||
     value === "protocol-revision-mismatch" ||
+    value === "protocol-reassessment-open" ||
     value === "duplicate-resolution-incomplete" ||
     value === "screening-incomplete" ||
     value === "screening-conflict" ||

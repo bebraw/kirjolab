@@ -1,4 +1,10 @@
-import { parseEvidencePointer, validateExtractionValue, type ExtractionValue, type ReviewEvidencePointer } from "./review-evidence";
+import {
+  parseEvidencePointer,
+  parseExtractionValueShape,
+  validateExtractionValue,
+  type ExtractionValue,
+  type ReviewEvidencePointer,
+} from "./review-evidence";
 import type { ExtractionFieldDefinition } from "./review-study";
 import type { ScreeningDecisionValue, ScreeningStage } from "./review-screening";
 
@@ -61,12 +67,16 @@ export function parseScreeningModelResult(value: unknown): ScreeningModelResult 
   };
 }
 
-export function parseExtractionModelResult(value: unknown, field: ExtractionFieldDefinition): ExtractionModelResult {
+export function parseExtractionModelResult(
+  value: unknown,
+  field: ExtractionFieldDefinition,
+  allowLegacyEvidence = false,
+): ExtractionModelResult {
   if (!isRecord(value) || value.fieldId !== field.id) throw new Error("Extraction model result is invalid");
   const missingReason = value.missingReason === null ? null : bounded(value.missingReason, "Missing reason", 2_000);
   const validated = validateExtractionValue(field, value.value, missingReason);
   const extractionValue = validated.value;
-  const evidence = value.evidence === null ? null : parseEvidencePointer(value.evidence, false);
+  const evidence = value.evidence === null ? null : parseEvidencePointer(value.evidence, false, allowLegacyEvidence);
   if (extractionValue !== null && !evidence) throw new Error("Extraction candidate value requires exact evidence");
   if (missingReason !== null && evidence) throw new Error("Missing extraction candidate cannot cite invented evidence");
   return {
@@ -126,17 +136,22 @@ function parseStoredExtraction(value: unknown): ExtractionModelResult {
   if (
     !isRecord(value) ||
     typeof value.fieldId !== "string" ||
-    (value.value !== null && typeof value.value !== "string" && typeof value.value !== "number" && typeof value.value !== "boolean") ||
     (value.missingReason !== null && typeof value.missingReason !== "string") ||
     typeof value.rationale !== "string"
   ) {
     throw new Error("Review extraction candidate is invalid");
   }
+  let extractionValue: ExtractionValue;
+  try {
+    extractionValue = parseExtractionValueShape(value.value);
+  } catch {
+    throw new Error("Review extraction candidate is invalid");
+  }
   return {
     fieldId: value.fieldId,
-    value: value.value,
+    value: extractionValue,
     missingReason: value.missingReason,
-    evidence: value.evidence === null ? null : parseEvidencePointer(value.evidence, false),
+    evidence: value.evidence === null ? null : parseEvidencePointer(value.evidence, false, true),
     rationale: value.rationale,
   };
 }

@@ -1,7 +1,7 @@
 import { env, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { defaultReviewProtocol } from "../domain/review-study";
-import { previewReviewBibTeX } from "../domain/review-search";
+import { defaultReviewProtocol, type ReviewSearchSource } from "../domain/review-study";
+import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search";
 import { ReviewStudy } from "./review-study";
 
 describe("ReviewStudy in the Workers runtime", () => {
@@ -17,9 +17,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       objective: "Map practices",
       researchQuestions: [{ id: "rq1", text: "Which practices exist?" }],
       conceptGroups: [{ id: "practice", label: "Practice", facet: null, terms: ["software practice"] }],
-      sources: [
-        { id: "scopus", name: "Scopus", url: "https://scopus.com", dialect: "scopus" as const, fieldScope: "title-abstract" as const },
-      ],
+      sources: [formalSource({ id: "scopus", name: "Scopus", url: "https://scopus.com", dialect: "scopus", fieldScope: "title-abstract" })],
     };
     const edited = await study.replaceProtocol({ expectedRevision: 1, content, actor: "owner@example.com" });
     expect(edited).toMatchObject({ revision: 2, protocol: { objective: "Map practices", revision: 2 } });
@@ -31,13 +29,58 @@ describe("ReviewStudy in the Workers runtime", () => {
     await runInDurableObject(study, (instance: ReviewStudy) => {
       expect(() => instance.replaceProtocol({ expectedRevision: 3, content, actor: "owner@example.com" })).toThrow("amended");
     });
+    await runInDurableObject(study, (instance: ReviewStudy) => {
+      expect(() =>
+        instance.amendProtocol({
+          expectedRevision: 3,
+          content: { ...content, objective: "Unscoped amendment" },
+          rationale: "Missing an impact declaration",
+          actor: "owner@example.com",
+        }),
+      ).toThrow("affected stage");
+    });
+    expect((await study.getSnapshot()).revision).toBe(3);
     const amended = await study.amendProtocol({
       expectedRevision: 3,
-      content: { ...content, objective: "Map current practices" },
+      content: {
+        ...content,
+        objective: "Map current practices",
+        amendmentImpact: { stages: ["search"], recordIds: [] },
+      },
       rationale: "Pilot search exposed ambiguity",
       actor: "owner@example.com",
     });
     expect(amended).toMatchObject({ revision: 4, protocol: { status: "frozen", rationale: "Pilot search exposed ambiguity" } });
+    const obligations = await study.getReassessmentSnapshot();
+    expect(obligations).toMatchObject({
+      revision: 4,
+      obligations: [
+        {
+          amendmentProtocolRevision: 4,
+          stage: "search",
+          recordId: null,
+          status: "open",
+          createdRevision: 4,
+        },
+      ],
+    });
+    const completed = await study.completeReassessmentObligation(
+      obligations.revision,
+      obligations.obligations[0]!.id,
+      "Repeated the registered search under the successor protocol",
+      "owner@example.com",
+    );
+    expect(completed).toMatchObject({
+      revision: 5,
+      obligations: [
+        {
+          status: "completed",
+          completedRevision: 5,
+          completedBy: "owner@example.com",
+          completionRationale: "Repeated the registered search under the successor protocol",
+        },
+      ],
+    });
   });
 
   it("rejects stale writers and records its migration", async () => {
@@ -61,6 +104,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       { version: 6, name: "allow-rationales-for-negative-appraisal" },
       { version: 7, name: "make-review-revisions-reconstructible" },
       { version: 8, name: "retain-review-import-provenance-and-capacity" },
+      { version: 9, name: "pin-review-workflow-to-protocol-revisions" },
     ]);
   });
 
@@ -85,6 +129,49 @@ describe("ReviewStudy in the Workers runtime", () => {
     });
   });
 
+  it("materializes and restores owner-scoped review payloads", async () => {
+    const ownerKey = await sha256Hex(crypto.randomUUID());
+    const source = env.REVIEW_STUDIES.getByName(`review-backup-source-${crypto.randomUUID()}`);
+    const initial = await source.getSnapshot();
+    const current = await source.replaceProtocol({
+      expectedRevision: initial.revision,
+      content: { ...defaultReviewProtocol(), objective: "Restore this exact review authority" },
+      actor: "owner@example.com",
+    });
+    const backup = await source.createBackupSnapshot(ownerKey);
+    expect(backup).toMatchObject({
+      reference: {
+        reviewRevision: current.revision,
+        protocolRevision: current.protocol.revision,
+        payloadDigest: expect.stringMatching(/^[a-f0-9]{64}$/u),
+        authorityDigest: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      },
+      revisionSeed: `review:${current.revision}:protocol:${current.protocol.revision}`,
+    });
+    if (!backup.reference) throw new Error("Expected a review backup reference");
+
+    const restored = env.REVIEW_STUDIES.getByName(`review-backup-restored-${crypto.randomUUID()}`);
+    const verification = await restored.restoreBackupPayload(ownerKey, backup.reference);
+    expect(verification).toEqual({
+      payloadDigest: backup.reference.payloadDigest,
+      authorityDigest: backup.reference.authorityDigest,
+      reviewRevision: backup.reference.reviewRevision,
+      protocolRevision: backup.reference.protocolRevision,
+      historyFloorRevision: backup.reference.historyFloorRevision,
+    });
+    expect((await restored.getSnapshot()).protocol.objective).toBe("Restore this exact review authority");
+    await expect(restored.restoreBackupPayload(ownerKey, backup.reference)).resolves.toEqual(verification);
+    await runInDurableObject(restored, async (instance: ReviewStudy) => {
+      await expect(instance.restoreBackupPayload("b".repeat(64), backup.reference!)).rejects.toThrow("outside owner scope");
+    });
+
+    const occupied = env.REVIEW_STUDIES.getByName(`review-backup-occupied-${crypto.randomUUID()}`);
+    await occupied.getSnapshot();
+    await runInDurableObject(occupied, async (instance: ReviewStudy) => {
+      await expect(instance.restoreBackupPayload(ownerKey, backup.reference!)).rejects.toThrow("different review data");
+    });
+  });
+
   it("deletes the complete review authority with the project", async () => {
     const study = env.REVIEW_STUDIES.getByName(`review-delete-${crypto.randomUUID()}`);
     await study.getSnapshot();
@@ -105,9 +192,7 @@ describe("ReviewStudy in the Workers runtime", () => {
     const initial = await study.getSnapshot();
     const content = {
       ...defaultReviewProtocol(),
-      sources: [
-        { id: "scopus", name: "Scopus", url: "https://scopus.com", dialect: "scopus" as const, fieldScope: "title-abstract" as const },
-      ],
+      sources: [formalSource({ id: "scopus", name: "Scopus", url: "https://scopus.com", dialect: "scopus", fieldScope: "title-abstract" })],
     };
     await study.replaceProtocol({ expectedRevision: initial.revision, content, actor: "owner@example.com" });
     const frozen = await study.freezeProtocol(2, "owner@example.com");
@@ -215,10 +300,26 @@ describe("ReviewStudy in the Workers runtime", () => {
     await expectImportFailure("occurrence limit");
     await setCounts(0, 0, 0, 50_000);
     await expectImportFailure("record limit");
+    await setCounts(0, 0, 0, 0);
+    await runInDurableObject(study, (_instance: ReviewStudy, state) => {
+      state.storage.sql.exec("UPDATE review_meta SET import_byte_count = ? WHERE singleton = 1", reviewImportLimits.bibtexBytes);
+    });
+    await expectImportFailure("aggregate import byte limit");
     expect((await study.getSnapshot()).revision).toBe(3);
 
     await setCounts(0, 0, 0, 0);
+    await runInDurableObject(study, (_instance: ReviewStudy, state) => {
+      state.storage.sql.exec("UPDATE review_meta SET import_byte_count = 0 WHERE singleton = 1");
+    });
     await expect(study.confirmSearchRun(input)).resolves.toMatchObject({ revision: 4, counts: { identified: 1, unique: 1 } });
+    expect(
+      await runInDurableObject(
+        study,
+        (_instance: ReviewStudy, state) =>
+          state.storage.sql.exec<{ import_byte_count: number }>("SELECT import_byte_count FROM review_meta WHERE singleton = 1").one()
+            .import_byte_count,
+      ),
+    ).toBe(preview.byteCount);
   });
 
   it("blinds independent screening decisions and preserves adjudicated conflicts", async () => {
@@ -227,9 +328,21 @@ describe("ReviewStudy in the Workers runtime", () => {
     const content = {
       ...defaultReviewProtocol(),
       screening: { reviewersPerStage: 2 as const, blinded: true },
-      inclusionCriteria: ["Addresses the research question"],
-      exclusionCriteria: ["Not empirical"],
-      sources: [{ id: "source", name: "Source", url: "", dialect: "generic" as const, fieldScope: "all-fields" as const }],
+      eligibilityCriteria: [
+        {
+          id: "addresses-rq",
+          kind: "include" as const,
+          text: "Addresses the research question",
+          applicableStages: ["title-abstract", "full-text"] as const,
+        },
+        {
+          id: "not-empirical",
+          kind: "exclude" as const,
+          text: "Not empirical",
+          applicableStages: ["title-abstract", "full-text"] as const,
+        },
+      ],
+      sources: [formalSource({ id: "source", name: "Source", url: "", dialect: "generic", fieldScope: "all-fields" })],
     };
     await study.replaceProtocol({ expectedRevision: initial.revision, content, actor: "owner@example.com" });
     await study.freezeProtocol(2, "owner@example.com");
@@ -246,16 +359,40 @@ describe("ReviewStudy in the Workers runtime", () => {
       actor: "owner@example.com",
     });
     const recordId = searched.records[0]!.id;
+    await runInDurableObject(study, (instance: ReviewStudy) => {
+      expect(() =>
+        instance.submitScreeningDecision(
+          searched.revision,
+          recordId,
+          "title-abstract",
+          "include",
+          "Mismatched criterion kind",
+          "not-empirical",
+          "reviewer-a@example.com",
+        ),
+      ).toThrow("inapplicable");
+    });
+    expect((await study.getSnapshot()).revision).toBe(searched.revision);
     const first = await study.submitScreeningDecision(
       searched.revision,
       recordId,
       "title-abstract",
       "include",
       "Relevant",
-      "Addresses the research question",
+      "addresses-rq",
       "reviewer-a@example.com",
     );
-    expect(first.records[0]?.titleAbstract).toMatchObject({ outcome: "pending", decisions: [{ reviewer: "reviewer-a@example.com" }] });
+    expect(first.records[0]?.titleAbstract).toMatchObject({
+      outcome: "pending",
+      decisions: [
+        {
+          protocolRevision: 3,
+          criterionId: "addresses-rq",
+          criterionText: "Addresses the research question",
+          reviewer: "reviewer-a@example.com",
+        },
+      ],
+    });
     expect((await study.getScreeningSnapshot("reviewer-b@example.com")).records[0]?.titleAbstract.decisions).toEqual([]);
     const second = await study.submitScreeningDecision(
       first.revision,
@@ -263,7 +400,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       "title-abstract",
       "exclude",
       "Not empirical",
-      "Not empirical",
+      "not-empirical",
       "reviewer-b@example.com",
     );
     expect(second.records[0]?.titleAbstract).toMatchObject({ outcome: "conflict" });
@@ -276,7 +413,15 @@ describe("ReviewStudy in the Workers runtime", () => {
       "Reviewers reached consensus",
       "lead@example.com",
     );
-    expect(adjudicated.records[0]?.titleAbstract).toMatchObject({ outcome: "include", adjudication: { adjudicator: "lead@example.com" } });
+    expect(adjudicated.records[0]?.titleAbstract).toMatchObject({
+      outcome: "include",
+      adjudication: {
+        protocolRevision: 3,
+        criterionId: "addresses-rq",
+        criterionText: "Addresses the research question",
+        adjudicator: "lead@example.com",
+      },
+    });
     expect(adjudicated.records[0]?.titleAbstract.decisions).toHaveLength(2);
     const fullText = await study.submitScreeningDecision(
       adjudicated.revision,
@@ -284,7 +429,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       "full-text",
       "include",
       "Eligible",
-      "Addresses the research question",
+      "addresses-rq",
       "reviewer-a@example.com",
     );
     expect(fullText.records[0]?.fullText.outcome).toBe("pending");
@@ -296,16 +441,49 @@ describe("ReviewStudy in the Workers runtime", () => {
     const defaults = defaultReviewProtocol();
     const content = {
       ...defaults,
+      researchQuestions: [{ id: "rq1", text: "What evidence was reported?" }],
+      eligibilityCriteria: [
+        {
+          id: "eligible",
+          kind: "include" as const,
+          text: "Eligible for the review",
+          applicableStages: ["title-abstract", "full-text"] as const,
+        },
+        {
+          id: "appraisal-exclusion",
+          kind: "exclude" as const,
+          text: "Excluded after final eligibility appraisal",
+          applicableStages: ["full-text"] as const,
+        },
+      ],
       qualityAssessment: {
         questions: [{ id: "method", text: "Is the method clear?" }],
         answers: defaults.qualityAssessment.answers,
         minimumScore: 0.5,
       },
       extractionFields: [
-        { id: "year", label: "Year", type: "integer" as const, values: [], researchQuestionIds: [] },
-        { id: "finding", label: "Key finding", type: "string" as const, values: [], researchQuestionIds: [] },
+        {
+          id: "year",
+          label: "Year",
+          type: "integer" as const,
+          values: [],
+          researchQuestionIds: ["rq1"],
+          requiredness: "required" as const,
+          cardinality: "single" as const,
+          condition: null,
+        },
+        {
+          id: "finding",
+          label: "Key finding",
+          type: "text" as const,
+          values: [],
+          researchQuestionIds: ["rq1"],
+          requiredness: "required" as const,
+          cardinality: "single" as const,
+          condition: null,
+        },
       ],
-      sources: [{ id: "source", name: "Source", url: "", dialect: "generic" as const, fieldScope: "all-fields" as const }],
+      sources: [formalSource({ id: "source", name: "Source", url: "", dialect: "generic", fieldScope: "all-fields" })],
     };
     await study.replaceProtocol({ expectedRevision: initial.revision, content, actor: "owner@example.com" });
     await study.freezeProtocol(2, "owner@example.com");
@@ -328,7 +506,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       "title-abstract",
       "include",
       "Relevant",
-      "",
+      "eligible",
       "reviewer@example.com",
     );
     const full = await study.submitScreeningDecision(
@@ -337,26 +515,78 @@ describe("ReviewStudy in the Workers runtime", () => {
       "full-text",
       "include",
       "Eligible",
-      "",
+      "eligible",
+      "reviewer@example.com",
+    );
+    expect(await study.getEvidenceSnapshot("reviewer@example.com")).toMatchObject({ records: [] });
+    const final = await study.decideFinalInclusion(
+      full.revision,
+      recordId,
+      "include",
+      null,
+      "Eligible after appraisal readiness check",
+      "reviewer@example.com",
+    );
+    expect(final).toMatchObject({
+      counts: { finalInclusionPending: 0, finalInclusionIncluded: 1, finalInclusionExcluded: 0 },
+      records: [
+        {
+          finalInclusion: {
+            outcome: "include",
+            decision: { protocolRevision: 3, criterionId: null, criterionText: "" },
+          },
+        },
+      ],
+    });
+    const authorityAtInitialInclusion = await study.getExportAuthorityAtRevision(final.revision, "reviewer@example.com");
+    const excluded = await study.decideFinalInclusion(
+      final.revision,
+      recordId,
+      "exclude",
+      "appraisal-exclusion",
+      "The final appraisal found an exclusion",
+      "reviewer@example.com",
+    );
+    expect(excluded.records[0]?.finalInclusion).toMatchObject({
+      outcome: "exclude",
+      decision: {
+        protocolRevision: 3,
+        criterionId: "appraisal-exclusion",
+        criterionText: "Excluded after final eligibility appraisal",
+      },
+    });
+    expect(await study.getEvidenceSnapshot("reviewer@example.com")).toMatchObject({ records: [] });
+    expect(await study.getExportAuthorityAtRevision(final.revision, "reviewer@example.com")).toEqual(authorityAtInitialInclusion);
+    const reincluded = await study.decideFinalInclusion(
+      excluded.revision,
+      recordId,
+      "include",
+      null,
+      "The exclusion was corrected after source verification",
       "reviewer@example.com",
     );
     const quality = await study.submitQualityAssessment(
-      full.revision,
+      reincluded.revision,
       recordId,
       "method",
       "yes",
-      { quote: "The method was preregistered.", page: 3, location: "Methods" },
+      evidencePointer(recordId, "quality-method", "The method was preregistered.", 3, "Methods"),
       "",
       "reviewer@example.com",
     );
-    expect(quality.records[0]).toMatchObject({ qualityScore: 1, qualityComplete: true, qualityRejected: false });
+    expect(quality.records[0]).toMatchObject({
+      qualityScore: 1,
+      qualityComplete: true,
+      qualityRejected: false,
+      qualityValues: [{ protocolRevision: 3, criterionId: "method", criterionText: "Is the method clear?" }],
+    });
     const extracted = await study.submitExtractionValue(
       quality.revision,
       recordId,
       "year",
       2025,
       null,
-      { quote: "Published 2025", page: 1, location: "Front matter" },
+      evidencePointer(recordId, "extraction-year", "Published 2025", 1, "Front matter"),
       "reviewer@example.com",
     );
     const missing = await study.submitExtractionValue(
@@ -369,7 +599,12 @@ describe("ReviewStudy in the Workers runtime", () => {
       "reviewer@example.com",
     );
     expect(missing.records[0]).toMatchObject({ extractionComplete: true });
-    expect(missing.records[0]?.extractionValues).toHaveLength(2);
+    expect(missing.records[0]?.extractionValues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ protocolRevision: 3, criterionId: "year", criterionText: "Year", value: 2025 }),
+        expect.objectContaining({ protocolRevision: 3, criterionId: "finding", criterionText: "Key finding", value: null }),
+      ]),
+    );
     const synthesisAtMissing = await study.getSynthesisAtRevision(missing.revision, "reviewer@example.com");
     expect(synthesisAtMissing).toMatchObject({
       revision: missing.revision,
@@ -382,12 +617,96 @@ describe("ReviewStudy in the Workers runtime", () => {
       "year",
       2026,
       null,
-      { quote: "Corrected to 2026", page: 1, location: "Front matter" },
+      evidencePointer(recordId, "extraction-year-correction", "Corrected to 2026", 1, "Front matter"),
       "reviewer@example.com",
     );
     expect(revised.revision).toBe(missing.revision + 1);
     expect(await study.getSynthesisAtRevision(missing.revision, "reviewer@example.com")).toEqual(synthesisAtMissing);
     expect(await study.getSynthesis("reviewer@example.com")).toMatchObject({ matrix: [{ Year: 2026 }] });
+
+    const evidenceRecord = revised.records[0]!;
+    const appraisal = evidenceRecord.qualityValues.at(-1)!;
+    const year = evidenceRecord.extractionValues.filter((value) => value.fieldId === "year").at(-1)!;
+    const findings = await study.createFinding(
+      revised.revision,
+      {
+        researchQuestionId: "rq1",
+        statement: "The study reports evidence from 2026.",
+        interpretation: "The corrected publication year is used.",
+        extractionValueIds: [year.id],
+        appraisalValueIds: [appraisal.id],
+        evidence: [
+          { contributorKind: "extraction", contributorId: year.id, pointer: year.evidence! },
+          { contributorKind: "appraisal", contributorId: appraisal.id, pointer: appraisal.evidence! },
+        ],
+        supersedesId: null,
+      },
+      "reviewer@example.com",
+    );
+    expect(findings).toMatchObject({
+      findings: [{ reviewRevision: findings.revision, protocolRevision: 3, researchQuestionId: "rq1" }],
+    });
+    expect(await study.getSynthesis("reviewer@example.com")).toMatchObject({
+      findings: [{ statement: "The study reports evidence from 2026." }],
+    });
+
+    const authorityBeforeAmendment = await study.getExportAuthorityAtRevision(findings.revision, "reviewer@example.com");
+    const amended = await study.amendProtocol({
+      expectedRevision: findings.revision,
+      content: {
+        ...content,
+        objective: "Reassess extraction under clarified coding guidance",
+        amendmentImpact: { stages: ["extraction"], recordIds: [recordId] },
+      },
+      rationale: "Pilot coding exposed an ambiguous year rule",
+      actor: "owner@example.com",
+    });
+    const reassessment = await study.getReassessmentSnapshot();
+    expect(reassessment).toMatchObject({
+      revision: amended.revision,
+      obligations: [
+        {
+          amendmentProtocolRevision: amended.revision,
+          stage: "extraction",
+          recordId,
+          status: "open",
+        },
+      ],
+    });
+    const evidenceAfterAmendment = await study.getEvidenceSnapshot("reviewer@example.com");
+    expect(evidenceAfterAmendment.protocolRevision).toBe(amended.revision);
+    expect(evidenceAfterAmendment.records[0]?.extractionValues.at(-1)).toMatchObject({ protocolRevision: 3, value: 2026 });
+    expect(await study.getScreeningSnapshot("reviewer@example.com")).toMatchObject({
+      records: [
+        {
+          titleAbstract: { decisions: [{ protocolRevision: 3, criterionId: "eligible" }] },
+          fullText: { decisions: [{ protocolRevision: 3, criterionId: "eligible" }] },
+          finalInclusion: { decision: { protocolRevision: 3, outcome: "include" } },
+        },
+      ],
+    });
+    const reassessed = await study.submitExtractionValue(
+      amended.revision,
+      recordId,
+      "year",
+      2026,
+      null,
+      evidencePointer(recordId, "extraction-year-reassessed", "Year coding was reconfirmed as 2026", 1, "Front matter"),
+      "reviewer@example.com",
+    );
+    expect(reassessed.records[0]?.extractionValues.at(-1)).toMatchObject({
+      protocolRevision: amended.revision,
+      criterionId: "year",
+      criterionText: "Year",
+    });
+    const completed = await study.completeReassessmentObligation(
+      reassessed.revision,
+      reassessment.obligations[0]!.id,
+      "Re-extracted the affected field against the clarified protocol",
+      "reviewer@example.com",
+    );
+    expect(completed.obligations[0]).toMatchObject({ status: "completed", completedRevision: completed.revision });
+    expect(await study.getExportAuthorityAtRevision(findings.revision, "reviewer@example.com")).toEqual(authorityBeforeAmendment);
   });
 
   it("records model provenance and applies candidates only after human acceptance", async () => {
@@ -396,9 +715,27 @@ describe("ReviewStudy in the Workers runtime", () => {
     const content = {
       ...defaultReviewProtocol(),
       modelAssistance: { mode: "assisted" as const },
-      inclusionCriteria: ["Empirical"],
-      extractionFields: [{ id: "design", label: "Design", type: "enum" as const, values: ["survey"], researchQuestionIds: [] }],
-      sources: [{ id: "source", name: "Source", url: "", dialect: "generic" as const, fieldScope: "all-fields" as const }],
+      eligibilityCriteria: [
+        {
+          id: "empirical",
+          kind: "include" as const,
+          text: "Empirical",
+          applicableStages: ["title-abstract", "full-text"] as const,
+        },
+      ],
+      extractionFields: [
+        {
+          id: "design",
+          label: "Design",
+          type: "single-choice" as const,
+          values: ["survey"],
+          researchQuestionIds: [],
+          requiredness: "required" as const,
+          cardinality: "single" as const,
+          condition: null,
+        },
+      ],
+      sources: [formalSource({ id: "source", name: "Source", url: "", dialect: "generic", fieldScope: "all-fields" })],
     };
     await study.replaceProtocol({ expectedRevision: initial.revision, content, actor: "owner@example.com" });
     await study.freezeProtocol(2, "owner@example.com");
@@ -424,7 +761,7 @@ describe("ReviewStudy in the Workers runtime", () => {
       model: "local-model",
       promptTemplateVersion: "review-screening-v1",
       sourceScope: ["bibliographic title", "bibliographic abstract", "frozen eligibility criteria"],
-      result: { decision: "include", criterion: "Empirical", rationale: "Reports a study.", evidence: "survey" },
+      result: { decision: "include", criterion: "empirical", rationale: "Reports a study.", evidence: "survey" },
       actor: "reviewer@example.com",
     });
     const authorityWithPendingModel = await study.getExportAuthorityAtRevision(screeningCandidate.revision, "reviewer@example.com");
@@ -445,18 +782,29 @@ describe("ReviewStudy in the Workers runtime", () => {
       screening: { records: [{ titleAbstract: { outcome: "pending", decisions: [] } }] },
     });
     const titleState = await study.getScreeningSnapshot("reviewer@example.com");
-    expect(titleState.records[0]?.titleAbstract.outcome).toBe("include");
+    expect(titleState.records[0]?.titleAbstract).toMatchObject({
+      outcome: "include",
+      decisions: [{ protocolRevision: 3, criterionId: "empirical", criterionText: "Empirical" }],
+    });
     const full = await study.submitScreeningDecision(
       titleState.revision,
       recordId,
       "full-text",
       "include",
       "Eligible",
-      "Empirical",
+      "empirical",
+      "reviewer@example.com",
+    );
+    const final = await study.decideFinalInclusion(
+      full.revision,
+      recordId,
+      "include",
+      "empirical",
+      "Included in the synthesis set",
       "reviewer@example.com",
     );
     const extractionCandidate = await study.createModelCandidate({
-      expectedRevision: full.revision,
+      expectedRevision: final.revision,
       operation: "extract-field",
       recordId,
       stage: null,
@@ -468,7 +816,7 @@ describe("ReviewStudy in the Workers runtime", () => {
         fieldId: "design",
         value: "survey",
         missingReason: null,
-        evidence: { quote: "We conducted a survey.", page: 2, location: "Methods" },
+        evidence: evidencePointer(recordId, "model-design", "We conducted a survey.", 2, "Methods"),
         rationale: "The design is explicit.",
       },
       actor: "reviewer@example.com",
@@ -484,11 +832,34 @@ describe("ReviewStudy in the Workers runtime", () => {
         researchQuestions: content.researchQuestions,
         extractionFields: content.extractionFields,
       },
-      records: [{ extractionComplete: true, extractionValues: [{ value: "survey" }] }],
+      records: [
+        {
+          extractionComplete: true,
+          extractionValues: [{ protocolRevision: 3, criterionId: "design", criterionText: "Design", value: "survey" }],
+        },
+      ],
     });
   });
 });
 
 function importProvenance(reportedResultCount: number, filename = "source-results.bib") {
   return { filename, mediaType: "application/x-bibtex" as const, reportedResultCount };
+}
+
+function evidencePointer(recordId: string, selectorId: string, quote: string, page: number, location: string) {
+  return { kind: "pdf-annotation" as const, resourceId: `record:${recordId}:pdf`, selectorId, quote, page, location };
+}
+
+function formalSource(source: Pick<ReviewSearchSource, "id" | "name" | "url" | "dialect" | "fieldScope">): ReviewSearchSource {
+  return {
+    ...source,
+    sourceClass: "bibliographic-database",
+    evidenceClass: "formal",
+    greySourceClass: null,
+  };
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

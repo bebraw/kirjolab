@@ -2,7 +2,14 @@ import { parseReviewProtocolContent } from "../domain/review-study";
 import { previewReviewBibTeX, reviewBibTeXImport, reviewImportLimits } from "../domain/review-search";
 import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
 import type { ReviewModelOperation } from "../domain/review-model";
-import { parseEvidencePointer, type ExtractionValue } from "../domain/review-evidence";
+import { parseReviewFindingInput, type ReviewFindingInput } from "../domain/review-findings";
+import {
+  parseEvidencePointer,
+  parseExtractionValueShape,
+  type ExtractionValue,
+  type ReviewEvidencePointer,
+  type ReviewSourceSelectorValue,
+} from "../domain/review-evidence";
 import {
   blockingReviewSynthesisDiagnostics,
   reviewSynthesisCsv,
@@ -59,6 +66,14 @@ export async function handleReviewStudyApi(
       }),
     );
   }
+  if (suffix === "/review-study/reassessments" && request.method === "GET") {
+    return noStore(await study.getReassessmentSnapshot());
+  }
+  const reassessmentMatch = /^\/review-study\/reassessments\/([a-f0-9-]{36})\/complete$/iu.exec(suffix);
+  if (reassessmentMatch?.[1] && request.method === "POST") {
+    const body = await reassessmentCompletionRequest(request);
+    return noStore(await study.completeReassessmentObligation(body.expectedRevision, reassessmentMatch[1], body.rationale, identity.email));
+  }
   if (suffix === "/review-study/search-import-previews" && request.method === "POST") {
     const body = await searchImportBody(request);
     return noStore(await previewReviewBibTeX(body.bibtex));
@@ -86,7 +101,7 @@ export async function handleReviewStudyApi(
         body.stage,
         body.decision,
         body.reason,
-        body.criterion,
+        body.criterionId,
         identity.email,
       ),
     );
@@ -98,10 +113,25 @@ export async function handleReviewStudyApi(
       await study.adjudicateScreening(body.expectedRevision, adjudicationMatch[1], body.stage, body.outcome, body.reason, identity.email),
     );
   }
+  const finalInclusionMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/final-inclusion-decisions$/iu.exec(suffix);
+  if (finalInclusionMatch?.[1] && request.method === "POST") {
+    const body = await finalInclusionDecisionRequest(request);
+    return noStore(
+      await study.decideFinalInclusion(
+        body.expectedRevision,
+        finalInclusionMatch[1],
+        body.outcome,
+        body.criterionId,
+        body.reason,
+        identity.email,
+      ),
+    );
+  }
   if (suffix === "/review-study/evidence" && request.method === "GET") return noStore(await study.getEvidenceSnapshot(identity.email));
   const qualityMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/quality-values$/iu.exec(suffix);
   if (qualityMatch?.[1] && request.method === "POST") {
     const body = await qualityValueRequest(request);
+    await assertAuthorizedReviewSelector(body.evidence, room, workspaceId);
     return noStore(
       await study.submitQualityAssessment(
         body.expectedRevision,
@@ -117,6 +147,8 @@ export async function handleReviewStudyApi(
   const extractionMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/extraction-values$/iu.exec(suffix);
   if (extractionMatch?.[1] && request.method === "POST") {
     const body = await extractionValueRequest(request);
+    await assertAuthorizedReviewSelector(body.evidence, room, workspaceId);
+    if (isReviewSourceSelectorValue(body.value)) await assertAuthorizedReviewSelector(body.value, room, workspaceId);
     return noStore(
       await study.submitExtractionValue(
         body.expectedRevision,
@@ -134,11 +166,22 @@ export async function handleReviewStudyApi(
   }
   if (suffix === "/review-study/model-candidates" && request.method === "POST") {
     const body = await modelCandidateRequest(request);
+    for (const selector of modelExtractionSelectors(body.operation, body.result)) {
+      await assertAuthorizedReviewSelector(selector, room, workspaceId);
+    }
     return noStore(await study.createModelCandidate({ ...body, actor: identity.email }));
   }
   const modelCandidateMatch = /^\/review-study\/model-candidates\/([a-f0-9-]{36})\/(accept|reject)$/iu.exec(suffix);
   if (modelCandidateMatch?.[1] && modelCandidateMatch[2] && request.method === "POST") {
     const body = await expectedRevisionRequest(request);
+    if (modelCandidateMatch[2] === "accept") {
+      const candidate = (await study.getModelSnapshot(identity.email)).candidates.find((item) => item.id === modelCandidateMatch[1]);
+      if (candidate) {
+        for (const selector of modelExtractionSelectors(candidate.operation, candidate.result)) {
+          await assertAuthorizedReviewSelector(selector, room, workspaceId);
+        }
+      }
+    }
     return noStore(
       await study.resolveModelCandidate(
         body.expectedRevision,
@@ -147,6 +190,14 @@ export async function handleReviewStudyApi(
         identity.email,
       ),
     );
+  }
+  if (suffix === "/review-study/findings" && request.method === "GET") {
+    return noStore(await study.getFindingsSnapshot());
+  }
+  if (suffix === "/review-study/findings" && request.method === "POST") {
+    const body = await reviewFindingRequest(request);
+    for (const link of body.finding.evidence) await assertAuthorizedReviewSelector(link.pointer, room, workspaceId);
+    return noStore(await study.createFinding(body.expectedRevision, body.finding, identity.email));
   }
   if (suffix === "/review-study/synthesis" && request.method === "GET") return noStore(await study.getSynthesis(identity.email));
   if (suffix === "/review-study/synthesis.csv" && request.method === "GET") {
@@ -189,7 +240,7 @@ export async function handleReviewStudyApi(
     };
     const result = await room.upsertReviewArtifact(workspaceId, body.path, content, body.expectedProjectRevision, pin);
     if (!result.ok) throw new Error(result.error);
-    return noStore({ path: body.path, pin, project: result.value });
+    return noStore({ path: body.path, directive: `::review-artifact[${body.path}]`, pin, project: result.value });
   }
   if (suffix.startsWith("/review-study/export/") && request.method === "GET") {
     const authority = await study.getExportAuthority(identity.email);
@@ -236,6 +287,12 @@ async function synthesisPublishRequest(
     throw new Error("Review synthesis path is invalid");
   }
   return { expectedProjectRevision: value.expectedProjectRevision, reviewRevision: value.reviewRevision, path };
+}
+
+async function reviewFindingRequest(request: Request): Promise<{ expectedRevision: number; finding: ReviewFindingInput }> {
+  const value: unknown = await request.json();
+  if (!isRecord(value) || !("finding" in value)) throw new Error("Review finding request is invalid");
+  return { expectedRevision: parseRevision(value.expectedRevision), finding: parseReviewFindingInput(value.finding) };
 }
 
 async function modelCandidateRequest(request: Request): Promise<{
@@ -311,7 +368,6 @@ async function extractionValueRequest(request: Request): Promise<{
     typeof input.expectedRevision !== "number" ||
     !Number.isSafeInteger(input.expectedRevision) ||
     typeof input.fieldId !== "string" ||
-    (input.value !== null && typeof input.value !== "string" && typeof input.value !== "number" && typeof input.value !== "boolean") ||
     (input.missingReason !== null && typeof input.missingReason !== "string")
   ) {
     throw new Error("Extraction value request is invalid");
@@ -319,7 +375,7 @@ async function extractionValueRequest(request: Request): Promise<{
   return {
     expectedRevision: input.expectedRevision,
     fieldId: input.fieldId,
-    value: input.value,
+    value: parseExtractionValueShape(input.value),
     missingReason: input.missingReason,
     evidence: parseEvidencePointer(input.evidence, input.value !== null),
   };
@@ -330,7 +386,7 @@ async function screeningDecisionRequest(request: Request): Promise<{
   stage: ScreeningStage;
   decision: ScreeningDecisionValue;
   reason: string;
-  criterion: string;
+  criterionId: string | null;
 }> {
   const value: unknown = await request.json();
   if (
@@ -340,7 +396,7 @@ async function screeningDecisionRequest(request: Request): Promise<{
     (value.stage !== "title-abstract" && value.stage !== "full-text") ||
     (value.decision !== "include" && value.decision !== "exclude" && value.decision !== "uncertain") ||
     typeof value.reason !== "string" ||
-    typeof value.criterion !== "string"
+    (value.criterionId !== null && typeof value.criterionId !== "string")
   ) {
     throw new Error("Review screening decision request is invalid");
   }
@@ -349,8 +405,49 @@ async function screeningDecisionRequest(request: Request): Promise<{
     stage: value.stage,
     decision: value.decision,
     reason: value.reason,
-    criterion: value.criterion,
+    criterionId: value.criterionId,
   };
+}
+
+async function finalInclusionDecisionRequest(request: Request): Promise<{
+  expectedRevision: number;
+  outcome: "include" | "exclude";
+  criterionId: string | null;
+  reason: string;
+}> {
+  const value: unknown = await request.json();
+  if (
+    !isRecord(value) ||
+    typeof value.expectedRevision !== "number" ||
+    !Number.isSafeInteger(value.expectedRevision) ||
+    (value.outcome !== "include" && value.outcome !== "exclude") ||
+    (value.criterionId !== null && typeof value.criterionId !== "string") ||
+    typeof value.reason !== "string"
+  ) {
+    throw new Error("Review final-inclusion decision request is invalid");
+  }
+  return {
+    expectedRevision: value.expectedRevision,
+    outcome: value.outcome,
+    criterionId: value.criterionId,
+    reason: value.reason,
+  };
+}
+
+async function reassessmentCompletionRequest(request: Request): Promise<{ expectedRevision: number; rationale: string }> {
+  const value: unknown = await request.json();
+  if (
+    !isRecord(value) ||
+    typeof value.expectedRevision !== "number" ||
+    !Number.isSafeInteger(value.expectedRevision) ||
+    value.expectedRevision < 1 ||
+    typeof value.rationale !== "string" ||
+    !value.rationale.trim() ||
+    value.rationale.trim().length > 2_000
+  ) {
+    throw new Error("Review reassessment completion request is invalid");
+  }
+  return { expectedRevision: value.expectedRevision, rationale: value.rationale.trim() };
 }
 
 async function screeningAdjudicationRequest(request: Request): Promise<{
@@ -484,6 +581,80 @@ function hasAsciiControlCharacter(value: string): boolean {
     const codePoint = character.codePointAt(0)!;
     return codePoint <= 0x1f || codePoint === 0x7f;
   });
+}
+
+async function assertAuthorizedReviewSelector(
+  selector: ReviewEvidencePointer | ReviewSourceSelectorValue | null,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom> | undefined,
+  workspaceId: string | undefined,
+): Promise<void> {
+  if (selector === null) return;
+  if ("kind" in selector && selector.kind === "legacy-unresolved") throw new Error("Review evidence selector is unresolved");
+  if (!room || !workspaceId) throw new Error("Project evidence authority is unavailable");
+  const snapshot = await room.getSnapshot(workspaceId);
+  if (selector.kind === "pdf-annotation") {
+    const annotation = snapshot.annotations.find(
+      (candidate) =>
+        candidate.pdfId === selector.resourceId &&
+        (candidate.id === selector.selectorId || candidate.fragments.some((fragment) => fragment.id === selector.selectorId)),
+    );
+    if (annotation) {
+      if ("quote" in selector) {
+        const selectedQuote =
+          annotation.id === selector.selectorId
+            ? annotation.quote
+            : annotation.fragments.find((fragment) => fragment.id === selector.selectorId)?.quote;
+        if (selectedQuote?.trim() !== selector.quote.trim() || selector.page !== annotation.page) {
+          throw new Error("Review PDF evidence does not match its shared annotation");
+        }
+      }
+      return;
+    }
+    const sharedHighlight = snapshot.researchShares.find(
+      (share) =>
+        share.revokedAt === null &&
+        share.id === selector.resourceId &&
+        share.resourceId === selector.selectorId &&
+        share.content.kind === "highlight",
+    );
+    if (sharedHighlight?.content.kind === "highlight") {
+      if (
+        "quote" in selector &&
+        (sharedHighlight.content.quote.trim() !== selector.quote.trim() || sharedHighlight.content.page !== selector.page)
+      ) {
+        throw new Error("Review PDF evidence does not match its shared highlight");
+      }
+      return;
+    }
+  }
+  if (selector.kind === "web-passage") {
+    const sharedSnapshot = snapshot.researchShares.find(
+      (share) =>
+        share.revokedAt === null &&
+        share.id === selector.resourceId &&
+        share.content.kind === "web-snapshot" &&
+        share.content.snapshotId === selector.selectorId,
+    );
+    if (sharedSnapshot) return;
+  }
+  throw new Error("Review evidence selector is not shared with this project");
+}
+
+function isReviewSourceSelectorValue(value: ExtractionValue): value is ReviewSourceSelectorValue {
+  return isRecord(value) && (value.kind === "pdf-annotation" || value.kind === "web-passage");
+}
+
+function modelExtractionSelectors(
+  operation: ReviewModelOperation,
+  result: unknown,
+): readonly (ReviewEvidencePointer | ReviewSourceSelectorValue)[] {
+  if (operation !== "extract-field") return [];
+  if (!isRecord(result)) throw new Error("Review model candidate result is invalid");
+  const value = parseExtractionValueShape(result.value);
+  const evidence = parseEvidencePointer(result.evidence, value !== null);
+  return [evidence, isReviewSourceSelectorValue(value) ? value : null].filter(
+    (selector): selector is ReviewEvidencePointer | ReviewSourceSelectorValue => selector !== null,
+  );
 }
 
 function noStore(value: unknown): Response {

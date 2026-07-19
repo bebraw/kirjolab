@@ -2,8 +2,10 @@ import type { ReferenceLibrarySnapshot } from "./reference-library";
 import type { ProjectTemplateRecord } from "./project-templates";
 import type { WorkspaceMember, WorkspaceSnapshot, WorkspaceSummary } from "./workspace";
 import type { ReviewExportAuthority } from "./review-export";
+import { parseReviewBackupReference, type ReviewBackupReference } from "./review-backup";
 
-export const ownerBackupSchemaVersion = "kirjolab-owner-backup-v1" as const;
+export const ownerBackupSchemaVersion = "kirjolab-owner-backup-v2" as const;
+export const legacyOwnerBackupSchemaVersion = "kirjolab-owner-backup-v1" as const;
 export const maximumOwnerBackupBytes = 10 * 1024 * 1024;
 
 export interface OwnerWorkspaceBackup {
@@ -11,8 +13,8 @@ export interface OwnerWorkspaceBackup {
   readonly members: readonly WorkspaceMember[];
   readonly snapshot: WorkspaceSnapshot;
   readonly revisionSeed: string;
-  readonly review?: ReviewExportAuthority | null;
-  readonly reviewRevisionSeed?: string | null;
+  readonly reviewPayload: ReviewBackupReference | null;
+  readonly reviewRevisionSeed: string | null;
 }
 
 export interface OwnerBackupState {
@@ -21,6 +23,23 @@ export interface OwnerBackupState {
   readonly library: ReferenceLibrarySnapshot;
   readonly templates?: readonly ProjectTemplateRecord[];
   readonly workspaces: readonly OwnerWorkspaceBackup[];
+}
+
+export interface LegacyOwnerWorkspaceBackup {
+  readonly summary: WorkspaceSummary;
+  readonly members: readonly WorkspaceMember[];
+  readonly snapshot: WorkspaceSnapshot;
+  readonly revisionSeed: string;
+  readonly review?: ReviewExportAuthority | null;
+  readonly reviewRevisionSeed?: string | null;
+}
+
+export interface LegacyOwnerBackupState {
+  readonly ownerKey: string;
+  readonly catalog: readonly WorkspaceSummary[];
+  readonly library: ReferenceLibrarySnapshot;
+  readonly templates?: readonly ProjectTemplateRecord[];
+  readonly workspaces: readonly LegacyOwnerWorkspaceBackup[];
 }
 
 export interface BackupBinaryObject {
@@ -52,6 +71,17 @@ export interface OwnerBackupManifest {
   readonly recovery: OwnerBackupRecovery;
 }
 
+export interface LegacyOwnerBackupManifest {
+  readonly schemaVersion: typeof legacyOwnerBackupSchemaVersion;
+  readonly createdAt: string;
+  readonly digest: string;
+  readonly state: LegacyOwnerBackupState;
+  readonly binaries: readonly BackupBinaryObject[];
+  readonly recovery: OwnerBackupRecovery;
+}
+
+export type ParsedOwnerBackupManifest = OwnerBackupManifest | LegacyOwnerBackupManifest;
+
 export interface OwnerBackupStatus {
   readonly ownerKey: string;
   readonly outcome: "never" | "created" | "unchanged" | "failed";
@@ -70,6 +100,7 @@ export interface OwnerBackupDrillStatus {
   readonly recoveryIdentity: string | null;
   readonly checkedAt: string | null;
   readonly binariesChecked: number;
+  readonly reviewsChecked: number;
   readonly error: string | null;
 }
 
@@ -89,10 +120,14 @@ export interface BackupBinaryReferences {
   }[];
 }
 
-export async function ownerBackupDigest(state: OwnerBackupState, binaries: readonly BackupBinaryObject[]): Promise<string> {
+export async function ownerBackupDigest(
+  state: OwnerBackupState | LegacyOwnerBackupState,
+  binaries: readonly BackupBinaryObject[],
+  schemaVersion: typeof ownerBackupSchemaVersion | typeof legacyOwnerBackupSchemaVersion = ownerBackupSchemaVersion,
+): Promise<string> {
   return await sha256Hex(
     canonicalJson({
-      schemaVersion: ownerBackupSchemaVersion,
+      schemaVersion,
       state,
       binaries: binaries.map(({ sourceKey, sourceEtag, size, backupKey }) => ({ sourceKey, sourceEtag, size, backupKey })),
     }),
@@ -109,11 +144,11 @@ export function ownerBackupManifestKey(ownerKey: string, createdAt: string, dige
   return `backups/manifests/${ownerKey}/${timestamp}-${digest}.json`;
 }
 
-export function ownerBackupManifestJson(manifest: OwnerBackupManifest): string {
+export function ownerBackupManifestJson(manifest: ParsedOwnerBackupManifest): string {
   return `${canonicalJson(manifest)}\n`;
 }
 
-export function parseOwnerBackupManifest(json: string): OwnerBackupManifest {
+export function parseOwnerBackupManifest(json: string): ParsedOwnerBackupManifest {
   if (new TextEncoder().encode(json).byteLength > maximumOwnerBackupBytes) throw new Error("Owner backup manifest exceeds 10 MiB");
   let value: unknown;
   try {
@@ -121,7 +156,7 @@ export function parseOwnerBackupManifest(json: string): OwnerBackupManifest {
   } catch {
     throw new Error("Owner backup manifest is invalid");
   }
-  if (!isOwnerBackupManifest(value)) throw new Error("Owner backup manifest is invalid");
+  if (!isOwnerBackupManifest(value) && !isLegacyOwnerBackupManifest(value)) throw new Error("Owner backup manifest is invalid");
   return value;
 }
 
@@ -167,26 +202,87 @@ async function sha256Hex(value: string): Promise<string> {
 
 function isOwnerBackupManifest(value: unknown): value is OwnerBackupManifest {
   if (!isRecord(value) || value.schemaVersion !== ownerBackupSchemaVersion) return false;
-  if (typeof value.createdAt !== "string" || !isDigest(value.digest)) return false;
-  if (
-    !isRecord(value.state) ||
-    !isDigest(value.state.ownerKey) ||
-    !Array.isArray(value.state.catalog) ||
-    !Array.isArray(value.state.workspaces)
-  ) {
-    return false;
-  }
-  if (!isRecord(value.state.library) || !Array.isArray(value.binaries) || !isRecord(value.recovery)) return false;
-  return value.binaries.every(
-    (binary) =>
-      isRecord(binary) &&
-      typeof binary.sourceKey === "string" &&
-      typeof binary.sourceEtag === "string" &&
-      Number.isSafeInteger(binary.size) &&
-      Number(binary.size) >= 0 &&
-      typeof binary.uploadedAt === "string" &&
-      typeof binary.backupKey === "string",
+  if (!isManifestEnvelope(value) || !isOwnerBackupState(value.state)) return false;
+  return value.binaries.every(isBackupBinary);
+}
+
+function isLegacyOwnerBackupManifest(value: unknown): value is LegacyOwnerBackupManifest {
+  if (!isRecord(value) || value.schemaVersion !== legacyOwnerBackupSchemaVersion) return false;
+  if (!isManifestEnvelope(value) || !isLegacyOwnerBackupState(value.state)) return false;
+  return value.binaries.every(isBackupBinary);
+}
+
+function isManifestEnvelope(value: Record<string, unknown>): value is Record<string, unknown> & {
+  readonly createdAt: string;
+  readonly digest: string;
+  readonly state: Record<string, unknown>;
+  readonly binaries: readonly unknown[];
+  readonly recovery: Record<string, unknown>;
+} {
+  return (
+    typeof value.createdAt === "string" &&
+    isDigest(value.digest) &&
+    isRecord(value.state) &&
+    Array.isArray(value.binaries) &&
+    isRecord(value.recovery)
   );
+}
+
+function isOwnerBackupState(value: Record<string, unknown>): value is Record<string, unknown> & OwnerBackupState {
+  if (!isBackupStateEnvelope(value)) return false;
+  return value.workspaces.every((workspace) => {
+    if (
+      !isRecord(workspace) ||
+      "review" in workspace ||
+      !("reviewPayload" in workspace) ||
+      !("reviewRevisionSeed" in workspace) ||
+      (workspace.reviewRevisionSeed !== null && typeof workspace.reviewRevisionSeed !== "string")
+    ) {
+      return false;
+    }
+    if (workspace.reviewPayload === null) return workspace.reviewRevisionSeed === null;
+    try {
+      const reference = parseReviewBackupReference(workspace.reviewPayload, value.ownerKey);
+      const seed = parseReviewRevisionSeed(workspace.reviewRevisionSeed);
+      return seed !== null && seed.reviewRevision === reference.reviewRevision && seed.protocolRevision === reference.protocolRevision;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function isLegacyOwnerBackupState(value: Record<string, unknown>): value is Record<string, unknown> & LegacyOwnerBackupState {
+  return isBackupStateEnvelope(value);
+}
+
+function isBackupStateEnvelope(value: Record<string, unknown>): value is Record<string, unknown> & {
+  readonly ownerKey: string;
+  readonly catalog: readonly unknown[];
+  readonly library: Record<string, unknown>;
+  readonly workspaces: readonly unknown[];
+} {
+  return isDigest(value.ownerKey) && Array.isArray(value.catalog) && isRecord(value.library) && Array.isArray(value.workspaces);
+}
+
+function isBackupBinary(binary: unknown): binary is BackupBinaryObject {
+  return (
+    isRecord(binary) &&
+    typeof binary.sourceKey === "string" &&
+    typeof binary.sourceEtag === "string" &&
+    Number.isSafeInteger(binary.size) &&
+    Number(binary.size) >= 0 &&
+    typeof binary.uploadedAt === "string" &&
+    typeof binary.backupKey === "string"
+  );
+}
+
+function parseReviewRevisionSeed(value: unknown): { readonly reviewRevision: number; readonly protocolRevision: number } | null {
+  if (typeof value !== "string") return null;
+  const match = /^review:([1-9][0-9]*):protocol:([1-9][0-9]*)$/u.exec(value);
+  if (!match) return null;
+  const reviewRevision = Number(match[1]);
+  const protocolRevision = Number(match[2]);
+  return Number.isSafeInteger(reviewRevision) && Number.isSafeInteger(protocolRevision) ? { reviewRevision, protocolRevision } : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
