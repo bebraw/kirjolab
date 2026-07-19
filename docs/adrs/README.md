@@ -27,7 +27,9 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-No accepted decisions are awaiting implementation.
+| ADR                                                                         | Status   | Summary                                                                                        |
+| --------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| [ADR-156](./accepted/ADR-156-keep-bibtex-at-interoperability-boundaries.md) | Accepted | Remove BibTeX from ordinary project UI while preserving explicit import and export boundaries. |
 
 ## Implemented ADRs
 
