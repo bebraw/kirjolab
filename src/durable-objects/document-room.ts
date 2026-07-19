@@ -119,7 +119,7 @@ export type DocumentRoomOperationResult<Value, Code extends string> = { ok: true
 
 export type ProjectFileReplaceResult = DocumentRoomOperationResult<
   WorkspaceSnapshot,
-  "content-too-large" | "revision-conflict" | "file-not-found"
+  "content-too-large" | "revision-conflict" | "file-not-found" | "pinned-artifact"
 >;
 export type ReviewArtifactResult = DocumentRoomOperationResult<
   WorkspaceSnapshot,
@@ -797,6 +797,7 @@ export class DocumentRoom extends DurableObject<Env> {
     const workspace = this.#workspaceRow();
     const files = this.#projectFiles();
     const projectReferences = this.#projectReferences();
+    const reviewArtifactPins = this.#reviewArtifactPins();
     if (!workspace.entry_file_id) throw new Error("Project entry file is not initialized");
     return {
       id: workspaceId,
@@ -805,7 +806,7 @@ export class DocumentRoom extends DurableObject<Env> {
       files,
       folders: this.#projectFolders(),
       assets: this.#projectAssets(),
-      composition: composeProject(files, workspace.entry_file_id),
+      composition: composeProject(files, workspace.entry_file_id, {}, reviewArtifactPins),
       source: workspace.source,
       bibliography: workspace.bibliography,
       revision: workspace.revision,
@@ -822,7 +823,7 @@ export class DocumentRoom extends DurableObject<Env> {
       claimLinks: this.#claimLinks(),
       comments: this.#comments(),
       candidates: this.#candidates(),
-      reviewArtifactPins: this.#reviewArtifactPins(),
+      reviewArtifactPins,
     };
   }
 
@@ -1698,14 +1699,22 @@ export class DocumentRoom extends DurableObject<Env> {
     if (previous.revision !== expectedRevision) {
       return { ok: false, code: "revision-conflict", error: "Project changed since this edit loaded" };
     }
+    let file: ProjectFile;
     let text: Y.Text;
     try {
-      ({ text } = this.#projectText(fileId));
+      ({ file, text } = this.#projectText(fileId));
     } catch (error) {
       if (error instanceof Error && error.message === "Project file not found") {
         return { ok: false, code: "file-not-found", error: error.message };
       }
       throw error;
+    }
+    if (this.#reviewArtifactPins().some((pin) => pin.path === file.path) && text.toString() !== content) {
+      return {
+        ok: false,
+        code: "pinned-artifact",
+        error: "Pinned review artifacts must be regenerated from their review revision",
+      };
     }
     const splice = calculateTextSplice(text.toString(), content);
     if (!splice) return { ok: true, value: this.getSnapshot(workspaceId) };
@@ -3729,6 +3738,7 @@ export class DocumentRoom extends DurableObject<Env> {
     try {
       const state = Y.encodeStateAsUpdate(this.#document);
       const projectFiles = this.#projectFileRows();
+      const pinnedReviewArtifacts = new Set(this.#reviewArtifactPins().map((pin) => pin.path));
       const entry = projectFiles.find((file) => file.id === previous.entry_file_id);
       if (!entry) throw new Error("Project entry file is not initialized");
       const source = this.#document.getText(entry.y_text_name).toString();
@@ -3744,6 +3754,9 @@ export class DocumentRoom extends DurableObject<Env> {
         for (const file of projectFiles) {
           const content = this.#document.getText(file.y_text_name).toString();
           if (content !== file.content) {
+            if (pinnedReviewArtifacts.has(file.path) && reason !== "review-artifact-upsert") {
+              throw new Error("Pinned review artifacts must be regenerated from their review revision");
+            }
             this.ctx.storage.sql.exec(
               "UPDATE project_files SET content = ?, updated_at = ? WHERE id = ?",
               content,
@@ -4473,7 +4486,7 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
     }),
   );
   const composition = files.some((file) => file.id === state.workspace.entryFileId)
-    ? composeProject(files, state.workspace.entryFileId).content
+    ? composeProject(files, state.workspace.entryFileId, {}, reviewArtifactPins).content
     : state.workspace.source;
   return {
     revision,

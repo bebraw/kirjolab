@@ -19,6 +19,16 @@ export interface ProjectFolder {
   readonly updatedAt: string;
 }
 
+export interface ReviewArtifactBinding {
+  readonly path: string;
+  readonly reviewRevision: number;
+  readonly protocolRevision: number;
+  readonly analysisDefinitionId: string;
+  readonly analysisDefinitionRevision: number;
+  readonly digest: string;
+  readonly generatedAt: string;
+}
+
 export type ProjectImageMediaType = "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/avif" | "image/svg+xml";
 
 export interface ProjectAsset {
@@ -49,6 +59,8 @@ export type CompositionDiagnosticCode =
   | "file-limit"
   | "invalid-path"
   | "missing-file"
+  | "review-artifact-directive-required"
+  | "unpinned-review-artifact"
   | "output-limit";
 
 export interface CompositionDiagnostic {
@@ -83,7 +95,7 @@ export interface CompositionLimits {
 const defaultMaximumDepth = 32;
 const defaultMaximumFiles = 512;
 const defaultMaximumOutputBytes = 2 * 1024 * 1024;
-const includeLine = /^(?<indent>[ \t]*)::include\[(?<path>[^\]\r\n]+)\][ \t]*(?:\r?\n|$)/gmu;
+const compositionLine = /^(?<indent>[ \t]*)::(?<kind>include|review-artifact)\[(?<path>[^\]\r\n]+)\][ \t]*(?:\r?\n|$)/gmu;
 const frontmatter = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/u;
 const svgRoot = /^\uFEFF?\s*(?:<\?xml(?:\s[^?]*)?\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|>)/u;
 const svgForbiddenDeclaration = /<!\s*(?:doctype|entity)\b/iu;
@@ -94,7 +106,12 @@ const svgReference = /\b(?:href|xlink:href)\s*=\s*(["'])([\s\S]*?)\1/giu;
 const svgCssUrl = /url\(\s*(["']?)(.*?)\1\s*\)/giu;
 const embeddedRasterImage = /^data:image\/(?:png|jpeg|gif|webp|avif);base64,[a-z0-9+/=\s]+$/iu;
 
-export function composeProject(files: readonly ProjectFile[], entryFileId: string, limits: CompositionLimits = {}): ProjectComposition {
+export function composeProject(
+  files: readonly ProjectFile[],
+  entryFileId: string,
+  limits: CompositionLimits = {},
+  reviewArtifactBindings: readonly ReviewArtifactBinding[] = [],
+): ProjectComposition {
   const maximumDepth = limits.maximumDepth ?? defaultMaximumDepth;
   const maximumFiles = limits.maximumFiles ?? defaultMaximumFiles;
   const maximumOutputBytes = limits.maximumOutputBytes ?? defaultMaximumOutputBytes;
@@ -128,6 +145,9 @@ export function composeProject(files: readonly ProjectFile[], entryFileId: strin
     diagnostics,
     dependencies: new Map<string, Set<string>>(),
     expandedFiles: new Set<string>(),
+    reviewArtifactBindings: new Map(
+      reviewArtifactBindings.filter(isComposableReviewArtifactBinding).map((binding) => [binding.path, binding] as const),
+    ),
     stopped: false,
   };
 
@@ -159,12 +179,22 @@ export function projectFileCollaborationTextName(file: ProjectFile, entryFileId:
   return file.collaborationTextName ?? (file.id === entryFileId ? "source" : `file:${file.id}`);
 }
 
-export function previewProjectFile(files: readonly ProjectFile[], entryFileId: string, selectedFileId: string | null): ProjectFilePreview {
+export function previewProjectFile(
+  files: readonly ProjectFile[],
+  entryFileId: string,
+  selectedFileId: string | null,
+  reviewArtifactBindings: readonly ReviewArtifactBinding[] = [],
+): ProjectFilePreview {
   const entry = files.find((file) => file.id === entryFileId);
   if (!entry) throw new Error("The project entry file does not exist");
   const selected = files.find((file) => file.id === selectedFileId) ?? entry;
   if (selected.id === entryFileId) {
-    return { ...composeProject(files, entryFileId), fileId: entry.id, path: entry.path, mode: "composed" };
+    return {
+      ...composeProject(files, entryFileId, {}, reviewArtifactBindings),
+      fileId: entry.id,
+      path: entry.path,
+      mode: "composed",
+    };
   }
   return {
     content: selected.content,
@@ -241,32 +271,37 @@ export function resolveProjectPath(fromPath: string, includePath: string): strin
 
 export function inboundProjectIncludes(files: readonly ProjectFile[], targetPath: string): readonly ProjectFile[] {
   return files.filter((file) => {
-    for (const match of projectMarkdownComments(file.content).masked.matchAll(includeLine)) {
+    for (const match of projectMarkdownComments(file.content).masked.matchAll(compositionLine)) {
       const requested = match.groups?.path?.trim();
-      if (requested && resolveProjectPath(file.path, requested) === targetPath) return true;
+      const resolved =
+        match.groups?.kind === "review-artifact" ? normalizeProjectPath(requested ?? "") : resolveProjectPath(file.path, requested ?? "");
+      if (requested && resolved === targetPath) return true;
     }
     return false;
   });
 }
 
 export function rewriteInboundProjectIncludes(file: ProjectFile, previousPath: string, nextPath: string): string {
-  return replaceActiveMarkdown(file.content, includeLine, (directive, match) => {
+  return replaceActiveMarkdown(file.content, compositionLine, (directive, match) => {
     const requested = match.groups?.path?.trim();
-    if (!requested || resolveProjectPath(file.path, requested) !== previousPath) return directive;
-    return directive.replace(requested, relativeProjectPath(file.path, nextPath));
+    const reviewArtifact = match.groups?.kind === "review-artifact";
+    const resolved = reviewArtifact ? normalizeProjectPath(requested ?? "") : resolveProjectPath(file.path, requested ?? "");
+    if (!requested || resolved !== previousPath) return directive;
+    return directive.replace(requested, reviewArtifact ? nextPath : relativeProjectPath(file.path, nextPath));
   });
 }
 
 export function rewriteProjectIncludesForMoves(file: ProjectFile, movedPaths: ReadonlyMap<string, string>): string {
   const nextFilePath = movedPaths.get(file.path) ?? file.path;
-  return replaceActiveMarkdown(file.content, includeLine, (directive, match) => {
+  return replaceActiveMarkdown(file.content, compositionLine, (directive, match) => {
     const requested = match.groups?.path?.trim();
     if (!requested) return directive;
-    const previousTargetPath = resolveProjectPath(file.path, requested);
+    const reviewArtifact = match.groups?.kind === "review-artifact";
+    const previousTargetPath = reviewArtifact ? normalizeProjectPath(requested) : resolveProjectPath(file.path, requested);
     if (!previousTargetPath) return directive;
     const nextTargetPath = movedPaths.get(previousTargetPath) ?? previousTargetPath;
     if (nextFilePath === file.path && nextTargetPath === previousTargetPath) return directive;
-    return directive.replace(requested, relativeProjectPath(nextFilePath, nextTargetPath));
+    return directive.replace(requested, reviewArtifact ? nextTargetPath : relativeProjectPath(nextFilePath, nextTargetPath));
   });
 }
 
@@ -328,6 +363,7 @@ interface ExpansionState {
   diagnostics: CompositionDiagnostic[];
   dependencies: Map<string, Set<string>>;
   expandedFiles: Set<string>;
+  reviewArtifactBindings: ReadonlyMap<string, ReviewArtifactBinding>;
   stopped: boolean;
 }
 
@@ -360,20 +396,43 @@ function expand(
   const prepared = isEntry ? { content: file.content, sourceOffset: 0 } : stripFrontmatter(file.content);
   const { content, sourceOffset } = prepared;
   let cursor = 0;
-  for (const match of projectMarkdownComments(content).masked.matchAll(includeLine)) {
+  for (const match of projectMarkdownComments(content).masked.matchAll(compositionLine)) {
     const index = match.index;
     append(file, content, cursor, index, sourceOffset, chain, state, limits);
     if (state.stopped) return;
     const requested = match.groups?.path?.trim() ?? "";
-    const resolvedPath = resolveProjectPath(file.path, requested);
+    const reviewArtifact = match.groups?.kind === "review-artifact";
+    const resolvedPath = reviewArtifact ? normalizeProjectPath(requested) : resolveProjectPath(file.path, requested);
     const from = sourceOffset + index + (match[0].indexOf(requested) >= 0 ? match[0].indexOf(requested) : 0);
     const to = from + requested.length;
-    if (!resolvedPath) {
+    if (!resolvedPath || (reviewArtifact && (!resolvedPath.startsWith("review/") || resolvedPath !== requested))) {
       state.diagnostics.push(diagnostic("invalid-path", `Invalid include path: ${requested}`, file, from, to, chain));
     } else {
       const dependency = byPath.get(resolvedPath);
       if (!dependency) {
         state.diagnostics.push(diagnostic("missing-file", `Included file does not exist: ${resolvedPath}`, file, from, to, chain));
+      } else if (!reviewArtifact && resolvedPath.startsWith("review/")) {
+        state.diagnostics.push(
+          diagnostic(
+            "review-artifact-directive-required",
+            `Review artifacts require ::review-artifact syntax: ${resolvedPath}`,
+            file,
+            from,
+            to,
+            chain,
+          ),
+        );
+      } else if (reviewArtifact && !state.reviewArtifactBindings.has(resolvedPath)) {
+        state.diagnostics.push(
+          diagnostic(
+            "unpinned-review-artifact",
+            `Review artifact is not pinned to this project revision: ${resolvedPath}`,
+            file,
+            from,
+            to,
+            chain,
+          ),
+        );
       } else {
         const dependencies = state.dependencies.get(file.id) ?? new Set<string>();
         dependencies.add(dependency.id);
@@ -460,6 +519,23 @@ function byIdPath(files: ReadonlyMap<string, ProjectFile>, id: string): string {
 
 function assertLimit(value: number, name: string): void {
   if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`${name} must be a positive safe integer`);
+}
+
+function isComposableReviewArtifactBinding(value: ReviewArtifactBinding): boolean {
+  const path = normalizeProjectPath(value.path);
+  return (
+    path === value.path &&
+    path.startsWith("review/") &&
+    path.endsWith(".md") &&
+    Number.isSafeInteger(value.reviewRevision) &&
+    value.reviewRevision > 0 &&
+    Number.isSafeInteger(value.protocolRevision) &&
+    value.protocolRevision > 0 &&
+    Number.isSafeInteger(value.analysisDefinitionRevision) &&
+    value.analysisDefinitionRevision > 0 &&
+    value.analysisDefinitionId.trim().length > 0 &&
+    /^[a-f0-9]{64}$/u.test(value.digest)
+  );
 }
 
 function compareProjectPaths(left: string, right: string): number {

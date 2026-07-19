@@ -401,6 +401,7 @@ async function exportWorkspace(
     entryFileId: snapshot.entryFileId,
     bibliography: snapshot.bibliography,
     publicationProfile: snapshot.publicationProfile,
+    reviewArtifactPins: snapshot.reviewArtifactPins,
   });
   if (suffix === "/export/statistics.json") return privateJsonResponse(bundle.intermediate.statistics);
   if (suffix === "/export/diagnostics.json") return privateJsonResponse(bundle.intermediate.diagnostics);

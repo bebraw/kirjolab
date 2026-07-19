@@ -290,7 +290,9 @@ export function isProjectRevisionDiff(value: unknown): value is ProjectRevisionD
 }
 
 function composedSource(value: ProjectRevisionContent): string {
-  return value.files.some((file) => file.id === value.entryFileId) ? composeProject(value.files, value.entryFileId).content : value.source;
+  return value.files.some((file) => file.id === value.entryFileId)
+    ? composeProject(value.files, value.entryFileId, {}, value.reviewArtifactPins).content
+    : value.source;
 }
 
 function binaryIdentity(value: BinaryProjection): Omit<BinaryProjection, "id"> {

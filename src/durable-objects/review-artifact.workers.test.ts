@@ -22,10 +22,21 @@ describe("review synthesis project artifact", () => {
     expect(createdRevision.files.find((file) => file.path === firstPin.path)?.content).toBe(firstContent);
     expect(createdRevision.reviewArtifactPins).toEqual([firstPin]);
 
+    const artifactFile = created.value.files.find((file) => file.path === firstPin.path)!;
+    await expect(
+      room.replaceProjectFileContent("project", artifactFile.id, "# Hand-edited synthesis\n", created.value.revision),
+    ).resolves.toMatchObject({ ok: false, code: "pinned-artifact" });
+
     const entry = created.value.files.find((file) => file.id === created.value.entryFileId)!;
-    const edited = await room.replaceProjectFileContent("project", entry.id, "# Later project edit\n", created.value.revision);
+    const edited = await room.replaceProjectFileContent(
+      "project",
+      entry.id,
+      "# Article\n\n::review-artifact[review/synthesis.md]\n",
+      created.value.revision,
+    );
     if (!edited.ok) throw new Error(edited.error);
     expect(edited.value.reviewArtifactPins).toEqual([firstPin]);
+    expect(edited.value.composition.content).toContain(firstContent);
     expect((await room.getRevision(edited.value.revision)).reviewArtifactPins).toEqual([firstPin]);
 
     const secondContent = "# Revised synthesis\n";

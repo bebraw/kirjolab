@@ -1,5 +1,11 @@
 import { parseBibTeX, serializeBibTeX } from "./bibliography";
-import { composeProject, type CompositionDiagnostic, type CompositionSourceSpan, type ProjectFile } from "./project-files";
+import {
+  composeProject,
+  type CompositionDiagnostic,
+  type CompositionSourceSpan,
+  type ProjectFile,
+  type ReviewArtifactBinding,
+} from "./project-files";
 import { publicationWordStatistics, type PublicationWordStatistics } from "./publication-statistics";
 import { defaultProjectPublicationProfile, type ProjectPublicationProfile } from "./workspace";
 import { resolveSubmissionTemplate } from "./submission-templates";
@@ -34,6 +40,7 @@ export interface ExportPipelineInput {
   readonly entryFileId: string;
   readonly bibliography: string;
   readonly publicationProfile?: ProjectPublicationProfile;
+  readonly reviewArtifactPins?: readonly ReviewArtifactBinding[];
 }
 
 export interface ExportSourceLocation {
@@ -64,6 +71,7 @@ export interface SourceMappedIntermediate {
   readonly citationKeys: readonly string[];
   readonly bibliography: string;
   readonly publicationProfile: ProjectPublicationProfile;
+  readonly reviewArtifactPins: readonly ReviewArtifactBinding[];
   readonly sourceMap: readonly CompositionSourceSpan[];
   readonly diagnostics: readonly ExportDiagnostic[];
   readonly statistics: PublicationWordStatistics;
@@ -79,6 +87,7 @@ export interface ExportManifest {
   readonly citationKeys: readonly string[];
   readonly wordCount: number;
   readonly publicationProfile: ProjectPublicationProfile;
+  readonly reviewArtifactPins: readonly ReviewArtifactBinding[];
 }
 
 export interface MaterializedExportBundle {
@@ -95,7 +104,8 @@ const headingLine = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*(?:\{#[^}\r\n]+\}
 export function buildExportBundle(input: ExportPipelineInput): MaterializedExportBundle {
   const entry = input.files.find((file) => file.id === input.entryFileId);
   if (!entry) throw new Error("The project entry file does not exist");
-  const composition = composeProject(input.files, input.entryFileId);
+  const reviewArtifactPins = [...(input.reviewArtifactPins ?? [])].sort((left, right) => left.path.localeCompare(right.path));
+  const composition = composeProject(input.files, input.entryFileId, {}, reviewArtifactPins);
   const comments = projectMarkdownComments(composition.content);
   const publicationComposition = { ...composition, content: comments.masked };
   const citationKeys = citedAliases(publicationComposition.content);
@@ -108,6 +118,7 @@ export function buildExportBundle(input: ExportPipelineInput): MaterializedExpor
     citationKeys,
     bibliography,
     publicationProfile,
+    reviewArtifactPins,
     sourceMap: composition.sourceMap,
     diagnostics: [
       ...composition.diagnostics.map((diagnostic) => exportDiagnostic(diagnostic, input.files)),
@@ -137,6 +148,7 @@ export function buildExportBundle(input: ExportPipelineInput): MaterializedExpor
       citationKeys,
       wordCount: intermediate.statistics.totalWords,
       publicationProfile,
+      reviewArtifactPins,
     },
     mainTex: latex.source,
     bibliography,

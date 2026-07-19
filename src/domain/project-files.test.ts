@@ -15,12 +15,25 @@ import {
   rewriteProjectImageReferencesForMoves,
   resolveProjectEntryFileId,
   type ProjectFile,
+  type ReviewArtifactBinding,
 } from "./project-files";
 
 const timestamp = "2026-07-11T10:00:00.000Z";
 
 function file(id: string, path: string, content: string): ProjectFile {
   return { id, path, content, mediaType: "text/markdown", createdAt: timestamp, updatedAt: timestamp };
+}
+
+function reviewArtifact(path = "review/synthesis.md"): ReviewArtifactBinding {
+  return {
+    path,
+    reviewRevision: 7,
+    protocolRevision: 2,
+    analysisDefinitionId: "review-synthesis-report",
+    analysisDefinitionRevision: 1,
+    digest: "a".repeat(64),
+    generatedAt: timestamp,
+  };
 }
 
 describe("project composition", () => {
@@ -78,12 +91,40 @@ describe("project composition", () => {
     ]);
   });
 
+  it("resolves only project-pinned review artifact directives", () => {
+    const files = [
+      file("main", "main.md", "Before\n::review-artifact[review/synthesis.md]\nAfter\n"),
+      file("review", "review/synthesis.md", "# Evidence matrix\n\n| Study | Result |\n"),
+    ];
+    const composed = composeProject(files, "main", {}, [reviewArtifact()]);
+
+    expect(composed.content).toBe("Before\n# Evidence matrix\n\n| Study | Result |\nAfter\n");
+    expect(composed.diagnostics).toEqual([]);
+    expect(composed.dependencies).toEqual({ main: ["review"] });
+    expect(composed.sourceMap.map(({ fileId, includeChain }) => ({ fileId, includeChain }))).toEqual([
+      { fileId: "main", includeChain: ["main"] },
+      { fileId: "review", includeChain: ["main", "review"] },
+      { fileId: "main", includeChain: ["main"] },
+    ]);
+
+    const unpinned = composeProject(files, "main");
+    expect(unpinned.content).toBe("Before\nAfter\n");
+    expect(unpinned.diagnostics).toEqual([expect.objectContaining({ code: "unpinned-review-artifact", fileId: "main", path: "main.md" })]);
+
+    const ordinaryInclude = composeProject([file("main", "main.md", "::include[review/synthesis.md]\n"), files[1]!], "main", {}, [
+      reviewArtifact(),
+    ]);
+    expect(ordinaryInclude.content).toBe("");
+    expect(ordinaryInclude.diagnostics[0]?.code).toBe("review-artifact-directive-required");
+  });
+
   it("keeps comment contents inert during composition and path rewrites", () => {
     const main = file(
       "main",
       "main.md",
       `::: comment
 ::include[missing.md]
+::review-artifact[review/missing.md]
 :cite[old] ![Draft](images/old.png)
 :::
 ::include[chapter.md]
@@ -94,6 +135,7 @@ describe("project composition", () => {
 
     expect(composition.content).toBe(`::: comment
 ::include[missing.md]
+::review-artifact[review/missing.md]
 :cite[old] ![Draft](images/old.png)
 :::
 Published chapter
@@ -300,6 +342,11 @@ Published chapter
     ).toBe("::include[../text/intro.md]\n");
     expect(relativeProjectPath("chapters/peer.md", "chapters/intro.md")).toBe("intro.md");
     expect(relativeProjectPath("main.md", "chapters/intro.md")).toBe("chapters/intro.md");
+    const reviewReference = file("review-main", "main.md", "::review-artifact[review/synthesis.md]\n");
+    expect(inboundProjectIncludes([reviewReference], "review/synthesis.md").map(({ id }) => id)).toEqual(["review-main"]);
+    expect(rewriteInboundProjectIncludes(reviewReference, "review/synthesis.md", "review/findings.md")).toBe(
+      "::review-artifact[review/findings.md]\n",
+    );
   });
 
   it("keeps includes valid when containing folders move", () => {
@@ -316,6 +363,12 @@ Published chapter
     expect(rewriteProjectIncludesForMoves(file("detail", "drafts/notes/detail.md", "::include[../section.md]\n"), moves)).toBe(
       "::include[../section.md]\n",
     );
+    expect(
+      rewriteProjectIncludesForMoves(
+        file("main", "main.md", "::review-artifact[review/synthesis.md]\n"),
+        new Map([["review/synthesis.md", "review/findings.md"]]),
+      ),
+    ).toBe("::review-artifact[review/findings.md]\n");
   });
 
   it("keeps image references valid when source files or assets move", () => {

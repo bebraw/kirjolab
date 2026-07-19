@@ -2929,8 +2929,12 @@ class WorkspaceApp {
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
     const renderVersion = ++this.#previewRenderVersion;
     const files = this.#previewProjectFiles();
-    const publicationComposition = this.#snapshot ? composeProject(files, this.#snapshot.entryFileId) : null;
-    const filePreview = this.#snapshot ? previewProjectFile(files, this.#snapshot.entryFileId, this.#activeFileId) : null;
+    const publicationComposition = this.#snapshot
+      ? composeProject(files, this.#snapshot.entryFileId, {}, this.#snapshot.reviewArtifactPins)
+      : null;
+    const filePreview = this.#snapshot
+      ? previewProjectFile(files, this.#snapshot.entryFileId, this.#activeFileId, this.#snapshot.reviewArtifactPins)
+      : null;
     const renderedSource = filePreview?.content ?? this.#source.toString();
     this.#renderManuscriptMap(publicationComposition?.content ?? renderedSource);
     this.#elements.previewFileContext.textContent = filePreview
@@ -3115,7 +3119,9 @@ class WorkspaceApp {
   }
 
   #currentComposedSource(): string {
-    return this.#snapshot ? composeProject(this.#previewProjectFiles(), this.#snapshot.entryFileId).content : this.#source.toString();
+    return this.#snapshot
+      ? composeProject(this.#previewProjectFiles(), this.#snapshot.entryFileId, {}, this.#snapshot.reviewArtifactPins).content
+      : this.#source.toString();
   }
 
   #renderResearchQuestions(): void {
@@ -3210,7 +3216,9 @@ class WorkspaceApp {
   }
 
   #focusComposedRange(from: number, to: number): void {
-    const composition = this.#snapshot ? composeProject(this.#previewProjectFiles(), this.#snapshot.entryFileId) : null;
+    const composition = this.#snapshot
+      ? composeProject(this.#previewProjectFiles(), this.#snapshot.entryFileId, {}, this.#snapshot.reviewArtifactPins)
+      : null;
     const start = composition ? sourceSpanAt(composition.sourceMap, from) : undefined;
     const end = composition ? sourceSpanAt(composition.sourceMap, Math.max(from, to - 1)) : undefined;
     if (start && end && start.fileId === end.fileId) {
