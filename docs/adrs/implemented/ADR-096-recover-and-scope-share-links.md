@@ -1,6 +1,7 @@
 # ADR-096: Recover and Scope Share Links
 
-**Status:** Implemented
+**Status:** Partially superseded by
+[ADR-152](./ADR-152-use-a-capability-scoped-share-editor.md)
 
 **Date:** 2026-07-14
 

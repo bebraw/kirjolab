@@ -176,7 +176,17 @@ test("creates, rotates, and revokes a read-only project link", async ({ page }) 
   expect(shared.headers()["cross-origin-embedder-policy"]).toBeUndefined();
   const sharedHtml = await shared.text();
   expect(sharedHtml).toContain("Link review");
-  expect(sharedHtml).toContain(`id="shared-pdf-viewer" src="${first.href}/document.pdf"`);
+  expect(sharedHtml).toContain('<script type="module" src="/shared-editor.js"></script>');
+  expect(sharedHtml).toContain('data-app-mode="shared-editor" data-shared-editor-mode="read-only"');
+  expect(sharedHtml).toContain('id="shared-editor-surfaces" data-active-surface="authoring" data-layout="split"');
+  expect(sharedHtml).toContain('id="shared-source" data-shared-source');
+  expect(sharedHtml).toContain('aria-describedby="shared-editor-help shared-collaborator-selections" readonly');
+  expect(sharedHtml).toContain(`id="shared-pdf-viewer" data-shared-pdf-viewer src="${first.href}/document.pdf"`);
+  expect(sharedHtml).not.toContain("data-shared-save-path");
+  expect(sharedHtml).not.toContain("data-shared-snapshot-path");
+  expect(sharedHtml).not.toContain('<script type="module" src="/app.js"></script>');
+  expect(sharedHtml).not.toContain('id="workspace-settings"');
+  expect(sharedHtml).not.toContain('id="share-workspace"');
 
   const pdf = await page.request.get(`${first.href}/document.pdf`);
   expect(pdf.status()).toBe(200);
@@ -185,17 +195,20 @@ test("creates, rotates, and revokes a read-only project link", async ({ page }) 
   expect(pdf.headers()["cross-origin-resource-policy"]).toBe("same-origin");
   expect((await pdf.body()).toString("ascii", 0, 4)).toBe("%PDF");
 
-  const markdown = await page.request.get(`${first.href}?view=markdown`);
-  expect(markdown.status()).toBe(200);
-  expect(await markdown.text()).toContain('href="?view=markdown" aria-current="page"');
   const project = (await (await page.request.get(`/api/workspaces/${workspaceId}`)).json()) as {
     files: Array<{ id: string; path: string }>;
   };
   const mainFile = project.files.find((file) => file.path === "main.md");
   expect(mainFile).toBeDefined();
-  const source = await page.request.get(`${first.href}?view=${encodeURIComponent(`file:${mainFile!.id}`)}`);
+  const source = await page.request.get(`${first.href}?file=${encodeURIComponent(mainFile!.id)}`);
   expect(source.status()).toBe(200);
-  expect(await source.text()).toContain(`href="?view=file%3A${mainFile!.id}" aria-current="page"`);
+  expect(await source.text()).toContain(`href="?file=${mainFile!.id}" aria-current="page"`);
+  const legacySource = await page.request.get(`${first.href}?view=${encodeURIComponent(`file:${mainFile!.id}`)}`);
+  expect(legacySource.status()).toBe(200);
+  expect(await legacySource.text()).toContain(`href="?file=${mainFile!.id}" aria-current="page"`);
+  const legacyPdf = await page.request.get(`${first.href}?view=pdf`);
+  expect(legacyPdf.status()).toBe(200);
+  expect(await legacyPdf.text()).toContain('id="shared-editor-surfaces" data-active-surface="authoring" data-layout="pdf"');
 
   const rotated = await page.request.post(api, { headers });
   expect(rotated.status()).toBe(201);
@@ -258,6 +271,19 @@ test("creates, edits through, rotates, and revokes a scoped edit link", async ({
   expect(editSnapshot).not.toHaveProperty("projectReferences");
   const main = editSnapshot.files.find((file) => file.path === "main.md");
   expect(main).toBeDefined();
+
+  const editPageResponse = await page.request.get(first.href);
+  expect(editPageResponse.status()).toBe(200);
+  const editHtml = await editPageResponse.text();
+  expect(editHtml).toContain('<script type="module" src="/shared-editor.js"></script>');
+  expect(editHtml).toContain('data-app-mode="shared-editor" data-shared-editor-mode="edit"');
+  expect(editHtml).toContain(`data-shared-save-path="${first.href}/files/${main!.id}"`);
+  expect(editHtml).toContain(`data-shared-snapshot-path="${first.href}/snapshot"`);
+  expect(editHtml).toContain('id="edit-source" data-shared-source');
+  expect(editHtml).toContain(`id="edit-pdf-viewer" data-shared-pdf-viewer src="${first.href}/document.pdf"`);
+  expect(editHtml).not.toContain('<script type="module" src="/app.js"></script>');
+  expect(editHtml).not.toContain('id="workspace-settings"');
+  expect(editHtml).not.toContain('id="share-workspace"');
 
   const denied = await page.request.patch(`${first.href}/files/${main!.id}`, {
     headers: { origin: "https://attacker.example" },
@@ -325,13 +351,14 @@ test("refreshes a read-only project after live document edits", async ({ page, b
   const readerContext = await browser.newContext();
   const reader = await readerContext.newPage();
 
-  await reader.goto(`${share.href}?view=markdown`);
+  await reader.goto(share.href);
   await expect(reader.locator("#shared-live-status")).toContainText("Live · revision");
+  await expect(reader.locator("#shared-source")).toHaveAttribute("readonly", "");
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#save-status")).toHaveText("Saved");
   await page.locator("#source-editor").fill("# Live review\n\nUpdated for the reader without a manual reload.\n");
   await expect(page.locator("#save-status")).toHaveText("Saved");
-  await expect(reader.locator("pre")).toContainText("Updated for the reader without a manual reload.");
+  await expect(reader.locator("#shared-source")).toHaveValue("# Live review\n\nUpdated for the reader without a manual reload.\n");
 
   const beforeHostileFrameValue: unknown = await (await page.request.get(`/api/workspaces/${workspaceId}`)).json();
   if (!isWorkspaceSnapshot(beforeHostileFrameValue)) throw new Error("Expected a workspace snapshot before a hostile reader frame");
@@ -698,16 +725,27 @@ test("keeps shared, editable, and missing views usable on a narrow phone", async
   await expect(page.locator("#workspace-switcher")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 
-  await page.goto(`${share.href}?view=markdown`);
-  await expect(page.locator("#shared-view-switcher")).toBeVisible();
-  expect(await page.locator("#shared-view-switcher").evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(150);
+  await page.goto(share.href);
+  await expect(page.locator("#shared-file-switcher")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Project files" })).toBeHidden();
+  expect(await page.locator("#shared-file-switcher").evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(96);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 
   await page.goto(edit.href);
   await expect(page.locator("#edit-file-switcher")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Editable project files" })).toBeHidden();
+  await expect(page.getByRole("navigation", { name: "Project files" })).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 
+  await page.setViewportSize({ width: 1200, height: 500 });
+  await page.goto(share.href);
+  const pdfBounds = await page.locator("#shared-pdf-viewer").evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return { bottom: bounds.bottom, height: bounds.height };
+  });
+  expect(pdfBounds.bottom).toBeLessThanOrEqual(500);
+  expect(pdfBounds.height).toBeGreaterThan(200);
+
+  await page.setViewportSize({ width: 320, height: 568 });
   const missingResponse = await page.goto("/does-not-exist");
   expect(missingResponse?.status()).toBe(404);
   await expect(page.getByRole("link", { name: "Return to Kirjolab" })).toBeVisible();

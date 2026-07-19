@@ -4800,3 +4800,176 @@
 .review-report-links {
   @apply mt-4 grid gap-2 font-sans text-sm font-semibold text-app-accent;
 }
+
+.shared-editor-project-title {
+  min-width: 0;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 1px solid var(--color-app-line);
+  color: var(--color-app-text);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.shared-editor-connection,
+.shared-editor-mode-label {
+  color: var(--color-app-text-soft);
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.shared-editor-mode-label {
+  color: var(--color-app-accent-strong);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.shared-editor-grid {
+  min-height: calc(100dvh - 4rem - 1px);
+}
+
+.shared-editor-rail-heading {
+  display: flex;
+  min-height: 5.5rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1rem;
+  border-bottom: 1px solid var(--color-app-line);
+}
+
+.shared-editor-file-list {
+  gap: 0.15rem;
+  padding: 0.65rem;
+}
+
+.shared-editor-scope-note {
+  margin: 0.65rem;
+  padding: 0.8rem 0.75rem;
+  border-top: 1px solid var(--color-app-line);
+  color: var(--color-app-text-soft);
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  line-height: 1.55;
+}
+
+.shared-editor-open-pdf {
+  display: flex;
+  min-width: max-content;
+  align-items: center;
+  padding-inline: 0.75rem;
+  color: var(--color-app-accent-strong);
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.shared-editor-open-pdf:hover {
+  background: var(--color-app-accent-ghost);
+}
+
+.shared-editor-pdf-shell {
+  min-height: 0;
+  flex: 1;
+  padding: 0.75rem;
+  background: var(--color-app-pdf-surround);
+}
+
+.shared-editor-pdf-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 34rem;
+  border: 1px solid var(--color-app-line);
+  background: var(--color-app-paper);
+}
+
+.shared-editor-grid .context-preview-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.shared-editor-grid .source-editor[readonly] {
+  cursor: text;
+}
+
+@media (max-width: 71.9375rem) {
+  .shared-editor-grid[data-active-surface="context"] .source-rail {
+    display: none;
+  }
+
+  .shared-editor-pdf-shell {
+    height: min(75vh, 52rem);
+  }
+}
+
+@media (max-width: 40rem) {
+  .shared-editor-header .app-header-row {
+    display: grid;
+    min-height: 6.5rem;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .shared-editor-header .app-header-primary,
+  .shared-editor-header .app-header-secondary {
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .shared-editor-header .app-header-secondary {
+    justify-content: space-between;
+  }
+
+  .shared-editor-header + .surface-switcher {
+    top: 6.5rem;
+  }
+
+  .shared-editor-grid {
+    min-height: calc(100dvh - 9.5rem - 1px);
+  }
+
+  .shared-editor-scope-note {
+    display: none;
+  }
+}
+
+@media (max-width: 27rem) {
+  .shared-editor-connection {
+    overflow: hidden;
+    max-width: 10rem;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (min-width: 72rem) {
+  .workspace-grid.shared-editor-grid {
+    grid-template-columns: 17rem minmax(26rem, 0.95fr) minmax(28rem, 1.05fr);
+    grid-template-rows: minmax(0, calc(100dvh - 4rem - 1px));
+  }
+
+  .workspace-grid.shared-editor-grid[data-layout="editor"] {
+    grid-template-columns: 17rem minmax(0, 1fr);
+  }
+
+  .workspace-grid.shared-editor-grid[data-layout="pdf"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shared-editor-grid .source-rail,
+  .shared-editor-grid .editor-column,
+  .shared-editor-grid .context-column {
+    min-height: 0;
+  }
+
+  .shared-editor-pdf-frame {
+    height: 100%;
+    min-height: 0;
+  }
+}

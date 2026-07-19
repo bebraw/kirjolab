@@ -71,12 +71,8 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return scriptResponse(await loadServiceWorkerScript());
   }
 
-  if (url.pathname === "/read-only-share.js") {
-    return scriptResponse(await loadReadOnlyShareScript());
-  }
-
-  if (url.pathname === "/edit-share.js") {
-    return scriptResponse(await loadEditShareScript());
+  if (url.pathname === "/shared-editor.js") {
+    return scriptResponse(await loadSharedEditorScript());
   }
 
   if (url.pathname === "/pdf.worker.js") {
@@ -124,9 +120,12 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     const snapshot = await room.getSnapshot(target.workspaceId);
     if (readOnlyShare[3]) return pdfResponse(await renderExportPdf(buildExportBundle(snapshot)));
     const sharePath = `/share/${locator}.${readOnlyShare[2]}`;
-    return htmlResponse(renderReadOnlySharePage(snapshot, sharePath, url.searchParams.get("view")), 200, url, {
-      allowSameOriginFrames: true,
-    });
+    return htmlResponse(
+      renderReadOnlySharePage(snapshot, sharePath, url.searchParams.get("file"), url.searchParams.get("view")),
+      200,
+      url,
+      { allowSameOriginFrames: true },
+    );
   }
 
   const editShareResponse = await handleEditShareRequest(request, env);
@@ -303,27 +302,15 @@ async function loadServiceWorkerScript(): Promise<string> {
   return script.default;
 }
 
-async function loadReadOnlyShareScript(): Promise<string> {
+async function loadSharedEditorScript(): Promise<string> {
   // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
   if (typeof WebSocketPair === "undefined") {
     const { readFile } = await import("node:fs/promises");
     const { fileURLToPath } = await import("node:url");
-    return await readFile(fileURLToPath(new URL("./client/read-only-share.txt", import.meta.url).href), "utf8");
+    return await readFile(fileURLToPath(new URL("./client/shared-editor.txt", import.meta.url).href), "utf8");
   }
 
-  const script = await import("./client/read-only-share.txt");
-  return script.default;
-}
-
-async function loadEditShareScript(): Promise<string> {
-  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
-  if (typeof WebSocketPair === "undefined") {
-    const { readFile } = await import("node:fs/promises");
-    const { fileURLToPath } = await import("node:url");
-    return await readFile(fileURLToPath(new URL("./client/edit-share.txt", import.meta.url).href), "utf8");
-  }
-
-  const script = await import("./client/edit-share.txt");
+  const script = await import("./client/shared-editor.txt");
   return script.default;
 }
 

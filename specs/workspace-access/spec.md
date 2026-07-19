@@ -27,9 +27,16 @@ Owners need a minimal way to grant access to a known collaborator.
   `/cdn-cgi/access/logout` endpoint, which ends the user's shared Cloudflare
   Access session. Local mode states that no login session exists and does not
   render a non-functional logout action.
-- Read-only and editable external links use a compact file selector on phone
-  viewports. Desktop keeps persistent file navigation, while the editable phone
-  view avoids making a long project tree precede the active editor.
+- Read-only and editable external links render one capability-scoped editor
+  shell with authored-source navigation, a source surface, the current rendered
+  PDF, responsive layout controls, and connection or save status. Desktop keeps
+  persistent file navigation; phone viewports use a compact file selector so a
+  long project tree does not precede the active source.
+- The read-only shell uses an actual read-only source control. The edit shell
+  makes that source control writable and exposes only the bounded save and
+  presence behavior of the edit capability. Shared presentation is not
+  authorization: each resource, mutation, and socket remains independently
+  protected by its server-side capability check.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
 - `POST /api/workspaces/{id}/share-link` lets only the owner create or rotate
@@ -43,10 +50,11 @@ Owners need a minimal way to grant access to a known collaborator.
   starter projects receive a persisted random UUID mapped to their internal
   storage key. The mapping is returned only after bearer-token validation.
 - A valid `/share/{workspace-id}.{secret}` request bypasses identity login only
-  for a server-rendered live project viewer. Its navigator exposes the current
-  rendered PDF output by default, composed Markdown, and individual authored
-  project files. It includes no member identities, private research, project
-  APIs, stored PDFs, other exports, history, comments, or collaboration channel.
+  for the read-only mode of the shared editor shell. It exposes individual
+  authored project files through a read-only source surface beside the current
+  rendered PDF. It includes no member identities, private research, project
+  APIs, stored PDFs, other exports, history, comments, or mutable collaboration
+  channel.
 - `GET /share/{workspace-id}.{secret}/document.pdf` revalidates the same bearer
   secret before reading the mapped document and renders the canonical bounded
   PDF on demand with inline, no-store, same-origin-only response headers.
@@ -57,18 +65,20 @@ Owners need a minimal way to grant access to a known collaborator.
   WebSocket upgrade and revalidates the bearer secret before joining the mapped
   document room as a reader. Reader sockets receive revision/reset notices
   only, reject every inbound frame, and are excluded from writer presence.
-- The small read-only share client reloads the selected server-rendered view
-  after a short quiet period when a newer revision notice arrives. It does not
-  load or reuse the authenticated authoring client.
+- The capability-scoped share client reloads the selected authored source and
+  rendered PDF after a short quiet period when a newer revision notice arrives.
+  The shared shell does not load or reuse the authenticated authoring client.
 - Share-link secrets contain 256 random bits. Their active plaintext value is
   persisted only so an authenticated owner can retrieve the same URL later;
   validation still uses the stored SHA-256 hash. Rotating a link invalidates
   its predecessor, and link/status responses use `Cache-Control: no-store` and
   `Referrer-Policy: no-referrer` where applicable.
-- A valid `/edit/{locator}.{secret}` page exposes authored Markdown files and
-  the canonical PDF only. Each file replacement revalidates the capability,
-  requires an exact same-origin `Origin`, enforces the 2 MB content bound, and
-  rejects a stale expected revision instead of overwriting concurrent work.
+- A valid `/edit/{locator}.{secret}` page renders the editable mode of the same
+  shell and exposes authored Markdown files and the canonical PDF only. It
+  autosaves a bounded whole-file replacement after editing settles. Each
+  replacement revalidates the capability, requires an exact same-origin
+  `Origin`, enforces the 2 MB content bound, and rejects a stale expected
+  revision instead of overwriting concurrent work.
 - `GET /edit/{locator}.{secret}/socket` revalidates the edit capability and
   exact same-origin `Origin` before joining writer presence. The socket receives
   and sends current-revision caret/selection controls but never receives Yjs
@@ -114,6 +124,9 @@ Owners need a minimal way to grant access to a known collaborator.
 - Do not let members invite additional members in this slice.
 - Do not return plaintext share-link secrets to members, unauthenticated status
   callers, cacheable responses, logs, or general workspace APIs.
+- Do not treat a capability label, read-only control, hidden action, or other
+  shared-shell state as authorization, and do not route bearer-link holders
+  through the authenticated application client or its general workspace APIs.
 
 ## Contract
 
@@ -133,8 +146,10 @@ Owners need a minimal way to grant access to a known collaborator.
       without exposing Yjs state or retaining access after link invalidation.
 - [x] Owner-scoped starter projects can be shared without exposing an owner
       storage key or colliding with another owner's starter project.
-- [x] A read-only link exposes only the current rendered PDF, composed Markdown,
-      and individual authored project files through clear output/file navigation.
+- [x] Read-only and edit links use the same responsive editor shell while
+      keeping their distinct capabilities explicit.
+- [x] A read-only link exposes only the current rendered PDF and individual
+      authored project files through a genuinely read-only source surface.
 - [x] An open read-only view refreshes after live project edits without a manual
       reload or access to mutable collaboration state.
 - [x] Owner and member records retain stable opaque person identities across
@@ -195,7 +210,10 @@ Owners need a minimal way to grant access to a known collaborator.
   sockets so they cannot observe later project activity.
 - Read-only link pages must not load the authenticated application client or
   expose a workspace API, writable collaboration channel, private research, or
-  mutation control.
+  mutation control, even though read-only and edit links share editor
+  presentation primitives.
+- Shared-shell control visibility must never replace independent server-side
+  capability validation for source, PDF, snapshot, mutation, or socket access.
 
 ### Scenarios
 
@@ -224,16 +242,17 @@ Owners need a minimal way to grant access to a known collaborator.
 
 - Given: the owner has created a current read-only link
 - When: a reviewer follows it without a Kirjolab identity
-- Then: Kirjolab opens the current rendered PDF and lets the reviewer navigate
-  to composed Markdown or individual project files with no editing,
-  collaboration, general export, member, or private-research capability
+- Then: Kirjolab opens the shared editor shell with authored files in a
+  read-only source surface beside the current rendered PDF and grants no
+  editing, collaboration, general export, member, or private-research
+  capability
 
 **Scenario: Writer changes an open read-only project**
 
 - Given: a reviewer has an open current read-only link
 - When: a writer persists a newer project revision
 - Then: the reviewer receives only its revision notice and the selected
-  server-rendered output refreshes after the edit settles
+  authored source and rendered PDF refresh after the edit settles
 
 **Scenario: Owner rotates or revokes a read-only link**
 
@@ -252,8 +271,9 @@ Owners need a minimal way to grant access to a known collaborator.
 
 - Given: the owner created a current edit link
 - When: its holder saves an authored Markdown file at the current revision
-- Then: Kirjolab updates the live project and rendered output without exposing
-  project membership, administration, private research, or general APIs
+- Then: the shared editor shell autosaves the bounded replacement and updates
+  the live project and rendered output without exposing project membership,
+  administration, private research, or general APIs
 
 **Scenario: External and member writers exchange caret presence**
 

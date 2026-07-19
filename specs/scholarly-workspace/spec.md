@@ -24,6 +24,12 @@ collaboration.
   `.generated/app.txt`. Persistent interface copy names the user's next action
   and keeps implementation detail in feature documentation rather than the
   task surface.
+- **Capability-scoped editor shell:** Read-only `/share/{token}` and writable
+  `/edit/{token}` project links render one shared project-file, source, and PDF
+  layout without loading the authenticated application runtime. The validated
+  route selects a genuinely read-only source control or the edit capability's
+  bounded whole-file autosave and presence adapter; it never selects server
+  authority through client-visible state.
 - **Browser entry:** `/editor` redirects to the first active authorized project,
   using the compatible `demo` workspace by default, and
   `/editor/{workspaceId}` opens its canonical editor. Legacy
@@ -464,6 +470,9 @@ collaboration.
 - [x] The demo and UUID projects open at canonical `/editor` routes, legacy
       workspace links redirect without losing valid query state, and the root
       dashboard does not initialize collaboration.
+- [x] Read-only and writable bearer links open one recognizable responsive
+      editor shell while retaining a narrow capability-scoped client and
+      distinct server APIs.
 - [x] Normal-sized secondary text maintains at least 4.5:1 contrast across the
       canvas, paper, and editor surfaces.
 - [x] The complete workspace follows the system light/dark scheme by default
@@ -529,6 +538,9 @@ collaboration.
   semantic tokens rather than component-specific parallel palettes.
 - Appearance preference must remain browser-local and must not enter workspace,
   Yjs, Durable Object, or collaboration state.
+- The bearer-link editor shell must not initialize identity-authorized project
+  APIs, offline state, private research, history, comments, administration,
+  general exports, or writable Yjs collaboration.
 
 - Binary Yjs state must arrive before the versioned `sync` control on every
   connection, and the browser must not send queued state before that boundary.

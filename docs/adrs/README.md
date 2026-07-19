@@ -34,6 +34,7 @@ No ADRs are currently accepted but unimplemented.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-152](./implemented/ADR-152-use-a-capability-scoped-share-editor.md)                  | Implemented          | Reuse one editor shell for bearer links without widening server capabilities.                                 |
 | [ADR-150](./implemented/ADR-150-establish-task-oriented-browser-routes.md)                | Implemented          | Make the dashboard, Library, editor, and project-associated review distinct browser destinations.             |
 | [ADR-148](./implemented/ADR-148-prefer-native-local-ci.md)                                | Implemented          | Run routine local readiness natively and reserve Agent CI containers for explicit parity checks.              |
 | [ADR-147](./implemented/ADR-147-derive-review-outputs-from-evidence.md)                   | Implemented          | Derive review outputs and portable packages from pinned evidence.                                             |

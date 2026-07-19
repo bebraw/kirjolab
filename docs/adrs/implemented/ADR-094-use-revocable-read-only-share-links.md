@@ -1,6 +1,8 @@
 # ADR-094: Use Revocable Read-Only Share Links
 
-**Status:** Partially superseded by [ADR-096](./ADR-096-recover-and-scope-share-links.md)
+**Status:** Partially superseded by
+[ADR-096](./ADR-096-recover-and-scope-share-links.md) and
+[ADR-152](./ADR-152-use-a-capability-scoped-share-editor.md)
 
 **Date:** 2026-07-14
 

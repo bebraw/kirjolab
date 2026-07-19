@@ -226,20 +226,17 @@ describe("worker", () => {
     await expect(response.text()).resolves.toContain("addEventListener");
   });
 
-  it("serves the lightweight read-only share client", async () => {
-    const response = await handleRequest(new Request("http://example.com/read-only-share.js"));
+  it("serves the capability-aware shared editor client", async () => {
+    const response = await handleRequest(new Request("http://example.com/shared-editor.js"));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/javascript");
-    expect(await response.text()).toContain("new WebSocket");
-  });
-
-  it("serves the lightweight edit-share client", async () => {
-    const response = await handleRequest(new Request("http://example.com/edit-share.js"));
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toContain("text/javascript");
-    expect(await response.text()).toContain('method: "PATCH"');
+    const body = await response.text();
+    expect(body).toContain("new WebSocket");
+    expect(body).toContain('method: "PATCH"');
+    expect(body).toContain('root.dataset.sharedEditorMode === "edit"');
+    expect((await handleRequest(new Request("http://example.com/read-only-share.js"))).status).toBe(404);
+    expect((await handleRequest(new Request("http://example.com/edit-share.js"))).status).toBe(404);
   });
 
   it("serves the generated PDF worker", async () => {
