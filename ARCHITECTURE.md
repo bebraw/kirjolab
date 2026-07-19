@@ -107,27 +107,44 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   storage key. `/review` lists those project-linked workflows and
   `/review/{workspaceId}` is the focused browser surface for one of them; these
   routes do not introduce an independent review identity, access model, or
-  lifecycle. Keep protocol revisions immutable, generate source-specific
-  queries from one logical concept model, and require an explicit rationale for
-  every post-freeze amendment.
+  lifecycle. Keep protocol revisions immutable, configure SLR and MLR source,
+  search, stopping, credibility, and synthesis rules as structured profile
+  data, and generate source-specific queries from one logical concept model.
+  Require every post-freeze amendment to declare its rationale and affected
+  stages or records, then retain explicit reassessment obligations without
+  rewriting earlier protocol-bound events.
 - Keep review screening decisions append-only and reviewer-attributed. Derive
   stage outcomes from the configured independent-review policy, blind pending
   peer decisions when requested, and resolve conflicts through separate
-  adjudications instead of overwriting either judgment.
+  adjudications instead of overwriting either judgment. Keep final inclusion as
+  a separate append-only decision after full-text eligibility; only its current
+  includes enter evidence and synthesis.
 - Keep review quality answers and extracted values typed, revisioned, and
-  evidence-linked. Require an exact quotation/location for present claims and
-  an explicit missingness reason when an extraction value is absent; derive
-  checklist scores and completeness instead of persisting them as authority.
+  pinned to the protocol and stable criterion ids/text. Require exact project-
+  authorized resource and selector identity plus quotation/location for
+  present claims and an explicit missingness reason when an extraction value is
+  absent; derive checklist scores and completeness instead of persisting them
+  as authority. New evidence must never use a legacy unresolved selector.
 - Derive review flow counts, source yields, RQ coverage, and evidence matrices
-  from one exact review revision. Publish a reviewed synthesis only through a
-  revision-checked `review/*.md` project artifact; never let background review
-  changes rewrite manuscript files.
+  from versioned analysis definitions over one exact retained review revision.
+  Keep RQ findings append-only and require every declared appraisal or
+  extraction contributor to retain exact evidence. Publish a reviewed
+  synthesis only through a revision-checked `review/*.md` project artifact,
+  bind it to project history by analysis revision and digest, and resolve
+  `::review-artifact[...]` identically in preview and publication. Never let
+  background review changes rewrite manuscript files or ordinary edits mutate
+  a pinned artifact.
 - Keep local-model review assistance browser-to-loopback. Store the operation,
   provider, model, prompt version, authorized source scope, result, and human
   disposition; model candidates remain inert until explicit acceptance.
 - Back up and permanently delete each review authority with its owning project.
-  Derive history, interchange files, PRISMA flow, and the deterministic review
-  package from one revision-pinned authority snapshot.
+  Store the full allowlisted relational authority as a bounded, canonical,
+  content-addressed R2 payload referenced by the owner manifest, with separate
+  payload and unblinded-authority digests and exact revision metadata. Restore
+  drills must hydrate and verify live ReviewStudy state under manifest-derived
+  isolated identities and never address canonical review objects. Derive
+  history, interchange files, PRISMA flow, and the deterministic review package
+  from one revision-pinned authority snapshot.
 - Coordinate each personal reference library through a separate SQLite-backed
   Durable Object keyed by verified owner identity. Stable source identity must
   not depend on a DOI, title, filename, or project citation alias.
