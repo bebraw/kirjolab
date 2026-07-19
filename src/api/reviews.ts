@@ -177,20 +177,30 @@ export async function ensureLegacyReviewResource(
   const workspaceMembers = await workspaceAccess.listMembers(identity.email);
   const access = env.REVIEW_ACCESS.getByName(storageKey);
   const initialization = await access.initializeLegacyMembers(workspaceMembers);
+  const currentEmail = normalizeReviewEmail(identity.email);
+  if (!initialization.members.some((member) => member.email === currentEmail)) return null;
   const owner = initialization.members.find((member) => member.role === "owner");
   if (!owner) throw new Error("Legacy review owner is unavailable");
   const existingLinks = await access.listProjectLinks(owner.email, true);
-  let projectLink = existingLinks.find((link) => link.workspaceId === workspaceId) ?? null;
-  if (!projectLink) {
-    projectLink = await access.createProjectLink(owner.email, workspaceId);
-    await env.DOCUMENT_ROOMS.getByName(storageKey).linkReview(
-      workspaceId,
-      projectLink.id,
-      initialization.reviewId,
-      storageKey,
-      projectLink.createdBy,
-      projectLink.createdAt,
+  const existingProjectLink = existingLinks.find((link) => link.workspaceId === workspaceId && link.status === "active") ?? null;
+  const projectLink = existingProjectLink ?? (await access.createProjectLink(owner.email, workspaceId));
+  const createdProjectLink = existingProjectLink === null;
+  const room = env.DOCUMENT_ROOMS.getByName(storageKey);
+  try {
+    await room.linkReview(workspaceId, projectLink.id, initialization.reviewId, storageKey, projectLink.createdBy, projectLink.createdAt);
+  } catch (error) {
+    const projection = await room.listReviewLinks(workspaceId).catch(() => []);
+    const reconciled = projection.some(
+      (candidate) =>
+        candidate.id === projectLink.id &&
+        candidate.reviewId === initialization.reviewId &&
+        candidate.reviewAccessLocator === storageKey &&
+        candidate.status === "active",
     );
+    if (!reconciled) {
+      if (createdProjectLink) await access.unlinkProject(owner.email, projectLink.id);
+      throw error;
+    }
   }
 
   const snapshot = await study.getSnapshot("slr", identity.email);
@@ -212,9 +222,9 @@ export async function ensureLegacyReviewResource(
       ...registration,
       role: member.role,
     });
-    if (member.email === normalizeReviewEmail(identity.email)) currentRecord = record;
+    if (member.email === currentEmail) currentRecord = record;
   }
-  if (!currentRecord) throw new Error("Review access denied");
+  if (!currentRecord) return null;
   return {
     record: currentRecord,
     role: currentRecord.role,

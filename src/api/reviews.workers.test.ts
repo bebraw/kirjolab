@@ -4,7 +4,7 @@ import type { ReviewMember, ReviewSummary } from "../domain/review-catalog";
 import { defaultReviewProtocol } from "../domain/review-study";
 import type { ReviewArtifactPin } from "../domain/workspace";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
-import { ensureLegacyReviewResource, handleReviewsApi, type ReviewProjectLinkView } from "./reviews";
+import { discoverLegacyReviews, ensureLegacyReviewResource, handleReviewsApi, type ReviewProjectLinkView } from "./reviews";
 import { handleWorkspaceApi } from "./workspace";
 
 interface ReviewDetail {
@@ -142,13 +142,67 @@ describe("independent reviews API in the Workers runtime", () => {
       expect.objectContaining({ email: originalMember.email, role: "member" }),
     ]);
     await expect(second.access.getRole(laterMember.email)).resolves.toBeNull();
-    await expect(ensureLegacyReviewResource(env, laterMember, project.id, true)).rejects.toThrow("Review access denied");
+    await expect(ensureLegacyReviewResource(env, laterMember, project.id, true)).resolves.toBeNull();
+    await expect(discoverLegacyReviews(env, laterMember)).resolves.toEqual([]);
     const laterList = await handleReviewsApi(new Request("http://example.com/api/reviews"), env, laterMember);
     await expect(laterList.json()).resolves.toEqual([]);
     await expect(study.getSnapshot()).resolves.toMatchObject({
       revision: preserved.revision,
       protocol: { objective: "Preserve the existing legacy review data" },
     });
+  });
+
+  it("reconciles missing legacy project projections and compensates a failed first registration", async () => {
+    const owner = await testIdentity("legacy-projection-owner");
+    const project = await createProject(owner, "Legacy projection project");
+    const study = env.REVIEW_STUDIES.getByName(project.id);
+    await study.getSnapshot("slr", owner.email);
+    const seeds = await project.access.listMembers(owner.email);
+    const reviewAccess = env.REVIEW_ACCESS.getByName(project.id);
+    const initialization = await reviewAccess.initializeLegacyMembers(seeds);
+    const accessLink = await reviewAccess.createProjectLink(owner.email, project.id);
+
+    await expect(project.room.listReviewLinks(project.id)).resolves.toEqual([]);
+    const reconciled = await ensureLegacyReviewResource(env, owner, project.id, true);
+    expect(reconciled?.projectLink?.id).toBe(accessLink.id);
+    await expect(project.room.listReviewLinks(project.id)).resolves.toEqual([
+      expect.objectContaining({ id: accessLink.id, reviewId: initialization.reviewId, status: "active" }),
+    ]);
+
+    const retryOwner = await testIdentity("legacy-projection-retry-owner");
+    const retryProject = await createProject(retryOwner, "Legacy projection retry project");
+    const retryStudy = env.REVIEW_STUDIES.getByName(retryProject.id);
+    await retryStudy.getSnapshot("slr", retryOwner.email);
+    const retryAccess = env.REVIEW_ACCESS.getByName(retryProject.id);
+    const retryInitialization = await retryAccess.initializeLegacyMembers(await retryProject.access.listMembers(retryOwner.email));
+    const conflictingLinkId = crypto.randomUUID();
+    const conflictingCreatedAt = new Date().toISOString();
+    await retryProject.room.linkReview(
+      retryProject.id,
+      conflictingLinkId,
+      retryInitialization.reviewId,
+      retryProject.id,
+      retryOwner.email,
+      conflictingCreatedAt,
+    );
+
+    await expect(ensureLegacyReviewResource(env, retryOwner, retryProject.id, true)).rejects.toThrow(
+      "Review already has another active project link identity",
+    );
+    await expect(retryAccess.listProjectLinks(retryOwner.email, true)).resolves.toEqual([
+      expect.objectContaining({ workspaceId: retryProject.id, status: "unlinked", unlinkedBy: retryOwner.email }),
+    ]);
+
+    await retryProject.room.unlinkReview(retryProject.id, conflictingLinkId, retryOwner.email);
+    const retried = await ensureLegacyReviewResource(env, retryOwner, retryProject.id, true);
+    expect(retried?.projectLink).toMatchObject({ workspaceId: retryProject.id, status: "active" });
+    expect(retried?.projectLink?.id).not.toBe(conflictingLinkId);
+    await expect(retryProject.room.listReviewLinks(retryProject.id)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: conflictingLinkId, status: "unlinked" }),
+        expect.objectContaining({ id: retried?.projectLink?.id, status: "active" }),
+      ]),
+    );
   });
 
   it("deletes a linked project without deleting its independent review", async () => {
