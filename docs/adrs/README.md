@@ -27,7 +27,9 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-No ADRs are currently accepted but unimplemented.
+| ADR                                                                          | Status   | Summary                                                                                              |
+| ---------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| [ADR-155](./accepted/ADR-155-authorize-linked-pdfs-by-project-membership.md) | Accepted | Grant authenticated project members linked-reference PDF access while excluding public bearer links. |
 
 ## Implemented ADRs
 

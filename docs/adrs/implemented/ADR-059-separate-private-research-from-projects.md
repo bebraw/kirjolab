@@ -1,6 +1,7 @@
 # ADR-059: Separate Private Research From Project State
 
-**Status:** Implemented
+**Status:** Partially superseded by
+[ADR-155](../accepted/ADR-155-authorize-linked-pdfs-by-project-membership.md)
 
 **Date:** 2026-07-11
 
