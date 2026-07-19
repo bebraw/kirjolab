@@ -923,6 +923,10 @@ export class ReviewStudy extends DurableObject<Env> {
     });
   }
 
+  hasReviewData(): boolean {
+    return this.protocolRows().length > 0;
+  }
+
   getSnapshot(profile: ReviewProfile = "slr", actor = "system"): ReviewStudySnapshot {
     const rows = this.protocolRows();
     if (rows.length === 0) {

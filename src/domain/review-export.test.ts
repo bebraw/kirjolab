@@ -28,8 +28,8 @@ describe("review reproducibility export", () => {
     expect(prisma).toMatchObject({ reviewRevision: 7, identified: 1, included: 1 });
     expect(reviewPrismaSvg(prisma)).toContain('role="img" aria-labelledby="title description"');
 
-    const first = await buildReviewPackage("workspace-1", authority);
-    const second = await buildReviewPackage("workspace-1", authority);
+    const first = await buildReviewPackage("review-1", authority);
+    const second = await buildReviewPackage("review-1", authority);
     expect(first).toEqual(second);
     const files = unzipSync(first);
     expect(Object.keys(files).sort()).toEqual([
@@ -50,9 +50,12 @@ describe("review reproducibility export", () => {
       "search-history.json",
     ]);
     const manifest = JSON.parse(strFromU8(files["manifest.json"]!)) as {
+      reviewId: string;
       reviewRevision: number;
       files: Array<{ path: string; sha256: string; bytes: number }>;
     };
+    expect(manifest.reviewId).toBe("review-1");
+    expect(manifest).not.toHaveProperty("workspaceId");
     expect(manifest.reviewRevision).toBe(7);
     expect(manifest.files).toHaveLength(14);
     expect(manifest.files.every((file) => /^[a-f0-9]{64}$/u.test(file.sha256) && file.bytes > 0)).toBe(true);
@@ -373,7 +376,7 @@ describe("review reproducibility export", () => {
     );
     expect(history.events).not.toContainEqual(expect.objectContaining({ subject: "reassessment-open" }));
 
-    const files = unzipSync(await buildReviewPackage("workspace-1", changed));
+    const files = unzipSync(await buildReviewPackage("review-1", changed));
     expect(JSON.parse(strFromU8(files["manifest.json"]!))).toMatchObject({ generatedAt: "2026-07-17T14:00:00.000Z" });
   });
 });

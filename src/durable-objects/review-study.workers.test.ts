@@ -5,6 +5,22 @@ import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search
 import { ReviewStudy } from "./review-study";
 
 describe("ReviewStudy in the Workers runtime", () => {
+  it("reports existing review data without initializing a blank study", async () => {
+    const study = env.REVIEW_STUDIES.getByName(`review-discovery-${crypto.randomUUID()}`);
+
+    expect(await study.hasReviewData()).toBe(false);
+    expect(
+      await runInDurableObject(study, (_instance: ReviewStudy, state) => ({
+        protocols: state.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM protocol_revisions").one().count,
+        revision: state.storage.sql.exec<{ revision: number }>("SELECT revision FROM review_meta WHERE singleton = 1").one().revision,
+      })),
+    ).toEqual({ protocols: 0, revision: 0 });
+
+    await study.getSnapshot();
+
+    expect(await study.hasReviewData()).toBe(true);
+  });
+
   it("persists isolated immutable protocol revisions", async () => {
     const study = env.REVIEW_STUDIES.getByName("review-a");
     const other = env.REVIEW_STUDIES.getByName("review-b");

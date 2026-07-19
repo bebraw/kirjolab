@@ -285,7 +285,7 @@ export function reviewPrismaSvg(data: PrismaFlowData): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 730" role="img" aria-labelledby="title description"><title id="title">PRISMA study flow</title><desc id="description">${escapeXml(description)}</desc><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z"/></marker></defs><style>rect{fill:#fff;stroke:#334155;stroke-width:2}path{fill:none;stroke:#334155;stroke-width:2}text{font-family:system-ui,sans-serif;font-size:15px;fill:#0f172a}</style>${arrows}${nodes}</svg>\n`;
 }
 
-export async function buildReviewPackage(workspaceId: string, authority: ReviewExportAuthority): Promise<Uint8Array> {
+export async function buildReviewPackage(reviewId: string, authority: ReviewExportAuthority): Promise<Uint8Array> {
   const prisma = reviewPrismaData(authority);
   const files: Record<string, string> = {
     "analysis-contributors.json": stableJson({
@@ -334,7 +334,7 @@ export async function buildReviewPackage(workspaceId: string, authority: ReviewE
   files["manifest.json"] = stableJson({
     schemaVersion: reviewExportSchemaVersion,
     generator: "Kirjolab",
-    workspaceId,
+    reviewId,
     reviewRevision: authority.revision,
     protocolRevision: authority.protocol.protocol.revision,
     generatedAt: authorityTimestamp(authority),
