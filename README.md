@@ -9,6 +9,9 @@ You can import research material, annotate it, connect evidence to a manuscript,
 review a locally generated revision, collaborate with other writers, and export your
 work again.
 
+**Repository:** [github.com/bebraw/kirjolab](https://github.com/bebraw/kirjolab)  
+**Build Week disclosure:** [How Codex and GPT-5.6 were used](#built-with-codex-and-gpt-56)
+
 Kirjolab runs on Cloudflare Workers, Durable Objects, and R2. Local development
 is supported on macOS.
 
@@ -131,7 +134,7 @@ container parity path can pause after a failure; resume it with
 `npm run ci:local:container:retry -- --name <runner-name>`. More setup and
 troubleshooting details are in [docs/development.md](./docs/development.md).
 
-## Building With Codex
+## Built With Codex and GPT-5.6
 
 Kirjolab is developed collaboratively with Codex. Repository-owned instructions,
 specifications, and architecture decisions define the boundaries before
