@@ -9,12 +9,12 @@
 
 ## Context
 
-Kirjolab currently coordinates exactly one `ReviewStudy` for each project. Its
-Durable Object is addressed by the workspace storage key, project membership
-authorizes it, project history pins it, and project backup or deletion includes
-it. The transitional `/review/{workspaceId}` route introduced by ADR-150 makes
-that workflow easier to reach but deliberately does not change its identity or
-lifecycle.
+Before this decision, Kirjolab coordinated exactly one `ReviewStudy` for each
+project. Its Durable Object was addressed by the workspace storage key, project
+membership authorized it, project history pinned it, and project backup or
+deletion included it. The transitional `/review/{workspaceId}` route introduced
+by ADR-150 made that workflow easier to reach but deliberately did not change
+its identity or lifecycle.
 
 That ownership model does not fit the emerging research workflow. One writing
 project may synthesize evidence from several SLRs or MLRs, and one completed
@@ -67,8 +67,8 @@ backup and retention contracts are in place.
 The information-architecture pass separated review work from manuscript
 editing and exposed the cardinality mismatch: a single paper can incorporate
 several evidence reviews, while a review can be reusable across several
-papers. ADR-150 intentionally stops at browser routing so this resource
-decision can be reviewed on its own merits.
+papers. ADR-150 intentionally stopped at browser routing so this resource
+decision could be reviewed on its own merits.
 
 ## Consequences
 

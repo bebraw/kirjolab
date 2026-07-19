@@ -120,14 +120,16 @@ The daily Cron Trigger runs at 02:17 UTC and applies the same check to every
 registered hosted owner. A failed scheduled owner causes an error log rather
 than advancing its last known-good manifest.
 
-Current manifests use `kirjolab-owner-backup-v2`. A workspace's ReviewStudy is
-not embedded in the 10 MiB manifest. Instead, the manifest records an
-owner-scoped reference to a canonical payload at
-`backups/reviews/{ownerKey}/{payloadDigest}.json`, including its byte count,
-payload and unblinded-authority SHA-256 digests, review revision, protocol
-revision, and reconstructible history floor. The backup coordinator reuses an
-already-present content-addressed payload and includes the reference in the
-owner digest, so an unchanged review does not cause another payload write.
+Current manifests use `kirjolab-owner-backup-v3`. Independent reviews are a
+top-level collection beside workspaces. Each entry retains its catalog record,
+ReviewAccess membership and complete project-link ledger, revision seed, and an
+owner-scoped reference to a canonical ReviewStudy payload at
+`backups/reviews/{ownerKey}/{payloadDigest}.json`. The reference includes byte
+count, payload and unblinded-authority SHA-256 digests, review revision,
+protocol revision, and reconstructible history floor. The backup coordinator
+reuses an already-present content-addressed payload and includes the reference
+in the owner digest, so an unchanged review does not cause another payload
+write.
 
 Run the non-destructive recovery drill from the same signed-in console:
 
@@ -138,20 +140,23 @@ await fetch("/api/backups/drill", { method: "POST" }).then((response) => respons
 The result must report `verified`, the latest backup digest, an isolated
 `recoveryIdentity`, the number of immutable binary copies checked, and
 `reviewsChecked`. The drill restores the logical manifest into a dedicated
-recovery Durable Object and reads it back before comparing the digest. For each
-v2 review reference it also checks the R2 payload, restores the allowlisted
-relational tables into
-`review-drill:{ownerKey}:{manifestDigest}:{workspaceId}`, reads that live
-ReviewStudy back, and compares both digests and all pinned revisions. The
-reported review count must equal the number of non-null review references in
-the manifest. A missing, wrong-sized, non-canonical, out-of-owner-scope, or
+recovery Durable Object and reads it back before comparing the digest. For a v3
+manifest it restores the review catalog at
+`review-catalog-drill:{manifestDigest}` and each review's ReviewAccess and
+ReviewStudy authorities at `review-drill:{manifestDigest}:{reviewId}`. It then
+compares catalog locators, membership and project-link history, payload and
+authority digests, and every pinned revision. The reported review count must
+equal the number of non-null top-level review payload references in the
+manifest. A missing, wrong-sized, non-canonical, out-of-owner-scope, or
 digest-mismatched payload fails the drill.
 
 The isolated identities are derived from the immutable manifest digest, so a
 repeated drill is idempotent for the same manifest. The drill never addresses
 canonical catalog, library, access, document, or review Durable Objects. A
-valid `kirjolab-owner-backup-v1` manifest remains readable and receives the
-legacy manifest-only drill; it is not reported as a live review restore.
+valid project-associated `kirjolab-owner-backup-v2` manifest retains its
+workspace-keyed isolated ReviewStudy drill, and a valid
+`kirjolab-owner-backup-v1` manifest remains readable through the legacy
+manifest-only drill without being reported as a live review restore.
 
 `GET /api/backups/latest` downloads the authenticated owner's latest manifest.
 All backup and drill endpoints are authenticated, owner-scoped, same-origin for
@@ -160,9 +165,10 @@ mutations, and returned with `Cache-Control: no-store`.
 ## Exact Point-in-Time Recovery
 
 Each hosted manifest records a Durable Object PITR bookmark for the owner
-catalog, project-template catalog, private library, and every included
-workspace access, document, and ReviewStudy object. Cloudflare retains these
-bookmarks for 30 days. PITR is unavailable in local development.
+project catalog, project-template catalog, private library, review catalog,
+every included workspace access and document object, and every owned review's
+ReviewAccess and ReviewStudy object. Cloudflare retains these bookmarks for 30
+days. PITR is unavailable in local development.
 
 An exact restore is an incident operation, not a normal browser workflow:
 
