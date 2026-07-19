@@ -62,14 +62,14 @@ implementation range from the earlier foundation.
   on July 13 at 17:44 EEST
 - **First period commit:** `2beffd8238bd760ddf742a9a35e6dac10490836`
   on July 13 at 21:15 EEST
-- **Core product head before final submission collateral:** `99f51e5`
-- **Diff:** 319 commits, 425 files, 87,020 insertions, 15,885 deletions
+- **Final public snapshot head:** `c8f0986`
+- **Diff:** 332 commits, 439 files, 88,867 insertions, 16,140 deletions
 
 Inspect that range with:
 
 ```bash
-git log --reverse --stat e6a7bdf..99f51e5
-git diff --stat e6a7bdf..99f51e5
+git log --reverse --stat e6a7bdf..c8f0986
+git diff --stat e6a7bdf..c8f0986
 ```
 
 This broader range includes the integrated research context, editor and preview
@@ -134,7 +134,7 @@ product context from eligible implementation.
 
 ### Technological implementation
 
-- Portable Markdown and BibTeX with semantic parsing and scientific projections
+- Portable Markdown with structured references and scientific projections
 - Collaborative Yjs text coordinated through Durable Objects and recoverable
   materialized source
 - Stable publications, PDFs, annotations, claims, passages, and model candidates
@@ -158,7 +158,8 @@ product context from eligible implementation.
   publishing
 - Makes model assistance usable in audit-sensitive scholarly work
 - Keeps evidence connected to claims and manuscript passages
-- Preserves portable Markdown, BibTeX, source artifacts, and publication outputs
+- Preserves portable Markdown, source artifacts, publication outputs, and
+  bibliography interoperability
 
 ### Quality of the idea
 
@@ -207,7 +208,7 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [ ] Approve and record the final human narration.
 - [x] License the repository for public judging under MIT.
 - [x] Verify that the GitHub repository is publicly visible.
-- [x] Verify the submission materials through `a2b1dd4` and MIT license on
+- [x] Verify the submission materials through `c8f0986` and MIT license on
       public `main`.
 - [x] Provide a credential-free test build through the public repository and
       judge guide.
@@ -266,14 +267,15 @@ until it is re-rendered with the verified slide and final human narration.
 
 ### Repository route
 
-Use the public repository at <https://github.com/bebraw/kirjolab>. The root MIT
+Use the frozen public snapshot at
+<https://github.com/survivejs/kirjolab-build-week-entry/>. The root MIT
 license permits judging, testing, reuse, and distribution without requiring the
 private-repository invitation path. Before submission, verify that the remote
 default branch contains the eligible commits, submission notes, judge guide, and
 license.
 
-Public visibility and the MIT license were verified on July 18, 2026. After a
-fresh fetch, remote `main` matched local `a2b1dd4` and included the verified
+Public visibility and the MIT license were verified on July 19, 2026. After a
+fresh fetch, remote `main` matched local `c8f0986` and included the verified
 Codex evidence, integrated demo notes, and slide set. Signed-out HTTP requests
 also returned `200` for the repository, raw README, raw MIT license, and raw
 judge guide. Push any later final corrections before submission.

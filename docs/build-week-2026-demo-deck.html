@@ -396,6 +396,13 @@
         color: var(--soft);
       }
 
+      .close .repo {
+        margin-top: 3vh;
+        color: var(--green);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: clamp(14px, 1.15vw, 22px);
+      }
+
       .controls {
         position: fixed;
         right: 18px;
@@ -513,11 +520,13 @@
           <p class="lead">Runtime state supports the project. It never becomes the only usable copy.</p>
         </div>
         <div class="stack">
-          <div class="stack-row"><strong>Portable source</strong><span>Markdown, BibTeX, figures, and attachments</span></div>
+          <div class="stack-row"><strong>Portable source</strong><span>Markdown, figures, and source attachments</span></div>
           <div class="stack-row">
             <strong>Recoverable collaboration</strong><span>Live editing, comments, history, and offline manuscript state</span>
           </div>
-          <div class="stack-row"><strong>Publication projections</strong><span>Scientific preview, PDF, LaTeX, and statistics</span></div>
+          <div class="stack-row">
+            <strong>Publication projections</strong><span>Scientific preview, PDF, LaTeX, and bibliography files on demand</span>
+          </div>
         </div>
         <p class="folio">05 / 07</p>
       </div>
@@ -529,17 +538,19 @@
         <h2>One integrated scholarly workspace.</h2>
         <div class="build-grid">
           <div class="build-card">
-            <strong>Research context</strong><span>Library, PDF intake, annotations, claims, and evidence links</span>
+            <strong>Evidence to prose</strong
+            ><span>Imported PDF highlights, annotations, page-aware citations, claims, and evidence links</span>
           </div>
           <div class="build-card">
             <strong>Reviewable A I</strong><span>Typed local-model operations, explicit context, and human disposition</span>
           </div>
           <div class="build-card">
-            <strong>Authoring system</strong><span>Collaboration, scientific import and export, recovery, and structured reviews</span>
+            <strong>Safe collaboration</strong
+            ><span>Member PDF access, public links without private PDFs, recovery, and structured reviews</span>
           </div>
         </div>
         <div class="verification">
-          <span>e6a7bdf..CURRENT · SUBMISSION PERIOD</span>
+          <span>e6a7bdf..c8f0986 · 332 COMMITS · SUBMISSION PERIOD</span>
           <b>GPT-5.6 VIA CODEX · SESSION 019f6472-5ece-7cd3-b66f-ba344ba9e812</b>
         </div>
       </div>
@@ -549,6 +560,7 @@
       <div class="frame">
         <h1>Kirjolab</h1>
         <p class="lead">Evidence becomes prose.</p>
+        <p class="repo">github.com/survivejs/kirjolab-build-week-entry</p>
         <p class="kicker">Inspect the trail. Keep the source. Decide what changes.</p>
         <p class="folio">07 / 07</p>
       </div>

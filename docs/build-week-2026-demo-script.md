@@ -30,9 +30,10 @@ citation and bibliography entry resolving in the preview.
 **Narration:**
 
 Kirjolab is a collaborative workspace where evidence becomes prose without
-losing that trail. Authors work in portable Markdown and BibTeX while a live
-scientific preview validates citations, cross-references, figures, tables, and
-document structure. The source remains readable outside Kirjolab.
+losing that trail. Authors work in portable Markdown and structured reference
+metadata while a live scientific preview validates citations, cross-references,
+figures, tables, and document structure. The source remains readable outside
+Kirjolab.
 
 ### 0:45–1:15 — Research context beside the manuscript
 
@@ -77,9 +78,9 @@ rewrite the manuscript. The researcher accepts, edits, or rejects the proposal.
 **Narration:**
 
 Collaboration keeps live text, comments, and recoverable history together.
-Exports return portable Markdown and BibTeX, plus publication-ready PDF and
-LaTeX projections. Runtime state supports the work; it never becomes the only
-usable copy.
+Exports foreground portable Markdown, PDF, LaTeX, and the source bundle, while
+bibliography files remain available for interoperability. Runtime state supports
+the work; it never becomes the only usable copy.
 
 ### 2:35–2:50 — Build Week implementation
 

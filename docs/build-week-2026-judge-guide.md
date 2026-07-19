@@ -19,8 +19,8 @@ Prerequisites:
 ## Start the Project
 
 ```bash
-git clone https://github.com/bebraw/kirjolab.git
-cd kirjolab
+git clone https://github.com/survivejs/kirjolab-build-week-entry.git
+cd kirjolab-build-week-entry
 nvm use
 npm install
 npm run dev
@@ -50,8 +50,9 @@ provider as described in the main README.
    require a target and selected evidence. With a provider, generate a candidate
    and confirm that it requires an explicit accept or reject action.
 7. Add an anchored manuscript comment and inspect project history.
-8. Open **Export** and inspect portable Markdown and BibTeX plus PDF and LaTeX
-   projections.
+8. Open **Export** and inspect the primary Markdown, PDF, LaTeX, and source
+   outputs; expand interoperability files only when bibliography exchange is
+   relevant.
 
 ### Synthetic project reference
 

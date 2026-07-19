@@ -18,7 +18,7 @@ citation, and finally prose.
 
 ## What It Does
 
-- authors portable Markdown and BibTeX with a live scientific preview
+- authors portable Markdown with structured references and a live scientific preview
 - keeps project references, PDFs, annotations, claims, and notes beside the
   manuscript
 - links exact source evidence to claims and authored passages
@@ -70,7 +70,8 @@ without overwhelming the authoring surface.
 
 - A complete source-to-evidence-to-prose loop rather than a disconnected AI chat
 - Human-review boundaries enforced in domain, persistence, and interface layers
-- Portable Markdown and BibTeX as durable artifacts
+- Portable Markdown as the durable manuscript, with bibliography files available
+  for interoperability
 - Credential-free local development and support for local language models
 - Collaboration, recovery, scientific export, and structured-review workflows
   on one scholarly resource model
@@ -106,8 +107,8 @@ The `/feedback` flow uploaded the qualifying thread under Session ID
 
 ## Submission Links
 
-- **Source and test build:** <https://github.com/bebraw/kirjolab>
+- **Source and test build:** <https://github.com/survivejs/kirjolab-build-week-entry/>
 - **Judge walkthrough:**
-  <https://github.com/bebraw/kirjolab/blob/main/docs/build-week-2026-judge-guide.md>
+  <https://github.com/survivejs/kirjolab-build-week-entry/blob/main/docs/build-week-2026-judge-guide.md>
 - **Public YouTube demo:** insert after upload
 - **Hosted app:** omit unless unrestricted judge access has been arranged

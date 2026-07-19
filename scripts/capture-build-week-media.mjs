@@ -35,8 +35,7 @@ export const BUILD_WEEK_MEDIA = Object.freeze([
   },
   {
     filename: "03-authoring-preview.png",
-    caption:
-      "Portable authoring — Plain Markdown and BibTeX sit beside a live scientific preview with citations, sections, and included files.",
+    caption: "Portable authoring — Canonical Markdown sits beside a live scientific preview with citations, sections, and included files.",
   },
   {
     filename: "04-evidence-trail.png",
@@ -45,8 +44,7 @@ export const BUILD_WEEK_MEDIA = Object.freeze([
   },
   {
     filename: "05-reference-annotation.png",
-    caption:
-      "Reference annotation — Select a passage, add a private note, and save its page and geometry without modifying the original PDF.",
+    caption: "Highlight to citation — Save an exact PDF passage, then cite its source and page at the remembered manuscript caret.",
   },
   {
     filename: "06-evidence-map.png",
@@ -72,7 +70,7 @@ export const BUILD_WEEK_MEDIA = Object.freeze([
   },
   {
     filename: "11-portable-export.png",
-    caption: "Portable export — Download publication-ready PDF and LaTeX, readable Markdown and BibTeX, or the complete source bundle.",
+    caption: "Portable export — Download PDF, LaTeX, Markdown, or a source bundle; bibliography files stay under interoperability.",
   },
   {
     filename: "12-revision-history.png",
@@ -757,7 +755,7 @@ async function captureScreens(browserContext, stagingDirectory, state) {
     await settle(page);
     await writer.shot(page, "04-evidence-trail.png");
 
-    await captureReferenceAnnotation(browserContext, writer);
+    await captureReferenceAnnotation(browserContext, writer, state.workspaceId);
 
     await page.locator("#show-map-mode").click();
     await page.locator("#project-map").waitFor({ state: "visible" });
@@ -857,10 +855,21 @@ async function captureScreens(browserContext, stagingDirectory, state) {
   }
 }
 
-async function captureReferenceAnnotation(browserContext, writer) {
+async function captureReferenceAnnotation(browserContext, writer, workspaceId) {
   const page = await browserContext.newPage();
   try {
-    await page.goto(`${baseURL}/library`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${baseURL}/editor/${workspaceId}`, { waitUntil: "domcontentloaded" });
+    const editor = page.locator("#source-editor");
+    await editor.waitFor({ state: "visible" });
+    await editor.evaluate((element) => {
+      if (!(element instanceof HTMLTextAreaElement)) throw new Error("Expected the manuscript editor");
+      const target = element.value.indexOf("::bibliography[]");
+      const caret = target > 0 ? target - 1 : element.value.length;
+      element.focus();
+      element.setSelectionRange(caret, caret);
+      element.dispatchEvent(new Event("select", { bubbles: true }));
+    });
+    await page.locator("#context-library-tab").click();
     await page.locator("#library-pdf-upload").setInputFiles({
       buffer: createBuildWeekEvidencePdf(),
       mimeType: "application/pdf",
@@ -900,8 +909,27 @@ async function captureReferenceAnnotation(browserContext, writer) {
       element.scrollLeft = 0;
       element.blur();
     });
+    await page.locator("#library-highlight-form button[type='submit']").click();
+    await page.locator("#open-library-pdf-inspector").click();
+    await page.locator("#library-annotation-details").evaluate((element) => {
+      if (element instanceof HTMLDetailsElement) element.open = true;
+    });
+    const highlightCard = page.locator("#library-highlight-list article").filter({ hasText: "Reusable evidence note" }).first();
+    await highlightCard.waitFor();
+    const citeAction = highlightCard.getByRole("button", { name: "Cite in manuscript" });
+    await settle(page, 800);
+    if ((await citeAction.count()) !== 1) {
+      const mode = await page.locator("body").getAttribute("data-app-mode");
+      const actions = await highlightCard.getByRole("button").allTextContents();
+      throw new Error(`Expected the workspace citation action; mode=${mode}; actions=${actions.join(", ")}`);
+    }
     await settle(page);
     await writer.shot(page, "05-reference-annotation.png");
+    await citeAction.click();
+    await page
+      .locator("#toast")
+      .getByText(/Inserted :cite\[/u)
+      .waitFor();
   } finally {
     await page.close();
   }
