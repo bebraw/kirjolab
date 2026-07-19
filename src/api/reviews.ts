@@ -33,7 +33,7 @@ export async function handleReviewsApi(request: Request, env: Env, identity: Aut
   if (url.pathname === "/api/reviews") {
     try {
       if (request.method === "GET") {
-        return noStore(await env.REVIEW_CATALOGS.getByName(identity.ownerKey).listReviews());
+        return noStore(await listAvailableReviews(env, identity));
       }
       if (request.method === "POST") {
         const input = await createReviewRequest(request);
@@ -134,9 +134,12 @@ export async function resolveReviewResource(env: Env, identity: AuthIdentity, re
   const record = await env.REVIEW_CATALOGS.getByName(identity.ownerKey).getReview(reviewId);
   if (!record) return null;
   const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
-  const role = await access.getRole(identity.email);
-  if (!role) throw new Error("Review access denied");
   const status = await access.getAccessStatus();
+  const role = await access.getRole(identity.email);
+  if (!role) {
+    if (status.deletedAt !== null) return null;
+    throw new Error("Review access denied");
+  }
   return { record, role, deletedAt: status.deletedAt, access, study: env.REVIEW_STUDIES.getByName(record.locator.storageKey) };
 }
 
@@ -160,7 +163,7 @@ export async function discoverLegacyReviews(env: Env, identity: AuthIdentity): P
     if (!(await env.REVIEW_STUDIES.getByName(storageKey).hasReviewData())) continue;
     await ensureLegacyReviewResource(env, identity, workspace.id, true);
   }
-  return await env.REVIEW_CATALOGS.getByName(identity.ownerKey).listReviews();
+  return await listAvailableReviews(env, identity);
 }
 
 export async function ensureLegacyReviewResource(
@@ -195,9 +198,11 @@ export async function ensureLegacyReviewResource(
   try {
     await writeReviewProjectProjection(access, room, projectLink, storageKey);
 
-    const snapshot = await study.getSnapshot("slr", identity.email);
     const ownerCatalog = env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, owner.email));
     const authoritative = await ownerCatalog.getReview(initialization.reviewId);
+    const snapshot = authoritative
+      ? await study.initializeProfile(authoritative.profile, identity.email)
+      : await study.getSnapshot("slr", identity.email);
     const registration = {
       reviewId: initialization.reviewId,
       title: authoritative?.title ?? workspace.title,
@@ -396,9 +401,23 @@ async function deleteReviewResource(env: Env, identity: AuthIdentity, resource: 
     await env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, member.email)).removeReview(resource.record.id);
   }
   await resource.study.deleteReviewData();
-  await env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, owner.email)).removeReview(resource.record.id);
   const { members: _members, projectLinks: _projectLinks, ...boundary } = deletion;
   return noStore(boundary);
+}
+
+async function listAvailableReviews(env: Env, identity: AuthIdentity): Promise<ReviewSummary[]> {
+  const catalog = env.REVIEW_CATALOGS.getByName(identity.ownerKey);
+  const reviews = await catalog.listReviews();
+  const available = await Promise.all(
+    reviews.map(async (review): Promise<ReviewSummary | null> => {
+      const record = await catalog.getReview(review.id);
+      if (!record) return null;
+      const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
+      const [status, role] = await Promise.all([access.getAccessStatus(), access.getRole(identity.email)]);
+      return status.deletedAt === null && role ? review : null;
+    }),
+  );
+  return available.filter((review): review is ReviewSummary => review !== null);
 }
 
 async function rollbackReviewAccessLink(

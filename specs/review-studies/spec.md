@@ -408,12 +408,13 @@ published deliberately into several writing projects.
   ReviewStudy, then marks that project's active review links unlinked and
   deletes only project-owned state and materializations. It does not delete an
   independent ReviewStudy. Permanent review deletion marks all active links
-  unlinked, deletes review data, and removes each member's catalog entry without
-  deleting projects or rewriting retained project-history artifacts. A compact
-  ReviewAccess deletion tombstone retains the owner, membership fan-out, links,
-  and deletion time long enough for interrupted cross-object cleanup to be
-  retried; deleted reviews remain hidden from ordinary reads. Content-addressed
-  backup retention remains an operator lifecycle, not active review state.
+  unlinked, deletes review data, and removes collaborator catalog entries
+  without deleting projects or rewriting retained project-history artifacts. A
+  compact ReviewAccess deletion tombstone retains the owner, membership fan-out,
+  links, and deletion time, while a hidden owner catalog locator remains as a
+  durable retry handle; deleted reviews remain hidden from ordinary reads and
+  logical backups. Content-addressed backup retention remains an operator
+  lifecycle, not active review state.
 
 ### API Contracts
 
@@ -602,9 +603,9 @@ published deliberately into several writing projects.
 - Project unlink or deletion leaves the live review intact. Review unlink or
   deletion leaves projects and retained materialized artifact pins intact.
 - Review deletion removes collaborator catalog projections before destroying
-  study/access authority, retains an owner-resolvable tombstone until final
-  catalog cleanup, and is idempotent after interruption between Durable Object
-  calls.
+  study authority, retains an owner-resolvable access tombstone and hidden
+  catalog locator as a durable retry handle, and is idempotent after
+  interruption between Durable Object calls or a terminal late projection.
 - Review deletion atomically tombstones ReviewAccess and retains its member and
   link cleanup snapshot before the first cross-object await. The tombstone
   immediately rejects new membership and project-link mutations.

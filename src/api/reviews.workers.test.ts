@@ -231,6 +231,32 @@ describe("independent reviews API in the Workers runtime", () => {
     });
   });
 
+  it("fails legacy registration closed when catalog and study profiles conflict", async () => {
+    const owner = await testIdentity("legacy-profile-conflict-owner");
+    const project = await createProject(owner, "Legacy profile conflict");
+    const study = env.REVIEW_STUDIES.getByName(project.id);
+    await study.initializeProfile("mlr", owner.email);
+    const access = env.REVIEW_ACCESS.getByName(project.id);
+    const initialization = await access.initializeLegacyMembers(await project.access.listMembers(owner.email));
+    const catalog = env.REVIEW_CATALOGS.getByName(owner.ownerKey);
+    await catalog.registerLegacyReview({
+      reviewId: initialization.reviewId,
+      title: project.title,
+      profile: "slr",
+      role: "owner",
+      storageKey: project.id,
+      legacyWorkspaceId: project.id,
+    });
+
+    await expect(ensureLegacyReviewResource(env, owner, project.id, true)).rejects.toThrow("conflicts with the initialized study");
+    await expect(catalog.getReview(initialization.reviewId)).resolves.toMatchObject({ profile: "slr" });
+    await expect(study.getSnapshot()).resolves.toMatchObject({ protocol: { profile: "mlr" } });
+    await expect(access.listProjectLinks(owner.email)).resolves.toEqual([]);
+    await expect(project.room.listReviewLinks(project.id)).resolves.toEqual([
+      expect.objectContaining({ reviewId: initialization.reviewId, status: "unlinked" }),
+    ]);
+  });
+
   it("reconciles missing legacy project projections and compensates a failed first registration", async () => {
     const owner = await testIdentity("legacy-projection-owner");
     const project = await createProject(owner, "Legacy projection project");
@@ -412,6 +438,7 @@ describe("independent reviews API in the Workers runtime", () => {
     const member = await testIdentity("deletion-retry-member");
     const lateMember = await testIdentity("deletion-retry-late-member");
     const project = await createProject(owner, "Deletion retry project");
+    const lateProject = await createProject(owner, "Deletion retry late project");
     const review = await createReview(owner, "Retryable deletion", "slr");
     const invitation = await handleReviewsApi(
       jsonRequest(`http://example.com/api/reviews/${review.id}/members`, { email: member.email }),
@@ -424,6 +451,8 @@ describe("independent reviews API in the Workers runtime", () => {
     if (!record) throw new Error("Review catalog record is unavailable");
     const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
     const study = env.REVIEW_STUDIES.getByName(record.locator.storageKey);
+    const stagedMember = await access.addMember(owner.email, lateMember.email);
+    const stagedLink = await access.createProjectLink(owner.email, lateProject.id);
 
     await study.deleteReviewData();
     const tombstone = await access.beginReviewDeletion(owner.email);
@@ -453,7 +482,7 @@ describe("independent reviews API in the Workers runtime", () => {
     );
     expect(deletion.status).toBe(200);
     await expect(deletion.json()).resolves.toEqual(boundary);
-    await expect(env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id)).resolves.toBeNull();
+    await expect(env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id)).resolves.toEqual(record);
     await expect(env.REVIEW_CATALOGS.getByName(member.ownerKey).getReview(review.id)).resolves.toBeNull();
     await expect(env.REVIEW_CATALOGS.getByName(lateMember.ownerKey).getReview(review.id)).resolves.toBeNull();
     await expect(project.room.listReviewLinks(project.id)).resolves.toEqual([
@@ -462,6 +491,45 @@ describe("independent reviews API in the Workers runtime", () => {
     await expect(access.getAccessStatus()).resolves.toMatchObject({ reviewId: review.id, deletedAt: tombstone.deletedAt });
     await expect(access.getRole(owner.email)).resolves.toBe("owner");
     await expect(access.getRole(member.email)).resolves.toBeNull();
+
+    const hiddenList = await handleReviewsApi(new Request("http://example.com/api/reviews"), env, owner);
+    await expect(hiddenList.json()).resolves.toEqual([]);
+    const lateMemberCatalog = env.REVIEW_CATALOGS.getByName(lateMember.ownerKey);
+    await lateMemberCatalog.registerReview({
+      id: record.id,
+      title: record.title,
+      profile: record.profile,
+      role: stagedMember.role,
+      storageKey: record.locator.storageKey,
+      legacyWorkspaceId: record.locator.legacyWorkspaceId,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      archivedAt: record.archivedAt,
+    });
+    await lateProject.room.linkReview(
+      lateProject.id,
+      stagedLink.id,
+      stagedLink.reviewId,
+      record.locator.storageKey,
+      stagedLink.createdBy,
+      stagedLink.createdAt,
+    );
+    await expect(lateMemberCatalog.getReview(review.id)).resolves.not.toBeNull();
+    await expect(lateProject.room.listReviewLinks(lateProject.id)).resolves.toEqual([
+      expect.objectContaining({ id: stagedLink.id, status: "active" }),
+    ]);
+
+    const retried = await handleReviewsApi(
+      new Request(`http://example.com/api/reviews/${review.id}/settings`, { method: "DELETE" }),
+      env,
+      owner,
+    );
+    expect(retried.status).toBe(200);
+    await expect(retried.json()).resolves.toEqual(boundary);
+    await expect(lateMemberCatalog.getReview(review.id)).resolves.toBeNull();
+    await expect(lateProject.room.listReviewLinks(lateProject.id)).resolves.toEqual([
+      expect.objectContaining({ id: stagedLink.id, status: "unlinked", unlinkedBy: owner.email }),
+    ]);
   });
 
   it("compensates member and project projections that resume after the deletion fence", async () => {

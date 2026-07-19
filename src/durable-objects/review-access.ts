@@ -328,7 +328,8 @@ export class ReviewAccess extends DurableObject<Env> {
       deletedAt: state.deleted_at,
       unlinkedProjectIds: this.projectLinkRows()
         .filter((link) => link.unlinked_at === state.deleted_at && link.unlinked_by === ownerEmail)
-        .map((link) => link.workspace_id),
+        .map((link) => link.workspace_id)
+        .sort((left, right) => left.localeCompare(right)),
     };
   }
 

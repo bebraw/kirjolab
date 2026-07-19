@@ -129,7 +129,9 @@ count, payload and unblinded-authority SHA-256 digests, review revision,
 protocol revision, and reconstructible history floor. The backup coordinator
 reuses an already-present content-addressed payload and includes the reference
 in the owner digest, so an unchanged review does not cause another payload
-write.
+write. Hidden owner locators retained only to retry deleted-review cleanup are
+excluded from logical review entries; exact platform bookmarks retain their
+underlying tombstone state for the normal point-in-time retention window.
 
 Run the non-destructive recovery drill from the same signed-in console:
 

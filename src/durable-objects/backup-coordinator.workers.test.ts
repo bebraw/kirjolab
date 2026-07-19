@@ -337,6 +337,27 @@ describe("BackupCoordinator in the Workers runtime", () => {
     expect(await env.REVIEW_STUDIES.getByName(reviewRecoveryIdentity).hasReviewData()).toBe(false);
   });
 
+  it("excludes retained review deletion locators from logical backups", async () => {
+    const ownerKey = await sha256Hex(crypto.randomUUID());
+    const ownerEmail = `deleted-review-owner-${crypto.randomUUID()}@example.test`;
+    const catalog = env.REVIEW_CATALOGS.getByName(ownerKey);
+    const review = await catalog.createReview({ title: "Deleted review retry locator", profile: "slr" });
+    const access = env.REVIEW_ACCESS.getByName(review.locator.storageKey);
+    await access.initializeOwner(review.id, ownerEmail);
+    await access.beginReviewDeletion(ownerEmail);
+    const coordinator = env.BACKUP_COORDINATOR.getByName(`deleted-review-backup-${crypto.randomUUID()}`);
+
+    const backup = await coordinator.runOwnerBackup(ownerKey, ownerEmail);
+    expect(backup).toMatchObject({ outcome: "created", error: null });
+    if (!backup.manifestKey) throw new Error("Expected a deleted-review backup manifest");
+    const manifestObject = await env.PAPERS.get(backup.manifestKey);
+    if (!manifestObject) throw new Error("Expected a deleted-review backup object");
+    const manifest = parseOwnerBackupManifest(await manifestObject.text());
+    if (manifest.schemaVersion !== ownerBackupSchemaVersion) throw new Error("Expected a v3 backup manifest");
+    expect(manifest.state.reviews).toEqual([]);
+    await expect(catalog.getReview(review.id)).resolves.toEqual(review);
+  });
+
   it("keeps v2 project-associated review recovery drills compatible", async () => {
     const ownerKey = await sha256Hex(crypto.randomUUID());
     const ownerEmail = "v2-owner@example.test";

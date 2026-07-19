@@ -113,9 +113,11 @@ existing workspace storage keys remain behind catalog locators.
 Review publication requires an active project link and records the review,
 link, revision, generator, and artifact provenance in project state. Project
 deletion unlinks independent reviews rather than deleting them; review deletion
-is a separate owner-authorized lifecycle. Owner backup schema v3 restores the
+is a separate owner-authorized lifecycle with a hidden owner retry locator for
+interrupted and late projection cleanup. Owner backup schema v3 restores the
 review catalog, access, links, and study payload independently while retaining
-v1 and project-associated v2 recovery compatibility.
+v1 and project-associated v2 recovery compatibility; logical backups exclude
+deleted retry locators.
 
 ## Alternatives Considered
 

@@ -339,6 +339,7 @@ export class BackupCoordinator extends DurableObject<Env> {
     for (const record of reviewCatalogBackup.records) {
       if (record.role !== "owner") continue;
       const access = this.env.REVIEW_ACCESS.getByName(record.locator.storageKey);
+      if ((await access.getAccessStatus()).deletedAt !== null) continue;
       if ((await access.getRole(owner.email)) !== "owner") throw new Error("Review catalog and access ownership do not match");
       const study = this.env.REVIEW_STUDIES.getByName(record.locator.storageKey);
       const [accessBackup, reviewBackup] = await Promise.all([
