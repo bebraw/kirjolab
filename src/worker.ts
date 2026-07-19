@@ -13,6 +13,8 @@ import { buildExportBundle } from "./domain/export-pipeline";
 import { DocumentRoom } from "./durable-objects/document-room";
 import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
 import { ProjectTemplateCatalog } from "./durable-objects/project-template-catalog";
+import { ReviewAccess } from "./durable-objects/review-access";
+import { ReviewCatalog } from "./durable-objects/review-catalog";
 import { ReviewStudy } from "./durable-objects/review-study";
 import { WorkspaceAccess } from "./durable-objects/workspace-access";
 import { ReferenceLibrary } from "./durable-objects/reference-library";
@@ -34,6 +36,8 @@ export {
   DocumentRoom,
   ProjectTemplateCatalog,
   ReferenceLibrary,
+  ReviewAccess,
+  ReviewCatalog,
   ReviewStudy,
   WorkspaceAccess,
   WorkspaceCatalog,

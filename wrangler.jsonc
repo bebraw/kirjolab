@@ -26,8 +26,10 @@
     "bindings": [
       { "name": "DOCUMENT_ROOMS", "class_name": "DocumentRoom" },
       { "name": "WORKSPACE_CATALOGS", "class_name": "WorkspaceCatalog" },
+      { "name": "REVIEW_CATALOGS", "class_name": "ReviewCatalog" },
       { "name": "PROJECT_TEMPLATE_CATALOGS", "class_name": "ProjectTemplateCatalog" },
       { "name": "REVIEW_STUDIES", "class_name": "ReviewStudy" },
+      { "name": "REVIEW_ACCESS", "class_name": "ReviewAccess" },
       { "name": "WORKSPACE_ACCESS", "class_name": "WorkspaceAccess" },
       { "name": "REFERENCE_LIBRARIES", "class_name": "ReferenceLibrary" },
       { "name": "BACKUP_COORDINATOR", "class_name": "BackupCoordinator" },
@@ -43,6 +45,7 @@
     { "tag": "v6", "new_sqlite_classes": ["BackupRecovery"] },
     { "tag": "v7", "new_sqlite_classes": ["ProjectTemplateCatalog"] },
     { "tag": "v8", "new_sqlite_classes": ["ReviewStudy"] },
+    { "tag": "v9", "new_sqlite_classes": ["ReviewCatalog", "ReviewAccess"] },
   ],
   "triggers": { "crons": ["17 2 * * *"] },
   "r2_buckets": [{ "binding": "PAPERS", "bucket_name": "kirjolab-papers" }],
