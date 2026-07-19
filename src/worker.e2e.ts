@@ -4789,6 +4789,8 @@ test("serves stable health and browser assets", async ({ request }) => {
       "/edit/:token",
       "/api/workspaces",
       "/api/workspaces/demo",
+      "/api/reviews",
+      "/api/reviews/:id",
       "/api/session",
       "/api/health",
     ],
