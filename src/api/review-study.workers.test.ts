@@ -441,6 +441,9 @@ describe("review-study API in the Workers runtime", () => {
     const initialReview = await study.getSnapshot("slr", identity.email);
     const frozen = await study.freezeProtocol(initialReview.revision, identity.email);
     const initialProject = await room.getSnapshot("project");
+    const reviewId = crypto.randomUUID();
+    const linkId = crypto.randomUUID();
+    await room.linkReview("project", linkId, reviewId, key, identity.email, new Date().toISOString());
 
     const published = await handleReviewStudyApi(
       jsonRequest("http://example.com/publish", {
@@ -453,11 +456,22 @@ describe("review-study API in the Workers runtime", () => {
       "/review-study/synthesis/publish",
       room,
       "project",
+      { reviewId, linkId },
     );
     expect(published.status).toBe(200);
     const payload = (await published.json()) as {
       directive: string;
-      pin: { reviewRevision: number; protocolRevision: number; analysisDefinitionId: string; digest: string };
+      pin: {
+        reviewId: string;
+        linkId: string;
+        publicationId: string;
+        reviewRevision: number;
+        protocolRevision: number;
+        analysisDefinitionId: string;
+        generatorSchema: string;
+        digest: string;
+        publishedBy: string;
+      };
       project: { revision: number };
     };
     expect(payload.directive).toBe("::review-artifact[review/synthesis.md]");
@@ -465,6 +479,11 @@ describe("review-study API in the Workers runtime", () => {
       reviewRevision: frozen.revision,
       protocolRevision: frozen.protocol.revision,
       analysisDefinitionId: "review-synthesis-report",
+      reviewId,
+      linkId,
+      publicationId: `${reviewId}:synthesis`,
+      generatorSchema: "kirjolab-review-analysis-v1",
+      publishedBy: identity.email,
     });
     expect(payload.pin.digest).toMatch(/^[a-f0-9]{64}$/u);
 
@@ -491,6 +510,9 @@ describe("review-study API in the Workers runtime", () => {
     const room = env.DOCUMENT_ROOMS.getByName(key);
     const draft = await study.getSnapshot("slr", identity.email);
     const initialProject = await room.getSnapshot("project");
+    const reviewId = crypto.randomUUID();
+    const linkId = crypto.randomUUID();
+    await room.linkReview("project", linkId, reviewId, key, identity.email, new Date().toISOString());
 
     const response = await handleReviewStudyApi(
       jsonRequest("http://example.com/publish", {
@@ -503,6 +525,7 @@ describe("review-study API in the Workers runtime", () => {
       "/review-study/synthesis/publish",
       room,
       "project",
+      { reviewId, linkId },
     );
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toMatchObject({

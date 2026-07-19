@@ -19,7 +19,6 @@ import {
   isUpdateAnnotationFragmentInput,
   isUpsertClaimInput,
   demoWorkspaceId,
-  localOwnerId,
   type PdfResource,
   type ProjectAsset,
 } from "../domain/workspace";
@@ -38,6 +37,7 @@ import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { downloadR2Object } from "./r2-download";
 import { handleGitHubWorkspaceSyncApi } from "./github-sync";
 import { handleReviewStudyApi } from "./review-study";
+import { ensureLegacyReviewResource, workspaceStorageKey } from "./reviews";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumImageBytes = 20 * 1024 * 1024;
@@ -67,7 +67,6 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
   const role = await access.getRole(identity.email);
   if (!role) return jsonError("Workspace access denied", 403);
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
-  const reviewStudy = env.REVIEW_STUDIES.getByName(storageKey);
 
   try {
     if (suffix === "/github-sync" || suffix.startsWith("/github-sync/")) {
@@ -75,7 +74,18 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await handleGitHubWorkspaceSyncApi(request, env, identity, room, suffix);
     }
     if (suffix === "/review-study" || suffix.startsWith("/review-study/")) {
-      return await handleReviewStudyApi(request, reviewStudy, identity, suffix, room, workspaceId);
+      const review = await ensureLegacyReviewResource(env, identity, workspaceId);
+      if (!review) return jsonError("Review not found", 404);
+      const activeLink = review.projectLink?.status === "active" ? review.projectLink : null;
+      return await handleReviewStudyApi(
+        request,
+        review.study,
+        identity,
+        suffix,
+        activeLink ? room : undefined,
+        activeLink ? workspaceId : undefined,
+        { reviewId: review.record.id, linkId: activeLink?.id ?? null },
+      );
     }
     if (suffix === "/settings" && request.method === "PATCH") {
       if (role !== "owner") return jsonError("Only the workspace owner can change project settings", 403);
@@ -91,7 +101,22 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     }
     if (suffix === "/settings" && request.method === "DELETE") {
       if (role !== "owner") return jsonError("Only the workspace owner can permanently delete a project", 403);
-      return await permanentlyDeleteWorkspace(workspaceId, room, reviewStudy, access, catalog, env, identity);
+      return await permanentlyDeleteWorkspace(workspaceId, room, access, catalog, env, identity);
+    }
+    if (suffix === "/reviews" && request.method === "GET") {
+      const links = await room.listReviewLinks(workspaceId);
+      const reviews = await Promise.all(
+        links.map(async (link) => {
+          const review = await env.REVIEW_CATALOGS.getByName(identity.ownerKey).getReview(link.reviewId);
+          const reviewRole = review ? await env.REVIEW_ACCESS.getByName(review.locator.storageKey).getRole(identity.email) : null;
+          return {
+            ...link,
+            review: review && reviewRole ? { id: review.id, title: review.title, profile: review.profile, href: review.href } : null,
+            permission: review && reviewRole ? "available" : "review-access-required",
+          };
+        }),
+      );
+      return Response.json(reviews, { headers: { "cache-control": "no-store" } });
     }
     if (suffix === "/" && request.method === "GET") {
       const library = await projectOwnerLibrary(env, access, identity.email);
@@ -362,14 +387,17 @@ async function saveWorkspaceTemplate(
 async function permanentlyDeleteWorkspace(
   workspaceId: string,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
-  reviewStudy: DurableObjectStub<import("../durable-objects/review-study").ReviewStudy>,
   access: DurableObjectStub<import("../durable-objects/workspace-access").WorkspaceAccess>,
   catalog: DurableObjectStub<import("../durable-objects/workspace-catalog").WorkspaceCatalog>,
   env: Env,
   identity: AuthIdentity,
 ): Promise<Response> {
   if (workspaceId === demoWorkspaceId) return jsonError("The demo project cannot be deleted", 409);
-  const [snapshot, members] = await Promise.all([room.getSnapshot(workspaceId), access.listMembers(identity.email)]);
+  const [snapshot, members, reviewLinks] = await Promise.all([
+    room.getSnapshot(workspaceId),
+    access.listMembers(identity.email),
+    room.listReviewLinks(workspaceId),
+  ]);
   const library = await projectOwnerLibrary(env, access, identity.email);
   for (const reference of snapshot.projectReferences) await library.unregisterProjectDependency(workspaceId, reference.referenceId);
   let cursor: string | undefined;
@@ -381,8 +409,13 @@ async function permanentlyDeleteWorkspace(
   const locator = await catalog.getOrCreateShareLocator(workspaceId);
   const publicAccess = env.WORKSPACE_ACCESS.getByName(locator);
   await Promise.all([publicAccess.revokeMappedReadOnlyShare(), publicAccess.revokeMappedEditShare()]);
+  for (const link of reviewLinks) {
+    if (link.status === "active") {
+      await env.REVIEW_ACCESS.getByName(link.reviewAccessLocator).unlinkProjectsForDeletedWorkspace(workspaceId, identity.email);
+    }
+  }
   for (const member of members) await env.WORKSPACE_CATALOGS.getByName(await ownerKeyForEmail(member.email)).removeWorkspace(workspaceId);
-  await Promise.all([room.deleteWorkspaceData(), reviewStudy.deleteReviewData()]);
+  await room.deleteWorkspaceData();
   await access.deleteWorkspaceAccess(identity.email);
   await catalog.removeWorkspace(workspaceId);
   return new Response(null, { status: 204 });
@@ -1175,11 +1208,6 @@ function safeFilename(value: string): string {
   const decoded = decodeURIComponent(value);
   const sanitized = decoded.replaceAll(/[\r\n"/\\]/gu, "-").trim();
   return sanitized.toLowerCase().endsWith(".pdf") ? sanitized : `${sanitized || "paper"}.pdf`;
-}
-
-function workspaceStorageKey(identity: AuthIdentity, workspaceId: string): string {
-  if (workspaceId !== "demo" || identity.ownerKey === localOwnerId) return workspaceId;
-  return `${identity.ownerKey}:demo`;
 }
 
 async function projectOwnerLibrary(

@@ -29,6 +29,11 @@ import type { AuthIdentity } from "../security/auth";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
 
+export interface ReviewStudyApiContext {
+  readonly reviewId: string;
+  readonly linkId: string | null;
+}
+
 export async function handleReviewStudyApi(
   request: Request,
   study: DurableObjectStub<import("../durable-objects/review-study").ReviewStudy>,
@@ -36,6 +41,10 @@ export async function handleReviewStudyApi(
   suffix: string,
   room?: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
   workspaceId?: string,
+  context: ReviewStudyApiContext = {
+    reviewId: "legacy-project-review",
+    linkId: "legacy-project-review-link",
+  },
 ): Promise<Response> {
   if (suffix === "/review-study" && request.method === "GET") {
     return noStore(await study.getSnapshot("slr", identity.email));
@@ -211,8 +220,8 @@ export async function handleReviewStudyApi(
     );
   }
   if (suffix === "/review-study/synthesis/publish" && request.method === "POST") {
-    if (!room || !workspaceId) throw new Error("Project room is unavailable for review publication");
-    const body = await synthesisPublishRequest(request);
+    if (!room || !workspaceId || !context.linkId) throw new Error("Project room is unavailable for review publication");
+    const body = await synthesisPublishRequest(request, context);
     const synthesis = await study.getSynthesisAtRevision(body.reviewRevision, identity.email);
     const blockingDiagnostics = blockingReviewSynthesisDiagnostics(synthesis);
     if (blockingDiagnostics.length > 0) {
@@ -227,19 +236,29 @@ export async function handleReviewStudyApi(
       );
     }
     const definition = reviewSynthesisReportDefinition(synthesis);
-    const content = `<!-- kirjolab-review-artifact definition=${definition.id} definition-revision=${definition.revision} review-revision=${definition.reviewRevision} protocol-revision=${definition.protocolRevision} -->\n${reviewSynthesisMarkdown(synthesis)}`;
+    if (body.analysisDefinitionId !== definition.id) throw new Error("Review analysis definition is unavailable");
+    const content = `<!-- kirjolab-review-artifact review-id=${context.reviewId} link-id=${context.linkId} publication-id=${body.publicationId} definition=${definition.id} definition-revision=${definition.revision} review-revision=${definition.reviewRevision} protocol-revision=${definition.protocolRevision} generator=kirjolab-review-synthesis generator-schema=kirjolab-review-analysis-v1 -->\n${reviewSynthesisMarkdown(synthesis)}`;
     const generatedAt = new Date().toISOString();
     const pin = {
       path: body.path,
+      reviewId: context.reviewId,
+      linkId: context.linkId,
+      publicationId: body.publicationId,
       reviewRevision: definition.reviewRevision,
       protocolRevision: definition.protocolRevision,
       analysisDefinitionId: definition.id,
       analysisDefinitionRevision: definition.revision,
+      generator: "kirjolab-review-synthesis",
+      generatorSchema: "kirjolab-review-analysis-v1",
       digest: await sha256Text(content),
+      publishedBy: identity.email,
       generatedAt,
     };
     const result = await room.upsertReviewArtifact(workspaceId, body.path, content, body.expectedProjectRevision, pin);
-    if (!result.ok) throw new Error(result.error);
+    if (!result.ok) {
+      const status = result.code === "invalid-path" || result.code === "content-too-large" || result.code === "invalid-pin" ? 400 : 409;
+      return Response.json({ code: result.code, error: result.error }, { status, headers: { "cache-control": "no-store" } });
+    }
     return noStore({ path: body.path, directive: `::review-artifact[${body.path}]`, pin, project: result.value });
   }
   if (suffix.startsWith("/review-study/export/") && request.method === "GET") {
@@ -261,8 +280,7 @@ export async function handleReviewStudyApi(
       return download(reviewPrismaSvg(prisma), "image/svg+xml; charset=utf-8", "prisma.svg");
     }
     if (suffix === "/review-study/export/review.zip") {
-      if (!workspaceId) throw new Error("Workspace is unavailable for review export");
-      return binaryDownload(await buildReviewPackage(workspaceId, authority), "application/zip", "review.zip");
+      return binaryDownload(await buildReviewPackage(context.reviewId, authority), "application/zip", "review.zip");
     }
   }
   return Response.json({ error: "Review-study route not found" }, { status: 404 });
@@ -270,7 +288,14 @@ export async function handleReviewStudyApi(
 
 async function synthesisPublishRequest(
   request: Request,
-): Promise<{ expectedProjectRevision: number; reviewRevision: number; path: string }> {
+  context: ReviewStudyApiContext,
+): Promise<{
+  expectedProjectRevision: number;
+  reviewRevision: number;
+  path: string;
+  publicationId: string;
+  analysisDefinitionId: string;
+}> {
   const value: unknown = await request.json();
   if (
     !isRecord(value) ||
@@ -282,11 +307,34 @@ async function synthesisPublishRequest(
   ) {
     throw new Error("Review synthesis publication request is invalid");
   }
-  const path = typeof value.path === "string" ? value.path.trim() : "review/synthesis.md";
+  if (typeof value.projectLinkId === "string" && value.projectLinkId !== context.linkId) {
+    throw new Error("Review publication project link does not match its target");
+  }
+  const artifactId = typeof value.artifactId === "string" ? value.artifactId.trim() : "synthesis";
+  if (!/^[a-z0-9_-]{1,80}$/iu.test(artifactId)) throw new Error("Review publication artifact identity is invalid");
+  const publicationId =
+    typeof value.publicationId === "string" && value.publicationId.trim()
+      ? value.publicationId.trim()
+      : `${context.reviewId}:${artifactId}`;
+  if (publicationId.length > 128 || !/^[a-z0-9:_-]+$/iu.test(publicationId)) {
+    throw new Error("Review publication identity is invalid");
+  }
+  const analysisDefinitionId =
+    typeof value.analysisDefinitionId === "string" && value.analysisDefinitionId.trim()
+      ? value.analysisDefinitionId.trim()
+      : "review-synthesis-report";
+  if (analysisDefinitionId.length > 128) throw new Error("Review analysis definition is invalid");
+  const path = typeof value.path === "string" ? value.path.trim() : `review/${context.reviewId}/${artifactId}.md`;
   if (!/^review\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.md$/iu.test(path) || path.length > 500) {
     throw new Error("Review synthesis path is invalid");
   }
-  return { expectedProjectRevision: value.expectedProjectRevision, reviewRevision: value.reviewRevision, path };
+  return {
+    expectedProjectRevision: value.expectedProjectRevision,
+    reviewRevision: value.reviewRevision,
+    path,
+    publicationId,
+    analysisDefinitionId,
+  };
 }
 
 async function reviewFindingRequest(request: Request): Promise<{ expectedRevision: number; finding: ReviewFindingInput }> {
