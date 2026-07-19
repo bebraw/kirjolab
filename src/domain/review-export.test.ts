@@ -291,7 +291,7 @@ describe("review reproducibility export", () => {
             rightId: "record-2",
             signals: ["title-year"],
             confidence: "probable",
-            status: "not-duplicate",
+            status: "distinct",
             resolvedAt: "2026-07-17T11:15:00.000Z",
             resolvedBy: "lead@example.com",
           },
@@ -326,7 +326,7 @@ describe("review reproducibility export", () => {
           {
             id: "reassessment-open",
             amendmentProtocolRevision: 2,
-            stage: "screening",
+            stage: "title-abstract",
             recordId: null,
             status: "open",
             createdRevision: 7,
