@@ -1338,7 +1338,6 @@ class WorkspaceApp {
     if (!isWorkspaceSnapshot(value)) throw new Error("Project returned an invalid snapshot");
     const snapshot = collaborationSynced(this.#collaborationWorkflow.getSnapshot()) ? this.#resolveSnapshotAnchors(value) : value;
     this.#snapshot = snapshot;
-    await this.#refreshProjectReferencePdfs(false);
     if (!this.#hasBootstrapSnapshot) {
       this.#hasBootstrapSnapshot = true;
       this.#revision = snapshot.revision;
@@ -1352,6 +1351,7 @@ class WorkspaceApp {
     this.#renderProjectFiles();
     this.#renderResources();
     this.#scheduleOfflineSave();
+    await this.#refreshProjectReferencePdfs();
   }
 
   #resolveSnapshotAnchors(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
