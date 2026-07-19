@@ -18,6 +18,7 @@ export const reviewBackupTableNames = [
   "quality_assessment_values",
   "extracted_data_values",
   "review_model_candidates",
+  "review_findings",
 ] as const;
 
 export type ReviewBackupTableName = (typeof reviewBackupTableNames)[number];
