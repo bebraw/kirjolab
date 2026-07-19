@@ -69,8 +69,10 @@ The record above is deliberately synthetic and exists only for this walkthrough.
 
 ## Optional Structured-Review Deep Dive
 
-1. Open the local app and choose **Review study**.
-2. Keep the **Systematic literature review (SLR)** profile.
+1. Open **Reviews**, create a review, and keep the **Systematic literature
+   review (SLR)** profile.
+2. Under **Writing projects**, explicitly link the project that should receive
+   published synthesis artifacts.
 3. Enter the compact protocol below, save it, and choose **Freeze protocol**.
 4. Open **Search**, paste the synthetic BibTeX set, preview it, and confirm the
    immutable run.

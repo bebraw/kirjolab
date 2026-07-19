@@ -196,7 +196,7 @@ Deadline: **July 21, 2026 at 5:00 PM PDT**, or **July 22 at 03:00 EEST**.
 - [x] Add verified GPT-5.6 and qualifying Session ID facts to the submission
       materials.
 - [ ] Paste the completed description into Devpost.
-- [x] Produce ten validated 3:2 project-media images under the 5 MB limit.
+- [x] Produce fifteen validated 3:2 project-media images under the 5 MB limit.
 - [ ] Upload and curate the project-media set in Devpost.
 - [ ] Upload a public YouTube demonstration shorter than three minutes.
 - [x] Draft the timed three-minute demo script and shot plan.
@@ -277,8 +277,9 @@ also returned `200` for the repository, raw README, raw MIT license, and raw
 judge guide. Push any later final corrections before submission.
 
 The prepared Devpost media set is in
-`.generated/build-week-media/upload/`. It contains ten `2880x1920` PNG files,
-each below 650 KB, ordered to tell the integrated research-to-authoring story.
+`.generated/build-week-media/upload/`. It contains fifteen `2880x1920` PNG
+files, each below 700 KB, ordered from the dashboard through authoring,
+evidence, accountless sharing, portable output, and independent reviews.
 Captions are maintained in `.generated/build-week-media/captions.md`. These
 local production artifacts are intentionally excluded from version control and
 still need to be uploaded to Devpost.
