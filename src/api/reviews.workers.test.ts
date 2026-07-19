@@ -5,6 +5,7 @@ import { defaultReviewProtocol } from "../domain/review-study";
 import type { ReviewArtifactPin } from "../domain/workspace";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { ensureLegacyReviewResource, handleReviewsApi, type ReviewProjectLinkView } from "./reviews";
+import { handleWorkspaceApi } from "./workspace";
 
 interface ReviewDetail {
   readonly review: ReviewSummary;
@@ -147,6 +148,72 @@ describe("independent reviews API in the Workers runtime", () => {
     await expect(study.getSnapshot()).resolves.toMatchObject({
       revision: preserved.revision,
       protocol: { objective: "Preserve the existing legacy review data" },
+    });
+  });
+
+  it("deletes a linked project without deleting its independent review", async () => {
+    const owner = await testIdentity("project-deletion-owner");
+    const reviewMember = await testIdentity("project-deletion-review-member");
+    const project = await createProject(owner, "Disposable manuscript");
+    const review = await createReview(owner, "Persistent evidence review", "mlr");
+    const invitation = await handleReviewsApi(
+      jsonRequest(`http://example.com/api/reviews/${review.id}/members`, { email: reviewMember.email }),
+      env,
+      owner,
+    );
+    expect(invitation.status).toBe(201);
+    const link = await linkProject(owner, review.id, project.id);
+
+    const record = await env.REVIEW_CATALOGS.getByName(owner.ownerKey).getReview(review.id);
+    if (!record) throw new Error("Independent review catalog record is unavailable");
+    const study = env.REVIEW_STUDIES.getByName(record.locator.storageKey);
+    const initial = await study.getSnapshot("mlr", owner.email);
+    const preserved = await study.replaceProtocol({
+      expectedRevision: initial.revision,
+      content: {
+        ...defaultReviewProtocol("mlr"),
+        objective: "This review must survive manuscript deletion",
+      },
+      rationale: "Record independent review data",
+      actor: owner.email,
+    });
+
+    const deletion = await handleWorkspaceApi(
+      new Request(`http://example.com/api/workspaces/${project.id}/settings`, { method: "DELETE" }),
+      env,
+      owner,
+    );
+    expect(deletion.status).toBe(204);
+    await expect(env.WORKSPACE_CATALOGS.getByName(owner.ownerKey).getWorkspace(project.id)).resolves.toBeNull();
+
+    const ownerDetail = await handleReviewsApi(new Request(`http://example.com/api/reviews/${review.id}`), env, owner);
+    expect(ownerDetail.status).toBe(200);
+    await expect(responseJson<ReviewDetail>(ownerDetail)).resolves.toMatchObject({
+      review: { id: review.id, title: review.title, profile: "mlr", role: "owner" },
+      members: [
+        { email: owner.email, role: "owner" },
+        { email: reviewMember.email, role: "member" },
+      ],
+      projectLinks: [
+        {
+          id: link.id,
+          workspaceId: project.id,
+          status: "unlinked",
+          unlinkedBy: owner.email,
+          project: null,
+          permission: "project-access-required",
+        },
+      ],
+    });
+    const memberDetail = await handleReviewsApi(new Request(`http://example.com/api/reviews/${review.id}`), env, reviewMember);
+    expect(memberDetail.status).toBe(200);
+    await expect(responseJson<ReviewDetail>(memberDetail)).resolves.toMatchObject({
+      review: { id: review.id, role: "member" },
+      members: expect.arrayContaining([expect.objectContaining({ email: reviewMember.email, role: "member" })]),
+    });
+    await expect(study.getSnapshot()).resolves.toMatchObject({
+      revision: preserved.revision,
+      protocol: { profile: "mlr", objective: "This review must survive manuscript deletion" },
     });
   });
 

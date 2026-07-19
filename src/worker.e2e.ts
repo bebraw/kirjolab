@@ -4643,10 +4643,10 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
 });
 
 test("keeps protocol criteria stable through final review inclusion", async ({ page }) => {
-  const workspaceId = await createWorkspace(page, "Stable review decisions");
-  const api = `/api/workspaces/${workspaceId}`;
+  const reviewId = await createReview(page, "Stable review decisions", "slr");
+  const api = `/api/reviews/${reviewId}`;
 
-  await page.goto(`/review/${workspaceId}`);
+  await page.goto(`/review/${reviewId}`);
   await expect(page.locator("#review-protocol-status")).toContainText("Protocol revision");
   await page.locator("#review-objective").fill("Establish whether explicit workflow gates improve evidence review traceability.");
   await page.locator("#review-questions").fill("How do explicit workflow gates affect traceability?");
@@ -4848,6 +4848,17 @@ async function createWorkspace(page: Page, title: string): Promise<string> {
   const workspace: unknown = await response.json();
   if (!isRecord(workspace) || typeof workspace.id !== "string") throw new Error("Expected a created workspace");
   return workspace.id;
+}
+
+async function createReview(page: Page, title: string, profile: "slr" | "mlr"): Promise<string> {
+  const response = await page.request.post("/api/reviews", {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { title, profile },
+  });
+  expect(response.status()).toBe(201);
+  const review: unknown = await response.json();
+  if (!isRecord(review) || typeof review.id !== "string") throw new Error("Expected a created review");
+  return review.id;
 }
 
 async function readWorkspaceSnapshot(page: Page, api: string) {
