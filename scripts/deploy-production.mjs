@@ -55,7 +55,7 @@ export function productionConfiguration(environment = process.env) {
 export function deployArguments(configuration, dryRun) {
   return [
     "deploy",
-    "--strict",
+    ...(dryRun ? ["--strict"] : []),
     "--minify",
     "--domain",
     configuration.hostname,

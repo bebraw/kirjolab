@@ -60,7 +60,11 @@ npm run deploy
 ```
 
 The command repeats the strict dry run, deploys only after it succeeds, and
-lists deployed versions. Record the release commit and deployed version ID.
+lists deployed versions. The upload is authoritative: it intentionally allows
+Wrangler to replace conflicting Dashboard-managed route metadata after the
+repository-controlled preflight passes. Keep production bindings and routes in
+the repository deployment configuration instead of editing them independently
+in the Dashboard. Record the release commit and deployed version ID.
 
 ## Smoke Checks
 

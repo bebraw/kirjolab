@@ -46,7 +46,7 @@ describe("production deployment preflight", () => {
     expect(() => productionConfiguration({ ...validEnvironment, ...override })).toThrow(message);
   });
 
-  it("builds one complete hosted variable set for strict dry runs and uploads", () => {
+  it("keeps strict checks on dry runs without blocking authoritative uploads", () => {
     const configuration = productionConfiguration(validEnvironment);
     expect(deployArguments(configuration, true)).toEqual([
       "deploy",
@@ -64,7 +64,9 @@ describe("production deployment preflight", () => {
       "CROSSREF_MAILTO:researcher@kirjolab.test",
       "--dry-run",
     ]);
-    expect(deployArguments(configuration, false)).not.toContain("--dry-run");
+    const uploadArguments = deployArguments(configuration, false);
+    expect(uploadArguments).not.toContain("--dry-run");
+    expect(uploadArguments).not.toContain("--strict");
   });
 
   it("disables dotenv discovery for every production Wrangler command", () => {
