@@ -77,17 +77,24 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - On short tablet and desktop viewports, the private PDF rail uses two columns
   for its unchanged touch-sized controls so no tool extends beyond the reader.
   Taller viewports retain the narrower single-column rail.
-- Touch surround swipes and unzoomed, horizontally dominant Mac trackpad
-  gestures change one page at a time. Two-finger pinch gestures scale only the
-  PDF. The fitted page uses the reader's actual content width without exposing
-  a redundant horizontal scrollbar; zoomed pages retain native panning, and pen
-  input updates the active path without rebuilding saved markup.
+- Touch swipes across the fitted page or its surround and unzoomed,
+  horizontally dominant Mac trackpad gestures change one page at a time.
+  Interactive PDF links and saved annotations retain their own gestures.
+  Two-finger pinch gestures scale only the PDF around their midpoint, and
+  trackpad zoom follows the pointer. The fitted page uses the reader's actual
+  content width without exposing a redundant horizontal scrollbar; zoomed
+  pages retain native panning, and pen input updates the active path without
+  rebuilding saved markup.
 - PDF zoom transforms the committed page during active touch or trackpad input.
   Rendering is debounced and buffered offscreen; canvas, text layer, geometry,
   and zoom state commit together only after the complete frame is ready.
+- The active page exposes standard PDF links: internal destinations navigate
+  inside the reader and external URLs open in a protected new tab.
 - The same compact row exposes annotated export only after a private annotation
-  exists. Export downloads an owner-authorized derived copy and does not change
-  the context tab, source artifact, project state, or research-share state.
+  exists. Export saves an owner-authorized derived copy and does not change the
+  context tab, source artifact, project state, or research-share state.
+  Installed iPad web apps use the native file-sharing sheet so the copy can be
+  saved to Files; browser sessions download it normally.
 - A private PDF context exposes whether its reference is linked. Once linked,
   it states that signed-in project members can read the PDF and that public
   links cannot. Highlight sharing and revocation remain separate explicit

@@ -72,6 +72,9 @@ entries.
 - User-facing navigation uses Dashboard, Library, Editor, and Reviews as task
   destinations. Project remains the user-facing resource noun inside the
   editor; `workspace` remains an API, type, and coordination term.
+- A surface does not repeat its destination name as a content heading when the
+  active navigation or context tab already establishes that identity and the
+  content remains unambiguous to assistive technology.
 - Active-destination styling and accessible names identify the current task.
   Compact layouts keep every destination reachable without introducing page
   overflow or obscuring the active task's contextual controls.

@@ -140,6 +140,8 @@ memory and makes citation aliases compete with stable source identity.
   Once a Pencil or mouse stroke owns the surface, accompanying touch events are
   consumed without changing reader scroll until that stroke finishes or is
   cancelled.
+  Note placement is committed only after a stationary pointer gesture ends;
+  movement that becomes a scroll or page swipe cancels the pending note.
   Notes and strokes use normalized page coordinates so they remain aligned when
   the page is resized. Saved annotations are collapsed by default.
 - Saved text-highlight comments and page-note bodies expose an explicit edit
@@ -152,11 +154,18 @@ memory and makes citation aliases compete with stable source identity.
 - At tablet widths, page navigation and annotation tools share one left rail so
   the page retains vertical and horizontal space. Short landscape viewports use
   two columns without shrinking touch targets; taller viewports use one. A
-  horizontal swipe begun in the page surround changes page, while a two-finger
-  gesture zooms the PDF rather than the application. Live ink updates one draft
-  path between saves.
+  horizontal swipe begun on the fitted page or its surround changes page,
+  except when it begins on an interactive PDF link or saved annotation. A
+  two-finger gesture zooms the PDF rather than the application, anchored at the
+  pinch midpoint; trackpad zoom is anchored at the pointer. Live ink updates
+  one draft path between saves.
+- The active PDF page exposes standard PDF link annotations. Internal
+  destinations stay in the reader and restore the destination page and
+  position; external URLs open in a protected new tab.
 - Once the PDF has a saved text highlight, page note, or drawing, **Export
-  annotated** downloads a derived PDF without changing the stored source.
+  annotated** saves a derived PDF without changing the stored source. Installed
+  iPad web apps share a real PDF file through the native sheet so **Save to
+  Files** is available; ordinary browser sessions retain download behavior.
   Freehand strokes are flattened at their normalized page coordinates. Page
   notes become interactive sticky-note annotations with popup contents; text
   highlights with geometry become one standard multi-quad PDF highlight

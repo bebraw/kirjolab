@@ -10,6 +10,10 @@ export function createTwoPageEvidencePdf(): Buffer {
   return createPdf(["First page keeps its reading position.", "Second page verifies restored PDF context."]);
 }
 
+export function createLinkedEvidencePdf(): Buffer {
+  return createPdf(["Open the linked section or external source.", "Internal destination reached."], undefined, false, true);
+}
+
 export function createMetadataEvidencePdf(): Buffer {
   return createPdf(["Reviewed paper DOI 10.5555/metadata.review"], {
     Title: "Metadata Review in Practice",
@@ -18,16 +22,17 @@ export function createMetadataEvidencePdf(): Buffer {
   });
 }
 
-function createPdf(pageTexts: string[], information?: Readonly<Record<string, string>>, highlighted = false): Buffer {
+function createPdf(pageTexts: string[], information?: Readonly<Record<string, string>>, highlighted = false, linked = false): Buffer {
   const pageIds = pageTexts.map((_, index) => 3 + index);
   const fontId = 3 + pageTexts.length;
   const contentIds = pageTexts.map((_, index) => fontId + 1 + index);
+  const firstAnnotationId = (contentIds.at(-1) ?? fontId) + 1;
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageTexts.length} >>`,
     ...contentIds.map(
-      (contentId) =>
-        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`,
+      (contentId, index) =>
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R${linked && index === 0 ? ` /Annots [${firstAnnotationId} 0 R ${firstAnnotationId + 1} 0 R]` : ""} >>`,
     ),
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     ...pageTexts.map((text) => {
@@ -35,6 +40,12 @@ function createPdf(pageTexts: string[], information?: Readonly<Record<string, st
       const content = `${highlight}BT /F1 18 Tf 72 700 Td (${text}) Tj ET`;
       return `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`;
     }),
+    ...(linked
+      ? [
+          `<< /Type /Annot /Subtype /Link /Rect [68 680 290 725] /Border [0 0 0] /Dest [${pageIds[1]} 0 R /Fit] >>`,
+          "<< /Type /Annot /Subtype /Link /Rect [300 680 520 725] /Border [0 0 0] /A << /S /URI /URI (https://example.com/source) >> >>",
+        ]
+      : []),
   ];
   const informationId = information ? objects.length + 1 : null;
   if (information) {

@@ -33,6 +33,10 @@ identity and downstream work.
 - Trackpad and touch pinch zoom transform the current page immediately, then
   debounce rendering and atomically replace the live canvas and text layer only
   after the new frame is complete.
+- Trackpad zoom remains anchored at the pointer and touch pinch zoom remains
+  anchored at the gesture midpoint through the committed render.
+- A pending page note becomes an annotation only after a stationary tap ends;
+  scroll and swipe movement cancel it.
 - Updating a stroke advances annotation version and project history without
   mutating imported PDF bytes.
 - Citation, claim, and manuscript-link actions remain separate from annotation
@@ -57,6 +61,8 @@ identity and downstream work.
       without capturing vertical scroll or zoomed-page panning.
 - [x] Mac trackpad pinch zoom keeps the previous page frame visible until its
       replacement is ready.
+- [x] Trackpad and touch zoom preserve their pointer or pinch-midpoint origin.
+- [x] Fitted-page swipes turn pages without creating notes during navigation.
 - [x] Pure, Workers-runtime, and browser tests cover adjustment.
 
 ### Regression Guardrails

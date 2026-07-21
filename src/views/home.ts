@@ -401,8 +401,7 @@ export function renderHomePage(
 
         <section class="context-panel context-library-panel" id="context-library-panel" role="tabpanel" aria-labelledby="context-library-tab" tabindex="0" hidden>
           <div class="context-library-scroll p-5" id="context-library-scroll">
-            <header class="library-header">
-              <h2 title="Private references and research material">Library</h2>
+            <header class="library-header" aria-label="Library actions">
               <details class="action-menu library-add-menu ui-menu" data-action-menu>
                 <summary class="button-primary">Add reference</summary>
                 <div class="library-menu library-add-reference-menu ui-menu-panel">
@@ -623,6 +622,7 @@ export function renderHomePage(
             <div class="pdf-reader" id="paper-reader">
               <div class="pdf-page" id="paper-page">
                 <canvas class="block" id="paper-canvas"></canvas>
+                <div class="pdf-links" id="paper-links" aria-label="PDF links"></div>
                 <div class="pdf-highlights" id="paper-highlights"></div>
                 <div class="textLayer" id="paper-text-layer"></div>
                 <div class="pdf-markups" id="paper-markups" data-tool="text" aria-label="Private PDF annotations"></div>

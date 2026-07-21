@@ -4,6 +4,7 @@ import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
 import {
   createEvidencePdf,
   createHighlightedEvidencePdf,
+  createLinkedEvidencePdf,
   createMetadataEvidencePdf,
   createTwoPageEvidencePdf,
 } from "./test-support/pdf-fixture";
@@ -142,6 +143,17 @@ async function selectLocalModel(page: Page, model: string): Promise<void> {
 
 test("imports, annotates, and exports a private PDF without a project", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
+    Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (data: ShareData) => {
+        const file = data.files?.[0];
+        sessionStorage.setItem("shared-pdf", JSON.stringify(file ? { name: file.name, size: file.size, type: file.type } : null));
+      },
+    });
+  });
   const workspaceRequests: string[] = [];
   page.on("request", (request) => {
     const pathname = new URL(request.url()).pathname;
@@ -260,15 +272,35 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator("#library-highlight-list")).toContainText("Student feedback");
   await expect(page.locator("#export-library-annotated-pdf")).toBeEnabled();
-  const annotatedDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export annotated" }).click();
-  await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("student_submission-annotated.pdf");
+  await expect(page.locator("#toast")).toHaveText("Choose Save to Files to keep the annotated PDF.");
+  await expect
+    .poll(async () => JSON.parse((await page.evaluate(() => sessionStorage.getItem("shared-pdf"))) ?? "null"))
+    .toMatchObject({ name: "student_submission-annotated.pdf", type: "application/pdf" });
   await page.getByRole("button", { name: "Close student_submission.pdf" }).click();
   await expect(page).toHaveURL(/\/library$/u);
   await expect(page.locator("header #context-library-tab")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#context-library-panel")).toBeVisible();
   await expect(page.locator("#context-assistant-panel")).toBeHidden();
   expect(workspaceRequests).toEqual([]);
+});
+
+test("follows internal and external links from the active PDF page", async ({ page }) => {
+  await page.goto("/library");
+  await page.locator("#library-pdf-upload").setInputFiles({
+    name: "linked-reading.pdf",
+    mimeType: "application/pdf",
+    buffer: createLinkedEvidencePdf(),
+  });
+  const linkedPdf = page.locator("#reference-library-list .library-reference-row").filter({ hasText: /linked reading/iu });
+  await linkedPdf.getByRole("button", { name: "PDF", exact: true }).click();
+
+  await expect(page.locator("#paper-links .pdf-link")).toHaveCount(2);
+  const external = page.getByRole("link", { name: "Open PDF link: https://example.com/source" });
+  await expect(external).toHaveAttribute("target", "_blank");
+  await expect(external).toHaveAttribute("rel", "noopener noreferrer nofollow");
+  await page.getByRole("link", { name: "Follow link within PDF" }).click();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
 });
 
 test("creates, rotates, and revokes a read-only project link", async ({ page }) => {
@@ -897,7 +929,7 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
       return fits ? [] : [control.textContent?.trim() ?? control.tagName];
     });
     return {
-      pageOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      pageOverflows: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) > window.innerWidth,
       clippedControls,
       rowCount: new Set(
         [...toolbar.querySelectorAll(":scope > .editor-toolbar-group")]
@@ -1754,6 +1786,15 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: -70, deltaY: 4, deltaMode: 0 });
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.locator("#paper-text-layer").evaluate((layer) => {
+    const startTouch = new Touch({ identifier: 9, target: layer, clientX: 220, clientY: 120 });
+    layer.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] }));
+    const endTouch = new Touch({ identifier: 9, target: layer, clientX: 130, clientY: 125 });
+    layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [endTouch], touches: [] }));
+  });
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.locator("#previous-paper-page").click();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected private PDF text");
     const range = document.createRange();
@@ -1807,6 +1848,15 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.locator("#cancel-library-highlight").click();
 
   await page.getByRole("button", { name: "Note", exact: true }).click();
+  await page.locator("#paper-markups").evaluate((layer) => {
+    const rect = layer.getBoundingClientRect();
+    const start = { bubbles: true, pointerId: 70, clientX: rect.left + rect.width * 0.6, clientY: rect.top + rect.height * 0.25 };
+    layer.dispatchEvent(new PointerEvent("pointerdown", start));
+    layer.dispatchEvent(new PointerEvent("pointermove", { ...start, clientY: start.clientY + 40 }));
+    layer.dispatchEvent(new PointerEvent("pointerup", { ...start, clientY: start.clientY + 40 }));
+  });
+  await expect(page.locator("#paper-markups .pdf-note-pin[data-draft='true']")).toHaveCount(0);
+  await expect(page.locator("#library-note-form")).toBeHidden();
   await page.locator("#paper-markups").evaluate((layer) => {
     const rect = layer.getBoundingClientRect();
     const event = { bubbles: true, pointerId: 71, clientX: rect.left + rect.width * 0.7, clientY: rect.top + rect.height * 0.25 };

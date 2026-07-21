@@ -2103,11 +2103,8 @@
     gap: 1rem;
   }
 
-  .library-header h2 {
-    color: var(--color-app-ink);
-    font-size: 1.35rem;
-    font-weight: 600;
-    letter-spacing: -0.035em;
+  .library-header .library-add-menu {
+    margin-left: auto;
   }
 
   .library-menu {
@@ -4418,10 +4415,28 @@
   }
 
   .pdf-highlights,
+  .pdf-links,
   .pdf-markups,
   .textLayer {
     position: absolute;
     inset: 0;
+  }
+
+  .pdf-links {
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .pdf-link {
+    position: absolute;
+    border-radius: 0.1rem;
+    pointer-events: auto;
+  }
+
+  .pdf-link:is(:hover, :focus-visible) {
+    outline: 2px solid var(--color-app-accent);
+    outline-offset: 1px;
+    background: color-mix(in srgb, var(--color-app-accent) 12%, transparent);
   }
 
   .pdf-markups {

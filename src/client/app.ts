@@ -636,6 +636,7 @@ interface Elements {
   paperStatus: HTMLElement;
   paperCanvas: HTMLCanvasElement;
   paperPage: HTMLElement;
+  paperLinks: HTMLElement;
   paperTextLayer: HTMLElement;
   paperHighlights: HTMLElement;
   paperMarkups: HTMLElement;
@@ -825,6 +826,7 @@ class WorkspaceApp {
         reader: this.#elements.paperReader,
         canvas: this.#elements.paperCanvas,
         page: this.#elements.paperPage,
+        links: this.#elements.paperLinks,
         textLayer: this.#elements.paperTextLayer,
         highlights: this.#elements.paperHighlights,
         pageIndicators: [this.#elements.paperPageIndicator, this.#elements.libraryPaperPageIndicator],
@@ -1239,7 +1241,7 @@ class WorkspaceApp {
     this.#elements.libraryNoteForm.addEventListener("submit", (event) => void this.#saveLibraryPdfNote(event));
     this.#elements.cancelLibraryNote.addEventListener("click", () => this.#clearLibraryPdfNoteDraft());
     this.#elements.undoLibraryDrawing.addEventListener("click", () => void this.#undoLibraryDrawing());
-    this.#elements.exportLibraryAnnotatedPdf.addEventListener("click", () => this.#downloadAnnotatedPdf());
+    this.#elements.exportLibraryAnnotatedPdf.addEventListener("click", () => void this.#downloadAnnotatedPdf());
     this.#elements.paperMarkups.addEventListener("pointerdown", (event) => this.#startLibraryPdfMarkup(event));
     this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfDrawing(event));
     this.#elements.paperMarkups.addEventListener("pointerup", (event) => void this.#finishLibraryPdfDrawing(event));
@@ -9142,11 +9144,14 @@ class WorkspaceApp {
     const point = this.#normalizedPdfPoint(event);
     if (!point) return;
     if (this.#libraryPdfTool() === "note") {
-      this.#pdfAnnotation.send({ type: "PLACE_NOTE", page: this.#pdfViewer.currentPage, point });
-      this.#elements.libraryNoteForm.hidden = false;
-      this.#setLibraryPdfInspector(true);
-      this.#renderPdfMarkups();
-      this.#elements.libraryNoteBody.focus();
+      this.#pdfAnnotation.send({
+        type: "START_NOTE_PRESS",
+        pointerId: event.pointerId,
+        page: this.#pdfViewer.currentPage,
+        point,
+        x: event.clientX,
+        y: event.clientY,
+      });
       return;
     }
     if (this.#libraryPdfTool() !== "draw") return;
@@ -9162,6 +9167,11 @@ class WorkspaceApp {
   }
 
   #continueLibraryPdfDrawing(event: PointerEvent): void {
+    const notePress = this.#pdfAnnotationSnapshot().context.notePress;
+    if (notePress?.pointerId === event.pointerId) {
+      this.#pdfAnnotation.send({ type: "MOVE_NOTE_PRESS", pointerId: event.pointerId, x: event.clientX, y: event.clientY });
+      return;
+    }
     const drag = this.#pdfNoteDrag();
     if (drag?.pointerId === event.pointerId) {
       const point = this.#normalizedPdfPoint(event);
@@ -9196,6 +9206,15 @@ class WorkspaceApp {
   }
 
   async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {
+    if (this.#pdfAnnotationSnapshot().context.notePress?.pointerId === event.pointerId) {
+      this.#pdfAnnotation.send({ type: "FINISH_NOTE_PRESS", pointerId: event.pointerId });
+      if (this.#pdfAnnotationSnapshot().value !== "composingNote") return;
+      this.#elements.libraryNoteForm.hidden = false;
+      this.#setLibraryPdfInspector(true);
+      this.#renderPdfMarkups();
+      this.#elements.libraryNoteBody.focus();
+      return;
+    }
     if (this.#pdfNoteDrag()?.pointerId === event.pointerId) {
       await this.#finishLibraryPdfNoteDrag(event);
       return;
@@ -9501,12 +9520,29 @@ class WorkspaceApp {
     this.#showToast("Private annotation deleted.");
   }
 
-  #downloadAnnotatedPdf(): void {
+  async #downloadAnnotatedPdf(): Promise<void> {
     const artifact = this.#activeLibraryPdf();
     if (!artifact) return;
+    const url = `/api/library/pdfs/${encodeURIComponent(artifact.id)}/annotated`;
+    const filename = artifact.name.replace(/\.pdf$/iu, "") + "-annotated.pdf";
+    if (installedWebApp() && typeof navigator.share === "function") {
+      try {
+        const response = await fetch(url, { credentials: "same-origin" });
+        await expectOk(response);
+        const file = new File([await response.blob()], filename, { type: "application/pdf" });
+        if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+          this.#showToast("Choose Save to Files to keep the annotated PDF.");
+          await navigator.share({ files: [file], title: filename });
+          return;
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        this.#showToast("Could not open the file saver. Downloading instead.");
+      }
+    }
     const link = document.createElement("a");
-    link.href = `/api/library/pdfs/${encodeURIComponent(artifact.id)}/annotated`;
-    link.download = artifact.name.replace(/\.pdf$/iu, "") + "-annotated.pdf";
+    link.href = url;
+    link.download = filename;
     link.click();
     this.#showToast("Preparing annotated PDF…");
   }
@@ -10436,6 +10472,7 @@ function collectElements(): Elements {
     paperStatus: requiredElement("paper-status", HTMLElement),
     paperCanvas: requiredElement("paper-canvas", HTMLCanvasElement),
     paperPage: requiredElement("paper-page", HTMLElement),
+    paperLinks: requiredElement("paper-links", HTMLElement),
     paperTextLayer: requiredElement("paper-text-layer", HTMLElement),
     paperHighlights: requiredElement("paper-highlights", HTMLElement),
     paperMarkups: requiredElement("paper-markups", HTMLElement),
@@ -10993,6 +11030,11 @@ function readIdentityEmail(): string {
 
 function readAppMode(): "workspace" | "library" {
   return document.body.dataset.appMode === "library" ? "library" : "workspace";
+}
+
+function installedWebApp(): boolean {
+  const iosNavigator = navigator as Navigator & { readonly standalone?: boolean };
+  return window.matchMedia("(display-mode: standalone)").matches || iosNavigator.standalone === true;
 }
 
 class WorkspaceAccessError extends Error {}

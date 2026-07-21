@@ -23,18 +23,38 @@ export interface PdfAnnotationNoteDrag {
   readonly moved: boolean;
 }
 
+export interface PdfAnnotationNotePress {
+  readonly pointerId: number;
+  readonly page: number;
+  readonly point: LibraryPdfPoint;
+  readonly startX: number;
+  readonly startY: number;
+  readonly moved: boolean;
+}
+
 interface PdfAnnotationContext {
   readonly selectedHighlightId: string | null;
   readonly selectedMarkupId: string | null;
   readonly note: PdfAnnotationNoteDraft | null;
   readonly drawing: PdfAnnotationDrawingDraft | null;
   readonly noteDrag: PdfAnnotationNoteDrag | null;
+  readonly notePress: PdfAnnotationNotePress | null;
 }
 
 type PdfAnnotationEvent =
   | { readonly type: "CHOOSE_TOOL"; readonly tool: PdfAnnotationTool }
   | { readonly type: "RESET" }
   | { readonly type: "PLACE_NOTE"; readonly page: number; readonly point: LibraryPdfPoint }
+  | {
+      readonly type: "START_NOTE_PRESS";
+      readonly pointerId: number;
+      readonly page: number;
+      readonly point: LibraryPdfPoint;
+      readonly x: number;
+      readonly y: number;
+    }
+  | { readonly type: "MOVE_NOTE_PRESS"; readonly pointerId: number; readonly x: number; readonly y: number }
+  | { readonly type: "FINISH_NOTE_PRESS"; readonly pointerId: number }
   | { readonly type: "EDIT_NOTE"; readonly id: string; readonly page: number; readonly point: LibraryPdfPoint }
   | { readonly type: "CANCEL_NOTE" }
   | { readonly type: "NOTE_SAVED" }
@@ -55,6 +75,7 @@ const initialContext: PdfAnnotationContext = {
   note: null,
   drawing: null,
   noteDrag: null,
+  notePress: null,
 };
 
 export const pdfAnnotationMachine = setup({
@@ -70,6 +91,14 @@ export const pdfAnnotationMachine = setup({
     usesNotePointer: ({ context, event }) => {
       assertEvent(event, ["MOVE_NOTE_DRAG", "FINISH_NOTE_DRAG"]);
       return context.noteDrag?.pointerId === event.pointerId;
+    },
+    usesNotePress: ({ context, event }) => {
+      assertEvent(event, ["MOVE_NOTE_PRESS", "FINISH_NOTE_PRESS"]);
+      return context.notePress?.pointerId === event.pointerId;
+    },
+    finishesStationaryNotePress: ({ context, event }) => {
+      assertEvent(event, "FINISH_NOTE_PRESS");
+      return context.notePress?.pointerId === event.pointerId && !context.notePress.moved;
     },
   },
   actions: {
@@ -89,6 +118,34 @@ export const pdfAnnotationMachine = setup({
       };
     }),
     clearNote: assign({ note: null }),
+    startNotePress: assign(({ event }) => {
+      assertEvent(event, "START_NOTE_PRESS");
+      return {
+        notePress: {
+          pointerId: event.pointerId,
+          page: event.page,
+          point: event.point,
+          startX: event.x,
+          startY: event.y,
+          moved: false,
+        },
+      };
+    }),
+    moveNotePress: assign(({ context, event }) => {
+      assertEvent(event, "MOVE_NOTE_PRESS");
+      if (!context.notePress) return {};
+      return {
+        notePress: {
+          ...context.notePress,
+          moved: context.notePress.moved || Math.hypot(event.x - context.notePress.startX, event.y - context.notePress.startY) > 8,
+        },
+      };
+    }),
+    placePressedNote: assign(({ context }) => ({
+      note: context.notePress ? { page: context.notePress.page, ...context.notePress.point, editingId: null } : null,
+      notePress: null,
+    })),
+    clearNotePress: assign({ notePress: null }),
     selectHighlight: assign(({ event }) => {
       assertEvent(event, "SELECT_HIGHLIGHT");
       return { selectedHighlightId: event.id, selectedMarkupId: null };
@@ -168,6 +225,17 @@ export const pdfAnnotationMachine = setup({
     noteIdle: {
       on: {
         PLACE_NOTE: { target: "composingNote", actions: "placeNote" },
+        START_NOTE_PRESS: { target: "pressingNote", actions: "startNotePress" },
+      },
+    },
+    pressingNote: {
+      on: {
+        MOVE_NOTE_PRESS: { guard: "usesNotePress", actions: "moveNotePress" },
+        FINISH_NOTE_PRESS: [
+          { guard: "finishesStationaryNotePress", target: "composingNote", actions: "placePressedNote" },
+          { guard: "usesNotePress", target: "noteIdle", actions: "clearNotePress" },
+        ],
+        CANCEL_POINTER: { target: "noteIdle", actions: "clearNotePress" },
       },
     },
     composingNote: {
@@ -200,6 +268,6 @@ export function createPdfAnnotationActor(): PdfAnnotationActor {
 
 export function pdfAnnotationTool(snapshot: PdfAnnotationSnapshot): PdfAnnotationTool {
   if (snapshot.value === "selectIdle" || snapshot.value === "draggingNote" || snapshot.value === "editingNote") return "select";
-  if (snapshot.value === "noteIdle" || snapshot.value === "composingNote") return "note";
+  if (snapshot.value === "noteIdle" || snapshot.value === "pressingNote" || snapshot.value === "composingNote") return "note";
   return snapshot.value === "drawIdle" || snapshot.value === "drawing" ? "draw" : "text";
 }

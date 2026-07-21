@@ -176,6 +176,7 @@ No accepted ADRs are awaiting implementation.
 | [ADR-145](./implemented/ADR-145-add-experimental-native-figures.md)                       | Implemented          | Add a bounded native figure syntax with deterministic sanitized preview rendering.                            |
 | [ADR-157](./implemented/ADR-157-project-metadata-suggestions-into-the-editor.md)          | Implemented          | Project reviewed PDF and provider suggestions beneath the corresponding metadata inputs.                      |
 | [ADR-158](./implemented/ADR-158-cache-metadata-previews-in-library-memory.md)             | Implemented          | Reuse bounded metadata previews briefly in owner-scoped server memory while preserving acceptance refetch.    |
+| [ADR-159](./implemented/ADR-159-render-pdf-links-in-the-active-page.md)                   | Implemented          | Render standard PDF links without adopting the complete PDF.js viewer application.                            |
 
 ## Creating A New ADR
 
