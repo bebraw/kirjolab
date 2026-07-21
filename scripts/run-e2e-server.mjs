@@ -13,6 +13,8 @@ const wrangler = spawn(
     "127.0.0.1",
     "--port",
     "8788",
+    "--var",
+    "AUTH_MODE:local",
     "--inspector-ip",
     "127.0.0.1",
     "--inspector-port",

@@ -5,12 +5,12 @@
   "compatibility_date": "2026-06-18",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "AUTH_MODE": "local",
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": "",
+    "AUTH_MODE": "access",
+    "ACCESS_TEAM_DOMAIN": "https://survivejs.cloudflareaccess.com",
+    "ACCESS_AUD": "312f732f4a74d422f56b4c8a39b8da4883245a93b72b61eb8e9c890cbb4f4a90",
     "CROSSREF_MAILTO": "",
     "GITHUB_APP_ID": "4313375",
-    "GITHUB_APP_CLIENT_ID": "",
+    "GITHUB_APP_CLIENT_ID": "Iv23liaAOSbgwDC77xsz",
     "GITHUB_APP_SLUG": "kirjolab-sync-bebraw",
   },
   "build": {
