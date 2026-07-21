@@ -2356,6 +2356,71 @@
     padding: 0.75rem 0.5rem 0.25rem;
   }
 
+  .library-metadata-suggestions:empty {
+    display: none;
+  }
+
+  .library-metadata-suggestion {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    gap: 0.45rem;
+    border-right: 1px solid var(--color-app-line);
+    border-bottom: 1px solid var(--color-app-line);
+    border-left: 2px solid var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+    padding: 0.45rem 0.55rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+
+  .library-metadata-suggestion:first-child {
+    border-top: 1px solid var(--color-app-line);
+  }
+
+  .library-metadata-suggestion input[type="checkbox"] {
+    margin-top: 0.15rem;
+    accent-color: var(--color-app-accent-strong);
+  }
+
+  .library-metadata-suggestion-label {
+    flex: none;
+    color: var(--color-app-accent-strong);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .library-metadata-suggestion-source {
+    max-width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--color-app-accent-strong);
+    font: inherit;
+    font-weight: 800;
+  }
+
+  .library-metadata-suggestion-value {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--color-app-text);
+  }
+
+  .library-metadata-refinement {
+    margin-top: 0.75rem;
+    border-top: 1px solid var(--color-app-line);
+    padding-top: 0.75rem;
+  }
+
+  .library-metadata-refinement-actions + .library-metadata-refinement-actions {
+    margin-top: 0.75rem;
+    border-top: 1px solid var(--color-app-line);
+    padding-top: 0.75rem;
+  }
+
   @media (max-width: 40rem) {
     .library-filter-fields {
       grid-template-columns: minmax(0, 1fr);

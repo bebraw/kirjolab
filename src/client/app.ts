@@ -204,6 +204,11 @@ import {
   type IncludeCompletionContext,
 } from "./include-completions";
 
+interface MetadataRefinementTargets {
+  readonly suggestions: ReadonlyMap<CrossrefMetadataField, HTMLElement>;
+  readonly panel: HTMLElement;
+}
+
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
 const appMode = readAppMode();
@@ -4609,6 +4614,7 @@ class WorkspaceApp {
     metadataEditor.append(metadataBody);
     const fieldPrefix = `library-reference-${reference.id}`;
     const metadataFields = new Map<string, HTMLInputElement | HTMLTextAreaElement>();
+    const metadataSuggestions = new Map<CrossrefMetadataField, HTMLElement>();
     for (const [name, value] of [
       ["type", reference.type],
       ["title", reference.title],
@@ -4626,20 +4632,52 @@ class WorkspaceApp {
       input.placeholder = name;
       input.setAttribute("aria-label", `${name} for ${displayTitle}`);
       metadataFields.set(name, input);
-      metadataBody.append(input);
+      const field = document.createElement("div");
+      field.className = "library-metadata-field mt-2";
+      const suggestions = document.createElement("div");
+      suggestions.className = "library-metadata-suggestions";
+      suggestions.setAttribute("aria-live", "polite");
+      metadataSuggestions.set(name, suggestions);
+      field.append(input, suggestions);
+      metadataBody.append(field);
     }
     const abstract = document.createElement("textarea");
-    abstract.className = "field mt-2 min-h-20";
+    abstract.className = "field min-h-20";
     abstract.id = `${fieldPrefix}-abstract`;
     abstract.name = "abstract";
     abstract.value = reference.abstract;
     abstract.placeholder = "abstract";
     abstract.setAttribute("aria-label", `Abstract for ${displayTitle}`);
     metadataFields.set("abstract", abstract);
-    metadataBody.append(
-      abstract,
-      actionButton("Save details", "button-primary mt-2", () => void this.#saveReferenceMetadata(reference.id, metadataFields)),
+    const abstractField = document.createElement("div");
+    abstractField.className = "library-metadata-field mt-2";
+    const abstractSuggestions = document.createElement("div");
+    abstractSuggestions.className = "library-metadata-suggestions";
+    abstractSuggestions.setAttribute("aria-live", "polite");
+    metadataSuggestions.set("abstract", abstractSuggestions);
+    abstractField.append(abstract, abstractSuggestions);
+    const metadataRefinementPanel = document.createElement("section");
+    metadataRefinementPanel.className = "library-metadata-refinement hidden";
+    metadataRefinementPanel.setAttribute("aria-live", "polite");
+    const refinementTargets: MetadataRefinementTargets = {
+      suggestions: metadataSuggestions,
+      panel: metadataRefinementPanel,
+    };
+    const metadataActions = document.createElement("div");
+    metadataActions.className = "mt-2 flex flex-wrap gap-2";
+    metadataActions.append(
+      actionButton("Save details", "button-primary", () => void this.#saveReferenceMetadata(reference.id, metadataFields)),
     );
+    if (primaryArtifact) {
+      metadataActions.append(
+        actionButton(
+          "Refine metadata",
+          "button-secondary",
+          () => void this.#refinePdfMetadata(reference, primaryArtifact, refinementTargets),
+        ),
+      );
+    }
+    metadataBody.append(abstractField, metadataRefinementPanel, metadataActions);
     const tags = document.createElement("input");
     tags.className = "field mt-3";
     tags.id = `${fieldPrefix}-tags`;
@@ -4745,13 +4783,18 @@ class WorkspaceApp {
       for (const value of ["private", "unknown", "shareable"] as const) rights.append(new Option(`Rights: ${value}`, value));
       rights.value = artifact.rights;
       rights.addEventListener("change", () => void this.#setArtifactRights(artifact.id, rights.value));
-      const review = document.createElement("section");
-      review.className = "hidden mt-3 border-t border-app-line pt-3";
       row.append(
         actionButton("Open PDF", "button-secondary mt-2", () => void this.#openLibraryPdf(artifact)),
         rights,
-        actionButton("Refine metadata", "button-secondary mt-2", () => void this.#refinePdfMetadata(reference, artifact, review)),
-        review,
+        ...(artifact.id === primaryArtifact?.id
+          ? []
+          : [
+              actionButton(
+                "Refine from this PDF",
+                "button-secondary mt-2",
+                () => void this.#refinePdfMetadata(reference, artifact, refinementTargets),
+              ),
+            ]),
       );
       resources.append(row);
     }
@@ -5032,16 +5075,24 @@ class WorkspaceApp {
     card.focus({ preventScroll: true });
   }
 
-  async #refinePdfMetadata(reference: BibliographicRecord, artifact: LibraryPdfArtifact, container: HTMLElement): Promise<void> {
+  async #refinePdfMetadata(
+    reference: BibliographicRecord,
+    artifact: LibraryPdfArtifact,
+    targets: MetadataRefinementTargets,
+  ): Promise<void> {
     this.#metadataRefinement.send({ type: "START", referenceId: reference.id, artifactId: artifact.id });
     const requestId = this.#metadataRefinement.getSnapshot().context.requestId;
-    container.classList.remove("hidden");
-    container.replaceChildren(resourceLabel("Refine metadata"), statusText("Step 1 of 2 · Reading embedded metadata and opening pages…"));
+    for (const suggestions of targets.suggestions.values()) suggestions.replaceChildren();
+    targets.panel.classList.remove("hidden");
+    targets.panel.replaceChildren(
+      resourceLabel("Refine metadata"),
+      statusText("Step 1 of 2 · Reading embedded metadata and opening pages…"),
+    );
     try {
       const candidates = await extractPdfMetadata(`/api/library/pdfs/${encodeURIComponent(artifact.id)}`);
       this.#metadataRefinement.send({ type: "LOCAL_READY", requestId, local: candidates });
       if (!this.#metadataRefinement.getSnapshot().matches("discovering")) return;
-      container.replaceChildren(resourceLabel("Refine metadata"), statusText("Step 2 of 2 · Searching scholarly metadata…"));
+      targets.panel.replaceChildren(resourceLabel("Refine metadata"), statusText("Step 2 of 2 · Searching scholarly metadata…"));
       try {
         const response = await jsonFetch(`/api/library/references/${encodeURIComponent(reference.id)}/metadata-refinement/preview`, {
           artifactId: artifact.id,
@@ -5057,7 +5108,7 @@ class WorkspaceApp {
         if (!isMetadataRefinementPreview(preview)) throw new Error("Metadata providers returned an invalid preview");
         this.#metadataRefinement.send({ type: "DISCOVERY_READY", requestId, preview });
         if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
-        this.#renderMetadataRefinement(reference, artifact, candidates, preview, container);
+        this.#renderMetadataRefinement(reference, artifact, candidates, preview, targets);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Provider lookup failed.";
         this.#metadataRefinement.send({ type: "DISCOVERY_FAILED", requestId, message });
@@ -5067,7 +5118,7 @@ class WorkspaceApp {
           artifact,
           candidates,
           { referenceId: reference.id, artifactId: artifact.id, candidates: [] },
-          container,
+          targets,
           message,
         );
       }
@@ -5075,7 +5126,7 @@ class WorkspaceApp {
       const message = error instanceof Error ? `Metadata could not be refined: ${error.message}` : "Metadata could not be refined.";
       this.#metadataRefinement.send({ type: "FAIL", requestId, message });
       if (!this.#metadataRefinement.getSnapshot().matches("failed")) return;
-      container.replaceChildren(resourceLabel("Refine metadata"), statusText(message));
+      targets.panel.replaceChildren(resourceLabel("Refine metadata"), statusText(message));
     }
   }
 
@@ -5084,18 +5135,19 @@ class WorkspaceApp {
     artifact: LibraryPdfArtifact,
     local: PdfMetadataCandidates,
     preview: MetadataRefinementPreview,
-    container: HTMLElement,
+    targets: MetadataRefinementTargets,
     providerError = "",
   ): void {
-    container.replaceChildren(
+    for (const suggestions of targets.suggestions.values()) suggestions.replaceChildren();
+    targets.panel.replaceChildren(
       resourceLabel(`Refine metadata · ${local.pagesScanned} PDF page${local.pagesScanned === 1 ? "" : "s"} scanned`),
     );
     const localSection = document.createElement("section");
-    localSection.className = "mt-3 border-t border-app-line pt-3";
-    this.#renderPdfMetadataReview(reference, artifact, local, localSection);
-    container.append(localSection);
+    localSection.className = "library-metadata-refinement-actions";
+    this.#renderPdfMetadataReview(reference, artifact, local, targets.suggestions, localSection);
+    targets.panel.append(localSection);
     const providerSection = document.createElement("section");
-    providerSection.className = "mt-3 border-t border-app-line pt-3";
+    providerSection.className = "library-metadata-refinement-actions";
     providerSection.append(resourceLabel("Scholarly metadata matches"));
     if (preview.candidates.length === 0) {
       providerSection.append(
@@ -5105,7 +5157,7 @@ class WorkspaceApp {
             : "No provider matches were found. You can still apply the PDF suggestions or edit details manually.",
         ),
       );
-      container.append(providerSection);
+      targets.panel.append(providerSection);
       return;
     }
     const groups = groupMetadataCandidates(preview.candidates);
@@ -5120,19 +5172,23 @@ class WorkspaceApp {
     }
     const comparison = document.createElement("div");
     const renderSelected = (): void => {
+      for (const suggestions of targets.suggestions.values()) {
+        for (const item of suggestions.querySelectorAll('[data-metadata-suggestion="provider"]')) item.remove();
+      }
       const group = groups[Number(workSelect.value)];
-      if (group) this.#renderProviderMetadataReview(reference, group.candidates, comparison);
+      if (group) this.#renderProviderMetadataReview(reference, group.candidates, targets.suggestions, comparison);
     };
     workSelect.addEventListener("change", renderSelected);
     if (groups.length > 1) providerSection.append(workSelect);
     providerSection.append(comparison);
-    container.append(providerSection);
+    targets.panel.append(providerSection);
     renderSelected();
   }
 
   #renderProviderMetadataReview(
     reference: BibliographicRecord,
     candidates: readonly MetadataRefinementCandidate[],
+    suggestions: ReadonlyMap<CrossrefMetadataField, HTMLElement>,
     container: HTMLElement,
   ): void {
     const doi = candidates[0]?.metadata.doi ?? "";
@@ -5147,31 +5203,27 @@ class WorkspaceApp {
       });
       if (options.length === 0) continue;
       const row = document.createElement("div");
-      row.className = "mt-2 grid gap-1 border-t border-app-line pt-2 text-xs sm:grid-cols-[8rem_minmax(0,1fr)]";
-      const name = document.createElement("span");
-      name.className = "font-medium capitalize";
-      name.textContent = field;
-      const choice = document.createElement("span");
+      row.className = "library-metadata-suggestion";
+      row.dataset.metadataSuggestion = "provider";
+      const choice = document.createElement("div");
+      choice.className = "min-w-0 flex-1";
       const source = document.createElement("select");
-      source.className = "field py-1.5";
-      source.setAttribute("aria-label", `Source for ${field}`);
+      source.className = "library-metadata-suggestion-source";
+      source.setAttribute("aria-label", `Suggested source for ${field}`);
       source.append(new Option("Keep current", ""));
       for (const option of options) source.append(new Option(scholarlyProviderLabel(option.candidate.provider), String(option.index)));
       source.value = String(options[0]!.index);
       const value = document.createElement("span");
-      value.className = "mt-1 block break-words text-app-text";
-      const existing = document.createElement("span");
-      existing.className = "mt-1 block break-words text-app-text-soft";
-      existing.textContent = `Current: ${current || "—"}`;
+      value.className = "library-metadata-suggestion-value";
       const renderValue = (): void => {
         const candidate = source.value ? candidates[Number(source.value)] : undefined;
         value.textContent = candidate ? metadataFieldValue(candidate.metadata, field) : current || "—";
       };
       source.addEventListener("change", renderValue);
       renderValue();
-      choice.append(source, value, existing);
-      row.append(name, choice);
-      container.append(row);
+      choice.append(source, value);
+      row.append(choice);
+      suggestions.get(field)?.append(row);
       selected.set(field, source);
     }
     if (selected.size === 0) {
@@ -5242,38 +5294,35 @@ class WorkspaceApp {
     reference: BibliographicRecord,
     artifact: LibraryPdfArtifact,
     candidates: PdfMetadataCandidates,
+    suggestions: ReadonlyMap<CrossrefMetadataField, HTMLElement>,
     container: HTMLElement,
   ): void {
-    container.replaceChildren(
-      resourceLabel(`PDF metadata · ${candidates.pagesScanned} page${candidates.pagesScanned === 1 ? "" : "s"} scanned`),
-    );
+    container.replaceChildren(resourceLabel("PDF suggestions"));
     const rows = [
       ["title", candidates.title, reference.title],
       ["authors", candidates.authors.join("; "), reference.authors.join("; ")],
       ["year", candidates.year, reference.year],
       ["doi", candidates.doi, reference.doi],
     ] as const;
-    const selections = new Map<(typeof rows)[number][0], { checkbox: HTMLInputElement; input: HTMLInputElement }>();
+    const selections = new Map<(typeof rows)[number][0], { checkbox: HTMLInputElement; value: string }>();
     for (const [field, suggested, current] of rows) {
       if (!suggested || suggested === current) continue;
       const label = document.createElement("label");
-      label.className = "mt-2 grid grid-cols-[auto_1fr] items-start gap-2 text-xs";
+      label.className = "library-metadata-suggestion";
+      label.dataset.metadataSuggestion = "pdf";
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = true;
-      checkbox.className = "mt-3";
-      const content = document.createElement("span");
-      const caption = document.createElement("span");
-      caption.className = "block text-app-text-soft";
-      caption.textContent = `${field}${current ? ` · current: ${current}` : ""}`;
-      const input = document.createElement("input");
-      input.className = "field mt-1";
-      input.value = suggested;
-      input.maxLength = field === "title" ? 2_000 : field === "authors" ? 19_200 : 500;
-      content.append(caption, input);
-      label.append(checkbox, content);
-      container.append(label);
-      selections.set(field, { checkbox, input });
+      checkbox.setAttribute("aria-label", `Use PDF suggestion for ${field}`);
+      const source = document.createElement("span");
+      source.className = "library-metadata-suggestion-label";
+      source.textContent = "PDF";
+      const value = document.createElement("span");
+      value.className = "library-metadata-suggestion-value";
+      value.textContent = suggested;
+      label.append(checkbox, source, value);
+      suggestions.get(field)?.append(label);
+      selections.set(field, { checkbox, value: suggested });
     }
     for (const diagnostic of candidates.diagnostics) container.append(statusText(diagnostic));
     if (selections.size === 0) {
@@ -5292,18 +5341,18 @@ class WorkspaceApp {
   async #applyPdfMetadata(
     referenceId: string,
     artifactId: string,
-    selections: ReadonlyMap<string, { checkbox: HTMLInputElement; input: HTMLInputElement }>,
+    selections: ReadonlyMap<string, { checkbox: HTMLInputElement; value: string }>,
   ): Promise<void> {
     const fields: Record<string, string | string[]> = {};
     for (const [field, selection] of selections) {
       if (!selection.checkbox.checked) continue;
       fields[field] =
         field === "authors"
-          ? selection.input.value
+          ? selection.value
               .split(";")
               .map((value) => value.trim())
               .filter(Boolean)
-          : selection.input.value.trim();
+          : selection.value.trim();
     }
     if (Object.keys(fields).length === 0) {
       this.#showToast("Select at least one PDF metadata field to apply.");

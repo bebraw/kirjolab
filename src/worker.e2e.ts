@@ -2173,9 +2173,12 @@ test("reviews bounded PDF metadata before enriching a library record", async ({ 
     });
   });
   await draft.getByRole("button", { name: "Refine metadata" }).click();
-  await expect
-    .poll(async () => await draft.locator("input").evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value)))
-    .toEqual(expect.arrayContaining(["Metadata Review in Practice", "Doe, Jane; Roe, Alex", "2025", "10.5555/metadata.review"]));
+  await expect(draft.getByLabel("title for metadata review")).toHaveValue("metadata review");
+  await expect(draft.locator('[data-metadata-suggestion="pdf"]')).toHaveCount(4);
+  await expect(draft.getByLabel("Use PDF suggestion for title").locator("..")).toContainText("Metadata Review in Practice");
+  await expect(draft.getByLabel("Use PDF suggestion for authors").locator("..")).toContainText("Doe, Jane; Roe, Alex");
+  await expect(draft.getByLabel("Use PDF suggestion for year").locator("..")).toContainText("2025");
+  await expect(draft.getByLabel("Use PDF suggestion for doi").locator("..")).toContainText("10.5555/metadata.review");
 
   await draft.getByRole("button", { name: "Apply selected metadata" }).click();
   const enriched = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Metadata Review in Practice" });
@@ -2261,9 +2264,10 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
   await card.getByRole("button", { name: "Refine metadata" }).click();
   await expect(card).toContainText("compare OpenAlex, Crossref");
   await expect(card).toContainText("OpenAlex reviewed title");
-  await expect(card).toContainText("Current: provider review");
-  await card.getByLabel("Source for authors").selectOption({ label: "Crossref" });
-  await card.getByLabel("Source for venue").selectOption({ label: "Crossref" });
+  await expect(card.getByLabel("title for provider review")).toHaveValue("provider review");
+  await expect(card.locator('[data-metadata-suggestion="provider"]')).toHaveCount(8);
+  await card.getByLabel("Suggested source for authors").selectOption({ label: "Crossref" });
+  await card.getByLabel("Suggested source for venue").selectOption({ label: "Crossref" });
   await card.getByRole("button", { name: "Apply from 2 sources" }).click();
   await expect(page.locator("#toast")).toHaveText("Scholarly metadata applied with field-level provenance.");
   expect(acceptedSelections).toEqual([

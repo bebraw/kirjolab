@@ -174,6 +174,7 @@ No accepted ADRs are awaiting implementation.
 | [ADR-141](./implemented/ADR-141-import-latex-as-reviewed-markdown.md)                     | Implemented          | Convert bounded LaTeX archives on the server into reviewed canonical Markdown projects.                       |
 | [ADR-142](./implemented/ADR-142-preserve-tikz-until-isolated-rendering.md)                | Partially superseded | Preserve unsupported TikZ source until a separately approved isolated renderer exists.                        |
 | [ADR-145](./implemented/ADR-145-add-experimental-native-figures.md)                       | Implemented          | Add a bounded native figure syntax with deterministic sanitized preview rendering.                            |
+| [ADR-157](./implemented/ADR-157-project-metadata-suggestions-into-the-editor.md)          | Implemented          | Project reviewed PDF and provider suggestions beneath the corresponding metadata inputs.                      |
 
 ## Creating A New ADR
 

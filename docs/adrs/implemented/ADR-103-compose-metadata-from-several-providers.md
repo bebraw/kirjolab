@@ -1,6 +1,6 @@
 # ADR-103: Compose Metadata from Several Providers
 
-**Status:** Implemented
+**Status:** Partially superseded by [ADR-157](./ADR-157-project-metadata-suggestions-into-the-editor.md)
 
 **Date:** 2026-07-14
 

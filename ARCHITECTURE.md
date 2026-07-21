@@ -187,6 +187,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Extract PDF metadata only as bounded, browser-local suggestions. Apply
   canonical library changes per field after the library authority verifies the
   artifact/reference relationship; never change the immutable reference key.
+- Project reviewed metadata alternatives beneath their corresponding canonical
+  editor inputs, but keep manual save, PDF acceptance, and provider acceptance
+  as explicit provenance-preserving operations.
 - Enrich DOI-backed library records only through a non-mutating provider preview
   and fingerprint-verified refetch. Group records by normalized DOI before
   field review, never mix different works, and apply selections from one or

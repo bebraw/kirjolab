@@ -28,9 +28,11 @@ enough to overwrite canonical metadata without review.
   Scholar complement it. Provider-specific records are retained so several
   sources for one DOI can contribute fields. A preview contains at most twelve
   bounded candidates.
-- The inline result separates editable PDF suggestions from scholarly records.
-  It groups scholarly records by normalized DOI, requires one work group, and
-  offers a compact source selector for every differing field.
+- The existing metadata editor is the only field surface. PDF suggestions and
+  scholarly alternatives render directly beneath their corresponding inputs;
+  compact review actions remain separated by trust boundary. Scholarly records
+  are grouped by normalized DOI, require one work group, and offer a source
+  selector for every differing field.
 - Provider preview is non-mutating. Acceptance sends one to four provider, DOI,
   selected-field, and SHA-256 fingerprint selections rather than trusted
   metadata. A field may occur in only one selection.
@@ -89,6 +91,8 @@ enough to overwrite canonical metadata without review.
 - [x] Configured OpenAlex runs first and configured Semantic Scholar runs last.
 - [x] DOI-less PDFs receive at most twelve provider-specific matches grouped by DOI.
 - [x] Work, per-field source, and field selection precede any provider mutation.
+- [x] Suggestions appear beside the original metadata inputs instead of in a
+      duplicate review form.
 - [x] Acceptance refetches and verifies provider metadata before applying it.
 - [x] Fields from several providers apply atomically with distinct provenance.
 - [x] Selected fields retain provider-specific provenance across durable storage.
@@ -130,6 +134,12 @@ enough to overwrite canonical metadata without review.
 - Given: OpenAlex, Crossref, and DataCite return different useful fields for one DOI
 - When: the researcher chooses a source independently for each field and applies the review
 - Then: Kirjolab refetches every selected source and commits all chosen values once with field-level provenance
+
+**Scenario: Suggestions are reviewed in context**
+
+- Given: a PDF and one or more providers suggest changes to several fields
+- When: the researcher refines metadata from the details form
+- Then: every alternative appears beneath its original input while PDF and provider acceptance retain their separate provenance boundaries
 
 **Scenario: Provider lookup is unavailable**
 
