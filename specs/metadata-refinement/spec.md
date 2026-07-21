@@ -17,6 +17,11 @@ enough to overwrite canonical metadata without review.
   only transient candidates, preview data, errors, and request generation;
   PDF.js, provider requests, canonical metadata, and DOM elements remain
   outside the actor.
+- The owner-scoped Reference Library Durable Object may reuse at most sixteen
+  provider previews for five minutes, keyed by reference, artifact, effective
+  bounded lookup hints, and enabled providers. The cache exists only in Durable
+  Object memory, disappears on eviction, and is invalidated after any accepted
+  or manually saved bibliographic change.
 - The authorized browser first runs the existing bounded PDF.js extraction and
   keeps the PDF bytes and extracted page text local.
 - The browser sends only the linked artifact id and bounded bibliographic hints
@@ -80,6 +85,8 @@ enough to overwrite canonical metadata without review.
   multi-provider review, merge duplicate records, or move private research as a
   refinement side effect.
 - Do not persist ephemeral candidate lists or change finalized reference keys.
+- Do not let a preview cache bypass provider refetch, fingerprint verification,
+  DOI conflict checks, or field-level review.
 
 ## Contract
 
@@ -93,6 +100,8 @@ enough to overwrite canonical metadata without review.
 - [x] Work, per-field source, and field selection precede any provider mutation.
 - [x] Suggestions appear beside the original metadata inputs instead of in a
       duplicate review form.
+- [x] Repeated refinement can reuse one bounded five-minute server preview
+      without weakening acceptance verification.
 - [x] Acceptance refetches and verifies provider metadata before applying it.
 - [x] Fields from several providers apply atomically with distinct provenance.
 - [x] Selected fields retain provider-specific provenance across durable storage.
@@ -140,6 +149,12 @@ enough to overwrite canonical metadata without review.
 - Given: a PDF and one or more providers suggest changes to several fields
 - When: the researcher refines metadata from the details form
 - Then: every alternative appears beneath its original input while PDF and provider acceptance retain their separate provenance boundaries
+
+**Scenario: A recent preview is reused**
+
+- Given: the same reference, PDF, and effective lookup hints were previewed less than five minutes ago
+- When: the researcher starts refinement again while the owner library object remains active
+- Then: Kirjolab reuses the owner-scoped server preview but refetches every selected provider if the researcher accepts it
 
 **Scenario: Provider lookup is unavailable**
 

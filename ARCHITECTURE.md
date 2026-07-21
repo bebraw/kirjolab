@@ -190,6 +190,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Project reviewed metadata alternatives beneath their corresponding canonical
   editor inputs, but keep manual save, PDF acceptance, and provider acceptance
   as explicit provenance-preserving operations.
+- Keep provider-preview reuse bounded, short-lived, owner-scoped, and ephemeral
+  in Reference Library Durable Object memory. Never let cached preview data
+  bypass acceptance-time provider refetch or fingerprint verification.
 - Enrich DOI-backed library records only through a non-mutating provider preview
   and fingerprint-verified refetch. Group records by normalized DOI before
   field review, never mix different works, and apply selections from one or

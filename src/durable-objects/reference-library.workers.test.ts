@@ -5,6 +5,35 @@ import type { LibraryPdfArtifact, WebCaptureRegistration } from "../domain/refer
 import { ReferenceLibrary } from "./reference-library";
 
 describe("ReferenceLibrary in the Workers runtime", () => {
+  it("bounds ephemeral metadata previews and invalidates them after a metadata change", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`metadata-preview-cache-${crypto.randomUUID()}`);
+    const [imported] = await library.importBibTeX("@manual{guide, title={Cached Guide}}", "owner@example.test");
+    const reference = imported!.reference;
+    const preview = { referenceId: reference.id, artifactId: "artifact-id", candidates: [] } as const;
+
+    for (let index = 0; index < 17; index += 1) {
+      await library.cacheMetadataRefinementPreview(`cache-${index}`, preview);
+    }
+    expect(await library.getMetadataRefinementPreview("cache-0")).toBeNull();
+    expect(await library.getMetadataRefinementPreview("cache-16")).toEqual(preview);
+
+    await library.updateReferenceMetadata(
+      reference.id,
+      {
+        type: reference.type,
+        title: "Updated Guide",
+        authors: reference.authors,
+        year: reference.year,
+        venue: reference.venue,
+        doi: reference.doi,
+        url: reference.url,
+        abstract: reference.abstract,
+      },
+      "owner@example.test",
+    );
+    expect(await library.getMetadataRefinementPreview("cache-16")).toBeNull();
+  });
+
   it("keeps one private stable record with field provenance and reusable research state", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`library-${crypto.randomUUID()}`);
     const first = await library.importBibTeX(

@@ -14,6 +14,7 @@ import {
   libraryPdfRectsOverlap,
   crossrefMetadataFields,
   isCrossrefMetadata,
+  isMetadataRefinementPreview,
   memorableReferenceKey,
   mergeLibraryHighlightQuote,
   mergeLibraryPdfRects,
@@ -31,6 +32,7 @@ import {
   type LibraryPdfNote,
   type LibraryPdfPoint,
   type MetadataFieldProvenance,
+  type MetadataRefinementPreview,
   type PdfDraftResult,
   type ReadingState,
   type ReviewedPdfMetadata,
@@ -46,6 +48,14 @@ import {
 } from "../domain/reference-library";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
+
+const metadataPreviewCacheTtlMilliseconds = 5 * 60 * 1_000;
+const maximumMetadataPreviewCacheEntries = 16;
+
+interface MetadataPreviewCacheEntry {
+  readonly preview: MetadataRefinementPreview;
+  readonly expiresAt: number;
+}
 
 interface ReferenceRow extends Record<string, SqlStorageValue> {
   id: string;
@@ -505,6 +515,8 @@ const migrations = [
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
+  readonly #metadataPreviewCache = new Map<string, MetadataPreviewCacheEntry>();
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
@@ -1311,6 +1323,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const next: BibliographicRecord = { ...current, ...fields, provenance, updatedAt };
     if (!next.title.trim() || !next.type.trim()) throw new Error("Reference type and title are required");
     this.#writeEnrichedReference(next);
+    this.#invalidateMetadataRefinementPreviews(referenceId);
     return this.#reference(referenceId);
   }
 
@@ -1341,6 +1354,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const next = { ...current, ...normalized, provenance, updatedAt };
     if (!next.title.trim()) throw new Error("Reference title is required");
     this.#writeEnrichedReference(next);
+    this.#invalidateMetadataRefinementPreviews(referenceId);
     return this.#reference(referenceId);
   }
 
@@ -1349,6 +1363,34 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const row = this.ctx.storage.sql.exec<ArtifactRow>("SELECT * FROM artifacts WHERE id = ?", artifactId).toArray()[0];
     if (!row || row.reference_id !== referenceId) throw new Error("PDF artifact does not belong to this reference");
     return { reference, artifact: artifactFromRow(row) };
+  }
+
+  getMetadataRefinementPreview(cacheKey: string): MetadataRefinementPreview | null {
+    if (!cacheKey || cacheKey.length > 20_000) return null;
+    const entry = this.#metadataPreviewCache.get(cacheKey);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+      this.#metadataPreviewCache.delete(cacheKey);
+      return null;
+    }
+    return entry.preview;
+  }
+
+  cacheMetadataRefinementPreview(cacheKey: string, preview: MetadataRefinementPreview): void {
+    if (!cacheKey || cacheKey.length > 20_000 || !isMetadataRefinementPreview(preview)) {
+      throw new Error("Metadata refinement preview cache entry is invalid");
+    }
+    const now = Date.now();
+    for (const [key, entry] of this.#metadataPreviewCache) {
+      if (entry.expiresAt <= now) this.#metadataPreviewCache.delete(key);
+    }
+    this.#metadataPreviewCache.delete(cacheKey);
+    while (this.#metadataPreviewCache.size >= maximumMetadataPreviewCacheEntries) {
+      const oldestKey = this.#metadataPreviewCache.keys().next().value;
+      if (oldestKey === undefined) break;
+      this.#metadataPreviewCache.delete(oldestKey);
+    }
+    this.#metadataPreviewCache.set(cacheKey, { preview, expiresAt: now + metadataPreviewCacheTtlMilliseconds });
   }
 
   applyReviewedCrossrefMetadata(
@@ -1442,6 +1484,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const next: BibliographicRecord = { ...current, ...selected, provenance, updatedAt };
     if (!next.title.trim() || !next.type.trim()) throw new Error("Reference type and title are required");
     this.#writeEnrichedReference(next);
+    this.#invalidateMetadataRefinementPreviews(referenceId);
     return this.#reference(referenceId);
   }
 
@@ -1676,6 +1719,12 @@ export class ReferenceLibrary extends DurableObject<Env> {
     const referenceKeyState = referenceKeyStateFromRow(row);
     const next = referenceKeyState === "provisional" ? { ...reference, referenceKey: this.#allocateReferenceKey(reference) } : reference;
     this.#writeReference(next, likelyReferenceIdentity(next), false, referenceKeyState);
+  }
+
+  #invalidateMetadataRefinementPreviews(referenceId: string): void {
+    for (const [key, entry] of this.#metadataPreviewCache) {
+      if (entry.preview.referenceId === referenceId) this.#metadataPreviewCache.delete(key);
+    }
   }
 
   #reference(referenceId: string, includeDeleted = false): BibliographicRecord {

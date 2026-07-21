@@ -2250,8 +2250,15 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
       },
     ],
   };
+  let previewRequests = 0;
   await page.route("**/api/library/references/*/metadata-refinement/preview", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(preview) });
+    previewRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "x-kirjolab-metadata-cache": previewRequests === 1 ? "miss" : "hit" },
+      body: JSON.stringify(preview),
+    });
   });
   let acceptedSelections: unknown;
   await page.route("**/api/library/references/*/metadata-refinement/accept", async (route) => {
@@ -2266,6 +2273,9 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
   await expect(card).toContainText("OpenAlex reviewed title");
   await expect(card.getByLabel("title for provider review")).toHaveValue("provider review");
   await expect(card.locator('[data-metadata-suggestion="provider"]')).toHaveCount(8);
+  await card.getByRole("button", { name: "Refine metadata" }).click();
+  await expect(card).toContainText("Recent preview reused");
+  expect(previewRequests).toBe(2);
   await card.getByLabel("Suggested source for authors").selectOption({ label: "Crossref" });
   await card.getByLabel("Suggested source for venue").selectOption({ label: "Crossref" });
   await card.getByRole("button", { name: "Apply from 2 sources" }).click();

@@ -5108,7 +5108,15 @@ class WorkspaceApp {
         if (!isMetadataRefinementPreview(preview)) throw new Error("Metadata providers returned an invalid preview");
         this.#metadataRefinement.send({ type: "DISCOVERY_READY", requestId, preview });
         if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
-        this.#renderMetadataRefinement(reference, artifact, candidates, preview, targets);
+        this.#renderMetadataRefinement(
+          reference,
+          artifact,
+          candidates,
+          preview,
+          targets,
+          "",
+          response.headers.get("x-kirjolab-metadata-cache") === "hit",
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : "Provider lookup failed.";
         this.#metadataRefinement.send({ type: "DISCOVERY_FAILED", requestId, message });
@@ -5137,6 +5145,7 @@ class WorkspaceApp {
     preview: MetadataRefinementPreview,
     targets: MetadataRefinementTargets,
     providerError = "",
+    reusedPreview = false,
   ): void {
     for (const suggestions of targets.suggestions.values()) suggestions.replaceChildren();
     targets.panel.replaceChildren(
@@ -5149,6 +5158,7 @@ class WorkspaceApp {
     const providerSection = document.createElement("section");
     providerSection.className = "library-metadata-refinement-actions";
     providerSection.append(resourceLabel("Scholarly metadata matches"));
+    if (reusedPreview) providerSection.append(statusText("Recent preview reused · sources will be verified again before acceptance."));
     if (preview.candidates.length === 0) {
       providerSection.append(
         statusText(

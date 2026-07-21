@@ -17,6 +17,7 @@ import {
   type LibraryPdfMarkup,
   type LibraryPdfNote,
   type LibraryPdfPoint,
+  type MetadataRefinementPreview,
   type PdfDraftResult,
   type ReadingState,
   type ReferenceLibrarySnapshot,
@@ -111,6 +112,8 @@ interface ReferenceLibraryApi {
     actor: string,
   ): Promise<BibliographicRecord>;
   getPdfMetadataContext(referenceId: string, artifactId: string): Promise<{ reference: BibliographicRecord; artifact: LibraryPdfArtifact }>;
+  getMetadataRefinementPreview(cacheKey: string): Promise<MetadataRefinementPreview | null>;
+  cacheMetadataRefinementPreview(cacheKey: string, preview: MetadataRefinementPreview): Promise<void>;
   setTags(referenceId: string, tags: readonly string[]): Promise<readonly string[]>;
   setCollections(referenceId: string, collections: readonly string[]): Promise<readonly string[]>;
   createNote(referenceId: string, body: string): Promise<LibraryNote>;
@@ -579,6 +582,13 @@ async function previewMetadataRefinement(
   const body: unknown = await request.json();
   if (!isMetadataRefinementPreviewInput(body)) return jsonError("Invalid metadata refinement preview", 400);
   const { reference } = await library.getPdfMetadataContext(referenceId, body.artifactId);
+  const cacheKey = metadataRefinementPreviewCacheKey(reference, body.artifactId, body.candidates, env);
+  const cached = await library.getMetadataRefinementPreview(cacheKey);
+  if (cached) {
+    return Response.json(cached, {
+      headers: { "cache-control": "no-store", "x-kirjolab-metadata-cache": "hit" },
+    });
+  }
   const query = {
     title: body.candidates.title?.trim() || reference.title,
     authors: body.candidates.authors ?? reference.authors,
@@ -600,7 +610,11 @@ async function previewMetadataRefinement(
       };
     }),
   );
-  return Response.json({ referenceId, artifactId: body.artifactId, candidates }, noStore());
+  const preview: MetadataRefinementPreview = { referenceId, artifactId: body.artifactId, candidates };
+  await library.cacheMetadataRefinementPreview(cacheKey, preview);
+  return Response.json(preview, {
+    headers: { "cache-control": "no-store", "x-kirjolab-metadata-cache": "miss" },
+  });
 }
 
 async function acceptMetadataRefinement(
@@ -642,6 +656,29 @@ async function acceptMetadataRefinement(
       : library.applyReviewedProviderMetadataBatch(referenceId, selections, identity.email),
   );
   return Response.json(updated, noStore());
+}
+
+function metadataRefinementPreviewCacheKey(
+  reference: BibliographicRecord,
+  artifactId: string,
+  candidates: ReviewedPdfMetadata,
+  env: ReferenceLibraryApiEnv,
+): string {
+  return JSON.stringify({
+    version: 1,
+    referenceId: reference.id,
+    artifactId,
+    title: candidates.title?.trim() || reference.title.trim(),
+    authors: (candidates.authors?.length ? candidates.authors : reference.authors).map((author) => author.trim()),
+    year: candidates.year?.trim() || reference.year.trim(),
+    doi: normalizeDoi(candidates.doi?.trim() || reference.doi),
+    providers: {
+      openalex: Boolean(env.OPENALEX_API_KEY?.trim()),
+      crossref: true,
+      datacite: true,
+      semanticScholar: Boolean(env.SEMANTIC_SCHOLAR_API_KEY?.trim()),
+    },
+  });
 }
 
 async function doiMetadataProviders(

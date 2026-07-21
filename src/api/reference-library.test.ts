@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { unzipSync } from "fflate";
 import { PDFDocument } from "pdf-lib";
 import type { CitationAssertion, CitationNetwork } from "../domain/citation-assertions";
-import type { BibliographicRecord, LibraryHighlight, ReferenceLibrarySnapshot, WebSnapshot } from "../domain/reference-library";
+import type {
+  BibliographicRecord,
+  LibraryHighlight,
+  MetadataRefinementPreview,
+  ReferenceLibrarySnapshot,
+  WebSnapshot,
+} from "../domain/reference-library";
 import type { AuthIdentity } from "../security/auth";
 import { handleReferenceLibraryApi } from "./reference-library";
 
@@ -1060,6 +1066,19 @@ describe("reference library API", () => {
       ["semantic-scholar", "10.5555/semantic"],
     ]);
     expect(fetchExternal).toHaveBeenCalledTimes(3);
+
+    const cachedResponse = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/metadata-refinement/preview`, {
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        candidates: { title: "Evidence", authors: ["Doe, Jane"], year: "2026" },
+      }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    expect(cachedResponse.headers.get("x-kirjolab-metadata-cache")).toBe("hit");
+    expect(fetchExternal).toHaveBeenCalledTimes(3);
+    expect(fixture.library.cacheMetadataRefinementPreview).toHaveBeenCalledTimes(1);
   });
 
   it("refetches and atomically applies fields selected from several providers", async () => {
@@ -1342,6 +1361,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     rights: "private",
     createdAt: now,
   } as const;
+  const metadataPreviewCache = new Map<string, MetadataRefinementPreview>();
   const library = {
     getSnapshot: vi.fn(async () => snapshot),
     importBibTeX: vi.fn(async () => [{ reference, suggestedAlias: "guide", created: true }]),
@@ -1356,6 +1376,10 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     applyReviewedProviderMetadata: vi.fn(async () => ({ ...reference, title: "Provider title", updatedAt: now })),
     applyReviewedProviderMetadataBatch: vi.fn(async () => ({ ...reference, title: "Combined provider title", updatedAt: now })),
     getPdfMetadataContext: vi.fn(async () => ({ reference, artifact })),
+    getMetadataRefinementPreview: vi.fn(async (cacheKey: string) => metadataPreviewCache.get(cacheKey) ?? null),
+    cacheMetadataRefinementPreview: vi.fn(async (cacheKey: string, preview: MetadataRefinementPreview) => {
+      metadataPreviewCache.set(cacheKey, preview);
+    }),
     setTags: vi.fn(async (_referenceId: string, tags: readonly string[]) => tags),
     setCollections: vi.fn(async (_referenceId: string, collections: readonly string[]) => collections),
     createNote: vi.fn(async (referenceId: string, body: string) => ({ id: "note", referenceId, body, createdAt: now, updatedAt: now })),
