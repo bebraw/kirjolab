@@ -184,11 +184,8 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (shareResponse) return shareResponse;
     const resourceResponse = await handleWorkspaceResourceRoutes(context);
     if (resourceResponse) return resourceResponse;
-    if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
-    if (suffix.startsWith("/annotations/") && ["POST", "PUT", "DELETE"].includes(request.method)) {
-      return await mutateAnnotation(request, suffix, room);
-    }
-    if (suffix === "/annotation-links" && request.method === "POST") return await createAnnotationLink(request, room);
+    const annotationRouteResponse = await handleWorkspaceAnnotationRoutes(context);
+    if (annotationRouteResponse) return annotationRouteResponse;
     const researchResponse = await handleWorkspaceResearchRoutes(context);
     if (researchResponse) return researchResponse;
     const publicationResponse = await handleWorkspacePublicationRoutes(context);
@@ -354,6 +351,16 @@ async function handleWorkspaceFolderRoutes(context: WorkspaceRouteContext): Prom
   if (suffix.startsWith("/folders/") && (request.method === "PATCH" || request.method === "DELETE")) {
     return await mutateProjectFolder(request, workspaceId, suffix, room);
   }
+  return null;
+}
+
+async function handleWorkspaceAnnotationRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, room } = context;
+  if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
+  if (suffix.startsWith("/annotations/") && ["POST", "PUT", "DELETE"].includes(request.method)) {
+    return await mutateAnnotation(request, suffix, room);
+  }
+  if (suffix === "/annotation-links" && request.method === "POST") return await createAnnotationLink(request, room);
   return null;
 }
 
