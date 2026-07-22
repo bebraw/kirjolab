@@ -1524,7 +1524,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       async (
         _sourceId: string,
         metadata: import("../domain/reference-library").CrossrefMetadata,
-        source: import("../domain/citation-expansion").CitationCandidateSource,
+        source: import("../domain/citation-expansion-types").CitationCandidateSource,
       ) => ({
         reference: { ...reference, id: citationAssertion.citedReferenceId, ...metadata },
         created: true,

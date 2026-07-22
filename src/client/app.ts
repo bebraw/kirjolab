@@ -8,12 +8,9 @@ import {
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
 import { isCitationNetwork, type CitationAssertionView, type CitationNetwork } from "../domain/citation-assertions";
-import {
-  isCitationCandidateAcceptance,
-  isCitationExpansionResult,
-  type CitationExpansionCandidate,
-  type CitationExpansionResult,
-} from "../domain/citation-expansion";
+import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
+import { isCitationExpansionResult } from "../domain/citation-expansion";
+import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
 import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import {

@@ -8,7 +8,7 @@ import {
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
-import type { CitationCandidateAcceptance, CitationCandidateSource } from "../domain/citation-expansion";
+import type { CitationCandidateAcceptance, CitationCandidateSource } from "../domain/citation-expansion-types";
 import {
   likelyReferenceIdentity,
   libraryPdfRectsOverlap,

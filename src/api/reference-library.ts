@@ -40,11 +40,8 @@ import {
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
-import {
-  isAcceptCitationCandidateInput,
-  type CitationCandidateAcceptance,
-  type CitationCandidateSource,
-} from "../domain/citation-expansion";
+import { type CitationCandidateAcceptance, type CitationCandidateSource } from "../domain/citation-expansion-types";
+import { isAcceptCitationCandidateInput } from "../domain/citation-expansion-acceptance";
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
 import { normalizeDoi, parseBibTeX } from "../domain/bibliography";
 import { isValidDoi } from "../domain/publication-intake";

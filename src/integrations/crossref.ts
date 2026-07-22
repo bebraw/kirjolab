@@ -2,7 +2,7 @@ import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
 import type { PublicationEnrichment } from "../domain/workspace";
 import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
-import type { CitationExpansionCandidate } from "../domain/citation-expansion";
+import type { CitationExpansionCandidate } from "../domain/citation-expansion-types";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
