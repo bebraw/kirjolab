@@ -124,18 +124,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (publicationResponse) return publicationResponse;
     const evidenceResponse = await handleWorkspaceEvidenceRoutes(context);
     if (evidenceResponse) return evidenceResponse;
-    if (suffix === "/history" && request.method === "GET") return Response.json(await room.listRevisions());
-    if (suffix === "/history/compare" && request.method === "GET") {
-      const from = revisionParameter(url.searchParams.get("from"));
-      const to = revisionParameter(url.searchParams.get("to"));
-      if (from === null || to === null) return jsonError("Invalid project revision comparison", 400);
-      return Response.json(await room.compareRevisions(from, to));
-    }
-    if (suffix.startsWith("/history/")) {
-      return await handleProjectHistory(request, suffix, workspaceId, env, identity, role, room, catalog);
-    }
-    if (suffix.startsWith("/export/") && request.method === "GET") return await exportWorkspace(suffix, workspaceId, room, env);
-    return jsonError("Route not found", 404);
+    return await handleWorkspaceHistoryAndExportRoutes(context);
   } catch (error) {
     if (error instanceof ExportPipelineError) {
       return Response.json(
@@ -538,6 +527,48 @@ async function handleWorkspaceCandidateRoutes(context: WorkspaceRouteContext): P
   if (suffix === "/claim-candidates") return await createClaimCandidate(request, room);
   if (suffix.startsWith("/candidates/")) return await updateCandidate(workspaceId, suffix, room);
   return null;
+}
+
+async function handleWorkspaceHistoryAndExportRoutes(context: WorkspaceRouteContext): Promise<Response> {
+  const historyResponse = await handleWorkspaceHistoryRoutes(context);
+  if (historyResponse) return historyResponse;
+  const exportResponse = await handleWorkspaceExportRoute(context);
+  return exportResponse ?? jsonError("Route not found", 404);
+}
+
+async function handleWorkspaceHistoryRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const listResponse = await handleWorkspaceHistoryListRoute(context);
+  if (listResponse) return listResponse;
+  const comparisonResponse = await handleWorkspaceHistoryComparisonRoute(context);
+  if (comparisonResponse) return comparisonResponse;
+  return await handleWorkspaceHistoryMutationRoute(context);
+}
+
+async function handleWorkspaceHistoryListRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, room } = context;
+  if (suffix !== "/history" || request.method !== "GET") return null;
+  return Response.json(await room.listRevisions());
+}
+
+async function handleWorkspaceHistoryComparisonRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, url, suffix, room } = context;
+  if (suffix !== "/history/compare" || request.method !== "GET") return null;
+  const from = revisionParameter(url.searchParams.get("from"));
+  const to = revisionParameter(url.searchParams.get("to"));
+  if (from === null || to === null) return jsonError("Invalid project revision comparison", 400);
+  return Response.json(await room.compareRevisions(from, to));
+}
+
+async function handleWorkspaceHistoryMutationRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, identity, role, env, room, catalog } = context;
+  if (!suffix.startsWith("/history/")) return null;
+  return await handleProjectHistory(request, suffix, workspaceId, env, identity, role, room, catalog);
+}
+
+async function handleWorkspaceExportRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, env, room } = context;
+  if (!suffix.startsWith("/export/") || request.method !== "GET") return null;
+  return await exportWorkspace(suffix, workspaceId, room, env);
 }
 
 async function updateWorkspaceSettings(
