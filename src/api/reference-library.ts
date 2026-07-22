@@ -217,31 +217,8 @@ export async function handleReferenceLibraryApi(
     if (pdfResponse) return pdfResponse;
     const metadataResponse = await handleLibraryMetadataRoutes(context);
     if (metadataResponse) return metadataResponse;
-    const pdfMarkupMatch = /^\/references\/([0-9a-f-]{36})\/pdf-markups\/([0-9a-f-]{36})$/iu.exec(suffix);
-    if (pdfMarkupMatch?.[1] && pdfMarkupMatch[2] && request.method === "PATCH") {
-      const body: unknown = await request.json();
-      if (isRecord(body) && typeof body.color === "string" && typeof body.width === "number") {
-        return Response.json(await library.updatePdfDrawing(pdfMarkupMatch[1], pdfMarkupMatch[2], body.color, body.width), noStore());
-      }
-      if (
-        !isRecord(body) ||
-        typeof body.x !== "number" ||
-        typeof body.y !== "number" ||
-        (body.body !== undefined && typeof body.body !== "string")
-      ) {
-        return jsonError("Invalid private PDF note position", 400);
-      }
-      return Response.json(await library.updatePdfNote(pdfMarkupMatch[1], pdfMarkupMatch[2], body.x, body.y, body.body), noStore());
-    }
-    if (pdfMarkupMatch?.[1] && pdfMarkupMatch[2] && request.method === "DELETE") {
-      return Response.json(await library.deletePdfMarkup(pdfMarkupMatch[1], pdfMarkupMatch[2]), noStore());
-    }
-    const highlightMatch = /^\/references\/([0-9a-f-]{36})\/highlights\/([0-9a-f-]{36})$/iu.exec(suffix);
-    if (highlightMatch?.[1] && highlightMatch[2] && request.method === "PATCH") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.comment !== "string") return jsonError("Invalid private highlight comment", 400);
-      return Response.json(await library.updateHighlightComment(highlightMatch[1], highlightMatch[2], body.comment), noStore());
-    }
+    const annotationResponse = await handleLibraryAnnotationMutationRoutes(context);
+    if (annotationResponse) return annotationResponse;
     const referenceMatch =
       /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|highlight-imports|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|citation-candidates|pdf-metadata))?$/iu.exec(
         suffix,
@@ -634,6 +611,55 @@ async function handleLibraryMetadataRefinementRoute(context: ReferenceLibraryRou
   return refinementMatch[2] === "preview"
     ? await previewMetadataRefinement(request, refinementMatch[1], env, library, fetchExternal)
     : await acceptMetadataRefinement(request, refinementMatch[1], identity, env, library, fetchExternal);
+}
+
+async function handleLibraryAnnotationMutationRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const pdfMarkupResponse = await handleLibraryPdfMarkupMutationRoute(context);
+  if (pdfMarkupResponse) return pdfMarkupResponse;
+  return await handleLibraryHighlightMutationRoute(context);
+}
+
+async function handleLibraryPdfMarkupMutationRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, library } = context;
+  const pdfMarkupMatch = /^\/references\/([0-9a-f-]{36})\/pdf-markups\/([0-9a-f-]{36})$/iu.exec(suffix);
+  if (!pdfMarkupMatch?.[1] || !pdfMarkupMatch[2]) return null;
+  if (request.method === "DELETE") {
+    return Response.json(await library.deletePdfMarkup(pdfMarkupMatch[1], pdfMarkupMatch[2]), noStore());
+  }
+  if (request.method !== "PATCH") return null;
+  return await updateLibraryPdfMarkup(request, pdfMarkupMatch[1], pdfMarkupMatch[2], library);
+}
+
+async function updateLibraryPdfMarkup(
+  request: Request,
+  referenceId: string,
+  markupId: string,
+  library: ReferenceLibraryApi,
+): Promise<Response> {
+  const body: unknown = await request.json();
+  if (isRecord(body) && typeof body.color === "string" && typeof body.width === "number") {
+    return Response.json(await library.updatePdfDrawing(referenceId, markupId, body.color, body.width), noStore());
+  }
+  if (!isPdfNotePositionUpdate(body)) return jsonError("Invalid private PDF note position", 400);
+  return Response.json(await library.updatePdfNote(referenceId, markupId, body.x, body.y, body.body), noStore());
+}
+
+function isPdfNotePositionUpdate(value: unknown): value is { readonly x: number; readonly y: number; readonly body?: string } {
+  return (
+    isRecord(value) &&
+    typeof value.x === "number" &&
+    typeof value.y === "number" &&
+    (value.body === undefined || typeof value.body === "string")
+  );
+}
+
+async function handleLibraryHighlightMutationRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, library } = context;
+  const highlightMatch = /^\/references\/([0-9a-f-]{36})\/highlights\/([0-9a-f-]{36})$/iu.exec(suffix);
+  if (!highlightMatch?.[1] || !highlightMatch[2] || request.method !== "PATCH") return null;
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.comment !== "string") return jsonError("Invalid private highlight comment", 400);
+  return Response.json(await library.updateHighlightComment(highlightMatch[1], highlightMatch[2], body.comment), noStore());
 }
 
 async function previewCrossrefMetadata(
