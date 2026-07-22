@@ -114,7 +114,7 @@ describe("GitHub sync API in the Workers runtime", () => {
     expect(response.status).toBe(409);
   });
 
-  it("reports branch movement even when tracked Markdown is unchanged", async () => {
+  it("automatically advances the checkpoint when only untracked repository content changed", async () => {
     const client = new FakeGitHubClient(snapshot("1".repeat(40), "Initial"));
     const statusIdentity = { ...identity, ownerKey: `status-${crypto.randomUUID()}` };
     const imported = await importWorkspace(client, statusIdentity);
@@ -133,14 +133,49 @@ describe("GitHub sync API in the Workers runtime", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      commitSha: "1".repeat(40),
+      commitSha: "2".repeat(40),
       remoteHead: "2".repeat(40),
-      relationship: "remote-changed",
-      remoteHeadChanged: true,
+      relationship: "synced",
+      remoteHeadChanged: false,
       incomingChanges: 0,
       outgoingChanges: 0,
       conflicts: 0,
     });
+    expect(await room.getGitHubSyncState()).toMatchObject({ commitSha: "2".repeat(40), synchronizedRevision: 0 });
+    expect(await room.getSnapshot(imported.id)).toMatchObject({ revision: 0 });
+  });
+
+  it("does not automatically advance the checkpoint when tracked Markdown changed", async () => {
+    const client = new FakeGitHubClient(snapshot("2".repeat(40), "Initial"));
+    const statusIdentity = { ...identity, ownerKey: `tracked-status-${crypto.randomUUID()}` };
+    const imported = await importWorkspace(client, statusIdentity);
+    const room = env.DOCUMENT_ROOMS.getByName(imported.id);
+    client.current = {
+      ...client.current,
+      commitSha: "3".repeat(40),
+      commitMessage: "Change tracked Markdown",
+      files: [{ ...client.current.files[0]!, blobSha: "4".repeat(40), content: "# Changed remotely\n" }, client.current.files[1]!],
+    };
+
+    const response = await handleGitHubWorkspaceSyncApi(
+      new Request("http://example.com/api/workspaces/project/github-sync/status"),
+      env,
+      statusIdentity,
+      room,
+      "/github-sync/status",
+      client,
+      authorizeSelection,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      commitSha: "2".repeat(40),
+      remoteHead: "3".repeat(40),
+      relationship: "github-ahead",
+      remoteHeadChanged: true,
+      incomingChanges: 1,
+    });
+    expect(await room.getGitHubSyncState()).toMatchObject({ commitSha: "2".repeat(40), synchronizedRevision: 0 });
   });
 
   it("previews and atomically pulls remote-only changes while preserving local edits", async () => {

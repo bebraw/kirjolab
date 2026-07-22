@@ -713,7 +713,7 @@ test("keeps GitHub publish confirmation visible after refreshing sync state", as
   await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Synced");
 });
 
-test("shows automatic branch movement outside tracked Markdown", async ({ page }) => {
+test("shows an automatically advanced checkpoint after changes outside tracked Markdown", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "GitHub branch movement");
   const api = `/api/workspaces/${workspaceId}/github-sync`;
   const synchronizedCommit = "a".repeat(40);
@@ -736,36 +736,26 @@ test("shows automatic branch movement outside tracked Markdown", async ({ page }
         repository: "scalability_book",
         branch: "main",
         rootPath: "book",
-        commitSha: synchronizedCommit,
+        commitSha: remoteHead,
         remoteHead,
-        remoteHeadChanged: true,
-        relationship: "remote-changed",
+        remoteHeadChanged: false,
+        relationship: "synced",
         incomingChanges: 0,
         outgoingChanges: 0,
         conflicts: 0,
       },
     });
   });
-  await page.route(`**${api}/pull-previews`, async (route) => {
-    await route.fulfill({
-      status: 201,
-      json: { id: crypto.randomUUID(), plan: { changes: [], blocking: [] } },
-    });
-  });
-
   await page.goto(`/editor/${workspaceId}`);
-  await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Branch changed");
+  await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Synced");
   await page.locator("#github-sync-trigger").click();
-  await expect(page.locator("#github-sync-detail")).toContainText("tracked Markdown is unchanged");
+  await expect(page.locator("#github-sync-detail")).toContainText(`Tracked Markdown matches main at ${remoteHead.slice(0, 10)}`);
   await expect(page.getByRole("button", { name: "Pull from GitHub" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Push to GitHub" })).toBeDisabled();
   await page.context().setOffline(true);
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Branch changed");
+  await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Synced");
   await page.context().setOffline(false);
-  await page.getByRole("button", { name: "Sync settings" }).click();
-  await page.getByRole("button", { name: "Preview pull" }).click();
-  await expect(page.locator("#github-pull-review")).toContainText("No tracked Markdown changes to pull");
 });
 
 test("previews and confirms incoming GitHub changes", async ({ page }) => {

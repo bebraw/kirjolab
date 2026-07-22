@@ -1140,13 +1140,22 @@ export class DocumentRoom extends DurableObject<Env> {
 
   inspectGitHubSync(remoteHead: string, remoteFiles: readonly GitHubSyncRemoteFile[]): GitHubProjectSyncStatus | null {
     if (!isGitHubCommitSha(remoteHead)) throw new Error("GitHub remote head is invalid");
-    const binding = this.getGitHubSyncState();
+    let binding = this.getGitHubSyncState();
     if (!binding) return null;
+    const baseFiles = this.#githubTrackedFiles();
     const comparison = compareGitHubSync(
-      this.#githubTrackedFiles(),
+      baseFiles,
       this.#projectFileRows().map((file) => ({ fileId: file.id, path: file.path, content: file.content })),
       remoteFiles,
     );
+    if (binding.commitSha !== remoteHead && remoteMatchesGitHubBase(baseFiles, remoteFiles)) {
+      this.ctx.storage.sql.exec(
+        "UPDATE github_project_binding SET synchronized_commit = ?, updated_at = ? WHERE singleton = 1",
+        remoteHead,
+        new Date().toISOString(),
+      );
+      binding = this.getGitHubSyncState()!;
+    }
     return { ...binding, ...summarizeGitHubSync(binding.commitSha, remoteHead, comparison) };
   }
 
@@ -5602,6 +5611,15 @@ function githubPullPreviewFromRow(row: GitHubPullPreviewRow): GitHubPullPreview 
     comparison: JSON.parse(row.comparison_json) as readonly GitHubSyncChange[],
     plan: JSON.parse(row.plan_json) as GitHubPullPlan,
   };
+}
+
+function remoteMatchesGitHubBase(baseFiles: readonly GitHubSyncBaseFile[], remoteFiles: readonly GitHubSyncRemoteFile[]): boolean {
+  if (baseFiles.length !== remoteFiles.length) return false;
+  const remoteByPath = new Map(remoteFiles.map((file) => [file.path, file]));
+  return baseFiles.every((base) => {
+    const remote = remoteByPath.get(base.path);
+    return remote?.blobSha === base.blobSha && remote.content === base.content;
+  });
 }
 
 function isStaleReviewArtifactPin(candidate: ReviewArtifactPin, current: ReviewArtifactPin): boolean {

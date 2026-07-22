@@ -38,8 +38,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Confine every operation to its configured subtree, retain a three-way sync
   base, apply pulls through existing Yjs texts, and publish reviewed changes as
   one non-forced direct commit by default; never synchronize content in the
-  background. Allow bounded automatic read-only status checks, but never let
-  them create previews, advance the base, or mutate either authority.
+  background. Allow bounded automatic status checks to advance only the commit
+  checkpoint when the remote tracked snapshot exactly matches the retained
+  base; never let them create previews, alter the retained base or project
+  revision, or mutate either content authority.
   Keep import creation, bound-workspace synchronization, and their shared
   transport/error contracts in separate server modules; callers depend only on
   the phase they invoke.

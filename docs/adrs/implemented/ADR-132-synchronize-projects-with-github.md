@@ -61,10 +61,14 @@ first normalized Markdown path. Import does not synthesize source files.
 Synchronization mutations are manual. `Pull` and `Publish` first produce
 complete, non-mutating previews and require a second explicit confirmation.
 Kirjolab does not subscribe to repository webhooks or synchronize content in
-the background. It may perform a bounded, read-only remote status check while a
+the background. It may perform a bounded remote status check while a
 connected project is open or regains focus. That check distinguishes branch
 head movement from changes to the tracked Markdown subtree and does not create
-a preview, advance the synchronized base, or mutate either authority.
+a preview or mutate either content authority. When every tracked remote path,
+blob, and text value exactly matches the retained base, the check automatically
+advances only the synchronized commit checkpoint. This prevents unrelated
+repository commits from requiring ceremonial acknowledgment while preserving
+the retained tracked base and logical project revision.
 Preview confirmation is revision-checked: a changed local project revision or
 remote branch head invalidates the preview.
 
@@ -124,8 +128,9 @@ version as an unpublished local change.
   common publish path lightweight.
 - Three-way comparison detects divergence instead of silently overwriting local
   or remote work.
-- Read-only status makes branch movement visible even when newer commits only
-  affect paths outside the tracked manuscript subtree.
+- Automatic status absorbs branch movement when newer commits only affect paths
+  outside the tracked manuscript subtree, without changing project content or
+  asking the owner to acknowledge an unreviewable outside-scope diff.
 - Applying pulls through existing Yjs texts preserves surviving collaborative
   identities and anchors.
 - Repository-scoped installation and short-lived server-side tokens avoid broad

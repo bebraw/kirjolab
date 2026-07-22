@@ -94,10 +94,11 @@ incoming and outgoing mutation.
   state, current sync status, and last synchronized commit/revision without
   credentials or token material.
 - `GET /api/workspaces/{id}/github-sync/status` revalidates repository access,
-  reads the configured branch, and returns a non-mutating summary that
-  distinguishes tracked incoming changes, tracked outgoing changes, conflicts,
-  and branch-head movement that only affected content outside Kirjolab's
-  tracked Markdown subtree.
+  reads the configured branch, and returns a status summary that distinguishes
+  tracked incoming changes, tracked outgoing changes, conflicts, and branch-head
+  movement. When the retained and remote tracked snapshots are
+  exactly identical, it may advance only the synchronized commit checkpoint so
+  changes outside Kirjolab's tracked Markdown subtree require no user action.
 - A connected project exposes the latest read-only status in the main toolbar.
   The control checks automatically on initial load and after a bounded focus
   interval, distinguishes branch-only movement from actionable manuscript
@@ -140,9 +141,10 @@ incoming and outgoing mutation.
 - Do not apply pulled text by replacing a complete `Y.Text` when a bounded edit
   can preserve surviving identities and anchors.
 - Do not use webhooks, polling, scheduled jobs, page load, or editor save as an
-  implicit Pull or Publish trigger. A bounded read-only status check on initial
-  load, focus, or explicit request is allowed; it must never advance the base or
-  mutate project or repository content.
+  implicit Pull or Publish trigger. A bounded status check on initial load,
+  focus, or explicit request may normalize only the synchronized commit after
+  proving the tracked remote snapshot exactly matches the retained base; it
+  must never alter that base or mutate project or repository content.
 - Do not force-update a Git reference, bypass branch protection, broaden an App
   installation, or write outside the configured subtree.
 - Do not treat a GitHub owner/name, branch name, path, client-supplied commit, or
@@ -165,8 +167,9 @@ incoming and outgoing mutation.
       non-forced commit to the configured branch.
 - [x] Concurrent local and remote changes are classified by a retained
       three-way base and never silently overwrite either side.
-- [x] Read-only status distinguishes a moved GitHub branch from tracked
-      manuscript changes, including commits that only touch untracked paths.
+- [x] Status distinguishes tracked manuscript changes from commits that only
+      touch untracked paths and automatically absorbs the latter into the
+      synchronization checkpoint without changing the project revision.
 - [x] A connected workspace shows automatic sync status and preview-first Pull
       and Push actions in the main toolbar.
 - [x] Unknown Markdown syntax and all untracked repository content remain
@@ -191,8 +194,10 @@ incoming and outgoing mutation.
   branch, and normalized subtree revalidated by the server at confirmation.
 - Pull and Publish always have a separately confirmed diff preview; preview
   generation is non-mutating and confirmation cannot reuse stale state.
-- Automatic status checks are read-only, bounded to the configured repository
-  selection, and never create previews or advance synchronization markers.
+- Automatic status checks are bounded to the configured repository selection
+  and never create previews or mutate project content. They may advance only
+  the synchronized commit when the remote tracked snapshot exactly matches the
+  retained base; any tracked path, blob, or text difference leaves it unchanged.
 - A pull preserves stable file and Yjs identities wherever path and text
   identity survive, and it does not mutate comments or anchors around Yjs.
 - Direct Publish creates one commit, never force-pushes, and never changes an
