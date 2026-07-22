@@ -830,6 +830,49 @@ test("keeps the workspace within a compact desktop viewport", async ({ page }) =
   });
 });
 
+test("resizes and remembers the desktop project rail", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const workspaceId = await createWorkspace(page, "Resizable project rail");
+  await page.goto(`/editor/${workspaceId}`);
+
+  const resizer = page.getByRole("separator", { name: "Resize project rail" });
+  const rail = page.locator(".source-rail");
+  await expect(resizer).toBeVisible();
+  await expect(resizer).toHaveAttribute("aria-valuenow", "272");
+
+  const resizerBox = await resizer.boundingBox();
+  if (!resizerBox) throw new Error("Expected project-rail resizer bounds");
+  await page.mouse.move(resizerBox.x + resizerBox.width / 2, resizerBox.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(resizerBox.x + resizerBox.width / 2 + 32, resizerBox.y + 40);
+  await page.mouse.up();
+  await expect(resizer).toHaveAttribute("aria-valuenow", "304");
+  await expect.poll(async () => Math.round((await rail.boundingBox())?.width ?? 0)).toBe(304);
+
+  await page.reload();
+  await expect(page.getByRole("separator", { name: "Resize project rail" })).toHaveAttribute("aria-valuenow", "304");
+  await page.setViewportSize({ width: 1152, height: 900 });
+  await expect(resizer).toHaveAttribute("aria-valuenow", "272");
+  expect(
+    await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    })),
+  ).toMatchObject({ clientWidth: 1152, scrollWidth: 1152 });
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await expect(resizer).toHaveAttribute("aria-valuenow", "304");
+  await resizer.focus();
+  await resizer.press("ArrowLeft");
+  await expect(resizer).toHaveAttribute("aria-valuenow", "288");
+  await resizer.press("Home");
+  await expect(resizer).toHaveAttribute("aria-valuenow", "272");
+  await expect
+    .poll(
+      async () => await page.locator("#workspace-surfaces").evaluate((element) => element.style.getPropertyValue("--source-rail-width")),
+    )
+    .toBe("");
+});
+
 test("keeps workspace and Library navigation usable on a phone", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Phone layout");
   await page.setViewportSize({ width: 390, height: 844 });

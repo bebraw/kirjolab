@@ -295,6 +295,8 @@ export function renderHomePage(
         </section>
       </aside>
 
+      <div class="source-rail-resizer" id="source-rail-resizer" role="separator" aria-label="Resize project rail" aria-orientation="vertical" aria-valuemin="208" aria-valuemax="384" aria-valuenow="272" tabindex="0"></div>
+
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
         <div class="editor-toolbar ui-toolbar">
           <div class="editor-toolbar-group">

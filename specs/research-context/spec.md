@@ -123,6 +123,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
   is remembered per workspace and context kind. Preview, Library, and Writing
   assistant share one stable proportion, while a wide PDF reading layout does
   not force that proportion onto the permanent tabs.
+- On desktop, a second pointer- and keyboard-operable separator resizes the
+  project rail between bounded 13rem and 24rem widths. The browser remembers
+  that cross-project preference locally, `Home` restores the 17rem default,
+  and the effective maximum contracts when necessary to preserve the readable
+  Authoring and Context minimum widths. Compact layouts retain their stacked
+  rail without a resize affordance.
 - In workspace mode, a desktop view control switches among Split, Editor only,
   Context only, and PDF only. The standalone Library does not expose this
   project-layout control because its reader already owns the full content area.
@@ -329,6 +335,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Workspace query state must accept only bounded known values, omit defaults,
   preserve parameters owned by other features, and fall back to Preview or the
   entry file when a requested stable id is absent or unauthorized.
+- Project-rail resizing must not enter the workspace URL or collaborative
+  state, expose horizontal page overflow, or reduce either primary desktop
+  document surface below its declared readable minimum.
 - Candidate tabs must be authorized by candidate id and must not persist their
   local open, active, or scroll state into candidate provenance.
 - PDF rendering remains single-active-page and uses the pinned matching PDF.js

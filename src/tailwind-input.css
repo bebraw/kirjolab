@@ -1091,6 +1091,10 @@
     display: none;
   }
 
+  .source-rail-resizer {
+    display: none;
+  }
+
   .preview-sync-controls {
     display: none;
   }
@@ -1493,7 +1497,10 @@
 
   @media (min-width: 72rem) {
     .workspace-grid {
-      grid-template-columns: 17rem minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(28rem, 1.05fr);
+      grid-template-columns: var(--source-rail-width, 17rem) 0.5rem minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(
+          28rem,
+          1.05fr
+        );
       grid-template-rows: minmax(0, calc(100dvh - 4rem - 1px));
       overflow: hidden;
     }
@@ -1508,7 +1515,7 @@
     }
 
     .workspace-grid[data-layout="editor"] {
-      grid-template-columns: 17rem minmax(0, 1fr);
+      grid-template-columns: var(--source-rail-width, 17rem) 0.5rem minmax(0, 1fr);
     }
 
     .workspace-grid[data-layout="editor"] .authoring-context-resizer,
@@ -1522,9 +1529,11 @@
     }
 
     .workspace-grid[data-layout="context"] .source-rail,
+    .workspace-grid[data-layout="context"] .source-rail-resizer,
     .workspace-grid[data-layout="context"] .editor-column,
     .workspace-grid[data-layout="context"] .authoring-context-resizer,
     .workspace-grid[data-layout="pdf"] .source-rail,
+    .workspace-grid[data-layout="pdf"] .source-rail-resizer,
     .workspace-grid[data-layout="pdf"] .editor-column,
     .workspace-grid[data-layout="pdf"] .authoring-context-resizer {
       display: none;
@@ -1564,6 +1573,7 @@
       max-height: none;
     }
 
+    .source-rail-resizer,
     .authoring-context-resizer {
       position: relative;
       display: block;
@@ -1572,6 +1582,7 @@
       touch-action: none;
     }
 
+    .source-rail-resizer::after,
     .authoring-context-resizer::after {
       position: absolute;
       top: 0;
@@ -1582,6 +1593,9 @@
       content: "";
     }
 
+    .source-rail-resizer:hover::after,
+    .source-rail-resizer:focus-visible::after,
+    .source-rail-resizer[data-dragging="true"]::after,
     .authoring-context-resizer:hover::after,
     .authoring-context-resizer:focus-visible::after,
     .authoring-context-resizer[data-dragging="true"]::after {

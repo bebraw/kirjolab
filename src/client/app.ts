@@ -218,6 +218,10 @@ const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
 const modelPreferencesStorageKey = "kirjolab:model-preferences";
 const citationCompletionScopeStorageKey = "kirjolab:citation-completion-scope";
+const sourceRailWidthStorageKey = "kirjolab:source-rail-width";
+const sourceRailDefaultWidth = 272;
+const sourceRailMinimumWidth = 208;
+const sourceRailMaximumWidth = 384;
 const deferredDeleteGraceMs = 6_000;
 
 interface ToastAction {
@@ -499,6 +503,7 @@ interface Elements {
   manuscriptCommentCount: HTMLElement;
   manuscriptCommentList: HTMLElement;
   workspaceSurfaces: HTMLElement;
+  sourceRailResizer: HTMLElement;
   authoringContextResizer: HTMLElement;
   previewSyncControls: HTMLElement;
   syncPreviewFromSource: HTMLButtonElement;
@@ -1259,6 +1264,7 @@ class WorkspaceApp {
     this.#elements.claimForm.addEventListener("submit", (event) => void this.#saveClaim(event));
     this.#elements.showAuthoringSurface.addEventListener("click", () => this.#showWorkspaceSurface("authoring"));
     this.#elements.showContextSurface.addEventListener("click", () => this.#showWorkspaceSurface("context"));
+    this.#bindSourceRailResizer();
     this.#bindPaneResizer();
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
     this.#elements.contextAssistantTab.addEventListener("click", () => this.#activateContext(RESEARCH_ASSISTANT_KEY));
@@ -6564,6 +6570,101 @@ class WorkspaceApp {
     if (syncRoute) this.#syncWorkspaceRoute("replace");
   }
 
+  #bindSourceRailResizer(): void {
+    const resizer = this.#elements.sourceRailResizer;
+    const resize = (clientX: number, persist: boolean): void => {
+      const rail = resizer.previousElementSibling;
+      if (!(rail instanceof HTMLElement)) return;
+      const maximum = this.#sourceRailEffectiveMaximumWidth();
+      const width = clientX - rail.getBoundingClientRect().left - resizer.getBoundingClientRect().width / 2;
+      const bounded = Math.min(maximum, Math.max(sourceRailMinimumWidth, width));
+      this.#setSourceRailWidth(bounded, maximum);
+      if (persist) this.#storeSourceRailWidth(bounded);
+    };
+    resizer.addEventListener("pointerdown", (event) => {
+      resizer.dataset.dragging = "true";
+      resizer.setPointerCapture(event.pointerId);
+      resize(event.clientX, false);
+    });
+    resizer.addEventListener("pointermove", (event) => {
+      if (resizer.dataset.dragging === "true") resize(event.clientX, false);
+    });
+    const finish = (event: PointerEvent, persist: boolean): void => {
+      if (resizer.dataset.dragging !== "true") return;
+      delete resizer.dataset.dragging;
+      if (persist) resize(event.clientX, true);
+      if (resizer.hasPointerCapture(event.pointerId)) resizer.releasePointerCapture(event.pointerId);
+      void this.#pdfViewer.resize();
+    };
+    resizer.addEventListener("pointerup", (event) => finish(event, true));
+    resizer.addEventListener("pointercancel", (event) => finish(event, false));
+    resizer.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
+      event.preventDefault();
+      if (event.key === "Home") {
+        this.#elements.workspaceSurfaces.style.removeProperty("--source-rail-width");
+        this.#removeStoredSourceRailWidth();
+        const maximum = this.#sourceRailEffectiveMaximumWidth();
+        resizer.setAttribute("aria-valuenow", String(Math.min(sourceRailDefaultWidth, maximum)));
+        resizer.setAttribute("aria-valuemax", String(maximum));
+      } else {
+        const rail = resizer.previousElementSibling;
+        if (!(rail instanceof HTMLElement)) return;
+        const direction = event.key === "ArrowLeft" ? -16 : 16;
+        resize(rail.getBoundingClientRect().right + resizer.getBoundingClientRect().width / 2 + direction, true);
+      }
+      void this.#pdfViewer.resize();
+    });
+    window.addEventListener("resize", () => this.#restoreSourceRailWidth());
+    this.#restoreSourceRailWidth();
+  }
+
+  #sourceRailEffectiveMaximumWidth(): number {
+    const workspaceWidth = this.#elements.workspaceSurfaces.getBoundingClientRect().width;
+    const reservedWidth = this.#elements.workspaceSurfaces.dataset.layout === "editor" ? 424 : 880;
+    return Math.min(sourceRailMaximumWidth, Math.max(sourceRailMinimumWidth, workspaceWidth - reservedWidth));
+  }
+
+  #setSourceRailWidth(width: number, maximum = this.#sourceRailEffectiveMaximumWidth()): void {
+    const bounded = Math.min(maximum, Math.max(sourceRailMinimumWidth, width));
+    this.#elements.workspaceSurfaces.style.setProperty("--source-rail-width", `${Math.round(bounded)}px`);
+    this.#elements.sourceRailResizer.setAttribute("aria-valuemax", String(Math.round(maximum)));
+    this.#elements.sourceRailResizer.setAttribute("aria-valuenow", String(Math.round(bounded)));
+  }
+
+  #storeSourceRailWidth(width: number): void {
+    try {
+      localStorage.setItem(sourceRailWidthStorageKey, String(Math.round(width)));
+    } catch {
+      // Rail resizing remains usable when browser storage is unavailable.
+    }
+  }
+
+  #removeStoredSourceRailWidth(): void {
+    try {
+      localStorage.removeItem(sourceRailWidthStorageKey);
+    } catch {
+      // Rail resizing remains usable when browser storage is unavailable.
+    }
+  }
+
+  #restoreSourceRailWidth(): void {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(sourceRailWidthStorageKey);
+    } catch {
+      // Use the stylesheet default when browser storage is unavailable.
+    }
+    const width = stored ? Number.parseInt(stored, 10) : Number.NaN;
+    if (Number.isFinite(width)) this.#setSourceRailWidth(width);
+    else {
+      const maximum = this.#sourceRailEffectiveMaximumWidth();
+      this.#elements.workspaceSurfaces.style.removeProperty("--source-rail-width");
+      this.#elements.sourceRailResizer.setAttribute("aria-valuemax", String(maximum));
+      this.#elements.sourceRailResizer.setAttribute("aria-valuenow", String(Math.min(sourceRailDefaultWidth, maximum)));
+    }
+  }
+
   #bindPaneResizer(): void {
     const resizer = this.#elements.authoringContextResizer;
     const resize = (clientX: number, persist: boolean): void => {
@@ -10335,6 +10436,7 @@ function collectElements(): Elements {
     manuscriptCommentCount: requiredElement("manuscript-comment-count", HTMLElement),
     manuscriptCommentList: requiredElement("manuscript-comment-list", HTMLElement),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
+    sourceRailResizer: requiredElement("source-rail-resizer", HTMLElement),
     authoringContextResizer: requiredElement("authoring-context-resizer", HTMLElement),
     previewSyncControls: requiredElement("preview-sync-controls", HTMLElement),
     syncPreviewFromSource: requiredElement("sync-preview-from-source", HTMLButtonElement),

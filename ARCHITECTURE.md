@@ -389,6 +389,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Collapse the two-surface workspace to an explicit Authoring/Context switch
   when both surfaces cannot retain readable measures; preserve editor and
   per-context local state while either surface is hidden.
+- Allow the ancillary project rail to resize only on desktop, persist its
+  bounded width as a cross-project browser-local preference, and contract its
+  effective maximum before either primary document surface loses its readable
+  minimum. Keep rail geometry out of URLs and collaborative state.
 - Treat manuscript passage links as immutable, versioned selectors rather than
   permanent current offsets. Verify the source revision and exact range at
   creation, then capture Yjs relative positions, exact quote/context,
