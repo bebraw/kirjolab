@@ -14,6 +14,18 @@ beforeEach(() => {
   pdfjs.GlobalWorkerOptions.workerSrc = "";
 });
 
+function textContentPage(items: Array<Record<string, unknown>>) {
+  return {
+    streamTextContent: () =>
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue({ items, styles: {}, lang: null });
+          controller.close();
+        },
+      }),
+  };
+}
+
 describe("PDF metadata candidates", () => {
   it("derives bounded embedded fields and an opening-page DOI", () => {
     expect(
@@ -60,25 +72,46 @@ describe("PDF metadata candidates", () => {
     expect(result.doi).toBe("10.1000/test");
   });
 
+  it("reports useful partial metadata without claiming the PDF is empty", () => {
+    for (const information of [
+      { Title: "  A title only  " },
+      { Author: "Ada Example" },
+      { CreationDate: "D:20240101" },
+      { Subject: "doi:10.1000/only" },
+    ]) {
+      const result = derivePdfMetadataCandidates(information, "", 1);
+      expect(result.diagnostics).not.toContain("No useful metadata was found in the PDF.");
+    }
+    expect(derivePdfMetadataCandidates({ Title: "  A title only  " }, "", 1)).toMatchObject({
+      title: "A title only",
+      diagnostics: ["No DOI was detected in the embedded metadata or opening pages."],
+    });
+  });
+
+  it("normalizes sparse author separators and bounds individual names", () => {
+    const longAuthor = `Ada ${"x".repeat(400)}`;
+    expect(derivePdfMetadataCandidates({ Author: `  ${longAuthor}  ; ; Bob and   Carol  ` }, "", 1).authors).toEqual([
+      longAuthor.slice(0, 300),
+      "Bob",
+      "Carol",
+    ]);
+  });
+
+  it("does not combine DOI fragments across metadata fields or beyond the opening-text budget", () => {
+    expect(derivePdfMetadataCandidates({ Subject: "doi:10.1000/", Keywords: "separate" }, "", 1).doi).toBe("");
+    expect(derivePdfMetadataCandidates({}, `${"x".repeat(65_536)} doi:10.1000/late`, 1).doi).toBe("");
+  });
+
   it("scans at most the first three pages and joins text items", async () => {
     const destroy = vi.fn().mockResolvedValue(undefined);
     const getPage = vi.fn((pageNumber: number) =>
-      Promise.resolve({
-        streamTextContent: () =>
-          new ReadableStream({
-            start(controller) {
-              controller.enqueue({
-                items:
-                  pageNumber === 1
-                    ? [{ str: "Opening" }, { hasEol: true }, { str: "doi:10.4242/Traversal.Test." }]
-                    : [{ str: `page-${pageNumber}` }],
-                styles: {},
-                lang: null,
-              });
-              controller.close();
-            },
-          }),
-      }),
+      Promise.resolve(
+        textContentPage(
+          pageNumber === 1
+            ? [{ str: "Opening" }, { hasEol: true }, { str: "doi:10.4242/Traversal.Test." }]
+            : [{ str: `page-${pageNumber}` }],
+        ),
+      ),
     );
     pdfjs.getDocument.mockReturnValue({
       promise: Promise.resolve({
@@ -106,15 +139,7 @@ describe("PDF metadata candidates", () => {
   it("stops collecting text at the byte budget while preserving page traversal", async () => {
     const destroy = vi.fn().mockResolvedValue(undefined);
     const getPage = vi.fn((pageNumber: number) =>
-      Promise.resolve({
-        streamTextContent: () =>
-          new ReadableStream({
-            start(controller) {
-              controller.enqueue({ items: [{ str: pageNumber === 1 ? "x".repeat(65_536) : "ignored" }], styles: {}, lang: null });
-              controller.close();
-            },
-          }),
-      }),
+      Promise.resolve(textContentPage([{ str: pageNumber === 1 ? "x".repeat(65_536) : "ignored" }])),
     );
     pdfjs.getDocument.mockReturnValue({
       promise: Promise.resolve({ numPages: 3, getMetadata: vi.fn().mockResolvedValue({ info: {} }), getPage }),
