@@ -43,4 +43,25 @@ describe("editor collaborator presence", () => {
     expect(segments.find(({ text }) => text === "Local")?.selectionColor).toBe("local");
     expect(segments.at(-1)?.caretColors).not.toContain("local");
   });
+
+  it("aligns presence with Markdown boundaries and stable collaborator colors", () => {
+    expect(
+      editorPresenceSegments("## Head\nBody", [
+        { collaboratorId: "writer-two", start: 1, end: 10 },
+        { collaboratorId: "presence", start: 8, end: 8 },
+      ]),
+    ).toEqual([
+      { text: "#", kind: "heading-marker", selectionColor: null, caretColors: [] },
+      { text: "#", kind: "heading-marker", selectionColor: 2, caretColors: [] },
+      { text: " Head", kind: "heading", selectionColor: 2, caretColors: [] },
+      { text: "\n", kind: null, selectionColor: 2, caretColors: [] },
+      { text: "Bo", kind: null, selectionColor: 2, caretColors: [3] },
+      { text: "dy", kind: null, selectionColor: null, caretColors: [] },
+    ]);
+  });
+
+  it("emits an empty anchor only for an empty document or end caret", () => {
+    expect(editorPresenceSegments("Plain", [])).toEqual([{ text: "Plain", kind: null, selectionColor: null, caretColors: [] }]);
+    expect(editorPresenceSegments("", [])).toEqual([{ text: "", kind: null, selectionColor: null, caretColors: [] }]);
+  });
 });
