@@ -28,4 +28,8 @@ describe("renderButton", () => {
   it("rejects an empty visible label", () => {
     expect(() => renderButton({ label: "  " })).toThrow("Labelled buttons require visible text");
   });
+
+  it("uses visible text as the accessible name for labelled buttons", () => {
+    expect(renderButton({ label: "Save" })).not.toContain("aria-label");
+  });
 });

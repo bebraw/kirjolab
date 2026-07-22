@@ -17,7 +17,6 @@ type CommonButtonOptions = {
 type LabelledButtonOptions = CommonButtonOptions & {
   readonly label: string;
   readonly icon?: IconName;
-  readonly ariaLabel?: string;
   readonly tone?: "primary" | "secondary";
 };
 
@@ -33,12 +32,13 @@ export type ButtonOptions = LabelledButtonOptions | IconButtonOptions;
 export function renderButton(options: ButtonOptions): string {
   if ("label" in options && options.label.trim().length === 0) throw new Error("Labelled buttons require visible text");
   const tone = options.tone ?? ("label" in options ? "secondary" : "icon");
+  const ariaLabel = "ariaLabel" in options ? options.ariaLabel : undefined;
   const classes = [`button-${tone}`, options.className].filter(Boolean).join(" ");
   const attributes = [
     attribute("class", classes),
     attribute("id", options.id),
     attribute("type", options.type ?? "button"),
-    attribute("aria-label", options.ariaLabel),
+    attribute("aria-label", ariaLabel),
     attribute("title", options.title),
     attribute("aria-busy", options.busy === undefined ? undefined : String(options.busy)),
     attribute("aria-pressed", options.pressed === undefined ? undefined : String(options.pressed)),
