@@ -17,6 +17,9 @@ test("renders shared primitive states in the local UI inventory", async ({ page 
   await expect(page.getByRole("button", { name: "Selected example" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Working" })).toHaveAttribute("aria-busy", "true");
   await expect(page.getByRole("button", { name: "Remove" })).toHaveAttribute("data-destructive", "true");
+  const destructivePrimary = page.getByRole("button", { name: "Delete permanently" });
+  await expect(destructivePrimary).toHaveCSS("background-color", "rgb(163, 58, 50)");
+  await expect(destructivePrimary).toHaveCSS("color", "rgb(255, 255, 255)");
   await expect(page.getByRole("button", { name: "Unavailable" })).toBeDisabled();
   const closeButton = page.getByRole("button", { name: "Close example" });
   await expect(closeButton).toHaveAttribute("data-touch-target", "true");

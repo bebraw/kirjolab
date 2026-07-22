@@ -268,9 +268,19 @@
     padding-block: 0.35rem;
   }
 
-  :is(.button-primary, .button-secondary, .button-icon)[data-destructive="true"] {
+  :is(.button-secondary, .button-icon)[data-destructive="true"] {
     border-color: color-mix(in srgb, var(--color-app-error) 45%, var(--color-app-line));
     color: var(--color-app-error);
+  }
+
+  .button-primary[data-destructive="true"] {
+    border-color: var(--color-app-error);
+    background: var(--color-app-error);
+    color: var(--color-app-on-error);
+  }
+
+  .button-primary[data-destructive="true"]:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-app-error) 84%, var(--color-app-ink));
   }
 
   :is(.button-primary, .button-secondary, .button-icon)[aria-busy="true"] {

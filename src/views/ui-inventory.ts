@@ -34,6 +34,7 @@ export function renderUiInventoryPage(): string {
           ${renderButton({ label: "Compact", compact: true })}
           ${renderButton({ label: "Selected", className: "bg-app-accent-ghost", ariaLabel: "Selected example", pressed: true })}
           ${renderButton({ label: "Remove", destructive: true })}
+          ${renderButton({ label: "Delete permanently", tone: "primary", destructive: true })}
           ${renderButton({ label: "Unavailable", disabled: true })}
           ${renderButton({ label: "Working", busy: true })}
           ${renderButton({ icon: "close", ariaLabel: "Close example", title: "Close", tone: "icon", touchTarget: true })}

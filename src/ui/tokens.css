@@ -12,6 +12,7 @@
   --color-app-review-proposal: light-dark(rgb(11 107 81 / 0.055), rgb(98 197 164 / 0.08));
   --color-app-warn: light-dark(#c07b28, #d7a45e);
   --color-app-error: light-dark(#a33a32, #e0786e);
+  --color-app-on-error: light-dark(white, #1b0907);
   --color-app-line: light-dark(rgb(18 27 24 / 0.14), rgb(232 239 234 / 0.15));
   --color-app-raised: light-dark(rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.06));
   --color-app-raised-strong: light-dark(rgb(255 255 255 / 0.42), rgb(255 255 255 / 0.09));

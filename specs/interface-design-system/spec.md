@@ -17,7 +17,9 @@ introducing a frontend component framework.
   and `data-touch-target`.
 - Disabled controls remain visibly unavailable. Busy controls expose
   `aria-busy="true"`. Selected controls expose `aria-pressed` or
-  `aria-selected` according to their interaction pattern.
+  `aria-selected` according to their interaction pattern. Destructive primary
+  actions use the solid error treatment and its paired foreground token;
+  destructive secondary and icon actions use the outlined treatment.
 - Coarse-pointer touch targets can grow to 44 CSS pixels without forcing that
   density on precise-pointer layouts. Reduced-motion preferences suppress
   decorative control transitions.

@@ -10,6 +10,9 @@ describe("renderUiInventoryPage", () => {
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('aria-busy="true"');
     expect(html).toContain('data-destructive="true"');
+    expect(html).toContain(
+      '<button class="button-primary" type="button" data-destructive="true"><span>Delete permanently</span></button>',
+    );
     expect(html).toContain('data-touch-target="true"');
     expect(html).toContain('class="ui-dialog relative block"');
     expect(html).toContain('data-tone="error"');
