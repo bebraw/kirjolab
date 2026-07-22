@@ -111,6 +111,21 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   const apiResponse = await handleAuthenticatedApiRequest(request, url, env, identity);
   if (apiResponse) return apiResponse;
 
+  return await handleAuthenticatedPageRequest(request, url, env, identity);
+}
+
+async function handleAuthenticatedPageRequest(request: Request, url: URL, env: Env | undefined, identity: AuthIdentity): Promise<Response> {
+  const workspacePage = await handleWorkspacePageRequest(url, env, identity);
+  if (workspacePage) return workspacePage;
+  const reviewIndex = await handleReviewIndexRequest(request, url, env, identity);
+  if (reviewIndex) return reviewIndex;
+  const reviewProjectLinks = await handleReviewProjectLinksRequest(request, url, env, identity);
+  if (reviewProjectLinks) return reviewProjectLinks;
+  const reviewDetail = await handleReviewDetailRequest(url, env, identity);
+  return reviewDetail ?? htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+}
+
+async function handleWorkspacePageRequest(url: URL, env: Env | undefined, identity: AuthIdentity): Promise<Response | null> {
   if (url.pathname === "/") {
     const [workspaces, library, reviews] = env
       ? await Promise.all([
@@ -141,82 +156,92 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     return htmlResponse(renderHomePage(exampleRoutes, editorPage[1], identity.email, identity.mode), 200, url);
   }
 
-  if (url.pathname === "/review") {
-    if (request.method === "POST") {
-      if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-      try {
-        const form = await request.formData();
-        const title = String(form.get("title") ?? "").trim();
-        const profile = form.get("profile");
-        if (!title || title.length > 120 || (profile !== "slr" && profile !== "mlr")) {
-          return Response.json({ error: "Review creation request is invalid" }, { status: 400 });
-        }
-        const resource = await createReviewResource(env, identity, title, profile);
-        return redirectResponse(resource.record.href, 303);
-      } catch (error) {
-        return Response.json({ error: error instanceof Error ? error.message : "Review creation failed" }, { status: 400 });
-      }
-    }
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      return Response.json({ error: "Method not allowed" }, { status: 405 });
-    }
-    const reviews = env ? await discoverLegacyReviews(env, identity) : fallbackReviews();
-    return htmlResponse(renderReviewsPage(reviews, identity.email, identity.mode), 200, url);
-  }
+  return null;
+}
 
-  const reviewProjectLinksPage = /^\/review\/([a-f0-9-]{36})\/project-links$/iu.exec(url.pathname);
-  if (reviewProjectLinksPage?.[1]) {
-    if (request.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+async function handleReviewIndexRequest(
+  request: Request,
+  url: URL,
+  env: Env | undefined,
+  identity: AuthIdentity,
+): Promise<Response | null> {
+  if (url.pathname !== "/review") return null;
+  if (request.method === "POST") {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    const form = await request.formData();
-    const workspaceId = String(form.get("workspaceId") ?? "");
-    const apiRequest = new Request(`${url.origin}/api/reviews/${reviewProjectLinksPage[1]}/project-links`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ workspaceId }),
-    });
-    const response = await handleReviewsApi(apiRequest, env, identity);
-    if (response.ok) return redirectResponse(`/review/${reviewProjectLinksPage[1]}`, 303);
-    return response;
-  }
-
-  const reviewPage = /^\/review\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
-  if (reviewPage?.[1]) {
-    if (!env) {
-      if (reviewPage[1] === "demo") return redirectResponse(`/review/${fallbackReviewId}${url.search}`, 308);
-      const review = fallbackReviews().find((candidate) => candidate.id === reviewPage[1]);
-      if (!review) return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
-      return htmlResponse(
-        renderReviewPage(review, fallbackReviewMembers(), fallbackReviewProjectLinks(), identity.email, identity.mode),
-        200,
-        url,
-      );
-    }
     try {
-      const resource = await resolveReviewResource(env, identity, reviewPage[1]);
-      if (!resource) {
-        const legacy = await ensureLegacyReviewResource(env, identity, reviewPage[1]);
-        if (!legacy) return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
-        return redirectResponse(`${legacy.record.href}${url.search}`, 308);
+      const form = await request.formData();
+      const title = String(form.get("title") ?? "").trim();
+      const profile = form.get("profile");
+      if (!title || title.length > 120 || (profile !== "slr" && profile !== "mlr")) {
+        return Response.json({ error: "Review creation request is invalid" }, { status: 400 });
       }
-      const [members, projectLinks, workspaces] = await Promise.all([
-        resource.access.listMembers(identity.email),
-        reviewProjectLinkViews(env, identity, resource.access),
-        env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).listWorkspaces(),
-      ]);
-      const activeWorkspaceIds = new Set(projectLinks.filter((link) => link.status === "active").map((link) => link.workspaceId));
-      const linkableProjects = workspaces.filter((workspace) => workspace.archivedAt === null && !activeWorkspaceIds.has(workspace.id));
-      return htmlResponse(
-        renderReviewPage(publicReview(resource.record), members, projectLinks, identity.email, identity.mode, linkableProjects),
-        200,
-        url,
-      );
-    } catch {
-      return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+      const resource = await createReviewResource(env, identity, title, profile);
+      return redirectResponse(resource.record.href, 303);
+    } catch (error) {
+      return Response.json({ error: error instanceof Error ? error.message : "Review creation failed" }, { status: 400 });
     }
   }
+  if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
+  const reviews = env ? await discoverLegacyReviews(env, identity) : fallbackReviews();
+  return htmlResponse(renderReviewsPage(reviews, identity.email, identity.mode), 200, url);
+}
 
-  return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+async function handleReviewProjectLinksRequest(
+  request: Request,
+  url: URL,
+  env: Env | undefined,
+  identity: AuthIdentity,
+): Promise<Response | null> {
+  const reviewProjectLinksPage = /^\/review\/([a-f0-9-]{36})\/project-links$/iu.exec(url.pathname);
+  if (!reviewProjectLinksPage?.[1]) return null;
+  if (request.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
+  if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+  const form = await request.formData();
+  const workspaceId = String(form.get("workspaceId") ?? "");
+  const apiRequest = new Request(`${url.origin}/api/reviews/${reviewProjectLinksPage[1]}/project-links`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workspaceId }),
+  });
+  const response = await handleReviewsApi(apiRequest, env, identity);
+  return response.ok ? redirectResponse(`/review/${reviewProjectLinksPage[1]}`, 303) : response;
+}
+
+async function handleReviewDetailRequest(url: URL, env: Env | undefined, identity: AuthIdentity): Promise<Response | null> {
+  const reviewPage = /^\/review\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
+  if (!reviewPage?.[1]) return null;
+  if (!env) {
+    if (reviewPage[1] === "demo") return redirectResponse(`/review/${fallbackReviewId}${url.search}`, 308);
+    const review = fallbackReviews().find((candidate) => candidate.id === reviewPage[1]);
+    if (!review) return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+    return htmlResponse(
+      renderReviewPage(review, fallbackReviewMembers(), fallbackReviewProjectLinks(), identity.email, identity.mode),
+      200,
+      url,
+    );
+  }
+  try {
+    const resource = await resolveReviewResource(env, identity, reviewPage[1]);
+    if (!resource) {
+      const legacy = await ensureLegacyReviewResource(env, identity, reviewPage[1]);
+      if (!legacy) return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+      return redirectResponse(`${legacy.record.href}${url.search}`, 308);
+    }
+    const [members, projectLinks, workspaces] = await Promise.all([
+      resource.access.listMembers(identity.email),
+      reviewProjectLinkViews(env, identity, resource.access),
+      env.WORKSPACE_CATALOGS.getByName(identity.ownerKey).listWorkspaces(),
+    ]);
+    const activeWorkspaceIds = new Set(projectLinks.filter((link) => link.status === "active").map((link) => link.workspaceId));
+    const linkableProjects = workspaces.filter((workspace) => workspace.archivedAt === null && !activeWorkspaceIds.has(workspace.id));
+    return htmlResponse(
+      renderReviewPage(publicReview(resource.record), members, projectLinks, identity.email, identity.mode, linkableProjects),
+      200,
+      url,
+    );
+  } catch {
+    return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+  }
 }
 
 async function handleAuthenticatedApiRequest(
