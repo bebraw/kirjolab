@@ -52,6 +52,35 @@ export {
   WorkspaceCatalog,
 };
 
+type AuthenticatedApiHandler = (request: Request, env: Env, identity: AuthIdentity) => Promise<Response>;
+
+interface AuthenticatedApiRoute {
+  readonly matches: (pathname: string) => boolean;
+  readonly handle: AuthenticatedApiHandler;
+}
+
+const githubConnectionPaths = new Set([
+  "/api/github/connection",
+  "/api/github/connect",
+  "/api/github/callback",
+  "/api/github/install",
+  "/api/github/setup",
+  "/api/github/installations",
+]);
+const authenticatedApiRoutes: readonly AuthenticatedApiRoute[] = [
+  { matches: (path) => matchesApiFamily(path, "/api/backups"), handle: handleBackupApi },
+  { matches: (path) => matchesApiFamily(path, "/api/project-templates"), handle: handleProjectTemplateApi },
+  { matches: (path) => path === "/api/github/import-previews" || path === "/api/github/imports", handle: handleGitHubImportApi },
+  { matches: (path) => path === "/api/latex-import-previews" || path === "/api/latex-imports", handle: handleLatexImportApi },
+  {
+    matches: (path) => githubConnectionPaths.has(path) || path.startsWith("/api/github/installations/"),
+    handle: handleGitHubConnectionApi,
+  },
+  { matches: (path) => matchesApiFamily(path, "/api/reviews"), handle: handleReviewsApi },
+  { matches: (path) => matchesApiFamily(path, "/api/workspaces"), handle: handleWorkspaceApi },
+  { matches: (path) => matchesApiFamily(path, "/api/library"), handle: handleReferenceLibraryApi },
+];
+
 export default {
   async fetch(request: Request, env?: Env, ctx?: ExecutionContext): Promise<Response> {
     return await handleRequest(request, env, ctx);
@@ -79,42 +108,8 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   }
   if (!isSameOriginMutation(request)) return Response.json({ error: "Cross-origin mutation denied" }, { status: 403 });
 
-  if (url.pathname === "/api/session") {
-    return Response.json({ email: identity.email, mode: identity.mode }, { headers: { "cache-control": "no-store" } });
-  }
-
-  if (url.pathname === "/api/backups" || url.pathname.startsWith("/api/backups/")) {
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await handleBackupApi(request, env, identity);
-  }
-
-  if (url.pathname === "/api/project-templates" || url.pathname.startsWith("/api/project-templates/")) {
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await handleProjectTemplateApi(request, env, identity);
-  }
-
-  if (url.pathname === "/api/github/import-previews" || url.pathname === "/api/github/imports") {
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await handleGitHubImportApi(request, env, identity);
-  }
-
-  if (url.pathname === "/api/latex-import-previews" || url.pathname === "/api/latex-imports") {
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await handleLatexImportApi(request, env, identity);
-  }
-
-  if (
-    url.pathname === "/api/github/connection" ||
-    url.pathname === "/api/github/connect" ||
-    url.pathname === "/api/github/callback" ||
-    url.pathname === "/api/github/install" ||
-    url.pathname === "/api/github/setup" ||
-    url.pathname === "/api/github/installations" ||
-    url.pathname.startsWith("/api/github/installations/")
-  ) {
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await handleGitHubConnectionApi(request, env, identity);
-  }
+  const apiResponse = await handleAuthenticatedApiRequest(request, url, env, identity);
+  if (apiResponse) return apiResponse;
 
   if (url.pathname === "/") {
     const [workspaces, library, reviews] = env
@@ -221,22 +216,26 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
     }
   }
 
-  if (url.pathname === "/api/reviews" || url.pathname.startsWith("/api/reviews/")) {
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await handleReviewsApi(request, env, identity);
-  }
-
-  if (url.pathname === "/api/workspaces" || url.pathname.startsWith("/api/workspaces/")) {
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await handleWorkspaceApi(request, env, identity);
-  }
-
-  if (url.pathname === "/api/library" || url.pathname.startsWith("/api/library/")) {
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await handleReferenceLibraryApi(request, env, identity);
-  }
-
   return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+}
+
+async function handleAuthenticatedApiRequest(
+  request: Request,
+  url: URL,
+  env: Env | undefined,
+  identity: AuthIdentity,
+): Promise<Response | null> {
+  if (url.pathname === "/api/session") {
+    return Response.json({ email: identity.email, mode: identity.mode }, { headers: { "cache-control": "no-store" } });
+  }
+  const route = authenticatedApiRoutes.find(({ matches }) => matches(url.pathname));
+  if (!route) return null;
+  if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+  return await route.handle(request, env, identity);
+}
+
+function matchesApiFamily(pathname: string, root: string): boolean {
+  return pathname === root || pathname.startsWith(`${root}/`);
 }
 
 async function handlePublicRequest(request: Request, url: URL, env: Env | undefined): Promise<Response | null> {
