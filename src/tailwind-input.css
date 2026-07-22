@@ -3111,7 +3111,7 @@
 
   .source-editor-shell {
     --source-editor-gutter: clamp(2.5rem, 8vw, 3.25rem);
-    --source-editor-inline-padding: clamp(1.25rem, 4vw, 3rem);
+    --source-editor-inline-padding: clamp(var(--ui-space-4), 4%, var(--ui-space-5));
     --source-editor-line-height: 1.6875rem;
     position: relative;
     min-height: 34rem;

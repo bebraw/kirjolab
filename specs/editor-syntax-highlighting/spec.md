@@ -17,9 +17,11 @@ preserving the native collaborative textarea and exact source text.
 - **Presentation:** `#source-editor-highlight` is an inert, `aria-hidden` mirror
   behind the transparent textarea glyphs. It uses safe text nodes, shows a
   line-number gutter whose rows follow wrapped logical lines, and follows the
-  textarea scroll position. The textarea, mirror, and gutter share one integral
-  line-height token and opt out of Safari text autosizing so fractional native
-  control rounding cannot accumulate into vertical drift.
+  textarea scroll position. Pane-relative outer padding keeps the manuscript
+  close to its gutter while preserving space for four-digit line numbers. The
+  textarea, mirror, and gutter share one integral line-height token and opt out
+  of Safari text autosizing so fractional native control rounding cannot
+  accumulate into vertical drift.
 - **Semantics:** unified/remark preview parsing and validation remain authoritative;
   highlight classes are visual hints only.
 - **Edit history:** each project file owns a browser-local Yjs undo manager.
@@ -71,7 +73,9 @@ preserving the native collaborative textarea and exact source text.
 - The mirror must stay text-identical and aligned during scrolling and
   wrapping; line-number decoration must not enter its text content. Source
   editor surfaces must retain the shared integral line height and disabled text
-  autosizing that prevent cumulative Safari drift.
+  autosizing that prevent cumulative Safari drift. The textarea and mirror must
+  share padding, with outer inline padding bounded by the shared `--ui-space-4`
+  and `--ui-space-5` tokens instead of growing with the viewport.
 - Unsupported or incomplete syntax remains readable as ordinary source.
 - Undo history is ephemeral, scoped per file, and never enters project or
   collaboration state.

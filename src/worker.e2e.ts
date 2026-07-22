@@ -1045,23 +1045,33 @@ test("highlights Markdown without replacing the native editor", async ({ page })
   ).toBe(true);
   await expect(highlight.locator("img")).toHaveCount(0);
   expect(await page.evaluate(() => document.body.dataset.injected)).toBeUndefined();
-  expect(
-    await page.locator(".source-editor-shell").evaluate((shell) => {
-      const textarea = shell.querySelector<HTMLTextAreaElement>("#source-editor")!;
-      const mirror = shell.querySelector<HTMLElement>("#source-editor-highlight")!;
-      const inputStyle = getComputedStyle(textarea);
-      const mirrorStyle = getComputedStyle(mirror);
-      return {
-        sameWidth: textarea.clientWidth === mirror.clientWidth,
-        font: inputStyle.font === mirrorStyle.font,
-        padding: inputStyle.padding === mirrorStyle.padding,
-        wrappedLineNumberStaysAligned: [...mirror.querySelectorAll<HTMLElement>(".source-editor-line")].some(
-          (line) => line.getBoundingClientRect().height > parseFloat(mirrorStyle.lineHeight) * 1.5,
-        ),
-        whiteSpace: mirrorStyle.whiteSpace,
-      };
-    }),
-  ).toEqual({ sameWidth: true, font: true, padding: true, wrappedLineNumberStaysAligned: true, whiteSpace: "pre-wrap" });
+  const highlightGeometry = await page.locator(".source-editor-shell").evaluate((shell) => {
+    const textarea = shell.querySelector<HTMLTextAreaElement>("#source-editor")!;
+    const mirror = shell.querySelector<HTMLElement>("#source-editor-highlight")!;
+    const inputStyle = getComputedStyle(textarea);
+    const mirrorStyle = getComputedStyle(mirror);
+    return {
+      sameWidth: textarea.clientWidth === mirror.clientWidth,
+      font: inputStyle.font === mirrorStyle.font,
+      padding: inputStyle.padding === mirrorStyle.padding,
+      outerInlinePadding: parseFloat(inputStyle.paddingInlineEnd),
+      textInset: parseFloat(inputStyle.paddingInlineStart),
+      wrappedLineNumberStaysAligned: [...mirror.querySelectorAll<HTMLElement>(".source-editor-line")].some(
+        (line) => line.getBoundingClientRect().height > parseFloat(mirrorStyle.lineHeight) * 1.5,
+      ),
+      whiteSpace: mirrorStyle.whiteSpace,
+    };
+  });
+  expect(highlightGeometry).toMatchObject({
+    sameWidth: true,
+    font: true,
+    padding: true,
+    wrappedLineNumberStaysAligned: true,
+    whiteSpace: "pre-wrap",
+  });
+  expect(highlightGeometry.outerInlinePadding).toBeGreaterThanOrEqual(16);
+  expect(highlightGeometry.outerInlinePadding).toBeLessThanOrEqual(24);
+  expect(highlightGeometry.textInset).toBeLessThanOrEqual(76);
   const verticalExtent = await page.locator(".source-editor-shell").evaluate((shell) => {
     const textarea = shell.querySelector<HTMLTextAreaElement>("#source-editor")!;
     const mirror = shell.querySelector<HTMLElement>("#source-editor-highlight")!;
