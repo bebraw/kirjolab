@@ -4,6 +4,7 @@ import {
   buildGitHubPullPlan,
   compareGitHubSync,
   resolveGitHubPullPlan,
+  summarizeGitHubSync,
   type GitHubSyncBaseFile,
 } from "./github-sync";
 
@@ -126,6 +127,41 @@ describe("GitHub three-way sync", () => {
         [],
       ),
     ).toThrow("local path");
+  });
+
+  it("distinguishes branch movement from tracked manuscript divergence", () => {
+    const unchanged = compareGitHubSync(base, [local("base"), local("chapter", "chapter")], [remote("base"), remote("chapter", "chapter")]);
+    expect(summarizeGitHubSync("a".repeat(40), "b".repeat(40), unchanged)).toMatchObject({
+      relationship: "remote-changed",
+      remoteHeadChanged: true,
+      incomingChanges: 0,
+      outgoingChanges: 0,
+      conflicts: 0,
+    });
+    expect(summarizeGitHubSync("b".repeat(40), "b".repeat(40), unchanged).relationship).toBe("synced");
+  });
+
+  it("summarizes actionable incoming, outgoing, divergent, and conflicting states", () => {
+    const summary = (localContent: string, remoteContent: string) =>
+      summarizeGitHubSync(
+        "a".repeat(40),
+        "b".repeat(40),
+        compareGitHubSync(base, [local(localContent), local("chapter", "chapter")], [remote(remoteContent), remote("chapter", "chapter")]),
+      );
+    expect(summary("base", "remote").relationship).toBe("github-ahead");
+    expect(summary("local", "base").relationship).toBe("kirjolab-ahead");
+    expect(summary("local", "remote").relationship).toBe("conflicted");
+
+    const diverged = compareGitHubSync(
+      base,
+      [local("base"), local("local chapter", "local chapter")],
+      [remote("remote"), remote("chapter", "chapter")],
+    );
+    expect(summarizeGitHubSync("a".repeat(40), "b".repeat(40), diverged)).toMatchObject({
+      relationship: "diverged",
+      incomingChanges: 1,
+      outgoingChanges: 1,
+    });
   });
 });
 

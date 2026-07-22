@@ -93,6 +93,11 @@ incoming and outgoing mutation.
 - `GET /api/workspaces/{id}/github-sync` returns owner-safe binding display
   state, current sync status, and last synchronized commit/revision without
   credentials or token material.
+- `GET /api/workspaces/{id}/github-sync/status` revalidates repository access,
+  reads the configured branch, and returns a non-mutating summary that
+  distinguishes tracked incoming changes, tracked outgoing changes, conflicts,
+  and branch-head movement that only affected content outside Kirjolab's
+  tracked Markdown subtree.
 - `POST /api/workspaces/{id}/github-sync/pull-previews` returns a non-mutating
   three-way incoming diff and conflicts.
 - `POST /api/workspaces/{id}/github-sync/pulls` consumes a current pull preview
@@ -130,7 +135,9 @@ incoming and outgoing mutation.
 - Do not apply pulled text by replacing a complete `Y.Text` when a bounded edit
   can preserve surviving identities and anchors.
 - Do not use webhooks, polling, scheduled jobs, page load, or editor save as an
-  implicit Pull or Publish trigger.
+  implicit Pull or Publish trigger. A bounded read-only status check on initial
+  load, focus, or explicit request is allowed; it must never advance the base or
+  mutate project or repository content.
 - Do not force-update a Git reference, bypass branch protection, broaden an App
   installation, or write outside the configured subtree.
 - Do not treat a GitHub owner/name, branch name, path, client-supplied commit, or
@@ -153,6 +160,8 @@ incoming and outgoing mutation.
       non-forced commit to the configured branch.
 - [x] Concurrent local and remote changes are classified by a retained
       three-way base and never silently overwrite either side.
+- [x] Read-only status distinguishes a moved GitHub branch from tracked
+      manuscript changes, including commits that only touch untracked paths.
 - [x] Unknown Markdown syntax and all untracked repository content remain
       byte-for-byte unchanged by operations that do not edit them.
 - [x] Revoked access, stale previews, protected branches, timeouts, and retries
@@ -175,6 +184,8 @@ incoming and outgoing mutation.
   branch, and normalized subtree revalidated by the server at confirmation.
 - Pull and Publish always have a separately confirmed diff preview; preview
   generation is non-mutating and confirmation cannot reuse stale state.
+- Automatic status checks are read-only, bounded to the configured repository
+  selection, and never create previews or advance synchronization markers.
 - A pull preserves stable file and Yjs identities wherever path and text
   identity survive, and it does not mutate comments or anchors around Yjs.
 - Direct Publish creates one commit, never force-pushes, and never changes an

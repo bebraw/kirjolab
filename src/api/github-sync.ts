@@ -35,6 +35,7 @@ export async function handleGitHubWorkspaceSyncApi(
   const context = { env, identity, room, client, authorize } satisfies GitHubSyncContext;
   try {
     if (suffix === "/github-sync" && request.method === "GET") return Response.json(await room.getGitHubSyncState());
+    if (suffix === "/github-sync/status" && request.method === "GET") return await inspectSync(context);
     if (suffix === "/github-sync" && request.method === "DELETE") {
       await room.disconnectGitHubProject();
       return new Response(null, { status: 204 });
@@ -47,6 +48,14 @@ export async function handleGitHubWorkspaceSyncApi(
   } catch (error) {
     return githubErrorResponse(error);
   }
+}
+
+async function inspectSync(context: GitHubSyncContext): Promise<Response> {
+  const binding = await context.room.getGitHubSyncState();
+  if (!binding) return Response.json(null);
+  const remote = await readAuthorizedSnapshot(context, binding);
+  if (remote instanceof Response) return remote;
+  return Response.json(await context.room.inspectGitHubSync(remote.commitSha, remote.files));
 }
 
 async function previewPull(context: GitHubSyncContext): Promise<Response> {

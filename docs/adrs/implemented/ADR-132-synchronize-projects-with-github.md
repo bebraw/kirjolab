@@ -58,9 +58,13 @@ copied or tracked. The owner may select the project entry file in the preview;
 otherwise Kirjolab follows ADR-133 by preferring root `main.md` and then the
 first normalized Markdown path. Import does not synthesize source files.
 
-Synchronization is manual. `Pull` and `Publish` first produce complete,
-non-mutating previews and require a second explicit confirmation. Kirjolab does
-not poll, subscribe to repository webhooks, or synchronize in the background.
+Synchronization mutations are manual. `Pull` and `Publish` first produce
+complete, non-mutating previews and require a second explicit confirmation.
+Kirjolab does not subscribe to repository webhooks or synchronize content in
+the background. It may perform a bounded, read-only remote status check while a
+connected project is open or regains focus. That check distinguishes branch
+head movement from changes to the tracked Markdown subtree and does not create
+a preview, advance the synchronized base, or mutate either authority.
 Preview confirmation is revision-checked: a changed local project revision or
 remote branch head invalidates the preview.
 
@@ -120,6 +124,8 @@ version as an unpublished local change.
   common publish path lightweight.
 - Three-way comparison detects divergence instead of silently overwriting local
   or remote work.
+- Read-only status makes branch movement visible even when newer commits only
+  affect paths outside the tracked manuscript subtree.
 - Applying pulls through existing Yjs texts preserves surviving collaborative
   identities and anchors.
 - Repository-scoped installation and short-lived server-side tokens avoid broad
@@ -160,6 +166,9 @@ protection or adopt a later optional PR workflow.
 Automatic pulls reduce staleness but make project mutations happen outside an
 author's immediate review and introduce webhook delivery, retry, ordering, and
 installation lifecycle complexity before the manual workflow is proven.
+
+Read-only status refresh is intentionally narrower: it reports divergence while
+leaving Pull and Publish explicit and previewed.
 
 ### Treat GitHub as the canonical project store
 

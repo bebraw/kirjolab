@@ -37,7 +37,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Pull, and Publish operations over one repository-scoped GitHub App binding.
   Confine every operation to its configured subtree, retain a three-way sync
   base, apply pulls through existing Yjs texts, and publish reviewed changes as
-  one non-forced direct commit by default; never synchronize in the background.
+  one non-forced direct commit by default; never synchronize content in the
+  background. Allow bounded automatic read-only status checks, but never let
+  them create previews, advance the base, or mutate either authority.
   Keep import creation, bound-workspace synchronization, and their shared
   transport/error contracts in separate server modules; callers depend only on
   the phase they invoke.

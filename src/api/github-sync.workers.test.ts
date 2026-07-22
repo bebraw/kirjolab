@@ -114,6 +114,35 @@ describe("GitHub sync API in the Workers runtime", () => {
     expect(response.status).toBe(409);
   });
 
+  it("reports branch movement even when tracked Markdown is unchanged", async () => {
+    const client = new FakeGitHubClient(snapshot("1".repeat(40), "Initial"));
+    const statusIdentity = { ...identity, ownerKey: `status-${crypto.randomUUID()}` };
+    const imported = await importWorkspace(client, statusIdentity);
+    const room = env.DOCUMENT_ROOMS.getByName(imported.id);
+    client.current = { ...client.current, commitSha: "2".repeat(40), commitMessage: "Change an untracked site stylesheet" };
+
+    const response = await handleGitHubWorkspaceSyncApi(
+      new Request("http://example.com/api/workspaces/project/github-sync/status"),
+      env,
+      statusIdentity,
+      room,
+      "/github-sync/status",
+      client,
+      authorizeSelection,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      commitSha: "1".repeat(40),
+      remoteHead: "2".repeat(40),
+      relationship: "remote-changed",
+      remoteHeadChanged: true,
+      incomingChanges: 0,
+      outgoingChanges: 0,
+      conflicts: 0,
+    });
+  });
+
   it("previews and atomically pulls remote-only changes while preserving local edits", async () => {
     const client = new FakeGitHubClient(snapshot("4".repeat(40), "Initial"));
     const pullIdentity = { ...identity, ownerKey: `pull-${crypto.randomUUID()}` };

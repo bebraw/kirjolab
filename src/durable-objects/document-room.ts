@@ -5,12 +5,14 @@ import {
   buildGitHubPullPlan,
   compareGitHubSync,
   resolveGitHubPullPlan,
+  summarizeGitHubSync,
   type GitHubPublishPlan,
   type GitHubPullPlan,
   type GitHubPullResolution,
   type GitHubSyncBaseFile,
   type GitHubSyncChange,
   type GitHubSyncRemoteFile,
+  type GitHubSyncSummary,
 } from "../domain/github-sync";
 import {
   bibTeXPublicationProjectionsEqual,
@@ -160,6 +162,8 @@ export interface GitHubProjectBindingState extends GitHubProjectBindingInput {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+
+export interface GitHubProjectSyncStatus extends GitHubProjectBindingState, GitHubSyncSummary {}
 
 export interface GitHubPublishPreview {
   readonly id: string;
@@ -1132,6 +1136,18 @@ export class DocumentRoom extends DurableObject<Env> {
       createdAt: binding.created_at,
       updatedAt: binding.updated_at,
     };
+  }
+
+  inspectGitHubSync(remoteHead: string, remoteFiles: readonly GitHubSyncRemoteFile[]): GitHubProjectSyncStatus | null {
+    if (!isGitHubCommitSha(remoteHead)) throw new Error("GitHub remote head is invalid");
+    const binding = this.getGitHubSyncState();
+    if (!binding) return null;
+    const comparison = compareGitHubSync(
+      this.#githubTrackedFiles(),
+      this.#projectFileRows().map((file) => ({ fileId: file.id, path: file.path, content: file.content })),
+      remoteFiles,
+    );
+    return { ...binding, ...summarizeGitHubSync(binding.commitSha, remoteHead, comparison) };
   }
 
   createGitHubPullPreview(remoteHead: string, remoteFiles: readonly GitHubSyncRemoteFile[]): GitHubPullPreview {

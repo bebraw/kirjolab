@@ -42,6 +42,40 @@ export interface GitHubPullResolution {
   readonly choice: "local" | "remote";
 }
 
+export type GitHubSyncRelationship = "synced" | "remote-changed" | "github-ahead" | "kirjolab-ahead" | "diverged" | "conflicted";
+
+export interface GitHubSyncSummary {
+  readonly relationship: GitHubSyncRelationship;
+  readonly remoteHead: string;
+  readonly remoteHeadChanged: boolean;
+  readonly incomingChanges: number;
+  readonly outgoingChanges: number;
+  readonly conflicts: number;
+}
+
+export function summarizeGitHubSync(
+  synchronizedCommit: string,
+  remoteHead: string,
+  comparison: readonly GitHubSyncChange[],
+): GitHubSyncSummary {
+  const incomingChanges = comparison.filter((change) => change.kind === "remote-only").length;
+  const outgoingChanges = comparison.filter((change) => change.kind === "local-only").length;
+  const conflicts = comparison.filter((change) => change.kind === "conflict").length;
+  const remoteHeadChanged = synchronizedCommit !== remoteHead;
+  const relationship: GitHubSyncRelationship = conflicts
+    ? "conflicted"
+    : incomingChanges && outgoingChanges
+      ? "diverged"
+      : incomingChanges
+        ? "github-ahead"
+        : outgoingChanges
+          ? "kirjolab-ahead"
+          : remoteHeadChanged
+            ? "remote-changed"
+            : "synced";
+  return { relationship, remoteHead, remoteHeadChanged, incomingChanges, outgoingChanges, conflicts };
+}
+
 export function compareGitHubSync(
   baseFiles: readonly GitHubSyncBaseFile[],
   localFiles: readonly GitHubSyncLocalFile[],
