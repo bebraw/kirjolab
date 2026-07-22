@@ -15,6 +15,7 @@ import {
   verifyReviewBackupPayload,
 } from "./review-backup";
 import type { ReviewExportAuthority } from "./review-export";
+import { sha256Text } from "./sha256";
 
 const ownerKey = "a".repeat(64);
 
@@ -106,6 +107,96 @@ describe("review backup payload", () => {
     await expect(
       materializeReviewBackupArtifact(ownerKey, payload, { ...exportAuthority(), revision: payload.reviewRevision - 1 }),
     ).rejects.toThrow("authority does not match payload revisions");
+  });
+
+  it("validates every payload table, row, and reference boundary", async () => {
+    const payload = backupPayload();
+    const artifact = await materializeReviewBackupArtifact(ownerKey, payload, exportAuthority());
+    const firstTable = payload.tables[0]!;
+    const replaceFirstTable = (table: unknown) => ({ ...payload, tables: [table, ...payload.tables.slice(1)] });
+
+    for (const invalidPayload of [
+      null,
+      [],
+      { ...payload, reviewRevision: "7" },
+      { ...payload, reviewRevision: -1 },
+      { ...payload, reviewRevision: 1.5 },
+      { ...payload, protocolRevision: "2" },
+      { ...payload, protocolRevision: 0 },
+      { ...payload, historyFloorRevision: "1" },
+      { ...payload, historyFloorRevision: -1 },
+      { ...payload, tables: null },
+      replaceFirstTable(null),
+      replaceFirstTable({ ...firstTable, name: "unknown" }),
+      replaceFirstTable({ ...firstTable, rows: null }),
+      replaceFirstTable({ ...firstTable, rows: [{}] }),
+      replaceFirstTable({ ...firstTable, rows: [{ Invalid: "value" }] }),
+      replaceFirstTable({ ...firstTable, rows: [{ "1invalid": "value" }] }),
+      replaceFirstTable({ ...firstTable, rows: [{ "invalid-key": "value" }] }),
+      replaceFirstTable({ ...firstTable, rows: [{ valid: true }] }),
+      replaceFirstTable({ ...firstTable, rows: [{ valid: [] }] }),
+    ]) {
+      expect(() => parseReviewBackupPayload(JSON.stringify(invalidPayload))).toThrow("Review backup payload is invalid");
+    }
+
+    const reference = artifact.reference;
+    for (const invalidReference of [
+      null,
+      [],
+      { ...reference, schemaVersion: "future" },
+      { ...reference, backupKey: 42 },
+      { ...reference, backupKey: "x".repeat(1_025) },
+      { ...reference, byteCount: "1" },
+      { ...reference, byteCount: 0 },
+      { ...reference, byteCount: 1.5 },
+      { ...reference, payloadDigest: "a".repeat(63) },
+      { ...reference, payloadDigest: `x${"a".repeat(64)}` },
+      { ...reference, authorityDigest: "A".repeat(64) },
+      { ...reference, reviewRevision: 0 },
+      { ...reference, reviewRevision: 1.5 },
+      { ...reference, protocolRevision: 0 },
+      { ...reference, protocolRevision: reference.reviewRevision + 1 },
+      { ...reference, historyFloorRevision: -1 },
+      { ...reference, historyFloorRevision: reference.reviewRevision + 1 },
+    ]) {
+      expect(() => parseReviewBackupReference(invalidReference)).toThrow("Review backup reference is invalid");
+    }
+    expect(
+      parseReviewBackupReference({ ...reference, backupKey: "x".repeat(1_024), byteCount: maximumReviewBackupPayloadBytes }),
+    ).toMatchObject({ backupKey: "x".repeat(1_024), byteCount: maximumReviewBackupPayloadBytes });
+
+    const nonCanonicalBody = ` ${artifact.body}`;
+    const nonCanonicalDigest = await sha256Text(nonCanonicalBody);
+    const nonCanonicalReference = {
+      ...reference,
+      byteCount: new TextEncoder().encode(nonCanonicalBody).byteLength,
+      payloadDigest: nonCanonicalDigest,
+      backupKey: reviewBackupPayloadKey(ownerKey, nonCanonicalDigest),
+    };
+    await expect(verifyReviewBackupPayload(ownerKey, nonCanonicalReference, nonCanonicalBody)).rejects.toThrow("payload is not canonical");
+    await expect(
+      verifyReviewBackupPayload(ownerKey, { ...reference, protocolRevision: reference.protocolRevision + 1 }, artifact.body),
+    ).rejects.toThrow("revisions do not match reference");
+    await expect(
+      verifyReviewBackupPayload(ownerKey, { ...reference, historyFloorRevision: reference.historyFloorRevision + 1 }, artifact.body),
+    ).rejects.toThrow("revisions do not match reference");
+
+    const authority = exportAuthority();
+    for (const mismatch of [
+      { ...authority, revision: authority.revision + 1 },
+      { ...authority, protocol: { ...authority.protocol, revision: authority.protocol.revision + 1 } },
+      {
+        ...authority,
+        protocol: {
+          ...authority.protocol,
+          protocol: { ...authority.protocol.protocol, revision: authority.protocol.protocol.revision + 1 },
+        },
+      },
+    ]) {
+      await expect(materializeReviewBackupArtifact(ownerKey, payload, mismatch)).rejects.toThrow(
+        "authority does not match payload revisions",
+      );
+    }
   });
 });
 

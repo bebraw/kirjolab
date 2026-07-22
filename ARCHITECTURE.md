@@ -172,6 +172,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   objects. Derive history, interchange files, PRISMA flow, and the deterministic
   review package from one revision-pinned authority snapshot; retain explicit
   compatibility for project-associated v2 and legacy v1 owner manifests.
+- Keep owner-backup schemas, deterministic projection and key derivation, and
+  versioned manifest validation as separate domain modules behind the stable
+  `backups.ts` facade. Validation may depend on schema types, but projection
+  helpers must not depend on compatibility validation or coordinator state.
+  Owner manifests, review payloads, and recovery comparison share the same
+  code-point-ordered canonical JSON primitive and SHA-256 text encoding.
 - Keep review JSON/history, tabular interchange, PRISMA rendering, and ZIP
   assembly as separate format modules behind one stable review-export facade.
   Every formatter consumes the same revision-pinned authority; formatters do

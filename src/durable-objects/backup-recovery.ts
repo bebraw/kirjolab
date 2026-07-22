@@ -7,6 +7,7 @@ import {
   type OwnerBackupManifest,
   type ProjectAssociatedReviewOwnerBackupManifest,
 } from "../domain/backups";
+import { canonicalValue } from "../domain/canonical-json";
 import type { ReviewAccessBackupState, ReviewCatalogRecord } from "../domain/review-catalog";
 import type { ReviewBackupReference, ReviewBackupVerification } from "../domain/review-backup";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
@@ -98,6 +99,8 @@ export class BackupRecovery extends DurableObject<Env> {
     });
   }
 
+  // Durable Object RPC entrypoint invoked through its namespace stub.
+  // fallow-ignore-next-line unused-class-member
   async restoreManifest(manifestJson: string): Promise<BackupManifestRestoreResult> {
     if (new TextEncoder().encode(manifestJson).byteLength > maximumOwnerBackupBytes)
       throw new Error("Owner backup manifest exceeds 10 MiB");
@@ -151,6 +154,8 @@ export class BackupRecovery extends DurableObject<Env> {
     return { ok: true };
   }
 
+  // Durable Object RPC entrypoint invoked through its namespace stub.
+  // fallow-ignore-next-line unused-class-member
   getRestoredManifest(): string | null {
     const metadata = this.ctx.storage.sql
       .exec<{ chunk_count: number }>("SELECT chunk_count FROM recovered_manifests WHERE id = 1")
@@ -162,6 +167,8 @@ export class BackupRecovery extends DurableObject<Env> {
     return chunks.length === metadata.chunk_count ? chunks.map((row) => row.manifest_chunk).join("") : null;
   }
 
+  // Durable Object RPC entrypoint invoked through its namespace stub.
+  // fallow-ignore-next-line unused-class-member
   getRestoredReviewStudies(): RecoveredReviewStudy[] {
     return this.ctx.storage.sql
       .exec<RecoveredReviewRow>("SELECT * FROM recovered_review_studies ORDER BY workspace_id ASC")
@@ -320,16 +327,6 @@ function normalizedReviewAccessState(state: ReviewAccessBackupState): ReviewAcce
     members: [...state.members].sort((left, right) => left.id.localeCompare(right.id)),
     projectLinks: [...state.projectLinks].sort((left, right) => left.id.localeCompare(right.id)),
   };
-}
-
-function canonicalValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonicalValue);
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, item]) => [key, canonicalValue(item)]),
-  );
 }
 
 function assertReviewVerification(reference: ReviewBackupReference, verification: ReviewBackupVerification): void {

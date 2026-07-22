@@ -1,4 +1,6 @@
 import { reviewAuthorityJson, type ReviewExportAuthority } from "./review-export";
+import { canonicalJson, compareText } from "./canonical-json";
+import { isSha256Hex, sha256Text } from "./sha256";
 
 export const reviewBackupSchemaVersion = "kirjolab-review-backup-v1" as const;
 export const maximumReviewBackupPayloadBytes = 64 * 1024 * 1024;
@@ -98,7 +100,7 @@ export async function verifyReviewBackupPayload(
   if (new TextEncoder().encode(body).byteLength !== reference.byteCount) {
     throw new Error("Review backup payload byte count does not match reference");
   }
-  if ((await sha256Hex(body)) !== reference.payloadDigest) {
+  if ((await sha256Text(body)) !== reference.payloadDigest) {
     throw new Error("Review backup payload digest does not match reference");
   }
   const payload = parseReviewBackupPayload(body);
@@ -114,11 +116,11 @@ export async function verifyReviewBackupPayload(
 }
 
 export async function reviewBackupPayloadDigest(payload: ReviewStudyBackupPayload): Promise<string> {
-  return await sha256Hex(reviewBackupPayloadJson(payload));
+  return await sha256Text(reviewBackupPayloadJson(payload));
 }
 
 export async function reviewBackupAuthorityDigest(authority: ReviewExportAuthority): Promise<string> {
-  return await sha256Hex(reviewAuthorityJson(authority));
+  return await sha256Text(reviewAuthorityJson(authority));
 }
 
 export async function materializeReviewBackupArtifact(
@@ -134,7 +136,7 @@ export async function materializeReviewBackupArtifact(
     throw new Error("Review backup authority does not match payload revisions");
   }
   const body = reviewBackupPayloadJson(payload);
-  const [payloadDigest, authorityDigest] = await Promise.all([sha256Hex(body), reviewBackupAuthorityDigest(authority)]);
+  const [payloadDigest, authorityDigest] = await Promise.all([sha256Text(body), reviewBackupAuthorityDigest(authority)]);
   return {
     body,
     reference: {
@@ -178,10 +180,10 @@ function isReviewBackupPayload(value: unknown): value is ReviewStudyBackupPayloa
   if (
     !isRecord(value) ||
     value.schemaVersion !== reviewBackupSchemaVersion ||
-    !positiveInteger(value.reviewRevision) ||
-    !positiveInteger(value.protocolRevision) ||
+    !integerAtLeast(value.reviewRevision, 1) ||
+    !integerAtLeast(value.protocolRevision, 1) ||
     Number(value.protocolRevision) > Number(value.reviewRevision) ||
-    !nonNegativeInteger(value.historyFloorRevision) ||
+    !integerAtLeast(value.historyFloorRevision, 0) ||
     Number(value.historyFloorRevision) > Number(value.reviewRevision) ||
     !Array.isArray(value.tables) ||
     value.tables.length !== reviewBackupTableNames.length
@@ -204,14 +206,14 @@ function isReviewBackupReference(value: unknown): value is ReviewBackupReference
     value.schemaVersion === reviewBackupSchemaVersion &&
     typeof value.backupKey === "string" &&
     value.backupKey.length <= 1_024 &&
-    positiveInteger(value.byteCount) &&
+    integerAtLeast(value.byteCount, 1) &&
     Number(value.byteCount) <= maximumReviewBackupPayloadBytes &&
-    isDigest(value.payloadDigest) &&
-    isDigest(value.authorityDigest) &&
-    positiveInteger(value.reviewRevision) &&
-    positiveInteger(value.protocolRevision) &&
+    isSha256Hex(value.payloadDigest) &&
+    isSha256Hex(value.authorityDigest) &&
+    integerAtLeast(value.reviewRevision, 1) &&
+    integerAtLeast(value.protocolRevision, 1) &&
     Number(value.protocolRevision) <= Number(value.reviewRevision) &&
-    nonNegativeInteger(value.historyFloorRevision) &&
+    integerAtLeast(value.historyFloorRevision, 0) &&
     Number(value.historyFloorRevision) <= Number(value.reviewRevision)
   );
 }
@@ -233,33 +235,9 @@ function isReviewBackupTableName(value: unknown): value is ReviewBackupTableName
   return typeof value === "string" && (reviewBackupTableNames as readonly string[]).includes(value);
 }
 
-function canonicalJson(value: unknown): string {
-  return JSON.stringify(canonicalValue(value));
-}
-
-function canonicalValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonicalValue);
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([, item]) => item !== undefined)
-      .sort(([left], [right]) => compareText(left, right))
-      .map(([key, item]) => [key, canonicalValue(item)]),
-  );
-}
-
-function compareText(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 function normalizedDigest(value: string, label: string): string {
   const normalized = value.trim().toLowerCase();
-  if (!isDigest(normalized)) throw new Error(`${label} is invalid`);
+  if (!isSha256Hex(normalized)) throw new Error(`${label} is invalid`);
   return normalized;
 }
 
@@ -268,16 +246,8 @@ function assertPayloadByteCount(byteCount: number): void {
   if (byteCount > maximumReviewBackupPayloadBytes) throw new Error("Review backup payload exceeds 64 MiB");
 }
 
-function positiveInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
-}
-
-function nonNegativeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-}
-
-function isDigest(value: unknown): value is string {
-  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+function integerAtLeast(value: unknown, minimum: number): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= minimum;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -41,6 +41,11 @@ rollback workflow without adding a second identity system.
   and project-associated v2 owner manifests remain readable; v2 drills retain
   their historical workspace-keyed restore semantics, while v1 does not gain a
   synthesized live review restore.
+- Owner-backup schemas, deterministic digest/key projection, and v1-v3
+  compatibility validation remain independently testable modules behind the
+  stable `backups.ts` consumer facade. Projection cannot depend on validation
+  or Durable Object coordinator state. Owner manifests, review payloads, and
+  recovery comparison use one canonical JSON ordering primitive.
 - Authoritative project image asset keys are binary backup references alongside
   workspace PDFs; their logical metadata remains in each workspace snapshot.
 - Owner-created project template seeds and their recovery bookmark are included

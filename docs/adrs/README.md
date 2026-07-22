@@ -179,6 +179,7 @@ No accepted ADRs are awaiting implementation.
 | [ADR-159](./implemented/ADR-159-render-pdf-links-in-the-active-page.md)                   | Implemented          | Render standard PDF links without adopting the complete PDF.js viewer application.                            |
 | [ADR-162](./implemented/ADR-162-run-deep-quality-checks-before-push.md)                   | Implemented          | Run affected Fallow and targeted mutation checks before pushes without expanding routine local CI.            |
 | [ADR-163](./implemented/ADR-163-separate-review-export-formatters.md)                     | Implemented          | Separate review export formats behind a stable facade and one revision-pinned authority.                      |
+| [ADR-164](./implemented/ADR-164-separate-owner-backup-contracts.md)                       | Implemented          | Separate owner-backup schemas, deterministic projection, and compatibility validation behind one facade.      |
 
 ## Creating A New ADR
 
