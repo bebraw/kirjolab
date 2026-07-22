@@ -2,9 +2,11 @@ import { reviewAuthorityJson, type ReviewExportAuthority } from "./review-export
 import { canonicalJson } from "./canonical-json";
 import { isSha256Hex, sha256Text } from "./sha256";
 import { compareText } from "./text-order";
+import { assertReviewBackupPayloadByteCount, maximumReviewBackupPayloadBytes } from "./review-backup-limits";
+
+export { maximumReviewBackupPayloadBytes } from "./review-backup-limits";
 
 export const reviewBackupSchemaVersion = "kirjolab-review-backup-v1" as const;
-export const maximumReviewBackupPayloadBytes = 64 * 1024 * 1024;
 
 export const reviewBackupTableNames = [
   "protocol_revisions",
@@ -68,12 +70,12 @@ export interface ReviewBackupArtifact {
 export function reviewBackupPayloadJson(payload: ReviewStudyBackupPayload): string {
   const normalized = normalizedPayload(payload);
   const body = `${canonicalJson(normalized)}\n`;
-  assertPayloadByteCount(new TextEncoder().encode(body).byteLength);
+  assertReviewBackupPayloadByteCount(new TextEncoder().encode(body).byteLength);
   return body;
 }
 
 export function parseReviewBackupPayload(json: string): ReviewStudyBackupPayload {
-  assertPayloadByteCount(new TextEncoder().encode(json).byteLength);
+  assertReviewBackupPayloadByteCount(new TextEncoder().encode(json).byteLength);
   let value: unknown;
   try {
     value = JSON.parse(json);
@@ -169,9 +171,7 @@ function normalizedPayload(payload: ReviewStudyBackupPayload): ReviewStudyBackup
     tables: [...payload.tables]
       .map((table) => ({
         name: table.name,
-        rows: [...table.rows]
-          .map((row) => Object.fromEntries(Object.entries(row).sort(([left], [right]) => compareText(left, right))))
-          .sort((left, right) => compareText(canonicalJson(left), canonicalJson(right))),
+        rows: [...table.rows].map((row) => ({ ...row })).sort((left, right) => compareText(canonicalJson(left), canonicalJson(right))),
       }))
       .sort((left, right) => compareText(left.name, right.name)),
   };
@@ -186,19 +186,17 @@ function isReviewBackupPayload(value: unknown): value is ReviewStudyBackupPayloa
     Number(value.protocolRevision) > Number(value.reviewRevision) ||
     !integerAtLeast(value.historyFloorRevision, 0) ||
     Number(value.historyFloorRevision) > Number(value.reviewRevision) ||
-    !Array.isArray(value.tables) ||
-    value.tables.length !== reviewBackupTableNames.length
+    !Array.isArray(value.tables)
   ) {
     return false;
   }
-  const expectedNames = new Set<ReviewBackupTableName>(reviewBackupTableNames);
   const seenNames = new Set<ReviewBackupTableName>();
   for (const table of value.tables) {
     if (!isRecord(table) || !isReviewBackupTableName(table.name) || seenNames.has(table.name) || !Array.isArray(table.rows)) return false;
     if (!table.rows.every(isReviewBackupRow)) return false;
     seenNames.add(table.name);
   }
-  return seenNames.size === expectedNames.size && [...expectedNames].every((name) => seenNames.has(name));
+  return seenNames.size === reviewBackupTableNames.length;
 }
 
 function isReviewBackupReference(value: unknown): value is ReviewBackupReference {
@@ -224,11 +222,7 @@ function isReviewBackupRow(value: unknown): value is ReviewBackupRow {
   const entries = Object.entries(value);
   return (
     entries.length > 0 &&
-    entries.every(
-      ([key, cell]) =>
-        /^[a-z][a-z0-9_]*$/u.test(key) &&
-        (cell === null || typeof cell === "string" || (typeof cell === "number" && Number.isFinite(cell))),
-    )
+    entries.every(([key, cell]) => /^[a-z][a-z0-9_]*$/u.test(key) && (cell === null || typeof cell === "string" || Number.isFinite(cell)))
   );
 }
 
@@ -240,11 +234,6 @@ function normalizedDigest(value: string, label: string): string {
   const normalized = value.trim().toLowerCase();
   if (!isSha256Hex(normalized)) throw new Error(`${label} is invalid`);
   return normalized;
-}
-
-function assertPayloadByteCount(byteCount: number): void {
-  if (byteCount <= 0) throw new Error("Review backup payload is invalid");
-  if (byteCount > maximumReviewBackupPayloadBytes) throw new Error("Review backup payload exceeds 64 MiB");
 }
 
 function integerAtLeast(value: unknown, minimum: number): value is number {

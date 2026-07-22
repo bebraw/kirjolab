@@ -38,6 +38,18 @@ describe("review backup payload", () => {
 
     const changed = backupPayload("Changed objective");
     expect(await reviewBackupPayloadDigest(changed)).not.toBe(await reviewBackupPayloadDigest(payload));
+    expect(
+      parseReviewBackupPayload(reviewBackupPayloadJson({ ...payload, reviewRevision: 1, protocolRevision: 1, historyFloorRevision: 1 })),
+    ).toMatchObject({
+      reviewRevision: 1,
+      protocolRevision: 1,
+      historyFloorRevision: 1,
+    });
+    expect(
+      parseReviewBackupPayload(reviewBackupPayloadJson({ ...payload, reviewRevision: 1, protocolRevision: 1, historyFloorRevision: 0 })),
+    ).toMatchObject({
+      historyFloorRevision: 0,
+    });
   });
 
   it("materializes an owner-scoped content-addressed reference with exact authority identity", async () => {
@@ -61,6 +73,7 @@ describe("review backup payload", () => {
     expect(reviewBackupPayloadKey(ownerKey.toUpperCase(), artifact.reference.payloadDigest.toUpperCase())).toBe(
       artifact.reference.backupKey,
     );
+    expect(reviewBackupPayloadKey(` ${ownerKey} `, ` ${artifact.reference.payloadDigest} `)).toBe(artifact.reference.backupKey);
 
     const changedAuthority = await materializeReviewBackupArtifact(ownerKey, payload, exportAuthority("Changed authority"));
     expect(changedAuthority.reference.payloadDigest).toBe(artifact.reference.payloadDigest);
@@ -89,6 +102,8 @@ describe("review backup payload", () => {
       expect(() => parseReviewBackupPayload(JSON.stringify(invalid))).toThrow("Review backup payload is invalid");
     }
     expect(() => parseReviewBackupPayload("not json")).toThrow("Review backup payload is invalid");
+    expect(() => parseReviewBackupPayload("")).toThrow("Review backup payload is invalid");
+    expect(() => reviewBackupPayloadJson({ ...payload, reviewRevision: 0 })).toThrow("Review backup payload is invalid");
     expect(() => reviewBackupPayloadKey("owner", artifact.reference.payloadDigest)).toThrow("owner key is invalid");
     expect(() => reviewBackupPayloadKey(ownerKey, "digest")).toThrow("payload digest is invalid");
     expect(() => parseReviewBackupReference(artifact.reference, "b".repeat(64))).toThrow("outside owner scope");
@@ -129,12 +144,15 @@ describe("review backup payload", () => {
       replaceFirstTable(null),
       replaceFirstTable({ ...firstTable, name: "unknown" }),
       replaceFirstTable({ ...firstTable, rows: null }),
+      replaceFirstTable({ ...firstTable, rows: [null] }),
       replaceFirstTable({ ...firstTable, rows: [{}] }),
       replaceFirstTable({ ...firstTable, rows: [{ Invalid: "value" }] }),
       replaceFirstTable({ ...firstTable, rows: [{ "1invalid": "value" }] }),
       replaceFirstTable({ ...firstTable, rows: [{ "invalid-key": "value" }] }),
       replaceFirstTable({ ...firstTable, rows: [{ valid: true }] }),
       replaceFirstTable({ ...firstTable, rows: [{ valid: [] }] }),
+      replaceFirstTable({ ...firstTable, rows: [{ valid: "value", Invalid: "value" }] }),
+      replaceFirstTable({ ...firstTable, rows: [{ valid: "value", other: { nested: true } }] }),
     ]) {
       expect(() => parseReviewBackupPayload(JSON.stringify(invalidPayload))).toThrow("Review backup payload is invalid");
     }
@@ -164,6 +182,25 @@ describe("review backup payload", () => {
     expect(
       parseReviewBackupReference({ ...reference, backupKey: "x".repeat(1_024), byteCount: maximumReviewBackupPayloadBytes }),
     ).toMatchObject({ backupKey: "x".repeat(1_024), byteCount: maximumReviewBackupPayloadBytes });
+    expect(
+      parseReviewBackupReference({
+        ...reference,
+        protocolRevision: reference.reviewRevision,
+        historyFloorRevision: reference.reviewRevision,
+      }),
+    ).toMatchObject({ protocolRevision: reference.reviewRevision, historyFloorRevision: reference.reviewRevision });
+
+    const nonFinitePayload = {
+      ...payload,
+      tables: [{ ...firstTable, rows: [{ valid: Number.POSITIVE_INFINITY }] }, ...payload.tables.slice(1)],
+    } satisfies ReviewStudyBackupPayload;
+    expect(() => reviewBackupPayloadJson(nonFinitePayload)).toThrow("Review backup payload is invalid");
+    const nullableInput = {
+      ...payload,
+      tables: [{ ...firstTable, rows: [{ valid: null }] }, ...payload.tables.slice(1)],
+    } satisfies ReviewStudyBackupPayload;
+    const nullablePayload = parseReviewBackupPayload(reviewBackupPayloadJson(nullableInput));
+    expect(nullablePayload.tables.find((table) => table.name === firstTable.name)?.rows[0]).toEqual({ valid: null });
 
     const nonCanonicalBody = ` ${artifact.body}`;
     const nonCanonicalDigest = await sha256Text(nonCanonicalBody);
