@@ -84,6 +84,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - [ ] The repo-managed `pre-push` hook runs affected-file guardrails, relevant
       Fallow diagnostics, and relevant targeted mutation checks before a
       push leaves the machine.
+- [ ] Mutation configuration changes force-refresh the incremental report so
+      its score contains only the currently configured mutation surface.
 - [ ] Local and remote CI use the same fast and browser package scripts for non-documentation changes.
 - [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
 - [ ] Optional container parity preserves Agent CI job progress, failure, and retry semantics.
@@ -113,9 +115,10 @@ The template needs a verification baseline that stays strict enough for end-to-e
   Stryker's mutation-time TypeScript checker so compile-invalid mutants are not
   counted as surviving or uncovered behavior.
 - Pre-push must run affected mutation for configured mutation sources, map Node
-  unit tests back to their source when it exists, and run incremental mutation
-  when mutation/test configuration changes without an affected source. It must
-  skip mutation for documentation-only or Worker-only changes.
+  unit tests back to their source when it exists, and force-refresh incremental
+  mutation whenever mutation/test configuration changes, even when source files
+  also changed. It must skip mutation for documentation-only or Worker-only
+  changes.
 - `npm install` must keep the repo-managed `pre-push` hook configured without requiring extra setup steps.
 - The CI workflow must cancel superseded runs for the same ref.
 - The CI workflow must read the pinned Node version from `package.json` instead of a separate version file.

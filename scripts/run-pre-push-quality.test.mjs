@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { affectedMutationSources, affectsFallow, isMutationSource } from "./run-pre-push-quality.mjs";
+import { affectedMutationSources, affectsFallow, isMutationSource, mutationPlan } from "./run-pre-push-quality.mjs";
 
 test("routes affected codebase inputs to Fallow", () => {
   assert.equal(affectsFallow("src/domain/workspace.ts"), true);
@@ -26,4 +26,16 @@ test("maps affected Node unit tests back to mutation sources", () => {
   assert.deepEqual(affectedMutationSources(process.cwd(), ["src/domain/workspace.test.ts"]), ["src/domain/workspace.ts"]);
   assert.deepEqual(affectedMutationSources(process.cwd(), ["src/api/reviews.workers.test.ts"]), []);
   assert.deepEqual(affectedMutationSources(process.cwd(), ["src/domain/removed-module.ts"]), []);
+});
+
+test("refreshes stale incremental results after any mutation configuration change", () => {
+  assert.deepEqual(mutationPlan(process.cwd(), ["stryker.config.mjs", "src/domain/workspace.ts"]), {
+    script: "mutation:incremental:refresh",
+    sources: [],
+  });
+  assert.deepEqual(mutationPlan(process.cwd(), ["src/domain/workspace.ts"]), {
+    script: "mutation:affected",
+    sources: ["src/domain/workspace.ts"],
+  });
+  assert.equal(mutationPlan(process.cwd(), ["docs/development.md"]), null);
 });

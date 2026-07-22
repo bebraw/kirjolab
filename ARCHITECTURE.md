@@ -515,8 +515,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - The verification baseline is split into a fast gate and a browser gate so quick checks can return earlier without dropping full coverage.
 - The repo-managed `pre-push` Git hook should run affected-file guardrails,
   Fallow for affected codebase inputs, and targeted Stryker checks for affected
-  Node-testable sources. Mutation configuration changes should fall back to the
-  full incremental mutation command.
+  Node-testable sources. Mutation configuration changes should force-refresh
+  the full incremental report so removed mutants cannot remain in the score.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.
 - Browser tests launch Wrangler with a fresh operating-system temporary persistence directory and remove it on shutdown. Test workspaces must never accumulate in the interactive development catalog.

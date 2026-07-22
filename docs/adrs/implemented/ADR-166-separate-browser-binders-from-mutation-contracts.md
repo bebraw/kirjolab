@@ -32,6 +32,7 @@ Apply the same boundary rule to future browser orchestration exclusions:
 - retain those contracts in Node unit and mutation testing;
 - exclude only the browser-runtime binder exercised by Playwright;
 - keep the pre-push mutation selector aligned with Stryker's exclusions; and
+- force-refresh incremental results after mutation configuration changes; and
 - preserve the existing mutation threshold.
 
 ## Consequences

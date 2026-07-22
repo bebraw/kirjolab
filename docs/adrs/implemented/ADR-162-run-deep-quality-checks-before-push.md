@@ -33,8 +33,9 @@ selector:
   unit tests back to their production source when available;
 - retain Stryker's mutation-time TypeScript checker because project-level
   typechecking does not validate each mutated program;
-- fall back to the full incremental command when mutation/test configuration
-  changes without an affected source;
+- force-refresh the full incremental report whenever mutation/test
+  configuration changes, because Stryker can otherwise retain mutants removed
+  from the configured surface;
 - skip irrelevant deep checks for documentation-only and Worker-only pushes;
 - preserve `npm run mutation` as the clean authoritative GitHub mutation job.
 
@@ -51,12 +52,13 @@ bypass contract.
 - Routine development and `ci:local` keep their existing bounded feedback loop.
 - Documentation-only and Worker-only pushes avoid irrelevant mutation work.
 - Routine source pushes mutate only the affected production surface.
-- Rare mutation-configuration pushes can reuse the ignored incremental report.
+- Rare mutation-configuration pushes rebuild the ignored incremental report.
 
 **Negative:**
 
-- A push that changes mutation configuration can take several minutes and use
-  the configured 8 GiB heap ceiling.
+- A push that changes mutation configuration performs a full local mutation
+  refresh, which can take several minutes and use the configured 8 GiB heap
+  ceiling.
 - The hook owns another affected-file routing table that must stay aligned with
   `stryker.config.mjs` exclusions.
 - A targeted mutation score describes only the affected files; the clean full

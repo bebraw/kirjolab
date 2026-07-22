@@ -45,6 +45,14 @@ export function affectedMutationSources(repoRoot, files) {
   return [...sources].sort();
 }
 
+export function mutationPlan(repoRoot, files) {
+  if (files.some((file) => mutationConfigurationFiles.has(file))) {
+    return { script: "mutation:incremental:refresh", sources: [] };
+  }
+  const sources = affectedMutationSources(repoRoot, files);
+  return sources.length > 0 ? { script: "mutation:affected", sources } : null;
+}
+
 function runPrePushQuality(repoRoot, affectedFiles) {
   if (affectedFiles.some(affectsFallow)) {
     console.log("Running Fallow codebase diagnostics before push...");
@@ -53,13 +61,13 @@ function runPrePushQuality(repoRoot, affectedFiles) {
     console.log("Fallow diagnostics skipped: no affected codebase inputs.");
   }
 
-  const mutationSources = affectedMutationSources(repoRoot, affectedFiles);
-  if (mutationSources.length > 0) {
-    console.log(`Running mutation tests for ${mutationSources.length} affected source file(s) before push...`);
-    run(repoRoot, "npm", ["run", "mutation:affected", "--", "--mutate", mutationSources.join(",")]);
-  } else if (affectedFiles.some((file) => mutationConfigurationFiles.has(file))) {
-    console.log("Running incremental mutation tests because mutation configuration changed...");
-    run(repoRoot, "npm", ["run", "mutation:incremental"]);
+  const plan = mutationPlan(repoRoot, affectedFiles);
+  if (plan?.script === "mutation:incremental:refresh") {
+    console.log("Refreshing incremental mutation results because mutation configuration changed...");
+    run(repoRoot, "npm", ["run", plan.script]);
+  } else if (plan) {
+    console.log(`Running mutation tests for ${plan.sources.length} affected source file(s) before push...`);
+    run(repoRoot, "npm", ["run", plan.script, "--", "--mutate", plan.sources.join(",")]);
   } else {
     console.log("Incremental mutation tests skipped: no affected Stryker inputs.");
   }

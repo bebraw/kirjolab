@@ -13,7 +13,8 @@ expanding the routine local readiness gate.
 4. Run Fallow for affected codebase inputs.
 5. Run Stryker with its TypeScript checker for affected mutation sources and
    map affected Node tests back to their production source.
-6. Fall back to incremental Stryker for mutation/test configuration changes.
+6. Force-refresh incremental Stryker for mutation/test configuration changes so
+   removed mutants cannot remain in the local score.
 7. Skip irrelevant deep checks for documentation-only and Worker-only pushes.
 8. Keep clean full mutation with the TypeScript checker in GitHub Actions.
 9. Route package commands that resolve files under `node_modules` through

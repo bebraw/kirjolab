@@ -237,6 +237,9 @@ while excluding declarations, unit tests, end-to-end tests, and
 full-surface local runs can reuse previous mutant results while ignoring static
 mutants. Both local commands retain the configured TypeScript checker; a plain
 project typecheck cannot determine whether each mutated program still compiles.
+`npm run mutation:incremental:refresh` forces Stryker to rebuild that report;
+the pre-push selector uses it after mutation or test configuration changes so
+mutants removed from the configured surface cannot remain in the local score.
 The clean GitHub `npm run mutation` job also tests static mutants, so it remains
 the authoritative mutation score. The Vitest runner uses Stryker's per-test coverage
 analysis and related-test narrowing, so each runtime mutant runs against the
@@ -257,7 +260,9 @@ replays the exact Git pre-push ref input to affected guardrails and the deep
 check selector. Fallow runs only for affected JavaScript, TypeScript, package,
 or Fallow configuration inputs. Stryker targets only affected configured
 mutation sources; affected Node unit tests map back to their production source.
-Mutation configuration changes fall back to `npm run mutation:incremental`.
+Mutation configuration changes force-refresh the incremental report with
+`npm run mutation:incremental:refresh`, even when a mutation source also
+changed.
 `git push --no-verify` remains Git's explicit emergency bypass, while the clean
 GitHub mutation job remains authoritative.
 
