@@ -73,6 +73,20 @@ interface WorkspaceRouteContext {
   readonly catalog: WorkspaceCatalogStub;
 }
 
+interface ProjectHistoryRouteContext extends WorkspaceRouteContext {
+  readonly revision: number;
+  readonly action: string | undefined;
+}
+
+interface ProjectMilestoneCreation {
+  readonly name: string;
+  readonly description?: string;
+}
+
+interface WorkspaceSeedCreation {
+  readonly title: string;
+}
+
 export async function handleWorkspaceApi(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname === "/api/workspaces") return await handleWorkspaceCatalog(request, env, identity);
@@ -575,9 +589,8 @@ async function handleWorkspaceHistoryComparisonRoute(context: WorkspaceRouteCont
 }
 
 async function handleWorkspaceHistoryMutationRoute(context: WorkspaceRouteContext): Promise<Response | null> {
-  const { request, suffix, workspaceId, identity, role, env, room, catalog } = context;
-  if (!suffix.startsWith("/history/")) return null;
-  return await handleProjectHistory(request, suffix, workspaceId, env, identity, role, room, catalog);
+  if (!context.suffix.startsWith("/history/")) return null;
+  return await handleProjectHistory(context);
 }
 
 async function handleWorkspaceExportRoute(context: WorkspaceRouteContext): Promise<Response | null> {
@@ -756,55 +769,69 @@ async function exportWorkspace(
   return jsonError("Export route not found", 404);
 }
 
-async function handleProjectHistory(
-  request: Request,
-  suffix: string,
-  workspaceId: string,
-  env: Env,
-  identity: AuthIdentity,
-  role: "owner" | "member",
-  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
-  catalog: DurableObjectStub<import("../durable-objects/workspace-catalog").WorkspaceCatalog>,
-): Promise<Response> {
+async function handleProjectHistory(context: WorkspaceRouteContext): Promise<Response> {
+  const { request, suffix, role, room } = context;
   const match = /^\/history\/(\d+)(?:\/(milestones|restore|seed))?$/u.exec(suffix);
   const revision = revisionParameter(match?.[1] ?? null);
   if (revision === null) return jsonError("Project revision route not found", 404);
-  const action = match?.[2];
-  if (!action && request.method === "GET") return Response.json(await room.getRevision(revision));
+  const historyContext = { ...context, revision, action: match?.[2] } satisfies ProjectHistoryRouteContext;
+  if (!historyContext.action && request.method === "GET") return Response.json(await room.getRevision(revision));
   if (role !== "owner") return jsonError("Only the workspace owner can manage project history", 403);
-  if (action === "milestones" && request.method === "POST") {
-    const body: unknown = await request.json();
-    if (
-      !isRecord(body) ||
-      typeof body.name !== "string" ||
-      body.name.trim().length === 0 ||
-      body.name.length > 120 ||
-      (body.description !== undefined && (typeof body.description !== "string" || body.description.length > 2_000))
-    ) {
-      return jsonError("Invalid project milestone", 400);
-    }
-    return Response.json(await room.createMilestone(revision, body.name, body.description ?? ""), { status: 201 });
-  }
-  if (action === "restore" && request.method === "POST") {
-    const snapshot = await room.restoreRevision(workspaceId, revision);
-    await catalog.registerWorkspace(workspaceId, snapshot.title);
-    return Response.json(snapshot);
-  }
-  if (action === "seed" && request.method === "POST") {
-    const body: unknown = await request.json();
-    if (!isRecord(body) || typeof body.title !== "string" || !body.title.trim() || body.title.length > 120) {
-      return jsonError("Invalid workspace seed", 400);
-    }
-    const id = crypto.randomUUID();
-    const title = body.title.trim();
-    const storageKey = workspaceStorageKey(identity, id);
-    const access = env.WORKSPACE_ACCESS.getByName(storageKey);
-    await access.initializeOwner(identity.email);
-    const target = env.DOCUMENT_ROOMS.getByName(storageKey);
-    await target.seedFromRevision(id, title, await room.getRevisionSeed(revision));
-    return Response.json(await catalog.registerWorkspace(id, title), { status: 201 });
-  }
-  return jsonError("Project revision route not found", 404);
+  return await handleProjectHistoryOwnerRoutes(historyContext);
+}
+
+async function handleProjectHistoryOwnerRoutes(context: ProjectHistoryRouteContext): Promise<Response> {
+  const milestoneResponse = await handleProjectMilestoneRoute(context);
+  if (milestoneResponse) return milestoneResponse;
+  const restoreResponse = await handleProjectRestoreRoute(context);
+  if (restoreResponse) return restoreResponse;
+  const seedResponse = await handleProjectSeedRoute(context);
+  return seedResponse ?? jsonError("Project revision route not found", 404);
+}
+
+async function handleProjectMilestoneRoute(context: ProjectHistoryRouteContext): Promise<Response | null> {
+  const { request, action, revision, room } = context;
+  if (action !== "milestones" || request.method !== "POST") return null;
+  const body: unknown = await request.json();
+  if (!isProjectMilestoneCreation(body)) return jsonError("Invalid project milestone", 400);
+  return Response.json(await room.createMilestone(revision, body.name, body.description ?? ""), { status: 201 });
+}
+
+function isProjectMilestoneCreation(value: unknown): value is ProjectMilestoneCreation {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    value.name.trim().length > 0 &&
+    value.name.length <= 120 &&
+    (value.description === undefined || (typeof value.description === "string" && value.description.length <= 2_000))
+  );
+}
+
+async function handleProjectRestoreRoute(context: ProjectHistoryRouteContext): Promise<Response | null> {
+  const { request, action, workspaceId, revision, room, catalog } = context;
+  if (action !== "restore" || request.method !== "POST") return null;
+  const snapshot = await room.restoreRevision(workspaceId, revision);
+  await catalog.registerWorkspace(workspaceId, snapshot.title);
+  return Response.json(snapshot);
+}
+
+async function handleProjectSeedRoute(context: ProjectHistoryRouteContext): Promise<Response | null> {
+  const { request, action, identity, revision, env, room, catalog } = context;
+  if (action !== "seed" || request.method !== "POST") return null;
+  const body: unknown = await request.json();
+  if (!isWorkspaceSeedCreation(body)) return jsonError("Invalid workspace seed", 400);
+  const id = crypto.randomUUID();
+  const title = body.title.trim();
+  const storageKey = workspaceStorageKey(identity, id);
+  const access = env.WORKSPACE_ACCESS.getByName(storageKey);
+  await access.initializeOwner(identity.email);
+  const target = env.DOCUMENT_ROOMS.getByName(storageKey);
+  await target.seedFromRevision(id, title, await room.getRevisionSeed(revision));
+  return Response.json(await catalog.registerWorkspace(id, title), { status: 201 });
+}
+
+function isWorkspaceSeedCreation(value: unknown): value is WorkspaceSeedCreation {
+  return isRecord(value) && typeof value.title === "string" && value.title.trim().length > 0 && value.title.length <= 120;
 }
 
 function revisionParameter(value: string | null): number | null {
