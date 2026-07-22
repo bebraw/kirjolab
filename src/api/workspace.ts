@@ -190,21 +190,8 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (researchResponse) return researchResponse;
     const publicationResponse = await handleWorkspacePublicationRoutes(context);
     if (publicationResponse) return publicationResponse;
-    if (suffix === "/links" && request.method === "POST") return await createPassageLink(request, room);
-    if (suffix === "/claims" && request.method === "POST") return await createClaim(request, room);
-    if (suffix.startsWith("/claims/") && (request.method === "PUT" || request.method === "DELETE")) {
-      return await mutateClaim(request, suffix, room);
-    }
-    if (suffix === "/claim-links" && request.method === "POST") return await createClaimPassageLink(request, room);
-    if (suffix === "/comments" && request.method === "POST") {
-      const member = (await access.listMembers(identity.email)).find((candidate) => candidate.email === identity.email);
-      if (!member) return jsonError("Workspace member is unavailable", 403);
-      return await createManuscriptComment(request, room, member.id, member.email);
-    }
-    if (suffix.startsWith("/comments/") && request.method === "POST") return await mutateManuscriptComment(request, suffix, room);
-    if (suffix === "/candidates" && request.method === "POST") return await createCandidate(request, room);
-    if (suffix === "/claim-candidates" && request.method === "POST") return await createClaimCandidate(request, room);
-    if (suffix.startsWith("/candidates/") && request.method === "POST") return await updateCandidate(workspaceId, suffix, room);
+    const evidenceResponse = await handleWorkspaceEvidenceRoutes(context);
+    if (evidenceResponse) return evidenceResponse;
     if (suffix === "/history" && request.method === "GET") return Response.json(await room.listRevisions());
     if (suffix === "/history/compare" && request.method === "GET") {
       const from = revisionParameter(url.searchParams.get("from"));
@@ -434,6 +421,57 @@ async function handleWorkspacePublicationEnrichmentRoute(context: WorkspaceRoute
   const { request, suffix, workspaceId, env, room } = context;
   if (!suffix.startsWith("/publications/") || request.method !== "POST") return null;
   return await enrichPublication(workspaceId, suffix, env, room);
+}
+
+async function handleWorkspaceEvidenceRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const claimResponse = await handleWorkspaceClaimRoutes(context);
+  if (claimResponse) return claimResponse;
+  const commentResponse = await handleWorkspaceCommentRoutes(context);
+  if (commentResponse) return commentResponse;
+  return await handleWorkspaceCandidateRoutes(context);
+}
+
+async function handleWorkspaceClaimRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const passageLinkResponse = await handleWorkspacePassageLinkRoutes(context);
+  if (passageLinkResponse) return passageLinkResponse;
+  return await handleWorkspaceClaimMutationRoutes(context);
+}
+
+async function handleWorkspacePassageLinkRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, room } = context;
+  if (request.method !== "POST") return null;
+  if (suffix === "/links") return await createPassageLink(request, room);
+  if (suffix === "/claim-links") return await createClaimPassageLink(request, room);
+  return null;
+}
+
+async function handleWorkspaceClaimMutationRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, room } = context;
+  if (suffix === "/claims" && request.method === "POST") return await createClaim(request, room);
+  if (suffix.startsWith("/claims/") && ["PUT", "DELETE"].includes(request.method)) {
+    return await mutateClaim(request, suffix, room);
+  }
+  return null;
+}
+
+async function handleWorkspaceCommentRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, identity, access, room } = context;
+  if (suffix === "/comments" && request.method === "POST") {
+    const member = (await access.listMembers(identity.email)).find((candidate) => candidate.email === identity.email);
+    if (!member) return jsonError("Workspace member is unavailable", 403);
+    return await createManuscriptComment(request, room, member.id, member.email);
+  }
+  if (suffix.startsWith("/comments/") && request.method === "POST") return await mutateManuscriptComment(request, suffix, room);
+  return null;
+}
+
+async function handleWorkspaceCandidateRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, room } = context;
+  if (request.method !== "POST") return null;
+  if (suffix === "/candidates") return await createCandidate(request, room);
+  if (suffix === "/claim-candidates") return await createClaimCandidate(request, room);
+  if (suffix.startsWith("/candidates/")) return await updateCandidate(workspaceId, suffix, room);
+  return null;
 }
 
 async function updateWorkspaceSettings(
