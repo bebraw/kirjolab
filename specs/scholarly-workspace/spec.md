@@ -92,7 +92,9 @@ collaboration.
   readable limits and persists as a browser-local, cross-project preference.
   It can collapse without losing that width and exposes an editor-toolbar
   restoration action while hidden. Compact layouts keep the stacked rail and
-  omit the resize and collapse affordances.
+  omit the resize and collapse affordances. Long file inventories scroll inside
+  the rail without increasing the document height or moving the workspace below
+  the viewport.
   At rail widths of at least 20rem, the navigation icons reveal short visible
   labels. Both desktop separators expose a centered grip plus native help for
   pointer dragging, arrow-key adjustment, and `Home` reset.

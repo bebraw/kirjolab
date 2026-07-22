@@ -1225,6 +1225,10 @@
     overflow: auto;
   }
 
+  .rail-panel {
+    position: relative;
+  }
+
   .rail-mode-switcher {
     position: sticky;
     top: 0;

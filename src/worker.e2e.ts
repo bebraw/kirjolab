@@ -1062,7 +1062,12 @@ test("filters and quickly opens project files", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   const workspaceId = await createWorkspace(page, "Quick project files");
   const api = `/api/workspaces/${workspaceId}`;
-  for (const path of ["chapters/method.md", "notes/findings.md"]) {
+  const projectPaths = [
+    "chapters/method.md",
+    "notes/findings.md",
+    ...Array.from({ length: 20 }, (_, index) => `supporting-${String(index + 1).padStart(2, "0")}.md`),
+  ];
+  for (const path of projectPaths) {
     const response = await page.request.post(`${api}/files`, {
       headers: { origin: "http://127.0.0.1:8788" },
       data: { path, content: `## ${path}\n` },
@@ -1070,6 +1075,17 @@ test("filters and quickly opens project files", async ({ page }) => {
     expect(response.status()).toBe(201);
   }
   await page.goto(`/editor/${workspaceId}`);
+  await expect(page.locator(".project-file-row", { hasText: "supporting-20.md" })).toHaveCount(1);
+
+  const viewportContainment = await page.evaluate(() => {
+    const rail = document.querySelector<HTMLElement>(".source-rail")!;
+    return {
+      documentFits: document.documentElement.scrollHeight <= document.documentElement.clientHeight,
+      railScrolls: rail.scrollHeight > rail.clientHeight,
+      uploadContainedByRail: rail.contains(document.querySelector<HTMLInputElement>("#project-image-upload")!.offsetParent),
+    };
+  });
+  expect(viewportContainment).toEqual({ documentFits: true, railScrolls: true, uploadContainedByRail: true });
 
   const filter = page.getByRole("searchbox", { name: "Filter project files" });
   await filter.fill("method");
