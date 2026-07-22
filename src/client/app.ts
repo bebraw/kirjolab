@@ -951,7 +951,10 @@ class WorkspaceApp {
         .then(() => this.#showToast(`Copied application version ${applicationVersion}.`))
         .catch(() => this.#showToast("Could not copy the application version"));
     });
-    window.addEventListener("online", () => this.#connect());
+    window.addEventListener("online", () => {
+      this.#connect();
+      if (appMode === "workspace") void this.#refreshGitHubSyncState(true);
+    });
     window.addEventListener("focus", () => {
       if (appMode === "workspace") void this.#refreshGitHubSyncState();
     });
@@ -1983,6 +1986,7 @@ class WorkspaceApp {
   }
 
   async #refreshGitHubSyncState(force = false): Promise<void> {
+    if (!navigator.onLine) return;
     if (!force && (this.#gitHubPullPreviewId || this.#gitHubPublishPreviewId || this.#elements.workspaceSettingsDialog.open)) return;
     if (!force && Date.now() - this.#gitHubSyncCheckedAt < 60_000) return;
     const requestId = ++this.#gitHubSyncRequest;

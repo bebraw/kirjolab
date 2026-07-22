@@ -759,6 +759,10 @@ test("shows automatic branch movement outside tracked Markdown", async ({ page }
   await expect(page.locator("#github-sync-detail")).toContainText("tracked Markdown is unchanged");
   await expect(page.getByRole("button", { name: "Pull from GitHub" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Push to GitHub" })).toBeDisabled();
+  await page.context().setOffline(true);
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Branch changed");
+  await page.context().setOffline(false);
   await page.getByRole("button", { name: "Sync settings" }).click();
   await page.getByRole("button", { name: "Preview pull" }).click();
   await expect(page.locator("#github-pull-review")).toContainText("No tracked Markdown changes to pull");
