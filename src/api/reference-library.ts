@@ -213,27 +213,8 @@ export async function handleReferenceLibraryApi(
     if (webResponse) return webResponse;
     const citationResponse = await handleLibraryCitationRoutes(context);
     if (citationResponse) return citationResponse;
-    if (suffix === "/pdfs" && request.method === "POST")
-      return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
-    const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})(?:\/(identify|rights|annotated))?$/iu.exec(suffix);
-    if (pdfMatch?.[1] && request.method === "GET" && !pdfMatch[2]) {
-      return await downloadLibraryPdf(request, pdfMatch[1], env, library);
-    }
-    if (pdfMatch?.[1] && pdfMatch[2] === "annotated" && request.method === "GET") {
-      return await downloadAnnotatedLibraryPdf(pdfMatch[1], env, library);
-    }
-    if (pdfMatch?.[1] && pdfMatch[2] === "identify" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.referenceId !== "string") return jsonError("Invalid PDF identification", 400);
-      return Response.json(await library.identifyPdf(pdfMatch[1], body.referenceId), noStore());
-    }
-    if (pdfMatch?.[1] && pdfMatch[2] === "rights" && request.method === "PUT") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || (body.rights !== "private" && body.rights !== "shareable" && body.rights !== "unknown")) {
-        return jsonError("Invalid artifact rights", 400);
-      }
-      return Response.json(await library.setArtifactRights(pdfMatch[1], body.rights), noStore());
-    }
+    const pdfResponse = await handleLibraryPdfRoutes(context);
+    if (pdfResponse) return pdfResponse;
     const crossrefMatch = /^\/references\/([0-9a-f-]{36})\/crossref\/(preview|accept)$/iu.exec(suffix);
     if (crossrefMatch?.[1] && crossrefMatch[2] && request.method === "POST") {
       return crossrefMatch[2] === "preview"
@@ -598,6 +579,47 @@ async function handleLibraryCitationReviewRoute(context: ReferenceLibraryRouteCo
   const body: unknown = await request.json();
   if (!isReviewCitationAssertionInput(body)) return jsonError("Invalid citation assertion review", 400);
   return Response.json(await library.reviewCitationAssertion(assertionReviewMatch[1], body, identity.email), noStore());
+}
+
+async function handleLibraryPdfRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, identity, env, library } = context;
+  if (suffix === "/pdfs" && request.method === "POST") {
+    return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
+  }
+  const downloadResponse = await handleLibraryPdfDownloadRoute(context);
+  if (downloadResponse) return downloadResponse;
+  const identificationResponse = await handleLibraryPdfIdentificationRoute(context);
+  if (identificationResponse) return identificationResponse;
+  return await handleLibraryPdfRightsRoute(context);
+}
+
+async function handleLibraryPdfDownloadRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, env, library } = context;
+  const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})(?:\/(identify|rights|annotated))?$/iu.exec(suffix);
+  if (!pdfMatch?.[1] || request.method !== "GET") return null;
+  if (!pdfMatch[2]) return await downloadLibraryPdf(request, pdfMatch[1], env, library);
+  if (pdfMatch[2] === "annotated") return await downloadAnnotatedLibraryPdf(pdfMatch[1], env, library);
+  return null;
+}
+
+async function handleLibraryPdfIdentificationRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, library } = context;
+  const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})\/identify$/iu.exec(suffix);
+  if (!pdfMatch?.[1] || request.method !== "POST") return null;
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.referenceId !== "string") return jsonError("Invalid PDF identification", 400);
+  return Response.json(await library.identifyPdf(pdfMatch[1], body.referenceId), noStore());
+}
+
+async function handleLibraryPdfRightsRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, library } = context;
+  const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})\/rights$/iu.exec(suffix);
+  if (!pdfMatch?.[1] || request.method !== "PUT") return null;
+  const body: unknown = await request.json();
+  if (!isRecord(body) || (body.rights !== "private" && body.rights !== "shareable" && body.rights !== "unknown")) {
+    return jsonError("Invalid artifact rights", 400);
+  }
+  return Response.json(await library.setArtifactRights(pdfMatch[1], body.rights), noStore());
 }
 
 async function previewCrossrefMetadata(
