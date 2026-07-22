@@ -196,6 +196,15 @@ interface ReferenceLibraryRouteContext {
   readonly fetchExternal: ExternalFetch;
 }
 
+interface LibraryReferenceRouteContext extends ReferenceLibraryRouteContext {
+  readonly referenceId: string;
+  readonly action: string | undefined;
+}
+
+type ReferenceMetadataUpdate = Pick<BibliographicRecord, "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract">;
+
+const referenceMetadataStringFields = ["type", "year", "venue", "doi", "url"] as const;
+
 export async function handleReferenceLibraryApi(
   request: Request,
   env: ReferenceLibraryApiEnv,
@@ -226,51 +235,9 @@ export async function handleReferenceLibraryApi(
     if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
     const referenceId = referenceMatch[1];
     const action = referenceMatch[2];
-    if (action === "pdf-metadata" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (!isReviewedPdfMetadataInput(body)) return jsonError("Invalid reviewed PDF metadata", 400);
-      return Response.json(
-        await mutateReferenceMetadata(referenceId, identity, env, library, () =>
-          library.applyReviewedPdfMetadata(referenceId, body.artifactId, body.fields, identity.email),
-        ),
-        noStore(),
-      );
-    }
-    if (!action && request.method === "PATCH") {
-      const body: unknown = await request.json();
-      if (!isRecord(body)) return jsonError("Invalid reference update", 400);
-      if (typeof body.archived === "boolean") return Response.json(await library.archiveReference(referenceId, body.archived), noStore());
-      if (
-        typeof body.type !== "string" ||
-        typeof body.title !== "string" ||
-        !Array.isArray(body.authors) ||
-        !body.authors.every((author) => typeof author === "string") ||
-        typeof body.year !== "string" ||
-        typeof body.venue !== "string" ||
-        typeof body.doi !== "string" ||
-        typeof body.url !== "string" ||
-        typeof body.abstract !== "string" ||
-        body.title.length > 2_000 ||
-        body.abstract.length > 20_000
-      )
-        return jsonError("Invalid bibliographic metadata", 400);
-      const fields = {
-        type: body.type,
-        title: body.title,
-        authors: body.authors,
-        year: body.year,
-        venue: body.venue,
-        doi: body.doi,
-        url: body.url,
-        abstract: body.abstract,
-      };
-      return Response.json(
-        await mutateReferenceMetadata(referenceId, identity, env, library, () =>
-          library.updateReferenceMetadata(referenceId, fields, identity.email),
-        ),
-        noStore(),
-      );
-    }
+    const referenceContext = { ...context, referenceId, action } satisfies LibraryReferenceRouteContext;
+    const referenceMetadataResponse = await handleLibraryReferenceMetadataRoutes(referenceContext);
+    if (referenceMetadataResponse) return referenceMetadataResponse;
     if (action === "tags" && request.method === "PUT") {
       const body: unknown = await request.json();
       if (!isRecord(body) || !Array.isArray(body.tags) || !body.tags.every((tag) => typeof tag === "string")) {
@@ -660,6 +627,45 @@ async function handleLibraryHighlightMutationRoute(context: ReferenceLibraryRout
   const body: unknown = await request.json();
   if (!isRecord(body) || typeof body.comment !== "string") return jsonError("Invalid private highlight comment", 400);
   return Response.json(await library.updateHighlightComment(highlightMatch[1], highlightMatch[2], body.comment), noStore());
+}
+
+async function handleLibraryReferenceMetadataRoutes(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, identity, env, library } = context;
+  if (action === "pdf-metadata" && request.method === "POST") {
+    const body: unknown = await request.json();
+    if (!isReviewedPdfMetadataInput(body)) return jsonError("Invalid reviewed PDF metadata", 400);
+    return Response.json(
+      await mutateReferenceMetadata(referenceId, identity, env, library, () =>
+        library.applyReviewedPdfMetadata(referenceId, body.artifactId, body.fields, identity.email),
+      ),
+      noStore(),
+    );
+  }
+  if (action !== undefined || request.method !== "PATCH") return null;
+
+  const body: unknown = await request.json();
+  if (!isRecord(body)) return jsonError("Invalid reference update", 400);
+  if (typeof body.archived === "boolean") return Response.json(await library.archiveReference(referenceId, body.archived), noStore());
+  if (!isReferenceMetadataUpdate(body)) return jsonError("Invalid bibliographic metadata", 400);
+  return Response.json(
+    await mutateReferenceMetadata(referenceId, identity, env, library, () =>
+      library.updateReferenceMetadata(referenceId, body, identity.email),
+    ),
+    noStore(),
+  );
+}
+
+function isReferenceMetadataUpdate(value: unknown): value is ReferenceMetadataUpdate {
+  return (
+    isRecord(value) &&
+    referenceMetadataStringFields.every((field) => typeof value[field] === "string") &&
+    Array.isArray(value.authors) &&
+    value.authors.every((author) => typeof author === "string") &&
+    typeof value.title === "string" &&
+    value.title.length <= 2_000 &&
+    typeof value.abstract === "string" &&
+    value.abstract.length <= 20_000
+  );
 }
 
 async function previewCrossrefMetadata(
