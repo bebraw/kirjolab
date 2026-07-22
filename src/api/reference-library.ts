@@ -203,6 +203,37 @@ interface LibraryReferenceRouteContext extends ReferenceLibraryRouteContext {
 
 type ReferenceMetadataUpdate = Pick<BibliographicRecord, "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract">;
 
+interface LibraryHighlightCreation {
+  readonly artifactId: string;
+  readonly page: number;
+  readonly quote: string;
+  readonly comment: string;
+  readonly rects: readonly unknown[];
+}
+
+interface LibraryHighlightImportCreation {
+  readonly artifactId: string;
+  readonly candidates: readonly LibraryHighlightImportCandidate[];
+}
+
+interface LibraryPdfNoteCreation {
+  readonly kind: "note";
+  readonly artifactId: string;
+  readonly page: number;
+  readonly x: number;
+  readonly y: number;
+  readonly body: string;
+}
+
+interface LibraryPdfDrawingCreation {
+  readonly kind: "drawing";
+  readonly artifactId: string;
+  readonly page: number;
+  readonly color: string;
+  readonly width: number;
+  readonly points: readonly LibraryPdfPoint[];
+}
+
 const referenceMetadataStringFields = ["type", "year", "venue", "doi", "url"] as const;
 
 export async function handleReferenceLibraryApi(
@@ -240,65 +271,8 @@ export async function handleReferenceLibraryApi(
     if (referenceMetadataResponse) return referenceMetadataResponse;
     const organizationResponse = await handleLibraryReferenceOrganizationRoutes(referenceContext);
     if (organizationResponse) return organizationResponse;
-    if (action === "highlights" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (
-        !isRecord(body) ||
-        typeof body.artifactId !== "string" ||
-        typeof body.page !== "number" ||
-        typeof body.quote !== "string" ||
-        typeof body.comment !== "string" ||
-        !Array.isArray(body.rects)
-      ) {
-        return jsonError("Invalid private highlight", 400);
-      }
-      return Response.json(await library.createHighlight(referenceId, body.artifactId, body.page, body.quote, body.comment, body.rects), {
-        status: 201,
-        ...noStore(),
-      });
-    }
-    if (action === "highlight-imports" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (
-        !isRecord(body) ||
-        typeof body.artifactId !== "string" ||
-        !Array.isArray(body.candidates) ||
-        body.candidates.length < 1 ||
-        body.candidates.length > 128 ||
-        !body.candidates.every(isLibraryHighlightImportCandidate)
-      ) {
-        return jsonError("Invalid PDF highlight import", 400);
-      }
-      return Response.json(await library.importHighlights(referenceId, body.artifactId, body.candidates), {
-        status: 201,
-        ...noStore(),
-      });
-    }
-    if (action === "pdf-markups" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.artifactId !== "string" || typeof body.page !== "number") {
-        return jsonError("Invalid private PDF annotation", 400);
-      }
-      if (body.kind === "note" && typeof body.x === "number" && typeof body.y === "number" && typeof body.body === "string") {
-        return Response.json(await library.createPdfNote(referenceId, body.artifactId, body.page, body.x, body.y, body.body), {
-          status: 201,
-          ...noStore(),
-        });
-      }
-      if (
-        body.kind === "drawing" &&
-        typeof body.color === "string" &&
-        typeof body.width === "number" &&
-        Array.isArray(body.points) &&
-        body.points.every((point) => isRecord(point) && typeof point.x === "number" && typeof point.y === "number")
-      ) {
-        return Response.json(await library.createPdfDrawing(referenceId, body.artifactId, body.page, body.color, body.width, body.points), {
-          status: 201,
-          ...noStore(),
-        });
-      }
-      return jsonError("Invalid private PDF annotation", 400);
-    }
+    const annotationCreationResponse = await handleLibraryReferenceAnnotationCreationRoutes(referenceContext);
+    if (annotationCreationResponse) return annotationCreationResponse;
     if (action === "reading" && request.method === "PUT") {
       const body: unknown = await request.json();
       if (
@@ -685,6 +659,106 @@ async function handleLibraryReferenceNotesRoute(context: LibraryReferenceRouteCo
   const body: unknown = await request.json();
   if (!isRecord(body) || typeof body.body !== "string") return jsonError("Invalid reference note", 400);
   return Response.json(await library.createNote(referenceId, body.body), { status: 201, ...noStore() });
+}
+
+async function handleLibraryReferenceAnnotationCreationRoutes(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const highlightResponse = await handleLibraryReferenceHighlightCreationRoute(context);
+  if (highlightResponse) return highlightResponse;
+  const importResponse = await handleLibraryReferenceHighlightImportRoute(context);
+  if (importResponse) return importResponse;
+  return await handleLibraryReferencePdfMarkupCreationRoute(context);
+}
+
+async function handleLibraryReferenceHighlightCreationRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action !== "highlights" || request.method !== "POST") return null;
+  const body: unknown = await request.json();
+  if (!isLibraryHighlightCreation(body)) return jsonError("Invalid private highlight", 400);
+  return Response.json(await library.createHighlight(referenceId, body.artifactId, body.page, body.quote, body.comment, body.rects), {
+    status: 201,
+    ...noStore(),
+  });
+}
+
+function isLibraryHighlightCreation(value: unknown): value is LibraryHighlightCreation {
+  return (
+    isRecord(value) &&
+    typeof value.artifactId === "string" &&
+    typeof value.page === "number" &&
+    typeof value.quote === "string" &&
+    typeof value.comment === "string" &&
+    Array.isArray(value.rects)
+  );
+}
+
+async function handleLibraryReferenceHighlightImportRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action !== "highlight-imports" || request.method !== "POST") return null;
+  const body: unknown = await request.json();
+  if (!isLibraryHighlightImportCreation(body)) return jsonError("Invalid PDF highlight import", 400);
+  return Response.json(await library.importHighlights(referenceId, body.artifactId, body.candidates), {
+    status: 201,
+    ...noStore(),
+  });
+}
+
+function isLibraryHighlightImportCreation(value: unknown): value is LibraryHighlightImportCreation {
+  return (
+    isRecord(value) &&
+    typeof value.artifactId === "string" &&
+    Array.isArray(value.candidates) &&
+    value.candidates.length >= 1 &&
+    value.candidates.length <= 128 &&
+    value.candidates.every(isLibraryHighlightImportCandidate)
+  );
+}
+
+async function handleLibraryReferencePdfMarkupCreationRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action !== "pdf-markups" || request.method !== "POST") return null;
+  const body: unknown = await request.json();
+  if (isLibraryPdfNoteCreation(body)) {
+    return Response.json(await library.createPdfNote(referenceId, body.artifactId, body.page, body.x, body.y, body.body), {
+      status: 201,
+      ...noStore(),
+    });
+  }
+  if (isLibraryPdfDrawingCreation(body)) {
+    return Response.json(await library.createPdfDrawing(referenceId, body.artifactId, body.page, body.color, body.width, body.points), {
+      status: 201,
+      ...noStore(),
+    });
+  }
+  return jsonError("Invalid private PDF annotation", 400);
+}
+
+function isLibraryPdfNoteCreation(value: unknown): value is LibraryPdfNoteCreation {
+  return (
+    isRecord(value) &&
+    value.kind === "note" &&
+    typeof value.artifactId === "string" &&
+    typeof value.page === "number" &&
+    typeof value.x === "number" &&
+    typeof value.y === "number" &&
+    typeof value.body === "string"
+  );
+}
+
+function isLibraryPdfDrawingCreation(value: unknown): value is LibraryPdfDrawingCreation {
+  return (
+    isRecord(value) &&
+    value.kind === "drawing" &&
+    typeof value.artifactId === "string" &&
+    typeof value.page === "number" &&
+    typeof value.color === "string" &&
+    typeof value.width === "number" &&
+    Array.isArray(value.points) &&
+    value.points.every(isLibraryPdfPoint)
+  );
+}
+
+function isLibraryPdfPoint(value: unknown): value is LibraryPdfPoint {
+  return isRecord(value) && typeof value.x === "number" && typeof value.y === "number";
 }
 
 async function previewCrossrefMetadata(
