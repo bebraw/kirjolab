@@ -182,21 +182,21 @@ function sentenceTarget(source: string, caret: number): ResolvedAssistantTarget 
       break;
     }
   }
-  while (start < end && /\s/u.test(paragraph.text[start] ?? "")) start += 1;
-  while (end > start && /\s/u.test(paragraph.text[end - 1] ?? "")) end -= 1;
-  return target(source, paragraph.start + start, paragraph.start + end, "sentence");
+  return trimmedTarget(source, paragraph.start + start, paragraph.start + end, "sentence");
 }
 
 function paragraphTarget(source: string, caret: number): ResolvedAssistantTarget {
-  const before = source.slice(0, caret);
-  const after = source.slice(caret);
-  const previousBreak = before.search(/\n\s*\n(?![\s\S]*\n\s*\n)/u);
-  const nextBreak = after.search(/\n\s*\n/u);
-  let start = previousBreak < 0 ? 0 : previousBreak + (before.slice(previousBreak).match(/^\n\s*\n/u)?.[0].length ?? 0);
-  let end = nextBreak < 0 ? source.length : caret + nextBreak;
-  while (start < end && /\s/u.test(source[start] ?? "")) start += 1;
-  while (end > start && /\s/u.test(source[end - 1] ?? "")) end -= 1;
-  return target(source, start, end, "paragraph");
+  let start = 0;
+  let end = source.length;
+  for (const match of source.matchAll(/\n\s*\n/gu)) {
+    const boundaryStart = match.index ?? 0;
+    if (boundaryStart < caret) start = boundaryStart + match[0].length;
+    else {
+      end = boundaryStart;
+      break;
+    }
+  }
+  return trimmedTarget(source, start, end, "paragraph");
 }
 
 function sectionTarget(source: string, caret: number): ResolvedAssistantTarget {
@@ -213,12 +213,21 @@ function sectionTarget(source: string, caret: number): ResolvedAssistantTarget {
     const firstHeading = headings[0]?.start ?? source.length;
     return target(source, 0, firstHeading, "section");
   }
-  const heading = headings[headingIndex];
-  if (!heading) return target(source, 0, source.length, "section");
+  const heading = headings[headingIndex]!;
   const next = headings.slice(headingIndex + 1).find((candidate) => candidate.level <= heading.level);
-  let end = next?.start ?? source.length;
-  while (end > heading.start && /\s/u.test(source[end - 1] ?? "")) end -= 1;
-  return target(source, heading.start, end, "section");
+  return trailingTrimmedTarget(source, heading.start, next?.start ?? source.length, "section");
+}
+
+function trimmedTarget(source: string, initialStart: number, initialEnd: number, scope: AssistantTargetScope): ResolvedAssistantTarget {
+  let start = initialStart;
+  while (start < initialEnd && /\s/u.test(source[start] ?? "")) start += 1;
+  return trailingTrimmedTarget(source, start, initialEnd, scope);
+}
+
+function trailingTrimmedTarget(source: string, start: number, initialEnd: number, scope: AssistantTargetScope): ResolvedAssistantTarget {
+  let end = initialEnd;
+  while (end > start && /\s/u.test(source[end - 1] ?? "")) end -= 1;
+  return target(source, start, end, scope);
 }
 
 function target(source: string, start: number, end: number, scope: AssistantTargetScope): ResolvedAssistantTarget {

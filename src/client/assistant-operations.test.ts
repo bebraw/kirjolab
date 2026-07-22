@@ -191,9 +191,56 @@ describe("assistant target resolution", () => {
 
   it("returns an empty insertion target at the caret", () => {
     expect(resolveAssistantTarget(source, 8, 8, "caret")).toEqual({ start: 8, end: 8, text: "", scope: "caret" });
+    expect(resolveAssistantTarget(source, 8, 8, "selection")).toEqual({ start: 8, end: 8, text: "", scope: "caret" });
   });
 
   it("clamps invalid offsets", () => {
     expect(resolveAssistantTarget("abc", -4, 99, "sentence")).toEqual({ start: 0, end: 3, text: "abc", scope: "selection" });
+    expect(resolveAssistantTarget("abc", Number.NaN, Number.POSITIVE_INFINITY, "caret")).toEqual({
+      start: 0,
+      end: 0,
+      text: "",
+      scope: "caret",
+    });
+  });
+
+  it("resolves exact sentence boundaries, closing punctuation, and surrounding whitespace", () => {
+    const document = '  First claim!")   Second claim?\n\nNext paragraph.';
+    const secondStart = document.indexOf("Second");
+    expect(resolveAssistantTarget(document, secondStart, secondStart, "sentence")).toEqual({
+      start: secondStart,
+      end: document.indexOf("?", secondStart) + 1,
+      text: "Second claim?",
+      scope: "sentence",
+    });
+
+    const firstCaret = document.indexOf("claim!");
+    expect(resolveAssistantTarget(document, firstCaret, firstCaret, "sentence").text).toBe('First claim!")');
+  });
+
+  it("trims paragraphs separated by whitespace-only lines", () => {
+    const document = "  First paragraph.  \n \t\n  Second paragraph.  \n\nThird paragraph.";
+    const secondStart = document.indexOf("Second");
+    expect(resolveAssistantTarget(document, secondStart + 3, secondStart + 3, "paragraph")).toEqual({
+      start: secondStart,
+      end: secondStart + "Second paragraph.".length,
+      text: "Second paragraph.",
+      scope: "paragraph",
+    });
+    expect(resolveAssistantTarget(document, 2, 2, "paragraph").text).toBe("First paragraph.");
+    expect(resolveAssistantTarget(document, document.length, document.length, "paragraph").text).toBe("Third paragraph.");
+  });
+
+  it("treats headings only at valid line starts and includes nested sections", () => {
+    const document = "Preamble # not a heading\n\n  # One\n\nBody.\n\n## Child\n\nNested.\n\n# Two\n\nEnd.";
+    const firstHeading = document.indexOf("  # One");
+    expect(resolveAssistantTarget(document, firstHeading, firstHeading, "section").text).toBe("  # One\n\nBody.\n\n## Child\n\nNested.");
+    expect(resolveAssistantTarget(document, 3, 3, "section")).toEqual({
+      start: 0,
+      end: firstHeading,
+      text: "Preamble # not a heading\n\n",
+      scope: "section",
+    });
+    expect(resolveAssistantTarget("No headings here.  ", 4, 4, "section").text).toBe("No headings here.  ");
   });
 });
