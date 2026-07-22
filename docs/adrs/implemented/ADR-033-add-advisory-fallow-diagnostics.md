@@ -42,9 +42,11 @@ cyclomatic complexity thresholds, but raises the CRAP threshold to reduce noise
 from untested template tooling scripts. Whole-repo health diagnostics still
 surface those risk scores as refactoring evidence.
 
-The project keeps a small `.fallowrc.json` to mark Playwright E2E tests as
-entry points and ignore the Stryker JSDoc type-only dependency that is resolved
-through installed Stryker packages.
+The project keeps a small `.fallowrc.json` to mark Playwright E2E tests and the
+esbuild browser application, review application, and service worker roots as
+entry points. It ignores the Stryker JSDoc type-only dependency that is resolved
+through installed Stryker packages and the aliased TypeScript 7 compiler invoked
+directly by the typecheck scripts.
 
 ## Trigger
 
