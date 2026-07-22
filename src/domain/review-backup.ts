@@ -1,6 +1,7 @@
 import { reviewAuthorityJson, type ReviewExportAuthority } from "./review-export";
-import { canonicalJson, compareText } from "./canonical-json";
+import { canonicalJson } from "./canonical-json";
 import { isSha256Hex, sha256Text } from "./sha256";
+import { compareText } from "./text-order";
 
 export const reviewBackupSchemaVersion = "kirjolab-review-backup-v1" as const;
 export const maximumReviewBackupPayloadBytes = 64 * 1024 * 1024;

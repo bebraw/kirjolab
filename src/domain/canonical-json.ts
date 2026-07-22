@@ -1,3 +1,5 @@
+import { compareText } from "./text-order";
+
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(canonicalValue(value));
 }
@@ -11,8 +13,4 @@ export function canonicalValue(value: unknown): unknown {
       .sort(([left], [right]) => compareText(left, right))
       .map(([key, item]) => [key, canonicalValue(item)]),
   );
-}
-
-export function compareText(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
 }
