@@ -241,6 +241,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="library-paper-page-indicator"');
     expect(html).toContain('id="next-library-paper-page"');
     expect(html).toContain('<div class="library-header-context"><div class="context-tabs" id="context-tabs">');
+    expect(html.match(/id="context-tabs"/gu)).toHaveLength(1);
     expect(html).not.toContain('class="project-view-control');
     expect(html).not.toContain('aria-label="Project view"');
     expect(html).toContain('id="workspace-layout" hidden aria-hidden="true" tabindex="-1"');
@@ -248,6 +249,7 @@ describe("renderHomePage", () => {
     expect(html).not.toContain(
       '<section class="context-column preview-column min-w-0 bg-app-paper" id="context-surface" aria-label="Research context">\n        <div class="context-tabs"',
     );
+    expect(html).not.toContain("Stryker was here!");
   });
 
   it("offers Cloudflare Access identities a native logout control", () => {
