@@ -108,22 +108,8 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
   try {
     const integrationResponse = await handleWorkspaceIntegrationRoutes(context);
     if (integrationResponse) return integrationResponse;
-    if (suffix === "/settings" && request.method === "PATCH") {
-      if (role !== "owner") return jsonError("Only the workspace owner can change project settings", 403);
-      return await updateWorkspaceSettings(request, workspaceId, room, access, catalog, env, identity.email);
-    }
-    if (suffix === "/duplicate" && request.method === "POST") {
-      if (role !== "owner") return jsonError("Only the workspace owner can duplicate a project", 403);
-      return await duplicateWorkspace(request, workspaceId, room, catalog, env, identity);
-    }
-    if (suffix === "/template" && request.method === "POST") {
-      if (role !== "owner") return jsonError("Only the workspace owner can save project templates", 403);
-      return await saveWorkspaceTemplate(request, workspaceId, room, env, identity);
-    }
-    if (suffix === "/settings" && request.method === "DELETE") {
-      if (role !== "owner") return jsonError("Only the workspace owner can permanently delete a project", 403);
-      return await permanentlyDeleteWorkspace(workspaceId, room, access, catalog, env, identity);
-    }
+    const managementResponse = await handleWorkspaceManagementRoutes(context);
+    if (managementResponse) return managementResponse;
     if (suffix === "/reviews" && request.method === "GET") {
       const links = await room.listReviewLinks(workspaceId);
       const reviews = await Promise.all(
@@ -241,6 +227,44 @@ async function handleWorkspaceReviewStudyRoute(context: WorkspaceRouteContext): 
     linkId,
     profile: review.record.profile,
   });
+}
+
+async function handleWorkspaceManagementRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const settingsResponse = await handleWorkspaceSettingsRoutes(context);
+  if (settingsResponse) return settingsResponse;
+  const duplicateResponse = await handleWorkspaceDuplicateRoute(context);
+  if (duplicateResponse) return duplicateResponse;
+  return await handleWorkspaceTemplateRoute(context);
+}
+
+async function handleWorkspaceSettingsRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, role, workspaceId, identity, env, room, access, catalog } = context;
+  if (suffix !== "/settings" || !["PATCH", "DELETE"].includes(request.method)) return null;
+  if (role !== "owner") {
+    const message =
+      request.method === "PATCH"
+        ? "Only the workspace owner can change project settings"
+        : "Only the workspace owner can permanently delete a project";
+    return jsonError(message, 403);
+  }
+  if (request.method === "PATCH") {
+    return await updateWorkspaceSettings(request, workspaceId, room, access, catalog, env, identity.email);
+  }
+  return await permanentlyDeleteWorkspace(workspaceId, room, access, catalog, env, identity);
+}
+
+async function handleWorkspaceDuplicateRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, role, workspaceId, identity, env, room, catalog } = context;
+  if (suffix !== "/duplicate" || request.method !== "POST") return null;
+  if (role !== "owner") return jsonError("Only the workspace owner can duplicate a project", 403);
+  return await duplicateWorkspace(request, workspaceId, room, catalog, env, identity);
+}
+
+async function handleWorkspaceTemplateRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, role, workspaceId, identity, env, room } = context;
+  if (suffix !== "/template" || request.method !== "POST") return null;
+  if (role !== "owner") return jsonError("Only the workspace owner can save project templates", 403);
+  return await saveWorkspaceTemplate(request, workspaceId, room, env, identity);
 }
 
 async function handleWorkspaceShareRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
