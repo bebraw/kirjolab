@@ -35,7 +35,7 @@ const initialContext: AssistantWorkflowContext = {
 
 const decisionTransition = { target: "deciding", actions: "startDecision" } as const;
 
-const assistantWorkflowMachine = setup({
+export const assistantWorkflowMachine = setup({
   types: {
     context: {} as AssistantWorkflowContext,
     events: {} as AssistantWorkflowEvent,

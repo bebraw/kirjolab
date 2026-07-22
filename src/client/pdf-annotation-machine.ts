@@ -78,7 +78,7 @@ const initialContext: PdfAnnotationContext = {
   notePress: null,
 };
 
-const pdfAnnotationMachine = setup({
+export const pdfAnnotationMachine = setup({
   types: {
     context: {} as PdfAnnotationContext,
     events: {} as PdfAnnotationEvent,

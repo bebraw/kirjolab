@@ -1319,7 +1319,7 @@ function isClaimEvidenceRelation(value: unknown): value is ClaimEvidenceRelation
   return value === "supports" || value === "contradicts" || value === "extends";
 }
 
-function isPublicationEnrichment(value: unknown): value is PublicationEnrichment {
+export function isPublicationEnrichment(value: unknown): value is PublicationEnrichment {
   return (
     isRecord(value) &&
     (value.type === undefined || isStringWithin(value.type, 32, true)) &&

@@ -24,7 +24,7 @@ type ProjectHistoryEvent =
 
 const initialContext: ProjectHistoryContext = { requestId: 0, operation: null, error: null };
 
-const projectHistoryMachine = setup({
+export const projectHistoryMachine = setup({
   types: {
     context: {} as ProjectHistoryContext,
     events: {} as ProjectHistoryEvent,

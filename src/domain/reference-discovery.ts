@@ -3,7 +3,7 @@ import type { PublicationEnrichment } from "./workspace";
 export type ReferenceDiscoveryProvider = "openalex" | "crossref" | "semantic-scholar";
 export type ReferenceDiscoveryIdentifierScheme = "doi" | "openalex" | "semantic-scholar" | "arxiv" | "pmid";
 
-const referenceDiscoveryTypes = ["", "article", "book", "incollection", "inproceedings", "phdthesis", "techreport"] as const;
+export const referenceDiscoveryTypes = ["", "article", "book", "incollection", "inproceedings", "phdthesis", "techreport"] as const;
 export type ReferenceDiscoveryType = (typeof referenceDiscoveryTypes)[number];
 
 export interface ReferenceDiscoveryQuery {

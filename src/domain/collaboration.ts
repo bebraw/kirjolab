@@ -36,7 +36,7 @@ export function parseClientSelectionMessage(value: string): ClientSelectionMessa
   }
 }
 
-function isClientSelectionMessage(value: unknown): value is ClientSelectionMessage {
+export function isClientSelectionMessage(value: unknown): value is ClientSelectionMessage {
   return (
     isRecord(value) &&
     hasExactKeys(value, ["type", "protocol", "fileId", "start", "end", "revision"]) &&

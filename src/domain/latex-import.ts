@@ -3,7 +3,7 @@ import { normalizeProjectPath, resolveProjectPath } from "./project-files";
 
 export const latexArchiveMaximumCompressedBytes = 20 * 1024 * 1024;
 export const latexArchiveMaximumExpandedBytes = 64 * 1024 * 1024;
-const latexArchiveMaximumEntries = 1_024;
+export const latexArchiveMaximumEntries = 1_024;
 export const latexArchiveMaximumTextBytes = 2 * 1024 * 1024;
 
 export type LatexArchiveFileKind = "tex" | "bibtex" | "image" | "ignored";
