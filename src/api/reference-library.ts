@@ -234,6 +234,12 @@ interface LibraryPdfDrawingCreation {
   readonly points: readonly LibraryPdfPoint[];
 }
 
+interface LibraryReadingStateUpdate {
+  readonly status: ReadingState["status"];
+  readonly rating: number | null;
+  readonly priority: ReadingState["priority"];
+}
+
 const referenceMetadataStringFields = ["type", "year", "venue", "doi", "url"] as const;
 
 export async function handleReferenceLibraryApi(
@@ -273,38 +279,7 @@ export async function handleReferenceLibraryApi(
     if (organizationResponse) return organizationResponse;
     const annotationCreationResponse = await handleLibraryReferenceAnnotationCreationRoutes(referenceContext);
     if (annotationCreationResponse) return annotationCreationResponse;
-    if (action === "reading" && request.method === "PUT") {
-      const body: unknown = await request.json();
-      if (
-        !isRecord(body) ||
-        !isReadingStatus(body.status) ||
-        (body.rating !== null && typeof body.rating !== "number") ||
-        (body.priority !== "low" && body.priority !== "normal" && body.priority !== "high")
-      ) {
-        return jsonError("Invalid reading state", 400);
-      }
-      return Response.json(await library.setReadingState(referenceId, body.status, body.rating, body.priority), noStore());
-    }
-    if (action === "deletion-impact" && request.method === "GET") {
-      return Response.json(await library.getDeletionImpact(referenceId), noStore());
-    }
-    if (action === "web-snapshots" && request.method === "GET") {
-      return Response.json(await library.getWebSnapshots(referenceId), noStore());
-    }
-    if (action === "citation-expansions" && request.method === "POST") {
-      return await expandCitationReferences(referenceId, identity, env, library, fetchExternal);
-    }
-    if (action === "citation-candidates" && request.method === "POST") {
-      return await acceptCitationCandidate(request, referenceId, identity, env, library, fetchExternal);
-    }
-    if (!action && request.method === "DELETE") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || !Array.isArray(body.expectedProjectIds) || !body.expectedProjectIds.every((id) => typeof id === "string")) {
-        return jsonError("Review deletion impact before permanent deletion", 409);
-      }
-      return Response.json(await library.permanentlyDeleteReference(referenceId, body.expectedProjectIds), noStore());
-    }
-    return jsonError("Library route not found", 404);
+    return await handleLibraryReferenceLifecycleRoutes(referenceContext);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Reference library operation failed";
     const status = /changed|already|before deleting|before identifying/iu.test(message) ? 409 : /not found/iu.test(message) ? 404 : 400;
@@ -759,6 +734,66 @@ function isLibraryPdfDrawingCreation(value: unknown): value is LibraryPdfDrawing
 
 function isLibraryPdfPoint(value: unknown): value is LibraryPdfPoint {
   return isRecord(value) && typeof value.x === "number" && typeof value.y === "number";
+}
+
+async function handleLibraryReferenceLifecycleRoutes(context: LibraryReferenceRouteContext): Promise<Response> {
+  const readingResponse = await handleLibraryReferenceReadingRoute(context);
+  if (readingResponse) return readingResponse;
+  const lookupResponse = await handleLibraryReferenceLookupRoutes(context);
+  if (lookupResponse) return lookupResponse;
+  const citationResponse = await handleLibraryReferenceCitationRoutes(context);
+  if (citationResponse) return citationResponse;
+  const deletionResponse = await handleLibraryReferenceDeletionRoute(context);
+  return deletionResponse ?? jsonError("Library route not found", 404);
+}
+
+async function handleLibraryReferenceReadingRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action !== "reading" || request.method !== "PUT") return null;
+  const body: unknown = await request.json();
+  if (!isLibraryReadingStateUpdate(body)) return jsonError("Invalid reading state", 400);
+  return Response.json(await library.setReadingState(referenceId, body.status, body.rating, body.priority), noStore());
+}
+
+function isLibraryReadingStateUpdate(value: unknown): value is LibraryReadingStateUpdate {
+  return (
+    isRecord(value) &&
+    isReadingStatus(value.status) &&
+    (value.rating === null || typeof value.rating === "number") &&
+    (value.priority === "low" || value.priority === "normal" || value.priority === "high")
+  );
+}
+
+async function handleLibraryReferenceLookupRoutes(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action === "deletion-impact" && request.method === "GET") {
+    return Response.json(await library.getDeletionImpact(referenceId), noStore());
+  }
+  if (action === "web-snapshots" && request.method === "GET") {
+    return Response.json(await library.getWebSnapshots(referenceId), noStore());
+  }
+  return null;
+}
+
+async function handleLibraryReferenceCitationRoutes(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, identity, env, library, fetchExternal } = context;
+  if (action === "citation-expansions" && request.method === "POST") {
+    return await expandCitationReferences(referenceId, identity, env, library, fetchExternal);
+  }
+  if (action === "citation-candidates" && request.method === "POST") {
+    return await acceptCitationCandidate(request, referenceId, identity, env, library, fetchExternal);
+  }
+  return null;
+}
+
+async function handleLibraryReferenceDeletionRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action !== undefined || request.method !== "DELETE") return null;
+  const body: unknown = await request.json();
+  if (!isRecord(body) || !Array.isArray(body.expectedProjectIds) || !body.expectedProjectIds.every((id) => typeof id === "string")) {
+    return jsonError("Review deletion impact before permanent deletion", 409);
+  }
+  return Response.json(await library.permanentlyDeleteReference(referenceId, body.expectedProjectIds), noStore());
 }
 
 async function previewCrossrefMetadata(
