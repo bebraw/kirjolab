@@ -124,6 +124,43 @@ describe("project composition", () => {
     expect(ordinaryInclude.diagnostics[0]?.code).toBe("review-artifact-directive-required");
   });
 
+  it("rejects every malformed review artifact binding boundary", () => {
+    const files = [
+      file("main", "main.md", "::review-artifact[review/synthesis.md]\n"),
+      file("review", "review/synthesis.md", "Published synthesis\n"),
+    ];
+    const valid = reviewArtifact();
+    const invalidBindings: readonly ReviewArtifactBinding[] = [
+      { ...valid, path: "review/../synthesis.md" },
+      { ...valid, path: "artifacts/synthesis.md" },
+      { ...valid, path: "review/synthesis.txt" },
+      { ...valid, reviewId: "" },
+      { ...valid, reviewId: ` ${"r".repeat(126)} ` },
+      { ...valid, reviewId: "r".repeat(129) },
+      { ...valid, linkId: "" },
+      { ...valid, publicationId: "" },
+      { ...valid, reviewRevision: 0 },
+      { ...valid, reviewRevision: 1.5 },
+      { ...valid, protocolRevision: 0 },
+      { ...valid, protocolRevision: 1.5 },
+      { ...valid, analysisDefinitionRevision: 0 },
+      { ...valid, analysisDefinitionRevision: 1.5 },
+      { ...valid, analysisDefinitionId: "" },
+      { ...valid, generator: "" },
+      { ...valid, generatorSchema: "" },
+      { ...valid, digest: `z${"a".repeat(63)}` },
+      { ...valid, digest: `${"a".repeat(64)}z` },
+      { ...valid, publishedBy: "" },
+      { ...valid, publishedBy: "p".repeat(321) },
+    ];
+
+    for (const invalid of invalidBindings) {
+      const result = composeProject(files, "main", {}, [invalid]);
+      expect(result.content).toBe("");
+      expect(result.diagnostics).toEqual([expect.objectContaining({ code: "unpinned-review-artifact", fileId: "main", path: "main.md" })]);
+    }
+  });
+
   it("keeps comment contents inert during composition and path rewrites", () => {
     const main = file(
       "main",
@@ -207,6 +244,7 @@ Published chapter
 
   it("retains collaboration text identity when the entry changes", () => {
     expect(projectFileCollaborationTextName(file("entry", "chapter.md", ""), "entry")).toBe("source");
+    expect(projectFileCollaborationTextName(file("chapter", "chapter.md", ""), "entry")).toBe("file:chapter");
     expect(
       projectFileCollaborationTextName({ ...file("chapter", "chapter.md", ""), collaborationTextName: "file:chapter" }, "chapter"),
     ).toBe("file:chapter");
@@ -311,9 +349,15 @@ Published chapter
     expect(result.content).toBe("");
     expect(result.diagnostics[0]?.code).toBe("output-limit");
     expect(() => composeProject([file("main", "main.md", "text")], "missing")).toThrow("does not exist");
-    for (const limits of [{ maximumDepth: 0 }, { maximumFiles: -1 }, { maximumOutputBytes: 1.5 }]) {
-      expect(() => composeProject([file("main", "main.md", "text")], "main", limits)).toThrow("positive safe integer");
-    }
+    expect(() => composeProject([file("main", "main.md", "text")], "main", { maximumDepth: 0 })).toThrow(
+      new RangeError("maximumDepth must be a positive safe integer"),
+    );
+    expect(() => composeProject([file("main", "main.md", "text")], "main", { maximumFiles: -1 })).toThrow(
+      new RangeError("maximumFiles must be a positive safe integer"),
+    );
+    expect(() => composeProject([file("main", "main.md", "text")], "main", { maximumOutputBytes: 1.5 })).toThrow(
+      new RangeError("maximumOutputBytes must be a positive safe integer"),
+    );
     const depth = composeProject(
       [file("main", "main.md", "::include[a.md]\n"), file("a", "a.md", "::include[b.md]\n"), file("b", "b.md", "deep")],
       "main",
@@ -404,7 +448,71 @@ Published chapter
       "main",
     );
     expect(result.content).toBe("root\n");
-    expect(result.diagnostics.map(({ code }) => code)).toEqual(["invalid-path", "duplicate-path"]);
+    expect(result.diagnostics).toEqual([
+      {
+        code: "invalid-path",
+        message: "Invalid project path: ../unsafe.md",
+        fileId: "unsafe",
+        path: "../unsafe.md",
+        from: 0,
+        to: 12,
+        includeChain: ["unsafe"],
+      },
+      {
+        code: "duplicate-path",
+        message: "Project path is used by more than one file: same.md",
+        fileId: "duplicate-b",
+        path: "same.md",
+        from: 0,
+        to: 0,
+        includeChain: ["duplicate-b"],
+      },
+    ]);
+  });
+
+  it("sorts dependency identities without changing authored include order", () => {
+    const result = composeProject(
+      [file("main", "main.md", "::include[z.md]\n::include[a.md]\n"), file("z", "z.md", "Z\n"), file("a", "a.md", "A\n")],
+      "main",
+    );
+    expect(result.content).toBe("Z\nA\n");
+    expect(result.dependencies).toEqual({ main: ["a", "z"] });
+  });
+
+  it("reports exact include diagnostics at authored source ranges", () => {
+    const content = "::include[missing.md]\n::include[review/synthesis.md]\n::review-artifact[../bad.md]\n";
+    const result = composeProject([file("main", "main.md", content), file("review", "review/synthesis.md", "Synthesis\n")], "main");
+
+    expect(result.content).toBe("");
+    expect(result.diagnostics).toEqual([
+      {
+        code: "missing-file",
+        message: "Included file does not exist: missing.md",
+        fileId: "main",
+        path: "main.md",
+        from: 10,
+        to: 20,
+        includeChain: ["main"],
+      },
+      {
+        code: "review-artifact-directive-required",
+        message: "Review artifacts require ::review-artifact syntax: review/synthesis.md",
+        fileId: "main",
+        path: "main.md",
+        from: 32,
+        to: 51,
+        includeChain: ["main"],
+      },
+      {
+        code: "invalid-path",
+        message: "Invalid include path: ../bad.md",
+        fileId: "main",
+        path: "main.md",
+        from: 71,
+        to: 80,
+        includeChain: ["main"],
+      },
+    ]);
   });
 
   it("maps source ranges around repeated includes and strips only leading included frontmatter", () => {
