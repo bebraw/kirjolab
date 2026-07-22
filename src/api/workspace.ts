@@ -106,42 +106,57 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
   } satisfies WorkspaceRouteContext;
 
   try {
-    const integrationResponse = await handleWorkspaceIntegrationRoutes(context);
-    if (integrationResponse) return integrationResponse;
-    const managementResponse = await handleWorkspaceManagementRoutes(context);
-    if (managementResponse) return managementResponse;
-    const overviewResponse = await handleWorkspaceOverviewRoutes(context);
-    if (overviewResponse) return overviewResponse;
-    const shareResponse = await handleWorkspaceShareRoutes(context);
-    if (shareResponse) return shareResponse;
-    const resourceResponse = await handleWorkspaceResourceRoutes(context);
-    if (resourceResponse) return resourceResponse;
-    const annotationRouteResponse = await handleWorkspaceAnnotationRoutes(context);
-    if (annotationRouteResponse) return annotationRouteResponse;
-    const researchResponse = await handleWorkspaceResearchRoutes(context);
-    if (researchResponse) return researchResponse;
-    const publicationResponse = await handleWorkspacePublicationRoutes(context);
-    if (publicationResponse) return publicationResponse;
-    const evidenceResponse = await handleWorkspaceEvidenceRoutes(context);
-    if (evidenceResponse) return evidenceResponse;
-    return await handleWorkspaceHistoryAndExportRoutes(context);
+    return await handleWorkspaceRoutes(context);
   } catch (error) {
-    if (error instanceof ExportPipelineError) {
-      return Response.json(
-        { error: error.message, diagnostics: error.diagnostics },
-        { status: 422, headers: { "cache-control": "no-store" } },
-      );
-    }
-    const message = error instanceof Error ? error.message : "Workspace operation failed";
-    const status = /access denied|only the workspace owner/iu.test(message)
-      ? 403
-      : /already exists|ambiguous|changed|stale|pending|remove citations|inbound include|dependencies|revision conflict|frozen protocol/iu.test(
-            message,
-          )
-        ? 409
-        : 400;
-    return jsonError(message, status);
+    return workspaceErrorResponse(error);
   }
+}
+
+function workspaceErrorResponse(error: unknown): Response {
+  if (error instanceof ExportPipelineError) {
+    return Response.json(
+      { error: error.message, diagnostics: error.diagnostics },
+      { status: 422, headers: { "cache-control": "no-store" } },
+    );
+  }
+  const message = error instanceof Error ? error.message : "Workspace operation failed";
+  const status = /access denied|only the workspace owner/iu.test(message)
+    ? 403
+    : /already exists|ambiguous|changed|stale|pending|remove citations|inbound include|dependencies|revision conflict|frozen protocol/iu.test(
+          message,
+        )
+      ? 409
+      : 400;
+  return jsonError(message, status);
+}
+
+async function handleWorkspaceRoutes(context: WorkspaceRouteContext): Promise<Response> {
+  const primaryResponse = await handleWorkspacePrimaryRoutes(context);
+  return primaryResponse ?? (await handleWorkspaceDomainRoutes(context));
+}
+
+async function handleWorkspacePrimaryRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const integrationResponse = await handleWorkspaceIntegrationRoutes(context);
+  if (integrationResponse) return integrationResponse;
+  const managementResponse = await handleWorkspaceManagementRoutes(context);
+  if (managementResponse) return managementResponse;
+  const overviewResponse = await handleWorkspaceOverviewRoutes(context);
+  if (overviewResponse) return overviewResponse;
+  const shareResponse = await handleWorkspaceShareRoutes(context);
+  if (shareResponse) return shareResponse;
+  return await handleWorkspaceResourceRoutes(context);
+}
+
+async function handleWorkspaceDomainRoutes(context: WorkspaceRouteContext): Promise<Response> {
+  const annotationResponse = await handleWorkspaceAnnotationRoutes(context);
+  if (annotationResponse) return annotationResponse;
+  const researchResponse = await handleWorkspaceResearchRoutes(context);
+  if (researchResponse) return researchResponse;
+  const publicationResponse = await handleWorkspacePublicationRoutes(context);
+  if (publicationResponse) return publicationResponse;
+  const evidenceResponse = await handleWorkspaceEvidenceRoutes(context);
+  if (evidenceResponse) return evidenceResponse;
+  return await handleWorkspaceHistoryAndExportRoutes(context);
 }
 
 async function handleWorkspaceIntegrationRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
