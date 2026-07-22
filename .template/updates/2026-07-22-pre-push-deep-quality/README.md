@@ -16,6 +16,8 @@ expanding the routine local readiness gate.
 6. Fall back to incremental Stryker for mutation/test configuration changes.
 7. Skip irrelevant deep checks for documentation-only and Worker-only pushes.
 8. Keep clean full mutation with the TypeScript checker in GitHub Actions.
+9. Route package commands that resolve files under `node_modules` through
+   project-owned scripts so Fallow entry-point discovery stays warning-free.
 
 ## Verify
 

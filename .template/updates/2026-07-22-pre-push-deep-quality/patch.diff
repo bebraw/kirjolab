@@ -24,6 +24,8 @@ diff --git a/package.json b/package.json
 +++ b/package.json
 @@
 +    "mutation:affected": "stryker run --ignoreStatic --reporters clear-text,progress",
++    "build:pdf-worker": "node ./scripts/build-pdf-worker.mjs",
++    "typecheck": "node ./scripts/run-typescript-7.mjs --noEmit && node ./scripts/run-typescript-7.mjs --noEmit -p tsconfig.client.json && npm run typecheck:workers",
 diff --git a/.fallowrc.json b/.fallowrc.json
 --- a/.fallowrc.json
 +++ b/.fallowrc.json

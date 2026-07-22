@@ -48,6 +48,11 @@ entry points. It ignores the Stryker JSDoc type-only dependency that is resolved
 through installed Stryker packages and the aliased TypeScript 7 compiler invoked
 directly by the typecheck scripts.
 
+Package commands enter project-owned build and compiler scripts before those
+scripts resolve tool files under `node_modules`. This keeps Fallow's entry-point
+discovery inside the project root and avoids hiding genuine diagnostics among
+expected skipped-entry warnings.
+
 ## Trigger
 
 The user asked whether Fallow could replace existing diagnostics, identified
