@@ -191,21 +191,8 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (suffix === "/annotation-links" && request.method === "POST") return await createAnnotationLink(request, room);
     const researchResponse = await handleWorkspaceResearchRoutes(context);
     if (researchResponse) return researchResponse;
-    if (suffix === "/publication-intake/preview" && request.method === "POST") {
-      return await previewPublicationIntake(request, env, room);
-    }
-    if (suffix === "/publication-intake/accept" && request.method === "POST") {
-      return await acceptPublicationIntake(request, env, room);
-    }
-    if (suffix === "/publication-pdf-links" && request.method === "POST") {
-      return await createPublicationPdfLink(request, room);
-    }
-    if (suffix.startsWith("/publication-pdf-links/") && request.method === "DELETE") {
-      return await deletePublicationPdfLink(suffix, room);
-    }
-    if (suffix.startsWith("/publications/") && request.method === "POST") {
-      return await enrichPublication(workspaceId, suffix, env, room);
-    }
+    const publicationResponse = await handleWorkspacePublicationRoutes(context);
+    if (publicationResponse) return publicationResponse;
     if (suffix === "/links" && request.method === "POST") return await createPassageLink(request, room);
     if (suffix === "/claims" && request.method === "POST") return await createClaim(request, room);
     if (suffix.startsWith("/claims/") && (request.method === "PUT" || request.method === "DELETE")) {
@@ -409,6 +396,37 @@ async function handleWorkspaceResearchShareRoutes(context: WorkspaceRouteContext
   if (!suffix.startsWith("/research-shares/") || !["DELETE", "GET"].includes(request.method)) return null;
   const library = await projectOwnerLibrary(env, access, identity.email);
   return await accessSharedResearch(request, workspaceId, suffix, env, room, library, role);
+}
+
+async function handleWorkspacePublicationRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const intakeResponse = await handleWorkspacePublicationIntakeRoutes(context);
+  if (intakeResponse) return intakeResponse;
+  const pdfLinkResponse = await handleWorkspacePublicationPdfLinkRoutes(context);
+  if (pdfLinkResponse) return pdfLinkResponse;
+  return await handleWorkspacePublicationEnrichmentRoute(context);
+}
+
+async function handleWorkspacePublicationIntakeRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, env, room } = context;
+  if (request.method !== "POST") return null;
+  if (suffix === "/publication-intake/preview") return await previewPublicationIntake(request, env, room);
+  if (suffix === "/publication-intake/accept") return await acceptPublicationIntake(request, env, room);
+  return null;
+}
+
+async function handleWorkspacePublicationPdfLinkRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, room } = context;
+  if (suffix === "/publication-pdf-links" && request.method === "POST") return await createPublicationPdfLink(request, room);
+  if (suffix.startsWith("/publication-pdf-links/") && request.method === "DELETE") {
+    return await deletePublicationPdfLink(suffix, room);
+  }
+  return null;
+}
+
+async function handleWorkspacePublicationEnrichmentRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, env, room } = context;
+  if (!suffix.startsWith("/publications/") || request.method !== "POST") return null;
+  return await enrichPublication(workspaceId, suffix, env, room);
 }
 
 async function updateWorkspaceSettings(
