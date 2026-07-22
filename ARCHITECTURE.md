@@ -500,7 +500,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Local development and local CI target macOS as the supported host platform baseline.
 - Node is pinned exactly through `package.json`, and npm is constrained to a compatible major there instead of an exact patch pin.
 - The verification baseline is split into a fast gate and a browser gate so quick checks can return earlier without dropping full coverage.
-- The repo-managed `pre-push` Git hook should run affected-file guardrails before code is pushed.
+- The repo-managed `pre-push` Git hook should run affected-file guardrails,
+  Fallow for affected codebase inputs, and targeted Stryker checks for affected
+  Node-testable sources. Mutation configuration changes should fall back to the
+  full incremental mutation command.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.
 - Browser tests launch Wrangler with a fresh operating-system temporary persistence directory and remove it on shutdown. Test workspaces must never accumulate in the interactive development catalog.

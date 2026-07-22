@@ -56,8 +56,11 @@ npm run dev
 
 Open <http://127.0.0.1:8787>.
 
-`npm install` also configures the repository's pre-push hook. Generated browser
-assets are written to the ignored `.generated/` directory.
+`npm install` also configures the repository's pre-push hook. The hook runs
+affected guardrails, Fallow for affected codebase inputs, and targeted Stryker
+checks for affected Node-testable sources. Mutation configuration changes fall
+back to the full incremental command. Generated browser assets are written to
+the ignored `.generated/` directory.
 
 ## Use a Local Writing Model
 

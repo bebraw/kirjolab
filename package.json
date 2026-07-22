@@ -39,7 +39,8 @@
       "2026-07-16-keep-mutation-explicit",
       "2026-07-16-deterministic-worker-types",
       "2026-07-17-fingerprint-pwa-shell",
-      "2026-07-17-native-local-ci"
+      "2026-07-17-native-local-ci",
+      "2026-07-22-pre-push-deep-quality"
     ]
   },
   "scripts": {
@@ -67,6 +68,7 @@
     "lint": "oxlint --max-warnings 0",
     "model:companion": "npm run build:model-companion && node --env-file-if-exists=.env ./.generated/model-companion.mjs",
     "mutation": "NODE_OPTIONS=--max-old-space-size=8192 stryker run",
+    "mutation:affected": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --ignoreStatic --reporters clear-text,progress",
     "mutation:incremental": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --incremental --ignoreStatic",
     "playwright:install": "playwright install chromium",
     "prepare": "node ./scripts/setup-git-hooks.mjs",

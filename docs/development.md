@@ -82,6 +82,8 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Run tests related to affected runtime or unit test files with `npm run test:affected`.
 - Run the unit coverage gate with `npm run test:coverage`.
 - Run full mutation tests with `npm run mutation`.
+- Run mutation tests for selected source files with
+  `npm run mutation:affected -- --mutate <comma-separated-files>`.
 - Run incremental mutation tests with `npm run mutation:incremental`.
 - Run TypeScript checks with `npm run typecheck`.
 - Regenerate committed Worker bindings with `npm run worker:types`; this
@@ -226,11 +228,38 @@ full readiness gates still run both projects.
 
 The coverage gate is stricter than the basic test run. `npm run test:coverage` measures runtime `src/**` code with the V8 provider, writes reports to `reports/coverage/`, and enforces high thresholds once a project actually has `src/` code. Colocated unit tests, end-to-end tests, and test-support files do not count as source files for the gate's skip-or-fail logic. `npm run test:affected` runs Vitest related tests for affected runtime files and directly runs affected unit test files. It falls back to `npm run test:coverage` when affected files include test environment inputs or when affected runtime files have no related tests.
 
-Mutation testing uses Stryker with Vitest and the TypeScript checker. `npm run mutation` performs a full mutation run against runtime `src/**/*.ts` files while excluding declarations, unit tests, end-to-end tests, and `src/test-support.ts`. `npm run mutation:incremental` enables Stryker incremental mode so repeated local quality-gate runs can reuse previous mutant results while still producing a complete mutation report. The local incremental command ignores static mutants because they require disproportionately expensive fresh test environments; the clean GitHub mutation job continues to run them through `npm run mutation`, so the authoritative mutation score retains full coverage. The Vitest runner uses Stryker's per-test coverage analysis and related-test narrowing, so each runtime mutant runs against the tests Stryker can associate with the mutated file instead of blindly rerunning the whole suite. Stryker worker concurrency is set to `50%` so mutation testing can use parallel workers without assuming a fixed core count for every clone of the template. Mutation reports and Stryker incremental data are written under `reports/`, and Stryker's temporary `.stryker-tmp/` sandbox must stay untracked. Ignored `.wrangler/` runtime state is excluded from the sandbox so live SQLite WAL files cannot race its copy.
+Mutation testing uses Stryker with Vitest. `npm run mutation` performs a full
+mutation run with the TypeScript checker against runtime `src/**/*.ts` files
+while excluding declarations, unit tests, end-to-end tests, and
+`src/test-support.ts`. `npm run mutation:affected` accepts an explicit Stryker
+`--mutate` list and ignores static mutants for a bounded local signal.
+`npm run mutation:incremental` enables Stryker incremental mode so repeated
+full-surface local runs can reuse previous mutant results while ignoring static
+mutants. Both local commands retain the configured TypeScript checker; a plain
+project typecheck cannot determine whether each mutated program still compiles.
+The clean GitHub `npm run mutation` job also tests static mutants, so it remains
+the authoritative mutation score. The Vitest runner uses Stryker's per-test coverage
+analysis and related-test narrowing, so each runtime mutant runs against the
+tests Stryker can associate with the mutated file instead of blindly rerunning
+the whole suite. Stryker worker concurrency is set to `50%` so mutation testing
+can use parallel workers without assuming a fixed core count for every clone of
+the template. Mutation reports and Stryker incremental data are written under
+`reports/`, and Stryker's temporary `.stryker-tmp/` sandbox must stay untracked.
+Ignored `.wrangler/` runtime state is excluded from the sandbox so live SQLite
+WAL files cannot race its copy.
 
 The TypeScript setup is generic too. `tsconfig.json` covers repo-level `.ts` files and `src/**/*.ts`, and `npm run typecheck` runs TypeScript 7. During the TypeScript 7.0 transition, `typescript` is intentionally pinned to the `@typescript/typescript6` compatibility package for tools that import the compiler API, while `typescript-7` provides the compiler used by the typecheck script.
 
 Fallow provides advisory codebase readability diagnostics. `npm run diagnostics:readability` runs a changed-code audit for complexity, duplication, dependency hygiene, and cleanup findings while relaxing CRAP-score noise from untested tooling scripts. `npm run diagnostics:health` reports whole-repo health scoring, hotspots, and refactoring targets. `npm run diagnostics:codebase` runs both. These commands use `--no-cache`, so normal diagnostics do not create a persistent `.fallow/` cache. If a contributor runs cached Fallow commands manually, `.fallow/` is ignored and should stay untracked.
+
+The pre-push hook treats each selected command's exit status as blocking. It
+replays the exact Git pre-push ref input to affected guardrails and the deep
+check selector. Fallow runs only for affected JavaScript, TypeScript, package,
+or Fallow configuration inputs. Stryker targets only affected configured
+mutation sources; affected Node unit tests map back to their production source.
+Mutation configuration changes fall back to `npm run mutation:incremental`.
+`git push --no-verify` remains Git's explicit emergency bypass, while the clean
+GitHub mutation job remains authoritative.
 
 Build Week submission media is captured manually with
 `npm run media:build-week` after starting the dedicated loopback-only Chrome
@@ -265,7 +294,11 @@ Use this expectation for routine changes:
 - Use `npm run quality:gate:fast` for quicker local iteration when browser coverage is not the immediate focus.
 - `npm run ci:local:container` is optional and should be used for changes to
   GitHub Actions orchestration or when Linux-container parity is in question.
-- The repo-managed `pre-push` hook runs `npm run quality:affected` automatically after `npm install`, so pushes stop locally when affected guardrails are already red.
+- The repo-managed `pre-push` hook runs affected guardrails automatically after
+  `npm install`, then runs Fallow for affected codebase inputs and targeted
+  Stryker when pushed files can affect its configured mutation sources.
+  Mutation configuration changes fall back to incremental Stryker.
+  Documentation-only and Worker-only pushes skip irrelevant deep checks.
 
 The quality gate runs the fast gate first, then the Playwright browser tests.
 Mutation testing is explicit locally and remains authoritative in its clean

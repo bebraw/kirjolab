@@ -1,0 +1,14 @@
+{
+  "id": "2026-07-22-pre-push-deep-quality",
+  "title": "Run deep quality checks before push",
+  "status": "implemented",
+  "risk": "medium",
+  "adrs": ["docs/adrs/implemented/ADR-162-run-deep-quality-checks-before-push.md"],
+  "touches": [".githooks/pre-push", ".fallowrc.json", "package.json", "scripts/", "docs/", "specs/", "ARCHITECTURE.md"],
+  "checks": [
+    "npm run test:tooling",
+    "npm run diagnostics:codebase",
+    "npm run mutation:affected -- --mutate <representative-source>",
+    "npm run ci:local"
+  ]
+}

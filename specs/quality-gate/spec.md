@@ -19,6 +19,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Changed-code readability diagnostics:** `npm run diagnostics:readability`
 - **Whole-repo health diagnostics:** `npm run diagnostics:health`
 - **Full mutation gate:** `npm run mutation`
+- **Affected mutation gate:** `npm run mutation:affected -- --mutate <files>`
 - **Incremental mutation gate:** `npm run mutation:incremental`
 - **Full gate:** `npm run quality:gate` (fast gate followed by browser gate)
 - **Full gate progress:** named phase transitions plus a 30-second elapsed-time heartbeat while a phase is running
@@ -33,6 +34,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Action pinning:** every GitHub Actions `uses:` reference must use a full commit SHA
 - **Git hook path:** `.githooks/`
 - **Hook setup script:** `scripts/setup-git-hooks.mjs`
+- **Pre-push deep-check selector:** `scripts/run-pre-push-quality.mjs`
 - **Affected guardrail logic:** `scripts/run-affected-guardrails.mjs`
 - **Affected test logic:** `scripts/run-affected-tests.mjs`
 - **Affected file helper logic:** `scripts/affected-file-utils.mjs`
@@ -74,10 +76,14 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - [ ] The advisory codebase diagnostics report changed-code readability risk, whole-repo health, hotspots, duplication, and cleanup evidence without becoming part of the hard quality gate.
 - [ ] The browser gate covers each canonical Playwright baseline file once.
 - [ ] The full mutation gate covers runtime `src/**/*.ts` files with Stryker, Vitest, and TypeScript checking.
-- [ ] The incremental mutation gate reuses prior Stryker results and ignores static mutants for explicit local test-hardening runs while preserving a complete mutation report.
+- [ ] The affected mutation gate retains TypeScript checking and limits routine
+      pre-push mutation to affected Node-testable source files.
+- [ ] The incremental mutation gate reuses prior Stryker results and ignores static mutants for explicit full-surface local test-hardening runs while preserving a complete mutation report.
 - [ ] The full gate runs the fast and browser gates in order.
 - [ ] The full gate reports phase starts, completions, failures, and periodic elapsed-time heartbeats.
-- [ ] The repo-managed `pre-push` hook runs affected-file guardrails before a push leaves the machine.
+- [ ] The repo-managed `pre-push` hook runs affected-file guardrails, relevant
+      Fallow diagnostics, and relevant targeted mutation checks before a
+      push leaves the machine.
 - [ ] Local and remote CI use the same fast and browser package scripts for non-documentation changes.
 - [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
 - [ ] Optional container parity preserves Agent CI job progress, failure, and retry semantics.
@@ -97,10 +103,19 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - `npm run quality:gate` must continue to represent the local baseline verification path.
 - `npm run quality:gate` must preserve each child command's live output and emit a progress heartbeat at least every 30 seconds while that command is still running.
 - `npm run diagnostics:codebase` must remain advisory and must not be required by the baseline readiness path.
+- Pre-push must run Fallow only when affected JavaScript, TypeScript, package,
+  or Fallow configuration inputs make its signal relevant.
 - Fallow diagnostics must use `--no-cache` in repo scripts so normal diagnostic runs do not create a persistent `.fallow/` cache.
 - `npm run mutation` must fail when the mutation score is below the configured break threshold.
 - `npm run mutation:incremental` must fail when the resulting mutation score is below the configured break threshold.
 - `npm run mutation:incremental` must ignore static mutants to keep the repeated local gate proportionate, while `npm run mutation` must continue to test them in the clean GitHub mutation job.
+- `npm run mutation:affected` and `npm run mutation:incremental` must retain
+  Stryker's mutation-time TypeScript checker so compile-invalid mutants are not
+  counted as surviving or uncovered behavior.
+- Pre-push must run affected mutation for configured mutation sources, map Node
+  unit tests back to their source when it exists, and run incremental mutation
+  when mutation/test configuration changes without an affected source. It must
+  skip mutation for documentation-only or Worker-only changes.
 - `npm install` must keep the repo-managed `pre-push` hook configured without requiring extra setup steps.
 - The CI workflow must cancel superseded runs for the same ref.
 - The CI workflow must read the pinned Node version from `package.json` instead of a separate version file.
@@ -275,7 +290,9 @@ The template needs a verification baseline that stays strict enough for end-to-e
 
 - Given: the repo was bootstrapped with `npm install`
 - When: the contributor runs `git push` while the fast gate is red
-- Then: the `pre-push` hook runs affected-file guardrails and the push is blocked before remote CI starts
+- Then: the `pre-push` hook runs affected-file guardrails and any relevant
+  Fallow and targeted mutation checks, and the push is blocked before remote
+  CI starts
 
 **Scenario: New push supersedes an old CI run**
 

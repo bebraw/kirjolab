@@ -1,0 +1,35 @@
+diff --git a/.githooks/pre-push b/.githooks/pre-push
+--- a/.githooks/pre-push
++++ b/.githooks/pre-push
+@@
++pre_push_input="$(mktemp "${TMPDIR:-/tmp}/project-pre-push.XXXXXX")"
++trap 'rm -f "$pre_push_input"' EXIT
++cat >"$pre_push_input"
++
+ echo "Running affected guardrails before push..."
+-node ./scripts/run-affected-guardrails.mjs --pre-push
++node ./scripts/run-affected-guardrails.mjs --pre-push <"$pre_push_input"
++node ./scripts/run-pre-push-quality.mjs --pre-push <"$pre_push_input"
+diff --git a/scripts/run-pre-push-quality.mjs b/scripts/run-pre-push-quality.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/run-pre-push-quality.mjs
+@@
++// Reuse the project's affected-file helper to select Fallow for codebase
++// inputs and targeted Stryker for configured mutation sources and Node tests.
++// Fall back to incremental mutation for configuration changes. Keep this
++// routing aligned with the target project's Stryker exclusions.
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@
++    "mutation:affected": "stryker run --ignoreStatic --reporters clear-text,progress",
+diff --git a/.fallowrc.json b/.fallowrc.json
+--- a/.fallowrc.json
++++ b/.fallowrc.json
+@@
+-  "entry": ["src/**/*.e2e.ts"],
++  "entry": ["src/**/*.e2e.ts", "src/client/app.ts", "src/client/review-app.ts", "src/client/service-worker.ts"],
+@@
+-  "ignoreDependencies": ["@stryker-mutator/api"]
++  "ignoreDependencies": ["@stryker-mutator/api", "typescript-7"]

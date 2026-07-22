@@ -4,5 +4,11 @@ set -eu
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+pre_push_input="$(mktemp "${TMPDIR:-/tmp}/kirjolab-pre-push.XXXXXX")"
+trap 'rm -f "$pre_push_input"' EXIT
+cat >"$pre_push_input"
+
 echo "Running affected guardrails before push..."
-node ./scripts/run-affected-guardrails.mjs --pre-push
+node ./scripts/run-affected-guardrails.mjs --pre-push <"$pre_push_input"
+
+node ./scripts/run-pre-push-quality.mjs --pre-push <"$pre_push_input"

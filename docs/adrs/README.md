@@ -177,6 +177,7 @@ No accepted ADRs are awaiting implementation.
 | [ADR-157](./implemented/ADR-157-project-metadata-suggestions-into-the-editor.md)          | Implemented          | Project reviewed PDF and provider suggestions beneath the corresponding metadata inputs.                      |
 | [ADR-158](./implemented/ADR-158-cache-metadata-previews-in-library-memory.md)             | Implemented          | Reuse bounded metadata previews briefly in owner-scoped server memory while preserving acceptance refetch.    |
 | [ADR-159](./implemented/ADR-159-render-pdf-links-in-the-active-page.md)                   | Implemented          | Render standard PDF links without adopting the complete PDF.js viewer application.                            |
+| [ADR-162](./implemented/ADR-162-run-deep-quality-checks-before-push.md)                   | Implemented          | Run affected Fallow and targeted mutation checks before pushes without expanding routine local CI.            |
 
 ## Creating A New ADR
 
