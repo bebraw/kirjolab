@@ -44,8 +44,9 @@ export function renderProductHeader(
 }
 
 function initials(email: string): string {
+  // Stryker disable next-line StringLiteral: split always returns at least one string; the fallback only satisfies indexed-access typing.
   const localPart = email.split("@", 1)[0] ?? "K";
-  const parts = localPart.split(/[._-]+/u).filter(Boolean);
+  const parts = localPart.split(/[._-]/u).filter(Boolean);
   const value = parts
     .slice(0, 2)
     .map((part) => part[0])
