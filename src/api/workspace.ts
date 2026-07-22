@@ -189,30 +189,8 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
       return await mutateAnnotation(request, suffix, room);
     }
     if (suffix === "/annotation-links" && request.method === "POST") return await createAnnotationLink(request, room);
-    if (suffix === "/bibliography/import" && request.method === "POST") {
-      if (role !== "owner") return jsonError("Only the workspace owner can import into the shared library", 403);
-      const library = await projectOwnerLibrary(env, access, identity.email);
-      return await importBibliography(request, workspaceId, identity.email, room, library);
-    }
-    if (suffix === "/references" && request.method === "POST") {
-      if (role !== "owner") return jsonError("Only the workspace owner can link private library references", 403);
-      const library = await projectOwnerLibrary(env, access, identity.email);
-      return await linkProjectReference(request, workspaceId, room, library);
-    }
-    if (suffix.startsWith("/references/") && (request.method === "PATCH" || request.method === "POST" || request.method === "DELETE")) {
-      if (role !== "owner") return jsonError("Only the workspace owner can manage project references", 403);
-      const library = await projectOwnerLibrary(env, access, identity.email);
-      return await mutateProjectReference(request, workspaceId, suffix, room, library);
-    }
-    if (suffix === "/research-shares" && request.method === "POST") {
-      if (role !== "owner") return jsonError("Only the workspace owner can share private research", 403);
-      const library = await projectOwnerLibrary(env, access, identity.email);
-      return await sharePrivateResearch(request, workspaceId, room, library);
-    }
-    if (suffix.startsWith("/research-shares/") && (request.method === "DELETE" || request.method === "GET")) {
-      const library = await projectOwnerLibrary(env, access, identity.email);
-      return await accessSharedResearch(request, workspaceId, suffix, env, room, library, role);
-    }
+    const researchResponse = await handleWorkspaceResearchRoutes(context);
+    if (researchResponse) return researchResponse;
     if (suffix === "/publication-intake/preview" && request.method === "POST") {
       return await previewPublicationIntake(request, env, room);
     }
@@ -390,6 +368,47 @@ async function handleWorkspaceFolderRoutes(context: WorkspaceRouteContext): Prom
     return await mutateProjectFolder(request, workspaceId, suffix, room);
   }
   return null;
+}
+
+async function handleWorkspaceResearchRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const bibliographyResponse = await handleWorkspaceBibliographyImportRoute(context);
+  if (bibliographyResponse) return bibliographyResponse;
+  const referenceResponse = await handleWorkspaceReferenceRoutes(context);
+  if (referenceResponse) return referenceResponse;
+  return await handleWorkspaceResearchShareRoutes(context);
+}
+
+async function handleWorkspaceBibliographyImportRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, role, workspaceId, identity, env, access, room } = context;
+  if (suffix !== "/bibliography/import" || request.method !== "POST") return null;
+  if (role !== "owner") return jsonError("Only the workspace owner can import into the shared library", 403);
+  const library = await projectOwnerLibrary(env, access, identity.email);
+  return await importBibliography(request, workspaceId, identity.email, room, library);
+}
+
+async function handleWorkspaceReferenceRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, role, workspaceId, identity, env, access, room } = context;
+  if (suffix === "/references" && request.method === "POST") {
+    if (role !== "owner") return jsonError("Only the workspace owner can link private library references", 403);
+    const library = await projectOwnerLibrary(env, access, identity.email);
+    return await linkProjectReference(request, workspaceId, room, library);
+  }
+  if (!suffix.startsWith("/references/") || !["PATCH", "POST", "DELETE"].includes(request.method)) return null;
+  if (role !== "owner") return jsonError("Only the workspace owner can manage project references", 403);
+  const library = await projectOwnerLibrary(env, access, identity.email);
+  return await mutateProjectReference(request, workspaceId, suffix, room, library);
+}
+
+async function handleWorkspaceResearchShareRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, role, workspaceId, identity, env, access, room } = context;
+  if (suffix === "/research-shares" && request.method === "POST") {
+    if (role !== "owner") return jsonError("Only the workspace owner can share private research", 403);
+    const library = await projectOwnerLibrary(env, access, identity.email);
+    return await sharePrivateResearch(request, workspaceId, room, library);
+  }
+  if (!suffix.startsWith("/research-shares/") || !["DELETE", "GET"].includes(request.method)) return null;
+  const library = await projectOwnerLibrary(env, access, identity.email);
+  return await accessSharedResearch(request, workspaceId, suffix, env, room, library, role);
 }
 
 async function updateWorkspaceSettings(
