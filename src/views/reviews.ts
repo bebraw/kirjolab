@@ -65,9 +65,7 @@ export function renderReviewPage(
   linkableProjects: readonly WorkspaceSummary[] = [],
 ): string {
   const reviewId = escapeHtml(review.id);
-  const activeAccessibleProject = projectLinks.find(
-    (link) => link.status === "active" && link.permission === "available" && link.project !== null,
-  )?.project;
+  const activeAccessibleProject = projectLinks.find((link) => link.status === "active" && link.permission === "available")?.project;
   const editorHref = activeAccessibleProject?.href ?? "/editor";
   const activeProjectIds = new Set(projectLinks.filter((link) => link.status === "active").map((link) => link.workspaceId));
   const availableProjects = linkableProjects.filter((project) => project.archivedAt === null && !activeProjectIds.has(project.id));

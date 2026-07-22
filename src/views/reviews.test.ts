@@ -103,6 +103,17 @@ describe("review views", () => {
     expect(html).toContain(`href="/review/${reviewId}"`);
     expect(html).toContain("Evidence synthesis");
     expect(html).toContain("Archived review");
+    expect(html).toContain("1 active · 2 total");
+    expect(html).toContain("Systematic literature review · Owner · Active");
+    expect(html).toContain("Multivocal literature review · Member · Archived");
+    expect(html).toContain('<span class="review-index-mark" aria-hidden="true">S</span>');
+    expect(html).toContain('<span class="review-index-mark" aria-hidden="true">M</span>');
+    expect(html).toContain('aria-label="Account for local@kirjolab.invalid"');
+    expect(html).toContain("Local development");
+    expect(html).toContain(
+      `href="/review/${reviewId}">\n    <span class="review-index-mark" aria-hidden="true">S</span>\n    <span><strong>Evidence synthesis</strong>`,
+    );
+    expect(html).toContain('</a><a class="review-index-row" href="/review/22222222-2222-4222-8222-222222222222">');
     expect(html).toContain("Connections are explicit.");
     expect(html).not.toContain('<script type="module" src="/review-app.js"></script>');
     expect(html).not.toContain('id="review-protocol-form"');
@@ -115,7 +126,12 @@ describe("review views", () => {
     expect(html).not.toContain('data-app-mode="review" data-workspace-id');
     expect(html).toContain('<script type="module" src="/review-app.js"></script>');
     expect(html).toContain("2 members");
+    expect(html).toContain('aria-label="Account for local@kirjolab.invalid"');
+    expect(html).toContain('<a class="primary-navigation-link" href="/review" aria-current="page">Reviews</a>');
     expect(html).toContain("owner@example.test");
+    expect(html).toContain("Owner · joined");
+    expect(html).toContain("Member · joined");
+    expect(html).toContain("</span><span><strong>member@example.test</strong>");
     expect(html).toContain("Writing project");
     expect(html).toContain("Project access required");
     expect(html).toContain("Linked project");
@@ -129,6 +145,15 @@ describe("review views", () => {
     expect(html).toContain('id="review-publication-project"');
     expect(html).toContain('value="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" data-workspace-id="writing-project"');
     expect(html).not.toContain('value="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"');
+    expect(html).toContain('data-link-status="active" data-project-permission="available"');
+    expect(html).toContain('<a href="/editor/writing-project">Open in Editor <span aria-hidden="true">↗</span></a>');
+    expect(html).toContain("<strong>Writing project</strong><small>Active link · linked");
+    expect(html).toContain("<strong>Linked project</strong><small>Project access required · linked");
+    expect(html).toContain('<span class="review-project-link-state">Project access required</span>');
+    expect(html).toContain('</article><article class="review-project-link-row"');
+    expect(html).toContain('<a class="primary-navigation-link" href="/editor/writing-project">Editor</a>');
+    expect(html).toContain('<span class="count-badge">Active</span><span>Owner</span>');
+    expect(html).toContain("<span>2 active</span>");
     expect(html).toContain(`method="post" action="/review/${reviewId}/project-links"`);
     expect(html).toContain('<button class="button-secondary" type="submit"><span>Link project</span></button>');
     expect(html).toContain('value="second-manuscript"');
@@ -142,6 +167,10 @@ describe("review views", () => {
     expect(html).toContain('<select class="field" id="review-publication-project" disabled>');
     expect(html).toContain('id="publish-review-synthesis" type="button" disabled');
     expect(html).toContain("Link an accessible writing project before publishing this synthesis.");
+    expect(html).toContain('<select class="field" id="review-link-project" name="workspaceId" disabled>');
+    expect(html).toContain('<option value="">No unlinked projects available</option>');
+    expect(html).toContain('<button class="button-secondary" type="submit" disabled><span>Link project</span></button>');
+    expect(html).toContain('<a class="primary-navigation-link" href="/editor">Editor</a>');
   });
 
   it("escapes review and accessible project copy", () => {
@@ -159,5 +188,69 @@ describe("review views", () => {
     expect(html).toContain("Project &lt;script&gt;");
     expect(html).not.toContain("Project <script>");
     expect(html).toContain('href="/editor/writing-project?file=&quot;draft&quot;"');
+  });
+
+  it("renders empty catalogs and member-owned review details without owner controls", () => {
+    const catalog = renderReviewsPage([]);
+    expect(catalog).toContain("0 active · 0 total");
+    expect(catalog).toContain("No reviews yet. Create one above; a writing project is optional.");
+    expect(catalog).toContain("Local development");
+
+    const extraActive = { ...reviews[0]!, id: "55555555-5555-4555-8555-555555555555", title: "Second active review" };
+    expect(renderReviewsPage([...reviews, extraActive])).toContain("2 active · 3 total");
+
+    const memberReview = reviews[1]!;
+    const member = [{ ...members[1]!, addedAt: "invalid <date>" }];
+    const detail = renderReviewPage(memberReview, member, []);
+    expect(detail).toContain('<span class="count-badge">Archived</span><span>Member</span>');
+    expect(detail).toContain("<summary>1 member</summary>");
+    expect(detail).toContain("invalid &lt;date&gt;");
+    expect(detail).not.toContain('class="review-project-link-form"');
+    expect(detail).toContain('<a class="primary-navigation-link" href="/editor">Editor</a>');
+  });
+
+  it("renders unlinked project history and filters unavailable link targets", () => {
+    const unlinked: ReviewProjectLinkView = {
+      ...projectLinks[0]!,
+      status: "unlinked",
+      unlinkedAt: "2026-07-20T09:00:00.000Z",
+      unlinkedBy: "owner@example.test",
+    };
+    const archivedProject = {
+      ...linkableProjects[1]!,
+      id: "archived-project",
+      title: "Archived project",
+      archivedAt: "2026-07-20T09:00:00.000Z",
+    };
+    const html = renderReviewPage(reviews[0]!, members, [unlinked], undefined, undefined, [linkableProjects[0]!, archivedProject]);
+
+    expect(html).toContain('data-link-status="unlinked" data-project-permission="available"');
+    expect(html).toContain("<span>0 active</span>");
+    expect(html).toContain("Unlinked Jul 20, 2026 · linked Jul 18, 2026");
+    expect(html).toContain('<span class="review-project-link-state">Unlinked Jul 20, 2026</span>');
+    expect(html).toContain('<option value="writing-project">Writing project</option>');
+    expect(html).not.toContain('<option value="archived-project">Archived project</option>');
+
+    const undated = { ...unlinked, unlinkedAt: null };
+    expect(renderReviewPage(reviews[0]!, members, [undated])).toContain("<small>Unlinked · linked Jul 18, 2026</small>");
+  });
+
+  it("requires every accessible-project condition before changing the editor destination", () => {
+    const unavailableProject = { ...projectLinks[0]!, permission: "project-access-required" as const };
+    const unlinkedProject = { ...projectLinks[0]!, status: "unlinked" as const };
+    const missingProject = { ...projectLinks[0]!, project: null };
+
+    for (const link of [unavailableProject, unlinkedProject, missingProject]) {
+      const html = renderReviewPage(reviews[0]!, members, [link]);
+      expect(html).toContain('<a class="primary-navigation-link" href="/editor">Editor</a>');
+      expect(html).not.toContain('<a class="primary-navigation-link" href="/editor/writing-project">Editor</a>');
+      if (link.permission !== "available") expect(html).not.toContain("Open in Editor");
+    }
+
+    const withTwoOptions = renderReviewPage(reviews[0]!, members, [], undefined, undefined, linkableProjects);
+    expect(withTwoOptions).toContain(
+      '<option value="writing-project">Writing project</option><option value="second-manuscript">Second manuscript</option>',
+    );
+    expect(withTwoOptions).toContain('<select class="field" id="review-link-project" name="workspaceId">');
   });
 });
