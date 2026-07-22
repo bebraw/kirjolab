@@ -139,6 +139,10 @@ export type ReviewArtifactResult = DocumentRoomOperationResult<
 >;
 
 export type ProjectReferenceUnlinkResult = DocumentRoomOperationResult<WorkspaceSnapshot, "reference-not-linked" | "citation-alias-in-use">;
+export type ProjectReviewLinkResult = DocumentRoomOperationResult<
+  ProjectReviewLink,
+  "link-provenance-conflict" | "active-review-link-conflict"
+>;
 
 export interface GitHubProjectBindingInput {
   readonly installationId: number;
@@ -1672,7 +1676,7 @@ export class DocumentRoom extends DurableObject<Env> {
     reviewAccessLocator: string,
     actor: string,
     createdAt: string,
-  ): ProjectReviewLink {
+  ): ProjectReviewLinkResult {
     assertProjectReviewLinkField(workspaceId, 128, "Project identity");
     assertProjectReviewLinkField(linkId, 128, "Review link identity");
     assertProjectReviewLinkField(reviewId, 128, "Review identity");
@@ -1689,13 +1693,21 @@ export class DocumentRoom extends DurableObject<Env> {
         existing.createdBy !== actor ||
         existing.createdAt !== createdAt
       ) {
-        throw new Error("Review link identity already has different provenance");
+        return {
+          ok: false,
+          code: "link-provenance-conflict",
+          error: "Review link identity already has different provenance",
+        };
       }
-      return existing;
+      return { ok: true, value: existing };
     }
     const active = links.find((link) => link.reviewId === reviewId && link.status === "active");
     if (active) {
-      throw new Error("Review already has another active project link identity");
+      return {
+        ok: false,
+        code: "active-review-link-conflict",
+        error: "Review already has another active project link identity",
+      };
     }
     const link: ProjectReviewLink = {
       id: linkId,
@@ -1721,7 +1733,7 @@ export class DocumentRoom extends DurableObject<Env> {
       link.createdAt,
     );
     this.#broadcastResources();
-    return link;
+    return { ok: true, value: link };
   }
 
   unlinkReview(workspaceId: string, linkId: string, actor: string): ProjectReviewLink {

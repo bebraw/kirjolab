@@ -332,7 +332,7 @@ async function linkReview(
     createdAt?: string;
   } = {},
 ): Promise<void> {
-  await room.linkReview(
+  const result = await room.linkReview(
     overrides.projectId ?? "project",
     overrides.linkId ?? "link-a",
     overrides.reviewId ?? "review-a",
@@ -340,6 +340,7 @@ async function linkReview(
     overrides.actor ?? "owner@example.test",
     overrides.createdAt ?? "2026-07-19T09:00:00.000Z",
   );
+  if (!result.ok) throw new Error(result.error);
 }
 
 async function sha256(value: string): Promise<string> {

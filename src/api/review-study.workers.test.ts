@@ -443,7 +443,8 @@ describe("review-study API in the Workers runtime", () => {
     const initialProject = await room.getSnapshot("project");
     const reviewId = crypto.randomUUID();
     const linkId = crypto.randomUUID();
-    await room.linkReview("project", linkId, reviewId, key, identity.email, new Date().toISOString());
+    const linked = await room.linkReview("project", linkId, reviewId, key, identity.email, new Date().toISOString());
+    if (!linked.ok) throw new Error(linked.error);
     const publicationPath = `review/${reviewId}/synthesis.md`;
 
     await expect(
@@ -533,7 +534,8 @@ describe("review-study API in the Workers runtime", () => {
     const initialProject = await room.getSnapshot("project");
     const reviewId = crypto.randomUUID();
     const linkId = crypto.randomUUID();
-    await room.linkReview("project", linkId, reviewId, key, identity.email, new Date().toISOString());
+    const linked = await room.linkReview("project", linkId, reviewId, key, identity.email, new Date().toISOString());
+    if (!linked.ok) throw new Error(linked.error);
 
     const response = await handleReviewStudyApi(
       jsonRequest("http://example.com/publish", {

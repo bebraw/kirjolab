@@ -286,14 +286,16 @@ describe("independent reviews API in the Workers runtime", () => {
     const retryInitialization = await retryAccess.initializeLegacyMembers(await retryProject.access.listMembers(retryOwner.email));
     const conflictingLinkId = crypto.randomUUID();
     const conflictingCreatedAt = new Date().toISOString();
-    await retryProject.room.linkReview(
-      retryProject.id,
-      conflictingLinkId,
-      retryInitialization.reviewId,
-      retryProject.id,
-      retryOwner.email,
-      conflictingCreatedAt,
-    );
+    await expect(
+      retryProject.room.linkReview(
+        retryProject.id,
+        conflictingLinkId,
+        retryInitialization.reviewId,
+        retryProject.id,
+        retryOwner.email,
+        conflictingCreatedAt,
+      ),
+    ).resolves.toMatchObject({ ok: true });
 
     await expect(ensureLegacyReviewResource(env, retryOwner, retryProject.id, true)).rejects.toThrow(
       "Review already has another active project link identity",
@@ -510,14 +512,16 @@ describe("independent reviews API in the Workers runtime", () => {
       updatedAt: record.updatedAt,
       archivedAt: record.archivedAt,
     });
-    await lateProject.room.linkReview(
-      lateProject.id,
-      stagedLink.id,
-      stagedLink.reviewId,
-      record.locator.storageKey,
-      stagedLink.createdBy,
-      stagedLink.createdAt,
-    );
+    await expect(
+      lateProject.room.linkReview(
+        lateProject.id,
+        stagedLink.id,
+        stagedLink.reviewId,
+        record.locator.storageKey,
+        stagedLink.createdBy,
+        stagedLink.createdAt,
+      ),
+    ).resolves.toMatchObject({ ok: true });
     await expect(lateMemberCatalog.getReview(review.id)).resolves.not.toBeNull();
     await expect(lateProject.room.listReviewLinks(lateProject.id)).resolves.toEqual([
       expect.objectContaining({ id: stagedLink.id, status: "active" }),

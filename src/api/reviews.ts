@@ -360,7 +360,8 @@ export async function writeReviewProjectProjection(
 ): Promise<void> {
   try {
     try {
-      await room.linkReview(link.workspaceId, link.id, link.reviewId, storageKey, link.createdBy, link.createdAt);
+      const projection = await room.linkReview(link.workspaceId, link.id, link.reviewId, storageKey, link.createdBy, link.createdAt);
+      if (!projection.ok) throw new Error(projection.error);
     } catch (error) {
       const projection = await room.listReviewLinks(link.workspaceId).catch(() => []);
       if (!matchingActiveProjectProjection(projection, link, storageKey)) throw error;

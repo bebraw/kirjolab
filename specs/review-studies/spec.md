@@ -99,7 +99,8 @@ published deliberately into several writing projects.
 - **Project-review link:** a stable many-to-many association with review UUID,
   workspace identity, creator and creation time, and `active` or `unlinked`
   state with attributed unlink provenance. An unlinked row remains history and
-  grants no authority.
+  grants no authority. Conflicting link identity or active-link provenance is a
+  typed routine projection result rather than an operational RPC failure.
 - **Protocol revision:** objectives, method profile, question framework,
   research questions, concept groups, eligibility criteria, method rules,
   appraisal instrument, extraction schema, amendment impact, and search-source
