@@ -2658,7 +2658,14 @@ class WorkspaceApp {
         break;
       case "reset":
         this.#collaborationWorkflow.send({ type: "RESET" });
-        void Promise.resolve(this.#offlineStore?.clear()).finally(() => window.location.reload());
+        void Promise.resolve(this.#offlineStore?.clear()).finally(() => {
+          if (socket.readyState >= WebSocket.CLOSING) {
+            window.location.reload();
+            return;
+          }
+          socket.addEventListener("close", () => window.location.reload(), { once: true });
+          socket.close(1000, "Workspace reset");
+        });
         return;
       case "presence":
         this.#collaborationWorkflow.send({ type: "PRESENCE", collaborators: value.collaborators });

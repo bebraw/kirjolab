@@ -182,7 +182,8 @@ collaboration.
   supplies its socket identity, validates the range, broadcasts it only to
   peers, and never persists it. Edit-link holders join this presence exchange
   without receiving or sending binary Yjs state. Disconnect emits a
-  server-owned clear control.
+  server-owned clear control and excludes the closing socket from the updated
+  collaborator count and broadcast.
 - **Revision boundary:** Causally new Yjs state materializes Yjs, Markdown, and
   BibTeX together and advances the revision once. Duplicate or replayed updates
   receive an `ack` at the current revision without persistence, rebroadcast, or
@@ -192,8 +193,10 @@ collaboration.
   project state for manuscript and resource mutations without changing the
   source revision used to validate selections. Immutable milestone names point
   to one history revision. Restore creates a new source and history head and
-  sends a server-owned reset control so every connected browser reloads from
-  the restored coordination state.
+  sends a terminal server-owned reset control so every connected browser
+  clears its offline state, completes a normal socket close handshake, reloads,
+  and fetches resources from the restored coordination state without a
+  redundant follow-up socket message or abrupt transport loss.
 - **Resource metadata:** The document Durable Object stores project-pinned
   bibliographic and explicitly shared research snapshots, passage links, and
   model candidates alongside the project coordination atom. The owner-scoped

@@ -817,7 +817,7 @@ export class DocumentRoom extends DurableObject<Env> {
     const attachment = collaborationSocketAttachment(socket);
     if (attachment?.mode === "writer" || attachment?.mode === "edit-presence") {
       this.#broadcast(encodeServerCollaborationMessage({ type: "selection-clear", collaboratorId: attachment.collaboratorId }), socket);
-      this.#broadcastPresence();
+      this.#broadcastPresence(socket);
     }
   }
 
@@ -962,7 +962,6 @@ export class DocumentRoom extends DurableObject<Env> {
       throw error;
     }
     this.#broadcast(encodeServerCollaborationMessage({ type: "reset", revision: nextRevision }));
-    this.#broadcastResources();
     return this.getSnapshot(workspaceId);
   }
 
@@ -4577,9 +4576,11 @@ export class DocumentRoom extends DurableObject<Env> {
     }
   }
 
-  #broadcastPresence(): void {
-    const collaborators = this.ctx.getWebSockets().filter((socket) => collaborationSocketAttachment(socket)?.mode !== "reader").length;
-    this.#broadcast(encodeServerCollaborationMessage({ type: "presence", collaborators }));
+  #broadcastPresence(except?: WebSocket): void {
+    const collaborators = this.ctx
+      .getWebSockets()
+      .filter((socket) => socket !== except && collaborationSocketAttachment(socket)?.mode !== "reader").length;
+    this.#broadcast(encodeServerCollaborationMessage({ type: "presence", collaborators }), except);
   }
 
   #broadcastResources(): void {

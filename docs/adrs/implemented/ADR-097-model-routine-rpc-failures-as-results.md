@@ -34,7 +34,11 @@ unexpected programming, storage, and infrastructure failures.
 
 Route every `DocumentRoom` WebSocket send through one helper. Skip sockets that
 are already closed and suppress only a confirmed connection-loss race or the
-platform's invalid-state close signal. Rethrow any other send exception.
+platform's invalid-state close signal. Exclude the socket delivered to
+`webSocketClose` from both the follow-up presence broadcast and its collaborator
+count. Treat a restore `reset` as the terminal socket control because clients
+close the socket cleanly and reload on receipt; do not race that handshake with
+a redundant resource message. Rethrow any other send exception.
 Serve generated browser scripts with `Cross-Origin-Resource-Policy:
 same-origin` and `Cross-Origin-Embedder-Policy: require-corp` so
 `/pdf.worker.js` can load as a real module worker under the authoring page's
