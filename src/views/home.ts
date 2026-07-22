@@ -3,11 +3,18 @@ import { renderIcon } from "../ui/icons";
 import { renderPrimaryNavigation } from "./app-navigation";
 import { renderLibraryPdfRail } from "./home-pdf-components";
 import { renderPreferencesMenu } from "./home-preferences";
-import { renderProjectFileActions, renderProjectRailNavigation } from "./home-rail-components";
-import { type HomeAppMode, renderContextTabs, renderWorkspaceLayoutControl } from "./home-shell-components";
+import { renderExpandProjectRailButton, renderProjectFileActions, renderProjectRailNavigation } from "./home-rail-components";
+import {
+  type HomeAppMode,
+  type HomeRoute,
+  renderContextTabs,
+  renderPreviewSyncControls,
+  renderRouteSummary,
+  renderWorkspaceLayoutControl,
+} from "./home-shell-components";
 
 export function renderHomePage(
-  routes: Array<{ path: string; purpose: string }>,
+  routes: HomeRoute[],
   workspaceId = "demo",
   identityEmail = "local@kirjolab.invalid",
   identityMode: "local" | "access" = "local",
@@ -211,9 +218,7 @@ export function renderHomePage(
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
         <div class="editor-toolbar ui-toolbar">
           <div class="editor-toolbar-group">
-            <button class="button-secondary expand-source-rail" id="expand-source-rail" type="button" aria-label="Show project rail" title="Show project rail">
-              ${renderIcon("arrowRight")}<span>Project</span>
-            </button>
+            ${renderExpandProjectRailButton()}
             <div class="authoring-mode-switcher" role="group" aria-label="Authoring mode">
               <button class="authoring-mode" id="show-write-mode" type="button" aria-pressed="true">Write</button>
               <button class="authoring-mode" id="show-map-mode" type="button" aria-pressed="false">Map</button>
@@ -298,14 +303,7 @@ export function renderHomePage(
       <div class="authoring-context-resizer" id="authoring-context-resizer" role="separator" aria-label="Resize authoring and context panes" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" title="Drag to resize; use arrow keys to adjust; Home resets" tabindex="0"></div>
 
       <section class="context-column preview-column min-w-0 bg-app-paper" id="context-surface" aria-label="Research context">
-        <div class="preview-sync-controls" id="preview-sync-controls" role="group" aria-label="Synchronize source and preview">
-          <button id="sync-preview-from-source" type="button" aria-label="Reveal centered source passage in Preview" title="Source to Preview">
-            ${renderIcon("arrowRight")}
-          </button>
-          <button id="sync-source-from-preview" type="button" aria-label="Reveal centered Preview passage in source" title="Preview to source">
-            ${renderIcon("arrowLeft")}
-          </button>
-        </div>
+        ${renderPreviewSyncControls()}
         ${appMode === "workspace" ? contextTabs : ""}
 
         <section class="context-panel context-preview-panel" id="context-preview-panel" role="tabpanel" aria-labelledby="context-preview-tab" tabindex="0">
@@ -978,7 +976,7 @@ export function renderHomePage(
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite" popover="manual"></div>
-    <footer class="sr-only">${routes.map((route) => `${escapeHtml(route.path)} ${escapeHtml(route.purpose)}`).join(" · ")}</footer>
+    <footer class="sr-only">${renderRouteSummary(routes)}</footer>
   </body>
 </html>`;
 }

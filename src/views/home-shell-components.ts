@@ -1,4 +1,8 @@
+import { escapeHtml } from "../html";
+import { renderIcon } from "../ui/icons";
+
 export type HomeAppMode = "workspace" | "library";
+export type HomeRoute = { path: string; purpose: string };
 
 const workspaceLayoutOptions = `<option value="split">Split</option><option value="editor">Editor only</option>
               <option value="context">Context only</option><option value="pdf">PDF only</option>`;
@@ -38,4 +42,19 @@ export function renderContextTabs(): string {
             </div>
           </div>
         </div>`;
+}
+
+export function renderPreviewSyncControls(): string {
+  return `<div class="preview-sync-controls" id="preview-sync-controls" role="group" aria-label="Synchronize source and preview">
+          <button id="sync-preview-from-source" type="button" aria-label="Reveal centered source passage in Preview" title="Source to Preview">
+            ${renderIcon("arrowRight")}
+          </button>
+          <button id="sync-source-from-preview" type="button" aria-label="Reveal centered Preview passage in source" title="Preview to source">
+            ${renderIcon("arrowLeft")}
+          </button>
+        </div>`;
+}
+
+export function renderRouteSummary(routes: HomeRoute[]): string {
+  return routes.map((route) => `${escapeHtml(route.path)} ${escapeHtml(route.purpose)}`).join(" · ");
 }

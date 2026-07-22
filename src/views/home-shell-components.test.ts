@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { renderContextTabs, renderWorkspaceLayoutControl } from "./home-shell-components";
+import { renderIcon } from "../ui/icons";
+import { renderContextTabs, renderPreviewSyncControls, renderRouteSummary, renderWorkspaceLayoutControl } from "./home-shell-components";
 
 describe("renderWorkspaceLayoutControl", () => {
   it("renders a labelled project view selector in workspace mode", () => {
@@ -43,5 +44,30 @@ describe("renderContextTabs", () => {
     expect(html).toContain('id="context-tab-overview-list" aria-label="Open contexts"');
     expect(html).toContain('id="preview-context-controls"');
     expect(html).toContain('id="pdf-context-controls" hidden');
+  });
+});
+
+describe("renderPreviewSyncControls", () => {
+  it("binds each source-preview direction to its semantic arrow", () => {
+    const html = renderPreviewSyncControls();
+    const sourceToPreviewStart = html.indexOf('id="sync-preview-from-source"');
+    const previewToSourceStart = html.indexOf('id="sync-source-from-preview"');
+    const sourceToPreview = html.slice(sourceToPreviewStart, html.indexOf("</button>", sourceToPreviewStart));
+    const previewToSource = html.slice(previewToSourceStart, html.indexOf("</button>", previewToSourceStart));
+
+    expect(html).toContain('role="group" aria-label="Synchronize source and preview"');
+    expect(sourceToPreview).toContain(renderIcon("arrowRight"));
+    expect(previewToSource).toContain(renderIcon("arrowLeft"));
+  });
+});
+
+describe("renderRouteSummary", () => {
+  it("escapes and visibly separates route diagnostics", () => {
+    expect(
+      renderRouteSummary([
+        { path: "/first?<unsafe>", purpose: "First & primary" },
+        { path: "/second", purpose: "Second" },
+      ]),
+    ).toBe("/first?&lt;unsafe&gt; First &amp; primary · /second Second");
   });
 });

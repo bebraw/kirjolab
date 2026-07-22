@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderIcon } from "../ui/icons";
-import { renderProjectFileActions, renderProjectRailNavigation } from "./home-rail-components";
+import { renderExpandProjectRailButton, renderProjectFileActions, renderProjectRailNavigation } from "./home-rail-components";
 
 describe("renderProjectRailNavigation", () => {
   it("binds each project section to its labelled tab and icon", () => {
@@ -47,5 +47,15 @@ describe("renderProjectFileActions", () => {
       expect(button).toContain(renderIcon(icon, "rail-action-icon"));
     }
     expect(html).toContain(">Files</h1>");
+  });
+});
+
+describe("renderExpandProjectRailButton", () => {
+  it("binds the project-rail label to the right-arrow icon", () => {
+    const html = renderExpandProjectRailButton();
+
+    expect(html).toContain('id="expand-source-rail" type="button" aria-label="Show project rail"');
+    expect(html).toContain(renderIcon("arrowRight"));
+    expect(html).toContain("<span>Project</span>");
   });
 });

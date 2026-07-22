@@ -43,3 +43,9 @@ export function renderProjectFileActions(): string {
             </div>
           </div>`;
 }
+
+export function renderExpandProjectRailButton(): string {
+  return `<button class="button-secondary expand-source-rail" id="expand-source-rail" type="button" aria-label="Show project rail" title="Show project rail">
+              ${renderIcon("arrowRight")}<span>Project</span>
+            </button>`;
+}
