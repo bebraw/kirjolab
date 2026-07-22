@@ -1152,10 +1152,15 @@
     top: 0;
     z-index: 5;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     border-bottom: 1px solid var(--color-app-line);
     background: var(--color-app-paper);
     padding: 0.5rem;
+  }
+
+  .rail-mode-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .rail-mode {
@@ -1203,6 +1208,27 @@
     height: 1.15rem;
     padding-inline: 0.2rem;
     font-size: 0.55rem;
+  }
+
+  .collapse-source-rail {
+    display: none;
+  }
+
+  .expand-source-rail {
+    display: none;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .expand-source-rail svg,
+  .collapse-source-rail svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
   }
 
   .rail-mode[aria-selected="true"] {
@@ -1516,6 +1542,42 @@
 
     .workspace-grid[data-layout="editor"] {
       grid-template-columns: var(--source-rail-width, 17rem) 0.5rem minmax(0, 1fr);
+    }
+
+    .collapse-source-rail {
+      display: grid;
+      min-height: 2.25rem;
+      cursor: pointer;
+      place-items: center;
+      border-radius: var(--ui-radius-sm);
+      color: var(--color-app-text-soft);
+    }
+
+    .rail-mode-switcher {
+      grid-template-columns: minmax(0, 1fr) 2rem;
+    }
+
+    .collapse-source-rail:hover,
+    .collapse-source-rail:focus-visible {
+      background: var(--color-app-raised);
+      color: var(--color-app-accent-strong);
+    }
+
+    .workspace-grid[data-source-rail="collapsed"] {
+      grid-template-columns: 0 0 minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(28rem, 1.05fr);
+    }
+
+    .workspace-grid[data-source-rail="collapsed"][data-layout="editor"] {
+      grid-template-columns: 0 0 minmax(0, 1fr);
+    }
+
+    .workspace-grid[data-source-rail="collapsed"] .source-rail,
+    .workspace-grid[data-source-rail="collapsed"] .source-rail-resizer {
+      visibility: hidden;
+    }
+
+    .workspace-grid[data-source-rail="collapsed"] .expand-source-rail {
+      display: inline-flex;
     }
 
     .workspace-grid[data-layout="editor"] .authoring-context-resizer,

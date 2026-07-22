@@ -840,6 +840,18 @@ test("resizes and remembers the desktop project rail", async ({ page }) => {
   await expect(resizer).toBeVisible();
   await expect(resizer).toHaveAttribute("aria-valuenow", "272");
 
+  await page.getByRole("button", { name: "Collapse project rail" }).click();
+  await expect(rail).toBeHidden();
+  await expect(resizer).toBeHidden();
+  const expandRail = page.getByRole("button", { name: "Show project rail" });
+  await expect(expandRail).toBeVisible();
+  await expect(expandRail).toBeFocused();
+  await page.reload();
+  await expect(rail).toBeHidden();
+  await expandRail.click();
+  await expect(rail).toBeVisible();
+  await expect(page.getByRole("button", { name: "Collapse project rail" })).toBeFocused();
+
   const resizerBox = await resizer.boundingBox();
   if (!resizerBox) throw new Error("Expected project-rail resizer bounds");
   await page.mouse.move(resizerBox.x + resizerBox.width / 2, resizerBox.y + 40);

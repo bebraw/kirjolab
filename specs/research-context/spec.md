@@ -129,6 +129,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   and the effective maximum contracts when necessary to preserve the readable
   Authoring and Context minimum widths. Compact layouts retain their stacked
   rail without a resize affordance.
+- The desktop project rail can collapse independently of its preferred width.
+  Collapsing it reveals a labelled restoration control in the editor toolbar,
+  persists locally across projects, and does not affect compact layouts.
 - In workspace mode, a desktop view control switches among Split, Editor only,
   Context only, and PDF only. The standalone Library does not expose this
   project-layout control because its reader already owns the full content area.

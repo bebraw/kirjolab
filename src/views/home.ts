@@ -171,19 +171,24 @@ export function renderHomePage(
         <button class="surface-switch" id="show-context-surface" type="button" aria-controls="context-surface" aria-pressed="false">Context</button>
       </nav>
       <aside class="source-rail border-b border-app-line bg-app-paper min-[72rem]:border-r min-[72rem]:border-b-0">
-        <div class="rail-mode-switcher" role="tablist" aria-label="Project navigation">
-          <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-label="Files" aria-controls="files-rail-panel" aria-selected="true" title="Files">
-            ${renderIcon("files", "rail-mode-icon")}
-          </button>
-          <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-label="Research" aria-controls="research-rail-panel" aria-selected="false" title="Research">
-            ${renderIcon("research", "rail-mode-icon")}
-          </button>
-          <button class="rail-mode" id="show-comments-rail" type="button" role="tab" aria-label="Comments" aria-describedby="manuscript-comment-count" aria-controls="comments-rail-panel" aria-selected="false" title="Comments">
-            ${renderIcon("comments", "rail-mode-icon")}
-            <span class="count-badge rail-mode-count" id="manuscript-comment-count">0</span>
-          </button>
-          <button class="rail-mode" id="show-guide-rail" type="button" role="tab" aria-label="Writing guide" aria-controls="guide-rail-panel" aria-selected="false" title="Writing guide">
-            ${renderIcon("guide", "rail-mode-icon")}
+        <div class="rail-mode-switcher">
+          <div class="rail-mode-tabs" role="tablist" aria-label="Project navigation">
+            <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-label="Files" aria-controls="files-rail-panel" aria-selected="true" title="Files">
+              ${renderIcon("files", "rail-mode-icon")}
+            </button>
+            <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-label="Research" aria-controls="research-rail-panel" aria-selected="false" title="Research">
+              ${renderIcon("research", "rail-mode-icon")}
+            </button>
+            <button class="rail-mode" id="show-comments-rail" type="button" role="tab" aria-label="Comments" aria-describedby="manuscript-comment-count" aria-controls="comments-rail-panel" aria-selected="false" title="Comments">
+              ${renderIcon("comments", "rail-mode-icon")}
+              <span class="count-badge rail-mode-count" id="manuscript-comment-count">0</span>
+            </button>
+            <button class="rail-mode" id="show-guide-rail" type="button" role="tab" aria-label="Writing guide" aria-controls="guide-rail-panel" aria-selected="false" title="Writing guide">
+              ${renderIcon("guide", "rail-mode-icon")}
+            </button>
+          </div>
+          <button class="collapse-source-rail" id="collapse-source-rail" type="button" aria-label="Collapse project rail" title="Collapse project rail">
+            ${renderIcon("arrowLeft")}
           </button>
         </div>
 
@@ -300,6 +305,9 @@ export function renderHomePage(
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
         <div class="editor-toolbar ui-toolbar">
           <div class="editor-toolbar-group">
+            <button class="button-secondary expand-source-rail" id="expand-source-rail" type="button" aria-label="Show project rail" title="Show project rail">
+              ${renderIcon("arrowRight")}<span>Project</span>
+            </button>
             <div class="authoring-mode-switcher" role="group" aria-label="Authoring mode">
               <button class="authoring-mode" id="show-write-mode" type="button" aria-pressed="true">Write</button>
               <button class="authoring-mode" id="show-map-mode" type="button" aria-pressed="false">Map</button>

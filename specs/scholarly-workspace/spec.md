@@ -90,7 +90,9 @@ collaboration.
   References inventories; project search and graph controls belong to Map.
   On desktop the rail width is adjustable by pointer or keyboard within bounded
   readable limits and persists as a browser-local, cross-project preference.
-  Compact layouts keep the stacked rail and omit the resize affordance.
+  It can collapse without losing that width and exposes an editor-toolbar
+  restoration action while hidden. Compact layouts keep the stacked rail and
+  omit the resize and collapse affordances.
 - **Legacy project evidence:** Project-owned PDFs and their annotations remain
   available for existing projects without advertising the superseded upload
   path. Research hides the collection when both are absent; otherwise one
@@ -444,6 +446,8 @@ collaboration.
       compact desktop windows remain free of horizontal page overflow.
 - [x] The desktop project rail resizes by pointer or keyboard, resets to its
       default width, and preserves primary-pane minimum widths.
+- [x] The desktop project rail collapses and restores without losing its
+      preferred expanded width or changing compact layouts.
 - [x] Desktop Authoring fills the workspace content row without an empty footer
       track or native manuscript resize affordance; long pane content scrolls
       locally without extending the outer document past the viewport.

@@ -219,6 +219,7 @@ const offlineOrigin = Symbol("offline");
 const modelPreferencesStorageKey = "kirjolab:model-preferences";
 const citationCompletionScopeStorageKey = "kirjolab:citation-completion-scope";
 const sourceRailWidthStorageKey = "kirjolab:source-rail-width";
+const sourceRailCollapsedStorageKey = "kirjolab:source-rail-collapsed";
 const sourceRailDefaultWidth = 272;
 const sourceRailMinimumWidth = 208;
 const sourceRailMaximumWidth = 384;
@@ -503,6 +504,8 @@ interface Elements {
   manuscriptCommentCount: HTMLElement;
   manuscriptCommentList: HTMLElement;
   workspaceSurfaces: HTMLElement;
+  collapseSourceRail: HTMLButtonElement;
+  expandSourceRail: HTMLButtonElement;
   sourceRailResizer: HTMLElement;
   authoringContextResizer: HTMLElement;
   previewSyncControls: HTMLElement;
@@ -1264,6 +1267,7 @@ class WorkspaceApp {
     this.#elements.claimForm.addEventListener("submit", (event) => void this.#saveClaim(event));
     this.#elements.showAuthoringSurface.addEventListener("click", () => this.#showWorkspaceSurface("authoring"));
     this.#elements.showContextSurface.addEventListener("click", () => this.#showWorkspaceSurface("context"));
+    this.#bindSourceRailCollapse();
     this.#bindSourceRailResizer();
     this.#bindPaneResizer();
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
@@ -6570,6 +6574,35 @@ class WorkspaceApp {
     if (syncRoute) this.#syncWorkspaceRoute("replace");
   }
 
+  #bindSourceRailCollapse(): void {
+    this.#elements.collapseSourceRail.addEventListener("click", () => {
+      this.#setSourceRailCollapsed(true);
+      this.#elements.expandSourceRail.focus();
+    });
+    this.#elements.expandSourceRail.addEventListener("click", () => {
+      this.#setSourceRailCollapsed(false);
+      this.#elements.collapseSourceRail.focus();
+    });
+    let collapsed = false;
+    try {
+      collapsed = localStorage.getItem(sourceRailCollapsedStorageKey) === "true";
+    } catch {
+      // Use the expanded default when browser storage is unavailable.
+    }
+    this.#setSourceRailCollapsed(collapsed, false);
+  }
+
+  #setSourceRailCollapsed(collapsed: boolean, persist = true): void {
+    this.#elements.workspaceSurfaces.dataset.sourceRail = collapsed ? "collapsed" : "expanded";
+    if (!persist) return;
+    try {
+      if (collapsed) localStorage.setItem(sourceRailCollapsedStorageKey, "true");
+      else localStorage.removeItem(sourceRailCollapsedStorageKey);
+    } catch {
+      // Rail collapsing remains usable when browser storage is unavailable.
+    }
+  }
+
   #bindSourceRailResizer(): void {
     const resizer = this.#elements.sourceRailResizer;
     const resize = (clientX: number, persist: boolean): void => {
@@ -10436,6 +10469,8 @@ function collectElements(): Elements {
     manuscriptCommentCount: requiredElement("manuscript-comment-count", HTMLElement),
     manuscriptCommentList: requiredElement("manuscript-comment-list", HTMLElement),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
+    collapseSourceRail: requiredElement("collapse-source-rail", HTMLButtonElement),
+    expandSourceRail: requiredElement("expand-source-rail", HTMLButtonElement),
     sourceRailResizer: requiredElement("source-rail-resizer", HTMLElement),
     authoringContextResizer: requiredElement("authoring-context-resizer", HTMLElement),
     previewSyncControls: requiredElement("preview-sync-controls", HTMLElement),

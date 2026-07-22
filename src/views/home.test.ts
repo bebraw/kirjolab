@@ -59,6 +59,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="diagnostic-summary"');
     expect(html).toContain('id="preview-file-context"');
     expect(html).toContain('id="source-rail-resizer" role="separator"');
+    expect(html).toContain('id="collapse-source-rail" type="button" aria-label="Collapse project rail"');
+    expect(html).toContain('id="expand-source-rail" type="button" aria-label="Show project rail"');
     expect(html).toContain('id="authoring-context-resizer" role="separator"');
     expect(html).toContain("Annotate this paper");
     expect(html).toContain("Import reference file");

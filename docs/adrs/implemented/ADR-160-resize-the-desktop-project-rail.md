@@ -26,6 +26,9 @@ page overflow.
   remaining width to preserve its 26rem Authoring and 28rem Context minimums.
 - Persist one browser-local rail preference across projects. Keep the value out
   of URLs, project snapshots, Yjs state, and server storage.
+- Allow the desktop rail to collapse independently of its preferred width. A
+  rail control collapses it and a labelled editor-toolbar control restores it;
+  the browser remembers that cross-project state without overwriting width.
 - Retain the stacked, non-resizable rail below the desktop breakpoint.
 
 ## Consequences
@@ -43,11 +46,10 @@ page overflow.
 This preserves the smallest implementation, but forces one compromise width on
 material with substantially different density.
 
-### Make the rail collapsible
+### Encode collapse as the minimum width
 
-Collapse would maximize writing space, but it would hide project navigation and
-requires a separate restoration control and visibility contract. It can remain
-a later, independent feature.
+This would avoid a second preference, but it would make resizing accidentally
+hide navigation and lose the researcher's last useful expanded width.
 
 ### Persist the width per project or in the URL
 
