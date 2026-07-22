@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cssResponse, escapeHtml, faviconResponse, htmlResponse, pdfResponse, scriptResponse } from "./shared";
+import { cssResponse, faviconResponse, htmlResponse, pdfResponse, scriptResponse } from "./shared";
 
 describe("htmlResponse", () => {
   it("returns no-store HTML responses", () => {
@@ -69,11 +69,5 @@ describe("pdfResponse", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("cross-origin-resource-policy")).toBe("same-origin");
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([37, 80, 68, 70]));
-  });
-});
-
-describe("escapeHtml", () => {
-  it("escapes characters that are significant in HTML", () => {
-    expect(escapeHtml(`&<>"'`)).toBe("&amp;&lt;&gt;&quot;&#39;");
   });
 });

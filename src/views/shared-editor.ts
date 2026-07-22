@@ -1,5 +1,5 @@
 import type { ProjectFile, WorkspaceSnapshot } from "../domain/workspace";
-import { escapeHtml } from "./shared";
+import { escapeHtml } from "../html";
 
 export type SharedEditorMode = "read-only" | "edit";
 export type SharedEditorLayout = "split" | "pdf";

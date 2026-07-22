@@ -1,5 +1,3 @@
-export { escapeHtml } from "../html";
-
 export function htmlResponse(
   body: string,
   status = 200,

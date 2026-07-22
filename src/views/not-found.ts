@@ -1,4 +1,4 @@
-import { escapeHtml } from "./shared";
+import { escapeHtml } from "../html";
 
 export function renderNotFoundPage(pathname: string): string {
   return `<!doctype html>

@@ -1,4 +1,4 @@
-import { escapeHtml } from "./shared";
+import { escapeHtml } from "../html";
 import { renderIcon } from "../ui/icons";
 import { renderPrimaryNavigation } from "./app-navigation";
 

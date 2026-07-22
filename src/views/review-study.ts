@@ -1,6 +1,6 @@
 import type { ReviewProjectLinkView } from "../api/reviews";
 import type { ReviewSummary } from "../domain/review-catalog";
-import { escapeHtml } from "./shared";
+import { escapeHtml } from "../html";
 
 export function renderReviewStudySurface(review: ReviewSummary, projectLinks: readonly ReviewProjectLinkView[]): string {
   const escapedReviewTitle = escapeHtml(review.title);

@@ -4,7 +4,7 @@ import type { WorkspaceSummary } from "../domain/workspace";
 import { renderButton } from "../ui/markup";
 import { renderProductHeader } from "./app-navigation";
 import { renderReviewStudySurface } from "./review-study";
-import { escapeHtml } from "./shared";
+import { escapeHtml } from "../html";
 
 export function renderReviewsPage(
   reviews: readonly ReviewSummary[],

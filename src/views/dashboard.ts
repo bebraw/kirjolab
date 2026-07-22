@@ -2,7 +2,7 @@ import type { ReferenceLibrarySnapshot } from "../domain/reference-library";
 import type { ReviewSummary } from "../domain/review-catalog";
 import type { WorkspaceSummary } from "../domain/workspace";
 import { renderProductHeader } from "./app-navigation";
-import { escapeHtml } from "./shared";
+import { escapeHtml } from "../html";
 
 interface DashboardActivity {
   readonly kind: "Editor" | "Library" | "Review";

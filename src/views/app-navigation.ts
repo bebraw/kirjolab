@@ -1,4 +1,4 @@
-import { escapeHtml } from "./shared";
+import { escapeHtml } from "../html";
 
 export type AppArea = "dashboard" | "library" | "editor" | "review";
 
