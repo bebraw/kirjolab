@@ -28,7 +28,7 @@ const initialContext: CollaborationWorkflowContext = {
   collaborators: null,
 };
 
-export const collaborationWorkflowMachine = setup({
+const collaborationWorkflowMachine = setup({
   types: {
     context: {} as CollaborationWorkflowContext,
     events: {} as CollaborationWorkflowEvent,

@@ -27,7 +27,7 @@ const initialContext: PdfViewerContext = {
   error: null,
 };
 
-export const pdfViewerMachine = setup({
+const pdfViewerMachine = setup({
   types: {
     context: {} as PdfViewerContext,
     events: {} as PdfViewerEvent,

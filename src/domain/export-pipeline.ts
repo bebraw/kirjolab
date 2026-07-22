@@ -29,10 +29,10 @@ import {
 
 export { countPublicationWords, publicationWordStatistics } from "./publication-statistics";
 
-export const exportSchemaVersion = "kirjolab-export-v1" as const;
-export const exportTemplateVersion = "kirjolab-article-v4" as const;
+const exportSchemaVersion = "kirjolab-export-v1" as const;
+const exportTemplateVersion = "kirjolab-article-v4" as const;
 export const exportPdfEngine = "kirjolab-pdf-lib-v3@1.17.1" as const;
-export const exportZipEngine = "fflate@0.8.3" as const;
+const exportZipEngine = "fflate@0.8.3" as const;
 
 export interface ExportPipelineInput {
   readonly title: string;

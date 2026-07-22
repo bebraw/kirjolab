@@ -31,7 +31,7 @@ const initialContext: MetadataRefinementContext = {
   error: null,
 };
 
-export const metadataRefinementMachine = setup({
+const metadataRefinementMachine = setup({
   types: {
     context: {} as MetadataRefinementContext,
     events: {} as MetadataRefinementEvent,

@@ -1,4 +1,4 @@
-export const reviewStudyLimits = {
+const reviewStudyLimits = {
   researchQuestions: 128,
   conceptGroups: 128,
   termsPerGroup: 128,
