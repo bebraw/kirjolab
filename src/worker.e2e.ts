@@ -885,6 +885,35 @@ test("resizes and remembers the desktop project rail", async ({ page }) => {
     .toBe("");
 });
 
+test("filters and quickly opens project files", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const workspaceId = await createWorkspace(page, "Quick project files");
+  const api = `/api/workspaces/${workspaceId}`;
+  for (const path of ["chapters/method.md", "notes/findings.md"]) {
+    const response = await page.request.post(`${api}/files`, {
+      headers: { origin: "http://127.0.0.1:8788" },
+      data: { path, content: `## ${path}\n` },
+    });
+    expect(response.status()).toBe(201);
+  }
+  await page.goto(`/editor/${workspaceId}`);
+
+  const filter = page.getByRole("searchbox", { name: "Filter project files" });
+  await filter.fill("method");
+  await expect(page.locator(".project-file-row", { hasText: "method.md" })).toBeVisible();
+  await expect(page.locator(".project-file-row", { hasText: "findings.md" })).toBeHidden();
+  await expect(page.locator("#project-file-filter-status")).toContainText("1 of");
+  await filter.press("Enter");
+  await expect(page.locator("#preview-file-context")).toHaveText("chapters/method.md · isolated file");
+  await expect(page.locator("#source-editor")).toBeFocused();
+
+  await page.getByRole("button", { name: "Collapse project rail" }).click();
+  await page.keyboard.press("Control+p");
+  await expect(page.locator(".source-rail")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Files" })).toHaveAttribute("aria-selected", "true");
+  await expect(filter).toBeFocused();
+});
+
 test("keeps workspace and Library navigation usable on a phone", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Phone layout");
   await page.setViewportSize({ width: 390, height: 844 });

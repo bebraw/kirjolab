@@ -455,6 +455,8 @@ interface Elements {
   newProjectFolderRail: HTMLButtonElement;
   uploadProjectImages: HTMLButtonElement;
   projectImageUpload: HTMLInputElement;
+  projectFileFilter: HTMLInputElement;
+  projectFileFilterStatus: HTMLElement;
   projectFileList: HTMLElement;
   newProjectFile: HTMLButtonElement;
   createAndIncludeProjectFile: HTMLButtonElement;
@@ -970,6 +972,24 @@ class WorkspaceApp {
       menu.querySelector<HTMLElement>("summary")?.focus();
       event.preventDefault();
     });
+    document.addEventListener("keydown", (event) => {
+      if (
+        appMode !== "workspace" ||
+        event.defaultPrevented ||
+        event.altKey ||
+        event.shiftKey ||
+        !(event.metaKey || event.ctrlKey) ||
+        event.key.toLowerCase() !== "p" ||
+        document.querySelector("dialog[open]")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      this.#setSourceRailCollapsed(false);
+      this.#showRail("files");
+      this.#elements.projectFileFilter.focus();
+      this.#elements.projectFileFilter.select();
+    });
     this.#elements.workspaceSwitcher.addEventListener("change", () => {
       const selected = this.#elements.workspaceSwitcher.value;
       if (selected && selected !== workspaceId) location.assign(`/editor/${encodeURIComponent(selected)}`);
@@ -1168,6 +1188,23 @@ class WorkspaceApp {
     this.#elements.newProjectFileRail.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.newProjectFolderRail.addEventListener("click", () => this.#openProjectFileDialog("create-folder"));
     this.#elements.uploadProjectImages.addEventListener("click", () => this.#elements.projectImageUpload.click());
+    this.#elements.projectFileFilter.addEventListener("input", () => this.#filterProjectFiles());
+    this.#elements.projectFileFilter.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && this.#elements.projectFileFilter.value) {
+        event.preventDefault();
+        this.#elements.projectFileFilter.value = "";
+        this.#filterProjectFiles();
+        return;
+      }
+      if (event.key !== "Enter") return;
+      const first = this.#elements.projectFileList.querySelector<HTMLButtonElement>("button[data-project-file-id]:not([hidden])");
+      const fileId = first?.dataset.projectFileId;
+      if (!fileId) return;
+      event.preventDefault();
+      this.#elements.projectFileFilter.value = "";
+      this.#selectProjectFile(fileId);
+      this.#elements.source.focus();
+    });
     this.#elements.projectImageUpload.addEventListener("change", () => void this.#uploadProjectImages());
     this.#elements.createAndIncludeProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create-and-include"));
     this.#elements.renameProjectFile.addEventListener("click", () => this.#openProjectFileDialog("rename"));
@@ -3444,6 +3481,7 @@ class WorkspaceApp {
       if (item.kind === "folder") {
         const row = document.createElement("div");
         row.className = "project-folder-row";
+        row.dataset.projectPath = item.path;
         row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
         const label = document.createElement("span");
         label.className = "min-w-0 truncate";
@@ -3473,6 +3511,7 @@ class WorkspaceApp {
         const asset = item.asset;
         const row = document.createElement("div");
         row.className = "project-file-row project-asset-row";
+        row.dataset.projectPath = item.path;
         row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
         const preview = document.createElement("img");
         preview.className = "project-asset-thumbnail";
@@ -3511,6 +3550,8 @@ class WorkspaceApp {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "project-file-row";
+      button.dataset.projectPath = file.path;
+      button.dataset.projectFileId = file.id;
       button.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
       button.dataset.active = String(file.id === this.#activeFileId);
       button.setAttribute("aria-current", file.id === this.#activeFileId ? "page" : "false");
@@ -3548,10 +3589,25 @@ class WorkspaceApp {
       empty.textContent = "Add another file to include it here.";
       this.#elements.includeProjectFileList.append(empty);
     }
+    this.#filterProjectFiles();
     const entryActive = this.#activeFileId === snapshot.entryFileId;
     this.#elements.renameProjectFile.disabled = false;
     this.#elements.deleteProjectFile.disabled = entryActive;
     this.#renderAuthoringTarget();
+  }
+
+  #filterProjectFiles(): void {
+    const query = this.#elements.projectFileFilter.value.trim().toLocaleLowerCase();
+    const rows = [...this.#elements.projectFileList.querySelectorAll<HTMLElement>("[data-project-path]")];
+    let visible = 0;
+    for (const row of rows) {
+      row.hidden = Boolean(query) && !row.dataset.projectPath?.toLocaleLowerCase().includes(query);
+      if (!row.hidden) visible += 1;
+    }
+    this.#elements.projectFileFilterStatus.textContent = query
+      ? `${visible} of ${rows.length} project items`
+      : `${rows.length} project items`;
+    if (query && visible === 0) this.#elements.projectFileFilterStatus.textContent = `No project items match “${query}”`;
   }
 
   #selectProjectFile(fileId: string): void {
@@ -10420,6 +10476,8 @@ function collectElements(): Elements {
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),
     projectImageUpload: requiredElement("project-image-upload", HTMLInputElement),
+    projectFileFilter: requiredElement("project-file-filter", HTMLInputElement),
+    projectFileFilterStatus: requiredElement("project-file-filter-status", HTMLElement),
     projectFileList: requiredElement("project-file-list", HTMLElement),
     newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
     createAndIncludeProjectFile: requiredElement("create-and-include-project-file", HTMLButtonElement),

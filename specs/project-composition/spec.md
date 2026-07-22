@@ -79,6 +79,10 @@ collaborative, and unambiguous about what preview and export mean.
   three primary navigator creation actions use compact file, folder, and image
   icons with accessible names and native titles. The file toolbar labels its
   editable path action as **Move or rename file**.
+- A visible, client-side Files filter matches complete file, folder, and asset
+  paths without changing the project tree or include menu. `Command-P` or
+  `Control-P` expands the desktop rail when necessary, activates Files, and
+  focuses the filter; Enter opens the first matching Markdown file.
 - A fresh starter project includes one supporting Markdown file transcluded
   from `main.md`, making the portable include syntax and composed result
   discoverable, plus an empty `figures/` folder that exposes the image
@@ -165,6 +169,8 @@ collaborative, and unambiguous about what preview and export mean.
   is the initial rail mode. Compact split-width coverage verifies that toolbar
   controls remain fully visible without a duplicate file dropdown and that
   include-action help cannot overlap its file path.
+- Browser coverage verifies live path filtering, first-match opening, and the
+  cross-platform quick-open shortcut from a collapsed desktop rail.
 - Workers and browser coverage verify that a fresh project exposes the syntax
   guide and transclusion demo as real supporting files while composing neither
   diagnostics nor guide prose into the paper.

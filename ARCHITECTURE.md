@@ -394,6 +394,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   effective maximum before either primary document surface loses its readable
   minimum. Allow independent browser-local collapse with an editor-hosted
   restoration action. Keep rail geometry out of URLs and collaborative state.
+- Keep project-file quick open bounded to transient client-side path filtering
+  over the authorized workspace snapshot. It may reveal the Files rail and
+  select a file, but must not introduce a global command registry or persist
+  its query in URLs, browser storage, or collaborative state.
 - Treat manuscript passage links as immutable, versioned selectors rather than
   permanent current offsets. Verify the source revision and exact range at
   creation, then capture Yjs relative positions, exact quote/context,

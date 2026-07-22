@@ -1316,6 +1316,38 @@
     text-align: left;
   }
 
+  .project-file-filter {
+    position: relative;
+    margin-top: 1rem;
+  }
+
+  .project-file-filter .field {
+    width: 100%;
+    padding-right: 2.75rem;
+  }
+
+  .project-file-filter kbd {
+    position: absolute;
+    top: 50%;
+    right: 0.6rem;
+    transform: translateY(-50%);
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.62rem;
+  }
+
+  .project-file-filter-status {
+    margin-top: 0.4rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.65rem;
+  }
+
+  .project-file-row[hidden],
+  .project-folder-row[hidden] {
+    display: none;
+  }
+
   .project-folder-row {
     display: flex;
     min-height: 2.25rem;

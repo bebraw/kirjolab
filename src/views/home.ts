@@ -207,7 +207,13 @@ export function renderHomePage(
               </button>
             </div>
           </div>
-          <div class="mt-4 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
+          <div class="project-file-filter">
+            <label class="sr-only" for="project-file-filter">Filter project files</label>
+            <input class="field" id="project-file-filter" type="search" autocomplete="off" spellcheck="false" placeholder="Filter files…" aria-describedby="project-file-filter-status">
+            <kbd title="Quick open project files">⌘P</kbd>
+          </div>
+          <p class="project-file-filter-status" id="project-file-filter-status" aria-live="polite">Loading project files…</p>
+          <div class="mt-2 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
           <input class="sr-only" id="project-image-upload" type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml">
           <textarea id="bibliography-editor" hidden aria-hidden="true" readonly></textarea>
         </section>
