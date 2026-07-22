@@ -58,7 +58,7 @@
     "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:health",
     "diagnostics:health": "fallow health --score --hotspots --targets --quiet --no-cache",
     "diagnostics:readability": "fallow audit --max-crap 100 --quiet --no-cache",
-    "e2e": "playwright test --pass-with-no-tests",
+    "e2e": "NO_COLOR= FORCE_COLOR=0 playwright test --pass-with-no-tests",
     "e2e:server": "node ./scripts/run-e2e-server.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check . --cache --cache-strategy content --cache-location .cache/prettier",
