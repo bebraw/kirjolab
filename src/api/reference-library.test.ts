@@ -105,6 +105,14 @@ describe("reference library API", () => {
     const fixture = apiFixture();
     const invalid = await handleReferenceLibraryApi(jsonRequest("/api/library/import", { bibtex: "" }), fixture.env, identity);
     expect(invalid.status).toBe(400);
+    const malformed = await handleReferenceLibraryApi(
+      jsonRequest("/api/library/import", { bibtex: "not bibtex at all" }),
+      fixture.env,
+      identity,
+    );
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toEqual({ error: "No valid BibTeX entries found" });
+    expect(fixture.library.importBibTeX).not.toHaveBeenCalled();
     const imported = await handleReferenceLibraryApi(
       jsonRequest("/api/library/import", { bibtex: "@manual{guide,title={Private Guide}}" }),
       fixture.env,

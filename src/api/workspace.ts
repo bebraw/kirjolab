@@ -23,6 +23,7 @@ import {
   type ProjectAsset,
 } from "../domain/workspace";
 import { isInertSvgImage, normalizeProjectPath } from "../domain/project-files";
+import { parseBibTeX } from "../domain/bibliography";
 import {
   builtInProjectTemplate,
   isSaveProjectTemplateInput,
@@ -864,6 +865,7 @@ async function importBibliography(
 ): Promise<Response> {
   const body: unknown = await request.json();
   if (!isImportBibliographyInput(body)) return jsonError("Invalid BibTeX import", 400);
+  if (parseBibTeX(body.bibtex).length === 0) return jsonError("No valid BibTeX entries found", 400);
   const imported = await library.importBibTeX(body.bibtex, actor);
   let snapshot = await room.getSnapshot(workspaceId);
   const aliases = new Set(snapshot.projectReferences.map((link) => link.citationAlias.toLocaleLowerCase()));

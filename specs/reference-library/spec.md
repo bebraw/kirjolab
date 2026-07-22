@@ -192,7 +192,8 @@ memory and makes citation aliases compete with stable source identity.
 
 - `GET /api/library` returns the authenticated owner's private active library;
   `?archived=include` also returns archived records.
-- `POST /api/library/import` imports bounded BibTeX with per-field provenance.
+- `POST /api/library/import` validates bounded BibTeX before crossing the
+  library Durable Object boundary, then imports it with per-field provenance.
 - `POST /api/library/pdfs` stores a private PDF under an owner-scoped R2 key and
   atomically creates its editable library draft. The legacy identify route
   remains available for artifacts created before this flow.

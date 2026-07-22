@@ -46,7 +46,7 @@ import {
   type CitationCandidateSource,
 } from "../domain/citation-expansion";
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
-import { normalizeDoi } from "../domain/bibliography";
+import { normalizeDoi, parseBibTeX } from "../domain/bibliography";
 import { isValidDoi } from "../domain/publication-intake";
 import { fetchCrossrefReferences, fetchCrossrefWork, fingerprintPublicationMetadata, searchCrossrefWorks } from "../integrations/crossref";
 import { fetchDataCiteWork } from "../integrations/datacite";
@@ -204,6 +204,7 @@ export async function handleReferenceLibraryApi(
       if (!isRecord(body) || typeof body.bibtex !== "string" || body.bibtex.length === 0 || body.bibtex.length > 2_000_000) {
         return jsonError("Invalid BibTeX import", 400);
       }
+      if (parseBibTeX(body.bibtex).length === 0) return jsonError("No valid BibTeX entries found", 400);
       return Response.json(await library.importBibTeX(body.bibtex, identity.email), { status: 201, ...noStore() });
     }
     if (suffix === "/import/csl-json" && request.method === "POST") {

@@ -300,8 +300,10 @@ collaboration.
 - `POST /api/workspaces/demo/annotations` creates a selector-backed annotation.
 - `POST /api/workspaces/demo/annotation-links` atomically creates one
   selector-backed annotation and its current manuscript passage link.
-- `POST /api/workspaces/demo/bibliography/import` minimally splices merged valid
-  BibTeX into the owner library and links its stable records with local aliases.
+- `POST /api/workspaces/demo/bibliography/import` rejects input without a valid
+  BibTeX entry before crossing the library Durable Object boundary, then
+  minimally splices merged entries into the owner library and links its stable
+  records with local aliases.
 - `POST /api/workspaces/demo/references` links one owner-library record through
   a project-local alias and bibliographic snapshot.
 - `POST /api/workspaces/demo/references/{id}/web-snapshot` explicitly repins a
