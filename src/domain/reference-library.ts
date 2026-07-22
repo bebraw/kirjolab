@@ -1,4 +1,5 @@
 import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "./bibliography";
+import { hasBibliographicRecordFields } from "./bibliographic-record-contract";
 
 export type ReferenceMetadataField = "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract";
 export type CrossrefMetadataField = ReferenceMetadataField;
@@ -833,18 +834,8 @@ function isBibliographicRecord(value: unknown): value is BibliographicRecord {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
-    typeof value.referenceKey === "string" &&
+    hasBibliographicRecordFields(value) &&
     value.referenceKey.length > 0 &&
-    typeof value.type === "string" &&
-    typeof value.title === "string" &&
-    Array.isArray(value.authors) &&
-    value.authors.every((author) => typeof author === "string") &&
-    typeof value.year === "string" &&
-    typeof value.venue === "string" &&
-    typeof value.doi === "string" &&
-    typeof value.url === "string" &&
-    typeof value.abstract === "string" &&
-    isRecord(value.provenance) &&
     (value.archivedAt === null || typeof value.archivedAt === "string") &&
     (value.deletedAt === null || typeof value.deletedAt === "string") &&
     typeof value.createdAt === "string" &&

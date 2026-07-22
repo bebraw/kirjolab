@@ -1,13 +1,22 @@
 import type { CitationAssertion } from "./citation-assertions";
+import { hasBibliographicRecordFields } from "./bibliographic-record-contract";
 import type { BibliographicRecord } from "./reference-library";
 
 export function isCitationAssertionContract(value: unknown): value is CitationAssertion {
+  return isRecord(value) && hasCitationIdentity(value) && hasCitationEvidence(value) && isTimestamp(value.createdAt);
+}
+
+function hasCitationIdentity(value: Record<string, unknown>): boolean {
   return (
-    isRecord(value) &&
     isIdentifier(value.id) &&
     isIdentifier(value.citingReferenceId) &&
     isIdentifier(value.citedReferenceId) &&
-    (value.polarity === "cites" || value.polarity === "does-not-cite") &&
+    (value.polarity === "cites" || value.polarity === "does-not-cite")
+  );
+}
+
+function hasCitationEvidence(value: Record<string, unknown>): boolean {
+  return (
     (value.evidenceState === "confirmed" || value.evidenceState === "extracted" || value.evidenceState === "inferred") &&
     typeof value.method === "string" &&
     typeof value.assertedBy === "string" &&
@@ -16,8 +25,7 @@ export function isCitationAssertionContract(value: unknown): value is CitationAs
     typeof value.sourceId === "string" &&
     typeof value.sourceLocator === "string" &&
     (value.confidence === null || (typeof value.confidence === "number" && value.confidence >= 0 && value.confidence <= 1)) &&
-    (value.review === null || isRecord(value.review)) &&
-    isTimestamp(value.createdAt)
+    (value.review === null || isRecord(value.review))
   );
 }
 
@@ -25,17 +33,7 @@ export function isBibliographicRecordContract(value: unknown): value is Bibliogr
   return (
     isRecord(value) &&
     isIdentifier(value.id) &&
-    typeof value.referenceKey === "string" &&
-    typeof value.type === "string" &&
-    typeof value.title === "string" &&
-    Array.isArray(value.authors) &&
-    value.authors.every((author) => typeof author === "string") &&
-    typeof value.year === "string" &&
-    typeof value.venue === "string" &&
-    typeof value.doi === "string" &&
-    typeof value.url === "string" &&
-    typeof value.abstract === "string" &&
-    isRecord(value.provenance) &&
+    hasBibliographicRecordFields(value) &&
     (value.archivedAt === null || isTimestamp(value.archivedAt)) &&
     (value.deletedAt === null || isTimestamp(value.deletedAt)) &&
     isTimestamp(value.createdAt) &&
