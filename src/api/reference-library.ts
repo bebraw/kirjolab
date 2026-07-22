@@ -186,6 +186,16 @@ interface ReferenceLibraryApiEnv {
   readonly SEMANTIC_SCHOLAR_API_KEY?: string;
 }
 
+interface ReferenceLibraryRouteContext {
+  readonly request: Request;
+  readonly url: URL;
+  readonly suffix: string;
+  readonly env: ReferenceLibraryApiEnv;
+  readonly identity: AuthIdentity;
+  readonly library: ReferenceLibraryApi;
+  readonly fetchExternal: ExternalFetch;
+}
+
 export async function handleReferenceLibraryApi(
   request: Request,
   env: ReferenceLibraryApiEnv,
@@ -195,72 +205,10 @@ export async function handleReferenceLibraryApi(
   const url = new URL(request.url);
   const suffix = url.pathname.slice("/api/library".length) || "/";
   const library = env.REFERENCE_LIBRARIES.getByName(identity.ownerKey);
+  const context = { request, url, suffix, env, identity, library, fetchExternal } satisfies ReferenceLibraryRouteContext;
   try {
-    if (suffix === "/" && request.method === "GET") {
-      return Response.json(await library.getSnapshot(url.searchParams.get("archived") === "include"), noStore());
-    }
-    if (suffix === "/import" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.bibtex !== "string" || body.bibtex.length === 0 || body.bibtex.length > 2_000_000) {
-        return jsonError("Invalid BibTeX import", 400);
-      }
-      if (parseBibTeX(body.bibtex).length === 0) return jsonError("No valid BibTeX entries found", 400);
-      return Response.json(await library.importBibTeX(body.bibtex, identity.email), { status: 201, ...noStore() });
-    }
-    if (suffix === "/import/csl-json" && request.method === "POST") {
-      const body = await readBoundedJson(request, 2_000_000);
-      const items = parseCslJson(body);
-      return Response.json(await library.importBibTeX(cslJsonToBibTeX(items), identity.email), { status: 201, ...noStore() });
-    }
-    if (suffix === "/discovery" && request.method === "POST") {
-      const body: unknown = await request.json();
-      const query = isRecord(body)
-        ? {
-            query: body.query,
-            author: typeof body.author === "string" ? body.author : "",
-            year: typeof body.year === "string" ? body.year : "",
-            type: typeof body.type === "string" ? body.type : "",
-          }
-        : body;
-      if (!isReferenceDiscoveryQuery(query)) {
-        return jsonError("Invalid reference discovery query", 400);
-      }
-      const matches = await searchReferenceDiscoveryProviders(
-        { title: query.query.trim(), authors: [query.author.trim()].filter(Boolean), year: query.year },
-        env,
-        fetchExternal,
-      );
-      return Response.json(
-        matches.filter(({ metadata }) => !query.type || metadata.type === query.type),
-        noStore(),
-      );
-    }
-    if (suffix === "/import/archive" && request.method === "POST") {
-      return await importPortableLibrary(request, identity, library);
-    }
-    if (suffix === "/export/csl.json" && request.method === "GET") {
-      const snapshot = await library.getSnapshot(true);
-      return downloadJson(snapshot.references.map(referenceToCslJson), "kirjolab-library.csl.json");
-    }
-    if (suffix === "/export/library.zip" && request.method === "GET") {
-      const snapshot = await library.getSnapshot(true);
-      const timestamp = new Date("1980-01-01T00:00:00.000Z");
-      const files: Zippable = {
-        "manifest.json": [
-          strToU8(`${JSON.stringify({ version: libraryArchiveVersion, binaryArtifacts: "metadata-only" }, null, 2)}\n`),
-          { mtime: timestamp },
-        ],
-        "references.csl.json": [strToU8(`${JSON.stringify(snapshot.references.map(referenceToCslJson), null, 2)}\n`), { mtime: timestamp }],
-        "research.json": [strToU8(`${JSON.stringify(portableResearch(snapshot), null, 2)}\n`), { mtime: timestamp }],
-      };
-      return new Response(zipSync(files, { level: 9, mtime: timestamp }), {
-        headers: {
-          "content-type": "application/zip",
-          "content-disposition": 'attachment; filename="kirjolab-library.zip"',
-          "cache-control": "no-store",
-        },
-      });
-    }
+    const collectionResponse = await handleLibraryCollectionRoutes(context);
+    if (collectionResponse) return collectionResponse;
     if (suffix === "/web-sources" && request.method === "POST") {
       return await captureWebSource(request, identity, env, library, fetchExternal);
     }
@@ -521,6 +469,93 @@ export async function handleReferenceLibraryApi(
     const status = /changed|already|before deleting|before identifying/iu.test(message) ? 409 : /not found/iu.test(message) ? 404 : 400;
     return jsonError(message, status);
   }
+}
+
+async function handleLibraryCollectionRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, url, suffix, library } = context;
+  if (suffix === "/" && request.method === "GET") {
+    return Response.json(await library.getSnapshot(url.searchParams.get("archived") === "include"), noStore());
+  }
+
+  const importResponse = await handleLibraryImportRoutes(context);
+  if (importResponse) return importResponse;
+  const discoveryResponse = await handleLibraryDiscoveryRoute(context);
+  if (discoveryResponse) return discoveryResponse;
+  return await handleLibraryExportRoutes(context);
+}
+
+async function handleLibraryImportRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, identity, library } = context;
+  if (suffix === "/import" && request.method === "POST") {
+    const body: unknown = await request.json();
+    if (!isRecord(body) || typeof body.bibtex !== "string" || body.bibtex.length === 0 || body.bibtex.length > 2_000_000) {
+      return jsonError("Invalid BibTeX import", 400);
+    }
+    if (parseBibTeX(body.bibtex).length === 0) return jsonError("No valid BibTeX entries found", 400);
+    return Response.json(await library.importBibTeX(body.bibtex, identity.email), { status: 201, ...noStore() });
+  }
+  if (suffix === "/import/csl-json" && request.method === "POST") {
+    const body = await readBoundedJson(request, 2_000_000);
+    const items = parseCslJson(body);
+    return Response.json(await library.importBibTeX(cslJsonToBibTeX(items), identity.email), { status: 201, ...noStore() });
+  }
+  if (suffix === "/import/archive" && request.method === "POST") {
+    return await importPortableLibrary(request, identity, library);
+  }
+  return null;
+}
+
+async function handleLibraryDiscoveryRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, env, fetchExternal } = context;
+  if (suffix === "/discovery" && request.method === "POST") {
+    const body: unknown = await request.json();
+    const query = isRecord(body)
+      ? {
+          query: body.query,
+          author: typeof body.author === "string" ? body.author : "",
+          year: typeof body.year === "string" ? body.year : "",
+          type: typeof body.type === "string" ? body.type : "",
+        }
+      : body;
+    if (!isReferenceDiscoveryQuery(query)) return jsonError("Invalid reference discovery query", 400);
+    const matches = await searchReferenceDiscoveryProviders(
+      { title: query.query.trim(), authors: [query.author.trim()].filter(Boolean), year: query.year },
+      env,
+      fetchExternal,
+    );
+    return Response.json(
+      matches.filter(({ metadata }) => !query.type || metadata.type === query.type),
+      noStore(),
+    );
+  }
+  return null;
+}
+
+async function handleLibraryExportRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, library } = context;
+  if (suffix === "/export/csl.json" && request.method === "GET") {
+    const snapshot = await library.getSnapshot(true);
+    return downloadJson(snapshot.references.map(referenceToCslJson), "kirjolab-library.csl.json");
+  }
+  if (suffix !== "/export/library.zip" || request.method !== "GET") return null;
+
+  const snapshot = await library.getSnapshot(true);
+  const timestamp = new Date("1980-01-01T00:00:00.000Z");
+  const files: Zippable = {
+    "manifest.json": [
+      strToU8(`${JSON.stringify({ version: libraryArchiveVersion, binaryArtifacts: "metadata-only" }, null, 2)}\n`),
+      { mtime: timestamp },
+    ],
+    "references.csl.json": [strToU8(`${JSON.stringify(snapshot.references.map(referenceToCslJson), null, 2)}\n`), { mtime: timestamp }],
+    "research.json": [strToU8(`${JSON.stringify(portableResearch(snapshot), null, 2)}\n`), { mtime: timestamp }],
+  };
+  return new Response(zipSync(files, { level: 9, mtime: timestamp }), {
+    headers: {
+      "content-type": "application/zip",
+      "content-disposition": 'attachment; filename="kirjolab-library.zip"',
+      "cache-control": "no-store",
+    },
+  });
 }
 
 async function previewCrossrefMetadata(
