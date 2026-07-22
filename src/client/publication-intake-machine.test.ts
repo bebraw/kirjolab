@@ -35,16 +35,34 @@ describe("publication intake machine", () => {
   it("coordinates preview and acceptance", () => {
     const value = actor();
     value.send({ type: "OPEN", pdfId: "pdf-1" });
+    expect(value.getSnapshot()).toMatchObject({
+      value: "idle",
+      context: { pdfId: "pdf-1", requestId: 1, preview: null, error: null },
+    });
     value.send({ type: "START_PREVIEW" });
     const previewRequest = value.getSnapshot().context.requestId;
+    expect(previewRequest).toBe(2);
     expect(publicationIntakeBusy(value.getSnapshot())).toBe(true);
+
+    value.send({ type: "PREVIEW_READY", requestId: previewRequest - 1, preview });
+    expect(value.getSnapshot().value).toBe("previewing");
+    value.send({ type: "PREVIEW_READY", requestId: previewRequest, preview: { ...preview, pdfId: "pdf-2" } });
+    expect(value.getSnapshot().value).toBe("previewing");
     value.send({ type: "PREVIEW_READY", requestId: previewRequest, preview });
     expect(value.getSnapshot()).toMatchObject({ value: "reviewing", context: { preview } });
 
     value.send({ type: "ACCEPT" });
     const acceptRequest = value.getSnapshot().context.requestId;
+    expect(acceptRequest).toBe(3);
+    expect(publicationIntakeBusy(value.getSnapshot())).toBe(true);
+    value.send({ type: "ACCEPTED", requestId: acceptRequest - 1 });
+    expect(value.getSnapshot().value).toBe("accepting");
     value.send({ type: "ACCEPTED", requestId: acceptRequest });
-    expect(value.getSnapshot()).toMatchObject({ value: "idle", context: { preview: null } });
+    expect(value.getSnapshot()).toMatchObject({
+      value: "idle",
+      context: { pdfId: "pdf-1", requestId: 3, preview: null, error: null },
+    });
+    expect(publicationIntakeBusy(value.getSnapshot())).toBe(false);
   });
 
   it("ignores late responses after changing PDF context", () => {
@@ -63,8 +81,30 @@ describe("publication intake machine", () => {
     value.send({ type: "START_PREVIEW" });
     const requestId = value.getSnapshot().context.requestId;
     value.send({ type: "CANCEL" });
+    expect(value.getSnapshot()).toMatchObject({
+      value: "idle",
+      context: { pdfId: "pdf-1", requestId: requestId + 1, preview: null, error: null },
+    });
     value.send({ type: "PREVIEW_FAILED", requestId, message: "late" });
     expect(value.getSnapshot()).toMatchObject({ value: "idle", context: { preview: null, error: null } });
+  });
+
+  it("records only the active preview failure and clears it before retrying", () => {
+    const value = actor();
+    value.send({ type: "OPEN", pdfId: "pdf-1" });
+    value.send({ type: "START_PREVIEW" });
+    const requestId = value.getSnapshot().context.requestId;
+
+    value.send({ type: "PREVIEW_FAILED", requestId: requestId - 1, message: "stale" });
+    expect(value.getSnapshot()).toMatchObject({ value: "previewing", context: { error: null } });
+    value.send({ type: "PREVIEW_FAILED", requestId, message: "Unavailable" });
+    expect(value.getSnapshot()).toMatchObject({ value: "failed", context: { preview: null, error: "Unavailable" } });
+
+    value.send({ type: "START_PREVIEW" });
+    expect(value.getSnapshot()).toMatchObject({
+      value: "previewing",
+      context: { requestId: requestId + 1, preview: null, error: null },
+    });
   });
 
   it("retains a reviewed preview after acceptance failure", () => {
