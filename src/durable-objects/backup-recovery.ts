@@ -86,6 +86,10 @@ export interface RecoveredReviewStudy {
   readonly historyFloorRevision: number;
 }
 
+export type BackupManifestRestoreResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly code: "review-payload-unavailable"; readonly error: string };
+
 export class BackupRecovery extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -94,17 +98,25 @@ export class BackupRecovery extends DurableObject<Env> {
     });
   }
 
-  async restoreManifest(manifestJson: string): Promise<void> {
+  async restoreManifest(manifestJson: string): Promise<BackupManifestRestoreResult> {
     if (new TextEncoder().encode(manifestJson).byteLength > maximumOwnerBackupBytes)
       throw new Error("Owner backup manifest exceeds 10 MiB");
     const manifest = parseOwnerBackupManifest(manifestJson);
     this.ctx.storage.sql.exec("DELETE FROM recovered_review_studies");
-    const recoveredReviews =
-      manifest.schemaVersion === ownerBackupSchemaVersion
-        ? await this.#restoreIndependentReviews(manifest)
-        : manifest.schemaVersion === projectAssociatedReviewOwnerBackupSchemaVersion
-          ? await this.#restoreProjectAssociatedReviews(manifest)
-          : [];
+    let recoveredReviews: RecoveredReviewStudy[];
+    try {
+      recoveredReviews =
+        manifest.schemaVersion === ownerBackupSchemaVersion
+          ? await this.#restoreIndependentReviews(manifest)
+          : manifest.schemaVersion === projectAssociatedReviewOwnerBackupSchemaVersion
+            ? await this.#restoreProjectAssociatedReviews(manifest)
+            : [];
+    } catch (error) {
+      if (error instanceof ReviewPayloadUnavailableError) {
+        return { ok: false, code: "review-payload-unavailable", error: error.message };
+      }
+      throw error;
+    }
     const chunks = manifestChunks(manifestJson);
     this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec("DELETE FROM recovered_manifest_chunks");
@@ -136,6 +148,7 @@ export class BackupRecovery extends DurableObject<Env> {
         chunks.length,
       );
     });
+    return { ok: true };
   }
 
   getRestoredManifest(): string | null {
@@ -256,8 +269,15 @@ export class BackupRecovery extends DurableObject<Env> {
   async #assertPayloadAvailable(reference: ReviewBackupReference): Promise<void> {
     const object = await this.env.PAPERS.head(reference.backupKey);
     if (!object || object.size !== reference.byteCount) {
-      throw new Error("A review backup payload is unavailable or has the wrong size");
+      throw new ReviewPayloadUnavailableError();
     }
+  }
+}
+
+class ReviewPayloadUnavailableError extends Error {
+  constructor() {
+    super("A review backup payload is unavailable or has the wrong size");
+    this.name = "ReviewPayloadUnavailableError";
   }
 }
 

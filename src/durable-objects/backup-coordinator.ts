@@ -180,7 +180,8 @@ export class BackupCoordinator extends DurableObject<Env> {
 
       const recoveryIdentity = `drill:${ownerKey}:${manifest.digest}`;
       const recovery = this.env.BACKUP_RECOVERIES.getByName(recoveryIdentity);
-      await recovery.restoreManifest(manifestJson);
+      const restoration = await recovery.restoreManifest(manifestJson);
+      if (!restoration.ok) throw new Error(restoration.error);
       const restoredJson = await recovery.getRestoredManifest();
       if (!restoredJson) throw new Error("Recovered logical state is unavailable");
       const restored = parseOwnerBackupManifest(restoredJson);

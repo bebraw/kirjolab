@@ -142,6 +142,14 @@ rollback workflow without adding a second identity system.
   match the references; `reviewsChecked` matches the referenced review count;
   and canonical production data remains unchanged
 
+**Unavailable review payload**
+
+- Given a manifest references a missing or size-mismatched ReviewStudy payload
+- When an operator starts a recovery drill
+- Then the isolated recovery returns a typed routine failure, the coordinator
+  records the failed drill with the payload error, and no uncaught Durable
+  Object exception is emitted
+
 **Legacy manifest drill**
 
 - Given a valid `kirjolab-owner-backup-v1` or project-associated

@@ -200,7 +200,7 @@ describe("BackupCoordinator in the Workers runtime", () => {
       ...manifest,
       state: { ...manifest.state, library: { ...manifest.state.library, recoveryPadding: `${"x".repeat(300_000)}😀` } },
     });
-    await recovery.restoreManifest(chunkedManifest);
+    await expect(recovery.restoreManifest(chunkedManifest)).resolves.toEqual({ ok: true });
     expect(await recovery.getRestoredManifest()).toBe(chunkedManifest);
 
     await env.PAPERS.delete(reviewPayload.backupKey);

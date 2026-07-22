@@ -28,9 +28,9 @@ Return typed, structured-clone-safe discriminated results from the modified
 revision and file conflicts, guarded reference unlinking, claim-update
 validation, model-candidate validation, and project-review link identity
 conflicts. Apply the same contract to `ReviewStudy` profile initialization
-conflicts. Map result codes explicitly to the existing HTTP statuses at the
-Worker boundary. Continue throwing unexpected programming, storage, and
-infrastructure failures.
+conflicts and `BackupRecovery` payload-availability failures. Map result codes
+explicitly at the calling Worker or coordinator boundary. Continue throwing
+unexpected programming, storage, and infrastructure failures.
 
 Route every `DocumentRoom` WebSocket send through one helper. Skip sockets that
 are already closed and suppress only a confirmed connection-loss race or the
