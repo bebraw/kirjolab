@@ -1,52 +1,21 @@
 import { escapeHtml } from "../html";
 import { renderIcon } from "../ui/icons";
 import { renderPrimaryNavigation } from "./app-navigation";
+import { type HomeAppMode, renderContextTabs, renderWorkspaceLayoutControl } from "./home-shell-components";
 
 export function renderHomePage(
   routes: Array<{ path: string; purpose: string }>,
   workspaceId = "demo",
   identityEmail = "local@kirjolab.invalid",
   identityMode: "local" | "access" = "local",
-  appMode: "workspace" | "library" = "workspace",
+  appMode: HomeAppMode = "workspace",
 ): string {
   const escapedWorkspaceId = escapeHtml(workspaceId);
   const escapedIdentityEmail = escapeHtml(identityEmail);
   const editorHref = appMode === "library" ? "/editor" : `/editor/${escapedWorkspaceId}`;
   const primaryNavigation = renderPrimaryNavigation(appMode === "library" ? "library" : "editor", editorHref);
-  const workspaceLayoutOptions = `<option value="split">Split</option><option value="editor">Editor only</option>
-              <option value="context">Context only</option><option value="pdf">PDF only</option>`;
-  const workspaceLayoutControl =
-    appMode === "library"
-      ? `<select id="workspace-layout" hidden aria-hidden="true" tabindex="-1">${workspaceLayoutOptions}</select>`
-      : `<label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
-            <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
-              ${workspaceLayoutOptions}
-            </select>
-          </label>`;
-  const contextTabs = `<div class="context-tabs" id="context-tabs">
-          <div class="context-tab-list ui-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
-            <button class="context-tab ui-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
-            <button class="context-tab ui-tab" id="context-library-tab" type="button" role="tab" aria-controls="context-library-panel" aria-selected="false" tabindex="-1">Library</button>
-            <button class="context-tab ui-tab" id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1">Writing assistant</button>
-            <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
-          </div>
-          <details class="context-tab-overview action-menu ui-menu" id="context-tab-overview" data-action-menu hidden>
-            <summary class="context-tab-overview-trigger" aria-label="Open context list" title="Open context list">Tabs <span class="count-badge" id="context-tab-overview-count">3</span></summary>
-            <div class="editor-command-menu context-tab-overview-menu ui-menu-panel" id="context-tab-overview-list" aria-label="Open contexts"></div>
-          </details>
-          <div class="context-tab-controls" aria-label="Active context actions">
-            <div class="context-mode-controls" id="preview-context-controls">
-              <span class="preview-file-context" id="preview-file-context" title="main.md · composed paper">main.md · composed paper</span>
-              <span id="diagnostic-summary">Validating…</span>
-            </div>
-            <div class="context-mode-controls" id="pdf-context-controls" hidden>
-              <span class="context-status" id="paper-status">Loading PDF…</span>
-              <button id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
-              <span class="context-page-indicator" id="paper-page-indicator">– / –</span>
-              <button id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
-            </div>
-          </div>
-        </div>`;
+  const workspaceLayoutControl = renderWorkspaceLayoutControl(appMode);
+  const contextTabs = renderContextTabs();
   return `<!doctype html>
 <html lang="en">
   <head>
