@@ -674,7 +674,7 @@ function isLibraryPdfRect(value: unknown): value is LibraryPdfRect {
   );
 }
 
-function isLibraryPdfMarkup(value: unknown): value is LibraryPdfMarkup {
+export function isLibraryPdfMarkup(value: unknown): value is LibraryPdfMarkup {
   if (
     !isRecord(value) ||
     typeof value.id !== "string" ||
