@@ -172,6 +172,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   objects. Derive history, interchange files, PRISMA flow, and the deterministic
   review package from one revision-pinned authority snapshot; retain explicit
   compatibility for project-associated v2 and legacy v1 owner manifests.
+- Keep review JSON/history, tabular interchange, PRISMA rendering, and ZIP
+  assembly as separate format modules behind one stable review-export facade.
+  Every formatter consumes the same revision-pinned authority; formatters do
+  not depend on package assembly or API routing.
 - Coordinate each personal reference library through a separate SQLite-backed
   Durable Object keyed by verified owner identity. Stable source identity must
   not depend on a DOI, title, filename, or project citation alias.

@@ -178,6 +178,7 @@ No accepted ADRs are awaiting implementation.
 | [ADR-158](./implemented/ADR-158-cache-metadata-previews-in-library-memory.md)             | Implemented          | Reuse bounded metadata previews briefly in owner-scoped server memory while preserving acceptance refetch.    |
 | [ADR-159](./implemented/ADR-159-render-pdf-links-in-the-active-page.md)                   | Implemented          | Render standard PDF links without adopting the complete PDF.js viewer application.                            |
 | [ADR-162](./implemented/ADR-162-run-deep-quality-checks-before-push.md)                   | Implemented          | Run affected Fallow and targeted mutation checks before pushes without expanding routine local CI.            |
+| [ADR-163](./implemented/ADR-163-separate-review-export-formatters.md)                     | Implemented          | Separate review export formats behind a stable facade and one revision-pinned authority.                      |
 
 ## Creating A New ADR
 

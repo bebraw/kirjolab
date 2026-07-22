@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { strFromU8, unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { materializeReviewFinding } from "./review-findings";
@@ -91,9 +92,54 @@ describe("review reproducibility export", () => {
     });
     expect(reviewHistoryJson(authority)).toContain("finding-original");
     expect(reviewHistoryJson(authority)).toContain("reassessment-completion");
+    expect({
+      bibliography: reviewBibliographyBibTeX(authority),
+      csv: reviewExtractionCsv(authority),
+      historySha256: sha256Text(reviewHistoryJson(authority)),
+      packageSha256: sha256Bytes(first),
+      prisma,
+      prismaSvg: reviewPrismaSvg(prisma),
+    }).toMatchInlineSnapshot(`
+      {
+        "bibliography": "@article{study_record-1,
+        author = {Doe, Jane},
+        title = {Included Study},
+        year = {2025},
+        journal = {Journal},
+        doi = {10.1/study},
+        url = {https://example.test/study},
+        abstract = {Relevant evidence.},
+        kirjolab_record_id = {record-1},
+        kirjolab_status = {included}
+      }
+      ",
+        "csv": "recordId,title,protocolRevision,fieldId,criterionId,criterionText,field,value,valueSelectorKind,valueResourceId,valueSelectorId,missingReason,evidenceSelectorKind,evidenceResourceId,evidenceSelectorId,quote,page,location,reviewer,createdAt
+      record-1,Included Study,2,finding,finding,Finding,Finding,Effective,,,,,pdf-annotation,pdf-1,annotation-1,"Exact, quoted evidence",4,Results,reviewer@example.com,2026-07-17T10:00:00.000Z
+      ",
+        "historySha256": "9313a17e21e3f5919fcf9a69ad21239e24745d01da69d7213f4c99a9b24f10e5",
+        "packageSha256": "3c7b21f6b1ab1d694fe7132b34a9226f2031b4a15f6ec8d1afc3a4fd726d80d1",
+        "prisma": {
+          "duplicatesRemoved": 0,
+          "exclusionReasons": {
+            "fullText": {},
+            "titleAbstract": {},
+          },
+          "fullTextAssessed": 1,
+          "fullTextExcluded": 0,
+          "identified": 1,
+          "included": 1,
+          "reviewRevision": 7,
+          "schemaVersion": "prisma-2020-flow-v1",
+          "titleAbstractExcluded": 0,
+          "titleAbstractScreened": 1,
+        },
+        "prismaSvg": "<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 730" role="img" aria-labelledby="title description"><title id="title">PRISMA study flow</title><desc id="description">PRISMA flow for review revision 7: 1 records identified, 0 duplicates removed, and 1 studies included.</desc><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z"/></marker></defs><style>rect{fill:#fff;stroke:#334155;stroke-width:2}path{fill:none;stroke:#334155;stroke-width:2}text{font-family:system-ui,sans-serif;font-size:15px;fill:#0f172a}</style><path d="M220 94 V130" marker-end="url(#arrow)"/><path d="M220 194 V230" marker-end="url(#arrow)"/><path d="M220 294 V330" marker-end="url(#arrow)"/><path d="M220 394 V430" marker-end="url(#arrow)"/><path d="M220 494 V530" marker-end="url(#arrow)"/><path d="M220 594 V630" marker-end="url(#arrow)"/><g><rect x="40" y="30" width="360" height="64" rx="8"/><text x="220" y="57" text-anchor="middle">Records identified</text><text x="220" y="79" text-anchor="middle" font-weight="700">n = 1</text></g><g><rect x="40" y="130" width="360" height="64" rx="8"/><text x="220" y="157" text-anchor="middle">Duplicates removed</text><text x="220" y="179" text-anchor="middle" font-weight="700">n = 0</text></g><g><rect x="40" y="230" width="360" height="64" rx="8"/><text x="220" y="257" text-anchor="middle">Records screened</text><text x="220" y="279" text-anchor="middle" font-weight="700">n = 1</text></g><g><rect x="40" y="330" width="360" height="64" rx="8"/><text x="220" y="357" text-anchor="middle">Records excluded</text><text x="220" y="379" text-anchor="middle" font-weight="700">n = 0</text></g><g><rect x="40" y="430" width="360" height="64" rx="8"/><text x="220" y="457" text-anchor="middle">Full texts assessed</text><text x="220" y="479" text-anchor="middle" font-weight="700">n = 1</text></g><g><rect x="40" y="530" width="360" height="64" rx="8"/><text x="220" y="557" text-anchor="middle">Full texts excluded</text><text x="220" y="579" text-anchor="middle" font-weight="700">n = 0</text></g><g><rect x="40" y="630" width="360" height="64" rx="8"/><text x="220" y="657" text-anchor="middle">Studies included</text><text x="220" y="679" text-anchor="middle" font-weight="700">n = 1</text></g></svg>
+      ",
+      }
+    `);
   });
 
-  it("reports exclusions, adjudications, model disclosure, and empty extraction tables", () => {
+  it("reports exclusions, adjudications, model disclosure, and empty extraction tables", async () => {
     const authority = fixture();
     const record = authority.screening.records[0]!;
     const excluded = {
@@ -150,6 +196,47 @@ describe("review reproducibility export", () => {
     expect(reviewHistoryJson(changed)).toContain("screening-adjudication");
     expect(reviewHistoryJson(changed)).toContain("model-candidate");
     expect(stableReviewJson({ z: 1, a: { y: 2, x: 1 } })).toBe('{\n  "a": {\n    "x": 1,\n    "y": 2\n  },\n  "z": 1\n}\n');
+    expect({
+      bibliography: reviewBibliographyBibTeX(changed),
+      csv: reviewExtractionCsv(changed),
+      historySha256: sha256Text(reviewHistoryJson(changed)),
+      prisma: reviewPrismaData(changed),
+    }).toMatchInlineSnapshot(`
+      {
+        "bibliography": "@article{study_record-1,
+        author = {Doe, Jane},
+        title = {Included Study},
+        year = {2025},
+        journal = {Journal},
+        doi = {10.1/study},
+        url = {https://example.test/study},
+        abstract = {Relevant evidence.},
+        kirjolab_record_id = {record-1},
+        kirjolab_status = {excluded-title-abstract}
+      }
+      ",
+        "csv": "recordId,title,protocolRevision,fieldId,criterionId,criterionText,field,value,valueSelectorKind,valueResourceId,valueSelectorId,missingReason,evidenceSelectorKind,evidenceResourceId,evidenceSelectorId,quote,page,location,reviewer,createdAt
+      ",
+        "historySha256": "2d4d53f9f99522b0b28e5afc50fdc6c738b3821e832b42b224023cabd18560cf",
+        "prisma": {
+          "duplicatesRemoved": 0,
+          "exclusionReasons": {
+            "fullText": {},
+            "titleAbstract": {
+              "Wrong population": 1,
+            },
+          },
+          "fullTextAssessed": 1,
+          "fullTextExcluded": 0,
+          "identified": 1,
+          "included": 1,
+          "reviewRevision": 7,
+          "schemaVersion": "prisma-2020-flow-v1",
+          "titleAbstractExcluded": 0,
+          "titleAbstractScreened": 1,
+        },
+      }
+    `);
 
     const fullTextExcluded: ReviewExportAuthority = {
       ...authority,
@@ -194,6 +281,11 @@ describe("review reproducibility export", () => {
     expect(csv).toContain("'-field");
     expect(csv).toContain('"\'+SUM(1,1)"');
     expect(csv).toContain("'@reviewer");
+    expect(csv).toMatchInlineSnapshot(`
+      "recordId,title,protocolRevision,fieldId,criterionId,criterionText,field,value,valueSelectorKind,valueResourceId,valueSelectorId,missingReason,evidenceSelectorKind,evidenceResourceId,evidenceSelectorId,quote,page,location,reviewer,createdAt
+      '@record,'=CMD(),2,'-field,finding,Finding,'-field,"'+SUM(1,1)",,,,,pdf-annotation,pdf-1,annotation-1,"Exact, quoted evidence",4,Results,'@reviewer,2026-07-17T10:00:00.000Z
+      "
+    `);
   });
 
   it("exports final exclusions, exact selectors, and append-only audit events", async () => {
@@ -378,8 +470,192 @@ describe("review reproducibility export", () => {
 
     const files = unzipSync(await buildReviewPackage("review-1", changed));
     expect(JSON.parse(strFromU8(files["manifest.json"]!))).toMatchObject({ generatedAt: "2026-07-17T14:00:00.000Z" });
+    expect({
+      bibliography: reviewBibliographyBibTeX(changed),
+      csv,
+      historySha256: sha256Text(reviewHistoryJson(changed)),
+      packageSha256: sha256Bytes(await buildReviewPackage("review-1", changed)),
+      prisma: reviewPrismaData(changed),
+    }).toMatchInlineSnapshot(`
+      {
+        "bibliography": "@article{study_record-1,
+        author = {Doe, Jane},
+        title = {Included Study},
+        year = {2025},
+        journal = {Journal},
+        doi = {10.1/study},
+        url = {https://example.test/study},
+        abstract = {Relevant evidence.},
+        kirjolab_record_id = {record-1},
+        kirjolab_status = {excluded-final}
+      }
+      ",
+        "csv": "recordId,title,protocolRevision,fieldId,criterionId,criterionText,field,value,valueSelectorKind,valueResourceId,valueSelectorId,missingReason,evidenceSelectorKind,evidenceResourceId,evidenceSelectorId,quote,page,location,reviewer,createdAt
+      record-1,Included Study,2,finding,finding,Finding,Finding,Effective,,,,,pdf-annotation,pdf-1,annotation-1,"Exact, quoted evidence",4,Results,reviewer@example.com,2026-07-17T10:00:00.000Z
+      record-1,Included Study,2,finding,finding,Finding,Finding,"[""Alpha"",""Beta""]",,,,,,,,,,,reviewer@example.com,2026-07-17T10:00:00.000Z
+      record-1,Included Study,2,finding,finding,Finding,Finding,"{""kind"":""web-passage"",""resourceId"":""share-1"",""selectorId"":""snapshot-1""}",web-passage,share-1,snapshot-1,,web-passage,share-1,snapshot-1,A cited web passage,,Results,reviewer@example.com,2026-07-17T10:00:00.000Z
+      record-1,Included Study,2,finding,finding,Finding,Finding,,,,,Not reported,,,,,,,reviewer@example.com,2026-07-17T10:00:00.000Z
+      ",
+        "historySha256": "65dc3da9f01671530f20cde6491f67155777535a00f59f71665beea7c920146b",
+        "packageSha256": "33b84c50997ccebeb547f86b7994368b743e97d3dca7d838bfa099109954a8b1",
+        "prisma": {
+          "duplicatesRemoved": 0,
+          "exclusionReasons": {
+            "fullText": {
+              "Fails quality threshold": 1,
+            },
+            "titleAbstract": {},
+          },
+          "fullTextAssessed": 1,
+          "fullTextExcluded": 0,
+          "identified": 1,
+          "included": 1,
+          "reviewRevision": 7,
+          "schemaVersion": "prisma-2020-flow-v1",
+          "titleAbstractExcluded": 0,
+          "titleAbstractScreened": 1,
+        },
+      }
+    `);
+  });
+
+  it("covers formatter fallbacks without leaking inactive records", async () => {
+    const authority = fixture();
+    const sourceRecord = authority.search.records[0]!;
+    const screeningRecord = authority.screening.records[0]!;
+    const conference = {
+      ...sourceRecord,
+      id: "conference-record-long",
+      metadata: {
+        ...sourceRecord.metadata,
+        citationKey: "conference",
+        type: "inproceedings",
+        title: "Conference Study",
+        authors: ["Doe, Jane", "Roe, Alex"],
+        venue: "Proceedings",
+        url: "",
+        abstract: "",
+      },
+    };
+    const untyped = {
+      ...sourceRecord,
+      id: "untyped-record-long",
+      metadata: { ...sourceRecord.metadata, citationKey: "untyped", type: "", title: "Untyped Study" },
+    };
+    const inactive = {
+      ...sourceRecord,
+      id: "inactive-record-long",
+      state: "merged" as const,
+      mergedInto: sourceRecord.id,
+      metadata: { ...sourceRecord.metadata, citationKey: "inactive", title: "Inactive Study" },
+    };
+    const titleExcluded = {
+      ...screeningRecord,
+      record: conference,
+      titleAbstract: {
+        outcome: "exclude" as const,
+        decisions: [
+          { ...screeningRecord.titleAbstract.decisions[0]!, decision: "exclude" as const, criterionText: "Older reason" },
+          {
+            ...screeningRecord.titleAbstract.decisions[0]!,
+            id: "latest-exclusion",
+            decision: "exclude" as const,
+            criterionText: "",
+            reason: "Latest reason",
+          },
+        ],
+        adjudication: null,
+      },
+    };
+    const adjudicated = {
+      ...screeningRecord,
+      record: untyped,
+      titleAbstract: {
+        outcome: "exclude" as const,
+        decisions: [],
+        adjudication: {
+          id: "fallback-adjudication",
+          recordId: untyped.id,
+          stage: "title-abstract" as const,
+          protocolRevision: 2,
+          outcome: "exclude" as const,
+          reason: "Adjudicated reason",
+          criterionId: null,
+          criterionText: "",
+          adjudicator: "lead@example.com",
+          createdAt: timestamp,
+        },
+      },
+      fullText: { ...screeningRecord.fullText, outcome: "include" as const },
+      finalInclusion: { outcome: "pending" as const, decision: null },
+    };
+    const changed: ReviewExportAuthority = {
+      ...authority,
+      search: { ...authority.search, records: [conference, untyped, inactive] },
+      screening: { ...authority.screening, records: [titleExcluded, adjudicated] },
+      model: {
+        revision: 7,
+        candidates: [
+          {
+            id: "latest-model",
+            operation: "screen-record",
+            recordId: sourceRecord.id,
+            stage: "title-abstract",
+            provider: "Local",
+            model: "review-model",
+            promptTemplateVersion: "v1",
+            sourceScope: ["title"],
+            result: { decision: "include", criterion: "", rationale: "Eligible", evidence: "Title" },
+            createdAt: timestamp,
+            createdBy: "reviewer@example.com",
+            disposition: "accepted",
+            disposedAt: "2026-07-18T10:00:00.000Z",
+            disposedBy: "reviewer@example.com",
+          },
+        ],
+      },
+    };
+
+    const bibliography = reviewBibliographyBibTeX(changed);
+    expect(bibliography).toContain("@inproceedings{conference_conferen");
+    expect(bibliography).toContain("author = {Doe, Jane and Roe, Alex}");
+    expect(bibliography).toContain("booktitle = {Proceedings}");
+    expect(bibliography).toContain("@article{untyped_untyped-");
+    expect(bibliography).toContain("kirjolab_status = {awaiting-final-inclusion}");
+    expect(bibliography).not.toContain("Inactive Study");
+    expect(bibliography).not.toContain("url = {}");
+    expect(reviewPrismaData(changed).exclusionReasons.titleAbstract).toEqual({
+      "Adjudicated reason": 1,
+      "Latest reason": 1,
+    });
+    const files = unzipSync(await buildReviewPackage("review-1", changed));
+    expect(JSON.parse(strFromU8(files["manifest.json"]!))).toMatchObject({ generatedAt: "2026-07-18T10:00:00.000Z" });
+
+    const evidenceRecord = authority.evidence.records[0]!;
+    const latestEvidence: ReviewExportAuthority = {
+      ...authority,
+      evidence: {
+        ...authority.evidence,
+        records: [
+          {
+            ...evidenceRecord,
+            extractionValues: [{ ...evidenceRecord.extractionValues[0]!, createdAt: "2026-07-19T10:00:00.000Z" }],
+          },
+        ],
+      },
+    };
+    const evidenceFiles = unzipSync(await buildReviewPackage("review-1", latestEvidence));
+    expect(JSON.parse(strFromU8(evidenceFiles["manifest.json"]!))).toMatchObject({ generatedAt: "2026-07-19T10:00:00.000Z" });
   });
 });
+
+function sha256Bytes(value: Uint8Array): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function sha256Text(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
 
 function fixture(): ReviewExportAuthority {
   const content = {

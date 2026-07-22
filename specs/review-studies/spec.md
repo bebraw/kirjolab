@@ -353,6 +353,10 @@ published deliberately into several writing projects.
 
 - Reporting derives from one exact review revision through the existing
   source-mapped export boundary.
+- JSON/history, CSV/BibTeX, PRISMA, and ZIP assembly remain independently
+  testable format modules behind the stable review-export facade. They consume
+  the same authority snapshot and must not introduce format-specific authority
+  projections.
 - The review package manifest records schema, generator, stable review UUID,
   review revision, protocol revision, generation time, files, and SHA-256
   digests. It is independent of any linked writing project.
