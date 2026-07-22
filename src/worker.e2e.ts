@@ -14,7 +14,7 @@ test("renders shared primitive states in the local UI inventory", async ({ page 
 
   await expect(page.locator("[data-ui-inventory]")).toBeVisible();
   await expect(page.getByRole("button", { name: "Primary action" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Selected example" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Selected" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Working" })).toHaveAttribute("aria-busy", "true");
   await expect(page.getByRole("button", { name: "Remove" })).toHaveAttribute("data-destructive", "true");
   const destructivePrimary = page.getByRole("button", { name: "Delete permanently" });
@@ -41,7 +41,7 @@ test("renders shared primitive states in the local UI inventory", async ({ page 
   }
 
   const selectedBackground = await page
-    .getByRole("button", { name: "Selected example" })
+    .getByRole("button", { name: "Selected" })
     .evaluate((button) => getComputedStyle(button).backgroundColor);
   expect(selectedBackground).not.toBe("rgba(0, 0, 0, 0)");
 

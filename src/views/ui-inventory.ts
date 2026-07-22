@@ -32,7 +32,7 @@ export function renderUiInventoryPage(): string {
           ${renderButton({ label: "Primary action", tone: "primary" })}
           ${renderButton({ label: "Secondary action" })}
           ${renderButton({ label: "Compact", compact: true })}
-          ${renderButton({ label: "Selected", className: "bg-app-accent-ghost", ariaLabel: "Selected example", pressed: true })}
+          ${renderButton({ label: "Selected", pressed: true })}
           ${renderButton({ label: "Remove", destructive: true })}
           ${renderButton({ label: "Delete permanently", tone: "primary", destructive: true })}
           ${renderButton({ label: "Unavailable", disabled: true })}

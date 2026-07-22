@@ -273,6 +273,12 @@
     color: var(--color-app-error);
   }
 
+  :is(.button-secondary, .button-icon)[aria-pressed="true"] {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+  }
+
   .button-primary[data-destructive="true"] {
     border-color: var(--color-app-error);
     background: var(--color-app-error);
