@@ -99,6 +99,7 @@ describe("review views", () => {
     expect(html).toContain('method="post" action="/review"');
     expect(html).toContain('name="title"');
     expect(html).toContain('name="profile"');
+    expect(html).toContain('<button class="button-primary" type="submit"><span>Create review</span></button>');
     expect(html).toContain(`href="/review/${reviewId}"`);
     expect(html).toContain("Evidence synthesis");
     expect(html).toContain("Archived review");
@@ -129,6 +130,7 @@ describe("review views", () => {
     expect(html).toContain('value="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" data-workspace-id="writing-project"');
     expect(html).not.toContain('value="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"');
     expect(html).toContain(`method="post" action="/review/${reviewId}/project-links"`);
+    expect(html).toContain('<button class="button-secondary" type="submit"><span>Link project</span></button>');
     expect(html).toContain('value="second-manuscript"');
     expect(html).not.toContain('<option value="writing-project">Writing project</option>');
   });

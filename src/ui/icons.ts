@@ -1,3 +1,5 @@
+import { escapeHtml } from "../html";
+
 const ICONS = {
   account: '<circle cx="12" cy="8" r="3.25"></circle><path d="M5.5 20c.45-4 2.65-6 6.5-6s6.05 2 6.5 6"></path>',
   arrowLeft: '<path d="M20 12H5M11 6l-6 6 6 6"></path>',
@@ -29,9 +31,5 @@ export type IconName = keyof typeof ICONS;
 
 export function renderIcon(name: IconName, className?: string): string {
   const classes = ["ui-icon", className].filter(Boolean).join(" ");
-  return `<svg class="${escapeAttribute(classes)}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
-}
-
-function escapeAttribute(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  return `<svg class="${escapeHtml(classes)}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
 }

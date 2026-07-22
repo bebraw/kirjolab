@@ -32,7 +32,10 @@ introducing a frontend component framework.
   Icon-only controls retain a visible tooltip where useful and always have an
   accessible name.
 - `src/ui/markup.ts` may generate small primitive fragments but cannot own
-  domain events, state, or application routing.
+  domain events, state, or application routing. Its option types prevent
+  labelled and icon-only button treatments from being combined incorrectly,
+  and production views adopt these fragments incrementally where their markup
+  is otherwise repeated.
 - PDF annotation tools, reference result cards, the manuscript editor, and
   comparable feature-specific components remain outside `src/ui/` and compose
   primitives.

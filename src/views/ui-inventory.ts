@@ -37,7 +37,7 @@ export function renderUiInventoryPage(): string {
           ${renderButton({ label: "Delete permanently", tone: "primary", destructive: true })}
           ${renderButton({ label: "Unavailable", disabled: true })}
           ${renderButton({ label: "Working", busy: true })}
-          ${renderButton({ icon: "close", ariaLabel: "Close example", title: "Close", tone: "icon", touchTarget: true })}
+          ${renderButton({ icon: "close", ariaLabel: "Close example", title: "Close", touchTarget: true })}
         </div>
         <label class="field-label" for="ui-field">Field label<input class="field" id="ui-field" value="Inspectable value"></label>
         <div class="ui-cluster"><span class="count-badge">12</span><span class="ui-status">Ready</span><span class="ui-status" data-tone="success">Saved</span><span class="ui-status" data-tone="warning">Needs review</span><span class="ui-status" data-tone="error">Could not save</span></div>

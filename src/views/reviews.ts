@@ -1,6 +1,7 @@
 import type { ReviewProjectLinkView } from "../api/reviews";
 import type { ReviewMember, ReviewSummary } from "../domain/review-catalog";
 import type { WorkspaceSummary } from "../domain/workspace";
+import { renderButton } from "../ui/markup";
 import { renderProductHeader } from "./app-navigation";
 import { renderReviewStudySurface } from "./review-study";
 import { escapeHtml } from "./shared";
@@ -33,7 +34,7 @@ export function renderReviewsPage(
         <form class="review-create-form" method="post" action="/review">
           <label class="field-label" for="new-review-title">Review title<input class="field" id="new-review-title" name="title" maxlength="120" required placeholder="Evidence synthesis"></label>
           <label class="field-label" for="new-review-profile">Method<select class="field" id="new-review-profile" name="profile"><option value="slr">Systematic literature review</option><option value="mlr">Multivocal literature review</option></select></label>
-          <button class="button-primary" type="submit">Create review</button>
+          ${renderButton({ label: "Create review", tone: "primary", type: "submit" })}
         </form>
       </section>
       <section class="reviews-index-section" aria-labelledby="independent-reviews-heading">
@@ -148,7 +149,7 @@ function renderProjectLinkForm(reviewId: string, projects: readonly WorkspaceSum
         ? '<option value="">No unlinked projects available</option>'
         : projects.map((project) => `<option value="${escapeHtml(project.id)}">${escapeHtml(project.title)}</option>`).join("")
     }</select></label>
-    <button class="button-secondary" type="submit"${disabled ? " disabled" : ""}>Link project</button>
+    ${renderButton({ label: "Link project", type: "submit", disabled })}
   </form>`;
 }
 

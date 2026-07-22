@@ -20,8 +20,12 @@ describe("renderButton", () => {
   });
 
   it("requires an accessible name for icon-only buttons", () => {
-    expect(renderButton({ icon: "close", ariaLabel: "Close", tone: "icon", touchTarget: true })).toContain(
+    expect(renderButton({ icon: "close", ariaLabel: "Close", touchTarget: true })).toContain(
       'aria-label="Close" data-touch-target="true"><svg',
     );
+  });
+
+  it("rejects an empty visible label", () => {
+    expect(() => renderButton({ label: "  " })).toThrow("Labelled buttons require visible text");
   });
 });

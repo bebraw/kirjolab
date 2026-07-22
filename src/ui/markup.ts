@@ -1,10 +1,9 @@
-import { escapeHtml } from "../views/shared";
+import { escapeHtml } from "../html";
 import { renderIcon, type IconName } from "./icons";
 
 type CommonButtonOptions = {
   readonly id?: string;
   readonly className?: string;
-  readonly tone?: "primary" | "secondary" | "icon";
   readonly type?: "button" | "submit" | "reset";
   readonly title?: string;
   readonly disabled?: boolean;
@@ -19,18 +18,21 @@ type LabelledButtonOptions = CommonButtonOptions & {
   readonly label: string;
   readonly icon?: IconName;
   readonly ariaLabel?: string;
+  readonly tone?: "primary" | "secondary";
 };
 
 type IconButtonOptions = CommonButtonOptions & {
   readonly icon: IconName;
   readonly ariaLabel: string;
   readonly label?: never;
+  readonly tone?: "icon";
 };
 
 export type ButtonOptions = LabelledButtonOptions | IconButtonOptions;
 
 export function renderButton(options: ButtonOptions): string {
-  const tone = options.tone ?? "secondary";
+  if ("label" in options && options.label.trim().length === 0) throw new Error("Labelled buttons require visible text");
+  const tone = options.tone ?? ("label" in options ? "secondary" : "icon");
   const classes = [`button-${tone}`, options.className].filter(Boolean).join(" ");
   const attributes = [
     attribute("class", classes),
