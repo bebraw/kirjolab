@@ -20,8 +20,16 @@ describe("renderButton", () => {
   });
 
   it("requires an accessible name for icon-only buttons", () => {
-    expect(renderButton({ icon: "close", ariaLabel: "Close", touchTarget: true })).toContain(
-      'aria-label="Close" data-touch-target="true"><svg',
+    expect(
+      renderButton({
+        icon: "close",
+        ariaLabel: "Close",
+        className: "toolbar-action",
+        title: "Dismiss",
+        touchTarget: true,
+      }),
+    ).toBe(
+      '<button class="button-icon toolbar-action" type="button" aria-label="Close" title="Dismiss" data-touch-target="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg></button>',
     );
   });
 

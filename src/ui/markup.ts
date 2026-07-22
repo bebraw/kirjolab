@@ -49,6 +49,7 @@ export function renderButton(options: ButtonOptions): string {
   ]
     .filter(Boolean)
     .join(" ");
+  // Stryker disable next-line LogicalOperator: the union requires every labelled option to have a non-empty label.
   const content = `${options.icon ? renderIcon(options.icon) : ""}${"label" in options && options.label ? `<span>${escapeHtml(options.label)}</span>` : ""}`;
   return `<button ${attributes}>${content}</button>`;
 }
