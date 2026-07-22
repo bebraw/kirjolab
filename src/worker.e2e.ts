@@ -746,6 +746,12 @@ test("shows automatic branch movement outside tracked Markdown", async ({ page }
       },
     });
   });
+  await page.route(`**${api}/pull-previews`, async (route) => {
+    await route.fulfill({
+      status: 201,
+      json: { id: crypto.randomUUID(), plan: { changes: [], blocking: [] } },
+    });
+  });
 
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Branch changed");
@@ -753,6 +759,9 @@ test("shows automatic branch movement outside tracked Markdown", async ({ page }
   await expect(page.locator("#github-sync-detail")).toContainText("tracked Markdown is unchanged");
   await expect(page.getByRole("button", { name: "Pull from GitHub" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Push to GitHub" })).toBeDisabled();
+  await page.getByRole("button", { name: "Sync settings" }).click();
+  await page.getByRole("button", { name: "Preview pull" }).click();
+  await expect(page.locator("#github-pull-review")).toContainText("No tracked Markdown changes to pull");
 });
 
 test("previews and confirms incoming GitHub changes", async ({ page }) => {

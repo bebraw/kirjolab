@@ -2059,7 +2059,7 @@ class WorkspaceApp {
         ? `${value.plan.blocking.length} conflict${value.plan.blocking.length === 1 ? "" : "s"} need review before pulling.`
         : value.plan.changes.length
           ? `${value.plan.changes.length} incoming change${value.plan.changes.length === 1 ? "" : "s"} ready to pull.`
-          : "Kirjolab is up to date with GitHub.";
+          : "No tracked Markdown changes to pull.";
       const list = document.createElement("ul");
       list.className = "mt-2 space-y-1 font-sans text-xs text-app-text-soft";
       for (const change of value.plan.changes) {
