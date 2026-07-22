@@ -9,7 +9,9 @@ introducing a frontend component framework.
 ## Contract
 
 - `src/ui/tokens.css` is authoritative for semantic color, typography,
-  spacing, border radius, control size, elevation, and motion values.
+  spacing, border radius, control size, elevation, and motion values. Warning
+  text uses a contrast-safe foreground token distinct from warning marks and
+  fills.
 - `src/ui/primitives.css` owns reusable buttons, icon buttons, fields, labels,
   badges, panels, dialogs, status messages, and small layout patterns.
 - Shared interactive state uses native and ARIA attributes where available.

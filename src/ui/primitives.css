@@ -223,7 +223,7 @@
   }
 
   .ui-status[data-tone="warning"] {
-    color: var(--color-app-warn);
+    color: var(--color-app-warn-text);
   }
 
   .ui-status[data-tone="error"] {
