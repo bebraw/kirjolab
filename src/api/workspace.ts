@@ -110,46 +110,8 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     if (integrationResponse) return integrationResponse;
     const managementResponse = await handleWorkspaceManagementRoutes(context);
     if (managementResponse) return managementResponse;
-    if (suffix === "/reviews" && request.method === "GET") {
-      const links = await room.listReviewLinks(workspaceId);
-      const reviews = await Promise.all(
-        links.map(async (link) => {
-          const review = await env.REVIEW_CATALOGS.getByName(identity.ownerKey).getReview(link.reviewId);
-          const reviewRole = review ? await env.REVIEW_ACCESS.getByName(review.locator.storageKey).getRole(identity.email) : null;
-          return {
-            id: link.id,
-            projectId: link.projectId,
-            reviewId: link.reviewId,
-            status: link.status,
-            createdBy: link.createdBy,
-            createdAt: link.createdAt,
-            unlinkedBy: link.unlinkedBy,
-            unlinkedAt: link.unlinkedAt,
-            review: review && reviewRole ? { id: review.id, title: review.title, profile: review.profile, href: review.href } : null,
-            permission: review && reviewRole ? "available" : "review-access-required",
-          };
-        }),
-      );
-      return Response.json(reviews, { headers: { "cache-control": "no-store" } });
-    }
-    if (suffix === "/" && request.method === "GET") {
-      const library = await projectOwnerLibrary(env, access, identity.email);
-      return Response.json(await refreshLinkedReferences(workspaceId, room, library));
-    }
-    if (suffix === "/search" && request.method === "GET") {
-      const query = url.searchParams.get("q")?.slice(0, 200) ?? "";
-      const [snapshot, members] = await Promise.all([room.getSnapshot(workspaceId), access.listMembers(identity.email)]);
-      return Response.json(searchWorkspaceKnowledge(snapshot, query, members));
-    }
-    if (suffix === "/graph" && request.method === "GET") {
-      const [snapshot, members] = await Promise.all([room.getSnapshot(workspaceId), access.listMembers(identity.email)]);
-      return Response.json(buildWorkspaceKnowledgeGraph(snapshot, members));
-    }
-    if (suffix === "/socket" && request.method === "GET") return await room.fetch(request);
-    if (suffix === "/members" && request.method === "GET") return Response.json(await access.listMembers(identity.email));
-    if (suffix === "/members" && request.method === "POST") {
-      return await inviteWorkspaceMember(request, env, identity, workspaceId, summary.title, access);
-    }
+    const overviewResponse = await handleWorkspaceOverviewRoutes(context);
+    if (overviewResponse) return overviewResponse;
     const shareResponse = await handleWorkspaceShareRoutes(context);
     if (shareResponse) return shareResponse;
     const resourceResponse = await handleWorkspaceResourceRoutes(context);
@@ -265,6 +227,66 @@ async function handleWorkspaceTemplateRoute(context: WorkspaceRouteContext): Pro
   if (suffix !== "/template" || request.method !== "POST") return null;
   if (role !== "owner") return jsonError("Only the workspace owner can save project templates", 403);
   return await saveWorkspaceTemplate(request, workspaceId, room, env, identity);
+}
+
+async function handleWorkspaceOverviewRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const reviewResponse = await handleWorkspaceReviewLinksRoute(context);
+  if (reviewResponse) return reviewResponse;
+  const knowledgeResponse = await handleWorkspaceKnowledgeRoutes(context);
+  if (knowledgeResponse) return knowledgeResponse;
+  return await handleWorkspaceAccessRoutes(context);
+}
+
+async function handleWorkspaceReviewLinksRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, identity, env, room } = context;
+  if (suffix !== "/reviews" || request.method !== "GET") return null;
+  const links = await room.listReviewLinks(workspaceId);
+  const reviews = await Promise.all(
+    links.map(async (link) => {
+      const review = await env.REVIEW_CATALOGS.getByName(identity.ownerKey).getReview(link.reviewId);
+      const reviewRole = review ? await env.REVIEW_ACCESS.getByName(review.locator.storageKey).getRole(identity.email) : null;
+      return {
+        id: link.id,
+        projectId: link.projectId,
+        reviewId: link.reviewId,
+        status: link.status,
+        createdBy: link.createdBy,
+        createdAt: link.createdAt,
+        unlinkedBy: link.unlinkedBy,
+        unlinkedAt: link.unlinkedAt,
+        review: review && reviewRole ? { id: review.id, title: review.title, profile: review.profile, href: review.href } : null,
+        permission: review && reviewRole ? "available" : "review-access-required",
+      };
+    }),
+  );
+  return Response.json(reviews, { headers: { "cache-control": "no-store" } });
+}
+
+async function handleWorkspaceKnowledgeRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, url, suffix, workspaceId, identity, env, access, room } = context;
+  if (request.method !== "GET") return null;
+  if (suffix === "/") {
+    const library = await projectOwnerLibrary(env, access, identity.email);
+    return Response.json(await refreshLinkedReferences(workspaceId, room, library));
+  }
+  if (suffix !== "/search" && suffix !== "/graph") return null;
+  const [snapshot, members] = await Promise.all([room.getSnapshot(workspaceId), access.listMembers(identity.email)]);
+  if (suffix === "/search") {
+    const query = url.searchParams.get("q")?.slice(0, 200) ?? "";
+    return Response.json(searchWorkspaceKnowledge(snapshot, query, members));
+  }
+  if (suffix === "/graph") return Response.json(buildWorkspaceKnowledgeGraph(snapshot, members));
+  return null;
+}
+
+async function handleWorkspaceAccessRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, workspaceTitle, identity, env, access, room } = context;
+  if (suffix === "/socket" && request.method === "GET") return await room.fetch(request);
+  if (suffix === "/members" && request.method === "GET") return Response.json(await access.listMembers(identity.email));
+  if (suffix === "/members" && request.method === "POST") {
+    return await inviteWorkspaceMember(request, env, identity, workspaceId, workspaceTitle, access);
+  }
+  return null;
 }
 
 async function handleWorkspaceShareRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
