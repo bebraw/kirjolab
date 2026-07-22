@@ -253,38 +253,48 @@ export async function handleReferenceLibraryApi(
   const library = env.REFERENCE_LIBRARIES.getByName(identity.ownerKey);
   const context = { request, url, suffix, env, identity, library, fetchExternal } satisfies ReferenceLibraryRouteContext;
   try {
-    const collectionResponse = await handleLibraryCollectionRoutes(context);
-    if (collectionResponse) return collectionResponse;
-    const webResponse = await handleLibraryWebRoutes(context);
-    if (webResponse) return webResponse;
-    const citationResponse = await handleLibraryCitationRoutes(context);
-    if (citationResponse) return citationResponse;
-    const pdfResponse = await handleLibraryPdfRoutes(context);
-    if (pdfResponse) return pdfResponse;
-    const metadataResponse = await handleLibraryMetadataRoutes(context);
-    if (metadataResponse) return metadataResponse;
-    const annotationResponse = await handleLibraryAnnotationMutationRoutes(context);
-    if (annotationResponse) return annotationResponse;
-    const referenceMatch =
-      /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|highlight-imports|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|citation-candidates|pdf-metadata))?$/iu.exec(
-        suffix,
-      );
-    if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
-    const referenceId = referenceMatch[1];
-    const action = referenceMatch[2];
-    const referenceContext = { ...context, referenceId, action } satisfies LibraryReferenceRouteContext;
-    const referenceMetadataResponse = await handleLibraryReferenceMetadataRoutes(referenceContext);
-    if (referenceMetadataResponse) return referenceMetadataResponse;
-    const organizationResponse = await handleLibraryReferenceOrganizationRoutes(referenceContext);
-    if (organizationResponse) return organizationResponse;
-    const annotationCreationResponse = await handleLibraryReferenceAnnotationCreationRoutes(referenceContext);
-    if (annotationCreationResponse) return annotationCreationResponse;
-    return await handleLibraryReferenceLifecycleRoutes(referenceContext);
+    const topLevelResponse = await handleLibraryTopLevelRoutes(context);
+    return topLevelResponse ?? (await handleLibraryReferenceRoutes(context));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Reference library operation failed";
     const status = /changed|already|before deleting|before identifying/iu.test(message) ? 409 : /not found/iu.test(message) ? 404 : 400;
     return jsonError(message, status);
   }
+}
+
+async function handleLibraryTopLevelRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const collectionResponse = await handleLibraryCollectionRoutes(context);
+  if (collectionResponse) return collectionResponse;
+  const webResponse = await handleLibraryWebRoutes(context);
+  if (webResponse) return webResponse;
+  const citationResponse = await handleLibraryCitationRoutes(context);
+  if (citationResponse) return citationResponse;
+  const pdfResponse = await handleLibraryPdfRoutes(context);
+  if (pdfResponse) return pdfResponse;
+  const metadataResponse = await handleLibraryMetadataRoutes(context);
+  if (metadataResponse) return metadataResponse;
+  return await handleLibraryAnnotationMutationRoutes(context);
+}
+
+async function handleLibraryReferenceRoutes(context: ReferenceLibraryRouteContext): Promise<Response> {
+  const referenceMatch =
+    /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|highlight-imports|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|citation-candidates|pdf-metadata))?$/iu.exec(
+      context.suffix,
+    );
+  if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
+
+  const referenceContext = {
+    ...context,
+    referenceId: referenceMatch[1],
+    action: referenceMatch[2],
+  } satisfies LibraryReferenceRouteContext;
+  const metadataResponse = await handleLibraryReferenceMetadataRoutes(referenceContext);
+  if (metadataResponse) return metadataResponse;
+  const organizationResponse = await handleLibraryReferenceOrganizationRoutes(referenceContext);
+  if (organizationResponse) return organizationResponse;
+  const annotationResponse = await handleLibraryReferenceAnnotationCreationRoutes(referenceContext);
+  if (annotationResponse) return annotationResponse;
+  return await handleLibraryReferenceLifecycleRoutes(referenceContext);
 }
 
 async function handleLibraryCollectionRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
