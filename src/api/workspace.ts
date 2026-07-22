@@ -21,6 +21,7 @@ import {
   demoWorkspaceId,
   type PdfResource,
   type ProjectAsset,
+  type ProjectPublicationProfile,
   type WorkspaceRole,
 } from "../domain/workspace";
 import { normalizeProjectPath } from "../domain/project-files";
@@ -85,6 +86,13 @@ interface ProjectMilestoneCreation {
 
 interface WorkspaceSeedCreation {
   readonly title: string;
+}
+
+interface WorkspaceSettingsUpdate {
+  readonly title: string | null;
+  readonly archived: boolean | null;
+  readonly publicationProfile: ProjectPublicationProfile | null;
+  readonly entryFileId: string | null;
 }
 
 export async function handleWorkspaceApi(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
@@ -228,7 +236,7 @@ async function handleWorkspaceSettingsRoutes(context: WorkspaceRouteContext): Pr
     return jsonError(message, 403);
   }
   if (request.method === "PATCH") {
-    return await updateWorkspaceSettings(request, workspaceId, room, access, catalog, env, identity.email);
+    return await updateWorkspaceSettings(context);
   }
   return await permanentlyDeleteWorkspace(workspaceId, room, access, catalog, env, identity);
 }
@@ -599,39 +607,56 @@ async function handleWorkspaceExportRoute(context: WorkspaceRouteContext): Promi
   return await exportWorkspace(suffix, workspaceId, room, env);
 }
 
-async function updateWorkspaceSettings(
-  request: Request,
-  workspaceId: string,
-  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
-  access: DurableObjectStub<import("../durable-objects/workspace-access").WorkspaceAccess>,
-  catalog: DurableObjectStub<import("../durable-objects/workspace-catalog").WorkspaceCatalog>,
-  env: Env,
-  requesterEmail: string,
-): Promise<Response> {
+async function updateWorkspaceSettings(context: WorkspaceRouteContext): Promise<Response> {
+  const { request, workspaceId, identity, env, room, access, catalog } = context;
   if (workspaceId === demoWorkspaceId) return jsonError("The demo project cannot be changed", 409);
   const body: unknown = await request.json();
-  if (!isRecord(body)) return jsonError("Invalid project settings", 400);
-  const title = body.title === undefined ? null : typeof body.title === "string" ? body.title.trim() : "";
-  const archived = body.archived === undefined ? null : typeof body.archived === "boolean" ? body.archived : undefined;
-  const publicationProfile = body.publicationProfile === undefined ? null : body.publicationProfile;
-  const entryFileId = body.entryFileId === undefined ? null : typeof body.entryFileId === "string" ? body.entryFileId : "";
-  if (
-    (title !== null && (!title || title.length > 120)) ||
-    archived === undefined ||
-    (entryFileId !== null && (!entryFileId || entryFileId.length > 128)) ||
-    (publicationProfile !== null && !isProjectPublicationProfile(publicationProfile))
-  )
-    return jsonError("Invalid project settings", 400);
+  const update = workspaceSettingsUpdate(body);
+  if (!update) return jsonError("Invalid project settings", 400);
+  const { title, archived, publicationProfile, entryFileId } = update;
   if (title !== null) await room.renameWorkspace(title);
   if (publicationProfile !== null) await room.updatePublicationProfile(publicationProfile);
   if (entryFileId !== null) await room.setProjectEntryFile(workspaceId, entryFileId);
-  const members = await access.listMembers(requesterEmail);
+  const members = await access.listMembers(identity.email);
   let result = await catalog.updateWorkspace(workspaceId, title, archived);
   for (const member of members) {
     const memberCatalog = env.WORKSPACE_CATALOGS.getByName(await ownerKeyForEmail(member.email));
     result = await memberCatalog.updateWorkspace(workspaceId, title, archived);
   }
   return Response.json(result);
+}
+
+function workspaceSettingsUpdate(value: unknown): WorkspaceSettingsUpdate | null {
+  if (!isWorkspaceSettingsInput(value)) return null;
+  return {
+    title: value.title?.trim() ?? null,
+    archived: value.archived ?? null,
+    publicationProfile: value.publicationProfile ?? null,
+    entryFileId: value.entryFileId ?? null,
+  };
+}
+
+function isWorkspaceSettingsInput(value: unknown): value is {
+  readonly title?: string;
+  readonly archived?: boolean;
+  readonly publicationProfile?: ProjectPublicationProfile;
+  readonly entryFileId?: string;
+} {
+  return (
+    isRecord(value) &&
+    isOptionalWorkspaceTitle(value.title) &&
+    (value.archived === undefined || typeof value.archived === "boolean") &&
+    (value.publicationProfile === undefined || isProjectPublicationProfile(value.publicationProfile)) &&
+    isOptionalEntryFileId(value.entryFileId)
+  );
+}
+
+function isOptionalWorkspaceTitle(value: unknown): value is string | undefined {
+  return value === undefined || (typeof value === "string" && value.trim().length > 0 && value.trim().length <= 120);
+}
+
+function isOptionalEntryFileId(value: unknown): value is string | undefined {
+  return value === undefined || (typeof value === "string" && value.length > 0 && value.length <= 128);
 }
 
 async function duplicateWorkspace(
