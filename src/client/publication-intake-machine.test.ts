@@ -31,6 +31,12 @@ function actor(): PublicationIntakeActor {
   return value;
 }
 
+function startPreview(value: PublicationIntakeActor, pdfId = "pdf-1"): number {
+  value.send({ type: "OPEN", pdfId });
+  value.send({ type: "START_PREVIEW" });
+  return value.getSnapshot().context.requestId;
+}
+
 describe("publication intake machine", () => {
   it("coordinates preview and acceptance", () => {
     const value = actor();
@@ -67,9 +73,7 @@ describe("publication intake machine", () => {
 
   it("ignores late responses after changing PDF context", () => {
     const value = actor();
-    value.send({ type: "OPEN", pdfId: "pdf-1" });
-    value.send({ type: "START_PREVIEW" });
-    const requestId = value.getSnapshot().context.requestId;
+    const requestId = startPreview(value);
     value.send({ type: "OPEN", pdfId: "pdf-2" });
     value.send({ type: "PREVIEW_READY", requestId, preview });
     expect(value.getSnapshot()).toMatchObject({ value: "idle", context: { pdfId: "pdf-2", preview: null } });
@@ -77,9 +81,7 @@ describe("publication intake machine", () => {
 
   it("invalidates in-flight work when cancelled", () => {
     const value = actor();
-    value.send({ type: "OPEN", pdfId: "pdf-1" });
-    value.send({ type: "START_PREVIEW" });
-    const requestId = value.getSnapshot().context.requestId;
+    const requestId = startPreview(value);
     value.send({ type: "CANCEL" });
     expect(value.getSnapshot()).toMatchObject({
       value: "idle",
@@ -91,9 +93,7 @@ describe("publication intake machine", () => {
 
   it("records only the active preview failure and clears it before retrying", () => {
     const value = actor();
-    value.send({ type: "OPEN", pdfId: "pdf-1" });
-    value.send({ type: "START_PREVIEW" });
-    const requestId = value.getSnapshot().context.requestId;
+    const requestId = startPreview(value);
 
     value.send({ type: "PREVIEW_FAILED", requestId: requestId - 1, message: "stale" });
     expect(value.getSnapshot()).toMatchObject({ value: "previewing", context: { error: null } });
@@ -109,8 +109,7 @@ describe("publication intake machine", () => {
 
   it("retains a reviewed preview after acceptance failure", () => {
     const value = actor();
-    value.send({ type: "OPEN", pdfId: "pdf-1" });
-    value.send({ type: "START_PREVIEW" });
+    startPreview(value);
     value.send({ type: "PREVIEW_READY", requestId: value.getSnapshot().context.requestId, preview });
     value.send({ type: "ACCEPT" });
     value.send({ type: "ACCEPT_FAILED", requestId: value.getSnapshot().context.requestId, message: "Conflict" });
