@@ -526,6 +526,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep Node Vitest responsible for fast pure-domain coverage and mutation
   feedback; keep the separate Workers Vitest project responsible for real
   Durable Object and SQLite integration behavior.
+- Exclude browser-only orchestration from Node mutation testing only after its
+  deterministic contracts are separated into mutation-tested modules; keep the
+  browser binder covered by Playwright and the pre-push selector aligned with
+  Stryker's exclusions.
 - Fallow codebase diagnostics are advisory readability checks for complexity, duplication, dependency hygiene, and cleanup evidence; they do not replace the baseline quality gate.
 - Affected-file guardrails should scope checks to changed files when the underlying tool supports it and fall back to project-level checks only when needed.
 - Affected-file guardrails must route Worker-reachable non-client sources,

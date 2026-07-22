@@ -181,6 +181,7 @@ No accepted ADRs are awaiting implementation.
 | [ADR-163](./implemented/ADR-163-separate-review-export-formatters.md)                     | Implemented          | Separate review export formats behind a stable facade and one revision-pinned authority.                      |
 | [ADR-164](./implemented/ADR-164-separate-owner-backup-contracts.md)                       | Implemented          | Separate owner-backup schemas, deterministic projection, and compatibility validation behind one facade.      |
 | [ADR-165](./implemented/ADR-165-separate-github-integration-phases.md)                    | Implemented          | Separate GitHub import, workspace synchronization, and shared transport/error contracts.                      |
+| [ADR-166](./implemented/ADR-166-separate-browser-binders-from-mutation-contracts.md)      | Implemented          | Keep pure browser-feature contracts in mutation scope while Playwright covers runtime binders.                |
 
 ## Creating A New ADR
 

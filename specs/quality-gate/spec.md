@@ -164,8 +164,11 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - Documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests.
 - Mutation testing must exclude colocated tests, end-to-end tests, declarations,
   test support, HTTP adapters covered by route plus end-to-end tests, and
-  browser-runtime orchestration modules covered by Playwright. Pure domain and
-  security logic called by those adapters remains in mutation scope.
+  browser-runtime orchestration modules covered by Playwright. A browser
+  orchestration module may be excluded only after its deterministic contracts
+  are separated into Node-testable modules that remain in mutation scope. Pure
+  domain and security logic called by excluded adapters remains in mutation
+  scope.
 - Mutation testing must exclude dynamic browser runtime loaders because their
   versioned module boundaries are exercised by Playwright and expanding
   third-party runtime types during Stryker instrumentation exceeds Node's

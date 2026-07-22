@@ -18,6 +18,7 @@ const excludedMutationSources = new Set([
   "src/client/markdown-runtime.ts",
   "src/client/pdf-viewer.ts",
   "src/client/pdfjs-runtime.ts",
+  "src/client/review-study.ts",
   "src/client/service-worker.ts",
 ]);
 
