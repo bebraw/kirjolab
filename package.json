@@ -58,6 +58,7 @@
     "dev:worker": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
     "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:health",
     "diagnostics:health": "fallow health --score --hotspots --targets --quiet --no-cache",
+    "diagnostics:prepush": "node ./scripts/run-fallow-prepush.mjs",
     "diagnostics:readability": "fallow audit --max-crap 100 --quiet --no-cache",
     "e2e": "NO_COLOR= FORCE_COLOR=0 playwright test --pass-with-no-tests",
     "e2e:server": "node ./scripts/run-e2e-server.mjs",

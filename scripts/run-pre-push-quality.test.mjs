@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { affectedMutationSources, affectsFallow, isMutationSource, mutationPlan } from "./run-pre-push-quality.mjs";
+import {
+  affectedMutationSources,
+  affectsFallow,
+  isMutationSource,
+  mutationCommandArguments,
+  mutationPlan,
+} from "./run-pre-push-quality.mjs";
 
 test("routes affected codebase inputs to Fallow", () => {
   assert.equal(affectsFallow("src/domain/workspace.ts"), true);
@@ -38,4 +44,23 @@ test("refreshes stale incremental results after any mutation configuration chang
     sources: ["src/domain/workspace.ts"],
   });
   assert.equal(mutationPlan(process.cwd(), ["docs/development.md"]), null);
+});
+
+test("keeps passing pre-push mutation output concise", () => {
+  assert.deepEqual(mutationCommandArguments({ script: "mutation:affected", sources: ["src/domain/workspace.ts"] }), [
+    "run",
+    "mutation:affected",
+    "--",
+    "--reporters",
+    "progress",
+    "--mutate",
+    "src/domain/workspace.ts",
+  ]);
+  assert.deepEqual(mutationCommandArguments({ script: "mutation:incremental:refresh", sources: [] }), [
+    "run",
+    "mutation:incremental:refresh",
+    "--",
+    "--reporters",
+    "progress",
+  ]);
 });

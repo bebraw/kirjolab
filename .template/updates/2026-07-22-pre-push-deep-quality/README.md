@@ -19,6 +19,8 @@ expanding the routine local readiness gate.
 8. Keep clean full mutation with the TypeScript checker in GitHub Actions.
 9. Route package commands that resolve files under `node_modules` through
    project-owned scripts so Fallow entry-point discovery stays warning-free.
+10. Keep passing hook output concise: gate on Fallow's audit while printing only
+    its health score, and use Stryker's progress reporter for targeted mutation.
 
 ## Verify
 

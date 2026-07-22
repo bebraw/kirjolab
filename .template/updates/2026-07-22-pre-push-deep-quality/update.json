@@ -8,6 +8,7 @@
   "checks": [
     "npm run test:tooling",
     "npm run diagnostics:codebase",
+    "npm run diagnostics:prepush",
     "npm run mutation:affected -- --mutate <representative-source>",
     "npm run ci:local"
   ]

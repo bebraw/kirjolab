@@ -261,6 +261,10 @@ replays the exact Git pre-push ref input to affected guardrails and the deep
 check selector. Fallow runs only for affected JavaScript, TypeScript, package,
 or Fallow configuration inputs. Stryker targets only affected configured
 mutation sources; affected Node unit tests map back to their production source.
+Passing pre-push runs print only Fallow's health score and Stryker's progress and
+final score. Run `npm run diagnostics:codebase` or a focused
+`npm run mutation:affected -- --mutate <source>` when detailed findings are
+needed.
 Mutation configuration changes force-refresh the incremental report with
 `npm run mutation:incremental:refresh`, even when a mutation source also
 changed.

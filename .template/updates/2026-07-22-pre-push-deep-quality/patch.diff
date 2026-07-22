@@ -19,11 +19,13 @@ new file mode 100644
 +// inputs and targeted Stryker for configured mutation sources and Node tests.
 +// Force-refresh incremental mutation for configuration changes. Keep this
 +// routing aligned with the target project's Stryker exclusions.
++// Keep passing output concise while preserving tool exit status and scores.
 diff --git a/package.json b/package.json
 --- a/package.json
 +++ b/package.json
 @@
 +    "mutation:affected": "stryker run --ignoreStatic --reporters clear-text,progress",
++    "diagnostics:prepush": "node ./scripts/run-fallow-prepush.mjs",
 +    "mutation:incremental:refresh": "node ./scripts/run-mutation-refresh.mjs",
 +    "build:pdf-worker": "node ./scripts/build-pdf-worker.mjs",
 +    "typecheck": "node ./scripts/run-typescript-7.mjs --noEmit && node ./scripts/run-typescript-7.mjs --noEmit -p tsconfig.client.json && npm run typecheck:workers",
@@ -34,6 +36,13 @@ new file mode 100644
 @@
 +// Remove reports/stryker-incremental.json before running incremental Stryker.
 +// Stryker force mode can retain files removed from the configured surface.
+diff --git a/scripts/run-fallow-prepush.mjs b/scripts/run-fallow-prepush.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/run-fallow-prepush.mjs
+@@
++// Capture Fallow audit and full-health JSON, preserve their exit status, and
++// print only introduced-finding counts plus the complete health score.
 diff --git a/.fallowrc.json b/.fallowrc.json
 --- a/.fallowrc.json
 +++ b/.fallowrc.json

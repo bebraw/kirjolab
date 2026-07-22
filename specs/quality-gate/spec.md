@@ -107,6 +107,9 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - `npm run diagnostics:codebase` must remain advisory and must not be required by the baseline readiness path.
 - Pre-push must run Fallow only when affected JavaScript, TypeScript, package,
   or Fallow configuration inputs make its signal relevant.
+- Passing pre-push diagnostics must keep inherited Fallow findings and individual
+  surviving-mutant listings out of routine output while preserving tool exit
+  status, health score, mutation progress, and final mutation score.
 - Fallow diagnostics must use `--no-cache` in repo scripts so normal diagnostic runs do not create a persistent `.fallow/` cache.
 - `npm run mutation` must fail when the mutation score is below the configured break threshold.
 - `npm run mutation:incremental` must fail when the resulting mutation score is below the configured break threshold.

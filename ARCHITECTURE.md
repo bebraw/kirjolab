@@ -521,6 +521,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Fallow for affected codebase inputs, and targeted Stryker checks for affected
   Node-testable sources. Mutation configuration changes should force-refresh
   the full incremental report so removed mutants cannot remain in the score.
+  Passing hooks should report concise Fallow health and Stryker score/progress
+  output; detailed advisory findings remain available through explicit commands.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.
 - Browser tests launch Wrangler with a fresh operating-system temporary persistence directory and remove it on shutdown. Test workspaces must never accumulate in the interactive development catalog.

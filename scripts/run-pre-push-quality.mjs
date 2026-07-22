@@ -2,7 +2,7 @@ import process from "node:process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { getAffectedFiles, getRepoRoot, normalizeFiles, run } from "./affected-file-utils.mjs";
+import { getAffectedFiles, getRepoRoot, normalizeFiles, run, spawn } from "./affected-file-utils.mjs";
 
 const mutationConfigurationFiles = new Set([
   "package.json",
@@ -53,10 +53,19 @@ export function mutationPlan(repoRoot, files) {
   return sources.length > 0 ? { script: "mutation:affected", sources } : null;
 }
 
+export function mutationCommandArguments(plan) {
+  const arguments_ = ["run", plan.script, "--", "--reporters", "progress"];
+  if (plan.sources.length > 0) arguments_.push("--mutate", plan.sources.join(","));
+  return arguments_;
+}
+
 function runPrePushQuality(repoRoot, affectedFiles) {
   if (affectedFiles.some(affectsFallow)) {
-    console.log("Running Fallow codebase diagnostics before push...");
-    run(repoRoot, "npm", ["run", "diagnostics:codebase"]);
+    console.log("Running concise Fallow diagnostics before push...");
+    const result = spawn(repoRoot, "npm", ["run", "diagnostics:prepush"], { allowFailure: true });
+    if ((result.status ?? 1) !== 0) {
+      process.exit(result.status ?? 1);
+    }
   } else {
     console.log("Fallow diagnostics skipped: no affected codebase inputs.");
   }
@@ -64,10 +73,10 @@ function runPrePushQuality(repoRoot, affectedFiles) {
   const plan = mutationPlan(repoRoot, affectedFiles);
   if (plan?.script === "mutation:incremental:refresh") {
     console.log("Refreshing incremental mutation results because mutation configuration changed...");
-    run(repoRoot, "npm", ["run", plan.script]);
+    run(repoRoot, "npm", mutationCommandArguments(plan));
   } else if (plan) {
     console.log(`Running mutation tests for ${plan.sources.length} affected source file(s) before push...`);
-    run(repoRoot, "npm", ["run", plan.script, "--", "--mutate", plan.sources.join(",")]);
+    run(repoRoot, "npm", mutationCommandArguments(plan));
   } else {
     console.log("Incremental mutation tests skipped: no affected Stryker inputs.");
   }

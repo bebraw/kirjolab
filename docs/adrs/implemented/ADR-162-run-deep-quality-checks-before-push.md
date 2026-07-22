@@ -69,6 +69,9 @@ bypass contract.
 
 - Fallow remains advisory during iteration but its command exit status is
   enforced when the pre-push selector chooses it.
+- Passing hooks keep inherited Fallow findings and individual Stryker survivors
+  out of routine output; contributors use the explicit diagnostic commands for
+  detailed investigation.
 - GitHub Actions still performs the only clean full mutation run.
 
 ## Alternatives Considered
