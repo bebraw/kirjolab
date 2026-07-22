@@ -215,18 +215,8 @@ export async function handleReferenceLibraryApi(
     if (citationResponse) return citationResponse;
     const pdfResponse = await handleLibraryPdfRoutes(context);
     if (pdfResponse) return pdfResponse;
-    const crossrefMatch = /^\/references\/([0-9a-f-]{36})\/crossref\/(preview|accept)$/iu.exec(suffix);
-    if (crossrefMatch?.[1] && crossrefMatch[2] && request.method === "POST") {
-      return crossrefMatch[2] === "preview"
-        ? await previewCrossrefMetadata(crossrefMatch[1], env, library, fetchExternal)
-        : await acceptCrossrefMetadata(request, crossrefMatch[1], identity, env, library, fetchExternal);
-    }
-    const refinementMatch = /^\/references\/([0-9a-f-]{36})\/metadata-refinement\/(preview|accept)$/iu.exec(suffix);
-    if (refinementMatch?.[1] && refinementMatch[2] && request.method === "POST") {
-      return refinementMatch[2] === "preview"
-        ? await previewMetadataRefinement(request, refinementMatch[1], env, library, fetchExternal)
-        : await acceptMetadataRefinement(request, refinementMatch[1], identity, env, library, fetchExternal);
-    }
+    const metadataResponse = await handleLibraryMetadataRoutes(context);
+    if (metadataResponse) return metadataResponse;
     const pdfMarkupMatch = /^\/references\/([0-9a-f-]{36})\/pdf-markups\/([0-9a-f-]{36})$/iu.exec(suffix);
     if (pdfMarkupMatch?.[1] && pdfMarkupMatch[2] && request.method === "PATCH") {
       const body: unknown = await request.json();
@@ -620,6 +610,30 @@ async function handleLibraryPdfRightsRoute(context: ReferenceLibraryRouteContext
     return jsonError("Invalid artifact rights", 400);
   }
   return Response.json(await library.setArtifactRights(pdfMatch[1], body.rights), noStore());
+}
+
+async function handleLibraryMetadataRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const crossrefResponse = await handleLibraryCrossrefRoute(context);
+  if (crossrefResponse) return crossrefResponse;
+  return await handleLibraryMetadataRefinementRoute(context);
+}
+
+async function handleLibraryCrossrefRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, identity, env, library, fetchExternal } = context;
+  const crossrefMatch = /^\/references\/([0-9a-f-]{36})\/crossref\/(preview|accept)$/iu.exec(suffix);
+  if (!crossrefMatch?.[1] || !crossrefMatch[2] || request.method !== "POST") return null;
+  return crossrefMatch[2] === "preview"
+    ? await previewCrossrefMetadata(crossrefMatch[1], env, library, fetchExternal)
+    : await acceptCrossrefMetadata(request, crossrefMatch[1], identity, env, library, fetchExternal);
+}
+
+async function handleLibraryMetadataRefinementRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, identity, env, library, fetchExternal } = context;
+  const refinementMatch = /^\/references\/([0-9a-f-]{36})\/metadata-refinement\/(preview|accept)$/iu.exec(suffix);
+  if (!refinementMatch?.[1] || !refinementMatch[2] || request.method !== "POST") return null;
+  return refinementMatch[2] === "preview"
+    ? await previewMetadataRefinement(request, refinementMatch[1], env, library, fetchExternal)
+    : await acceptMetadataRefinement(request, refinementMatch[1], identity, env, library, fetchExternal);
 }
 
 async function previewCrossrefMetadata(
