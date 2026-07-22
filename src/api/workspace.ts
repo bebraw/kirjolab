@@ -182,38 +182,8 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     }
     const shareResponse = await handleWorkspaceShareRoutes(context);
     if (shareResponse) return shareResponse;
-    if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);
-    if (suffix === "/reference-pdfs" && request.method === "GET") {
-      const library = await projectOwnerLibrary(env, access, identity.email);
-      return Response.json(await listProjectReferencePdfs(workspaceId, room, library), {
-        headers: { "cache-control": "private, no-store" },
-      });
-    }
-    if (suffix.startsWith("/reference-pdfs/") && request.method === "GET") {
-      const library = await projectOwnerLibrary(env, access, identity.email);
-      return await downloadProjectReferencePdf(request, workspaceId, suffix.slice("/reference-pdfs/".length), env, room, library);
-    }
-    if (suffix === "/assets" && request.method === "POST") return await uploadProjectAsset(request, workspaceId, storageKey, env, room);
-    if (suffix.startsWith("/assets/") && request.method === "GET") {
-      return await downloadProjectAsset(suffix.slice("/assets/".length), env, room);
-    }
-    if (suffix.startsWith("/assets/") && request.method === "DELETE") {
-      return await deleteProjectAsset(workspaceId, suffix.slice("/assets/".length), env, room);
-    }
-    if (suffix === "/files" && request.method === "POST") return await createProjectFile(request, workspaceId, room);
-    if (suffix.startsWith("/files/") && (request.method === "PATCH" || request.method === "DELETE")) {
-      return await mutateProjectFile(request, workspaceId, suffix, room);
-    }
-    if (suffix === "/folders" && request.method === "POST") return await createProjectFolder(request, workspaceId, room);
-    if (suffix.startsWith("/folders/") && (request.method === "PATCH" || request.method === "DELETE")) {
-      return await mutateProjectFolder(request, workspaceId, suffix, room);
-    }
-    if (suffix.startsWith("/pdfs/") && request.method === "GET") {
-      return await downloadPdf(request, storageKey, suffix.slice("/pdfs/".length), env);
-    }
-    if (suffix.startsWith("/pdfs/") && request.method === "DELETE") {
-      return await deletePdf(storageKey, suffix.slice("/pdfs/".length), env, room);
-    }
+    const resourceResponse = await handleWorkspaceResourceRoutes(context);
+    if (resourceResponse) return resourceResponse;
     if (suffix === "/annotations" && request.method === "POST") return await createAnnotation(request, room);
     if (suffix.startsWith("/annotations/") && ["POST", "PUT", "DELETE"].includes(request.method)) {
       return await mutateAnnotation(request, suffix, room);
@@ -352,6 +322,74 @@ async function handleWorkspaceEditShareRoute(context: WorkspaceRouteContext): Pr
   await shareAccess.revokeMappedEditShare();
   await room.disconnectEditPresenceSockets();
   return new Response(null, { status: 204 });
+}
+
+async function handleWorkspaceResourceRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const pdfResponse = await handleWorkspacePdfRoutes(context);
+  if (pdfResponse) return pdfResponse;
+  const assetResponse = await handleWorkspaceAssetRoutes(context);
+  if (assetResponse) return assetResponse;
+  const fileResponse = await handleWorkspaceFileRoutes(context);
+  if (fileResponse) return fileResponse;
+  return await handleWorkspaceFolderRoutes(context);
+}
+
+async function handleWorkspacePdfRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const projectPdfResponse = await handleWorkspaceProjectPdfRoutes(context);
+  if (projectPdfResponse) return projectPdfResponse;
+  return await handleWorkspaceReferencePdfRoutes(context);
+}
+
+async function handleWorkspaceProjectPdfRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, storageKey, env, room } = context;
+  if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);
+  if (!suffix.startsWith("/pdfs/")) return null;
+  const artifactId = suffix.slice("/pdfs/".length);
+  if (request.method === "GET") return await downloadPdf(request, storageKey, artifactId, env);
+  if (request.method === "DELETE") return await deletePdf(storageKey, artifactId, env, room);
+  return null;
+}
+
+async function handleWorkspaceReferencePdfRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, identity, env, access, room } = context;
+  if (request.method !== "GET" || (suffix !== "/reference-pdfs" && !suffix.startsWith("/reference-pdfs/"))) return null;
+  const library = await projectOwnerLibrary(env, access, identity.email);
+  if (suffix === "/reference-pdfs") {
+    return Response.json(await listProjectReferencePdfs(workspaceId, room, library), {
+      headers: { "cache-control": "private, no-store" },
+    });
+  }
+  return await downloadProjectReferencePdf(request, workspaceId, suffix.slice("/reference-pdfs/".length), env, room, library);
+}
+
+async function handleWorkspaceAssetRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, storageKey, env, room } = context;
+  if (suffix === "/assets" && request.method === "POST") {
+    return await uploadProjectAsset(request, workspaceId, storageKey, env, room);
+  }
+  if (!suffix.startsWith("/assets/")) return null;
+  const assetId = suffix.slice("/assets/".length);
+  if (request.method === "GET") return await downloadProjectAsset(assetId, env, room);
+  if (request.method === "DELETE") return await deleteProjectAsset(workspaceId, assetId, env, room);
+  return null;
+}
+
+async function handleWorkspaceFileRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, room } = context;
+  if (suffix === "/files" && request.method === "POST") return await createProjectFile(request, workspaceId, room);
+  if (suffix.startsWith("/files/") && (request.method === "PATCH" || request.method === "DELETE")) {
+    return await mutateProjectFile(request, workspaceId, suffix, room);
+  }
+  return null;
+}
+
+async function handleWorkspaceFolderRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, room } = context;
+  if (suffix === "/folders" && request.method === "POST") return await createProjectFolder(request, workspaceId, room);
+  if (suffix.startsWith("/folders/") && (request.method === "PATCH" || request.method === "DELETE")) {
+    return await mutateProjectFolder(request, workspaceId, suffix, room);
+  }
+  return null;
 }
 
 async function updateWorkspaceSettings(
