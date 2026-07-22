@@ -106,24 +106,8 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
   } satisfies WorkspaceRouteContext;
 
   try {
-    if (suffix === "/github-sync" || suffix.startsWith("/github-sync/")) {
-      if (role !== "owner") return jsonError("Only the workspace owner can synchronize GitHub", 403);
-      return await handleGitHubWorkspaceSyncApi(request, env, identity, room, suffix);
-    }
-    if (suffix === "/review-study" || suffix.startsWith("/review-study/")) {
-      const review = await ensureLegacyReviewResource(env, identity, workspaceId);
-      if (!review) return jsonError("Review not found", 404);
-      const activeLink = review.projectLink?.status === "active" ? review.projectLink : null;
-      return await handleReviewStudyApi(
-        request,
-        review.study,
-        identity,
-        suffix,
-        activeLink ? room : undefined,
-        activeLink ? workspaceId : undefined,
-        { reviewId: review.record.id, linkId: activeLink?.id ?? null, profile: review.record.profile },
-      );
-    }
+    const integrationResponse = await handleWorkspaceIntegrationRoutes(context);
+    if (integrationResponse) return integrationResponse;
     if (suffix === "/settings" && request.method === "PATCH") {
       if (role !== "owner") return jsonError("Only the workspace owner can change project settings", 403);
       return await updateWorkspaceSettings(request, workspaceId, room, access, catalog, env, identity.email);
@@ -221,6 +205,42 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
         : 400;
     return jsonError(message, status);
   }
+}
+
+async function handleWorkspaceIntegrationRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
+  const githubResponse = await handleWorkspaceGitHubSyncRoute(context);
+  if (githubResponse) return githubResponse;
+  return await handleWorkspaceReviewStudyRoute(context);
+}
+
+async function handleWorkspaceGitHubSyncRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, role, identity, env, room } = context;
+  if (suffix === "/github-sync" || suffix.startsWith("/github-sync/")) {
+    if (role !== "owner") return jsonError("Only the workspace owner can synchronize GitHub", 403);
+    return await handleGitHubWorkspaceSyncApi(request, env, identity, room, suffix);
+  }
+  return null;
+}
+
+async function handleWorkspaceReviewStudyRoute(context: WorkspaceRouteContext): Promise<Response | null> {
+  const { request, suffix, workspaceId, identity, env, room } = context;
+  if (suffix !== "/review-study" && !suffix.startsWith("/review-study/")) return null;
+
+  const review = await ensureLegacyReviewResource(env, identity, workspaceId);
+  if (!review) return jsonError("Review not found", 404);
+  let linkedRoom: DocumentRoomStub | undefined;
+  let linkedWorkspaceId: string | undefined;
+  let linkId: string | null = null;
+  if (review.projectLink?.status === "active") {
+    linkedRoom = room;
+    linkedWorkspaceId = workspaceId;
+    linkId = review.projectLink.id;
+  }
+  return await handleReviewStudyApi(request, review.study, identity, suffix, linkedRoom, linkedWorkspaceId, {
+    reviewId: review.record.id,
+    linkId,
+    profile: review.record.profile,
+  });
 }
 
 async function handleWorkspaceShareRoutes(context: WorkspaceRouteContext): Promise<Response | null> {
