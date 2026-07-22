@@ -9,8 +9,6 @@ describe("renderIcon", () => {
   });
 
   it("escapes a supplied class attribute", () => {
-    expect(renderIcon("close", 'icon" data-unsafe="true')).toContain(
-      'class="ui-icon icon&quot; data-unsafe=&quot;true"',
-    );
+    expect(renderIcon("close", 'icon" data-unsafe="true')).toContain('class="ui-icon icon&quot; data-unsafe=&quot;true"');
   });
 });
