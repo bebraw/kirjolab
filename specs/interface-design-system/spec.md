@@ -30,7 +30,8 @@ introducing a frontend component framework.
 - `src/ui/icons.ts` is the registry for repeated trusted SVG geometry. Its
   names are a closed TypeScript union and rendered SVGs are decorative. Every
   registry icon receives the shared `ui-icon` presentation contract so its
-  geometry remains visible without feature-local paint rules.
+  geometry remains visible without feature-local paint rules. Server-rendered
+  views and client-created controls share the same registry.
   Icon-only controls retain a visible tooltip where useful and always have an
   accessible name.
 - `src/ui/markup.ts` may generate small primitive fragments but cannot own

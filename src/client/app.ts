@@ -78,6 +78,7 @@ import {
 } from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
+import { renderIcon } from "../ui/icons";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
   isModelCandidate,
@@ -7164,7 +7165,7 @@ class WorkspaceApp {
     close.className = "context-tab-close";
     close.setAttribute("aria-label", `Close ${title}`);
     close.title = `Close ${title}`;
-    close.innerHTML = '<svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 4 8 8m0-8-8 8"/></svg>';
+    close.innerHTML = renderIcon("close");
     close.addEventListener("click", () => this.#closeContextTab(tab.key));
     item.append(button, close);
     return item;
