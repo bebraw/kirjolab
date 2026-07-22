@@ -70,7 +70,7 @@
     "mutation": "NODE_OPTIONS=--max-old-space-size=8192 stryker run",
     "mutation:affected": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --ignoreStatic --reporters clear-text,progress",
     "mutation:incremental": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --incremental --ignoreStatic",
-    "mutation:incremental:refresh": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --incremental --force --ignoreStatic",
+    "mutation:incremental:refresh": "NODE_OPTIONS=--max-old-space-size=8192 node ./scripts/run-mutation-refresh.mjs",
     "playwright:install": "playwright install chromium",
     "prepare": "node ./scripts/setup-git-hooks.mjs",
     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",

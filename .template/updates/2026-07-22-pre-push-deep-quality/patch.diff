@@ -24,9 +24,16 @@ diff --git a/package.json b/package.json
 +++ b/package.json
 @@
 +    "mutation:affected": "stryker run --ignoreStatic --reporters clear-text,progress",
-+    "mutation:incremental:refresh": "stryker run --incremental --force --ignoreStatic",
++    "mutation:incremental:refresh": "node ./scripts/run-mutation-refresh.mjs",
 +    "build:pdf-worker": "node ./scripts/build-pdf-worker.mjs",
 +    "typecheck": "node ./scripts/run-typescript-7.mjs --noEmit && node ./scripts/run-typescript-7.mjs --noEmit -p tsconfig.client.json && npm run typecheck:workers",
+diff --git a/scripts/run-mutation-refresh.mjs b/scripts/run-mutation-refresh.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/run-mutation-refresh.mjs
+@@
++// Remove reports/stryker-incremental.json before running incremental Stryker.
++// Stryker force mode can retain files removed from the configured surface.
 diff --git a/.fallowrc.json b/.fallowrc.json
 --- a/.fallowrc.json
 +++ b/.fallowrc.json

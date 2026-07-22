@@ -34,8 +34,9 @@ selector:
 - retain Stryker's mutation-time TypeScript checker because project-level
   typechecking does not validate each mutated program;
 - force-refresh the full incremental report whenever mutation/test
-  configuration changes, because Stryker can otherwise retain mutants removed
-  from the configured surface;
+  configuration changes by removing its ignored cache first, because Stryker
+  can otherwise retain mutants removed from the configured surface even in
+  force mode;
 - skip irrelevant deep checks for documentation-only and Worker-only pushes;
 - preserve `npm run mutation` as the clean authoritative GitHub mutation job.
 
