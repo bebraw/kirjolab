@@ -50,6 +50,8 @@ introducing a frontend component framework.
   state attributes.
 - Browser coverage verifies representative default, disabled, busy,
   destructive, selected, field, badge, panel, status, and dialog examples in
-  the local visual inventory.
+  the local visual inventory. Computed-style assertions cover icon paint,
+  selected treatment, reduced motion, and text contrast in both themes rather
+  than relying on markup attributes alone.
 - Application views preserve their existing IDs and behavior while adopting
   the primitive and icon contracts.

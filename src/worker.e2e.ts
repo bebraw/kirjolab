@@ -29,7 +29,56 @@ test("renders shared primitive states in the local UI inventory", async ({ page 
   await expect(page.locator(".ui-status[data-tone='warning']")).toHaveCSS("color", "rgb(139, 85, 20)");
   await expect(page.locator(".ui-status[data-tone='error']")).toContainText("Could not save");
   await expect(page.getByRole("group", { name: "Static dialog example" })).toBeVisible();
+
+  const primitivePanel = page.locator("#ui-controls-heading").locator("..").locator("..");
+  for (const theme of ["light", "dark"] as const) {
+    await page.locator("html").evaluate((html, value) => {
+      html.dataset.theme = value;
+    }, theme);
+    await expectContrastAtLeast(destructivePrimary, destructivePrimary, 4.5);
+    await expectContrastAtLeast(page.locator(".ui-status[data-tone='warning']"), primitivePanel, 4.5);
+    await expectContrastAtLeast(page.locator(".ui-status[data-tone='error']"), primitivePanel, 4.5);
+  }
+
+  const selectedBackground = await page
+    .getByRole("button", { name: "Selected example" })
+    .evaluate((button) => getComputedStyle(button).backgroundColor);
+  expect(selectedBackground).not.toBe("rgba(0, 0, 0, 0)");
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.getByRole("button", { name: "Primary action" })).toHaveCSS("transition-duration", "0s");
 });
+
+async function expectContrastAtLeast(foreground: Locator, background: Locator, minimum: number): Promise<void> {
+  const [foregroundColor, backgroundColor] = await Promise.all([
+    foreground.evaluate((element) => getComputedStyle(element).color),
+    background.evaluate((element) => getComputedStyle(element).backgroundColor),
+  ]);
+  expect(contrastRatio(foregroundColor, backgroundColor)).toBeGreaterThanOrEqual(minimum);
+}
+
+function contrastRatio(foreground: string, background: string): number {
+  const foregroundLuminance = relativeLuminance(parseRgb(foreground));
+  const backgroundLuminance = relativeLuminance(parseRgb(background));
+  return (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) / (Math.min(foregroundLuminance, backgroundLuminance) + 0.05);
+}
+
+function parseRgb(value: string): readonly [number, number, number] {
+  const channels = value
+    .match(/\d+(?:\.\d+)?/gu)
+    ?.slice(0, 3)
+    .map(Number);
+  if (!channels || channels.length !== 3) throw new Error(`Expected an RGB color, received ${value}`);
+  return [channels[0]!, channels[1]!, channels[2]!];
+}
+
+function relativeLuminance(channels: readonly [number, number, number]): number {
+  const [red, green, blue] = channels.map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red! + 0.7152 * green! + 0.0722 * blue!;
+}
 
 test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
