@@ -31,6 +31,7 @@ export function renderUiInventoryPage(): string {
         <div class="ui-cluster" aria-label="Button states">
           ${renderButton({ label: "Primary action", tone: "primary" })}
           ${renderButton({ label: "Secondary action" })}
+          ${renderButton({ label: "Download", icon: "download" })}
           ${renderButton({ label: "Compact", compact: true })}
           ${renderButton({ label: "Selected", pressed: true })}
           ${renderButton({ label: "Remove", destructive: true })}

@@ -24,6 +24,7 @@
   .button-icon {
     display: inline-flex;
     align-items: center;
+    gap: var(--ui-space-2);
     border-radius: var(--ui-radius-md);
     font-family: var(--font-sans);
     font-size: 0.72rem;
@@ -296,7 +297,6 @@
   :is(.button-primary, .button-secondary, .button-icon)[aria-busy="true"]::after {
     width: 0.7rem;
     height: 0.7rem;
-    margin-left: var(--ui-space-2);
     border: 1px solid currentColor;
     border-right-color: transparent;
     border-radius: var(--ui-radius-pill);
