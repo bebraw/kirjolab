@@ -2,13 +2,13 @@ import type { ReviewProjectLinkView } from "../api/reviews";
 import type { ReviewSummary } from "../domain/review-catalog";
 import { escapeHtml } from "../html";
 
+type PublicationTarget = ReviewProjectLinkView & { readonly project: NonNullable<ReviewProjectLinkView["project"]> };
+
 export function renderReviewStudySurface(review: ReviewSummary, projectLinks: readonly ReviewProjectLinkView[]): string {
   const escapedReviewTitle = escapeHtml(review.title);
   const apiBase = `/api/reviews/${encodeURIComponent(review.id)}/review-study`;
   const escapedApiBase = escapeHtml(apiBase);
-  const publicationTargets = projectLinks.filter(
-    (link) => link.status === "active" && link.permission === "available" && link.project !== null,
-  );
+  const publicationTargets = projectLinks.filter(isPublicationTarget);
   const publicationDisabled = publicationTargets.length === 0;
   const publicationPath = `review/${review.id}/synthesis.md`;
   return `<section class="review-study-dialog review-study-page ui-panel" id="review-study-dialog">
@@ -68,12 +68,16 @@ export function renderReviewStudySurface(review: ReviewSummary, projectLinks: re
 </section>`;
 }
 
-function renderPublicationOptions(projectLinks: readonly ReviewProjectLinkView[]): string {
+function isPublicationTarget(link: ReviewProjectLinkView): link is PublicationTarget {
+  return link.status === "active" && link.permission === "available" && link.project !== null;
+}
+
+function renderPublicationOptions(projectLinks: readonly PublicationTarget[]): string {
   if (projectLinks.length === 0) return '<option value="">No accessible active project</option>';
   return projectLinks
     .map(
       (link) =>
-        `<option value="${escapeHtml(link.id)}" data-workspace-id="${escapeHtml(link.workspaceId)}">${escapeHtml(link.project?.title ?? link.workspaceId)}</option>`,
+        `<option value="${escapeHtml(link.id)}" data-workspace-id="${escapeHtml(link.workspaceId)}">${escapeHtml(link.project.title)}</option>`,
     )
     .join("");
 }
