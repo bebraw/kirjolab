@@ -63,86 +63,8 @@ export default {
 
 export async function handleRequest(request: Request, env?: Env, ctx?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
-
-  if (url.pathname === "/styles.css") {
-    return cssResponse(await loadStylesheet());
-  }
-
-  if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") {
-    return faviconResponse();
-  }
-
-  if (url.pathname === "/app.js") {
-    return scriptResponse(await loadClientScript());
-  }
-
-  if (url.pathname === "/review-app.js") {
-    return scriptResponse(await loadReviewClientScript());
-  }
-
-  if (url.pathname === "/service-worker.js") {
-    return scriptResponse(await loadServiceWorkerScript());
-  }
-
-  if (url.pathname === "/shared-editor.js") {
-    return scriptResponse(await loadSharedEditorScript());
-  }
-
-  if (url.pathname === "/pdf.worker.js") {
-    return scriptResponse(await loadPdfWorkerScript());
-  }
-
-  if (/^\/(?:markdown-module|pdfjs-module)-[a-f0-9]{16}\.js$/u.test(url.pathname)) {
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    return await loadBrowserRuntimeAsset(request, env);
-  }
-
-  if (url.pathname === "/api/health") {
-    return createHealthResponse(exampleRoutes.map((route) => route.path));
-  }
-
-  if (url.pathname === "/phrasing-guidance/sources.json") {
-    if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
-    return Response.json(phrasingGuidanceSources, {
-      headers: { "cache-control": "public, max-age=3600", "content-disposition": 'inline; filename="sources.json"' },
-    });
-  }
-
-  if (url.pathname === "/__ui") {
-    const authMode: string | undefined = env?.AUTH_MODE;
-    return authMode === "access"
-      ? htmlResponse(renderNotFoundPage(url.pathname), 404, url)
-      : htmlResponse(renderUiInventoryPage(), 200, url);
-  }
-
-  const readOnlyShare = /^\/share\/([a-z0-9-]{1,64})\.([A-Za-z0-9_-]{43})(\/document\.pdf|\/socket)?$/u.exec(url.pathname);
-  if (readOnlyShare?.[1] && readOnlyShare[2]) {
-    if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
-    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    const locator = readOnlyShare[1];
-    const resolved = await env.WORKSPACE_ACCESS.getByName(locator).resolveReadOnlyShare(readOnlyShare[2]);
-    if (!resolved.valid) return htmlResponse(renderNotFoundPage("/share"), 404, url);
-    const target = resolved.target ?? { storageKey: locator, workspaceId: locator };
-    const room = env.DOCUMENT_ROOMS.getByName(target.storageKey);
-    if (readOnlyShare[3] === "/socket") {
-      if (!isSameOriginMutation(request)) return Response.json({ error: "Cross-origin WebSocket denied" }, { status: 403 });
-      const headers = new Headers(request.headers);
-      headers.set("x-kirjolab-read-only", "1");
-      return await room.fetch(new Request(request, { headers }));
-    }
-    const snapshot = await room.getSnapshot(target.workspaceId);
-    if (readOnlyShare[3]) return pdfResponse(await renderExportPdf(buildExportBundle(snapshot)));
-    const sharePath = `/share/${locator}.${readOnlyShare[2]}`;
-    return htmlResponse(
-      renderReadOnlySharePage(snapshot, sharePath, url.searchParams.get("file"), url.searchParams.get("view")),
-      200,
-      url,
-      { allowSameOriginFrames: true },
-    );
-  }
-
-  const editShareResponse = await handleEditShareRequest(request, env);
-  if (editShareResponse) return editShareResponse;
+  const publicResponse = await handlePublicRequest(request, url, env);
+  if (publicResponse) return publicResponse;
 
   let identity: AuthIdentity = { subject: "test", email: "local@kirjolab.invalid", ownerKey: "local", mode: "local" };
   if (env) {
@@ -315,6 +237,66 @@ export async function handleRequest(request: Request, env?: Env, ctx?: Execution
   }
 
   return htmlResponse(renderNotFoundPage(url.pathname), 404, url);
+}
+
+async function handlePublicRequest(request: Request, url: URL, env: Env | undefined): Promise<Response | null> {
+  const staticResponse = await handleStaticRequest(request, url, env);
+  if (staticResponse) return staticResponse;
+  const readOnlyShareResponse = await handleReadOnlyShareRequest(request, url, env);
+  if (readOnlyShareResponse) return readOnlyShareResponse;
+  return await handleEditShareRequest(request, env);
+}
+
+async function handleStaticRequest(request: Request, url: URL, env: Env | undefined): Promise<Response | null> {
+  if (url.pathname === "/styles.css") return cssResponse(await loadStylesheet());
+  if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return faviconResponse();
+  if (url.pathname === "/app.js") return scriptResponse(await loadClientScript());
+  if (url.pathname === "/review-app.js") return scriptResponse(await loadReviewClientScript());
+  if (url.pathname === "/service-worker.js") return scriptResponse(await loadServiceWorkerScript());
+  if (url.pathname === "/shared-editor.js") return scriptResponse(await loadSharedEditorScript());
+  if (url.pathname === "/pdf.worker.js") return scriptResponse(await loadPdfWorkerScript());
+  if (/^\/(?:markdown-module|pdfjs-module)-[a-f0-9]{16}\.js$/u.test(url.pathname)) {
+    if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+    return await loadBrowserRuntimeAsset(request, env);
+  }
+  if (url.pathname === "/api/health") return createHealthResponse(exampleRoutes.map((route) => route.path));
+  if (url.pathname === "/phrasing-guidance/sources.json") {
+    if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
+    return Response.json(phrasingGuidanceSources, {
+      headers: { "cache-control": "public, max-age=3600", "content-disposition": 'inline; filename="sources.json"' },
+    });
+  }
+  if (url.pathname === "/__ui") {
+    const authMode: string | undefined = env?.AUTH_MODE;
+    return authMode === "access"
+      ? htmlResponse(renderNotFoundPage(url.pathname), 404, url)
+      : htmlResponse(renderUiInventoryPage(), 200, url);
+  }
+  return null;
+}
+
+async function handleReadOnlyShareRequest(request: Request, url: URL, env: Env | undefined): Promise<Response | null> {
+  const match = /^\/share\/([a-z0-9-]{1,64})\.([A-Za-z0-9_-]{43})(\/document\.pdf|\/socket)?$/u.exec(url.pathname);
+  if (!match?.[1] || !match[2]) return null;
+  if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
+  if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+  const locator = match[1];
+  const resolved = await env.WORKSPACE_ACCESS.getByName(locator).resolveReadOnlyShare(match[2]);
+  if (!resolved.valid) return htmlResponse(renderNotFoundPage("/share"), 404, url);
+  const target = resolved.target ?? { storageKey: locator, workspaceId: locator };
+  const room = env.DOCUMENT_ROOMS.getByName(target.storageKey);
+  if (match[3] === "/socket") {
+    if (!isSameOriginMutation(request)) return Response.json({ error: "Cross-origin WebSocket denied" }, { status: 403 });
+    const headers = new Headers(request.headers);
+    headers.set("x-kirjolab-read-only", "1");
+    return await room.fetch(new Request(request, { headers }));
+  }
+  const snapshot = await room.getSnapshot(target.workspaceId);
+  if (match[3]) return pdfResponse(await renderExportPdf(buildExportBundle(snapshot)));
+  const sharePath = `/share/${locator}.${match[2]}`;
+  return htmlResponse(renderReadOnlySharePage(snapshot, sharePath, url.searchParams.get("file"), url.searchParams.get("view")), 200, url, {
+    allowSameOriginFrames: true,
+  });
 }
 
 function fallbackWorkspaces() {
