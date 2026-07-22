@@ -22,7 +22,8 @@ import {
   type PdfResource,
   type ProjectAsset,
 } from "../domain/workspace";
-import { isInertSvgImage, normalizeProjectPath } from "../domain/project-files";
+import { normalizeProjectPath } from "../domain/project-files";
+import { hasProjectImageSignature } from "../domain/project-image-signatures";
 import { parseBibTeX } from "../domain/bibliography";
 import {
   builtInProjectTemplate,
@@ -726,7 +727,7 @@ async function uploadProjectAsset(
       ? await env.PAPERS.get(objectKey)
       : await env.PAPERS.get(objectKey, { range: { offset: 0, length: Math.min(size, 16) } });
   const validationBytes = validationObject ? new Uint8Array(await validationObject.arrayBuffer()) : new Uint8Array();
-  if (!hasImageSignature(mediaType, validationBytes)) {
+  if (!hasProjectImageSignature(mediaType, validationBytes)) {
     await env.PAPERS.delete(objectKey);
     return jsonError("Image bytes do not match the declared media type", 415);
   }
@@ -788,17 +789,6 @@ async function deleteProjectAsset(
 
 function isProjectImageMediaType(value: string): value is ProjectAsset["mediaType"] {
   return Object.hasOwn(imageExtensions, value);
-}
-
-function hasImageSignature(mediaType: ProjectAsset["mediaType"], bytes: Uint8Array): boolean {
-  const ascii = (start: number, end: number): string => new TextDecoder().decode(bytes.subarray(start, end));
-  if (mediaType === "image/png")
-    return bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => bytes[index] === byte);
-  if (mediaType === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  if (mediaType === "image/gif") return ascii(0, 6) === "GIF87a" || ascii(0, 6) === "GIF89a";
-  if (mediaType === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
-  if (mediaType === "image/avif") return ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12));
-  return isInertSvgImage(bytes);
 }
 
 async function createAnnotation(
