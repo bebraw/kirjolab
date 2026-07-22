@@ -167,6 +167,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="github-import-dialog"');
     expect(html).toContain('id="github-publish-review"');
     expect(html).toContain('id="github-pull-review"');
+    expect(html).toContain('id="github-sync-menu"');
+    expect(html).toContain('id="github-sync-push"');
     expect(html.match(/data-touch-target="true"/gu)).toHaveLength(8);
     expect(html).toContain('id="archive-workspace" type="button" data-destructive="true"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');

@@ -653,6 +653,7 @@ test("keeps GitHub publish confirmation visible after refreshing sync state", as
   const workspaceId = await createWorkspace(page, "GitHub publish feedback");
   const api = `/api/workspaces/${workspaceId}/github-sync`;
   const commitSha = "c".repeat(40);
+  let published = false;
   await page.route(`**${api}`, async (route) => {
     await route.fulfill({
       json: {
@@ -661,6 +662,23 @@ test("keeps GitHub publish confirmation visible after refreshing sync state", as
         branch: "kirjolab-smoke-test",
         rootPath: "book",
         commitSha,
+      },
+    });
+  });
+  await page.route(`**${api}/status`, async (route) => {
+    await route.fulfill({
+      json: {
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "kirjolab-smoke-test",
+        rootPath: "book",
+        commitSha,
+        remoteHead: commitSha,
+        remoteHeadChanged: false,
+        relationship: published ? "synced" : "kirjolab-ahead",
+        incomingChanges: 0,
+        outgoingChanges: published ? 0 : 1,
+        conflicts: 0,
       },
     });
   });
@@ -679,19 +697,62 @@ test("keeps GitHub publish confirmation visible after refreshing sync state", as
     });
   });
   await page.route(`**${api}/publishes`, async (route) => {
+    published = true;
     await route.fulfill({ json: { commitSha } });
   });
 
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
-  await page.locator(".header-action-menu summary").click();
-  await page.getByRole("button", { name: "Project settings" }).click();
+  await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Push available");
+  await page.locator("#github-sync-trigger").click();
+  await page.getByRole("button", { name: "Push to GitHub" }).click();
   await expect(page.locator("#github-sync-status")).toContainText("bebraw/scalability_book");
-  await page.getByRole("button", { name: "Preview publish" }).click();
   await expect(page.locator("#github-publish-review")).toContainText("1 tracked path change");
   await page.getByRole("button", { name: "Publish commit" }).click();
   await expect(page.locator("#github-publish-review")).toHaveText(`Published commit ${commitSha.slice(0, 10)}.`);
-  await expect(page.locator("#github-sync-status")).toContainText(`synced ${commitSha.slice(0, 10)}`);
+  await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Synced");
+});
+
+test("shows automatic branch movement outside tracked Markdown", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "GitHub branch movement");
+  const api = `/api/workspaces/${workspaceId}/github-sync`;
+  const synchronizedCommit = "a".repeat(40);
+  const remoteHead = "b".repeat(40);
+  await page.route(`**${api}`, async (route) => {
+    await route.fulfill({
+      json: {
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "main",
+        rootPath: "book",
+        commitSha: synchronizedCommit,
+      },
+    });
+  });
+  await page.route(`**${api}/status`, async (route) => {
+    await route.fulfill({
+      json: {
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "main",
+        rootPath: "book",
+        commitSha: synchronizedCommit,
+        remoteHead,
+        remoteHeadChanged: true,
+        relationship: "remote-changed",
+        incomingChanges: 0,
+        outgoingChanges: 0,
+        conflicts: 0,
+      },
+    });
+  });
+
+  await page.goto(`/editor/${workspaceId}`);
+  await expect(page.locator("#github-sync-label")).toHaveText("GitHub · Branch changed");
+  await page.locator("#github-sync-trigger").click();
+  await expect(page.locator("#github-sync-detail")).toContainText("tracked Markdown is unchanged");
+  await expect(page.getByRole("button", { name: "Pull from GitHub" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Push to GitHub" })).toBeDisabled();
 });
 
 test("previews and confirms incoming GitHub changes", async ({ page }) => {
@@ -706,6 +767,23 @@ test("previews and confirms incoming GitHub changes", async ({ page }) => {
         branch: "main",
         rootPath: "book",
         commitSha: "a".repeat(40),
+      },
+    });
+  });
+  await page.route(`**${api}/status`, async (route) => {
+    await route.fulfill({
+      json: {
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "main",
+        rootPath: "book",
+        commitSha: "a".repeat(40),
+        remoteHead: "b".repeat(40),
+        remoteHeadChanged: true,
+        relationship: "github-ahead",
+        incomingChanges: 1,
+        outgoingChanges: 0,
+        conflicts: 0,
       },
     });
   });
@@ -730,7 +808,7 @@ test("previews and confirms incoming GitHub changes", async ({ page }) => {
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "Project settings" }).click();
-  await page.getByRole("button", { name: "Check GitHub" }).click();
+  await page.getByRole("button", { name: "Preview pull" }).click();
   await expect(page.locator("#github-pull-review")).toContainText("1 incoming change ready to pull");
   await expect(page.locator("#github-pull-review")).toContainText("Update · 00_introduction.md");
   await page.getByRole("button", { name: "Pull changes" }).click();
@@ -749,6 +827,23 @@ test("requires an explicit GitHub conflict resolution", async ({ page }) => {
         branch: "main",
         rootPath: "book",
         commitSha: "a".repeat(40),
+      },
+    });
+  });
+  await page.route(`**${api}/status`, async (route) => {
+    await route.fulfill({
+      json: {
+        owner: "bebraw",
+        repository: "scalability_book",
+        branch: "main",
+        rootPath: "book",
+        commitSha: "a".repeat(40),
+        remoteHead: "b".repeat(40),
+        remoteHeadChanged: true,
+        relationship: "conflicted",
+        incomingChanges: 0,
+        outgoingChanges: 0,
+        conflicts: 1,
       },
     });
   });
@@ -779,7 +874,7 @@ test("requires an explicit GitHub conflict resolution", async ({ page }) => {
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "Project settings" }).click();
-  await page.getByRole("button", { name: "Check GitHub" }).click();
+  await page.getByRole("button", { name: "Preview pull" }).click();
   await expect(page.locator("#github-pull-review")).toContainText("Kirjolab version");
   await expect(page.locator("#github-pull-review")).toContainText("GitHub version");
   await expect(page.getByRole("button", { name: "Pull changes" })).toBeDisabled();

@@ -98,6 +98,11 @@ incoming and outgoing mutation.
   distinguishes tracked incoming changes, tracked outgoing changes, conflicts,
   and branch-head movement that only affected content outside Kirjolab's
   tracked Markdown subtree.
+- A connected project exposes the latest read-only status in the main toolbar.
+  The control checks automatically on initial load and after a bounded focus
+  interval, distinguishes branch-only movement from actionable manuscript
+  divergence, and offers Pull or Push entry points that open the existing
+  detailed preview rather than bypassing confirmation.
 - `POST /api/workspaces/{id}/github-sync/pull-previews` returns a non-mutating
   three-way incoming diff and conflicts.
 - `POST /api/workspaces/{id}/github-sync/pulls` consumes a current pull preview
@@ -162,6 +167,8 @@ incoming and outgoing mutation.
       three-way base and never silently overwrite either side.
 - [x] Read-only status distinguishes a moved GitHub branch from tracked
       manuscript changes, including commits that only touch untracked paths.
+- [x] A connected workspace shows automatic sync status and preview-first Pull
+      and Push actions in the main toolbar.
 - [x] Unknown Markdown syntax and all untracked repository content remain
       byte-for-byte unchanged by operations that do not edit them.
 - [x] Revoked access, stale previews, protected branches, timeouts, and retries

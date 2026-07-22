@@ -79,6 +79,7 @@ import {
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 import { renderIcon } from "../ui/icons";
+import { gitHubSyncPresentation, isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
   isModelCandidate,
@@ -357,6 +358,15 @@ interface Elements {
   previewGitHubImport: HTMLButtonElement;
   cancelGitHubImport: HTMLButtonElement;
   gitHubSyncStatus: HTMLElement;
+  gitHubSyncMenu: HTMLDetailsElement;
+  gitHubSyncTrigger: HTMLElement;
+  gitHubSyncLabel: HTMLElement;
+  gitHubSyncRepository: HTMLElement;
+  gitHubSyncDetail: HTMLElement;
+  gitHubSyncCheck: HTMLButtonElement;
+  gitHubSyncPull: HTMLButtonElement;
+  gitHubSyncPush: HTMLButtonElement;
+  gitHubSyncSettings: HTMLButtonElement;
   gitHubPullReview: HTMLElement;
   previewGitHubPull: HTMLButtonElement;
   confirmGitHubPull: HTMLButtonElement;
@@ -817,6 +827,8 @@ class WorkspaceApp {
   #gitHubPublishPreviewId: string | null = null;
   #gitHubRepositories: readonly GitHubRepositoryOption[] = [];
   #gitHubPickerRequest = 0;
+  #gitHubSyncRequest = 0;
+  #gitHubSyncCheckedAt = 0;
   #projectTemplates: ProjectTemplateSummary[] = [];
   readonly #hiddenProjectTemplateIds = new Set<string>();
   #previewedProjectTemplateId = "";
@@ -923,6 +935,7 @@ class WorkspaceApp {
       this.#renderCollaborationWorkflow();
     }
     await this.#restoreWorkspaceRoute();
+    void this.#refreshGitHubSyncState(true);
     this.#connect();
     if (new URL(location.href).searchParams.get("create") === "1") {
       history.replaceState(history.state, "", location.pathname);
@@ -939,6 +952,12 @@ class WorkspaceApp {
         .catch(() => this.#showToast("Could not copy the application version"));
     });
     window.addEventListener("online", () => this.#connect());
+    window.addEventListener("focus", () => {
+      if (appMode === "workspace") void this.#refreshGitHubSyncState();
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (appMode === "workspace" && document.visibilityState === "visible") void this.#refreshGitHubSyncState();
+    });
     window.addEventListener("offline", () => {
       this.#collaborationWorkflow.send({ type: "OFFLINE" });
       this.#renderCollaborationWorkflow();
@@ -1007,29 +1026,7 @@ class WorkspaceApp {
       this.#renderWorkspaceCatalogList();
       this.#elements.workspaceCatalogFilter.focus();
     });
-    this.#elements.workspaceSettings.addEventListener("click", () => {
-      const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
-      this.#elements.workspaceSettingsTitle.value = current?.title ?? "";
-      this.#elements.workspaceEntryFile.replaceChildren(
-        ...(this.#snapshot?.files ?? [])
-          .filter((file) => !this.#hiddenProjectFileIds.has(file.id))
-          .map((file) => {
-            const option = document.createElement("option");
-            option.value = file.id;
-            option.textContent = file.path;
-            option.selected = file.id === this.#snapshot?.entryFileId;
-            return option;
-          }),
-      );
-      this.#elements.workspaceCitationStyle.value = this.#snapshot?.publicationProfile.citationStyle ?? "apa";
-      this.#elements.workspaceCitationLocale.value = this.#snapshot?.publicationProfile.locale ?? "en-US";
-      this.#elements.workspaceSubmissionTemplate.value = this.#snapshot?.publicationProfile.submissionTemplate ?? "article";
-      this.#elements.workspacePaperSize.value = this.#snapshot?.publicationProfile.paperSize ?? "a4";
-      this.#elements.archiveWorkspace.textContent = current?.archivedAt ? "Restore" : "Archive";
-      this.#elements.saveWorkspaceTemplate.hidden = workspaceId === "demo";
-      this.#elements.workspaceSettingsDialog.showModal();
-      void this.#refreshGitHubSyncState();
-    });
+    this.#elements.workspaceSettings.addEventListener("click", () => this.#openWorkspaceSettings());
     this.#elements.closeWorkspaceSettings.addEventListener("click", () => this.#elements.workspaceSettingsDialog.close());
     this.#elements.workspaceSettingsForm.addEventListener("submit", (event) => void this.#saveWorkspaceSettings(event));
     this.#elements.archiveWorkspace.addEventListener("click", () => void this.#toggleWorkspaceArchive());
@@ -1107,6 +1104,16 @@ class WorkspaceApp {
     this.#elements.previewGitHubPublish.addEventListener("click", () => void this.#previewGitHubPublish());
     this.#elements.confirmGitHubPublish.addEventListener("click", () => void this.#confirmGitHubPublish());
     this.#elements.disconnectGitHub.addEventListener("click", () => void this.#disconnectGitHub());
+    this.#elements.gitHubSyncCheck.addEventListener("click", () => void this.#refreshGitHubSyncState(true));
+    this.#elements.gitHubSyncPull.addEventListener("click", () => {
+      this.#openWorkspaceSettings(false);
+      void this.#previewGitHubPull();
+    });
+    this.#elements.gitHubSyncPush.addEventListener("click", () => {
+      this.#openWorkspaceSettings(false);
+      void this.#previewGitHubPublish();
+    });
+    this.#elements.gitHubSyncSettings.addEventListener("click", () => this.#openWorkspaceSettings());
     const githubResult = new URL(location.href).searchParams.get("github");
     if (githubResult === "connected" || githubResult === "installed") {
       this.#elements.openGitHubImport.click();
@@ -1951,7 +1958,35 @@ class WorkspaceApp {
     }
   }
 
-  async #refreshGitHubSyncState(): Promise<void> {
+  #openWorkspaceSettings(checkGitHub = true): void {
+    const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
+    this.#elements.workspaceSettingsTitle.value = current?.title ?? "";
+    this.#elements.workspaceEntryFile.replaceChildren(
+      ...(this.#snapshot?.files ?? [])
+        .filter((file) => !this.#hiddenProjectFileIds.has(file.id))
+        .map((file) => {
+          const option = document.createElement("option");
+          option.value = file.id;
+          option.textContent = file.path;
+          option.selected = file.id === this.#snapshot?.entryFileId;
+          return option;
+        }),
+    );
+    this.#elements.workspaceCitationStyle.value = this.#snapshot?.publicationProfile.citationStyle ?? "apa";
+    this.#elements.workspaceCitationLocale.value = this.#snapshot?.publicationProfile.locale ?? "en-US";
+    this.#elements.workspaceSubmissionTemplate.value = this.#snapshot?.publicationProfile.submissionTemplate ?? "article";
+    this.#elements.workspacePaperSize.value = this.#snapshot?.publicationProfile.paperSize ?? "a4";
+    this.#elements.archiveWorkspace.textContent = current?.archivedAt ? "Restore" : "Archive";
+    this.#elements.saveWorkspaceTemplate.hidden = workspaceId === "demo";
+    this.#elements.workspaceSettingsDialog.showModal();
+    if (checkGitHub) void this.#refreshGitHubSyncState(true);
+  }
+
+  async #refreshGitHubSyncState(force = false): Promise<void> {
+    if (!force && (this.#gitHubPullPreviewId || this.#gitHubPublishPreviewId || this.#elements.workspaceSettingsDialog.open)) return;
+    if (!force && Date.now() - this.#gitHubSyncCheckedAt < 60_000) return;
+    const requestId = ++this.#gitHubSyncRequest;
+    this.#gitHubSyncCheckedAt = Date.now();
     this.#gitHubPullPreviewId = null;
     this.#gitHubPublishPreviewId = null;
     this.#elements.confirmGitHubPull.disabled = true;
@@ -1963,16 +1998,49 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       const connected = isGitHubSyncState(value);
+      if (requestId !== this.#gitHubSyncRequest) return;
       this.#elements.previewGitHubPull.disabled = !connected;
       this.#elements.previewGitHubPublish.disabled = !connected;
       this.#elements.disconnectGitHub.disabled = !connected;
       this.#elements.gitHubPublishMessage.disabled = !connected;
-      this.#elements.gitHubSyncStatus.textContent = connected
-        ? `${value.owner}/${value.repository} · ${value.branch}${value.rootPath ? ` · ${value.rootPath}/` : ""} · synced ${value.commitSha.slice(0, 10)}`
-        : "This project is not connected to GitHub.";
+      this.#elements.gitHubSyncMenu.hidden = !connected;
+      if (!connected) {
+        this.#elements.gitHubSyncStatus.textContent = "This project is not connected to GitHub.";
+        return;
+      }
+      this.#elements.gitHubSyncLabel.textContent = "GitHub · Checking";
+      this.#elements.gitHubSyncRepository.textContent = `${value.owner}/${value.repository} · ${value.branch}`;
+      this.#elements.gitHubSyncDetail.textContent = "Reading the configured branch…";
+      this.#elements.gitHubSyncPull.disabled = true;
+      this.#elements.gitHubSyncPush.disabled = true;
+      const statusResponse = await fetch(`${apiBase}/github-sync/status`, { credentials: "same-origin" });
+      await expectOk(statusResponse);
+      const statusValue: unknown = await statusResponse.json();
+      if (!isGitHubSyncStatus(statusValue)) throw new Error("GitHub returned an invalid synchronization status");
+      if (requestId !== this.#gitHubSyncRequest) return;
+      this.#renderGitHubSyncStatus(statusValue);
     } catch (error) {
-      this.#elements.gitHubSyncStatus.textContent = error instanceof Error ? error.message : "Could not load GitHub sync state.";
+      if (requestId !== this.#gitHubSyncRequest) return;
+      const message = error instanceof Error ? error.message : "Could not load GitHub sync state.";
+      this.#elements.gitHubSyncStatus.textContent = message;
+      if (!this.#elements.gitHubSyncMenu.hidden) {
+        this.#elements.gitHubSyncLabel.textContent = "GitHub · Check failed";
+        this.#elements.gitHubSyncDetail.textContent = message;
+        this.#elements.gitHubSyncTrigger.dataset.tone = "warning";
+      }
     }
+  }
+
+  #renderGitHubSyncStatus(status: GitHubSyncStatus): void {
+    const presentation = gitHubSyncPresentation(status);
+    const root = status.rootPath ? ` · ${status.rootPath}/` : "";
+    this.#elements.gitHubSyncLabel.textContent = presentation.label;
+    this.#elements.gitHubSyncRepository.textContent = `${status.owner}/${status.repository} · ${status.branch}${root}`;
+    this.#elements.gitHubSyncDetail.textContent = presentation.detail;
+    this.#elements.gitHubSyncTrigger.dataset.tone = presentation.tone;
+    this.#elements.gitHubSyncPull.disabled = !presentation.canPull;
+    this.#elements.gitHubSyncPush.disabled = !presentation.canPush;
+    this.#elements.gitHubSyncStatus.textContent = `${this.#elements.gitHubSyncRepository.textContent} · ${presentation.detail}`;
   }
 
   async #previewGitHubPull(): Promise<void> {
@@ -2050,7 +2118,7 @@ class WorkspaceApp {
       const response = await jsonFetch(`${apiBase}/github-sync/pulls`, { previewId: this.#gitHubPullPreviewId, resolutions });
       await expectOk(response);
       await this.#resourceRefresh.request();
-      await this.#refreshGitHubSyncState();
+      await this.#refreshGitHubSyncState(true);
       this.#elements.gitHubPullReview.replaceChildren(statusText("Pulled the reviewed changes from GitHub."));
     } catch (error) {
       this.#elements.gitHubPullReview.replaceChildren(statusText(error instanceof Error ? error.message : "Could not pull from GitHub."));
@@ -2105,7 +2173,7 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isUnknownRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");
-      await this.#refreshGitHubSyncState();
+      await this.#refreshGitHubSyncState(true);
       this.#elements.gitHubPublishReview.replaceChildren(statusText(`Published commit ${value.commitSha.slice(0, 10)}.`));
     } catch (error) {
       this.#elements.gitHubPublishReview.replaceChildren(
@@ -2118,7 +2186,7 @@ class WorkspaceApp {
     if (!confirm("Disconnect this project from GitHub? Project files and the repository will not be deleted.")) return;
     const response = await fetch(`${apiBase}/github-sync`, { method: "DELETE", credentials: "same-origin" });
     await expectOk(response);
-    await this.#refreshGitHubSyncState();
+    await this.#refreshGitHubSyncState(true);
   }
 
   async #openNewWorkspace(): Promise<void> {
@@ -10458,6 +10526,15 @@ function collectElements(): Elements {
     previewGitHubImport: requiredElement("preview-github-import", HTMLButtonElement),
     cancelGitHubImport: requiredElement("cancel-github-import", HTMLButtonElement),
     gitHubSyncStatus: requiredElement("github-sync-status", HTMLElement),
+    gitHubSyncMenu: requiredElement("github-sync-menu", HTMLDetailsElement),
+    gitHubSyncTrigger: requiredElement("github-sync-trigger", HTMLElement),
+    gitHubSyncLabel: requiredElement("github-sync-label", HTMLElement),
+    gitHubSyncRepository: requiredElement("github-sync-repository", HTMLElement),
+    gitHubSyncDetail: requiredElement("github-sync-detail", HTMLElement),
+    gitHubSyncCheck: requiredElement("github-sync-check", HTMLButtonElement),
+    gitHubSyncPull: requiredElement("github-sync-pull", HTMLButtonElement),
+    gitHubSyncPush: requiredElement("github-sync-push", HTMLButtonElement),
+    gitHubSyncSettings: requiredElement("github-sync-settings", HTMLButtonElement),
     gitHubPullReview: requiredElement("github-pull-review", HTMLElement),
     previewGitHubPull: requiredElement("preview-github-pull", HTMLButtonElement),
     confirmGitHubPull: requiredElement("confirm-github-pull", HTMLButtonElement),

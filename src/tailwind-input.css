@@ -53,6 +53,81 @@
     box-shadow: inset 0 -1px var(--color-app-accent);
   }
 
+  .github-sync-trigger {
+    display: flex;
+    min-height: 2.1rem;
+    max-width: 12rem;
+    cursor: pointer;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid var(--color-app-line);
+    border-radius: var(--ui-radius-sm);
+    padding: 0.4rem 0.6rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+
+  .github-sync-trigger:hover,
+  .github-sync-menu[open] > .github-sync-trigger {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-raised);
+    color: var(--color-app-accent-strong);
+  }
+
+  .github-sync-trigger > :last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .github-sync-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    flex: none;
+    border-radius: 999px;
+    background: var(--color-app-accent);
+  }
+
+  .github-sync-trigger[data-tone="attention"] .github-sync-dot {
+    background: var(--color-app-warn);
+  }
+
+  .github-sync-trigger[data-tone="warning"] .github-sync-dot {
+    background: var(--color-app-error);
+  }
+
+  .github-sync-panel {
+    width: 19rem;
+  }
+
+  .github-sync-overview {
+    display: grid;
+    gap: 0.2rem;
+    border-bottom: 1px solid var(--color-app-line);
+    padding: 0.65rem 0.55rem;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+  }
+
+  .github-sync-overview strong,
+  .github-sync-overview span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .github-sync-overview span {
+    color: var(--color-app-text-soft);
+    font-size: 0.68rem;
+    line-height: 1.45;
+  }
+
+  .github-sync-panel button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
   .mobile-global-links {
     display: none;
   }
@@ -867,6 +942,7 @@
   body[data-app-mode="library"] .header-library-link,
   body[data-app-mode="library"] #share-workspace,
   body[data-app-mode="library"] #open-export,
+  body[data-app-mode="library"] #github-sync-menu,
   body[data-app-mode="library"] #connection-dot,
   body[data-app-mode="library"] #connection-status,
   body[data-app-mode="library"] .surface-switcher,
