@@ -856,13 +856,14 @@ test("resizes and remembers the desktop project rail", async ({ page }) => {
   if (!resizerBox) throw new Error("Expected project-rail resizer bounds");
   await page.mouse.move(resizerBox.x + resizerBox.width / 2, resizerBox.y + 40);
   await page.mouse.down();
-  await page.mouse.move(resizerBox.x + resizerBox.width / 2 + 32, resizerBox.y + 40);
+  await page.mouse.move(resizerBox.x + resizerBox.width / 2 + 64, resizerBox.y + 40);
   await page.mouse.up();
-  await expect(resizer).toHaveAttribute("aria-valuenow", "304");
-  await expect.poll(async () => Math.round((await rail.boundingBox())?.width ?? 0)).toBe(304);
+  await expect(resizer).toHaveAttribute("aria-valuenow", "336");
+  await expect.poll(async () => Math.round((await rail.boundingBox())?.width ?? 0)).toBe(336);
+  await expect(page.locator(".rail-mode-label").first()).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("separator", { name: "Resize project rail" })).toHaveAttribute("aria-valuenow", "304");
+  await expect(page.getByRole("separator", { name: "Resize project rail" })).toHaveAttribute("aria-valuenow", "336");
   await page.setViewportSize({ width: 1152, height: 900 });
   await expect(resizer).toHaveAttribute("aria-valuenow", "272");
   expect(
@@ -872,10 +873,10 @@ test("resizes and remembers the desktop project rail", async ({ page }) => {
     })),
   ).toMatchObject({ clientWidth: 1152, scrollWidth: 1152 });
   await page.setViewportSize({ width: 1600, height: 900 });
-  await expect(resizer).toHaveAttribute("aria-valuenow", "304");
+  await expect(resizer).toHaveAttribute("aria-valuenow", "336");
   await resizer.focus();
   await resizer.press("ArrowLeft");
-  await expect(resizer).toHaveAttribute("aria-valuenow", "288");
+  await expect(resizer).toHaveAttribute("aria-valuenow", "320");
   await resizer.press("Home");
   await expect(resizer).toHaveAttribute("aria-valuenow", "272");
   await expect

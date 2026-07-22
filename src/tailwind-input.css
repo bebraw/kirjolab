@@ -1143,6 +1143,8 @@
   }
 
   .source-rail {
+    container-name: source-rail;
+    container-type: inline-size;
     max-height: min(24rem, 48vh);
     overflow: auto;
   }
@@ -1188,6 +1190,27 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-width: 1.7;
+  }
+
+  .rail-mode-label {
+    display: none;
+  }
+
+  @container source-rail (min-width: 20rem) {
+    .rail-mode-label {
+      display: inline;
+      font-size: 0.55rem;
+      letter-spacing: 0.045em;
+    }
+
+    .rail-mode {
+      gap: 0.2rem;
+    }
+
+    .rail-mode-icon {
+      width: 1.1rem;
+      height: 1.1rem;
+    }
   }
 
   .rail-action-icon {
@@ -1687,6 +1710,20 @@
       content: "";
     }
 
+    .source-rail-resizer::before,
+    .authoring-context-resizer::before {
+      position: absolute;
+      z-index: 1;
+      top: 50%;
+      left: 50%;
+      width: 0.2rem;
+      height: 2rem;
+      transform: translate(-50%, -50%);
+      border-radius: var(--ui-radius-pill);
+      background: var(--color-app-line);
+      content: "";
+    }
+
     .source-rail-resizer:hover::after,
     .source-rail-resizer:focus-visible::after,
     .source-rail-resizer[data-dragging="true"]::after,
@@ -1694,6 +1731,15 @@
     .authoring-context-resizer:focus-visible::after,
     .authoring-context-resizer[data-dragging="true"]::after {
       width: 2px;
+      background: var(--color-app-accent);
+    }
+
+    .source-rail-resizer:hover::before,
+    .source-rail-resizer:focus-visible::before,
+    .source-rail-resizer[data-dragging="true"]::before,
+    .authoring-context-resizer:hover::before,
+    .authoring-context-resizer:focus-visible::before,
+    .authoring-context-resizer[data-dragging="true"]::before {
       background: var(--color-app-accent);
     }
 

@@ -109,6 +109,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('aria-selected="false" title="Research"');
     expect(html).toContain('aria-selected="false" title="Comments"');
     expect(html).toContain('aria-selected="false" title="Writing guide"');
+    expect(html).toContain('<span class="rail-mode-label">Research</span>');
+    expect(html).toContain('title="Drag to resize; use arrow keys to adjust; Home resets"');
     expect(html).toContain('id="files-rail-panel" role="tabpanel" aria-labelledby="show-files-rail">');
     expect(html).toContain('id="project-file-filter" type="search"');
     expect(html).toContain('id="project-file-filter-status" aria-live="polite"');

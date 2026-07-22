@@ -93,6 +93,9 @@ collaboration.
   It can collapse without losing that width and exposes an editor-toolbar
   restoration action while hidden. Compact layouts keep the stacked rail and
   omit the resize and collapse affordances.
+  At rail widths of at least 20rem, the navigation icons reveal short visible
+  labels. Both desktop separators expose a centered grip plus native help for
+  pointer dragging, arrow-key adjustment, and `Home` reset.
 - **Legacy project evidence:** Project-owned PDFs and their annotations remain
   available for existing projects without advertising the superseded upload
   path. Research hides the collection when both are absent; otherwise one
@@ -448,6 +451,8 @@ collaboration.
       default width, and preserves primary-pane minimum widths.
 - [x] The desktop project rail collapses and restores without losing its
       preferred expanded width or changing compact layouts.
+- [x] Wider project rails reveal mode labels, and desktop separators visibly
+      communicate their pointer and keyboard interactions.
 - [x] Desktop Authoring fills the workspace content row without an empty footer
       track or native manuscript resize affordance; long pane content scrolls
       locally without extending the outer document past the viewport.

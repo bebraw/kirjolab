@@ -175,16 +175,20 @@ export function renderHomePage(
           <div class="rail-mode-tabs" role="tablist" aria-label="Project navigation">
             <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-label="Files" aria-controls="files-rail-panel" aria-selected="true" title="Files">
               ${renderIcon("files", "rail-mode-icon")}
+              <span class="rail-mode-label">Files</span>
             </button>
             <button class="rail-mode" id="show-research-rail" type="button" role="tab" aria-label="Research" aria-controls="research-rail-panel" aria-selected="false" title="Research">
               ${renderIcon("research", "rail-mode-icon")}
+              <span class="rail-mode-label">Research</span>
             </button>
             <button class="rail-mode" id="show-comments-rail" type="button" role="tab" aria-label="Comments" aria-describedby="manuscript-comment-count" aria-controls="comments-rail-panel" aria-selected="false" title="Comments">
               ${renderIcon("comments", "rail-mode-icon")}
+              <span class="rail-mode-label">Comments</span>
               <span class="count-badge rail-mode-count" id="manuscript-comment-count">0</span>
             </button>
             <button class="rail-mode" id="show-guide-rail" type="button" role="tab" aria-label="Writing guide" aria-controls="guide-rail-panel" aria-selected="false" title="Writing guide">
               ${renderIcon("guide", "rail-mode-icon")}
+              <span class="rail-mode-label">Guide</span>
             </button>
           </div>
           <button class="collapse-source-rail" id="collapse-source-rail" type="button" aria-label="Collapse project rail" title="Collapse project rail">
@@ -306,7 +310,7 @@ export function renderHomePage(
         </section>
       </aside>
 
-      <div class="source-rail-resizer" id="source-rail-resizer" role="separator" aria-label="Resize project rail" aria-orientation="vertical" aria-valuemin="208" aria-valuemax="384" aria-valuenow="272" tabindex="0"></div>
+      <div class="source-rail-resizer" id="source-rail-resizer" role="separator" aria-label="Resize project rail" aria-orientation="vertical" aria-valuemin="208" aria-valuemax="384" aria-valuenow="272" title="Drag to resize; use arrow keys to adjust; Home resets" tabindex="0"></div>
 
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="authoring-surface">
         <div class="editor-toolbar ui-toolbar">
@@ -395,7 +399,7 @@ export function renderHomePage(
         <p class="sr-only" id="editor-help">Collaborative Markdown source. Chapter sections start at heading level two. Select text to link it to an annotation. Undo with Command-Z or Control-Z; redo with Command-Shift-Z, Control-Shift-Z, or Control-Y.</p>
       </section>
 
-      <div class="authoring-context-resizer" id="authoring-context-resizer" role="separator" aria-label="Resize authoring and context panes" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" tabindex="0"></div>
+      <div class="authoring-context-resizer" id="authoring-context-resizer" role="separator" aria-label="Resize authoring and context panes" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="48" title="Drag to resize; use arrow keys to adjust; Home resets" tabindex="0"></div>
 
       <section class="context-column preview-column min-w-0 bg-app-paper" id="context-surface" aria-label="Research context">
         <div class="preview-sync-controls" id="preview-sync-controls" role="group" aria-label="Synchronize source and preview">
