@@ -209,41 +209,10 @@ export async function handleReferenceLibraryApi(
   try {
     const collectionResponse = await handleLibraryCollectionRoutes(context);
     if (collectionResponse) return collectionResponse;
-    if (suffix === "/web-sources" && request.method === "POST") {
-      return await captureWebSource(request, identity, env, library, fetchExternal);
-    }
-    if (suffix === "/citation-network" && request.method === "GET") {
-      const projectId = url.searchParams.get("projectId")?.trim() || undefined;
-      if (projectId && !/^[a-z0-9-]{1,64}$/iu.test(projectId)) return jsonError("Invalid citation-network project filter", 400);
-      return Response.json(await library.getCitationNetwork(projectId), noStore());
-    }
-    if (suffix === "/citation-assertions" && request.method === "GET") {
-      const referenceId = url.searchParams.get("referenceId")?.trim() || undefined;
-      return Response.json(await library.getCitationAssertions(referenceId), noStore());
-    }
-    if (suffix === "/citation-assertions" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (!isCreateCitationAssertionInput(body)) return jsonError("Invalid citation assertion", 400);
-      return Response.json((await library.createCitationAssertions([body], identity.email))[0], { status: 201, ...noStore() });
-    }
-    const assertionReviewMatch = /^\/citation-assertions\/([0-9a-f-]{36})\/review$/iu.exec(suffix);
-    if (assertionReviewMatch?.[1] && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (!isReviewCitationAssertionInput(body)) return jsonError("Invalid citation assertion review", 400);
-      return Response.json(await library.reviewCitationAssertion(assertionReviewMatch[1], body, identity.email), noStore());
-    }
-    const comparisonMatch = /^\/web-snapshots\/([0-9a-f-]{36})\/compare\/([0-9a-f-]{36})$/iu.exec(suffix);
-    if (comparisonMatch?.[1] && comparisonMatch[2] && request.method === "GET") {
-      return await compareWebSnapshots(comparisonMatch[1], comparisonMatch[2], env, library);
-    }
-    const webSnapshotMatch = /^\/web-snapshots\/([0-9a-f-]{36})(?:\/(raw|readable))?$/iu.exec(suffix);
-    if (webSnapshotMatch?.[1] && request.method === "GET") {
-      const snapshot = await library.getWebSnapshot(webSnapshotMatch[1]);
-      const representation = webSnapshotMatch[2];
-      if (!representation) return Response.json(snapshot, noStore());
-      if (representation !== "raw" && representation !== "readable") return jsonError("Invalid web snapshot representation", 400);
-      return await downloadWebSnapshot(snapshot, representation, env);
-    }
+    const webResponse = await handleLibraryWebRoutes(context);
+    if (webResponse) return webResponse;
+    const citationResponse = await handleLibraryCitationRoutes(context);
+    if (citationResponse) return citationResponse;
     if (suffix === "/pdfs" && request.method === "POST")
       return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
     const pdfMatch = /^\/pdfs\/([0-9a-f-]{36})(?:\/(identify|rights|annotated))?$/iu.exec(suffix);
@@ -556,6 +525,79 @@ async function handleLibraryExportRoutes(context: ReferenceLibraryRouteContext):
       "cache-control": "no-store",
     },
   });
+}
+
+async function handleLibraryWebRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const captureResponse = await handleLibraryWebCaptureRoute(context);
+  if (captureResponse) return captureResponse;
+  const comparisonResponse = await handleLibraryWebComparisonRoute(context);
+  if (comparisonResponse) return comparisonResponse;
+  return await handleLibraryWebSnapshotRoute(context);
+}
+
+async function handleLibraryWebCaptureRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, identity, env, library, fetchExternal } = context;
+  if (suffix !== "/web-sources" || request.method !== "POST") return null;
+  return await captureWebSource(request, identity, env, library, fetchExternal);
+}
+
+async function handleLibraryWebComparisonRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, env, library } = context;
+  const comparisonMatch = /^\/web-snapshots\/([0-9a-f-]{36})\/compare\/([0-9a-f-]{36})$/iu.exec(suffix);
+  if (!comparisonMatch?.[1] || !comparisonMatch[2] || request.method !== "GET") return null;
+  return await compareWebSnapshots(comparisonMatch[1], comparisonMatch[2], env, library);
+}
+
+async function handleLibraryWebSnapshotRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, env, library } = context;
+  const webSnapshotMatch = /^\/web-snapshots\/([0-9a-f-]{36})(?:\/(raw|readable))?$/iu.exec(suffix);
+  if (!webSnapshotMatch?.[1] || request.method !== "GET") return null;
+
+  const snapshot = await library.getWebSnapshot(webSnapshotMatch[1]);
+  const representation = webSnapshotMatch[2];
+  if (!representation) return Response.json(snapshot, noStore());
+  if (representation !== "raw" && representation !== "readable") return jsonError("Invalid web snapshot representation", 400);
+  return await downloadWebSnapshot(snapshot, representation, env);
+}
+
+async function handleLibraryCitationRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const networkResponse = await handleLibraryCitationNetworkRoute(context);
+  if (networkResponse) return networkResponse;
+  const assertionResponse = await handleLibraryCitationAssertionRoutes(context);
+  if (assertionResponse) return assertionResponse;
+  return await handleLibraryCitationReviewRoute(context);
+}
+
+async function handleLibraryCitationNetworkRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, url, suffix, library } = context;
+  if (suffix !== "/citation-network" || request.method !== "GET") return null;
+  const projectId = url.searchParams.get("projectId")?.trim() || undefined;
+  if (projectId && !/^[a-z0-9-]{1,64}$/iu.test(projectId)) return jsonError("Invalid citation-network project filter", 400);
+  return Response.json(await library.getCitationNetwork(projectId), noStore());
+}
+
+async function handleLibraryCitationAssertionRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, url, suffix, identity, library } = context;
+  if (suffix === "/citation-assertions" && request.method === "GET") {
+    const referenceId = url.searchParams.get("referenceId")?.trim() || undefined;
+    return Response.json(await library.getCitationAssertions(referenceId), noStore());
+  }
+  if (suffix === "/citation-assertions" && request.method === "POST") {
+    const body: unknown = await request.json();
+    if (!isCreateCitationAssertionInput(body)) return jsonError("Invalid citation assertion", 400);
+    return Response.json((await library.createCitationAssertions([body], identity.email))[0], { status: 201, ...noStore() });
+  }
+  return null;
+}
+
+async function handleLibraryCitationReviewRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, identity, library } = context;
+  const assertionReviewMatch = /^\/citation-assertions\/([0-9a-f-]{36})\/review$/iu.exec(suffix);
+  if (!assertionReviewMatch?.[1] || request.method !== "POST") return null;
+
+  const body: unknown = await request.json();
+  if (!isReviewCitationAssertionInput(body)) return jsonError("Invalid citation assertion review", 400);
+  return Response.json(await library.reviewCitationAssertion(assertionReviewMatch[1], body, identity.email), noStore());
 }
 
 async function previewCrossrefMetadata(
