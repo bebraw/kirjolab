@@ -1,4 +1,15 @@
 @layer components {
+  .ui-icon {
+    width: 1em;
+    height: 1em;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+  }
+
   .eyebrow {
     color: var(--color-app-text-soft);
     font-family: var(--font-sans);

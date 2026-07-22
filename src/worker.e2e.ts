@@ -18,7 +18,10 @@ test("renders shared primitive states in the local UI inventory", async ({ page 
   await expect(page.getByRole("button", { name: "Working" })).toHaveAttribute("aria-busy", "true");
   await expect(page.getByRole("button", { name: "Remove" })).toHaveAttribute("data-destructive", "true");
   await expect(page.getByRole("button", { name: "Unavailable" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Close example" })).toHaveAttribute("data-touch-target", "true");
+  const closeButton = page.getByRole("button", { name: "Close example" });
+  await expect(closeButton).toHaveAttribute("data-touch-target", "true");
+  await expect(closeButton.locator("svg")).toHaveCSS("stroke", /rgb\(/u);
+  await expect(closeButton.locator("svg")).not.toHaveCSS("stroke", "none");
   await expect(page.getByLabel("Field label")).toHaveValue("Inspectable value");
   await expect(page.locator(".ui-status[data-tone='error']")).toContainText("Could not save");
   await expect(page.getByRole("group", { name: "Static dialog example" })).toBeVisible();

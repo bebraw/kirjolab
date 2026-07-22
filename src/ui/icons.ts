@@ -28,8 +28,8 @@ const ICONS = {
 export type IconName = keyof typeof ICONS;
 
 export function renderIcon(name: IconName, className?: string): string {
-  const classAttribute = className ? ` class="${escapeAttribute(className)}"` : "";
-  return `<svg${classAttribute} viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
+  const classes = ["ui-icon", className].filter(Boolean).join(" ");
+  return `<svg class="${escapeAttribute(classes)}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
 }
 
 function escapeAttribute(value: string): string {

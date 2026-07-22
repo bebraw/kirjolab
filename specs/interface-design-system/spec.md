@@ -22,7 +22,9 @@ introducing a frontend component framework.
   density on precise-pointer layouts. Reduced-motion preferences suppress
   decorative control transitions.
 - `src/ui/icons.ts` is the registry for repeated trusted SVG geometry. Its
-  names are a closed TypeScript union and rendered SVGs are decorative.
+  names are a closed TypeScript union and rendered SVGs are decorative. Every
+  registry icon receives the shared `ui-icon` presentation contract so its
+  geometry remains visible without feature-local paint rules.
   Icon-only controls retain a visible tooltip where useful and always have an
   accessible name.
 - `src/ui/markup.ts` may generate small primitive fragments but cannot own
