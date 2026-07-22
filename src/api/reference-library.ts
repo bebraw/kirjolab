@@ -238,25 +238,8 @@ export async function handleReferenceLibraryApi(
     const referenceContext = { ...context, referenceId, action } satisfies LibraryReferenceRouteContext;
     const referenceMetadataResponse = await handleLibraryReferenceMetadataRoutes(referenceContext);
     if (referenceMetadataResponse) return referenceMetadataResponse;
-    if (action === "tags" && request.method === "PUT") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || !Array.isArray(body.tags) || !body.tags.every((tag) => typeof tag === "string")) {
-        return jsonError("Invalid reference tags", 400);
-      }
-      return Response.json(await library.setTags(referenceId, body.tags), noStore());
-    }
-    if (action === "collections" && request.method === "PUT") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || !Array.isArray(body.collections) || !body.collections.every((item) => typeof item === "string")) {
-        return jsonError("Invalid reference collections", 400);
-      }
-      return Response.json(await library.setCollections(referenceId, body.collections), noStore());
-    }
-    if (action === "notes" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.body !== "string") return jsonError("Invalid reference note", 400);
-      return Response.json(await library.createNote(referenceId, body.body), { status: 201, ...noStore() });
-    }
+    const organizationResponse = await handleLibraryReferenceOrganizationRoutes(referenceContext);
+    if (organizationResponse) return organizationResponse;
     if (action === "highlights" && request.method === "POST") {
       const body: unknown = await request.json();
       if (
@@ -666,6 +649,42 @@ function isReferenceMetadataUpdate(value: unknown): value is ReferenceMetadataUp
     typeof value.abstract === "string" &&
     value.abstract.length <= 20_000
   );
+}
+
+async function handleLibraryReferenceOrganizationRoutes(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const tagsResponse = await handleLibraryReferenceTagsRoute(context);
+  if (tagsResponse) return tagsResponse;
+  const collectionsResponse = await handleLibraryReferenceCollectionsRoute(context);
+  if (collectionsResponse) return collectionsResponse;
+  return await handleLibraryReferenceNotesRoute(context);
+}
+
+async function handleLibraryReferenceTagsRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action !== "tags" || request.method !== "PUT") return null;
+  const body: unknown = await request.json();
+  if (!isRecord(body) || !Array.isArray(body.tags) || !body.tags.every((tag) => typeof tag === "string")) {
+    return jsonError("Invalid reference tags", 400);
+  }
+  return Response.json(await library.setTags(referenceId, body.tags), noStore());
+}
+
+async function handleLibraryReferenceCollectionsRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action !== "collections" || request.method !== "PUT") return null;
+  const body: unknown = await request.json();
+  if (!isRecord(body) || !Array.isArray(body.collections) || !body.collections.every((item) => typeof item === "string")) {
+    return jsonError("Invalid reference collections", 400);
+  }
+  return Response.json(await library.setCollections(referenceId, body.collections), noStore());
+}
+
+async function handleLibraryReferenceNotesRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action !== "notes" || request.method !== "POST") return null;
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.body !== "string") return jsonError("Invalid reference note", 400);
+  return Response.json(await library.createNote(referenceId, body.body), { status: 201, ...noStore() });
 }
 
 async function previewCrossrefMetadata(
