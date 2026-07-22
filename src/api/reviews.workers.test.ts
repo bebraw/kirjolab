@@ -106,7 +106,11 @@ describe("independent reviews API in the Workers runtime", () => {
       archivedAt: null,
     });
     await env.REVIEW_ACCESS.getByName(conflicting.locator.storageKey).initializeOwner(conflicting.id, owner.email);
-    await env.REVIEW_STUDIES.getByName(conflicting.locator.storageKey).initializeProfile("slr", owner.email);
+    await expect(env.REVIEW_STUDIES.getByName(conflicting.locator.storageKey).initializeProfile("slr", owner.email)).resolves.toMatchObject(
+      {
+        ok: true,
+      },
+    );
     const conflictingStudy = await handleReviewsApi(
       new Request(`http://example.com/api/reviews/${conflicting.id}/review-study`),
       env,
@@ -235,7 +239,7 @@ describe("independent reviews API in the Workers runtime", () => {
     const owner = await testIdentity("legacy-profile-conflict-owner");
     const project = await createProject(owner, "Legacy profile conflict");
     const study = env.REVIEW_STUDIES.getByName(project.id);
-    await study.initializeProfile("mlr", owner.email);
+    await expect(study.initializeProfile("mlr", owner.email)).resolves.toMatchObject({ ok: true });
     const access = env.REVIEW_ACCESS.getByName(project.id);
     const initialization = await access.initializeLegacyMembers(await project.access.listMembers(owner.email));
     const catalog = env.REVIEW_CATALOGS.getByName(owner.ownerKey);

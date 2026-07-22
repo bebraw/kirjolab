@@ -26,9 +26,10 @@ response appeared as another network-loss exception.
 Return typed, structured-clone-safe discriminated results from the modified
 `DocumentRoom` RPC methods for anticipated client outcomes. Cover edit-link
 revision and file conflicts, guarded reference unlinking, claim-update
-validation, and model-candidate validation. Map result codes explicitly to the
-existing HTTP statuses at the Worker boundary. Continue throwing unexpected
-programming, storage, and infrastructure failures.
+validation, and model-candidate validation. Apply the same contract to
+`ReviewStudy` profile initialization conflicts. Map result codes explicitly to
+the existing HTTP statuses at the Worker boundary. Continue throwing
+unexpected programming, storage, and infrastructure failures.
 
 Route every `DocumentRoom` WebSocket send through one helper. Skip sockets that
 are already closed and suppress only a confirmed connection-loss race or the

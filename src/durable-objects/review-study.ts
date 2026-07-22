@@ -885,6 +885,10 @@ export interface ReplaceReviewProtocolInput {
   readonly actor: string;
 }
 
+export type ReviewProfileInitializationResult =
+  | { readonly ok: true; readonly value: ReviewStudySnapshot }
+  | { readonly ok: false; readonly code: "profile-conflict"; readonly error: string };
+
 export interface AmendReviewProtocolInput extends ReplaceReviewProtocolInput {
   readonly rationale: string;
 }
@@ -927,12 +931,16 @@ export class ReviewStudy extends DurableObject<Env> {
     return this.protocolRows().length > 0;
   }
 
-  initializeProfile(profile: ReviewProfile, actor = "system"): ReviewStudySnapshot {
+  initializeProfile(profile: ReviewProfile, actor = "system"): ReviewProfileInitializationResult {
     const snapshot = this.getSnapshot(profile, actor);
     if (snapshot.protocol.profile !== profile) {
-      throw new Error("Review method profile conflicts with the initialized study");
+      return {
+        ok: false,
+        code: "profile-conflict",
+        error: "Review method profile conflicts with the initialized study",
+      };
     }
-    return snapshot;
+    return { ok: true, value: snapshot };
   }
 
   getSnapshot(profile: ReviewProfile = "slr", actor = "system"): ReviewStudySnapshot {

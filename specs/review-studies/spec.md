@@ -596,7 +596,9 @@ published deliberately into several writing projects.
 - A review's SLR or MLR profile is immutable once registered. Creation
   initializes ReviewStudy with that profile before ReviewAccess makes the
   resource resolvable, and every canonical workflow operation validates the
-  catalog profile before using or initializing the study.
+  catalog profile before using or initializing the study. A conflicting
+  initialization returns a typed routine result across the Durable Object RPC
+  boundary and maps to HTTP 409 without emitting operational error telemetry.
 - Project membership, review membership, and private Library ownership remain
   independent. Project-link creation, evidence selection, and publication must
   not weaken any of those checks.

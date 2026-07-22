@@ -49,7 +49,9 @@ export async function handleReviewStudyApi(
     profile: "slr",
   },
 ): Promise<Response> {
-  const initialized = await study.initializeProfile(context.profile, identity.email);
+  const initialization = await study.initializeProfile(context.profile, identity.email);
+  if (!initialization.ok) throw new Error(initialization.error);
+  const initialized = initialization.value;
   if (suffix === "/review-study" && request.method === "GET") {
     return noStore(initialized);
   }

@@ -27,8 +27,8 @@ describe("ReviewStudy in the Workers runtime", () => {
       sameProfile.initializeProfile("mlr", "first@example.test"),
       sameProfile.initializeProfile("mlr", "second@example.test"),
     ]);
-    expect(first).toMatchObject({ revision: 1, protocol: { profile: "mlr" } });
-    expect(second).toMatchObject({ revision: 1, protocol: { profile: "mlr" } });
+    expect(first).toMatchObject({ ok: true, value: { revision: 1, protocol: { profile: "mlr" } } });
+    expect(second).toMatchObject({ ok: true, value: { revision: 1, protocol: { profile: "mlr" } } });
     expect(
       await runInDurableObject(
         sameProfile,
@@ -38,14 +38,20 @@ describe("ReviewStudy in the Workers runtime", () => {
     ).toBe(1);
 
     const conflicting = env.REVIEW_STUDIES.getByName(`review-profile-conflict-${crypto.randomUUID()}`);
-    const results = await Promise.allSettled([
+    const results = await Promise.all([
       conflicting.initializeProfile("slr", "slr@example.test"),
       conflicting.initializeProfile("mlr", "mlr@example.test"),
     ]);
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
-    const winner = results.find((result) => result.status === "fulfilled");
-    if (!winner || winner.status !== "fulfilled") throw new Error("Review profile initialization had no winner");
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(results.filter((result) => !result.ok)).toEqual([
+      {
+        ok: false,
+        code: "profile-conflict",
+        error: "Review method profile conflicts with the initialized study",
+      },
+    ]);
+    const winner = results.find((result) => result.ok);
+    if (!winner?.ok) throw new Error("Review profile initialization had no winner");
     expect((await conflicting.getSnapshot()).protocol.profile).toBe(winner.value.protocol.profile);
   });
 

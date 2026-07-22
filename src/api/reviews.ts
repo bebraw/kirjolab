@@ -120,7 +120,8 @@ export async function createReviewResource(
   const access = env.REVIEW_ACCESS.getByName(record.locator.storageKey);
   const study = env.REVIEW_STUDIES.getByName(record.locator.storageKey);
   try {
-    await study.initializeProfile(profile, identity.email);
+    const initialization = await study.initializeProfile(profile, identity.email);
+    if (!initialization.ok) throw new Error(initialization.error);
     await access.initializeOwner(record.id, identity.email);
   } catch (error) {
     await study.deleteReviewData();
@@ -200,9 +201,9 @@ export async function ensureLegacyReviewResource(
 
     const ownerCatalog = env.REVIEW_CATALOGS.getByName(await reviewCatalogOwnerKey(identity, owner.email));
     const authoritative = await ownerCatalog.getReview(initialization.reviewId);
-    const snapshot = authoritative
-      ? await study.initializeProfile(authoritative.profile, identity.email)
-      : await study.getSnapshot("slr", identity.email);
+    const profileInitialization = authoritative ? await study.initializeProfile(authoritative.profile, identity.email) : null;
+    if (profileInitialization && !profileInitialization.ok) throw new Error(profileInitialization.error);
+    const snapshot = profileInitialization?.value ?? (await study.getSnapshot("slr", identity.email));
     const registration = {
       reviewId: initialization.reviewId,
       title: authoritative?.title ?? workspace.title,
