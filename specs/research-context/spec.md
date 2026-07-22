@@ -143,6 +143,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Local tab state is scoped to the current workspace. Switching workspaces
   reconciles it against the new authorized snapshot so a stale tab cannot show
   a resource from another workspace.
+- When at least one resource tab is open, a compact context overview lists all
+  permanent and resource tabs from that same local state. It can activate any
+  context and close only resource tabs; it does not own a parallel tab model or
+  change scholarly resources.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.
@@ -200,6 +204,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   resetting its reading position.
 - Automatic navigation opens or focuses a kind-qualified resource tab. It never
   closes another tab; only the resource's explicit close icon does so.
+- The context overview projects the same stable tab order, active state, labels,
+  and close rules as the visible tab strip.
 - Selecting text in a visible PDF populates an annotation draft for that exact
   PDF and page and immediately paints its pending geometry over the page so
   the researcher does not lose visual context. Its PDF target is locked to the

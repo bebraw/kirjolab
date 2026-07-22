@@ -2025,11 +2025,12 @@
   }
 
   .context-tabs {
+    position: relative;
     display: flex;
     min-height: 3rem;
     flex: none;
     align-items: stretch;
-    overflow: hidden;
+    overflow: visible;
     border-bottom: 1px solid var(--color-app-line);
     background: var(--color-app-paper);
   }
@@ -2112,6 +2113,120 @@
     stroke: currentColor;
     stroke-linecap: round;
     stroke-width: 1.75;
+  }
+
+  .context-tab-overview {
+    position: relative;
+    display: flex;
+    flex: none;
+    align-items: stretch;
+    border-left: 1px solid var(--color-app-line);
+    font-family: var(--font-sans);
+  }
+
+  .context-tab-overview[hidden] {
+    display: none;
+  }
+
+  .context-tab-overview-trigger {
+    display: flex;
+    min-height: 3rem;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.55rem 0.7rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .context-tab-overview-trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  .context-tab-overview-trigger:hover,
+  .context-tab-overview[open] .context-tab-overview-trigger {
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+  }
+
+  .context-tab-overview-menu {
+    top: calc(100% + 0.35rem);
+    right: 0;
+    left: auto;
+    z-index: 35;
+    width: min(22rem, calc(100vw - 2rem));
+    max-height: min(28rem, calc(100vh - 6rem));
+    overflow: auto;
+  }
+
+  .context-tab-overview-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    border-bottom: 1px solid var(--color-app-line);
+  }
+
+  .context-tab-overview-row:last-child {
+    border-bottom: 0;
+  }
+
+  .context-tab-overview-menu .context-tab-overview-activate {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem;
+    text-align: left;
+  }
+
+  .context-tab-overview-activate strong,
+  .context-tab-overview-activate span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .context-tab-overview-activate span {
+    color: var(--color-app-text-soft);
+    font-size: 0.64rem;
+    text-transform: capitalize;
+  }
+
+  .context-tab-overview-activate:hover,
+  .context-tab-overview-activate[aria-current="page"] {
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+  }
+
+  .context-tab-overview-menu .context-tab-overview-close {
+    display: grid;
+    width: 2.5rem;
+    place-items: center;
+    color: var(--color-app-text-soft);
+    font-size: 1.15rem;
+  }
+
+  .context-tab-overview-close:hover {
+    background: var(--color-app-raised);
+    color: var(--color-app-accent-strong);
+  }
+
+  @media (max-width: 40rem) {
+    .context-tab-overview .context-tab-overview-menu {
+      position: fixed;
+      top: auto;
+      right: 0.75rem;
+      bottom: max(0.75rem, env(safe-area-inset-bottom));
+      left: 0.75rem;
+      width: auto;
+      max-height: calc(100vh - 1.5rem);
+    }
   }
 
   .context-tab-controls {

@@ -2720,6 +2720,15 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Close The Normative Structure of Science" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Close context-paper.pdf" })).toBeVisible();
+  const contextOverview = page.locator("#context-tab-overview");
+  await expect(contextOverview).toBeVisible();
+  await expect(page.locator("#context-tab-overview-count")).toHaveText("5");
+  await contextOverview.locator("summary").click();
+  await expect(page.locator("#context-tab-overview-list")).toContainText("Preview");
+  await expect(page.locator("#context-tab-overview-list")).toContainText("The Normative Structure of Science");
+  await page.locator("#context-tab-overview-list [data-context-key]").filter({ hasText: "Preview" }).click();
+  await expect(page.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "context-paper.pdf" }).click();
   const pdfTabId = await page.getByRole("tab", { name: "context-paper.pdf" }).getAttribute("id");
   await expect(page.locator("#context-pdf-panel")).toHaveAttribute("aria-labelledby", pdfTabId ?? "missing");
   await expect(page.locator("#annotation-pdf")).toBeDisabled();
@@ -2804,7 +2813,8 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect.poll(async () => ((await editor.inputValue()).match(/:cite\[merton1942\]/gu) ?? []).length).toBe(3);
   await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
   await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("button", { name: "Close The Normative Structure of Science" }).click();
+  await contextOverview.locator("summary").click();
+  await page.getByRole("button", { name: "Close The Normative Structure of Science from context list" }).click();
   await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Writing assistant" })).toHaveAttribute("aria-selected", "true");
 

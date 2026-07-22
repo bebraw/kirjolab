@@ -370,6 +370,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   reading position local to the browser and scoped to its authorized workspace.
   Never write routine reading navigation into Yjs, Durable Object resources, or
   collaboration control messages.
+- Project any context-tab overview directly from the same local, authorized tab
+  state. It may activate or close eligible tabs but must not introduce a second
+  registry, persistence channel, or scholarly mutation path.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Push meaningful context-target navigation, replace incidental view and page

@@ -30,6 +30,10 @@ export function renderHomePage(
             <button class="context-tab ui-tab" id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1">Writing assistant</button>
             <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
           </div>
+          <details class="context-tab-overview action-menu ui-menu" id="context-tab-overview" data-action-menu hidden>
+            <summary class="context-tab-overview-trigger" aria-label="Open context list" title="Open context list">Tabs <span class="count-badge" id="context-tab-overview-count">3</span></summary>
+            <div class="editor-command-menu context-tab-overview-menu ui-menu-panel" id="context-tab-overview-list" aria-label="Open contexts"></div>
+          </details>
           <div class="context-tab-controls" aria-label="Active context actions">
             <div class="context-mode-controls" id="preview-context-controls">
               <span class="preview-file-context" id="preview-file-context" title="main.md · composed paper">main.md · composed paper</span>

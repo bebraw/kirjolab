@@ -45,6 +45,11 @@ Each tab retains its own reading position while the user switches context:
 preview scroll for the Preview tab, and page, scroll, and focused annotation
 for a PDF tab.
 
+When resource tabs are present, a compact overview projects that same ordered
+tab state into a complete list. It activates permanent or resource contexts and
+offers close actions only for resource tabs. The overview is a navigation
+projection, not a second tab registry or persistence boundary.
+
 Open tabs, active tab, and reading positions are local, ephemeral UI
 state. They are not Yjs document content, Durable Object resources, or
 collaborative presence. Publications, PDFs, annotations, claims, and their

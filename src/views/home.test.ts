@@ -170,6 +170,8 @@ describe("renderHomePage", () => {
     expect(html.match(/data-touch-target="true"/gu)).toHaveLength(8);
     expect(html).toContain('id="archive-workspace" type="button" data-destructive="true"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
+    expect(html).toContain('id="context-tab-overview" data-action-menu hidden');
+    expect(html).toContain('id="context-tab-overview-list" aria-label="Open contexts"');
     expect(html).not.toContain('id="pin-active-context"');
     expect(html).not.toContain('id="close-active-context"');
     expect(html).toContain('id="pdf-context-controls" hidden');
