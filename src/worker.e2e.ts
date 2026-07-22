@@ -796,6 +796,23 @@ test("follows and remembers the selected appearance", async ({ page }) => {
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe("light dark");
 });
 
+test("keeps an activated application update available until refresh", async ({ page }) => {
+  await page.goto("/editor/demo");
+  await page.evaluate(async () => await navigator.serviceWorker.ready);
+  await page.reload();
+  await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
+
+  await page.evaluate(() => navigator.serviceWorker.dispatchEvent(new Event("controllerchange")));
+  await expect(page.locator("#toast")).toContainText("A new version of Kirjolab is available.");
+  await expect(page.getByRole("button", { name: "Refresh now" })).toBeVisible();
+
+  await page.locator("#preferences-menu > summary").click();
+  await page.locator("#copy-application-version").click();
+  await expect(page.locator("#toast")).toContainText("Copied application version");
+  await expect(page.locator("#toast")).toContainText("A new version of Kirjolab is available.", { timeout: 5_000 });
+  await expect(page.getByRole("button", { name: "Refresh now" })).toBeVisible();
+});
+
 test("keeps the workspace within a compact desktop viewport", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 });
   const workspaceId = await createWorkspace(page, "Compact desktop");

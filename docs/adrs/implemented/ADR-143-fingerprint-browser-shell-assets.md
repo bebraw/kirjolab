@@ -38,12 +38,15 @@ fingerprinted Markdown runtime. Activation deletes every older Kirjolab shell
 cache.
 
 On application startup, explicitly ask the existing registration to check for
-an update. When an already-controlled page receives a new controller, persist
-its current offline workspace and reload once. The newly activated worker then
-serves the matching application, stylesheet, and runtime generation. A first
-installation does not reload merely because it gains its initial controller.
-Expose the same shell fingerprint as a copyable application version in
-Preferences so error reports can identify stale clients directly.
+an update. When an already-controlled page receives a new controller, show a
+persistent update notice with a Refresh now action. Transient notices may
+briefly replace it, but the update notice returns until accepted. Acceptance
+persists the current offline workspace and reloads once. The newly activated
+worker then serves the matching application, stylesheet, and runtime
+generation. A first installation does not show an update merely because it
+gains its initial controller. Expose the same shell fingerprint as a copyable
+application version in Preferences so error reports can identify stale clients
+directly.
 
 Keep authenticated navigation network-first and keep APIs, WebSockets, exports,
 library data, model requests, and private PDF bytes outside service-worker
@@ -57,8 +60,8 @@ write target.
 - A runtime behavior change cannot reuse an immutable URL from an older build.
 - Every shell-content change produces different service-worker bytes and a new
   Cache Storage namespace.
-- Installed PWAs update after activation without requiring manual Safari site
-  data removal.
+- Installed PWAs offer an explicit refresh after activation without requiring
+  manual Safari site data removal.
 - Error reports can identify the exact browser-shell generation from
   Preferences.
 - Old Kirjolab shell caches are bounded by activation cleanup.
@@ -67,8 +70,8 @@ write target.
 
 - The browser-shell build becomes an ordered orchestration step and builds the
   application provisionally before emitting its final version.
-- An activated update reloads an open application after persisting its current
-  offline workspace.
+- An activated update can leave an open application on its previous generation
+  until the user accepts the persistent refresh notice.
 
 **Neutral:**
 

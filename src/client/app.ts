@@ -229,6 +229,7 @@ interface ToastAction {
   readonly label: string;
   readonly run: () => void;
   readonly durationMs?: number;
+  readonly persistent?: boolean;
 }
 
 interface DeferredDeletion {
@@ -768,6 +769,7 @@ class WorkspaceApp {
   #modelDiscoveryBusy = false;
   #hasBootstrapSnapshot = false;
   #toastTimer: number | undefined;
+  #applicationUpdateAvailable = false;
   readonly #hiddenProjectFileIds = new Set<string>();
   readonly #hiddenProjectFolderIds = new Set<string>();
   readonly #hiddenProjectImageIds = new Set<string>();
@@ -10023,7 +10025,8 @@ class WorkspaceApp {
   async #prepareOfflineShell(): Promise<void> {
     try {
       const registered = await registerOfflineServiceWorker(navigator.serviceWorker, () => {
-        void this.#persistOfflineWorkspace().finally(() => location.reload());
+        this.#applicationUpdateAvailable = true;
+        this.#showApplicationUpdate();
       });
       if (!registered || typeof caches === "undefined") return;
       if (await cacheOfflineNavigation(caches, fetch, location.href)) document.body.dataset.offlineReady = "true";
@@ -10071,10 +10074,22 @@ class WorkspaceApp {
     }
     this.#elements.toast.dataset.visible = "true";
     this.#presentToast();
+    if (action?.persistent) return;
     this.#toastTimer = window.setTimeout(() => {
       delete this.#elements.toast.dataset.visible;
       if (this.#elements.toast.matches(":popover-open")) this.#elements.toast.hidePopover();
+      if (this.#applicationUpdateAvailable) this.#showApplicationUpdate();
     }, action?.durationMs ?? 3_200);
+  }
+
+  #showApplicationUpdate(): void {
+    this.#showToast("A new version of Kirjolab is available.", {
+      label: "Refresh now",
+      persistent: true,
+      run: () => {
+        void this.#persistOfflineWorkspace().finally(() => location.reload());
+      },
+    });
   }
 
   #presentToast(): void {

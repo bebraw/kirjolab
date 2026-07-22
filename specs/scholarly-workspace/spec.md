@@ -174,7 +174,9 @@ collaboration.
 - **Offline shell updates:** Browser builds derive the Kirjolab Cache Storage
   namespace from emitted shell content. An existing registration checks for an
   update on startup; activation removes old shell generations, persists an
-  open offline workspace, and reloads the controlled page once.
+  open offline workspace when the user accepts a persistent update notice, and
+  reloads the controlled page once. Ordinary transient notices may briefly
+  replace the update notice, which returns until the user refreshes.
 - **Collaborator selections:** A client may send only an exact-key, bounded
   `protocol: 1` selection message for the current file and revision. The room
   supplies its socket identity, validates the range, broadcasts it only to
@@ -473,6 +475,8 @@ collaboration.
       locally across projects and refreshes.
 - [x] Header Preferences exposes a copyable application version matching the
       active build-derived offline shell generation.
+- [x] An activated offline-shell update keeps a Refresh now notice available
+      until the user accepts it, then persists open offline work before reload.
 - [x] Writing assistant opens the shared model preferences without duplicating
       connection fields inside its task workflow.
 - [x] Insert-menu file paths truncate safely beside compact syntax help instead
