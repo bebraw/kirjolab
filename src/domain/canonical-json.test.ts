@@ -10,6 +10,7 @@ describe("canonical JSON", () => {
     };
     expect(canonicalJson(value)).toBe('{"A":{"a":1,"b":2},"a":[3,{"x":null,"y":false},null],"z":1}');
     expect(canonicalValue(value)).toEqual({ A: { a: 1, b: 2 }, a: [3, { x: null, y: false }, undefined], z: 1 });
+    expect(canonicalValue({ kept: 1, omitted: undefined })).toStrictEqual({ kept: 1 });
   });
 
   it("leaves scalar values unchanged", () => {
