@@ -5,7 +5,7 @@ import { renderExportPdf } from "./api/export-artifacts";
 import { handleWorkspaceApi } from "./api/workspace";
 import { handleProjectTemplateApi } from "./api/project-templates";
 import { handleGitHubConnectionApi } from "./api/github-connection";
-import { handleGitHubImportApi } from "./api/github-sync";
+import { handleGitHubImportApi } from "./api/github-import";
 import { handleLatexImportApi } from "./api/latex-import";
 import { handleReferenceLibraryApi } from "./api/reference-library";
 import {

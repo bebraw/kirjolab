@@ -38,6 +38,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Confine every operation to its configured subtree, retain a three-way sync
   base, apply pulls through existing Yjs texts, and publish reviewed changes as
   one non-forced direct commit by default; never synchronize in the background.
+  Keep import creation, bound-workspace synchronization, and their shared
+  transport/error contracts in separate server modules; callers depend only on
+  the phase they invoke.
 - Import LaTeX archives only through a bounded, authenticated Worker workflow
   that separates non-mutating inspection from reviewed project creation. Keep
   Markdown canonical; never retain TeX as a second editable authority or

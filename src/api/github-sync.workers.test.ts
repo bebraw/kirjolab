@@ -2,7 +2,9 @@ import { env } from "cloudflare:workers";
 import { describe, expect, it, vi } from "vitest";
 import type { GitHubCommitChange, GitHubRepositorySelection, GitHubRepositorySnapshot } from "../integrations/github-app";
 import type { AuthIdentity } from "../security/auth";
-import { handleGitHubImportApi, handleGitHubWorkspaceSyncApi, type GitHubSyncRemoteClient } from "./github-sync";
+import { handleGitHubImportApi } from "./github-import";
+import { handleGitHubWorkspaceSyncApi } from "./github-sync";
+import type { GitHubSyncRemoteClient } from "./github-sync-contracts";
 
 const identity = {
   subject: "local:test",
