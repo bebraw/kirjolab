@@ -13,13 +13,7 @@ export function renderReviewStudySurface(review: ReviewSummary, projectLinks: re
   const publicationPath = `review/${review.id}/synthesis.md`;
   return `<section class="review-study-dialog review-study-page ui-panel" id="review-study-dialog">
   <div class="review-study-shell">
-    <header class="review-study-header">
-      <div><p class="eyebrow">Evidence review</p><h2>${escapedReviewTitle}</h2><p class="review-study-subtitle">${review.profile === "slr" ? "Systematic" : "Multivocal"} evidence workflow · independent review</p></div>
-      <div class="flex items-center gap-2"><span class="count-badge" id="review-protocol-state">Draft</span><a class="button-secondary" href="/review">All reviews</a></div>
-    </header>
-    <nav class="review-study-steps" aria-label="Review study stages">
-      <button id="review-step-plan" type="button" aria-current="step">1. Plan</button><button id="review-step-search" type="button" disabled>2. Search</button><button id="review-step-screen" type="button" disabled>3. Screen</button><button id="review-step-appraise" type="button" disabled>4. Appraise</button><button id="review-step-extract" type="button" disabled>5. Extract</button><button id="review-step-synthesize" type="button" disabled>6. Synthesize</button><button id="review-step-report" type="button" disabled>7. Report</button>
-    </nav>
+    ${renderStudyNavigation(escapedReviewTitle, review.profile)}
     <form class="review-study-content" id="review-protocol-form">
       <section class="review-study-intro">
         <div><p class="eyebrow">Protocol</p><h3>Frame the review before searching</h3><p>Research questions, concepts, and source-specific queries remain versioned together. Freeze the protocol before the first search; later changes require a rationale.</p></div>
@@ -66,6 +60,16 @@ export function renderReviewStudySurface(review: ReviewSummary, projectLinks: re
     <section class="review-screen-content" id="review-report-content" hidden><header class="review-screen-toolbar"><div><p class="eyebrow">Reproducibility</p><h3>Review package</h3><p>Every format below derives from the same current review revision.</p></div><div class="review-search-actions"><a class="button-primary" href="${escapedApiBase}/export/review.zip">Download review ZIP</a></div></header><div class="review-report-grid"><figure class="review-study-card"><img id="review-prisma-flow" data-src="${escapedApiBase}/export/prisma.svg" loading="lazy" alt="PRISMA flow diagram derived from the current review revision"><figcaption>Accessible PRISMA flow. JSON remains the calculation authority.</figcaption></figure><section class="review-study-card"><h4>Inspect individual artifacts</h4><div class="review-report-links"><a href="${escapedApiBase}/export/review.json">Lossless review JSON</a><a href="${escapedApiBase}/export/extraction.csv">Long-form extraction CSV</a><a href="${escapedApiBase}/export/bibliography.bib">Scoped BibTeX</a><a href="${escapedApiBase}/export/prisma.json">PRISMA JSON</a><a href="${escapedApiBase}/export/prisma.svg">PRISMA SVG</a></div></section></div><footer class="review-study-footer"><p role="status">The ZIP manifest lists schema versions, revision pins, byte counts, and SHA-256 digests.</p><div><button class="button-secondary" id="back-to-review-synthesis" type="button">Back to synthesis</button></div></footer></section>
   </div>
 </section>`;
+}
+
+function renderStudyNavigation(escapedReviewTitle: string, profile: ReviewSummary["profile"]): string {
+  return `<header class="review-study-header">
+      <div><p class="eyebrow">Evidence review</p><h2>${escapedReviewTitle}</h2><p class="review-study-subtitle">${profile === "slr" ? "Systematic" : "Multivocal"} evidence workflow · independent review</p></div>
+      <div class="flex items-center gap-2"><span class="count-badge" id="review-protocol-state">Draft</span><a class="button-secondary" href="/review">All reviews</a></div>
+    </header>
+    <nav class="review-study-steps" aria-label="Review study stages">
+      <button id="review-step-plan" type="button" aria-current="step">1. Plan</button><button id="review-step-search" type="button" disabled>2. Search</button><button id="review-step-screen" type="button" disabled>3. Screen</button><button id="review-step-appraise" type="button" disabled>4. Appraise</button><button id="review-step-extract" type="button" disabled>5. Extract</button><button id="review-step-synthesize" type="button" disabled>6. Synthesize</button><button id="review-step-report" type="button" disabled>7. Report</button>
+    </nav>`;
 }
 
 function isPublicationTarget(link: ReviewProjectLinkView): link is PublicationTarget {
