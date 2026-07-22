@@ -80,6 +80,13 @@ const authenticatedApiRoutes: readonly AuthenticatedApiRoute[] = [
   { matches: (path) => matchesApiFamily(path, "/api/workspaces"), handle: handleWorkspaceApi },
   { matches: (path) => matchesApiFamily(path, "/api/library"), handle: handleReferenceLibraryApi },
 ];
+const staticScriptLoaders = new Map<string, () => Promise<string>>([
+  ["/app.js", loadClientScript],
+  ["/review-app.js", loadReviewClientScript],
+  ["/service-worker.js", loadServiceWorkerScript],
+  ["/shared-editor.js", loadSharedEditorScript],
+  ["/pdf.worker.js", loadPdfWorkerScript],
+]);
 
 export default {
   async fetch(request: Request, env?: Env, ctx?: ExecutionContext): Promise<Response> {
@@ -168,22 +175,28 @@ async function handleReviewIndexRequest(
   if (url.pathname !== "/review") return null;
   if (request.method === "POST") {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
-    try {
-      const form = await request.formData();
-      const title = String(form.get("title") ?? "").trim();
-      const profile = form.get("profile");
-      if (!title || title.length > 120 || (profile !== "slr" && profile !== "mlr")) {
-        return Response.json({ error: "Review creation request is invalid" }, { status: 400 });
-      }
-      const resource = await createReviewResource(env, identity, title, profile);
-      return redirectResponse(resource.record.href, 303);
-    } catch (error) {
-      return Response.json({ error: error instanceof Error ? error.message : "Review creation failed" }, { status: 400 });
-    }
+    return await createReviewFromForm(request, env, identity);
   }
   if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
   const reviews = env ? await discoverLegacyReviews(env, identity) : fallbackReviews();
   return htmlResponse(renderReviewsPage(reviews, identity.email, identity.mode), 200, url);
+}
+
+async function createReviewFromForm(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
+  try {
+    const input = reviewCreationInput(await request.formData());
+    if (!input) return Response.json({ error: "Review creation request is invalid" }, { status: 400 });
+    const resource = await createReviewResource(env, identity, input.title, input.profile);
+    return redirectResponse(resource.record.href, 303);
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "Review creation failed" }, { status: 400 });
+  }
+}
+
+function reviewCreationInput(form: FormData): { readonly title: string; readonly profile: "slr" | "mlr" } | null {
+  const title = String(form.get("title") ?? "").trim();
+  const profile = form.get("profile");
+  return title && title.length <= 120 && (profile === "slr" || profile === "mlr") ? { title, profile } : null;
 }
 
 async function handleReviewProjectLinksRequest(
@@ -274,11 +287,8 @@ async function handlePublicRequest(request: Request, url: URL, env: Env | undefi
 async function handleStaticRequest(request: Request, url: URL, env: Env | undefined): Promise<Response | null> {
   if (url.pathname === "/styles.css") return cssResponse(await loadStylesheet());
   if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return faviconResponse();
-  if (url.pathname === "/app.js") return scriptResponse(await loadClientScript());
-  if (url.pathname === "/review-app.js") return scriptResponse(await loadReviewClientScript());
-  if (url.pathname === "/service-worker.js") return scriptResponse(await loadServiceWorkerScript());
-  if (url.pathname === "/shared-editor.js") return scriptResponse(await loadSharedEditorScript());
-  if (url.pathname === "/pdf.worker.js") return scriptResponse(await loadPdfWorkerScript());
+  const scriptLoader = staticScriptLoaders.get(url.pathname);
+  if (scriptLoader) return scriptResponse(await scriptLoader());
   if (/^\/(?:markdown-module|pdfjs-module)-[a-f0-9]{16}\.js$/u.test(url.pathname)) {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await loadBrowserRuntimeAsset(request, env);
