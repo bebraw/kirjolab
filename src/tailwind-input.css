@@ -991,7 +991,8 @@
   }
 
   body[data-app-mode="library"] #context-surface {
-    min-height: calc(100vh - 4rem - 1px);
+    height: calc(100dvh - 4rem - 1px);
+    min-height: 0;
   }
 
   @media (max-width: 64rem) {
@@ -1081,7 +1082,7 @@
     }
 
     body[data-app-mode="library"] #context-surface {
-      min-height: calc(100vh - 7rem);
+      height: calc(100dvh - 7rem);
     }
 
     .header-action-menu .editor-command-menu,
@@ -2447,7 +2448,7 @@
   }
 
   body[data-app-mode="library"][data-preview-navigation="hidden"] #context-surface {
-    min-height: calc(100dvh - 3rem);
+    height: calc(100dvh - 3rem);
   }
 
   @media (min-width: 72rem) {

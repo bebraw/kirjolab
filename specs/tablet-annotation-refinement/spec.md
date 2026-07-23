@@ -35,6 +35,9 @@ identity and downstream work.
   after the new frame is complete.
 - Trackpad zoom remains anchored at the pointer and touch pinch zoom remains
   anchored at the gesture midpoint through the committed render.
+- The private-library PDF surface remains constrained to the visible app
+  viewport so a zoomed page expands the reader's scroll range instead of the
+  reader itself.
 - A pending page note becomes an annotation only after a stationary tap ends;
   scroll and swipe movement cancel it.
 - Updating a stroke advances annotation version and project history without
@@ -62,6 +65,8 @@ identity and downstream work.
 - [x] Mac trackpad pinch zoom keeps the previous page frame visible until its
       replacement is ready.
 - [x] Trackpad and touch zoom preserve their pointer or pinch-midpoint origin.
+- [x] Every edge of a zoomed private-library PDF page remains reachable by
+      panning.
 - [x] Fitted-page swipes turn pages without creating notes during navigation.
 - [x] Pure, Workers-runtime, and browser tests cover adjustment.
 

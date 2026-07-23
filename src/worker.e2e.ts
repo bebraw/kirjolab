@@ -304,8 +304,8 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#library-highlight-list")).toContainText("Imported from the PDF");
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   const fittedCanvasWidth = Number(await page.locator("#paper-canvas").getAttribute("width"));
-  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -6, deltaMode: 0 });
-  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -6, deltaMode: 0 });
+  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -40, deltaMode: 0 });
+  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -40, deltaMode: 0 });
   await expect(page.locator("#paper-canvas")).toHaveAttribute("width", String(fittedCanvasWidth));
   await expect(page.locator("#paper-page")).toHaveAttribute("style", /transform: scale/u);
   await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBeGreaterThan(fittedCanvasWidth);
@@ -313,7 +313,18 @@ test("imports, annotates, and exports a private PDF without a project", async ({
     .poll(async () => page.locator("#paper-reader").evaluate((element) => element.scrollWidth - element.clientWidth))
     .toBeGreaterThan(0);
   await expect(page.locator("#paper-page")).not.toHaveAttribute("style", /transform: scale/u);
-  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: 12, deltaMode: 0 });
+  const zoomedVerticalReach = await page.locator("#paper-reader").evaluate((reader) => {
+    reader.scrollTop = reader.scrollHeight;
+    const readerBounds = reader.getBoundingClientRect();
+    const pageBounds = reader.querySelector<HTMLElement>("#paper-page")?.getBoundingClientRect();
+    return {
+      maximumScrollTop: reader.scrollTop,
+      pageBottomBeyondReader: (pageBounds?.bottom ?? Number.POSITIVE_INFINITY) - readerBounds.bottom,
+    };
+  });
+  expect(zoomedVerticalReach.maximumScrollTop).toBeGreaterThan(0);
+  expect(zoomedVerticalReach.pageBottomBeyondReader).toBeLessThanOrEqual(0);
+  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: 80, deltaMode: 0 });
   await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBe(fittedCanvasWidth);
   await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
