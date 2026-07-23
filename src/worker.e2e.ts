@@ -283,6 +283,8 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.getByRole("tab", { name: "student_submission.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("button", { name: "Close student_submission.pdf" })).toBeVisible();
   await expect(page.locator("header").getByRole("tab", { name: "student_submission.pdf" })).toBeVisible();
+  await expect(page.locator("#context-tab-overview")).toBeHidden();
+  await expect(page.locator("#context-tab-overview-list")).toBeEmpty();
   await expect(page.locator("header #pdf-context-controls")).toBeHidden();
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.locator("header #pdf-context-controls")).toBeHidden();

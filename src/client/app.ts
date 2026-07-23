@@ -7291,9 +7291,15 @@ class WorkspaceApp {
 
   #renderContextTabOverview(): void {
     const tabs = this.#contextState.tabs;
+    this.#elements.contextTabOverviewList.replaceChildren();
+    if (appMode === "library") {
+      this.#elements.contextTabOverview.hidden = true;
+      this.#elements.contextTabOverview.open = false;
+      return;
+    }
+
     this.#elements.contextTabOverview.hidden = tabs.length <= 3;
     this.#elements.contextTabOverviewCount.textContent = String(tabs.length);
-    this.#elements.contextTabOverviewList.replaceChildren();
     if (tabs.length <= 3) {
       this.#elements.contextTabOverview.open = false;
       return;
