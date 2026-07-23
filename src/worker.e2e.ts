@@ -1002,6 +1002,30 @@ test("keeps the workspace within a compact desktop viewport", async ({ page }) =
   });
 });
 
+test("lets iPad preview readers hide and restore top navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 1366 });
+  const workspaceId = await createWorkspace(page, "Focused iPad preview");
+  await page.goto(`/editor/${workspaceId}`);
+  await page.getByRole("button", { name: "Context" }).click();
+
+  const header = page.locator("#app-header");
+  const context = page.locator("#context-surface");
+  const initialHeight = await context.evaluate((element) => element.getBoundingClientRect().height);
+  await page.getByRole("button", { name: "Hide top navigation" }).click();
+
+  await expect(header).toBeHidden();
+  await expect(page.locator("body")).toHaveAttribute("data-preview-navigation", "hidden");
+  await expect(page.getByRole("button", { name: "Show top navigation" })).toHaveAttribute("aria-pressed", "true");
+  expect(await context.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(initialHeight + 50);
+
+  await page.reload();
+  await expect(header).toBeHidden();
+  await page.getByRole("button", { name: "Context" }).click();
+  await page.getByRole("button", { name: "Show top navigation" }).click();
+  await expect(header).toBeVisible();
+  await expect(page.locator("body")).toHaveAttribute("data-preview-navigation", "visible");
+});
+
 test("resizes and remembers the desktop project rail", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   const workspaceId = await createWorkspace(page, "Resizable project rail");

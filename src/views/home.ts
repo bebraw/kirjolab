@@ -39,7 +39,7 @@ export function renderHomePage(
     <script type="module" src="/app.js"></script>
   </head>
   <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-app-mode="${appMode}" data-workspace-id="${escapedWorkspaceId}" data-identity-email="${escapedIdentityEmail}">
-    <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur">
+    <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur" id="app-header">
       <div class="app-header-row">
         <div class="app-header-primary">
           <a class="app-brand font-sans text-sm font-black tracking-[-0.04em] text-app-ink" href="/">KIRJOLAB</a>

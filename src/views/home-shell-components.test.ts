@@ -43,6 +43,10 @@ describe("renderContextTabs", () => {
     expect(html).toContain('id="context-tab-overview" data-action-menu hidden');
     expect(html).toContain('id="context-tab-overview-list" aria-label="Open contexts"');
     expect(html).toContain('id="preview-context-controls"');
+    expect(html).toContain(
+      'id="toggle-preview-navigation" type="button" aria-controls="app-header" aria-pressed="false" aria-label="Hide top navigation"',
+    );
+    expect(html).toContain('id="preview-navigation-toggle-label">Hide nav</span>');
     expect(html).toContain('id="pdf-context-controls" hidden');
   });
 });

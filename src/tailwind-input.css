@@ -2379,6 +2379,50 @@
     opacity: 0.35;
   }
 
+  .preview-navigation-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+  }
+
+  .preview-navigation-toggle svg {
+    width: 0.85rem;
+    height: 0.85rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+    transition: transform var(--ui-transition);
+  }
+
+  .preview-navigation-toggle[aria-pressed="true"] svg {
+    transform: rotate(180deg);
+  }
+
+  body[data-app-mode="workspace"][data-preview-navigation="hidden"] > #app-header {
+    display: none;
+  }
+
+  body[data-app-mode="workspace"][data-preview-navigation="hidden"] #workspace-surfaces {
+    min-height: 100dvh;
+  }
+
+  body[data-app-mode="workspace"][data-preview-navigation="hidden"] .surface-switcher {
+    top: 0;
+  }
+
+  body[data-app-mode="workspace"][data-preview-navigation="hidden"] .context-column {
+    min-height: calc(100dvh - 3.25rem);
+  }
+
+  @media (min-width: 72rem) {
+    body[data-app-mode="workspace"][data-preview-navigation="hidden"] .workspace-grid {
+      grid-template-rows: minmax(0, 100dvh);
+    }
+  }
+
   .context-tab:hover {
     background: var(--color-app-accent-ghost);
     color: var(--color-app-accent-strong);

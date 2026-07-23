@@ -164,6 +164,7 @@ import {
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
 import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset } from "./source-preview-sync";
+import { previewNavigationPresentation, previewNavigationStorageKey, storedPreviewNavigationHidden } from "./preview-navigation";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -535,6 +536,8 @@ interface Elements {
   contextTabOverviewList: HTMLElement;
   previewContextControls: HTMLElement;
   previewFileContext: HTMLElement;
+  togglePreviewNavigation: HTMLButtonElement;
+  previewNavigationToggleLabel: HTMLElement;
   pdfContextControls: HTMLElement;
   contextPreviewPanel: HTMLElement;
   previewScroll: HTMLElement;
@@ -941,6 +944,7 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
+    this.#restorePreviewNavigation();
     this.#restoreModelPreferences();
     this.#restoreCitationCompletionScope();
     this.#elements.copyApplicationVersion.addEventListener("click", () => {
@@ -1321,6 +1325,9 @@ class WorkspaceApp {
     this.#bindSourceRailResizer();
     this.#bindPaneResizer();
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
+    this.#elements.togglePreviewNavigation.addEventListener("click", () => {
+      this.#setPreviewNavigationHidden(document.body.dataset.previewNavigation !== "hidden");
+    });
     this.#elements.contextAssistantTab.addEventListener("click", () => this.#activateContext(RESEARCH_ASSISTANT_KEY));
     this.#elements.contextTabList.addEventListener("keydown", (event) => this.#moveContextTabFocus(event));
     this.#elements.preview.addEventListener("click", (event) => this.#handlePreviewClick(event));
@@ -6971,6 +6978,32 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("push");
   }
 
+  #restorePreviewNavigation(): void {
+    let hidden = false;
+    try {
+      hidden = storedPreviewNavigationHidden(localStorage.getItem(previewNavigationStorageKey));
+    } catch {
+      // Browser storage can be unavailable in restricted browsing modes.
+    }
+    this.#setPreviewNavigationHidden(hidden, false);
+  }
+
+  #setPreviewNavigationHidden(hidden: boolean, persist = true): void {
+    const presentation = previewNavigationPresentation(hidden);
+    document.body.dataset.previewNavigation = hidden ? "hidden" : "visible";
+    this.#elements.togglePreviewNavigation.setAttribute("aria-pressed", String(hidden));
+    this.#elements.togglePreviewNavigation.setAttribute("aria-label", presentation.title);
+    this.#elements.togglePreviewNavigation.title = presentation.title;
+    this.#elements.previewNavigationToggleLabel.textContent = presentation.label;
+    if (!persist) return;
+    try {
+      if (hidden) localStorage.setItem(previewNavigationStorageKey, "true");
+      else localStorage.removeItem(previewNavigationStorageKey);
+    } catch {
+      // The visible state still applies when persistence is unavailable.
+    }
+  }
+
   #openPublicationContext(publication: PublicationResource): void {
     this.#captureActiveContextState();
     this.#contextState = openResearchResource(this.#contextState, { kind: "publication", id: publication.id });
@@ -10707,6 +10740,8 @@ function collectElements(): Elements {
     contextTabOverviewList: requiredElement("context-tab-overview-list", HTMLElement),
     previewContextControls: requiredElement("preview-context-controls", HTMLElement),
     previewFileContext: requiredElement("preview-file-context", HTMLElement),
+    togglePreviewNavigation: requiredElement("toggle-preview-navigation", HTMLButtonElement),
+    previewNavigationToggleLabel: requiredElement("preview-navigation-toggle-label", HTMLElement),
     pdfContextControls: requiredElement("pdf-context-controls", HTMLElement),
     contextPreviewPanel: requiredElement("context-preview-panel", HTMLElement),
     previewScroll: requiredElement("preview-scroll", HTMLElement),
