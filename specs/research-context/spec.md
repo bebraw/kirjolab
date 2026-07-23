@@ -45,9 +45,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - The shared context action strip exposes a labelled control that hides or
   restores global navigation in both workspace Preview and standalone Library.
   The choice is browser-local. Workspace Preview retains its context strip as
-  the restore affordance; standalone Library collapses only its global controls
-  and retains the Library tab strip. The active surface expands to use the
-  released viewport height.
+  the restore affordance; standalone Library hides the complete global and
+  context-tab header, then exposes a floating restore control that reserves no
+  layout height. The active surface expands to use the released viewport
+  height.
 - Closing the active private-resource tab in standalone Library mode activates
   the permanent Library destination and replaces the document route with
   `/library`. Workspace resource tabs retain the shared previous-neighbor

@@ -104,6 +104,10 @@ export function renderHomePage(
       </div>
       <div class="sr-only" id="collaborator-selections" aria-live="polite"></div>
     </header>
+    <button class="button-secondary preview-navigation-restore" id="restore-preview-navigation" type="button" aria-controls="app-header" aria-label="Show top navigation" title="Show top navigation" hidden>
+      ${renderIcon("chevronDown")}
+      <span>Show nav</span>
+    </button>
 
     <main class="workspace-grid min-h-[calc(100vh-4rem-1px)]" id="workspace-surfaces" data-active-surface="authoring" data-layout="split">
       <nav class="surface-switcher" aria-label="Project surface">

@@ -537,6 +537,7 @@ interface Elements {
   previewContextControls: HTMLElement;
   previewFileContext: HTMLElement;
   togglePreviewNavigation: HTMLButtonElement;
+  restorePreviewNavigation: HTMLButtonElement;
   previewNavigationToggleLabel: HTMLElement;
   pdfContextControls: HTMLElement;
   contextPreviewPanel: HTMLElement;
@@ -1326,7 +1327,13 @@ class WorkspaceApp {
     this.#bindPaneResizer();
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
     this.#elements.togglePreviewNavigation.addEventListener("click", () => {
-      this.#setPreviewNavigationHidden(document.body.dataset.previewNavigation !== "hidden");
+      const hidden = document.body.dataset.previewNavigation !== "hidden";
+      this.#setPreviewNavigationHidden(hidden);
+      if (hidden && appMode === "library") this.#elements.restorePreviewNavigation.focus();
+    });
+    this.#elements.restorePreviewNavigation.addEventListener("click", () => {
+      this.#setPreviewNavigationHidden(false);
+      this.#elements.togglePreviewNavigation.focus();
     });
     this.#elements.contextAssistantTab.addEventListener("click", () => this.#activateContext(RESEARCH_ASSISTANT_KEY));
     this.#elements.contextTabList.addEventListener("keydown", (event) => this.#moveContextTabFocus(event));
@@ -6995,6 +7002,7 @@ class WorkspaceApp {
     this.#elements.togglePreviewNavigation.setAttribute("aria-label", presentation.title);
     this.#elements.togglePreviewNavigation.title = presentation.title;
     this.#elements.previewNavigationToggleLabel.textContent = presentation.label;
+    this.#elements.restorePreviewNavigation.hidden = appMode !== "library" || !hidden;
     if (!persist) return;
     try {
       if (hidden) localStorage.setItem(previewNavigationStorageKey, "true");
@@ -10742,6 +10750,7 @@ function collectElements(): Elements {
     previewContextControls: requiredElement("preview-context-controls", HTMLElement),
     previewFileContext: requiredElement("preview-file-context", HTMLElement),
     togglePreviewNavigation: requiredElement("toggle-preview-navigation", HTMLButtonElement),
+    restorePreviewNavigation: requiredElement("restore-preview-navigation", HTMLButtonElement),
     previewNavigationToggleLabel: requiredElement("preview-navigation-toggle-label", HTMLElement),
     pdfContextControls: requiredElement("pdf-context-controls", HTMLElement),
     contextPreviewPanel: requiredElement("context-preview-panel", HTMLElement),

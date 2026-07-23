@@ -1039,19 +1039,27 @@ test("lets iPad Preview and Library readers hide and restore top navigation", as
   await page.goto("/library");
   const libraryHeaderPrimary = page.locator("#app-header .app-header-primary");
   const libraryHeaderSecondary = page.locator("#app-header .app-header-secondary");
+  const libraryHeader = page.locator("#app-header");
+  const restoreLibraryNavigation = page.locator("#restore-preview-navigation");
   const libraryContext = page.locator("#context-surface");
   const initialLibraryHeight = await libraryContext.evaluate((element) => element.getBoundingClientRect().height);
   await page.getByRole("button", { name: "Hide top navigation" }).click();
 
+  await expect(libraryHeader).toBeHidden();
   await expect(libraryHeaderPrimary).toBeHidden();
   await expect(libraryHeaderSecondary).toBeHidden();
-  await expect(page.getByRole("button", { name: "Show top navigation" })).toBeVisible();
-  expect(await libraryContext.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(initialLibraryHeight + 10);
+  await expect(page.locator(".library-header-context")).toBeHidden();
+  await expect(restoreLibraryNavigation).toBeVisible();
+  await expect(restoreLibraryNavigation).toBeFocused();
+  expect(await libraryContext.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(initialLibraryHeight + 50);
 
   await page.reload();
+  await expect(libraryHeader).toBeHidden();
   await expect(libraryHeaderPrimary).toBeHidden();
   await expect(libraryHeaderSecondary).toBeHidden();
-  await page.getByRole("button", { name: "Show top navigation" }).click();
+  await expect(restoreLibraryNavigation).toBeVisible();
+  await restoreLibraryNavigation.click();
+  await expect(libraryHeader).toBeVisible();
   await expect(libraryHeaderPrimary).toBeVisible();
   await expect(libraryHeaderSecondary).toBeVisible();
 });

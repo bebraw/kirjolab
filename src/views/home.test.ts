@@ -180,6 +180,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-preview-tab" type="button" role="tab"');
     expect(html).toContain('id="app-header"');
     expect(html).toContain('id="toggle-preview-navigation"');
+    expect(html).toContain('id="restore-preview-navigation"');
     expect(html).toContain('id="web-source-url"');
     expect(html).not.toContain("Optional metadata overrides");
     expect(html).not.toContain('id="web-source-title"');
