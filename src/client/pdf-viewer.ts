@@ -100,47 +100,7 @@ export class PdfEvidenceViewer {
     elements.reader.addEventListener("touchmove", (event) => this.#continueTouchGesture(event), { passive: false });
     elements.reader.addEventListener("touchend", (event) => void this.#finishTouchGesture(event), { passive: true });
     elements.reader.addEventListener("touchcancel", () => this.#cancelTouchGesture(), { passive: true });
-    elements.reader.addEventListener(
-      "wheel",
-      (event) => {
-        if (event.ctrlKey) {
-          event.preventDefault();
-          this.#lifecycle.send({ type: "CANCEL_RENDER" });
-          this.#previewZoom(clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4), event.clientX, event.clientY);
-          window.clearTimeout(this.#wheelZoomRenderTimer);
-          this.#wheelZoomRenderTimer = window.setTimeout(() => {
-            this.#wheelZoomRenderTimer = undefined;
-            void this.#renderPage();
-          }, 140);
-          return;
-        }
-        if (!this.#document) {
-          this.#wheelPagingState = initialPdfWheelPagingState();
-          return;
-        }
-        const now = performance.now();
-        const coolingDown = now < this.#wheelPagingState.lockedUntil;
-        if (this.#zoom > 1.01 && !coolingDown) {
-          const edges = pdfHorizontalPageEdges(this.#elements.reader);
-          const canTurnFromEdge = event.deltaX < 0 ? edges.previous : event.deltaX > 0 && edges.next;
-          if (!canTurnFromEdge) {
-            this.#wheelPagingState = initialPdfWheelPagingState();
-            return;
-          }
-        }
-        const gesture = advancePdfWheelPaging(this.#wheelPagingState, {
-          deltaX: event.deltaX,
-          deltaY: event.deltaY,
-          deltaMode: event.deltaMode,
-          now,
-        });
-        this.#wheelPagingState = gesture.state;
-        if (!gesture.consumed) return;
-        event.preventDefault();
-        if (gesture.direction) void this.#moveFromGesture(gesture.direction);
-      },
-      { passive: false },
-    );
+    elements.reader.addEventListener("wheel", (event) => this.#handleWheel(event), { passive: false });
   }
 
   get currentPage(): number {
@@ -259,6 +219,44 @@ export class PdfEvidenceViewer {
     await this.#move(offset);
     if (this.#pageNumber === previousPage) return;
     this.#elements.reader.scrollLeft = offset > 0 ? 0 : Math.max(0, this.#elements.reader.scrollWidth - this.#elements.reader.clientWidth);
+  }
+
+  #handleWheel(event: WheelEvent): void {
+    if (event.ctrlKey) {
+      this.#zoomFromWheel(event);
+      return;
+    }
+    if (!this.#document || !this.#wheelCanTurnPage(event.deltaX)) {
+      this.#wheelPagingState = initialPdfWheelPagingState();
+      return;
+    }
+    const gesture = advancePdfWheelPaging(this.#wheelPagingState, {
+      deltaX: event.deltaX,
+      deltaY: event.deltaY,
+      deltaMode: event.deltaMode,
+      now: performance.now(),
+    });
+    this.#wheelPagingState = gesture.state;
+    if (!gesture.consumed) return;
+    event.preventDefault();
+    if (gesture.direction) void this.#moveFromGesture(gesture.direction);
+  }
+
+  #wheelCanTurnPage(deltaX: number): boolean {
+    if (this.#zoom <= 1.01 || performance.now() < this.#wheelPagingState.lockedUntil) return true;
+    const edges = pdfHorizontalPageEdges(this.#elements.reader);
+    return deltaX < 0 ? edges.previous : deltaX > 0 && edges.next;
+  }
+
+  #zoomFromWheel(event: WheelEvent): void {
+    event.preventDefault();
+    this.#lifecycle.send({ type: "CANCEL_RENDER" });
+    this.#previewZoom(clamp(this.#zoom * Math.exp(-event.deltaY * 0.01), 0.75, 4), event.clientX, event.clientY);
+    window.clearTimeout(this.#wheelZoomRenderTimer);
+    this.#wheelZoomRenderTimer = window.setTimeout(() => {
+      this.#wheelZoomRenderTimer = undefined;
+      void this.#renderPage();
+    }, 140);
   }
 
   async #renderPage(): Promise<void> {

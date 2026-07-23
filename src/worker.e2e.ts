@@ -198,6 +198,34 @@ async function selectLocalModel(page: Page, model: string): Promise<void> {
   await selector.selectOption(model);
 }
 
+async function turnPdfPageWithTrackpad(page: Page, direction: -1 | 1, expectedPage: number): Promise<void> {
+  await page.waitForTimeout(450);
+  await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: direction * 70, deltaY: 4, deltaMode: 0 });
+  await expect(page.locator("#paper-page-indicator")).toHaveText(`${expectedPage} / 2`);
+}
+
+async function swipePdfPage(page: Page, identifier: number, fromX: number, toX: number): Promise<void> {
+  await page.locator("#paper-text-layer").evaluate(
+    (layer, gesture) => {
+      const startTouch = new Touch({
+        identifier: gesture.identifier,
+        target: layer,
+        clientX: gesture.fromX,
+        clientY: 120,
+      });
+      layer.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] }));
+      const endTouch = new Touch({
+        identifier: gesture.identifier,
+        target: layer,
+        clientX: gesture.toX,
+        clientY: 125,
+      });
+      layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [endTouch], touches: [] }));
+    },
+    { identifier, fromX, toX },
+  );
+}
+
 test("imports, annotates, and exports a private PDF without a project", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.addInitScript(() => {
@@ -2137,22 +2165,10 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: 70, deltaY: 4, deltaMode: 0 });
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   expect(await page.locator("#paper-reader").evaluate((reader) => reader.scrollLeft)).toBe(0);
-  await page.waitForTimeout(450);
-  await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: -70, deltaY: 4, deltaMode: 0 });
-  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
-  await page.locator("#paper-text-layer").evaluate((layer) => {
-    const startTouch = new Touch({ identifier: 10, target: layer, clientX: 220, clientY: 120 });
-    layer.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] }));
-    const endTouch = new Touch({ identifier: 10, target: layer, clientX: 130, clientY: 125 });
-    layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [endTouch], touches: [] }));
-  });
+  await turnPdfPageWithTrackpad(page, -1, 1);
+  await swipePdfPage(page, 10, 220, 130);
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
-  await page.locator("#paper-text-layer").evaluate((layer) => {
-    const startTouch = new Touch({ identifier: 11, target: layer, clientX: 130, clientY: 120 });
-    layer.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] }));
-    const endTouch = new Touch({ identifier: 11, target: layer, clientX: 220, clientY: 125 });
-    layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [endTouch], touches: [] }));
-  });
+  await swipePdfPage(page, 11, 130, 220);
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: 80, deltaMode: 0 });
   await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBe(fittedCanvasWidth);
@@ -2161,15 +2177,8 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: 70, deltaY: 4, deltaMode: 0 });
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
-  await page.waitForTimeout(450);
-  await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: -70, deltaY: 4, deltaMode: 0 });
-  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
-  await page.locator("#paper-text-layer").evaluate((layer) => {
-    const startTouch = new Touch({ identifier: 9, target: layer, clientX: 220, clientY: 120 });
-    layer.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] }));
-    const endTouch = new Touch({ identifier: 9, target: layer, clientX: 130, clientY: 125 });
-    layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [endTouch], touches: [] }));
-  });
+  await turnPdfPageWithTrackpad(page, -1, 1);
+  await swipePdfPage(page, 9, 220, 130);
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.locator("#previous-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
