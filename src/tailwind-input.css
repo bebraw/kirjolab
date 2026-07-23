@@ -2386,6 +2386,14 @@
     white-space: nowrap;
   }
 
+  .preview-navigation-toggle[hidden] {
+    display: none;
+  }
+
+  .context-tab-controls > .preview-navigation-toggle {
+    min-width: 2.5rem;
+  }
+
   .preview-navigation-toggle svg {
     width: 0.85rem;
     height: 0.85rem;
@@ -2415,6 +2423,31 @@
 
   body[data-app-mode="workspace"][data-preview-navigation="hidden"] .context-column {
     min-height: calc(100dvh - 3.25rem);
+  }
+
+  body[data-app-mode="library"][data-preview-navigation="hidden"] > #app-header :is(.app-header-primary, .app-header-secondary) {
+    display: none;
+  }
+
+  body[data-app-mode="library"][data-preview-navigation="hidden"] .app-header-row {
+    display: flex;
+    height: 3rem;
+    min-height: 3rem;
+    padding: 0;
+  }
+
+  body[data-app-mode="library"][data-preview-navigation="hidden"] .library-header-context {
+    width: 100%;
+    align-self: stretch;
+    margin: 0;
+  }
+
+  body[data-app-mode="library"][data-preview-navigation="hidden"] .library-header-context .context-tabs {
+    min-height: 3rem;
+  }
+
+  body[data-app-mode="library"][data-preview-navigation="hidden"] #context-surface {
+    min-height: calc(100dvh - 3rem);
   }
 
   @media (min-width: 72rem) {

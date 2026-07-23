@@ -33,10 +33,6 @@ export function renderContextTabs(): string {
             <div class="context-mode-controls" id="preview-context-controls">
               <span class="preview-file-context" id="preview-file-context" title="main.md · composed paper">main.md · composed paper</span>
               <span id="diagnostic-summary">Validating…</span>
-              <button class="preview-navigation-toggle" id="toggle-preview-navigation" type="button" aria-controls="app-header" aria-pressed="false" aria-label="Hide top navigation" title="Hide top navigation">
-                ${renderIcon("chevronUp")}
-                <span id="preview-navigation-toggle-label">Hide nav</span>
-              </button>
             </div>
             <div class="context-mode-controls" id="pdf-context-controls" hidden>
               <span class="context-status" id="paper-status">Loading PDF…</span>
@@ -44,6 +40,10 @@ export function renderContextTabs(): string {
               <span class="context-page-indicator" id="paper-page-indicator">– / –</span>
               <button id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
             </div>
+            <button class="preview-navigation-toggle" id="toggle-preview-navigation" type="button" aria-controls="app-header" aria-pressed="false" aria-label="Hide top navigation" title="Hide top navigation">
+              ${renderIcon("chevronUp")}
+              <span id="preview-navigation-toggle-label">Hide nav</span>
+            </button>
           </div>
         </div>`;
 }

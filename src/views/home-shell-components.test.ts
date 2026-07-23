@@ -46,6 +46,7 @@ describe("renderContextTabs", () => {
     expect(html).toContain(
       'id="toggle-preview-navigation" type="button" aria-controls="app-header" aria-pressed="false" aria-label="Hide top navigation"',
     );
+    expect(html.indexOf('id="toggle-preview-navigation"')).toBeGreaterThan(html.indexOf('id="pdf-context-controls"'));
     expect(html).toContain('id="preview-navigation-toggle-label">Hide nav</span>');
     expect(html).toContain('id="pdf-context-controls" hidden');
   });

@@ -7060,6 +7060,7 @@ class WorkspaceApp {
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.previewSyncControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#elements.togglePreviewNavigation.hidden = appMode === "workspace" && activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.pdfContextControls.hidden = !activePdf;
     const activePdfPublications =
       activeTab?.kind === "pdf" ? (this.#snapshot?.publicationPdfLinks.filter((link) => link.pdfId === activeTab.id) ?? []) : [];

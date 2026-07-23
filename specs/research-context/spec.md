@@ -42,10 +42,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
   so project and account actions remain distinct and reachable. Standalone
   Library keeps identity controls in the first row and gives its horizontally
   scrollable context tabs a dedicated second row without page overflow.
-- The permanent Preview context exposes a labelled control that hides or
-  restores the global workspace navigation. The choice is browser-local, the
-  restore control remains reachable in the Preview strip, and the workspace
-  expands to use the released viewport height.
+- The shared context action strip exposes a labelled control that hides or
+  restores global navigation in both workspace Preview and standalone Library.
+  The choice is browser-local. Workspace Preview retains its context strip as
+  the restore affordance; standalone Library collapses only its global controls
+  and retains the Library tab strip. The active surface expands to use the
+  released viewport height.
 - Closing the active private-resource tab in standalone Library mode activates
   the permanent Library destination and replaces the document route with
   `/library`. Workspace resource tabs retain the shared previous-neighbor
@@ -293,8 +295,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
       existing resource tab instead of creating duplicates.
 - [x] Preview scroll and each PDF's page, scroll, and focused annotation survive
       tab switches.
-- [x] Preview readers can hide and restore global workspace navigation while
-      keeping the Preview strip available.
+- [x] Preview and standalone Library readers can hide and restore global
+      navigation while keeping their context strip available.
 - [x] A PDF can be read and selected beside the live authoring editor without a
       modal covering either surface.
 - [x] Resource tabs remain open until their labelled close icons are activated,

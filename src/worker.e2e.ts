@@ -1002,7 +1002,7 @@ test("keeps the workspace within a compact desktop viewport", async ({ page }) =
   });
 });
 
-test("lets iPad preview readers hide and restore top navigation", async ({ page }) => {
+test("lets iPad Preview and Library readers hide and restore top navigation", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 1366 });
   const workspaceId = await createWorkspace(page, "Focused iPad preview");
   await page.goto(`/editor/${workspaceId}`);
@@ -1024,6 +1024,25 @@ test("lets iPad preview readers hide and restore top navigation", async ({ page 
   await page.getByRole("button", { name: "Show top navigation" }).click();
   await expect(header).toBeVisible();
   await expect(page.locator("body")).toHaveAttribute("data-preview-navigation", "visible");
+
+  await page.goto("/library");
+  const libraryHeaderPrimary = page.locator("#app-header .app-header-primary");
+  const libraryHeaderSecondary = page.locator("#app-header .app-header-secondary");
+  const libraryContext = page.locator("#context-surface");
+  const initialLibraryHeight = await libraryContext.evaluate((element) => element.getBoundingClientRect().height);
+  await page.getByRole("button", { name: "Hide top navigation" }).click();
+
+  await expect(libraryHeaderPrimary).toBeHidden();
+  await expect(libraryHeaderSecondary).toBeHidden();
+  await expect(page.getByRole("button", { name: "Show top navigation" })).toBeVisible();
+  expect(await libraryContext.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(initialLibraryHeight + 10);
+
+  await page.reload();
+  await expect(libraryHeaderPrimary).toBeHidden();
+  await expect(libraryHeaderSecondary).toBeHidden();
+  await page.getByRole("button", { name: "Show top navigation" }).click();
+  await expect(libraryHeaderPrimary).toBeVisible();
+  await expect(libraryHeaderSecondary).toBeVisible();
 });
 
 test("resizes and remembers the desktop project rail", async ({ page }) => {
