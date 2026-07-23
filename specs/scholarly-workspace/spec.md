@@ -174,11 +174,13 @@ collaboration.
   files remain editable offline; restart derives one pending Yjs delta and
   sends it only after the ordinary server-led `sync` boundary.
 - **Offline shell updates:** Browser builds derive the Kirjolab Cache Storage
-  namespace from emitted shell content. An existing registration checks for an
-  update on startup; activation removes old shell generations, persists an
-  open offline workspace when the user accepts a persistent update notice, and
-  reloads the controlled page once. Ordinary transient notices may briefly
-  replace the update notice, which returns until the user refreshes.
+  namespace from emitted shell content. Workspace and Library startup both
+  check an existing registration for an update without adding Library
+  navigation to the offline allowlist. Activation removes old shell
+  generations, persists an open offline workspace when the user accepts a
+  persistent update notice, and reloads the controlled page once. Ordinary
+  transient notices may briefly replace the update notice, which returns until
+  the user refreshes.
 - **Collaborator selections:** A client may send only an exact-key, bounded
   `protocol: 1` selection message for the current file and revision. The room
   supplies its socket identity, validates the range, broadcasts it only to

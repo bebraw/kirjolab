@@ -906,6 +906,7 @@ class WorkspaceApp {
     this.#elements.applicationVersion.textContent = applicationVersion;
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
+    void this.#prepareOfflineShell();
     if (appMode === "library") {
       this.#elements.workspaceSurfaces.dataset.activeSurface = "context";
       this.#elements.workspaceSurfaces.dataset.layout = "context";
@@ -917,7 +918,6 @@ class WorkspaceApp {
     this.#restoreWorkspaceLayout();
     this.#setEditorsEnabled(false);
     void loadMarkdownRuntime().catch(() => undefined);
-    void this.#prepareOfflineShell();
     const restored = await this.#restoreOfflineWorkspace();
     try {
       await this.#refreshCatalog();
@@ -10147,7 +10147,7 @@ class WorkspaceApp {
         this.#applicationUpdateAvailable = true;
         this.#showApplicationUpdate();
       });
-      if (!registered || typeof caches === "undefined") return;
+      if (!registered || appMode !== "workspace" || typeof caches === "undefined") return;
       if (await cacheOfflineNavigation(caches, fetch, location.href)) document.body.dataset.offlineReady = "true";
     } catch {
       // The online application remains fully usable when offline APIs are unavailable.
