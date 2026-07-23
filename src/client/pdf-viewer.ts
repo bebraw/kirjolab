@@ -6,6 +6,7 @@ import { readPdfTextContent } from "./pdf-text-content";
 import {
   advancePdfWheelPaging,
   initialPdfWheelPagingState,
+  pdfHorizontalPageEdges,
   pdfTouchPageDirection,
   pdfTouchPanScroll,
   pdfZoomAnchor,
@@ -70,7 +71,7 @@ export class PdfEvidenceViewer {
   #renderedZoom = 1;
   #pinchStart: { distance: number; zoom: number } | null = null;
   #touchPanStart: PdfTouchPanStart | null = null;
-  #swipeStart: { x: number; y: number; startedAt: number } | null = null;
+  #swipeStart: { x: number; y: number; startedAt: number; edges: ReturnType<typeof pdfHorizontalPageEdges> } | null = null;
   #wheelPagingState: PdfWheelPagingState = initialPdfWheelPagingState();
   #wheelZoomRenderTimer: number | undefined;
   #selectionCaptureTimer: number | undefined;
@@ -113,20 +114,30 @@ export class PdfEvidenceViewer {
           }, 140);
           return;
         }
-        if (!this.#document || this.#zoom > 1.01) {
+        if (!this.#document) {
           this.#wheelPagingState = initialPdfWheelPagingState();
           return;
+        }
+        const now = performance.now();
+        const coolingDown = now < this.#wheelPagingState.lockedUntil;
+        if (this.#zoom > 1.01 && !coolingDown) {
+          const edges = pdfHorizontalPageEdges(this.#elements.reader);
+          const canTurnFromEdge = event.deltaX < 0 ? edges.previous : event.deltaX > 0 && edges.next;
+          if (!canTurnFromEdge) {
+            this.#wheelPagingState = initialPdfWheelPagingState();
+            return;
+          }
         }
         const gesture = advancePdfWheelPaging(this.#wheelPagingState, {
           deltaX: event.deltaX,
           deltaY: event.deltaY,
           deltaMode: event.deltaMode,
-          now: performance.now(),
+          now,
         });
         this.#wheelPagingState = gesture.state;
         if (!gesture.consumed) return;
         event.preventDefault();
-        if (gesture.direction) void this.#move(gesture.direction);
+        if (gesture.direction) void this.#moveFromGesture(gesture.direction);
       },
       { passive: false },
     );
@@ -241,6 +252,13 @@ export class PdfEvidenceViewer {
   async #move(offset: number): Promise<void> {
     if (!this.#document) return;
     await this.#goToPage(this.#pageNumber + offset);
+  }
+
+  async #moveFromGesture(offset: -1 | 1): Promise<void> {
+    const previousPage = this.#pageNumber;
+    await this.#move(offset);
+    if (this.#pageNumber === previousPage) return;
+    this.#elements.reader.scrollLeft = offset > 0 ? 0 : Math.max(0, this.#elements.reader.scrollWidth - this.#elements.reader.clientWidth);
   }
 
   async #renderPage(): Promise<void> {
@@ -473,7 +491,12 @@ export class PdfEvidenceViewer {
       return;
     }
     if (event.touches.length === 1 && touch && !touchStartsInteractivePdfControl(event.target)) {
-      this.#swipeStart = { x: touch.clientX, y: touch.clientY, startedAt: performance.now() };
+      this.#swipeStart = {
+        x: touch.clientX,
+        y: touch.clientY,
+        startedAt: performance.now(),
+        edges: pdfHorizontalPageEdges(this.#elements.reader),
+      };
     }
   }
 
@@ -508,8 +531,13 @@ export class PdfEvidenceViewer {
     const touch = event.changedTouches[0];
     this.#swipeStart = null;
     if (!start || !touch) return;
-    const direction = pdfTouchPageDirection(start, { x: touch.clientX, y: touch.clientY, endedAt: performance.now() }, this.#zoom);
-    if (direction) await this.#move(direction);
+    const direction = pdfTouchPageDirection(
+      start,
+      { x: touch.clientX, y: touch.clientY, endedAt: performance.now() },
+      this.#zoom,
+      start.edges,
+    );
+    if (direction) await this.#moveFromGesture(direction);
   }
 
   #cancelTouchGesture(): void {

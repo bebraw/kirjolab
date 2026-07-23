@@ -2115,6 +2115,40 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   expect(failedPdfWorkerRequests).toEqual([]);
+  const fittedCanvasWidth = Number(await page.locator("#paper-canvas").getAttribute("width"));
+  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -80, deltaMode: 0 });
+  await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBeGreaterThan(fittedCanvasWidth);
+  await page.locator("#paper-reader").evaluate((reader) => {
+    reader.scrollLeft = (reader.scrollWidth - reader.clientWidth) / 2;
+  });
+  await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: 70, deltaY: 4, deltaMode: 0 });
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#paper-reader").evaluate((reader) => {
+    reader.scrollLeft = reader.scrollWidth;
+  });
+  await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: 70, deltaY: 4, deltaMode: 0 });
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  expect(await page.locator("#paper-reader").evaluate((reader) => reader.scrollLeft)).toBe(0);
+  await page.waitForTimeout(450);
+  await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: -70, deltaY: 4, deltaMode: 0 });
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#paper-text-layer").evaluate((layer) => {
+    const startTouch = new Touch({ identifier: 10, target: layer, clientX: 220, clientY: 120 });
+    layer.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] }));
+    const endTouch = new Touch({ identifier: 10, target: layer, clientX: 130, clientY: 125 });
+    layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [endTouch], touches: [] }));
+  });
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.locator("#paper-text-layer").evaluate((layer) => {
+    const startTouch = new Touch({ identifier: 11, target: layer, clientX: 130, clientY: 120 });
+    layer.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] }));
+    const endTouch = new Touch({ identifier: 11, target: layer, clientX: 220, clientY: 125 });
+    layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [endTouch], touches: [] }));
+  });
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: 80, deltaMode: 0 });
+  await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBe(fittedCanvasWidth);
+  await page.waitForTimeout(450);
   await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: 8, deltaY: 80, deltaMode: 0 });
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.locator("#paper-reader").dispatchEvent("wheel", { deltaX: 70, deltaY: 4, deltaMode: 0 });

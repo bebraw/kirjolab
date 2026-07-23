@@ -182,6 +182,7 @@ No accepted ADRs are awaiting implementation.
 | [ADR-164](./implemented/ADR-164-separate-owner-backup-contracts.md)                       | Implemented          | Separate owner-backup schemas, deterministic projection, and compatibility validation behind one facade.      |
 | [ADR-165](./implemented/ADR-165-separate-github-integration-phases.md)                    | Implemented          | Separate GitHub import, workspace synchronization, and shared transport/error contracts.                      |
 | [ADR-166](./implemented/ADR-166-separate-browser-binders-from-mutation-contracts.md)      | Implemented          | Keep pure browser-feature contracts in mutation scope while Playwright covers runtime binders.                |
+| [ADR-167](./implemented/ADR-167-turn-zoomed-pdf-pages-at-horizontal-edges.md)             | Implemented          | Turn zoomed PDF pages from their horizontal edges while preserving interior panning.                          |
 
 ## Creating A New ADR
 

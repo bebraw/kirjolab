@@ -17,6 +17,11 @@ export interface PdfTouchPanStart {
   scrollTop: number;
 }
 
+export interface PdfHorizontalPageEdges {
+  previous: boolean;
+  next: boolean;
+}
+
 export interface PdfZoomAnchor {
   x: number;
   y: number;
@@ -47,12 +52,26 @@ export function pdfTouchPageDirection(
   start: { x: number; y: number; startedAt: number },
   end: { x: number; y: number; endedAt: number },
   zoom: number,
+  edges?: PdfHorizontalPageEdges,
 ): -1 | 1 | undefined {
-  if (zoom > 1.01 || end.endedAt - start.startedAt > TOUCH_PAGE_MAXIMUM_MS) return undefined;
+  if (end.endedAt - start.startedAt > TOUCH_PAGE_MAXIMUM_MS) return undefined;
   const x = end.x - start.x;
   const y = end.y - start.y;
   if (Math.abs(x) < TOUCH_PAGE_THRESHOLD_PX || Math.abs(x) < Math.abs(y) * TOUCH_HORIZONTAL_DOMINANCE) return undefined;
-  return x < 0 ? 1 : -1;
+  const direction = x < 0 ? 1 : -1;
+  if (zoom > 1.01 && !(direction === -1 ? edges?.previous : edges?.next)) return undefined;
+  return direction;
+}
+
+export function pdfHorizontalPageEdges(
+  scroll: { scrollLeft: number; scrollWidth: number; clientWidth: number },
+  epsilon = 1,
+): PdfHorizontalPageEdges {
+  const maximum = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+  return {
+    previous: scroll.scrollLeft <= epsilon,
+    next: scroll.scrollLeft >= maximum - epsilon,
+  };
 }
 
 export function pdfZoomAnchor(

@@ -1,6 +1,6 @@
 # ADR-125: Turn PDF Pages with Trackpad Gestures
 
-**Status:** Implemented
+**Status:** Superseded by ADR-167
 
 **Date:** 2026-07-15
 

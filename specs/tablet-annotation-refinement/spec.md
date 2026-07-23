@@ -27,9 +27,10 @@ identity and downstream work.
   unsaved draft.
 - Draw color, width, and undo remain contextual to the Draw icon instead of
   reserving a permanent sidebar.
-- An unzoomed PDF accumulates horizontally dominant Mac trackpad wheel input
-  into one previous/next page action. Vertical scroll remains native, while
-  zoomed pages retain horizontal panning instead of changing page.
+- A PDF accumulates horizontally dominant Mac trackpad wheel input into one
+  previous/next page action. Vertical scroll remains native. Zoomed pages pan
+  within the page, then a qualifying gesture toward the corresponding
+  horizontal edge changes pages.
 - Trackpad and touch pinch zoom transform the current page immediately, then
   debounce rendering and atomically replace the live canvas and text layer only
   after the new frame is complete.
@@ -61,7 +62,9 @@ identity and downstream work.
 - [x] Creation and selection reveal the inspector when editing controls are
       required.
 - [x] Two-finger horizontal Mac trackpad swipes turn one page per gesture
-      without capturing vertical scroll or zoomed-page panning.
+      without capturing vertical scroll or interior zoomed-page panning.
+- [x] Trackpad and touch swipes turn zoomed pages from the corresponding
+      horizontal edge.
 - [x] Mac trackpad pinch zoom keeps the previous page frame visible until its
       replacement is ready.
 - [x] Trackpad and touch zoom preserve their pointer or pinch-midpoint origin.

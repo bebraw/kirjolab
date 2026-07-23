@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   advancePdfWheelPaging,
   initialPdfWheelPagingState,
+  pdfHorizontalPageEdges,
   pdfTouchPageDirection,
   pdfTouchPanScroll,
   pdfZoomAnchor,
@@ -24,12 +25,44 @@ describe("PDF touch paging", () => {
     expect(pdfTouchPageDirection(start, { x: 280, y: 90, endedAt: 300 }, 1)).toBe(-1);
   });
 
-  it("leaves vertical, slow, short, and zoomed gestures to scrolling", () => {
+  it("leaves vertical, slow, short, and interior zoomed gestures to scrolling", () => {
     const start = { x: 200, y: 100, startedAt: 100 };
     expect(pdfTouchPageDirection(start, { x: 190, y: 180, endedAt: 300 }, 1)).toBeUndefined();
     expect(pdfTouchPageDirection(start, { x: 150, y: 100, endedAt: 300 }, 1)).toBeUndefined();
     expect(pdfTouchPageDirection(start, { x: 120, y: 100, endedAt: 900 }, 1)).toBeUndefined();
     expect(pdfTouchPageDirection(start, { x: 120, y: 100, endedAt: 300 }, 1.25)).toBeUndefined();
+  });
+
+  it("turns zoomed pages only from the corresponding horizontal edge", () => {
+    const start = { x: 200, y: 100, startedAt: 100 };
+    const previousEdge = { previous: true, next: false };
+    const nextEdge = { previous: false, next: true };
+
+    expect(pdfTouchPageDirection(start, { x: 120, y: 100, endedAt: 300 }, 2, nextEdge)).toBe(1);
+    expect(pdfTouchPageDirection(start, { x: 280, y: 100, endedAt: 300 }, 2, previousEdge)).toBe(-1);
+    expect(pdfTouchPageDirection(start, { x: 120, y: 100, endedAt: 300 }, 2, previousEdge)).toBeUndefined();
+    expect(pdfTouchPageDirection(start, { x: 280, y: 100, endedAt: 300 }, 2, nextEdge)).toBeUndefined();
+  });
+});
+
+describe("PDF horizontal page edges", () => {
+  it("recognizes fitted pages and the start, interior, and end of zoomed pages", () => {
+    expect(pdfHorizontalPageEdges({ scrollLeft: 0, scrollWidth: 600, clientWidth: 600 })).toEqual({
+      previous: true,
+      next: true,
+    });
+    expect(pdfHorizontalPageEdges({ scrollLeft: 0, scrollWidth: 1_200, clientWidth: 600 })).toEqual({
+      previous: true,
+      next: false,
+    });
+    expect(pdfHorizontalPageEdges({ scrollLeft: 300, scrollWidth: 1_200, clientWidth: 600 })).toEqual({
+      previous: false,
+      next: false,
+    });
+    expect(pdfHorizontalPageEdges({ scrollLeft: 600, scrollWidth: 1_200, clientWidth: 600 })).toEqual({
+      previous: false,
+      next: true,
+    });
   });
 });
 
