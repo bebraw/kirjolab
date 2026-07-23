@@ -55,7 +55,7 @@
     "deploy": "node ./scripts/deploy-production.mjs",
     "deploy:dry-run": "node ./scripts/deploy-production.mjs --dry-run-only",
     "dev": "node --env-file-if-exists=.env ./scripts/run-dev.mjs",
-    "dev:worker": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
+    "dev:worker": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --var AUTH_MODE:local --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
     "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:health",
     "diagnostics:health": "fallow health --score --hotspots --targets --quiet --no-cache",
     "diagnostics:prepush": "node ./scripts/run-fallow-prepush.mjs",

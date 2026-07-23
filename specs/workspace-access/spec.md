@@ -128,6 +128,9 @@ without accidentally widening access to another resource.
   application and direct unprotected hostnames should be disabled. The
   `/share/*` and `/edit/*` paths need deliberate Access bypass policies so
   bearer-link holders can reach the Worker's independent token checks.
+- Interactive `npm run dev` explicitly overrides the deployed configuration
+  with `AUTH_MODE=local` and binds to `127.0.0.1`. Local startup must not depend
+  on a developer-created `.dev.vars` file.
 
 ### Anti-Patterns
 

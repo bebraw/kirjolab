@@ -1,5 +1,5 @@
-# Optional local overrides. `npm run dev` already uses loopback-only local
-# authentication through wrangler.jsonc.
+# Optional local overrides. `npm run dev` explicitly selects loopback-only
+# local authentication; production deployment explicitly selects Access.
 AUTH_MODE=local
 ACCESS_TEAM_DOMAIN=
 ACCESS_AUD=

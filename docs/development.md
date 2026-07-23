@@ -72,6 +72,8 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
 - Run the shipped runtime dependency audit with `npm run security:audit`.
 - Start the local Worker and configured model companion with `npm run dev`.
+  The command explicitly selects loopback-only local authentication; it does
+  not require a Cloudflare Access assertion or a `.dev.vars` file.
 - Copy `.env.example` to the ignored `.env` to enable the companion; use
   `npm run model:companion` only for standalone troubleshooting.
 - Install the Playwright browser with `npm run playwright:install`.
