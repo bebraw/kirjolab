@@ -40,6 +40,12 @@ export interface WebSnapshotComparisonResponse {
   readonly comparison: WebSnapshotComparison;
 }
 
+export interface ShareLinkStatus {
+  readonly active: boolean;
+  readonly createdAt: string | null;
+  readonly href: string | null;
+}
+
 export function isWebSnapshotComparisonResponse(value: unknown): value is WebSnapshotComparisonResponse {
   if (!isRecord(value) || !isRecord(value.before) || !isRecord(value.after) || !isRecord(value.comparison)) return false;
   return (
@@ -187,6 +193,10 @@ export function isCreatedAnnotation(value: unknown): value is AnnotationResource
   );
 }
 
+export function isShareLinkStatus(value: unknown): value is ShareLinkStatus {
+  return isRecord(value) && typeof value.active === "boolean" && isNullableString(value.createdAt) && isNullableString(value.href);
+}
+
 function isWebSnapshotComparisonHunk(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -292,6 +302,10 @@ function isLatexDiagnostic(value: unknown): boolean {
     (value.severity === "error" || value.severity === "warning" || value.severity === "info") &&
     typeof value.message === "string"
   );
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

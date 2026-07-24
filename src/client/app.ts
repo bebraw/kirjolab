@@ -160,9 +160,11 @@ import {
   isGitHubRepositoryList,
   isGitHubSyncState,
   isLatexImportPreview,
+  isShareLinkStatus,
   isWebSnapshotComparisonResponse,
   type GitHubRepositoryOption,
   type LatexImportPreview,
+  type ShareLinkStatus,
 } from "./app-contracts";
 import {
   discoverOpenAICompatibleModels,
@@ -2575,23 +2577,16 @@ class WorkspaceApp {
     }
     await expectOk(response);
     const status: unknown = await response.json();
-    if (
-      !isRecord(status) ||
-      typeof status.active !== "boolean" ||
-      (status.createdAt !== null && typeof status.createdAt !== "string") ||
-      (status.href !== null && typeof status.href !== "string")
-    ) {
-      throw new Error("Read-only link status returned invalid data");
-    }
+    if (!isShareLinkStatus(status)) throw new Error("Read-only link status returned invalid data");
+    this.#renderReadOnlyShare(status);
+  }
+
+  #renderReadOnlyShare(status: ShareLinkStatus): void {
     this.#setShareLink(this.#elements.readOnlyShareLink, this.#elements.readOnlyShareLinkRow, status.href);
     this.#elements.createReadOnlyShare.hidden = false;
     this.#elements.createReadOnlyShare.textContent = status.active ? "Replace link" : "Create link";
     this.#elements.revokeReadOnlyShare.classList.toggle("hidden", !status.active);
-    this.#elements.readOnlyShareStatus.textContent = status.href
-      ? "Anyone with this link can inspect the live manuscript and project source. You can copy it again at any time."
-      : status.active
-        ? "This older link remains active, but its secret cannot be recovered. Replace it once to make the new link available here."
-        : "Create a bearer link for people who should inspect, but not edit, this project.";
+    this.#elements.readOnlyShareStatus.textContent = shareLinkDescription("read-only", status);
   }
 
   async #createReadOnlyShare(): Promise<void> {
@@ -2627,23 +2622,16 @@ class WorkspaceApp {
     }
     await expectOk(response);
     const status: unknown = await response.json();
-    if (
-      !isRecord(status) ||
-      typeof status.active !== "boolean" ||
-      (status.createdAt !== null && typeof status.createdAt !== "string") ||
-      (status.href !== null && typeof status.href !== "string")
-    ) {
-      throw new Error("Edit link status returned invalid data");
-    }
+    if (!isShareLinkStatus(status)) throw new Error("Edit link status returned invalid data");
+    this.#renderEditShare(status);
+  }
+
+  #renderEditShare(status: ShareLinkStatus): void {
     this.#setShareLink(this.#elements.editShareLink, this.#elements.editShareLinkRow, status.href);
     this.#elements.createEditShare.hidden = false;
     this.#elements.createEditShare.textContent = status.active ? "Replace link" : "Create link";
     this.#elements.revokeEditShare.classList.toggle("hidden", !status.active);
-    this.#elements.editShareStatus.textContent = status.href
-      ? "Anyone with this link can change authored project files. You can copy it again at any time."
-      : status.active
-        ? "This older link remains active, but its secret cannot be recovered. Replace it once to make the new link available here."
-        : "Create a separate bearer link for someone who may edit authored Markdown without private project access.";
+    this.#elements.editShareStatus.textContent = shareLinkDescription("edit", status);
   }
 
   async #createEditShare(): Promise<void> {
@@ -11225,6 +11213,19 @@ function gitHubPublishChanges(value: GitHubPublishPreview): HTMLElement {
     list.append(item);
   }
   return list;
+}
+
+function shareLinkDescription(kind: "read-only" | "edit", status: ShareLinkStatus): string {
+  if (status.href) {
+    return kind === "read-only"
+      ? "Anyone with this link can inspect the live manuscript and project source. You can copy it again at any time."
+      : "Anyone with this link can change authored project files. You can copy it again at any time.";
+  }
+  if (status.active)
+    return "This older link remains active, but its secret cannot be recovered. Replace it once to make the new link available here.";
+  return kind === "read-only"
+    ? "Create a bearer link for people who should inspect, but not edit, this project."
+    : "Create a separate bearer link for someone who may edit authored Markdown without private project access.";
 }
 
 async function jsonFetch(url: string, body: object, method: "POST" | "PUT" | "PATCH" = "POST"): Promise<Response> {

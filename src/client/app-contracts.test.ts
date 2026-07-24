@@ -10,6 +10,7 @@ import {
   isGitHubRepositoryList,
   isGitHubSyncState,
   isLatexImportPreview,
+  isShareLinkStatus,
   isWebSnapshotComparisonResponse,
 } from "./app-contracts";
 
@@ -162,5 +163,12 @@ describe("app response contracts", () => {
 
     expect(isCreatedAnnotation(value)).toBe(true);
     expect(isCreatedAnnotation({ ...value, fragments: null })).toBe(false);
+  });
+
+  it("validates share-link status payloads", () => {
+    expect(isShareLinkStatus({ active: true, createdAt: "2026-07-24", href: "/shared/token" })).toBe(true);
+    expect(isShareLinkStatus({ active: false, createdAt: null, href: null })).toBe(true);
+    expect(isShareLinkStatus({ active: true, createdAt: 1, href: null })).toBe(false);
+    expect(isShareLinkStatus({ active: "yes", createdAt: null, href: null })).toBe(false);
   });
 });
