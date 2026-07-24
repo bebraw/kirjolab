@@ -849,6 +849,13 @@ interface ActivePdfResources {
   readonly projectReferencePdf: ProjectReferencePdf | undefined;
 }
 
+type PendingPdfNote = PdfAnnotationSnapshot["context"]["note"];
+
+interface OverlappingPdfFragment {
+  readonly annotation: AnnotationResource;
+  readonly fragment: AnnotationResource["fragments"][number];
+}
+
 interface ClarityDrillContext extends AssistantDraftContext {
   readonly provider: OpenAICompatibleBrowserProvider;
   readonly question: ModelClarityQuestion;
@@ -10010,22 +10017,7 @@ class WorkspaceApp {
 
   #renderLibraryHighlightComposer(artifact: LibraryPdfArtifact | undefined): void {
     if (!artifact || !this.#librarySnapshot) return;
-    if (this.#elements.libraryHighlightComposer.dataset.artifactId !== artifact.id) {
-      this.#resetPdfHighlightImport();
-      this.#elements.libraryHighlightComposer.dataset.artifactId = artifact.id;
-      this.#elements.libraryHighlightPage.value = "1";
-      this.#elements.libraryHighlightQuote.value = "";
-      this.#elements.libraryHighlightComment.value = "";
-      this.#editingLibraryHighlightId = null;
-      this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool: this.#libraryPdfTool() });
-      this.#elements.saveLibraryHighlight.textContent = "Save";
-      this.#elements.libraryHighlightExcerpt.textContent = "";
-      this.#elements.libraryHighlightForm.hidden = true;
-      this.#elements.saveLibraryHighlight.disabled = true;
-      this.#elements.cancelLibraryHighlight.disabled = true;
-      this.#elements.libraryHighlightStatus.textContent = "Select text to highlight.";
-      this.#setLibraryPdfInspector(false);
-    }
+    if (this.#elements.libraryHighlightComposer.dataset.artifactId !== artifact.id) this.#resetLibraryHighlightComposer(artifact.id);
     this.#renderLibraryProjectUse(artifact);
     const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
     this.#pdfViewer.updatePrivateHighlights(highlights);
@@ -10038,59 +10030,86 @@ class WorkspaceApp {
       this.#renderPdfMarkups();
       return;
     }
-    for (const highlight of highlights) {
-      const card = document.createElement("article");
-      card.className = "resource-card";
-      card.append(resourceLabel(`Page ${highlight.page}`), resourceTitle(highlight.quote));
-      if (highlight.comment) {
-        const comment = document.createElement("span");
-        comment.className = "mt-2 block font-sans text-xs leading-5 text-app-text-soft";
-        comment.textContent = highlight.comment;
-        card.append(comment);
-      }
-      const actions = document.createElement("div");
-      actions.className = "mt-3 flex flex-wrap gap-2";
-      actions.append(
-        actionButton(`Open page ${highlight.page}`, "button-secondary", () => void this.#openLibraryHighlight(highlight)),
-        actionButton("Edit note", "button-secondary", () => this.#editLibraryHighlight(highlight)),
-      );
-      const linked = this.#snapshot?.projectReferences.some((item) => item.referenceId === highlight.referenceId) ?? false;
-      const share = this.#snapshot?.researchShares.find((item) => item.kind === "highlight" && item.resourceId === highlight.id);
-      const shareAction = share
-        ? actionButton("Revoke highlight share", "button-secondary", () => void this.#revokePrivateResearch(share.id))
-        : actionButton(
-            "Share highlight with project",
-            "button-secondary",
-            () => void this.#sharePrivateResearch(highlight.referenceId, "highlight", highlight.id),
-          );
-      shareAction.disabled = !share && !linked;
-      shareAction.title = linked ? "" : "Add the bibliographic reference to this project first";
-      if (appMode === "workspace") {
-        const citeAction = actionButton("Cite in manuscript", "button-primary", () => void this.#citeLibraryHighlight(highlight));
-        citeAction.title = "Add this source to the project if needed, then cite this page at the remembered manuscript caret";
-        actions.append(citeAction, shareAction);
-      }
-      card.append(actions);
-      this.#elements.libraryHighlightList.append(card);
-    }
-    for (const markup of markups) {
-      const card = document.createElement("article");
-      card.className = "resource-card";
-      card.append(
-        resourceLabel(`Page ${markup.page} · ${markup.kind}`),
-        resourceTitle(markup.kind === "note" ? markup.body : "Freehand drawing"),
-      );
-      const actions = document.createElement("div");
-      actions.className = "mt-3 flex flex-wrap gap-2";
-      actions.append(
-        actionButton(`Open page ${markup.page}`, "button-secondary", () => void this.#openLibraryPdf(artifact, markup.page)),
-        ...(markup.kind === "note" ? [actionButton("Edit note", "button-secondary", () => this.#editLibraryPdfNote(markup))] : []),
-        actionButton("Delete", "button-secondary", () => void this.#deleteLibraryPdfMarkup(markup)),
-      );
-      card.append(actions);
-      this.#elements.libraryHighlightList.append(card);
-    }
+    for (const highlight of highlights) this.#elements.libraryHighlightList.append(this.#libraryHighlightCard(highlight));
+    for (const markup of markups) this.#elements.libraryHighlightList.append(this.#libraryPdfMarkupCard(artifact, markup));
     this.#renderPdfMarkups();
+  }
+
+  #resetLibraryHighlightComposer(artifactId: string): void {
+    this.#resetPdfHighlightImport();
+    this.#elements.libraryHighlightComposer.dataset.artifactId = artifactId;
+    this.#elements.libraryHighlightPage.value = "1";
+    this.#elements.libraryHighlightQuote.value = "";
+    this.#elements.libraryHighlightComment.value = "";
+    this.#editingLibraryHighlightId = null;
+    this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool: this.#libraryPdfTool() });
+    this.#elements.saveLibraryHighlight.textContent = "Save";
+    this.#elements.libraryHighlightExcerpt.textContent = "";
+    this.#elements.libraryHighlightForm.hidden = true;
+    this.#elements.saveLibraryHighlight.disabled = true;
+    this.#elements.cancelLibraryHighlight.disabled = true;
+    this.#elements.libraryHighlightStatus.textContent = "Select text to highlight.";
+    this.#setLibraryPdfInspector(false);
+  }
+
+  #libraryHighlightCard(highlight: LibraryHighlight): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    card.append(resourceLabel(`Page ${highlight.page}`), resourceTitle(highlight.quote));
+    if (highlight.comment) card.append(this.#libraryHighlightComment(highlight.comment));
+    const actions = document.createElement("div");
+    actions.className = "mt-3 flex flex-wrap gap-2";
+    actions.append(
+      actionButton(`Open page ${highlight.page}`, "button-secondary", () => void this.#openLibraryHighlight(highlight)),
+      actionButton("Edit note", "button-secondary", () => this.#editLibraryHighlight(highlight)),
+    );
+    if (appMode === "workspace") actions.append(this.#citeLibraryHighlightAction(highlight), this.#shareLibraryHighlightAction(highlight));
+    card.append(actions);
+    return card;
+  }
+
+  #libraryHighlightComment(value: string): HTMLElement {
+    const comment = document.createElement("span");
+    comment.className = "mt-2 block font-sans text-xs leading-5 text-app-text-soft";
+    comment.textContent = value;
+    return comment;
+  }
+
+  #citeLibraryHighlightAction(highlight: LibraryHighlight): HTMLButtonElement {
+    const action = actionButton("Cite in manuscript", "button-primary", () => void this.#citeLibraryHighlight(highlight));
+    action.title = "Add this source to the project if needed, then cite this page at the remembered manuscript caret";
+    return action;
+  }
+
+  #shareLibraryHighlightAction(highlight: LibraryHighlight): HTMLButtonElement {
+    const linked = this.#snapshot?.projectReferences.some((item) => item.referenceId === highlight.referenceId) ?? false;
+    const share = this.#snapshot?.researchShares.find((item) => item.kind === "highlight" && item.resourceId === highlight.id);
+    const action = share
+      ? actionButton("Revoke highlight share", "button-secondary", () => void this.#revokePrivateResearch(share.id))
+      : actionButton(
+          "Share highlight with project",
+          "button-secondary",
+          () => void this.#sharePrivateResearch(highlight.referenceId, "highlight", highlight.id),
+        );
+    action.disabled = !share && !linked;
+    action.title = linked ? "" : "Add the bibliographic reference to this project first";
+    return action;
+  }
+
+  #libraryPdfMarkupCard(artifact: LibraryPdfArtifact, markup: LibraryPdfMarkup): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    card.append(
+      resourceLabel(`Page ${markup.page} · ${markup.kind}`),
+      resourceTitle(markup.kind === "note" ? markup.body : "Freehand drawing"),
+    );
+    const actions = document.createElement("div");
+    actions.className = "mt-3 flex flex-wrap gap-2";
+    actions.append(actionButton(`Open page ${markup.page}`, "button-secondary", () => void this.#openLibraryPdf(artifact, markup.page)));
+    if (markup.kind === "note") actions.append(actionButton("Edit note", "button-secondary", () => this.#editLibraryPdfNote(markup)));
+    actions.append(actionButton("Delete", "button-secondary", () => void this.#deleteLibraryPdfMarkup(markup)));
+    card.append(actions);
+    return card;
   }
 
   async #detectLibraryPdfHighlights(): Promise<void> {
@@ -10172,17 +10191,7 @@ class WorkspaceApp {
     const detection = this.#pdfHighlightDetection;
     const artifact = this.#activeLibraryPdf();
     if (!detection || !artifact?.referenceId || detection.artifactId !== artifact.id) return;
-    const candidatesById = new Map(detection.result.candidates.map((candidate) => [candidate.id, candidate]));
-    const selected: Array<PdfHighlightImportCandidate & { comment: string }> = [];
-    for (const row of this.#elements.libraryHighlightImportList.querySelectorAll<HTMLElement>("[data-highlight-import-id]")) {
-      const checkbox = row.querySelector<HTMLInputElement>("[data-highlight-import-selection]");
-      const candidate = candidatesById.get(row.dataset.highlightImportId ?? "");
-      if (!checkbox?.checked || !candidate) continue;
-      selected.push({
-        ...candidate,
-        comment: row.querySelector<HTMLInputElement>("[data-highlight-import-comment]")?.value.trim() ?? "",
-      });
-    }
+    const selected = this.#selectedPdfHighlightImports(detection);
     if (selected.length === 0) {
       this.#showToast("Select at least one detected highlight to import.");
       return;
@@ -10195,12 +10204,31 @@ class WorkspaceApp {
         candidates: selected.map(({ page, quote, comment, rects }) => ({ page, quote, comment, rects })),
       });
       await expectOk(response);
-      this.#resetPdfHighlightImport(`${selected.length} highlight${selected.length === 1 ? "" : "s"} imported privately.`);
+      this.#resetPdfHighlightImport(`${selected.length} ${this.#pdfHighlightImportNoun(selected.length)} imported privately.`);
       await this.#refreshReferenceLibrary();
-      this.#showToast(`${selected.length} PDF highlight${selected.length === 1 ? "" : "s"} imported to your library.`);
+      this.#showToast(`${selected.length} PDF ${this.#pdfHighlightImportNoun(selected.length)} imported to your library.`);
     } finally {
       if (submit) submit.disabled = false;
     }
+  }
+
+  #selectedPdfHighlightImports(detection: {
+    readonly result: PdfHighlightDetection;
+  }): Array<PdfHighlightImportCandidate & { comment: string }> {
+    const candidates = new Map(detection.result.candidates.map((candidate) => [candidate.id, candidate]));
+    const selected: Array<PdfHighlightImportCandidate & { comment: string }> = [];
+    for (const row of this.#elements.libraryHighlightImportList.querySelectorAll<HTMLElement>("[data-highlight-import-id]")) {
+      const checkbox = row.querySelector<HTMLInputElement>("[data-highlight-import-selection]");
+      const candidate = candidates.get(row.dataset.highlightImportId ?? "");
+      if (!checkbox?.checked || !candidate) continue;
+      const comment = row.querySelector<HTMLInputElement>("[data-highlight-import-comment]")?.value.trim() ?? "";
+      selected.push({ ...candidate, comment });
+    }
+    return selected;
+  }
+
+  #pdfHighlightImportNoun(count: number): string {
+    return count === 1 ? "highlight" : "highlights";
   }
 
   #resetPdfHighlightImport(message = "Detect native annotations and flattened yellow highlights for review."): void {
@@ -10247,37 +10275,38 @@ class WorkspaceApp {
 
   async #saveLibraryHighlight(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const tab = this.#activeResourceTab();
-    if (tab?.kind !== "library-pdf") return;
-    const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id);
+    const artifact = this.#activeLibraryPdf();
     const quote = this.#elements.libraryHighlightQuote.value.trim();
     if (!artifact?.referenceId || !quote) return;
     if (this.#editingLibraryHighlightId) {
-      const response = await fetch(
-        `/api/library/references/${encodeURIComponent(artifact.referenceId)}/highlights/${encodeURIComponent(this.#editingLibraryHighlightId)}`,
-        {
-          method: "PATCH",
-          credentials: "same-origin",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ comment: this.#elements.libraryHighlightComment.value }),
-        },
-      );
-      await expectOk(response);
-      this.#clearLibraryHighlightDraft("Private highlight note updated.");
-      await this.#refreshReferenceLibrary();
-      this.#showToast("Private highlight note updated.");
+      await this.#updateLibraryHighlightNote(artifact.referenceId, this.#editingLibraryHighlightId);
       return;
     }
-    const extendsExisting =
-      this.#librarySnapshot?.highlights.some(
-        (highlight) =>
-          highlight.artifactId === artifact.id &&
-          highlight.page === Number(this.#elements.libraryHighlightPage.value) &&
-          libraryPdfRectsOverlap(highlight.rects, this.#libraryHighlightRects),
-      ) ?? false;
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/highlights`, {
+    await this.#createLibraryHighlight(artifact, artifact.referenceId, quote);
+  }
+
+  async #updateLibraryHighlightNote(referenceId: string, highlightId: string): Promise<void> {
+    const response = await fetch(
+      `/api/library/references/${encodeURIComponent(referenceId)}/highlights/${encodeURIComponent(highlightId)}`,
+      {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ comment: this.#elements.libraryHighlightComment.value }),
+      },
+    );
+    await expectOk(response);
+    this.#clearLibraryHighlightDraft("Private highlight note updated.");
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Private highlight note updated.");
+  }
+
+  async #createLibraryHighlight(artifact: LibraryPdfArtifact, referenceId: string, quote: string): Promise<void> {
+    const page = Number(this.#elements.libraryHighlightPage.value);
+    const extendsExisting = this.#libraryHighlightExtendsExisting(artifact.id, page);
+    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/highlights`, {
       artifactId: artifact.id,
-      page: Number(this.#elements.libraryHighlightPage.value),
+      page,
       quote,
       comment: this.#elements.libraryHighlightComment.value,
       rects: this.#libraryHighlightRects,
@@ -10293,6 +10322,17 @@ class WorkspaceApp {
       ? "Existing private highlight extended. Select another passage to continue."
       : "Private highlight saved. Select another passage to continue.";
     this.#showToast(extendsExisting ? "Existing private highlight extended." : "Private highlight saved to your library.");
+  }
+
+  #libraryHighlightExtendsExisting(artifactId: string, page: number): boolean {
+    return (
+      this.#librarySnapshot?.highlights.some(
+        (highlight) =>
+          highlight.artifactId === artifactId &&
+          highlight.page === page &&
+          libraryPdfRectsOverlap(highlight.rects, this.#libraryHighlightRects),
+      ) ?? false
+    );
   }
 
   #clearLibraryHighlightDraft(message = "Selection cancelled. Nothing was saved."): void {
@@ -10349,6 +10389,16 @@ class WorkspaceApp {
     if (tool !== "draw") delete this.#elements.paperMarkups.dataset.drawingActive;
     this.#elements.paperMarkups.dataset.tool = tool;
     this.#elements.paperTextLayer.style.pointerEvents = tool === "text" ? "auto" : "none";
+    this.#updateLibraryPdfToolButtons(tool);
+    this.#elements.libraryInkOptions.hidden = tool !== "draw";
+    this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#selectedLibraryHighlightId());
+    this.#elements.libraryHighlightStatus.textContent = this.#libraryPdfToolStatus(tool);
+    if (tool !== "note") this.#clearLibraryPdfNoteDraft(false);
+    if (tool !== "select") this.#clearLibraryPdfMarkupSelection(false);
+    if (this.#libraryPdfInspectorEmpty()) this.#setLibraryPdfInspector(false);
+  }
+
+  #updateLibraryPdfToolButtons(tool: PdfAnnotationTool): void {
     for (const [button, value] of [
       [this.#elements.librarySelectTool, "select"],
       [this.#elements.libraryTextTool, "text"],
@@ -10356,38 +10406,24 @@ class WorkspaceApp {
       [this.#elements.libraryDrawTool, "draw"],
     ] as const)
       button.setAttribute("aria-pressed", String(tool === value));
-    this.#elements.libraryInkOptions.hidden = tool !== "draw";
-    this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#selectedLibraryHighlightId());
-    this.#elements.libraryHighlightStatus.textContent =
-      tool === "select"
-        ? "Tap an existing highlight, line, or note to edit it. Drag a selected note to move it."
-        : tool === "text"
-          ? "Select text to highlight."
-          : tool === "note"
-            ? "Tap the page to place a note."
-            : "Draw with Apple Pencil or a mouse. Touch gestures pan and zoom.";
-    if (tool !== "note") this.#clearLibraryPdfNoteDraft(false);
-    if (tool !== "select") this.#clearLibraryPdfMarkupSelection(false);
-    if (this.#elements.libraryHighlightForm.hidden && this.#elements.libraryNoteForm.hidden && this.#elements.libraryMarkupSelection.hidden)
-      this.#setLibraryPdfInspector(false);
+  }
+
+  #libraryPdfToolStatus(tool: PdfAnnotationTool): string {
+    if (tool === "select") return "Tap an existing highlight, line, or note to edit it. Drag a selected note to move it.";
+    if (tool === "text") return "Select text to highlight.";
+    if (tool === "note") return "Tap the page to place a note.";
+    return "Draw with Apple Pencil or a mouse. Touch gestures pan and zoom.";
+  }
+
+  #libraryPdfInspectorEmpty(): boolean {
+    return Boolean(
+      this.#elements.libraryHighlightForm.hidden && this.#elements.libraryNoteForm.hidden && this.#elements.libraryMarkupSelection.hidden,
+    );
   }
 
   #startLibraryPdfMarkup(event: PointerEvent): void {
     const note = (event.target as Element).closest<HTMLButtonElement>(".pdf-note-pin");
-    if (note) {
-      const id = note.dataset.markupId;
-      if (!id || this.#libraryPdfTool() !== "select") return;
-      this.#selectLibraryPdfMarkup(id);
-      this.#pdfAnnotation.send({
-        type: "START_NOTE_DRAG",
-        id,
-        pointerId: event.pointerId,
-        x: event.clientX,
-        y: event.clientY,
-      });
-      this.#elements.paperMarkups.setPointerCapture(event.pointerId);
-      return;
-    }
+    if (note) return this.#startLibraryPdfNoteDrag(note, event);
     const drawing = (event.target as Element).closest<SVGElement>(".pdf-ink-stroke");
     if (drawing?.dataset.markupId && this.#libraryPdfTool() === "select") {
       event.preventDefault();
@@ -10397,14 +10433,7 @@ class WorkspaceApp {
     const point = this.#normalizedPdfPoint(event);
     if (!point) return;
     if (this.#libraryPdfTool() === "note") {
-      this.#pdfAnnotation.send({
-        type: "START_NOTE_PRESS",
-        pointerId: event.pointerId,
-        page: this.#pdfViewer.currentPage,
-        point,
-        x: event.clientX,
-        y: event.clientY,
-      });
+      this.#startLibraryPdfNote(event, point);
       return;
     }
     if (this.#libraryPdfTool() !== "draw") return;
@@ -10412,6 +10441,29 @@ class WorkspaceApp {
       this.#elements.libraryHighlightStatus.textContent = "Use Apple Pencil or a mouse to draw; touch gestures pan and zoom the page.";
       return;
     }
+    this.#startLibraryPdfDrawing(event, point);
+  }
+
+  #startLibraryPdfNoteDrag(note: HTMLButtonElement, event: PointerEvent): void {
+    const id = note.dataset.markupId;
+    if (!id || this.#libraryPdfTool() !== "select") return;
+    this.#selectLibraryPdfMarkup(id);
+    this.#pdfAnnotation.send({ type: "START_NOTE_DRAG", id, pointerId: event.pointerId, x: event.clientX, y: event.clientY });
+    this.#elements.paperMarkups.setPointerCapture(event.pointerId);
+  }
+
+  #startLibraryPdfNote(event: PointerEvent, point: LibraryPdfPoint): void {
+    this.#pdfAnnotation.send({
+      type: "START_NOTE_PRESS",
+      pointerId: event.pointerId,
+      page: this.#pdfViewer.currentPage,
+      point,
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
+  #startLibraryPdfDrawing(event: PointerEvent, point: LibraryPdfPoint): void {
     event.preventDefault();
     this.#pdfAnnotation.send({ type: "START_DRAWING", pointerId: event.pointerId, point });
     this.#elements.paperMarkups.setPointerCapture(event.pointerId);
@@ -10427,19 +10479,26 @@ class WorkspaceApp {
     }
     const drag = this.#pdfNoteDrag();
     if (drag?.pointerId === event.pointerId) {
-      const point = this.#normalizedPdfPoint(event);
-      const pin = this.#elements.paperMarkups.querySelector<HTMLElement>(`.pdf-note-pin[data-markup-id="${CSS.escape(drag.id)}"]`);
-      if (!point || !pin) return;
-      this.#pdfAnnotation.send({ type: "MOVE_NOTE_DRAG", pointerId: event.pointerId, x: event.clientX, y: event.clientY });
-      if (this.#pdfNoteDrag()?.moved) {
-        event.preventDefault();
-        pin.style.left = `${point.x * 100}%`;
-        pin.style.top = `${point.y * 100}%`;
-      }
+      this.#continueLibraryPdfNoteDrag(event, drag.id);
       return;
     }
     const draft = this.#pdfDrawingDraft();
     if (this.#pdfDrawingPointer() !== event.pointerId || !draft) return;
+    this.#appendLibraryPdfDrawingPoints(event, draft);
+  }
+
+  #continueLibraryPdfNoteDrag(event: PointerEvent, noteId: string): void {
+    const point = this.#normalizedPdfPoint(event);
+    const pin = this.#elements.paperMarkups.querySelector<HTMLElement>(`.pdf-note-pin[data-markup-id="${CSS.escape(noteId)}"]`);
+    if (!point || !pin) return;
+    this.#pdfAnnotation.send({ type: "MOVE_NOTE_DRAG", pointerId: event.pointerId, x: event.clientX, y: event.clientY });
+    if (!this.#pdfNoteDrag()?.moved) return;
+    event.preventDefault();
+    pin.style.left = `${point.x * 100}%`;
+    pin.style.top = `${point.y * 100}%`;
+  }
+
+  #appendLibraryPdfDrawingPoints(event: PointerEvent, draft: readonly LibraryPdfPoint[]): void {
     // Safari can otherwise promote an active Apple Pencil stroke to a native
     // scroll once the zoomed page starts moving, despite cancelling pointerdown.
     event.preventDefault();
@@ -10460,12 +10519,7 @@ class WorkspaceApp {
 
   async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {
     if (this.#pdfAnnotationSnapshot().context.notePress?.pointerId === event.pointerId) {
-      this.#pdfAnnotation.send({ type: "FINISH_NOTE_PRESS", pointerId: event.pointerId });
-      if (this.#pdfAnnotationSnapshot().value !== "composingNote") return;
-      this.#elements.libraryNoteForm.hidden = false;
-      this.#setLibraryPdfInspector(true);
-      this.#renderPdfMarkups();
-      this.#elements.libraryNoteBody.focus();
+      this.#finishLibraryPdfNotePress(event.pointerId);
       return;
     }
     if (this.#pdfNoteDrag()?.pointerId === event.pointerId) {
@@ -10477,6 +10531,19 @@ class WorkspaceApp {
     const points = [...draft];
     this.#pdfAnnotation.send({ type: "FINISH_DRAWING", pointerId: event.pointerId });
     this.#cancelLibraryPdfDrawing();
+    await this.#persistLibraryPdfDrawing(points);
+  }
+
+  #finishLibraryPdfNotePress(pointerId: number): void {
+    this.#pdfAnnotation.send({ type: "FINISH_NOTE_PRESS", pointerId });
+    if (this.#pdfAnnotationSnapshot().value !== "composingNote") return;
+    this.#elements.libraryNoteForm.hidden = false;
+    this.#setLibraryPdfInspector(true);
+    this.#renderPdfMarkups();
+    this.#elements.libraryNoteBody.focus();
+  }
+
+  async #persistLibraryPdfDrawing(points: readonly LibraryPdfPoint[]): Promise<void> {
     const artifact = this.#activeLibraryPdf();
     if (!artifact?.referenceId || points.length < 2) return this.#renderPdfMarkups();
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups`, {
@@ -10648,92 +10715,113 @@ class WorkspaceApp {
     const drawingDraft = this.#pdfDrawingDraft();
     const noteDraft = this.#pendingPdfNote();
     const selectedMarkupId = this.#selectedLibraryPdfMarkupId();
-    const markups = artifact
-      ? (this.#librarySnapshot?.pdfMarkups ?? []).filter((item) => item.artifactId === artifact.id && item.page === page)
-      : [];
+    const markups = this.#visibleLibraryPdfMarkups(artifact, page);
     this.#elements.paperMarkups.replaceChildren();
     const drawings = markups.filter((item): item is LibraryPdfDrawing => item.kind === "drawing");
-    if (drawingDraft)
-      drawings.push({
-        id: "draft",
-        kind: "drawing",
-        referenceId: artifact?.referenceId ?? "",
-        artifactId: artifact?.id ?? "",
-        page,
-        color: this.#elements.libraryDrawColor.value,
-        width: Number(this.#elements.libraryDrawWidth.value),
-        points: drawingDraft,
-        createdAt: "",
-        updatedAt: "",
-      });
-    if (drawings.length) {
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.classList.add("pdf-ink-layer");
-      svg.setAttribute("viewBox", "0 0 1000 1000");
-      svg.setAttribute("preserveAspectRatio", "none");
-      for (const drawing of drawings) {
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-        line.setAttribute("points", this.#drawingPoints(drawing.points));
-        line.setAttribute("fill", "none");
-        line.setAttribute("stroke", drawing.color);
-        line.setAttribute("stroke-width", String(drawing.width));
-        line.setAttribute("stroke-linecap", "round");
-        line.setAttribute("stroke-linejoin", "round");
-        line.setAttribute("vector-effect", "non-scaling-stroke");
-        line.classList.add("pdf-ink-stroke");
-        line.dataset.markupId = drawing.id;
-        if (drawing.id === selectedMarkupId) line.dataset.selected = "true";
-        svg.append(line);
-        if (drawing.id === "draft") this.#pdfDrawingDraftLine = line;
-      }
-      this.#elements.paperMarkups.append(svg);
-    }
-    if (noteDraft?.page === page && !noteDraft.editingId) {
-      const draftPin = document.createElement("span");
-      draftPin.className = "pdf-note-pin";
-      draftPin.dataset.draft = "true";
-      draftPin.style.left = `${noteDraft.x * 100}%`;
-      draftPin.style.top = `${noteDraft.y * 100}%`;
-      draftPin.setAttribute("aria-label", `New note location on page ${page}`);
-      draftPin.title = "New note location";
-      this.#elements.paperMarkups.append(draftPin);
-    }
-    for (const note of markups.filter((item): item is LibraryPdfNote => item.kind === "note")) {
-      const pin = document.createElement("button");
-      pin.className = "pdf-note-pin";
-      pin.type = "button";
-      pin.dataset.markupId = note.id;
-      if (note.id === selectedMarkupId) pin.dataset.selected = "true";
-      pin.style.left = `${note.x * 100}%`;
-      pin.style.top = `${note.y * 100}%`;
-      pin.setAttribute("aria-label", `Open note on page ${note.page}`);
-      pin.title = this.#libraryPdfTool() === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note";
-      this.#elements.paperMarkups.append(pin);
-      if (this.#pdfAnnotationSnapshot().context.openNoteId === note.id) {
-        const card = document.createElement("aside");
-        card.className = "pdf-note-card";
-        card.style.left = `${Math.min(note.x * 100, 70)}%`;
-        card.style.top = `${Math.min(note.y * 100, 82)}%`;
-        card.setAttribute("aria-label", `Note on page ${note.page}`);
-        const body = document.createElement("p");
-        body.textContent = note.body;
-        const close = document.createElement("button");
-        close.className = "pdf-note-card-close";
-        close.type = "button";
-        close.setAttribute("aria-label", `Close note on page ${note.page}`);
-        close.title = "Close note";
-        close.textContent = "×";
-        close.addEventListener("click", (event) => {
-          event.stopPropagation();
-          this.#pdfAnnotation.send({ type: "CLOSE_NOTE_CARD" });
-          this.#renderPdfMarkups();
-          this.#elements.paperMarkups.querySelector<HTMLButtonElement>(`.pdf-note-pin[data-markup-id="${CSS.escape(note.id)}"]`)?.focus();
-        });
-        card.append(body, close);
-        this.#elements.paperMarkups.append(card);
-      }
-    }
+    if (drawingDraft) drawings.push(this.#draftLibraryPdfDrawing(artifact, page, drawingDraft));
+    this.#renderLibraryPdfDrawings(drawings, selectedMarkupId);
+    this.#renderLibraryPdfNoteDraft(noteDraft, page);
+    for (const note of markups.filter((item): item is LibraryPdfNote => item.kind === "note"))
+      this.#renderLibraryPdfNote(note, selectedMarkupId);
     this.#elements.undoLibraryDrawing.disabled = !markups.some((item) => item.kind === "drawing");
+  }
+
+  #visibleLibraryPdfMarkups(artifact: LibraryPdfArtifact | undefined, page: number): LibraryPdfMarkup[] {
+    if (!artifact) return [];
+    return (this.#librarySnapshot?.pdfMarkups ?? []).filter((item) => item.artifactId === artifact.id && item.page === page);
+  }
+
+  #draftLibraryPdfDrawing(artifact: LibraryPdfArtifact | undefined, page: number, points: readonly LibraryPdfPoint[]): LibraryPdfDrawing {
+    return {
+      id: "draft",
+      kind: "drawing",
+      referenceId: artifact?.referenceId ?? "",
+      artifactId: artifact?.id ?? "",
+      page,
+      color: this.#elements.libraryDrawColor.value,
+      width: Number(this.#elements.libraryDrawWidth.value),
+      points: [...points],
+      createdAt: "",
+      updatedAt: "",
+    };
+  }
+
+  #renderLibraryPdfDrawings(drawings: readonly LibraryPdfDrawing[], selectedMarkupId: string | null): void {
+    if (drawings.length === 0) return;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("pdf-ink-layer");
+    svg.setAttribute("viewBox", "0 0 1000 1000");
+    svg.setAttribute("preserveAspectRatio", "none");
+    for (const drawing of drawings) svg.append(this.#libraryPdfDrawingLine(drawing, selectedMarkupId));
+    this.#elements.paperMarkups.append(svg);
+  }
+
+  #libraryPdfDrawingLine(drawing: LibraryPdfDrawing, selectedMarkupId: string | null): SVGPolylineElement {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    line.setAttribute("points", this.#drawingPoints(drawing.points));
+    line.setAttribute("fill", "none");
+    line.setAttribute("stroke", drawing.color);
+    line.setAttribute("stroke-width", String(drawing.width));
+    line.setAttribute("stroke-linecap", "round");
+    line.setAttribute("stroke-linejoin", "round");
+    line.setAttribute("vector-effect", "non-scaling-stroke");
+    line.classList.add("pdf-ink-stroke");
+    line.dataset.markupId = drawing.id;
+    if (drawing.id === selectedMarkupId) line.dataset.selected = "true";
+    if (drawing.id === "draft") this.#pdfDrawingDraftLine = line;
+    return line;
+  }
+
+  #renderLibraryPdfNoteDraft(noteDraft: PendingPdfNote, page: number): void {
+    if (noteDraft?.page !== page || noteDraft.editingId) return;
+    const pin = document.createElement("span");
+    pin.className = "pdf-note-pin";
+    pin.dataset.draft = "true";
+    pin.style.left = `${noteDraft.x * 100}%`;
+    pin.style.top = `${noteDraft.y * 100}%`;
+    pin.setAttribute("aria-label", `New note location on page ${page}`);
+    pin.title = "New note location";
+    this.#elements.paperMarkups.append(pin);
+  }
+
+  #renderLibraryPdfNote(note: LibraryPdfNote, selectedMarkupId: string | null): void {
+    const pin = document.createElement("button");
+    pin.className = "pdf-note-pin";
+    pin.type = "button";
+    pin.dataset.markupId = note.id;
+    if (note.id === selectedMarkupId) pin.dataset.selected = "true";
+    pin.style.left = `${note.x * 100}%`;
+    pin.style.top = `${note.y * 100}%`;
+    pin.setAttribute("aria-label", `Open note on page ${note.page}`);
+    pin.title = this.#libraryPdfTool() === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note";
+    this.#elements.paperMarkups.append(pin);
+    if (this.#pdfAnnotationSnapshot().context.openNoteId === note.id) this.#elements.paperMarkups.append(this.#libraryPdfNoteCard(note));
+  }
+
+  #libraryPdfNoteCard(note: LibraryPdfNote): HTMLElement {
+    const card = document.createElement("aside");
+    card.className = "pdf-note-card";
+    card.style.left = `${Math.min(note.x * 100, 70)}%`;
+    card.style.top = `${Math.min(note.y * 100, 82)}%`;
+    card.setAttribute("aria-label", `Note on page ${note.page}`);
+    const body = document.createElement("p");
+    body.textContent = note.body;
+    const close = document.createElement("button");
+    close.className = "pdf-note-card-close";
+    close.type = "button";
+    close.setAttribute("aria-label", `Close note on page ${note.page}`);
+    close.title = "Close note";
+    close.textContent = "×";
+    close.addEventListener("click", (event) => this.#closeLibraryPdfNoteCard(event, note.id));
+    card.append(body, close);
+    return card;
+  }
+
+  #closeLibraryPdfNoteCard(event: MouseEvent, noteId: string): void {
+    event.stopPropagation();
+    this.#pdfAnnotation.send({ type: "CLOSE_NOTE_CARD" });
+    this.#renderPdfMarkups();
+    this.#elements.paperMarkups.querySelector<HTMLButtonElement>(`.pdf-note-pin[data-markup-id="${CSS.escape(noteId)}"]`)?.focus();
   }
 
   async #undoLibraryDrawing(): Promise<void> {
@@ -10826,27 +10914,40 @@ class WorkspaceApp {
   async #persistPdfSelection(capture: PdfSelectionCapture): Promise<void> {
     const pdfId = this.#renderedPdfId;
     if (!pdfId || !this.#snapshot) return;
-    const overlaps = this.#snapshot.annotations
-      .filter((annotation) => annotation.pdfId === pdfId && annotation.page === capture.page)
-      .flatMap((annotation) =>
-        annotation.fragments
-          .filter((fragment) => fragment.rects.some((rect) => capture.rects.some((candidate) => selectionRectsOverlap(rect, candidate))))
-          .map((fragment) => ({ annotation, fragment })),
-      );
+    const overlaps = this.#overlappingPdfFragments(pdfId, capture);
     if (this.#highlightTool === "erase") {
-      if (overlaps.length === 0) {
-        this.#pdfViewer.clearDraftSelection();
-        this.#elements.annotationSelectionStatus.textContent = "The eraser did not cross a saved highlight stroke.";
-        return;
-      }
-      for (const overlap of overlaps) await this.#removeHighlightFragment(overlap.annotation.id, overlap.fragment.id, false);
-      this.#pdfViewer.clearDraftSelection();
-      this.#elements.annotationSelectionStatus.textContent = `Removed ${overlaps.length} overlapping highlight ${overlaps.length === 1 ? "stroke" : "strokes"}.`;
-      this.#showToast("Highlight content erased.");
+      await this.#erasePdfSelection(overlaps);
       return;
     }
+    await this.#savePdfSelection(pdfId, capture, overlaps[0]?.annotation);
+  }
 
-    const target = overlaps[0]?.annotation;
+  #overlappingPdfFragments(pdfId: string, capture: PdfSelectionCapture): OverlappingPdfFragment[] {
+    return (
+      this.#snapshot?.annotations
+        .filter((annotation) => annotation.pdfId === pdfId && annotation.page === capture.page)
+        .flatMap((annotation) =>
+          annotation.fragments
+            .filter((fragment) => fragment.rects.some((rect) => capture.rects.some((candidate) => selectionRectsOverlap(rect, candidate))))
+            .map((fragment) => ({ annotation, fragment })),
+        ) ?? []
+    );
+  }
+
+  async #erasePdfSelection(overlaps: readonly OverlappingPdfFragment[]): Promise<void> {
+    if (overlaps.length === 0) {
+      this.#pdfViewer.clearDraftSelection();
+      this.#elements.annotationSelectionStatus.textContent = "The eraser did not cross a saved highlight stroke.";
+      return;
+    }
+    for (const overlap of overlaps) await this.#removeHighlightFragment(overlap.annotation.id, overlap.fragment.id, false);
+    this.#pdfViewer.clearDraftSelection();
+    const noun = overlaps.length === 1 ? "stroke" : "strokes";
+    this.#elements.annotationSelectionStatus.textContent = `Removed ${overlaps.length} overlapping highlight ${noun}.`;
+    this.#showToast("Highlight content erased.");
+  }
+
+  async #savePdfSelection(pdfId: string, capture: PdfSelectionCapture, target: AnnotationResource | undefined): Promise<void> {
     const response = target
       ? await jsonFetch(`${apiBase}/annotations/${encodeURIComponent(target.id)}/fragments`, capture)
       : await jsonFetch(`${apiBase}/annotations`, { pdfId, ...capture, comment: "" });
