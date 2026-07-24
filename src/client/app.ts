@@ -6807,33 +6807,41 @@ class WorkspaceApp {
   }
 
   #openClaimDialog(claim?: ClaimResource): void {
-    if (!this.#snapshot || this.#snapshot.annotations.length === 0) {
+    const snapshot = this.#snapshot;
+    if (!snapshot || snapshot.annotations.length === 0) {
       this.#showToast("Create an evidence annotation before adding a claim.");
       return;
     }
+    const evidence = claim ? snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id) : [];
+    this.#configureClaimDialog(claim, evidence);
+    const selected = new Set(evidence.map((link) => link.annotationId));
+    this.#elements.claimEvidenceOptions.replaceChildren(
+      ...snapshot.annotations.map((annotation) => this.#claimEvidenceOption(annotation, selected)),
+    );
+    this.#elements.claimDialog.showModal();
+    this.#elements.claimText.focus();
+  }
+
+  #configureClaimDialog(claim: ClaimResource | undefined, evidence: readonly WorkspaceSnapshot["claimEvidenceLinks"][number][]): void {
     this.#editingClaimId = claim?.id;
     this.#elements.claimDialogTitle.textContent = claim ? "Edit claim" : "Create claim";
     this.#elements.claimText.value = claim?.text ?? "";
     this.#elements.claimNote.value = claim?.note ?? "";
-    const evidence = claim ? this.#snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id) : [];
     this.#elements.claimRelation.value = evidence[0]?.relation ?? "supports";
-    const selected = new Set(evidence.map((link) => link.annotationId));
-    this.#elements.claimEvidenceOptions.replaceChildren();
-    for (const annotation of this.#snapshot.annotations) {
-      const label = document.createElement("label");
-      label.className = "resource-card flex cursor-pointer items-start gap-2 font-sans text-xs";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = annotation.id;
-      checkbox.checked = selected.has(annotation.id);
-      checkbox.className = "mt-0.5 accent-app-accent";
-      const text = document.createElement("span");
-      text.textContent = annotation.comment || `Page ${annotation.page}: ${annotation.quote}`;
-      label.append(checkbox, text);
-      this.#elements.claimEvidenceOptions.append(label);
-    }
-    this.#elements.claimDialog.showModal();
-    this.#elements.claimText.focus();
+  }
+
+  #claimEvidenceOption(annotation: AnnotationResource, selected: ReadonlySet<string>): HTMLElement {
+    const label = document.createElement("label");
+    label.className = "resource-card flex cursor-pointer items-start gap-2 font-sans text-xs";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = annotation.id;
+    checkbox.checked = selected.has(annotation.id);
+    checkbox.className = "mt-0.5 accent-app-accent";
+    const text = document.createElement("span");
+    text.textContent = annotation.comment || `Page ${annotation.page}: ${annotation.quote}`;
+    label.append(checkbox, text);
+    return label;
   }
 
   async #saveClaim(event: SubmitEvent): Promise<void> {
@@ -7203,59 +7211,51 @@ class WorkspaceApp {
     if (separator < 0) return;
     const kind = resourceId.slice(0, separator);
     const id = resourceId.slice(separator + 1);
-    if (kind === "document") {
-      this.#showWorkspaceSurface("authoring");
-      this.#setAuthoringMode("write");
-      this.#elements.source.focus();
-      this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-    if (kind === "project") {
-      this.#elements.workspaceSwitcher.focus();
-      return;
-    }
-    if (kind === "person") {
-      void this.#openSharing();
-      return;
-    }
-    if (kind === "model-candidate") {
-      const candidate = this.#snapshot?.candidates.find((item) => item.id === id);
-      if (candidate) this.#openCandidateContext(candidate);
-      return;
-    }
-    if (kind === "note") {
-      const share = this.#snapshot?.researchShares.find(
-        (item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note",
-      );
-      if (share?.content.kind === "note") this.#showToast(excerptForToast(share.content.body));
-      return;
-    }
-    if (kind === "section") {
-      this.#activateContext(RESEARCH_PREVIEW_KEY);
-      const section = this.#elements.preview.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
-      section?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-    if (kind === "annotation") {
-      const annotation = this.#snapshot?.annotations.find((item) => item.id === id);
-      const pdf = annotation ? this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId) : undefined;
-      if (annotation && pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
-      return;
-    }
-    if (kind === "claim") {
-      const card = document.querySelector<HTMLElement>(`[data-claim-resource-id="${CSS.escape(id)}"]`);
-      card?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-    if (kind === "pdf") {
-      const pdf = this.#snapshot?.pdfs.find((item) => item.id === id);
-      if (pdf) void this.#showPaper(pdf);
-      return;
-    }
-    if (kind === "publication") {
-      const publication = this.#snapshot?.publications.find((item) => item.id === id);
-      if (publication) this.#openPublicationContext(publication);
-    }
+    this.#knowledgeResourceHandlers()[kind]?.(id);
+  }
+
+  #knowledgeResourceHandlers(): Readonly<Record<string, (id: string) => void>> {
+    return {
+      document: () => {
+        this.#showWorkspaceSurface("authoring");
+        this.#setAuthoringMode("write");
+        this.#elements.source.focus();
+        this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
+      },
+      project: () => this.#elements.workspaceSwitcher.focus(),
+      person: () => void this.#openSharing(),
+      "model-candidate": (id) => {
+        const candidate = this.#snapshot?.candidates.find((item) => item.id === id);
+        if (candidate) this.#openCandidateContext(candidate);
+      },
+      note: (id) => {
+        const share = this.#snapshot?.researchShares.find(
+          (item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note",
+        );
+        if (share?.content.kind === "note") this.#showToast(excerptForToast(share.content.body));
+      },
+      section: (id) => {
+        this.#activateContext(RESEARCH_PREVIEW_KEY);
+        this.#elements.preview.querySelector<HTMLElement>(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      },
+      annotation: (id) => {
+        const annotation = this.#snapshot?.annotations.find((item) => item.id === id);
+        const pdf = annotation ? this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId) : undefined;
+        if (annotation && pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
+      },
+      claim: (id) =>
+        document
+          .querySelector<HTMLElement>(`[data-claim-resource-id="${CSS.escape(id)}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+      pdf: (id) => {
+        const pdf = this.#snapshot?.pdfs.find((item) => item.id === id);
+        if (pdf) void this.#showPaper(pdf);
+      },
+      publication: (id) => {
+        const publication = this.#snapshot?.publications.find((item) => item.id === id);
+        if (publication) this.#openPublicationContext(publication);
+      },
+    };
   }
 
   #setAuthoringMode(mode: AuthoringMode): void {
