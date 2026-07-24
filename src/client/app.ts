@@ -843,6 +843,12 @@ interface ActivePdfLoadContext {
   readonly url: string;
 }
 
+interface ActivePdfResources {
+  readonly workspacePdf: PdfResource | undefined;
+  readonly libraryPdf: LibraryPdfArtifact | undefined;
+  readonly projectReferencePdf: ProjectReferencePdf | undefined;
+}
+
 interface ClarityDrillContext extends AssistantDraftContext {
   readonly provider: OpenAICompatibleBrowserProvider;
   readonly question: ModelClarityQuestion;
@@ -8820,20 +8826,40 @@ class WorkspaceApp {
   #activePdfLoadContext(): ActivePdfLoadContext | null {
     const tab = this.#activeResourceTab();
     if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return null;
-    const workspacePdf = tab.kind === "pdf" ? this.#snapshot?.pdfs.find((item) => item.id === tab.id) : undefined;
-    const libraryPdf = tab.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
-    const projectReferencePdf = tab.kind === "library-pdf" && !libraryPdf ? this.#projectReferencePdf(tab.id) : undefined;
+    const { workspacePdf, libraryPdf, projectReferencePdf } = this.#activePdfResources(tab);
     if (!workspacePdf && !libraryPdf && !projectReferencePdf) return null;
     if (workspacePdf) this.#elements.annotationPdf.value = workspacePdf.id;
-    const annotations = workspacePdf
-      ? (this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === workspacePdf.id) ?? [])
-      : [];
-    const privateHighlights = libraryPdf
-      ? (this.#librarySnapshot?.highlights.filter((highlight) => highlight.artifactId === libraryPdf.id) ?? [])
-      : [];
+    const annotations = this.#activePdfAnnotations(workspacePdf);
+    const privateHighlights = this.#activePdfHighlights(libraryPdf);
     const url = this.#activePdfUrl(workspacePdf, libraryPdf, projectReferencePdf);
     if (!url) return null;
     return { tab, workspacePdf, libraryPdf, annotations, privateHighlights, url };
+  }
+
+  #activePdfResources(tab: ActivePdfLoadContext["tab"]): ActivePdfResources {
+    if (tab.kind === "pdf") {
+      return {
+        workspacePdf: this.#snapshot?.pdfs.find((item) => item.id === tab.id),
+        libraryPdf: undefined,
+        projectReferencePdf: undefined,
+      };
+    }
+    const libraryPdf = this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id);
+    return {
+      workspacePdf: undefined,
+      libraryPdf,
+      projectReferencePdf: libraryPdf ? undefined : this.#projectReferencePdf(tab.id),
+    };
+  }
+
+  #activePdfAnnotations(workspacePdf: PdfResource | undefined): AnnotationResource[] {
+    if (!workspacePdf) return [];
+    return this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === workspacePdf.id) ?? [];
+  }
+
+  #activePdfHighlights(libraryPdf: LibraryPdfArtifact | undefined): LibraryHighlight[] {
+    if (!libraryPdf) return [];
+    return this.#librarySnapshot?.highlights.filter((highlight) => highlight.artifactId === libraryPdf.id) ?? [];
   }
 
   #activePdfUrl(
@@ -8853,8 +8879,8 @@ class WorkspaceApp {
         url: context.url,
         annotations: context.annotations,
         page: context.tab.page,
-        ...(context.tab.focusedAnnotationId ? { focusAnnotationId: context.tab.focusedAnnotationId } : {}),
-        mode: context.workspacePdf ? "evidence" : context.libraryPdf ? "private-highlight" : "read-only",
+        ...this.#activePdfFocus(context.tab.focusedAnnotationId),
+        mode: this.#activePdfMode(context),
         privateHighlights: context.privateHighlights,
       });
       const active = this.#activeResourceTab();
@@ -8863,11 +8889,23 @@ class WorkspaceApp {
       this.#renderedPdfId = context.workspacePdf?.id;
       this.#elements.paperReader.scrollTop = context.tab.scrollTop;
     } catch (error) {
-      const active = this.#activeResourceTab();
-      if (active?.key === context.tab.key) {
-        this.#elements.paperStatus.textContent = error instanceof Error ? error.message : "Could not render this PDF";
-      }
+      this.#reportActivePdfError(context.tab.key, error);
     }
+  }
+
+  #activePdfFocus(focusedAnnotationId: string | null | undefined): { focusAnnotationId?: string } {
+    return focusedAnnotationId ? { focusAnnotationId: focusedAnnotationId } : {};
+  }
+
+  #activePdfMode(context: ActivePdfLoadContext): "evidence" | "private-highlight" | "read-only" {
+    if (context.workspacePdf) return "evidence";
+    if (context.libraryPdf) return "private-highlight";
+    return "read-only";
+  }
+
+  #reportActivePdfError(tabKey: string, error: unknown): void {
+    if (this.#activeResourceTab()?.key !== tabKey) return;
+    this.#elements.paperStatus.textContent = error instanceof Error ? error.message : "Could not render this PDF";
   }
 
   async #uploadPdf(): Promise<void> {
