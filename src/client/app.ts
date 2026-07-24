@@ -1513,24 +1513,23 @@ class WorkspaceApp {
   }
 
   async #setWorkspaceLayout(value: string, persist = true): Promise<void> {
-    const layout: WorkspaceLayout = value === "editor" || value === "context" || value === "pdf" ? value : "split";
+    const layout = normalizeWorkspaceLayout(value);
     this.#elements.workspaceLayout.value = layout;
     this.#elements.workspaceSurfaces.dataset.layout = layout;
     if (persist) localStorage.setItem(`kirjolab:layout:${workspaceId}`, layout);
-    if (layout === "pdf") {
-      const active = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
-      if (active?.kind !== "pdf" && active?.kind !== "library-pdf") {
-        const pdf = this.#snapshot?.pdfs[0];
-        if (pdf) await this.#showPaper(pdf);
-        else {
-          const artifact = this.#librarySnapshot?.artifacts[0];
-          if (artifact) await this.#openLibraryPdf(artifact);
-          else this.#showToast("Add or open a PDF before using PDF-only view.");
-        }
-      }
-    }
+    if (layout === "pdf") await this.#ensurePdfLayoutResource();
     window.dispatchEvent(new Event("resize"));
     this.#syncWorkspaceRoute("replace");
+  }
+
+  async #ensurePdfLayoutResource(): Promise<void> {
+    const active = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
+    if (active?.kind === "pdf" || active?.kind === "library-pdf") return;
+    const pdf = this.#snapshot?.pdfs[0];
+    if (pdf) return await this.#showPaper(pdf);
+    const artifact = this.#librarySnapshot?.artifacts[0];
+    if (artifact) return await this.#openLibraryPdf(artifact);
+    this.#showToast("Add or open a PDF before using PDF-only view.");
   }
 
   async #restoreWorkspaceRoute(): Promise<void> {
@@ -1539,71 +1538,86 @@ class WorkspaceApp {
     if (url.searchParams.has("rail")) this.#showRail(route.rail);
     if (url.searchParams.has("mode")) this.#setAuthoringMode(route.mode);
     if (route.fileId && this.#snapshot?.files.some((file) => file.id === route.fileId)) this.#selectProjectFile(route.fileId);
-
-    if (url.searchParams.has("context")) {
-      this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
-      try {
-        const target = researchTargetFromContextKey(route.contextKey);
-        if (!target) {
-          if (route.contextKey === RESEARCH_LIBRARY_KEY) await this.#openReferenceLibrary(false);
-          else this.#activateContext(route.contextKey);
-        } else if (target.kind === "publication") {
-          const publication = this.#snapshot?.publications.find((item) => item.id === target.id);
-          if (publication) this.#openPublicationContext(publication);
-        } else if (target.kind === "pdf") {
-          const pdf = this.#snapshot?.pdfs.find((item) => item.id === target.id);
-          if (pdf) await this.#showPaper(pdf, route.page, route.annotationId);
-        } else if (target.kind === "candidate") {
-          const candidate = this.#snapshot?.candidates.find((item) => item.id === target.id);
-          if (candidate) this.#openCandidateContext(candidate);
-        } else {
-          if (!this.#librarySnapshot) await this.#refreshReferenceLibrary();
-          const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === target.id);
-          if (artifact) await this.#openLibraryPdf(artifact, route.page, false);
-          else {
-            const pdf = this.#projectReferencePdf(target.id);
-            if (pdf) await this.#openProjectReferencePdf(pdf, route.page, false);
-          }
-        }
-      } catch (error) {
-        this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
-        this.#renderResearchContext();
-        this.#showToast(error instanceof Error ? error.message : "Could not restore that context");
-      }
-    }
-
+    if (url.searchParams.has("context")) await this.#restoreWorkspaceContext(route);
     if (route.layout) await this.#setWorkspaceLayout(route.layout, false);
     if (url.searchParams.has("surface")) this.#showWorkspaceSurface(route.surface);
     this.#workspaceRouteReady = true;
     this.#syncWorkspaceRoute("replace");
   }
 
+  async #restoreWorkspaceContext(route: ReturnType<typeof readWorkspaceUiRoute>): Promise<void> {
+    this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
+    try {
+      const target = researchTargetFromContextKey(route.contextKey);
+      if (!target) return await this.#restoreGeneralResearchContext(route.contextKey);
+      await this.#restoreTargetedResearchContext(target, route);
+    } catch (error) {
+      this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
+      this.#renderResearchContext();
+      this.#showToast(error instanceof Error ? error.message : "Could not restore that context");
+    }
+  }
+
+  async #restoreGeneralResearchContext(contextKey: ResearchContextKey): Promise<void> {
+    if (contextKey === RESEARCH_LIBRARY_KEY) return await this.#openReferenceLibrary(false);
+    this.#activateContext(contextKey);
+  }
+
+  async #restoreTargetedResearchContext(
+    target: NonNullable<ReturnType<typeof researchTargetFromContextKey>>,
+    route: ReturnType<typeof readWorkspaceUiRoute>,
+  ): Promise<void> {
+    if (target.kind === "publication") {
+      const publication = this.#snapshot?.publications.find((item) => item.id === target.id);
+      if (publication) this.#openPublicationContext(publication);
+      return;
+    }
+    if (target.kind === "pdf") {
+      const pdf = this.#snapshot?.pdfs.find((item) => item.id === target.id);
+      if (pdf) await this.#showPaper(pdf, route.page, route.annotationId);
+      return;
+    }
+    if (target.kind === "candidate") {
+      const candidate = this.#snapshot?.candidates.find((item) => item.id === target.id);
+      if (candidate) this.#openCandidateContext(candidate);
+      return;
+    }
+    await this.#restoreLibraryPdfContext(target.id, route.page);
+  }
+
+  async #restoreLibraryPdfContext(id: string, page: number | undefined): Promise<void> {
+    if (!this.#librarySnapshot) await this.#refreshReferenceLibrary();
+    const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === id);
+    if (artifact) return await this.#openLibraryPdf(artifact, page, false);
+    const pdf = this.#projectReferencePdf(id);
+    if (pdf) await this.#openProjectReferencePdf(pdf, page, false);
+  }
+
   #syncWorkspaceRoute(mode: "push" | "replace"): void {
     if (appMode !== "workspace" || !this.#workspaceRouteReady) return;
     const activeTab = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
-    const rail: WorkspaceRail =
-      this.#elements.showResearchRail.getAttribute("aria-selected") === "true"
-        ? "research"
-        : this.#elements.showCommentsRail.getAttribute("aria-selected") === "true"
-          ? "comments"
-          : this.#elements.showGuideRail.getAttribute("aria-selected") === "true"
-            ? "guide"
-            : "files";
     const current = new URL(location.href);
+    const tabLocation = researchTabRouteLocation(activeTab);
     const next = workspaceUiRouteUrl(current, {
-      ...(this.#activeFileId && this.#activeFileId !== this.#snapshot?.entryFileId ? { fileId: this.#activeFileId } : {}),
-      rail,
+      ...activeWorkspaceFileRoute(this.#activeFileId, this.#snapshot?.entryFileId),
+      rail: this.#activeWorkspaceRail(),
       mode: this.#elements.showMapMode.getAttribute("aria-pressed") === "true" ? "map" : "write",
       surface: this.#elements.workspaceSurfaces.dataset.activeSurface === "context" ? "context" : "authoring",
       layout: this.#elements.workspaceLayout.value as WorkspaceLayout,
       contextKey: this.#contextState.activeKey,
-      ...(activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf" ? { page: activeTab.page } : {}),
-      ...(activeTab?.kind === "pdf" && activeTab.focusedAnnotationId ? { annotationId: activeTab.focusedAnnotationId } : {}),
+      ...tabLocation,
     });
     const currentRelative = `${current.pathname}${current.search}${current.hash}`;
     if (next === currentRelative) return;
     if (mode === "push") history.pushState({ view: "workspace" }, "", next);
     else history.replaceState(history.state, "", next);
+  }
+
+  #activeWorkspaceRail(): WorkspaceRail {
+    if (this.#elements.showResearchRail.getAttribute("aria-selected") === "true") return "research";
+    if (this.#elements.showCommentsRail.getAttribute("aria-selected") === "true") return "comments";
+    if (this.#elements.showGuideRail.getAttribute("aria-selected") === "true") return "guide";
+    return "files";
   }
 
   async #createWorkspace(event: SubmitEvent): Promise<void> {
@@ -1653,60 +1667,51 @@ class WorkspaceApp {
     this.#elements.previewLatexImport.disabled = true;
     this.#elements.latexImportStatus.textContent = "Inspecting and converting the archive on the server…";
     try {
-      const query = new URLSearchParams();
-      if (this.#elements.latexImportRoot.value) query.set("root", this.#elements.latexImportRoot.value);
-      const response = await fetch(`/api/latex-import-previews${query.size ? `?${query.toString()}` : ""}`, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/zip" },
-        body: archive,
-      });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isLatexImportPreview(value)) throw new Error("LaTeX import returned an invalid preview");
-      this.#renderLatexImportRoots(value);
-      if (!value.conversion) {
-        this.#elements.latexImportStatus.textContent = "Choose a root document, then preview again.";
-        return;
-      }
-      this.#latexImportDigest = value.digest;
-      this.#latexImportBibliographyPath = value.conversion.report.bibliographyPath;
-      const heading = document.createElement("p");
-      heading.className = "text-sm font-semibold text-app-text";
-      const imageCount = value.conversion.assets.length;
-      heading.textContent = `${value.conversion.seed.files.length} Markdown files · ${imageCount} figure inputs detected · ${value.conversion.seed.bibliography ? "bibliography selected" : "no bibliography"}`;
-      const files = document.createElement("div");
-      files.className = "mt-3 space-y-2";
-      for (const file of value.conversion.seed.files.slice(0, 12)) {
-        const details = document.createElement("details");
-        details.className = "rounded-app border border-app-line px-3 py-2";
-        const summary = document.createElement("summary");
-        summary.className = "cursor-pointer font-sans text-xs font-semibold text-app-text";
-        summary.textContent = `${file.path} · ${formatBytes(new TextEncoder().encode(file.content).byteLength)}`;
-        const source = document.createElement("pre");
-        source.className = "mt-2 max-h-48 overflow-auto whitespace-pre-wrap font-mono text-xs leading-5 text-app-text-soft";
-        source.textContent = file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.content;
-        details.append(summary, source);
-        files.append(details);
-      }
-      const diagnostics = document.createElement("ul");
-      diagnostics.className = "mt-3 space-y-1 font-sans text-xs text-app-text-soft";
-      for (const diagnostic of value.conversion.report.diagnostics.slice(0, 20)) {
-        const item = document.createElement("li");
-        item.textContent = `${diagnostic.severity === "error" ? "Blocked" : diagnostic.severity === "warning" ? "Review" : "Note"}: ${diagnostic.message}`;
-        diagnostics.append(item);
-      }
-      this.#elements.latexImportPreview.replaceChildren(heading, files, diagnostics);
-      const blocking = value.conversion.report.diagnostics.filter((diagnostic) => diagnostic.severity === "error").length;
-      this.#elements.confirmLatexImport.disabled = blocking > 0;
-      this.#elements.latexImportStatus.textContent = blocking
-        ? `${blocking} blocking diagnostic${blocking === 1 ? " requires" : "s require"} review.`
-        : "Preview ready. Confirmation repeats conversion before creating the project.";
+      this.#applyLatexImportPreview(await this.#requestLatexImportPreview(archive));
     } catch (error) {
       this.#elements.latexImportStatus.textContent = error instanceof Error ? error.message : "Could not preview the LaTeX archive.";
     } finally {
       this.#elements.previewLatexImport.disabled = false;
     }
+  }
+
+  async #requestLatexImportPreview(archive: File): Promise<LatexImportPreview> {
+    const query = new URLSearchParams();
+    if (this.#elements.latexImportRoot.value) query.set("root", this.#elements.latexImportRoot.value);
+    const response = await fetch(`/api/latex-import-previews${query.size ? `?${query.toString()}` : ""}`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/zip" },
+      body: archive,
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isLatexImportPreview(value)) throw new Error("LaTeX import returned an invalid preview");
+    return value;
+  }
+
+  #applyLatexImportPreview(value: LatexImportPreview): void {
+    this.#renderLatexImportRoots(value);
+    if (!value.conversion) {
+      this.#elements.latexImportStatus.textContent = "Choose a root document, then preview again.";
+      return;
+    }
+    this.#latexImportDigest = value.digest;
+    this.#latexImportBibliographyPath = value.conversion.report.bibliographyPath;
+    const heading = document.createElement("p");
+    heading.className = "text-sm font-semibold text-app-text";
+    const imageCount = value.conversion.assets.length;
+    heading.textContent = `${value.conversion.seed.files.length} Markdown files · ${imageCount} figure inputs detected · ${value.conversion.seed.bibliography ? "bibliography selected" : "no bibliography"}`;
+    this.#elements.latexImportPreview.replaceChildren(
+      heading,
+      latexImportFilePreviews(value.conversion.seed.files),
+      latexImportDiagnostics(value.conversion.report.diagnostics),
+    );
+    const blocking = value.conversion.report.diagnostics.filter((diagnostic) => diagnostic.severity === "error").length;
+    this.#elements.confirmLatexImport.disabled = blocking > 0;
+    this.#elements.latexImportStatus.textContent = blocking
+      ? `${blocking} blocking diagnostic${blocking === 1 ? " requires" : "s require"} review.`
+      : "Preview ready. Confirmation repeats conversion before creating the project.";
   }
 
   #renderLatexImportRoots(value: LatexImportPreview): void {
@@ -1724,28 +1729,32 @@ class WorkspaceApp {
     this.#elements.confirmLatexImport.disabled = true;
     this.#elements.latexImportStatus.textContent = "Repeating conversion and creating the project…";
     try {
-      const query = new URLSearchParams({
-        title: this.#elements.latexImportTitle.value,
-        previewDigest: this.#latexImportDigest,
-        root: this.#elements.latexImportRoot.value,
-      });
-      if (this.#latexImportBibliographyPath) query.set("bibliography", this.#latexImportBibliographyPath);
-      const response = await fetch(`/api/latex-imports?${query.toString()}`, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/zip" },
-        body: archive,
-      });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isRecord(value) || !isRecord(value.workspace) || typeof value.workspace.href !== "string") {
-        throw new Error("LaTeX import returned invalid project data");
-      }
-      location.assign(value.workspace.href);
+      location.assign(await this.#createLatexWorkspace(archive, this.#latexImportDigest));
     } catch (error) {
       this.#elements.latexImportStatus.textContent = error instanceof Error ? error.message : "Could not import the LaTeX project.";
       this.#elements.confirmLatexImport.disabled = false;
     }
+  }
+
+  async #createLatexWorkspace(archive: File, previewDigest: string): Promise<string> {
+    const query = new URLSearchParams({
+      title: this.#elements.latexImportTitle.value,
+      previewDigest,
+      root: this.#elements.latexImportRoot.value,
+    });
+    if (this.#latexImportBibliographyPath) query.set("bibliography", this.#latexImportBibliographyPath);
+    const response = await fetch(`/api/latex-imports?${query.toString()}`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/zip" },
+      body: archive,
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isRecord(value) || !isRecord(value.workspace) || typeof value.workspace.href !== "string") {
+      throw new Error("LaTeX import returned invalid project data");
+    }
+    return value.workspace.href;
   }
 
   async #previewGitHubImport(event: SubmitEvent): Promise<void> {
@@ -10518,6 +10527,21 @@ function lineNumberAt(source: string, offset: number): number {
   return source.slice(0, Math.max(0, Math.min(offset, source.length))).split(/\r\n|\r|\n/u).length;
 }
 
+function normalizeWorkspaceLayout(value: string): WorkspaceLayout {
+  if (value === "editor" || value === "context" || value === "pdf") return value;
+  return "split";
+}
+
+function activeWorkspaceFileRoute(activeFileId: string | null, entryFileId: string | undefined): { fileId: string } | object {
+  return activeFileId && activeFileId !== entryFileId ? { fileId: activeFileId } : {};
+}
+
+function researchTabRouteLocation(tab: ResearchContextState["tabs"][number] | undefined): { page: number; annotationId?: string } | object {
+  if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return {};
+  if (tab.kind === "pdf" && tab.focusedAnnotationId) return { page: tab.page, annotationId: tab.focusedAnnotationId };
+  return { page: tab.page };
+}
+
 function bindVimTextarea(textarea: HTMLTextAreaElement, shell: HTMLElement, toggle: HTMLButtonElement, status: HTMLElement): void {
   const storageKey = "kirjolab:vim-keybindings";
   let enabled = localStorage.getItem(storageKey) === "true";
@@ -11163,6 +11187,41 @@ async function expectOk(response: Response): Promise<void> {
   if (response.ok) return;
   const value: unknown = await response.json().catch(() => null);
   throw new Error(isRecord(value) && typeof value.error === "string" ? value.error : `Request failed (${response.status})`);
+}
+
+function latexImportFilePreviews(files: NonNullable<LatexImportPreview["conversion"]>["seed"]["files"]): HTMLElement {
+  const container = document.createElement("div");
+  container.className = "mt-3 space-y-2";
+  for (const file of files.slice(0, 12)) {
+    const details = document.createElement("details");
+    details.className = "rounded-app border border-app-line px-3 py-2";
+    const summary = document.createElement("summary");
+    summary.className = "cursor-pointer font-sans text-xs font-semibold text-app-text";
+    summary.textContent = `${file.path} · ${formatBytes(new TextEncoder().encode(file.content).byteLength)}`;
+    const source = document.createElement("pre");
+    source.className = "mt-2 max-h-48 overflow-auto whitespace-pre-wrap font-mono text-xs leading-5 text-app-text-soft";
+    source.textContent = file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.content;
+    details.append(summary, source);
+    container.append(details);
+  }
+  return container;
+}
+
+function latexImportDiagnostics(diagnostics: NonNullable<LatexImportPreview["conversion"]>["report"]["diagnostics"]): HTMLElement {
+  const list = document.createElement("ul");
+  list.className = "mt-3 space-y-1 font-sans text-xs text-app-text-soft";
+  for (const diagnostic of diagnostics.slice(0, 20)) {
+    const item = document.createElement("li");
+    item.textContent = `${latexDiagnosticLabel(diagnostic.severity)}: ${diagnostic.message}`;
+    list.append(item);
+  }
+  return list;
+}
+
+function latexDiagnosticLabel(severity: "error" | "warning" | "info"): string {
+  if (severity === "error") return "Blocked";
+  if (severity === "warning") return "Review";
+  return "Note";
 }
 
 function formatBytes(value: number): string {
