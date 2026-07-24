@@ -4742,6 +4742,11 @@ class WorkspaceApp {
       );
       return;
     }
+    this.#renderCitationNetworkNodes(network);
+    if (network.edges.length > 0) this.#renderCitationNetworkEdges(network);
+  }
+
+  #renderCitationNetworkNodes(network: CitationNetwork): void {
     const nodes = document.createElement("section");
     nodes.className = "grid gap-3";
     for (const node of network.nodes) {
@@ -4758,8 +4763,9 @@ class WorkspaceApp {
       nodes.append(card);
     }
     this.#elements.citationNetworkList.append(nodes);
+  }
 
-    if (network.edges.length === 0) return;
+  #renderCitationNetworkEdges(network: CitationNetwork): void {
     const heading = document.createElement("h4");
     heading.className = "eyebrow mt-3";
     heading.textContent = `Assertions${network.truncated ? " · first 512" : ""}`;
@@ -4823,15 +4829,26 @@ class WorkspaceApp {
     svg.replaceChildren();
     const namespace = "http://www.w3.org/2000/svg";
     if (network.nodes.length === 0) {
-      const text = document.createElementNS(namespace, "text");
-      text.setAttribute("x", "400");
-      text.setAttribute("y", "180");
-      text.setAttribute("text-anchor", "middle");
-      text.setAttribute("fill", "currentColor");
-      text.textContent = "No citation assertions to draw";
-      svg.append(text);
+      this.#renderEmptyCitationGraph(svg, namespace);
       return;
     }
+    svg.append(this.#citationGraphDefinitions(namespace));
+    const positions = this.#citationGraphPositions(network);
+    this.#renderCitationGraphEdges(svg, namespace, network, positions);
+    this.#renderCitationGraphNodes(svg, namespace, network, positions);
+  }
+
+  #renderEmptyCitationGraph(svg: SVGSVGElement, namespace: "http://www.w3.org/2000/svg"): void {
+    const text = document.createElementNS(namespace, "text");
+    text.setAttribute("x", "400");
+    text.setAttribute("y", "180");
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("fill", "currentColor");
+    text.textContent = "No citation assertions to draw";
+    svg.append(text);
+  }
+
+  #citationGraphDefinitions(namespace: "http://www.w3.org/2000/svg"): SVGDefsElement {
     const definitions = document.createElementNS(namespace, "defs");
     const marker = document.createElementNS(namespace, "marker");
     marker.setAttribute("id", "citation-arrow");
@@ -4846,13 +4863,24 @@ class WorkspaceApp {
     arrow.setAttribute("fill", "context-stroke");
     marker.append(arrow);
     definitions.append(marker);
-    svg.append(definitions);
-    const positions = new Map(
+    return definitions;
+  }
+
+  #citationGraphPositions(network: CitationNetwork): Map<string, { x: number; y: number }> {
+    return new Map(
       network.nodes.map((node, index) => {
         const angle = (index / network.nodes.length) * Math.PI * 2 - Math.PI / 2;
         return [node.id, { x: 400 + Math.cos(angle) * 270, y: 180 + Math.sin(angle) * 125 }] as const;
       }),
     );
+  }
+
+  #renderCitationGraphEdges(
+    svg: SVGSVGElement,
+    namespace: "http://www.w3.org/2000/svg",
+    network: CitationNetwork,
+    positions: ReadonlyMap<string, { x: number; y: number }>,
+  ): void {
     for (const edge of network.edges) {
       const from = positions.get(edge.from);
       const to = positions.get(edge.to);
@@ -4868,6 +4896,14 @@ class WorkspaceApp {
       if (edge.state === "inferred") line.setAttribute("stroke-dasharray", "6 5");
       svg.append(line);
     }
+  }
+
+  #renderCitationGraphNodes(
+    svg: SVGSVGElement,
+    namespace: "http://www.w3.org/2000/svg",
+    network: CitationNetwork,
+    positions: ReadonlyMap<string, { x: number; y: number }>,
+  ): void {
     for (const node of network.nodes) {
       const position = positions.get(node.id)!;
       const group = document.createElementNS(namespace, "g");
