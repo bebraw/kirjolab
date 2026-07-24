@@ -29,6 +29,9 @@ selector:
 
 - run Fallow when affected files include JavaScript, TypeScript, package
   metadata, or Fallow configuration;
+- scope Fallow complexity and duplication findings to production code so
+  deliberate boundary-fixture repetition does not make stronger regression or
+  mutation tests block publication;
 - run Stryker against only affected configured mutation sources, mapping Node
   unit tests back to their production source when available;
 - retain Stryker's mutation-time TypeScript checker because project-level
@@ -50,6 +53,8 @@ bypass contract.
 
 - Readability, coupling, and mutation-strength regressions are checked before
   changes leave the machine.
+- Test suites remain governed by formatting, linting, typechecking, and
+  execution without turning exact fixture repetition into readability debt.
 - Routine development and `ci:local` keep their existing bounded feedback loop.
 - Documentation-only and Worker-only pushes avoid irrelevant mutation work.
 - Routine source pushes mutate only the affected production surface.

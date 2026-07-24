@@ -2713,6 +2713,8 @@ class WorkspaceApp {
     this.#elements.readOnlyShareStatus.textContent = shareLinkDescription("read-only", status);
   }
 
+  // Read-only and editable links deliberately expose parallel, separately named owner actions.
+  // fallow-ignore-next-line code-duplication
   async #createReadOnlyShare(): Promise<void> {
     const response = await fetch(`${apiBase}/share-link`, { method: "POST", credentials: "same-origin" });
     await expectOk(response);
@@ -9211,12 +9213,16 @@ class WorkspaceApp {
     try {
       await this.#runAssistantGeneration(input);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Local model request failed";
-      this.#assistantWorkflow.send({ type: "FAIL", message });
-      this.#elements.modelStatus.textContent = message;
+      this.#failAssistantGeneration(error);
     } finally {
       this.#updateModelAvailability();
     }
+  }
+
+  #failAssistantGeneration(error: unknown): void {
+    const message = error instanceof Error ? error.message : "Local model request failed";
+    this.#assistantWorkflow.send({ type: "FAIL", message });
+    this.#elements.modelStatus.textContent = message;
   }
 
   #assistantGenerationContext(): AssistantGenerationContext | null {
@@ -9744,9 +9750,7 @@ class WorkspaceApp {
       this.#elements.modelStatus.textContent = "Choose the wording that best matches your meaning; it will still open for review.";
       this.#assistantWorkflow.send({ type: "REVIEW" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Local model request failed";
-      this.#assistantWorkflow.send({ type: "FAIL", message });
-      this.#elements.modelStatus.textContent = message;
+      this.#failAssistantGeneration(error);
     } finally {
       this.#updateModelAvailability();
     }
@@ -12185,6 +12189,8 @@ function latexDiagnosticLabel(severity: "error" | "warning" | "info"): string {
   return "Note";
 }
 
+// This leaf formatter is intentionally local to keep the browser bundle independent of knowledge rendering.
+// fallow-ignore-next-line code-duplication
 function formatBytes(value: number): string {
   return value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
 }

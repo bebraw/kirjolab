@@ -45,8 +45,16 @@ surface those risk scores as refactoring evidence.
 The project keeps a small `.fallowrc.json` to mark Playwright E2E tests and the
 esbuild browser application, review application, and service worker roots as
 entry points. It ignores the Stryker JSDoc type-only dependency that is resolved
-through installed Stryker packages and the aliased TypeScript 7 compiler invoked
-directly by the typecheck scripts.
+through installed Stryker packages, the directive AST type package supplied by
+`remark-directive`, and the aliased TypeScript 7 compiler invoked directly by
+the typecheck scripts.
+
+Complexity and duplication diagnostics exclude unit and end-to-end test files.
+Those files deliberately repeat boundary fixtures and exact expected structures
+to strengthen regression and mutation coverage; formatting, linting,
+typechecking, and test execution remain their required quality signals. Fallow
+continues to analyze production code for complexity and duplication and the
+complete project for dependency and dead-code hygiene.
 
 Package commands enter project-owned build and compiler scripts before those
 scripts resolve tool files under `node_modules`. This keeps Fallow's entry-point

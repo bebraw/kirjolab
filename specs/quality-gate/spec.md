@@ -111,6 +111,10 @@ The template needs a verification baseline that stays strict enough for end-to-e
   surviving-mutant listings out of routine output while preserving tool exit
   status, health score, mutation progress, and final mutation score.
 - Fallow diagnostics must use `--no-cache` in repo scripts so normal diagnostic runs do not create a persistent `.fallow/` cache.
+- Fallow complexity and duplication diagnostics must exclude unit and end-to-end
+  test files; test readability remains protected by formatting, linting,
+  typechecking, and execution without penalizing deliberate exact-fixture
+  repetition.
 - `npm run mutation` must fail when the mutation score is below the configured break threshold.
 - `npm run mutation:incremental` must fail when the resulting mutation score is below the configured break threshold.
 - `npm run mutation:incremental` must ignore static mutants to keep the repeated local gate proportionate, while `npm run mutation` must continue to test them in the clean GitHub mutation job.

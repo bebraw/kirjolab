@@ -21,6 +21,8 @@ expanding the routine local readiness gate.
    project-owned scripts so Fallow entry-point discovery stays warning-free.
 10. Keep passing hook output concise: gate on Fallow's audit while printing only
     its health score, and use Stryker's progress reporter for targeted mutation.
+11. Exclude unit and end-to-end tests from Fallow complexity and duplication;
+    keep their formatting, linting, typechecking, and execution gates intact.
 
 ## Verify
 

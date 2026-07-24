@@ -539,7 +539,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   deterministic contracts are separated into mutation-tested modules; keep the
   browser binder covered by Playwright and the pre-push selector aligned with
   Stryker's exclusions.
-- Fallow codebase diagnostics are advisory readability checks for complexity, duplication, dependency hygiene, and cleanup evidence; they do not replace the baseline quality gate.
+- Fallow codebase diagnostics are advisory readability checks for production-code complexity and duplication plus project dependency hygiene and cleanup evidence. Unit and end-to-end test fixtures stay under formatting, linting, typechecking, and execution instead; Fallow does not replace the baseline quality gate.
 - Affected-file guardrails should scope checks to changed files when the underlying tool supports it and fall back to project-level checks only when needed.
 - Affected-file guardrails must route Worker-reachable non-client sources,
   Workers tests, and Workers configuration to the Workers-runtime suite, while
