@@ -77,6 +77,7 @@ import { renderIcon } from "../ui/icons";
 import { gitHubSyncPresentation, isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
+  defaultProjectPublicationProfile,
   demoWorkspaceId,
   isModelCandidate,
   isWorkspaceSnapshot,
@@ -222,6 +223,11 @@ interface MetadataRefinementTargets {
   readonly suggestions: ReadonlyMap<CrossrefMetadataField, HTMLElement>;
   readonly panel: HTMLElement;
 }
+
+type GuardResult<T> = T extends (value: unknown) => value is infer Result ? Result : never;
+type GitHubSyncConnection = GuardResult<typeof isGitHubSyncState>;
+type GitHubPullPreview = GuardResult<typeof isGitHubPullPreview>;
+type GitHubPublishPreview = GuardResult<typeof isGitHubPublishPreview>;
 
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
@@ -1969,75 +1975,98 @@ class WorkspaceApp {
   #openWorkspaceSettings(checkGitHub = true): void {
     const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
     this.#elements.workspaceSettingsTitle.value = current?.title ?? "";
-    this.#elements.workspaceEntryFile.replaceChildren(
-      ...(this.#snapshot?.files ?? [])
-        .filter((file) => !this.#hiddenProjectFileIds.has(file.id))
-        .map((file) => {
-          const option = document.createElement("option");
-          option.value = file.id;
-          option.textContent = file.path;
-          option.selected = file.id === this.#snapshot?.entryFileId;
-          return option;
-        }),
-    );
-    this.#elements.workspaceCitationStyle.value = this.#snapshot?.publicationProfile.citationStyle ?? "apa";
-    this.#elements.workspaceCitationLocale.value = this.#snapshot?.publicationProfile.locale ?? "en-US";
-    this.#elements.workspaceSubmissionTemplate.value = this.#snapshot?.publicationProfile.submissionTemplate ?? "article";
-    this.#elements.workspacePaperSize.value = this.#snapshot?.publicationProfile.paperSize ?? "a4";
+    this.#elements.workspaceEntryFile.replaceChildren(...this.#workspaceEntryFileOptions());
+    this.#populateWorkspacePublicationSettings();
     this.#elements.archiveWorkspace.textContent = current?.archivedAt ? "Restore" : "Archive";
     this.#elements.saveWorkspaceTemplate.hidden = workspaceId === "demo";
     this.#elements.workspaceSettingsDialog.showModal();
     if (checkGitHub) void this.#refreshGitHubSyncState(true);
   }
 
+  #populateWorkspacePublicationSettings(): void {
+    const profile = this.#snapshot?.publicationProfile ?? defaultProjectPublicationProfile;
+    this.#elements.workspaceCitationStyle.value = profile.citationStyle;
+    this.#elements.workspaceCitationLocale.value = profile.locale;
+    this.#elements.workspaceSubmissionTemplate.value = profile.submissionTemplate;
+    this.#elements.workspacePaperSize.value = profile.paperSize;
+  }
+
+  #workspaceEntryFileOptions(): HTMLOptionElement[] {
+    const entryFileId = this.#snapshot?.entryFileId;
+    return (this.#snapshot?.files ?? [])
+      .filter((file) => !this.#hiddenProjectFileIds.has(file.id))
+      .map((file) => new Option(file.path, file.id, file.id === entryFileId, file.id === entryFileId));
+  }
+
   async #refreshGitHubSyncState(force = false): Promise<void> {
-    if (!navigator.onLine) return;
-    if (!force && (this.#gitHubPullPreviewId || this.#gitHubPublishPreviewId || this.#elements.workspaceSettingsDialog.open)) return;
-    if (!force && Date.now() - this.#gitHubSyncCheckedAt < 60_000) return;
+    if (!this.#shouldRefreshGitHubSync(force)) return;
     const requestId = ++this.#gitHubSyncRequest;
     this.#gitHubSyncCheckedAt = Date.now();
+    this.#resetGitHubSyncReview();
+    try {
+      await this.#loadGitHubSyncState(requestId);
+    } catch (error) {
+      this.#renderGitHubSyncError(requestId, error);
+    }
+  }
+
+  #shouldRefreshGitHubSync(force: boolean): boolean {
+    if (!navigator.onLine) return false;
+    if (force) return true;
+    if (this.#gitHubPullPreviewId || this.#gitHubPublishPreviewId || this.#elements.workspaceSettingsDialog.open) return false;
+    return Date.now() - this.#gitHubSyncCheckedAt >= 60_000;
+  }
+
+  #resetGitHubSyncReview(): void {
     this.#gitHubPullPreviewId = null;
     this.#gitHubPublishPreviewId = null;
     this.#elements.confirmGitHubPull.disabled = true;
     this.#elements.confirmGitHubPublish.disabled = true;
     this.#elements.gitHubPullReview.replaceChildren();
     this.#elements.gitHubPublishReview.replaceChildren();
-    try {
-      const response = await fetch(`${apiBase}/github-sync`, { credentials: "same-origin" });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      const connected = isGitHubSyncState(value);
-      if (requestId !== this.#gitHubSyncRequest) return;
-      this.#elements.previewGitHubPull.disabled = !connected;
-      this.#elements.previewGitHubPublish.disabled = !connected;
-      this.#elements.disconnectGitHub.disabled = !connected;
-      this.#elements.gitHubPublishMessage.disabled = !connected;
-      this.#elements.gitHubSyncMenu.hidden = !connected;
-      if (!connected) {
-        this.#elements.gitHubSyncStatus.textContent = "This project is not connected to GitHub.";
-        return;
-      }
-      this.#elements.gitHubSyncLabel.textContent = "GitHub · Checking";
-      this.#elements.gitHubSyncRepository.textContent = `${value.owner}/${value.repository} · ${value.branch}`;
-      this.#elements.gitHubSyncDetail.textContent = "Reading the configured branch…";
-      this.#elements.gitHubSyncPull.disabled = true;
-      this.#elements.gitHubSyncPush.disabled = true;
-      const statusResponse = await fetch(`${apiBase}/github-sync/status`, { credentials: "same-origin" });
-      await expectOk(statusResponse);
-      const statusValue: unknown = await statusResponse.json();
-      if (!isGitHubSyncStatus(statusValue)) throw new Error("GitHub returned an invalid synchronization status");
-      if (requestId !== this.#gitHubSyncRequest) return;
-      this.#renderGitHubSyncStatus(statusValue);
-    } catch (error) {
-      if (requestId !== this.#gitHubSyncRequest) return;
-      const message = error instanceof Error ? error.message : "Could not load GitHub sync state.";
-      this.#elements.gitHubSyncStatus.textContent = message;
-      if (!this.#elements.gitHubSyncMenu.hidden) {
-        this.#elements.gitHubSyncLabel.textContent = "GitHub · Check failed";
-        this.#elements.gitHubSyncDetail.textContent = message;
-        this.#elements.gitHubSyncTrigger.dataset.tone = "warning";
-      }
+  }
+
+  async #loadGitHubSyncState(requestId: number): Promise<void> {
+    const response = await fetch(`${apiBase}/github-sync`, { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    const connection = isGitHubSyncState(value) ? value : null;
+    if (requestId !== this.#gitHubSyncRequest) return;
+    this.#renderGitHubSyncConnection(connection);
+    if (!connection) return;
+    const statusResponse = await fetch(`${apiBase}/github-sync/status`, { credentials: "same-origin" });
+    await expectOk(statusResponse);
+    const statusValue: unknown = await statusResponse.json();
+    if (!isGitHubSyncStatus(statusValue)) throw new Error("GitHub returned an invalid synchronization status");
+    if (requestId === this.#gitHubSyncRequest) this.#renderGitHubSyncStatus(statusValue);
+  }
+
+  #renderGitHubSyncConnection(connection: GitHubSyncConnection | null): void {
+    const connected = connection !== null;
+    this.#elements.previewGitHubPull.disabled = !connected;
+    this.#elements.previewGitHubPublish.disabled = !connected;
+    this.#elements.disconnectGitHub.disabled = !connected;
+    this.#elements.gitHubPublishMessage.disabled = !connected;
+    this.#elements.gitHubSyncMenu.hidden = !connected;
+    if (!connection) {
+      this.#elements.gitHubSyncStatus.textContent = "This project is not connected to GitHub.";
+      return;
     }
+    this.#elements.gitHubSyncLabel.textContent = "GitHub · Checking";
+    this.#elements.gitHubSyncRepository.textContent = `${connection.owner}/${connection.repository} · ${connection.branch}`;
+    this.#elements.gitHubSyncDetail.textContent = "Reading the configured branch…";
+    this.#elements.gitHubSyncPull.disabled = true;
+    this.#elements.gitHubSyncPush.disabled = true;
+  }
+
+  #renderGitHubSyncError(requestId: number, error: unknown): void {
+    if (requestId !== this.#gitHubSyncRequest) return;
+    const message = error instanceof Error ? error.message : "Could not load GitHub sync state.";
+    this.#elements.gitHubSyncStatus.textContent = message;
+    if (this.#elements.gitHubSyncMenu.hidden) return;
+    this.#elements.gitHubSyncLabel.textContent = "GitHub · Check failed";
+    this.#elements.gitHubSyncDetail.textContent = message;
+    this.#elements.gitHubSyncTrigger.dataset.tone = "warning";
   }
 
   #renderGitHubSyncStatus(status: GitHubSyncStatus): void {
@@ -2062,56 +2091,52 @@ class WorkspaceApp {
       const value: unknown = await response.json();
       if (!isGitHubPullPreview(value)) throw new Error("GitHub returned an invalid pull preview");
       this.#gitHubPullPreviewId = value.id;
-      const summary = document.createElement("p");
-      summary.className = "text-sm leading-6 text-app-text-soft";
-      summary.textContent = value.plan.blocking.length
-        ? `${value.plan.blocking.length} conflict${value.plan.blocking.length === 1 ? "" : "s"} need review before pulling.`
-        : value.plan.changes.length
-          ? `${value.plan.changes.length} incoming change${value.plan.changes.length === 1 ? "" : "s"} ready to pull.`
-          : "No tracked Markdown changes to pull.";
-      const list = document.createElement("ul");
-      list.className = "mt-2 space-y-1 font-sans text-xs text-app-text-soft";
-      for (const change of value.plan.changes) {
-        const item = document.createElement("li");
-        item.textContent = `${change.remote ? (change.base ? "Update" : "Add") : "Delete"} · ${change.remote?.path ?? change.base?.path ?? "Unknown path"}`;
-        list.append(item);
-      }
-      const conflicts = document.createElement("div");
-      conflicts.className = "mt-4 space-y-4";
-      value.plan.blocking.forEach((change, conflict) => {
-        const fieldset = document.createElement("fieldset");
-        fieldset.className = "rounded-app border border-app-line p-3";
-        const legend = document.createElement("legend");
-        legend.className = "px-1 font-sans text-xs font-semibold text-app-text";
-        legend.textContent = `Conflict · ${change.local?.path ?? change.remote?.path ?? change.base?.path ?? "Unknown path"}`;
-        const versions = document.createElement("div");
-        versions.className = "mt-2 grid gap-3 md:grid-cols-2";
-        versions.append(
-          gitHubConflictVersion("Kirjolab", change.local?.content ?? "File deleted in Kirjolab"),
-          gitHubConflictVersion("GitHub", change.remote?.content ?? "File deleted on GitHub"),
-        );
-        const label = document.createElement("label");
-        label.className = "field-label mt-3";
-        label.textContent = "Resolution";
-        const select = document.createElement("select");
-        select.className = "field";
-        select.dataset.githubConflict = String(conflict);
-        select.append(new Option("Choose a version…", ""), new Option("Keep Kirjolab", "local"), new Option("Use GitHub", "remote"));
-        select.addEventListener("change", () => {
-          this.#elements.confirmGitHubPull.disabled = ![
-            ...this.#elements.gitHubPullReview.querySelectorAll<HTMLSelectElement>("[data-github-conflict]"),
-          ].every((candidate) => candidate.value === "local" || candidate.value === "remote");
-        });
-        label.append(select);
-        fieldset.append(legend, versions, label);
-        conflicts.append(fieldset);
-      });
-      this.#elements.gitHubPullReview.replaceChildren(summary, list, conflicts);
-      this.#elements.confirmGitHubPull.disabled =
-        value.plan.changes.length === 0 && value.plan.blocking.length === 0 ? true : value.plan.blocking.length > 0;
+      this.#renderGitHubPullPreview(value);
     } catch (error) {
       this.#elements.gitHubPullReview.replaceChildren(statusText(error instanceof Error ? error.message : "Could not check GitHub."));
     }
+  }
+
+  #renderGitHubPullPreview(value: GitHubPullPreview): void {
+    const summary = document.createElement("p");
+    summary.className = "text-sm leading-6 text-app-text-soft";
+    summary.textContent = gitHubPullSummary(value);
+    this.#elements.gitHubPullReview.replaceChildren(summary, gitHubPullChanges(value), this.#gitHubPullConflicts(value));
+    this.#elements.confirmGitHubPull.disabled = value.plan.blocking.length > 0 || value.plan.changes.length === 0;
+  }
+
+  #gitHubPullConflicts(value: GitHubPullPreview): HTMLElement {
+    const conflicts = document.createElement("div");
+    conflicts.className = "mt-4 space-y-4";
+    value.plan.blocking.forEach((change, conflict) => conflicts.append(this.#gitHubPullConflict(change, conflict)));
+    return conflicts;
+  }
+
+  #gitHubPullConflict(change: GitHubPullPreview["plan"]["blocking"][number], conflict: number): HTMLElement {
+    const fieldset = document.createElement("fieldset");
+    fieldset.className = "rounded-app border border-app-line p-3";
+    const legend = document.createElement("legend");
+    legend.className = "px-1 font-sans text-xs font-semibold text-app-text";
+    legend.textContent = `Conflict · ${gitHubConflictPath(change)}`;
+    const versions = document.createElement("div");
+    versions.className = "mt-2 grid gap-3 md:grid-cols-2";
+    versions.append(...gitHubConflictVersions(change));
+    const label = document.createElement("label");
+    label.className = "field-label mt-3";
+    label.textContent = "Resolution";
+    const select = document.createElement("select");
+    select.className = "field";
+    select.dataset.githubConflict = String(conflict);
+    select.append(new Option("Choose a version…", ""), new Option("Keep Kirjolab", "local"), new Option("Use GitHub", "remote"));
+    select.addEventListener("change", () => this.#updateGitHubPullReadiness());
+    label.append(select);
+    fieldset.append(legend, versions, label);
+    return fieldset;
+  }
+
+  #updateGitHubPullReadiness(): void {
+    const choices = this.#elements.gitHubPullReview.querySelectorAll<HTMLSelectElement>("[data-github-conflict]");
+    this.#elements.confirmGitHubPull.disabled = ![...choices].every((candidate) => validGitHubConflictChoice(candidate.value));
   }
 
   async #confirmGitHubPull(): Promise<void> {
@@ -2146,32 +2171,20 @@ class WorkspaceApp {
       const value: unknown = await response.json();
       if (!isGitHubPublishPreview(value)) throw new Error("GitHub returned an invalid publish preview");
       this.#gitHubPublishPreviewId = value.id;
-      const summary = document.createElement("p");
-      summary.className = "text-sm leading-6 text-app-text-soft";
-      summary.textContent = value.plan.blocking.length
-        ? `${value.plan.blocking.length} remote change or conflict must be pulled or resolved first.`
-        : value.plan.changes.length
-          ? `${value.plan.changes.length} tracked path changes will be committed to ${value.expectedRemoteHead.slice(0, 10)}.`
-          : "No tracked changes to publish.";
-      const list = document.createElement("ul");
-      list.className = "mt-2 space-y-1 font-sans text-xs text-app-text-soft";
-      for (const change of value.plan.changes) {
-        const item = document.createElement("li");
-        item.textContent = `${change.content === null ? "Delete" : "Update"} · ${change.path}`;
-        list.append(item);
-      }
-      if (value.plan.skippedLocalPaths.length > 0) {
-        const item = document.createElement("li");
-        item.textContent = `Not tracked · ${value.plan.skippedLocalPaths.join(", ")}`;
-        list.append(item);
-      }
-      this.#elements.gitHubPublishReview.replaceChildren(summary, list);
-      this.#elements.confirmGitHubPublish.disabled = value.plan.blocking.length > 0 || value.plan.changes.length === 0;
+      this.#renderGitHubPublishPreview(value);
     } catch (error) {
       this.#elements.gitHubPublishReview.replaceChildren(
         statusText(error instanceof Error ? error.message : "Could not preview GitHub publish."),
       );
     }
+  }
+
+  #renderGitHubPublishPreview(value: GitHubPublishPreview): void {
+    const summary = document.createElement("p");
+    summary.className = "text-sm leading-6 text-app-text-soft";
+    summary.textContent = gitHubPublishSummary(value);
+    this.#elements.gitHubPublishReview.replaceChildren(summary, gitHubPublishChanges(value));
+    this.#elements.confirmGitHubPublish.disabled = value.plan.blocking.length > 0 || value.plan.changes.length === 0;
   }
 
   async #confirmGitHubPublish(): Promise<void> {
@@ -2227,6 +2240,23 @@ class WorkspaceApp {
     const visibleTemplates = this.#projectTemplates.filter((template) => !this.#hiddenProjectTemplateIds.has(template.id));
     const projectSources = this.#workspaceCatalog.filter((workspace) => workspace.id !== demoWorkspaceId && !workspace.archivedAt);
     const projectSourceKeys = projectSources.map((workspace) => this.#projectSourceKey(workspace.id));
+    this.#normalizeStartingPointSelection(visibleTemplates, projectSourceKeys);
+    const groups = [
+      this.#templateChoiceGroup(
+        "Built in",
+        visibleTemplates.filter((template) => template.source === "built-in"),
+      ),
+      this.#templateChoiceGroup(
+        "Your templates",
+        visibleTemplates.filter((template) => template.source === "personal"),
+      ),
+      this.#projectSourceChoiceGroup(projectSources),
+    ].filter((group): group is HTMLElement => group !== null);
+    this.#elements.newWorkspaceTemplateList.replaceChildren(...groups);
+    this.#renderProjectTemplatePreview();
+  }
+
+  #normalizeStartingPointSelection(visibleTemplates: readonly ProjectTemplateSummary[], projectSourceKeys: readonly string[]): void {
     const selected = this.#elements.newWorkspaceTemplateId.value;
     if (!visibleTemplates.some((template) => template.id === selected) && !projectSourceKeys.includes(selected)) {
       this.#elements.newWorkspaceTemplateId.value = "";
@@ -2238,30 +2268,22 @@ class WorkspaceApp {
     ) {
       this.#previewedProjectTemplateId = visibleTemplates[0]?.id ?? "";
     }
-    this.#elements.newWorkspaceTemplateList.replaceChildren();
-    for (const source of ["built-in", "personal"] as const) {
-      const templates = visibleTemplates.filter((template) => template.source === source);
-      if (source === "personal" && templates.length === 0) continue;
-      const group = document.createElement("section");
-      group.className = "template-choice-group";
-      const heading = document.createElement("h3");
-      heading.className = "template-choice-group-title";
-      heading.textContent = source === "built-in" ? "Built in" : "Your templates";
-      group.append(heading);
-      for (const template of templates) group.append(this.#templateChoice(template));
-      this.#elements.newWorkspaceTemplateList.append(group);
-    }
-    if (projectSources.length > 0) {
-      const group = document.createElement("section");
-      group.className = "template-choice-group";
-      const heading = document.createElement("h3");
-      heading.className = "template-choice-group-title";
-      heading.textContent = "Existing projects";
-      group.append(heading);
-      for (const workspace of projectSources) group.append(this.#projectSourceChoice(workspace));
-      this.#elements.newWorkspaceTemplateList.append(group);
-    }
-    this.#renderProjectTemplatePreview();
+  }
+
+  #templateChoiceGroup(label: string, templates: readonly ProjectTemplateSummary[]): HTMLElement | null {
+    if (templates.length === 0) return null;
+    return templateChoiceGroup(
+      label,
+      templates.map((template) => this.#templateChoice(template)),
+    );
+  }
+
+  #projectSourceChoiceGroup(projectSources: readonly WorkspaceSummary[]): HTMLElement | null {
+    if (projectSources.length === 0) return null;
+    return templateChoiceGroup(
+      "Existing projects",
+      projectSources.map((workspace) => this.#projectSourceChoice(workspace)),
+    );
   }
 
   #templateChoice(template: ProjectTemplateSummary): HTMLElement {
@@ -2332,42 +2354,17 @@ class WorkspaceApp {
     const preview = template.preview;
     const article = document.createElement("article");
     article.className = "template-preview-content";
-    const header = document.createElement("header");
-    const sourceLabel =
-      template.source === "built-in" ? "Built-in template" : template.source === "personal" ? "Personal template" : "Existing project";
-    header.innerHTML = `<p class="eyebrow">${sourceLabel}</p><h3 class="template-preview-title"></h3><p class="template-preview-description"></p>`;
-    header.querySelector<HTMLElement>(".template-preview-title")!.textContent = template.name;
-    header.querySelector<HTMLElement>(".template-preview-description")!.textContent = template.description;
-    const facts = document.createElement("div");
-    facts.className = "template-preview-facts";
-    facts.append(
-      templateFact(`${preview.fileCount}`, preview.fileCount === 1 ? "Markdown file" : "Markdown files"),
-      templateFact(`${preview.folderCount}`, preview.folderCount === 1 ? "folder" : "folders"),
-      templateFact(preview.hasBibliography ? "Included" : "Empty", "bibliography"),
-    );
-    const structure = document.createElement("section");
-    structure.className = "template-preview-section";
-    const structureHeading = document.createElement("h4");
-    structureHeading.textContent = "Starting structure";
-    const paths = document.createElement("ul");
-    paths.className = "template-preview-tree";
-    for (const folder of preview.folders) paths.append(templatePath(folder, "folder"));
-    for (const file of preview.files) paths.append(templatePath(file, "file"));
-    const hiddenPaths = preview.fileCount + preview.folderCount - preview.files.length - preview.folders.length;
-    if (hiddenPaths > 0) paths.append(templatePath(`+ ${hiddenPaths} more`, "more"));
-    structure.append(structureHeading, paths);
-    const publication = document.createElement("section");
-    publication.className = "template-preview-section";
-    publication.innerHTML = `<h4>Publication setup</h4><dl class="template-preview-settings"><div><dt>Format</dt><dd></dd></div><div><dt>Citations</dt><dd></dd></div><div><dt>Page</dt><dd></dd></div></dl>`;
-    const values = publication.querySelectorAll<HTMLElement>("dd");
-    values[0]!.textContent = humanizeTemplateValue(preview.submissionTemplate);
-    values[1]!.textContent = `${preview.citationStyle.toUpperCase()} · ${preview.locale}`;
-    values[2]!.textContent = preview.paperSize === "a4" ? "A4" : "US Letter";
     const selected = this.#elements.newWorkspaceTemplateId.value === this.#startingPointKey(template);
     const selection = document.createElement("p");
     selection.className = "template-preview-choose text-xs text-app-text-soft";
     selection.textContent = selected ? "Selected starting point" : "Choose a starting point from the template list.";
-    article.append(header, facts, structure, publication, selection);
+    article.append(
+      projectTemplatePreviewHeader(template),
+      projectTemplatePreviewFacts(preview),
+      projectTemplatePreviewStructure(preview),
+      projectTemplatePublicationSettings(preview),
+      selection,
+    );
     this.#elements.newWorkspaceTemplatePreview.replaceChildren(article);
   }
 
@@ -11170,6 +11167,66 @@ function gitHubConflictVersion(label: string, content: string): HTMLElement {
   return section;
 }
 
+function gitHubConflictPath(change: GitHubPullPreview["plan"]["blocking"][number]): string {
+  return change.local?.path ?? change.remote?.path ?? change.base?.path ?? "Unknown path";
+}
+
+function gitHubConflictVersions(change: GitHubPullPreview["plan"]["blocking"][number]): HTMLElement[] {
+  return [
+    gitHubConflictVersion("Kirjolab", change.local?.content ?? "File deleted in Kirjolab"),
+    gitHubConflictVersion("GitHub", change.remote?.content ?? "File deleted on GitHub"),
+  ];
+}
+
+function gitHubPullSummary(value: GitHubPullPreview): string {
+  const conflicts = value.plan.blocking.length;
+  if (conflicts > 0) return `${conflicts} conflict${conflicts === 1 ? "" : "s"} need review before pulling.`;
+  const changes = value.plan.changes.length;
+  return changes > 0 ? `${changes} incoming change${changes === 1 ? "" : "s"} ready to pull.` : "No tracked Markdown changes to pull.";
+}
+
+function gitHubPullChanges(value: GitHubPullPreview): HTMLElement {
+  const list = document.createElement("ul");
+  list.className = "mt-2 space-y-1 font-sans text-xs text-app-text-soft";
+  for (const change of value.plan.changes) {
+    const item = document.createElement("li");
+    item.textContent = `${gitHubPullChangeKind(change)} · ${change.remote?.path ?? change.base?.path ?? "Unknown path"}`;
+    list.append(item);
+  }
+  return list;
+}
+
+function gitHubPullChangeKind(change: GitHubPullPreview["plan"]["changes"][number]): string {
+  if (!change.remote) return "Delete";
+  return change.base ? "Update" : "Add";
+}
+
+function validGitHubConflictChoice(value: string): boolean {
+  return value === "local" || value === "remote";
+}
+
+function gitHubPublishSummary(value: GitHubPublishPreview): string {
+  if (value.plan.blocking.length > 0) return `${value.plan.blocking.length} remote change or conflict must be pulled or resolved first.`;
+  if (value.plan.changes.length === 0) return "No tracked changes to publish.";
+  return `${value.plan.changes.length} tracked path changes will be committed to ${value.expectedRemoteHead.slice(0, 10)}.`;
+}
+
+function gitHubPublishChanges(value: GitHubPublishPreview): HTMLElement {
+  const list = document.createElement("ul");
+  list.className = "mt-2 space-y-1 font-sans text-xs text-app-text-soft";
+  for (const change of value.plan.changes) {
+    const item = document.createElement("li");
+    item.textContent = `${change.content === null ? "Delete" : "Update"} · ${change.path}`;
+    list.append(item);
+  }
+  if (value.plan.skippedLocalPaths.length > 0) {
+    const item = document.createElement("li");
+    item.textContent = `Not tracked · ${value.plan.skippedLocalPaths.join(", ")}`;
+    list.append(item);
+  }
+  return list;
+}
+
 async function jsonFetch(url: string, body: object, method: "POST" | "PUT" | "PATCH" = "POST"): Promise<Response> {
   return await fetch(url, {
     method,
@@ -11234,6 +11291,63 @@ function templateFact(value: string, label: string): HTMLElement {
   fact.querySelector<HTMLElement>("strong")!.textContent = value;
   fact.querySelector<HTMLElement>("span")!.textContent = label;
   return fact;
+}
+
+function templateChoiceGroup(label: string, choices: readonly HTMLElement[]): HTMLElement {
+  const group = document.createElement("section");
+  group.className = "template-choice-group";
+  const heading = document.createElement("h3");
+  heading.className = "template-choice-group-title";
+  heading.textContent = label;
+  group.append(heading, ...choices);
+  return group;
+}
+
+function projectTemplatePreviewHeader(template: ProjectTemplateSummary): HTMLElement {
+  const header = document.createElement("header");
+  const sourceLabel =
+    template.source === "built-in" ? "Built-in template" : template.source === "personal" ? "Personal template" : "Existing project";
+  header.innerHTML = `<p class="eyebrow">${sourceLabel}</p><h3 class="template-preview-title"></h3><p class="template-preview-description"></p>`;
+  header.querySelector<HTMLElement>(".template-preview-title")!.textContent = template.name;
+  header.querySelector<HTMLElement>(".template-preview-description")!.textContent = template.description;
+  return header;
+}
+
+function projectTemplatePreviewFacts(preview: ProjectTemplateSummary["preview"]): HTMLElement {
+  const facts = document.createElement("div");
+  facts.className = "template-preview-facts";
+  facts.append(
+    templateFact(`${preview.fileCount}`, preview.fileCount === 1 ? "Markdown file" : "Markdown files"),
+    templateFact(`${preview.folderCount}`, preview.folderCount === 1 ? "folder" : "folders"),
+    templateFact(preview.hasBibliography ? "Included" : "Empty", "bibliography"),
+  );
+  return facts;
+}
+
+function projectTemplatePreviewStructure(preview: ProjectTemplateSummary["preview"]): HTMLElement {
+  const structure = document.createElement("section");
+  structure.className = "template-preview-section";
+  const heading = document.createElement("h4");
+  heading.textContent = "Starting structure";
+  const paths = document.createElement("ul");
+  paths.className = "template-preview-tree";
+  for (const folder of preview.folders) paths.append(templatePath(folder, "folder"));
+  for (const file of preview.files) paths.append(templatePath(file, "file"));
+  const hiddenPaths = preview.fileCount + preview.folderCount - preview.files.length - preview.folders.length;
+  if (hiddenPaths > 0) paths.append(templatePath(`+ ${hiddenPaths} more`, "more"));
+  structure.append(heading, paths);
+  return structure;
+}
+
+function projectTemplatePublicationSettings(preview: ProjectTemplateSummary["preview"]): HTMLElement {
+  const publication = document.createElement("section");
+  publication.className = "template-preview-section";
+  publication.innerHTML = `<h4>Publication setup</h4><dl class="template-preview-settings"><div><dt>Format</dt><dd></dd></div><div><dt>Citations</dt><dd></dd></div><div><dt>Page</dt><dd></dd></div></dl>`;
+  const values = publication.querySelectorAll<HTMLElement>("dd");
+  values[0]!.textContent = humanizeTemplateValue(preview.submissionTemplate);
+  values[1]!.textContent = `${preview.citationStyle.toUpperCase()} · ${preview.locale}`;
+  values[2]!.textContent = preview.paperSize === "a4" ? "A4" : "US Letter";
+  return publication;
 }
 
 function templatePath(path: string, kind: "file" | "folder" | "more"): HTMLLIElement {
