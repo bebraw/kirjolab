@@ -242,6 +242,11 @@ interface PreviewInputs {
   readonly renderedSource: string;
 }
 
+interface SourceSyntaxTemplate {
+  readonly text: string;
+  readonly select?: string;
+}
+
 type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 type ProjectTreeItem =
   | { readonly kind: "folder"; readonly path: string; readonly folder: WorkspaceSnapshot["folders"][number] }
@@ -4267,11 +4272,17 @@ class WorkspaceApp {
     sourceMap: readonly CompositionSourceSpan[],
     snapshot: WorkspaceSnapshot,
   ): string | null {
-    const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
-    if (!match || !requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return null;
+    const requested = this.#requestedProjectPreviewImagePath(match);
+    if (!match || !requested) return null;
     const span = sourceMap.length > 0 && match.index !== undefined ? sourceSpanAt(sourceMap, match.index) : undefined;
     const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "";
     return resolveProjectPath(fromPath, requested);
+  }
+
+  #requestedProjectPreviewImagePath(match: RegExpMatchArray | undefined): string | null {
+    const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
+    if (!requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return null;
+    return requested;
   }
 
   async #openProjectHistory(): Promise<void> {
@@ -8260,30 +8271,39 @@ class WorkspaceApp {
   }
 
   #handleSourceCompletionKey(event: KeyboardEvent): void {
-    const count =
-      this.#sourceCompletionKind === "citation"
-        ? this.#citationCompletionCandidates.length
-        : this.#sourceCompletionKind === "include"
-          ? this.#includeCompletionCandidates.length
-          : 0;
+    const count = this.#sourceCompletionCount();
     if (this.#elements.sourceCompletion.hidden || count === 0 || event.isComposing) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const direction = event.key === "ArrowDown" ? 1 : -1;
-      this.#sourceCompletionIndex = (this.#sourceCompletionIndex + direction + count) % count;
-      this.#renderSourceCompletionSelection();
+      this.#moveSourceCompletion(event, count);
       return;
     }
     if (event.key === "Enter" || event.key === "Tab") {
-      event.preventDefault();
-      if (this.#sourceCompletionKind === "citation") void this.#acceptCitationCompletion(this.#sourceCompletionIndex);
-      else this.#acceptIncludeCompletion(this.#sourceCompletionIndex);
+      this.#acceptSourceCompletion(event);
       return;
     }
     if (event.key === "Escape") {
       event.preventDefault();
       this.#hideSourceCompletion();
     }
+  }
+
+  #sourceCompletionCount(): number {
+    if (this.#sourceCompletionKind === "citation") return this.#citationCompletionCandidates.length;
+    if (this.#sourceCompletionKind === "include") return this.#includeCompletionCandidates.length;
+    return 0;
+  }
+
+  #moveSourceCompletion(event: KeyboardEvent, count: number): void {
+    event.preventDefault();
+    const direction = event.key === "ArrowDown" ? 1 : -1;
+    this.#sourceCompletionIndex = (this.#sourceCompletionIndex + direction + count) % count;
+    this.#renderSourceCompletionSelection();
+  }
+
+  #acceptSourceCompletion(event: KeyboardEvent): void {
+    event.preventDefault();
+    if (this.#sourceCompletionKind === "citation") void this.#acceptCitationCompletion(this.#sourceCompletionIndex);
+    else this.#acceptIncludeCompletion(this.#sourceCompletionIndex);
   }
 
   #renderSourceCompletionSelection(): void {
@@ -8690,24 +8710,34 @@ class WorkspaceApp {
   }
 
   #insertSourceSyntax(event: MouseEvent): void {
+    if (this.#insertProjectIncludeFromEvent(event)) return;
     const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-insert-syntax]") : null;
-    const includeTarget = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-include-file-id]") : null;
-    const includeFile = this.#snapshot?.files.find((file) => file.id === includeTarget?.dataset.includeFileId);
-    const activeFile = this.#snapshot?.files.find((file) => file.id === this.#activeFileId);
-    if (includeTarget && includeFile && activeFile) {
-      event.preventDefault();
-      const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
-      this.#insertProjectInclude(this.#activeFileText, caret, relativeProjectPath(activeFile.path, includeFile.path));
-      this.#elements.editorInsertMenu.open = false;
-      this.#showToast(`Included ${includeFile.path}.`);
-      return;
-    }
     const kind = target?.dataset.insertSyntax;
     if (!kind) return;
     event.preventDefault();
     const passage = this.#selectedAuthoringPassage();
     const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
-    const templates: Record<string, { text: string; select?: string }> = {
+    const template = this.#sourceSyntaxTemplate(kind, passage);
+    if (!template) return;
+    this.#applySourceSyntax(template, passage, caret);
+    this.#showToast(`Inserted ${target.textContent?.trim() ?? "scholarly syntax"}.`);
+  }
+
+  #insertProjectIncludeFromEvent(event: MouseEvent): boolean {
+    const includeTarget = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-include-file-id]") : null;
+    const includeFile = this.#snapshot?.files.find((file) => file.id === includeTarget?.dataset.includeFileId);
+    const activeFile = this.#snapshot?.files.find((file) => file.id === this.#activeFileId);
+    if (!includeTarget || !includeFile || !activeFile) return false;
+    event.preventDefault();
+    const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
+    this.#insertProjectInclude(this.#activeFileText, caret, relativeProjectPath(activeFile.path, includeFile.path));
+    this.#elements.editorInsertMenu.open = false;
+    this.#showToast(`Included ${includeFile.path}.`);
+    return true;
+  }
+
+  #sourceSyntaxTemplate(kind: string, passage: AuthoringPassage | null): SourceSyntaxTemplate | undefined {
+    const templates: Readonly<Record<string, SourceSyntaxTemplate>> = {
       citation: { text: ":cite[key]", select: "key" },
       reference: { text: ":ref[target]", select: "target" },
       anchor: { text: "{#label}", select: "label" },
@@ -8715,8 +8745,10 @@ class WorkspaceApp {
       link: { text: passage ? `[${passage.excerpt}](url)` : "[text](url)", select: passage ? "url" : "text" },
       bibliography: { text: "::bibliography[]" },
     };
-    const template = templates[kind];
-    if (!template) return;
+    return templates[kind];
+  }
+
+  #applySourceSyntax(template: SourceSyntaxTemplate, passage: AuthoringPassage | null, caret: number): void {
     const start = passage?.start ?? caret;
     const end = passage?.end ?? caret;
     this.#document.transact(() => {
@@ -8728,7 +8760,6 @@ class WorkspaceApp {
     this.#elements.source.setSelectionRange(selectionStart, selectionStart + (template.select?.length ?? 0));
     this.#rememberAuthoringSelection();
     this.#elements.editorInsertMenu.open = false;
-    this.#showToast(`Inserted ${target.textContent?.trim() ?? "scholarly syntax"}.`);
   }
 
   #insertProjectInclude(text: Y.Text, index: number, path: string): void {
