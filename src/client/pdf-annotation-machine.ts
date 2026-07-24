@@ -35,6 +35,7 @@ export interface PdfAnnotationNotePress {
 interface PdfAnnotationContext {
   readonly selectedHighlightId: string | null;
   readonly selectedMarkupId: string | null;
+  readonly openNoteId: string | null;
   readonly note: PdfAnnotationNoteDraft | null;
   readonly drawing: PdfAnnotationDrawingDraft | null;
   readonly noteDrag: PdfAnnotationNoteDrag | null;
@@ -61,6 +62,8 @@ type PdfAnnotationEvent =
   | { readonly type: "SELECT_HIGHLIGHT"; readonly id: string }
   | { readonly type: "SELECT_MARKUP"; readonly id: string }
   | { readonly type: "CLEAR_SELECTION" }
+  | { readonly type: "TOGGLE_NOTE_CARD"; readonly id: string }
+  | { readonly type: "CLOSE_NOTE_CARD" }
   | { readonly type: "START_NOTE_DRAG"; readonly id: string; readonly pointerId: number; readonly x: number; readonly y: number }
   | { readonly type: "MOVE_NOTE_DRAG"; readonly pointerId: number; readonly x: number; readonly y: number }
   | { readonly type: "FINISH_NOTE_DRAG"; readonly pointerId: number }
@@ -72,6 +75,7 @@ type PdfAnnotationEvent =
 const initialContext: PdfAnnotationContext = {
   selectedHighlightId: null,
   selectedMarkupId: null,
+  openNoteId: null,
   note: null,
   drawing: null,
   noteDrag: null,
@@ -112,6 +116,7 @@ export const pdfAnnotationMachine = setup({
       return {
         selectedHighlightId: null,
         selectedMarkupId: event.id,
+        openNoteId: null,
         note: { page: event.page, ...event.point, editingId: event.id },
         drawing: null,
         noteDrag: null,
@@ -155,6 +160,11 @@ export const pdfAnnotationMachine = setup({
       return { selectedHighlightId: null, selectedMarkupId: event.id };
     }),
     clearSelection: assign({ selectedHighlightId: null, selectedMarkupId: null }),
+    toggleNoteCard: assign(({ context, event }) => {
+      assertEvent(event, "TOGGLE_NOTE_CARD");
+      return { openNoteId: context.openNoteId === event.id ? null : event.id };
+    }),
+    closeNoteCard: assign({ openNoteId: null }),
     startNoteDrag: assign(({ event }) => {
       assertEvent(event, "START_NOTE_DRAG");
       return {
@@ -199,6 +209,8 @@ export const pdfAnnotationMachine = setup({
     ],
     EDIT_NOTE: { target: ".editingNote", actions: "editNote" },
     CLEAR_SELECTION: { actions: "clearSelection" },
+    TOGGLE_NOTE_CARD: { actions: "toggleNoteCard" },
+    CLOSE_NOTE_CARD: { actions: "closeNoteCard" },
   },
   states: {
     selectIdle: {

@@ -30,6 +30,7 @@ describe("PDF annotation interaction machine", () => {
     expect(value.getSnapshot().context).toEqual({
       selectedHighlightId: null,
       selectedMarkupId: null,
+      openNoteId: null,
       note: null,
       drawing: null,
       noteDrag: null,
@@ -59,6 +60,22 @@ describe("PDF annotation interaction machine", () => {
     });
     value.send({ type: "NOTE_SAVED" });
     expect(value.getSnapshot()).toMatchObject({ value: "selectIdle", context: { note: null } });
+  });
+
+  it("toggles an opened note card and closes it before editing", () => {
+    const value = actor();
+    value.send({ type: "TOGGLE_NOTE_CARD", id: "note-1" });
+    expect(value.getSnapshot().context.openNoteId).toBe("note-1");
+    value.send({ type: "TOGGLE_NOTE_CARD", id: "note-1" });
+    expect(value.getSnapshot().context.openNoteId).toBeNull();
+
+    value.send({ type: "TOGGLE_NOTE_CARD", id: "note-2" });
+    value.send({ type: "CLOSE_NOTE_CARD" });
+    expect(value.getSnapshot().context.openNoteId).toBeNull();
+
+    value.send({ type: "TOGGLE_NOTE_CARD", id: "note-1" });
+    value.send({ type: "EDIT_NOTE", id: "note-1", page: 4, point });
+    expect(value.getSnapshot().context.openNoteId).toBeNull();
   });
 
   it("places a note only after a stationary pointer gesture completes", () => {

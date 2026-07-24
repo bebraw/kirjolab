@@ -812,7 +812,6 @@ class WorkspaceApp {
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
   #editingLibraryHighlightId: string | null = null;
   #pdfHighlightDetection: { readonly artifactId: string; readonly result: PdfHighlightDetection } | null = null;
-  #openPdfNoteId: string | null = null;
   #failedLibraryPdfUploads: readonly File[] = [];
   #showArchivedReferences = false;
   #citationNetwork: CitationNetwork | null = null;
@@ -9668,6 +9667,7 @@ class WorkspaceApp {
   #editLibraryPdfNote(note: LibraryPdfNote): void {
     if (this.#libraryPdfTool() !== "select") this.#setLibraryPdfTool("select");
     this.#pdfAnnotation.send({ type: "EDIT_NOTE", id: note.id, page: note.page, point: { x: note.x, y: note.y } });
+    this.#renderPdfMarkups();
     this.#elements.libraryNoteBody.value = note.body;
     this.#elements.libraryNoteForm.hidden = false;
     this.#elements.libraryHighlightStatus.textContent = `Editing the note on page ${note.page}.`;
@@ -9831,12 +9831,27 @@ class WorkspaceApp {
       pin.setAttribute("aria-label", `Open note on page ${note.page}`);
       pin.title = this.#libraryPdfTool() === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note";
       this.#elements.paperMarkups.append(pin);
-      if (this.#openPdfNoteId === note.id) {
+      if (this.#pdfAnnotationSnapshot().context.openNoteId === note.id) {
         const card = document.createElement("aside");
         card.className = "pdf-note-card";
         card.style.left = `${Math.min(note.x * 100, 70)}%`;
         card.style.top = `${Math.min(note.y * 100, 82)}%`;
-        card.textContent = note.body;
+        card.setAttribute("aria-label", `Note on page ${note.page}`);
+        const body = document.createElement("p");
+        body.textContent = note.body;
+        const close = document.createElement("button");
+        close.className = "pdf-note-card-close";
+        close.type = "button";
+        close.setAttribute("aria-label", `Close note on page ${note.page}`);
+        close.title = "Close note";
+        close.textContent = "×";
+        close.addEventListener("click", (event) => {
+          event.stopPropagation();
+          this.#pdfAnnotation.send({ type: "CLOSE_NOTE_CARD" });
+          this.#renderPdfMarkups();
+          this.#elements.paperMarkups.querySelector<HTMLButtonElement>(`.pdf-note-pin[data-markup-id="${CSS.escape(note.id)}"]`)?.focus();
+        });
+        card.append(body, close);
         this.#elements.paperMarkups.append(card);
       }
     }
@@ -9863,7 +9878,7 @@ class WorkspaceApp {
     if (!drag) return;
     this.#pdfAnnotation.send({ type: "FINISH_NOTE_DRAG", pointerId: event.pointerId });
     if (!drag.moved) {
-      this.#openPdfNoteId = this.#openPdfNoteId === drag.id ? null : drag.id;
+      this.#pdfAnnotation.send({ type: "TOGGLE_NOTE_CARD", id: drag.id });
       this.#renderPdfMarkups();
       return;
     }

@@ -380,6 +380,29 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.locator("#library-highlight-comment").fill("Student feedback");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator("#library-highlight-list")).toContainText("Student feedback");
+  await page.locator("#library-note-tool").click();
+  await page.locator("#paper-markups").click({ position: { x: 120, y: 140 } });
+  await expect(page.locator("#library-note-form")).toBeVisible();
+  await page.locator("#library-note-body").fill("A private page note");
+  await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
+  await expect(page.locator("#toast")).toHaveText("Note attached privately.");
+
+  await page.locator("#library-select-tool").click();
+  const notePin = page.locator("#paper-markups .pdf-note-pin");
+  await notePin.click();
+  await expect(page.locator(".pdf-note-card")).toContainText("A private page note");
+  await page.getByRole("button", { name: "Close note on page 1" }).click();
+  await expect(page.locator(".pdf-note-card")).toHaveCount(0);
+  await expect(notePin).toBeFocused();
+
+  await notePin.click();
+  await expect(page.locator(".pdf-note-card")).toBeVisible();
+  await page.locator("#edit-selected-library-note").click();
+  await expect(page.locator(".pdf-note-card")).toHaveCount(0);
+  await page.locator("#library-note-body").fill("An edited private page note");
+  await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
+  await expect(page.locator("#toast")).toHaveText("Private note updated.");
+  await expect(page.locator(".pdf-note-card")).toHaveCount(0);
   await expect(page.locator("#export-library-annotated-pdf")).toBeEnabled();
   await page.getByRole("button", { name: "Export annotated" }).click();
   await expect(page.locator("#toast")).toHaveText("Choose Save to Files to keep the annotated PDF.");
@@ -1091,6 +1114,27 @@ test("lets iPad Preview and Library readers hide and restore top navigation", as
   await expect(restoreLibraryNavigation).toBeVisible();
   await expect(restoreLibraryNavigation).toBeFocused();
   expect(await libraryContext.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(initialLibraryHeight + 50);
+  expect(
+    await page.evaluate(() => {
+      const workspace = document.querySelector<HTMLElement>("#workspace-surfaces")!.getBoundingClientRect();
+      const context = document.querySelector<HTMLElement>("#context-surface")!.getBoundingClientRect();
+      return {
+        workspaceTop: Math.round(workspace.top),
+        workspaceBottom: Math.round(workspace.bottom),
+        contextTop: Math.round(context.top),
+        contextBottom: Math.round(context.bottom),
+        documentHeight: document.documentElement.scrollHeight,
+        viewportHeight: innerHeight,
+      };
+    }),
+  ).toEqual({
+    workspaceTop: 0,
+    workspaceBottom: 1366,
+    contextTop: 0,
+    contextBottom: 1366,
+    documentHeight: 1366,
+    viewportHeight: 1366,
+  });
 
   await page.reload();
   await expect(libraryHeader).toBeHidden();

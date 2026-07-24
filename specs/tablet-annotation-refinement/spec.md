@@ -25,6 +25,8 @@ identity and downstream work.
   inspector. Creating or selecting an annotation opens it automatically; the
   annotation-list control opens it deliberately, and closing it clears any
   unsaved draft.
+- Opened page-note cards expose a touch-sized close control and close
+  automatically when their note enters editing.
 - Draw color, width, and undo remain contextual to the Draw icon instead of
   reserving a permanent sidebar.
 - A PDF accumulates horizontally dominant Mac trackpad wheel input into one
@@ -59,6 +61,8 @@ identity and downstream work.
 - [x] Tablet-sized PDF rails and contextual Draw controls remain fully inside
       the visible viewport without causing horizontal page overflow.
 - [x] The annotation inspector does not reserve page width while closed.
+- [x] An opened page-note card can be dismissed directly on touch devices and
+      does not remain over the PDF while its note is edited.
 - [x] Creation and selection reveal the inspector when editing controls are
       required.
 - [x] Two-finger horizontal Mac trackpad swipes turn one page per gesture
@@ -80,3 +84,5 @@ identity and downstream work.
 - Model evidence must use the new annotation update version after adjustment.
 - Tablet layouts must not push PDF annotation tools to the bottom edge or allow
   the contextual Draw controls to overflow the viewport.
+- Hiding the top navigation must size the library PDF surface from the visible
+  dynamic viewport without retaining the header-height minimum below it.
