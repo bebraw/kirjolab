@@ -19,6 +19,7 @@ import {
   isUpdateAnnotationFragmentInput,
   isUpsertClaimInput,
   demoWorkspaceId,
+  type CreateWorkspaceInput,
   type PdfResource,
   type ProjectAsset,
   type ProjectPublicationProfile,
@@ -97,6 +98,8 @@ interface WorkspaceSettingsUpdate {
   readonly publicationProfile: ProjectPublicationProfile | null;
   readonly entryFileId: string | null;
 }
+
+type WorkspaceCreationSeedResult = { readonly seed: ProjectTemplateRecord["seed"] | null } | { readonly error: Response };
 
 export async function handleWorkspaceApi(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
   const url = new URL(request.url);
@@ -929,31 +932,45 @@ async function handleWorkspaceCatalog(request: Request, env: Env, identity: Auth
   if (request.method !== "POST") return jsonError("Route not found", 404);
   const body: unknown = await request.json();
   if (!isCreateWorkspaceInput(body)) return jsonError("Invalid workspace", 400);
-  let seed: ProjectTemplateRecord["seed"] | null = null;
-  if (body.sourceWorkspaceId) {
-    const sourceSummary = await catalog.getWorkspace(body.sourceWorkspaceId);
-    if (!sourceSummary) return jsonError("Source project not found", 404);
-    const sourceStorageKey = workspaceStorageKey(identity, body.sourceWorkspaceId);
-    const sourceAccess = env.WORKSPACE_ACCESS.getByName(sourceStorageKey);
-    if (body.sourceWorkspaceId === demoWorkspaceId || identity.mode === "local") await sourceAccess.initializeOwner(identity.email);
-    if (!(await sourceAccess.getRole(identity.email))) return jsonError("Source project not found", 404);
-    const sourceSnapshot = await env.DOCUMENT_ROOMS.getByName(sourceStorageKey).getSnapshot(body.sourceWorkspaceId);
-    seed = projectTemplateSeed(sourceSnapshot);
-  } else if (body.templateId && body.templateId !== "builtin-guided") {
-    const template =
-      builtInProjectTemplate(body.templateId) ??
-      (await env.PROJECT_TEMPLATE_CATALOGS.getByName(identity.ownerKey).getTemplate(body.templateId));
-    if (!template) return jsonError("Project template not found", 404);
-    seed = template.seed;
-  }
+  const seedResult = await resolveWorkspaceCreationSeed(body, env, identity, catalog);
+  if ("error" in seedResult) return seedResult.error;
   const id = crypto.randomUUID();
   const storageKey = workspaceStorageKey(identity, id);
   const access = env.WORKSPACE_ACCESS.getByName(storageKey);
   await access.initializeOwner(identity.email);
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
-  if (seed) await room.seedFromTemplate(id, body.title.trim(), seed);
+  if (seedResult.seed) await room.seedFromTemplate(id, body.title.trim(), seedResult.seed);
   else await room.initializeWorkspace(body.title.trim());
   return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
+}
+
+async function resolveWorkspaceCreationSeed(
+  input: CreateWorkspaceInput,
+  env: Env,
+  identity: AuthIdentity,
+  catalog: WorkspaceCatalogStub,
+): Promise<WorkspaceCreationSeedResult> {
+  if (input.sourceWorkspaceId) return await workspaceSourceSeed(input.sourceWorkspaceId, env, identity, catalog);
+  if (!input.templateId || input.templateId === "builtin-guided") return { seed: null };
+  const template =
+    builtInProjectTemplate(input.templateId) ??
+    (await env.PROJECT_TEMPLATE_CATALOGS.getByName(identity.ownerKey).getTemplate(input.templateId));
+  return template ? { seed: template.seed } : { error: jsonError("Project template not found", 404) };
+}
+
+async function workspaceSourceSeed(
+  sourceWorkspaceId: string,
+  env: Env,
+  identity: AuthIdentity,
+  catalog: WorkspaceCatalogStub,
+): Promise<WorkspaceCreationSeedResult> {
+  if (!(await catalog.getWorkspace(sourceWorkspaceId))) return { error: jsonError("Source project not found", 404) };
+  const sourceStorageKey = workspaceStorageKey(identity, sourceWorkspaceId);
+  const sourceAccess = env.WORKSPACE_ACCESS.getByName(sourceStorageKey);
+  if (sourceWorkspaceId === demoWorkspaceId || identity.mode === "local") await sourceAccess.initializeOwner(identity.email);
+  if (!(await sourceAccess.getRole(identity.email))) return { error: jsonError("Source project not found", 404) };
+  const sourceSnapshot = await env.DOCUMENT_ROOMS.getByName(sourceStorageKey).getSnapshot(sourceWorkspaceId);
+  return { seed: projectTemplateSeed(sourceSnapshot) };
 }
 
 async function inviteWorkspaceMember(

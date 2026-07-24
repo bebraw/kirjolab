@@ -3,19 +3,19 @@ import type { LibraryPdfPoint } from "../domain/reference-library";
 
 export type PdfAnnotationTool = "select" | "text" | "note" | "draw";
 
-export interface PdfAnnotationNoteDraft {
+interface PdfAnnotationNoteDraft {
   readonly page: number;
   readonly x: number;
   readonly y: number;
   readonly editingId: string | null;
 }
 
-export interface PdfAnnotationDrawingDraft {
+interface PdfAnnotationDrawingDraft {
   readonly pointerId: number;
   readonly points: readonly LibraryPdfPoint[];
 }
 
-export interface PdfAnnotationNoteDrag {
+interface PdfAnnotationNoteDrag {
   readonly id: string;
   readonly pointerId: number;
   readonly startX: number;
@@ -23,7 +23,7 @@ export interface PdfAnnotationNoteDrag {
   readonly moved: boolean;
 }
 
-export interface PdfAnnotationNotePress {
+interface PdfAnnotationNotePress {
   readonly pointerId: number;
   readonly page: number;
   readonly point: LibraryPdfPoint;
@@ -82,7 +82,7 @@ const initialContext: PdfAnnotationContext = {
   notePress: null,
 };
 
-export const pdfAnnotationMachine = setup({
+const pdfAnnotationMachine = setup({
   types: {
     context: {} as PdfAnnotationContext,
     events: {} as PdfAnnotationEvent,
