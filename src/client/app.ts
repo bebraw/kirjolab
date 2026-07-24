@@ -7586,32 +7586,47 @@ class WorkspaceApp {
 
   #renderResearchContext(loadPdf = true): void {
     const activeKey = this.#contextState.activeKey;
+    this.#renderPrimaryContextTabs(activeKey);
+    this.#elements.contextResourceTabs.replaceChildren();
+    for (const tab of this.#contextState.tabs) {
+      if (tab.kind === "preview" || tab.kind === "library" || tab.kind === "assistant") continue;
+      this.#elements.contextResourceTabs.append(this.#renderContextResourceTab(tab));
+    }
+    this.#renderContextTabOverview();
+    const activeTab = this.#activeResourceTab();
+    this.#restoreAuthoringPaneWidth();
+    this.#renderContextPanelVisibility(activeKey, activeTab);
+    this.#renderActiveResearchContext(activeKey, activeTab, loadPdf);
+  }
+
+  #renderPrimaryContextTabs(activeKey: ResearchContextKey): void {
     this.#elements.contextPreviewTab.setAttribute("aria-selected", String(activeKey === RESEARCH_PREVIEW_KEY));
     this.#elements.contextPreviewTab.tabIndex = activeKey === RESEARCH_PREVIEW_KEY ? 0 : -1;
     this.#elements.contextLibraryTab.setAttribute("aria-selected", String(activeKey === RESEARCH_LIBRARY_KEY));
     this.#elements.contextLibraryTab.tabIndex = activeKey === RESEARCH_LIBRARY_KEY ? 0 : -1;
     this.#elements.contextAssistantTab.setAttribute("aria-selected", String(activeKey === RESEARCH_ASSISTANT_KEY));
     this.#elements.contextAssistantTab.tabIndex = activeKey === RESEARCH_ASSISTANT_KEY ? 0 : -1;
-    this.#elements.contextResourceTabs.replaceChildren();
+  }
 
-    for (const tab of this.#contextState.tabs) {
-      if (tab.kind === "preview" || tab.kind === "library" || tab.kind === "assistant") continue;
-      this.#elements.contextResourceTabs.append(this.#renderContextResourceTab(tab));
-    }
-    this.#renderContextTabOverview();
-
-    const activeTab = this.#activeResourceTab();
-    this.#restoreAuthoringPaneWidth();
+  #renderContextPanelVisibility(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined): void {
     this.#elements.contextPreviewPanel.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.contextLibraryPanel.hidden = activeKey !== RESEARCH_LIBRARY_KEY;
     this.#elements.contextAssistantPanel.hidden = activeKey !== RESEARCH_ASSISTANT_KEY;
     this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
+    this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
+    this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#elements.previewSyncControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#elements.togglePreviewNavigation.hidden = appMode === "workspace" && activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#renderContextPdfVisibility(activeTab);
+    this.#renderActivePdfCitationControl(activeTab);
+    if (activeTab) this.#labelActiveContextPanel(activeTab);
+  }
+
+  #renderContextPdfVisibility(activeTab: ResearchResourceTab | undefined): void {
     const activePdf = activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf";
-    const activeLibraryArtifact =
-      activeTab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id) : undefined;
+    const activeLibraryArtifact = this.#activeLibraryPdfArtifact(activeTab);
     const activeLibraryPdf = Boolean(activeLibraryArtifact);
-    const activeProjectReferencePdf =
-      activeTab?.kind === "library-pdf" && !activeLibraryArtifact && Boolean(this.#projectReferencePdf(activeTab.id));
+    const activeProjectReferencePdf = this.#activeProjectReferencePdf(activeTab, activeLibraryArtifact);
     this.#elements.contextPdfPanel.hidden = !activePdf;
     this.#elements.contextPdfPanel.dataset.libraryPdf = String(activeTab?.kind === "library-pdf");
     this.#elements.contextPdfPanel.dataset.readonlyPdf = String(activeProjectReferencePdf);
@@ -7619,11 +7634,19 @@ class WorkspaceApp {
     this.#elements.libraryHighlightComposer.hidden = !activeLibraryPdf;
     if (!activeLibraryPdf) this.#setLibraryPdfInspector(false);
     this.#renderLibraryHighlightComposer(activeLibraryArtifact);
-    this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
-    this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
-    this.#elements.previewSyncControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
-    this.#elements.togglePreviewNavigation.hidden = appMode === "workspace" && activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.pdfContextControls.hidden = !activePdf;
+  }
+
+  #activeLibraryPdfArtifact(activeTab: ResearchResourceTab | undefined): LibraryPdfArtifact | undefined {
+    if (activeTab?.kind !== "library-pdf") return undefined;
+    return this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id);
+  }
+
+  #activeProjectReferencePdf(activeTab: ResearchResourceTab | undefined, artifact: LibraryPdfArtifact | undefined): boolean {
+    return activeTab?.kind === "library-pdf" && !artifact && Boolean(this.#projectReferencePdf(activeTab.id));
+  }
+
+  #renderActivePdfCitationControl(activeTab: ResearchResourceTab | undefined): void {
     const activePdfPublications =
       activeTab?.kind === "pdf" ? (this.#snapshot?.publicationPdfLinks.filter((link) => link.pdfId === activeTab.id) ?? []) : [];
     this.#elements.citeActivePdf.disabled = activePdfPublications.length !== 1;
@@ -7633,35 +7656,49 @@ class WorkspaceApp {
         : activePdfPublications.length === 1
           ? "Cite current page"
           : "Identify before citing";
-    if (activeTab) {
-      const panel =
-        activeTab.kind === "publication"
-          ? this.#elements.contextPublicationPanel
-          : activeTab.kind === "candidate"
-            ? this.#elements.contextCandidatePanel
-            : this.#elements.contextPdfPanel;
-      panel.setAttribute("aria-labelledby", this.#contextTabId(activeTab));
-      panel.removeAttribute("aria-label");
-    }
+  }
 
-    if (activeKey === RESEARCH_PREVIEW_KEY) {
-      this.#elements.previewScroll.scrollTop = this.#contextState.tabs[0]?.scrollTop ?? 0;
-      return;
-    }
+  #labelActiveContextPanel(activeTab: ResearchResourceTab): void {
+    const panel =
+      activeTab.kind === "publication"
+        ? this.#elements.contextPublicationPanel
+        : activeTab.kind === "candidate"
+          ? this.#elements.contextCandidatePanel
+          : this.#elements.contextPdfPanel;
+    panel.setAttribute("aria-labelledby", this.#contextTabId(activeTab));
+    panel.removeAttribute("aria-label");
+  }
 
-    if (activeKey === RESEARCH_LIBRARY_KEY) {
-      const libraryTab = this.#contextState.tabs.find((tab) => tab.key === RESEARCH_LIBRARY_KEY);
-      this.#elements.contextLibraryScroll.scrollTop = libraryTab?.scrollTop ?? 0;
-      return;
-    }
-
-    if (activeKey === RESEARCH_ASSISTANT_KEY) {
-      const assistantTab = this.#contextState.tabs.find((tab) => tab.key === RESEARCH_ASSISTANT_KEY);
-      this.#elements.contextAssistantScroll.scrollTop = assistantTab?.scrollTop ?? 0;
-      return;
-    }
-
+  #renderActiveResearchContext(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined, loadPdf: boolean): void {
+    if (this.#restoreFixedResearchContext(activeKey)) return;
     if (!activeTab) return;
+    this.#renderActiveResourceContext(activeTab, loadPdf);
+  }
+
+  #restoreFixedResearchContext(activeKey: ResearchContextKey): boolean {
+    const restore = this.#fixedResearchContextRestorers()[activeKey];
+    if (!restore) return false;
+    restore();
+    return true;
+  }
+
+  #fixedResearchContextRestorers(): Readonly<Record<string, () => void>> {
+    return {
+      [RESEARCH_PREVIEW_KEY]: () => {
+        this.#elements.previewScroll.scrollTop = this.#contextState.tabs[0]?.scrollTop ?? 0;
+      },
+      [RESEARCH_LIBRARY_KEY]: () => {
+        const tab = this.#contextState.tabs.find((item) => item.key === RESEARCH_LIBRARY_KEY);
+        this.#elements.contextLibraryScroll.scrollTop = tab?.scrollTop ?? 0;
+      },
+      [RESEARCH_ASSISTANT_KEY]: () => {
+        const tab = this.#contextState.tabs.find((item) => item.key === RESEARCH_ASSISTANT_KEY);
+        this.#elements.contextAssistantScroll.scrollTop = tab?.scrollTop ?? 0;
+      },
+    };
+  }
+
+  #renderActiveResourceContext(activeTab: ResearchResourceTab, loadPdf: boolean): void {
     if (activeTab.kind === "publication") {
       this.#renderPublicationContext(activeTab);
       this.#elements.contextPublicationBody.scrollTop = activeTab.scrollTop;
@@ -7859,49 +7896,51 @@ class WorkspaceApp {
       return;
     }
 
-    for (const tab of tabs) {
-      const title =
-        tab.kind === "preview"
-          ? "Preview"
-          : tab.kind === "library"
-            ? "Library"
-            : tab.kind === "assistant"
-              ? "Writing assistant"
-              : this.#contextTabTitle(tab);
-      const row = document.createElement("div");
-      row.className = "context-tab-overview-row";
-      const activate = document.createElement("button");
-      activate.type = "button";
-      activate.className = "context-tab-overview-activate";
-      activate.dataset.contextKey = tab.key;
-      activate.setAttribute("aria-current", this.#contextState.activeKey === tab.key ? "page" : "false");
-      const label = document.createElement("strong");
-      label.textContent = title;
-      const kind = document.createElement("span");
-      kind.textContent = tab.kind === "library-pdf" ? "Library PDF" : tab.kind.replace("-", " ");
-      activate.append(label, kind);
-      activate.addEventListener("click", () => {
-        this.#elements.contextTabOverview.open = false;
-        this.#activateContext(tab.key);
-      });
-      row.append(activate);
+    for (const tab of tabs) this.#elements.contextTabOverviewList.append(this.#contextTabOverviewRow(tab));
+  }
 
-      if (tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant") {
-        const close = document.createElement("button");
-        close.type = "button";
-        close.className = "context-tab-overview-close";
-        close.setAttribute("aria-label", `Close ${title} from context list`);
-        close.title = `Close ${title}`;
-        close.textContent = "×";
-        close.addEventListener("click", () => {
-          this.#elements.contextTabOverview.open = false;
-          this.#closeContextTab(tab.key);
-        });
-        row.append(close);
-      }
+  #contextTabOverviewRow(tab: ResearchContextTab): HTMLElement {
+    const title = this.#contextOverviewTitle(tab);
+    const row = document.createElement("div");
+    row.className = "context-tab-overview-row";
+    const activate = document.createElement("button");
+    activate.type = "button";
+    activate.className = "context-tab-overview-activate";
+    activate.dataset.contextKey = tab.key;
+    activate.setAttribute("aria-current", this.#contextState.activeKey === tab.key ? "page" : "false");
+    const label = document.createElement("strong");
+    label.textContent = title;
+    const kind = document.createElement("span");
+    kind.textContent = tab.kind === "library-pdf" ? "Library PDF" : tab.kind.replace("-", " ");
+    activate.append(label, kind);
+    activate.addEventListener("click", () => {
+      this.#elements.contextTabOverview.open = false;
+      this.#activateContext(tab.key);
+    });
+    row.append(activate);
+    if (tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant") row.append(this.#contextOverviewClose(tab, title));
+    return row;
+  }
 
-      this.#elements.contextTabOverviewList.append(row);
-    }
+  #contextOverviewTitle(tab: ResearchContextTab): string {
+    if (tab.kind === "preview") return "Preview";
+    if (tab.kind === "library") return "Library";
+    if (tab.kind === "assistant") return "Writing assistant";
+    return this.#contextTabTitle(tab);
+  }
+
+  #contextOverviewClose(tab: ResearchResourceTab, title: string): HTMLButtonElement {
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "context-tab-overview-close";
+    close.setAttribute("aria-label", `Close ${title} from context list`);
+    close.title = `Close ${title}`;
+    close.textContent = "×";
+    close.addEventListener("click", () => {
+      this.#elements.contextTabOverview.open = false;
+      this.#closeContextTab(tab.key);
+    });
+    return close;
   }
 
   #renderCandidateContext(tab: ResearchResourceTab): void {
@@ -7910,58 +7949,96 @@ class WorkspaceApp {
     if (!candidate) return;
 
     const draftsClaim = candidate.operation === "draft-claim";
+    this.#renderCandidateCopy(candidate, draftsClaim);
+    const applicable = this.#candidateApplicable(candidate);
+    this.#elements.contextCandidateStatus.textContent = this.#candidateStatusText(candidate, draftsClaim, applicable);
+    this.#elements.contextCandidateEvidence.replaceChildren(
+      ...candidate.evidence.map((evidence) => this.#renderCandidateEvidence(evidence)),
+    );
+    this.#renderCandidateActions(candidate, draftsClaim, applicable);
+  }
+
+  #renderCandidateCopy(candidate: ModelCandidate, draftsClaim: boolean): void {
     this.#elements.contextCandidateEyebrow.textContent = draftsClaim ? "Grounded claim draft" : "Grounded revision";
     this.#elements.contextCandidateTitle.textContent = draftsClaim ? "Draft evidence-backed claim" : "Revise selected passage";
-    this.#elements.contextCandidateMeta.textContent = [
-      candidate.model,
-      candidate.providerLabel,
-      candidate.promptVersion,
-      draftsClaim ? candidate.relation : `source r${candidate.sourceRevision}`,
-    ].join(" · ");
-    this.#elements.contextCandidateBefore.textContent = draftsClaim ? candidate.instruction : candidate.target.anchor.exact;
-    this.#elements.contextCandidateAfter.textContent = draftsClaim
-      ? [candidate.proposedText, candidate.proposedNote].filter(Boolean).join("\n\n")
-      : candidate.proposedReplacement;
+    if (candidate.operation === "draft-claim") {
+      this.#elements.contextCandidateMeta.textContent = [
+        candidate.model,
+        candidate.providerLabel,
+        candidate.promptVersion,
+        candidate.relation,
+      ].join(" · ");
+      this.#elements.contextCandidateBefore.textContent = candidate.instruction;
+      this.#elements.contextCandidateAfter.textContent = [candidate.proposedText, candidate.proposedNote].filter(Boolean).join("\n\n");
+    } else {
+      this.#elements.contextCandidateMeta.textContent = [
+        candidate.model,
+        candidate.providerLabel,
+        candidate.promptVersion,
+        `source r${candidate.sourceRevision}`,
+      ].join(" · ");
+      this.#elements.contextCandidateBefore.textContent = candidate.target.anchor.exact;
+      this.#elements.contextCandidateAfter.textContent = candidate.proposedReplacement;
+    }
     this.#elements.contextCandidateBeforeLabel.textContent = draftsClaim ? "Research instruction" : "Original passage";
     this.#elements.contextCandidateAfterLabel.textContent = draftsClaim ? "Proposed claim and note" : "Proposed replacement";
     this.#elements.contextCandidateEvidenceHeading.textContent = draftsClaim
       ? "Annotations used for this claim"
       : "Evidence used for this revision";
-    const applicable = this.#candidateApplicable(candidate);
-    this.#elements.contextCandidateStatus.textContent =
-      candidate.status === "pending"
-        ? applicable
-          ? draftsClaim
-            ? "Pending review. Applying creates a claim linked to these annotation snapshots."
-            : "Pending review. Applying changes only this exact selected passage."
-          : draftsClaim
-            ? "Pending but stale. Reject it or draft again from current annotations."
-            : "Pending but stale. Reject it or generate a new revision from current prose and evidence."
-        : candidate.status === "accepted"
-          ? draftsClaim
-            ? "Accepted. The proposal became an evidence-backed claim."
-            : "Accepted. The replacement was applied to canonical Markdown."
-          : draftsClaim
-            ? "Rejected. No claim was created."
-            : "Rejected. Canonical Markdown was not changed by this candidate.";
+  }
 
-    this.#elements.contextCandidateEvidence.replaceChildren();
-    for (const evidence of candidate.evidence) this.#elements.contextCandidateEvidence.append(this.#renderCandidateEvidence(evidence));
+  #candidateStatusText(candidate: ModelCandidate, draftsClaim: boolean, applicable: boolean): string {
+    if (candidate.status === "accepted")
+      return draftsClaim
+        ? "Accepted. The proposal became an evidence-backed claim."
+        : "Accepted. The replacement was applied to canonical Markdown.";
+    if (candidate.status === "rejected")
+      return draftsClaim ? "Rejected. No claim was created." : "Rejected. Canonical Markdown was not changed by this candidate.";
+    if (applicable)
+      return draftsClaim
+        ? "Pending review. Applying creates a claim linked to these annotation snapshots."
+        : "Pending review. Applying changes only this exact selected passage.";
+    return draftsClaim
+      ? "Pending but stale. Reject it or draft again from current annotations."
+      : "Pending but stale. Reject it or generate a new revision from current prose and evidence.";
+  }
 
+  #renderCandidateActions(candidate: ModelCandidate, draftsClaim: boolean, applicable: boolean): void {
     const pending = candidate.status === "pending";
     const candidateDecision = this.#assistantWorkflow.getSnapshot().context.candidateDecision;
     const currentDecision = candidateDecision?.id === candidate.id ? candidateDecision : null;
     const decisionBusy = candidateDecision !== null;
+    this.#renderCandidateApplyAction(candidate, draftsClaim, applicable, pending, decisionBusy, currentDecision?.action);
+    this.#renderCandidateRejectAction(candidate, draftsClaim, pending, decisionBusy, currentDecision?.action);
+  }
+
+  #renderCandidateApplyAction(
+    candidate: ModelCandidate,
+    draftsClaim: boolean,
+    applicable: boolean,
+    pending: boolean,
+    decisionBusy: boolean,
+    currentAction: "apply" | "reject" | undefined,
+  ): void {
     this.#elements.contextCandidateApply.dataset.candidateId = candidate.id;
     this.#elements.contextCandidateApply.dataset.candidateAction = "apply";
     this.#elements.contextCandidateApply.dataset.candidateApplicable = String(applicable);
     this.#elements.contextCandidateApply.textContent =
-      currentDecision?.action === "apply" ? "Applying…" : draftsClaim ? "Create claim" : "Apply replacement";
+      currentAction === "apply" ? "Applying…" : draftsClaim ? "Create claim" : "Apply replacement";
     this.#elements.contextCandidateApply.disabled =
       decisionBusy || !pending || !applicable || (!draftsClaim && !this.#hasStableDocumentBase());
+  }
+
+  #renderCandidateRejectAction(
+    candidate: ModelCandidate,
+    draftsClaim: boolean,
+    pending: boolean,
+    decisionBusy: boolean,
+    currentAction: "apply" | "reject" | undefined,
+  ): void {
     this.#elements.contextCandidateReject.dataset.candidateId = candidate.id;
     this.#elements.contextCandidateReject.textContent =
-      currentDecision?.action === "reject" ? "Rejecting…" : draftsClaim ? "Reject claim draft" : "Reject revision";
+      currentAction === "reject" ? "Rejecting…" : draftsClaim ? "Reject claim draft" : "Reject revision";
     this.#elements.contextCandidateReject.disabled = decisionBusy || !pending;
   }
 
@@ -7976,16 +8053,22 @@ class WorkspaceApp {
     note.textContent = evidence.kind === "annotation" ? evidence.comment || "No researcher note." : evidence.note || "No working note.";
     card.append(note);
 
+    const action = this.#candidateEvidenceAction(evidence);
+    if (action) card.append(action);
+    return card;
+  }
+
+  #candidateEvidenceAction(evidence: ModelEvidence): HTMLButtonElement | null {
     if (evidence.kind === "annotation") {
       const pdf = this.#snapshot?.pdfs.find((item) => item.id === evidence.pdfId);
       const annotation = this.#snapshot?.annotations.find((item) => item.id === evidence.id);
-      if (pdf && annotation) {
-        card.append(actionButton("Open evidence", "button-secondary mt-3", () => void this.#showPaper(pdf, evidence.page, evidence.id)));
-      }
-    } else if (this.#snapshot?.claims.some((claim) => claim.id === evidence.id)) {
-      card.append(actionButton("Open claim", "button-secondary mt-3", () => this.#focusClaimCard(evidence.id)));
+      return pdf && annotation
+        ? actionButton("Open evidence", "button-secondary mt-3", () => void this.#showPaper(pdf, evidence.page, evidence.id))
+        : null;
     }
-    return card;
+    return this.#snapshot?.claims.some((claim) => claim.id === evidence.id)
+      ? actionButton("Open claim", "button-secondary mt-3", () => this.#focusClaimCard(evidence.id))
+      : null;
   }
 
   #candidateApplicable(candidate: ModelCandidate): boolean {
