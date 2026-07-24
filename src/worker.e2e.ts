@@ -1,6 +1,6 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/knowledge";
-import { isWorkspaceSnapshot, isWorkspaceSummaries } from "./domain/workspace";
+import { isWorkspaceSnapshot, isWorkspaceSummaries, type WorkspaceSnapshot } from "./domain/workspace";
 import {
   createEvidencePdf,
   createHighlightedEvidencePdf,
@@ -81,6 +81,47 @@ function relativeLuminance(channels: readonly [number, number, number]): number 
   return 0.2126 * red! + 0.7152 * green! + 0.0722 * blue!;
 }
 
+function readWrappedHeadingMetrics(heading: HTMLElement) {
+  function renderedHeadingLines(textNode: ChildNode): Array<{ text: string; top: number }> {
+    const range = document.createRange();
+    const lines: Array<{ text: string; top: number }> = [];
+    for (let index = 0; index < (textNode.textContent?.length ?? 0); index += 1) {
+      range.setStart(textNode, index);
+      range.setEnd(textNode, index + 1);
+      const rect = range.getClientRects()[0];
+      if (!rect) continue;
+      const current = lines.at(-1);
+      const character = textNode.textContent?.[index] ?? "";
+      if (!current || Math.abs(current.top - rect.top) > 0.5) lines.push({ text: character, top: rect.top });
+      else current.text += character;
+    }
+    return lines;
+  }
+
+  const style = getComputedStyle(heading);
+  const context = document.createElement("canvas").getContext("2d");
+  if (!context) throw new Error("Expected a canvas text context");
+  context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  const textNode = heading.firstChild;
+  if (!textNode || textNode.nodeType !== Node.TEXT_NODE) throw new Error("Expected a text-only hero heading");
+  const renderedLines = renderedHeadingLines(textNode);
+  const lines = renderedLines.map((line) => line.text.trim());
+  const glyphs = lines.map((line) => context.measureText(line));
+  return {
+    gaps: glyphs
+      .slice(0, -1)
+      .map(
+        (current, index) =>
+          renderedLines[index + 1]!.top -
+          renderedLines[index]!.top -
+          current.actualBoundingBoxDescent -
+          glyphs[index + 1]!.actualBoundingBoxAscent,
+      ),
+    fontSize: Number.parseFloat(style.fontSize),
+    lines,
+  };
+}
+
 test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
   const examples = [
@@ -91,43 +132,7 @@ test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }
   for (const example of examples) {
     await page.goto(example.path);
     await page.evaluate(() => document.fonts.ready);
-    const metrics = await page.locator(example.selector).evaluate((heading) => {
-      const style = getComputedStyle(heading);
-      const context = document.createElement("canvas").getContext("2d");
-      if (!context) throw new Error("Expected a canvas text context");
-      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      const range = document.createRange();
-      const textNode = heading.firstChild;
-      if (!textNode || textNode.nodeType !== Node.TEXT_NODE) throw new Error("Expected a text-only hero heading");
-      const renderedLines: Array<{ text: string; top: number }> = [];
-      for (let index = 0; index < (textNode.textContent?.length ?? 0); index += 1) {
-        range.setStart(textNode, index);
-        range.setEnd(textNode, index + 1);
-        const rect = range.getClientRects()[0];
-        if (!rect) continue;
-        const currentLine = renderedLines.at(-1);
-        if (!currentLine || Math.abs(currentLine.top - rect.top) > 0.5) {
-          renderedLines.push({ text: textNode.textContent?.[index] ?? "", top: rect.top });
-        } else {
-          currentLine.text += textNode.textContent?.[index] ?? "";
-        }
-      }
-      const lines = renderedLines.map((line) => line.text.trim());
-      const glyphs = lines.map((line) => context.measureText(line));
-      return {
-        gaps: glyphs
-          .slice(0, -1)
-          .map(
-            (current, index) =>
-              renderedLines[index + 1]!.top -
-              renderedLines[index]!.top -
-              current.actualBoundingBoxDescent -
-              glyphs[index + 1]!.actualBoundingBoxAscent,
-          ),
-        fontSize: Number.parseFloat(style.fontSize),
-        lines,
-      };
-    });
+    const metrics = await page.locator(example.selector).evaluate(readWrappedHeadingMetrics);
 
     expect(metrics.lines).toEqual(example.lines);
     expect(Math.min(...metrics.gaps)).toBeGreaterThanOrEqual(metrics.fontSize * 0.08);
@@ -136,19 +141,27 @@ test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }
 
 async function readProjectMapGeometry(page: Page) {
   return page.locator("#project-map-canvas").evaluate((canvas) => {
+    function nodeOverlaps(nodes: Array<{ id: string; bounds: DOMRect }>): string[] {
+      const overlaps: string[] = [];
+      for (const [index, node] of nodes.entries()) {
+        for (const other of nodes.slice(index + 1)) {
+          const overlapX = Math.min(node.bounds.right, other.bounds.right) - Math.max(node.bounds.left, other.bounds.left);
+          const overlapY = Math.min(node.bounds.bottom, other.bounds.bottom) - Math.max(node.bounds.top, other.bounds.top);
+          if (overlapX > 1 && overlapY > 1) overlaps.push(`${node.id} / ${other.id}`);
+        }
+      }
+      return overlaps;
+    }
+
+    function pointTouchesBounds(point: DOMPoint, bounds: DOMRect): boolean {
+      return point.x >= bounds.left - 5 && point.x <= bounds.right + 5 && point.y >= bounds.top - 5 && point.y <= bounds.bottom + 5;
+    }
+
     const canvasBounds = canvas.getBoundingClientRect();
     const nodes = [...canvas.querySelectorAll<HTMLElement>(".project-map-node")].map((node) => ({
       id: node.dataset.resourceId ?? node.textContent ?? "unknown",
       bounds: node.getBoundingClientRect(),
     }));
-    const overlaps: string[] = [];
-    for (const [index, node] of nodes.entries()) {
-      for (const other of nodes.slice(index + 1)) {
-        const overlapX = Math.min(node.bounds.right, other.bounds.right) - Math.max(node.bounds.left, other.bounds.left);
-        const overlapY = Math.min(node.bounds.bottom, other.bounds.bottom) - Math.max(node.bounds.top, other.bounds.top);
-        if (overlapX > 1 && overlapY > 1) overlaps.push(`${node.id} / ${other.id}`);
-      }
-    }
     const graph = canvas.querySelector<SVGSVGElement>("#project-map-graph");
     const viewBox = graph?.viewBox.baseVal;
     const graphVisible = graph?.checkVisibility() ?? false;
@@ -164,9 +177,7 @@ async function readProjectMapGeometry(page: Page) {
         if (!from || !to) return false;
         const start = path.getPointAtLength(0).matrixTransform(screenMatrix);
         const end = path.getPointAtLength(path.getTotalLength()).matrixTransform(screenMatrix);
-        const touches = (point: DOMPoint, bounds: DOMRect) =>
-          point.x >= bounds.left - 5 && point.x <= bounds.right + 5 && point.y >= bounds.top - 5 && point.y <= bounds.bottom + 5;
-        return touches(start, from) && touches(end, to);
+        return pointTouchesBounds(start, from) && pointTouchesBounds(end, to);
       });
     return {
       canvasHeight: canvasBounds.height,
@@ -183,7 +194,7 @@ async function readProjectMapGeometry(page: Page) {
       graphVisible,
       horizontalOverflow: canvas.scrollWidth - canvas.clientWidth,
       lanes: [...canvas.querySelectorAll<HTMLElement>(".project-map-lane-heading")].map((heading) => heading.textContent),
-      overlaps,
+      overlaps: nodeOverlaps(nodes),
       viewBoxHeight: viewBox?.height ?? 0,
       viewBoxWidth: viewBox?.width ?? 0,
     };
@@ -196,6 +207,178 @@ async function selectLocalModel(page: Page, model: string): Promise<void> {
     if (![...element.options].some((option) => option.value === value)) element.add(new Option(value, value));
   }, model);
   await selector.selectOption(model);
+}
+
+function recordWithId(value: unknown, message: string): Record<string, unknown> & { id: string } {
+  if (!isRecord(value) || typeof value.id !== "string") throw new Error(message);
+  return { ...value, id: value.id };
+}
+
+function workspaceSnapshot(value: unknown, message: string): WorkspaceSnapshot {
+  if (!isWorkspaceSnapshot(value)) throw new Error(message);
+  return value;
+}
+
+function workspaceIdFromPage(page: Page, message: string): string {
+  const workspaceId = new URL(page.url()).pathname.split("/").at(-1);
+  if (!workspaceId) throw new Error(message);
+  return workspaceId;
+}
+
+function workspaceHasFile(snapshot: WorkspaceSnapshot, path: string): boolean {
+  return snapshot.files.some((file) => file.path === path);
+}
+
+function personalTemplateRecord(value: unknown): Record<string, unknown> & { id: string } {
+  if (!Array.isArray(value)) throw new Error("Expected project template summaries");
+  const template = value.find((item) => isRecord(item) && item.source === "personal" && item.name === "Lab review workflow");
+  return recordWithId(template, "Expected a personal project template");
+}
+
+function eligibilityCriteria(value: unknown, message: string): Map<string, string> {
+  if (!isRecord(value) || !isRecord(value.protocol) || !Array.isArray(value.protocol.eligibilityCriteria)) throw new Error(message);
+  return new Map(
+    value.protocol.eligibilityCriteria.map((criterion) => {
+      if (!isRecord(criterion) || typeof criterion.id !== "string" || typeof criterion.text !== "string")
+        throw new Error("Expected a structured eligibility criterion");
+      return [criterion.text, criterion.id] as const;
+    }),
+  );
+}
+
+function requiredCriterionId(criteria: ReadonlyMap<string, string>, text: string): string {
+  const id = criteria.get(text);
+  if (!id) throw new Error("Expected the inclusion criterion id");
+  return id;
+}
+
+type ScreenedReviewRecord = Record<string, unknown> & {
+  readonly titleAbstract: Record<string, unknown>;
+  readonly fullText: Record<string, unknown>;
+  readonly finalInclusion: Record<string, unknown>;
+};
+
+function screenedReviewRecord(value: unknown): ScreenedReviewRecord {
+  if (!isRecord(value) || !Array.isArray(value.records) || !isRecord(value.records[0]))
+    throw new Error("Expected the screened review record");
+  const record = value.records[0];
+  if (!isRecord(record.titleAbstract) || !isRecord(record.fullText) || !isRecord(record.finalInclusion))
+    throw new Error("Expected staged and final screening state");
+  return { ...record, titleAbstract: record.titleAbstract, fullText: record.fullText, finalInclusion: record.finalInclusion };
+}
+
+function insertTextareaText(element: HTMLTextAreaElement, input: { at: number; insertion: string }): void {
+  element.focus();
+  element.setRangeText(input.insertion, input.at, input.at, "end");
+  element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: input.insertion }));
+}
+
+function replaceTextareaRange(element: HTMLTextAreaElement, input: { start: number; end: number; replacement: string }): void {
+  element.focus();
+  element.setRangeText(input.replacement, input.start, input.end, "end");
+  element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: input.replacement }));
+}
+
+function localModelSchemaName(body: unknown): unknown {
+  if (!isRecord(body) || !isRecord(body.response_format) || !isRecord(body.response_format.json_schema)) return null;
+  return body.response_format.json_schema.name;
+}
+
+function localModelFixtureContent(schemaName: unknown): string {
+  if (schemaName === "kirjolab_reference_query")
+    return JSON.stringify({ query: "visible evidence review time", rationale: "Names the mechanism and outcome." });
+  if (schemaName === "kirjolab_clarity_question")
+    return JSON.stringify({ issue: "Better does not name an outcome.", question: "What improves, and for whom?" });
+  if (schemaName === "kirjolab_table")
+    return JSON.stringify({
+      caption: "Review outcomes",
+      columns: ["Workflow", "Review time"],
+      rows: [
+        ["Baseline", "12 min"],
+        ["Kirjolab", "8 min"],
+      ],
+    });
+  if (schemaName === "kirjolab_ideas")
+    return JSON.stringify({
+      ideas: [
+        {
+          title: "Measure review time",
+          direction: "Name one affected group and measurable outcome.",
+          draft: "The workflow reduces review time for editors.",
+        },
+        {
+          title: "Compare steps",
+          direction: "Contrast the two workflows.",
+          draft: "The workflow removes a separate evidence lookup step.",
+        },
+        {
+          title: "Explain mechanism",
+          direction: "Connect visible evidence to review speed.",
+          draft: "Visible evidence lets editors validate claims without leaving the draft.",
+        },
+      ],
+    });
+  if (schemaName === "kirjolab_phrasing_alternatives")
+    return JSON.stringify({
+      alternatives: [
+        { text: "The findings suggest that this workflow may reduce review time.", rationale: "Qualifies the inference." },
+        {
+          text: "This workflow appears to reduce review time under the tested conditions.",
+          rationale: "Bounds the claim to observed conditions.",
+        },
+        { text: "The observed results are consistent with faster review.", rationale: "Avoids causal certainty." },
+      ],
+    });
+  return JSON.stringify({
+    rewrites: [
+      { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
+      { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
+    ],
+  });
+}
+
+async function fulfillCorsPreflight(route: Route): Promise<void> {
+  await route.fulfill({
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "POST, OPTIONS",
+      "access-control-allow-headers": "content-type",
+    },
+  });
+}
+
+async function handleClarityModelRoute(route: Route, requests: unknown[]): Promise<void> {
+  if (route.request().method() === "OPTIONS") return fulfillCorsPreflight(route);
+  const body: unknown = route.request().postDataJSON();
+  requests.push(body);
+  await route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    headers: { "access-control-allow-origin": "*" },
+    body: JSON.stringify({ choices: [{ message: { content: localModelFixtureContent(localModelSchemaName(body)) } }] }),
+  });
+}
+
+function evidenceModelFixtureContent(body: unknown): string {
+  const prompt = readProviderPrompt(body);
+  if (typeof prompt.evidenceRelation !== "string") return "Grounded revisions retain a visible path to their evidence :cite[merton1942].";
+  return JSON.stringify({
+    text: "Inspectable evidence makes scholarly claims more defensible.",
+    note: "Drafted from the selected source annotation.",
+  });
+}
+
+async function handleEvidenceModelRoute(route: Route, requests: unknown[]): Promise<void> {
+  if (route.request().method() === "OPTIONS") return fulfillCorsPreflight(route);
+  const body: unknown = route.request().postDataJSON();
+  requests.push(body);
+  await route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    headers: { "access-control-allow-origin": "*" },
+    body: JSON.stringify({ choices: [{ message: { content: evidenceModelFixtureContent(body) } }] }),
+  });
 }
 
 async function turnPdfPageWithTrackpad(page: Page, direction: -1 | 1, expectedPage: number): Promise<void> {
@@ -3521,8 +3704,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
     headers: { origin, "content-type": "application/pdf", "x-file-name": "anchor-evidence.pdf" },
     data: createEvidencePdf(),
   });
-  const pdf: unknown = await pdfResponse.json();
-  if (!isRecord(pdf) || typeof pdf.id !== "string") throw new Error("Expected an imported PDF");
+  const pdf = recordWithId(await pdfResponse.json(), "Expected an imported PDF");
   const annotationResponse = await page.request.post(`${api}/annotations`, {
     headers: { origin },
     data: {
@@ -3535,8 +3717,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
       rects: [],
     },
   });
-  const annotation: unknown = await annotationResponse.json();
-  if (!isRecord(annotation) || typeof annotation.id !== "string") throw new Error("Expected an annotation");
+  const annotation = recordWithId(await annotationResponse.json(), "Expected an annotation");
   const claimResponse = await page.request.post(`${api}/claims`, {
     headers: { origin },
     data: {
@@ -3545,8 +3726,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
       evidence: [{ annotationId: annotation.id, relation: "supports" }],
     },
   });
-  const claim: unknown = await claimResponse.json();
-  if (!isRecord(claim) || typeof claim.id !== "string") throw new Error("Expected a claim");
+  const claim = recordWithId(await claimResponse.json(), "Expected a claim");
 
   const path = `/editor/${workspaceId}`;
   await page.goto(path);
@@ -3624,27 +3804,13 @@ test("keeps annotation and claim passage anchors attached across remote insertio
 
   const annotationInsertion = "New context before the annotation.\n";
   const collaboratorEditor = collaborator.locator("#source-editor");
-  await collaboratorEditor.evaluate(
-    (element: HTMLTextAreaElement, input: { at: number; insertion: string }) => {
-      element.focus();
-      element.setRangeText(input.insertion, input.at, input.at, "end");
-      element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: input.insertion }));
-    },
-    { at: annotationStart, insertion: annotationInsertion },
-  );
+  await collaboratorEditor.evaluate(insertTextareaText, { at: annotationStart, insertion: annotationInsertion });
   const afterAnnotationInsertion = `${source.slice(0, annotationStart)}${annotationInsertion}${source.slice(annotationStart)}`;
   await expect(editor).toHaveValue(afterAnnotationInsertion);
 
   const claimInsertion = "New context before the claim.\n";
   const shiftedClaimStart = afterAnnotationInsertion.indexOf(claimExcerpt);
-  await collaboratorEditor.evaluate(
-    (element: HTMLTextAreaElement, input: { at: number; insertion: string }) => {
-      element.focus();
-      element.setRangeText(input.insertion, input.at, input.at, "end");
-      element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: input.insertion }));
-    },
-    { at: shiftedClaimStart, insertion: claimInsertion },
-  );
+  await collaboratorEditor.evaluate(insertTextareaText, { at: shiftedClaimStart, insertion: claimInsertion });
   const shiftedSource = `${afterAnnotationInsertion.slice(0, shiftedClaimStart)}${claimInsertion}${afterAnnotationInsertion.slice(shiftedClaimStart)}`;
   await expect(editor).toHaveValue(shiftedSource);
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(shiftedSource);
@@ -3687,8 +3853,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
     },
   });
   expect(candidateResponse.status()).toBe(201);
-  const candidate: unknown = await candidateResponse.json();
-  if (!isRecord(candidate) || typeof candidate.id !== "string") throw new Error("Expected an anchor-preserving candidate");
+  const candidate = recordWithId(await candidateResponse.json(), "Expected an anchor-preserving candidate");
   const applyResponse = await page.request.post(`${api}/candidates/${candidate.id}/apply`, { headers: { origin } });
   expect(applyResponse.ok()).toBe(true);
   await expect(editor).toHaveValue(`${candidatePrefix}${shiftedSource}`);
@@ -3708,14 +3873,11 @@ test("keeps annotation and claim passage anchors attached across remote insertio
   const changedAnnotationExcerpt = annotationExcerpt.replace("stays", "moves");
   const changedWordStart = candidateAnnotationStart + annotationExcerpt.indexOf("stays");
   await expect(collaboratorEditor).toHaveValue(`${candidatePrefix}${shiftedSource}`);
-  await collaboratorEditor.evaluate(
-    (element: HTMLTextAreaElement, range: { start: number; end: number }) => {
-      element.focus();
-      element.setRangeText("moves", range.start, range.end, "end");
-      element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "moves" }));
-    },
-    { start: changedWordStart, end: changedWordStart + "stays".length },
-  );
+  await collaboratorEditor.evaluate(replaceTextareaRange, {
+    start: changedWordStart,
+    end: changedWordStart + "stays".length,
+    replacement: "moves",
+  });
   await expect(editor).toHaveValue(
     `${candidatePrefix}${shiftedSource.slice(0, resolvedAnnotationStart)}${changedAnnotationExcerpt}${shiftedSource.slice(
       resolvedAnnotationStart + annotationExcerpt.length,
@@ -4108,12 +4270,11 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await page.locator("#create-workspace").click();
   await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
 
-  const reviewWorkspaceId = new URL(page.url()).pathname.split("/").at(-1);
-  if (!reviewWorkspaceId) throw new Error("Expected a review workspace id");
+  const reviewWorkspaceId = workspaceIdFromPage(page, "Expected a review workspace id");
   const reviewApi = `/api/workspaces/${reviewWorkspaceId}`;
   const reviewSnapshot = await readWorkspaceSnapshot(page, reviewApi);
-  expect(reviewSnapshot.files.some((file) => file.path === "sections/search-strategy.md")).toBe(true);
-  expect(reviewSnapshot.files.some((file) => file.path === "KIRJOLAB.md")).toBe(false);
+  expect(workspaceHasFile(reviewSnapshot, "sections/search-strategy.md")).toBe(true);
+  expect(workspaceHasFile(reviewSnapshot, "KIRJOLAB.md")).toBe(false);
 
   const reusableFile = await page.request.post(`${reviewApi}/files`, {
     headers: { origin: "http://127.0.0.1:8788" },
@@ -4133,10 +4294,9 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await page.locator("#new-workspace-title").fill("Direct project copy");
   await page.locator("#create-workspace").click();
   await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
-  const directCopyId = new URL(page.url()).pathname.split("/").at(-1);
-  if (!directCopyId) throw new Error("Expected a direct project-copy workspace id");
+  const directCopyId = workspaceIdFromPage(page, "Expected a direct project-copy workspace id");
   const directCopy = await readWorkspaceSnapshot(page, `/api/workspaces/${directCopyId}`);
-  expect(directCopy.files.some((file) => file.path === "sections/lab-checklist.md")).toBe(true);
+  expect(workspaceHasFile(directCopy, "sections/lab-checklist.md")).toBe(true);
   expect(directCopy.pdfs).toEqual([]);
   expect(directCopy.annotations).toEqual([]);
 
@@ -4152,12 +4312,7 @@ test("starts from built-in and promoted personal project templates", async ({ pa
 
   const templatesResponse = await page.request.get("/api/project-templates");
   expect(templatesResponse.ok()).toBe(true);
-  const templates: unknown = await templatesResponse.json();
-  if (!Array.isArray(templates)) throw new Error("Expected project template summaries");
-  const personal = templates.find(
-    (template) => isRecord(template) && template.source === "personal" && template.name === "Lab review workflow",
-  );
-  if (!isRecord(personal) || typeof personal.id !== "string") throw new Error("Expected a personal project template");
+  const personal = personalTemplateRecord(await templatesResponse.json());
   expect("seed" in personal).toBe(false);
   expect(isRecord(personal.preview)).toBe(true);
   expect(JSON.stringify(personal.preview)).not.toContain("Reusable steps.");
@@ -4171,11 +4326,10 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await page.locator("#create-workspace").click();
   await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
 
-  const personalWorkspaceId = new URL(page.url()).pathname.split("/").at(-1);
-  if (!personalWorkspaceId) throw new Error("Expected a personal-template workspace id");
+  const personalWorkspaceId = workspaceIdFromPage(page, "Expected a personal-template workspace id");
   const personalApi = `/api/workspaces/${personalWorkspaceId}`;
   const personalSnapshot = await readWorkspaceSnapshot(page, personalApi);
-  expect(personalSnapshot.files.some((file) => file.path === "sections/lab-checklist.md")).toBe(true);
+  expect(workspaceHasFile(personalSnapshot, "sections/lab-checklist.md")).toBe(true);
   const replacementFile = await page.request.post(`${personalApi}/files`, {
     headers: { origin: "http://127.0.0.1:8788" },
     data: { path: "sections/replacement-only.md", content: "## Replacement\n\nOnly in the replacement.\n" },
@@ -4196,12 +4350,9 @@ test("starts from built-in and promoted personal project templates", async ({ pa
     data: { title: "Updated reusable review", templateId: personal.id },
   });
   expect(instantiated.status()).toBe(201);
-  const instantiatedSummary: unknown = await instantiated.json();
-  if (!isRecord(instantiatedSummary) || typeof instantiatedSummary.id !== "string") {
-    throw new Error("Expected a project created from the replacement template");
-  }
+  const instantiatedSummary = recordWithId(await instantiated.json(), "Expected a project created from the replacement template");
   const instantiatedSnapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${instantiatedSummary.id}`);
-  expect(instantiatedSnapshot.files.some((file) => file.path === "sections/replacement-only.md")).toBe(true);
+  expect(workspaceHasFile(instantiatedSnapshot, "sections/replacement-only.md")).toBe(true);
 
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
@@ -4565,16 +4716,14 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
     headers: { origin },
     data: { title: "Claim boundary" },
   });
-  const workspace: unknown = await workspaceResponse.json();
-  if (!isRecord(workspace) || typeof workspace.id !== "string") throw new Error("Expected a created workspace");
+  const workspace = recordWithId(await workspaceResponse.json(), "Expected a created workspace");
   const api = `/api/workspaces/${workspace.id}`;
 
   const pdfResponse = await page.request.post(`${api}/pdfs`, {
     headers: { origin, "content-type": "application/pdf", "x-file-name": "claim-evidence.pdf" },
     data: createEvidencePdf(),
   });
-  const pdf: unknown = await pdfResponse.json();
-  if (!isRecord(pdf) || typeof pdf.id !== "string") throw new Error("Expected an imported PDF");
+  const pdf = recordWithId(await pdfResponse.json(), "Expected an imported PDF");
 
   const annotationResponse = await page.request.post(`${api}/annotations`, {
     headers: { origin },
@@ -4588,8 +4737,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
       rects: [],
     },
   });
-  const annotation: unknown = await annotationResponse.json();
-  if (!isRecord(annotation) || typeof annotation.id !== "string") throw new Error("Expected an annotation");
+  const annotation = recordWithId(await annotationResponse.json(), "Expected an annotation");
 
   const claimResponse = await page.request.post(`${api}/claims`, {
     headers: { origin },
@@ -4600,8 +4748,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
     },
   });
   expect(claimResponse.status()).toBe(201);
-  const claim: unknown = await claimResponse.json();
-  if (!isRecord(claim) || typeof claim.id !== "string") throw new Error("Expected a claim");
+  const claim = recordWithId(await claimResponse.json(), "Expected a claim");
 
   const updateResponse = await page.request.put(`${api}/claims/${claim.id}`, {
     headers: { origin },
@@ -4614,8 +4761,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
   expect(updateResponse.ok()).toBe(true);
 
   const snapshotResponse = await page.request.get(api);
-  const snapshot: unknown = await snapshotResponse.json();
-  if (!isWorkspaceSnapshot(snapshot)) throw new Error("Expected a claim snapshot");
+  const snapshot = workspaceSnapshot(await snapshotResponse.json(), "Expected a claim snapshot");
   const excerpt = "The preview resolves a link back to";
   const start = snapshot.source.indexOf(excerpt);
   const linkResponse = await page.request.post(`${api}/claim-links`, {
@@ -4640,8 +4786,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
     },
   });
   expect(rejectedUpdate.status()).toBe(400);
-  const afterRejected: unknown = await (await page.request.get(api)).json();
-  if (!isWorkspaceSnapshot(afterRejected)) throw new Error("Expected an unchanged claim snapshot");
+  const afterRejected = workspaceSnapshot(await (await page.request.get(api)).json(), "Expected an unchanged claim snapshot");
   expect(afterRejected.claims).toMatchObject([
     { id: claim.id, text: "Inspectable evidence keeps scholarly claims accountable.", note: "Revised synthesis" },
   ]);
@@ -4650,8 +4795,7 @@ test("persists and atomically replaces evidence-backed claims", async ({ page })
 
   const deleteResponse = await page.request.delete(`${api}/claims/${claim.id}`, { headers: { origin } });
   expect(deleteResponse.status()).toBe(204);
-  const afterDelete: unknown = await (await page.request.get(api)).json();
-  if (!isWorkspaceSnapshot(afterDelete)) throw new Error("Expected a post-delete snapshot");
+  const afterDelete = workspaceSnapshot(await (await page.request.get(api)).json(), "Expected a post-delete snapshot");
   expect(afterDelete.annotations).toHaveLength(1);
   expect(afterDelete.claims).toEqual([]);
   expect(afterDelete.claimEvidenceLinks).toEqual([]);
@@ -4830,88 +4974,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
       ]),
     });
   });
-  await page.route("http://127.0.0.1:1234/v1/chat/completions", async (route) => {
-    if (route.request().method() === "OPTIONS") {
-      await route.fulfill({
-        status: 204,
-        headers: {
-          "access-control-allow-origin": "*",
-          "access-control-allow-methods": "POST, OPTIONS",
-          "access-control-allow-headers": "content-type",
-        },
-      });
-      return;
-    }
-    const body: unknown = route.request().postDataJSON();
-    requests.push(body);
-    const schemaName =
-      isRecord(body) && isRecord(body.response_format) && isRecord(body.response_format.json_schema)
-        ? body.response_format.json_schema.name
-        : null;
-    const content =
-      schemaName === "kirjolab_reference_query"
-        ? JSON.stringify({ query: "visible evidence review time", rationale: "Names the mechanism and outcome." })
-        : schemaName === "kirjolab_clarity_question"
-          ? JSON.stringify({ issue: "Better does not name an outcome.", question: "What improves, and for whom?" })
-          : schemaName === "kirjolab_table"
-            ? JSON.stringify({
-                caption: "Review outcomes",
-                columns: ["Workflow", "Review time"],
-                rows: [
-                  ["Baseline", "12 min"],
-                  ["Kirjolab", "8 min"],
-                ],
-              })
-            : schemaName === "kirjolab_ideas"
-              ? JSON.stringify({
-                  ideas: [
-                    {
-                      title: "Measure review time",
-                      direction: "Name one affected group and measurable outcome.",
-                      draft: "The workflow reduces review time for editors.",
-                    },
-                    {
-                      title: "Compare steps",
-                      direction: "Contrast the two workflows.",
-                      draft: "The workflow removes a separate evidence lookup step.",
-                    },
-                    {
-                      title: "Explain mechanism",
-                      direction: "Connect visible evidence to review speed.",
-                      draft: "Visible evidence lets editors validate claims without leaving the draft.",
-                    },
-                  ],
-                })
-              : schemaName === "kirjolab_phrasing_alternatives"
-                ? JSON.stringify({
-                    alternatives: [
-                      {
-                        text: "The findings suggest that this workflow may reduce review time.",
-                        rationale: "Qualifies the inference.",
-                      },
-                      {
-                        text: "This workflow appears to reduce review time under the tested conditions.",
-                        rationale: "Bounds the claim to observed conditions.",
-                      },
-                      {
-                        text: "The observed results are consistent with faster review.",
-                        rationale: "Avoids causal certainty.",
-                      },
-                    ],
-                  })
-                : JSON.stringify({
-                    rewrites: [
-                      { text: "The workflow cuts review time for editors.", rationale: "Names the outcome and affected group." },
-                      { text: "Editors review drafts faster with this workflow.", rationale: "States the effect directly." },
-                    ],
-                  });
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: { "access-control-allow-origin": "*" },
-      body: JSON.stringify({ choices: [{ message: { content } }] }),
-    });
-  });
+  await page.route("http://127.0.0.1:1234/v1/chat/completions", (route) => handleClarityModelRoute(route, requests));
 
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
@@ -5004,43 +5067,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
     const path = new URL(request.url()).pathname;
     if (path.startsWith(`${api}/candidates/`) && /\/(?:apply|reject)$/u.test(path)) decisionRequests.push(path);
   });
-  await page.route("http://127.0.0.1:1234/v1/chat/completions", async (route) => {
-    if (route.request().method() === "OPTIONS") {
-      await route.fulfill({
-        status: 204,
-        headers: {
-          "access-control-allow-origin": "*",
-          "access-control-allow-methods": "POST, OPTIONS",
-          "access-control-allow-headers": "content-type",
-        },
-      });
-      return;
-    }
-    const requestBody: unknown = route.request().postDataJSON();
-    modelRequests.push(requestBody);
-    const providerPrompt = readProviderPrompt(requestBody);
-    const content =
-      typeof providerPrompt.evidenceRelation === "string"
-        ? JSON.stringify({
-            text: "Inspectable evidence makes scholarly claims more defensible.",
-            note: "Drafted from the selected source annotation.",
-          })
-        : "Grounded revisions retain a visible path to their evidence :cite[merton1942].";
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: { "access-control-allow-origin": "*" },
-      body: JSON.stringify({
-        choices: [
-          {
-            message: {
-              content,
-            },
-          },
-        ],
-      }),
-    });
-  });
+  await page.route("http://127.0.0.1:1234/v1/chat/completions", (route) => handleEvidenceModelRoute(route, modelRequests));
 
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible({ timeout: 10_000 });
@@ -5405,37 +5432,20 @@ test("keeps protocol criteria stable through final review inclusion", async ({ p
   await page.getByRole("button", { name: "Save protocol" }).click();
   await expect(page.locator("#review-protocol-status")).toHaveText("Protocol saved.");
 
-  const draftValue: unknown = await (await page.request.get(`${api}/review-study`)).json();
-  if (!isRecord(draftValue) || !isRecord(draftValue.protocol) || !Array.isArray(draftValue.protocol.eligibilityCriteria)) {
-    throw new Error("Expected saved eligibility criteria");
-  }
-  const draftCriteria = new Map(
-    draftValue.protocol.eligibilityCriteria.map((criterion) => {
-      if (!isRecord(criterion) || typeof criterion.id !== "string" || typeof criterion.text !== "string") {
-        throw new Error("Expected a structured eligibility criterion");
-      }
-      return [criterion.text, criterion.id] as const;
-    }),
+  const draftCriteria = eligibilityCriteria(
+    await (await page.request.get(`${api}/review-study`)).json(),
+    "Expected saved eligibility criteria",
   );
-  const inclusionCriterionId = draftCriteria.get("Reports an empirical review workflow");
-  if (!inclusionCriterionId) throw new Error("Expected the inclusion criterion id");
+  const inclusionCriterionId = requiredCriterionId(draftCriteria, "Reports an empirical review workflow");
 
   await page.locator("#freeze-review-protocol").click();
   await expect(page.locator("#review-protocol-status")).toHaveText("Protocol frozen. Future changes will be recorded as amendments.");
   await expect(page.locator("#review-protocol-state")).toContainText("Frozen");
   await expect(page.locator("#review-step-search")).toBeEnabled();
 
-  const frozenValue: unknown = await (await page.request.get(`${api}/review-study`)).json();
-  if (!isRecord(frozenValue) || !isRecord(frozenValue.protocol) || !Array.isArray(frozenValue.protocol.eligibilityCriteria)) {
-    throw new Error("Expected frozen eligibility criteria");
-  }
-  const frozenCriteria = new Map(
-    frozenValue.protocol.eligibilityCriteria.map((criterion) => {
-      if (!isRecord(criterion) || typeof criterion.id !== "string" || typeof criterion.text !== "string") {
-        throw new Error("Expected a frozen structured criterion");
-      }
-      return [criterion.text, criterion.id] as const;
-    }),
+  const frozenCriteria = eligibilityCriteria(
+    await (await page.request.get(`${api}/review-study`)).json(),
+    "Expected frozen eligibility criteria",
   );
   expect(frozenCriteria).toEqual(draftCriteria);
 
@@ -5493,14 +5503,7 @@ test("keeps protocol criteria stable through final review inclusion", async ({ p
   await expect(page.locator("#review-step-appraise")).toBeEnabled();
   await expect(page.locator("#review-step-extract")).toBeEnabled();
 
-  const screeningValue: unknown = await (await page.request.get(`${api}/review-study/screening`)).json();
-  if (!isRecord(screeningValue) || !Array.isArray(screeningValue.records) || !isRecord(screeningValue.records[0])) {
-    throw new Error("Expected the screened review record");
-  }
-  const screenedRecord = screeningValue.records[0];
-  if (!isRecord(screenedRecord.titleAbstract) || !isRecord(screenedRecord.fullText) || !isRecord(screenedRecord.finalInclusion)) {
-    throw new Error("Expected staged and final screening state");
-  }
+  const screenedRecord = screenedReviewRecord(await (await page.request.get(`${api}/review-study/screening`)).json());
   expect(screenedRecord.titleAbstract.decisions).toEqual(
     expect.arrayContaining([expect.objectContaining({ criterionId: inclusionCriterionId })]),
   );
