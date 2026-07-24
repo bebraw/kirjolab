@@ -1,5 +1,5 @@
-import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
-import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph } from "./domain/knowledge";
+import { expect, test, type Locator, type Page, type Request, type Route } from "@playwright/test";
+import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph, type WorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries, type WorkspaceSnapshot } from "./domain/workspace";
 import {
   createEvidencePdf,
@@ -157,6 +157,33 @@ async function readProjectMapGeometry(page: Page) {
       return point.x >= bounds.left - 5 && point.x <= bounds.right + 5 && point.y >= bounds.top - 5 && point.y <= bounds.bottom + 5;
     }
 
+    function connectorsAreAligned(
+      graph: SVGSVGElement | null,
+      visible: boolean,
+      matrix: DOMMatrix | null | undefined,
+      nodes: ReadonlyMap<string, DOMRect>,
+    ): boolean {
+      if (!visible || !graph || !matrix) return true;
+      return [...graph.querySelectorAll<SVGPathElement>(".project-map-edge")].every((path) => {
+        const from = path.dataset.from ? nodes.get(path.dataset.from) : undefined;
+        const to = path.dataset.to ? nodes.get(path.dataset.to) : undefined;
+        if (!from || !to) return false;
+        const start = path.getPointAtLength(0).matrixTransform(matrix);
+        const end = path.getPointAtLength(path.getTotalLength()).matrixTransform(matrix);
+        return pointTouchesBounds(start, from) && pointTouchesBounds(end, to);
+      });
+    }
+
+    function nodesAreContained(nodes: Array<{ bounds: DOMRect }>, bounds: DOMRect): boolean {
+      return nodes.every(
+        (node) =>
+          node.bounds.left >= bounds.left - 1 &&
+          node.bounds.right <= bounds.right + 1 &&
+          node.bounds.top >= bounds.top - 1 &&
+          node.bounds.bottom <= bounds.bottom + 1,
+      );
+    }
+
     const canvasBounds = canvas.getBoundingClientRect();
     const nodes = [...canvas.querySelectorAll<HTMLElement>(".project-map-node")].map((node) => ({
       id: node.dataset.resourceId ?? node.textContent ?? "unknown",
@@ -167,29 +194,11 @@ async function readProjectMapGeometry(page: Page) {
     const graphVisible = graph?.checkVisibility() ?? false;
     const screenMatrix = graph?.getScreenCTM();
     const nodeById = new Map(nodes.map((node) => [node.id, node.bounds]));
-    const connectorsAligned =
-      !graphVisible ||
-      !graph ||
-      !screenMatrix ||
-      [...graph.querySelectorAll<SVGPathElement>(".project-map-edge")].every((path) => {
-        const from = path.dataset.from ? nodeById.get(path.dataset.from) : undefined;
-        const to = path.dataset.to ? nodeById.get(path.dataset.to) : undefined;
-        if (!from || !to) return false;
-        const start = path.getPointAtLength(0).matrixTransform(screenMatrix);
-        const end = path.getPointAtLength(path.getTotalLength()).matrixTransform(screenMatrix);
-        return pointTouchesBounds(start, from) && pointTouchesBounds(end, to);
-      });
     return {
       canvasHeight: canvasBounds.height,
       canvasWidth: canvasBounds.width,
-      contained: nodes.every(
-        (node) =>
-          node.bounds.left >= canvasBounds.left - 1 &&
-          node.bounds.right <= canvasBounds.right + 1 &&
-          node.bounds.top >= canvasBounds.top - 1 &&
-          node.bounds.bottom <= canvasBounds.bottom + 1,
-      ),
-      connectorsAligned,
+      contained: nodesAreContained(nodes, canvasBounds),
+      connectorsAligned: connectorsAreAligned(graph, graphVisible, screenMatrix, nodeById),
       edgeCount: graph?.querySelectorAll(".project-map-edge").length ?? 0,
       graphVisible,
       horizontalOverflow: canvas.scrollWidth - canvas.clientWidth,
@@ -265,6 +274,39 @@ function screenedReviewRecord(value: unknown): ScreenedReviewRecord {
   if (!isRecord(record.titleAbstract) || !isRecord(record.fullText) || !isRecord(record.finalInclusion))
     throw new Error("Expected staged and final screening state");
   return { ...record, titleAbstract: record.titleAbstract, fullText: record.fullText, finalInclusion: record.finalInclusion };
+}
+
+function collectCandidateDecisionRequest(request: Request, api: string, requests: string[]): void {
+  const path = new URL(request.url()).pathname;
+  if (path.startsWith(`${api}/candidates/`) && /\/(?:apply|reject)$/u.test(path)) requests.push(path);
+}
+
+function selectFirstPdfText(layer: HTMLElement): void {
+  const span = layer.querySelector("span");
+  if (!span?.firstChild) throw new Error("Expected rendered PDF text");
+  const range = document.createRange();
+  range.selectNodeContents(span);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+}
+
+async function requiredLocatorAttribute(locator: Locator, name: string, message: string): Promise<string> {
+  const value = await locator.getAttribute(name);
+  if (!value) throw new Error(message);
+  return value;
+}
+
+function workspaceKnowledgeGraph(value: unknown, message: string): WorkspaceKnowledgeGraph {
+  if (!isWorkspaceKnowledgeGraph(value)) throw new Error(message);
+  return value;
+}
+
+function firstWorkspaceAnnotation(snapshot: WorkspaceSnapshot) {
+  const annotation = snapshot.annotations[0];
+  if (!annotation) throw new Error("Expected model evidence for the stale candidate");
+  return annotation;
 }
 
 function insertTextareaText(element: HTMLTextAreaElement, input: { at: number; insertion: string }): void {
@@ -5063,10 +5105,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   const api = `/api/workspaces/${workspaceId}`;
   const modelRequests: unknown[] = [];
   const decisionRequests: string[] = [];
-  page.on("request", (request) => {
-    const path = new URL(request.url()).pathname;
-    if (path.startsWith(`${api}/candidates/`) && /\/(?:apply|reject)$/u.test(path)) decisionRequests.push(path);
-  });
+  page.on("request", (request) => collectCandidateDecisionRequest(request, api, decisionRequests));
   await page.route("http://127.0.0.1:1234/v1/chat/completions", (route) => handleEvidenceModelRoute(route, modelRequests));
 
   await page.goto(`/editor/${workspaceId}`);
@@ -5097,16 +5136,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(page.locator("#context-pdf-panel")).toBeVisible();
   await expect(page.getByRole("tab", { name: "evidence.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
-  await page.locator("#paper-text-layer").evaluate((layer) => {
-    const span = layer.querySelector("span");
-    if (!span?.firstChild) throw new Error("Expected rendered PDF text");
-    const range = document.createRange();
-    range.selectNodeContents(span);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
-  });
+  await page.locator("#paper-text-layer").evaluate(selectFirstPdfText);
   await expect(page.locator("#annotation-quote")).toHaveValue("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#annotation-selection-status")).toContainText("saved automatically");
   await page.locator("#annotation-comment").fill("Grounding for the revision");
@@ -5142,8 +5172,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await page.locator("#claim-dialog").getByRole("button", { name: "Save claim" }).click();
   const claimCard = page.locator("#claim-list article").filter({ hasText: "keeps scholarly claims accountable" }).first();
   await expect(claimCard).toContainText("extends · Grounding for the revision");
-  const claimResourceId = await claimCard.getAttribute("data-claim-resource-id");
-  if (!claimResourceId) throw new Error("Expected a stable claim resource id");
+  const claimResourceId = await requiredLocatorAttribute(claimCard, "data-claim-resource-id", "Expected a stable claim resource id");
 
   await page.getByRole("button", { name: "New claim" }).click();
   await page.locator("#claim-text").fill("UNSELECTED DECOY EVIDENCE MUST STAY LOCAL.");
@@ -5210,10 +5239,9 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   expect(searchResponse.ok()).toBe(true);
   expect(isKnowledgeSearchResults(searchResults)).toBe(true);
   const graphResponse = await page.request.get(`${api}/graph`);
-  const graph: unknown = await graphResponse.json();
+  const graph = workspaceKnowledgeGraph(await graphResponse.json(), "Expected a typed workspace graph");
   expect(graphResponse.ok()).toBe(true);
   expect(isWorkspaceKnowledgeGraph(graph)).toBe(true);
-  if (!isWorkspaceKnowledgeGraph(graph)) throw new Error("Expected a typed workspace graph");
   expect(graph.nodes).toEqual(
     expect.arrayContaining([expect.objectContaining({ kind: "project" }), expect.objectContaining({ kind: "person" })]),
   );
@@ -5281,8 +5309,10 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   expect(JSON.stringify(firstPrompt)).not.toContain("Return to the source");
   await expect(page.locator("#candidate-list")).toContainText("test-local-model · pending");
   await expect(page.locator("#knowledge-connection-list")).toContainText("derived-from");
-  const candidateGraphValue: unknown = await (await page.request.get(`${api}/graph`)).json();
-  if (!isWorkspaceKnowledgeGraph(candidateGraphValue)) throw new Error("Expected model candidate graph provenance");
+  const candidateGraphValue = workspaceKnowledgeGraph(
+    await (await page.request.get(`${api}/graph`)).json(),
+    "Expected model candidate graph provenance",
+  );
   expect(candidateGraphValue.nodes).toContainEqual(expect.objectContaining({ kind: "model-candidate" }));
   expect(candidateGraphValue.edges).toContainEqual(
     expect.objectContaining({ relation: "derived-from", from: expect.stringMatching(/^model-candidate:/u) }),
@@ -5361,10 +5391,8 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(page.locator("#annotation-list")).toContainText("Grounding for the revision");
   await expect(page.locator("#context-candidate-evidence")).toContainText("keeps scholarly claims accountable");
 
-  const currentSnapshot: unknown = await (await page.request.get(api)).json();
-  if (!isWorkspaceSnapshot(currentSnapshot)) throw new Error("Expected a workspace snapshot");
-  const staleEvidence = currentSnapshot.annotations[0];
-  if (!staleEvidence) throw new Error("Expected model evidence for the stale candidate");
+  const currentSnapshot = workspaceSnapshot(await (await page.request.get(api)).json(), "Expected a workspace snapshot");
+  const staleEvidence = firstWorkspaceAnnotation(currentSnapshot);
   const staleExcerpt = "## Evidence becomes prose {#sec-evidence}";
   const staleStart = currentSnapshot.source.indexOf(staleExcerpt);
   const staleCandidateResponse = await page.request.post(`${api}/candidates`, {
@@ -5387,8 +5415,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
     },
   });
   expect(staleCandidateResponse.ok()).toBe(true);
-  const staleCandidate: unknown = await staleCandidateResponse.json();
-  if (!isRecord(staleCandidate) || typeof staleCandidate.id !== "string") throw new Error("Expected a model candidate");
+  recordWithId(await staleCandidateResponse.json(), "Expected a model candidate");
   await page.reload();
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible();
   await openWritingAssistant(page);
