@@ -5715,49 +5715,63 @@ class WorkspaceApp {
       this.#metadataRefinement.send({ type: "LOCAL_READY", requestId, local: candidates });
       if (!this.#metadataRefinement.getSnapshot().matches("discovering")) return;
       targets.panel.replaceChildren(resourceLabel("Refine metadata"), statusText("Step 2 of 2 · Searching scholarly metadata…"));
-      try {
-        const response = await jsonFetch(`/api/library/references/${encodeURIComponent(reference.id)}/metadata-refinement/preview`, {
-          artifactId: artifact.id,
-          candidates: {
-            ...(candidates.title ? { title: candidates.title } : {}),
-            ...(candidates.authors.length > 0 ? { authors: candidates.authors } : {}),
-            ...(candidates.year ? { year: candidates.year } : {}),
-            ...(candidates.doi ? { doi: candidates.doi } : {}),
-          },
-        });
-        await expectOk(response);
-        const preview: unknown = await response.json();
-        if (!isMetadataRefinementPreview(preview)) throw new Error("Metadata providers returned an invalid preview");
-        this.#metadataRefinement.send({ type: "DISCOVERY_READY", requestId, preview });
-        if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
-        this.#renderMetadataRefinement(
-          reference,
-          artifact,
-          candidates,
-          preview,
-          targets,
-          "",
-          response.headers.get("x-kirjolab-metadata-cache") === "hit",
-        );
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Provider lookup failed.";
-        this.#metadataRefinement.send({ type: "DISCOVERY_FAILED", requestId, message });
-        if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
-        this.#renderMetadataRefinement(
-          reference,
-          artifact,
-          candidates,
-          { referenceId: reference.id, artifactId: artifact.id, candidates: [] },
-          targets,
-          message,
-        );
-      }
+      await this.#discoverPdfMetadata(reference, artifact, candidates, targets, requestId);
     } catch (error) {
       const message = error instanceof Error ? `Metadata could not be refined: ${error.message}` : "Metadata could not be refined.";
       this.#metadataRefinement.send({ type: "FAIL", requestId, message });
       if (!this.#metadataRefinement.getSnapshot().matches("failed")) return;
       targets.panel.replaceChildren(resourceLabel("Refine metadata"), statusText(message));
     }
+  }
+
+  async #discoverPdfMetadata(
+    reference: BibliographicRecord,
+    artifact: LibraryPdfArtifact,
+    candidates: PdfMetadataCandidates,
+    targets: MetadataRefinementTargets,
+    requestId: number,
+  ): Promise<void> {
+    try {
+      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(reference.id)}/metadata-refinement/preview`, {
+        artifactId: artifact.id,
+        candidates: this.#pdfMetadataCandidatePayload(candidates),
+      });
+      await expectOk(response);
+      const preview: unknown = await response.json();
+      if (!isMetadataRefinementPreview(preview)) throw new Error("Metadata providers returned an invalid preview");
+      this.#metadataRefinement.send({ type: "DISCOVERY_READY", requestId, preview });
+      if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
+      this.#renderMetadataRefinement(
+        reference,
+        artifact,
+        candidates,
+        preview,
+        targets,
+        "",
+        response.headers.get("x-kirjolab-metadata-cache") === "hit",
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Provider lookup failed.";
+      this.#metadataRefinement.send({ type: "DISCOVERY_FAILED", requestId, message });
+      if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
+      this.#renderMetadataRefinement(
+        reference,
+        artifact,
+        candidates,
+        { referenceId: reference.id, artifactId: artifact.id, candidates: [] },
+        targets,
+        message,
+      );
+    }
+  }
+
+  #pdfMetadataCandidatePayload(candidates: PdfMetadataCandidates): Partial<PdfMetadataCandidates> {
+    return {
+      ...(candidates.title ? { title: candidates.title } : {}),
+      ...(candidates.authors.length > 0 ? { authors: candidates.authors } : {}),
+      ...(candidates.year ? { year: candidates.year } : {}),
+      ...(candidates.doi ? { doi: candidates.doi } : {}),
+    };
   }
 
   #renderMetadataRefinement(
@@ -5777,6 +5791,16 @@ class WorkspaceApp {
     localSection.className = "library-metadata-refinement-actions";
     this.#renderPdfMetadataReview(reference, artifact, local, targets.suggestions, localSection);
     targets.panel.append(localSection);
+    this.#renderProviderMetadataSection(reference, preview, targets, providerError, reusedPreview);
+  }
+
+  #renderProviderMetadataSection(
+    reference: BibliographicRecord,
+    preview: MetadataRefinementPreview,
+    targets: MetadataRefinementTargets,
+    providerError: string,
+    reusedPreview: boolean,
+  ): void {
     const providerSection = document.createElement("section");
     providerSection.className = "library-metadata-refinement-actions";
     providerSection.append(resourceLabel("Scholarly metadata matches"));
@@ -5793,15 +5817,7 @@ class WorkspaceApp {
       return;
     }
     const groups = groupMetadataCandidates(preview.candidates);
-    const workSelect = document.createElement("select");
-    workSelect.className = "field mt-2";
-    workSelect.setAttribute("aria-label", `Scholarly work for ${reference.title}`);
-    for (const [index, group] of groups.entries()) {
-      const first = group.candidates[0]!;
-      const sourceCount = group.candidates.length;
-      const label = `${first.metadata.title}${first.metadata.year ? ` · ${first.metadata.year}` : ""} · ${group.doi} · ${sourceCount} source${sourceCount === 1 ? "" : "s"}`;
-      workSelect.append(new Option(label, String(index)));
-    }
+    const workSelect = this.#metadataWorkSelect(reference, groups);
     const comparison = document.createElement("div");
     const renderSelected = (): void => {
       for (const suggestions of targets.suggestions.values()) {
@@ -5815,6 +5831,20 @@ class WorkspaceApp {
     providerSection.append(comparison);
     targets.panel.append(providerSection);
     renderSelected();
+  }
+
+  #metadataWorkSelect(reference: BibliographicRecord, groups: ReturnType<typeof groupMetadataCandidates>): HTMLSelectElement {
+    const workSelect = document.createElement("select");
+    workSelect.className = "field mt-2";
+    workSelect.setAttribute("aria-label", `Scholarly work for ${reference.title}`);
+    for (const [index, group] of groups.entries()) {
+      const first = group.candidates[0]!;
+      const sourceCount = group.candidates.length;
+      const year = first.metadata.year ? ` · ${first.metadata.year}` : "";
+      const sourceLabel = `source${sourceCount === 1 ? "" : "s"}`;
+      workSelect.append(new Option(`${first.metadata.title}${year} · ${group.doi} · ${sourceCount} ${sourceLabel}`, String(index)));
+    }
+    return workSelect;
   }
 
   #renderProviderMetadataReview(
