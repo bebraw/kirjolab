@@ -2755,82 +2755,55 @@ class WorkspaceApp {
 
   #handleSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
     if (typeof message !== "string") {
-      const selections = this.#captureEditorSelections();
-      if (collaborationSynced(this.#collaborationWorkflow.getSnapshot())) {
-        this.#collaborationWorkflow.send({ type: "REMOTE_UPDATE" });
-      }
-      try {
-        const update = new Uint8Array(message);
-        if (this.#serverDocument) {
-          Y.applyUpdate(this.#serverDocument, update, remoteOrigin);
-          this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
-        }
-        Y.applyUpdate(this.#document, update, remoteOrigin);
-      } catch {
-        socket.close(1007, "Invalid collaboration update");
-        return;
-      }
-      this.#restoreEditorSelections(selections);
-      this.#updateModelAvailability();
+      this.#handleCollaborationUpdate(socket, message);
       return;
     }
-
     const value = parseServerCollaborationMessage(message);
     if (!value) {
       socket.close(1002, "Invalid collaboration control");
       return;
     }
+    if (this.#handleCollaborationControl(socket, value)) this.#renderCollaborationWorkflow();
+  }
+
+  #handleCollaborationUpdate(socket: WebSocket, message: ArrayBuffer): void {
+    const selections = this.#captureEditorSelections();
+    if (collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#collaborationWorkflow.send({ type: "REMOTE_UPDATE" });
+    try {
+      const update = new Uint8Array(message);
+      if (this.#serverDocument) {
+        Y.applyUpdate(this.#serverDocument, update, remoteOrigin);
+        this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
+      }
+      Y.applyUpdate(this.#document, update, remoteOrigin);
+    } catch {
+      socket.close(1007, "Invalid collaboration update");
+      return;
+    }
+    this.#restoreEditorSelections(selections);
+    this.#updateModelAvailability();
+  }
+
+  #handleCollaborationControl(socket: WebSocket, value: ServerCollaborationMessage): boolean {
     switch (value.type) {
       case "sync":
-        if (collaborationSynced(this.#collaborationWorkflow.getSnapshot())) {
-          socket.close(1002, "Duplicate collaboration sync");
-          return;
-        }
-        this.#collaborationWorkflow.send({ type: "SYNC" });
-        if (this.#serverDocument) this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
-        this.#setRevision(value.revision);
-        this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
-        this.#scheduleOfflineSave();
-        this.#flushPendingUpdates();
+        this.#handleCollaborationSync(socket, value.revision);
         break;
       case "ack":
-        try {
-          const acknowledged = this.#pendingUpdates.acknowledge();
-          if (this.#serverDocument) {
-            Y.applyUpdate(this.#serverDocument, new Uint8Array(acknowledged.payload), remoteOrigin);
-            this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
-          }
-        } catch {
-          socket.close(1002, "Unexpected collaboration acknowledgement");
-          return;
-        }
-        this.#syncCollaborationQueue();
-        this.#setRevision(value.revision);
-        this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
-        this.#scheduleOfflineSave();
-        this.#flushPendingUpdates();
+        this.#handleCollaborationAcknowledgement(socket, value.revision);
         break;
       case "revision":
         this.#collaborationWorkflow.send({ type: "REVISION" });
         this.#setRevision(value.revision);
         break;
       case "reset":
-        this.#collaborationWorkflow.send({ type: "RESET" });
-        void Promise.resolve(this.#offlineStore?.clear()).finally(() => {
-          if (socket.readyState >= WebSocket.CLOSING) {
-            window.location.reload();
-            return;
-          }
-          socket.addEventListener("close", () => window.location.reload(), { once: true });
-          socket.close(1000, "Workspace reset");
-        });
-        return;
+        this.#handleCollaborationReset(socket);
+        return false;
       case "presence":
         this.#collaborationWorkflow.send({ type: "PRESENCE", collaborators: value.collaborators });
         break;
       case "selection":
-        if (value.revision === this.#revision) this.#remoteSelections.set(value.collaboratorId, value);
-        this.#renderRemoteSelections();
+        this.#handleRemoteSelection(value);
         break;
       case "selection-clear":
         this.#remoteSelections.delete(value.collaboratorId);
@@ -2842,7 +2815,56 @@ class WorkspaceApp {
         });
         break;
     }
-    this.#renderCollaborationWorkflow();
+    return true;
+  }
+
+  #handleCollaborationSync(socket: WebSocket, revision: number): void {
+    if (collaborationSynced(this.#collaborationWorkflow.getSnapshot())) {
+      socket.close(1002, "Duplicate collaboration sync");
+      return;
+    }
+    this.#collaborationWorkflow.send({ type: "SYNC" });
+    if (this.#serverDocument) this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
+    this.#completeCollaborationRevision(revision);
+  }
+
+  #handleCollaborationAcknowledgement(socket: WebSocket, revision: number): void {
+    try {
+      const acknowledged = this.#pendingUpdates.acknowledge();
+      if (this.#serverDocument) {
+        Y.applyUpdate(this.#serverDocument, new Uint8Array(acknowledged.payload), remoteOrigin);
+        this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
+      }
+    } catch {
+      socket.close(1002, "Unexpected collaboration acknowledgement");
+      return;
+    }
+    this.#syncCollaborationQueue();
+    this.#completeCollaborationRevision(revision);
+  }
+
+  #completeCollaborationRevision(revision: number): void {
+    this.#setRevision(revision);
+    this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
+    this.#scheduleOfflineSave();
+    this.#flushPendingUpdates();
+  }
+
+  #handleCollaborationReset(socket: WebSocket): void {
+    this.#collaborationWorkflow.send({ type: "RESET" });
+    void Promise.resolve(this.#offlineStore?.clear()).finally(() => {
+      if (socket.readyState >= WebSocket.CLOSING) {
+        window.location.reload();
+        return;
+      }
+      socket.addEventListener("close", () => window.location.reload(), { once: true });
+      socket.close(1000, "Workspace reset");
+    });
+  }
+
+  #handleRemoteSelection(value: Extract<ServerCollaborationMessage, { readonly type: "selection" }>): void {
+    if (value.revision === this.#revision) this.#remoteSelections.set(value.collaboratorId, value);
+    this.#renderRemoteSelections();
   }
 
   #flushPendingUpdates(): void {
