@@ -64,6 +64,12 @@ describe("GitHub three-way sync", () => {
     expect(conflict[0]?.kind).toBe("conflict");
   });
 
+  it("classifies local, remote, and matching two-sided deletions", () => {
+    expect(compareGitHubSync([base[0]!], [], []).map((change) => change.kind)).toEqual(["identical"]);
+    expect(compareGitHubSync([base[0]!], [], [remote("base")]).map((change) => change.kind)).toEqual(["local-only"]);
+    expect(compareGitHubSync([base[0]!], [local("base")], []).map((change) => change.kind)).toEqual(["remote-only"]);
+  });
+
   it("builds a confined publish plan while skipping untracked local files", () => {
     const comparison = compareGitHubSync(
       base,
@@ -113,6 +119,17 @@ describe("GitHub three-way sync", () => {
     expect(resolveGitHubPullPlan(plan, [{ conflict: 0, choice: "local" }])).toEqual(plan.changes);
     expect(() => resolveGitHubPullPlan(plan, [])).toThrow("Every GitHub pull conflict");
     expect(() => resolveGitHubPullPlan(plan, [{ conflict: 1, choice: "local" }])).toThrow("resolution is invalid");
+    expect(() => resolveGitHubPullPlan(plan, [{ conflict: -1, choice: "local" }])).toThrow("resolution is invalid");
+    expect(() => resolveGitHubPullPlan(plan, [{ conflict: 0.5, choice: "local" }])).toThrow("resolution is invalid");
+    expect(() => resolveGitHubPullPlan(plan, [{ conflict: 0, choice: "invalid" as never }])).toThrow("resolution is invalid");
+
+    const twoConflicts = { changes: [], blocking: [plan.blocking[0]!, plan.blocking[0]!] };
+    expect(() =>
+      resolveGitHubPullPlan(twoConflicts, [
+        { conflict: 0, choice: "local" },
+        { conflict: 0, choice: "remote" },
+      ]),
+    ).toThrow("resolution is invalid");
   });
 
   it("rejects ambiguous identities", () => {
@@ -127,6 +144,27 @@ describe("GitHub three-way sync", () => {
         [],
       ),
     ).toThrow("local path");
+    expect(() => compareGitHubSync([{ ...base[0]!, path: "" }], [], [])).toThrow("base path");
+    expect(() =>
+      compareGitHubSync(
+        [],
+        [
+          { fileId: "same", path: "one.md", content: "" },
+          { fileId: "same", path: "two.md", content: "" },
+        ],
+        [],
+      ),
+    ).toThrow("local file id");
+    expect(() =>
+      compareGitHubSync(
+        [],
+        [],
+        [
+          { path: "same.md", blobSha: "a", content: "" },
+          { path: "same.md", blobSha: "b", content: "" },
+        ],
+      ),
+    ).toThrow("remote path");
   });
 
   it("distinguishes branch movement from tracked manuscript divergence", () => {

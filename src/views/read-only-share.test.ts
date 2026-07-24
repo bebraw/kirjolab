@@ -60,12 +60,24 @@ describe("read-only project viewer", () => {
     expect(html).not.toContain("data-shared-save-path");
     expect(html).not.toContain("data-shared-snapshot-path");
     expect(html).toContain('id="shared-editor-surfaces" data-active-surface="authoring" data-layout="split"');
+    expect(html).toContain("<title>Review &lt;draft&gt; · Read-only link · Kirjolab</title>");
+    expect(html).toContain('id="shared-live-status" role="status">Connecting…</span>');
+    expect(html).toContain('title="Anyone with this link can view" aria-label="Anyone with this link can view">Read-only link</span>');
+    expect(html).toContain('<option value="split" selected>Split</option>');
+    expect(html).toContain('<option value="pdf">PDF only</option>');
     expect(html).toContain('aria-label="Project files"');
+    expect(html).toContain('id="shared-file-switcher" name="file"');
     expect(html).toContain('id="shared-source-highlight" data-shared-highlight');
     expect(html).toContain(
       'id="shared-source" data-shared-source maxlength="2000000" spellcheck="true" aria-describedby="shared-editor-help shared-collaborator-selections" readonly',
     );
     expect(html).toContain('id="shared-pdf-viewer" data-shared-pdf-viewer src="/share/locator.secret/document.pdf"');
+    expect(html).toContain('id="shared-save-status" role="status">Read only · revision 7</span>');
+    expect(html).toContain('<span class="shared-editor-mode-label">Viewing</span>');
+    expect(html).toContain('id="shared-source-shell"');
+    expect(html).toContain('id="shared-collaborator-selections" data-shared-collaborator-selections');
+    expect(html).toContain('<p class="sr-only" id="shared-editor-help">This Markdown source is read-only.</p>');
+    expect(html).toContain('href="/share/locator.secret/document.pdf" target="_blank"');
     expect(html).toContain('href="?file=main-file" aria-current="page"');
     expect(html).toContain('<option value="main-file" selected>main.md</option>');
     expect(html.indexOf("main.md")).toBeLessThan(html.indexOf("sections/results.md"));
@@ -86,6 +98,7 @@ describe("read-only project viewer", () => {
     const html = renderReadOnlySharePage(snapshot, "/share/locator.secret", "section-file");
     expect(html).toContain('href="?file=section-file" aria-current="page"');
     expect(html).toContain("Results &amp; discussion");
+    expect(resolveReadOnlyShareFile({ ...snapshot, entryFileId: "missing" }, "missing").id).toBe("section-file");
   });
 
   it("keeps legacy file and PDF view links compatible with the editor shell", () => {

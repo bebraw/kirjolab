@@ -17,6 +17,10 @@ const groups: ReviewConceptGroup[] = [
   { id: "intervention", label: "Intervention", facet: "intervention", terms: ["artificial intelligence", "AI"] },
 ];
 
+function expectInvalidProtocol(value: unknown, message: string): void {
+  expect(() => parseReviewProtocolContent(value)).toThrow(message);
+}
+
 describe("review study protocol", () => {
   it("builds portable and source-specific title/abstract queries", () => {
     const logical = buildLogicalQuery(groups);
@@ -654,5 +658,384 @@ describe("review study protocol", () => {
         ],
       }),
     ).toThrow("inconsistent");
+  });
+
+  it("fails closed on protocol envelope and collection boundaries", () => {
+    const protocol = defaultReviewProtocol();
+    expectInvalidProtocol(null, "Review profile is invalid");
+    expectInvalidProtocol([], "Review profile is invalid");
+    expectInvalidProtocol({ ...protocol, profile: "other" }, "Review profile is invalid");
+    expectInvalidProtocol({ ...protocol, objective: 1 }, "Objective is invalid");
+    expectInvalidProtocol({ ...protocol, objective: "x".repeat(4_001) }, "Objective is invalid");
+    expectInvalidProtocol({ ...protocol, picoc: [] }, "PICOC is invalid");
+    expectInvalidProtocol({ ...protocol, picoc: { ...protocol.picoc, population: 1 } }, "PICOC population is invalid");
+    expectInvalidProtocol({ ...protocol, researchQuestions: "invalid" }, "Review research questions are invalid");
+    expectInvalidProtocol(
+      { ...protocol, researchQuestions: Array.from({ length: 129 }, (_, index) => ({ id: `rq-${index}`, text: "Question" })) },
+      "Review research questions are invalid",
+    );
+    expectInvalidProtocol({ ...protocol, researchQuestions: [{ id: "bad id", text: "Question" }] }, "Research question ID is invalid");
+    expectInvalidProtocol(
+      { ...protocol, conceptGroups: [{ id: "group", label: "Group", facet: null, terms: ["A", "a"] }] },
+      "Concept terms must be unique",
+    );
+    expectInvalidProtocol({ ...protocol, sources: "invalid" }, "Review search sources are invalid");
+    expectInvalidProtocol({ ...protocol, knownRelevantStudies: [null] }, "Known relevant study is invalid");
+    expectInvalidProtocol(
+      { ...protocol, qualityAssessment: { ...protocol.qualityAssessment, answers: "invalid" } },
+      "Review quality answers are invalid",
+    );
+    expectInvalidProtocol(
+      {
+        ...protocol,
+        qualityAssessment: {
+          ...protocol.qualityAssessment,
+          answers: [{ id: "answer", label: "Answer", weight: Number.NaN, rejects: false }],
+        },
+      },
+      "Quality answer is invalid",
+    );
+    expectInvalidProtocol(
+      { ...protocol, qualityAssessment: { ...protocol.qualityAssessment, minimumScore: Number.POSITIVE_INFINITY } },
+      "Quality minimum score is invalid",
+    );
+  });
+
+  it("enforces eligibility authority, kinds, stages, and uniqueness", () => {
+    const protocol = defaultReviewProtocol();
+    expectInvalidProtocol(
+      {
+        ...protocol,
+        inclusionCriteria: ["Include"],
+        exclusionCriteria: [],
+        eligibilityCriteria: [{ id: "criterion", kind: "include", text: "Include", applicableStages: ["title-abstract"] }],
+      },
+      "Review eligibility criteria have conflicting authorities",
+    );
+    expectInvalidProtocol({ ...protocol, eligibilityCriteria: [null] }, "Eligibility criterion is invalid");
+    expectInvalidProtocol(
+      { ...protocol, eligibilityCriteria: [{ id: "criterion", kind: "other", text: "Text", applicableStages: ["title-abstract"] }] },
+      "Eligibility criterion kind is invalid",
+    );
+    expectInvalidProtocol(
+      { ...protocol, eligibilityCriteria: [{ id: "criterion", kind: "include", text: "Text", applicableStages: ["other"] }] },
+      "Eligibility criterion stage is invalid",
+    );
+    expectInvalidProtocol(
+      { ...protocol, eligibilityCriteria: [{ id: "criterion", kind: "include", text: "Text", applicableStages: [] }] },
+      "Eligibility criterion needs an applicable stage",
+    );
+    expectInvalidProtocol(
+      {
+        ...protocol,
+        eligibilityCriteria: [{ id: "criterion", kind: "include", text: "Text", applicableStages: ["title-abstract", "title-abstract"] }],
+      },
+      "Eligibility criterion stages must be unique",
+    );
+    expectInvalidProtocol(
+      { ...protocol, inclusionCriteria: ["Same", "same"], exclusionCriteria: [], eligibilityCriteria: [] },
+      "Inclusion criteria must be unique",
+    );
+  });
+
+  it("enforces complete review method configuration contracts", () => {
+    const protocol = defaultReviewProtocol();
+    const slr = defaultReviewMethodConfiguration("slr");
+    const mlr = defaultReviewMethodConfiguration("mlr");
+    expectInvalidProtocol({ ...protocol, methodConfiguration: null }, "Review method configuration is invalid");
+    expectInvalidProtocol({ ...protocol, methodConfiguration: { ...slr, evidenceClasses: [] } }, "Review method classes are invalid");
+    expectInvalidProtocol(
+      { ...protocol, methodConfiguration: { ...slr, evidenceClasses: ["formal", "formal"] } },
+      "method evidence classes must be unique",
+    );
+    expectInvalidProtocol(
+      { ...protocol, methodConfiguration: { ...slr, evidenceClasses: ["other"] } },
+      "Review method evidence classes are invalid",
+    );
+    expectInvalidProtocol(
+      { ...protocol, methodConfiguration: { ...slr, searchRules: [] } },
+      "Review method requires search and stopping rules",
+    );
+    expectInvalidProtocol({ ...protocol, methodConfiguration: { ...slr, searchRules: [null] } }, "Search rule is invalid");
+    expectInvalidProtocol(
+      {
+        ...protocol,
+        methodConfiguration: {
+          ...slr,
+          searchRules: [{ id: "rule", label: "Rule", description: "Description", evidenceClasses: [] }],
+        },
+      },
+      "Search rule needs an evidence class",
+    );
+    expectInvalidProtocol(
+      {
+        ...protocol,
+        methodConfiguration: {
+          ...slr,
+          searchRules: [{ id: "rule", label: "Rule", description: "Description", evidenceClasses: ["grey"] }],
+        },
+      },
+      "Search rule evidence class is unavailable in the method configuration",
+    );
+    expectInvalidProtocol(
+      { ...protocol, methodConfiguration: { ...slr, formalGreySynthesis: null } },
+      "Formal-versus-grey synthesis configuration is invalid",
+    );
+    expectInvalidProtocol(
+      {
+        ...protocol,
+        methodConfiguration: { ...slr, formalGreySynthesis: { enabled: false, dimensions: ["source-class"] } },
+      },
+      "Disabled formal-versus-grey synthesis cannot define dimensions",
+    );
+    expectInvalidProtocol(
+      { ...protocol, methodConfiguration: { ...slr, evidenceClasses: ["formal", "grey"] } },
+      "SLR method configuration cannot enable grey evidence",
+    );
+    expectInvalidProtocol(
+      { ...defaultReviewProtocol("mlr"), methodConfiguration: { ...mlr, credibilityDimensions: [] } },
+      "MLR method configuration requires formal, grey, and credibility configuration",
+    );
+    expectInvalidProtocol(
+      {
+        ...defaultReviewProtocol("mlr"),
+        methodConfiguration: { ...mlr, formalGreySynthesis: { enabled: true, dimensions: [] } },
+      },
+      "Formal-versus-grey synthesis requires both evidence classes and a dimension",
+    );
+  });
+
+  it("validates snapshot and reassessment fields at their exact boundaries", () => {
+    const protocol = materializeProtocolRevision(defaultReviewProtocol(), 1, "draft", "Created", "owner");
+    expect(() => parseReviewStudySnapshot(null)).toThrow("Review study snapshot is invalid");
+    expect(() => parseReviewStudySnapshot({ revision: 0, protocol, protocolHistory: [protocol] })).toThrow(
+      "Review study snapshot is invalid",
+    );
+    expect(() => parseReviewStudySnapshot({ revision: 1, protocol, protocolHistory: null })).toThrow("Review protocol history is invalid");
+    expect(() =>
+      parseReviewStudySnapshot({ revision: 1, protocol: { ...protocol, status: "other" }, protocolHistory: [protocol] }),
+    ).toThrow("Review protocol revision is invalid");
+    expect(() => parseReviewReassessmentSnapshot(null)).toThrow("Review reassessment snapshot is invalid");
+    expect(() => parseReviewReassessmentSnapshot({ revision: 0, obligations: [] })).toThrow("Review reassessment snapshot is invalid");
+    expect(() => parseReviewReassessmentSnapshot({ revision: 1, obligations: null })).toThrow(
+      "Review reassessment obligations are invalid",
+    );
+    expect(() => parseReviewReassessmentSnapshot({ revision: 1, obligations: [null] })).toThrow(
+      "Review reassessment obligation is invalid",
+    );
+    expect(() =>
+      parseReviewReassessmentSnapshot({
+        revision: 1,
+        obligations: [
+          {
+            id: "obligation",
+            amendmentProtocolRevision: 0,
+            stage: "full-text",
+            recordId: null,
+            status: "open",
+            createdRevision: 1,
+            completedRevision: null,
+            completedAt: null,
+            completedBy: null,
+            completionRationale: null,
+          },
+        ],
+      }),
+    ).toThrow("Amendment protocol revision is invalid");
+  });
+
+  it("validates every nested protocol text and identifier contract", () => {
+    const protocol = defaultReviewProtocol();
+    const invalidCases: Array<readonly [unknown, string]> = [
+      [{ ...protocol, researchQuestions: [{ id: "", text: "Question" }] }, "Research question ID is invalid"],
+      [{ ...protocol, researchQuestions: [{ id: "rq", text: "" }] }, "Research question is invalid"],
+      [{ ...protocol, conceptGroups: [{ id: "", label: "Group", facet: null, terms: [] }] }, "Concept group ID is invalid"],
+      [{ ...protocol, conceptGroups: [{ id: "group", label: "", facet: null, terms: [] }] }, "Concept group label is invalid"],
+      [{ ...protocol, conceptGroups: [{ id: "group", label: "Group", facet: null, terms: [""] }] }, "Concept term is invalid"],
+      [
+        {
+          ...protocol,
+          sources: [{ id: "", name: "Source", url: "", dialect: "generic", fieldScope: "all-fields" }],
+        },
+        "Search source ID is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          sources: [{ id: "source", name: "", url: "", dialect: "generic", fieldScope: "all-fields" }],
+        },
+        "Search source name is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          knownRelevantStudies: [{ id: "", title: "Study", abstract: "" }],
+        },
+        "Known relevant study ID is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          knownRelevantStudies: [{ id: "study", title: "", abstract: "" }],
+        },
+        "Known relevant study title is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          knownRelevantStudies: [{ id: "study", title: "Study", abstract: "x".repeat(20_001) }],
+        },
+        "Known relevant study abstract is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          qualityAssessment: { ...protocol.qualityAssessment, questions: [{ id: "", text: "Question" }] },
+        },
+        "Quality question ID is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          qualityAssessment: { ...protocol.qualityAssessment, questions: [{ id: "question", text: "" }] },
+        },
+        "Quality question is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          qualityAssessment: {
+            ...protocol.qualityAssessment,
+            answers: [{ id: "", label: "Answer", weight: 0, rejects: false }],
+          },
+        },
+        "Quality answer ID is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          qualityAssessment: {
+            ...protocol.qualityAssessment,
+            answers: [{ id: "answer", label: "", weight: 0, rejects: false }],
+          },
+        },
+        "Quality answer label is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          extractionFields: [
+            {
+              id: "",
+              label: "Field",
+              type: "text",
+              values: [],
+              researchQuestionIds: [],
+              requiredness: "required",
+              cardinality: "single",
+              condition: null,
+            },
+          ],
+        },
+        "Extraction field ID is invalid",
+      ],
+      [
+        {
+          ...protocol,
+          extractionFields: [
+            {
+              id: "field",
+              label: "",
+              type: "text",
+              values: [],
+              researchQuestionIds: [],
+              requiredness: "required",
+              cardinality: "single",
+              condition: null,
+            },
+          ],
+        },
+        "Extraction field label is invalid",
+      ],
+    ];
+    for (const [value, message] of invalidCases) expectInvalidProtocol(value, message);
+  });
+
+  it("distinguishes exact query dialect, scope, escaping, and calibration behavior", () => {
+    expect(buildLogicalQuery([{ id: "empty", label: "Empty", facet: null, terms: [] }])).toBe("");
+    expect(buildLogicalQuery([{ id: "escaped", label: "Escaped", facet: null, terms: ['a\\b "c"'] }])).toBe('("a\\\\b \\"c\\"")');
+    const source = {
+      id: "source",
+      name: "Source",
+      url: "",
+      sourceClass: "bibliographic-database",
+      evidenceClass: "formal",
+      greySourceClass: null,
+    } as const;
+    expect(sourceQueryPlan({ ...source, dialect: "scopus", fieldScope: "title-abstract-keywords" }, "term").query).toBe(
+      "TITLE-ABS-KEY(term)",
+    );
+    expect(sourceQueryPlan({ ...source, dialect: "web-of-science", fieldScope: "title-abstract" }, "term").query).toBe("TI=(term)");
+    expect(sourceQueryPlan({ ...source, dialect: "web-of-science", fieldScope: "title-abstract-keywords" }, "term").query).toBe(
+      "TS=(term)",
+    );
+    expect(sourceQueryPlan({ ...source, dialect: "ieee-xplore", fieldScope: "title-abstract" }, '"term"').query).toBe(
+      '"Document Title":" OR "Abstract":"\\"term\\""',
+    );
+    expect(sourceQueryPlan({ ...source, dialect: "ieee-xplore", fieldScope: "title-abstract-keywords" }, "term").query).toBe(
+      '"All Metadata":"term"',
+    );
+    expect(sourceQueryPlan({ ...source, dialect: "acm-dl", fieldScope: "title-abstract" }, "term").query).toBe("[[Title: term]]");
+    expect(sourceQueryPlan({ ...source, dialect: "acm-dl", fieldScope: "title-abstract-keywords" }, "term").query).toBe(
+      "[[Abstract: term]]",
+    );
+    expect(sourceQueryPlan({ ...source, dialect: "scopus", fieldScope: "all-fields" }, "term").query).toBe("term");
+    expect(
+      calibrateKnownStudies(
+        [{ id: "group", label: "Group", facet: null, terms: ["Alpha", "Beta"] }],
+        [
+          { id: "matched", title: "ALPHA result", abstract: "" },
+          { id: "missed", title: "Gamma", abstract: "" },
+        ],
+      ),
+    ).toEqual({ total: 2, matched: 1, missedStudyIds: ["missed"] });
+  });
+
+  it("requires each completed reassessment field and rejects each open completion field", () => {
+    const base = {
+      id: "obligation",
+      amendmentProtocolRevision: 1,
+      stage: "full-text",
+      recordId: null,
+      createdRevision: 1,
+    } as const;
+    const completed = {
+      ...base,
+      status: "completed",
+      completedRevision: 2,
+      completedAt: "2026-07-19T10:00:00.000Z",
+      completedBy: "reviewer@example.com",
+      completionRationale: "Done",
+    };
+    for (const field of ["completedRevision", "completedAt", "completedBy", "completionRationale"] as const) {
+      expect(() =>
+        parseReviewReassessmentSnapshot({
+          revision: 2,
+          obligations: [{ ...completed, [field]: null }],
+        }),
+      ).toThrow("Review reassessment completion is inconsistent");
+    }
+    expect(() =>
+      parseReviewReassessmentSnapshot({
+        revision: 2,
+        obligations: [{ ...completed, status: "open" }],
+      }),
+    ).toThrow("Review reassessment completion is inconsistent");
+    expect(() =>
+      parseReviewReassessmentSnapshot({
+        revision: 2,
+        obligations: [{ ...completed, stage: "unknown" }],
+      }),
+    ).toThrow("Review reassessment obligation is invalid");
   });
 });

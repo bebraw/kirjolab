@@ -107,8 +107,174 @@ describe("OpenAICompatibleBrowserProvider", () => {
         location: "Methods",
       }),
     ).resolves.toMatchObject({ fieldId: "design", value: "survey" });
-    const screeningBody = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as { response_format: { json_schema: { name: string } } };
-    expect(screeningBody.response_format.json_schema.name).toBe("kirjolab_review_screening_candidate");
+    const screeningBody = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as { response_format: unknown };
+    expect(screeningBody.response_format).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: "kirjolab_review_screening_candidate",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            decision: { type: "string", enum: ["include", "exclude", "uncertain"] },
+            criterion: { type: "string" },
+            rationale: { type: "string" },
+            evidence: { type: "string" },
+          },
+          required: ["decision", "criterion", "rationale", "evidence"],
+          additionalProperties: false,
+        },
+      },
+    });
+    const extractionBody = JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body)) as { response_format: unknown };
+    expect(extractionBody.response_format).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: "kirjolab_review_extraction_candidate",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            fieldId: { type: "string" },
+            value: {
+              anyOf: [
+                { type: "string" },
+                { type: "number" },
+                { type: "boolean" },
+                { type: "null" },
+                { type: "array", minItems: 1, maxItems: 128, uniqueItems: true, items: { type: "string" } },
+                {
+                  type: "object",
+                  properties: {
+                    kind: { type: "string", enum: ["pdf-annotation", "web-passage"] },
+                    resourceId: { type: "string" },
+                    selectorId: { type: "string" },
+                  },
+                  required: ["kind", "resourceId", "selectorId"],
+                  additionalProperties: false,
+                },
+              ],
+            },
+            missingReason: { type: ["string", "null"] },
+            evidence: {
+              anyOf: [
+                { type: "null" },
+                {
+                  type: "object",
+                  properties: {
+                    kind: { type: "string", enum: ["pdf-annotation", "web-passage"] },
+                    resourceId: { type: "string" },
+                    selectorId: { type: "string" },
+                    quote: { type: "string" },
+                    page: { type: ["integer", "null"] },
+                    location: { type: "string" },
+                  },
+                  required: ["kind", "resourceId", "selectorId", "quote", "page", "location"],
+                  additionalProperties: false,
+                },
+              ],
+            },
+            rationale: { type: "string" },
+          },
+          required: ["fieldId", "value", "missingReason", "evidence", "rationale"],
+          additionalProperties: false,
+        },
+      },
+    });
+  });
+
+  it("rejects every malformed screening and evidence-bound extraction field", async () => {
+    const screeningRequest = {
+      title: "A survey",
+      abstract: "We report a survey.",
+      inclusionCriteria: ["Empirical"],
+      exclusionCriteria: [],
+    };
+    for (const candidate of [
+      { decision: "maybe", criterion: "Empirical", rationale: "Reason", evidence: "Evidence" },
+      { decision: "include", criterion: 1, rationale: "Reason", evidence: "Evidence" },
+      { decision: "exclude", criterion: "x".repeat(1_001), rationale: "Reason", evidence: "Evidence" },
+      { decision: "uncertain", criterion: "Empirical", rationale: "", evidence: "Evidence" },
+      { decision: "include", criterion: "Empirical", rationale: "Reason", evidence: "" },
+    ]) {
+      await expect(
+        createProvider({
+          fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(JSON.stringify(candidate))),
+        }).screenReviewRecord(screeningRequest),
+      ).rejects.toThrow();
+    }
+    for (const decision of ["exclude", "uncertain"] as const) {
+      await expect(
+        createProvider({
+          fetcher: vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(
+              completionResponse(JSON.stringify({ decision, criterion: "Empirical", rationale: "Reason", evidence: "Evidence" })),
+            ),
+        }).screenReviewRecord(screeningRequest),
+      ).resolves.toMatchObject({ decision });
+    }
+
+    const extractionRequest = {
+      title: "A survey",
+      fieldId: "design",
+      fieldLabel: "Study design",
+      fieldType: "single-choice" as const,
+      allowedValues: ["survey", "experiment"],
+      selectorKind: "pdf-annotation" as const,
+      resourceId: "pdf-1",
+      selectorId: "annotation-1",
+      quote: "We conducted a survey.",
+      page: 4,
+      location: "Methods",
+    };
+    const validEvidence = {
+      kind: "pdf-annotation",
+      resourceId: "pdf-1",
+      selectorId: "annotation-1",
+      quote: "We conducted a survey.",
+      page: 4,
+      location: "Methods",
+    };
+    const validCandidate = {
+      fieldId: "design",
+      value: "survey",
+      missingReason: null,
+      evidence: validEvidence,
+      rationale: "The method is explicit.",
+    };
+    const invalidCandidates = [
+      { ...validCandidate, fieldId: "other" },
+      { ...validCandidate, missingReason: 1 },
+      { ...validCandidate, value: null },
+      { ...validCandidate, missingReason: "not reported" },
+      { ...validCandidate, evidence: "not an object" },
+      { ...validCandidate, evidence: { ...validEvidence, extra: true } },
+      { ...validCandidate, evidence: { ...validEvidence, kind: "web-passage" } },
+      { ...validCandidate, evidence: { ...validEvidence, resourceId: "pdf-2" } },
+      { ...validCandidate, evidence: { ...validEvidence, selectorId: "annotation-2" } },
+      { ...validCandidate, evidence: { ...validEvidence, quote: "Different quote" } },
+      { ...validCandidate, evidence: { ...validEvidence, page: 5 } },
+      { ...validCandidate, evidence: { ...validEvidence, location: "Results" } },
+      { ...validCandidate, evidence: null },
+      { ...validCandidate, rationale: "" },
+    ];
+    for (const candidate of invalidCandidates) {
+      await expect(
+        createProvider({
+          fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(JSON.stringify(candidate))),
+        }).extractReviewField(extractionRequest),
+      ).rejects.toThrow();
+    }
+    await expect(
+      createProvider({
+        fetcher: vi
+          .fn<typeof fetch>()
+          .mockResolvedValue(
+            completionResponse(JSON.stringify({ ...validCandidate, value: null, missingReason: "Not reported", evidence: null })),
+          ),
+      }).extractReviewField(extractionRequest),
+    ).resolves.toMatchObject({ value: null, missingReason: "Not reported", evidence: null });
   });
 
   it("formulates a search query without inventing reference records", async () => {
@@ -291,6 +457,18 @@ describe("OpenAICompatibleBrowserProvider", () => {
         fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(JSON.stringify({ alternatives }))),
       }).phrasePassage(phrasingOperation),
     ).rejects.toThrow("must be distinct");
+  });
+
+  it("accepts exactly five distinct phrasing alternatives", async () => {
+    const alternatives = Array.from({ length: 5 }, (_, index) => ({
+      text: `Distinct alternative ${index + 1}.`,
+      rationale: `Reason ${index + 1}.`,
+    }));
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(JSON.stringify({ alternatives }))),
+      }).phrasePassage(phrasingOperation),
+    ).resolves.toMatchObject({ alternatives });
   });
 
   it("asks one clarity question and returns bounded rewrite choices", async () => {
@@ -556,6 +734,62 @@ describe("OpenAICompatibleBrowserProvider", () => {
     ).resolves.toMatchObject({ columns, rows });
   });
 
+  it("accepts exact structured-output boundaries", async () => {
+    const rewrites = Array.from({ length: 4 }, (_, index) => ({
+      text: `${"r".repeat(49_999)}${index}`,
+      rationale: "r".repeat(2_000),
+    }));
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(JSON.stringify({ rewrites }))),
+      }).continueClarityDrill({
+        ...clarityOperation,
+        issue: "Issue",
+        question: "Question?",
+        answer: "Answer.",
+      }),
+    ).resolves.toMatchObject({ rewrites });
+
+    const ideas = Array.from({ length: 5 }, (_, index) => ({
+      title: `${"t".repeat(199)}${index}`,
+      direction: "d".repeat(2_000),
+      draft: "x".repeat(50_000),
+    }));
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(JSON.stringify({ ideas }))),
+      }).ideate(ideationOperation),
+    ).resolves.toMatchObject({ ideas });
+
+    await expect(
+      createProvider({
+        fetcher: vi
+          .fn<typeof fetch>()
+          .mockResolvedValue(completionResponse(JSON.stringify({ text: "c".repeat(2_000), note: "n".repeat(8_000) }))),
+      }).draftClaim(claimOperation),
+    ).resolves.toMatchObject({ text: "c".repeat(2_000), note: "n".repeat(8_000) });
+
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(
+          completionResponse(
+            JSON.stringify({
+              decision: "include",
+              criterion: "c".repeat(1_000),
+              rationale: "r".repeat(2_000),
+              evidence: "e".repeat(20_000),
+            }),
+          ),
+        ),
+      }).screenReviewRecord({
+        title: "A survey",
+        abstract: "We report a survey.",
+        inclusionCriteria: ["Empirical"],
+        exclusionCriteria: [],
+      }),
+    ).resolves.toMatchObject({ criterion: "c".repeat(1_000) });
+  });
+
   it("drafts one structured claim from annotation-only evidence", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(completionResponse('{"text":"A grounded proposition.","note":"Working note"}'));
     const draft = await createProvider({ fetcher }).draftClaim(claimOperation);
@@ -751,6 +985,8 @@ describe("OpenAICompatibleBrowserProvider", () => {
     "http://127.0.0.2:1234/v1/chat/completions",
     "http://127.255.255.254/v1/chat/completions",
     "http://127.0.0.1.example.com/v1/chat/completions",
+    "http://user@127.0.0.1:1234/v1/chat/completions",
+    "http://:secret@127.0.0.1:1234/v1/chat/completions",
     "http://user:secret@127.0.0.1:1234/v1/chat/completions",
   ])("rejects the unsafe endpoint %s", (endpoint) => {
     expect(() => createProvider({ endpoint })).toThrow(/valid URL|HTTP or HTTPS|loopback|credentials/u);
@@ -847,6 +1083,30 @@ describe("OpenAICompatibleBrowserProvider", () => {
         fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "Not found" }), { status: 404 })),
       }).reviseSelection(operation),
     ).rejects.toThrow("endpoint ends with /v1/chat/completions");
+
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "x".repeat(1_000) }), { status: 400 })),
+      }).reviseSelection(operation),
+    ).rejects.toThrow(`Local model request failed (400): ${"x".repeat(1_000)}`);
+    await expect(
+      createProvider({
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "x".repeat(1_001) }), { status: 400 })),
+      }).reviseSelection(operation),
+    ).rejects.toThrow("Local model request failed (400).");
+
+    for (const body of [
+      "not json",
+      JSON.stringify({ error: 400 }),
+      JSON.stringify({ error: "   " }),
+      JSON.stringify(["not", "an", "object"]),
+    ]) {
+      await expect(
+        createProvider({
+          fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 400 })),
+        }).reviseSelection(operation),
+      ).rejects.toThrow("Local model request failed (400).");
+    }
   });
 
   it("distinguishes direct-provider CORS from companion connection failures", () => {
@@ -892,6 +1152,26 @@ describe("OpenAICompatibleBrowserProvider", () => {
     await expect(createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(streamed) }).reviseSelection(operation)).rejects.toThrow(
       "exceeds 262144 bytes",
     );
+
+    const exact = completionResponse("exact boundary", { "content-length": String(256 * 1_024) });
+    await expect(
+      createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(exact) }).reviseSelection(operation),
+    ).resolves.toMatchObject({
+      replacement: "exact boundary",
+    });
+
+    const prefix = '{"choices":[{"message":{"content":"';
+    const suffix = '"}}]}';
+    const exactBody = `${prefix}${"x".repeat(256 * 1_024 - prefix.length - suffix.length)}${suffix}`;
+    const exactStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(exactBody));
+        controller.close();
+      },
+    });
+    await expect(
+      createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(exactStream)) }).reviseSelection(operation),
+    ).rejects.toThrow("exceeds 50000 characters");
   });
 
   it("combines streamed response chunks before parsing", async () => {
@@ -933,12 +1213,17 @@ describe("OpenAICompatibleBrowserProvider", () => {
     ["```markdown\nReplacement without a forced newline.\n```", "Replacement without a forced newline."],
     ["```md\r\nInline replacement\r\n```", "Inline replacement"],
     ["```\nUnlabelled Markdown\n```", "Unlabelled Markdown"],
+    [" \t```markdown  \nSpaced outer Markdown\n``` \t ", "Spaced outer Markdown"],
     ["plain inline replacement", "plain inline replacement"],
     ['{"replacement":"Structured replacement"}', "Structured replacement"],
     ['```json\n{"replacement":"Fenced structured replacement"}\n```', "Fenced structured replacement"],
+    [' \n```json  \n{"replacement":"Spaced structured replacement"}\n``` \t\n', "Spaced structured replacement"],
     ["  preserve plain whitespace  ", "  preserve plain whitespace  "],
     ["prefix ```md\nnot an outer fence\n```", "prefix ```md\nnot an outer fence\n```"],
+    ["```markdown\nnot outer with suffix\n``` trailing", "```markdown\nnot outer with suffix\n``` trailing"],
     ["```json\nnot a Markdown fence\n```", "```json\nnot a Markdown fence\n```"],
+    ['prefix ```json\n{"replacement":"not outer"}\n```', 'prefix ```json\n{"replacement":"not outer"}\n```'],
+    ['```json\n{"replacement":"not outer"}\n``` trailing', '```json\n{"replacement":"not outer"}\n``` trailing'],
   ])("normalizes provider output %j without changing inline replacement semantics", async (content, replacement) => {
     const provider = createProvider({ fetcher: vi.fn<typeof fetch>().mockResolvedValue(completionResponse(content)) });
 

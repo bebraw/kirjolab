@@ -7,6 +7,7 @@ import {
   isCrossrefLibraryPreview,
   isCrossrefMetadata,
   isLibraryHighlightImportCandidate,
+  isLibraryPdfMarkup,
   isMetadataRefinementPreview,
   isPdfDraftResult,
   isProjectReferencePdfs,
@@ -56,6 +57,23 @@ describe("shared reference library", () => {
     expect(isProjectReferencePdfs({ pdfs: [pdf] })).toBe(false);
   });
 
+  it("requires every project PDF field exactly and preserves zero-sized descriptors", () => {
+    const pdf = { id: "pdf-1", referenceId: "ref-1", name: "paper.pdf", size: 0, fingerprint: "fingerprint" };
+    expect(isProjectReferencePdfs([pdf])).toBe(true);
+    expect(isProjectReferencePdfs([pdf, { ...pdf, size: -1 }])).toBe(false);
+    for (const value of [
+      { ...pdf, extra: true },
+      { referenceId: pdf.referenceId, name: pdf.name, size: pdf.size, fingerprint: pdf.fingerprint },
+      { ...pdf, id: 1 },
+      { ...pdf, referenceId: 1 },
+      { ...pdf, name: 1 },
+      { ...pdf, size: 0.5 },
+      { ...pdf, fingerprint: 1 },
+    ]) {
+      expect(isProjectReferencePdfs([value]), JSON.stringify(value)).toBe(false);
+    }
+  });
+
   it("accepts only bounded imported PDF highlight candidates", () => {
     const candidate = {
       page: 2,
@@ -68,6 +86,101 @@ describe("shared reference library", () => {
     expect(isLibraryHighlightImportCandidate({ ...candidate, quote: "" })).toBe(false);
     expect(isLibraryHighlightImportCandidate({ ...candidate, rects: [] })).toBe(false);
     expect(isLibraryHighlightImportCandidate({ ...candidate, rects: [{ x: -0.1, y: 0.2, width: 0.3, height: 0.04 }] })).toBe(false);
+  });
+
+  it("validates every imported highlight and normalized rectangle boundary", () => {
+    const candidate = {
+      page: 1,
+      quote: "x",
+      comment: "",
+      rects: [{ x: 0, y: 0, width: 1, height: 1 }],
+    };
+    expect(isLibraryHighlightImportCandidate(candidate)).toBe(true);
+    for (const value of [
+      null,
+      [],
+      { ...candidate, page: 1.5 },
+      { ...candidate, page: -1 },
+      { ...candidate, quote: 1 },
+      { ...candidate, quote: "x".repeat(20_001) },
+      { ...candidate, comment: 1 },
+      { ...candidate, comment: "x".repeat(8_001) },
+      { ...candidate, rects: "rect" },
+      { ...candidate, rects: Array.from({ length: 513 }, () => candidate.rects[0]) },
+      { ...candidate, rects: [null] },
+      { ...candidate, rects: [{ ...candidate.rects[0], x: Number.NaN }] },
+      { ...candidate, rects: [{ ...candidate.rects[0], y: 1.1 }] },
+      { ...candidate, rects: [{ ...candidate.rects[0], width: 0 }] },
+      { ...candidate, rects: [{ ...candidate.rects[0], height: -1 }] },
+      { ...candidate, rects: [{ x: 0.5, y: 0, width: 0.500_002, height: 1 }] },
+      { ...candidate, rects: [{ x: 0, y: 0.5, width: 1, height: 0.500_002 }] },
+    ]) {
+      expect(isLibraryHighlightImportCandidate(value), JSON.stringify(value)).toBe(false);
+    }
+    expect(isLibraryHighlightImportCandidate({ ...candidate, quote: "x".repeat(20_000), comment: "x".repeat(8_000) })).toBe(true);
+    expect(isLibraryHighlightImportCandidate({ ...candidate, rects: [{ x: 0, y: 0, width: 1.000_001, height: 1.000_001 }] })).toBe(true);
+    expect(isLibraryHighlightImportCandidate({ ...candidate, rects: Array.from({ length: 512 }, () => candidate.rects[0]) })).toBe(true);
+    expect(isLibraryHighlightImportCandidate({ ...candidate, rects: [candidate.rects[0], { ...candidate.rects[0], height: 0 }] })).toBe(
+      false,
+    );
+  });
+
+  it("strictly validates private PDF notes and drawings at every boundary", () => {
+    const base = {
+      id: "markup-1",
+      referenceId: "reference-1",
+      artifactId: "artifact-1",
+      page: 1,
+      createdAt: "created",
+      updatedAt: "updated",
+    };
+    const note = { ...base, kind: "note", x: 0, y: 1, body: "note" };
+    const drawing = {
+      ...base,
+      kind: "drawing",
+      color: "#aBc123",
+      width: 1,
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+    };
+    expect(isLibraryPdfMarkup(note)).toBe(true);
+    expect(isLibraryPdfMarkup(drawing)).toBe(true);
+    for (const value of [
+      null,
+      [],
+      { ...note, id: 1 },
+      { ...note, referenceId: 1 },
+      { ...note, artifactId: 1 },
+      { ...note, page: 0 },
+      { ...note, page: 1.5 },
+      { ...note, createdAt: 1 },
+      { ...note, updatedAt: 1 },
+      { ...note, x: -0.1 },
+      { ...note, y: Number.POSITIVE_INFINITY },
+      { ...note, body: 1 },
+      { ...note, body: "x".repeat(8_001) },
+      { ...drawing, kind: "other" },
+      { ...drawing, color: 1 },
+      { ...drawing, color: "#12345" },
+      { ...drawing, color: "#gggggg" },
+      { ...drawing, width: Number.NaN },
+      { ...drawing, width: 0 },
+      { ...drawing, width: 25 },
+      { ...drawing, points: "points" },
+      { ...drawing, points: [drawing.points[0]] },
+      { ...drawing, points: Array.from({ length: 2_049 }, () => drawing.points[0]) },
+      { ...drawing, points: [drawing.points[0], null] },
+      { ...drawing, points: [drawing.points[0], { x: -1, y: 0 }] },
+      { ...drawing, points: [drawing.points[0], { x: 0, y: 2 }] },
+    ]) {
+      expect(isLibraryPdfMarkup(value), JSON.stringify(value)).toBe(false);
+    }
+    expect(isLibraryPdfMarkup({ ...note, body: "x".repeat(8_000) })).toBe(true);
+    expect(isLibraryPdfMarkup({ ...drawing, width: 24, points: Array.from({ length: 2_048 }, () => drawing.points[0]) })).toBe(true);
+    expect(isLibraryPdfMarkup({ ...drawing, color: "x#aBc123" })).toBe(false);
+    expect(isLibraryPdfMarkup({ ...drawing, color: "#aBc123x" })).toBe(false);
   });
 
   it("accepts only complete PDF draft results", () => {
@@ -123,6 +236,8 @@ describe("shared reference library", () => {
     for (const metadataFingerprint of ["stale", "a".repeat(63), "a".repeat(65), "A".repeat(64)]) {
       expect(isCrossrefLibraryPreview({ ...preview, metadataFingerprint })).toBe(false);
     }
+    expect(isCrossrefLibraryPreview({ ...preview, metadataFingerprint: `x${"a".repeat(64)}` })).toBe(false);
+    expect(isCrossrefLibraryPreview({ ...preview, metadataFingerprint: `${"a".repeat(64)}x` })).toBe(false);
     expect(isCrossrefLibraryPreview({ ...preview, referenceId: 1 })).toBe(false);
     expect(isCrossrefLibraryPreview({ ...preview, doi: null })).toBe(false);
     expect(isCrossrefLibraryPreview({ ...preview, metadata: null })).toBe(false);
@@ -209,6 +324,15 @@ describe("shared reference library", () => {
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, match: "guess" }] })).toBe(false);
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, score: Number.NaN }] })).toBe(false);
     expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, metadataFingerprint: "stale" }] })).toBe(false);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, metadataFingerprint: `x${"a".repeat(64)}` }] })).toBe(
+      false,
+    );
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, metadataFingerprint: `${"a".repeat(64)}x` }] })).toBe(
+      false,
+    );
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, score: 0 }] })).toBe(true);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [{ ...candidate, score: "0" }] })).toBe(false);
+    expect(isMetadataRefinementPreview({ ...preview, candidates: [candidate, { ...candidate, provider: "unknown" }] })).toBe(false);
   });
 
   it("derives memorable reference keys from available metadata", () => {
@@ -397,6 +521,10 @@ describe("shared reference library", () => {
       reading: [],
     };
     expect(isReferenceLibrarySnapshot(valid)).toBe(true);
+    expect(isReferenceLibrarySnapshot({ ...valid, references: [record, { ...record, id: 1 }] })).toBe(false);
+    expect(isReferenceLibrarySnapshot({ ...valid, referenceKeyStates: { [record.id]: "final", invalid: "mutable" } })).toBe(false);
+    expect(isReferenceLibrarySnapshot({ ...valid, tags: { [record.id]: ["valid", 1] } })).toBe(false);
+    expect(isReferenceLibrarySnapshot({ ...valid, collections: { [record.id]: ["valid", 1] } })).toBe(false);
     for (const change of [
       {},
       { references: null },
@@ -430,6 +558,7 @@ describe("shared reference library", () => {
       expect(isReferenceLibrarySnapshot({ ...valid, reading: [{ ...reading, priority }] })).toBe(true);
     }
     expect(isReferenceLibrarySnapshot({ ...valid, reading: [{ ...reading, rating: null }] })).toBe(true);
+    expect(isReferenceLibrarySnapshot({ ...valid, reading: [reading, { ...reading, status: "queued" }] })).toBe(false);
     for (const change of [
       { referenceId: 1 },
       { status: "queued" },
@@ -462,6 +591,49 @@ describe("shared reference library", () => {
       webSnapshots: [{ ...capturedWebSnapshot, referenceId: record.id }],
     };
     expect(isReferenceLibrarySnapshot(webValid)).toBe(true);
+    const highlight = {
+      id: "highlight-1",
+      referenceId: record.id,
+      artifactId: "artifact-1",
+      page: 1,
+      quote: "Evidence",
+      comment: "",
+      rects: [{ x: 0, y: 0, width: 1, height: 1 }],
+      createdAt: "created",
+      updatedAt: "updated",
+    };
+    expect(isReferenceLibrarySnapshot({ ...webValid, highlights: [highlight] })).toBe(true);
+    for (const change of [
+      { id: 1 },
+      { referenceId: 1 },
+      { artifactId: 1 },
+      { page: 0 },
+      { page: 1.5 },
+      { quote: 1 },
+      { comment: 1 },
+      { rects: null },
+      { rects: [{ x: -1, y: 0, width: 1, height: 1 }] },
+      { createdAt: 1 },
+      { updatedAt: 1 },
+    ]) {
+      expect(isReferenceLibrarySnapshot({ ...webValid, highlights: [{ ...highlight, ...change }] }), JSON.stringify(change)).toBe(false);
+    }
+    expect(isReferenceLibrarySnapshot({ ...webValid, highlights: [highlight, { ...highlight, page: 0 }] })).toBe(false);
+
+    const noteMarkup = {
+      id: "markup-1",
+      referenceId: record.id,
+      artifactId: "artifact-1",
+      page: 1,
+      createdAt: "created",
+      updatedAt: "updated",
+      kind: "note",
+      x: 0,
+      y: 1,
+      body: "note",
+    };
+    expect(isReferenceLibrarySnapshot({ ...webValid, pdfMarkups: [noteMarkup] })).toBe(true);
+    expect(isReferenceLibrarySnapshot({ ...webValid, pdfMarkups: [noteMarkup, { ...noteMarkup, page: 0 }] })).toBe(false);
     for (const [field, invalid] of Object.entries({
       id: 1,
       referenceId: 1,
@@ -490,6 +662,16 @@ describe("shared reference library", () => {
         field,
       ).toBe(false);
     }
+    for (const [field, invalid] of [
+      ["authors", ["Captured Author", 1]],
+      ["diagnostics", ["Partial capture", 1]],
+      ["redirectChain", ["https://example.com/article", 1]],
+    ] as const) {
+      expect(
+        isReferenceLibrarySnapshot({ ...webValid, webSnapshots: [{ ...capturedWebSnapshot, referenceId: record.id, [field]: invalid }] }),
+        field,
+      ).toBe(false);
+    }
     for (const [field, invalid] of Object.entries({ referenceId: 1, canonicalUrl: 1, createdAt: 1, updatedAt: 1 })) {
       expect(isReferenceLibrarySnapshot({ ...webValid, webSources: [{ ...webValid.webSources[0], [field]: invalid }] }), field).toBe(false);
     }
@@ -504,7 +686,11 @@ describe("shared reference library", () => {
     for (const [url, message] of [
       ["file:///tmp/source", "Web source URL must use HTTP or HTTPS"],
       ["https://user:secret@example.com/", "Web source URL must not contain credentials"],
+      ["https://user@example.com/", "Web source URL must not contain credentials"],
+      ["https://:secret@example.com/", "Web source URL must not contain credentials"],
       ["https://example.com:8443/source", "Web source URL must use a standard HTTP port"],
+      ["http://example.com:443/source", "Web source URL must use a standard HTTP port"],
+      ["https://example.com:80/source", "Web source URL must use a standard HTTP port"],
       ["http://localhost/source", "Web source URL must resolve to a public host"],
     ] as const) {
       expect(() => normalizeWebSourceUrl(url), url).toThrow(message);
@@ -524,8 +710,13 @@ describe("shared reference library", () => {
       "http://[::1]/source",
       "http://[fc00::1]/source",
       "http://[fe80::1]/source",
+      "http://[fd00::1]/source",
+      "http://[::]/source",
+      "http://[::ffff:192.0.2.1]/source",
       "http://service.internal/source",
       "http://printer.local/source",
+      "http://service.localhost/source",
+      "http://router.lan/source",
     ]) {
       expect(() => normalizeWebSourceUrl(url), url).toThrow();
     }
@@ -611,6 +802,29 @@ describe("shared reference library", () => {
     expect(extractWebDocument("<html><head><title>&#0; &bogus;</title></head><body>text</body></html>", "text/html").title).toBe(
       "\u0000 &bogus;",
     );
+    const stripped = extractWebDocument(
+      `<html><head><title>Entities &quot;&apos;&lt;&gt;&amp;&nbsp;</title></head><body>
+      visible<br class="break"/>line<hr /><div>block</div>
+      <noscript>noscript secret</noscript><svg><text>svg secret</text></svg><template>template secret</template>
+      </body></html>`,
+      "text/html",
+    );
+    expect(stripped.title).toBe(`Entities "'<>&`);
+    expect(stripped.readableText).toContain("visible\nline\nblock");
+    expect(stripped.readableText).not.toMatch(/secret/iu);
+    const exactMarkup = extractWebDocument(
+      `<title>Exact</title><body>before<script data-id="x">hidden</script><br>middle<hr/>after<div>block</div>${"x".repeat(80)}</body>`,
+      "text/html",
+    );
+    expect(exactMarkup.readableText).toBe(`Exact before\nmiddle\nafter block\n${"x".repeat(80)}`);
+
+    expect(extractWebDocument(`<body>${"x".repeat(80)}</body>`, "text/html").diagnostics).toEqual([
+      "No page title was detected; enter one before saving the source.",
+    ]);
+    expect(extractWebDocument(`<body>${"x".repeat(79)}</body>`, "text/html").diagnostics).toEqual([
+      "No page title was detected; enter one before saving the source.",
+      "Very little readable text was extracted; the page may require scripts or authentication.",
+    ]);
   });
 
   it("compares readable captures as neutral line additions and removals", () => {
@@ -633,6 +847,17 @@ describe("shared reference library", () => {
       addedLines: 0,
       removedLines: 1,
       hunks: [{ beforeLine: 2, afterLine: 2, removed: ["B"], added: [], truncated: false }],
+    });
+    const exactlyTwentyFour = Array.from({ length: 24 }, (_, index) => `before-${index}`);
+    expect(compareWebSnapshotText(exactlyTwentyFour.join("\n"), "replacement")).toMatchObject({
+      addedLines: 1,
+      removedLines: 24,
+      hunks: [{ removed: exactlyTwentyFour, added: ["replacement"], truncated: false }],
+    });
+    expect(compareWebSnapshotText("replacement", exactlyTwentyFour.join("\n"))).toMatchObject({
+      addedLines: 24,
+      removedLines: 1,
+      hunks: [{ removed: ["replacement"], added: exactlyTwentyFour, truncated: false }],
     });
     const manyBefore = Array.from({ length: 30 }, (_, index) => `before-${index}`).join("\n");
     const manyAfter = Array.from({ length: 30 }, (_, index) => `after-${index}`).join("\n");
@@ -673,5 +898,34 @@ describe("shared reference library", () => {
       "Visible evidence shortens review time",
     );
     expect(mergeLibraryHighlightQuote("First passage", "Second passage")).toBe("First passage Second passage");
+  });
+
+  it("merges vertical and transitive rectangle unions, keeps edge contact separate, and sorts by position", () => {
+    const top = { x: 0.25, y: 0.125, width: 0.125, height: 0.25 };
+    const bottom = { x: 0.25, y: 0.25, width: 0.125, height: 0.375 };
+    const bridge = { x: 0.3125, y: 0.1875, width: 0.25, height: 0.125 };
+    const right = { x: 0.5, y: 0.1875, width: 0.25, height: 0.125 };
+    const touching = { x: 0.75, y: 0.1875, width: 0.125, height: 0.125 };
+    const first = { x: 0.875, y: 0, width: 0.125, height: 0.125 };
+
+    expect(libraryPdfRectsOverlap([top], [bottom])).toBe(true);
+    expect(libraryPdfRectsOverlap([right], [touching])).toBe(false);
+    expect(mergeLibraryPdfRects([right, first, top], [bottom, bridge, touching])).toEqual([
+      first,
+      { x: 0.25, y: 0.125, width: 0.5, height: 0.5 },
+      touching,
+    ]);
+    expect(mergeLibraryPdfRects([], [first])).toEqual([first]);
+    expect(mergeLibraryPdfRects([first], [])).toEqual([first]);
+  });
+
+  it("trims and merges quotation containment and overlaps in both directions", () => {
+    expect(mergeLibraryHighlightQuote("  complete quote  ", "quote")).toBe("complete quote");
+    expect(mergeLibraryHighlightQuote("quote", "  complete quote  ")).toBe("complete quote");
+    expect(mergeLibraryHighlightQuote("alpha beta", "beta gamma")).toBe("alpha beta gamma");
+    expect(mergeLibraryHighlightQuote("beta gamma", "alpha beta")).toBe("alpha beta gamma");
+    expect(mergeLibraryHighlightQuote("abc", "bca")).toBe("abca");
+    expect(mergeLibraryHighlightQuote("", "incoming")).toBe("incoming");
+    expect(mergeLibraryHighlightQuote("existing", "")).toBe("existing");
   });
 });

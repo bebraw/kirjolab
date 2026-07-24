@@ -1,11 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { exampleRoutes } from "./app-routes";
-import worker, { handleRequest } from "./worker";
+import worker, { handleRequest, runScheduledBackups } from "./worker";
 import { ensureGeneratedStylesheet } from "./test-support";
 
 ensureGeneratedStylesheet();
 
 describe("worker", () => {
+  it("publishes the complete documented route inventory", () => {
+    expect(exampleRoutes).toEqual([
+      { path: "/", purpose: "Recent scholarly work dashboard" },
+      { path: "/library", purpose: "Project-free private reference library" },
+      { path: "/library/pdfs/:id", purpose: "Routable private library PDF reader" },
+      { path: "/editor", purpose: "Resume a writing project" },
+      { path: "/editor/:id", purpose: "Stable writing-project editor" },
+      { path: "/review", purpose: "Evidence review catalog" },
+      { path: "/review/:id", purpose: "Independent collaborative evidence review" },
+      { path: "/workspaces/:id", purpose: "Legacy writing-project redirect" },
+      { path: "/share/:token", purpose: "Read-only workspace link" },
+      { path: "/edit/:token", purpose: "Editable workspace link" },
+      { path: "/api/workspaces", purpose: "Workspace catalog" },
+      { path: "/api/workspaces/demo", purpose: "Portable workspace resource" },
+      { path: "/api/reviews", purpose: "Independent review catalog" },
+      { path: "/api/reviews/:id", purpose: "Independent review resource" },
+      { path: "/api/session", purpose: "Authenticated identity" },
+      { path: "/api/health", purpose: "JSON health endpoint for tooling and smoke tests" },
+    ]);
+  });
+
   it("renders the local design-system inventory", async () => {
     const response = await handleRequest(new Request("http://example.com/__ui"));
 
@@ -280,5 +301,148 @@ describe("worker", () => {
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
+  });
+
+  it.each([
+    "/api/backups",
+    "/api/backups/item",
+    "/api/project-templates",
+    "/api/project-templates/item",
+    "/api/github/import-previews",
+    "/api/github/imports",
+    "/api/latex-import-previews",
+    "/api/latex-imports",
+    "/api/github/connection",
+    "/api/github/connect",
+    "/api/github/callback",
+    "/api/github/install",
+    "/api/github/setup",
+    "/api/github/installations",
+    "/api/github/installations/123",
+    "/api/reviews",
+    "/api/reviews/item",
+    "/api/workspaces",
+    "/api/workspaces/item",
+    "/api/library",
+    "/api/library/item",
+  ])("recognizes the authenticated API route %s without runtime bindings", async (path) => {
+    const response = await handleRequest(new Request(`http://example.com${path}`));
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
+  });
+
+  it.each([
+    "/api/backups-extra",
+    "/api/project-templates-extra",
+    "/api/reviews-extra",
+    "/api/workspaces-extra",
+    "/api/library-extra",
+    "/api/github/import-previews/extra",
+    "/api/latex-imports/extra",
+    "/api/github/installations-extra",
+  ])("does not widen the authenticated API family for %s", async (path) => {
+    expect((await handleRequest(new Request(`http://example.com${path}`))).status).toBe(404);
+  });
+
+  it("enforces exact page route boundaries", async () => {
+    for (const path of [
+      "/library/pdfs/",
+      "/library/pdfs/id/extra",
+      "/prefix/library/pdfs/id",
+      "/workspaces/id/extra",
+      "/prefix/workspaces/id",
+      "/editor/id/extra",
+      "/prefix/editor/id",
+      "/review/id/extra",
+      "/prefix/review/id",
+    ]) {
+      expect((await handleRequest(new Request(`http://example.com${path}`))).status).toBe(404);
+    }
+  });
+
+  it("handles every public review-index method before bindings are needed", async () => {
+    expect((await handleRequest(new Request("http://example.com/review", { method: "HEAD" }))).status).toBe(200);
+    await expect(
+      (await handleRequest(new Request("http://example.com/review", { method: "PUT", headers: { origin: "http://example.com" } }))).json(),
+    ).resolves.toEqual({ error: "Method not allowed" });
+    await expect(
+      (await handleRequest(new Request("http://example.com/review", { method: "POST", headers: { origin: "http://example.com" } }))).json(),
+    ).resolves.toEqual({ error: "Worker bindings unavailable" });
+  });
+
+  it("strictly routes review project-link forms", async () => {
+    const id = "00000000-0000-4000-8000-000000000151";
+    const exact = `http://example.com/review/${id}/project-links`;
+    const getResponse = await handleRequest(new Request(exact));
+    const postResponse = await handleRequest(new Request(exact, { method: "POST", headers: { origin: "http://example.com" } }));
+
+    expect(getResponse.status).toBe(405);
+    await expect(getResponse.json()).resolves.toEqual({ error: "Method not allowed" });
+    expect(postResponse.status).toBe(503);
+    await expect(postResponse.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
+    expect((await handleRequest(new Request(`${exact}/extra`))).status).toBe(404);
+    expect((await handleRequest(new Request(`http://example.com/prefix/review/${id}/project-links`))).status).toBe(404);
+  });
+
+  it("supports HEAD and rejects mutations for the public phrasing ledger", async () => {
+    const head = await handleRequest(new Request("http://example.com/phrasing-guidance/sources.json", { method: "HEAD" }));
+    const post = await handleRequest(
+      new Request("http://example.com/phrasing-guidance/sources.json", { method: "POST", headers: { origin: "http://example.com" } }),
+    );
+
+    expect(head.status).toBe(200);
+    expect(head.headers.get("content-disposition")).toBe('inline; filename="sources.json"');
+    expect(post.status).toBe(405);
+    await expect(post.json()).resolves.toEqual({ error: "Method not allowed" });
+  });
+
+  it("hides the UI inventory when Access authentication is configured", async () => {
+    const env = Object.assign({} as Env, { AUTH_MODE: "access" as const });
+    const response = await handleRequest(new Request("http://example.com/__ui"), env);
+
+    expect(response.status).toBe(404);
+    expect(await response.text()).toContain("Not Found");
+  });
+
+  it("requires an exact read-only share route before checking bindings", async () => {
+    const token = "a".repeat(43);
+    const exact = `http://example.com/share/workspace-1.${token}`;
+
+    const getResponse = await handleRequest(new Request(exact));
+    expect(getResponse.status).toBe(503);
+    await expect(getResponse.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
+
+    const postResponse = await handleRequest(new Request(exact, { method: "POST", headers: { origin: "http://example.com" } }));
+    expect(postResponse.status).toBe(405);
+    await expect(postResponse.json()).resolves.toEqual({ error: "Method not allowed" });
+
+    for (const path of [
+      `/share/workspace-1.${"a".repeat(42)}`,
+      `/share/workspace-1.${"a".repeat(44)}`,
+      `/share/workspace-1.${token}/extra`,
+      `/prefix/share/workspace-1.${token}`,
+    ]) {
+      expect((await handleRequest(new Request(`http://example.com${path}`))).status).toBe(404);
+    }
+  });
+
+  it("fails scheduled backups for either incomplete summary condition", async () => {
+    const summary = { processed: 1, succeeded: 1, failed: 0, truncated: false };
+    const env = Object.assign({} as Env, {
+      BACKUP_COORDINATOR: {
+        getByName: (name: string) => {
+          expect(name).toBe("primary");
+          return { runScheduledBackups: async () => summary };
+        },
+      },
+    });
+
+    await expect(runScheduledBackups(env)).resolves.toBeUndefined();
+    summary.failed = 1;
+    await expect(runScheduledBackups(env)).rejects.toThrow("Scheduled backup did not process every registered owner successfully");
+    summary.failed = 0;
+    summary.truncated = true;
+    await expect(runScheduledBackups(env)).rejects.toThrow("Scheduled backup did not process every registered owner successfully");
   });
 });

@@ -58,6 +58,13 @@ describe("project composition", () => {
         ),
       ),
     ).toBe(true);
+    for (const source of [
+      '\uFEFF<?xml?>\n<svg xmlns="http://www.w3.org/2000/svg"><use href="#shape"/></svg>',
+      '<?xml version="1.0" encoding="UTF-8"?>\r\n<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>',
+      ' \t<?xml version="1.0" ?>\n<svg xmlns="http://www.w3.org/2000/svg"><rect fill="url(#paint)"/></svg>',
+    ]) {
+      expect(isInertSvgImage(svg(source)), source).toBe(true);
+    }
     expect(isInertSvgImage(svg(`<svg xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,iVBORw0KGgo="/></svg>`))).toBe(
       true,
     );
@@ -372,6 +379,10 @@ Published chapter
     expect(count.content).toBe("a");
     expect(count.diagnostics.map(({ code }) => code)).toEqual(["file-limit"]);
     expect(composeProject([file("main", "main.md", "é")], "main", { maximumOutputBytes: 1 }).diagnostics[0]?.code).toBe("output-limit");
+    expect(composeProject([file("main", "main.md", "é")], "main", { maximumOutputBytes: 2 })).toMatchObject({
+      content: "é",
+      diagnostics: [],
+    });
   });
 
   it("normalizes safe project-relative paths and finds inbound includes", () => {
@@ -434,6 +445,30 @@ Published chapter
     ).toBe("![Chart](../figures/final/chart.png)\n![Remote](https://example.test/chart.png)\n");
     expect(rewriteProjectImageReferencesForMoves(file("main", "main.md", '![Chart](<figures/results/chart.png> "Result")\n'), moves)).toBe(
       '![Chart](<figures/final/chart.png> "Result")\n',
+    );
+    expect(
+      rewriteProjectImageReferencesForMoves(
+        file(
+          "main",
+          "main.md",
+          [
+            '![Double](figures/results/chart.png "A title")',
+            "![Single](figures/results/chart.png 'A title')",
+            "![Parenthesized](figures/results/chart.png (A title))",
+            '![Multiline](figures/results/chart.png\n"not a title")',
+            "![Missing close](<figures/results/chart.png)",
+          ].join("\n"),
+        ),
+        moves,
+      ),
+    ).toBe(
+      [
+        '![Double](figures/final/chart.png "A title")',
+        "![Single](figures/final/chart.png 'A title')",
+        "![Parenthesized](figures/final/chart.png (A title))",
+        '![Multiline](figures/results/chart.png\n"not a title")',
+        "![Missing close](<figures/results/chart.png)",
+      ].join("\n"),
     );
   });
 

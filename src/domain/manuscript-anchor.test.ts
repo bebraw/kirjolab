@@ -151,6 +151,18 @@ describe("durable manuscript anchors", () => {
     expect(isManuscriptAnchorSelector({ ...selector, originalRange: { start: 4, end: 4 } })).toBe(false);
     expect(isManuscriptAnchorSelector({ ...selector, extra: true })).toBe(false);
     expect(isManuscriptAnchorSelector({ ...selector, originalRange: { ...selector.originalRange, extra: true } })).toBe(false);
+    expect(
+      isManuscriptAnchorSelector({
+        ...selector,
+        relativeStart: "A".repeat(512),
+        relativeEnd: "B".repeat(512),
+        exact: "x".repeat(50_000),
+        prefix: "p".repeat(256),
+        suffix: "s".repeat(256),
+        originalRange: { start: 0, end: 1 },
+        anchoredRevision: 0,
+      }),
+    ).toBe(true);
     expect(isManuscriptAnchorResolution(resolution)).toBe(true);
     expect(isManuscriptAnchorResolution({ status: "stale" })).toBe(true);
     expect(isManuscriptAnchorResolution({ status: "stale", start: 7 })).toBe(false);
@@ -161,6 +173,8 @@ describe("durable manuscript anchors", () => {
     for (const change of [
       { relativeStart: "" },
       { relativeStart: "A" },
+      { relativeStart: "$AAA" },
+      { relativeStart: "AAA$" },
       { relativeStart: "x".repeat(513) },
       { exact: "" },
       { exact: "x".repeat(50_001) },
@@ -190,6 +204,7 @@ describe("durable manuscript anchors", () => {
     ]) {
       expect(isManuscriptAnchorResolution(invalid), JSON.stringify(invalid)).toBe(false);
     }
+    expect(isManuscriptAnchorResolution({ status: "resolved", start: 0, end: 1, text: "x", exactMatch: false })).toBe(true);
     expect(() => toStoredManuscriptAnchor({ ...selector, relativeStart: "A" })).toThrow("base64url");
     expect(() => createManuscriptAnchor(document, 13, 7, 0)).toThrow("range is invalid");
     expect(() => createManuscriptAnchor(document, -1, 7, 0)).toThrow("range is invalid");
@@ -197,6 +212,7 @@ describe("durable manuscript anchors", () => {
     expect(() => createManuscriptAnchor(document, 7, document.getText("source").length + 1, 0)).toThrow("range is invalid");
     expect(() => createManuscriptAnchor(document, 7, 13, -1)).toThrow("revision");
     expect(() => createManuscriptAnchor(document, 7, 13, 0.5)).toThrow("revision");
+    expect(createManuscriptAnchor(document, 0, document.getText("source").length, 0).exact).toBe("Before target after");
   });
 });
 

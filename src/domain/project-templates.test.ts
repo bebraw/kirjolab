@@ -47,6 +47,148 @@ describe("project templates", () => {
     }
   });
 
+  it("keeps the authored research and literature-review templates exact", () => {
+    expect(builtInProjectTemplate("builtin-research-article")).toMatchObject({
+      id: "builtin-research-article",
+      source: "built-in",
+      name: "Research article",
+      description: "A sectioned IMRaD-style article with abstract and references.",
+      createdAt: null,
+      updatedAt: null,
+      seed: {
+        schemaVersion: 1,
+        files: [
+          {
+            path: "main.md",
+            content: `## Abstract {#abstract}
+
+Summarize the question, approach, result, and significance.
+
+::include[sections/introduction.md]
+
+::include[sections/methods.md]
+
+::include[sections/results.md]
+
+::include[sections/discussion.md]
+
+## References {#references}
+
+::bibliography[]
+`,
+          },
+          {
+            path: "sections/introduction.md",
+            content: `## Introduction {#introduction}
+
+Establish the problem, prior work, and research question.
+`,
+          },
+          {
+            path: "sections/methods.md",
+            content: `## Methods {#methods}
+
+Describe materials, data, procedures, and analysis.
+`,
+          },
+          {
+            path: "sections/results.md",
+            content: `## Results {#results}
+
+Report the findings without interpreting them prematurely.
+`,
+          },
+          {
+            path: "sections/discussion.md",
+            content: `## Discussion {#discussion}
+
+Interpret the findings, limitations, and implications.
+`,
+          },
+        ],
+        folders: ["figures", "sections"],
+        bibliography: "",
+        publicationProfile: defaultProjectPublicationProfile,
+      },
+    });
+    expect(builtInProjectTemplate("builtin-literature-review")).toMatchObject({
+      id: "builtin-literature-review",
+      source: "built-in",
+      name: "Literature review",
+      description: "A review question, search strategy, thematic synthesis, and research gaps.",
+      createdAt: null,
+      updatedAt: null,
+      seed: {
+        schemaVersion: 1,
+        files: [
+          {
+            path: "main.md",
+            content: `## Review question {#review-question}
+
+State the scope and the question this review answers.
+
+::include[sections/search-strategy.md]
+
+::include[sections/synthesis.md]
+
+::include[sections/gaps.md]
+
+## References {#references}
+
+::bibliography[]
+`,
+          },
+          {
+            path: "sections/search-strategy.md",
+            content: `## Search strategy {#search-strategy}
+
+Record databases, terms, dates, and inclusion or exclusion criteria.
+`,
+          },
+          {
+            path: "sections/synthesis.md",
+            content: `## Thematic synthesis {#thematic-synthesis}
+
+Organize findings by argument or theme rather than one source at a time.
+`,
+          },
+          {
+            path: "sections/gaps.md",
+            content: `## Gaps and implications {#gaps}
+
+Identify disagreements, missing evidence, and useful next questions.
+`,
+          },
+        ],
+        folders: ["figures", "sections"],
+        bibliography: "",
+        publicationProfile: defaultProjectPublicationProfile,
+      },
+    });
+    expect(listBuiltInProjectTemplates().map(({ id, name, description }) => ({ id, name, description }))).toEqual([
+      {
+        id: "builtin-guided",
+        name: "Guided starter",
+        description: "Learn Kirjolab through a small composed paper and in-project syntax guide.",
+      },
+      {
+        id: "builtin-blank",
+        name: "Blank project",
+        description: "Start with an empty main.md; chapter sections begin with ## headings.",
+      },
+      {
+        id: "builtin-research-article",
+        name: "Research article",
+        description: "A sectioned IMRaD-style article with abstract and references.",
+      },
+      {
+        id: "builtin-literature-review",
+        name: "Literature review",
+        description: "A review question, search strategy, thematic synthesis, and research gaps.",
+      },
+    ]);
+  });
+
   it("derives a bounded content-free preview from a template seed", () => {
     const seed = builtInProjectTemplate("builtin-blank")!.seed;
     const files = [

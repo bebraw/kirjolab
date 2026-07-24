@@ -7,6 +7,8 @@ describe("publication DOI intake", () => {
     expect(normalizePublicationDoi("DOI: 10.1234/Example.Item")).toBe("10.1234/example.item");
     expect(normalizePublicationDoi("https://doi.org/10.1234/Example.Item")).toBe("10.1234/example.item");
     expect(normalizePublicationDoi("HTTP://DX.DOI.ORG/10.1234/Example.Item")).toBe("10.1234/example.item");
+    expect(normalizePublicationDoi("prefix DOI: 10.1234/Example.Item")).toBe("prefix doi: 10.1234/example.item");
+    expect(normalizePublicationDoi("DOI:10.1234/Example.Item")).toBe("10.1234/example.item");
   });
 
   it("accepts bounded DOI prefixes and suffix punctuation", () => {
@@ -14,6 +16,7 @@ describe("publication DOI intake", () => {
     expect(isValidDoi("10.123456789/example:part_(2).v1")).toBe(true);
     expect(isValidDoi("https://doi.org/10.5555/ABC-123_(test)")).toBe(true);
     expect(isValidDoi(`10.1234/${"x".repeat(247)}`)).toBe(true);
+    expect(isValidDoi(`${" ".repeat(497)}10.1234/example`)).toBe(true);
   });
 
   it("rejects malformed, whitespace-bearing, controlled, and oversized DOI input", () => {
@@ -30,6 +33,7 @@ describe("publication DOI intake", () => {
       "10.1234/control\u0000value",
       `10.1234/${"x".repeat(248)}`,
       `10.1234/${"x".repeat(504)}`,
+      `${" ".repeat(498)}10.1234/example`,
     ];
 
     for (const value of invalid) expect(isValidDoi(value), value).toBe(false);
@@ -57,6 +61,13 @@ describe("publication citation-key intake", () => {
     expect(suggestCitationKey({ authors: ["Doe, Jane"], year: "" }, [])).toBe("doe");
     expect(suggestCitationKey({ authors: ["", "Roe, Richard"], year: "forthcoming" }, [])).toBe("roe");
     expect(suggestCitationKey({ authors: ["王, 小明"], year: "" }, [])).toBe("reference");
+    expect(suggestCitationKey({ authors: [", Jane"], year: "2026" }, [])).toBe("reference2026");
+    expect(suggestCitationKey({ authors: ["Jane   van   Doe"], year: "x2026" }, [])).toBe("doe");
+    expect(suggestCitationKey({ authors: ["Jane Doe"], year: "2026x" }, [])).toBe("doe");
+  });
+
+  it("transliterates every supported Latin citation-key character", () => {
+    expect(suggestCitationKey({ authors: ["ÆŒØŁĐÐÞß, Jane"], year: "2026" }, [])).toBe("aeoeolddthss2026");
   });
 
   it("uses the first available stable alphabetic suffix for case-insensitive collisions", () => {

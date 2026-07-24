@@ -269,6 +269,283 @@ describe("review synthesis", () => {
     });
     expect(missing.diagnostics.map(({ code }) => code)).toEqual(["included-evidence-missing", "record-provenance-missing"]);
   });
+
+  it("fails closed on every persisted synthesis collection and scalar boundary", () => {
+    const input = fixture();
+    const synthesis = buildReviewSynthesis(input.protocol, input.search, input.screening, input.evidence);
+    for (const value of [
+      null,
+      [],
+      { ...synthesis, flow: null },
+      { ...synthesis, sourceYields: null },
+      { ...synthesis, rqCoverage: null },
+      { ...synthesis, matrix: null },
+      { ...synthesis, extractionColumns: null },
+    ]) {
+      expect(() => parseReviewSynthesis(value)).toThrow("Review synthesis is invalid");
+    }
+    for (const value of [-1, 1.5, Number.NaN, "1"]) {
+      expect(() => parseReviewSynthesis({ ...synthesis, revision: value })).toThrow("Review synthesis count is invalid");
+    }
+    for (const field of [
+      "identified",
+      "duplicatesRemoved",
+      "titleAbstractScreened",
+      "titleAbstractExcluded",
+      "fullTextAssessed",
+      "fullTextExcluded",
+      "included",
+    ] as const) {
+      expect(() => parseReviewSynthesis({ ...synthesis, flow: { ...synthesis.flow, [field]: -1 } })).toThrow(
+        "Review synthesis count is invalid",
+      );
+    }
+    expect(() => parseReviewSynthesis({ ...synthesis, sourceYields: [null] })).toThrow("Review source yield is invalid");
+    expect(() => parseReviewSynthesis({ ...synthesis, sourceYields: [{ source: 1, imported: 1, uniqueOccurrences: 1 }] })).toThrow(
+      "Review synthesis text is invalid",
+    );
+    expect(() => parseReviewSynthesis({ ...synthesis, sourceYields: [{ source: "Source", imported: -1, uniqueOccurrences: 1 }] })).toThrow(
+      "Review synthesis count is invalid",
+    );
+    expect(() => parseReviewSynthesis({ ...synthesis, rqCoverage: [null] })).toThrow("Review RQ coverage is invalid");
+    expect(() => parseReviewSynthesis({ ...synthesis, rqCoverage: [{ id: "rq", question: 1, studies: 1 }] })).toThrow(
+      "Review synthesis text is invalid",
+    );
+    expect(() => parseReviewSynthesis({ ...synthesis, matrix: [null] })).toThrow("Review synthesis matrix is invalid");
+    expect(() => parseReviewSynthesis({ ...synthesis, matrix: [{ invalid: [] }] })).toThrow("Review synthesis matrix is invalid");
+    expect(() => parseReviewSynthesis({ ...synthesis, extractionColumns: [1] })).toThrow("Review synthesis text is invalid");
+  });
+
+  it("validates persisted analysis definitions, filters, diagnostics, and contributors", () => {
+    const input = fixture();
+    const synthesis = buildReviewSynthesis(input.protocol, input.search, input.screening, input.evidence);
+    const definition = synthesis.definitions[0]!;
+    for (const changed of [
+      null,
+      { ...definition, id: "other" },
+      { ...definition, revision: 2 },
+      { ...definition, type: "other" },
+      { ...definition, generatorSchema: "old" },
+      { ...definition, filters: null },
+      { ...definition, columns: null },
+      { ...definition, dimensions: null },
+    ]) {
+      expect(() => parseReviewSynthesis({ ...synthesis, definitions: [changed] })).toThrow("Review analysis definition is invalid");
+    }
+    for (const filter of [null, { field: "field", operator: "other", value: "value" }]) {
+      expect(() => parseReviewSynthesis({ ...synthesis, definitions: [{ ...definition, filters: [filter] }] })).toThrow(
+        "Review analysis filter is invalid",
+      );
+    }
+    expect(
+      parseReviewSynthesis({
+        ...synthesis,
+        definitions: [{ ...definition, filters: [{ field: "field", operator: "latest-by", value: "value" }] }],
+      }).definitions[0]!.filters,
+    ).toEqual([{ field: "field", operator: "effective-by-cardinality", value: "value" }]);
+
+    const diagnosticCodes = [
+      "review-revision-mismatch",
+      "protocol-draft",
+      "protocol-revision-mismatch",
+      "protocol-reassessment-open",
+      "duplicate-resolution-incomplete",
+      "screening-incomplete",
+      "screening-conflict",
+      "included-evidence-missing",
+      "appraisal-incomplete",
+      "extraction-incomplete",
+      "appraisal-provenance-missing",
+      "extraction-provenance-missing",
+      "record-provenance-missing",
+    ] as const;
+    const diagnostics = diagnosticCodes.map((code) => ({
+      code,
+      severity: "warning" as const,
+      blocking: false,
+      message: code,
+      recordIds: [],
+      contributorIds: [],
+    }));
+    expect(parseReviewSynthesis({ ...synthesis, diagnostics }).diagnostics.map(({ code }) => code)).toEqual(diagnosticCodes);
+    for (const diagnostic of [
+      null,
+      { ...diagnostics[0], code: "other" },
+      { ...diagnostics[0], severity: "other" },
+      { ...diagnostics[0], blocking: "false" },
+      { ...diagnostics[0], recordIds: null },
+      { ...diagnostics[0], contributorIds: null },
+    ]) {
+      expect(() => parseReviewSynthesis({ ...synthesis, diagnostics: [diagnostic] })).toThrow("Review synthesis diagnostic is invalid");
+    }
+
+    const contributor = synthesis.contributors[0]!;
+    for (const changed of [
+      null,
+      { ...contributor, occurrenceIds: null },
+      { ...contributor, screeningDecisionIds: null },
+      { ...contributor, screeningAdjudicationIds: null },
+      { ...contributor, appraisalValueIds: null },
+      { ...contributor, extractionValueIds: null },
+    ]) {
+      expect(() => parseReviewSynthesis({ ...synthesis, contributors: [changed] })).toThrow("Review synthesis contributor is invalid");
+    }
+  });
+
+  it("binds the report definition to both persisted revisions", () => {
+    const input = fixture();
+    const synthesis = buildReviewSynthesis(input.protocol, input.search, input.screening, input.evidence);
+    expect(() => reviewSynthesisReportDefinition({ ...synthesis, definitions: [] })).toThrow(
+      "Review synthesis report definition is not bound to the synthesis revision",
+    );
+    expect(() =>
+      reviewSynthesisReportDefinition({
+        ...synthesis,
+        definitions: synthesis.definitions.map((definition) =>
+          definition.id === "review-synthesis-report" ? { ...definition, reviewRevision: synthesis.revision + 1 } : definition,
+        ),
+      }),
+    ).toThrow("Review synthesis report definition is not bound to the synthesis revision");
+    expect(() =>
+      reviewSynthesisReportDefinition({
+        ...synthesis,
+        definitions: synthesis.definitions.map((definition) =>
+          definition.id === "review-synthesis-report" ? { ...definition, protocolRevision: synthesis.protocolRevision + 1 } : definition,
+        ),
+      }),
+    ).toThrow("Review synthesis report definition is not bound to the synthesis revision");
+  });
+
+  it("renders exact CSV cells and normalized Markdown table values", () => {
+    const input = fixture();
+    const synthesis = buildReviewSynthesis(input.protocol, input.search, input.screening, input.evidence);
+    const customized = {
+      ...synthesis,
+      sourceYields: [{ source: "Database | primary\n index", imported: 2, uniqueOccurrences: 1 }],
+      rqCoverage: [{ id: "rq|1", question: "What  works?\nExactly", studies: 1 }],
+      matrix: [
+        {
+          ...synthesis.matrix[0],
+          title: 'A "quoted", title\nnext',
+          year: null,
+          Finding: true,
+        },
+      ],
+    };
+
+    expect(reviewSynthesisCsv(customized)).toBe(
+      "recordId,title,authors,year,qualityScore,qualityRejected,Finding\n" +
+        'record,"A ""quoted"", title\nnext","Doe, Jane",,1,false,true\n',
+    );
+    const markdown = reviewSynthesisMarkdown(customized);
+    expect(markdown).toContain("| Database \\| primary index | 2 | 1 |");
+    expect(markdown).toContain("| rq\\|1 | What works? Exactly | 1 |");
+    expect(markdown).toContain('| A "quoted", title next | Not reported | 1 | true |');
+  });
+
+  it("uses exact plural diagnostics for two affected review records", () => {
+    const input = fixture();
+    const firstRecord = input.screening.records[0]!.record;
+    const secondRecord = { ...firstRecord, id: "record-2", metadata: { ...firstRecord.metadata, citationKey: "study-2" } };
+    const screeningRecords = input.screening.records.map((record) => ({
+      ...record,
+      titleAbstract: { ...record.titleAbstract, outcome: "conflict" as const },
+    }));
+    screeningRecords.push({
+      ...screeningRecords[0]!,
+      record: secondRecord,
+      titleAbstract: {
+        ...screeningRecords[0]!.titleAbstract,
+        decisions: screeningRecords[0]!.titleAbstract.decisions.map((value) => ({
+          ...value,
+          id: `${value.id}-2`,
+          recordId: secondRecord.id,
+        })),
+      },
+      fullText: {
+        ...screeningRecords[0]!.fullText,
+        decisions: screeningRecords[0]!.fullText.decisions.map((value) => ({
+          ...value,
+          id: `${value.id}-2`,
+          recordId: secondRecord.id,
+        })),
+      },
+      finalInclusion: {
+        ...screeningRecords[0]!.finalInclusion,
+        decision: { ...screeningRecords[0]!.finalInclusion.decision!, id: "final-inclusion-2", recordId: secondRecord.id },
+      },
+    });
+    const evidenceRecords = input.evidence.records.map((record) => ({
+      ...record,
+      qualityComplete: false,
+      extractionComplete: false,
+      qualityValues: record.qualityValues.map((value) => ({ ...value, evidence: null })),
+      extractionValues: record.extractionValues.map((value) => ({ ...value, evidence: null })),
+    }));
+    evidenceRecords.push({
+      ...evidenceRecords[0]!,
+      record: secondRecord,
+      qualityValues: evidenceRecords[0]!.qualityValues.map((value) => ({
+        ...value,
+        id: `${value.id}-2`,
+        recordId: secondRecord.id,
+      })),
+      extractionValues: evidenceRecords[0]!.extractionValues.map((value) => ({
+        ...value,
+        id: `${value.id}-2`,
+        recordId: secondRecord.id,
+      })),
+    });
+    const duplicate = {
+      id: "duplicate-1",
+      leftId: firstRecord.id,
+      rightId: secondRecord.id,
+      signals: ["title-year" as const],
+      confidence: "probable" as const,
+      status: "pending" as const,
+      resolvedAt: null,
+      resolvedBy: null,
+    };
+    const synthesis = buildReviewSynthesis(
+      input.protocol,
+      {
+        ...input.search,
+        records: [firstRecord, secondRecord],
+        occurrences: [],
+        duplicateCandidates: [duplicate, { ...duplicate, id: "duplicate-2" }],
+      },
+      { ...input.screening, records: screeningRecords },
+      { ...input.evidence, records: evidenceRecords },
+    );
+    const messages = new Map(synthesis.diagnostics.map(({ code, message }) => [code, message]));
+
+    expect(messages.get("duplicate-resolution-incomplete")).toBe("2 duplicate candidates are unresolved.");
+    expect(messages.get("screening-conflict")).toBe("2 records have an unresolved screening conflict.");
+    expect(messages.get("appraisal-incomplete")).toBe("2 included records have incomplete appraisal.");
+    expect(messages.get("extraction-incomplete")).toBe("2 included records have incomplete extraction.");
+    expect(messages.get("appraisal-provenance-missing")).toBe("2 appraisal values lack evidence provenance.");
+    expect(messages.get("extraction-provenance-missing")).toBe("2 extracted values lack evidence provenance.");
+    expect(messages.get("record-provenance-missing")).toBe("2 included records have no import occurrence.");
+  });
+
+  it("returns only blocking diagnostics and rejects mixed-validity matrix rows", () => {
+    const input = fixture();
+    const synthesis = buildReviewSynthesis(input.protocol, input.search, input.screening, input.evidence);
+    const blocking = {
+      code: "protocol-draft" as const,
+      severity: "error" as const,
+      blocking: true,
+      message: "blocking",
+      recordIds: [],
+      contributorIds: [],
+    };
+    const advisory = { ...blocking, blocking: false, message: "advisory" };
+
+    expect(blockingReviewSynthesisDiagnostics({ ...synthesis, diagnostics: [advisory, blocking] })).toEqual([blocking]);
+    expect(() => parseReviewSynthesis({ ...synthesis, matrix: [{ valid: "value", invalid: [] }] })).toThrow(
+      "Review synthesis matrix is invalid",
+    );
+  });
 });
 
 function fixture(): {

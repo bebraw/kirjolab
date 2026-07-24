@@ -184,16 +184,37 @@ unfinished`;
   });
 
   it("diagnoses malformed and duplicate bibliography markers", () => {
-    const messages = renderWorkspaceMarkdown(
-      "::bibliography[all]\n::bibliography[]{scope=project}\n::bibliography[]\n::bibliography[]",
-      bibliography,
-    ).diagnostics.map((diagnostic) => diagnostic.message);
+    const source = "::bibliography[all]\n::bibliography[]{scope=project}\n::bibliography[]\n::bibliography[]";
+    const malformed = "::bibliography[all]";
+    const scoped = "::bibliography[]{scope=project}";
+    const firstDuplicate = source.indexOf("\n::bibliography[]\n") + 1;
+    const secondDuplicate = source.lastIndexOf("::bibliography[]");
 
-    expect(messages).toEqual([
-      "Bibliography marker must be exactly ::bibliography[]",
-      "Bibliography marker must be exactly ::bibliography[]",
-      "Duplicate bibliography marker",
-      "Duplicate bibliography marker",
+    expect(renderWorkspaceMarkdown(source, bibliography).diagnostics).toEqual([
+      {
+        severity: "error",
+        message: "Bibliography marker must be exactly ::bibliography[]",
+        from: source.indexOf(malformed),
+        to: source.indexOf(malformed) + malformed.length,
+      },
+      {
+        severity: "error",
+        message: "Bibliography marker must be exactly ::bibliography[]",
+        from: source.indexOf(scoped),
+        to: source.indexOf(scoped) + scoped.length,
+      },
+      {
+        severity: "error",
+        message: "Duplicate bibliography marker",
+        from: firstDuplicate,
+        to: firstDuplicate + "::bibliography[]".length,
+      },
+      {
+        severity: "error",
+        message: "Duplicate bibliography marker",
+        from: secondDuplicate,
+        to: secondDuplicate + "::bibliography[]".length,
+      },
     ]);
   });
 
@@ -296,13 +317,19 @@ content
 :unknown[value]
 # Chapter title
 `;
-    const messages = renderWorkspaceMarkdown(source, "").diagnostics.map((diagnostic) => diagnostic.message);
-
-    expect(messages).toContain("Unsupported leaf directive: ::unknown");
-    expect(messages).toContain("Unsupported container directive: :::unknown");
-    expect(messages).toContain("Alias does not match heading slug: missing");
-    expect(messages).toContain("Unsupported text directive: :unknown");
-    expect(messages).toContain("Chapter source must start sections at level two");
+    const exact = (message: string, fragment: string, from = source.indexOf(fragment)) => ({
+      severity: "error",
+      message,
+      from,
+      to: from + fragment.length,
+    });
+    expect(renderWorkspaceMarkdown(source, "").diagnostics).toEqual([
+      exact("Unsupported leaf directive: ::unknown", "::unknown[value]"),
+      exact("Unsupported container directive: :::unknown", ":::unknown"),
+      exact("Alias does not match heading slug: missing", '::alias[Missing]{target="sec:missing" slug="missing"}\n'),
+      exact("Unsupported text directive: :unknown", ":unknown[value]", source.lastIndexOf(":unknown[value]")),
+      exact("Chapter source must start sections at level two", "# Chapter title"),
+    ]);
   });
 
   it("renders authored HTML as text and removes unsafe link targets", () => {
@@ -450,9 +477,112 @@ Footnote.[^a]
   });
 
   it("diagnoses incomplete semantic declarations", () => {
-    const messages = renderWorkspaceMarkdown("::anchor[]{}\n::alias[]{}", "").diagnostics.map((diagnostic) => diagnostic.message);
+    const source = "::anchor[]{}\n::alias[]{}";
+    const aliasFrom = source.indexOf("::alias");
+    expect(renderWorkspaceMarkdown(source, "").diagnostics).toEqual([
+      { severity: "error", message: "Anchor requires a title", from: 0, to: "::anchor[]{}".length },
+      { severity: "error", message: "Anchor requires a target", from: 0, to: "::anchor[]{}".length },
+      {
+        severity: "error",
+        message: "Alias requires a title",
+        from: aliasFrom,
+        to: aliasFrom + "::alias[]{}".length,
+      },
+      {
+        severity: "error",
+        message: "Alias requires a target",
+        from: aliasFrom,
+        to: aliasFrom + "::alias[]{}".length,
+      },
+    ]);
+  });
 
-    expect(messages).toEqual(["Anchor requires a title", "Anchor requires a target", "Alias requires a title", "Alias requires a target"]);
+  it("reads spaced multi-attribute headings without retaining attribute text", () => {
+    const rendered = renderWorkspaceMarkdown("## **Bold** tail   {#long-id .first-class .second-class}   ", "");
+    const html = withoutSourcePositions(rendered.html);
+
+    expect(rendered.diagnostics).toEqual([]);
+    expect(html).toBe(
+      '<h2 id="long-id" class="first-class second-class"><span class="section-number">1 </span><strong>Bold</strong> tail</h2>',
+    );
+    expect(html).not.toContain("{#long-id");
+  });
+
+  it("reports an unclosed first-line comment through the exact end of input", () => {
+    const source = "::: comment";
+    const rendered = renderWorkspaceMarkdown(source, "");
+
+    expect(rendered).toEqual({
+      html: "",
+      diagnostics: [{ severity: "error", message: "Comment block is not closed", from: 0, to: source.length }],
+    });
+  });
+
+  it("anchors declaration validation to complete multi-character lines", () => {
+    const source = `prefix ::bibliography[]
+::bibliography[all-long]{scope=project-long}${"  "}
+prefix :::unknown-container
+:::unknown-container extra words
+::anchor[Long title]{target="target-long"}${"  "}
+::anchor[Duplicate title]{target="target-long"}  `;
+    const diagnostics = renderWorkspaceMarkdown(source, "").diagnostics;
+
+    expect(diagnostics.map(({ message }) => message)).toEqual([
+      "Bibliography marker must be exactly ::bibliography[]",
+      "Unsupported container directive: :::unknown-container",
+      "Duplicate reference: target-long",
+    ]);
+    expect(diagnostics.map(({ from, to }) => source.slice(from, to))).toEqual([
+      "::bibliography[all-long]{scope=project-long}  ",
+      ":::unknown-container extra words",
+      '::anchor[Duplicate title]{target="target-long"}  ',
+    ]);
+  });
+
+  it("renders exact fallback citation punctuation for several missing entries", () => {
+    const rendered = renderWorkspaceMarkdown(':cite[missing-a, missing-b]{mode=full prefix="Prefix " suffix=" suffix" locator="p. 9"}', "");
+    const html = withoutSourcePositions(rendered.html);
+
+    expect(rendered.diagnostics.map(({ message }) => message)).toEqual(["Missing citation: missing-a", "Missing citation: missing-b"]);
+    expect(html).toBe(
+      '<p><span class="semantic-citation-group">Prefix <button type="button" class="semantic-citation" data-citation="missing-a" data-locator="p. 9" aria-label="Open reference missing-a">missing-a. n.d.. missing-a</button>; <button type="button" class="semantic-citation" data-citation="missing-b" data-locator="p. 9" aria-label="Open reference missing-b">missing-b. n.d.. missing-b</button>, p. 9 suffix</span></p>',
+    );
+  });
+
+  it("sorts syntax diagnostics before a later unclosed comment", () => {
+    const source = "# Invalid chapter\n\n::: comment";
+    const rendered = renderWorkspaceMarkdown(source, "");
+
+    expect(rendered.diagnostics).toEqual([
+      { severity: "error", message: "Chapter source must start sections at level two", from: 0, to: 17 },
+      { severity: "error", message: "Comment block is not closed", from: 19, to: source.length },
+    ]);
+  });
+
+  it("renders default anchor slugs, removes aliases, and rejects loose captions", () => {
+    const source = `::alias[Legacy section]{target="legacy" slug="section"}
+## Section
+::anchor[Visible anchor]{target="Target Value"}
+:ref[Custom label]{target="Target Value"}
+::caption[Loose caption]`;
+    const rendered = renderWorkspaceMarkdown(source, "");
+    const html = withoutSourcePositions(rendered.html);
+
+    expect(rendered.diagnostics.map(({ message }) => message)).toEqual(["::caption must be inside a :::figure container"]);
+    expect(html).not.toContain("Legacy section");
+    expect(html).toContain('<span aria-label="Visible anchor" class="semantic-anchor" id="target-value"></span>');
+    expect(html).toContain('<a class="semantic-reference" href="#target-value">Custom label</a>');
+    expect(html).toContain('<code class="native-figure-error">::caption[Loose caption]</code>');
+  });
+
+  it("normalizes uppercase semantic names and preserves unknown directive content", () => {
+    const rendered = renderWorkspaceMarkdown(":CITEP[merton1942] and :UNKNOWN[Visible fallback]", bibliography);
+    const html = withoutSourcePositions(rendered.html);
+
+    expect(rendered.diagnostics.map(({ message }) => message)).toEqual(["Unsupported text directive: :unknown"]);
+    expect(html.replaceAll(/<[^>]+>/gu, "")).toContain("(Merton, 1942)");
+    expect(html).toContain("Visible fallback");
+    expect(html).not.toContain("UNKNOWN");
   });
 });
 
@@ -460,5 +590,7 @@ describe("bibliography helpers", () => {
   it("parses entries and produces stable slugs", () => {
     expect(parseBibliography(bibliography).get("merton1942")).toMatchObject({ year: "1942" });
     expect(slugify("  A Meaningful: Heading! ")).toBe("a-meaningful-heading");
+    expect(slugify("  `Mixed`___ punctuation / and spaces  ")).toBe("mixed-punctuation-and-spaces");
+    expect(slugify("`!`")).toBe("");
   });
 });

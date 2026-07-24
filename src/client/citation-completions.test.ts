@@ -26,6 +26,8 @@ describe("citation completion", () => {
     expect(citationCompletionContext(":citep[merton1942]", 13)).toEqual({ query: "merton", start: 7, end: 17 });
     expect(citationCompletionContext(":cite[  mer]", 11)).toEqual({ query: "mer", start: 8, end: 11 });
     expect(citationCompletionContext(":cite[first, ]", 13)).toEqual({ query: "", start: 13, end: 13 });
+    expect(citationCompletionContext(":cite[\t  mer  , next]", 13)).toEqual({ query: "mer", start: 9, end: 14 });
+    expect(citationCompletionContext("prefix :cite[mer] suffix", 16)).toEqual({ query: "mer", start: 13, end: 16 });
   });
 
   it("does not complete outside a citation key or across a line", () => {
@@ -33,6 +35,8 @@ describe("citation completion", () => {
     expect(citationCompletionContext("::cite[mer", 10)).toBeNull();
     expect(citationCompletionContext(":cite[mer\nnext", 14)).toBeNull();
     expect(citationCompletionContext(":cite[two words", 15)).toBeNull();
+    expect(citationCompletionContext("prefix ::cite[mer", 18)).toBeNull();
+    expect(citationCompletionContext(":cite[mer suffix]", 12)).toBeNull();
     expect(citationCompletionContext(":cite[key]", -4)).toBeNull();
     expect(citationCompletionContext(":cite[key]", 100)).toBeNull();
   });

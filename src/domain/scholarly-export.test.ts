@@ -151,4 +151,44 @@ describe("scholarly publication projection", () => {
       "Louise Conilh and Lenka Sadílková and Warren Viricel and Charles Dumontet",
     );
   });
+
+  it("uses exact multi-entry separators and identifier fallbacks in every mode", () => {
+    const bibliography = publicationCitationEntries(
+      "@article{doe2026, author={Doe, Jane}, title={Methods}, year={2026}}\n" +
+        "@article{roe2025, author={Roe, Alex}, title={Results}, year={2025}}",
+    );
+    const parsed = (source: string): PublicationTextDirective => {
+      let directive: PublicationTextDirective | undefined;
+      replacePublicationTextDirectives(source, (value) => {
+        directive = value;
+        return "";
+      });
+      if (!directive) throw new Error("Expected a publication directive");
+      return directive;
+    };
+
+    expect(publicationCitationText(parsed(":cite[doe2026, roe2025]"), bibliography, "ieee")).toBe("[1, 2]");
+    expect(publicationCitationText(parsed(":citet[doe2026, roe2025]"), bibliography, "apa")).toBe("Doe (2026), Roe (2025)");
+    expect(publicationCitationText(parsed(":cite[missing]"), bibliography, "ieee")).toBe("[missing]");
+    expect(publicationCitationText(parsed(":citet[missing]"), bibliography, "ieee")).toBe("missing [missing]");
+    expect(publicationCitationText(parsed(":cite[missing]{mode=full}"), bibliography, "apa")).toBe("missing. n.d.. missing");
+  });
+
+  it("normalizes irregular author lists and punctuation-heavy reference slugs", () => {
+    expect(publicationCitationAuthorLabel({ id: "spaced", author: "Jane Doe   and   Richard Roe" })).toBe("Doe and Roe");
+    expect(publicationCitationAuthorLabel({ id: "open", author: "{Open collective" })).toBe("collective");
+    expect(publicationCitationAuthorLabel({ id: "close", author: "Close collective}" })).toBe("collective}");
+    expect(publicationCitationAuthorLabel({ id: "empty", author: "   " })).toBe("empty");
+
+    expect(
+      Object.fromEntries(
+        publicationReferenceLabels(`## --A   B--\n## \`Code\` & *Evidence* {#explicit}\n::anchor[  **Label**  ]{target=anchor}`),
+      ),
+    ).toEqual({
+      "a-b": "--A   B--",
+      explicit: "Code & Evidence",
+      "code-evidence": "Code & Evidence",
+      anchor: "Label",
+    });
+  });
 });

@@ -88,6 +88,65 @@ describe("Semantic Scholar metadata integration", () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
+  it("maps every supported identifier and URL fallback exactly", async () => {
+    let observedUrl = "";
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
+      observedUrl = String(input);
+      return Response.json({
+        data: [
+          semanticScholarPaper({
+            paperId: " paper/id ",
+            externalIds: { ArXiv: " 2607.12345 ", PubMed: "12345678" },
+            url: " https://example.test/paper ",
+          }),
+          semanticScholarPaper({
+            paperId: "paper-2",
+            externalIds: { ArXiv: "", PubMed: "pmid-2" },
+            title: "Fallback paper",
+            url: "",
+          }),
+          null,
+        ],
+      });
+    });
+
+    await expect(searchSemanticScholarWorks({ title: "Evidence", authors: [], year: "2026x" }, "", fetcher)).resolves.toEqual([
+      {
+        metadata: expect.objectContaining({
+          doi: "",
+          url: "https://example.test/paper",
+        }),
+        score: null,
+        identifiers: [
+          { scheme: "arxiv", value: "2607.12345" },
+          { scheme: "pmid", value: "12345678" },
+          { scheme: "semantic-scholar", value: "paper/id" },
+        ],
+      },
+      {
+        metadata: expect.objectContaining({
+          doi: "",
+          title: "Fallback paper",
+          url: "https://www.semanticscholar.org/paper/paper-2",
+        }),
+        score: null,
+        identifiers: [{ scheme: "semantic-scholar", value: "paper-2" }],
+      },
+    ]);
+    expect(new URL(observedUrl).searchParams.has("year")).toBe(false);
+  });
+
+  it("requires a complete four-digit search year", async () => {
+    for (const year of ["x2026", "2026x", " 2026-2027 "]) {
+      let observedUrl = "";
+      await searchSemanticScholarWorks({ title: "Evidence", authors: [], year }, "", async (input) => {
+        observedUrl = String(input);
+        return Response.json({ data: [] });
+      });
+      expect(new URL(observedUrl).searchParams.has("year"), year).toBe(false);
+    }
+  });
+
   it.each([
     [["Book"], "book"],
     [["BookSection"], "incollection"],
@@ -120,6 +179,26 @@ describe("Semantic Scholar metadata integration", () => {
     expect(metadata.authors).toEqual(["n".repeat(500)]);
   });
 
+  it("maps missing author and abstract fields to empty values", async () => {
+    await expect(
+      fetchSemanticScholarWork("10.1000/fallback", "", async () =>
+        Response.json(
+          semanticScholarPaper({
+            externalIds: {},
+            paperId: "paper-id",
+            url: `  https://example.test/${"x".repeat(2_100)}  `,
+            authors: "unknown",
+            abstract: null,
+          }),
+        ),
+      ),
+    ).resolves.toMatchObject({
+      authors: [],
+      abstract: "",
+      url: "https://doi.org/10.1000/fallback",
+    });
+  });
+
   it("rejects failed, malformed, missing-title, and oversized responses", async () => {
     const ok = async () => Response.json(semanticScholarPaper());
     await expect(fetchSemanticScholarWork("invalid", "", ok)).rejects.toThrow("DOI is invalid");
@@ -139,6 +218,14 @@ describe("Semantic Scholar metadata integration", () => {
     await expect(fetchSemanticScholarWork("10.1000/large", "", async () => new Response("x".repeat(1_000_001)))).rejects.toThrow(
       "too large",
     );
+    await expect(
+      fetchSemanticScholarWork(
+        "10.1000/exact",
+        "",
+        async () => new Response("x".repeat(1_000_000), { headers: { "content-length": "1000000" } }),
+      ),
+    ).rejects.toThrow("invalid metadata");
+    await expect(fetchSemanticScholarWork("10.1000/no-body", "", async () => new Response(null))).rejects.toThrow("invalid metadata");
     await expect(fetchSemanticScholarWork("10.1000/malformed", "", async () => new Response("{"))).rejects.toThrow("invalid metadata");
     await expect(
       searchSemanticScholarWorks(

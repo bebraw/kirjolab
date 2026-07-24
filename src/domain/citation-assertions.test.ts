@@ -45,6 +45,10 @@ describe("citation assertions", () => {
       },
     ]);
     expect(isCitationNetwork(network)).toBe(true);
+    expect(buildCitationNetwork(references, [assertion("extracted", "a", "b", "cites", "extracted")], null).edges[0]?.state).toBe(
+      "extracted",
+    );
+    expect(buildCitationNetwork(references, [assertion("inferred", "a", "b", "cites", "inferred")], null).edges[0]?.state).toBe("inferred");
   });
 
   it("exposes disagreement as conflicting and excludes rejected assertions without deleting them", () => {
@@ -155,11 +159,13 @@ describe("citation assertions", () => {
     }
     expect(isReviewCitationAssertionInput({ decision: "confirmed", note: "Checked" })).toBe(true);
     expect(isReviewCitationAssertionInput({ decision: "rejected", note: "" })).toBe(true);
+    expect(isReviewCitationAssertionInput({ decision: "confirmed", note: "x".repeat(4_000) })).toBe(true);
     expect(isReviewCitationAssertionInput({ decision: "other", note: "" })).toBe(false);
     expect(isReviewCitationAssertionInput({ decision: "confirmed", note: "x".repeat(4_001) })).toBe(false);
     expect(isReviewCitationAssertionInput(null)).toBe(false);
 
     const network = buildCitationNetwork(references, [assertion("edge", "a", "b", "cites", "confirmed")], null);
+    expect(isCitationNetwork({ projectId: "", nodes: [], edges: [], truncated: false })).toBe(true);
     for (const state of ["confirmed", "extracted", "inferred", "conflicting"]) {
       expect(isCitationNetwork({ ...network, edges: [{ ...network.edges[0], state }] }), state).toBe(true);
     }
@@ -172,6 +178,7 @@ describe("citation assertions", () => {
       { ...network, nodes: [{ ...network.nodes[0], referenceId: "" }] },
       { ...network, nodes: [{ ...network.nodes[0], label: null }] },
       { ...network, nodes: [{ ...network.nodes[0], authors: [1] }] },
+      { ...network, nodes: [{ ...network.nodes[0], authors: ["Author", 1] }] },
       { ...network, nodes: [{ ...network.nodes[0], year: null }] },
       { ...network, nodes: [{ ...network.nodes[0], doi: null }] },
       { ...network, nodes: [{ ...network.nodes[0], inProject: null }] },
@@ -186,6 +193,48 @@ describe("citation assertions", () => {
       { ...network, edges: [{ ...network.edges[0], assertions: [{ ...network.edges[0]!.assertions[0], review: {} }] }] },
     ]) {
       expect(isCitationNetwork(invalid), JSON.stringify(invalid)).toBe(false);
+    }
+
+    const view = network.edges[0]!.assertions[0]!;
+    for (const change of [
+      { id: "" },
+      { citingReferenceId: "" },
+      { citedReferenceId: "" },
+      { citedReferenceId: view.citingReferenceId },
+      { polarity: "unknown" },
+      { evidenceState: "conflicting" },
+      { method: "unknown" },
+      { assertedBy: "" },
+      { observedAt: "invalid" },
+      { sourceKind: "unknown" },
+      { sourceId: "" },
+      { sourceId: "x".repeat(501) },
+      { sourceLocator: "x".repeat(2_001) },
+      { confidence: Number.NaN },
+      { createdAt: "invalid" },
+      { state: "unknown" },
+    ]) {
+      expect(
+        isCitationNetwork({ ...network, edges: [{ ...network.edges[0], assertions: [{ ...view, ...change }] }] }),
+        JSON.stringify(change),
+      ).toBe(false);
+    }
+
+    const reviewed = {
+      decision: "confirmed",
+      reviewer: "reviewer",
+      reviewedAt: observedAt,
+      note: "Checked",
+    };
+    expect(isCitationNetwork({ ...network, edges: [{ ...network.edges[0], assertions: [{ ...view, review: reviewed }] }] })).toBe(true);
+    for (const change of [{ decision: "unknown" }, { reviewer: "" }, { reviewedAt: "invalid" }, { note: 1 }, { note: "x".repeat(4_001) }]) {
+      expect(
+        isCitationNetwork({
+          ...network,
+          edges: [{ ...network.edges[0], assertions: [{ ...view, review: { ...reviewed, ...change } }] }],
+        }),
+        JSON.stringify(change),
+      ).toBe(false);
     }
   });
 });

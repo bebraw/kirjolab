@@ -86,6 +86,24 @@ describe("OpenAlex metadata integration", () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
+  it("accepts only complete OpenAlex work identifiers", async () => {
+    const results = await searchOpenAlexWorks({ title: "Evidence", authors: [], year: "" }, "key", async () =>
+      Response.json({
+        results: [
+          openAlexWork({ id: " W123 ", doi: null, title: "Bare identifier" }),
+          openAlexWork({ id: "prefix/W456", doi: null, title: "Path identifier" }),
+          openAlexWork({ id: "prefix/W789/suffix", doi: null, title: "Invalid suffix" }),
+          openAlexWork({ id: "prefix-XW999", doi: null, title: "Invalid prefix" }),
+          null,
+        ],
+      }),
+    );
+    expect(results.map((match) => match.identifiers)).toEqual([
+      [{ scheme: "openalex", value: "W123" }],
+      [{ scheme: "openalex", value: "W456" }],
+    ]);
+  });
+
   it.each([
     ["book", "book"],
     ["book-chapter", "incollection"],
@@ -117,6 +135,20 @@ describe("OpenAlex metadata integration", () => {
     expect(metadata).toMatchObject({ doi: "10.1000/fallback", year: "", venue: "", abstract: "valid" });
     expect(metadata.title).toHaveLength(2_000);
     expect(metadata.authors).toEqual(["a".repeat(500)]);
+
+    await expect(
+      fetchOpenAlexWork("10.1000/fallback", "key", async () =>
+        Response.json(
+          openAlexWork({
+            title: "  Exact title  ",
+            display_name: "Wrong fallback",
+            authorships: "unknown",
+            primary_location: { source: { display_name: "  Venue  " } },
+            abstract_inverted_index: null,
+          }),
+        ),
+      ),
+    ).resolves.toMatchObject({ title: "Exact title", authors: [], venue: "Venue", abstract: "" });
   });
 
   it("rejects missing configuration, upstream failures, malformed records, and oversized bodies", async () => {
@@ -135,6 +167,14 @@ describe("OpenAlex metadata integration", () => {
       fetchOpenAlexWork("10.1000/large", "key", async () => new Response("{}", { headers: { "content-length": "1000001" } })),
     ).rejects.toThrow("too large");
     await expect(fetchOpenAlexWork("10.1000/large", "key", async () => new Response("x".repeat(1_000_001)))).rejects.toThrow("too large");
+    await expect(
+      fetchOpenAlexWork(
+        "10.1000/exact",
+        "key",
+        async () => new Response("x".repeat(1_000_000), { headers: { "content-length": "1000000" } }),
+      ),
+    ).rejects.toThrow("invalid metadata");
+    await expect(fetchOpenAlexWork("10.1000/no-body", "key", async () => new Response(null))).rejects.toThrow("invalid metadata");
     await expect(fetchOpenAlexWork("10.1000/malformed", "key", async () => new Response("{"))).rejects.toThrow("invalid metadata");
     await expect(
       searchOpenAlexWorks({ title: "Evidence", authors: [], year: "" }, "key", async () => new Response(null, { status: 500 })),

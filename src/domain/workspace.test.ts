@@ -779,6 +779,9 @@ describe("workspace input guards", () => {
     for (const change of [
       { id: "" },
       { title: "" },
+      { entryFileId: "" },
+      { files: null },
+      { composition: null },
       { source: null },
       { bibliography: null },
       { revision: "0" },
@@ -786,6 +789,8 @@ describe("workspace input guards", () => {
       { assets: null },
       { pdfs: null },
       { publications: null },
+      { projectReferences: null },
+      { researchShares: null },
       { publicationPdfLinks: null },
       { annotations: null },
       { links: null },
@@ -800,25 +805,36 @@ describe("workspace input guards", () => {
     expect(isWorkspaceSnapshot([])).toBe(false);
     expect(isWorkspaceSnapshot("workspace")).toBe(false);
     expect(isWorkspaceSnapshot({ ...valid, claims: [{ id: "claim" }] })).toBe(false);
-    expect(isWorkspaceSnapshot({ ...valid, folders: [{ id: "folder", path: "chapters", createdAt: "now", updatedAt: "now" }] })).toBe(true);
-    expect(isWorkspaceSnapshot({ ...valid, folders: [{ id: "", path: "chapters", createdAt: "now", updatedAt: "now" }] })).toBe(false);
-    expect(
-      isWorkspaceSnapshot({
-        ...valid,
-        assets: [
-          {
-            id: "asset",
-            path: "figures/chart.png",
-            mediaType: "image/png",
-            size: 42,
-            objectKey: "demo/assets/asset",
-            fingerprint: "etag",
-            createdAt: "now",
-            updatedAt: "now",
-          },
-        ],
-      }),
-    ).toBe(true);
+    const folder = { id: "folder", path: "chapters", createdAt: "created", updatedAt: "updated" };
+    expect(isWorkspaceSnapshot({ ...valid, folders: [folder] })).toBe(true);
+    for (const change of [{ id: "" }, { path: "" }, { createdAt: "" }, { updatedAt: "" }]) {
+      expect(isWorkspaceSnapshot({ ...valid, folders: [{ ...folder, ...change }] }), JSON.stringify(change)).toBe(false);
+    }
+
+    const asset = {
+      id: "asset",
+      path: "figures/chart.png",
+      mediaType: "image/png",
+      size: 42,
+      objectKey: "demo/assets/asset",
+      fingerprint: "etag",
+      createdAt: "created",
+      updatedAt: "updated",
+    };
+    expect(isWorkspaceSnapshot({ ...valid, assets: [asset] })).toBe(true);
+    for (const change of [
+      { id: "" },
+      { path: "" },
+      { mediaType: "text/plain" },
+      { size: 0 },
+      { size: 1.5 },
+      { objectKey: "" },
+      { fingerprint: "" },
+      { createdAt: "" },
+      { updatedAt: "" },
+    ]) {
+      expect(isWorkspaceSnapshot({ ...valid, assets: [{ ...asset, ...change }] }), JSON.stringify(change)).toBe(false);
+    }
     expect(
       isWorkspaceSnapshot({
         ...valid,
@@ -836,6 +852,87 @@ describe("workspace input guards", () => {
         ],
       }),
     ).toBe(true);
+
+    const file = valid.files[0];
+    expect(isWorkspaceSnapshot({ ...valid, files: [{ ...file, collaborationTextName: "main" }] })).toBe(true);
+    for (const change of [
+      { id: "" },
+      { path: "" },
+      { mediaType: "text/plain" },
+      { content: 1 },
+      { collaborationTextName: "" },
+      { createdAt: "" },
+      { updatedAt: "" },
+      { extra: true },
+    ]) {
+      expect(isWorkspaceSnapshot({ ...valid, files: [{ ...file, ...change }] }), JSON.stringify(change)).toBe(false);
+    }
+
+    const composition = valid.composition;
+    for (const change of [{ content: null }, { sourceMap: null }, { diagnostics: null }, { dependencies: null }, { extra: true }]) {
+      expect(isWorkspaceSnapshot({ ...valid, composition: { ...composition, ...change } }), JSON.stringify(change)).toBe(false);
+    }
+
+    const { anchor, resolution } = validCandidate().target;
+    const passageLink = { id: "passage", annotationId: "annotation", anchor, resolution, createdAt: "created" };
+    for (const change of [{ id: "" }, { annotationId: "" }, { anchor: null }, { resolution: null }, { createdAt: "" }]) {
+      expect(isWorkspaceSnapshot({ ...valid, links: [{ ...passageLink, ...change }] }), JSON.stringify(change)).toBe(false);
+    }
+
+    const claim = { id: "claim", text: "Inspectable claim", note: "", createdAt: "created", updatedAt: "updated" };
+    expect(isWorkspaceSnapshot({ ...valid, claims: [claim] })).toBe(true);
+    for (const change of [{ id: "" }, { text: "" }, { note: 1 }, { createdAt: "" }, { updatedAt: "" }]) {
+      expect(isWorkspaceSnapshot({ ...valid, claims: [{ ...claim, ...change }] }), JSON.stringify(change)).toBe(false);
+    }
+
+    const claimEvidenceLink = {
+      id: "evidence",
+      claimId: "claim",
+      annotationId: "annotation",
+      relation: "supports",
+      createdAt: "created",
+    };
+    for (const relation of ["supports", "contradicts", "extends"]) {
+      expect(isWorkspaceSnapshot({ ...valid, claimEvidenceLinks: [{ ...claimEvidenceLink, relation }] })).toBe(true);
+    }
+    for (const change of [{ id: "" }, { claimId: "" }, { annotationId: "" }, { relation: "unknown" }, { createdAt: "" }]) {
+      expect(isWorkspaceSnapshot({ ...valid, claimEvidenceLinks: [{ ...claimEvidenceLink, ...change }] }), JSON.stringify(change)).toBe(
+        false,
+      );
+    }
+
+    const claimLink = { id: "claim-link", claimId: "claim", anchor, resolution, createdAt: "created" };
+    for (const change of [{ id: "" }, { claimId: "" }, { anchor: null }, { resolution: null }, { createdAt: "" }]) {
+      expect(isWorkspaceSnapshot({ ...valid, claimLinks: [{ ...claimLink, ...change }] }), JSON.stringify(change)).toBe(false);
+    }
+
+    const comment = {
+      id: "comment",
+      authorId: "author",
+      authorLabel: "Author",
+      body: "Review this.",
+      anchor,
+      resolution,
+      status: "open",
+      createdAt: "created",
+      updatedAt: "updated",
+    };
+    expect(isWorkspaceSnapshot({ ...valid, comments: [{ ...comment, status: "resolved" }] })).toBe(true);
+    for (const change of [
+      { id: "" },
+      { authorId: "" },
+      { authorLabel: "" },
+      { body: "" },
+      { anchor: null },
+      { resolution: null },
+      { status: "unknown" },
+      { createdAt: "" },
+      { updatedAt: "" },
+      { extra: true },
+    ]) {
+      expect(isWorkspaceSnapshot({ ...valid, comments: [{ ...comment, ...change }] }), JSON.stringify(change)).toBe(false);
+    }
+
     expect(isWorkspaceSnapshot({ ...valid, claimEvidenceLinks: [{ relation: "unknown" }] })).toBe(false);
     expect(isWorkspaceSnapshot({ ...valid, claimLinks: [{ anchor: null, resolution: null }] })).toBe(false);
     const validPublicationPdfLink = {

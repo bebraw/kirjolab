@@ -21,6 +21,27 @@ describe("BibTeX bibliography domain", () => {
     expect(serializeBibTeX(entry ? [entry] : [])).toContain("title = {{H}{T}{M}{L} {F}irst}");
   });
 
+  it("decodes every supported BibTeX accent and escaped display character", () => {
+    const accents = [
+      ['{\\"a}', "ä"],
+      ["{\\'e}", "é"],
+      ["{\\`e}", "è"],
+      ["{\\^o}", "ô"],
+      ["{\\~n}", "ñ"],
+      ["{\\=a}", "ā"],
+      ["{\\.z}", "ż"],
+      ["{\\ua}", "ă"],
+      ["{\\vc}", "č"],
+      ["{\\Ho}", "ő"],
+      ["{\\cc}", "ç"],
+      ["{\\ka}", "ą"],
+      ["{\\ra}", "å"],
+      ["\\'{e}", "é"],
+    ] as const;
+    for (const [source, expected] of accents) expect(bibTeXDisplayText(source), source).toBe(expected);
+    expect(bibTeXDisplayText(String.raw`A\{B\}  C\% \& \_ \# \textendash \textemdash`)).toBe("A{B} C% & _ # – —");
+  });
+
   it("parses braced, quoted, numeric, nested, and parenthesized entries", () => {
     expect(
       parseBibTeX(`
@@ -68,6 +89,8 @@ describe("BibTeX bibliography domain", () => {
     expect(parseBibTeX("@article{open, title={Never closes}")).toEqual([]);
     expect(normalizeDoi(" HTTPS://doi.org/10.1000/Example ")).toBe("10.1000/example");
     expect(normalizeDoi("10.2000/Plain")).toBe("10.2000/plain");
+    expect(normalizeDoi("prefix https://doi.org/10.1000/Example")).toBe("prefix https://doi.org/10.1000/example");
+    expect(normalizeDoi("https://example.org/https://doi.org/10.1000/Example")).toBe("https://example.org/https://doi.org/10.1000/example");
   });
 
   it("keeps entry boundaries and directive bodies out of the resource set", () => {
@@ -113,6 +136,12 @@ describe("BibTeX bibliography domain", () => {
       },
     ]);
     expect(parseBibTeX('@article{key, title "Missing equals"}')).toEqual([{ type: "article", citationKey: "key", fields: {} }]);
+    expect(parseBibTeX("@misc{bare, month=jan, year=2026}")).toEqual([
+      { type: "misc", citationKey: "bare", fields: { month: "jan", year: "2026" } },
+    ]);
+    expect(parseBibTeX('@misc{quoted, title="A \\"quote\\"", note="tail"}')).toEqual([
+      { type: "misc", citationKey: "quoted", fields: { title: 'A \\"quote\\"', note: "tail" } },
+    ]);
   });
 
   it("serializes every preferred field before alphabetical extension fields", () => {

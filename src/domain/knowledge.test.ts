@@ -393,13 +393,56 @@ describe("knowledge navigation", () => {
   it("validates search and graph representations", () => {
     const results = searchWorkspaceKnowledge(snapshot, "methods");
     const graph = buildWorkspaceKnowledgeGraph(snapshot);
+    const kinds = [
+      "project",
+      "document",
+      "section",
+      "publication",
+      "pdf",
+      "annotation",
+      "claim",
+      "note",
+      "person",
+      "model-candidate",
+    ] as const;
+    const relations = [
+      "cites",
+      "contains",
+      "participates-in",
+      "annotates",
+      "has-artifact",
+      "used-in",
+      "supports",
+      "contradicts",
+      "extends",
+      "derived-from",
+    ] as const;
     expect(isKnowledgeSearchResults(results)).toBe(true);
+    expect(isKnowledgeSearchResults(kinds.map((kind) => ({ resourceId: `id:${kind}`, kind, title: kind, excerpt: "", score: 0 })))).toBe(
+      true,
+    );
     expect(isWorkspaceKnowledgeGraph(graph)).toBe(true);
+    expect(
+      isWorkspaceKnowledgeGraph({
+        nodes: kinds.map((kind) => ({ id: `id:${kind}`, kind, label: kind })),
+        edges: relations.map((relation) => ({ id: `edge:${relation}`, relation, from: "id:project", to: "id:document", label: "" })),
+      }),
+    ).toBe(true);
     expect(isKnowledgeSearchResults([{ ...results[0], score: "high" }])).toBe(false);
     expect(isKnowledgeSearchResults([results[0], { ...results[0], title: "" }])).toBe(false);
+    for (const [field, invalid] of Object.entries({ resourceId: "", kind: "unknown", excerpt: null, score: "high" })) {
+      expect(isKnowledgeSearchResults([{ ...results[0], [field]: invalid }]), `search.${field}`).toBe(false);
+    }
     expect(isWorkspaceKnowledgeGraph({ ...graph, edges: [{ ...graph.edges[0], relation: "unknown" }] })).toBe(false);
     expect(isWorkspaceKnowledgeGraph({ ...graph, nodes: [graph.nodes[0], { ...graph.nodes[0], id: "" }] })).toBe(false);
+    for (const [field, invalid] of Object.entries({ id: "", kind: "unknown", label: "" })) {
+      expect(isWorkspaceKnowledgeGraph({ nodes: [{ ...graph.nodes[0], [field]: invalid }], edges: [] }), `node.${field}`).toBe(false);
+    }
+    for (const [field, invalid] of Object.entries({ id: "", relation: "unknown", from: "", to: "", label: null })) {
+      expect(isWorkspaceKnowledgeGraph({ nodes: [], edges: [{ ...graph.edges[0], [field]: invalid }] }), `edge.${field}`).toBe(false);
+    }
     expect(isWorkspaceKnowledgeGraph({ ...graph, edges: [graph.edges[0], { ...graph.edges[0], relation: "unknown" }] })).toBe(false);
     expect(isWorkspaceKnowledgeGraph({ nodes: null, edges: [] })).toBe(false);
+    expect(isWorkspaceKnowledgeGraph({ nodes: [], edges: null })).toBe(false);
   });
 });

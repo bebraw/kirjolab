@@ -175,6 +175,18 @@ describe("project revision comparison", () => {
 
   it("validates public history boundaries", () => {
     const comparison = compareProjectRevisions(base, { ...base, revision: 4 });
+    const folder = { id: "folder", path: "chapters", createdAt: "t1", updatedAt: "t1" };
+    const asset = {
+      id: "asset",
+      path: "figures/result.png",
+      mediaType: "image/png",
+      size: 12,
+      objectKey: "workspace/assets/result",
+      fingerprint: "sha256:result",
+      createdAt: "t1",
+      updatedAt: "t1",
+    };
+    const withCollections = { ...base, folders: [folder], assets: [asset] };
     const summary = {
       revision: 4,
       title: "Paper",
@@ -184,6 +196,7 @@ describe("project revision comparison", () => {
       milestones: [{ id: "tag", revision: 4, name: "submitted", description: "", createdAt: "now" }],
     };
     expect(isProjectRevisionContent(base)).toBe(true);
+    expect(isProjectRevisionContent(withCollections)).toBe(true);
     for (const change of [
       { revision: -1 },
       { title: null },
@@ -216,6 +229,21 @@ describe("project revision comparison", () => {
       updatedAt: null,
     })) {
       expect(isProjectRevisionContent({ ...base, files: [{ ...base.files[0], [field]: invalid }] }), field).toBe(false);
+    }
+    for (const [field, invalid] of Object.entries({ id: null, path: null, createdAt: null, updatedAt: null })) {
+      expect(isProjectRevisionContent({ ...withCollections, folders: [{ ...folder, [field]: invalid }] }), `folder.${field}`).toBe(false);
+    }
+    for (const [field, invalid] of Object.entries({
+      id: null,
+      path: null,
+      mediaType: null,
+      size: null,
+      objectKey: null,
+      fingerprint: null,
+      createdAt: null,
+      updatedAt: null,
+    })) {
+      expect(isProjectRevisionContent({ ...withCollections, assets: [{ ...asset, [field]: invalid }] }), `asset.${field}`).toBe(false);
     }
     expect(isProjectRevisionContent(null)).toBe(false);
     expect(isProjectRevisionContent([])).toBe(false);

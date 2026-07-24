@@ -341,6 +341,186 @@ describe("review appraisal and extraction evidence", () => {
       }),
     ).toThrow("metadata");
   });
+
+  it("validates every evidence pointer field and exact boundary", () => {
+    const pointer = {
+      kind: "pdf-annotation",
+      resourceId: "pdf-1",
+      selectorId: "annotation-1",
+      quote: " Evidence ",
+      page: 1,
+      location: " Results ",
+    };
+    expect(parseEvidencePointer(pointer, true)).toMatchObject({ quote: "Evidence", location: "Results", page: 1 });
+    expect(parseEvidencePointer({ ...pointer, kind: "web-passage", page: 100_000 }, true)).toMatchObject({
+      kind: "web-passage",
+      page: 100_000,
+    });
+    for (const value of [
+      null,
+      [],
+      { ...pointer, quote: 1 },
+      { ...pointer, quote: " " },
+      { ...pointer, quote: "x".repeat(20_001) },
+      { ...pointer, location: 1 },
+      { ...pointer, location: "x".repeat(1_001) },
+    ]) {
+      expect(() => parseEvidencePointer(value, true)).toThrow("Review evidence pointer is invalid");
+    }
+    for (const page of [0, 100_001, 1.5, "1"]) {
+      expect(() => parseEvidencePointer({ ...pointer, page }, true)).toThrow("Review evidence page is invalid");
+    }
+    for (const selector of [
+      { ...pointer, kind: "other" },
+      { ...pointer, resourceId: "" },
+      { ...pointer, resourceId: "x".repeat(129) },
+      { ...pointer, selectorId: "" },
+      { ...pointer, selectorId: "x".repeat(129) },
+    ]) {
+      expect(() => parseEvidencePointer(selector, true)).toThrow("Review source selector value is invalid");
+    }
+    expect(() => parseEvidencePointer(null, true)).toThrow("Review evidence pointer is invalid");
+  });
+
+  it("distinguishes all calendar boundaries and extraction collection constraints", () => {
+    const date = extractionField({ id: "date", label: "Date", type: "date" });
+    for (const valid of ["0001-01-01", "2000-02-29", "2024-12-31"]) {
+      expect(validateExtractionValue(date, valid, null)).toEqual({ value: valid, missingReason: null });
+    }
+    for (const invalid of [
+      "2024-01-01suffix",
+      "prefix2024-01-01",
+      "0000-01-01",
+      "2024-00-01",
+      "2024-13-01",
+      "2024-01-00",
+      "1900-02-29",
+      "2023-04-31",
+    ]) {
+      expect(() => validateExtractionValue(date, invalid, null)).toThrow("Extraction value does not match its field type");
+    }
+    const multiple = extractionField({ id: "choice", label: "Choice", type: "multiple-choice", values: ["a", "b"] });
+    for (const invalid of [[], ["a", "b", "c"], ["a", 1], ["unknown"], ["a", "a"]]) {
+      expect(() => validateExtractionValue(multiple, invalid, null)).toThrow("Extraction value does not match its field type");
+    }
+    expect(() => validateExtractionValue({ ...date, type: "text" }, " ", null)).toThrow("Extraction value does not match its field type");
+    expect(() => validateExtractionValue({ ...date, type: "text" }, "x".repeat(20_001), null)).toThrow(
+      "Extraction value does not match its field type",
+    );
+    expect(() => validateExtractionValue({ ...date, type: "integer" }, 1.5, null)).toThrow(
+      "Extraction value does not match its field type",
+    );
+    expect(() => validateExtractionValue({ ...date, type: "decimal" }, Number.NaN, null)).toThrow(
+      "Extraction value does not match its field type",
+    );
+  });
+
+  it("rejects every unsafe transport extraction shape", () => {
+    expect(parseExtractionValueShape(0)).toBe(0);
+    expect(parseExtractionValueShape(["x"])).toEqual(["x"]);
+    expect(parseExtractionValueShape(Array.from({ length: 128 }, (_, index) => `value-${index}`))).toHaveLength(128);
+    for (const invalid of [
+      undefined,
+      Number.NaN,
+      [],
+      Array.from({ length: 129 }, (_, index) => `value-${index}`),
+      ["x", 1],
+      ["x", "x"],
+      { kind: "pdf-annotation", resourceId: "resource", selectorId: "selector", extra: true },
+      { kind: "pdf-annotation", resourceId: " ", selectorId: "selector" },
+      { kind: "pdf-annotation", resourceId: "resource", selectorId: " " },
+    ]) {
+      expect(() => parseExtractionValueShape(invalid)).toThrow();
+    }
+  });
+
+  it("distinguishes legacy pointer fields and exact rationale/value boundaries", () => {
+    const pointer = {
+      kind: "pdf-annotation" as const,
+      resourceId: "r".repeat(128),
+      selectorId: "s".repeat(128),
+      quote: "q".repeat(20_000),
+      page: null,
+      location: "l".repeat(1_000),
+    };
+    const answers = defaultReviewProtocol().qualityAssessment.answers;
+    const positive = answers.find((answer) => answer.id === "yes")!;
+    const negative = answers.find((answer) => answer.id === "no")!;
+
+    expect(validateQualityAssessment(positive, pointer, "r".repeat(2_000))).toEqual({
+      evidence: pointer,
+      rationale: "r".repeat(2_000),
+    });
+    expect(validateQualityAssessment(negative, pointer, "")).toEqual({ evidence: pointer, rationale: "" });
+    expect(() => validateQualityAssessment(positive, pointer, "r".repeat(2_001))).toThrow("Quality assessment rationale is invalid");
+
+    for (const partial of [
+      { quote: "Evidence", page: null, location: "Results", resourceId: "legacy-unresolved", selectorId: "legacy-unresolved" },
+      { quote: "Evidence", page: null, location: "Results", kind: "legacy-unresolved", selectorId: "legacy-unresolved" },
+      { quote: "Evidence", page: null, location: "Results", kind: "legacy-unresolved", resourceId: "legacy-unresolved" },
+      {
+        quote: "Evidence",
+        page: null,
+        location: "Results",
+        kind: "legacy-unresolved",
+        resourceId: "different",
+        selectorId: "legacy-unresolved",
+      },
+    ]) {
+      expect(() => parseEvidencePointer(partial, true, true)).toThrow("Review source selector value is invalid");
+    }
+
+    const text = extractionField({ id: "text", label: "Text", type: "text" });
+    expect(validateExtractionValue(text, "x".repeat(20_000), "   ")).toEqual({
+      value: "x".repeat(20_000),
+      missingReason: null,
+    });
+    expect(validateExtractionValue(text, null, "m".repeat(2_000))).toEqual({
+      value: null,
+      missingReason: "m".repeat(2_000),
+    });
+    expect(
+      validateExtractionValue(
+        { ...text, type: "source-selector" },
+        { kind: "web-passage", resourceId: ` ${"r".repeat(126)} `, selectorId: ` ${"s".repeat(126)} ` },
+        null,
+      ),
+    ).toEqual({
+      value: { kind: "web-passage", resourceId: "r".repeat(126), selectorId: "s".repeat(126) },
+      missingReason: null,
+    });
+  });
+
+  it("counts answered questions independently from recognized scoring options", () => {
+    const defaults = defaultReviewProtocol();
+    const protocol = {
+      qualityAssessment: {
+        ...defaults.qualityAssessment,
+        questions: [{ id: "quality", text: "Quality?" }],
+      },
+      extractionFields: [],
+    };
+    const unknownAnswer = {
+      id: "value",
+      recordId: "record",
+      protocolRevision: 1,
+      questionId: "quality",
+      criterionId: "quality",
+      criterionText: "Quality?",
+      answerId: "retired-answer",
+      evidence: null,
+      rationale: "Legacy answer",
+      reviewer: "reviewer",
+      createdAt: "2026-07-24",
+    };
+
+    expect(summarizeEvidenceRecord(evidenceRecord(), protocol, [unknownAnswer], [])).toMatchObject({
+      qualityScore: 0,
+      qualityRejected: false,
+      qualityComplete: true,
+      extractionComplete: true,
+    });
+  });
 });
 
 function extractionField(overrides: Partial<ExtractionFieldDefinition> & Pick<ExtractionFieldDefinition, "id" | "label" | "type">) {

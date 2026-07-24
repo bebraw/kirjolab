@@ -133,4 +133,147 @@ describe("Vim textarea keybindings", () => {
       session: { mode: "normal", register: { text: "alp", linewise: false } },
     });
   });
+
+  it("maps every navigation alias and preserves target columns across uneven lines", () => {
+    const value = "abcd\nx\nwxyz";
+    expect(keys(value, ["ArrowRight"], 1)).toMatchObject({ selectionStart: 2, handled: true, changed: false });
+    expect(keys(value, ["ArrowLeft"], 1)).toMatchObject({ selectionStart: 0, handled: true, changed: false });
+    expect(keys(value, ["End"], 1)).toMatchObject({ selectionStart: 3, handled: true, changed: false });
+    expect(keys(value, ["Home"], 3)).toMatchObject({ selectionStart: 0, handled: true, changed: false });
+    expect(keys(value, ["ArrowDown"], 3)).toMatchObject({ selectionStart: 6, handled: true, changed: false });
+    expect(keys(value, ["ArrowDown", "ArrowDown"], 3)).toMatchObject({ selectionStart: 8, handled: true, changed: false });
+    expect(keys(value, ["ArrowUp"], 9)).toMatchObject({ selectionStart: 6, handled: true, changed: false });
+    expect(keys(value, ["1", "0", "l"], 0)).toMatchObject({
+      selectionStart: 3,
+      session: { count: "", pending: null },
+      handled: true,
+      changed: false,
+    });
+    expect(keys("one,  two", ["w"])).toMatchObject({ selectionStart: 6 });
+    expect(keys("one,  two", ["e"], 3)).toMatchObject({ selectionStart: 8 });
+    expect(keys("one,  two", ["b"], 8)).toMatchObject({ selectionStart: 6 });
+  });
+
+  it("handles exact linewise edit and open-line boundaries", () => {
+    expect(keys("abc", ["o"], 1)).toMatchObject({
+      value: "abc\n",
+      selectionStart: 4,
+      session: { mode: "insert" },
+      handled: true,
+      changed: true,
+    });
+    expect(keys("abc\n", ["o"], 1)).toMatchObject({
+      value: "abc\n\n",
+      selectionStart: 4,
+      session: { mode: "insert" },
+      handled: true,
+      changed: true,
+    });
+    expect(keys("one\ntwo", ["c", "c"], 4)).toMatchObject({
+      value: "one\n",
+      selectionStart: 4,
+      session: { mode: "insert", register: { text: "two\n", linewise: true } },
+      handled: true,
+      changed: true,
+    });
+    const yankedLast = keys("one\ntwo", ["y", "y"], 4);
+    expect(yankedLast).toMatchObject({
+      value: "one\ntwo",
+      selectionStart: 4,
+      session: { mode: "normal", register: { text: "two\n", linewise: true } },
+      handled: true,
+      changed: false,
+    });
+    expect(handleVimKey(yankedLast.session, editor("one\ntwo", 4), "p")).toMatchObject({
+      value: "one\ntwo\ntwo\n",
+      selectionStart: 8,
+      changed: true,
+    });
+  });
+
+  it("distinguishes every visual edit and pending-command reset path", () => {
+    const forward = keys("alpha", ["v", "2", "l"]);
+    expect(handleVimKey(forward.session, forward, "x")).toMatchObject({
+      value: "ha",
+      selectionStart: 0,
+      selectionEnd: 0,
+      session: { mode: "normal", register: { text: "alp", linewise: false } },
+      handled: true,
+      changed: true,
+    });
+    expect(handleVimKey(forward.session, forward, "q")).toMatchObject({
+      value: "alpha",
+      selectionStart: 0,
+      selectionEnd: 3,
+      selectionDirection: "forward",
+      session: { mode: "visual" },
+      handled: true,
+      changed: false,
+    });
+    expect(handleVimKey(forward.session, forward, "Tab")).toMatchObject({ handled: false, changed: false });
+
+    const pendingG = handleVimKey(createVimSession(), editor("one\ntwo", 4), "g");
+    expect(handleVimKey(pendingG.session, pendingG, "q")).toMatchObject({
+      selectionStart: 4,
+      session: { pending: null, count: "" },
+      handled: true,
+      changed: false,
+    });
+    expect(handleVimKey(createVimSession(), editor("alpha", 2), "Escape")).toMatchObject({
+      selectionStart: 2,
+      session: { mode: "normal", pending: null, count: "" },
+      handled: true,
+      changed: false,
+    });
+  });
+
+  it("covers document, word, selection, and paste boundary transitions exactly", () => {
+    const lines = "first\nx\nthird\n";
+    expect(keys(lines, ["9", "9", "9", "G"], 0)).toMatchObject({ selectionStart: lines.length });
+    expect(keys(lines, ["9", "9", "9", "g", "g"], lines.length)).toMatchObject({
+      selectionStart: lines.length,
+      session: { count: "", pending: null },
+    });
+    expect(keys(lines, ["k"], 0)).toMatchObject({ selectionStart: 0 });
+    expect(keys(lines, ["j"], lines.length)).toMatchObject({ selectionStart: lines.length });
+    expect(keys("alpha...beta", ["w"], 4)).toMatchObject({ selectionStart: 8 });
+    expect(keys("alpha...beta", ["w"], 8)).toMatchObject({ selectionStart: 12 });
+    expect(keys("alpha...beta", ["b"], 8)).toMatchObject({ selectionStart: 0 });
+    expect(keys("...alpha", ["e"], 0)).toMatchObject({ selectionStart: 7 });
+    expect(keys("alpha...", ["e"], 7)).toMatchObject({ selectionStart: 8 });
+
+    const atEnd = keys("abc", ["l", "l", "v", "l"]);
+    expect(atEnd).toMatchObject({
+      selectionStart: 2,
+      selectionEnd: 3,
+      selectionDirection: "forward",
+      session: { mode: "visual" },
+    });
+    const backward = visualVimSession(createVimSession());
+    expect(handleVimKey(backward, editor("abc", 0, 3, "backward"), "l")).toMatchObject({
+      selectionStart: 1,
+      selectionEnd: 3,
+      selectionDirection: "backward",
+    });
+
+    const linewise = {
+      ...createVimSession(),
+      register: { text: "copy\n", linewise: true },
+    } satisfies VimSession;
+    expect(handleVimKey(linewise, editor("one\ntwo\n", 4), "P")).toMatchObject({
+      value: "one\ncopy\ntwo\n",
+      selectionStart: 4,
+      changed: true,
+    });
+    expect(handleVimKey(linewise, editor("one\ntwo\n", 4), "p")).toMatchObject({
+      value: "one\ntwo\ncopy\n",
+      selectionStart: 8,
+      changed: true,
+    });
+    expect(handleVimKey(linewise, editor("", 0), "p")).toMatchObject({
+      value: "\ncopy\n",
+      selectionStart: 1,
+      changed: true,
+    });
+  });
 });

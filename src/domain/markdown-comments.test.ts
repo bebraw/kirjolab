@@ -101,4 +101,28 @@ inside code
       expect(projection).toEqual({ masked: source, ranges: [], unclosedFrom: null });
     }
   });
+
+  it("requires complete standalone comment and frontmatter markers", () => {
+    for (const source of [
+      "prefix ::: comment\nhidden\n:::\n",
+      "::: comment suffix\nhidden\n:::\n",
+      ":::comment\nhidden\n:::\n",
+      "::: comment\nhidden\nprefix :::\n",
+      "::: comment\nhidden\n::: suffix\n",
+    ]) {
+      const projection = projectMarkdownComments(source);
+      if (source.startsWith("::: comment\n")) {
+        expect(projection.unclosedFrom, source).toBe(0);
+      } else {
+        expect(projection, source).toEqual({ masked: source, ranges: [], unclosedFrom: null });
+      }
+    }
+
+    const valid = "\t:::  comment\t\nhidden\n \t::: \t\n";
+    expect(projectMarkdownComments(valid)).toMatchObject({ ranges: [{ from: 0, to: valid.length - 1 }], unclosedFrom: null });
+
+    for (const source of ["--- suffix\n::: comment\nhidden\n:::\n", "prefix ---\n::: comment\nhidden\n:::\n"]) {
+      expect(projectMarkdownComments(source).ranges, source).toHaveLength(1);
+    }
+  });
 });

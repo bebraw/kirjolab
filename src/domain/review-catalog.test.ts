@@ -10,6 +10,7 @@ import {
   isWorkspaceRouteId,
   normalizeReviewEmail,
   normalizeReviewTitle,
+  reviewResourceLimits,
   type ReviewSummary,
 } from "./review-catalog";
 
@@ -28,6 +29,8 @@ const summary: ReviewSummary = {
 describe("review catalog boundaries", () => {
   it("recognizes stable review identities, roles, profiles, and locators", () => {
     expect(isReviewId(reviewId)).toBe(true);
+    expect(isReviewId(`prefix-${reviewId}`)).toBe(false);
+    expect(isReviewId(`${reviewId}-suffix`)).toBe(false);
     expect(isReviewId("workspace-1")).toBe(false);
     expect(isWorkspaceRouteId("workspace-1")).toBe(true);
     expect(isWorkspaceRouteId("workspace/1")).toBe(false);
@@ -40,6 +43,10 @@ describe("review catalog boundaries", () => {
     expect(isReviewRole("member")).toBe(true);
     expect(isReviewRole("reader")).toBe(false);
     expect(isIsoTimestamp(summary.createdAt)).toBe(true);
+    const exactTimestampBoundary = "Sun, 19 Jul 2026 10:00:00 GMT+0000 (UTC)";
+    expect(exactTimestampBoundary).toHaveLength(40);
+    expect(isIsoTimestamp(exactTimestampBoundary)).toBe(true);
+    expect(isIsoTimestamp(`${exactTimestampBoundary}x`)).toBe(false);
     expect(isIsoTimestamp("not-a-date")).toBe(false);
   });
 
@@ -48,7 +55,9 @@ describe("review catalog boundaries", () => {
     expect(() => normalizeReviewTitle(" ")).toThrow("title");
     expect(() => normalizeReviewTitle("x".repeat(121))).toThrow("title");
     expect(normalizeReviewEmail(" Reviewer@Example.TEST ")).toBe("reviewer@example.test");
+    expect(normalizeReviewEmail(`${"x".repeat(315)}@e.io`)).toHaveLength(320);
     expect(() => normalizeReviewEmail("not-an-email")).toThrow("email");
+    expect(() => normalizeReviewEmail("prefix reviewer@example.test suffix")).toThrow("email");
     expect(() => normalizeReviewEmail(`${"x".repeat(310)}@example.test`)).toThrow("email");
   });
 
@@ -58,6 +67,20 @@ describe("review catalog boundaries", () => {
     expect(isReviewSummary({ ...summary, href: "/review/workspace-1" })).toBe(false);
     expect(isReviewSummary({ ...summary, title: " padded " })).toBe(false);
     expect(isReviewSummary({ ...summary, archivedAt: "invalid" })).toBe(false);
+    for (const change of [
+      { id: "invalid" },
+      { title: "" },
+      { title: "x".repeat(121) },
+      { profile: "project" },
+      { role: "reader" },
+      { createdAt: "invalid" },
+      { updatedAt: "invalid" },
+    ]) {
+      expect(isReviewSummary({ ...summary, ...change }), JSON.stringify(change)).toBe(false);
+    }
+    expect(isReviewSummaries([summary, { ...summary, title: "" }])).toBe(false);
+    expect(isReviewSummaries(Array.from({ length: reviewResourceLimits.catalogEntries }, () => summary))).toBe(true);
+    expect(isReviewSummaries(Array.from({ length: reviewResourceLimits.catalogEntries + 1 }, () => summary))).toBe(false);
     expect(isReviewSummaries("not-an-array")).toBe(false);
   });
 });

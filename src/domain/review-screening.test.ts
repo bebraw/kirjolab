@@ -29,6 +29,16 @@ describe("review screening", () => {
     ).toBe("include");
   });
 
+  it("uses only the latest decision from each case-insensitive reviewer identity", () => {
+    const revised = { ...decision("A@EXAMPLE.COM", "exclude"), id: "decision-revised" };
+    expect(screeningStageState([first, revised], null, 1)).toMatchObject({
+      outcome: "exclude",
+      decisions: [first, revised],
+      adjudication: null,
+    });
+    expect(screeningStageState([first, revised], null, 2).outcome).toBe("pending");
+  });
+
   it("parses attributed records and gates full text on title-and-abstract inclusion", () => {
     const snapshot = parseReviewScreeningSnapshot(screeningSnapshotInput());
     expect(snapshot).toMatchObject({ revision: 5, records: [{ record: { metadata: { title: "Study" } } }] });
@@ -150,6 +160,26 @@ describe("review screening", () => {
     expect(() =>
       parseReviewScreeningSnapshot({
         ...input,
+        records: [{ ...input.records[0], finalInclusion: { outcome: "include", decision: null } }],
+      }),
+    ).toThrow("inconsistent");
+    expect(() =>
+      parseReviewScreeningSnapshot({
+        ...input,
+        records: [
+          {
+            ...input.records[0],
+            finalInclusion: {
+              outcome: "include",
+              decision: { ...included.records[0]!.finalInclusion.decision, outcome: "exclude" },
+            },
+          },
+        ],
+      }),
+    ).toThrow("inconsistent");
+    expect(() =>
+      parseReviewScreeningSnapshot({
+        ...input,
         records: [
           {
             ...input.records[0],
@@ -176,6 +206,17 @@ describe("review screening", () => {
           {
             ...input.records[0],
             record: { ...input.records[0]!.record, metadata: { ...input.records[0]!.record.metadata, warnings: [1] } },
+          },
+        ],
+      }),
+    ).toThrow("metadata");
+    expect(() =>
+      parseReviewScreeningSnapshot({
+        ...input,
+        records: [
+          {
+            ...input.records[0],
+            record: { ...input.records[0]!.record, metadata: { ...input.records[0]!.record.metadata, authors: ["Doe, Jane", 1] } },
           },
         ],
       }),

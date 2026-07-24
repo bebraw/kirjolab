@@ -12,6 +12,16 @@ import {
 const timestamp = "2026-07-19T08:00:00.000Z";
 
 describe("review findings", () => {
+  it("publishes exact finding limits", () => {
+    expect(reviewFindingLimits).toEqual({
+      findings: 10_000,
+      contributorsPerKind: 512,
+      evidenceLinks: 1_024,
+      statementCharacters: 4_000,
+      interpretationCharacters: 20_000,
+    });
+  });
+
   it("materializes a revision-pinned, evidence-linked RQ finding", () => {
     const finding = materializeReviewFinding(input(), {
       id: "finding-1",
@@ -190,6 +200,136 @@ describe("review findings", () => {
     expect(() => parseReviewFindingsSnapshot({ revision: 10, findings: [{ ...original, createdAt: "2026-07-19" }] })).toThrow(
       "time is invalid",
     );
+  });
+
+  it("trims authored values, accepts an empty interpretation, and materializes a supersession id", () => {
+    const parsed = parseReviewFindingInput({
+      ...input(),
+      researchQuestionId: " rq-1 ",
+      statement: " statement ",
+      interpretation: "   ",
+      supersedesId: " finding-0 ",
+    });
+
+    expect(parsed).toEqual({
+      ...input(),
+      researchQuestionId: "rq-1",
+      statement: "statement",
+      interpretation: "",
+      supersedesId: "finding-0",
+    });
+  });
+
+  it("accepts exact text and id boundaries and rejects each adjacent value", () => {
+    const id = `a${"x".repeat(127)}`;
+    expect(
+      parseReviewFindingInput({
+        ...input(),
+        researchQuestionId: id,
+        statement: "x".repeat(reviewFindingLimits.statementCharacters),
+        interpretation: "x".repeat(reviewFindingLimits.interpretationCharacters),
+      }),
+    ).toMatchObject({ researchQuestionId: id });
+
+    for (const [field, value, message] of [
+      ["researchQuestionId", "", "Research question ID is invalid"],
+      ["researchQuestionId", `a${"x".repeat(128)}`, "Research question ID is invalid"],
+      ["researchQuestionId", "-starts-with-dash", "Research question ID is invalid"],
+      ["researchQuestionId", "contains space", "Research question ID is invalid"],
+      ["statement", "", "Review finding statement is invalid"],
+      ["statement", "x".repeat(reviewFindingLimits.statementCharacters + 1), "Review finding statement is invalid"],
+      ["interpretation", "x".repeat(reviewFindingLimits.interpretationCharacters + 1), "Review finding interpretation is invalid"],
+      ["supersedesId", 1, "Superseded review finding ID is invalid"],
+    ] as const) {
+      expect(() => parseReviewFindingInput({ ...input(), [field]: value })).toThrow(message);
+    }
+  });
+
+  it("rejects non-arrays, oversized arrays, and duplicate contributor kinds independently", () => {
+    expect(() => parseReviewFindingInput({ ...input(), extractionValueIds: "extraction-1" })).toThrow(
+      "Review finding extraction contributors are invalid",
+    );
+    expect(() =>
+      parseReviewFindingInput({
+        ...input(),
+        extractionValueIds: Array.from({ length: reviewFindingLimits.contributorsPerKind + 1 }, (_, index) => `extraction-${index}`),
+      }),
+    ).toThrow("Review finding extraction contributors are invalid");
+    expect(() => parseReviewFindingInput({ ...input(), appraisalValueIds: ["appraisal-1", "appraisal-1"] })).toThrow(
+      "Review finding appraisal contributor IDs must be unique",
+    );
+    expect(() => parseReviewFindingInput({ ...input(), evidence: "evidence" })).toThrow("Review finding evidence links are invalid");
+    expect(() =>
+      parseReviewFindingInput({
+        ...input(),
+        evidence: Array.from({ length: reviewFindingLimits.evidenceLinks + 1 }, () => input().evidence[0]),
+      }),
+    ).toThrow("Review finding evidence links are invalid");
+  });
+
+  it("distinguishes evidence-link envelope and pointer failures", () => {
+    const first = input().evidence[0]!;
+    for (const [value, message] of [
+      [{ ...first, extra: true }, "Review finding evidence link is invalid"],
+      [{ ...first, contributorKind: "Extraction" }, "Review finding contributor kind is invalid"],
+      [{ ...first, contributorId: "?" }, "Review finding contributor ID is invalid"],
+      [{ ...first, pointer: { ...first.pointer, extra: true } }, "Review finding evidence pointer is invalid"],
+      [{ ...first, pointer: { ...first.pointer, page: 0 } }, "Review evidence page is invalid"],
+    ] as const) {
+      expect(() =>
+        parseReviewFindingInput({
+          ...input(),
+          evidence: [value, input().evidence[1]],
+        }),
+      ).toThrow(message);
+    }
+  });
+
+  it("validates every finding context field and canonical timestamp", () => {
+    const valid = {
+      id: "finding-1",
+      reviewRevision: 1,
+      protocolRevision: 1,
+      createdBy: "author@example.com",
+      createdAt: timestamp,
+    };
+    for (const [field, value, message] of [
+      ["id", "?", "Review finding ID is invalid"],
+      ["reviewRevision", 1.5, "Review finding revision is invalid"],
+      ["reviewRevision", Number.MAX_SAFE_INTEGER + 1, "Review finding revision is invalid"],
+      ["protocolRevision", 0, "Review finding protocol revision is invalid"],
+      ["createdBy", "", "Review finding author is invalid"],
+      ["createdBy", "x".repeat(321), "Review finding author is invalid"],
+      ["createdAt", 1, "Review finding time is invalid"],
+      ["createdAt", "2026-02-30T08:00:00.000Z", "Review finding time is invalid"],
+      ["createdAt", "2026-07-19T08:00:00Z", "Review finding time is invalid"],
+    ] as const) {
+      expect(() => materializeReviewFinding(input(), { ...valid, [field]: value })).toThrow(message);
+    }
+  });
+
+  it("sorts equal-revision findings by timestamp and id and preserves an empty snapshot", () => {
+    const later = finding("finding-z", 4);
+    const earlier = { ...finding("finding-b", 4), createdAt: "2026-07-19T08:03:00.000Z" };
+    const sameTimeEarlierId = { ...earlier, id: "finding-a" };
+
+    expect(
+      parseReviewFindingsSnapshot({ revision: 4, findings: [later, earlier, sameTimeEarlierId] }).findings.map(({ id }) => id),
+    ).toEqual(["finding-a", "finding-b", "finding-z"]);
+    expect(parseReviewFindingsSnapshot({ revision: 1, findings: [] })).toEqual({ revision: 1, findings: [] });
+    expect(currentReviewFindings({ revision: 1, findings: [] })).toEqual([]);
+  });
+
+  it("rejects malformed snapshot envelopes, revisions, and oversized histories", () => {
+    for (const value of [null, [], {}, { revision: 1 }, { revision: 1, findings: "items" }, { revision: 0, findings: [] }]) {
+      expect(() => parseReviewFindingsSnapshot(value)).toThrow();
+    }
+    expect(() =>
+      parseReviewFindingsSnapshot({
+        revision: 1,
+        findings: Array.from({ length: reviewFindingLimits.findings + 1 }, () => finding("finding-1", 1)),
+      }),
+    ).toThrow("Review finding findings are invalid");
   });
 });
 

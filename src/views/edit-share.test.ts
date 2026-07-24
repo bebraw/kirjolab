@@ -52,6 +52,10 @@ describe("editable project viewer", () => {
     expect(html).toContain('data-shared-save-path="/edit/locator.secret/files/main-file"');
     expect(html).toContain('data-shared-snapshot-path="/edit/locator.secret/snapshot"');
     expect(html).toContain('id="shared-editor-surfaces" data-active-surface="authoring" data-layout="split"');
+    expect(html).toContain("<title>Editable &lt;draft&gt; · Edit link · Kirjolab</title>");
+    expect(html).toContain('id="edit-live-status" role="status">Connecting…</span>');
+    expect(html).toContain('title="Anyone with this link can edit" aria-label="Anyone with this link can edit">Edit link</span>');
+    expect(html).toContain('<option value="split" selected>Split</option>');
     expect(html).toContain('aria-label="Project files"');
     expect(html).toContain('id="edit-source-highlight" data-shared-highlight');
     expect(html).toContain('id="edit-source" data-shared-source maxlength="2000000"');
@@ -62,9 +66,14 @@ describe("editable project viewer", () => {
     expect(html).toContain('<option value="main-file" selected>main.md</option>');
     expect(html).toContain('<option value="section-file">sections/results.md</option>');
     expect(html).toContain('id="edit-collaborator-selections" data-shared-collaborator-selections aria-live="polite"');
+    expect(html).toContain('id="edit-source-shell"');
+    expect(html).toContain('id="edit-save-status" role="status">Saved · revision 9</span>');
+    expect(html).toContain('<span class="shared-editor-mode-label">Editing</span>');
+    expect(html).toContain('<p class="sr-only" id="shared-editor-help">Markdown changes save to this shared project.</p>');
     expect(html).toContain("# Main &lt;source&gt;");
     expect(html).not.toContain("# Main <source>");
     expect(html).toContain('id="edit-pdf-viewer" data-shared-pdf-viewer src="/edit/locator.secret/document.pdf"');
+    expect(html).toContain('href="/edit/locator.secret/document.pdf" target="_blank"');
     expect(html.indexOf("main.md")).toBeLessThan(html.indexOf("sections/results.md"));
     expect(html).toContain(
       '<a class="project-file-row" data-active="true" href="?file=main-file" aria-current="page"><span class="min-w-0 truncate">main.md</span><span class="project-file-kind">Editing</span></a>',

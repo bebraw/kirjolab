@@ -154,6 +154,21 @@ describe("local model companion", () => {
     expect(providerFailure.status).toBe(502);
     await expect(providerFailure.json()).resolves.toEqual({ error: "Local model unavailable" });
 
+    const timedOut = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", { headers: { origin: config.allowedOrigin } }),
+      config,
+      vi.fn<typeof fetch>().mockRejectedValue(new DOMException("aborted", "AbortError")),
+    );
+    expect(timedOut.status).toBe(502);
+    await expect(timedOut.json()).resolves.toEqual({ error: "Local model discovery timed out" });
+
+    const exact = await handleModelCompanionRequest(
+      new Request("http://127.0.0.1:8790/v1/models", { headers: { origin: config.allowedOrigin } }),
+      config,
+      vi.fn<typeof fetch>().mockResolvedValue(new Response(new Uint8Array(256 * 1_024))),
+    );
+    expect((await exact.arrayBuffer()).byteLength).toBe(256 * 1_024);
+
     const oversized = await handleModelCompanionRequest(
       new Request("http://127.0.0.1:8790/v1/models", { headers: { origin: config.allowedOrigin } }),
       config,
@@ -274,6 +289,11 @@ describe("local model companion", () => {
   });
 
   it("rejects declared and streamed request bodies above the byte limit", async () => {
+    const exact = request("POST", validPayload, { "content-length": String(256 * 1_024) });
+    expect(
+      (await handleModelCompanionRequest(exact, config, vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [] })))).status,
+    ).toBe(200);
+
     const declared = request("POST", validPayload, { "content-length": String(256 * 1_024 + 1) });
     const declaredResponse = await handleModelCompanionRequest(declared, config);
     expect(declaredResponse.status).toBe(400);
@@ -295,6 +315,21 @@ describe("local model companion", () => {
     );
     expect(unavailable.status).toBe(502);
     await expect(unavailable.json()).resolves.toEqual({ error: "Local model unavailable" });
+
+    const timedOut = await handleModelCompanionRequest(
+      request("POST", validPayload),
+      config,
+      vi.fn<typeof fetch>().mockRejectedValue(new DOMException("aborted", "AbortError")),
+    );
+    expect(timedOut.status).toBe(502);
+    await expect(timedOut.json()).resolves.toEqual({ error: "Local model request timed out" });
+
+    const exact = await handleModelCompanionRequest(
+      request("POST", validPayload),
+      config,
+      vi.fn<typeof fetch>().mockResolvedValue(new Response(new Uint8Array(256 * 1_024))),
+    );
+    expect((await exact.arrayBuffer()).byteLength).toBe(256 * 1_024);
 
     const oversized = new Response(new Uint8Array(256 * 1_024 + 1));
     const bounded = await handleModelCompanionRequest(

@@ -356,6 +356,9 @@ Published ending.
   it("counts visible Unicode prose across every excluded Markdown form without joining adjacent words", () => {
     for (const [label, source, expected] of [
       ["front matter", "--- \r\ntitle: Hidden words\r\nkind: article\r\n--- \r\nVisible words", 2],
+      ["front matter without trailing newline", "---\ntitle: Hidden words\n---", 0],
+      ["front matter requires opening newline", "--- title\nHidden words\n---\nVisible", 4],
+      ["front matter requires closing newline", "---\ntitle: Hidden words\n--- trailing\nVisible", 5],
       ["anchored front matter", "Prelude\n---\ntitle: visible metadata\n---\nTail", 5],
       ["fenced code", "Before```ts\nhidden block words\n```After", 2],
       ["inline code", "Before`hidden code`After", 2],
@@ -365,10 +368,15 @@ Published ending.
       ["textual citation alias", "Before:citet[hiddenKey]After", 2],
       ["parenthetical citation alias", "Before:citep[hiddenKey]After", 2],
       ["bibliography marker", "Before\n::bibliography[]\nAfter", 2],
+      ["indented bibliography marker", "Before\n \t::bibliography[] \t\nAfter", 2],
+      ["inline bibliography marker", "Before ::bibliography[] After", 3],
       ["image", 'Before![descriptive alt text](image-long.png "Long image title")After', 5],
       ["empty image", "Before![](image.png)After", 2],
       ["link", 'Before[visible link label](https://example.test/long-path "Long link title")After', 5],
+      ["empty link label is not a link", "Before[](https://example.test/long)After", 6],
       ["autolinks", "Before<http://example.test/long><https://example.test/long>After", 2],
+      ["one-character autolink body", "Before<https://x>After", 2],
+      ["unterminated autolink", "Before<https://example.test/long After", 6],
       ["html", 'Before<section data-name="hidden words">Middle</section>After', 3],
       ["heading id", "Before{#long-hidden-id}After", 2],
       ["word boundaries", "can't researcher’s state-of-the-art 123 naïve", 5],
@@ -434,6 +442,77 @@ Published ending.
     ]) {
       expect(isPublicationWordStatistics(invalid), JSON.stringify(invalid)).toBe(false);
     }
+  });
+
+  it("maps headings at source-span boundaries and falls back without a source map", () => {
+    const content = "# First\none\n# Second\ntwo";
+    const first = file("first", "a.md", "xxxxx# First\none\n");
+    const second = file("second", "b.md", "0123456789# Second\ntwo");
+    const statistics = publicationWordStatistics(
+      {
+        content,
+        sourceMap: [
+          {
+            outputStart: 0,
+            outputEnd: 12,
+            fileId: "first",
+            path: "a.md",
+            sourceStart: 5,
+            sourceEnd: 17,
+            includeChain: ["first"],
+          },
+          {
+            outputStart: 12,
+            outputEnd: content.length,
+            fileId: "second",
+            path: "b.md",
+            sourceStart: 10,
+            sourceEnd: second.content.length,
+            includeChain: ["first", "second"],
+          },
+        ],
+      },
+      [first, second],
+    );
+
+    expect(statistics.headings).toEqual([
+      {
+        fileId: "first",
+        path: "a.md",
+        from: 5,
+        to: 12,
+        line: 1,
+        includeChain: ["first"],
+        depth: 1,
+        heading: "First",
+        words: 2,
+      },
+      {
+        fileId: "second",
+        path: "b.md",
+        from: 10,
+        to: 18,
+        line: 1,
+        includeChain: ["first", "second"],
+        depth: 1,
+        heading: "Second",
+        words: 2,
+      },
+    ]);
+
+    expect(publicationWordStatistics({ content: "# Orphan\r\nbody", sourceMap: [] }, []).headings).toEqual([
+      {
+        fileId: "",
+        path: "main.md",
+        from: 0,
+        to: 0,
+        line: 1,
+        includeChain: [],
+        depth: 1,
+        heading: "Orphan",
+        words: 2,
+      },
+    ]);
   });
 
   it("creates byte-reproducible LaTeX and archival ZIPs with pinned manifests", () => {
