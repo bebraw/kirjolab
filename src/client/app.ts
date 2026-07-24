@@ -7714,30 +7714,20 @@ class WorkspaceApp {
   }
 
   #renderPublicationIntake(pdfId: string): void {
-    if (!this.#snapshot) return;
+    const snapshot = this.#snapshot;
+    if (!snapshot) return;
     if (this.#publicationIntake.getSnapshot().context.pdfId !== pdfId) this.#publicationIntake.send({ type: "OPEN", pdfId });
 
-    const publications = this.#snapshot.publicationPdfLinks
+    const publications = snapshot.publicationPdfLinks
       .filter((link) => link.pdfId === pdfId)
-      .map((link) => this.#snapshot?.publications.find((publication) => publication.id === link.publicationId))
+      .map((link) => snapshot.publications.find((publication) => publication.id === link.publicationId))
       .filter((publication): publication is PublicationResource => Boolean(publication));
     const linked = publications.length > 0;
     this.#elements.publicationIntakeForm.hidden = linked;
     this.#elements.publicationIntakeLinked.hidden = !linked;
-    this.#elements.publicationIntakeLinkedList.replaceChildren();
-    for (const publication of publications) {
-      const row = document.createElement("div");
-      row.className = "resource-card mt-2 flex items-center justify-between gap-3";
-      const copy = document.createElement("div");
-      copy.className = "min-w-0";
-      copy.append(resourceLabel(`Reference · ${publication.citationKey}`), resourceTitle(bibTeXDisplayText(publication.title)));
-      row.append(
-        copy,
-        actionButton("Open reference", "button-secondary shrink-0", () => this.#openPublicationContext(publication)),
-      );
-      this.#elements.publicationIntakeLinkedList.append(row);
-    }
-
+    this.#elements.publicationIntakeLinkedList.replaceChildren(
+      ...publications.map((publication) => this.#publicationIntakeRow(publication)),
+    );
     const intake = this.#publicationIntake.getSnapshot();
     const preview = intake.context.preview?.pdfId === pdfId ? intake.context.preview : null;
     this.#elements.publicationIntakeReview.hidden = linked || !preview;
@@ -7746,6 +7736,23 @@ class WorkspaceApp {
       return;
     }
     if (!preview) return;
+    this.#renderPublicationIntakePreview(preview);
+  }
+
+  #publicationIntakeRow(publication: PublicationResource): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "resource-card mt-2 flex items-center justify-between gap-3";
+    const copy = document.createElement("div");
+    copy.className = "min-w-0";
+    copy.append(resourceLabel(`Reference · ${publication.citationKey}`), resourceTitle(bibTeXDisplayText(publication.title)));
+    row.append(
+      copy,
+      actionButton("Open reference", "button-secondary shrink-0", () => this.#openPublicationContext(publication)),
+    );
+    return row;
+  }
+
+  #renderPublicationIntakePreview(preview: GuardResult<typeof isPublicationIntakePreview>): void {
     this.#elements.publicationIntakeTitle.textContent = preview.metadata.title;
     this.#elements.publicationIntakeMeta.textContent = [
       preview.metadata.type,
@@ -7780,7 +7787,7 @@ class WorkspaceApp {
       const active = this.#activeResourceTab();
       this.#publicationIntake.send({ type: "PREVIEW_READY", requestId: request, preview: value });
       const intake = this.#publicationIntake.getSnapshot();
-      if (!intake.matches("reviewing") || intake.context.preview !== value || active?.kind !== "pdf" || active.id !== pdfId) return;
+      if (!this.#publicationIntakePreviewActive(intake.matches("reviewing"), intake.context.preview, value, active, pdfId)) return;
       this.#elements.publicationIntakeStatus.textContent = value.existingPublicationId
         ? "This DOI is already in the library. Review the existing key, then connect this PDF."
         : "Review the metadata and citation key before adding it.";
@@ -7795,6 +7802,16 @@ class WorkspaceApp {
     } finally {
       this.#updatePublicationIntakeAvailability();
     }
+  }
+
+  #publicationIntakePreviewActive(
+    reviewing: boolean,
+    currentPreview: unknown,
+    preview: GuardResult<typeof isPublicationIntakePreview>,
+    active: ResearchResourceTab | undefined,
+    pdfId: string,
+  ): boolean {
+    return reviewing && currentPreview === preview && active?.kind === "pdf" && active.id === pdfId;
   }
 
   async #acceptPublicationIntake(): Promise<void> {
@@ -8165,6 +8182,12 @@ class WorkspaceApp {
     const publication = this.#snapshot.publications.find((item) => item.id === tab.id);
     if (!publication) return;
 
+    this.#renderPublicationContextDetails(publication);
+    this.#updateCitationInsertionAvailability();
+    this.#renderPublicationContextPapers(publication);
+  }
+
+  #renderPublicationContextDetails(publication: PublicationResource): void {
     this.#elements.contextPublicationTitle.textContent = bibTeXDisplayText(publication.title);
     this.#elements.contextPublicationMeta.textContent = [
       bibTeXDisplayText(publication.authors.join("; ")),
@@ -8182,9 +8205,9 @@ class WorkspaceApp {
     description.className = "mt-3";
     description.textContent = publication.abstract || "No abstract is stored for this publication yet.";
     this.#elements.contextPublicationDetails.append(source, description);
+  }
 
-    this.#updateCitationInsertionAvailability();
-    const links = this.#snapshot.publicationPdfLinks.filter((link) => link.publicationId === publication.id);
+  #renderPublicationContextPapers(publication: PublicationResource): void {
     const papers = this.#publicationPaperOptions(publication.id);
     this.#elements.openPaper.disabled = papers.length !== 1;
     this.#elements.openPaper.textContent = papers.length > 1 ? "Choose a paper below" : "Open linked paper";
@@ -8193,36 +8216,39 @@ class WorkspaceApp {
     if (papers.length === 0) {
       this.#elements.contextPublicationPdfs.append(emptyState("No paper connected to this reference yet."));
     } else {
-      for (const paper of papers) {
-        const row = document.createElement("div");
-        row.className = "resource-card mt-2 flex items-center justify-between gap-3";
-        const copy = document.createElement("div");
-        copy.className = "min-w-0";
-        const name = paper.kind === "library" ? paper.artifact.name : paper.pdf.name;
-        const size = paper.kind === "library" ? paper.artifact.size : paper.pdf.size;
-        const sourceLabel =
-          paper.kind === "project"
-            ? "Project PDF"
-            : paper.kind === "library"
-              ? "Your library PDF"
-              : "Linked reference PDF · project members";
-        copy.append(resourceLabel(`${sourceLabel} · ${formatBytes(size)}`), resourceTitle(name));
-        const actions = document.createElement("div");
-        actions.className = "flex shrink-0 gap-2";
-        actions.append(actionButton("Open", "button-secondary", () => void this.#openPublicationPaper(paper)));
-        if (paper.kind === "project") {
-          actions.append(actionButton("Disconnect", "button-secondary", () => void this.#unlinkPublicationPdf(paper.linkId)));
-        }
-        row.append(copy, actions);
-        this.#elements.contextPublicationPdfs.append(row);
-      }
+      for (const paper of papers) this.#elements.contextPublicationPdfs.append(this.#publicationPaperRow(paper));
     }
+    this.#renderPublicationPdfLinkForm(publication.id, papers.length);
+  }
 
+  #publicationPaperRow(paper: PublicationPaperOption): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "resource-card mt-2 flex items-center justify-between gap-3";
+    const copy = document.createElement("div");
+    copy.className = "min-w-0";
+    const name = paper.kind === "library" ? paper.artifact.name : paper.pdf.name;
+    const size = paper.kind === "library" ? paper.artifact.size : paper.pdf.size;
+    const sourceLabel =
+      paper.kind === "project" ? "Project PDF" : paper.kind === "library" ? "Your library PDF" : "Linked reference PDF · project members";
+    copy.append(resourceLabel(`${sourceLabel} · ${formatBytes(size)}`), resourceTitle(name));
+    const actions = document.createElement("div");
+    actions.className = "flex shrink-0 gap-2";
+    actions.append(actionButton("Open", "button-secondary", () => void this.#openPublicationPaper(paper)));
+    if (paper.kind === "project")
+      actions.append(actionButton("Disconnect", "button-secondary", () => void this.#unlinkPublicationPdf(paper.linkId)));
+    row.append(copy, actions);
+    return row;
+  }
+
+  #renderPublicationPdfLinkForm(publicationId: string, paperCount: number): void {
+    const snapshot = this.#snapshot;
+    if (!snapshot) return;
+    const links = snapshot.publicationPdfLinks.filter((link) => link.publicationId === publicationId);
     const linkedIds = new Set(links.map((link) => link.pdfId));
-    const available = this.#snapshot.pdfs.filter((pdf) => !linkedIds.has(pdf.id));
+    const available = snapshot.pdfs.filter((pdf) => !linkedIds.has(pdf.id));
     this.#elements.publicationPdfLinkForm.hidden = available.length === 0;
     const linkLabel = this.#elements.publicationPdfLinkForm.querySelector<HTMLElement>("[data-publication-pdf-link-label]");
-    if (linkLabel) linkLabel.textContent = papers.length > 0 ? "Add another paper from this project" : "Add a paper from this project";
+    if (linkLabel) linkLabel.textContent = paperCount > 0 ? "Add another paper from this project" : "Add a paper from this project";
     this.#elements.publicationPdfLink.replaceChildren();
     this.#elements.publicationPdfLink.append(new Option("Choose a project PDF", ""));
     for (const pdf of available) this.#elements.publicationPdfLink.append(new Option(pdf.name, pdf.id));
