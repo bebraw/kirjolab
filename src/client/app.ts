@@ -834,6 +834,15 @@ interface AssistantGenerationContext {
   readonly sourceRevision: number;
 }
 
+interface ActivePdfLoadContext {
+  readonly tab: Extract<ResearchResourceTab, { kind: "pdf" | "library-pdf" }>;
+  readonly workspacePdf: PdfResource | undefined;
+  readonly libraryPdf: LibraryPdfArtifact | undefined;
+  readonly annotations: AnnotationResource[];
+  readonly privateHighlights: LibraryHighlight[];
+  readonly url: string;
+}
+
 interface ClarityDrillContext extends AssistantDraftContext {
   readonly provider: OpenAICompatibleBrowserProvider;
   readonly question: ModelClarityQuestion;
@@ -4486,7 +4495,11 @@ class WorkspaceApp {
     const to = this.#elements.projectHistoryTo.value;
     const requestId = this.#startProjectHistoryOperation({ kind: "compare", from: Number(from), to: Number(to) });
     if (requestId === null) return;
-    let value: ProjectRevisionDiff;
+    const value = await this.#projectHistoryComparison(requestId, from, to);
+    if (value) this.#renderProjectHistoryComparison(value);
+  }
+
+  async #projectHistoryComparison(requestId: number, from: string, to: string): Promise<ProjectRevisionDiff | null> {
     try {
       const response = await fetch(`${apiBase}/history/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
         credentials: "same-origin",
@@ -4494,14 +4507,16 @@ class WorkspaceApp {
       await expectOk(response);
       const result: unknown = await response.json();
       if (!isProjectRevisionDiff(result)) throw new Error("Project history returned an invalid comparison");
-      value = result;
       this.#finishProjectHistoryOperation(requestId);
       const history = this.#projectHistoryWorkflow.getSnapshot();
-      if (!history.matches("ready") || history.context.requestId !== requestId) return;
+      return history.matches("ready") && history.context.requestId === requestId ? result : null;
     } catch (error) {
       this.#failProjectHistoryOperation(requestId, error, "Could not compare project revisions");
-      return;
+      return null;
     }
+  }
+
+  #renderProjectHistoryComparison(value: ProjectRevisionDiff): void {
     const inspector = this.#elements.projectHistoryInspector;
     inspector.classList.remove("hidden");
     const heading = document.createElement("h3");
@@ -7780,9 +7795,8 @@ class WorkspaceApp {
 
   async #previewPublicationIntake(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const tab = this.#activeResourceTab();
-    if (!tab || tab.kind !== "pdf") return;
-    const pdfId = tab.id;
+    const pdfId = this.#activePublicationIntakePdf();
+    if (!pdfId) return;
     if (this.#publicationIntake.getSnapshot().context.pdfId !== pdfId) this.#publicationIntake.send({ type: "OPEN", pdfId });
     this.#publicationIntake.send({ type: "START_PREVIEW" });
     const request = this.#publicationIntake.getSnapshot().context.requestId;
@@ -7796,24 +7810,37 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isPublicationIntakePreview(value)) throw new Error("Publication intake returned an invalid preview");
-      const active = this.#activeResourceTab();
       this.#publicationIntake.send({ type: "PREVIEW_READY", requestId: request, preview: value });
-      const intake = this.#publicationIntake.getSnapshot();
-      if (!this.#publicationIntakePreviewActive(intake.matches("reviewing"), intake.context.preview, value, active, pdfId)) return;
-      this.#elements.publicationIntakeStatus.textContent = value.existingPublicationId
-        ? "This DOI is already in the library. Review the existing key, then connect this PDF."
-        : "Review the metadata and citation key before adding it.";
-      this.#renderPublicationIntake(pdfId);
-      this.#elements.publicationIntakeKey.focus();
+      this.#completePublicationIntakePreview(pdfId, value);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "DOI lookup failed";
-      this.#publicationIntake.send({ type: "PREVIEW_FAILED", requestId: request, message });
-      if (!this.#publicationIntake.getSnapshot().matches("failed")) return;
-      this.#elements.publicationIntakeReview.hidden = true;
-      this.#elements.publicationIntakeStatus.textContent = message;
+      this.#failPublicationIntakePreview(request, error);
     } finally {
       this.#updatePublicationIntakeAvailability();
     }
+  }
+
+  #activePublicationIntakePdf(): string | null {
+    const tab = this.#activeResourceTab();
+    return tab?.kind === "pdf" ? tab.id : null;
+  }
+
+  #completePublicationIntakePreview(pdfId: string, value: GuardResult<typeof isPublicationIntakePreview>): void {
+    const intake = this.#publicationIntake.getSnapshot();
+    if (!this.#publicationIntakePreviewActive(intake.matches("reviewing"), intake.context.preview, value, this.#activeResourceTab(), pdfId))
+      return;
+    this.#elements.publicationIntakeStatus.textContent = value.existingPublicationId
+      ? "This DOI is already in the library. Review the existing key, then connect this PDF."
+      : "Review the metadata and citation key before adding it.";
+    this.#renderPublicationIntake(pdfId);
+    this.#elements.publicationIntakeKey.focus();
+  }
+
+  #failPublicationIntakePreview(requestId: number, error: unknown): void {
+    const message = error instanceof Error ? error.message : "DOI lookup failed";
+    this.#publicationIntake.send({ type: "PREVIEW_FAILED", requestId, message });
+    if (!this.#publicationIntake.getSnapshot().matches("failed")) return;
+    this.#elements.publicationIntakeReview.hidden = true;
+    this.#elements.publicationIntakeStatus.textContent = message;
   }
 
   #publicationIntakePreviewActive(
@@ -8779,12 +8806,24 @@ class WorkspaceApp {
   }
 
   async #loadActivePdf(force: boolean): Promise<void> {
+    const context = this.#activePdfLoadContext();
+    if (!context) return;
+    this.#pdfViewer.updateAnnotations(context.annotations);
+    this.#pdfViewer.updatePrivateHighlights(context.privateHighlights);
+    if (!force && this.#renderedPdfContextKey === context.tab.key) {
+      this.#elements.paperReader.scrollTop = context.tab.scrollTop;
+      return;
+    }
+    await this.#openActivePdf(context);
+  }
+
+  #activePdfLoadContext(): ActivePdfLoadContext | null {
     const tab = this.#activeResourceTab();
-    if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return;
+    if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return null;
     const workspacePdf = tab.kind === "pdf" ? this.#snapshot?.pdfs.find((item) => item.id === tab.id) : undefined;
     const libraryPdf = tab.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
     const projectReferencePdf = tab.kind === "library-pdf" && !libraryPdf ? this.#projectReferencePdf(tab.id) : undefined;
-    if (!workspacePdf && !libraryPdf && !projectReferencePdf) return;
+    if (!workspacePdf && !libraryPdf && !projectReferencePdf) return null;
     if (workspacePdf) this.#elements.annotationPdf.value = workspacePdf.id;
     const annotations = workspacePdf
       ? (this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === workspacePdf.id) ?? [])
@@ -8792,37 +8831,40 @@ class WorkspaceApp {
     const privateHighlights = libraryPdf
       ? (this.#librarySnapshot?.highlights.filter((highlight) => highlight.artifactId === libraryPdf.id) ?? [])
       : [];
-    const pdfUrl = workspacePdf
-      ? `${apiBase}/pdfs/${encodeURIComponent(workspacePdf.id)}`
-      : libraryPdf
-        ? `/api/library/pdfs/${encodeURIComponent(libraryPdf.id)}`
-        : projectReferencePdf
-          ? `${apiBase}/reference-pdfs/${encodeURIComponent(projectReferencePdf.id)}`
-          : null;
-    if (!pdfUrl) return;
-    this.#pdfViewer.updateAnnotations(annotations);
-    this.#pdfViewer.updatePrivateHighlights(privateHighlights);
-    if (!force && this.#renderedPdfContextKey === tab.key) {
-      this.#elements.paperReader.scrollTop = tab.scrollTop;
-      return;
-    }
+    const url = this.#activePdfUrl(workspacePdf, libraryPdf, projectReferencePdf);
+    if (!url) return null;
+    return { tab, workspacePdf, libraryPdf, annotations, privateHighlights, url };
+  }
+
+  #activePdfUrl(
+    workspacePdf: PdfResource | undefined,
+    libraryPdf: LibraryPdfArtifact | undefined,
+    projectReferencePdf: ProjectReferencePdf | undefined,
+  ): string | null {
+    if (workspacePdf) return `${apiBase}/pdfs/${encodeURIComponent(workspacePdf.id)}`;
+    if (libraryPdf) return `/api/library/pdfs/${encodeURIComponent(libraryPdf.id)}`;
+    if (projectReferencePdf) return `${apiBase}/reference-pdfs/${encodeURIComponent(projectReferencePdf.id)}`;
+    return null;
+  }
+
+  async #openActivePdf(context: ActivePdfLoadContext): Promise<void> {
     try {
       const opened = await this.#pdfViewer.open({
-        url: pdfUrl,
-        annotations,
-        page: tab.page,
-        ...(tab.focusedAnnotationId ? { focusAnnotationId: tab.focusedAnnotationId } : {}),
-        mode: workspacePdf ? "evidence" : libraryPdf ? "private-highlight" : "read-only",
-        privateHighlights,
+        url: context.url,
+        annotations: context.annotations,
+        page: context.tab.page,
+        ...(context.tab.focusedAnnotationId ? { focusAnnotationId: context.tab.focusedAnnotationId } : {}),
+        mode: context.workspacePdf ? "evidence" : context.libraryPdf ? "private-highlight" : "read-only",
+        privateHighlights: context.privateHighlights,
       });
       const active = this.#activeResourceTab();
-      if (!opened || active?.key !== tab.key) return;
-      this.#renderedPdfContextKey = tab.key;
-      this.#renderedPdfId = workspacePdf?.id;
-      this.#elements.paperReader.scrollTop = tab.scrollTop;
+      if (!opened || active?.key !== context.tab.key) return;
+      this.#renderedPdfContextKey = context.tab.key;
+      this.#renderedPdfId = context.workspacePdf?.id;
+      this.#elements.paperReader.scrollTop = context.tab.scrollTop;
     } catch (error) {
       const active = this.#activeResourceTab();
-      if (active?.key === tab.key) {
+      if (active?.key === context.tab.key) {
         this.#elements.paperStatus.textContent = error instanceof Error ? error.message : "Could not render this PDF";
       }
     }
