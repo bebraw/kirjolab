@@ -10343,6 +10343,9 @@ interface YTextBinding {
   readonly renderHighlight: () => void;
 }
 
+type EditorPresenceSegment = ReturnType<typeof editorPresenceSegments>[number];
+type VimCommand = ReturnType<typeof handleVimKey>;
+
 function bindYText(
   textarea: HTMLTextAreaElement,
   text: Y.Text,
@@ -10353,44 +10356,7 @@ function bindYText(
 ): YTextBinding {
   const renderHighlight = (): void => {
     if (!highlight) return;
-    const fragment = document.createDocumentFragment();
-    let lineNumber = 1;
-    let line = sourceEditorLine(lineNumber);
-    fragment.append(line);
-    for (const segment of editorPresenceSegments(textarea.value, presence())) {
-      for (const color of segment.caretColors) {
-        const caret = document.createElement("span");
-        caret.className = color === "local" ? "local-author-caret" : "collaborator-caret";
-        caret.dataset.collaboratorColor = String(color);
-        line.append(caret);
-      }
-      if (!segment.text) continue;
-      for (const part of segment.text.split(/(\r\n|\r|\n)/u)) {
-        if (!part) continue;
-        if (/^(?:\r\n|\r|\n)$/u.test(part)) {
-          const newline = document.createElement("span");
-          newline.className = "source-editor-newline";
-          newline.textContent = part;
-          line.append(newline);
-          lineNumber += 1;
-          line = sourceEditorLine(lineNumber);
-          fragment.append(line);
-          continue;
-        }
-        if (segment.kind === null && segment.selectionColor === null) {
-          line.append(document.createTextNode(part));
-        } else {
-          const token = document.createElement("span");
-          token.classList.toggle(`markdown-token-${segment.kind}`, segment.kind !== null);
-          token.classList.toggle("collaborator-selection", segment.selectionColor !== null && segment.selectionColor !== "local");
-          token.classList.toggle("local-author-selection", segment.selectionColor === "local");
-          if (segment.selectionColor !== null) token.dataset.collaboratorColor = String(segment.selectionColor);
-          token.textContent = part;
-          line.append(token);
-        }
-      }
-    }
-    highlight.replaceChildren(fragment);
+    renderEditorHighlight(highlight, textarea.value, presence());
   };
   const syncHighlightScroll = (): void => {
     if (!highlight) return;
@@ -10454,6 +10420,59 @@ function bindYText(
     },
     renderHighlight,
   };
+}
+
+function renderEditorHighlight(highlight: HTMLElement, source: string, presence: readonly EditorPresenceRange[]): void {
+  const fragment = document.createDocumentFragment();
+  const state = { lineNumber: 1, line: sourceEditorLine(1) };
+  fragment.append(state.line);
+  for (const segment of editorPresenceSegments(source, presence)) appendEditorPresenceSegment(fragment, state, segment);
+  highlight.replaceChildren(fragment);
+}
+
+function appendEditorPresenceSegment(
+  fragment: DocumentFragment,
+  state: { lineNumber: number; line: HTMLSpanElement },
+  segment: EditorPresenceSegment,
+): void {
+  appendEditorCarets(state.line, segment.caretColors);
+  for (const part of segment.text.split(/(\r\n|\r|\n)/u).filter(Boolean)) {
+    if (/^(?:\r\n|\r|\n)$/u.test(part)) {
+      state.line.append(editorNewline(part));
+      state.lineNumber += 1;
+      state.line = sourceEditorLine(state.lineNumber);
+      fragment.append(state.line);
+    } else {
+      state.line.append(editorPresencePart(part, segment));
+    }
+  }
+}
+
+function appendEditorCarets(line: HTMLElement, colors: EditorPresenceSegment["caretColors"]): void {
+  for (const color of colors) {
+    const caret = document.createElement("span");
+    caret.className = color === "local" ? "local-author-caret" : "collaborator-caret";
+    caret.dataset.collaboratorColor = String(color);
+    line.append(caret);
+  }
+}
+
+function editorNewline(value: string): HTMLSpanElement {
+  const newline = document.createElement("span");
+  newline.className = "source-editor-newline";
+  newline.textContent = value;
+  return newline;
+}
+
+function editorPresencePart(value: string, segment: EditorPresenceSegment): Node {
+  if (segment.kind === null && segment.selectionColor === null) return document.createTextNode(value);
+  const token = document.createElement("span");
+  token.classList.toggle(`markdown-token-${segment.kind}`, segment.kind !== null);
+  token.classList.toggle("collaborator-selection", segment.selectionColor !== null && segment.selectionColor !== "local");
+  token.classList.toggle("local-author-selection", segment.selectionColor === "local");
+  if (segment.selectionColor !== null) token.dataset.collaboratorColor = String(segment.selectionColor);
+  token.textContent = value;
+  return token;
 }
 
 function sourceEditorLine(lineNumber: number): HTMLSpanElement {
@@ -10528,17 +10547,14 @@ function bindVimTextarea(textarea: HTMLTextAreaElement, shell: HTMLElement, togg
     renderMode();
   });
   textarea.addEventListener("keydown", (event) => {
-    if (!enabled || event.isComposing) return;
-    const controlBracket = event.ctrlKey && !event.altKey && !event.metaKey && event.key === "[";
-    if ((event.altKey || event.ctrlKey || event.metaKey) && !controlBracket) return;
-    const command = handleVimKey(session, snapshot(), controlBracket ? "Ctrl-[" : event.key);
+    const key = vimCommandKey(event, enabled);
+    if (!key) return;
+    const command = handleVimKey(session, snapshot(), key);
     if (!command.handled) return;
     event.preventDefault();
     event.stopPropagation();
     session = command.session;
-    if (command.changed) textarea.value = command.value;
-    textarea.setSelectionRange(command.selectionStart, command.selectionEnd, command.selectionDirection);
-    if (command.changed) textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+    applyVimCommand(textarea, command);
     renderMode();
   });
   textarea.addEventListener("mouseup", () => {
@@ -10550,6 +10566,28 @@ function bindVimTextarea(textarea: HTMLTextAreaElement, shell: HTMLElement, togg
     renderMode();
   });
   renderMode();
+}
+
+function vimCommandKey(event: KeyboardEvent, enabled: boolean): string | null {
+  if (!enabled) return null;
+  if (event.isComposing) return null;
+  const controlBracket = isVimControlBracket(event);
+  if (hasUnsupportedVimModifier(event, controlBracket)) return null;
+  return controlBracket ? "Ctrl-[" : event.key;
+}
+
+function isVimControlBracket(event: KeyboardEvent): boolean {
+  return event.ctrlKey && !event.altKey && !event.metaKey && event.key === "[";
+}
+
+function hasUnsupportedVimModifier(event: KeyboardEvent, controlBracket: boolean): boolean {
+  return !controlBracket && (event.altKey || event.ctrlKey || event.metaKey);
+}
+
+function applyVimCommand(textarea: HTMLTextAreaElement, command: VimCommand): void {
+  if (command.changed) textarea.value = command.value;
+  textarea.setSelectionRange(command.selectionStart, command.selectionEnd, command.selectionDirection);
+  if (command.changed) textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
 }
 
 function captureRelativeSelection(textarea: HTMLTextAreaElement, text: Y.Text): RelativeEditorSelection {
