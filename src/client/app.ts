@@ -6411,6 +6411,21 @@ class WorkspaceApp {
   }
 
   #renderAnnotations(annotations: AnnotationResource[], links: PassageLink[]): void {
+    const targets = this.#resetAnnotationTargets();
+    if (annotations.length === 0) {
+      this.#updateProjectEvidenceVisibility(this.#snapshot?.pdfs.length ?? 0, 0);
+      return;
+    }
+    const annotationCounts = new Map<string, number>();
+    for (const annotation of annotations) {
+      const passage = links.find((link) => link.annotationId === annotation.id);
+      const card = this.#annotationCard(annotation, passage);
+      this.#appendAnnotationCard(annotation, card, targets, annotationCounts);
+    }
+    this.#updateProjectEvidenceVisibility(this.#snapshot?.pdfs.length ?? 0, annotations.length);
+  }
+
+  #resetAnnotationTargets(): Map<string, HTMLElement> {
     const targets = new Map<string, HTMLElement>();
     for (const target of this.#elements.pdfList.querySelectorAll<HTMLElement>("[data-pdf-annotations]")) {
       target.replaceChildren();
@@ -6425,145 +6440,170 @@ class WorkspaceApp {
     }
     this.#elements.unassignedAnnotationList.replaceChildren();
     this.#elements.unassignedAnnotationList.hidden = true;
-    if (annotations.length === 0) {
-      this.#updateProjectEvidenceVisibility(this.#snapshot?.pdfs.length ?? 0, 0);
+    return targets;
+  }
+
+  #annotationCard(annotation: AnnotationResource, passage: PassageLink | undefined): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    card.dataset.annotationResourceId = annotation.id;
+    const actions = this.#annotationActions(annotation);
+    if (passage) actions.append(this.#annotationPassageButton(passage));
+    card.append(this.#annotationEvidenceLabel(annotation), actions, this.#annotationStrokeEditor(annotation));
+    return card;
+  }
+
+  #annotationEvidenceLabel(annotation: AnnotationResource): HTMLElement {
+    const label = document.createElement("label");
+    label.className = "flex items-start gap-2";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.annotationId = annotation.id;
+    checkbox.dataset.modelEvidenceKey = modelEvidenceKey("annotation", annotation.id);
+    checkbox.className = "mt-1 accent-app-accent";
+    checkbox.checked = this.#modelEvidenceSelection.has(checkbox.dataset.modelEvidenceKey);
+    checkbox.setAttribute(
+      "aria-label",
+      `Use annotation “${accessibleEvidenceExcerpt(annotation.quote)}” on page ${annotation.page} as model evidence`,
+    );
+    checkbox.addEventListener("change", () => this.#setModelEvidenceSelected(checkbox.dataset.modelEvidenceKey ?? "", checkbox.checked));
+    const content = document.createElement("span");
+    content.className = "min-w-0";
+    content.append(resourceLabel(`Page ${annotation.page}`), resourceTitle(`“${annotation.quote}”`));
+    if (annotation.comment) {
+      const note = document.createElement("span");
+      note.className = "mt-2 block font-sans text-xs text-app-text-soft";
+      note.textContent = annotation.comment;
+      content.append(note);
+    }
+    label.append(checkbox, content);
+    return label;
+  }
+
+  #annotationActions(annotation: AnnotationResource): HTMLElement {
+    const actions = document.createElement("div");
+    actions.className = "mt-3 grid gap-2";
+    const link = actionButton(
+      "Link selected manuscript text",
+      "button-secondary w-full justify-center",
+      () => void this.#linkAnnotation(annotation.id),
+    );
+    const openEvidence = actionButton("Open evidence", "button-secondary w-full justify-center", () =>
+      this.#openAnnotationEvidence(annotation),
+    );
+    const edit = actionButton("Edit note", "button-secondary w-full justify-center", () => this.#editAnnotation(annotation));
+    const remove = actionButton(
+      "Delete highlight",
+      "button-secondary w-full justify-center",
+      () => void this.#deleteAnnotation(annotation),
+    );
+    actions.append(openEvidence, edit, link, remove);
+    return actions;
+  }
+
+  #openAnnotationEvidence(annotation: AnnotationResource): void {
+    const pdf = this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId);
+    if (pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
+  }
+
+  #editAnnotation(annotation: AnnotationResource): void {
+    this.#editingAnnotationId = annotation.id;
+    this.#elements.annotationComment.value = annotation.comment;
+    this.#elements.annotationQuote.value = annotation.quote;
+    this.#elements.annotationPrefix.value = annotation.prefix;
+    this.#elements.annotationSuffix.value = annotation.suffix;
+    this.#openAnnotationEvidence(annotation);
+  }
+
+  #annotationStrokeEditor(annotation: AnnotationResource): HTMLElement {
+    const editor = document.createElement("details");
+    editor.className = "mt-3 border-t border-app-line pt-3";
+    const summary = document.createElement("summary");
+    summary.className = "cursor-pointer font-sans text-xs font-semibold";
+    summary.textContent = `Adjust ${annotation.fragments.length} stroke${annotation.fragments.length === 1 ? "" : "s"}`;
+    editor.append(summary);
+    for (const [index, fragment] of annotation.fragments.entries()) editor.append(this.#annotationStrokeRow(annotation, fragment, index));
+    return editor;
+  }
+
+  #annotationStrokeRow(annotation: AnnotationResource, fragment: AnnotationResource["fragments"][number], index: number): HTMLElement {
+    const row = document.createElement("section");
+    row.className = "mt-3 border border-app-line bg-app-paper p-3";
+    const quote = document.createElement("textarea");
+    quote.className = "field min-h-16";
+    quote.value = fragment.quote;
+    quote.maxLength = 20_000;
+    quote.setAttribute("aria-label", `Text for highlight stroke ${index + 1}`);
+    const controls = document.createElement("div");
+    controls.className = "touch-adjustments mt-2 flex flex-wrap gap-2";
+    for (const [labelText, adjustment] of [
+      ["←", "left"],
+      ["↑", "up"],
+      ["↓", "down"],
+      ["→", "right"],
+      ["Wider", "wider"],
+      ["Narrower", "narrower"],
+      ["Taller", "taller"],
+      ["Shorter", "shorter"],
+    ] as const) {
+      const button = actionButton(
+        labelText,
+        "button-secondary",
+        () =>
+          void this.#updateHighlightFragment(
+            annotation.id,
+            fragment.id,
+            quote.value,
+            fragment.prefix,
+            fragment.suffix,
+            adjustSelectionRects(fragment.rects, adjustment),
+          ),
+      );
+      button.setAttribute("aria-label", `${labelText} highlight stroke ${index + 1}`);
+      controls.append(button);
+    }
+    controls.append(
+      actionButton(
+        "Save text",
+        "button-primary",
+        () => void this.#updateHighlightFragment(annotation.id, fragment.id, quote.value, fragment.prefix, fragment.suffix, fragment.rects),
+      ),
+      actionButton("Erase stroke", "button-secondary", () => void this.#removeHighlightFragment(annotation.id, fragment.id, true)),
+    );
+    row.append(quote, controls);
+    return row;
+  }
+
+  #annotationPassageButton(passage: PassageLink): HTMLButtonElement {
+    const button = actionButton(anchorActionLabel(passage.resolution), "button-secondary w-full justify-center", () =>
+      this.#showPassage(passage.anchor),
+    );
+    button.dataset.anchorLinkId = passage.id;
+    button.disabled = passage.resolution.status !== "resolved";
+    button.dataset.anchorStatus = passage.resolution.status;
+    button.dataset.anchorMatch = anchorMatchState(passage.resolution);
+    return button;
+  }
+
+  #appendAnnotationCard(
+    annotation: AnnotationResource,
+    card: HTMLElement,
+    targets: ReadonlyMap<string, HTMLElement>,
+    annotationCounts: Map<string, number>,
+  ): void {
+    const target = targets.get(annotation.pdfId);
+    if (!target) {
+      this.#elements.unassignedAnnotationList.hidden = false;
+      this.#elements.unassignedAnnotationList.append(card);
       return;
     }
-    const annotationCounts = new Map<string, number>();
-    for (const annotation of annotations) {
-      const card = document.createElement("article");
-      card.className = "resource-card";
-      card.dataset.annotationResourceId = annotation.id;
-      const label = document.createElement("label");
-      label.className = "flex items-start gap-2";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.dataset.annotationId = annotation.id;
-      checkbox.dataset.modelEvidenceKey = modelEvidenceKey("annotation", annotation.id);
-      checkbox.className = "mt-1 accent-app-accent";
-      checkbox.checked = this.#modelEvidenceSelection.has(checkbox.dataset.modelEvidenceKey);
-      checkbox.setAttribute(
-        "aria-label",
-        `Use annotation “${accessibleEvidenceExcerpt(annotation.quote)}” on page ${annotation.page} as model evidence`,
-      );
-      checkbox.addEventListener("change", () => this.#setModelEvidenceSelected(checkbox.dataset.modelEvidenceKey ?? "", checkbox.checked));
-      const content = document.createElement("span");
-      content.className = "min-w-0";
-      content.append(resourceLabel(`Page ${annotation.page}`), resourceTitle(`“${annotation.quote}”`));
-      if (annotation.comment) {
-        const note = document.createElement("span");
-        note.className = "mt-2 block font-sans text-xs text-app-text-soft";
-        note.textContent = annotation.comment;
-        content.append(note);
-      }
-      label.append(checkbox, content);
-      const linkButton = document.createElement("button");
-      linkButton.type = "button";
-      linkButton.className = "button-secondary mt-3 w-full justify-center";
-      linkButton.textContent = "Link selected manuscript text";
-      linkButton.addEventListener("click", () => void this.#linkAnnotation(annotation.id));
-      const actions = document.createElement("div");
-      actions.className = "mt-3 grid gap-2";
-      const openEvidence = actionButton("Open evidence", "button-secondary w-full justify-center", () => {
-        const pdf = this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId);
-        if (pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
-      });
-      const edit = actionButton("Edit note", "button-secondary w-full justify-center", () => {
-        this.#editingAnnotationId = annotation.id;
-        this.#elements.annotationComment.value = annotation.comment;
-        this.#elements.annotationQuote.value = annotation.quote;
-        this.#elements.annotationPrefix.value = annotation.prefix;
-        this.#elements.annotationSuffix.value = annotation.suffix;
-        const pdf = this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId);
-        if (pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
-      });
-      const remove = actionButton(
-        "Delete highlight",
-        "button-secondary w-full justify-center",
-        () => void this.#deleteAnnotation(annotation),
-      );
-      actions.append(openEvidence, edit, linkButton, remove);
-      const strokeEditor = document.createElement("details");
-      strokeEditor.className = "mt-3 border-t border-app-line pt-3";
-      const strokeSummary = document.createElement("summary");
-      strokeSummary.className = "cursor-pointer font-sans text-xs font-semibold";
-      strokeSummary.textContent = `Adjust ${annotation.fragments.length} stroke${annotation.fragments.length === 1 ? "" : "s"}`;
-      strokeEditor.append(strokeSummary);
-      for (const [index, fragment] of annotation.fragments.entries()) {
-        const row = document.createElement("section");
-        row.className = "mt-3 border border-app-line bg-app-paper p-3";
-        const quote = document.createElement("textarea");
-        quote.className = "field min-h-16";
-        quote.value = fragment.quote;
-        quote.maxLength = 20_000;
-        quote.setAttribute("aria-label", `Text for highlight stroke ${index + 1}`);
-        const controls = document.createElement("div");
-        controls.className = "touch-adjustments mt-2 flex flex-wrap gap-2";
-        for (const [labelText, adjustment] of [
-          ["←", "left"],
-          ["↑", "up"],
-          ["↓", "down"],
-          ["→", "right"],
-          ["Wider", "wider"],
-          ["Narrower", "narrower"],
-          ["Taller", "taller"],
-          ["Shorter", "shorter"],
-        ] as const) {
-          const button = actionButton(
-            labelText,
-            "button-secondary",
-            () =>
-              void this.#updateHighlightFragment(
-                annotation.id,
-                fragment.id,
-                quote.value,
-                fragment.prefix,
-                fragment.suffix,
-                adjustSelectionRects(fragment.rects, adjustment),
-              ),
-          );
-          button.setAttribute("aria-label", `${labelText} highlight stroke ${index + 1}`);
-          controls.append(button);
-        }
-        controls.append(
-          actionButton(
-            "Save text",
-            "button-primary",
-            () =>
-              void this.#updateHighlightFragment(annotation.id, fragment.id, quote.value, fragment.prefix, fragment.suffix, fragment.rects),
-          ),
-          actionButton("Erase stroke", "button-secondary", () => void this.#removeHighlightFragment(annotation.id, fragment.id, true)),
-        );
-        row.append(quote, controls);
-        strokeEditor.append(row);
-      }
-      const passage = links.find((link) => link.annotationId === annotation.id);
-      if (passage) {
-        const openPassage = actionButton(anchorActionLabel(passage.resolution), "button-secondary w-full justify-center", () =>
-          this.#showPassage(passage.anchor),
-        );
-        openPassage.dataset.anchorLinkId = passage.id;
-        openPassage.disabled = passage.resolution.status !== "resolved";
-        openPassage.dataset.anchorStatus = passage.resolution.status;
-        openPassage.dataset.anchorMatch = anchorMatchState(passage.resolution);
-        actions.append(openPassage);
-      }
-      card.append(label, actions, strokeEditor);
-      const target = targets.get(annotation.pdfId);
-      if (target) {
-        target.append(card);
-        const count = (annotationCounts.get(annotation.pdfId) ?? 0) + 1;
-        annotationCounts.set(annotation.pdfId, count);
-        const group = target.closest<HTMLDetailsElement>("[data-pdf-annotation-group]");
-        if (group) group.hidden = false;
-        const badge = group?.querySelector<HTMLElement>("[data-pdf-annotation-count]");
-        if (badge) badge.textContent = String(count);
-      } else {
-        this.#elements.unassignedAnnotationList.hidden = false;
-        this.#elements.unassignedAnnotationList.append(card);
-      }
-    }
-    this.#updateProjectEvidenceVisibility(this.#snapshot?.pdfs.length ?? 0, annotations.length);
+    target.append(card);
+    const count = (annotationCounts.get(annotation.pdfId) ?? 0) + 1;
+    annotationCounts.set(annotation.pdfId, count);
+    const group = target.closest<HTMLDetailsElement>("[data-pdf-annotation-group]");
+    if (group) group.hidden = false;
+    const badge = group?.querySelector<HTMLElement>("[data-pdf-annotation-count]");
+    if (badge) badge.textContent = String(count);
   }
 
   async #deleteAnnotation(annotation: AnnotationResource): Promise<void> {
@@ -6594,74 +6634,88 @@ class WorkspaceApp {
       return;
     }
     const annotations = new Map(this.#snapshot.annotations.map((annotation) => [annotation.id, annotation]));
-    for (const claim of claims) {
-      const card = document.createElement("article");
-      card.className = "resource-card";
-      card.dataset.claimResourceId = claim.id;
-      card.tabIndex = -1;
-      const evidence = this.#snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id);
-      const grounding = document.createElement("label");
-      grounding.className = "flex items-start gap-2";
-      const groundingCheckbox = document.createElement("input");
-      groundingCheckbox.type = "checkbox";
-      groundingCheckbox.className = "mt-1 accent-app-accent";
-      groundingCheckbox.dataset.modelEvidenceKey = modelEvidenceKey("claim", claim.id);
-      groundingCheckbox.checked = this.#modelEvidenceSelection.has(groundingCheckbox.dataset.modelEvidenceKey);
-      groundingCheckbox.setAttribute("aria-label", `Use claim “${accessibleEvidenceExcerpt(claim.text)}” as model evidence`);
-      groundingCheckbox.addEventListener("change", () =>
-        this.#setModelEvidenceSelected(groundingCheckbox.dataset.modelEvidenceKey ?? "", groundingCheckbox.checked),
-      );
-      const groundingCopy = document.createElement("span");
-      groundingCopy.className = "min-w-0";
-      groundingCopy.append(
-        resourceLabel(`Claim · ${evidence.length} ${evidence.length === 1 ? "source" : "sources"}`),
-        resourceTitle(claim.text),
-      );
-      grounding.append(groundingCheckbox, groundingCopy);
-      card.append(grounding);
-      if (claim.note) {
-        const note = document.createElement("p");
-        note.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
-        note.textContent = claim.note;
-        card.append(note);
-      }
-      if (evidence.length > 0) {
-        const evidenceList = document.createElement("div");
-        evidenceList.className = "mt-3 space-y-1";
-        for (const link of evidence) {
-          const annotation = annotations.get(link.annotationId);
-          if (!annotation) continue;
-          evidenceList.append(
-            actionButton(
-              `${link.relation} · ${annotation.comment || `page ${annotation.page}`}`,
-              "block w-full text-left font-sans text-xs font-bold text-app-accent-strong underline decoration-app-border underline-offset-4",
-              () => this.#focusAnnotationCard(annotation.id),
-            ),
-          );
-        }
-        card.append(evidenceList);
-      }
-      const actions = document.createElement("div");
-      actions.className = "mt-3 grid grid-cols-2 gap-2";
-      actions.append(
-        actionButton("Edit", "button-secondary justify-center", () => this.#openClaimDialog(claim)),
-        actionButton("Delete", "button-secondary justify-center", () => void this.#deleteClaim(claim)),
-        actionButton("Link selected prose", "button-secondary col-span-2 justify-center", () => void this.#linkClaim(claim.id)),
-      );
-      const passage = links.find((link) => link.claimId === claim.id);
-      if (passage) {
-        const openPassage = actionButton(anchorActionLabel(passage.resolution), "button-secondary col-span-2 justify-center", () =>
-          this.#showPassage(passage.anchor),
-        );
-        openPassage.dataset.anchorLinkId = passage.id;
-        openPassage.disabled = passage.resolution.status !== "resolved";
-        openPassage.dataset.anchorStatus = passage.resolution.status;
-        openPassage.dataset.anchorMatch = anchorMatchState(passage.resolution);
-        actions.append(openPassage);
-      }
-      card.append(actions);
-      this.#elements.claimList.append(card);
+    for (const claim of claims) this.#elements.claimList.append(this.#claimCard(claim, annotations, links));
+  }
+
+  #claimCard(claim: ClaimResource, annotations: ReadonlyMap<string, AnnotationResource>, links: readonly ClaimPassageLink[]): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    card.dataset.claimResourceId = claim.id;
+    card.tabIndex = -1;
+    const evidence = this.#snapshot?.claimEvidenceLinks.filter((link) => link.claimId === claim.id) ?? [];
+    card.append(this.#claimGroundingLabel(claim, evidence.length));
+    if (claim.note) {
+      const note = document.createElement("p");
+      note.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
+      note.textContent = claim.note;
+      card.append(note);
     }
+    if (evidence.length > 0) card.append(this.#claimEvidenceList(evidence, annotations));
+    card.append(
+      this.#claimActions(
+        claim,
+        links.find((link) => link.claimId === claim.id),
+      ),
+    );
+    return card;
+  }
+
+  #claimGroundingLabel(claim: ClaimResource, evidenceCount: number): HTMLElement {
+    const grounding = document.createElement("label");
+    grounding.className = "flex items-start gap-2";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "mt-1 accent-app-accent";
+    checkbox.dataset.modelEvidenceKey = modelEvidenceKey("claim", claim.id);
+    checkbox.checked = this.#modelEvidenceSelection.has(checkbox.dataset.modelEvidenceKey);
+    checkbox.setAttribute("aria-label", `Use claim “${accessibleEvidenceExcerpt(claim.text)}” as model evidence`);
+    checkbox.addEventListener("change", () => this.#setModelEvidenceSelected(checkbox.dataset.modelEvidenceKey ?? "", checkbox.checked));
+    const copy = document.createElement("span");
+    copy.className = "min-w-0";
+    copy.append(resourceLabel(`Claim · ${evidenceCount} ${evidenceCount === 1 ? "source" : "sources"}`), resourceTitle(claim.text));
+    grounding.append(checkbox, copy);
+    return grounding;
+  }
+
+  #claimEvidenceList(
+    evidence: readonly WorkspaceSnapshot["claimEvidenceLinks"][number][],
+    annotations: ReadonlyMap<string, AnnotationResource>,
+  ): HTMLElement {
+    const list = document.createElement("div");
+    list.className = "mt-3 space-y-1";
+    for (const link of evidence) {
+      const annotation = annotations.get(link.annotationId);
+      if (!annotation) continue;
+      list.append(
+        actionButton(
+          `${link.relation} · ${annotation.comment || `page ${annotation.page}`}`,
+          "block w-full text-left font-sans text-xs font-bold text-app-accent-strong underline decoration-app-border underline-offset-4",
+          () => this.#focusAnnotationCard(annotation.id),
+        ),
+      );
+    }
+    return list;
+  }
+
+  #claimActions(claim: ClaimResource, passage: ClaimPassageLink | undefined): HTMLElement {
+    const actions = document.createElement("div");
+    actions.className = "mt-3 grid grid-cols-2 gap-2";
+    actions.append(
+      actionButton("Edit", "button-secondary justify-center", () => this.#openClaimDialog(claim)),
+      actionButton("Delete", "button-secondary justify-center", () => void this.#deleteClaim(claim)),
+      actionButton("Link selected prose", "button-secondary col-span-2 justify-center", () => void this.#linkClaim(claim.id)),
+    );
+    if (passage) {
+      const openPassage = actionButton(anchorActionLabel(passage.resolution), "button-secondary col-span-2 justify-center", () =>
+        this.#showPassage(passage.anchor),
+      );
+      openPassage.dataset.anchorLinkId = passage.id;
+      openPassage.disabled = passage.resolution.status !== "resolved";
+      openPassage.dataset.anchorStatus = passage.resolution.status;
+      openPassage.dataset.anchorMatch = anchorMatchState(passage.resolution);
+      actions.append(openPassage);
+    }
+    return actions;
   }
 
   #renderManuscriptComments(comments: ManuscriptComment[]): void {
