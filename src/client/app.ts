@@ -822,6 +822,18 @@ interface AssistantDraftContext {
   readonly sourceRevision: number;
 }
 
+interface AssistantGenerationContext {
+  readonly provider: OpenAICompatibleBrowserProvider;
+  readonly operation: ReturnType<typeof assistantOperationDefinition>;
+  readonly passage: AuthoringPassage | null;
+  readonly evidence: { items: ModelEvidenceItem[]; references: ModelEvidenceReference[] };
+  readonly annotationItems: ModelEvidenceItem[];
+  readonly annotationReferences: ModelEvidenceReference[];
+  readonly insertionTarget: AuthoringPassage | null;
+  readonly instruction: string;
+  readonly sourceRevision: number;
+}
+
 interface ClarityDrillContext extends AssistantDraftContext {
   readonly provider: OpenAICompatibleBrowserProvider;
   readonly question: ModelClarityQuestion;
@@ -9049,191 +9061,54 @@ class WorkspaceApp {
     for (const key of this.#modelEvidenceSelection) {
       const [kind, id] = parseModelEvidenceKey(key);
       if (kind === "annotation") {
-        const annotation = this.#snapshot.annotations.find((item) => item.id === id);
-        if (!annotation) continue;
-        references.push({ kind, id, version: annotation.updatedAt });
-        items.push({
-          kind,
-          id,
-          label: `PDF annotation on page ${annotation.page}`,
-          content: [
-            `Quote: ${annotation.quote}`,
-            annotation.prefix ? `Context before: ${annotation.prefix}` : "",
-            annotation.suffix ? `Context after: ${annotation.suffix}` : "",
-            annotation.comment ? `Researcher note: ${annotation.comment}` : "",
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        });
+        this.#appendAnnotationModelEvidence(id, items, references);
         continue;
       }
-      const claim = this.#snapshot.claims.find((item) => item.id === id);
-      if (!claim) continue;
-      references.push({ kind, id, version: claim.updatedAt });
-      items.push({
-        kind,
-        id,
-        label: "Researcher-authored claim",
-        content: [`Claim: ${claim.text}`, claim.note ? `Working note: ${claim.note}` : ""].filter(Boolean).join("\n"),
-      });
+      this.#appendClaimModelEvidence(id, items, references);
     }
     return { items, references };
   }
 
+  #appendAnnotationModelEvidence(id: string, items: ModelEvidenceItem[], references: ModelEvidenceReference[]): void {
+    const annotation = this.#snapshot?.annotations.find((item) => item.id === id);
+    if (!annotation) return;
+    references.push({ kind: "annotation", id, version: annotation.updatedAt });
+    items.push({
+      kind: "annotation",
+      id,
+      label: `PDF annotation on page ${annotation.page}`,
+      content: [
+        `Quote: ${annotation.quote}`,
+        annotation.prefix ? `Context before: ${annotation.prefix}` : "",
+        annotation.suffix ? `Context after: ${annotation.suffix}` : "",
+        annotation.comment ? `Researcher note: ${annotation.comment}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+  }
+
+  #appendClaimModelEvidence(id: string, items: ModelEvidenceItem[], references: ModelEvidenceReference[]): void {
+    const claim = this.#snapshot?.claims.find((item) => item.id === id);
+    if (!claim) return;
+    references.push({ kind: "claim", id, version: claim.updatedAt });
+    items.push({
+      kind: "claim",
+      id,
+      label: "Researcher-authored claim",
+      content: [`Claim: ${claim.text}`, claim.note ? `Working note: ${claim.note}` : ""].filter(Boolean).join("\n"),
+    });
+  }
+
   async #generateCandidate(): Promise<void> {
     if (assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
-    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
-    const draftsClaim = operation.id === "draft-claim";
-    if (!this.#snapshot || (!draftsClaim && !this.#hasStableDocumentBase())) {
-      this.#elements.modelStatus.textContent = "Wait for the manuscript to finish synchronizing before using the model.";
-      return;
-    }
-
-    const passage = this.#assistantAuthoringPassage();
-    const evidence = this.#modelEvidence();
-    const annotationItems = evidence.items.filter((item) => item.kind === "annotation");
-    const annotationReferences = evidence.references.filter((item) => item.kind === "annotation");
-    const evidenceMissing =
-      operation.evidence === "required"
-        ? evidence.items.length === 0
-        : operation.evidence === "annotations"
-          ? annotationItems.length === 0
-          : false;
-    const insertionTarget = operation.id === "build-table" ? this.#assistantInsertionTarget() : null;
-    if (
-      (!draftsClaim && operation.id !== "build-table" && !passage) ||
-      (operation.id === "build-table" && !insertionTarget) ||
-      evidenceMissing
-    ) {
-      this.#elements.modelStatus.textContent = draftsClaim
-        ? "Choose at least one annotation as evidence. Claims cannot ground a new claim draft."
-        : "Choose a valid manuscript target, then use Choose evidence for any required grounding.";
-      return;
-    }
-    let provider: OpenAICompatibleBrowserProvider;
-    try {
-      provider = this.#modelProvider();
-    } catch (error) {
-      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
-      return;
-    }
-    const instruction = this.#elements.modelInstruction.value;
-    this.#assistantWorkflow.send({ type: "START", operation: operation.id, sourceRevision: this.#revision });
+    const input = this.#assistantGenerationContext();
+    if (!input) return;
+    this.#assistantWorkflow.send({ type: "START", operation: input.operation.id, sourceRevision: input.sourceRevision });
     this.#updateModelAvailability();
-    this.#elements.modelStatus.textContent = draftsClaim
-      ? "Asking the local model for one grounded claim draft…"
-      : operation.id === "clarity-drill"
-        ? "Finding the single ambiguity that matters most…"
-        : "Asking the local model for a grounded candidate…";
+    this.#elements.modelStatus.textContent = this.#assistantGenerationStartMessage(input.operation.id);
     try {
-      if (draftsClaim) {
-        const relation = readClaimEvidenceRelation(this.#elements.modelClaimRelation.value);
-        const draft = await provider.draftClaim({ instruction, relation, evidence: annotationItems });
-        const response = await jsonFetch(`${apiBase}/claim-candidates`, {
-          providerAdapter: "openai-compatible",
-          providerLabel: draft.providerLabel,
-          model: draft.model,
-          promptVersion: "draft-claim-v1",
-          instruction,
-          relation,
-          evidence: annotationReferences,
-          proposedText: draft.text,
-          proposedNote: draft.note,
-        });
-        await expectOk(response);
-        const value: unknown = await response.json();
-        if (!isModelCandidate(value) || value.operation !== "draft-claim") {
-          throw new Error("Candidate endpoint returned an invalid claim draft");
-        }
-        await this.#resourceRefresh.request();
-        this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
-        this.#elements.modelStatus.textContent = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
-        this.#assistantWorkflow.send({ type: "COMPLETE" });
-        return;
-      }
-      if (operation.id === "build-table") {
-        if (!insertionTarget) throw new Error("Place the manuscript caret first");
-        const sourceRevision = this.#revision;
-        const requirements = this.#tableRequirements();
-        const source = this.#activeFileText.toString();
-        const context = resolveAssistantTarget(source, insertionTarget.end, insertionTarget.end, "paragraph").text;
-        const table = await provider.buildTable({
-          instruction,
-          ...requirements,
-          manuscriptContext: context,
-        });
-        if (table.columns.length !== requirements.columns.length || table.rows.length !== requirements.rows.length) {
-          throw new Error("Local model changed the requested table shape");
-        }
-        this.#renderGeneratedTable(insertionTarget, sourceRevision, table);
-        this.#elements.modelStatus.textContent = "Table syntax ready. Review it before inserting at the visible target.";
-        this.#assistantWorkflow.send({ type: "REVIEW" });
-        return;
-      }
-      if (!passage) throw new Error("Select manuscript text first");
-      const sourceRevision = this.#revision;
-      if (operation.id === "phrase-passage") {
-        const purpose = this.#phrasingPurpose();
-        const patterns = phrasingPatternsForPurpose(purpose.id);
-        const result = await provider.phrasePassage({
-          selectedPassage: passage.excerpt,
-          instruction,
-          evidence: evidence.items,
-          purpose,
-          patterns,
-        });
-        this.#renderPhrasingAlternatives({ passage, evidence, instruction, sourceRevision }, purpose, result);
-        this.#elements.modelStatus.textContent = "Choose one alternative to open exact before-and-after review.";
-        this.#assistantWorkflow.send({ type: "REVIEW" });
-        return;
-      }
-      if (operation.id === "find-references") {
-        const formulated = await provider.formulateReferenceQuery({
-          selectedPassage: passage.excerpt,
-          instruction,
-          evidence: evidence.items,
-        });
-        const response = await jsonFetch("/api/library/discovery", { query: formulated.query });
-        await expectOk(response);
-        const value: unknown = await response.json();
-        if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
-        this.#renderReferenceDiscovery(formulated.query, formulated.rationale, value);
-        this.#elements.modelStatus.textContent = value.length
-          ? `Found ${value.length} verifiable registry record${value.length === 1 ? "" : "s"}. Review before saving.`
-          : "No verifiable registry records matched this query. Refine the search focus and try again.";
-        this.#assistantWorkflow.send({ type: "REVIEW" });
-        return;
-      }
-      if (operation.id === "ideate") {
-        const result = await provider.ideate({ selectedPassage: passage.excerpt, instruction, evidence: evidence.items });
-        this.#renderIdeas({ passage, evidence, instruction, sourceRevision }, result);
-        this.#elements.modelStatus.textContent = "Choose a direction to open its complete draft for exact review.";
-        this.#assistantWorkflow.send({ type: "REVIEW" });
-        return;
-      }
-      if (operation.id === "clarity-drill") {
-        const question = await provider.startClarityDrill({
-          selectedPassage: passage.excerpt,
-          instruction,
-          evidence: evidence.items,
-        });
-        this.#renderClarityQuestion({ provider, passage, evidence, instruction, sourceRevision, question });
-        this.#elements.modelStatus.textContent = "Answer one focused question to make the intended meaning explicit.";
-        this.#assistantWorkflow.send({ type: "AWAIT_INPUT" });
-        return;
-      }
-      const revision = await provider.reviseSelection({ selectedPassage: passage.excerpt, instruction, evidence: evidence.items });
-      await this.#persistRevisionCandidate({
-        passage,
-        evidence: evidence.references,
-        instruction,
-        sourceRevision,
-        replacement: revision.replacement,
-        providerLabel: revision.providerLabel,
-        model: revision.model,
-      });
-      this.#elements.modelStatus.textContent = "Candidate ready. Review its exact replacement and evidence in Context.";
-      this.#assistantWorkflow.send({ type: "COMPLETE" });
+      await this.#runAssistantGeneration(input);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Local model request failed";
       this.#assistantWorkflow.send({ type: "FAIL", message });
@@ -9241,6 +9116,207 @@ class WorkspaceApp {
     } finally {
       this.#updateModelAvailability();
     }
+  }
+
+  #assistantGenerationContext(): AssistantGenerationContext | null {
+    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
+    const draftsClaim = operation.id === "draft-claim";
+    if (!this.#snapshot || (!draftsClaim && !this.#hasStableDocumentBase())) {
+      this.#elements.modelStatus.textContent = "Wait for the manuscript to finish synchronizing before using the model.";
+      return null;
+    }
+    const passage = this.#assistantAuthoringPassage();
+    const evidence = this.#modelEvidence();
+    const annotationItems = evidence.items.filter((item) => item.kind === "annotation");
+    const annotationReferences = evidence.references.filter((item) => item.kind === "annotation");
+    const insertionTarget = operation.id === "build-table" ? this.#assistantInsertionTarget() : null;
+    if (
+      this.#assistantTargetMissing(operation.id, passage, insertionTarget) ||
+      this.#assistantEvidenceMissing(operation.evidence, evidence, annotationItems)
+    ) {
+      this.#elements.modelStatus.textContent = draftsClaim
+        ? "Choose at least one annotation as evidence. Claims cannot ground a new claim draft."
+        : "Choose a valid manuscript target, then use Choose evidence for any required grounding.";
+      return null;
+    }
+    const provider = this.#modelProviderOrReport();
+    if (!provider) return null;
+    return {
+      provider,
+      operation,
+      passage,
+      evidence,
+      annotationItems,
+      annotationReferences,
+      insertionTarget,
+      instruction: this.#elements.modelInstruction.value,
+      sourceRevision: this.#revision,
+    };
+  }
+
+  #assistantTargetMissing(
+    operation: AssistantGenerationContext["operation"]["id"],
+    passage: AuthoringPassage | null,
+    insertionTarget: AuthoringPassage | null,
+  ): boolean {
+    if (operation === "build-table") return !insertionTarget;
+    return operation !== "draft-claim" && !passage;
+  }
+
+  #assistantEvidenceMissing(
+    requirement: AssistantGenerationContext["operation"]["evidence"],
+    evidence: AssistantGenerationContext["evidence"],
+    annotations: readonly ModelEvidenceItem[],
+  ): boolean {
+    if (requirement === "required") return evidence.items.length === 0;
+    if (requirement === "annotations") return annotations.length === 0;
+    return false;
+  }
+
+  #modelProviderOrReport(): OpenAICompatibleBrowserProvider | null {
+    try {
+      return this.#modelProvider();
+    } catch (error) {
+      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
+      return null;
+    }
+  }
+
+  #assistantGenerationStartMessage(operation: AssistantGenerationContext["operation"]["id"]): string {
+    if (operation === "draft-claim") return "Asking the local model for one grounded claim draft…";
+    if (operation === "clarity-drill") return "Finding the single ambiguity that matters most…";
+    return "Asking the local model for a grounded candidate…";
+  }
+
+  async #runAssistantGeneration(input: AssistantGenerationContext): Promise<void> {
+    if (input.operation.id === "draft-claim") return await this.#generateClaimCandidate(input);
+    if (input.operation.id === "build-table") return await this.#generateTableCandidate(input);
+    if (!input.passage) throw new Error("Select manuscript text first");
+    if (input.operation.id === "phrase-passage") return await this.#generatePhrasingCandidate(input, input.passage);
+    if (input.operation.id === "find-references") return await this.#generateReferenceDiscovery(input, input.passage);
+    if (input.operation.id === "ideate") return await this.#generateIdeas(input, input.passage);
+    if (input.operation.id === "clarity-drill") return await this.#generateClarityQuestion(input, input.passage);
+    await this.#generateRevisionCandidate(input, input.passage);
+  }
+
+  async #generateClaimCandidate(input: AssistantGenerationContext): Promise<void> {
+    const relation = readClaimEvidenceRelation(this.#elements.modelClaimRelation.value);
+    const draft = await input.provider.draftClaim({ instruction: input.instruction, relation, evidence: input.annotationItems });
+    const response = await jsonFetch(`${apiBase}/claim-candidates`, {
+      providerAdapter: "openai-compatible",
+      providerLabel: draft.providerLabel,
+      model: draft.model,
+      promptVersion: "draft-claim-v1",
+      instruction: input.instruction,
+      relation,
+      evidence: input.annotationReferences,
+      proposedText: draft.text,
+      proposedNote: draft.note,
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isModelCandidate(value) || value.operation !== "draft-claim")
+      throw new Error("Candidate endpoint returned an invalid claim draft");
+    await this.#resourceRefresh.request();
+    this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
+    this.#elements.modelStatus.textContent = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
+    this.#assistantWorkflow.send({ type: "COMPLETE" });
+  }
+
+  async #generateTableCandidate(input: AssistantGenerationContext): Promise<void> {
+    if (!input.insertionTarget) throw new Error("Place the manuscript caret first");
+    const requirements = this.#tableRequirements();
+    const source = this.#activeFileText.toString();
+    const manuscriptContext = resolveAssistantTarget(source, input.insertionTarget.end, input.insertionTarget.end, "paragraph").text;
+    const table = await input.provider.buildTable({ instruction: input.instruction, ...requirements, manuscriptContext });
+    if (table.columns.length !== requirements.columns.length || table.rows.length !== requirements.rows.length)
+      throw new Error("Local model changed the requested table shape");
+    this.#renderGeneratedTable(input.insertionTarget, input.sourceRevision, table);
+    this.#elements.modelStatus.textContent = "Table syntax ready. Review it before inserting at the visible target.";
+    this.#assistantWorkflow.send({ type: "REVIEW" });
+  }
+
+  async #generatePhrasingCandidate(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
+    const purpose = this.#phrasingPurpose();
+    const result = await input.provider.phrasePassage({
+      selectedPassage: passage.excerpt,
+      instruction: input.instruction,
+      evidence: input.evidence.items,
+      purpose,
+      patterns: phrasingPatternsForPurpose(purpose.id),
+    });
+    this.#renderPhrasingAlternatives(
+      { passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision },
+      purpose,
+      result,
+    );
+    this.#elements.modelStatus.textContent = "Choose one alternative to open exact before-and-after review.";
+    this.#assistantWorkflow.send({ type: "REVIEW" });
+  }
+
+  async #generateReferenceDiscovery(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
+    const formulated = await input.provider.formulateReferenceQuery({
+      selectedPassage: passage.excerpt,
+      instruction: input.instruction,
+      evidence: input.evidence.items,
+    });
+    const response = await jsonFetch("/api/library/discovery", { query: formulated.query });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
+    this.#renderReferenceDiscovery(formulated.query, formulated.rationale, value);
+    this.#elements.modelStatus.textContent = value.length
+      ? `Found ${value.length} verifiable registry record${value.length === 1 ? "" : "s"}. Review before saving.`
+      : "No verifiable registry records matched this query. Refine the search focus and try again.";
+    this.#assistantWorkflow.send({ type: "REVIEW" });
+  }
+
+  async #generateIdeas(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
+    const result = await input.provider.ideate({
+      selectedPassage: passage.excerpt,
+      instruction: input.instruction,
+      evidence: input.evidence.items,
+    });
+    this.#renderIdeas({ passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision }, result);
+    this.#elements.modelStatus.textContent = "Choose a direction to open its complete draft for exact review.";
+    this.#assistantWorkflow.send({ type: "REVIEW" });
+  }
+
+  async #generateClarityQuestion(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
+    const question = await input.provider.startClarityDrill({
+      selectedPassage: passage.excerpt,
+      instruction: input.instruction,
+      evidence: input.evidence.items,
+    });
+    this.#renderClarityQuestion({
+      provider: input.provider,
+      passage,
+      evidence: input.evidence,
+      instruction: input.instruction,
+      sourceRevision: input.sourceRevision,
+      question,
+    });
+    this.#elements.modelStatus.textContent = "Answer one focused question to make the intended meaning explicit.";
+    this.#assistantWorkflow.send({ type: "AWAIT_INPUT" });
+  }
+
+  async #generateRevisionCandidate(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
+    const revision = await input.provider.reviseSelection({
+      selectedPassage: passage.excerpt,
+      instruction: input.instruction,
+      evidence: input.evidence.items,
+    });
+    await this.#persistRevisionCandidate({
+      passage,
+      evidence: input.evidence.references,
+      instruction: input.instruction,
+      sourceRevision: input.sourceRevision,
+      replacement: revision.replacement,
+      providerLabel: revision.providerLabel,
+      model: revision.model,
+    });
+    this.#elements.modelStatus.textContent = "Candidate ready. Review its exact replacement and evidence in Context.";
+    this.#assistantWorkflow.send({ type: "COMPLETE" });
   }
 
   #renderGeneratedTable(target: AuthoringPassage, sourceRevision: number, table: ModelTable): void {
@@ -9474,25 +9550,11 @@ class WorkspaceApp {
   async #saveDiscoveredReference(result: ReferenceDiscoveryResult, button: HTMLButtonElement): Promise<void> {
     button.disabled = true;
     try {
-      const metadata = result.metadata;
-      const primaryIdentifier = result.identifiers[0]!;
       const response = await fetch("/api/library/import/csl-json", {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify([
-          {
-            id: metadata.doi || `${primaryIdentifier.scheme}:${primaryIdentifier.value}`,
-            type: metadata.type === "article" ? "article-journal" : metadata.type,
-            title: metadata.title,
-            author: metadata.authors.map((literal) => ({ literal })),
-            ...(metadata.year ? { issued: { "date-parts": [[metadata.year]] } } : {}),
-            ...(metadata.venue ? { "container-title": metadata.venue } : {}),
-            ...(metadata.doi ? { DOI: metadata.doi } : {}),
-            URL: metadata.url || this.#referenceDiscoveryIdentifierUrl(primaryIdentifier),
-            ...(metadata.abstract ? { abstract: metadata.abstract } : {}),
-          },
-        ]),
+        body: JSON.stringify([this.#referenceDiscoveryCslRecord(result)]),
       });
       await expectOk(response);
       await this.#refreshReferenceLibrary();
@@ -9502,6 +9564,23 @@ class WorkspaceApp {
       button.disabled = false;
       this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Could not save the reference";
     }
+  }
+
+  #referenceDiscoveryCslRecord(result: ReferenceDiscoveryResult): Record<string, unknown> {
+    const metadata = result.metadata;
+    const primaryIdentifier = result.identifiers[0]!;
+    const record: Record<string, unknown> = {
+      id: metadata.doi || `${primaryIdentifier.scheme}:${primaryIdentifier.value}`,
+      type: metadata.type === "article" ? "article-journal" : metadata.type,
+      title: metadata.title,
+      author: metadata.authors.map((literal) => ({ literal })),
+      URL: metadata.url || this.#referenceDiscoveryIdentifierUrl(primaryIdentifier),
+    };
+    if (metadata.year) record.issued = { "date-parts": [[metadata.year]] };
+    if (metadata.venue) record["container-title"] = metadata.venue;
+    if (metadata.doi) record.DOI = metadata.doi;
+    if (metadata.abstract) record.abstract = metadata.abstract;
+    return record;
   }
 
   async #chooseIdea(
@@ -9662,7 +9741,7 @@ class WorkspaceApp {
   async #updateCandidate(candidateId: string, action: "apply" | "reject"): Promise<void> {
     if (assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
     const candidate = this.#snapshot?.candidates.find((item) => item.id === candidateId);
-    if (action === "apply" && candidate?.operation !== "draft-claim" && !this.#hasStableDocumentBase()) {
+    if (!this.#candidateDecisionAllowed(action, candidate)) {
       this.#showToast("Wait for the manuscript to finish synchronizing before applying a candidate.");
       return;
     }
@@ -9675,29 +9754,41 @@ class WorkspaceApp {
       await expectOk(response);
       await this.#resourceRefresh.request();
       if (action === "reject") this.#contextState = activateResearchTab(this.#contextState, RESEARCH_ASSISTANT_KEY);
-      this.#showToast(
-        action === "apply"
-          ? candidate?.operation === "draft-claim"
-            ? "Evidence-backed claim created."
-            : "Candidate applied to canonical Markdown."
-          : candidate?.operation === "draft-claim"
-            ? "Claim draft rejected; no claim created."
-            : "Candidate rejected; manuscript unchanged.",
-      );
+      this.#showToast(this.#candidateDecisionMessage(action, candidate?.operation === "draft-claim"));
     } catch (error) {
       failure = error instanceof Error ? error.message : "Candidate decision failed";
       await this.#resourceRefresh.request().catch(() => undefined);
       this.#showToast(failure);
     } finally {
-      this.#assistantWorkflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
-      this.#renderResearchContext(false);
-      this.#updateModelAvailability();
-      if (!failure && action === "reject") this.#focusContextTab(RESEARCH_ASSISTANT_KEY);
-      const current = this.#snapshot?.candidates.find((candidate) => candidate.id === candidateId);
-      if (failure && current?.status === "pending" && this.#activeResourceTab()?.id === candidateId) {
-        this.#elements.contextCandidateStatus.textContent = `Could not ${action === "apply" ? "apply" : "reject"} ${current.operation === "draft-claim" ? "claim draft" : "revision"}: ${failure}`;
-      }
+      this.#completeCandidateDecision(candidateId, action, failure);
     }
+  }
+
+  #candidateDecisionAllowed(action: "apply" | "reject", candidate: ModelCandidate | undefined): boolean {
+    if (action === "reject") return true;
+    if (candidate?.operation === "draft-claim") return true;
+    return this.#hasStableDocumentBase();
+  }
+
+  #candidateDecisionMessage(action: "apply" | "reject", draftsClaim: boolean): string {
+    if (action === "apply") return draftsClaim ? "Evidence-backed claim created." : "Candidate applied to canonical Markdown.";
+    return draftsClaim ? "Claim draft rejected; no claim created." : "Candidate rejected; manuscript unchanged.";
+  }
+
+  #completeCandidateDecision(candidateId: string, action: "apply" | "reject", failure: string | null): void {
+    this.#assistantWorkflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
+    this.#renderResearchContext(false);
+    this.#updateModelAvailability();
+    if (!failure && action === "reject") this.#focusContextTab(RESEARCH_ASSISTANT_KEY);
+    if (failure) this.#showCandidateDecisionFailure(candidateId, action, failure);
+  }
+
+  #showCandidateDecisionFailure(candidateId: string, action: "apply" | "reject", failure: string): void {
+    const current = this.#snapshot?.candidates.find((candidate) => candidate.id === candidateId);
+    if (current?.status !== "pending" || this.#activeResourceTab()?.id !== candidateId) return;
+    const verb = action === "apply" ? "apply" : "reject";
+    const subject = current.operation === "draft-claim" ? "claim draft" : "revision";
+    this.#elements.contextCandidateStatus.textContent = `Could not ${verb} ${subject}: ${failure}`;
   }
 
   async #updateActiveCandidate(action: "apply" | "reject"): Promise<void> {
