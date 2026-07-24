@@ -8824,16 +8824,30 @@ class WorkspaceApp {
   }
 
   #activePdfLoadContext(): ActivePdfLoadContext | null {
-    const tab = this.#activeResourceTab();
-    if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return null;
+    const tab = this.#activePdfTab();
+    if (!tab) return null;
     const { workspacePdf, libraryPdf, projectReferencePdf } = this.#activePdfResources(tab);
-    if (!workspacePdf && !libraryPdf && !projectReferencePdf) return null;
+    if (!this.#pdfResourceAvailable(workspacePdf, libraryPdf, projectReferencePdf)) return null;
     if (workspacePdf) this.#elements.annotationPdf.value = workspacePdf.id;
     const annotations = this.#activePdfAnnotations(workspacePdf);
     const privateHighlights = this.#activePdfHighlights(libraryPdf);
     const url = this.#activePdfUrl(workspacePdf, libraryPdf, projectReferencePdf);
     if (!url) return null;
     return { tab, workspacePdf, libraryPdf, annotations, privateHighlights, url };
+  }
+
+  #activePdfTab(): ActivePdfLoadContext["tab"] | null {
+    const tab = this.#activeResourceTab();
+    if (tab?.kind === "pdf" || tab?.kind === "library-pdf") return tab;
+    return null;
+  }
+
+  #pdfResourceAvailable(
+    workspacePdf: PdfResource | undefined,
+    libraryPdf: LibraryPdfArtifact | undefined,
+    projectReferencePdf: ProjectReferencePdf | undefined,
+  ): boolean {
+    return Boolean(workspacePdf ?? libraryPdf ?? projectReferencePdf);
   }
 
   #activePdfResources(tab: ActivePdfLoadContext["tab"]): ActivePdfResources {
