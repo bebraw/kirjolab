@@ -2988,13 +2988,22 @@ class WorkspaceApp {
   #updateModelAvailability(): void {
     const stable = this.#hasStableDocumentBase();
     const assistant = this.#assistantWorkflow.getSnapshot();
-    this.#elements.generateCandidate.disabled =
-      this.#modelDiscoveryBusy || assistantWorkflowBusy(assistant) || (!this.#draftsClaim() && !stable) || !this.#canGenerateCandidate();
+    this.#elements.generateCandidate.disabled = this.#candidateGenerationDisabled(stable, assistantWorkflowBusy(assistant));
+    this.#updateCandidateApplyButtons(stable, assistant.context.candidateDecision !== null);
+  }
+
+  #candidateGenerationDisabled(stable: boolean, assistantBusy: boolean): boolean {
+    if (this.#modelDiscoveryBusy || assistantBusy) return true;
+    if (!this.#draftsClaim() && !stable) return true;
+    return !this.#canGenerateCandidate();
+  }
+
+  #updateCandidateApplyButtons(stable: boolean, candidateDecided: boolean): void {
     for (const apply of document.querySelectorAll<HTMLButtonElement>('[data-candidate-action="apply"]')) {
       const candidate = this.#snapshot?.candidates.find((item) => item.id === apply.dataset.candidateId);
       const applicable = candidate ? this.#candidateApplicable(candidate) : false;
       apply.dataset.candidateApplicable = String(applicable);
-      apply.disabled = assistant.context.candidateDecision !== null || (candidate?.operation !== "draft-claim" && !stable) || !applicable;
+      apply.disabled = candidateDecided || (candidate?.operation !== "draft-claim" && !stable) || !applicable;
     }
   }
 
@@ -3002,24 +3011,28 @@ class WorkspaceApp {
     const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
     if (!operation.enabled) return false;
     const selectedEvidence = this.#modelEvidence();
-    const evidenceValid =
-      operation.evidence === "none" ||
-      operation.evidence === "optional" ||
-      (operation.evidence === "annotations"
-        ? selectedEvidence.items.some((item) => item.kind === "annotation")
-        : selectedEvidence.items.length > 0);
-    const targetValid = operation.id !== "build-table" || (this.#assistantInsertionTarget() !== null && this.#validTableRequirements());
     return (
-      evidenceValid &&
+      this.#assistantEvidenceValid(operation.evidence, selectedEvidence.items) &&
       this.#modelEvidenceSelection.size <= maximumModelEvidenceItems &&
       Boolean(this.#elements.llmModel.value.trim()) &&
-      (operation.id === "build-table"
-        ? targetValid
-        : this.#draftsClaim()
-          ? selectedEvidence.items.some((item) => item.kind === "annotation")
-          : this.#assistantAuthoringPassage() !== null) &&
+      this.#assistantTargetValid(operation.id, selectedEvidence.items) &&
       Boolean(this.#elements.modelInstruction.value.trim())
     );
+  }
+
+  #assistantEvidenceValid(
+    requirement: ReturnType<typeof assistantOperationDefinition>["evidence"],
+    evidence: readonly ModelEvidenceItem[],
+  ): boolean {
+    if (requirement === "none" || requirement === "optional") return true;
+    if (requirement === "annotations") return evidence.some((item) => item.kind === "annotation");
+    return evidence.length > 0;
+  }
+
+  #assistantTargetValid(operationId: string, evidence: readonly ModelEvidenceItem[]): boolean {
+    if (operationId === "build-table") return this.#assistantInsertionTarget() !== null && this.#validTableRequirements();
+    if (operationId === "draft-claim") return evidence.some((item) => item.kind === "annotation");
+    return this.#assistantAuthoringPassage() !== null;
   }
 
   #draftsClaim(): boolean {
@@ -3117,14 +3130,18 @@ class WorkspaceApp {
     try {
       const stored: unknown = JSON.parse(localStorage.getItem(modelPreferencesStorageKey) ?? "null");
       if (!isRecord(stored)) return;
-      if (stored.connection === "direct" || stored.connection === "companion") this.#elements.llmConnection.value = stored.connection;
-      if (typeof stored.endpoint === "string" && stored.endpoint.length <= 2_048) this.#elements.llmEndpoint.value = stored.endpoint;
-      if (typeof stored.model === "string" && stored.model.length <= 256) this.#setLlmModelOptions([], stored.model);
-      if (typeof stored.reasoningEffort === "string") {
-        this.#elements.llmReasoningEffort.value = readModelReasoningEffort(stored.reasoningEffort);
-      }
+      this.#applyStoredModelPreferences(stored);
     } catch {
       localStorage.removeItem(modelPreferencesStorageKey);
+    }
+  }
+
+  #applyStoredModelPreferences(stored: Record<string, unknown>): void {
+    if (stored.connection === "direct" || stored.connection === "companion") this.#elements.llmConnection.value = stored.connection;
+    if (typeof stored.endpoint === "string" && stored.endpoint.length <= 2_048) this.#elements.llmEndpoint.value = stored.endpoint;
+    if (typeof stored.model === "string" && stored.model.length <= 256) this.#setLlmModelOptions([], stored.model);
+    if (typeof stored.reasoningEffort === "string") {
+      this.#elements.llmReasoningEffort.value = readModelReasoningEffort(stored.reasoningEffort);
     }
   }
 
