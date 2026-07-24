@@ -307,6 +307,20 @@ function contextTabFocusIndex(key: string, currentIndex: number, tabCount: numbe
   return null;
 }
 
+function libraryPdfUploadMessage(added: number, existing: number, failed: number): string {
+  const addedLabel = `${added} PDF${added === 1 ? "" : "s"} added`;
+  const existingLabel = `${existing} already in library`;
+  if (failed > 0) return `${addedLabel}; ${existingLabel}; ${failed} failed.`;
+  if (existing > 0) return `${addedLabel}; ${existingLabel}.`;
+  return `${addedLabel}. Add metadata when ready.`;
+}
+
+function libraryPdfUploadStateText(item: PdfUploadQueueSnapshot["items"][number]): string {
+  if (item.state === "failed") return `Failed · ${item.error ?? "Upload failed"}`;
+  if (item.state === "existing" && item.existing) return `Already in library · ${item.existing.referenceKey}`;
+  return uploadStateLabel(item.state);
+}
+
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
 const appMode = readAppMode();
@@ -5554,38 +5568,11 @@ class WorkspaceApp {
 
   async #uploadLibraryPdfs(files: readonly File[]): Promise<void> {
     if (files.length === 0 || this.#libraryPdfUploadBusy) return;
-    this.#elements.libraryPdfUpload.value = "";
-    this.#elements.libraryPdfUpload.disabled = true;
-    this.#elements.libraryPdfUploadStatus.setAttribute("aria-busy", "true");
-    this.#elements.libraryPdfDropzone.dataset.busy = "true";
-    this.#libraryPdfUploadBusy = true;
-    this.#failedLibraryPdfUploads = [];
+    this.#beginLibraryPdfUpload();
     try {
       const result = await uploadPdfBatch(
         files,
-        async (file) => {
-          const response = await fetch("/api/library/pdfs", {
-            method: "POST",
-            headers: {
-              "content-type": "application/pdf",
-              "content-length": String(file.size),
-              "x-file-name": encodeURIComponent(file.name),
-            },
-            body: file,
-            credentials: "same-origin",
-          });
-          await expectOk(response);
-          const value: unknown = await response.json();
-          if (!isPdfDraftResult(value)) throw new Error("PDF intake returned an invalid result");
-          return value.created
-            ? { disposition: "created" }
-            : {
-                disposition: "existing",
-                referenceId: value.reference.id,
-                referenceKey: value.reference.referenceKey,
-                archived: value.reference.archivedAt !== null,
-              };
-        },
+        (file) => this.#uploadLibraryPdf(file),
         (snapshot) => this.#renderLibraryPdfUpload(snapshot, false),
       );
       this.#failedLibraryPdfUploads = result.failed;
@@ -5594,26 +5581,56 @@ class WorkspaceApp {
         { items: result.items, completed: result.items.length, total: result.items.length },
         result.failed.length > 0,
       );
-      const addedLabel = `${result.added.length} PDF${result.added.length === 1 ? "" : "s"} added`;
-      const existingLabel = `${result.existing.length} already in library`;
-      this.#showToast(
-        result.failed.length === 0
-          ? result.existing.length > 0
-            ? `${addedLabel}; ${existingLabel}.`
-            : `${addedLabel}. Add metadata when ready.`
-          : `${addedLabel}; ${existingLabel}; ${result.failed.length} failed.`,
-      );
+      this.#showToast(libraryPdfUploadMessage(result.added.length, result.existing.length, result.failed.length));
     } catch (error) {
       const message = error instanceof Error ? error.message : "PDF intake failed";
       this.#elements.libraryPdfUploadStatus.classList.remove("hidden");
       this.#elements.libraryPdfUploadStatus.replaceChildren(resourceLabel("PDF intake"), statusText(message));
       this.#showToast(message);
     } finally {
-      this.#libraryPdfUploadBusy = false;
-      this.#elements.libraryPdfUpload.disabled = false;
-      this.#elements.libraryPdfUploadStatus.removeAttribute("aria-busy");
-      delete this.#elements.libraryPdfDropzone.dataset.busy;
+      this.#finishLibraryPdfUpload();
     }
+  }
+
+  #beginLibraryPdfUpload(): void {
+    this.#elements.libraryPdfUpload.value = "";
+    this.#elements.libraryPdfUpload.disabled = true;
+    this.#elements.libraryPdfUploadStatus.setAttribute("aria-busy", "true");
+    this.#elements.libraryPdfDropzone.dataset.busy = "true";
+    this.#libraryPdfUploadBusy = true;
+    this.#failedLibraryPdfUploads = [];
+  }
+
+  async #uploadLibraryPdf(
+    file: File,
+  ): Promise<{ disposition: "created" } | { disposition: "existing"; referenceId: string; referenceKey: string; archived: boolean }> {
+    const response = await fetch("/api/library/pdfs", {
+      method: "POST",
+      headers: {
+        "content-type": "application/pdf",
+        "content-length": String(file.size),
+        "x-file-name": encodeURIComponent(file.name),
+      },
+      body: file,
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isPdfDraftResult(value)) throw new Error("PDF intake returned an invalid result");
+    if (value.created) return { disposition: "created" };
+    return {
+      disposition: "existing",
+      referenceId: value.reference.id,
+      referenceKey: value.reference.referenceKey,
+      archived: value.reference.archivedAt !== null,
+    };
+  }
+
+  #finishLibraryPdfUpload(): void {
+    this.#libraryPdfUploadBusy = false;
+    this.#elements.libraryPdfUpload.disabled = false;
+    this.#elements.libraryPdfUploadStatus.removeAttribute("aria-busy");
+    delete this.#elements.libraryPdfDropzone.dataset.busy;
   }
 
   #renderLibraryPdfUpload(snapshot: PdfUploadQueueSnapshot, retryFailed: boolean): void {
@@ -5622,34 +5639,7 @@ class WorkspaceApp {
     const summary = statusText(`${snapshot.completed} of ${snapshot.total} processed`);
     const list = document.createElement("ol");
     list.className = "mt-2 grid gap-1 font-sans text-xs";
-    for (const item of snapshot.items) {
-      const row = document.createElement("li");
-      row.className = "flex items-start justify-between gap-3";
-      row.dataset.uploadState = item.state;
-      const name = document.createElement("span");
-      name.className = "min-w-0 truncate text-app-text";
-      name.textContent = item.file.name;
-      name.title = item.file.name;
-      const state = document.createElement("span");
-      state.className = `shrink-0 ${item.state === "failed" ? "text-app-error" : "text-app-text-soft"}`;
-      state.textContent =
-        item.state === "failed"
-          ? `Failed · ${item.error ?? "Upload failed"}`
-          : item.state === "existing" && item.existing
-            ? `Already in library · ${item.existing.referenceKey}`
-            : uploadStateLabel(item.state);
-      const outcome = document.createElement("span");
-      outcome.className = "flex shrink-0 items-center gap-2";
-      outcome.append(state);
-      if (item.state === "existing" && item.existing) {
-        const existing = item.existing;
-        const reveal = actionButton("Show", "button-secondary", () => void this.#revealExistingPdfReference(existing));
-        reveal.setAttribute("aria-label", `Show ${existing.referenceKey} in Library`);
-        outcome.append(reveal);
-      }
-      row.append(name, outcome);
-      list.append(row);
-    }
+    for (const item of snapshot.items) list.append(this.#libraryPdfUploadRow(item));
     const content: Node[] = [resourceLabel("PDF intake"), summary, list];
     if (retryFailed) {
       const retry = actionButton("Retry failed", "button-secondary mt-3", () => {
@@ -5658,6 +5648,30 @@ class WorkspaceApp {
       content.push(retry);
     }
     container.replaceChildren(...content);
+  }
+
+  #libraryPdfUploadRow(item: PdfUploadQueueSnapshot["items"][number]): HTMLLIElement {
+    const row = document.createElement("li");
+    row.className = "flex items-start justify-between gap-3";
+    row.dataset.uploadState = item.state;
+    const name = document.createElement("span");
+    name.className = "min-w-0 truncate text-app-text";
+    name.textContent = item.file.name;
+    name.title = item.file.name;
+    const state = document.createElement("span");
+    state.className = `shrink-0 ${item.state === "failed" ? "text-app-error" : "text-app-text-soft"}`;
+    state.textContent = libraryPdfUploadStateText(item);
+    const outcome = document.createElement("span");
+    outcome.className = "flex shrink-0 items-center gap-2";
+    outcome.append(state);
+    if (item.state === "existing" && item.existing) {
+      const existing = item.existing;
+      const reveal = actionButton("Show", "button-secondary", () => void this.#revealExistingPdfReference(existing));
+      reveal.setAttribute("aria-label", `Show ${existing.referenceKey} in Library`);
+      outcome.append(reveal);
+    }
+    row.append(name, outcome);
+    return row;
   }
 
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
