@@ -70,8 +70,6 @@ import {
   type MetadataRefinementPreview,
   type ProjectReferencePdf,
   type ReferenceLibrarySnapshot,
-  type WebSnapshot,
-  type WebSnapshotComparison,
 } from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
@@ -150,6 +148,21 @@ import { detectImportedPdfHighlights, type PdfHighlightImportCandidate, type Pdf
 import { adjustSelectionRects } from "./pdf-selection";
 import { uploadPdfBatch, type ExistingPdfUpload, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
+import {
+  isCreatedAnnotation,
+  isGitHubBranchList,
+  isGitHubConnectionState,
+  isGitHubImportPreview,
+  isGitHubInstallationList,
+  isGitHubPublishPreview,
+  isGitHubPullPreview,
+  isGitHubRepositoryList,
+  isGitHubSyncState,
+  isLatexImportPreview,
+  isWebSnapshotComparisonResponse,
+  type GitHubRepositoryOption,
+  type LatexImportPreview,
+} from "./app-contracts";
 import {
   discoverOpenAICompatibleModels,
   maximumModelEvidenceItems,
@@ -246,39 +259,6 @@ interface DeferredDeletion {
 interface PendingDeletion {
   readonly deletion: DeferredDeletion;
   readonly timer: number;
-}
-
-interface GitHubInstallationOption {
-  readonly id: number;
-  readonly accountId: string;
-  readonly accountLogin: string;
-  readonly accountType: "Organization" | "User";
-}
-
-interface GitHubRepositoryOption {
-  readonly id: number;
-  readonly owner: string;
-  readonly name: string;
-  readonly fullName: string;
-  readonly private: boolean;
-  readonly defaultBranch: string;
-}
-
-interface LatexImportPreview {
-  readonly digest: string;
-  readonly archive: {
-    readonly files: readonly { readonly path: string; readonly kind: string; readonly bytes: number }[];
-    readonly rootCandidates: readonly string[];
-  };
-  readonly conversion: {
-    readonly seed: { readonly files: readonly { readonly path: string; readonly content: string }[]; readonly bibliography: string };
-    readonly assets: readonly { readonly path: string; readonly mediaType: string; readonly bytes: number }[];
-    readonly report: {
-      readonly rootPath: string;
-      readonly bibliographyPath: string | null;
-      readonly diagnostics: readonly { readonly severity: "error" | "warning" | "info"; readonly message: string }[];
-    };
-  } | null;
 }
 
 type PublicationPaperOption =
@@ -11112,171 +11092,8 @@ function downloadLink(href: string, label: string): HTMLAnchorElement {
   return link;
 }
 
-interface WebSnapshotComparisonResponse {
-  readonly before: WebSnapshot;
-  readonly after: WebSnapshot;
-  readonly comparison: WebSnapshotComparison;
-}
-
-function isWebSnapshotComparisonResponse(value: unknown): value is WebSnapshotComparisonResponse {
-  if (!isUnknownRecord(value) || !isUnknownRecord(value.before) || !isUnknownRecord(value.after) || !isUnknownRecord(value.comparison)) {
-    return false;
-  }
-  return (
-    typeof value.before.id === "string" &&
-    typeof value.after.id === "string" &&
-    typeof value.comparison.identical === "boolean" &&
-    typeof value.comparison.addedLines === "number" &&
-    typeof value.comparison.removedLines === "number" &&
-    Array.isArray(value.comparison.hunks) &&
-    value.comparison.hunks.every(
-      (hunk) =>
-        isUnknownRecord(hunk) &&
-        typeof hunk.beforeLine === "number" &&
-        typeof hunk.afterLine === "number" &&
-        Array.isArray(hunk.removed) &&
-        hunk.removed.every((line) => typeof line === "string") &&
-        Array.isArray(hunk.added) &&
-        hunk.added.every((line) => typeof line === "string") &&
-        typeof hunk.truncated === "boolean",
-    )
-  );
-}
-
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isGitHubConnectionState(
-  value: unknown,
-): value is { connected: false } | { connected: true; user: { id: string; login: string }; connectedAt: string } {
-  if (!isUnknownRecord(value) || typeof value.connected !== "boolean") return false;
-  if (!value.connected) return true;
-  return (
-    isUnknownRecord(value.user) &&
-    typeof value.user.id === "string" &&
-    typeof value.user.login === "string" &&
-    typeof value.connectedAt === "string"
-  );
-}
-
-function isGitHubInstallationList(value: unknown): value is { installations: GitHubInstallationOption[] } {
-  return (
-    isUnknownRecord(value) &&
-    Array.isArray(value.installations) &&
-    value.installations.every(
-      (installation) =>
-        isUnknownRecord(installation) &&
-        typeof installation.id === "number" &&
-        Number.isSafeInteger(installation.id) &&
-        typeof installation.accountId === "string" &&
-        typeof installation.accountLogin === "string" &&
-        (installation.accountType === "Organization" || installation.accountType === "User"),
-    )
-  );
-}
-
-function isGitHubRepositoryList(value: unknown): value is { repositories: GitHubRepositoryOption[] } {
-  return (
-    isUnknownRecord(value) &&
-    Array.isArray(value.repositories) &&
-    value.repositories.every(
-      (repository) =>
-        isUnknownRecord(repository) &&
-        typeof repository.id === "number" &&
-        Number.isSafeInteger(repository.id) &&
-        typeof repository.owner === "string" &&
-        typeof repository.name === "string" &&
-        typeof repository.fullName === "string" &&
-        typeof repository.private === "boolean" &&
-        typeof repository.defaultBranch === "string",
-    )
-  );
-}
-
-function isGitHubBranchList(
-  value: unknown,
-): value is { repository: GitHubRepositoryOption; branches: { name: string; protected: boolean }[] } {
-  return (
-    isUnknownRecord(value) &&
-    isGitHubRepositoryList({ repositories: [value.repository] }) &&
-    Array.isArray(value.branches) &&
-    value.branches.every((branch) => isUnknownRecord(branch) && typeof branch.name === "string" && typeof branch.protected === "boolean")
-  );
-}
-
-function isGitHubImportPreview(value: unknown): value is {
-  id: string;
-  commitSha: string;
-  entryPath: string;
-  files: Array<{ path: string; bytes: number }>;
-} {
-  return (
-    isUnknownRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.commitSha === "string" &&
-    typeof value.entryPath === "string" &&
-    Array.isArray(value.files) &&
-    value.files.every((file) => isUnknownRecord(file) && typeof file.path === "string" && typeof file.bytes === "number")
-  );
-}
-
-function isGitHubSyncState(value: unknown): value is {
-  owner: string;
-  repository: string;
-  branch: string;
-  rootPath: string;
-  commitSha: string;
-} {
-  return (
-    isUnknownRecord(value) &&
-    typeof value.owner === "string" &&
-    typeof value.repository === "string" &&
-    typeof value.branch === "string" &&
-    typeof value.rootPath === "string" &&
-    typeof value.commitSha === "string"
-  );
-}
-
-function isGitHubPullPreview(value: unknown): value is {
-  id: string;
-  plan: {
-    changes: Array<{
-      base: { path: string } | null;
-      remote: { path: string } | null;
-    }>;
-    blocking: Array<{
-      base: { path: string; content: string } | null;
-      local: { path: string; content: string } | null;
-      remote: { path: string; content: string } | null;
-    }>;
-  };
-} {
-  if (!isUnknownRecord(value) || typeof value.id !== "string" || !isUnknownRecord(value.plan)) return false;
-  return (
-    Array.isArray(value.plan.changes) &&
-    value.plan.changes.every(
-      (change) =>
-        isUnknownRecord(change) &&
-        (change.base === null || (isUnknownRecord(change.base) && typeof change.base.path === "string")) &&
-        (change.remote === null || (isUnknownRecord(change.remote) && typeof change.remote.path === "string")),
-    ) &&
-    Array.isArray(value.plan.blocking) &&
-    value.plan.blocking.every(isGitHubPullConflict)
-  );
-}
-
-function isGitHubPullConflict(value: unknown): value is {
-  base: { path: string; content: string } | null;
-  local: { path: string; content: string } | null;
-  remote: { path: string; content: string } | null;
-} {
-  return (
-    isUnknownRecord(value) &&
-    [value.base, value.local, value.remote].every(
-      (file) => file === null || (isUnknownRecord(file) && typeof file.path === "string" && typeof file.content === "string"),
-    )
-  );
 }
 
 function gitHubConflictVersion(label: string, content: string): HTMLElement {
@@ -11289,83 +11106,6 @@ function gitHubConflictVersion(label: string, content: string): HTMLElement {
   preview.textContent = content.length > 1_000 ? `${content.slice(0, 1_000)}\n…` : content;
   section.append(heading, preview);
   return section;
-}
-
-function isGitHubPublishPreview(value: unknown): value is {
-  id: string;
-  expectedRemoteHead: string;
-  plan: {
-    changes: Array<{ path: string; content: string | null }>;
-    skippedLocalPaths: string[];
-    blocking: unknown[];
-  };
-} {
-  if (
-    !isUnknownRecord(value) ||
-    typeof value.id !== "string" ||
-    typeof value.expectedRemoteHead !== "string" ||
-    !isUnknownRecord(value.plan)
-  ) {
-    return false;
-  }
-  return (
-    Array.isArray(value.plan.changes) &&
-    value.plan.changes.every(
-      (change) =>
-        isUnknownRecord(change) && typeof change.path === "string" && (typeof change.content === "string" || change.content === null),
-    ) &&
-    Array.isArray(value.plan.skippedLocalPaths) &&
-    value.plan.skippedLocalPaths.every((path) => typeof path === "string") &&
-    Array.isArray(value.plan.blocking)
-  );
-}
-
-function isLatexImportPreview(value: unknown): value is LatexImportPreview {
-  if (!isRecord(value) || typeof value.digest !== "string" || !/^[a-f0-9]{64}$/u.test(value.digest) || !isRecord(value.archive)) {
-    return false;
-  }
-  if (
-    !Array.isArray(value.archive.files) ||
-    !value.archive.files.every(
-      (file) =>
-        isRecord(file) &&
-        typeof file.path === "string" &&
-        typeof file.kind === "string" &&
-        typeof file.bytes === "number" &&
-        Number.isSafeInteger(file.bytes) &&
-        file.bytes >= 0,
-    ) ||
-    !Array.isArray(value.archive.rootCandidates) ||
-    !value.archive.rootCandidates.every((path) => typeof path === "string")
-  ) {
-    return false;
-  }
-  if (value.conversion === null) return true;
-  if (!isRecord(value.conversion) || !isRecord(value.conversion.seed) || !isRecord(value.conversion.report)) return false;
-  return (
-    Array.isArray(value.conversion.seed.files) &&
-    value.conversion.seed.files.every((file) => isRecord(file) && typeof file.path === "string" && typeof file.content === "string") &&
-    typeof value.conversion.seed.bibliography === "string" &&
-    Array.isArray(value.conversion.assets) &&
-    value.conversion.assets.every(
-      (asset) =>
-        isRecord(asset) &&
-        typeof asset.path === "string" &&
-        typeof asset.mediaType === "string" &&
-        typeof asset.bytes === "number" &&
-        Number.isSafeInteger(asset.bytes) &&
-        asset.bytes > 0,
-    ) &&
-    typeof value.conversion.report.rootPath === "string" &&
-    (value.conversion.report.bibliographyPath === null || typeof value.conversion.report.bibliographyPath === "string") &&
-    Array.isArray(value.conversion.report.diagnostics) &&
-    value.conversion.report.diagnostics.every(
-      (diagnostic) =>
-        isRecord(diagnostic) &&
-        (diagnostic.severity === "error" || diagnostic.severity === "warning" || diagnostic.severity === "info") &&
-        typeof diagnostic.message === "string",
-    )
-  );
 }
 
 async function jsonFetch(url: string, body: object, method: "POST" | "PUT" | "PATCH" = "POST"): Promise<Response> {
@@ -11523,23 +11263,6 @@ function excerptForToast(value: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isCreatedAnnotation(value: unknown): value is AnnotationResource {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.pdfId === "string" &&
-    typeof value.page === "number" &&
-    typeof value.quote === "string" &&
-    typeof value.prefix === "string" &&
-    typeof value.suffix === "string" &&
-    typeof value.comment === "string" &&
-    Array.isArray(value.rects) &&
-    Array.isArray(value.fragments) &&
-    typeof value.createdAt === "string" &&
-    typeof value.updatedAt === "string"
-  );
 }
 
 function readWorkspaceId(): string {
