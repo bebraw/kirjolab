@@ -4917,6 +4917,15 @@ class WorkspaceApp {
     const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
     const artifacts = this.#librarySnapshot?.artifacts.filter((artifact) => artifact.referenceId === reference.id) ?? [];
     const displayTitle = bibTeXDisplayText(reference.title) || "Untitled reference";
+    card.append(
+      this.#referenceCardMain(reference, displayTitle, keyState),
+      this.#referenceCardActions(reference, linked, artifacts[0]),
+      this.#referenceMetadataEditor(reference, displayTitle, linked, artifacts),
+    );
+    return card;
+  }
+
+  #referenceCardMain(reference: BibliographicRecord, displayTitle: string, keyState: "provisional" | "final"): HTMLElement {
     const main = document.createElement("div");
     main.className = "library-reference-main";
     const title = document.createElement("h3");
@@ -4938,9 +4947,16 @@ class WorkspaceApp {
       .join(" · ");
     details.title = details.textContent;
     main.append(title, details);
+    return main;
+  }
+
+  #referenceCardActions(
+    reference: BibliographicRecord,
+    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
+    primaryArtifact: LibraryPdfArtifact | undefined,
+  ): HTMLElement {
     const actions = document.createElement("div");
     actions.className = "library-reference-actions";
-    const primaryArtifact = artifacts[0];
     if (primaryArtifact) {
       const openPdf = actionButton("PDF", "button-secondary", () => void this.#openLibraryPdf(primaryArtifact));
       openPdf.title = `Open ${primaryArtifact.name}`;
@@ -4957,6 +4973,15 @@ class WorkspaceApp {
         actions.append(add);
       }
     }
+    return actions;
+  }
+
+  #referenceMetadataEditor(
+    reference: BibliographicRecord,
+    displayTitle: string,
+    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
+    artifacts: readonly LibraryPdfArtifact[],
+  ): HTMLElement {
     const metadataEditor = document.createElement("details");
     metadataEditor.className = "library-reference-details";
     metadataEditor.open = this.#expandedLibraryReferences.has(reference.id);
@@ -4971,6 +4996,20 @@ class WorkspaceApp {
     const metadataBody = document.createElement("div");
     metadataBody.className = "library-reference-detail-body";
     metadataEditor.append(metadataBody);
+    const refinementTargets = this.#appendReferenceMetadataFields(metadataBody, reference, displayTitle, artifacts[0]);
+    this.#appendReferenceOrganization(metadataBody, reference, displayTitle);
+    this.#appendReferenceReadingState(metadataBody, reference, displayTitle);
+    this.#appendReferencePrivateNote(metadataBody, reference, displayTitle);
+    this.#appendReferenceResources(metadataBody, reference, linked, artifacts, refinementTargets);
+    return metadataEditor;
+  }
+
+  #appendReferenceMetadataFields(
+    metadataBody: HTMLElement,
+    reference: BibliographicRecord,
+    displayTitle: string,
+    primaryArtifact: LibraryPdfArtifact | undefined,
+  ): MetadataRefinementTargets {
     const fieldPrefix = `library-reference-${reference.id}`;
     const metadataFields = new Map<string, HTMLInputElement | HTMLTextAreaElement>();
     const metadataSuggestions = new Map<CrossrefMetadataField, HTMLElement>();
@@ -5037,6 +5076,11 @@ class WorkspaceApp {
       );
     }
     metadataBody.append(abstractField, metadataRefinementPanel, metadataActions);
+    return refinementTargets;
+  }
+
+  #appendReferenceOrganization(metadataBody: HTMLElement, reference: BibliographicRecord, displayTitle: string): void {
+    const fieldPrefix = `library-reference-${reference.id}`;
     const tags = document.createElement("input");
     tags.className = "field mt-3";
     tags.id = `${fieldPrefix}-tags`;
@@ -5065,29 +5109,14 @@ class WorkspaceApp {
       ),
     );
     metadataBody.append(privateActions);
+  }
+
+  #appendReferenceReadingState(metadataBody: HTMLElement, reference: BibliographicRecord, displayTitle: string): void {
+    const fieldPrefix = `library-reference-${reference.id}`;
     const reading = this.#librarySnapshot?.reading.find((item) => item.referenceId === reference.id);
-    const readingStatus = document.createElement("select");
-    readingStatus.className = "field mt-3";
-    readingStatus.id = `${fieldPrefix}-reading-status`;
-    readingStatus.name = "readingStatus";
-    readingStatus.setAttribute("aria-label", `Reading status for ${displayTitle}`);
-    for (const value of ["unread", "reading", "read"] as const) readingStatus.append(new Option(value, value));
-    readingStatus.value = reading?.status ?? "unread";
-    const priority = document.createElement("select");
-    priority.className = "field mt-2";
-    priority.id = `${fieldPrefix}-priority`;
-    priority.name = "priority";
-    priority.setAttribute("aria-label", `Reading priority for ${displayTitle}`);
-    for (const value of ["low", "normal", "high"] as const) priority.append(new Option(`Priority: ${value}`, value));
-    priority.value = reading?.priority ?? "normal";
-    const rating = document.createElement("select");
-    rating.className = "field mt-2";
-    rating.id = `${fieldPrefix}-rating`;
-    rating.name = "rating";
-    rating.setAttribute("aria-label", `Rating for ${displayTitle}`);
-    rating.append(new Option("No rating", ""));
-    for (let value = 1; value <= 5; value += 1) rating.append(new Option(`${value} star${value === 1 ? "" : "s"}`, String(value)));
-    rating.value = reading?.rating === null || reading?.rating === undefined ? "" : String(reading.rating);
+    const readingStatus = this.#referenceReadingStatus(fieldPrefix, displayTitle, reading?.status);
+    const priority = this.#referenceReadingPriority(fieldPrefix, displayTitle, reading?.priority);
+    const rating = this.#referenceReadingRating(fieldPrefix, displayTitle, reading?.rating);
     metadataBody.append(
       readingStatus,
       priority,
@@ -5098,7 +5127,44 @@ class WorkspaceApp {
         () => void this.#saveReadingState(reference.id, readingStatus.value, rating.value, priority.value),
       ),
     );
+  }
 
+  #referenceReadingStatus(fieldPrefix: string, displayTitle: string, selected: string | undefined): HTMLSelectElement {
+    const readingStatus = document.createElement("select");
+    readingStatus.className = "field mt-3";
+    readingStatus.id = `${fieldPrefix}-reading-status`;
+    readingStatus.name = "readingStatus";
+    readingStatus.setAttribute("aria-label", `Reading status for ${displayTitle}`);
+    for (const value of ["unread", "reading", "read"] as const) readingStatus.append(new Option(value, value));
+    readingStatus.value = selected ?? "unread";
+    return readingStatus;
+  }
+
+  #referenceReadingPriority(fieldPrefix: string, displayTitle: string, selected: string | undefined): HTMLSelectElement {
+    const priority = document.createElement("select");
+    priority.className = "field mt-2";
+    priority.id = `${fieldPrefix}-priority`;
+    priority.name = "priority";
+    priority.setAttribute("aria-label", `Reading priority for ${displayTitle}`);
+    for (const value of ["low", "normal", "high"] as const) priority.append(new Option(`Priority: ${value}`, value));
+    priority.value = selected ?? "normal";
+    return priority;
+  }
+
+  #referenceReadingRating(fieldPrefix: string, displayTitle: string, selected: number | null | undefined): HTMLSelectElement {
+    const rating = document.createElement("select");
+    rating.className = "field mt-2";
+    rating.id = `${fieldPrefix}-rating`;
+    rating.name = "rating";
+    rating.setAttribute("aria-label", `Rating for ${displayTitle}`);
+    rating.append(new Option("No rating", ""));
+    for (let value = 1; value <= 5; value += 1) rating.append(new Option(`${value} star${value === 1 ? "" : "s"}`, String(value)));
+    rating.value = selected === null || selected === undefined ? "" : String(selected);
+    return rating;
+  }
+
+  #appendReferencePrivateNote(metadataBody: HTMLElement, reference: BibliographicRecord, displayTitle: string): void {
+    const fieldPrefix = `library-reference-${reference.id}`;
     const noteInput = document.createElement("textarea");
     noteInput.className = "field mt-3 min-h-16";
     noteInput.id = `${fieldPrefix}-private-note`;
@@ -5112,7 +5178,15 @@ class WorkspaceApp {
       () => void this.#createReferenceNote(reference.id, noteInput.value),
     );
     metadataBody.append(noteInput, addNote);
+  }
 
+  #appendReferenceResources(
+    metadataBody: HTMLElement,
+    reference: BibliographicRecord,
+    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
+    artifacts: readonly LibraryPdfArtifact[],
+    refinementTargets: MetadataRefinementTargets,
+  ): void {
     const resources = document.createElement("div");
     resources.className = "mt-3 space-y-2 border-t border-app-line pt-3";
     const notes = this.#librarySnapshot?.notes.filter((note) => note.referenceId === reference.id) ?? [];
@@ -5121,100 +5195,147 @@ class WorkspaceApp {
     const webSnapshots = [...(this.#librarySnapshot?.webSnapshots.filter((snapshot) => snapshot.referenceId === reference.id) ?? [])].sort(
       (left, right) => right.accessedAt.localeCompare(left.accessedAt),
     );
-    for (const note of notes) {
-      resources.append(this.#privateResearchRow(reference.id, "note", note.id, `Note · ${note.body.slice(0, 100)}`, linked !== undefined));
-    }
-    for (const artifact of artifacts) {
-      const row = document.createElement("div");
-      row.className = "rounded-sm border border-app-line p-2";
-      const text = document.createElement("p");
-      text.className = "font-sans text-xs leading-5 text-app-text-soft";
-      text.textContent = `PDF · ${artifact.name}`;
-      row.append(text);
-      if (linked) {
-        const access = document.createElement("p");
-        access.className = "mt-1 font-sans text-xs leading-5 text-app-text-soft";
-        access.textContent = "Available to signed-in project members; excluded from public links.";
-        row.append(access);
-      }
-      const rights = document.createElement("select");
-      rights.className = "field mt-2";
-      for (const value of ["private", "unknown", "shareable"] as const) rights.append(new Option(`Rights: ${value}`, value));
-      rights.value = artifact.rights;
-      rights.addEventListener("change", () => void this.#setArtifactRights(artifact.id, rights.value));
-      row.append(
-        actionButton("Open PDF", "button-secondary mt-2", () => void this.#openLibraryPdf(artifact)),
-        rights,
-        ...(artifact.id === primaryArtifact?.id
-          ? []
-          : [
-              actionButton(
-                "Refine from this PDF",
-                "button-secondary mt-2",
-                () => void this.#refinePdfMetadata(reference, artifact, refinementTargets),
-              ),
-            ]),
-      );
-      resources.append(row);
-    }
+    this.#appendReferenceNoteRows(resources, reference.id, notes, linked !== undefined);
+    this.#appendReferencePdfRows(resources, reference, artifacts, linked !== undefined, refinementTargets);
+    this.#appendReferenceHighlightRows(resources, reference.id, highlights, linked !== undefined);
+    this.#appendReferenceWebSnapshotRows(metadataBody, resources, reference.id, webSource?.canonicalUrl, webSnapshots, linked);
+    if (notes.length + artifacts.length + highlights.length + webSnapshots.length > 0) metadataBody.append(resources);
+  }
+
+  #appendReferenceNoteRows(resources: HTMLElement, referenceId: string, notes: ReferenceLibrarySnapshot["notes"], linked: boolean): void {
+    for (const note of notes)
+      resources.append(this.#privateResearchRow(referenceId, "note", note.id, `Note · ${note.body.slice(0, 100)}`, linked));
+  }
+
+  #appendReferencePdfRows(
+    resources: HTMLElement,
+    reference: BibliographicRecord,
+    artifacts: readonly LibraryPdfArtifact[],
+    linked: boolean,
+    refinementTargets: MetadataRefinementTargets,
+  ): void {
+    for (const artifact of artifacts) resources.append(this.#referencePdfRow(reference, artifact, artifacts[0], linked, refinementTargets));
+  }
+
+  #appendReferenceHighlightRows(
+    resources: HTMLElement,
+    referenceId: string,
+    highlights: ReferenceLibrarySnapshot["highlights"],
+    linked: boolean,
+  ): void {
     for (const highlight of highlights) {
       resources.append(
         this.#privateResearchRow(
-          reference.id,
+          referenceId,
           "highlight",
           highlight.id,
           `Highlight p. ${highlight.page} · ${highlight.quote.slice(0, 100)}`,
-          linked !== undefined,
+          linked,
         ),
       );
     }
-    if (webSource) {
+  }
+
+  #appendReferenceWebSnapshotRows(
+    metadataBody: HTMLElement,
+    resources: HTMLElement,
+    referenceId: string,
+    canonicalUrl: string | undefined,
+    webSnapshots: readonly ReferenceLibrarySnapshot["webSnapshots"][number][],
+    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
+  ): void {
+    if (canonicalUrl) {
       const recapture = actionButton(
         "Capture current version",
         "button-secondary mt-3",
-        () => void this.#captureWebSourceInput(webSource.canonicalUrl),
+        () => void this.#captureWebSourceInput(canonicalUrl),
       );
       metadataBody.append(recapture);
-      for (const [index, snapshot] of webSnapshots.entries()) {
-        const status = snapshot.complete ? "complete" : "incomplete";
-        const row = this.#privateResearchRow(
-          reference.id,
-          "web-snapshot",
-          snapshot.id,
-          `Web capture · ${formatTimestamp(snapshot.accessedAt)} · ${status}`,
-          linked !== undefined,
-        );
-        const links = document.createElement("div");
-        links.className = "mt-2 flex flex-wrap gap-2";
-        if (snapshot.readableObjectKey) links.append(downloadLink(`/api/library/web-snapshots/${snapshot.id}/readable`, "Readable text"));
-        if (snapshot.rawObjectKey) links.append(downloadLink(`/api/library/web-snapshots/${snapshot.id}/raw`, "Raw capture"));
-        const prior = webSnapshots[index + 1];
-        if (prior) {
-          links.append(actionButton("Compare with prior", "button-secondary", () => void this.#compareWebSnapshots(prior.id, snapshot.id)));
-        }
-        if (linked) {
-          const pin = actionButton(
-            "Use for project",
-            "button-secondary",
-            () => void this.#pinProjectWebSnapshot(reference.id, snapshot.id),
-          );
-          pin.disabled = linked.snapshot.webSnapshot?.id === snapshot.id;
-          pin.title = pin.disabled ? "This version is pinned to the project" : "Pin this exact capture to future citations and milestones";
-          links.append(pin);
-        }
-        if (snapshot.diagnostics.length > 0) {
-          const diagnostic = document.createElement("p");
-          diagnostic.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
-          diagnostic.textContent = snapshot.diagnostics.join(" ");
-          row.append(diagnostic);
-        }
-        row.append(links);
-        resources.append(row);
-      }
+      for (const [index, snapshot] of webSnapshots.entries())
+        resources.append(this.#referenceWebSnapshotRow(referenceId, snapshot, webSnapshots[index + 1], linked));
     }
-    if (notes.length + artifacts.length + highlights.length + webSnapshots.length > 0) metadataBody.append(resources);
-    card.append(main, actions, metadataEditor);
-    return card;
+  }
+
+  #referencePdfRow(
+    reference: BibliographicRecord,
+    artifact: LibraryPdfArtifact,
+    primaryArtifact: LibraryPdfArtifact | undefined,
+    linked: boolean,
+    refinementTargets: MetadataRefinementTargets,
+  ): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "rounded-sm border border-app-line p-2";
+    const text = document.createElement("p");
+    text.className = "font-sans text-xs leading-5 text-app-text-soft";
+    text.textContent = `PDF · ${artifact.name}`;
+    row.append(text);
+    if (linked) {
+      const access = document.createElement("p");
+      access.className = "mt-1 font-sans text-xs leading-5 text-app-text-soft";
+      access.textContent = "Available to signed-in project members; excluded from public links.";
+      row.append(access);
+    }
+    const rights = document.createElement("select");
+    rights.className = "field mt-2";
+    for (const value of ["private", "unknown", "shareable"] as const) rights.append(new Option(`Rights: ${value}`, value));
+    rights.value = artifact.rights;
+    rights.addEventListener("change", () => void this.#setArtifactRights(artifact.id, rights.value));
+    row.append(
+      actionButton("Open PDF", "button-secondary mt-2", () => void this.#openLibraryPdf(artifact)),
+      rights,
+    );
+    if (artifact.id !== primaryArtifact?.id) {
+      row.append(
+        actionButton(
+          "Refine from this PDF",
+          "button-secondary mt-2",
+          () => void this.#refinePdfMetadata(reference, artifact, refinementTargets),
+        ),
+      );
+    }
+    return row;
+  }
+
+  #referenceWebSnapshotRow(
+    referenceId: string,
+    snapshot: ReferenceLibrarySnapshot["webSnapshots"][number],
+    prior: ReferenceLibrarySnapshot["webSnapshots"][number] | undefined,
+    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
+  ): HTMLElement {
+    const status = snapshot.complete ? "complete" : "incomplete";
+    const row = this.#privateResearchRow(
+      referenceId,
+      "web-snapshot",
+      snapshot.id,
+      `Web capture · ${formatTimestamp(snapshot.accessedAt)} · ${status}`,
+      linked !== undefined,
+    );
+    const links = document.createElement("div");
+    links.className = "mt-2 flex flex-wrap gap-2";
+    if (snapshot.readableObjectKey) links.append(downloadLink(`/api/library/web-snapshots/${snapshot.id}/readable`, "Readable text"));
+    if (snapshot.rawObjectKey) links.append(downloadLink(`/api/library/web-snapshots/${snapshot.id}/raw`, "Raw capture"));
+    if (prior)
+      links.append(actionButton("Compare with prior", "button-secondary", () => void this.#compareWebSnapshots(prior.id, snapshot.id)));
+    if (linked) links.append(this.#pinWebSnapshotButton(referenceId, snapshot.id, linked));
+    if (snapshot.diagnostics.length > 0) {
+      const diagnostic = document.createElement("p");
+      diagnostic.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
+      diagnostic.textContent = snapshot.diagnostics.join(" ");
+      row.append(diagnostic);
+    }
+    row.append(links);
+    return row;
+  }
+
+  #pinWebSnapshotButton(
+    referenceId: string,
+    snapshotId: string,
+    linked: WorkspaceSnapshot["projectReferences"][number],
+  ): HTMLButtonElement {
+    const pin = actionButton("Use for project", "button-secondary", () => void this.#pinProjectWebSnapshot(referenceId, snapshotId));
+    pin.disabled = linked.snapshot.webSnapshot?.id === snapshotId;
+    pin.title = pin.disabled ? "This version is pinned to the project" : "Pin this exact capture to future citations and milestones";
+    return pin;
   }
 
   #privateResearchRow(
