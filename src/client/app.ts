@@ -197,6 +197,7 @@ import {
   researchResourceKey,
   setPdfResearchLocation,
   setResearchTabScroll,
+  type ResearchContextTab,
   type ResearchContextKey,
   type ResearchContextState,
   type ResearchResourceTab,
@@ -255,6 +256,14 @@ function isCompletenessFilter(value: string): value is "complete" | "incomplete"
 
 function isReferenceSort(value: string): value is "title" | "year" | "priority" {
   return value === "title" || value === "year" || value === "priority";
+}
+
+function contextTabFocusIndex(key: string, currentIndex: number, tabCount: number): number | null {
+  if (key === "ArrowRight") return (currentIndex + 1) % tabCount;
+  if (key === "ArrowLeft") return (currentIndex - 1 + tabCount) % tabCount;
+  if (key === "Home") return 0;
+  if (key === "End") return tabCount - 1;
+  return null;
 }
 
 const workspaceId = readWorkspaceId();
@@ -4184,13 +4193,22 @@ class WorkspaceApp {
     sourceMap: readonly CompositionSourceSpan[],
     snapshot: WorkspaceSnapshot,
   ): void {
-    const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
-    if (!match || !requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return;
-    const span = sourceMap.length > 0 && match.index !== undefined ? sourceSpanAt(sourceMap, match.index) : undefined;
-    const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "";
-    const path = resolveProjectPath(fromPath, requested);
+    const path = this.#projectPreviewImagePath(match, sourceMap, snapshot);
+    if (!path) return;
     const asset = snapshot.assets.find((candidate) => candidate.path === path && !this.#hiddenProjectImageIds.has(candidate.id));
     if (asset) image.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
+  }
+
+  #projectPreviewImagePath(
+    match: RegExpMatchArray | undefined,
+    sourceMap: readonly CompositionSourceSpan[],
+    snapshot: WorkspaceSnapshot,
+  ): string | null {
+    const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
+    if (!match || !requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return null;
+    const span = sourceMap.length > 0 && match.index !== undefined ? sourceSpanAt(sourceMap, match.index) : undefined;
+    const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "";
+    return resolveProjectPath(fromPath, requested);
   }
 
   async #openProjectHistory(): Promise<void> {
@@ -6932,12 +6950,7 @@ class WorkspaceApp {
   #updateProjectMapEmphasis(resourceId: string | null): void {
     const graph = this.#renderedProjectMapGraph;
     if (!graph || !resourceId) {
-      for (const node of this.#elements.projectMapNodes.querySelectorAll<HTMLElement>(".project-map-node")) {
-        delete node.dataset.emphasis;
-      }
-      for (const connector of this.#elements.projectMapGraph.querySelectorAll<SVGElement>("[data-project-map-connector]")) {
-        delete connector.dataset.emphasis;
-      }
+      this.#clearProjectMapEmphasis();
       return;
     }
 
@@ -6945,10 +6958,27 @@ class WorkspaceApp {
     const connectedResources = new Set(
       incidentEdges.flatMap((edge) => [edge.from, edge.to]).filter((candidate) => candidate !== resourceId),
     );
+    this.#emphasizeProjectMapNodes(resourceId, connectedResources);
+    this.#emphasizeProjectMapConnectors(resourceId);
+  }
+
+  #clearProjectMapEmphasis(): void {
+    for (const node of this.#elements.projectMapNodes.querySelectorAll<HTMLElement>(".project-map-node")) {
+      delete node.dataset.emphasis;
+    }
+    for (const connector of this.#elements.projectMapGraph.querySelectorAll<SVGElement>("[data-project-map-connector]")) {
+      delete connector.dataset.emphasis;
+    }
+  }
+
+  #emphasizeProjectMapNodes(resourceId: string, connectedResources: ReadonlySet<string>): void {
     for (const node of this.#elements.projectMapNodes.querySelectorAll<HTMLElement>(".project-map-node")) {
       const nodeId = node.dataset.resourceId;
       node.dataset.emphasis = nodeId === resourceId ? "active" : nodeId && connectedResources.has(nodeId) ? "connected" : "muted";
     }
+  }
+
+  #emphasizeProjectMapConnectors(resourceId: string): void {
     for (const connector of this.#elements.projectMapGraph.querySelectorAll<SVGElement>("[data-project-map-connector]")) {
       connector.dataset.emphasis = connector.dataset.from === resourceId || connector.dataset.to === resourceId ? "active" : "muted";
     }
@@ -7263,33 +7293,33 @@ class WorkspaceApp {
 
   #captureActiveContextState(): void {
     const key = this.#contextState.activeKey;
-    if (key === RESEARCH_PREVIEW_KEY) {
-      this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.previewScroll.scrollTop);
-      return;
-    }
-    if (key === RESEARCH_LIBRARY_KEY) {
-      this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.contextLibraryScroll.scrollTop);
-      return;
-    }
-    if (key === RESEARCH_ASSISTANT_KEY) {
-      this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.contextAssistantScroll.scrollTop);
+    const fixedScrollTop = this.#fixedContextScrollTop(key);
+    if (fixedScrollTop !== null) {
+      this.#contextState = setResearchTabScroll(this.#contextState, key, fixedScrollTop);
       return;
     }
     const tab = this.#contextState.tabs.find((item) => item.key === key);
     if (!tab) return;
-    const scrollTop =
-      tab.kind === "publication"
-        ? this.#elements.contextPublicationBody.scrollTop
-        : tab.kind === "candidate"
-          ? this.#elements.contextCandidateScroll.scrollTop
-          : this.#elements.paperReader.scrollTop;
-    this.#contextState = setResearchTabScroll(this.#contextState, key, scrollTop);
+    this.#contextState = setResearchTabScroll(this.#contextState, key, this.#resourceContextScrollTop(tab));
     if ((tab.kind === "pdf" || tab.kind === "library-pdf") && tab.key === this.#renderedPdfContextKey) {
       this.#contextState = setPdfResearchLocation(this.#contextState, key, {
         page: this.#pdfViewer.currentPage,
         ...(tab.kind === "pdf" ? { focusedAnnotationId: this.#pdfViewer.focusedAnnotationId } : {}),
       });
     }
+  }
+
+  #fixedContextScrollTop(key: ResearchContextKey): number | null {
+    if (key === RESEARCH_PREVIEW_KEY) return this.#elements.previewScroll.scrollTop;
+    if (key === RESEARCH_LIBRARY_KEY) return this.#elements.contextLibraryScroll.scrollTop;
+    if (key === RESEARCH_ASSISTANT_KEY) return this.#elements.contextAssistantScroll.scrollTop;
+    return null;
+  }
+
+  #resourceContextScrollTop(tab: ResearchContextTab): number {
+    if (tab.kind === "publication") return this.#elements.contextPublicationBody.scrollTop;
+    if (tab.kind === "candidate") return this.#elements.contextCandidateScroll.scrollTop;
+    return this.#elements.paperReader.scrollTop;
   }
 
   #activateContext(key: ResearchContextKey): void {
@@ -7797,19 +7827,27 @@ class WorkspaceApp {
   }
 
   #contextTabTitle(tab: ResearchResourceTab): string {
-    if (tab.kind === "publication") {
-      return this.#snapshot?.publications.find((publication) => publication.id === tab.id)?.title ?? "Reference";
-    }
-    if (tab.kind === "pdf") return this.#snapshot?.pdfs.find((pdf) => pdf.id === tab.id)?.name ?? "Paper";
-    if (tab.kind === "library-pdf") {
-      return (
-        this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === tab.id)?.name ??
-        this.#projectReferencePdf(tab.id)?.name ??
-        "Reference PDF"
-      );
-    }
+    if (tab.kind === "publication") return this.#publicationContextTitle(tab.id);
+    if (tab.kind === "pdf") return this.#pdfContextTitle(tab.id);
+    if (tab.kind === "library-pdf") return this.#libraryPdfContextTitle(tab.id);
     const candidate = this.#snapshot?.candidates.find((item) => item.id === tab.id);
     return candidate ? `Revision · ${candidate.model} · ${candidate.id.slice(0, 4)}` : "Revision";
+  }
+
+  #publicationContextTitle(publicationId: string): string {
+    return this.#snapshot?.publications.find((publication) => publication.id === publicationId)?.title ?? "Reference";
+  }
+
+  #pdfContextTitle(pdfId: string): string {
+    return this.#snapshot?.pdfs.find((pdf) => pdf.id === pdfId)?.name ?? "Paper";
+  }
+
+  #libraryPdfContextTitle(pdfId: string): string {
+    return (
+      this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === pdfId)?.name ??
+      this.#projectReferencePdf(pdfId)?.name ??
+      "Reference PDF"
+    );
   }
 
   #activeResourceTab(): ResearchResourceTab | undefined {
@@ -7824,12 +7862,8 @@ class WorkspaceApp {
     const tabs = Array.from(this.#elements.contextTabList.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
     const index = tabs.indexOf(event.target);
     if (index < 0) return;
-    let nextIndex: number;
-    if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
-    else if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
-    else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = tabs.length - 1;
-    else return;
+    const nextIndex = contextTabFocusIndex(event.key, index, tabs.length);
+    if (nextIndex === null) return;
     event.preventDefault();
     for (const tab of tabs) tab.tabIndex = tab === tabs[nextIndex] ? 0 : -1;
     tabs[nextIndex]?.focus();
@@ -8532,9 +8566,14 @@ class WorkspaceApp {
     if (!selection) return null;
     const start = Y.createAbsolutePositionFromRelativePosition(selection.start, this.#document);
     const end = Y.createAbsolutePositionFromRelativePosition(selection.end, this.#document);
-    if (!start || !end || start.type !== this.#activeFileText || end.type !== this.#activeFileText || start.index >= end.index) return null;
+    if (!start || !end) return null;
+    if (!this.#isActiveAuthoringRange(start, end)) return null;
     const excerpt = this.#activeFileText.toString().slice(start.index, end.index);
     return excerpt.trim() && this.#activeFileId ? { fileId: this.#activeFileId, start: start.index, end: end.index, excerpt } : null;
+  }
+
+  #isActiveAuthoringRange(start: Y.AbsolutePosition, end: Y.AbsolutePosition): boolean {
+    return start.type === this.#activeFileText && end.type === this.#activeFileText && start.index < end.index;
   }
 
   #assistantTargetScope(): AssistantTargetScope {
