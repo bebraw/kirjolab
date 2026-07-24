@@ -241,6 +241,22 @@ interface PreviewInputs {
   readonly renderedSource: string;
 }
 
+function isReadingFilter(value: string): value is "unread" | "reading" | "read" {
+  return value === "unread" || value === "reading" || value === "read";
+}
+
+function isLinkageFilter(value: string): value is "linked" | "unlinked" {
+  return value === "linked" || value === "unlinked";
+}
+
+function isCompletenessFilter(value: string): value is "complete" | "incomplete" {
+  return value === "complete" || value === "incomplete";
+}
+
+function isReferenceSort(value: string): value is "title" | "year" | "priority" {
+  return value === "title" || value === "year" || value === "priority";
+}
+
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
 const appMode = readAppMode();
@@ -3605,11 +3621,8 @@ class WorkspaceApp {
   }
 
   #syncPreviewFromSource(explicit = true): void {
-    if (!explicit && !this.#automaticPreviewSyncAvailable()) return;
-    if (this.#contextState.activeKey !== RESEARCH_PREVIEW_KEY) return;
-    const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
-    const sourceOffset = explicit ? this.#sourceOffsetAtEditorCenter() : this.#elements.source.selectionEnd;
-    const offsets = previewOffsetsForSourceLocation(this.#previewSourceMap, fileId, sourceOffset);
+    if (!this.#previewSyncAvailable(explicit)) return;
+    const offsets = this.#previewSyncOffsets(explicit);
     if (offsets.length === 0) return;
     const target = this.#nearestPreviewSourceElement(offsets);
     if (!target) return;
@@ -3617,6 +3630,17 @@ class WorkspaceApp {
     const targetBounds = target.getBoundingClientRect();
     this.#elements.previewScroll.scrollTop += targetBounds.top + targetBounds.height / 2 - (previewBounds.top + previewBounds.height / 2);
     this.#markPreviewSyncTarget(target);
+  }
+
+  #previewSyncAvailable(explicit: boolean): boolean {
+    const automaticSyncAvailable = explicit || this.#automaticPreviewSyncAvailable();
+    return automaticSyncAvailable && this.#contextState.activeKey === RESEARCH_PREVIEW_KEY;
+  }
+
+  #previewSyncOffsets(explicit: boolean): readonly number[] {
+    const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
+    const sourceOffset = explicit ? this.#sourceOffsetAtEditorCenter() : this.#elements.source.selectionEnd;
+    return previewOffsetsForSourceLocation(this.#previewSourceMap, fileId, sourceOffset);
   }
 
   #sourceOffsetAtEditorCenter(): number {
@@ -4151,16 +4175,22 @@ class WorkspaceApp {
     if (!snapshot || snapshot.assets.length === 0) return;
     const matches = [...source.matchAll(/!\[[^\]\r\n]*\]\((?<path><[^>\r\n]+>|[^\s)\r\n]+)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)/gu)];
     const images = this.#elements.preview.querySelectorAll<HTMLImageElement>("img");
-    images.forEach((image, index) => {
-      const match = matches[index];
-      const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
-      if (!requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return;
-      const span = sourceMap.length > 0 && match?.index !== undefined ? sourceSpanAt(sourceMap, match.index) : undefined;
-      const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "";
-      const path = resolveProjectPath(fromPath, requested);
-      const asset = snapshot.assets.find((candidate) => candidate.path === path && !this.#hiddenProjectImageIds.has(candidate.id));
-      if (asset) image.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
-    });
+    images.forEach((image, index) => this.#resolveProjectPreviewImage(image, matches[index], sourceMap, snapshot));
+  }
+
+  #resolveProjectPreviewImage(
+    image: HTMLImageElement,
+    match: RegExpMatchArray | undefined,
+    sourceMap: readonly CompositionSourceSpan[],
+    snapshot: WorkspaceSnapshot,
+  ): void {
+    const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
+    if (!match || !requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return;
+    const span = sourceMap.length > 0 && match.index !== undefined ? sourceSpanAt(sourceMap, match.index) : undefined;
+    const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "";
+    const path = resolveProjectPath(fromPath, requested);
+    const asset = snapshot.assets.find((candidate) => candidate.path === path && !this.#hiddenProjectImageIds.has(candidate.id));
+    if (asset) image.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
   }
 
   async #openProjectHistory(): Promise<void> {
@@ -4567,11 +4597,11 @@ class WorkspaceApp {
     return {
       query: this.#elements.referenceFilterQuery.value,
       type: this.#elements.referenceFilterType.value,
-      readingStatus: reading === "unread" || reading === "reading" || reading === "read" ? reading : "all",
+      readingStatus: isReadingFilter(reading) ? reading : "all",
       organization: this.#elements.referenceFilterOrganization.value,
-      linkage: linkage === "linked" || linkage === "unlinked" ? linkage : "all",
-      completeness: completeness === "complete" || completeness === "incomplete" ? completeness : "all",
-      sort: sort === "title" || sort === "year" || sort === "priority" ? sort : "updated",
+      linkage: isLinkageFilter(linkage) ? linkage : "all",
+      completeness: isCompletenessFilter(completeness) ? completeness : "all",
+      sort: isReferenceSort(sort) ? sort : "updated",
     };
   }
 
