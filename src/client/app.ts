@@ -242,6 +242,38 @@ interface PreviewInputs {
   readonly renderedSource: string;
 }
 
+type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
+
+function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean {
+  return mode === "create-folder" || mode === "rename-folder";
+}
+
+function projectFileDialogIsCreating(mode: ProjectFileDialogMode): boolean {
+  return mode === "create" || mode === "create-and-include" || mode === "create-folder";
+}
+
+function projectFileDialogTitle(mode: ProjectFileDialogMode): string {
+  if (mode === "create") return "Add Markdown file";
+  if (mode === "create-and-include") return "Create and include file";
+  if (mode === "rename") return "Move or rename file";
+  if (mode === "create-folder") return "Add folder";
+  return "Move or rename folder";
+}
+
+function projectFileDialogHelp(mode: ProjectFileDialogMode): string {
+  if (projectFileDialogIsFolder(mode)) return "Use a relative path. Moving a folder also moves its files and keeps includes valid.";
+  if (mode === "rename") return "Change the folder or filename by editing this relative path. Inbound includes stay valid.";
+  return "Compose this file from the project entry with ::include[path].";
+}
+
+function projectFileSavedMessage(mode: ProjectFileDialogMode, path: string): string {
+  if (mode === "create-folder") return `Added ${path}.`;
+  if (mode === "rename-folder") return `Moved folder to ${path}; project paths and includes were updated.`;
+  if (mode === "create-and-include") return `Created ${path} and included it at the remembered caret.`;
+  if (mode === "create") return `Added ${path}.`;
+  return `Renamed file to ${path}; inbound includes were updated.`;
+}
+
 function isReadingFilter(value: string): value is "unread" | "reading" | "read" {
   return value === "unread" || value === "reading" || value === "read";
 }
@@ -824,7 +856,7 @@ class WorkspaceApp {
   readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
   #unbindSourceEditor: () => void = () => undefined;
   #unbindAssistantSourceStale: () => void = () => undefined;
-  #projectFileDialogMode: "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder" = "create";
+  #projectFileDialogMode: ProjectFileDialogMode = "create";
   #projectFolderId: string | null = null;
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
   #projectFileIncludeFromPath: string | null = null;
@@ -3923,56 +3955,67 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("replace");
   }
 
-  #openProjectFileDialog(mode: "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder", folderId?: string): void {
+  #openProjectFileDialog(mode: ProjectFileDialogMode, folderId?: string): void {
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
     const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
-    if (mode === "rename" && !file) return;
-    if (mode === "rename-folder" && !folder) return;
+    if (!this.#projectFileDialogResourcesAvailable(mode, file, folder)) return;
     this.#projectFileDialogMode = mode;
     this.#projectFolderId = folder?.id ?? null;
+    this.#rememberProjectFileIncludeTarget(mode, file);
+    this.#configureProjectFileDialog(mode, file, folder);
+    this.#elements.projectFileDialog.showModal();
+    this.#elements.projectFilePath.focus();
+  }
+
+  #projectFileDialogResourcesAvailable(
+    mode: ProjectFileDialogMode,
+    file: ProjectFile | undefined,
+    folder: WorkspaceSnapshot["folders"][number] | undefined,
+  ): boolean {
+    if (mode === "rename") return file !== undefined;
+    if (mode === "rename-folder") return folder !== undefined;
+    return true;
+  }
+
+  #rememberProjectFileIncludeTarget(mode: ProjectFileDialogMode, file: ProjectFile | undefined): void {
     this.#projectFileIncludeTarget =
       mode === "create-and-include" ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : null;
     this.#projectFileIncludeFromPath = mode === "create-and-include" ? (file?.path ?? null) : null;
-    const folderMode = mode === "create-folder" || mode === "rename-folder";
-    this.#elements.projectFileDialogTitle.textContent =
-      mode === "create"
-        ? "Add Markdown file"
-        : mode === "create-and-include"
-          ? "Create and include file"
-          : mode === "rename"
-            ? "Move or rename file"
-            : mode === "create-folder"
-              ? "Add folder"
-              : "Move or rename folder";
-    this.#elements.projectFileDialogHelp.textContent = folderMode
-      ? "Use a relative path. Moving a folder also moves its files and keeps includes valid."
-      : mode === "rename"
-        ? "Change the folder or filename by editing this relative path. Inbound includes stay valid."
-        : "Compose this file from the project entry with ::include[path].";
+  }
+
+  #configureProjectFileDialog(
+    mode: ProjectFileDialogMode,
+    file: ProjectFile | undefined,
+    folder: WorkspaceSnapshot["folders"][number] | undefined,
+  ): void {
+    const folderMode = projectFileDialogIsFolder(mode);
+    this.#elements.projectFileDialogTitle.textContent = projectFileDialogTitle(mode);
+    this.#elements.projectFileDialogHelp.textContent = projectFileDialogHelp(mode);
     this.#elements.saveProjectFile.textContent = folderMode ? "Save folder" : "Save file";
     this.#elements.projectFilePath.placeholder = folderMode ? "chapters" : "chapters/01_introduction.md";
-    this.#elements.projectFilePath.value = mode === "rename" ? (file?.path ?? "") : mode === "rename-folder" ? (folder?.path ?? "") : "";
-    this.#elements.projectFileDialog.showModal();
-    this.#elements.projectFilePath.focus();
+    this.#elements.projectFilePath.value = this.#projectFileDialogPath(mode, file, folder);
+  }
+
+  #projectFileDialogPath(
+    mode: ProjectFileDialogMode,
+    file: ProjectFile | undefined,
+    folder: WorkspaceSnapshot["folders"][number] | undefined,
+  ): string {
+    if (mode === "rename") return file?.path ?? "";
+    if (mode === "rename-folder") return folder?.path ?? "";
+    return "";
   }
 
   async #saveProjectFile(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const path = this.#elements.projectFilePath.value.trim();
     const activeId = this.#activeFileId;
-    const folderMode = this.#projectFileDialogMode === "create-folder" || this.#projectFileDialogMode === "rename-folder";
-    const creating =
-      this.#projectFileDialogMode === "create" ||
-      this.#projectFileDialogMode === "create-and-include" ||
-      this.#projectFileDialogMode === "create-folder";
+    const mode = this.#projectFileDialogMode;
+    const folderMode = projectFileDialogIsFolder(mode);
+    const creating = projectFileDialogIsCreating(mode);
     const targetId = folderMode ? this.#projectFolderId : activeId;
     if (!creating && !targetId) return;
-    const resource = folderMode ? "folders" : "files";
-    const response = await jsonFetch(
-      creating ? `${apiBase}/${resource}` : `${apiBase}/${resource}/${encodeURIComponent(targetId ?? "")}`,
-      { path },
-      creating ? "POST" : "PATCH",
-    );
+    const response = await this.#requestProjectFileSave(path, folderMode, creating, targetId);
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
@@ -3980,30 +4023,28 @@ class WorkspaceApp {
     this.#elements.projectFileDialog.close();
     this.#renderProjectFiles();
     const selected = value.files.find((file) => file.path === path);
-    if (this.#projectFileDialogMode === "create-and-include" && this.#projectFileIncludeTarget && this.#projectFileIncludeFromPath) {
-      const position = Y.createAbsolutePositionFromRelativePosition(this.#projectFileIncludeTarget.end, this.#document);
-      if (position?.type === this.#projectFileIncludeTarget.text) {
-        this.#insertProjectInclude(
-          this.#projectFileIncludeTarget.text,
-          position.index,
-          relativeProjectPath(this.#projectFileIncludeFromPath, path),
-        );
-      }
-    } else if (selected) {
-      this.#selectProjectFile(selected.id);
-    }
+    if (!this.#insertRememberedProjectInclude(mode, path) && selected) this.#selectProjectFile(selected.id);
     void this.#renderPreview();
-    this.#showToast(
-      folderMode
-        ? creating
-          ? `Added ${path}.`
-          : `Moved folder to ${path}; project paths and includes were updated.`
-        : this.#projectFileDialogMode === "create-and-include"
-          ? `Created ${path} and included it at the remembered caret.`
-          : creating
-            ? `Added ${path}.`
-            : `Renamed file to ${path}; inbound includes were updated.`,
-    );
+    this.#showToast(projectFileSavedMessage(mode, path));
+    this.#resetProjectFileDialogState();
+  }
+
+  async #requestProjectFileSave(path: string, folderMode: boolean, creating: boolean, targetId: string | null): Promise<Response> {
+    const resource = folderMode ? "folders" : "files";
+    const url = creating ? `${apiBase}/${resource}` : `${apiBase}/${resource}/${encodeURIComponent(targetId ?? "")}`;
+    return await jsonFetch(url, { path }, creating ? "POST" : "PATCH");
+  }
+
+  #insertRememberedProjectInclude(mode: ProjectFileDialogMode, path: string): boolean {
+    const target = this.#projectFileIncludeTarget;
+    const fromPath = this.#projectFileIncludeFromPath;
+    if (mode !== "create-and-include" || !target || !fromPath) return false;
+    const position = Y.createAbsolutePositionFromRelativePosition(target.end, this.#document);
+    if (position?.type === target.text) this.#insertProjectInclude(target.text, position.index, relativeProjectPath(fromPath, path));
+    return true;
+  }
+
+  #resetProjectFileDialogState(): void {
     this.#projectFileIncludeTarget = null;
     this.#projectFileIncludeFromPath = null;
     this.#projectFolderId = null;
