@@ -10,9 +10,10 @@ import {
   isProjectPublicationProfile,
   type ProjectPublicationProfile,
   type WorkspaceSnapshot,
+  type WorkspaceSummary,
 } from "./workspace";
 
-export type ProjectTemplateSource = "built-in" | "personal";
+export type ProjectTemplateSource = "built-in" | "personal" | "project";
 
 export interface ProjectTemplateFileSeed {
   readonly path: string;
@@ -248,6 +249,21 @@ export function projectTemplatePreview(seed: ProjectTemplateSeed): ProjectTempla
   };
 }
 
+export function projectTemplateSummaryFromWorkspace(
+  workspace: WorkspaceSummary,
+  snapshot: Pick<WorkspaceSnapshot, "entryFileId" | "files" | "folders" | "bibliography" | "publicationProfile">,
+): ProjectTemplateSummary {
+  return {
+    id: workspace.id,
+    source: "project",
+    name: workspace.title,
+    description: "Copy the latest reusable structure from this project without its research history or private data.",
+    createdAt: workspace.createdAt,
+    updatedAt: workspace.updatedAt,
+    preview: projectTemplatePreview(projectTemplateSeed(snapshot)),
+  };
+}
+
 export function isProjectTemplateSeed(value: unknown): value is ProjectTemplateSeed {
   if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.files) || !Array.isArray(value.folders)) return false;
   if (value.files.length === 0 || value.files.length > maximumSeedFiles || value.folders.length > maximumSeedFiles) return false;
@@ -317,7 +333,7 @@ export function isProjectTemplateSummaries(value: unknown): value is ProjectTemp
         typeof template.id === "string" &&
         template.id.length > 0 &&
         template.id.length <= 64 &&
-        (template.source === "built-in" || template.source === "personal") &&
+        (template.source === "built-in" || template.source === "personal" || template.source === "project") &&
         isBoundedText(template.name, 120, true) &&
         isBoundedText(template.description, 500, false) &&
         (template.createdAt === null || typeof template.createdAt === "string") &&

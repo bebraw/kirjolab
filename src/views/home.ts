@@ -712,21 +712,21 @@ export function renderHomePage(
     <dialog class="new-workspace-dialog template-dialog ui-dialog" id="new-workspace-dialog">
       <form class="template-browser-form" id="new-workspace-form">
         <header class="template-browser-header">
-          <div><p class="eyebrow">New project</p><h2 class="ui-heading mt-1">Choose a starting point</h2><p class="ui-supporting-text mt-2">Browse the structure and publication setup before choosing a template.</p></div>
+          <div><p class="eyebrow">New project</p><h2 class="ui-heading mt-1">Choose a starting point</h2><p class="ui-supporting-text mt-2">Browse the structure and publication setup before choosing a starting point.</p></div>
           <label class="field-label template-title-field">Project title
             <input class="field" id="new-workspace-title" type="text" maxlength="120" required placeholder="Working title">
           </label>
         </header>
         <div class="template-browser">
           <section class="template-browser-index" aria-labelledby="template-browser-index-heading">
-            <h3 class="field-label" id="template-browser-index-heading">Available templates</h3>
+            <h3 class="field-label" id="template-browser-index-heading">Starting points</h3>
             <div class="template-choice-list" id="new-workspace-template-list"><div class="empty-state">Loading templates…</div></div>
           </section>
           <section class="template-preview" id="new-workspace-template-preview" aria-live="polite"><div class="empty-state">Choose a template to inspect its structure.</div></section>
         </div>
         <input id="new-workspace-template-id" type="hidden">
         <footer class="template-browser-footer">
-          <p class="ui-status" id="new-workspace-template-status" role="status">Templates create independent projects without research history.</p>
+          <p class="ui-status" id="new-workspace-template-status" role="status">Templates and existing projects create independent projects without research history.</p>
           <div class="ui-cluster justify-end">
             <button class="button-secondary" id="open-latex-import" type="button">Import LaTeX</button>
             <button class="button-secondary" id="open-github-import" type="button">Import GitHub</button>

@@ -8,8 +8,9 @@ import {
   listBuiltInProjectTemplates,
   projectTemplatePreview,
   projectTemplateSeed,
+  projectTemplateSummaryFromWorkspace,
 } from "./project-templates";
-import { defaultProjectPublicationProfile, type WorkspaceSnapshot } from "./workspace";
+import { defaultProjectPublicationProfile, type WorkspaceSnapshot, type WorkspaceSummary } from "./workspace";
 
 describe("project templates", () => {
   it("provides four valid and distinct built-in starting structures", () => {
@@ -99,6 +100,23 @@ describe("project templates", () => {
       bibliography: "@article{doe2026, title={Study}}\n",
       publicationProfile: defaultProjectPublicationProfile,
     });
+    const workspace: WorkspaceSummary = {
+      id: "project-1",
+      title: "Reusable study",
+      href: "/editor/project-1",
+      createdAt: "then",
+      updatedAt: "now",
+      archivedAt: null,
+    };
+    expect(projectTemplateSummaryFromWorkspace(workspace, snapshot)).toMatchObject({
+      id: "project-1",
+      source: "project",
+      name: "Reusable study",
+      createdAt: "then",
+      updatedAt: "now",
+      preview: { files: ["main.md"], folders: ["figures"], hasBibliography: true },
+    });
+    expect(JSON.stringify(projectTemplateSummaryFromWorkspace(workspace, snapshot))).not.toContain("## Study");
   });
 
   it("rejects malformed, duplicate, missing explicit entry, and oversized seeds", () => {
@@ -170,6 +188,7 @@ describe("project templates", () => {
     expect(isProjectTemplateSummaries([{ ...summary, id: "x".repeat(64) }])).toBe(true);
     expect(isProjectTemplateSummaries([{ ...summary, id: "x".repeat(65) }])).toBe(false);
     expect(isProjectTemplateSummaries([{ ...summary, source: "foreign" }])).toBe(false);
+    expect(isProjectTemplateSummaries([{ ...summary, source: "project" }])).toBe(true);
     expect(isProjectTemplateSummaries([{ ...summary, name: 42 }])).toBe(false);
     expect(isProjectTemplateSummaries([{ ...summary, name: " " }])).toBe(false);
     expect(isProjectTemplateSummaries([{ ...summary, name: "x".repeat(121) }])).toBe(false);

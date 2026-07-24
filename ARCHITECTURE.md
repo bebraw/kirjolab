@@ -82,7 +82,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   only Markdown files, folders, portable BibTeX, and publication settings.
   Store personal templates in a separate owner-keyed authority; never use a
   hidden project, the workspace catalog, or a complete revision seed. Template
-  instantiation is an independent copy with no live inheritance.
+  instantiation is an independent copy with no live inheritance. Let an
+  authorized researcher also instantiate a one-off project from an existing
+  project's current sanitized seed without persisting that seed as a personal
+  template.
 - Require every composition result to retain source-map spans back to file
   identity, source range, output range, and include chain. Reject unsafe paths,
   cycles, missing files, and resource-limit violations with navigable

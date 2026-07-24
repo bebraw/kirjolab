@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-168](./implemented/ADR-168-instantiate-from-existing-projects.md)                    | Implemented          | Instantiate a new project directly from an authorized existing project's sanitized current structure.         |
 | [ADR-156](./implemented/ADR-156-keep-bibtex-at-interoperability-boundaries.md)            | Implemented          | Remove BibTeX from ordinary project UI while preserving explicit import and export boundaries.                |
 | [ADR-155](./implemented/ADR-155-authorize-linked-pdfs-by-project-membership.md)           | Implemented          | Grant authenticated project members linked-reference PDF access while excluding public bearer links.          |
 | [ADR-154](./implemented/ADR-154-refine-linked-pdf-reference-keys.md)                      | Implemented          | Keep PDF-origin keys refinable and propagate generated aliases without overwriting researcher choices.        |

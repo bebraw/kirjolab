@@ -4120,7 +4120,27 @@ test("starts from built-in and promoted personal project templates", async ({ pa
     data: { path: "sections/lab-checklist.md", content: "## Lab checklist\n\nReusable steps.\n" },
   });
   expect(reusableFile.status()).toBe(201);
-  await page.reload();
+
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await expect(page.locator("#new-workspace-template-list")).toContainText("Existing projects");
+  const reviewProjectSource = page.locator(`[data-project-source-id="${reviewWorkspaceId}"]`);
+  await reviewProjectSource.click();
+  await expect(reviewProjectSource).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#new-workspace-template-preview")).toContainText("Existing project");
+  await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/lab-checklist.md");
+  await expect(page.locator("#new-workspace-template-id")).toHaveValue(`project:${reviewWorkspaceId}`);
+  await page.locator("#new-workspace-title").fill("Direct project copy");
+  await page.locator("#create-workspace").click();
+  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
+  const directCopyId = new URL(page.url()).pathname.split("/").at(-1);
+  if (!directCopyId) throw new Error("Expected a direct project-copy workspace id");
+  const directCopy = await readWorkspaceSnapshot(page, `/api/workspaces/${directCopyId}`);
+  expect(directCopy.files.some((file) => file.path === "sections/lab-checklist.md")).toBe(true);
+  expect(directCopy.pdfs).toEqual([]);
+  expect(directCopy.annotations).toEqual([]);
+
+  await page.goto(`/editor/${reviewWorkspaceId}`);
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "Project settings" }).click();
   await page.locator("#save-workspace-template").click();

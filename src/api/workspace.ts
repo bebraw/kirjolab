@@ -23,6 +23,7 @@ import {
   type ProjectAsset,
   type ProjectPublicationProfile,
   type WorkspaceRole,
+  type WorkspaceSummary,
 } from "../domain/workspace";
 import { normalizeProjectPath } from "../domain/project-files";
 import { hasProjectImageSignature } from "../domain/project-image-signatures";
@@ -31,6 +32,7 @@ import {
   builtInProjectTemplate,
   isSaveProjectTemplateInput,
   projectTemplateSeed,
+  projectTemplateSummaryFromWorkspace,
   type ProjectTemplateRecord,
 } from "../domain/project-templates";
 import { buildWorkspaceKnowledgeGraph, searchWorkspaceKnowledge } from "../domain/knowledge";
@@ -67,6 +69,7 @@ interface WorkspaceRouteContext {
   readonly identity: AuthIdentity;
   readonly workspaceId: string;
   readonly workspaceTitle: string;
+  readonly workspaceSummary: WorkspaceSummary;
   readonly storageKey: string;
   readonly role: WorkspaceRole;
   readonly room: DocumentRoomStub;
@@ -120,6 +123,7 @@ export async function handleWorkspaceApi(request: Request, env: Env, identity: A
     identity,
     workspaceId,
     workspaceTitle: summary.title,
+    workspaceSummary: summary,
     storageKey,
     role,
     room,
@@ -249,7 +253,10 @@ async function handleWorkspaceDuplicateRoute(context: WorkspaceRouteContext): Pr
 }
 
 async function handleWorkspaceTemplateRoute(context: WorkspaceRouteContext): Promise<Response | null> {
-  const { request, suffix, role, workspaceId, identity, env, room } = context;
+  const { request, suffix, role, workspaceId, workspaceSummary, identity, env, room } = context;
+  if (suffix === "/template-preview" && request.method === "GET") {
+    return Response.json(projectTemplateSummaryFromWorkspace(workspaceSummary, await room.getSnapshot(workspaceId)));
+  }
   if (suffix !== "/template" || request.method !== "POST") return null;
   if (role !== "owner") return jsonError("Only the workspace owner can save project templates", 403);
   return await saveWorkspaceTemplate(request, workspaceId, room, env, identity);
@@ -922,19 +929,29 @@ async function handleWorkspaceCatalog(request: Request, env: Env, identity: Auth
   if (request.method !== "POST") return jsonError("Route not found", 404);
   const body: unknown = await request.json();
   if (!isCreateWorkspaceInput(body)) return jsonError("Invalid workspace", 400);
-  let template: ProjectTemplateRecord | null = null;
-  if (body.templateId && body.templateId !== "builtin-guided") {
-    template =
+  let seed: ProjectTemplateRecord["seed"] | null = null;
+  if (body.sourceWorkspaceId) {
+    const sourceSummary = await catalog.getWorkspace(body.sourceWorkspaceId);
+    if (!sourceSummary) return jsonError("Source project not found", 404);
+    const sourceStorageKey = workspaceStorageKey(identity, body.sourceWorkspaceId);
+    const sourceAccess = env.WORKSPACE_ACCESS.getByName(sourceStorageKey);
+    if (body.sourceWorkspaceId === demoWorkspaceId || identity.mode === "local") await sourceAccess.initializeOwner(identity.email);
+    if (!(await sourceAccess.getRole(identity.email))) return jsonError("Source project not found", 404);
+    const sourceSnapshot = await env.DOCUMENT_ROOMS.getByName(sourceStorageKey).getSnapshot(body.sourceWorkspaceId);
+    seed = projectTemplateSeed(sourceSnapshot);
+  } else if (body.templateId && body.templateId !== "builtin-guided") {
+    const template =
       builtInProjectTemplate(body.templateId) ??
       (await env.PROJECT_TEMPLATE_CATALOGS.getByName(identity.ownerKey).getTemplate(body.templateId));
     if (!template) return jsonError("Project template not found", 404);
+    seed = template.seed;
   }
   const id = crypto.randomUUID();
   const storageKey = workspaceStorageKey(identity, id);
   const access = env.WORKSPACE_ACCESS.getByName(storageKey);
   await access.initializeOwner(identity.email);
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
-  if (template) await room.seedFromTemplate(id, body.title.trim(), template.seed);
+  if (seed) await room.seedFromTemplate(id, body.title.trim(), seed);
   else await room.initializeWorkspace(body.title.trim());
   return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
 }

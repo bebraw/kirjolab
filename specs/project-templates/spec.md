@@ -28,6 +28,10 @@ without copying private research or creating a live dependency on the source.
 - Promotion captures the current project head. Replacing a personal template
   is explicit and owner-only; it never changes projects already created from
   that template.
+- Active projects available to the researcher appear as one-off starting
+  points. Selecting one lazily previews its current sanitized structure;
+  creation derives a transient `ProjectTemplateSeed` from its authorized
+  current snapshot without saving another personal template.
 - Creating a project from a template initializes normal project access,
   instantiates an independent `DocumentRoom`, records revision zero, and then
   registers the project in the owner catalog. Blank and built-in creation use
@@ -56,7 +60,12 @@ without copying private research or creating a live dependency on the source.
 - `POST /api/workspaces/{id}/template` promotes the current project. A bounded
   optional `templateId` replaces one personal template owned by the caller.
 - `POST /api/workspaces` accepts an optional bounded `templateId`; omission
-  retains the Guided starter default for compatibility.
+  retains the Guided starter default for compatibility. It alternatively
+  accepts one bounded `sourceWorkspaceId`; the two source fields are mutually
+  exclusive.
+- `GET /api/workspaces/{id}/template-preview` returns the same bounded,
+  content-free preview for an accessible existing project after checking
+  current project authorization.
 
 ### Anti-Patterns
 
@@ -75,6 +84,8 @@ without copying private research or creating a live dependency on the source.
 - [x] New projects can start from four distinct built-in structures.
 - [x] Owners can promote the current project into a named personal template.
 - [x] Owners can explicitly replace or delete a personal template.
+- [x] Researchers can create directly from the current sanitized structure of
+      an existing accessible project without persisting a personal template.
 - [x] Template instantiation preserves files, entry choice, folders, BibTeX,
       and publication settings while creating an independent project and
       revision history.
@@ -94,6 +105,9 @@ without copying private research or creating a live dependency on the source.
 - Built-in templates cannot be replaced or deleted.
 - A missing, foreign, or malformed personal template id does not create a
   project or disclose template metadata.
+- A missing or no-longer-accessible source project does not create a project or
+  disclose its structure. A request cannot combine a stored template with an
+  existing-project source.
 - Project creation registers the catalog entry only after access and document
   initialization succeed.
 - Existing duplication, revision branching, and default starter creation keep
@@ -123,6 +137,13 @@ without copying private research or creating a live dependency on the source.
 - When: they save the current project as a personal template
 - Then: the template catalog retains a sanitized independent seed and lists it
   in New project
+
+**Scenario: Researcher reuses an existing project once**
+
+- Given: the researcher can access a project with a useful current structure
+- When: they choose that project directly in New project
+- Then: Kirjolab previews and creates from its sanitized current structure
+  without storing a personal template or copying private research and history
 
 **Scenario: Researcher refreshes a personal template**
 

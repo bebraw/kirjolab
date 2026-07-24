@@ -46,7 +46,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="create-workspace" type="submit" disabled>Create project</button>');
     expect(html).toContain('id="new-workspace-template-preview" aria-live="polite"');
     expect(html).toContain('id="new-workspace-template-id" type="hidden"');
-    expect(html).toContain("Browse the structure and publication setup before choosing a template.");
+    expect(html).toContain("Browse the structure and publication setup before choosing a starting point.");
+    expect(html).toContain('id="template-browser-index-heading">Starting points</h3>');
+    expect(html).toContain("Templates and existing projects create independent projects without research history.");
     expect(html).toContain('id="workspace-catalog-filter"');
     expect(html).toContain('id="read-only-share-heading"');
     expect(html).toContain('id="create-read-only-share" type="button">Create link</button>');
