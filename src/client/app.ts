@@ -243,6 +243,10 @@ interface PreviewInputs {
 }
 
 type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
+type ProjectTreeItem =
+  | { readonly kind: "folder"; readonly path: string; readonly folder: WorkspaceSnapshot["folders"][number] }
+  | { readonly kind: "file"; readonly path: string; readonly file: ProjectFile }
+  | { readonly kind: "asset"; readonly path: string; readonly asset: ProjectAsset };
 
 function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean {
   return mode === "create-folder" || mode === "rename-folder";
@@ -3784,14 +3788,27 @@ class WorkspaceApp {
   #renderProjectFiles(): void {
     const snapshot = this.#snapshot;
     if (!snapshot) return;
-    if (!this.#activeFileId || !snapshot.files.some((file) => file.id === this.#activeFileId)) {
-      this.#activeFileId = snapshot.entryFileId;
-      const entry = snapshot.files.find((file) => file.id === snapshot.entryFileId);
-      this.#activeFileText = entry ? this.#document.getText(projectFileCollaborationTextName(entry, snapshot.entryFileId)) : this.#source;
-    }
+    this.#ensureActiveProjectFile(snapshot);
     this.#elements.projectFileList.replaceChildren();
     this.#elements.includeProjectFileList.replaceChildren();
-    const items = [
+    for (const item of this.#projectTreeItems(snapshot)) this.#renderProjectTreeItem(item, snapshot);
+    this.#renderEmptyProjectIncludeList();
+    this.#filterProjectFiles();
+    const entryActive = this.#activeFileId === snapshot.entryFileId;
+    this.#elements.renameProjectFile.disabled = false;
+    this.#elements.deleteProjectFile.disabled = entryActive;
+    this.#renderAuthoringTarget();
+  }
+
+  #ensureActiveProjectFile(snapshot: WorkspaceSnapshot): void {
+    if (this.#activeFileId && snapshot.files.some((file) => file.id === this.#activeFileId)) return;
+    this.#activeFileId = snapshot.entryFileId;
+    const entry = snapshot.files.find((file) => file.id === snapshot.entryFileId);
+    this.#activeFileText = entry ? this.#document.getText(projectFileCollaborationTextName(entry, snapshot.entryFileId)) : this.#source;
+  }
+
+  #projectTreeItems(snapshot: WorkspaceSnapshot): ProjectTreeItem[] {
+    return [
       ...snapshot.folders
         .filter((folder) => !this.#hiddenProjectFolderIds.has(folder.id))
         .map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
@@ -3802,124 +3819,129 @@ class WorkspaceApp {
         .filter((asset) => !this.#hiddenProjectImageIds.has(asset.id))
         .map((asset) => ({ kind: "asset" as const, path: asset.path, asset })),
     ].sort((left, right) => left.path.localeCompare(right.path) || left.kind.localeCompare(right.kind));
-    for (const item of items) {
-      const depth = item.path.split("/").length - 1;
-      if (item.kind === "folder") {
-        const row = document.createElement("div");
-        row.className = "project-folder-row";
-        row.dataset.projectPath = item.path;
-        row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
-        const label = document.createElement("span");
-        label.className = "min-w-0 truncate";
-        label.textContent = `${item.path.split("/").at(-1)}/`;
-        const actions = document.createElement("details");
-        actions.className = "action-menu project-tree-actions";
-        const summary = document.createElement("summary");
-        summary.setAttribute("aria-label", `Actions for ${item.path}`);
-        summary.textContent = "•••";
-        const menu = document.createElement("div");
-        menu.className = "editor-command-menu";
-        const rename = document.createElement("button");
-        rename.type = "button";
-        rename.textContent = "Move or rename";
-        rename.addEventListener("click", () => this.#openProjectFileDialog("rename-folder", item.folder.id));
-        const remove = document.createElement("button");
-        remove.type = "button";
-        remove.textContent = "Delete empty folder";
-        remove.addEventListener("click", () => this.#deleteProjectFolder(item.folder.id));
-        menu.append(rename, remove);
-        actions.append(summary, menu);
-        row.append(label, actions);
-        this.#elements.projectFileList.append(row);
-        continue;
-      }
-      if (item.kind === "asset") {
-        const asset = item.asset;
-        const row = document.createElement("div");
-        row.className = "project-file-row project-asset-row";
-        row.dataset.projectPath = item.path;
-        row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
-        const preview = document.createElement("img");
-        preview.className = "project-asset-thumbnail";
-        preview.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
-        preview.alt = "";
-        const label = document.createElement("span");
-        label.className = "min-w-0 flex-1 truncate";
-        label.textContent = asset.path.split("/").at(-1) ?? asset.path;
-        const actions = document.createElement("details");
-        actions.className = "action-menu project-tree-actions";
-        const summary = document.createElement("summary");
-        summary.setAttribute("aria-label", `Actions for ${asset.path}`);
-        summary.textContent = "•••";
-        const menu = document.createElement("div");
-        menu.className = "editor-command-menu";
-        const insert = document.createElement("button");
-        insert.type = "button";
-        insert.textContent = "Insert image";
-        insert.addEventListener("click", () => this.#insertProjectImage(asset));
-        const open = document.createElement("a");
-        open.href = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
-        open.target = "_blank";
-        open.rel = "noopener";
-        open.textContent = "Open image";
-        const remove = document.createElement("button");
-        remove.type = "button";
-        remove.textContent = "Delete image";
-        remove.addEventListener("click", () => this.#deleteProjectImage(asset));
-        menu.append(insert, open, remove);
-        actions.append(summary, menu);
-        row.append(preview, label, actions);
-        this.#elements.projectFileList.append(row);
-        continue;
-      }
-      const file = item.file;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "project-file-row";
-      button.dataset.projectPath = file.path;
-      button.dataset.projectFileId = file.id;
-      button.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
-      button.dataset.active = String(file.id === this.#activeFileId);
-      button.setAttribute("aria-current", file.id === this.#activeFileId ? "page" : "false");
-      const path = document.createElement("span");
-      path.className = "truncate";
-      path.textContent = file.path.split("/").at(-1) ?? file.path;
-      button.append(path);
-      if (file.id === snapshot.entryFileId) {
-        const kind = document.createElement("span");
-        kind.className = "project-file-kind";
-        kind.textContent = "entry";
-        button.append(kind);
-      }
-      button.addEventListener("click", () => this.#selectProjectFile(file.id));
-      this.#elements.projectFileList.append(button);
-      if (file.id !== this.#activeFileId) {
-        const include = document.createElement("button");
-        include.type = "button";
-        include.dataset.includeFileId = file.id;
-        const label = document.createElement("strong");
-        label.textContent = file.path;
-        label.title = file.path;
-        const syntax = document.createElement("code");
-        const activeFile = snapshot.files.find((item) => item.id === this.#activeFileId);
-        const relativePath = activeFile ? relativeProjectPath(activeFile.path, file.path) : file.path;
-        syntax.textContent = "::include[…]";
-        include.title = `Insert ::include[${relativePath}]`;
-        include.append(label, syntax);
-        this.#elements.includeProjectFileList.append(include);
-      }
+  }
+
+  #renderProjectTreeItem(item: ProjectTreeItem, snapshot: WorkspaceSnapshot): void {
+    const depth = item.path.split("/").length - 1;
+    if (item.kind === "folder") this.#elements.projectFileList.append(this.#projectFolderRow(item, depth));
+    else if (item.kind === "asset") this.#elements.projectFileList.append(this.#projectAssetRow(item.asset, depth));
+    else this.#renderProjectFileRow(item.file, depth, snapshot);
+  }
+
+  #projectFolderRow(item: Extract<ProjectTreeItem, { kind: "folder" }>, depth: number): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "project-folder-row";
+    row.dataset.projectPath = item.path;
+    row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
+    const label = document.createElement("span");
+    label.className = "min-w-0 truncate";
+    label.textContent = `${item.path.split("/").at(-1)}/`;
+    const actions = document.createElement("details");
+    actions.className = "action-menu project-tree-actions";
+    const summary = document.createElement("summary");
+    summary.setAttribute("aria-label", `Actions for ${item.path}`);
+    summary.textContent = "•••";
+    const menu = document.createElement("div");
+    menu.className = "editor-command-menu";
+    const rename = document.createElement("button");
+    rename.type = "button";
+    rename.textContent = "Move or rename";
+    rename.addEventListener("click", () => this.#openProjectFileDialog("rename-folder", item.folder.id));
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Delete empty folder";
+    remove.addEventListener("click", () => this.#deleteProjectFolder(item.folder.id));
+    menu.append(rename, remove);
+    actions.append(summary, menu);
+    row.append(label, actions);
+    return row;
+  }
+
+  #projectAssetRow(asset: ProjectAsset, depth: number): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "project-file-row project-asset-row";
+    row.dataset.projectPath = asset.path;
+    row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
+    const preview = document.createElement("img");
+    preview.className = "project-asset-thumbnail";
+    preview.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
+    preview.alt = "";
+    const label = document.createElement("span");
+    label.className = "min-w-0 flex-1 truncate";
+    label.textContent = asset.path.split("/").at(-1) ?? asset.path;
+    const actions = document.createElement("details");
+    actions.className = "action-menu project-tree-actions";
+    const summary = document.createElement("summary");
+    summary.setAttribute("aria-label", `Actions for ${asset.path}`);
+    summary.textContent = "•••";
+    const menu = document.createElement("div");
+    menu.className = "editor-command-menu";
+    const insert = document.createElement("button");
+    insert.type = "button";
+    insert.textContent = "Insert image";
+    insert.addEventListener("click", () => this.#insertProjectImage(asset));
+    const open = document.createElement("a");
+    open.href = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
+    open.target = "_blank";
+    open.rel = "noopener";
+    open.textContent = "Open image";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Delete image";
+    remove.addEventListener("click", () => this.#deleteProjectImage(asset));
+    menu.append(insert, open, remove);
+    actions.append(summary, menu);
+    row.append(preview, label, actions);
+    return row;
+  }
+
+  #renderProjectFileRow(file: ProjectFile, depth: number, snapshot: WorkspaceSnapshot): void {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "project-file-row";
+    button.dataset.projectPath = file.path;
+    button.dataset.projectFileId = file.id;
+    button.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
+    button.dataset.active = String(file.id === this.#activeFileId);
+    button.setAttribute("aria-current", file.id === this.#activeFileId ? "page" : "false");
+    const path = document.createElement("span");
+    path.className = "truncate";
+    path.textContent = file.path.split("/").at(-1) ?? file.path;
+    button.append(path);
+    if (file.id === snapshot.entryFileId) {
+      const kind = document.createElement("span");
+      kind.className = "project-file-kind";
+      kind.textContent = "entry";
+      button.append(kind);
     }
+    button.addEventListener("click", () => this.#selectProjectFile(file.id));
+    this.#elements.projectFileList.append(button);
+    if (file.id !== this.#activeFileId) this.#elements.includeProjectFileList.append(this.#projectIncludeButton(file, snapshot));
+  }
+
+  #projectIncludeButton(file: ProjectFile, snapshot: WorkspaceSnapshot): HTMLButtonElement {
+    const include = document.createElement("button");
+    include.type = "button";
+    include.dataset.includeFileId = file.id;
+    const label = document.createElement("strong");
+    label.textContent = file.path;
+    label.title = file.path;
+    const syntax = document.createElement("code");
+    const activeFile = snapshot.files.find((item) => item.id === this.#activeFileId);
+    const relativePath = activeFile ? relativeProjectPath(activeFile.path, file.path) : file.path;
+    syntax.textContent = "::include[…]";
+    include.title = `Insert ::include[${relativePath}]`;
+    include.append(label, syntax);
+    return include;
+  }
+
+  #renderEmptyProjectIncludeList(): void {
     if (!this.#elements.includeProjectFileList.hasChildNodes()) {
       const empty = document.createElement("span");
       empty.className = "block px-3 py-2 text-xs text-app-text-soft";
       empty.textContent = "Add another file to include it here.";
       this.#elements.includeProjectFileList.append(empty);
     }
-    this.#filterProjectFiles();
-    const entryActive = this.#activeFileId === snapshot.entryFileId;
-    this.#elements.renameProjectFile.disabled = false;
-    this.#elements.deleteProjectFile.disabled = entryActive;
-    this.#renderAuthoringTarget();
   }
 
   #filterProjectFiles(): void {
