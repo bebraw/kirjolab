@@ -42,9 +42,12 @@ import {
   relativeProjectPath,
   resolveProjectPath,
   type CompositionSourceSpan,
+  type ProjectComposition,
   type ProjectAsset,
   type ProjectFile,
+  type ProjectFilePreview,
 } from "../domain/project-files";
+import type { Diagnostic, RenderedDocument } from "../domain/markdown";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
 import { suggestCitationKey } from "../domain/publication-intake";
 import { isPhrasingPurposeId, phrasingPatternsForPurpose, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
@@ -125,7 +128,7 @@ import {
   parseCitationKeys,
 } from "./citations";
 import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHistoryAction } from "./editor-history";
-import { loadMarkdownRuntime } from "./markdown-runtime";
+import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
 import { groupProjectMapNodes, projectMapLaneDefinitions, projectMapNodeGroup } from "./project-map-layout";
@@ -230,6 +233,13 @@ type GuardResult<T> = T extends (value: unknown) => value is infer Result ? Resu
 type GitHubSyncConnection = GuardResult<typeof isGitHubSyncState>;
 type GitHubPullPreview = GuardResult<typeof isGitHubPullPreview>;
 type GitHubPublishPreview = GuardResult<typeof isGitHubPublishPreview>;
+
+interface PreviewInputs {
+  readonly files: readonly ProjectFile[];
+  readonly publicationComposition: ProjectComposition | null;
+  readonly filePreview: ProjectFilePreview | null;
+  readonly renderedSource: string;
+}
 
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
@@ -3218,6 +3228,22 @@ class WorkspaceApp {
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
     const renderVersion = ++this.#previewRenderVersion;
+    const inputs = this.#previewInputs();
+    this.#preparePreviewContext(inputs);
+    const runtime = await this.#loadPreviewRuntime(renderVersion, inputs.renderedSource);
+    if (!runtime || renderVersion !== this.#previewRenderVersion) return;
+    const rendered = runtime.renderWorkspaceMarkdown(
+      inputs.renderedSource,
+      bibliography,
+      this.#snapshot?.publicationProfile.citationStyle,
+      { headingNumbers: this.#previewHeadingNumbers(runtime, inputs) },
+    );
+    this.#renderMarkdownPreview(rendered, inputs);
+    this.#renderPreviewDiagnostics(rendered.diagnostics, inputs.filePreview);
+    this.#renderPreviewWorkspaceContext(inputs.publicationComposition, bibliography);
+  }
+
+  #previewInputs(): PreviewInputs {
     const files = this.#previewProjectFiles();
     const publicationComposition = this.#snapshot
       ? composeProject(files, this.#snapshot.entryFileId, {}, this.#snapshot.reviewArtifactPins)
@@ -3226,31 +3252,44 @@ class WorkspaceApp {
       ? previewProjectFile(files, this.#snapshot.entryFileId, this.#activeFileId, this.#snapshot.reviewArtifactPins)
       : null;
     const renderedSource = filePreview?.content ?? this.#source.toString();
-    this.#renderManuscriptMap(publicationComposition?.content ?? renderedSource);
+    return { files, publicationComposition, filePreview, renderedSource };
+  }
+
+  #preparePreviewContext(inputs: PreviewInputs): void {
+    this.#renderManuscriptMap(inputs.publicationComposition?.content ?? inputs.renderedSource);
+    const { filePreview, publicationComposition } = inputs;
     this.#elements.previewFileContext.textContent = filePreview
       ? `${filePreview.path} · ${filePreview.mode === "composed" ? "composed paper" : "isolated file"}`
       : "Preview";
     this.#elements.previewFileContext.title = this.#elements.previewFileContext.textContent;
     if (publicationComposition && this.#snapshot) {
-      this.#wordStatistics = publicationWordStatistics(publicationComposition, files);
+      this.#wordStatistics = publicationWordStatistics(publicationComposition, inputs.files);
       this.#renderExportStatistics();
     }
-    let runtime;
+  }
+
+  async #loadPreviewRuntime(renderVersion: number, renderedSource: string): Promise<MarkdownRuntime | null> {
     try {
-      runtime = await loadMarkdownRuntime();
+      return await loadMarkdownRuntime();
     } catch (error) {
-      if (renderVersion !== this.#previewRenderVersion) return;
-      this.#elements.preview.textContent = renderedSource;
-      this.#elements.diagnostics.replaceChildren();
-      this.#elements.diagnosticSummary.textContent = "Preview unavailable";
-      const item = document.createElement("p");
-      item.className = "resource-card mb-2 font-sans text-xs";
-      item.textContent = error instanceof Error ? error.message : "The Markdown renderer could not be loaded";
-      this.#elements.diagnostics.append(item);
-      return;
+      if (renderVersion === this.#previewRenderVersion) this.#renderPreviewUnavailable(renderedSource, error);
+      return null;
     }
-    if (renderVersion !== this.#previewRenderVersion) return;
+  }
+
+  #renderPreviewUnavailable(renderedSource: string, error: unknown): void {
+    this.#elements.preview.textContent = renderedSource;
+    this.#elements.diagnostics.replaceChildren();
+    this.#elements.diagnosticSummary.textContent = "Preview unavailable";
+    const item = document.createElement("p");
+    item.className = "resource-card mb-2 font-sans text-xs";
+    item.textContent = error instanceof Error ? error.message : "The Markdown renderer could not be loaded";
+    this.#elements.diagnostics.append(item);
+  }
+
+  #previewHeadingNumbers(runtime: MarkdownRuntime, inputs: PreviewInputs): Record<number, string> {
     const headingNumbers: Record<number, string> = {};
+    const { filePreview, publicationComposition } = inputs;
     if (filePreview?.mode === "isolated" && publicationComposition) {
       for (const [outputOffset, number] of Object.entries(runtime.headingNumbersByOffset(publicationComposition.content))) {
         const span = sourceSpanAt(publicationComposition.sourceMap, Number(outputOffset));
@@ -3259,56 +3298,68 @@ class WorkspaceApp {
         headingNumbers[sourceOffset] ??= number;
       }
     }
-    const rendered = runtime.renderWorkspaceMarkdown(renderedSource, bibliography, this.#snapshot?.publicationProfile.citationStyle, {
-      headingNumbers,
-    });
+    return headingNumbers;
+  }
+
+  #renderMarkdownPreview(rendered: RenderedDocument, inputs: PreviewInputs): void {
     this.#elements.preview.innerHTML = rendered.html;
-    this.#previewSourceMap = filePreview?.sourceMap ?? [];
-    this.#resolveProjectPreviewImages(renderedSource, filePreview?.sourceMap ?? []);
+    this.#previewSourceMap = inputs.filePreview?.sourceMap ?? [];
+    this.#resolveProjectPreviewImages(inputs.renderedSource, inputs.filePreview?.sourceMap ?? []);
+  }
+
+  #renderPreviewDiagnostics(diagnostics: readonly Diagnostic[], filePreview: ProjectFilePreview | null): void {
     this.#elements.diagnostics.replaceChildren();
-    const diagnosticCount = rendered.diagnostics.length + (filePreview?.diagnostics.length ?? 0);
+    const diagnosticCount = diagnostics.length + (filePreview?.diagnostics.length ?? 0);
     this.#elements.diagnosticSummary.textContent =
       diagnosticCount === 0 ? "No syntax errors" : `${diagnosticCount} ${diagnosticCount === 1 ? "issue" : "issues"}`;
     for (const diagnostic of filePreview?.diagnostics ?? []) {
       this.#appendProjectDiagnostic(diagnostic.message, diagnostic.fileId, diagnostic.from, diagnostic.to);
     }
-    for (const diagnostic of rendered.diagnostics) {
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = "resource-card mb-2 block w-full text-left font-sans text-xs";
-      item.textContent = diagnostic.message;
-      item.addEventListener("click", () => {
-        const span = filePreview ? sourceSpanAt(filePreview.sourceMap, diagnostic.from) : undefined;
-        if (span)
-          this.#focusProjectRange(
-            span.fileId,
-            span.sourceStart,
-            Math.min(span.sourceEnd, span.sourceStart + diagnostic.to - diagnostic.from),
-          );
-        else this.#focusProjectRange(filePreview?.fileId ?? this.#snapshot?.entryFileId ?? "", diagnostic.from, diagnostic.to);
-      });
-      this.#elements.diagnostics.append(item);
-    }
-    if (this.#snapshot) {
-      const links = this.#snapshot.links.map((link) => ({
+    for (const diagnostic of diagnostics) this.#elements.diagnostics.append(this.#previewDiagnosticButton(diagnostic, filePreview));
+  }
+
+  #previewDiagnosticButton(diagnostic: Diagnostic, filePreview: ProjectFilePreview | null): HTMLButtonElement {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "resource-card mb-2 block w-full text-left font-sans text-xs";
+    item.textContent = diagnostic.message;
+    item.addEventListener("click", () => {
+      const span = filePreview ? sourceSpanAt(filePreview.sourceMap, diagnostic.from) : undefined;
+      if (span) {
+        this.#focusProjectRange(
+          span.fileId,
+          span.sourceStart,
+          Math.min(span.sourceEnd, span.sourceStart + diagnostic.to - diagnostic.from),
+        );
+      } else {
+        this.#focusProjectRange(filePreview?.fileId ?? this.#snapshot?.entryFileId ?? "", diagnostic.from, diagnostic.to);
+      }
+    });
+    return item;
+  }
+
+  #renderPreviewWorkspaceContext(publicationComposition: ProjectComposition | null, bibliography: string): void {
+    const snapshot = this.#snapshot;
+    if (snapshot) {
+      const links = snapshot.links.map((link) => ({
         ...link,
         resolution: resolveManuscriptAnchor(this.#document, link.anchor),
       }));
-      const claimLinks = this.#snapshot.claimLinks.map((link) => ({
+      const claimLinks = snapshot.claimLinks.map((link) => ({
         ...link,
         resolution: resolveManuscriptAnchor(this.#document, link.anchor),
       }));
       this.#updateAnchorActions([...links, ...claimLinks]);
       this.#renderManuscriptComments(
-        this.#snapshot.comments.map((comment) => ({
+        snapshot.comments.map((comment) => ({
           ...comment,
           resolution: resolveManuscriptAnchor(this.#document, comment.anchor),
         })),
       );
       this.#renderKnowledgeGraph(
         buildWorkspaceKnowledgeGraph({
-          ...this.#snapshot,
-          source: publicationComposition?.content ?? this.#snapshot.composition.content,
+          ...snapshot,
+          source: publicationComposition?.content ?? snapshot.composition.content,
           bibliography,
           links,
           claimLinks,
