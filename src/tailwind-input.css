@@ -1578,7 +1578,9 @@
   project-evidence-panel,
   project-tree-panel,
   manuscript-map-panel,
-  citation-network-panel {
+  citation-network-panel,
+  preview-context-status,
+  preview-diagnostics-panel {
     display: block;
   }
 

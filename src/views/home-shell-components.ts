@@ -34,10 +34,10 @@ export function renderContextTabs(): string {
             </details>
           </context-tab-overview-panel>
           <div class="context-tab-controls" aria-label="Active context actions">
-            <div class="context-mode-controls" id="preview-context-controls">
+            <preview-context-status class="context-mode-controls" id="preview-context-controls">
               <span class="preview-file-context" id="preview-file-context" title="main.md · composed paper">main.md · composed paper</span>
               <span id="diagnostic-summary">Validating…</span>
-            </div>
+            </preview-context-status>
             <div class="context-mode-controls" id="pdf-context-controls" hidden>
               <span class="context-status" id="paper-status">Loading PDF…</span>
               <button id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>

@@ -753,3 +753,28 @@ and 74 browser tests. The rebuilt browser application is 693,504 B raw and
 193,712 B gzip, an increase of 2,150 B raw and 447 B gzip from the Library
 discovery checkpoint. Direct and unique production package counts remain
 unchanged at 18 and 150.
+
+## Continued Lit Extraction: Preview Presentation
+
+Preview file-mode status, validation summary, unavailable state, and diagnostic
+cards now use bounded `PreviewContextStatus` and `PreviewDiagnosticsPanel`
+components instead of three element references and imperative composition and
+Markdown diagnostic rendering. The diagnostic component owns source-map
+resolution and emits typed file-qualified range intents. `WorkspaceApp`
+retains Markdown loading and rendering, composition, file selection, and editor
+focus.
+
+This checkpoint reduces `src/client/app.ts` from 10,207 to 10,173 lines (-34).
+The two components add 154 lines, while a shared five-line source-map helper
+replaces the coordinator-local implementation. They reach 81.08% statement
+coverage and 84.37% line coverage across default and updated status,
+unavailable, project, mapped-renderer, fallback-renderer, selectable, and
+rejected-selection states. Focused browser workflows pass composed and isolated
+file status, renderer diagnostics, composition diagnostics, source navigation,
+and unavailable recovery behavior.
+
+Full native CI passes all 1,256 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 694,763 B raw and
+194,053 B gzip, an increase of 1,259 B raw and 341 B gzip from the citation
+network checkpoint. Direct and unique production package counts remain
+unchanged at 18 and 150.

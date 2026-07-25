@@ -63,6 +63,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="revoke-edit-share" type="button">Revoke edit link</button>');
     expect(html).toContain('id="diagnostic-summary"');
     expect(html).toContain('id="preview-file-context"');
+    expect(html).toContain('<preview-context-status class="context-mode-controls" id="preview-context-controls">');
+    expect(html).toContain('<preview-diagnostics-panel class="mx-auto');
     expect(html).toContain('id="source-rail-resizer" role="separator"');
     expect(html).toContain('id="collapse-source-rail" type="button" aria-label="Collapse project rail"');
     expect(html).toContain('id="expand-source-rail" type="button" aria-label="Show project rail"');

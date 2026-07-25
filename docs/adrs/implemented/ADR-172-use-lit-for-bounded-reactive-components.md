@@ -94,6 +94,9 @@ The adopted components own bounded presentation:
 - The citation network panel owns graph geometry, source and edge cards,
   assertion provenance and review controls, snowball candidates, and local
   candidate-save progress with typed expansion, review, and save intents.
+- The Preview context status and diagnostics panels own file-mode and
+  validation status, unavailable-state presentation, composition and renderer
+  diagnostic cards, source-map resolution, and typed source-range intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -188,6 +191,10 @@ reason to wrap static markup mechanically.
   imperative SVG graph, node, edge, assertion, expansion, candidate, and
   progress renderers while leaving network requests, prompts, mutations,
   validation, refreshes, and toast policy in the application coordinator.
+- The Preview presentation panels replace three internal element references,
+  three imperative diagnostic renderers, and the coordinator-local source-map
+  lookup helper while leaving Markdown loading and rendering, composed-source
+  derivation, editor focus, and file selection in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

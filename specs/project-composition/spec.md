@@ -50,6 +50,10 @@ collaborative, and unambiguous about what preview and export mean.
   depth violation terminates that branch; more than 512 distinct files or more
   than 2 MiB of output stops composition globally. The active include chain may
   contain at most 32 files.
+- Preview presents composition and Markdown-renderer diagnostics through one
+  bounded list. Diagnostic selection emits a file-qualified authored range
+  resolved from the active preview source map; the workspace coordinator owns
+  file switching and editor focus.
 - A file move or rename updates affected include paths in the same revision. A
   folder move atomically changes its descendant folder and file paths and
   rewrites includes and project image references relative to both moved sources

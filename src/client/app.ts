@@ -68,6 +68,7 @@ import {
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 import { formatBytes } from "./format";
+import { sourceSpanAt } from "./composition-source-map";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
   GitHubImportPanel,
@@ -197,6 +198,12 @@ import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from
 import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
 import { CitationNetworkPanel, citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
+import {
+  PreviewContextStatus,
+  PreviewDiagnosticsPanel,
+  previewDiagnosticSelectEvent,
+  type PreviewDiagnosticSelection,
+} from "./preview-presentation";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -596,8 +603,7 @@ interface Elements {
   contextAssistantTab: HTMLButtonElement;
   contextResourceTabsPanel: ContextResourceTabs;
   contextTabOverviewPanel: ContextTabOverview;
-  previewContextControls: HTMLElement;
-  previewFileContext: HTMLElement;
+  previewContextControls: PreviewContextStatus;
   togglePreviewNavigation: HTMLButtonElement;
   restorePreviewNavigation: HTMLButtonElement;
   previewNavigationToggleLabel: HTMLElement;
@@ -614,8 +620,7 @@ interface Elements {
   contextCandidatePanel: HTMLElement;
   candidateReviewPanel: CandidateReviewPanel;
   preview: HTMLElement;
-  diagnostics: HTMLElement;
-  diagnosticSummary: HTMLElement;
+  diagnostics: PreviewDiagnosticsPanel;
   connectionDot: HTMLElement;
   connectionStatus: HTMLElement;
   editorTargetStatus: HTMLElement;
@@ -1493,6 +1498,10 @@ class WorkspaceApp {
     });
     this.#elements.contextTabList.addEventListener("keydown", (event) => this.#moveContextTabFocus(event));
     this.#elements.preview.addEventListener("click", (event) => this.#handlePreviewClick(event));
+    this.#elements.diagnostics.addEventListener(previewDiagnosticSelectEvent, (event) => {
+      const { fileId, from, to } = (event as CustomEvent<PreviewDiagnosticSelection>).detail;
+      this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to);
+    });
     this.#elements.syncPreviewFromSource.addEventListener("click", () => this.#syncPreviewFromSource());
     this.#elements.syncSourceFromPreview.addEventListener("click", () => this.#syncSourceFromPreviewCenter());
     this.#elements.openSourceCitation.addEventListener("click", () => this.#openCitationAtCaret());
@@ -3027,10 +3036,9 @@ class WorkspaceApp {
   #preparePreviewContext(inputs: PreviewInputs): void {
     this.#renderManuscriptMap(inputs.publicationComposition?.content ?? inputs.renderedSource);
     const { filePreview, publicationComposition } = inputs;
-    this.#elements.previewFileContext.textContent = filePreview
-      ? `${filePreview.path} · ${filePreview.mode === "composed" ? "composed paper" : "isolated file"}`
-      : "Preview";
-    this.#elements.previewFileContext.title = this.#elements.previewFileContext.textContent;
+    this.#elements.previewContextControls.setContext(
+      filePreview ? `${filePreview.path} · ${filePreview.mode === "composed" ? "composed paper" : "isolated file"}` : "Preview",
+    );
     if (publicationComposition && this.#snapshot) {
       this.#wordStatistics = publicationWordStatistics(publicationComposition, inputs.files);
       this.#renderExportStatistics();
@@ -3048,12 +3056,8 @@ class WorkspaceApp {
 
   #renderPreviewUnavailable(renderedSource: string, error: unknown): void {
     this.#elements.preview.textContent = renderedSource;
-    this.#elements.diagnostics.replaceChildren();
-    this.#elements.diagnosticSummary.textContent = "Preview unavailable";
-    const item = document.createElement("p");
-    item.className = "resource-card mb-2 font-sans text-xs";
-    item.textContent = error instanceof Error ? error.message : "The Markdown renderer could not be loaded";
-    this.#elements.diagnostics.append(item);
+    this.#elements.previewContextControls.setSummary("Preview unavailable");
+    this.#elements.diagnostics.showUnavailable(error instanceof Error ? error.message : "The Markdown renderer could not be loaded");
   }
 
   #previewHeadingNumbers(runtime: MarkdownRuntime, inputs: PreviewInputs): Record<number, string> {
@@ -3077,34 +3081,11 @@ class WorkspaceApp {
   }
 
   #renderPreviewDiagnostics(diagnostics: readonly Diagnostic[], filePreview: ProjectFilePreview | null): void {
-    this.#elements.diagnostics.replaceChildren();
     const diagnosticCount = diagnostics.length + (filePreview?.diagnostics.length ?? 0);
-    this.#elements.diagnosticSummary.textContent =
-      diagnosticCount === 0 ? "No syntax errors" : `${diagnosticCount} ${diagnosticCount === 1 ? "issue" : "issues"}`;
-    for (const diagnostic of filePreview?.diagnostics ?? []) {
-      this.#appendProjectDiagnostic(diagnostic.message, diagnostic.fileId, diagnostic.from, diagnostic.to);
-    }
-    for (const diagnostic of diagnostics) this.#elements.diagnostics.append(this.#previewDiagnosticButton(diagnostic, filePreview));
-  }
-
-  #previewDiagnosticButton(diagnostic: Diagnostic, filePreview: ProjectFilePreview | null): HTMLButtonElement {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "resource-card mb-2 block w-full text-left font-sans text-xs";
-    item.textContent = diagnostic.message;
-    item.addEventListener("click", () => {
-      const span = filePreview ? sourceSpanAt(filePreview.sourceMap, diagnostic.from) : undefined;
-      if (span) {
-        this.#focusProjectRange(
-          span.fileId,
-          span.sourceStart,
-          Math.min(span.sourceEnd, span.sourceStart + diagnostic.to - diagnostic.from),
-        );
-      } else {
-        this.#focusProjectRange(filePreview?.fileId ?? this.#snapshot?.entryFileId ?? "", diagnostic.from, diagnostic.to);
-      }
-    });
-    return item;
+    this.#elements.previewContextControls.setSummary(
+      diagnosticCount === 0 ? "No syntax errors" : `${diagnosticCount} ${diagnosticCount === 1 ? "issue" : "issues"}`,
+    );
+    this.#elements.diagnostics.setDiagnostics(diagnostics, filePreview);
   }
 
   #renderPreviewWorkspaceContext(publicationComposition: ProjectComposition | null, bibliography: string): void {
@@ -3970,15 +3951,6 @@ class WorkspaceApp {
     this.#updateProjectHistoryAvailability();
     const history = this.#projectHistoryWorkflow.getSnapshot();
     if (history.matches("ready") && history.context.requestId === requestId) this.#showToast(message);
-  }
-
-  #appendProjectDiagnostic(message: string, fileId: string, from: number, to: number): void {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "resource-card mb-2 block w-full text-left font-sans text-xs";
-    item.textContent = message;
-    item.addEventListener("click", () => this.#focusProjectRange(fileId, from, to));
-    this.#elements.diagnostics.append(item);
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {
@@ -9834,8 +9806,7 @@ function collectElements(): Elements {
     contextAssistantTab: requiredElement("context-assistant-tab", HTMLButtonElement),
     contextResourceTabsPanel: requiredElement("context-resource-tabs-panel", ContextResourceTabs),
     contextTabOverviewPanel: requiredElement("context-tab-overview-panel", ContextTabOverview),
-    previewContextControls: requiredElement("preview-context-controls", HTMLElement),
-    previewFileContext: requiredElement("preview-file-context", HTMLElement),
+    previewContextControls: requiredElement("preview-context-controls", PreviewContextStatus),
     togglePreviewNavigation: requiredElement("toggle-preview-navigation", HTMLButtonElement),
     restorePreviewNavigation: requiredElement("restore-preview-navigation", HTMLButtonElement),
     previewNavigationToggleLabel: requiredElement("preview-navigation-toggle-label", HTMLElement),
@@ -9852,8 +9823,7 @@ function collectElements(): Elements {
     contextCandidatePanel: requiredElement("context-candidate-panel", HTMLElement),
     candidateReviewPanel: requiredElement("candidate-review-panel", CandidateReviewPanel),
     preview: requiredElement("preview", HTMLElement),
-    diagnostics: requiredElement("diagnostics", HTMLElement),
-    diagnosticSummary: requiredElement("diagnostic-summary", HTMLElement),
+    diagnostics: requiredElement("diagnostics", PreviewDiagnosticsPanel),
     connectionDot: requiredElement("connection-dot", HTMLElement),
     connectionStatus: requiredElement("connection-status", HTMLElement),
     editorTargetStatus: requiredElement("editor-target-status", HTMLElement),
@@ -10051,10 +10021,6 @@ async function jsonFetch(url: string, body: object, method: "POST" | "PUT" | "PA
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-}
-
-function sourceSpanAt(sourceMap: readonly CompositionSourceSpan[], offset: number): CompositionSourceSpan | undefined {
-  return sourceMap.find((span) => offset >= span.outputStart && offset < span.outputEnd);
 }
 
 async function expectOk(response: Response): Promise<void> {
