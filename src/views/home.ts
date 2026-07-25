@@ -260,18 +260,22 @@ export function renderHomePage(
             </details>
           </div>
           <div class="editor-toolbar-group" id="editor-write-actions">
-            <details class="action-menu ui-menu" id="editor-insert-menu" data-action-menu>
-              <summary class="button-secondary">Insert</summary>
-              <div class="editor-command-menu ui-menu-panel">
-                <button type="button" data-insert-syntax="citation"><strong>Citation</strong><code>:cite[key]</code></button>
-                <button type="button" data-insert-syntax="reference"><strong>Cross-reference</strong><code>:ref[target]</code></button>
-                <button type="button" data-insert-syntax="anchor"><strong>Anchor</strong><code>{#label}</code></button>
-                <button type="button" data-insert-syntax="footnote"><strong>Footnote</strong><code>[^note]</code></button>
-                <button type="button" data-insert-syntax="link"><strong>Link</strong><code>[text](url)</code></button>
-                <button type="button" data-insert-syntax="bibliography"><strong>Bibliography</strong><code>::bibliography[]</code></button>
-                <div class="border-t border-app-line pt-1" id="include-project-file-list" aria-label="Include project file"></div>
-              </div>
-            </details>
+            <editor-insert-menu class="contents" id="editor-insert-menu-component">
+              <details class="action-menu ui-menu" id="editor-insert-menu" data-action-menu>
+                <summary class="button-secondary">Insert</summary>
+                <div class="editor-command-menu ui-menu-panel">
+                  <button type="button" data-insert-syntax="citation"><strong>Citation</strong><code>:cite[key]</code></button>
+                  <button type="button" data-insert-syntax="reference"><strong>Cross-reference</strong><code>:ref[target]</code></button>
+                  <button type="button" data-insert-syntax="anchor"><strong>Anchor</strong><code>{#label}</code></button>
+                  <button type="button" data-insert-syntax="footnote"><strong>Footnote</strong><code>[^note]</code></button>
+                  <button type="button" data-insert-syntax="link"><strong>Link</strong><code>[text](url)</code></button>
+                  <button type="button" data-insert-syntax="bibliography"><strong>Bibliography</strong><code>::bibliography[]</code></button>
+                  <div class="border-t border-app-line pt-1" aria-label="Include project file">
+                    <span class="block px-3 py-2 text-xs text-app-text-soft">Open the editor to include another project file.</span>
+                  </div>
+                </div>
+              </details>
+            </editor-insert-menu>
             <button class="button-secondary hidden" id="open-source-citation" type="button" title="View the citation at the caret" disabled>View cited source</button>
             <p class="editor-target-status" id="editor-target-status">main.md · line 1 · caret</p>
             <p class="text-xs text-app-text-soft" id="save-status">Opening…</p>

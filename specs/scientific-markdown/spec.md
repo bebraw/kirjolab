@@ -63,6 +63,10 @@ second Markdown dialect.
   cross-references, anchors, footnotes, links, and `::include[path]`. Insertion
   teaches and writes canonical Markdown syntax; it does not introduce an
   editor-only document model.
+- A bounded light-DOM Insert menu owns those template choices, relative
+  include-file presentation, empty state, and typed selection intents. The
+  workspace coordinator retains collaborative caret and passage resolution and
+  applies the canonical source edit through Yjs.
 - Quoted and unquoted single-token directive attributes are accepted, matching
   the source project's examples.
 - Experimental version 1 `:::figure{kind="boxplot" version=1}` containers

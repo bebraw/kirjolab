@@ -87,6 +87,10 @@ The adopted components own bounded presentation:
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, quick-open selection, action menus, and
   typed file, folder, and image intents.
+- The editor Insert menu owns scholarly-syntax choices, relative include-file
+  option rendering, empty state, and local menu closing with typed syntax and
+  include-file intents. The application coordinator retains collaborative
+  selection resolution and Yjs edits.
 - The manuscript map panel owns summary metrics, heading outline, structural
   cues, local editing-pass selection, editing cues, and typed source-range
   selection intents.

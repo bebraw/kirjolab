@@ -60,6 +60,7 @@ import {
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary } from "../domain/reference-filters";
 import { ExportStatisticsPanel } from "./export-statistics-panel";
+import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
@@ -522,8 +523,7 @@ interface Elements {
   projectMapOverview: HTMLElement;
   vimModeStatus: HTMLElement;
   vimToggle: HTMLButtonElement;
-  editorInsertMenu: HTMLDetailsElement;
-  includeProjectFileList: HTMLElement;
+  editorInsertMenu: EditorInsertMenu;
   bibliography: HTMLTextAreaElement;
   manuscriptCommentCount: HTMLElement;
   manuscriptCommentListPanel: ManuscriptCommentList;
@@ -1200,7 +1200,11 @@ class WorkspaceApp {
       projectFileSaveEvent,
       (event) => void this.#saveProjectFile((event as CustomEvent<ProjectFileSave>).detail),
     );
-    this.#elements.editorInsertMenu.addEventListener("click", (event) => this.#insertSourceSyntax(event));
+    this.#elements.editorInsertMenu.addEventListener(editorInsertActionEvent, (event) => {
+      const detail = (event as CustomEvent<EditorInsertAction>).detail;
+      if (detail.action === "syntax") this.#insertSourceSyntax(detail.kind);
+      else this.#insertProjectIncludeFromMenu(detail.relativePath, detail.path);
+    });
     this.#elements.citationCompletionScope.addEventListener("change", () => {
       const scope = this.#elements.citationCompletionScope.value === "library" ? "library" : "project";
       localStorage.setItem(citationCompletionScopeStorageKey, scope);
@@ -3096,11 +3100,7 @@ class WorkspaceApp {
       files,
       folders: snapshot.folders.filter((folder) => !this.#hiddenProjectFolderIds.has(folder.id)),
     });
-    this.#elements.includeProjectFileList.replaceChildren();
-    for (const file of files) {
-      if (file.id !== this.#activeFileId) this.#elements.includeProjectFileList.append(this.#projectIncludeButton(file, snapshot));
-    }
-    this.#renderEmptyProjectIncludeList();
+    this.#elements.editorInsertMenu.setFiles(files.find((file) => file.id === this.#activeFileId) ?? null, files);
     const entryActive = this.#activeFileId === snapshot.entryFileId;
     this.#elements.renameProjectFile.disabled = false;
     this.#elements.deleteProjectFile.disabled = entryActive;
@@ -3112,31 +3112,6 @@ class WorkspaceApp {
     this.#activeFileId = snapshot.entryFileId;
     const entry = snapshot.files.find((file) => file.id === snapshot.entryFileId);
     this.#activeFileText = entry ? this.#document.getText(projectFileCollaborationTextName(entry, snapshot.entryFileId)) : this.#source;
-  }
-
-  #projectIncludeButton(file: ProjectFile, snapshot: WorkspaceSnapshot): HTMLButtonElement {
-    const include = document.createElement("button");
-    include.type = "button";
-    include.dataset.includeFileId = file.id;
-    const label = document.createElement("strong");
-    label.textContent = file.path;
-    label.title = file.path;
-    const syntax = document.createElement("code");
-    const activeFile = snapshot.files.find((item) => item.id === this.#activeFileId);
-    const relativePath = activeFile ? relativeProjectPath(activeFile.path, file.path) : file.path;
-    syntax.textContent = "::include[…]";
-    include.title = `Insert ::include[${relativePath}]`;
-    include.append(label, syntax);
-    return include;
-  }
-
-  #renderEmptyProjectIncludeList(): void {
-    if (!this.#elements.includeProjectFileList.hasChildNodes()) {
-      const empty = document.createElement("span");
-      empty.className = "block px-3 py-2 text-xs text-app-text-soft";
-      empty.textContent = "Add another file to include it here.";
-      this.#elements.includeProjectFileList.append(empty);
-    }
   }
 
   #selectProjectFile(fileId: string): void {
@@ -6088,31 +6063,19 @@ class WorkspaceApp {
     }
   }
 
-  #insertSourceSyntax(event: MouseEvent): void {
-    if (this.#insertProjectIncludeFromEvent(event)) return;
-    const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-insert-syntax]") : null;
-    const kind = target?.dataset.insertSyntax;
-    if (!kind) return;
-    event.preventDefault();
+  #insertSourceSyntax(kind: EditorSyntaxKind): void {
     const passage = this.#selectedAuthoringPassage();
     const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
     const template = this.#sourceSyntaxTemplate(kind, passage);
     if (!template) return;
     this.#applySourceSyntax(template, passage, caret);
-    this.#showToast(`Inserted ${target.textContent?.trim() ?? "scholarly syntax"}.`);
+    this.#showToast("Inserted scholarly syntax.");
   }
 
-  #insertProjectIncludeFromEvent(event: MouseEvent): boolean {
-    const includeTarget = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-include-file-id]") : null;
-    const includeFile = this.#snapshot?.files.find((file) => file.id === includeTarget?.dataset.includeFileId);
-    const activeFile = this.#snapshot?.files.find((file) => file.id === this.#activeFileId);
-    if (!includeTarget || !includeFile || !activeFile) return false;
-    event.preventDefault();
+  #insertProjectIncludeFromMenu(relativePath: string, path: string): void {
     const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
-    this.#insertProjectInclude(this.#activeFileText, caret, relativeProjectPath(activeFile.path, includeFile.path));
-    this.#elements.editorInsertMenu.open = false;
-    this.#showToast(`Included ${includeFile.path}.`);
-    return true;
+    this.#insertProjectInclude(this.#activeFileText, caret, relativePath);
+    this.#showToast(`Included ${path}.`);
   }
 
   #sourceSyntaxTemplate(kind: string, passage: AuthoringPassage | null): SourceSyntaxTemplate | undefined {
@@ -6138,7 +6101,6 @@ class WorkspaceApp {
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(selectionStart, selectionStart + (template.select?.length ?? 0));
     this.#rememberAuthoringSelection();
-    this.#elements.editorInsertMenu.open = false;
   }
 
   #insertProjectInclude(text: Y.Text, index: number, path: string): void {
@@ -8394,8 +8356,7 @@ function collectElements(): Elements {
     projectMapOverview: requiredElement("project-map-overview", HTMLElement),
     vimModeStatus: requiredElement("vim-mode-status", HTMLElement),
     vimToggle: requiredElement("vim-toggle", HTMLButtonElement),
-    editorInsertMenu: requiredElement("editor-insert-menu", HTMLDetailsElement),
-    includeProjectFileList: requiredElement("include-project-file-list", HTMLElement),
+    editorInsertMenu: requiredElement("editor-insert-menu-component", EditorInsertMenu),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
     manuscriptCommentCount: requiredElement("manuscript-comment-count", HTMLElement),
     manuscriptCommentListPanel: requiredElement("manuscript-comment-list-panel", ManuscriptCommentList),

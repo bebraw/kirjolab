@@ -1656,6 +1656,14 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
     };
   });
   expect(includeActionFit).toEqual({ textOverlaps: false, actionFits: true });
+
+  await page.locator("#editor-insert-menu button").filter({ hasText: "Citation" }).click();
+  await expect(page.locator("#source-editor")).toHaveValue(/:cite\[key\]/u);
+  await expect(page.locator("#toast")).toHaveText("Inserted scholarly syntax.");
+  await page.locator("#editor-insert-menu summary").click();
+  await page.locator("#include-project-file-list [data-include-file-id]").first().click();
+  await expect(page.locator("#source-editor")).toHaveValue(/::include\[/u);
+  await expect(page.locator("#toast")).toContainText("Included ");
 });
 
 test("keeps the local editor target visible after focus moves to Context", async ({ page }) => {

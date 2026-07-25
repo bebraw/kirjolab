@@ -116,6 +116,10 @@ collaborative, and unambiguous about what preview and export mean.
   type or repair project-relative paths by hand. Existing-file actions pair a
   safely truncated path with the compact `::include[…]` hint; the complete path
   and inserted directive remain available through native titles.
+- The bounded Insert-menu component derives existing-file choices and relative
+  paths from the active project file, then emits a typed include intent. It
+  owns menu presentation and closing, while the workspace coordinator owns the
+  remembered collaborative caret and Yjs insertion.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.

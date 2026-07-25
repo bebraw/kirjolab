@@ -1396,3 +1396,25 @@ The browser application artifact grows from 761,155 B raw / 207,102 B gzip to
 production package counts remain unchanged at 18 and 150. Full native CI
 passes all 1,325 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
 tests.
+
+## Continued Lit Extraction: Editor Insert Menu
+
+A bounded `EditorInsertMenu` now owns the static scholarly-syntax choices,
+relative include-file option rendering, include empty state, native titles,
+and local menu closing. This replaces two imperative include-list helpers,
+DOM-target inspection, and coordinator menu-state mutations with typed syntax
+and include-file intents. `WorkspaceApp` retains collaborative passage and
+caret resolution, Yjs edits, and notifications.
+
+This checkpoint reduces `src/client/app.ts` from 8,635 to 8,596 lines (-39).
+The component adds 100 lines. Component tests cover fallback, empty,
+single-file, nested relative-file, syntax, and include intent states. It records
+73.07% statement and 81.81% line coverage. The focused compact-editor browser
+workflow passes layout, include-label geometry, scholarly-syntax insertion,
+relative project-file insertion, and menu closing.
+
+The browser application artifact grows from 763,230 B raw / 207,491 B gzip to
+764,185 B raw / 207,627 B gzip (+955 B raw / +136 B gzip). Direct and unique
+production package counts remain unchanged at 18 and 150. Full native CI
+passes all 1,327 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
+tests.
