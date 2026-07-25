@@ -187,7 +187,12 @@ import { KnowledgeSearchPanel, knowledgeSearchEvent, knowledgeSearchSelectEvent 
 import { KnowledgeConnectionsPanel, knowledgeConnectionSelectEvent } from "./knowledge-connections-panel";
 import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { ClaimDialog, claimDialogSaveEvent, type ClaimDialogSave } from "./claim-dialog";
-import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
+import {
+  ManuscriptCommentList,
+  manuscriptCommentActionEvent,
+  manuscriptCommentCreateEvent,
+  type ManuscriptCommentAction,
+} from "./manuscript-comment-list";
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
 import { ContextTabOverview, contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
@@ -512,9 +517,6 @@ interface Elements {
   editorInsertMenu: HTMLDetailsElement;
   includeProjectFileList: HTMLElement;
   bibliography: HTMLTextAreaElement;
-  manuscriptCommentForm: HTMLFormElement;
-  manuscriptCommentBody: HTMLTextAreaElement;
-  manuscriptCommentStatus: HTMLElement;
   manuscriptCommentCount: HTMLElement;
   manuscriptCommentListPanel: ManuscriptCommentList;
   workspaceSurfaces: HTMLElement;
@@ -1206,7 +1208,9 @@ class WorkspaceApp {
       void this.#handleProjectHistoryAction((event as CustomEvent<ProjectHistoryOperation>).detail);
     });
     this.#elements.projectHistoryDialog.addEventListener("close", () => this.#projectHistoryWorkflow.send({ type: "CLOSE" }));
-    this.#elements.manuscriptCommentForm.addEventListener("submit", (event) => void this.#createManuscriptComment(event));
+    this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentCreateEvent, (event) => {
+      void this.#createManuscriptComment((event as CustomEvent<string>).detail);
+    });
     this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentActionEvent, (event) => {
       const detail = (event as CustomEvent<ManuscriptCommentAction>).detail;
       if (detail.action === "open") this.#showPassage(detail.anchor);
@@ -5051,8 +5055,7 @@ class WorkspaceApp {
     this.#elements.manuscriptCommentListPanel.setComments(comments);
   }
 
-  async #createManuscriptComment(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
+  async #createManuscriptComment(body: string): Promise<void> {
     if (!this.#hasStableDocumentBase()) {
       this.#showToast("Wait for the manuscript to finish synchronizing before commenting.");
       return;
@@ -5065,11 +5068,10 @@ class WorkspaceApp {
     const response = await jsonFetch(`${apiBase}/comments`, {
       ...passage,
       sourceRevision: this.#revision,
-      body: this.#elements.manuscriptCommentBody.value,
+      body,
     });
     await expectOk(response);
-    this.#elements.manuscriptCommentBody.value = "";
-    this.#elements.manuscriptCommentStatus.textContent = "Comment saved without changing the Markdown source.";
+    this.#elements.manuscriptCommentListPanel.markSaved();
     await this.#resourceRefresh.request();
     this.#showToast("Comment anchored to the selected passage.");
   }
@@ -9046,9 +9048,6 @@ function collectElements(): Elements {
     editorInsertMenu: requiredElement("editor-insert-menu", HTMLDetailsElement),
     includeProjectFileList: requiredElement("include-project-file-list", HTMLElement),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
-    manuscriptCommentForm: requiredElement("manuscript-comment-form", HTMLFormElement),
-    manuscriptCommentBody: requiredElement("manuscript-comment-body", HTMLTextAreaElement),
-    manuscriptCommentStatus: requiredElement("manuscript-comment-status", HTMLElement),
     manuscriptCommentCount: requiredElement("manuscript-comment-count", HTMLElement),
     manuscriptCommentListPanel: requiredElement("manuscript-comment-list-panel", ManuscriptCommentList),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),

@@ -1124,3 +1124,26 @@ Full native CI passes all 1,298 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 732,833 B raw
 / 201,394 B gzip to 735,432 B raw / 201,905 B gzip (+2,599 B raw / +511 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Consolidation: Manuscript Comments
+
+The existing `ManuscriptCommentList` now owns the selected-passage comment
+composer as well as comment history. This removes three composer element
+references, coordinator-owned submit binding, body collection, reset, and saved
+status updates without introducing another custom element. The panel owns body
+and status state plus typed create, open, re-anchor, and resolve intents.
+`WorkspaceApp` retains manuscript selection and revision checks, mutations,
+refreshes, navigation, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,336 to 9,335 lines (-1) and
+adds 39 lines to the existing component. Component tests now cover comment body
+capture, typed creation, saved reset and status alongside empty, open, stale,
+resolved, navigation, re-anchor, and resolve states. The focused two-writer
+browser workflow passes comment creation, re-anchoring, navigation, and
+resolution. The consolidated panel records 90.62% statement and 92.59% line
+coverage.
+
+Full native CI passes all 1,299 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 735,432 B raw
+/ 201,905 B gzip to 736,299 B raw / 202,063 B gzip (+867 B raw / +158 B gzip).
+Direct and unique production package counts remain unchanged at 18 and 150.

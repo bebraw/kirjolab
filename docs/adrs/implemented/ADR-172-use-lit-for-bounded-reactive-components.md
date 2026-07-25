@@ -68,8 +68,9 @@ The adopted components own bounded presentation:
 - The claim list panel owns claim, evidence-link, passage-link, grounding
   selection, empty-state, and action presentation with typed claim and
   navigation intents.
-- The manuscript comment list owns comment, anchor status, empty-state, and
-  action presentation with typed open, re-anchor, and resolve intents.
+- The manuscript comment panel owns composer body and status state plus comment,
+  anchor-status, empty-state, and action presentation with typed create, open,
+  re-anchor, and resolve intents.
 - The project publication list owns reference metadata, alias and DOI labels,
   empty-state, and action presentation with typed open, manage, and enrich
   intents.
@@ -197,9 +198,11 @@ reason to wrap static markup mechanically.
   claim render helpers while leaving evidence-selection state, dialogs,
   mutations, passage navigation, and annotation navigation in the application
   coordinator.
-- The manuscript comment list replaces one internal list reference and its
-  imperative card renderer while leaving comment creation, anchor selection,
-  mutations, refreshes, and passage navigation in the application coordinator.
+- The manuscript comment panel replaces three composer element references,
+  submit binding, reset and saved-status updates, one internal list reference,
+  and its imperative card renderer while leaving anchor selection, mutations,
+  refreshes, notifications, and passage navigation in the application
+  coordinator.
 - The project publication list replaces one internal list reference and its
   imperative card renderer while leaving context navigation, Library
   management, metadata enrichment, and refreshes in the application

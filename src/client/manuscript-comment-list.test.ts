@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ManuscriptAnchorSelector, ManuscriptComment } from "../domain/workspace";
-import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
+import {
+  ManuscriptCommentList,
+  manuscriptCommentActionEvent,
+  manuscriptCommentCreateEvent,
+  type ManuscriptCommentAction,
+} from "./manuscript-comment-list";
 
 const anchor: ManuscriptAnchorSelector = {
   anchoredRevision: 1,
@@ -39,6 +44,16 @@ class TestManuscriptCommentList extends ManuscriptCommentList {
     Object.defineProperty(event, "currentTarget", { value: { dataset: { commentAction: action, commentId } } });
     this.act(event);
   }
+
+  changeForTest(body: string): void {
+    const event = new Event("input");
+    Object.defineProperty(event, "currentTarget", { value: { value: body } });
+    this.changeBody(event);
+  }
+
+  createForTest(): void {
+    this.create(new Event("submit"));
+  }
 }
 
 describe("manuscript comment list", () => {
@@ -69,5 +84,20 @@ describe("manuscript comment list", () => {
       { action: "reanchor", commentId: comment.id },
       { action: "resolve", commentId: comment.id },
     ]);
+  });
+
+  it("emits the current comment and resets after save", () => {
+    const list = new TestManuscriptCommentList();
+    const comments: string[] = [];
+    list.addEventListener(manuscriptCommentCreateEvent, (event) => {
+      comments.push((event as CustomEvent<string>).detail);
+    });
+    list.changeForTest("Check this claim");
+    list.createForTest();
+    expect(comments).toEqual(["Check this claim"]);
+    list.markSaved();
+    list.createForTest();
+    expect(comments).toEqual(["Check this claim", ""]);
+    expect(list.renderForTest()).toBeDefined();
   });
 });

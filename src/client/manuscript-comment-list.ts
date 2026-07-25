@@ -3,6 +3,7 @@ import type { ManuscriptAnchorSelector, ManuscriptComment } from "../domain/work
 import { anchorActionLabel } from "./research-resource-presentation";
 
 export const manuscriptCommentActionEvent = "manuscript-comment-action";
+export const manuscriptCommentCreateEvent = "manuscript-comment-create";
 
 export type ManuscriptCommentAction =
   | { readonly action: "open"; readonly anchor: ManuscriptAnchorSelector }
@@ -10,18 +11,29 @@ export type ManuscriptCommentAction =
 
 export class ManuscriptCommentList extends LitElement {
   static override properties = {
+    body: { state: true },
     comments: { state: true },
+    status: { state: true },
   };
 
+  declare private body: string;
   declare private comments: readonly ManuscriptComment[];
+  declare private status: string;
 
   constructor() {
     super();
+    this.body = "";
     this.comments = [];
+    this.status = "Comments stay outside the Markdown source.";
   }
 
   setComments(comments: readonly ManuscriptComment[]): void {
     this.comments = comments;
+  }
+
+  markSaved(): void {
+    this.body = "";
+    this.status = "Comment saved without changing the Markdown source.";
   }
 
   override connectedCallback(): void {
@@ -34,55 +46,80 @@ export class ManuscriptCommentList extends LitElement {
   }
 
   protected override render(): TemplateResult {
-    return html`<div class="mt-4 grid gap-3" id="manuscript-comment-list">
-      ${this.comments.length === 0
-        ? html`<div class="empty-state">No manuscript comments yet.</div>`
-        : this.comments.map(
-            (comment) => html`
-              <article class="resource-card" data-comment-resource-id=${comment.id}>
-                <span class="eyebrow">${comment.status} · ${comment.authorLabel}</span>
-                <p class="mt-2 text-sm leading-6">${comment.body}</p>
-                <blockquote class="mt-2 border-l-2 border-app-line pl-3 font-sans text-xs leading-5 text-app-text-soft">
-                  ${comment.anchor.exact}
-                </blockquote>
-                <div class="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    class="button-secondary"
-                    data-comment-id=${comment.id}
-                    data-comment-action="open"
-                    ?disabled=${comment.resolution.status !== "resolved"}
-                    @click=${this.act}
-                  >
-                    ${anchorActionLabel(comment.resolution)}
-                  </button>
-                  ${comment.status === "open" && comment.resolution.status === "stale"
-                    ? html`<button
-                        type="button"
-                        class="button-secondary"
-                        data-comment-id=${comment.id}
-                        data-comment-action="reanchor"
-                        @click=${this.act}
-                      >
-                        Re-anchor to selection
-                      </button>`
-                    : ""}
-                  ${comment.status === "open"
-                    ? html`<button
-                        type="button"
-                        class="button-secondary"
-                        data-comment-id=${comment.id}
-                        data-comment-action="resolve"
-                        @click=${this.act}
-                      >
-                        Resolve
-                      </button>`
-                    : ""}
-                </div>
-              </article>
-            `,
-          )}
-    </div>`;
+    return html`
+      <form class="mt-4 grid gap-3 border-t border-app-line pt-4" id="manuscript-comment-form" @submit=${this.create}>
+        <label class="field-label" for="manuscript-comment-body">Comment on selected text</label>
+        <textarea
+          class="field min-h-24 resize-y"
+          id="manuscript-comment-body"
+          maxlength="8000"
+          required
+          placeholder="Leave a comment on the selected passage."
+          .value=${this.body}
+          @input=${this.changeBody}
+        ></textarea>
+        <button class="button-secondary w-full justify-center" type="submit">Add comment</button>
+        <p class="text-xs leading-5 text-app-text-soft" id="manuscript-comment-status" role="status">${this.status}</p>
+      </form>
+      <div class="mt-4 grid gap-3" id="manuscript-comment-list">
+        ${this.comments.length === 0
+          ? html`<div class="empty-state">No manuscript comments yet.</div>`
+          : this.comments.map(
+              (comment) => html`
+                <article class="resource-card" data-comment-resource-id=${comment.id}>
+                  <span class="eyebrow">${comment.status} · ${comment.authorLabel}</span>
+                  <p class="mt-2 text-sm leading-6">${comment.body}</p>
+                  <blockquote class="mt-2 border-l-2 border-app-line pl-3 font-sans text-xs leading-5 text-app-text-soft">
+                    ${comment.anchor.exact}
+                  </blockquote>
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      class="button-secondary"
+                      data-comment-id=${comment.id}
+                      data-comment-action="open"
+                      ?disabled=${comment.resolution.status !== "resolved"}
+                      @click=${this.act}
+                    >
+                      ${anchorActionLabel(comment.resolution)}
+                    </button>
+                    ${comment.status === "open" && comment.resolution.status === "stale"
+                      ? html`<button
+                          type="button"
+                          class="button-secondary"
+                          data-comment-id=${comment.id}
+                          data-comment-action="reanchor"
+                          @click=${this.act}
+                        >
+                          Re-anchor to selection
+                        </button>`
+                      : ""}
+                    ${comment.status === "open"
+                      ? html`<button
+                          type="button"
+                          class="button-secondary"
+                          data-comment-id=${comment.id}
+                          data-comment-action="resolve"
+                          @click=${this.act}
+                        >
+                          Resolve
+                        </button>`
+                      : ""}
+                  </div>
+                </article>
+              `,
+            )}
+      </div>
+    `;
+  }
+
+  protected create(event: Event): void {
+    event.preventDefault();
+    this.dispatchEvent(new CustomEvent<string>(manuscriptCommentCreateEvent, { bubbles: true, detail: this.body }));
+  }
+
+  protected changeBody(event: Event): void {
+    this.body = (event.currentTarget as HTMLTextAreaElement).value;
   }
 
   protected act(event: Event): void {
