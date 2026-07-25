@@ -51,6 +51,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="template-browser-index-heading">Starting points</h3>');
     expect(html).toContain("Templates and existing projects create independent projects without research history.");
     expect(html).toContain('id="workspace-catalog-filter"');
+    expect(html).toContain('<workspace-sharing-panel id="workspace-sharing-panel">');
     expect(html).toContain('id="read-only-share-heading"');
     expect(html).toContain('id="create-read-only-share" type="button">Create link</button>');
     expect(html).toContain('id="read-only-share-link" type="text" readonly');

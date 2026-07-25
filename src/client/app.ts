@@ -108,6 +108,14 @@ import {
   startingPointTemplateDeleteEvent,
   type StartingPointChange,
 } from "./project-starting-point-browser";
+import {
+  WorkspaceSharingPanel,
+  workspaceSharingActionEvent,
+  workspaceSharingCloseEvent,
+  workspaceSharingInviteEvent,
+  workspaceSharingNoticeEvent,
+  type WorkspaceSharingActionDetail,
+} from "./workspace-sharing-panel";
 import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
@@ -131,7 +139,6 @@ import {
   type PdfSelectionRect,
   type PublicationResource,
   type WorkspaceSnapshot,
-  type WorkspaceMember,
   type WorkspaceSummary,
 } from "../domain/workspace";
 import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
@@ -197,7 +204,6 @@ import {
   isShareLinkStatus,
   isWebSnapshotComparisonResponse,
   type LatexImportPreview,
-  type ShareLinkStatus,
 } from "./app-contracts";
 import {
   discoverOpenAICompatibleModels,
@@ -459,22 +465,7 @@ interface Elements {
   cancelSaveTemplate: HTMLButtonElement;
   shareWorkspace: HTMLButtonElement;
   shareWorkspaceDialog: HTMLDialogElement;
-  closeShareWorkspace: HTMLButtonElement;
-  workspaceMemberList: HTMLElement;
-  inviteMemberForm: HTMLFormElement;
-  inviteMemberEmail: HTMLInputElement;
-  readOnlyShareStatus: HTMLElement;
-  createReadOnlyShare: HTMLButtonElement;
-  readOnlyShareLinkRow: HTMLElement;
-  readOnlyShareLink: HTMLInputElement;
-  copyReadOnlyShare: HTMLButtonElement;
-  revokeReadOnlyShare: HTMLButtonElement;
-  editShareStatus: HTMLElement;
-  createEditShare: HTMLButtonElement;
-  editShareLinkRow: HTMLElement;
-  editShareLink: HTMLInputElement;
-  copyEditShare: HTMLButtonElement;
-  revokeEditShare: HTMLButtonElement;
+  workspaceSharingPanel: WorkspaceSharingPanel;
   referenceLibraryList: HTMLElement;
   libraryDiscoveryForm: HTMLFormElement;
   libraryDiscoveryQuery: HTMLInputElement;
@@ -1255,14 +1246,16 @@ class WorkspaceApp {
     this.#elements.openReviewerResponse.addEventListener("click", () => void this.#openReviewerResponse());
     this.#elements.downloadReviewerResponse.addEventListener("click", () => this.#downloadReviewerResponse());
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
-    this.#elements.closeShareWorkspace.addEventListener("click", () => this.#elements.shareWorkspaceDialog.close());
-    this.#elements.inviteMemberForm.addEventListener("submit", (event) => void this.#inviteMember(event));
-    this.#elements.createReadOnlyShare.addEventListener("click", () => void this.#createReadOnlyShare());
-    this.#elements.copyReadOnlyShare.addEventListener("click", () => void this.#copyReadOnlyShare());
-    this.#elements.revokeReadOnlyShare.addEventListener("click", () => void this.#revokeReadOnlyShare());
-    this.#elements.createEditShare.addEventListener("click", () => void this.#createEditShare());
-    this.#elements.copyEditShare.addEventListener("click", () => void this.#copyEditShare());
-    this.#elements.revokeEditShare.addEventListener("click", () => void this.#revokeEditShare());
+    this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingCloseEvent, () => this.#elements.shareWorkspaceDialog.close());
+    this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingInviteEvent, (event) => {
+      void this.#inviteMember((event as CustomEvent<string>).detail);
+    });
+    this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingActionEvent, (event) => {
+      void this.#handleShareAction((event as CustomEvent<WorkspaceSharingActionDetail>).detail);
+    });
+    this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingNoticeEvent, (event) => {
+      this.#showToast((event as CustomEvent<string>).detail);
+    });
     this.#elements.contextLibraryTab.addEventListener("click", () => void this.#openReferenceLibrary());
     this.#elements.libraryDiscoveryForm.addEventListener("submit", (event) => void this.#discoverLibraryReferences(event));
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
@@ -2364,22 +2357,13 @@ class WorkspaceApp {
   async #refreshReadOnlyShare(): Promise<void> {
     const response = await fetch(`${apiBase}/share-link`, { credentials: "same-origin" });
     if (response.status === 403) {
-      this.#elements.readOnlyShareStatus.textContent = "Only the project owner can manage read-only links.";
-      this.#elements.createReadOnlyShare.hidden = true;
+      this.#elements.workspaceSharingPanel.setShareForbidden("read-only");
       return;
     }
     await expectOk(response);
     const status: unknown = await response.json();
     if (!isShareLinkStatus(status)) throw new Error("Read-only link status returned invalid data");
-    this.#renderReadOnlyShare(status);
-  }
-
-  #renderReadOnlyShare(status: ShareLinkStatus): void {
-    this.#setShareLink(this.#elements.readOnlyShareLink, this.#elements.readOnlyShareLinkRow, status.href);
-    this.#elements.createReadOnlyShare.hidden = false;
-    this.#elements.createReadOnlyShare.textContent = status.active ? "Replace link" : "Create link";
-    this.#elements.revokeReadOnlyShare.classList.toggle("hidden", !status.active);
-    this.#elements.readOnlyShareStatus.textContent = shareLinkDescription("read-only", status);
+    this.#elements.workspaceSharingPanel.setShareStatus("read-only", status);
   }
 
   // Read-only and editable links deliberately expose parallel, separately named owner actions.
@@ -2389,21 +2373,12 @@ class WorkspaceApp {
     await expectOk(response);
     const share: unknown = await response.json();
     if (!isRecord(share) || typeof share.href !== "string") throw new Error("Read-only link returned invalid data");
-    this.#elements.readOnlyShareLink.value = new URL(share.href, location.origin).href;
-    this.#elements.readOnlyShareLinkRow.classList.remove("hidden");
-    this.#elements.readOnlyShareLinkRow.classList.add("grid");
     await this.#refreshReadOnlyShare();
     this.#showToast("Read-only link created. You can return here to copy it again.");
   }
 
-  async #copyReadOnlyShare(): Promise<void> {
-    await navigator.clipboard.writeText(this.#elements.readOnlyShareLink.value);
-    this.#showToast("Read-only link copied.");
-  }
-
   async #revokeReadOnlyShare(): Promise<void> {
     await expectOk(await fetch(`${apiBase}/share-link`, { method: "DELETE", credentials: "same-origin" }));
-    this.#setShareLink(this.#elements.readOnlyShareLink, this.#elements.readOnlyShareLinkRow, null);
     await this.#refreshReadOnlyShare();
     this.#showToast("Read-only link revoked.");
   }
@@ -2411,22 +2386,13 @@ class WorkspaceApp {
   async #refreshEditShare(): Promise<void> {
     const response = await fetch(`${apiBase}/edit-link`, { credentials: "same-origin" });
     if (response.status === 403) {
-      this.#elements.editShareStatus.textContent = "Only the project owner can manage edit links.";
-      this.#elements.createEditShare.hidden = true;
+      this.#elements.workspaceSharingPanel.setShareForbidden("edit");
       return;
     }
     await expectOk(response);
     const status: unknown = await response.json();
     if (!isShareLinkStatus(status)) throw new Error("Edit link status returned invalid data");
-    this.#renderEditShare(status);
-  }
-
-  #renderEditShare(status: ShareLinkStatus): void {
-    this.#setShareLink(this.#elements.editShareLink, this.#elements.editShareLinkRow, status.href);
-    this.#elements.createEditShare.hidden = false;
-    this.#elements.createEditShare.textContent = status.active ? "Replace link" : "Create link";
-    this.#elements.revokeEditShare.classList.toggle("hidden", !status.active);
-    this.#elements.editShareStatus.textContent = shareLinkDescription("edit", status);
+    this.#elements.workspaceSharingPanel.setShareStatus("edit", status);
   }
 
   async #createEditShare(): Promise<void> {
@@ -2434,29 +2400,24 @@ class WorkspaceApp {
     await expectOk(response);
     const share: unknown = await response.json();
     if (!isRecord(share) || typeof share.href !== "string") throw new Error("Edit link returned invalid data");
-    this.#elements.editShareLink.value = new URL(share.href, location.origin).href;
-    this.#elements.editShareLinkRow.classList.remove("hidden");
-    this.#elements.editShareLinkRow.classList.add("grid");
     await this.#refreshEditShare();
     this.#showToast("Edit link created. You can return here to copy it again.");
   }
 
-  async #copyEditShare(): Promise<void> {
-    await navigator.clipboard.writeText(this.#elements.editShareLink.value);
-    this.#showToast("Edit link copied.");
-  }
-
   async #revokeEditShare(): Promise<void> {
     await expectOk(await fetch(`${apiBase}/edit-link`, { method: "DELETE", credentials: "same-origin" }));
-    this.#setShareLink(this.#elements.editShareLink, this.#elements.editShareLinkRow, null);
     await this.#refreshEditShare();
     this.#showToast("Edit link revoked.");
   }
 
-  #setShareLink(input: HTMLInputElement, row: HTMLElement, href: string | null): void {
-    input.value = href ? new URL(href, location.origin).href : "";
-    row.classList.toggle("hidden", !href);
-    row.classList.toggle("grid", Boolean(href));
+  async #handleShareAction(detail: WorkspaceSharingActionDetail): Promise<void> {
+    if (detail.kind === "read-only") {
+      if (detail.action === "create") await this.#createReadOnlyShare();
+      else await this.#revokeReadOnlyShare();
+      return;
+    }
+    if (detail.action === "create") await this.#createEditShare();
+    else await this.#revokeEditShare();
   }
 
   async #refreshMembers(): Promise<void> {
@@ -2464,27 +2425,13 @@ class WorkspaceApp {
     await expectOk(response);
     const members: unknown = await response.json();
     if (!isWorkspaceMembers(members)) throw new Error("Project members returned invalid data");
-    this.#renderMembers(members);
+    this.#elements.workspaceSharingPanel.setMembers(members);
   }
 
-  #renderMembers(members: WorkspaceMember[]): void {
-    this.#elements.workspaceMemberList.replaceChildren();
-    for (const member of members) {
-      const row = document.createElement("div");
-      row.className = "resource-card flex items-center justify-between gap-3 font-sans text-xs";
-      const email = document.createElement("span");
-      email.className = "truncate";
-      email.textContent = member.email;
-      row.append(email, resourceLabel(member.role));
-      this.#elements.workspaceMemberList.append(row);
-    }
-  }
-
-  async #inviteMember(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const response = await jsonFetch(`${apiBase}/members`, { email: this.#elements.inviteMemberEmail.value });
+  async #inviteMember(email: string): Promise<void> {
+    const response = await jsonFetch(`${apiBase}/members`, { email });
     await expectOk(response);
-    this.#elements.inviteMemberEmail.value = "";
+    this.#elements.workspaceSharingPanel.clearInvite();
     await this.#refreshMembers();
     this.#showToast("Collaborator invited to this project.");
   }
@@ -11309,22 +11256,7 @@ function collectElements(): Elements {
     cancelSaveTemplate: requiredElement("cancel-save-template", HTMLButtonElement),
     shareWorkspace: requiredElement("share-workspace", HTMLButtonElement),
     shareWorkspaceDialog: requiredElement("share-workspace-dialog", HTMLDialogElement),
-    closeShareWorkspace: requiredElement("close-share-workspace", HTMLButtonElement),
-    workspaceMemberList: requiredElement("workspace-member-list", HTMLElement),
-    inviteMemberForm: requiredElement("invite-member-form", HTMLFormElement),
-    inviteMemberEmail: requiredElement("invite-member-email", HTMLInputElement),
-    readOnlyShareStatus: requiredElement("read-only-share-status", HTMLElement),
-    createReadOnlyShare: requiredElement("create-read-only-share", HTMLButtonElement),
-    readOnlyShareLinkRow: requiredElement("read-only-share-link-row", HTMLElement),
-    readOnlyShareLink: requiredElement("read-only-share-link", HTMLInputElement),
-    copyReadOnlyShare: requiredElement("copy-read-only-share", HTMLButtonElement),
-    revokeReadOnlyShare: requiredElement("revoke-read-only-share", HTMLButtonElement),
-    editShareStatus: requiredElement("edit-share-status", HTMLElement),
-    createEditShare: requiredElement("create-edit-share", HTMLButtonElement),
-    editShareLinkRow: requiredElement("edit-share-link-row", HTMLElement),
-    editShareLink: requiredElement("edit-share-link", HTMLInputElement),
-    copyEditShare: requiredElement("copy-edit-share", HTMLButtonElement),
-    revokeEditShare: requiredElement("revoke-edit-share", HTMLButtonElement),
+    workspaceSharingPanel: requiredElement("workspace-sharing-panel", WorkspaceSharingPanel),
     referenceLibraryList: requiredElement("reference-library-list", HTMLElement),
     libraryDiscoveryForm: requiredElement("library-discovery-form", HTMLFormElement),
     libraryDiscoveryQuery: requiredElement("library-discovery-query", HTMLInputElement),
@@ -11705,19 +11637,6 @@ function downloadLink(href: string, label: string): HTMLAnchorElement {
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function shareLinkDescription(kind: "read-only" | "edit", status: ShareLinkStatus): string {
-  if (status.href) {
-    return kind === "read-only"
-      ? "Anyone with this link can inspect the live manuscript and project source. You can copy it again at any time."
-      : "Anyone with this link can change authored project files. You can copy it again at any time.";
-  }
-  if (status.active)
-    return "This older link remains active, but its secret cannot be recovered. Replace it once to make the new link available here.";
-  return kind === "read-only"
-    ? "Create a bearer link for people who should inspect, but not edit, this project."
-    : "Create a separate bearer link for someone who may edit authored Markdown without private project access.";
 }
 
 async function jsonFetch(url: string, body: object, method: "POST" | "PUT" | "PATCH" = "POST"): Promise<Response> {

@@ -316,3 +316,25 @@ Prefer an existing dependency or a source-local helper when it produces the
 same reduction. Keep large optional browser capabilities behind the existing
 lazy runtime boundaries. Do not treat fewer source lines alone as success when
 the dependency adds a broader API, state owner, or upgrade surface.
+
+## Continued Lit Extraction: Workspace Sharing
+
+The authenticated workspace sharing dialog is a successful follow-on Lit
+boundary. `WorkspaceApp` now addresses one `WorkspaceSharingPanel` instead of
+fifteen member, invitation, and share-link elements. The component owns local
+rendering, invitation input, clipboard interaction, and typed intent events;
+the coordinator continues to own every fetch, response validation,
+authorization outcome, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 11,914 to 11,833 lines
+(-81). The focused component adds 242 lines, including the light-DOM template
+and server-fallback-compatible event contract. The trade remains intentional:
+the primary coordinator shrinks, access authority stays explicit, and later
+changes to the sharing surface have one browser presentation owner.
+
+Targeted affected guardrails, the read-only and edit-link browser workflows,
+and the collaborator invitation workflow pass. Full native CI passes all 1,197
+unit/coverage tests, 120 Workers-runtime tests, and 73 browser tests. The
+rebuilt browser application is 658,628 B raw and 185,728 B gzip, an increase of
+2,247 B raw and 607 B gzip from the preceding checkpoint; direct and unique
+production package counts remain unchanged.

@@ -829,7 +829,8 @@ export function renderHomePage(
     </dialog>
 
     <dialog class="new-workspace-dialog ui-dialog" id="share-workspace-dialog">
-      <div class="p-5">
+      <workspace-sharing-panel id="workspace-sharing-panel">
+        <div class="p-5">
         <p class="eyebrow">Project access</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Collaborators</h2>
         <section class="mt-4 border-y border-app-line py-4" aria-labelledby="read-only-share-heading">
@@ -872,7 +873,8 @@ export function renderHomePage(
             <button class="button-primary" type="submit">Invite collaborator</button>
           </div>
         </form>
-      </div>
+        </div>
+      </workspace-sharing-panel>
     </dialog>
 
     <dialog class="new-workspace-dialog ui-dialog" id="project-file-dialog">

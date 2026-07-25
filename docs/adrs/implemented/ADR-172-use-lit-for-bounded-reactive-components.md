@@ -41,6 +41,9 @@ The first components own bounded GitHub presentation:
 - The new-project starting-point browser owns template and existing-project
   groups, local selection and preview state, bounded preview rendering, and
   typed selection, project-load, and template-delete intents.
+- The workspace sharing panel owns member and capability-link presentation,
+  invitation input, clipboard interaction, and typed close, invite, share-link,
+  and notice intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -64,6 +67,9 @@ reason to wrap static markup mechanically.
 - The sync review replaces seven internal element references and conflict/diff
   DOM construction while leaving preview identities and network authority in
   the application coordinator.
+- The sharing panel replaces fifteen internal element references and the
+  coordinator's member/link DOM assembly while leaving membership, capability,
+  and authorization requests in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without
@@ -79,8 +85,8 @@ reason to wrap static markup mechanically.
 
 **Neutral:**
 
-- Network requests, GitHub contracts, and disconnect confirmation remain in
-  `WorkspaceApp`.
+- Network requests, GitHub and workspace-access contracts, authorization
+  handling, and disconnect confirmation remain in `WorkspaceApp`.
 - The visual language and server-rendered application shell are unchanged.
 
 ## Alternatives Considered
