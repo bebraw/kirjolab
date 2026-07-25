@@ -1982,3 +1982,23 @@ The browser application artifact grows from 785,998 B raw / 211,930 B gzip to
 and unique production package counts remain unchanged at 135,376 B raw / 23,364
 B gzip and 18 and 150. Full native CI passes all 1,374 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Preview Navigation Control
+
+A bounded `PreviewNavigationControl` now owns browser-local top-navigation
+visibility, stored restoration, toggle and restore labels, ARIA and title
+presentation, Preview-context availability, and focus handoff. `WorkspaceApp`
+supplies only whether Preview is the active workspace context.
+
+This checkpoint reduces `src/client/app.ts` from 7,570 to 7,529 lines (-41),
+replaces three internal element references with one component reference, and
+removes two native bindings plus the coordinator's persistence and presentation
+helpers. The focused browser workflow passes workspace and Library visibility,
+stored state, accessible copy, and focus restoration across compact layouts.
+Component coverage is 83.33% statements and 80.48% lines.
+
+The browser application artifact grows from 787,700 B raw / 212,289 B gzip to
+788,448 B raw / 212,575 B gzip (+748 B raw / +286 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,376 B raw / 23,364 B
+gzip and 18 and 150. Full native CI passes all 1,376 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

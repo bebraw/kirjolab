@@ -121,6 +121,9 @@ The adopted components own bounded presentation:
 - The Preview context status and diagnostics panels own file-mode and
   validation status, unavailable-state presentation, composition and renderer
   diagnostic cards, source-map resolution, and typed source-range intents.
+- The preview navigation control owns browser-local top-navigation visibility,
+  storage restoration, toggle and restore presentation, active-context
+  availability, and focus handoff between its spatially separated controls.
 - The publication intake panel owns DOI and citation-key input, reviewed
   metadata, linked-reference rows, status, busy state, focus transitions, and
   typed preview, accept, cancel, and reference-opening intents.
@@ -492,6 +495,10 @@ reason to wrap static markup mechanically.
   references, owns Preview-context visibility, and emits one typed directional
   action stream. The application coordinator retains source-map resolution,
   caret selection, scrolling, and focus policy.
+- The preview navigation control owns browser-local top-navigation visibility,
+  stored restoration, toggle and restore presentation, ARIA and title copy,
+  restricted-Preview availability, and focus handoff. The application
+  coordinator supplies only whether Preview is the active workspace context.
 - The workspace surface switcher replaces two button references, native action
   bindings, and ARIA-state mutations. The application coordinator retains
   responsive surface visibility and URL synchronization.

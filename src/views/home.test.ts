@@ -214,6 +214,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="app-header"');
     expect(html).toContain('id="toggle-preview-navigation"');
     expect(html).toContain('id="restore-preview-navigation"');
+    expect(html).toContain('<preview-navigation-control id="preview-navigation-control" app-mode="workspace">');
     expect(html).toContain('id="web-source-url"');
     expect(html).toContain('<web-source-capture id="web-source-capture">');
     expect(html).toContain("<web-snapshot-comparison");

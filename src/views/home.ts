@@ -108,10 +108,12 @@ export function renderHomePage(
       </div>
       <collaborator-selection-list class="sr-only" id="collaborator-selections" aria-live="polite"></collaborator-selection-list>
     </header>
+    <preview-navigation-control id="preview-navigation-control" app-mode="${appMode}">
     <button class="button-secondary preview-navigation-restore" id="restore-preview-navigation" type="button" aria-controls="app-header" aria-label="Show top navigation" title="Show top navigation" hidden>
       ${renderIcon("chevronDown")}
       <span>Show nav</span>
     </button>
+    </preview-navigation-control>
 
     <main class="workspace-grid min-h-[calc(100vh-4rem-1px)]" id="workspace-surfaces" data-active-surface="authoring" data-layout="split">
       <workspace-surface-switcher class="surface-switcher" id="workspace-surface-switcher" aria-label="Project surface">

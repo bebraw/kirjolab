@@ -71,6 +71,11 @@ collaboration.
   control owns its directional actions and Preview-context visibility; the
   coordinator retains source-map resolution, caret placement, scrolling, and
   focus policy.
+  A bounded progressive Lit control owns browser-local top-navigation
+  visibility, persistence, toggle and restore copy, ARIA presentation, and
+  focus handoff. In workspace mode the toggle follows Preview availability;
+  Library readers can restore navigation while it is hidden. The coordinator
+  supplies only active-context availability.
 - **Editor toolbar:** Persistent editor actions keep their labels on one line.
   The toolbar never wraps: Write/Map, word count, Insert, current target, and
   save state retain one horizontal hierarchy. Lower-frequency History, revision,

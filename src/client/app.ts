@@ -319,7 +319,7 @@ import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOpera
 import { projectHistoryActionEvent } from "./project-history-panel";
 import { ProjectHistoryDialog, projectHistoryDialogCloseEvent } from "./project-history-dialog";
 import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset } from "./source-preview-sync";
-import { previewNavigationPresentation, previewNavigationStorageKey, storedPreviewNavigationHidden } from "./preview-navigation";
+import { PreviewNavigationControl } from "./preview-navigation-control";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -527,9 +527,7 @@ interface Elements {
   contextResourceTabsPanel: ContextResourceTabs;
   contextTabOverviewPanel: ContextTabOverview;
   previewContextControls: PreviewContextStatus;
-  togglePreviewNavigation: HTMLButtonElement;
-  restorePreviewNavigation: HTMLButtonElement;
-  previewNavigationToggleLabel: HTMLElement;
+  previewNavigationControl: PreviewNavigationControl;
   pdfContextControls: HTMLElement;
   contextPreviewPanel: HTMLElement;
   previewScroll: HTMLElement;
@@ -852,7 +850,6 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
-    this.#restorePreviewNavigation();
     this.#restoreModelPreferences();
     this.#restoreCitationCompletionScope();
     this.#elements.toast.addEventListener(appToastActionEvent, () => {
@@ -1361,15 +1358,6 @@ class WorkspaceApp {
     });
     this.#layout.bind();
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
-    this.#elements.togglePreviewNavigation.addEventListener("click", () => {
-      const hidden = document.body.dataset.previewNavigation !== "hidden";
-      this.#setPreviewNavigationHidden(hidden);
-      if (hidden && appMode === "library") this.#elements.restorePreviewNavigation.focus();
-    });
-    this.#elements.restorePreviewNavigation.addEventListener("click", () => {
-      this.#setPreviewNavigationHidden(false);
-      this.#elements.togglePreviewNavigation.focus();
-    });
     this.#elements.contextAssistantTab.addEventListener("click", () => this.#activateContext(RESEARCH_ASSISTANT_KEY));
     this.#elements.contextResourceTabsPanel.addEventListener(contextResourceTabActionEvent, (event) => {
       const detail = (event as CustomEvent<ContextResourceTabAction>).detail;
@@ -4515,33 +4503,6 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("push");
   }
 
-  #restorePreviewNavigation(): void {
-    let hidden = false;
-    try {
-      hidden = storedPreviewNavigationHidden(localStorage.getItem(previewNavigationStorageKey));
-    } catch {
-      // Browser storage can be unavailable in restricted browsing modes.
-    }
-    this.#setPreviewNavigationHidden(hidden, false);
-  }
-
-  #setPreviewNavigationHidden(hidden: boolean, persist = true): void {
-    const presentation = previewNavigationPresentation(hidden);
-    document.body.dataset.previewNavigation = hidden ? "hidden" : "visible";
-    this.#elements.togglePreviewNavigation.setAttribute("aria-pressed", String(hidden));
-    this.#elements.togglePreviewNavigation.setAttribute("aria-label", presentation.title);
-    this.#elements.togglePreviewNavigation.title = presentation.title;
-    this.#elements.previewNavigationToggleLabel.textContent = presentation.label;
-    this.#elements.restorePreviewNavigation.hidden = appMode !== "library" || !hidden;
-    if (!persist) return;
-    try {
-      if (hidden) localStorage.setItem(previewNavigationStorageKey, "true");
-      else localStorage.removeItem(previewNavigationStorageKey);
-    } catch {
-      // The visible state still applies when persistence is unavailable.
-    }
-  }
-
   #openPublicationContext(publication: PublicationResource): void {
     this.#captureActiveContextState();
     this.#contextState = openResearchResource(this.#contextState, { kind: "publication", id: publication.id });
@@ -4593,7 +4554,7 @@ class WorkspaceApp {
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.previewSyncControls.setVisible(activeKey === RESEARCH_PREVIEW_KEY);
-    this.#elements.togglePreviewNavigation.hidden = appMode === "workspace" && activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#elements.previewNavigationControl.setPreviewActive(activeKey === RESEARCH_PREVIEW_KEY);
     this.#renderContextPdfVisibility(activeTab);
     this.#renderActivePdfCitationControl(activeTab);
     if (activeTab) this.#labelActiveContextPanel(activeTab);
@@ -7417,9 +7378,7 @@ function collectElements(): Elements {
     contextResourceTabsPanel: requiredElement("context-resource-tabs-panel", ContextResourceTabs),
     contextTabOverviewPanel: requiredElement("context-tab-overview-panel", ContextTabOverview),
     previewContextControls: requiredElement("preview-context-controls", PreviewContextStatus),
-    togglePreviewNavigation: requiredElement("toggle-preview-navigation", HTMLButtonElement),
-    restorePreviewNavigation: requiredElement("restore-preview-navigation", HTMLButtonElement),
-    previewNavigationToggleLabel: requiredElement("preview-navigation-toggle-label", HTMLElement),
+    previewNavigationControl: requiredElement("preview-navigation-control", PreviewNavigationControl),
     pdfContextControls: requiredElement("pdf-context-controls", HTMLElement),
     contextPreviewPanel: requiredElement("context-preview-panel", HTMLElement),
     previewScroll: requiredElement("preview-scroll", HTMLElement),
