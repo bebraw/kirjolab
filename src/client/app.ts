@@ -192,6 +192,14 @@ import {
   type ContextResourceTabAction,
 } from "./context-resource-tabs";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
+import {
+  ProjectFileDialog,
+  projectFileDialogIsCreating,
+  projectFileDialogIsFolder,
+  projectFileSaveEvent,
+  type ProjectFileDialogMode,
+  type ProjectFileSave,
+} from "./project-file-dialog";
 import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
@@ -319,30 +327,6 @@ interface PreviewInputs {
 interface SourceSyntaxTemplate {
   readonly text: string;
   readonly select?: string;
-}
-
-type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
-
-function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean {
-  return mode === "create-folder" || mode === "rename-folder";
-}
-
-function projectFileDialogIsCreating(mode: ProjectFileDialogMode): boolean {
-  return mode === "create" || mode === "create-and-include" || mode === "create-folder";
-}
-
-function projectFileDialogTitle(mode: ProjectFileDialogMode): string {
-  if (mode === "create") return "Add Markdown file";
-  if (mode === "create-and-include") return "Create and include file";
-  if (mode === "rename") return "Move or rename file";
-  if (mode === "create-folder") return "Add folder";
-  return "Move or rename folder";
-}
-
-function projectFileDialogHelp(mode: ProjectFileDialogMode): string {
-  if (projectFileDialogIsFolder(mode)) return "Use a relative path. Moving a folder also moves its files and keeps includes valid.";
-  if (mode === "rename") return "Change the folder or filename by editing this relative path. Inbound includes stay valid.";
-  return "Compose this file from the project entry with ::include[path].";
 }
 
 function projectFileSavedMessage(mode: ProjectFileDialogMode, path: string): string {
@@ -546,13 +530,7 @@ interface Elements {
   createAndIncludeProjectFile: HTMLButtonElement;
   renameProjectFile: HTMLButtonElement;
   deleteProjectFile: HTMLButtonElement;
-  projectFileDialog: HTMLDialogElement;
-  projectFileForm: HTMLFormElement;
-  projectFileDialogTitle: HTMLElement;
-  projectFileDialogHelp: HTMLElement;
-  projectFilePath: HTMLInputElement;
-  saveProjectFile: HTMLButtonElement;
-  cancelProjectFile: HTMLButtonElement;
+  projectFileDialog: ProjectFileDialog;
   openProjectHistory: HTMLButtonElement;
   openExport: HTMLButtonElement;
   exportDialog: HTMLDialogElement;
@@ -1270,8 +1248,10 @@ class WorkspaceApp {
     this.#elements.createAndIncludeProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create-and-include"));
     this.#elements.renameProjectFile.addEventListener("click", () => this.#openProjectFileDialog("rename"));
     this.#elements.deleteProjectFile.addEventListener("click", () => this.#deleteProjectFile());
-    this.#elements.cancelProjectFile.addEventListener("click", () => this.#elements.projectFileDialog.close());
-    this.#elements.projectFileForm.addEventListener("submit", (event) => void this.#saveProjectFile(event));
+    this.#elements.projectFileDialog.addEventListener(
+      projectFileSaveEvent,
+      (event) => void this.#saveProjectFile((event as CustomEvent<ProjectFileSave>).detail),
+    );
     this.#elements.editorInsertMenu.addEventListener("click", (event) => this.#insertSourceSyntax(event));
     this.#elements.citationCompletionScope.addEventListener("change", () => {
       const scope = this.#elements.citationCompletionScope.value === "library" ? "library" : "project";
@@ -3322,9 +3302,7 @@ class WorkspaceApp {
     this.#projectFileDialogMode = mode;
     this.#projectFolderId = folder?.id ?? null;
     this.#rememberProjectFileIncludeTarget(mode, file);
-    this.#configureProjectFileDialog(mode, file, folder);
-    this.#elements.projectFileDialog.showModal();
-    this.#elements.projectFilePath.focus();
+    void this.#elements.projectFileDialog.show(mode, this.#projectFileDialogPath(mode, file, folder));
   }
 
   #projectFileDialogResourcesAvailable(
@@ -3343,19 +3321,6 @@ class WorkspaceApp {
     this.#projectFileIncludeFromPath = mode === "create-and-include" ? (file?.path ?? null) : null;
   }
 
-  #configureProjectFileDialog(
-    mode: ProjectFileDialogMode,
-    file: ProjectFile | undefined,
-    folder: WorkspaceSnapshot["folders"][number] | undefined,
-  ): void {
-    const folderMode = projectFileDialogIsFolder(mode);
-    this.#elements.projectFileDialogTitle.textContent = projectFileDialogTitle(mode);
-    this.#elements.projectFileDialogHelp.textContent = projectFileDialogHelp(mode);
-    this.#elements.saveProjectFile.textContent = folderMode ? "Save folder" : "Save file";
-    this.#elements.projectFilePath.placeholder = folderMode ? "chapters" : "chapters/01_introduction.md";
-    this.#elements.projectFilePath.value = this.#projectFileDialogPath(mode, file, folder);
-  }
-
   #projectFileDialogPath(
     mode: ProjectFileDialogMode,
     file: ProjectFile | undefined,
@@ -3366,9 +3331,7 @@ class WorkspaceApp {
     return "";
   }
 
-  async #saveProjectFile(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const path = this.#elements.projectFilePath.value.trim();
+  async #saveProjectFile({ path }: ProjectFileSave): Promise<void> {
     const activeId = this.#activeFileId;
     const mode = this.#projectFileDialogMode;
     const folderMode = projectFileDialogIsFolder(mode);
@@ -9411,13 +9374,7 @@ function collectElements(): Elements {
     createAndIncludeProjectFile: requiredElement("create-and-include-project-file", HTMLButtonElement),
     renameProjectFile: requiredElement("rename-project-file", HTMLButtonElement),
     deleteProjectFile: requiredElement("delete-project-file", HTMLButtonElement),
-    projectFileDialog: requiredElement("project-file-dialog", HTMLDialogElement),
-    projectFileForm: requiredElement("project-file-form", HTMLFormElement),
-    projectFileDialogTitle: requiredElement("project-file-dialog-title", HTMLElement),
-    projectFileDialogHelp: requiredElement("project-file-dialog-help", HTMLElement),
-    projectFilePath: requiredElement("project-file-path", HTMLInputElement),
-    saveProjectFile: requiredElement("save-project-file", HTMLButtonElement),
-    cancelProjectFile: requiredElement("cancel-project-file", HTMLButtonElement),
+    projectFileDialog: requiredElement("project-file-dialog-panel", ProjectFileDialog),
     openProjectHistory: requiredElement("open-project-history", HTMLButtonElement),
     openExport: requiredElement("open-export", HTMLButtonElement),
     exportDialog: requiredElement("export-dialog", HTMLDialogElement),

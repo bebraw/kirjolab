@@ -909,20 +909,22 @@ export function renderHomePage(
       </workspace-sharing-panel>
     </dialog>
 
-    <dialog class="new-workspace-dialog ui-dialog" id="project-file-dialog">
-      <form class="p-5" id="project-file-form">
-        <p class="eyebrow">Project structure</p>
-        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]" id="project-file-dialog-title">Add Markdown file</h2>
-        <label class="field-label mt-5">Relative path
-          <input class="field" id="project-file-path" type="text" maxlength="1024" required placeholder="chapters/01_introduction.md">
-        </label>
-        <p class="mt-2 text-xs leading-5 text-app-text-soft" id="project-file-dialog-help">Compose this file from the project entry with <code>::include[path]</code>.</p>
-        <div class="mt-5 flex justify-end gap-2">
-          <button class="button-secondary" id="cancel-project-file" type="button">Cancel</button>
-          <button class="button-primary" id="save-project-file" type="submit">Save file</button>
-        </div>
-      </form>
-    </dialog>
+    <project-file-dialog-panel id="project-file-dialog-panel">
+      <dialog class="new-workspace-dialog ui-dialog" id="project-file-dialog">
+        <form class="p-5" id="project-file-form">
+          <p class="eyebrow">Project structure</p>
+          <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]" id="project-file-dialog-title">Add Markdown file</h2>
+          <label class="field-label mt-5">Relative path
+            <input class="field" id="project-file-path" type="text" maxlength="1024" required placeholder="chapters/01_introduction.md">
+          </label>
+          <p class="mt-2 text-xs leading-5 text-app-text-soft" id="project-file-dialog-help">Compose this file from the project entry with <code>::include[path]</code>.</p>
+          <div class="mt-5 flex justify-end gap-2">
+            <button class="button-secondary" id="cancel-project-file" type="button">Cancel</button>
+            <button class="button-primary" id="save-project-file" type="submit">Save file</button>
+          </div>
+        </form>
+      </dialog>
+    </project-file-dialog-panel>
 
     <dialog class="reference-library-dialog ui-dialog" id="project-history-dialog">
       <project-history-panel id="project-history-panel">

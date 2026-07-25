@@ -82,7 +82,11 @@ collaborative, and unambiguous about what preview and export mean.
   creation and contextual folder move, rename, and empty-delete actions. The
   three primary navigator creation actions use compact file, folder, and image
   icons with accessible names and native titles. The file toolbar labels its
-  editable path action as **Move or rename file**.
+  editable path action as **Move or rename file**. One bounded project-file
+  dialog owns file and folder operation copy, initial paths, focus, cancellation,
+  and typed save intents; the workspace coordinator retains resource
+  availability, include-caret capture, persistence, selection, and refresh
+  policy.
 - A visible, client-side Files filter matches complete file, folder, and asset
   paths without changing the project tree or include menu. `Command-P` or
   `Control-P` expands the desktop rail when necessary, activates Files, and

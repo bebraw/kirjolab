@@ -904,3 +904,24 @@ Full native CI passes all 1,268 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 706,518 B raw
 / 196,007 B gzip to 708,543 B raw / 196,840 B gzip (+2,025 B raw / +833 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Project File Dialog
+
+File and folder creation and rename setup now use a bounded
+`ProjectFileDialog` instead of seven element references and imperative title,
+help, path, placeholder, action-label, focus, and cancellation handling. The
+component emits a typed, trimmed save intent. `WorkspaceApp` retains resource
+availability, remembered include-caret capture, API mutation, selection,
+refresh, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,764 to 9,721 lines (-43).
+The component adds 141 lines. Component tests cover all five operation modes,
+file and folder classification, light-DOM ownership, and trimmed typed save
+intents. The focused browser workflow passes file and folder creation, rename,
+transclusion insertion, selection, and Preview refresh behavior. The component
+records 78% statement and 80% line coverage.
+
+Full native CI passes all 1,272 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 708,543 B raw
+/ 196,840 B gzip to 709,962 B raw / 197,216 B gzip (+1,419 B raw / +376 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.
