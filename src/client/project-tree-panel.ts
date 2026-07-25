@@ -1,0 +1,229 @@
+import { html, LitElement, nothing, type TemplateResult } from "lit";
+import type { ProjectAsset, ProjectFile, ProjectFolder } from "../domain/project-files";
+
+export const projectTreeActionEvent = "project-tree-action";
+
+export type ProjectTreeAction =
+  | { readonly action: "delete-asset"; readonly asset: ProjectAsset }
+  | { readonly action: "delete-folder"; readonly folderId: string }
+  | { readonly action: "insert-asset"; readonly asset: ProjectAsset }
+  | { readonly action: "rename-folder"; readonly folderId: string }
+  | { readonly action: "select-file"; readonly fileId: string; readonly focusEditor: boolean };
+
+interface ProjectTreeData {
+  readonly activeFileId: string | null;
+  readonly assetBase: string;
+  readonly assets: readonly ProjectAsset[];
+  readonly entryFileId: string;
+  readonly files: readonly ProjectFile[];
+  readonly folders: readonly ProjectFolder[];
+}
+
+type ProjectTreeItem =
+  | { readonly kind: "asset"; readonly path: string; readonly asset: ProjectAsset }
+  | { readonly kind: "file"; readonly path: string; readonly file: ProjectFile }
+  | { readonly kind: "folder"; readonly path: string; readonly folder: ProjectFolder };
+
+export class ProjectTreePanel extends LitElement {
+  static override properties = {
+    data: { state: true },
+    query: { state: true },
+  };
+
+  declare private data: ProjectTreeData;
+  declare private query: string;
+
+  constructor() {
+    super();
+    this.data = { activeFileId: "", assetBase: "", assets: [], entryFileId: "", files: [], folders: [] };
+    this.query = "";
+  }
+
+  setTree(data: ProjectTreeData): void {
+    if (typeof this.querySelectorAll === "function") {
+      for (const menu of this.querySelectorAll<HTMLDetailsElement>("details[open]")) menu.open = false;
+    }
+    this.data = data;
+  }
+
+  focusFilter(): void {
+    const input = this.querySelector<HTMLInputElement>("#project-file-filter");
+    input?.focus();
+    input?.select();
+  }
+
+  override connectedCallback(): void {
+    if (!this.hasUpdated) this.replaceChildren();
+    super.connectedCallback();
+  }
+
+  protected override createRenderRoot(): HTMLElement {
+    return this;
+  }
+
+  protected override render(): TemplateResult {
+    const items = this.items();
+    const normalizedQuery = this.query.trim().toLocaleLowerCase();
+    const visible = normalizedQuery ? items.filter((item) => item.path.toLocaleLowerCase().includes(normalizedQuery)) : items;
+    const status = normalizedQuery
+      ? visible.length
+        ? `${visible.length} of ${items.length} project items`
+        : `No project items match “${this.query.trim()}”`
+      : `${items.length} project items`;
+    return html`
+      <div class="project-file-filter">
+        <label class="sr-only" for="project-file-filter">Filter project files</label>
+        <input
+          class="field"
+          id="project-file-filter"
+          type="search"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Filter files…"
+          aria-describedby="project-file-filter-status"
+          .value=${this.query}
+          @input=${this.filter}
+          @keydown=${this.handleFilterKey}
+        />
+        <kbd title="Quick open project files">⌘P</kbd>
+      </div>
+      <p class="project-file-filter-status" id="project-file-filter-status" aria-live="polite">${status}</p>
+      <div class="mt-2 grid gap-1" id="project-file-list">
+        ${items.length === 0
+          ? html`<div class="empty-state">No project files yet.</div>`
+          : items.map((item) => this.renderItem(item, !visible.includes(item)))}
+      </div>
+    `;
+  }
+
+  protected filter(event: Event): void {
+    this.query = (event.currentTarget as HTMLInputElement).value;
+  }
+
+  protected handleFilterKey(event: KeyboardEvent): void {
+    if (event.key === "Escape" && this.query) {
+      event.preventDefault();
+      this.query = "";
+      return;
+    }
+    if (event.key !== "Enter") return;
+    const normalizedQuery = this.query.trim().toLocaleLowerCase();
+    const first = this.items().find(
+      (item): item is Extract<ProjectTreeItem, { readonly kind: "file" }> =>
+        item.kind === "file" && (!normalizedQuery || item.path.toLocaleLowerCase().includes(normalizedQuery)),
+    );
+    if (!first) return;
+    event.preventDefault();
+    this.query = "";
+    this.emit({ action: "select-file", fileId: first.file.id, focusEditor: true });
+  }
+
+  protected act(event: Event): void {
+    const button = event.currentTarget as HTMLButtonElement;
+    const action = button.dataset.projectAction;
+    const file = this.data.files.find((item) => item.id === button.dataset.fileId);
+    const folder = this.data.folders.find((item) => item.id === button.dataset.folderId);
+    const asset = this.data.assets.find((item) => item.id === button.dataset.assetId);
+    if (action === "select-file" && file) this.emit({ action, fileId: file.id, focusEditor: false });
+    else if (action === "rename-folder" && folder) this.emit({ action, folderId: folder.id });
+    else if (action === "delete-folder" && folder) this.emit({ action, folderId: folder.id });
+    else if (action === "insert-asset" && asset) this.emit({ action, asset });
+    else if (action === "delete-asset" && asset) this.emit({ action, asset });
+  }
+
+  private items(): ProjectTreeItem[] {
+    return [
+      ...this.data.folders.map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
+      ...this.data.files.map((file) => ({ kind: "file" as const, path: file.path, file })),
+      ...this.data.assets.map((asset) => ({ kind: "asset" as const, path: asset.path, asset })),
+    ].sort((left, right) => left.path.localeCompare(right.path) || left.kind.localeCompare(right.kind));
+  }
+
+  private renderItem(item: ProjectTreeItem, hidden: boolean): TemplateResult {
+    const depth = item.path.split("/").length - 1;
+    if (item.kind === "folder") return this.renderFolder(item.folder, depth, hidden);
+    if (item.kind === "asset") return this.renderAsset(item.asset, depth, hidden);
+    return this.renderFile(item.file, depth, hidden);
+  }
+
+  private renderFolder(folder: ProjectFolder, depth: number, hidden: boolean): TemplateResult {
+    return html`
+      <div
+        class="project-folder-row"
+        data-project-path=${folder.path}
+        style=${`padding-inline-start: ${0.55 + depth * 0.75}rem`}
+        ?hidden=${hidden}
+      >
+        <span class="min-w-0 truncate">${folder.path.split("/").at(-1)}/</span>
+        <details class="action-menu project-tree-actions">
+          <summary aria-label=${`Actions for ${folder.path}`}>•••</summary>
+          <div class="editor-command-menu">
+            <button type="button" data-folder-id=${folder.id} data-project-action="rename-folder" @click=${this.act}>Move or rename</button>
+            <button type="button" data-folder-id=${folder.id} data-project-action="delete-folder" @click=${this.act}>
+              Delete empty folder
+            </button>
+          </div>
+        </details>
+      </div>
+    `;
+  }
+
+  private renderAsset(asset: ProjectAsset, depth: number, hidden: boolean): TemplateResult {
+    const href = `${this.data.assetBase}/${encodeURIComponent(asset.id)}`;
+    return html`
+      <div
+        class="project-file-row project-asset-row"
+        data-project-path=${asset.path}
+        style=${`padding-inline-start: ${0.55 + depth * 0.75}rem`}
+        ?hidden=${hidden}
+      >
+        <img class="project-asset-thumbnail" src=${href} alt="" />
+        <span class="min-w-0 flex-1 truncate">${asset.path.split("/").at(-1) ?? asset.path}</span>
+        <details class="action-menu project-tree-actions">
+          <summary aria-label=${`Actions for ${asset.path}`}>•••</summary>
+          <div class="editor-command-menu">
+            <button type="button" data-asset-id=${asset.id} data-project-action="insert-asset" @click=${this.act}>Insert image</button>
+            <a href=${href} target="_blank" rel="noopener">Open image</a>
+            <button type="button" data-asset-id=${asset.id} data-project-action="delete-asset" @click=${this.act}>Delete image</button>
+          </div>
+        </details>
+      </div>
+    `;
+  }
+
+  private renderFile(file: ProjectFile, depth: number, hidden: boolean): TemplateResult {
+    const active = file.id === this.data.activeFileId;
+    return html`
+      <button
+        type="button"
+        class="project-file-row"
+        data-project-path=${file.path}
+        data-project-file-id=${file.id}
+        data-project-action="select-file"
+        data-file-id=${file.id}
+        data-active=${String(active)}
+        aria-current=${active ? "page" : "false"}
+        style=${`padding-inline-start: ${0.55 + depth * 0.75}rem`}
+        ?hidden=${hidden}
+        @click=${this.act}
+      >
+        <span class="truncate">${file.path.split("/").at(-1) ?? file.path}</span>
+        ${file.id === this.data.entryFileId ? html`<span class="project-file-kind">entry</span>` : nothing}
+      </button>
+    `;
+  }
+
+  private emit(detail: ProjectTreeAction): void {
+    this.dispatchEvent(new CustomEvent(projectTreeActionEvent, { bubbles: true, composed: true, detail }));
+  }
+}
+
+if (typeof customElements !== "undefined" && !customElements.get("project-tree-panel")) {
+  customElements.define("project-tree-panel", ProjectTreePanel);
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "project-tree-panel": ProjectTreePanel;
+  }
+}

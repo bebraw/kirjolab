@@ -1575,7 +1575,8 @@
   candidate-list-panel,
   context-tab-overview-panel,
   context-resource-tabs-panel,
-  project-evidence-panel {
+  project-evidence-panel,
+  project-tree-panel {
     display: block;
   }
 

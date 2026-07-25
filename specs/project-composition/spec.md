@@ -82,7 +82,9 @@ collaborative, and unambiguous about what preview and export mean.
 - A visible, client-side Files filter matches complete file, folder, and asset
   paths without changing the project tree or include menu. `Command-P` or
   `Control-P` expands the desktop rail when necessary, activates Files, and
-  focuses the filter; Enter opens the first matching Markdown file.
+  focuses the filter; Enter opens the first matching Markdown file and moves
+  focus to its source editor. Pointer selection preserves the user's current
+  focus target.
 - A fresh starter project includes one supporting Markdown file transcluded
   from `main.md`, making the portable include syntax and composed result
   discoverable, plus an empty `figures/` folder that exposes the image

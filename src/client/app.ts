@@ -195,6 +195,7 @@ import {
   type ContextResourceTabAction,
 } from "./context-resource-tabs";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
+import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -308,10 +309,6 @@ interface SourceSyntaxTemplate {
 }
 
 type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
-type ProjectTreeItem =
-  | { readonly kind: "folder"; readonly path: string; readonly folder: WorkspaceSnapshot["folders"][number] }
-  | { readonly kind: "file"; readonly path: string; readonly file: ProjectFile }
-  | { readonly kind: "asset"; readonly path: string; readonly asset: ProjectAsset };
 
 function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean {
   return mode === "create-folder" || mode === "rename-folder";
@@ -547,9 +544,7 @@ interface Elements {
   newProjectFolderRail: HTMLButtonElement;
   uploadProjectImages: HTMLButtonElement;
   projectImageUpload: HTMLInputElement;
-  projectFileFilter: HTMLInputElement;
-  projectFileFilterStatus: HTMLElement;
-  projectFileList: HTMLElement;
+  projectTreePanel: ProjectTreePanel;
   newProjectFile: HTMLButtonElement;
   createAndIncludeProjectFile: HTMLButtonElement;
   renameProjectFile: HTMLButtonElement;
@@ -1100,8 +1095,7 @@ class WorkspaceApp {
       event.preventDefault();
       this.#setSourceRailCollapsed(false);
       this.#showRail("files");
-      this.#elements.projectFileFilter.focus();
-      this.#elements.projectFileFilter.select();
+      this.#elements.projectTreePanel.focusFilter();
     });
     this.#elements.workspaceSwitcher.addEventListener("change", () => {
       const selected = this.#elements.workspaceSwitcher.value;
@@ -1298,22 +1292,15 @@ class WorkspaceApp {
     this.#elements.newProjectFileRail.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.newProjectFolderRail.addEventListener("click", () => this.#openProjectFileDialog("create-folder"));
     this.#elements.uploadProjectImages.addEventListener("click", () => this.#elements.projectImageUpload.click());
-    this.#elements.projectFileFilter.addEventListener("input", () => this.#filterProjectFiles());
-    this.#elements.projectFileFilter.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && this.#elements.projectFileFilter.value) {
-        event.preventDefault();
-        this.#elements.projectFileFilter.value = "";
-        this.#filterProjectFiles();
-        return;
-      }
-      if (event.key !== "Enter") return;
-      const first = this.#elements.projectFileList.querySelector<HTMLButtonElement>("button[data-project-file-id]:not([hidden])");
-      const fileId = first?.dataset.projectFileId;
-      if (!fileId) return;
-      event.preventDefault();
-      this.#elements.projectFileFilter.value = "";
-      this.#selectProjectFile(fileId);
-      this.#elements.source.focus();
+    this.#elements.projectTreePanel.addEventListener(projectTreeActionEvent, (event) => {
+      const detail = (event as CustomEvent<ProjectTreeAction>).detail;
+      if (detail.action === "select-file") {
+        this.#selectProjectFile(detail.fileId);
+        if (detail.focusEditor) this.#elements.source.focus();
+      } else if (detail.action === "rename-folder") this.#openProjectFileDialog("rename-folder", detail.folderId);
+      else if (detail.action === "delete-folder") this.#deleteProjectFolder(detail.folderId);
+      else if (detail.action === "insert-asset") this.#insertProjectImage(detail.asset);
+      else void this.#deleteProjectImage(detail.asset);
     });
     this.#elements.projectImageUpload.addEventListener("change", () => void this.#uploadProjectImages());
     this.#elements.createAndIncludeProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create-and-include"));
@@ -3471,11 +3458,20 @@ class WorkspaceApp {
     const snapshot = this.#snapshot;
     if (!snapshot) return;
     this.#ensureActiveProjectFile(snapshot);
-    this.#elements.projectFileList.replaceChildren();
+    const files = snapshot.files.filter((file) => !this.#hiddenProjectFileIds.has(file.id));
+    this.#elements.projectTreePanel.setTree({
+      activeFileId: this.#activeFileId,
+      assetBase: `${apiBase}/assets`,
+      assets: snapshot.assets.filter((asset) => !this.#hiddenProjectImageIds.has(asset.id)),
+      entryFileId: snapshot.entryFileId,
+      files,
+      folders: snapshot.folders.filter((folder) => !this.#hiddenProjectFolderIds.has(folder.id)),
+    });
     this.#elements.includeProjectFileList.replaceChildren();
-    for (const item of this.#projectTreeItems(snapshot)) this.#renderProjectTreeItem(item, snapshot);
+    for (const file of files) {
+      if (file.id !== this.#activeFileId) this.#elements.includeProjectFileList.append(this.#projectIncludeButton(file, snapshot));
+    }
     this.#renderEmptyProjectIncludeList();
-    this.#filterProjectFiles();
     const entryActive = this.#activeFileId === snapshot.entryFileId;
     this.#elements.renameProjectFile.disabled = false;
     this.#elements.deleteProjectFile.disabled = entryActive;
@@ -3487,118 +3483,6 @@ class WorkspaceApp {
     this.#activeFileId = snapshot.entryFileId;
     const entry = snapshot.files.find((file) => file.id === snapshot.entryFileId);
     this.#activeFileText = entry ? this.#document.getText(projectFileCollaborationTextName(entry, snapshot.entryFileId)) : this.#source;
-  }
-
-  #projectTreeItems(snapshot: WorkspaceSnapshot): ProjectTreeItem[] {
-    return [
-      ...snapshot.folders
-        .filter((folder) => !this.#hiddenProjectFolderIds.has(folder.id))
-        .map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
-      ...snapshot.files
-        .filter((file) => !this.#hiddenProjectFileIds.has(file.id))
-        .map((file) => ({ kind: "file" as const, path: file.path, file })),
-      ...snapshot.assets
-        .filter((asset) => !this.#hiddenProjectImageIds.has(asset.id))
-        .map((asset) => ({ kind: "asset" as const, path: asset.path, asset })),
-    ].sort((left, right) => left.path.localeCompare(right.path) || left.kind.localeCompare(right.kind));
-  }
-
-  #renderProjectTreeItem(item: ProjectTreeItem, snapshot: WorkspaceSnapshot): void {
-    const depth = item.path.split("/").length - 1;
-    if (item.kind === "folder") this.#elements.projectFileList.append(this.#projectFolderRow(item, depth));
-    else if (item.kind === "asset") this.#elements.projectFileList.append(this.#projectAssetRow(item.asset, depth));
-    else this.#renderProjectFileRow(item.file, depth, snapshot);
-  }
-
-  #projectFolderRow(item: Extract<ProjectTreeItem, { kind: "folder" }>, depth: number): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "project-folder-row";
-    row.dataset.projectPath = item.path;
-    row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
-    const label = document.createElement("span");
-    label.className = "min-w-0 truncate";
-    label.textContent = `${item.path.split("/").at(-1)}/`;
-    const actions = document.createElement("details");
-    actions.className = "action-menu project-tree-actions";
-    const summary = document.createElement("summary");
-    summary.setAttribute("aria-label", `Actions for ${item.path}`);
-    summary.textContent = "•••";
-    const menu = document.createElement("div");
-    menu.className = "editor-command-menu";
-    const rename = document.createElement("button");
-    rename.type = "button";
-    rename.textContent = "Move or rename";
-    rename.addEventListener("click", () => this.#openProjectFileDialog("rename-folder", item.folder.id));
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.textContent = "Delete empty folder";
-    remove.addEventListener("click", () => this.#deleteProjectFolder(item.folder.id));
-    menu.append(rename, remove);
-    actions.append(summary, menu);
-    row.append(label, actions);
-    return row;
-  }
-
-  #projectAssetRow(asset: ProjectAsset, depth: number): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "project-file-row project-asset-row";
-    row.dataset.projectPath = asset.path;
-    row.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
-    const preview = document.createElement("img");
-    preview.className = "project-asset-thumbnail";
-    preview.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
-    preview.alt = "";
-    const label = document.createElement("span");
-    label.className = "min-w-0 flex-1 truncate";
-    label.textContent = asset.path.split("/").at(-1) ?? asset.path;
-    const actions = document.createElement("details");
-    actions.className = "action-menu project-tree-actions";
-    const summary = document.createElement("summary");
-    summary.setAttribute("aria-label", `Actions for ${asset.path}`);
-    summary.textContent = "•••";
-    const menu = document.createElement("div");
-    menu.className = "editor-command-menu";
-    const insert = document.createElement("button");
-    insert.type = "button";
-    insert.textContent = "Insert image";
-    insert.addEventListener("click", () => this.#insertProjectImage(asset));
-    const open = document.createElement("a");
-    open.href = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
-    open.target = "_blank";
-    open.rel = "noopener";
-    open.textContent = "Open image";
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.textContent = "Delete image";
-    remove.addEventListener("click", () => this.#deleteProjectImage(asset));
-    menu.append(insert, open, remove);
-    actions.append(summary, menu);
-    row.append(preview, label, actions);
-    return row;
-  }
-
-  #renderProjectFileRow(file: ProjectFile, depth: number, snapshot: WorkspaceSnapshot): void {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "project-file-row";
-    button.dataset.projectPath = file.path;
-    button.dataset.projectFileId = file.id;
-    button.style.paddingInlineStart = `${0.55 + depth * 0.75}rem`;
-    button.dataset.active = String(file.id === this.#activeFileId);
-    button.setAttribute("aria-current", file.id === this.#activeFileId ? "page" : "false");
-    const path = document.createElement("span");
-    path.className = "truncate";
-    path.textContent = file.path.split("/").at(-1) ?? file.path;
-    button.append(path);
-    if (file.id === snapshot.entryFileId) {
-      const kind = document.createElement("span");
-      kind.className = "project-file-kind";
-      kind.textContent = "entry";
-      button.append(kind);
-    }
-    button.addEventListener("click", () => this.#selectProjectFile(file.id));
-    this.#elements.projectFileList.append(button);
-    if (file.id !== this.#activeFileId) this.#elements.includeProjectFileList.append(this.#projectIncludeButton(file, snapshot));
   }
 
   #projectIncludeButton(file: ProjectFile, snapshot: WorkspaceSnapshot): HTMLButtonElement {
@@ -3624,20 +3508,6 @@ class WorkspaceApp {
       empty.textContent = "Add another file to include it here.";
       this.#elements.includeProjectFileList.append(empty);
     }
-  }
-
-  #filterProjectFiles(): void {
-    const query = this.#elements.projectFileFilter.value.trim().toLocaleLowerCase();
-    const rows = [...this.#elements.projectFileList.querySelectorAll<HTMLElement>("[data-project-path]")];
-    let visible = 0;
-    for (const row of rows) {
-      row.hidden = Boolean(query) && !row.dataset.projectPath?.toLocaleLowerCase().includes(query);
-      if (!row.hidden) visible += 1;
-    }
-    this.#elements.projectFileFilterStatus.textContent = query
-      ? `${visible} of ${rows.length} project items`
-      : `${rows.length} project items`;
-    if (query && visible === 0) this.#elements.projectFileFilterStatus.textContent = `No project items match “${query}”`;
   }
 
   #selectProjectFile(fileId: string): void {
@@ -10226,9 +10096,7 @@ function collectElements(): Elements {
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),
     projectImageUpload: requiredElement("project-image-upload", HTMLInputElement),
-    projectFileFilter: requiredElement("project-file-filter", HTMLInputElement),
-    projectFileFilterStatus: requiredElement("project-file-filter-status", HTMLElement),
-    projectFileList: requiredElement("project-file-list", HTMLElement),
+    projectTreePanel: requiredElement("project-tree-panel", ProjectTreePanel),
     newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
     createAndIncludeProjectFile: requiredElement("create-and-include-project-file", HTMLButtonElement),
     renameProjectFile: requiredElement("rename-project-file", HTMLButtonElement),

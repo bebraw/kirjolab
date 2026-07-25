@@ -662,3 +662,26 @@ and 74 browser tests. The rebuilt browser application is 686,789 B raw and
 192,209 B gzip, an increase of 4,028 B raw and 556 B gzip from the
 context-resource-tabs checkpoint. Direct and unique production package counts
 remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Project Tree
+
+The Files rail now uses one bounded `ProjectTreePanel` instead of three element
+references plus imperative filtering, sorting, folder, file, image, and action
+menu rendering. The component owns local filter state, sorted hierarchy
+presentation, active and entry labels, keyboard quick-open, and typed file,
+folder, and image intents. `WorkspaceApp` retains file and folder mutations,
+editor rebinding, include insertion, image operations, API access, and toast
+policy.
+
+This checkpoint reduces `src/client/app.ts` from 10,681 to 10,549 lines (-132).
+The component adds 229 lines and reaches 89.33% statement coverage and 90%
+line coverage across empty, sorted, nested, active, entry, filtered,
+quick-open, known-action, and rejected-action states. Focused browser workflows
+pass the primary file tree, image upload and insertion, transcluded-file
+creation, folder rename, deferred deletion, and undo paths.
+
+Full native CI passes all 1,247 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 688,715 B raw and
+192,714 B gzip, an increase of 1,926 B raw and 505 B gzip from the project
+evidence checkpoint. Direct and unique production package counts remain
+unchanged at 18 and 150.

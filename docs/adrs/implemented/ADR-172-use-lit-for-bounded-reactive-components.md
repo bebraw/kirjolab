@@ -83,6 +83,9 @@ The adopted components own bounded presentation:
 - The project evidence panel owns project-PDF and annotation grouping, counts,
   expanded state, grounding selection, passage-link presentation, stroke
   controls, and typed navigation and mutation intents.
+- The project tree panel owns path filtering, sorted folder, file, and image
+  rows, active and entry presentation, quick-open selection, action menus, and
+  typed file, folder, and image intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -161,6 +164,10 @@ reason to wrap static markup mechanically.
   renderers while leaving API mutations, confirmations, editor selection,
   grounding authority, PDF navigation, refreshes, and toast policy in the
   application coordinator.
+- The project tree panel replaces three internal element references and the
+  imperative filter, hierarchy, row, and action-menu renderers while leaving
+  file and folder mutations, editor rebinding, image operations, include
+  insertion, and API authority in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without
