@@ -1835,3 +1835,23 @@ The browser application artifact grows from 777,474 B raw / 210,454 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,360 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Vim Mode Control
+
+A bounded `VimModeControl` now owns browser-local enablement, toggle and mode
+presentation, modal keyboard behavior, pointer-selection transitions, and
+editor-listener teardown. `WorkspaceApp` supplies only the source textarea and
+its visual shell; `source-editor-adapter` returns to Yjs synchronization,
+history, highlighting, selection, and completion geometry.
+
+This checkpoint reduces `src/client/app.ts` from 7,646 to 7,639 lines (-7),
+replaces two internal element references with one component reference, and
+removes 66 Vim-specific lines from `source-editor-adapter`. The component records
+89.7% statement and 96.49% line coverage. Focused browser workflows pass stored
+appearance preferences and opt-in modal editing.
+
+The browser application artifact grows from 777,986 B raw / 210,515 B gzip to
+779,487 B raw / 210,918 B gzip (+1,501 B raw / +403 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,362 B raw / 23,360
+B gzip and 18 and 150. Full native CI passes all 1,360 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

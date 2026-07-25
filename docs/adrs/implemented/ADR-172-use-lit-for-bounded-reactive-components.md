@@ -447,6 +447,10 @@ reason to wrap static markup mechanically.
   references and owns their synchronized presentation. The application
   coordinator retains collaboration-state interpretation and Library-mode
   status policy.
+- The Vim mode control replaces separate toggle and mode-status element
+  references and owns browser-local enablement, mode presentation, modal key
+  handling, pointer-selection transitions, and editor-listener teardown. The
+  application coordinator only supplies the source editor and its shell.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

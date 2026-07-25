@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bindVimTextarea, bindYText, captureRelativeSelection, positionSourceCompletion } from "./source-editor-adapter";
+import { bindYText, captureRelativeSelection, positionSourceCompletion } from "./source-editor-adapter";
 
 class FakeClassList {
   readonly values = new Set<string>();
@@ -94,7 +94,6 @@ function keyboard(key: string, overrides: Partial<KeyboardEvent> = {}): Keyboard
 
 const textareaElement = (textarea: FakeTextarea): HTMLTextAreaElement => textarea as never;
 const htmlElement = (element: FakeElement): HTMLElement => element as never;
-const buttonElement = (element: FakeElement): HTMLButtonElement => element as never;
 
 describe("source editor adapter", () => {
   beforeEach(() => {
@@ -178,35 +177,6 @@ describe("source editor adapter", () => {
     expect(ranged.direction).toBe("backward");
     expect(Y.createAbsolutePositionFromRelativePosition(ranged.start, documentModel)?.index).toBe(1);
     expect(Y.createAbsolutePositionFromRelativePosition(ranged.end, documentModel)?.index).toBe(5);
-  });
-
-  it("binds stored Vim mode, guarded keys, edits, and mouse selection state", () => {
-    const values = new Map<string, string>();
-    vi.stubGlobal("localStorage", {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-    });
-    const textarea = new FakeTextarea();
-    textarea.value = "alpha";
-    textarea.setSelectionRange(1, 1);
-    const shell = new FakeElement();
-    const toggle = new FakeElement();
-    const status = new FakeElement();
-    bindVimTextarea(textareaElement(textarea), htmlElement(shell), buttonElement(toggle), htmlElement(status));
-    expect(shell.dataset.vimMode).toBe("off");
-    toggle.dispatchEvent(new Event("click"));
-    expect(values.get("kirjolab:vim-keybindings")).toBe("true");
-    expect(status.textContent).toBe("NORMAL");
-    textarea.dispatchEvent(keyboard("x"));
-    expect(textarea.value).toBe("apha");
-    textarea.dispatchEvent(keyboard("x", { metaKey: true }));
-    textarea.dispatchEvent(keyboard("x", { isComposing: true }));
-    textarea.setSelectionRange(0, 2, "forward");
-    textarea.dispatchEvent(new Event("mouseup"));
-    expect(shell.dataset.vimMode).toBe("visual");
-    textarea.setSelectionRange(1, 1);
-    textarea.dispatchEvent(new Event("mouseup"));
-    expect(shell.dataset.vimMode).toBe("normal");
   });
 
   it("positions completion within its editor shell", () => {

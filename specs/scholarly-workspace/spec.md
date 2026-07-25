@@ -140,6 +140,9 @@ collaboration.
   layout, sharing, export, and publication controls remain in their
   task-specific surfaces. Writing assistant links back to the shared panel
   rather than duplicating model controls.
+  A bounded light-DOM Vim control owns stored enablement, mode presentation,
+  modal keyboard and pointer-selection behavior, and editor-listener teardown;
+  the coordinator supplies only the source textarea and its visual shell.
 - **Assistant task setup:** A bounded light-DOM component owns local operation,
   target scope, instruction, claim relation, rhetorical purpose, structured
   table requirements, operation-specific copy and visibility, target-preview
@@ -189,7 +192,7 @@ collaboration.
   once initial synchronization completes with no queued local updates.
 - **Source editor adapter:** One bounded browser adapter owns textarea-to-Yjs
   synchronization and history, syntax and presence mirroring, scroll alignment,
-  completion geometry, relative selection capture, and optional Vim binding.
+  completion geometry, and relative selection capture.
   The workspace coordinator retains document identity, collaboration workflow,
   completion candidates, authoring targets, and navigation authority.
 - **Citation completion:** With the caret in a `:cite`, `:citet`, or `:citep`

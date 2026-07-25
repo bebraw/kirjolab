@@ -17,7 +17,7 @@ export function renderPreferencesMenu(): string {
               </section>
               <section class="preferences-section" aria-labelledby="writing-preference-heading">
                 <div><h3 id="writing-preference-heading">Writing</h3><p>Use modal Vim keybindings in the source editor.</p></div>
-                <button class="preference-toggle" id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"><span>Vim mode</span><span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span></button>
+                <vim-mode-control class="contents" id="vim-mode-control"><button class="preference-toggle" id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"><span>Vim mode</span><span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span></button></vim-mode-control>
               </section>
               <section class="preferences-section" aria-labelledby="citation-suggestions-heading">
                 <div><h3 id="citation-suggestions-heading">Citation suggestions</h3><p>Choose which references appear while completing citation keys.</p></div>

@@ -61,6 +61,7 @@ import { filterReferenceLibrary } from "../domain/reference-filters";
 import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { EditorStatus } from "./editor-status";
 import { ConnectionStatus } from "./connection-status";
+import { VimModeControl } from "./vim-mode-control";
 import { ProjectHistoryTrigger, projectHistoryOpenEvent } from "./project-history-trigger";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
@@ -345,13 +346,7 @@ import {
 import { WorkspaceRailTabs, workspaceRailChangeEvent } from "./workspace-rail-tabs";
 import { AuthoringModeTabs, authoringModeChangeEvent } from "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
-import {
-  bindVimTextarea,
-  bindYText,
-  captureRelativeSelection,
-  positionSourceCompletion,
-  type RelativeEditorSelection,
-} from "./source-editor-adapter";
+import { bindYText, captureRelativeSelection, positionSourceCompletion, type RelativeEditorSelection } from "./source-editor-adapter";
 import {
   citationCompletionContext,
   rankCitationCompletionCandidates,
@@ -520,8 +515,7 @@ interface Elements {
   projectMapTotal: HTMLElement;
   projectMapPanel: ProjectMapPanel;
   projectMapOverview: HTMLElement;
-  vimModeStatus: HTMLElement;
-  vimToggle: HTMLButtonElement;
+  vimModeControl: VimModeControl;
   editorInsertMenu: EditorInsertMenu;
   bibliography: HTMLTextAreaElement;
   manuscriptCommentListPanel: ManuscriptCommentList;
@@ -1175,7 +1169,7 @@ class WorkspaceApp {
     });
     this.#bindSourceEditor(this.#source);
     this.#rememberAuthoringSelection();
-    bindVimTextarea(this.#elements.source, this.#elements.sourceEditorShell, this.#elements.vimToggle, this.#elements.vimModeStatus);
+    this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
     this.#elements.newProjectFileRail.addEventListener("click", () => this.#openProjectFileDialog("create"));
@@ -7449,8 +7443,7 @@ function collectElements(): Elements {
     projectMapTotal: requiredElement("project-map-total", HTMLElement),
     projectMapPanel: requiredElement("project-map-canvas", ProjectMapPanel),
     projectMapOverview: requiredElement("project-map-overview", HTMLElement),
-    vimModeStatus: requiredElement("vim-mode-status", HTMLElement),
-    vimToggle: requiredElement("vim-toggle", HTMLButtonElement),
+    vimModeControl: requiredElement("vim-mode-control", VimModeControl),
     editorInsertMenu: requiredElement("editor-insert-menu-component", EditorInsertMenu),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
     manuscriptCommentListPanel: requiredElement("manuscript-comment-list-panel", ManuscriptCommentList),

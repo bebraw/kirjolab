@@ -2,7 +2,6 @@ import * as Y from "yjs";
 import { calculateTextSplice } from "../domain/text";
 import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHistoryAction } from "./editor-history";
 import { editorPresenceSegments, type EditorPresenceRange, type EditorPresenceSegment } from "./editor-presence";
-import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 
 export interface RelativeEditorSelection {
   readonly text: Y.Text;
@@ -16,8 +15,6 @@ export interface YTextBinding {
   readonly destroy: () => void;
   readonly renderHighlight: () => void;
 }
-
-type VimCommand = ReturnType<typeof handleVimKey>;
 
 export function bindYText(
   textarea: HTMLTextAreaElement,
@@ -126,56 +123,6 @@ export function positionSourceCompletion(textarea: HTMLTextAreaElement, completi
   mirror.remove();
 }
 
-export function bindVimTextarea(textarea: HTMLTextAreaElement, shell: HTMLElement, toggle: HTMLButtonElement, status: HTMLElement): void {
-  const storageKey = "kirjolab:vim-keybindings";
-  let enabled = localStorage.getItem(storageKey) === "true";
-  let session: VimSession = createVimSession();
-  const renderMode = (): void => {
-    toggle.setAttribute("aria-pressed", String(enabled));
-    toggle.title = enabled ? "Disable Vim keybindings" : "Enable Vim keybindings";
-    status.hidden = !enabled;
-    status.textContent = session.mode.toUpperCase();
-    shell.dataset.vimMode = enabled ? session.mode : "off";
-  };
-  const snapshot = () => ({
-    value: textarea.value,
-    selectionStart: textarea.selectionStart,
-    selectionEnd: textarea.selectionEnd,
-    selectionDirection: textarea.selectionDirection,
-  });
-
-  toggle.addEventListener("click", () => {
-    enabled = !enabled;
-    localStorage.setItem(storageKey, String(enabled));
-    session = createVimSession();
-    if (enabled) {
-      textarea.focus();
-      textarea.setSelectionRange(textarea.selectionStart, textarea.selectionStart);
-    }
-    renderMode();
-  });
-  textarea.addEventListener("keydown", (event) => {
-    const key = vimCommandKey(event, enabled);
-    if (!key) return;
-    const command = handleVimKey(session, snapshot(), key);
-    if (!command.handled) return;
-    event.preventDefault();
-    event.stopPropagation();
-    session = command.session;
-    applyVimCommand(textarea, command);
-    renderMode();
-  });
-  textarea.addEventListener("mouseup", () => {
-    if (!enabled) return;
-    session =
-      textarea.selectionStart === textarea.selectionEnd
-        ? { ...session, mode: "normal", pending: null, count: "" }
-        : visualVimSession(session);
-    renderMode();
-  });
-  renderMode();
-}
-
 export function captureRelativeSelection(textarea: HTMLTextAreaElement, text: Y.Text): RelativeEditorSelection {
   const collapsed = textarea.selectionStart === textarea.selectionEnd;
   return {
@@ -245,17 +192,4 @@ function sourceEditorLine(lineNumber: number): HTMLSpanElement {
   line.className = "source-editor-line";
   line.dataset.lineNumber = String(lineNumber);
   return line;
-}
-
-function vimCommandKey(event: KeyboardEvent, enabled: boolean): string | null {
-  if (!enabled || event.isComposing) return null;
-  const controlBracket = event.ctrlKey && !event.altKey && !event.metaKey && event.key === "[";
-  if (!controlBracket && (event.altKey || event.ctrlKey || event.metaKey)) return null;
-  return controlBracket ? "Ctrl-[" : event.key;
-}
-
-function applyVimCommand(textarea: HTMLTextAreaElement, command: VimCommand): void {
-  if (command.changed) textarea.value = command.value;
-  textarea.setSelectionRange(command.selectionStart, command.selectionEnd, command.selectionDirection);
-  if (command.changed) textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
 }
