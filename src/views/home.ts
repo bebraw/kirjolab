@@ -98,10 +98,10 @@ export function renderHomePage(
               }
             </div>
           </details>
-          <div class="flex items-center gap-2 text-xs text-app-text-soft" aria-live="polite">
+          <connection-status-panel class="flex items-center gap-2 text-xs text-app-text-soft" id="connection-status-panel" aria-live="polite">
             <span class="h-2 w-2 rounded-full bg-app-warn" id="connection-dot"></span>
             <span id="connection-status">Connecting</span>
-          </div>
+          </connection-status-panel>
           <button class="button-secondary hidden sm:inline-flex" id="share-workspace" type="button"${appMode === "library" ? " hidden" : ""}>Share project</button>
           <button class="button-primary" id="open-export" type="button">Export</button>
         </div>

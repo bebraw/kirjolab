@@ -60,6 +60,7 @@ import {
 import { filterReferenceLibrary } from "../domain/reference-filters";
 import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { EditorStatus } from "./editor-status";
+import { ConnectionStatus } from "./connection-status";
 import { ProjectHistoryTrigger, projectHistoryOpenEvent } from "./project-history-trigger";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
@@ -559,8 +560,7 @@ interface Elements {
   candidateReviewPanel: CandidateReviewPanel;
   preview: HTMLElement;
   diagnostics: PreviewDiagnosticsPanel;
-  connectionDot: HTMLElement;
-  connectionStatus: HTMLElement;
+  connectionStatus: ConnectionStatus;
   editorStatus: EditorStatus;
   pdfUpload: HTMLInputElement;
   projectEvidencePanel: ProjectEvidencePanel;
@@ -7313,8 +7313,7 @@ class WorkspaceApp {
   }
 
   #setConnection(label: string, connected: boolean): void {
-    this.#elements.connectionStatus.textContent = label;
-    this.#elements.connectionDot.className = `h-2 w-2 rounded-full ${connected ? "bg-app-accent" : "bg-app-warn"}`;
+    this.#elements.connectionStatus.setConnection(label, connected);
   }
 
   #setEditorsEnabled(enabled: boolean): void {
@@ -7490,8 +7489,7 @@ function collectElements(): Elements {
     candidateReviewPanel: requiredElement("candidate-review-panel", CandidateReviewPanel),
     preview: requiredElement("preview", HTMLElement),
     diagnostics: requiredElement("diagnostics", PreviewDiagnosticsPanel),
-    connectionDot: requiredElement("connection-dot", HTMLElement),
-    connectionStatus: requiredElement("connection-status", HTMLElement),
+    connectionStatus: requiredElement("connection-status-panel", ConnectionStatus),
     editorStatus: requiredElement("editor-status", EditorStatus),
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
     projectEvidencePanel: requiredElement("project-evidence-panel", ProjectEvidencePanel),

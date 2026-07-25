@@ -443,6 +443,10 @@ reason to wrap static markup mechanically.
   references and owns their text and target-tooltip presentation. The
   application coordinator retains authoring-target resolution, collaboration
   and offline-save policy, and the status values those workflows select.
+- The connection status component replaces separate label and tone element
+  references and owns their synchronized presentation. The application
+  coordinator retains collaboration-state interpretation and Library-mode
+  status policy.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,
