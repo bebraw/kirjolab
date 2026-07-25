@@ -503,10 +503,6 @@ interface Elements {
   bibliography: HTMLTextAreaElement;
   manuscriptCommentListPanel: ManuscriptCommentList;
   workspaceSurfaces: HTMLElement;
-  collapseSourceRail: HTMLButtonElement;
-  expandSourceRail: HTMLButtonElement;
-  sourceRailResizer: HTMLElement;
-  authoringContextResizer: HTMLElement;
   previewSyncControls: PreviewSyncControls;
   workspaceSurfaceSwitcher: WorkspaceSurfaceSwitcher;
   openSourceCitation: HTMLButtonElement;
@@ -745,19 +741,10 @@ class WorkspaceApp {
       (page) => this.#handlePdfPageChange(page),
       (highlightId) => this.#selectLibraryHighlight(highlightId),
     );
-    this.#layout = new WorkspaceLayoutManager(
-      {
-        authoringContextResizer: this.#elements.authoringContextResizer,
-        collapseSourceRail: this.#elements.collapseSourceRail,
-        expandSourceRail: this.#elements.expandSourceRail,
-        sourceRailResizer: this.#elements.sourceRailResizer,
-        workspaceSurfaces: this.#elements.workspaceSurfaces,
-      },
-      {
-        paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
-        resizePdf: () => void this.#pdfViewer.resize(),
-      },
-    );
+    this.#layout = WorkspaceLayoutManager.forWorkspace(this.#elements.workspaceSurfaces, {
+      paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
+      resizePdf: () => void this.#pdfViewer.resize(),
+    });
   }
 
   #pdfAnnotationSnapshot(): PdfAnnotationSnapshot {
@@ -7306,10 +7293,6 @@ function collectElements(): Elements {
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
     manuscriptCommentListPanel: requiredElement("manuscript-comment-list-panel", ManuscriptCommentList),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
-    collapseSourceRail: requiredElement("collapse-source-rail", HTMLButtonElement),
-    expandSourceRail: requiredElement("expand-source-rail", HTMLButtonElement),
-    sourceRailResizer: requiredElement("source-rail-resizer", HTMLElement),
-    authoringContextResizer: requiredElement("authoring-context-resizer", HTMLElement),
     previewSyncControls: requiredElement("preview-sync-controls", PreviewSyncControls),
     workspaceSurfaceSwitcher: requiredElement("workspace-surface-switcher", WorkspaceSurfaceSwitcher),
     openSourceCitation: requiredElement("open-source-citation", HTMLButtonElement),

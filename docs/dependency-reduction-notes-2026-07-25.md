@@ -2066,3 +2066,22 @@ host styling grows from 135,376 B raw / 23,364 B gzip to 135,411 B raw / 23,373
 B gzip (+35 B raw / +9 B gzip). Direct and unique production package counts
 remain unchanged at 18 and 150. Full native CI passes all 1,381 unit/coverage
 tests, 120 Workers-runtime tests, and 74 browser tests.
+
+## Continued Coordinator Reduction: Workspace Layout Controls
+
+`WorkspaceLayoutManager` now resolves its four bounded rail and pane controls
+beneath the workspace root. `WorkspaceApp` supplies only that root, the
+context-specific pane key, and the PDF resize hook; it no longer exposes
+manager-internal controls through its global element registry.
+
+This checkpoint reduces `src/client/app.ts` from 7,466 to 7,449 lines (-17),
+removes four coordinator-only element references, and adds explicit failure for
+an incomplete layout shell. Focused unit and browser coverage passes rail
+collapse, pointer and keyboard resizing, persistence, responsive restoration,
+pane resizing, focus transfer, and missing-control detection.
+
+The browser application artifact changes from 788,927 B raw / 212,646 B gzip to
+788,880 B raw / 212,687 B gzip (-47 B raw / +41 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip and 18 and 150. Full native CI passes all 1,383 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

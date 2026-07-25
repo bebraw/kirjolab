@@ -14,6 +14,11 @@ class FakeElement extends EventTarget {
   focused = false;
   rect = { bottom: 100, height: 100, left: 0, right: 100, top: 0, width: 100 };
   readonly pointers = new Set<number>();
+  readonly descendants = new Map<string, FakeElement>();
+
+  querySelector(selector: string): FakeElement | null {
+    return this.descendants.get(selector) ?? null;
+  }
 
   focus(): void {
     this.focused = true;
@@ -75,6 +80,10 @@ function fixture(): { readonly elements: WorkspaceLayoutElements; readonly fakes
   paneResizer.nextElementSibling = context;
   const collapse = new FakeElement();
   const expand = new FakeElement();
+  surfaces.descendants.set("#authoring-context-resizer", paneResizer);
+  surfaces.descendants.set("#collapse-source-rail", collapse);
+  surfaces.descendants.set("#expand-source-rail", expand);
+  surfaces.descendants.set("#source-rail-resizer", sourceResizer);
   return {
     elements: {
       authoringContextResizer: paneResizer,
@@ -104,6 +113,23 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("workspace layout manager", () => {
+  it("resolves workspace-owned controls from the layout root", () => {
+    const { fakes } = fixture();
+    const manager = WorkspaceLayoutManager.forWorkspace(fakes.surfaces, { paneStorageKey: () => "pane", resizePdf: vi.fn() });
+    manager.bind();
+    fakes.collapse.dispatchEvent(event("click"));
+    expect(fakes.surfaces.dataset.sourceRail).toBe("collapsed");
+    expect(fakes.expand.focused).toBe(true);
+  });
+
+  it("rejects an incomplete workspace layout", () => {
+    const { fakes } = fixture();
+    fakes.surfaces.descendants.delete("#source-rail-resizer");
+    expect(() => WorkspaceLayoutManager.forWorkspace(fakes.surfaces, { paneStorageKey: () => "pane", resizePdf: vi.fn() })).toThrow(
+      "Required workspace layout control is missing: #source-rail-resizer",
+    );
+  });
+
   it("restores and toggles source-rail collapse with focus transfer", () => {
     storage.set("kirjolab:source-rail-collapsed", "true");
     const { elements, fakes } = fixture();

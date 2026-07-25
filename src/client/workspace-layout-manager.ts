@@ -28,6 +28,10 @@ export interface WorkspaceLayoutElements {
   readonly workspaceSurfaces: WorkspaceLayoutElement;
 }
 
+interface WorkspaceLayoutRoot extends WorkspaceLayoutElement {
+  querySelector(selectors: string): Element | WorkspaceLayoutElement | null;
+}
+
 export interface WorkspaceLayoutHooks {
   readonly paneStorageKey: () => string;
   readonly resizePdf: () => void;
@@ -40,6 +44,19 @@ export class WorkspaceLayoutManager {
   constructor(elements: WorkspaceLayoutElements, hooks: WorkspaceLayoutHooks) {
     this.#elements = elements;
     this.#hooks = hooks;
+  }
+
+  static forWorkspace(workspaceSurfaces: WorkspaceLayoutRoot, hooks: WorkspaceLayoutHooks): WorkspaceLayoutManager {
+    return new WorkspaceLayoutManager(
+      {
+        authoringContextResizer: requiredLayoutElement(workspaceSurfaces, "#authoring-context-resizer"),
+        collapseSourceRail: requiredLayoutElement(workspaceSurfaces, "#collapse-source-rail"),
+        expandSourceRail: requiredLayoutElement(workspaceSurfaces, "#expand-source-rail"),
+        sourceRailResizer: requiredLayoutElement(workspaceSurfaces, "#source-rail-resizer"),
+        workspaceSurfaces,
+      },
+      hooks,
+    );
   }
 
   bind(): void {
@@ -228,6 +245,12 @@ export class WorkspaceLayoutManager {
 
 function isLayoutElement(value: Element | WorkspaceLayoutElement | null): value is WorkspaceLayoutElement {
   return value !== null && "getBoundingClientRect" in value;
+}
+
+function requiredLayoutElement(root: WorkspaceLayoutRoot, selector: string): WorkspaceLayoutElement {
+  const element = root.querySelector(selector);
+  if (!isLayoutElement(element)) throw new Error(`Required workspace layout control is missing: ${selector}`);
+  return element;
 }
 
 function isResizeKey(key: string): key is "ArrowLeft" | "ArrowRight" | "Home" {

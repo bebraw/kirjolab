@@ -120,8 +120,11 @@ collaboration.
   shell and count from its authoritative publication data.
   One bounded layout manager owns rail collapse and resizing, authoring/context
   pane resizing, keyboard and pointer interactions, ARIA values, browser-local
-  persistence, and PDF resize notification. Widths remain context-specific
-  transient UI state rather than collaborative data or workspace URL state.
+  persistence, PDF resize notification, and resolution of its controls beneath
+  the workspace root. The coordinator supplies that root plus context and PDF
+  hooks rather than collecting each internal control. Widths remain
+  context-specific transient UI state rather than collaborative data or
+  workspace URL state.
   On desktop the rail width is adjustable by pointer or keyboard within bounded
   readable limits and persists as a browser-local, cross-project preference.
   It can collapse without losing that width and exposes an editor-toolbar
