@@ -335,6 +335,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="library-discovery-form"');
     expect(html).toContain('id="library-discovery-query" type="search" maxlength="4000" required');
     expect(html).toContain('id="library-discovery-status" role="status" aria-live="polite"');
+    expect(html).toContain('<library-discovery-results class="library-discovery-results" id="library-discovery-results">');
     expect(html).toContain("Results are not saved automatically.");
     expect(html).toContain('title="Filter and sort references">Filter</summary>');
     expect(html).toContain('aria-label="Library tools" title="Library tools">•••</summary>');

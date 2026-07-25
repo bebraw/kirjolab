@@ -371,7 +371,7 @@ export function renderHomePage(
                 <button class="button-primary library-discovery-submit" type="submit">Search references</button>
               </form>
               <p class="library-discovery-status" id="library-discovery-status" role="status" aria-live="polite">Search Crossref and available scholarly indexes. Results are not saved automatically.</p>
-              <div class="library-discovery-results" id="library-discovery-results"></div>
+              <library-discovery-results class="library-discovery-results" id="library-discovery-results"></library-discovery-results>
             </details>
             <div class="library-toolbar">
               <div class="library-search">

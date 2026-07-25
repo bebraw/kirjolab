@@ -5083,7 +5083,12 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   const api = `/api/workspaces/${workspaceId}`;
   const requests: unknown[] = [];
   await page.route("**/api/library/discovery", async (route) => {
-    expect(route.request().postDataJSON()).toEqual({ query: "visible evidence review time" });
+    const input: unknown = route.request().postDataJSON();
+    expect(input).toEqual(
+      "author" in (input as Record<string, unknown>)
+        ? { query: "visible evidence review time", author: "", year: "", type: "" }
+        : { query: "visible evidence review time" },
+    );
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -5186,6 +5191,16 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await page.getByRole("button", { name: "Save to library" }).click();
   await expect(page.getByRole("button", { name: "Saved to library" })).toBeDisabled();
   expect(requests).toHaveLength(6);
+
+  await page.getByRole("tab", { name: "Library" }).click();
+  await page.locator("#library-discovery").getByText("Discover scholarly works").click();
+  await page.locator("#library-discovery-query").fill("visible evidence review time");
+  await page.locator("#library-discovery-form").getByRole("button", { name: "Search references" }).click();
+  const discoveryResults = page.locator("#library-discovery-results");
+  await expect(discoveryResults.getByText("Verified discovery")).toBeVisible();
+  await expect(discoveryResults.getByRole("link", { name: "Verify DOI" })).toHaveAttribute("href", "https://doi.org/10.5555/discovery");
+  await discoveryResults.getByRole("button", { name: "Save to library" }).click();
+  await expect(discoveryResults.getByRole("button", { name: "Saved to library" })).toBeDisabled();
 });
 
 test("moves evidence from PDF annotation through reviewed model prose", async ({ page }) => {

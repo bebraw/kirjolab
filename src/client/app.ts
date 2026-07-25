@@ -195,6 +195,7 @@ import {
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
+import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -488,7 +489,7 @@ interface Elements {
   libraryDiscoveryYear: HTMLInputElement;
   libraryDiscoveryType: HTMLSelectElement;
   libraryDiscoveryStatus: HTMLElement;
-  libraryDiscoveryResults: HTMLElement;
+  libraryDiscoveryResults: LibraryDiscoveryResults;
   libraryBibliographyUpload: HTMLInputElement;
   libraryCslUpload: HTMLInputElement;
   libraryArchiveUpload: HTMLInputElement;
@@ -1229,6 +1230,10 @@ class WorkspaceApp {
     });
     this.#elements.contextLibraryTab.addEventListener("click", () => void this.#openReferenceLibrary());
     this.#elements.libraryDiscoveryForm.addEventListener("submit", (event) => void this.#discoverLibraryReferences(event));
+    this.#elements.libraryDiscoveryResults.addEventListener(libraryDiscoverySaveEvent, (event) => {
+      const { index, result } = (event as CustomEvent<LibraryDiscoverySaveDetail>).detail;
+      void this.#saveLibraryDiscoveredReference(result, index);
+    });
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
     this.#elements.libraryArchiveUpload.addEventListener("change", () => void this.#importLibraryArchive());
@@ -4038,7 +4043,7 @@ class WorkspaceApp {
     const submit = this.#elements.libraryDiscoveryForm.querySelector<HTMLButtonElement>('button[type="submit"]');
     if (submit) submit.disabled = true;
     this.#elements.libraryDiscoveryStatus.textContent = "Searching scholarly indexes…";
-    this.#elements.libraryDiscoveryResults.replaceChildren();
+    this.#elements.libraryDiscoveryResults.setResults([]);
     try {
       const response = await jsonFetch("/api/library/discovery", {
         query: this.#elements.libraryDiscoveryQuery.value,
@@ -4061,41 +4066,7 @@ class WorkspaceApp {
   }
 
   #renderLibraryDiscoveryResults(results: readonly ReferenceDiscoveryResult[]): void {
-    this.#elements.libraryDiscoveryResults.replaceChildren();
-    for (const result of results) this.#elements.libraryDiscoveryResults.append(this.#referenceDiscoveryCard(result));
-  }
-
-  #referenceDiscoveryCard(result: ReferenceDiscoveryResult): HTMLElement {
-    const card = document.createElement("article");
-    card.className = "resource-card";
-    const provider = document.createElement("p");
-    provider.className = "eyebrow";
-    provider.textContent = result.providers
-      .map(({ provider: name }) => (name === "semantic-scholar" ? "Semantic Scholar" : name === "openalex" ? "OpenAlex" : "Crossref"))
-      .join(" + ");
-    const title = document.createElement("h3");
-    title.className = "mt-2 text-base font-semibold";
-    title.textContent = result.metadata.title;
-    const meta = document.createElement("p");
-    meta.className = "mt-2 text-xs text-app-text-soft";
-    meta.textContent = [result.metadata.authors.join("; "), result.metadata.year, result.metadata.venue].filter(Boolean).join(" · ");
-    const actions = document.createElement("div");
-    actions.className = "mt-3 flex flex-wrap gap-2";
-    const identifier = result.identifiers[0]!;
-    const verify = document.createElement("a");
-    verify.className = "button-secondary";
-    verify.href = referenceDiscoveryIdentifierUrl(identifier);
-    verify.target = "_blank";
-    verify.rel = "noopener noreferrer";
-    verify.textContent = `Verify ${identifier.scheme === "semantic-scholar" ? "Semantic Scholar" : identifier.scheme.toUpperCase()}`;
-    const save = document.createElement("button");
-    save.className = "button-primary";
-    save.type = "button";
-    save.textContent = "Save to library";
-    save.addEventListener("click", () => void this.#saveLibraryDiscoveredReference(result, save));
-    actions.append(verify, save);
-    card.append(provider, title, meta, actions);
-    return card;
+    this.#elements.libraryDiscoveryResults.setResults(results);
   }
 
   #renderReferenceLibrary(): void {
@@ -7994,13 +7965,13 @@ class WorkspaceApp {
     }
   }
 
-  async #saveLibraryDiscoveredReference(result: ReferenceDiscoveryResult, button: HTMLButtonElement): Promise<void> {
-    button.disabled = true;
+  async #saveLibraryDiscoveredReference(result: ReferenceDiscoveryResult, index: number): Promise<void> {
+    this.#elements.libraryDiscoveryResults.setSaveState(index, "saving");
     try {
       await this.#importDiscoveredReference(result);
-      button.textContent = "Saved to library";
+      this.#elements.libraryDiscoveryResults.setSaveState(index, "saved");
     } catch (error) {
-      button.disabled = false;
+      this.#elements.libraryDiscoveryResults.setSaveState(index, "idle");
       this.#elements.libraryDiscoveryStatus.textContent = error instanceof Error ? error.message : "Could not save the reference";
     }
   }
@@ -9981,7 +9952,7 @@ function collectElements(): Elements {
     libraryDiscoveryYear: requiredElement("library-discovery-year", HTMLInputElement),
     libraryDiscoveryType: requiredElement("library-discovery-type", HTMLSelectElement),
     libraryDiscoveryStatus: requiredElement("library-discovery-status", HTMLElement),
-    libraryDiscoveryResults: requiredElement("library-discovery-results", HTMLElement),
+    libraryDiscoveryResults: requiredElement("library-discovery-results", LibraryDiscoveryResults),
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
     libraryArchiveUpload: requiredElement("library-archive-upload", HTMLInputElement),

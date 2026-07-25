@@ -707,3 +707,25 @@ and 74 browser tests. The rebuilt browser application is 690,331 B raw and
 193,100 B gzip, an increase of 1,616 B raw and 386 B gzip from the project-tree
 checkpoint. Direct and unique production package counts remain unchanged at 18
 and 150.
+
+## Continued Lit Extraction: Library Discovery Results
+
+Manual Library discovery now uses one bounded `LibraryDiscoveryResults`
+component instead of imperative provider, metadata, verification-link, and
+save-button card rendering. The component owns result presentation and local
+save progress while emitting a typed save intent. `WorkspaceApp` retains
+provider requests, response validation, CSL import, Library refreshes, and
+status policy.
+
+This checkpoint reduces `src/client/app.ts` from 10,468 to 10,439 lines (-29).
+The component adds 105 lines and reaches 91.66% statement coverage and 93.1%
+line coverage across empty, provider-combined, saving, saved, retry, known
+selection, and rejected-selection states. A focused browser workflow passes
+federated result presentation, verification, saving, and saved-state feedback
+through the manual Library surface.
+
+Full native CI passes all 1,251 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 691,354 B raw and
+193,265 B gzip, an increase of 1,023 B raw and 165 B gzip from the
+manuscript-map checkpoint. Direct and unique production package counts remain
+unchanged at 18 and 150.

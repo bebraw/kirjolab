@@ -89,6 +89,8 @@ The adopted components own bounded presentation:
 - The manuscript map panel owns summary metrics, heading outline, structural
   cues, local editing-pass selection, editing cues, and typed source-range
   selection intents.
+- The Library discovery results panel owns provider, metadata, verification,
+  and local save-progress presentation with typed save intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -175,6 +177,10 @@ reason to wrap static markup mechanically.
   imperative metric, outline, structural-cue, and editing-cue renderers while
   leaving composed-source derivation and file-qualified editor focus in the
   application coordinator.
+- The Library discovery results panel replaces its imperative result-card and
+  save-button renderer while leaving provider requests, response validation,
+  CSL import, Library refreshes, and status policy in the application
+  coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

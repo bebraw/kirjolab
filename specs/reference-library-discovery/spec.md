@@ -28,6 +28,10 @@ indexes.
   another provider's results.
 - Results remain ephemeral until the researcher explicitly saves one through
   the existing reviewed CSL JSON import path.
+- The bounded results view owns provider and metadata presentation,
+  verification links, and local saving or saved state. It emits the selected
+  validated result; the application coordinator retains persistence and
+  refresh authority.
 - Discovery identity is a typed set of DOI, OpenAlex, Semantic Scholar, arXiv,
   and PubMed identifiers. DOI is preferred when present but is not required.
 - Provider records sharing any normalized identifier collapse into one result.
