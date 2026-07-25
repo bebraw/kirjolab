@@ -171,6 +171,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('<writing-workflow-panel id="reviewer-response-panel" data-workflow-kind="reviewer-responses">');
     expect(html).toContain('<assistant-result-panel class="mt-4" id="assistant-interactive-result" aria-live="polite">');
     expect(html).toContain('<project-map-panel class="project-map-canvas" id="project-map-canvas">');
+    expect(html).toContain('<knowledge-connections-panel class="project-map-connections" id="knowledge-connections-panel"');
     expect(html).toContain("Browse, compare, restore, or branch from saved versions.");
     expect(html).toContain('id="open-export" type="button">Export</button>');
     expect(html).toContain('id="share-workspace" type="button">Share project</button>');

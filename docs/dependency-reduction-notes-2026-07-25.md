@@ -839,3 +839,22 @@ Full native CI passes all 1,262 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 701,258 B raw
 / 194,976 B gzip to 701,516 B raw / 195,023 B gzip (+258 B raw / +47 B gzip).
 Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Knowledge Connections
+
+The authoring Map's accessible connection list now uses a bounded
+`KnowledgeConnectionsPanel` instead of two element references and imperative
+edge-card, relationship-label, resource-link, count, and empty-state rendering.
+The component emits typed resource-selection intents. `WorkspaceApp` retains
+knowledge-graph derivation and all cross-resource navigation policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,952 to 9,918 lines (-34).
+The component adds 88 lines. Component tests cover empty, linked, labelled,
+unresolved-edge, valid-selection, and rejected-selection states. The focused
+browser workflow passes annotation, claim, candidate, and typed-connection
+presentation. The component records 86.95% statement and 90% line coverage.
+
+Full native CI passes all 1,264 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 701,516 B raw
+/ 195,023 B gzip to 702,559 B raw / 195,079 B gzip (+1,043 B raw / +56 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

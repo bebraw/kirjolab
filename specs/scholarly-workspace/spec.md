@@ -238,6 +238,9 @@ collaboration.
   representations expose documents, sections, publications, PDFs, and
   annotations as navigable resources in the authoring Map without making an
   index or visual layout authoritative.
+  A bounded light-DOM connection panel owns edge counts, relationship cards,
+  empty state, and typed resource-selection intents; the application
+  coordinator retains graph derivation and navigation authority.
 - **Claims:** Human-authored propositions connect annotations to manuscript
   passages through explicit `supports`, `contradicts`, `extends`, and `used-in`
   relationships.

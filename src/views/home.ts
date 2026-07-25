@@ -313,13 +313,13 @@ export function renderHomePage(
               <svg id="project-map-graph" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true" focusable="false"></svg>
               <div class="project-map-nodes" id="project-map-nodes" role="group" aria-label="Project resources"></div>
             </project-map-panel>
-            <section class="project-map-connections" aria-labelledby="project-map-connections-heading">
+            <knowledge-connections-panel class="project-map-connections" id="knowledge-connections-panel" aria-labelledby="project-map-connections-heading">
               <div class="project-map-connections-header">
                 <h3 id="project-map-connections-heading">Connections</h3>
                 <span class="count-badge" id="connection-count">0</span>
               </div>
-              <div class="project-map-connection-list" id="knowledge-connection-list"><div class="empty-state">No connections yet.</div></div>
-            </section>
+              <div class="project-map-connection-list" id="knowledge-connection-list"><div class="empty-state">Citations and evidence links appear here as typed connections.</div></div>
+            </knowledge-connections-panel>
           </div>
         </section>
         <p class="sr-only" id="editor-help">Collaborative Markdown source. Chapter sections start at heading level two. Select text to link it to an annotation. Undo with Command-Z or Control-Z; redo with Command-Shift-Z, Control-Shift-Z, or Control-Y.</p>

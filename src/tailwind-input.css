@@ -1583,7 +1583,8 @@
   preview-diagnostics-panel,
   publication-intake-panel,
   latex-import-panel,
-  export-statistics-panel {
+  export-statistics-panel,
+  knowledge-connections-panel {
     display: block;
   }
 

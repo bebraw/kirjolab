@@ -1,11 +1,6 @@
 import * as Y from "yjs";
 import { bibTeXDisplayText } from "../domain/bibliography";
-import {
-  buildWorkspaceKnowledgeGraph,
-  isKnowledgeSearchResults,
-  type KnowledgeGraphNode,
-  type WorkspaceKnowledgeGraph,
-} from "../domain/knowledge";
+import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
 import { isCitationNetwork, type CitationNetwork } from "../domain/citation-assertions";
 import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
@@ -184,6 +179,7 @@ import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refineme
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
 import { ProjectMapPanel, projectMapSelectEvent } from "./project-map-panel";
 import { KnowledgeSearchPanel, knowledgeSearchEvent, knowledgeSearchSelectEvent } from "./knowledge-search-panel";
+import { KnowledgeConnectionsPanel, knowledgeConnectionSelectEvent } from "./knowledge-connections-panel";
 import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
@@ -636,8 +632,7 @@ interface Elements {
   claimRelation: HTMLSelectElement;
   claimEvidenceOptions: HTMLElement;
   cancelClaim: HTMLButtonElement;
-  connectionCount: HTMLElement;
-  knowledgeConnectionList: HTMLElement;
+  knowledgeConnectionsPanel: KnowledgeConnectionsPanel;
   annotationForm: HTMLFormElement;
   annotationComposer: HTMLElement;
   libraryHighlightComposer: HTMLElement;
@@ -1377,6 +1372,9 @@ class WorkspaceApp {
       void this.#searchKnowledge((event as CustomEvent<string>).detail);
     });
     this.#elements.knowledgeSearchPanel.addEventListener(knowledgeSearchSelectEvent, (event) => {
+      this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
+    });
+    this.#elements.knowledgeConnectionsPanel.addEventListener(knowledgeConnectionSelectEvent, (event) => {
       this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
     });
     this.#elements.projectMapPanel.addEventListener(projectMapSelectEvent, (event) => {
@@ -5591,40 +5589,9 @@ class WorkspaceApp {
   }
 
   #renderKnowledgeGraph(graph: WorkspaceKnowledgeGraph): void {
-    this.#elements.connectionCount.textContent = String(graph.edges.length);
     this.#elements.projectMapTotal.textContent = `${graph.nodes.length} ${graph.nodes.length === 1 ? "resource" : "resources"} · ${graph.edges.length} ${graph.edges.length === 1 ? "link" : "links"}`;
     this.#elements.projectMapPanel.setGraph(graph);
-    this.#elements.knowledgeConnectionList.replaceChildren();
-    if (graph.edges.length === 0) {
-      this.#elements.knowledgeConnectionList.append(emptyState("Citations and evidence links appear here as typed connections."));
-      return;
-    }
-    const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
-    for (const edge of graph.edges) {
-      const from = nodes.get(edge.from);
-      const to = nodes.get(edge.to);
-      if (!from || !to) continue;
-      const card = document.createElement("article");
-      card.className = "resource-card";
-      card.append(resourceLabel(edge.relation));
-      const path = document.createElement("div");
-      path.className = "mt-2 flex flex-wrap items-center gap-2 font-sans text-xs";
-      path.append(this.#knowledgeLink(from), document.createTextNode("→"), this.#knowledgeLink(to));
-      card.append(path);
-      if (edge.label) {
-        const label = document.createElement("p");
-        label.className = "mt-2 font-sans text-xs text-app-text-soft";
-        label.textContent = edge.label;
-        card.append(label);
-      }
-      this.#elements.knowledgeConnectionList.append(card);
-    }
-  }
-
-  #knowledgeLink(node: KnowledgeGraphNode): HTMLButtonElement {
-    return actionButton(node.label, "font-bold text-app-accent-strong underline decoration-app-border underline-offset-4", () =>
-      this.#focusKnowledgeResource(node.id),
-    );
+    this.#elements.knowledgeConnectionsPanel.setGraph(graph);
   }
 
   #focusKnowledgeResource(resourceId: string): void {
@@ -9669,8 +9636,7 @@ function collectElements(): Elements {
     claimRelation: requiredElement("claim-relation", HTMLSelectElement),
     claimEvidenceOptions: requiredElement("claim-evidence-options", HTMLElement),
     cancelClaim: requiredElement("cancel-claim", HTMLButtonElement),
-    connectionCount: requiredElement("connection-count", HTMLElement),
-    knowledgeConnectionList: requiredElement("knowledge-connection-list", HTMLElement),
+    knowledgeConnectionsPanel: requiredElement("knowledge-connections-panel", KnowledgeConnectionsPanel),
     annotationForm: requiredElement("annotation-form", HTMLFormElement),
     annotationComposer: requiredElement("annotation-composer", HTMLElement),
     libraryHighlightComposer: requiredElement("library-highlight-composer", HTMLElement),
