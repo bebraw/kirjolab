@@ -185,6 +185,11 @@ memory and makes citation aliases compete with stable source identity.
   edit, delete, and drawing-style intents. The application coordinator retains
   the annotation interaction state machine, captured geometry, active resource
   identity, persistence, refreshes, inspector policy, and toasts.
+- A companion light-DOM toolbar component owns active-tool presentation,
+  drawing color and width, undo and export availability, annotation count, and
+  inspector-expanded state. It emits typed tool, undo, export, and inspector
+  intents. The application coordinator retains gestures, annotation state,
+  drawing persistence, annotated export, and inspector policy.
 - Saved text-highlight comments and page-note bodies expose an explicit edit
   action. Editing preserves the annotation id, page, geometry, and creation
   time while advancing its update time; it never changes the immutable PDF.

@@ -151,6 +151,9 @@ The adopted components own bounded presentation:
 - The Library PDF annotation forms own private-highlight, page-note, and
   selected-markup composer visibility and values plus typed save, cancel, edit,
   delete, and drawing-style intents.
+- The Library PDF annotation toolbar owns tool and drawing-style controls,
+  annotation availability and inspector state, and typed tool, undo, export,
+  and inspector intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -335,6 +338,12 @@ reason to wrap static markup mechanically.
   composer visibility updates, and DOM-based value collection while leaving the
   PDF interaction state machine, selection and drawing geometry, mutations,
   refreshes, inspector policy, and toasts in the application coordinator.
+- The Library PDF annotation toolbar replaces twelve internal element
+  references, tool, input, undo, export, and inspector bindings, and imperative
+  active-tool, width-label, availability, count, and expanded-state updates
+  while leaving gestures, the annotation state machine, drawing persistence,
+  annotated export, inspector policy, and toasts in the application
+  coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

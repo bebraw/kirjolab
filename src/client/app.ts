@@ -94,6 +94,7 @@ import {
   libraryPdfAnnotationActionEvent,
   type LibraryPdfAnnotationAction,
 } from "./library-pdf-annotation-forms";
+import { LibraryPdfAnnotationToolbar, libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import {
   ProjectStartingPointBrowser,
   startingPointActionEvent,
@@ -566,25 +567,14 @@ interface Elements {
   projectAnnotationForm: ProjectAnnotationForm;
   annotationComposer: HTMLElement;
   libraryHighlightComposer: HTMLElement;
-  openLibraryPdfInspector: HTMLButtonElement;
   closeLibraryPdfInspector: HTMLButtonElement;
   libraryAnnotationDetails: HTMLDetailsElement;
   pdfHighlightImportPanel: PdfHighlightImportPanel;
   libraryPdfAnnotationForms: LibraryPdfAnnotationForms;
+  libraryPdfAnnotationToolbar: LibraryPdfAnnotationToolbar;
   libraryHighlightStatus: HTMLElement;
   libraryProjectUse: HTMLElement;
-  libraryHighlightCount: HTMLElement;
   libraryHighlightList: HTMLElement;
-  librarySelectTool: HTMLButtonElement;
-  libraryTextTool: HTMLButtonElement;
-  libraryNoteTool: HTMLButtonElement;
-  libraryDrawTool: HTMLButtonElement;
-  libraryInkOptions: HTMLElement;
-  libraryDrawColor: HTMLInputElement;
-  libraryDrawWidth: HTMLInputElement;
-  libraryDrawWidthValue: HTMLOutputElement;
-  undoLibraryDrawing: HTMLButtonElement;
-  exportLibraryAnnotatedPdf: HTMLButtonElement;
   highlightPaintTool: HTMLButtonElement;
   highlightEraserTool: HTMLButtonElement;
   undoHighlight: HTMLButtonElement;
@@ -1265,11 +1255,13 @@ class WorkspaceApp {
       else if (action.action === "delete-markup") void this.#deleteSelectedLibraryPdfMarkup();
       else this.#clearLibraryPdfMarkupSelection();
     });
-    this.#elements.librarySelectTool.addEventListener("click", () => this.#setLibraryPdfTool("select"));
-    this.#elements.libraryTextTool.addEventListener("click", () => this.#setLibraryPdfTool("text"));
-    this.#elements.libraryNoteTool.addEventListener("click", () => this.#setLibraryPdfTool("note"));
-    this.#elements.libraryDrawTool.addEventListener("click", () => this.#setLibraryPdfTool("draw"));
-    this.#elements.openLibraryPdfInspector.addEventListener("click", () => this.#setLibraryPdfInspector(true, true));
+    this.#elements.libraryPdfAnnotationToolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => {
+      const action = (event as CustomEvent<LibraryPdfToolbarAction>).detail;
+      if (action.action === "choose-tool") this.#setLibraryPdfTool(action.tool);
+      else if (action.action === "undo-drawing") void this.#undoLibraryDrawing();
+      else if (action.action === "export-annotated") void this.#downloadAnnotatedPdf();
+      else this.#setLibraryPdfInspector(true, true);
+    });
     this.#elements.closeLibraryPdfInspector.addEventListener("click", () => this.#closeLibraryPdfInspector());
     this.#elements.pdfHighlightImportPanel.addEventListener(pdfHighlightImportActionEvent, (event) => {
       const action = (event as CustomEvent<PdfHighlightImportAction>).detail;
@@ -1277,11 +1269,6 @@ class WorkspaceApp {
       else if (action.action === "import") void this.#importDetectedPdfHighlights(action.candidates);
       else this.#pdfHighlightDetectionArtifactId = null;
     });
-    this.#elements.libraryDrawWidth.addEventListener("input", () => {
-      this.#elements.libraryDrawWidthValue.value = this.#elements.libraryDrawWidth.value;
-    });
-    this.#elements.undoLibraryDrawing.addEventListener("click", () => void this.#undoLibraryDrawing());
-    this.#elements.exportLibraryAnnotatedPdf.addEventListener("click", () => void this.#downloadAnnotatedPdf());
     this.#elements.paperMarkups.addEventListener("pointerdown", (event) => this.#startLibraryPdfMarkup(event));
     this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfDrawing(event));
     this.#elements.paperMarkups.addEventListener("pointerup", (event) => void this.#finishLibraryPdfDrawing(event));
@@ -7411,8 +7398,10 @@ class WorkspaceApp {
     const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
     this.#pdfViewer.updatePrivateHighlights(highlights);
     const markups = (this.#librarySnapshot.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id);
-    this.#elements.exportLibraryAnnotatedPdf.disabled = highlights.length + markups.length === 0;
-    this.#elements.libraryHighlightCount.textContent = String(highlights.length + markups.length);
+    this.#elements.libraryPdfAnnotationToolbar.setAnnotationAvailability(
+      highlights.length + markups.length,
+      markups.filter((markup) => markup.kind === "drawing").length,
+    );
     this.#elements.libraryHighlightList.replaceChildren();
     if (highlights.length === 0 && markups.length === 0) {
       this.#elements.libraryHighlightList.append(emptyState("No private annotations yet."));
@@ -7680,7 +7669,7 @@ class WorkspaceApp {
 
   #setLibraryPdfInspector(open: boolean, showAnnotations = false): void {
     this.#elements.libraryHighlightComposer.dataset.inspectorOpen = String(open);
-    this.#elements.openLibraryPdfInspector.setAttribute("aria-expanded", String(open));
+    this.#elements.libraryPdfAnnotationToolbar.setInspectorOpen(open);
     if (showAnnotations) this.#elements.libraryAnnotationDetails.open = true;
   }
 
@@ -7689,7 +7678,7 @@ class WorkspaceApp {
     if (this.#elements.libraryPdfAnnotationForms.noteOpen) this.#clearLibraryPdfNoteDraft();
     if (this.#elements.libraryPdfAnnotationForms.markupOpen) this.#clearLibraryPdfMarkupSelection();
     this.#setLibraryPdfInspector(false);
-    this.#elements.openLibraryPdfInspector.focus();
+    this.#elements.libraryPdfAnnotationToolbar.focusInspectorButton();
   }
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
@@ -7698,23 +7687,12 @@ class WorkspaceApp {
     if (tool !== "draw") delete this.#elements.paperMarkups.dataset.drawingActive;
     this.#elements.paperMarkups.dataset.tool = tool;
     this.#elements.paperTextLayer.style.pointerEvents = tool === "text" ? "auto" : "none";
-    this.#updateLibraryPdfToolButtons(tool);
-    this.#elements.libraryInkOptions.hidden = tool !== "draw";
+    this.#elements.libraryPdfAnnotationToolbar.setTool(tool);
     this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#selectedLibraryHighlightId());
     this.#elements.libraryHighlightStatus.textContent = this.#libraryPdfToolStatus(tool);
     if (tool !== "note") this.#clearLibraryPdfNoteDraft(false);
     if (tool !== "select") this.#clearLibraryPdfMarkupSelection(false);
     if (this.#libraryPdfInspectorEmpty()) this.#setLibraryPdfInspector(false);
-  }
-
-  #updateLibraryPdfToolButtons(tool: PdfAnnotationTool): void {
-    for (const [button, value] of [
-      [this.#elements.librarySelectTool, "select"],
-      [this.#elements.libraryTextTool, "text"],
-      [this.#elements.libraryNoteTool, "note"],
-      [this.#elements.libraryDrawTool, "draw"],
-    ] as const)
-      button.setAttribute("aria-pressed", String(tool === value));
   }
 
   #libraryPdfToolStatus(tool: PdfAnnotationTool): string {
@@ -7899,12 +7877,13 @@ class WorkspaceApp {
   async #persistLibraryPdfDrawing(points: readonly LibraryPdfPoint[]): Promise<void> {
     const artifact = this.#activeLibraryPdf();
     if (!artifact?.referenceId || points.length < 2) return this.#renderPdfMarkups();
+    const { color, width } = this.#elements.libraryPdfAnnotationToolbar.drawingStyle;
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups`, {
       kind: "drawing",
       artifactId: artifact.id,
       page: this.#pdfViewer.currentPage,
-      color: this.#elements.libraryDrawColor.value,
-      width: Number(this.#elements.libraryDrawWidth.value),
+      color,
+      width,
       points,
     });
     await expectOk(response);
@@ -8073,7 +8052,7 @@ class WorkspaceApp {
     this.#renderLibraryPdfNoteDraft(noteDraft, page);
     for (const note of markups.filter((item): item is LibraryPdfNote => item.kind === "note"))
       this.#renderLibraryPdfNote(note, selectedMarkupId);
-    this.#elements.undoLibraryDrawing.disabled = !markups.some((item) => item.kind === "drawing");
+    this.#elements.libraryPdfAnnotationToolbar.setUndoAvailable(markups.some((item) => item.kind === "drawing"));
   }
 
   #visibleLibraryPdfMarkups(artifact: LibraryPdfArtifact | undefined, page: number): LibraryPdfMarkup[] {
@@ -8082,14 +8061,15 @@ class WorkspaceApp {
   }
 
   #draftLibraryPdfDrawing(artifact: LibraryPdfArtifact | undefined, page: number, points: readonly LibraryPdfPoint[]): LibraryPdfDrawing {
+    const { color, width } = this.#elements.libraryPdfAnnotationToolbar.drawingStyle;
     return {
       id: "draft",
       kind: "drawing",
       referenceId: artifact?.referenceId ?? "",
       artifactId: artifact?.id ?? "",
       page,
-      color: this.#elements.libraryDrawColor.value,
-      width: Number(this.#elements.libraryDrawWidth.value),
+      color,
+      width,
       points: [...points],
       createdAt: "",
       updatedAt: "",
@@ -9019,25 +8999,14 @@ function collectElements(): Elements {
     projectAnnotationForm: requiredElement("project-annotation-form", ProjectAnnotationForm),
     annotationComposer: requiredElement("annotation-composer", HTMLElement),
     libraryHighlightComposer: requiredElement("library-highlight-composer", HTMLElement),
-    openLibraryPdfInspector: requiredElement("open-library-pdf-inspector", HTMLButtonElement),
     closeLibraryPdfInspector: requiredElement("close-library-pdf-inspector", HTMLButtonElement),
     libraryAnnotationDetails: requiredElement("library-annotation-details", HTMLDetailsElement),
     pdfHighlightImportPanel: requiredElement("pdf-highlight-import-panel", PdfHighlightImportPanel),
     libraryPdfAnnotationForms: requiredElement("library-pdf-annotation-forms", LibraryPdfAnnotationForms),
+    libraryPdfAnnotationToolbar: requiredElement("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar),
     libraryHighlightStatus: requiredElement("library-highlight-status", HTMLElement),
     libraryProjectUse: requiredElement("library-project-use", HTMLElement),
-    libraryHighlightCount: requiredElement("library-highlight-count", HTMLElement),
     libraryHighlightList: requiredElement("library-highlight-list", HTMLElement),
-    librarySelectTool: requiredElement("library-select-tool", HTMLButtonElement),
-    libraryTextTool: requiredElement("library-text-tool", HTMLButtonElement),
-    libraryNoteTool: requiredElement("library-note-tool", HTMLButtonElement),
-    libraryDrawTool: requiredElement("library-draw-tool", HTMLButtonElement),
-    libraryInkOptions: requiredElement("library-ink-options", HTMLElement),
-    libraryDrawColor: requiredElement("library-draw-color", HTMLInputElement),
-    libraryDrawWidth: requiredElement("library-draw-width", HTMLInputElement),
-    libraryDrawWidthValue: requiredElement("library-draw-width-value", HTMLOutputElement),
-    undoLibraryDrawing: requiredElement("undo-library-drawing", HTMLButtonElement),
-    exportLibraryAnnotatedPdf: requiredElement("export-library-annotated-pdf", HTMLButtonElement),
     highlightPaintTool: requiredElement("highlight-paint-tool", HTMLButtonElement),
     highlightEraserTool: requiredElement("highlight-eraser-tool", HTMLButtonElement),
     undoHighlight: requiredElement("undo-highlight", HTMLButtonElement),

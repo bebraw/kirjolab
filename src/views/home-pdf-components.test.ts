@@ -23,6 +23,7 @@ describe("renderLibraryPdfRail", () => {
   it("binds every annotation action to its semantic icon", () => {
     const html = renderLibraryPdfRail();
 
+    expect(html).toContain('<library-pdf-annotation-toolbar id="library-pdf-annotation-toolbar">');
     const contracts = [
       ["library-select-tool", "select"],
       ["library-text-tool", "text"],

@@ -1241,3 +1241,28 @@ Full native CI passes all 1,309 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact changes from 742,734 B
 raw / 203,460 B gzip to 742,994 B raw / 203,420 B gzip (+260 B raw / -40 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Library PDF Annotation Toolbar
+
+A bounded `LibraryPdfAnnotationToolbar` now owns active-tool presentation,
+drawing color and width, undo and export availability, annotation count, and
+inspector-expanded state. This replaces twelve raw element references, tool,
+input, undo, export, and inspector bindings, and imperative toolbar updates with
+one typed action stream. `WorkspaceApp` retains PDF gestures, the annotation
+state machine, drawing persistence, annotated export, inspector policy, and
+toasts.
+
+This checkpoint reduces `src/client/app.ts` from 9,233 to 9,202 lines (-31).
+The component adds 192 lines. Component tests cover light-DOM ownership, drawing
+style updates, empty and populated availability, inspector and active-tool
+state, all four tool intents, undo, export, and inspector actions. Focused
+browser workflows pass standalone and linked private-PDF annotation, tool
+switching, drawing, undo, highlight editing, inspector focus, and annotated
+export. The component records 75.67% statement and 80% line coverage.
+
+Full native CI passes all 1,312 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 742,994 B raw
+/ 203,420 B gzip to 749,873 B raw / 205,513 B gzip (+6,879 B raw / +2,093 B
+gzip). This includes Lit's static icon-rendering directive and the toolbar
+template. Direct and unique production package counts remain unchanged at 18
+and 150.

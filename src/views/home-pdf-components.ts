@@ -11,7 +11,8 @@ export function renderLibraryPdfRail(): string {
                   ${renderIcon("chevronDown")}
                 </button>
               </div>
-              <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF annotation tools">
+              <library-pdf-annotation-toolbar id="library-pdf-annotation-toolbar">
+                <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF annotation tools">
                 <button class="library-pdf-rail-button button-icon" id="library-select-tool" type="button" aria-pressed="false" title="Select, edit, move, or delete an existing annotation" data-touch-target="true">
                   ${renderIcon("select")}<span class="sr-only">Select</span>
                 </button>
@@ -40,6 +41,7 @@ export function renderLibraryPdfRail(): string {
                 <button class="library-pdf-rail-button library-pdf-annotations-button button-icon" id="open-library-pdf-inspector" type="button" aria-label="Annotations" aria-expanded="false" aria-controls="library-highlight-composer" title="Open annotations" data-touch-target="true">
                   ${renderIcon("annotations")}<span class="sr-only">Annotations</span><span class="count-badge" id="library-highlight-count">0</span>
                 </button>
-              </div>
+                </div>
+              </library-pdf-annotation-toolbar>
             </nav>`;
 }
