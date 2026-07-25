@@ -4,7 +4,6 @@ import {
   buildWorkspaceKnowledgeGraph,
   isKnowledgeSearchResults,
   type KnowledgeGraphNode,
-  type KnowledgeSearchResult,
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
 import { isCitationNetwork, type CitationAssertionView, type CitationNetwork } from "../domain/citation-assertions";
@@ -185,6 +184,7 @@ import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
 import { ProjectMapPanel, projectMapSelectEvent } from "./project-map-panel";
+import { KnowledgeSearchPanel, knowledgeSearchEvent, knowledgeSearchSelectEvent } from "./knowledge-search-panel";
 import {
   applicationVersion,
   cacheOfflineNavigation,
@@ -628,9 +628,7 @@ interface Elements {
   projectEvidence: HTMLDetailsElement;
   projectEvidenceCount: HTMLElement;
   pdfList: HTMLElement;
-  knowledgeSearchForm: HTMLFormElement;
-  knowledgeSearchInput: HTMLInputElement;
-  knowledgeSearchResults: HTMLElement;
+  knowledgeSearchPanel: KnowledgeSearchPanel;
   publicationCount: HTMLElement;
   publicationList: HTMLElement;
   annotationList: HTMLElement;
@@ -1370,7 +1368,12 @@ class WorkspaceApp {
       this.#flushPendingUpdates();
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
-    this.#elements.knowledgeSearchForm.addEventListener("submit", (event) => void this.#searchKnowledge(event));
+    this.#elements.knowledgeSearchPanel.addEventListener(knowledgeSearchEvent, (event) => {
+      void this.#searchKnowledge((event as CustomEvent<string>).detail);
+    });
+    this.#elements.knowledgeSearchPanel.addEventListener(knowledgeSearchSelectEvent, (event) => {
+      this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
+    });
     this.#elements.projectMapPanel.addEventListener(projectMapSelectEvent, (event) => {
       this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
     });
@@ -6480,12 +6483,9 @@ class WorkspaceApp {
     }
   }
 
-  async #searchKnowledge(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const query = this.#elements.knowledgeSearchInput.value.trim();
+  async #searchKnowledge(query: string): Promise<void> {
     if (!query) {
-      this.#elements.knowledgeSearchResults.replaceChildren();
-      this.#elements.knowledgeSearchResults.classList.add("hidden");
+      this.#elements.knowledgeSearchPanel.clear();
       this.#elements.projectMapOverview.classList.remove("hidden");
       return;
     }
@@ -6494,35 +6494,11 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isKnowledgeSearchResults(value)) throw new Error("Project search returned invalid data");
-      this.#renderKnowledgeSearchResults(value);
-    } catch (error) {
-      this.#elements.knowledgeSearchResults.classList.remove("hidden");
+      this.#elements.knowledgeSearchPanel.showResults(value);
       this.#elements.projectMapOverview.classList.add("hidden");
-      this.#elements.knowledgeSearchResults.replaceChildren(emptyState(error instanceof Error ? error.message : "Project search failed"));
-    }
-  }
-
-  #renderKnowledgeSearchResults(results: KnowledgeSearchResult[]): void {
-    this.#elements.knowledgeSearchResults.replaceChildren();
-    this.#elements.knowledgeSearchResults.classList.remove("hidden");
-    this.#elements.projectMapOverview.classList.add("hidden");
-    if (results.length === 0) {
-      this.#elements.knowledgeSearchResults.append(emptyState("No matching project resources."));
-      return;
-    }
-    for (const result of results) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "resource-card block w-full text-left";
-      button.append(resourceLabel(result.kind), resourceTitle(result.title));
-      if (result.excerpt) {
-        const excerpt = document.createElement("span");
-        excerpt.className = "mt-2 block font-sans text-xs leading-5 text-app-text-soft";
-        excerpt.textContent = result.excerpt;
-        button.append(excerpt);
-      }
-      button.addEventListener("click", () => this.#focusKnowledgeResource(result.resourceId));
-      this.#elements.knowledgeSearchResults.append(button);
+    } catch (error) {
+      this.#elements.projectMapOverview.classList.add("hidden");
+      this.#elements.knowledgeSearchPanel.showError(error instanceof Error ? error.message : "Project search failed");
     }
   }
 
@@ -10758,9 +10734,7 @@ function collectElements(): Elements {
     projectEvidence: requiredElement("project-evidence", HTMLDetailsElement),
     projectEvidenceCount: requiredElement("project-evidence-count", HTMLElement),
     pdfList: requiredElement("pdf-list", HTMLElement),
-    knowledgeSearchForm: requiredElement("knowledge-search-form", HTMLFormElement),
-    knowledgeSearchInput: requiredElement("knowledge-search-input", HTMLInputElement),
-    knowledgeSearchResults: requiredElement("knowledge-search-results", HTMLElement),
+    knowledgeSearchPanel: requiredElement("knowledge-search-panel", KnowledgeSearchPanel),
     publicationCount: requiredElement("publication-count", HTMLElement),
     publicationList: requiredElement("publication-list", HTMLElement),
     annotationList: requiredElement("annotation-list", HTMLElement),

@@ -486,3 +486,23 @@ and 74 browser tests. The rebuilt browser application is 674,062 B raw and
 190,183 B gzip, an increase of 2,184 B raw and 372 B gzip from the candidate
 review checkpoint. Direct and unique production package counts remain unchanged
 at 18 and 150.
+
+## Continued Lit Extraction: Knowledge Search
+
+Project-map search now uses one bounded `KnowledgeSearchPanel` instead of three
+form, input, and results element references plus imperative result-card
+rendering. The component owns trimmed query capture and empty, populated,
+hidden, and error presentation while emitting typed search and
+resource-selection intents. `WorkspaceApp` retains the authorized fetch,
+response validation, overview visibility, and resource navigation.
+
+This checkpoint reduces `src/client/app.ts` from 11,149 to 11,123 lines (-26).
+The 114-line component reaches 90% statement coverage and 93.1% line coverage.
+The focused evidence-to-prose browser workflow passes search results, resource
+selection, and clearing back to the map overview.
+
+Full native CI passes all 1,227 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 675,522 B raw and
+190,633 B gzip, an increase of 1,460 B raw and 450 B gzip from the publication
+context checkpoint. Direct and unique production package counts remain
+unchanged at 18 and 150.

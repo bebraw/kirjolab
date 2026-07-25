@@ -280,12 +280,14 @@ export function renderHomePage(
             </div>
             <span class="project-map-total" id="project-map-total">0 resources</span>
           </header>
-          <form class="project-map-search" id="knowledge-search-form" role="search">
-            <label class="sr-only" for="knowledge-search-input">Find a project resource</label>
-            <input class="field min-w-0" id="knowledge-search-input" type="search" maxlength="200" placeholder="Find a resource in this project">
-            <button class="button-secondary shrink-0" type="submit">Find</button>
-          </form>
-          <div class="hidden space-y-2" id="knowledge-search-results" aria-live="polite"></div>
+          <knowledge-search-panel id="knowledge-search-panel">
+            <form class="project-map-search" id="knowledge-search-form" role="search">
+              <label class="sr-only" for="knowledge-search-input">Find a project resource</label>
+              <input class="field min-w-0" id="knowledge-search-input" type="search" maxlength="200" placeholder="Find a resource in this project">
+              <button class="button-secondary shrink-0" type="submit">Find</button>
+            </form>
+            <div class="hidden space-y-2" id="knowledge-search-results" aria-live="polite"></div>
+          </knowledge-search-panel>
           <div id="project-map-overview">
             <div class="project-map-legend" aria-label="Evidence map key">
               <div class="project-map-legend-items">

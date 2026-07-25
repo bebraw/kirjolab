@@ -63,6 +63,8 @@ The adopted components own bounded presentation:
 - The publication context panel owns scholarly metadata, linked-paper and
   project-PDF option rendering, citation readiness, local scroll state, and
   typed citation, paper, link, and unlink intents.
+- The knowledge search panel owns query capture, empty, result, and error
+  presentation, and typed search and resource-selection intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -116,6 +118,9 @@ reason to wrap static markup mechanically.
   imperative metadata, paper-row, and link-form renderers while leaving
   manuscript insertion, PDF navigation, and link mutations in the application
   coordinator.
+- The knowledge search panel replaces three internal element references and
+  imperative result-card rendering while leaving authorized fetches, response
+  validation, and resource navigation in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

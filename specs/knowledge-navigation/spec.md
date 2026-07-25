@@ -95,6 +95,9 @@ connection without reconstructing identity from a citation key or filename.
 - The publication-context presentation component may own metadata, linked-paper
   options, citation readiness, and local scroll state, but manuscript insertion,
   PDF navigation, and publication/PDF link mutations remain outside it.
+- The knowledge-search presentation component may own its query and result
+  states, but authorized search requests, response validation, and resource
+  navigation remain outside it.
   reflows. Connector coordinates must use the rendered canvas dimensions rather
   than a fixed aspect ratio, and compact layouts must preserve every resource
   action when decorative connectors are hidden.
