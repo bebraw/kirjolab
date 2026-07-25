@@ -108,6 +108,7 @@ import {
   type WorkspaceSharingActionDetail,
 } from "./workspace-sharing-panel";
 import { WorkspaceCatalogPanel, workspaceCatalogCloseEvent } from "./workspace-catalog-panel";
+import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { UnidentifiedPdfList, unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
 import {
   LibraryReferenceSummary,
@@ -401,11 +402,6 @@ const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
 const modelPreferencesStorageKey = "kirjolab:model-preferences";
 const citationCompletionScopeStorageKey = "kirjolab:citation-completion-scope";
-const sourceRailWidthStorageKey = "kirjolab:source-rail-width";
-const sourceRailCollapsedStorageKey = "kirjolab:source-rail-collapsed";
-const sourceRailDefaultWidth = 272;
-const sourceRailMinimumWidth = 208;
-const sourceRailMaximumWidth = 384;
 const deferredDeleteGraceMs = 6_000;
 
 interface ToastAction {
@@ -782,6 +778,7 @@ class WorkspaceApp {
   #sourceCompletionIndex = 0;
   #citationLibraryRequest = 0;
   #citationLibraryLoading = false;
+  readonly #layout: WorkspaceLayoutManager;
 
   constructor() {
     this.#pdfViewer = new PdfEvidenceViewer(
@@ -801,6 +798,19 @@ class WorkspaceApp {
       (annotationId, fragmentId) => void this.#activateHighlightFragment(annotationId, fragmentId),
       (page) => this.#handlePdfPageChange(page),
       (highlightId) => this.#selectLibraryHighlight(highlightId),
+    );
+    this.#layout = new WorkspaceLayoutManager(
+      {
+        authoringContextResizer: this.#elements.authoringContextResizer,
+        collapseSourceRail: this.#elements.collapseSourceRail,
+        expandSourceRail: this.#elements.expandSourceRail,
+        sourceRailResizer: this.#elements.sourceRailResizer,
+        workspaceSurfaces: this.#elements.workspaceSurfaces,
+      },
+      {
+        paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
+        resizePdf: () => void this.#pdfViewer.resize(),
+      },
     );
   }
 
@@ -949,7 +959,7 @@ class WorkspaceApp {
         return;
       }
       event.preventDefault();
-      this.#setSourceRailCollapsed(false);
+      this.#layout.setRailCollapsed(false);
       this.#showRail("files");
       this.#elements.projectTreePanel.focusFilter();
     });
@@ -1364,9 +1374,7 @@ class WorkspaceApp {
     });
     this.#elements.showAuthoringSurface.addEventListener("click", () => this.#showWorkspaceSurface("authoring"));
     this.#elements.showContextSurface.addEventListener("click", () => this.#showWorkspaceSurface("context"));
-    this.#bindSourceRailCollapse();
-    this.#bindSourceRailResizer();
-    this.#bindPaneResizer();
+    this.#layout.bind();
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
     this.#elements.togglePreviewNavigation.addEventListener("click", () => {
       const hidden = document.body.dataset.previewNavigation !== "hidden";
@@ -4638,213 +4646,6 @@ class WorkspaceApp {
     if (syncRoute) this.#syncWorkspaceRoute("replace");
   }
 
-  #bindSourceRailCollapse(): void {
-    this.#elements.collapseSourceRail.addEventListener("click", () => {
-      this.#setSourceRailCollapsed(true);
-      this.#elements.expandSourceRail.focus();
-    });
-    this.#elements.expandSourceRail.addEventListener("click", () => {
-      this.#setSourceRailCollapsed(false);
-      this.#elements.collapseSourceRail.focus();
-    });
-    let collapsed = false;
-    try {
-      collapsed = localStorage.getItem(sourceRailCollapsedStorageKey) === "true";
-    } catch {
-      // Use the expanded default when browser storage is unavailable.
-    }
-    this.#setSourceRailCollapsed(collapsed, false);
-  }
-
-  #setSourceRailCollapsed(collapsed: boolean, persist = true): void {
-    this.#elements.workspaceSurfaces.dataset.sourceRail = collapsed ? "collapsed" : "expanded";
-    if (!persist) return;
-    try {
-      if (collapsed) localStorage.setItem(sourceRailCollapsedStorageKey, "true");
-      else localStorage.removeItem(sourceRailCollapsedStorageKey);
-    } catch {
-      // Rail collapsing remains usable when browser storage is unavailable.
-    }
-  }
-
-  #bindSourceRailResizer(): void {
-    const resizer = this.#elements.sourceRailResizer;
-    const resize = (clientX: number, persist: boolean): void => {
-      const rail = resizer.previousElementSibling;
-      if (!(rail instanceof HTMLElement)) return;
-      const maximum = this.#sourceRailEffectiveMaximumWidth();
-      const width = clientX - rail.getBoundingClientRect().left - resizer.getBoundingClientRect().width / 2;
-      const bounded = Math.min(maximum, Math.max(sourceRailMinimumWidth, width));
-      this.#setSourceRailWidth(bounded, maximum);
-      if (persist) this.#storeSourceRailWidth(bounded);
-    };
-    this.#bindHorizontalResizerDrag(resizer, resize);
-    resizer.addEventListener("keydown", (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
-      event.preventDefault();
-      if (event.key === "Home") {
-        this.#elements.workspaceSurfaces.style.removeProperty("--source-rail-width");
-        this.#removeStoredSourceRailWidth();
-        const maximum = this.#sourceRailEffectiveMaximumWidth();
-        resizer.setAttribute("aria-valuenow", String(Math.min(sourceRailDefaultWidth, maximum)));
-        resizer.setAttribute("aria-valuemax", String(maximum));
-      } else {
-        const rail = resizer.previousElementSibling;
-        if (!(rail instanceof HTMLElement)) return;
-        const direction = event.key === "ArrowLeft" ? -16 : 16;
-        resize(rail.getBoundingClientRect().right + resizer.getBoundingClientRect().width / 2 + direction, true);
-      }
-      void this.#pdfViewer.resize();
-    });
-    window.addEventListener("resize", () => this.#restoreSourceRailWidth());
-    this.#restoreSourceRailWidth();
-  }
-
-  #sourceRailEffectiveMaximumWidth(): number {
-    const workspaceWidth = this.#elements.workspaceSurfaces.getBoundingClientRect().width;
-    const reservedWidth = this.#elements.workspaceSurfaces.dataset.layout === "editor" ? 424 : 880;
-    return Math.min(sourceRailMaximumWidth, Math.max(sourceRailMinimumWidth, workspaceWidth - reservedWidth));
-  }
-
-  #setSourceRailWidth(width: number, maximum = this.#sourceRailEffectiveMaximumWidth()): void {
-    const bounded = Math.min(maximum, Math.max(sourceRailMinimumWidth, width));
-    this.#elements.workspaceSurfaces.style.setProperty("--source-rail-width", `${Math.round(bounded)}px`);
-    this.#elements.sourceRailResizer.setAttribute("aria-valuemax", String(Math.round(maximum)));
-    this.#elements.sourceRailResizer.setAttribute("aria-valuenow", String(Math.round(bounded)));
-  }
-
-  #storeSourceRailWidth(width: number): void {
-    try {
-      localStorage.setItem(sourceRailWidthStorageKey, String(Math.round(width)));
-    } catch {
-      // Rail resizing remains usable when browser storage is unavailable.
-    }
-  }
-
-  #removeStoredSourceRailWidth(): void {
-    try {
-      localStorage.removeItem(sourceRailWidthStorageKey);
-    } catch {
-      // Rail resizing remains usable when browser storage is unavailable.
-    }
-  }
-
-  #restoreSourceRailWidth(): void {
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem(sourceRailWidthStorageKey);
-    } catch {
-      // Use the stylesheet default when browser storage is unavailable.
-    }
-    const width = stored ? Number.parseInt(stored, 10) : Number.NaN;
-    if (Number.isFinite(width)) this.#setSourceRailWidth(width);
-    else {
-      const maximum = this.#sourceRailEffectiveMaximumWidth();
-      this.#elements.workspaceSurfaces.style.removeProperty("--source-rail-width");
-      this.#elements.sourceRailResizer.setAttribute("aria-valuemax", String(maximum));
-      this.#elements.sourceRailResizer.setAttribute("aria-valuenow", String(Math.min(sourceRailDefaultWidth, maximum)));
-    }
-  }
-
-  #bindHorizontalResizerDrag(resizer: HTMLElement, resize: (clientX: number, persist: boolean) => void): void {
-    resizer.addEventListener("pointerdown", (event) => {
-      resizer.dataset.dragging = "true";
-      resizer.setPointerCapture(event.pointerId);
-      resize(event.clientX, false);
-    });
-    resizer.addEventListener("pointermove", (event) => {
-      if (resizer.dataset.dragging === "true") resize(event.clientX, false);
-    });
-    const finish = (event: PointerEvent, persist: boolean): void => {
-      if (resizer.dataset.dragging !== "true") return;
-      delete resizer.dataset.dragging;
-      if (persist) resize(event.clientX, true);
-      if (resizer.hasPointerCapture(event.pointerId)) resizer.releasePointerCapture(event.pointerId);
-      void this.#pdfViewer.resize();
-    };
-    resizer.addEventListener("pointerup", (event) => finish(event, true));
-    resizer.addEventListener("pointercancel", (event) => finish(event, false));
-  }
-
-  #bindPaneResizer(): void {
-    const resizer = this.#elements.authoringContextResizer;
-    const resize = (clientX: number, persist: boolean): void => {
-      const authoring = resizer.previousElementSibling;
-      const context = resizer.nextElementSibling;
-      if (!(authoring instanceof HTMLElement) || !(context instanceof HTMLElement)) return;
-      const authoringLeft = authoring.getBoundingClientRect().left;
-      const contextRight = context.getBoundingClientRect().right;
-      const available = contextRight - authoringLeft - resizer.getBoundingClientRect().width;
-      const maximum = Math.max(416, available - 448);
-      const width = Math.min(maximum, Math.max(416, clientX - authoringLeft));
-      this.#setAuthoringPaneWidth(width);
-      if (persist) this.#storeAuthoringPaneWidth(width);
-    };
-    this.#bindHorizontalResizerDrag(resizer, resize);
-    resizer.addEventListener("keydown", (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
-      event.preventDefault();
-      if (event.key === "Home") {
-        this.#elements.workspaceSurfaces.style.removeProperty("--authoring-pane-width");
-        this.#removeStoredAuthoringPaneWidth();
-        resizer.setAttribute("aria-valuenow", "48");
-      } else {
-        const authoring = resizer.previousElementSibling;
-        if (!(authoring instanceof HTMLElement)) return;
-        const direction = event.key === "ArrowLeft" ? -24 : 24;
-        resize(authoring.getBoundingClientRect().right + direction, true);
-      }
-      void this.#pdfViewer.resize();
-    });
-  }
-
-  #setAuthoringPaneWidth(width: number): void {
-    this.#elements.workspaceSurfaces.style.setProperty("--authoring-pane-width", `${Math.round(width)}px`);
-    const resizer = this.#elements.authoringContextResizer;
-    const authoring = resizer.previousElementSibling;
-    const context = resizer.nextElementSibling;
-    if (!(authoring instanceof HTMLElement) || !(context instanceof HTMLElement)) return;
-    const total = authoring.getBoundingClientRect().width + context.getBoundingClientRect().width;
-    const percentage = total > 0 ? Math.round((width / total) * 100) : 48;
-    resizer.setAttribute("aria-valuenow", String(percentage));
-  }
-
-  #paneWidthStorageKey(): string {
-    const kind = this.#activeResourceTab()?.kind ?? "preview";
-    return `kirjolab:authoring-pane:${workspaceId}:${kind}`;
-  }
-
-  #storeAuthoringPaneWidth(width: number): void {
-    try {
-      localStorage.setItem(this.#paneWidthStorageKey(), String(Math.round(width)));
-    } catch {
-      // Pane resizing remains usable when browser storage is unavailable.
-    }
-  }
-
-  #removeStoredAuthoringPaneWidth(): void {
-    try {
-      localStorage.removeItem(this.#paneWidthStorageKey());
-    } catch {
-      // Pane resizing remains usable when browser storage is unavailable.
-    }
-  }
-
-  #restoreAuthoringPaneWidth(): void {
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem(this.#paneWidthStorageKey());
-    } catch {
-      // Use the stylesheet default when browser storage is unavailable.
-    }
-    const width = stored ? Number.parseInt(stored, 10) : Number.NaN;
-    if (Number.isFinite(width)) this.#setAuthoringPaneWidth(width);
-    else {
-      this.#elements.workspaceSurfaces.style.removeProperty("--authoring-pane-width");
-      this.#elements.authoringContextResizer.setAttribute("aria-valuenow", "48");
-    }
-  }
-
   #captureActiveContextState(): void {
     const key = this.#contextState.activeKey;
     const fixedScrollTop = this.#fixedContextScrollTop(key);
@@ -4941,7 +4742,7 @@ class WorkspaceApp {
     });
     this.#renderContextTabOverview();
     const activeTab = this.#activeResourceTab();
-    this.#restoreAuthoringPaneWidth();
+    this.#layout.restorePaneWidth();
     this.#renderContextPanelVisibility(activeKey, activeTab);
     this.#renderActiveResearchContext(activeKey, activeTab, loadPdf);
   }

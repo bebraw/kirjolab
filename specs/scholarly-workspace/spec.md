@@ -88,6 +88,10 @@ collaboration.
   native hover titles, and a visible open-comment count.
   Research is limited to the actionable Project evidence, Claims, and
   References inventories; project search and graph controls belong to Map.
+  One bounded layout manager owns rail collapse and resizing, authoring/context
+  pane resizing, keyboard and pointer interactions, ARIA values, browser-local
+  persistence, and PDF resize notification. Widths remain context-specific
+  transient UI state rather than collaborative data or workspace URL state.
   On desktop the rail width is adjustable by pointer or keyboard within bounded
   readable limits and persists as a browser-local, cross-project preference.
   It can collapse without losing that width and exposes an editor-toolbar

@@ -1418,3 +1418,27 @@ The browser application artifact grows from 763,230 B raw / 207,491 B gzip to
 production package counts remain unchanged at 18 and 150. Full native CI
 passes all 1,327 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
 tests.
+
+## Coordinator Extraction: Workspace Layout Manager
+
+A bounded `WorkspaceLayoutManager` now owns project-rail collapse and width,
+authoring/context pane width, pointer capture and cancellation, keyboard
+resizing and reset, responsive bounds, ARIA values, context-specific local
+storage, and PDF resize notification. This removes eleven layout and persistence
+helpers from `WorkspaceApp`; the coordinator retains URL-backed layout choice,
+active context identity, and PDF-only resource opening.
+
+This checkpoint reduces `src/client/app.ts` from 8,596 to 8,397 lines (-199).
+The manager adds 235 lines. Unit tests cover stored collapse state, focus
+transfer, responsive rail bounds, pointer persistence and cancellation,
+keyboard resizing and reset, context-specific pane widths, and PDF resize
+notifications. It records 92.3% statement, 100% function, and 97.52% line
+coverage. Focused browser workflows pass rail collapse/restoration, pointer and
+keyboard resizing, responsive clamping, context switching, pane persistence,
+and native reset behavior.
+
+The browser application artifact grows from 764,185 B raw / 207,627 B gzip to
+764,696 B raw / 207,939 B gzip (+511 B raw / +312 B gzip). Direct and unique
+production package counts remain unchanged at 18 and 150. Full native CI
+passes all 1,330 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
+tests.

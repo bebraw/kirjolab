@@ -35,6 +35,10 @@ URL.
   positions, pane widths, dialog state, pin state, or inactive open tabs.
   Existing local-storage and in-memory contracts remain responsible for those
   concerns.
+- One browser layout manager owns source-rail collapse and width, authoring-pane
+  width, pointer and keyboard resizing, ARIA values, context-specific storage
+  keys, and PDF resize notification. The application coordinator retains
+  routable layout selection, context identity, and PDF-only resource opening.
 
 ## Consequences
 
