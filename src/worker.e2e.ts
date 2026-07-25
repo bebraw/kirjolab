@@ -1386,6 +1386,21 @@ test("lets iPad Preview and Library readers hide and restore top navigation", as
     viewportHeight: 1366,
   });
 
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect
+    .poll(async () => {
+      return await page.evaluate(() => {
+        const workspace = document.querySelector<HTMLElement>("#workspace-surfaces")!.getBoundingClientRect();
+        const context = document.querySelector<HTMLElement>("#context-surface")!.getBoundingClientRect();
+        return {
+          workspaceBottom: Math.round(workspace.bottom),
+          contextBottom: Math.round(context.bottom),
+          viewportHeight: innerHeight,
+        };
+      });
+    })
+    .toEqual({ workspaceBottom: 900, contextBottom: 900, viewportHeight: 900 });
+
   await page.reload();
   await expect(libraryHeader).toBeHidden();
   await expect(libraryHeaderPrimary).toBeHidden();

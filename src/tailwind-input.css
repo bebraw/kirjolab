@@ -2464,7 +2464,7 @@
   }
 
   @media (min-width: 72rem) {
-    body[data-app-mode="workspace"][data-preview-navigation="hidden"] .workspace-grid {
+    body[data-preview-navigation="hidden"] .workspace-grid {
       grid-template-rows: minmax(0, 100dvh);
     }
   }
