@@ -115,6 +115,7 @@
     "@octokit/auth-app": "8.2.0",
     "@smartupcorp/onedollar-unistroke-recognizer": "1.0.0",
     "fflate": "0.8.3",
+    "lit": "3.3.3",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.1.200",
     "rehype-sanitize": "6.0.0",

@@ -762,15 +762,17 @@ export function renderHomePage(
         <p class="eyebrow">GitHub-backed project</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Import a Markdown folder</h2>
         <p class="mt-2 text-sm leading-6 text-app-text-soft">Preview an exact commit before creating the project. Nothing is written to GitHub.</p>
-        <section class="mt-5 border-y border-app-line py-4" aria-labelledby="github-connection-heading">
-          <p class="field-label" id="github-connection-heading">GitHub account</p>
-          <p class="mt-1 text-sm leading-6 text-app-text-soft" id="github-connection-status">Checking connection…</p>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <a class="button-primary" id="connect-github-account" href="/api/github/connect?returnTo=%2F%3FgithubImport%3D1">Connect GitHub</a>
-            <a class="button-secondary" id="install-github-app" href="/api/github/install?returnTo=%2F%3FgithubImport%3D1" hidden>Manage repository access</a>
-            <button class="button-secondary" id="disconnect-github-account" type="button" hidden>Disconnect account</button>
-          </div>
-        </section>
+        <github-connection-panel id="github-connection-panel">
+          <section class="mt-5 border-y border-app-line py-4" aria-labelledby="github-connection-heading">
+            <p class="field-label" id="github-connection-heading">GitHub account</p>
+            <p class="mt-1 text-sm leading-6 text-app-text-soft" aria-live="polite">Checking connection…</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <a class="button-primary" href="/api/github/connect?returnTo=%2F%3FgithubImport%3D1">Connect GitHub</a>
+              <a class="button-secondary" href="/api/github/install?returnTo=%2F%3FgithubImport%3D1" hidden>Manage repository access</a>
+              <button class="button-secondary" type="button" hidden>Disconnect account</button>
+            </div>
+          </section>
+        </github-connection-panel>
         <div class="mt-5 grid gap-3 sm:grid-cols-2">
           <label class="field-label">Project title<input class="field" id="github-import-title" maxlength="120" required placeholder="Scalability book"></label>
           <label class="field-label">Account<select class="field" id="github-installation-id" required disabled><option value="">Connect GitHub first</option></select></label>

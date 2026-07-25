@@ -77,6 +77,7 @@ import {
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 import { renderIcon } from "../ui/icons";
+import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import { gitHubSyncPresentation, isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
@@ -420,10 +421,7 @@ interface Elements {
   openGitHubImport: HTMLButtonElement;
   gitHubImportDialog: HTMLDialogElement;
   gitHubImportForm: HTMLFormElement;
-  gitHubConnectionStatus: HTMLElement;
-  connectGitHubAccount: HTMLAnchorElement;
-  installGitHubApp: HTMLAnchorElement;
-  disconnectGitHubAccount: HTMLButtonElement;
+  gitHubConnectionPanel: GitHubConnectionPanel;
   gitHubImportTitle: HTMLInputElement;
   gitHubInstallationId: HTMLSelectElement;
   gitHubRepository: HTMLSelectElement;
@@ -1219,7 +1217,7 @@ class WorkspaceApp {
     this.#elements.gitHubRepository.addEventListener("change", () => void this.#loadGitHubBranches());
     this.#elements.gitHubBranch.addEventListener("change", () => this.#updateGitHubImportReadiness());
     this.#elements.confirmGitHubImport.addEventListener("click", () => void this.#confirmGitHubImport());
-    this.#elements.disconnectGitHubAccount.addEventListener("click", () => void this.#disconnectGitHubAccount());
+    this.#elements.gitHubConnectionPanel.addEventListener(gitHubDisconnectEvent, () => void this.#disconnectGitHubAccount());
     this.#elements.previewGitHubPull.addEventListener("click", () => void this.#previewGitHubPull());
     this.#elements.confirmGitHubPull.addEventListener("click", () => void this.#confirmGitHubPull());
     this.#elements.previewGitHubPublish.addEventListener("click", () => void this.#previewGitHubPublish());
@@ -1944,16 +1942,16 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isGitHubConnectionState(value)) throw new Error("GitHub returned an invalid connection state");
-      this.#elements.gitHubConnectionStatus.textContent = value.connected
-        ? `Connected as @${value.user.login}. Repository access remains controlled on GitHub.`
-        : "Connect GitHub to choose repositories available to your account.";
-      this.#elements.connectGitHubAccount.hidden = value.connected;
-      this.#elements.installGitHubApp.hidden = !value.connected;
-      this.#elements.disconnectGitHubAccount.hidden = !value.connected;
+      this.#elements.gitHubConnectionPanel.setConnection({
+        connected: value.connected,
+        message: value.connected
+          ? `Connected as @${value.user.login}. Repository access remains controlled on GitHub.`
+          : "Connect GitHub to choose repositories available to your account.",
+      });
       if (value.connected) await this.#loadGitHubInstallations();
       else this.#resetGitHubPickers();
     } catch (error) {
-      this.#elements.gitHubConnectionStatus.textContent = error instanceof Error ? error.message : "Could not load the GitHub connection.";
+      this.#elements.gitHubConnectionPanel.setMessage(error instanceof Error ? error.message : "Could not load the GitHub connection.");
     }
   }
 
@@ -1978,7 +1976,7 @@ class WorkspaceApp {
     this.#elements.gitHubInstallationId.disabled = value.installations.length === 0;
     if (value.installations.length === 0) {
       this.#replaceSelectOptions(this.#elements.gitHubInstallationId, "No installations available");
-      this.#elements.gitHubConnectionStatus.textContent = "Connected. Install the Kirjolab GitHub App or grant it repository access.";
+      this.#elements.gitHubConnectionPanel.setMessage("Connected. Install the Kirjolab GitHub App or grant it repository access.");
       this.#resetGitHubRepositoryPickers();
       return;
     }
@@ -11686,10 +11684,7 @@ function collectElements(): Elements {
     openGitHubImport: requiredElement("open-github-import", HTMLButtonElement),
     gitHubImportDialog: requiredElement("github-import-dialog", HTMLDialogElement),
     gitHubImportForm: requiredElement("github-import-form", HTMLFormElement),
-    gitHubConnectionStatus: requiredElement("github-connection-status", HTMLElement),
-    connectGitHubAccount: requiredElement("connect-github-account", HTMLAnchorElement),
-    installGitHubApp: requiredElement("install-github-app", HTMLAnchorElement),
-    disconnectGitHubAccount: requiredElement("disconnect-github-account", HTMLButtonElement),
+    gitHubConnectionPanel: requiredElement("github-connection-panel", GitHubConnectionPanel),
     gitHubImportTitle: requiredElement("github-import-title", HTMLInputElement),
     gitHubInstallationId: requiredElement("github-installation-id", HTMLSelectElement),
     gitHubRepository: requiredElement("github-repository", HTMLSelectElement),

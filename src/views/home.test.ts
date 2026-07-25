@@ -167,6 +167,7 @@ describe("renderHomePage", () => {
     expect(html.match(/class="(?:new-workspace-dialog|reference-library-dialog)[^"]*ui-dialog"/gu)).toHaveLength(11);
     expect(html).toContain('id="open-github-import"');
     expect(html).toContain('id="github-import-dialog"');
+    expect(html).toContain('<github-connection-panel id="github-connection-panel">');
     expect(html).toContain('id="github-publish-review"');
     expect(html).toContain('id="github-pull-review"');
     expect(html).toContain('id="github-sync-menu"');

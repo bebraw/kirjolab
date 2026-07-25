@@ -109,6 +109,10 @@ incoming and outgoing mutation.
   interval, distinguishes branch-only movement from actionable manuscript
   divergence, and offers Pull or Push entry points that open the existing
   detailed preview rather than bypassing confirmation.
+- The GitHub import account presentation is a light-DOM Lit component that owns
+  its local message, action visibility, and disconnect intent. The application
+  coordinator retains connection requests, confirmation, picker loading, and
+  import workflow state, while the Worker retains initial fallback markup.
 - `POST /api/workspaces/{id}/github-sync/pull-previews` returns a non-mutating
   three-way incoming diff and conflicts.
 - `POST /api/workspaces/{id}/github-sync/pulls` consumes a current pull preview

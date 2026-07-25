@@ -4529,6 +4529,11 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
   await expect(page.locator("#github-branch")).toHaveValue("main");
   await expect(page.locator("#github-branch option:checked")).toContainText("protected");
   await expect(page.getByRole("button", { name: "Preview import" })).toBeEnabled();
+
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Disconnect account" }).click();
+  await expect(page.locator("#github-connection-status")).toContainText("Connect GitHub");
+  await expect(page.getByRole("link", { name: "Connect GitHub" })).toBeVisible();
 });
 
 test("names, compares, restores, and branches immutable project revisions", async ({ page, browser }) => {

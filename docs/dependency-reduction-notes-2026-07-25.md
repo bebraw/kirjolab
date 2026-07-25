@@ -99,3 +99,14 @@ Continue to the next pilot only when the preceding change preserves behavior
 and leaves a narrower project-owned maintenance surface. A pilot that adds
 abstraction without deleting equivalent infrastructure should be reverted or
 kept out of the production path.
+
+## Pilot Outcome Clarification
+
+The Lit pilot's first component adds more source lines than it removes because
+it establishes the reactive boundary and preserves server-rendered fallback
+markup. It is accepted on the basis of reduced long-term coordination
+complexity: `WorkspaceApp` now addresses one typed GitHub connection surface
+instead of its internal status and action elements. This is a deliberate
+exception to the immediate line-reduction gate, not permission to wrap static
+markup. Later components must retire meaningful element-registry, imperative
+rendering, or event-wiring complexity.
