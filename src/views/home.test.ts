@@ -333,6 +333,7 @@ describe("renderHomePage", () => {
     expect(html).toContain(
       'id="library-pdf-upload" type="file" accept="application/pdf" multiple aria-describedby="library-pdf-upload-help"',
     );
+    expect(html).toContain("<library-pdf-upload-status");
     expect(html).toContain('id="library-pdf-upload-status" aria-live="polite"');
     expect(html).not.toContain('id="library-pdf-upload-status" role="dialog"');
   });

@@ -212,6 +212,7 @@ import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelecti
 import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
 import { LibraryDiscoverySearch, libraryDiscoverySearchEvent } from "./library-discovery-search";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
+import { LibraryPdfUploadStatus, libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
 import { ModelProviderSettings, modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
 import { CitationNetworkPanel, citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
 import {
@@ -245,7 +246,7 @@ import {
   type PdfHighlightImportAction,
   type ReviewedPdfHighlightImport,
 } from "./pdf-highlight-import-panel";
-import { uploadPdfBatch, type ExistingPdfUpload, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
+import { uploadPdfBatch, type ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import {
   isCreatedAnnotation,
@@ -362,12 +363,6 @@ function libraryPdfUploadMessage(added: number, existing: number, failed: number
   return `${addedLabel}. Add metadata when ready.`;
 }
 
-function libraryPdfUploadStateText(item: PdfUploadQueueSnapshot["items"][number]): string {
-  if (item.state === "failed") return `Failed · ${item.error ?? "Upload failed"}`;
-  if (item.state === "existing" && item.existing) return `Already in library · ${item.existing.referenceKey}`;
-  return uploadStateLabel(item.state);
-}
-
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
 const appMode = readAppMode();
@@ -451,7 +446,7 @@ interface Elements {
   libraryArchiveUpload: HTMLInputElement;
   libraryPdfUpload: HTMLInputElement;
   libraryPdfDropzone: HTMLElement;
-  libraryPdfUploadStatus: HTMLElement;
+  libraryPdfUploadStatus: LibraryPdfUploadStatus;
   showArchivedReferences: HTMLButtonElement;
   referenceLibraryFilters: ReferenceLibraryFilterPanel;
   openCitationNetwork: HTMLButtonElement;
@@ -1140,6 +1135,12 @@ class WorkspaceApp {
         return;
       }
       void this.#uploadLibraryPdfs(Array.from(event.dataTransfer?.files ?? []));
+    });
+    this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRetryEvent, () => {
+      void this.#uploadLibraryPdfs(this.#failedLibraryPdfUploads);
+    });
+    this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRevealEvent, (event) => {
+      void this.#revealExistingPdfReference((event as CustomEvent<ExistingPdfUpload>).detail);
     });
     this.#elements.webSourceForm.addEventListener("submit", (event) => void this.#captureWebSource(event));
     this.#elements.openCitationNetwork.addEventListener("click", () => void this.#openCitationNetwork());
@@ -4327,19 +4328,18 @@ class WorkspaceApp {
       const result = await uploadPdfBatch(
         files,
         (file) => this.#uploadLibraryPdf(file),
-        (snapshot) => this.#renderLibraryPdfUpload(snapshot, false),
+        (snapshot) => this.#elements.libraryPdfUploadStatus.showProgress(snapshot, false),
       );
       this.#failedLibraryPdfUploads = result.failed;
       if (result.added.length > 0 || result.existing.length > 0) await this.#refreshReferenceLibrary();
-      this.#renderLibraryPdfUpload(
+      this.#elements.libraryPdfUploadStatus.showProgress(
         { items: result.items, completed: result.items.length, total: result.items.length },
         result.failed.length > 0,
       );
       this.#showToast(libraryPdfUploadMessage(result.added.length, result.existing.length, result.failed.length));
     } catch (error) {
       const message = error instanceof Error ? error.message : "PDF intake failed";
-      this.#elements.libraryPdfUploadStatus.classList.remove("hidden");
-      this.#elements.libraryPdfUploadStatus.replaceChildren(resourceLabel("PDF intake"), statusText(message));
+      this.#elements.libraryPdfUploadStatus.showError(message);
       this.#showToast(message);
     } finally {
       this.#finishLibraryPdfUpload();
@@ -4349,7 +4349,7 @@ class WorkspaceApp {
   #beginLibraryPdfUpload(): void {
     this.#elements.libraryPdfUpload.value = "";
     this.#elements.libraryPdfUpload.disabled = true;
-    this.#elements.libraryPdfUploadStatus.setAttribute("aria-busy", "true");
+    this.#elements.libraryPdfUploadStatus.setBusy(true);
     this.#elements.libraryPdfDropzone.dataset.busy = "true";
     this.#libraryPdfUploadBusy = true;
     this.#failedLibraryPdfUploads = [];
@@ -4383,49 +4383,8 @@ class WorkspaceApp {
   #finishLibraryPdfUpload(): void {
     this.#libraryPdfUploadBusy = false;
     this.#elements.libraryPdfUpload.disabled = false;
-    this.#elements.libraryPdfUploadStatus.removeAttribute("aria-busy");
+    this.#elements.libraryPdfUploadStatus.setBusy(false);
     delete this.#elements.libraryPdfDropzone.dataset.busy;
-  }
-
-  #renderLibraryPdfUpload(snapshot: PdfUploadQueueSnapshot, retryFailed: boolean): void {
-    const container = this.#elements.libraryPdfUploadStatus;
-    container.classList.remove("hidden");
-    const summary = statusText(`${snapshot.completed} of ${snapshot.total} processed`);
-    const list = document.createElement("ol");
-    list.className = "mt-2 grid gap-1 font-sans text-xs";
-    for (const item of snapshot.items) list.append(this.#libraryPdfUploadRow(item));
-    const content: Node[] = [resourceLabel("PDF intake"), summary, list];
-    if (retryFailed) {
-      const retry = actionButton("Retry failed", "button-secondary mt-3", () => {
-        void this.#uploadLibraryPdfs(this.#failedLibraryPdfUploads);
-      });
-      content.push(retry);
-    }
-    container.replaceChildren(...content);
-  }
-
-  #libraryPdfUploadRow(item: PdfUploadQueueSnapshot["items"][number]): HTMLLIElement {
-    const row = document.createElement("li");
-    row.className = "flex items-start justify-between gap-3";
-    row.dataset.uploadState = item.state;
-    const name = document.createElement("span");
-    name.className = "min-w-0 truncate text-app-text";
-    name.textContent = item.file.name;
-    name.title = item.file.name;
-    const state = document.createElement("span");
-    state.className = `shrink-0 ${item.state === "failed" ? "text-app-error" : "text-app-text-soft"}`;
-    state.textContent = libraryPdfUploadStateText(item);
-    const outcome = document.createElement("span");
-    outcome.className = "flex shrink-0 items-center gap-2";
-    outcome.append(state);
-    if (item.state === "existing" && item.existing) {
-      const existing = item.existing;
-      const reveal = actionButton("Show", "button-secondary", () => void this.#revealExistingPdfReference(existing));
-      reveal.setAttribute("aria-label", `Show ${existing.referenceKey} in Library`);
-      outcome.append(reveal);
-    }
-    row.append(name, outcome);
-    return row;
   }
 
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
@@ -9065,7 +9024,7 @@ function collectElements(): Elements {
     libraryArchiveUpload: requiredElement("library-archive-upload", HTMLInputElement),
     libraryPdfUpload: requiredElement("library-pdf-upload", HTMLInputElement),
     libraryPdfDropzone: requiredElement("library-pdf-dropzone", HTMLElement),
-    libraryPdfUploadStatus: requiredElement("library-pdf-upload-status", HTMLElement),
+    libraryPdfUploadStatus: requiredElement("library-pdf-upload-status", LibraryPdfUploadStatus),
     showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
     referenceLibraryFilters: requiredElement("reference-library-filters", ReferenceLibraryFilterPanel),
     openCitationNetwork: requiredElement("open-citation-network", HTMLButtonElement),
@@ -9364,13 +9323,6 @@ async function copyText(value: string): Promise<void> {
   const copied = document.execCommand("copy");
   input.remove();
   if (!copied) throw new Error("Clipboard unavailable");
-}
-
-function uploadStateLabel(state: PdfUploadQueueSnapshot["items"][number]["state"]): string {
-  if (state === "queued") return "Queued";
-  if (state === "uploading") return "Uploading";
-  if (state === "existing") return "Already in library";
-  return "Added";
 }
 
 function selectionRectsOverlap(left: PdfSelectionRect, right: PdfSelectionRect): boolean {

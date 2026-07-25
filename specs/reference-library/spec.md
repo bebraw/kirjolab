@@ -54,6 +54,11 @@ memory and makes citation aliases compete with stable source identity.
   same atomic upload endpoint. Per-file failure does not stop later uploads;
   only failed files remain in an ephemeral retry queue. Batch intake performs no
   metadata extraction or provider lookup.
+- A bounded upload-status component owns queue progress, per-file outcomes,
+  duplicate-source reveal actions, retry availability, busy state, and error
+  presentation. The workspace coordinator retains file and drop input, queue
+  execution, upload transport, failed-file ownership, Library refreshes, and
+  toast policy.
 - Linked PDF records may preview bounded, provider-specific OpenAlex, Crossref,
   DataCite, and Semantic Scholar candidates inline according to configured
   provider order. Records are grouped by normalized DOI before the researcher

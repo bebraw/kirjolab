@@ -135,6 +135,9 @@ The adopted components own bounded presentation:
 - The claim dialog owns create and edit presentation, proposition and note
   values, evidence-relation and annotation selection, modal lifecycle, and a
   typed save intent.
+- The Library PDF upload status owns queue progress, file outcomes, duplicate
+  actions, retry availability, busy and error presentation, and typed retry and
+  reveal intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -291,6 +294,10 @@ reason to wrap static markup mechanically.
   field, imperative evidence-option rendering, DOM-based selection collection,
   and modal configuration while leaving evidence prerequisites, API mutation,
   refreshes, and toast policy in the application coordinator.
+- The Library PDF upload status replaces imperative progress, outcome-row,
+  error, duplicate-action, and retry rendering while leaving drag-and-drop,
+  queue execution, upload transport, failed-file ownership, Library refreshes,
+  and toast policy in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

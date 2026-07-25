@@ -1059,3 +1059,24 @@ Full native CI passes all 1,290 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 727,427 B raw
 / 200,522 B gzip to 730,164 B raw / 200,927 B gzip (+2,737 B raw / +405 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Library PDF Upload Status
+
+PDF batch presentation now uses a bounded `LibraryPdfUploadStatus` instead of
+imperative progress, outcome-row, error, duplicate-action, and retry rendering.
+The component owns queue progress, per-file state, duplicate reveal actions,
+retry availability, busy and error presentation, and typed retry and reveal
+intents. `WorkspaceApp` retains file and drop input, queue execution, upload
+transport, failed-file ownership, Library refreshes, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,435 to 9,387 lines (-48).
+The component adds 122 lines. Component tests cover initial, queued, uploading,
+added, duplicate, failed, retry, busy, error, and typed reveal states. Focused
+browser workflows pass bounded partial-success intake, failed-file retry,
+exact-PDF duplicate reconciliation, archived-source restoration, and Library
+focus. The component records 91.48% statement and 92.1% line coverage.
+
+Full native CI passes all 1,292 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 730,164 B raw
+/ 200,927 B gzip to 731,333 B raw / 201,164 B gzip (+1,169 B raw / +237 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

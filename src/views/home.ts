@@ -360,7 +360,7 @@ export function renderHomePage(
                 </div>
               </details>
             </header>
-            <section class="hidden library-upload-status" id="library-pdf-upload-status" aria-live="polite"></section>
+            <library-pdf-upload-status class="hidden library-upload-status" id="library-pdf-upload-status" aria-live="polite"></library-pdf-upload-status>
             <details class="library-discovery" id="library-discovery">
               <summary>Discover scholarly works</summary>
               <library-discovery-search id="library-discovery-search">
