@@ -12,16 +12,18 @@ export class LibraryReferencePdfRows extends LitElement {
   static override properties = {
     artifacts: { state: true },
     linked: { state: true },
+    reference: { state: true },
   };
 
-  declare private artifacts: readonly LibraryPdfArtifact[];
-  declare private linked: boolean;
-  private reference: BibliographicRecord | null = null;
+  declare artifacts: readonly LibraryPdfArtifact[];
+  declare linked: boolean;
+  declare reference: BibliographicRecord | null;
 
   constructor() {
     super();
     this.artifacts = [];
     this.linked = false;
+    this.reference = null;
   }
 
   setData(reference: BibliographicRecord, artifacts: readonly LibraryPdfArtifact[], linked: boolean): void {

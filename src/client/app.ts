@@ -127,6 +127,11 @@ import {
 } from "./library-reference-metadata-editor";
 import { LibraryReferencePdfRows, libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
 import {
+  LibraryReferenceResearchRows,
+  libraryReferenceResearchActionEvent,
+  type LibraryReferenceResearchAction,
+} from "./library-reference-research-rows";
+import {
   WorkspaceSettingsPanel,
   workspaceSettingsActionEvent,
   type WorkspaceSettingsAction,
@@ -1156,6 +1161,14 @@ class WorkspaceApp {
           ?.querySelector<LibraryReferenceMetadataEditor>("library-reference-metadata-editor");
         if (editor) void this.#refinePdfMetadata(detail.reference, detail.artifact, editor);
       }
+    });
+    this.#elements.referenceLibraryList.addEventListener(libraryReferenceResearchActionEvent, (event) => {
+      const detail = (event as CustomEvent<LibraryReferenceResearchAction>).detail;
+      if (detail.action === "capture") void this.#captureWebSourceInput(detail.canonicalUrl);
+      else if (detail.action === "compare") void this.#compareWebSnapshots(detail.priorId, detail.currentId);
+      else if (detail.action === "pin") void this.#pinProjectWebSnapshot(detail.referenceId, detail.snapshotId);
+      else if (detail.action === "revoke") void this.#revokePrivateResearch(detail.shareId);
+      else void this.#sharePrivateResearch(detail.referenceId, detail.kind, detail.resourceId);
     });
     this.#elements.unidentifiedPdfList.addEventListener(unidentifiedPdfIdentifyEvent, (event) => {
       const { artifactId, referenceId } = (event as CustomEvent<UnidentifiedPdfSelection>).detail;
@@ -3701,9 +3714,11 @@ class WorkspaceApp {
       ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferenceSummary>("library-reference-summary"),
       ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferenceMetadataEditor>("library-reference-metadata-editor"),
       ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferencePersonalFields>("library-reference-personal-fields"),
-      ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferencePdfRows>("library-reference-pdf-rows"),
+      ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferenceResearchRows>("library-reference-research-rows"),
     ];
     await Promise.all(components.map(({ updateComplete }) => updateComplete));
+    const pdfRows = this.#elements.referenceLibraryList.querySelectorAll<LibraryReferencePdfRows>("library-reference-pdf-rows");
+    await Promise.all([...pdfRows].map(({ updateComplete }) => updateComplete));
   }
 
   async #openCitationNetwork(): Promise<void> {
@@ -3866,135 +3881,26 @@ class WorkspaceApp {
     linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
     artifacts: readonly LibraryPdfArtifact[],
   ): void {
-    const resources = document.createElement("div");
-    resources.className = "mt-3 space-y-2 border-t border-app-line pt-3";
     const notes = this.#librarySnapshot?.notes.filter((note) => note.referenceId === reference.id) ?? [];
     const highlights = this.#librarySnapshot?.highlights.filter((highlight) => highlight.referenceId === reference.id) ?? [];
     const webSource = this.#librarySnapshot?.webSources.find((source) => source.referenceId === reference.id);
     const webSnapshots = [...(this.#librarySnapshot?.webSnapshots.filter((snapshot) => snapshot.referenceId === reference.id) ?? [])].sort(
       (left, right) => right.accessedAt.localeCompare(left.accessedAt),
     );
-    this.#appendReferenceNoteRows(resources, reference.id, notes, linked !== undefined);
-    const pdfRows = new LibraryReferencePdfRows();
-    pdfRows.className = "contents";
-    pdfRows.setData(reference, artifacts, linked !== undefined);
-    resources.append(pdfRows);
-    this.#appendReferenceHighlightRows(resources, reference.id, highlights, linked !== undefined);
-    this.#appendReferenceWebSnapshotRows(metadataBody, resources, reference.id, webSource?.canonicalUrl, webSnapshots, linked);
-    if (notes.length + artifacts.length + highlights.length + webSnapshots.length > 0) metadataBody.append(resources);
-  }
-
-  #appendReferenceNoteRows(resources: HTMLElement, referenceId: string, notes: ReferenceLibrarySnapshot["notes"], linked: boolean): void {
-    for (const note of notes)
-      resources.append(this.#privateResearchRow(referenceId, "note", note.id, `Note · ${note.body.slice(0, 100)}`, linked));
-  }
-
-  #appendReferenceHighlightRows(
-    resources: HTMLElement,
-    referenceId: string,
-    highlights: ReferenceLibrarySnapshot["highlights"],
-    linked: boolean,
-  ): void {
-    for (const highlight of highlights) {
-      resources.append(
-        this.#privateResearchRow(
-          referenceId,
-          "highlight",
-          highlight.id,
-          `Highlight p. ${highlight.page} · ${highlight.quote.slice(0, 100)}`,
-          linked,
-        ),
-      );
-    }
-  }
-
-  #appendReferenceWebSnapshotRows(
-    metadataBody: HTMLElement,
-    resources: HTMLElement,
-    referenceId: string,
-    canonicalUrl: string | undefined,
-    webSnapshots: readonly ReferenceLibrarySnapshot["webSnapshots"][number][],
-    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
-  ): void {
-    if (canonicalUrl) {
-      const recapture = actionButton(
-        "Capture current version",
-        "button-secondary mt-3",
-        () => void this.#captureWebSourceInput(canonicalUrl),
-      );
-      metadataBody.append(recapture);
-      for (const [index, snapshot] of webSnapshots.entries())
-        resources.append(this.#referenceWebSnapshotRow(referenceId, snapshot, webSnapshots[index + 1], linked));
-    }
-  }
-
-  #referenceWebSnapshotRow(
-    referenceId: string,
-    snapshot: ReferenceLibrarySnapshot["webSnapshots"][number],
-    prior: ReferenceLibrarySnapshot["webSnapshots"][number] | undefined,
-    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
-  ): HTMLElement {
-    const status = snapshot.complete ? "complete" : "incomplete";
-    const row = this.#privateResearchRow(
-      referenceId,
-      "web-snapshot",
-      snapshot.id,
-      `Web capture · ${formatTimestamp(snapshot.accessedAt)} · ${status}`,
-      linked !== undefined,
-    );
-    const links = document.createElement("div");
-    links.className = "mt-2 flex flex-wrap gap-2";
-    if (snapshot.readableObjectKey) links.append(downloadLink(`/api/library/web-snapshots/${snapshot.id}/readable`, "Readable text"));
-    if (snapshot.rawObjectKey) links.append(downloadLink(`/api/library/web-snapshots/${snapshot.id}/raw`, "Raw capture"));
-    if (prior)
-      links.append(actionButton("Compare with prior", "button-secondary", () => void this.#compareWebSnapshots(prior.id, snapshot.id)));
-    if (linked) links.append(this.#pinWebSnapshotButton(referenceId, snapshot.id, linked));
-    if (snapshot.diagnostics.length > 0) {
-      const diagnostic = document.createElement("p");
-      diagnostic.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
-      diagnostic.textContent = snapshot.diagnostics.join(" ");
-      row.append(diagnostic);
-    }
-    row.append(links);
-    return row;
-  }
-
-  #pinWebSnapshotButton(
-    referenceId: string,
-    snapshotId: string,
-    linked: WorkspaceSnapshot["projectReferences"][number],
-  ): HTMLButtonElement {
-    const pin = actionButton("Use for project", "button-secondary", () => void this.#pinProjectWebSnapshot(referenceId, snapshotId));
-    pin.disabled = linked.snapshot.webSnapshot?.id === snapshotId;
-    pin.title = pin.disabled ? "This version is pinned to the project" : "Pin this exact capture to future citations and milestones";
-    return pin;
-  }
-
-  #privateResearchRow(
-    referenceId: string,
-    kind: "note" | "highlight" | "web-snapshot",
-    resourceId: string,
-    label: string,
-    referenceLinked: boolean,
-  ): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "rounded-sm border border-app-line p-2";
-    const text = document.createElement("p");
-    text.className = "font-sans text-xs leading-5 text-app-text-soft";
-    text.textContent = label;
-    row.append(text);
-    const share = this.#snapshot?.researchShares.find((item) => item.kind === kind && item.resourceId === resourceId);
-    const action = share
-      ? actionButton("Revoke project share", "button-secondary mt-2", () => void this.#revokePrivateResearch(share.id))
-      : actionButton(
-          "Share snapshot with project",
-          "button-secondary mt-2",
-          () => void this.#sharePrivateResearch(referenceId, kind, resourceId),
-        );
-    action.disabled = !share && !referenceLinked;
-    action.title = referenceLinked ? "" : "Add the bibliographic reference to this project first";
-    row.append(action);
-    return row;
+    const researchRows = new LibraryReferenceResearchRows();
+    researchRows.className = "contents";
+    researchRows.setData({
+      artifacts,
+      canonicalUrl: webSource?.canonicalUrl ?? null,
+      highlights,
+      linkedSnapshotId: linked?.snapshot.webSnapshot?.id ?? null,
+      notes,
+      reference,
+      referenceLinked: linked !== undefined,
+      researchShares: this.#snapshot?.researchShares ?? [],
+      webSnapshots,
+    });
+    metadataBody.append(researchRows);
   }
 
   async #importIntoReferenceLibrary(): Promise<void> {
@@ -8625,14 +8531,6 @@ function actionButton(text: string, className: string, action: () => void): HTML
   return button;
 }
 
-function downloadLink(href: string, label: string): HTMLAnchorElement {
-  const link = document.createElement("a");
-  link.className = "button-secondary";
-  link.href = href;
-  link.textContent = label;
-  return link;
-}
-
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -8684,11 +8582,6 @@ function selectionRectsOverlap(left: PdfSelectionRect, right: PdfSelectionRect):
   return (
     left.x < right.x + right.width && left.x + left.width > right.x && left.y < right.y + right.height && left.y + left.height > right.y
   );
-}
-
-function formatTimestamp(value: string): string {
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
 function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {

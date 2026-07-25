@@ -1372,3 +1372,27 @@ Full native CI passes all 1,323 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 759,750 B raw
 / 206,892 B gzip to 761,155 B raw / 207,102 B gzip (+1,405 B raw / +210 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Library Reference Research Rows
+
+A bounded `LibraryReferenceResearchRows` now composes attached PDFs with
+private notes, highlights, and immutable web captures. It owns research share
+state, capture diagnostics and downloads, prior-version comparison controls,
+project-pin availability, and recapture presentation. This replaces six
+imperative render helpers and their per-row handlers with one delegated typed
+action stream. `WorkspaceApp` retains persistence, web requests, project-pin
+mutations, Library refreshes, and toasts.
+
+This checkpoint reduces `src/client/app.ts` from 8,742 to 8,635 lines (-107).
+The component adds 183 lines. Component tests cover empty, populated, linked,
+shared, complete, incomplete, valid-timestamp, invalid-timestamp, PDF-composed,
+and all five action variants. The component records 77.41% statement and
+78.57% line coverage. The focused linked-reference browser workflow passes PDF
+access, note sharing, accessible fields, filtering, and deterministic Library
+scroll restoration.
+
+The browser application artifact grows from 761,155 B raw / 207,102 B gzip to
+763,230 B raw / 207,491 B gzip (+2,075 B raw / +389 B gzip). Direct and unique
+production package counts remain unchanged at 18 and 150. Full native CI
+passes all 1,325 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
+tests.

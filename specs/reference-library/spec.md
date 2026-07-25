@@ -99,6 +99,12 @@ memory and makes citation aliases compete with stable source identity.
   refinement availability, and typed actions. The workspace coordinator
   retains PDF presentation, rights persistence, extraction, refinement state,
   Library refreshes, and notification policy.
+- A bounded light-DOM research-row component composes attached PDFs with
+  private notes, highlights, and web captures; owns share state, capture
+  diagnostics, downloads, comparisons, project-pin availability, and recapture
+  presentation; and emits typed lifecycle intents. The workspace coordinator
+  retains mutations and requests, refreshes, and notification policy. Component
+  updates, including nested PDF rows, finish before Library scroll restoration.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - An authenticated project member may stream PDFs attached to the project

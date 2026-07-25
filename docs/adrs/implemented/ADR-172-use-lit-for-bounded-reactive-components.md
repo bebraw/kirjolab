@@ -378,6 +378,12 @@ reason to wrap static markup mechanically.
   per-artifact open, rights, and secondary-refinement handlers while leaving
   PDF presentation, rights persistence, extraction, and refinement workflow in
   the application coordinator.
+- The Library reference research rows compose attached PDFs with private notes,
+  highlights, and immutable web captures; own share, revoke, download,
+  comparison, pin, diagnostic, and recapture presentation; and emit one typed
+  action stream. The application coordinator retains persistence, capture and
+  comparison requests, project-pin mutations, refreshes, and notification
+  policy.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without
