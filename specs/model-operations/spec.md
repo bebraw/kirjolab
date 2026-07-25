@@ -122,6 +122,11 @@ All mutation operations preserve a human review boundary.
   with the authoring workflow. Passage selection, instruction, and evidence are
   primary; endpoint and model connection fields remain available under
   secondary settings instead of occupying persistent chrome.
+- One bounded result component owns transient table, clarity, ideation,
+  phrasing, rewrite, and reference-discovery presentation plus local input and
+  save-progress state. It emits typed intents; model I/O, XState transitions,
+  candidate persistence, canonical Markdown edits, and Library imports remain
+  with the application coordinator.
 - The assistant keeps a visible **Choose evidence** action beside its status.
   It opens the Research rail, expands the collection containing the first
   available grounding control, and focuses that control; an empty project
@@ -227,6 +232,9 @@ All mutation operations preserve a human review boundary.
 - Assistant generation and candidate decisions are mutually exclusive machine
   states; stale, failed, or superseded transient results cannot continue their
   prior operation.
+- Result presentation must not acquire model, candidate, manuscript, or Library
+  mutation authority; every continuation or mutation crosses a typed intent
+  back to the application coordinator.
 - The companion must require one exact origin and a fixed credential-free
   loopback upstream, and it must fail closed on invalid shape, size, route,
   method, media type, redirect, timeout, or network response.

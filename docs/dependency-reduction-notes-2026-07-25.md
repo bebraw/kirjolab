@@ -394,3 +394,29 @@ both portable ledgers. Full native CI passes all 1,205 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests. The rebuilt browser application is
 664,646 B raw and 187,552 B gzip, an increase of 1,496 B raw and 524 B gzip
 from the history checkpoint; dependency counts remain unchanged.
+
+## Continued Lit Extraction: Assistant Results
+
+The Writing assistant's transient outputs now share one bounded
+`AssistantResultPanel` instead of six imperative renderers and their local
+button bindings. The component owns validated-table previews, the focused
+clarity answer, idea and rewrite choices, reference-discovery cards, typed
+intent construction, and local reference-save progress. `WorkspaceApp` keeps
+the captured manuscript context, XState workflow, model requests, stale-target
+checks, candidate persistence, canonical Markdown edits, and Library imports.
+
+This checkpoint reduces `src/client/app.ts` from 11,665 to 11,559 lines (-106).
+The focused component adds 305 lines and avoids direct DOM writes inside Lit's
+light-DOM render root. Focused component and server-shell tests pass, as do the
+affected unit tests and typecheck. The same simplification pass removed a
+redundant reviewer-response export condition: canonical matrix-file existence
+now defines readiness without racing transient parser output during
+collaboration hydration. The component reaches 93.5% statement coverage and
+the global suite remains above its threshold at 90.03%.
+
+Full native CI passes all 1,209 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests, including the complete clarity, ideation, phrasing,
+table, and reference-discovery workflow. The rebuilt browser application is
+668,018 B raw and 188,591 B gzip, an increase of 3,372 B raw and 1,039 B gzip
+from the writing-workflow checkpoint. Direct and unique production package
+counts remain unchanged.

@@ -106,7 +106,7 @@ export class WritingWorkflowPanel extends LitElement {
                   class="button-secondary justify-center"
                   id="download-reviewer-response"
                   type="button"
-                  ?disabled=${!this.data.fileId || this.data.items.length === 0}
+                  ?disabled=${!this.data.fileId}
                   @click=${this.download}
                 >
                   Export letter

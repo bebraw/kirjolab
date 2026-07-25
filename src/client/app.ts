@@ -118,6 +118,12 @@ import {
   writingWorkflowActionEvent,
   type WritingWorkflowActionDetail,
 } from "./writing-workflow-panel";
+import {
+  AssistantResultPanel,
+  assistantResultActionEvent,
+  referenceDiscoveryIdentifierUrl,
+  type AssistantResultActionDetail,
+} from "./assistant-result-panel";
 import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
@@ -752,7 +758,7 @@ interface Elements {
   assistantTargetScope: HTMLSelectElement;
   assistantTargetScopeField: HTMLElement;
   assistantTargetPreview: HTMLElement;
-  assistantInteractiveResult: HTMLElement;
+  assistantInteractiveResult: AssistantResultPanel;
   assistantTableFields: HTMLFieldSetElement;
   assistantTableCaption: HTMLInputElement;
   assistantTableColumns: HTMLTextAreaElement;
@@ -841,6 +847,11 @@ interface ClarityDrillContext extends AssistantDraftContext {
   readonly question: ModelClarityQuestion;
 }
 
+type AssistantResultContext =
+  | { readonly input: AssistantDraftContext; readonly kind: "revision" }
+  | { readonly input: ClarityDrillContext; readonly kind: "clarity-question" }
+  | { readonly kind: "table"; readonly sourceRevision: number; readonly target: AuthoringPassage };
+
 class WorkspaceApp {
   readonly #elements = collectElements();
   readonly #pdfViewer: PdfEvidenceViewer;
@@ -856,6 +867,7 @@ class WorkspaceApp {
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
   readonly #pdfAnnotation = createPdfAnnotationActor();
   readonly #assistantWorkflow = createAssistantWorkflowActor();
+  #assistantResultContext: AssistantResultContext | null = null;
   readonly #publicationIntake = createPublicationIntakeActor();
   readonly #collaborationWorkflow = createCollaborationWorkflowActor();
   readonly #metadataRefinement = createMetadataRefinementActor();
@@ -1499,6 +1511,9 @@ class WorkspaceApp {
       this.#elements.llmConnection.focus();
     });
     this.#elements.chooseModelEvidence.addEventListener("click", () => this.#chooseModelEvidence());
+    this.#elements.assistantInteractiveResult.addEventListener(assistantResultActionEvent, (event) => {
+      void this.#handleAssistantResultAction((event as CustomEvent<AssistantResultActionDetail>).detail);
+    });
     this.#renderModelOperationOptions();
     this.#renderPhrasingPurposeOptions();
     this.#elements.modelOperation.addEventListener("change", () => this.#updateModelTask(true));
@@ -2796,7 +2811,10 @@ class WorkspaceApp {
     this.#elements.modelInstructionLabel.textContent = operation.instructionLabel;
     this.#elements.generateCandidate.textContent = operation.actionLabel;
     if (resetInstruction) this.#elements.modelInstruction.value = operation.defaultInstruction;
-    if (resetInstruction) this.#elements.assistantInteractiveResult.replaceChildren();
+    if (resetInstruction) {
+      this.#assistantResultContext = null;
+      this.#elements.assistantInteractiveResult.clear();
+    }
     this.#elements.modelStatus.textContent = draftsClaim
       ? "Select at least one annotation to ground the claim draft."
       : phrasesPassage
@@ -4174,6 +4192,39 @@ class WorkspaceApp {
   #renderLibraryDiscoveryResults(results: readonly ReferenceDiscoveryResult[]): void {
     this.#elements.libraryDiscoveryResults.replaceChildren();
     for (const result of results) this.#elements.libraryDiscoveryResults.append(this.#referenceDiscoveryCard(result));
+  }
+
+  #referenceDiscoveryCard(result: ReferenceDiscoveryResult): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    const provider = document.createElement("p");
+    provider.className = "eyebrow";
+    provider.textContent = result.providers
+      .map(({ provider: name }) => (name === "semantic-scholar" ? "Semantic Scholar" : name === "openalex" ? "OpenAlex" : "Crossref"))
+      .join(" + ");
+    const title = document.createElement("h3");
+    title.className = "mt-2 text-base font-semibold";
+    title.textContent = result.metadata.title;
+    const meta = document.createElement("p");
+    meta.className = "mt-2 text-xs text-app-text-soft";
+    meta.textContent = [result.metadata.authors.join("; "), result.metadata.year, result.metadata.venue].filter(Boolean).join(" · ");
+    const actions = document.createElement("div");
+    actions.className = "mt-3 flex flex-wrap gap-2";
+    const identifier = result.identifiers[0]!;
+    const verify = document.createElement("a");
+    verify.className = "button-secondary";
+    verify.href = referenceDiscoveryIdentifierUrl(identifier);
+    verify.target = "_blank";
+    verify.rel = "noopener noreferrer";
+    verify.textContent = `Verify ${identifier.scheme === "semantic-scholar" ? "Semantic Scholar" : identifier.scheme.toUpperCase()}`;
+    const save = document.createElement("button");
+    save.className = "button-primary";
+    save.type = "button";
+    save.textContent = "Save to library";
+    save.addEventListener("click", () => void this.#saveLibraryDiscoveredReference(result, save));
+    actions.append(verify, save);
+    card.append(provider, title, meta, actions);
+    return card;
   }
 
   #renderReferenceLibrary(): void {
@@ -8879,21 +8930,29 @@ class WorkspaceApp {
 
   #renderGeneratedTable(target: AuthoringPassage, sourceRevision: number, table: ModelTable): void {
     const markdown = tableMarkdown(table);
-    const card = document.createElement("section");
-    card.className = "resource-card";
-    const label = document.createElement("p");
-    label.className = "eyebrow";
-    label.textContent = "Validated GFM table";
-    const preview = document.createElement("pre");
-    preview.className = "mt-3 overflow-x-auto whitespace-pre text-xs";
-    preview.textContent = markdown;
-    const insert = document.createElement("button");
-    insert.className = "button-primary mt-3";
-    insert.type = "button";
-    insert.textContent = target.start === target.end ? "Insert table" : "Replace selection with table";
-    insert.addEventListener("click", () => this.#insertGeneratedTable(target, sourceRevision, markdown));
-    card.append(label, preview, insert);
-    this.#elements.assistantInteractiveResult.replaceChildren(card);
+    this.#assistantResultContext = { kind: "table", sourceRevision, target };
+    this.#elements.assistantInteractiveResult.showTable(markdown, target.start !== target.end);
+  }
+
+  async #handleAssistantResultAction(detail: AssistantResultActionDetail): Promise<void> {
+    if (detail.action === "save-reference") {
+      await this.#saveDiscoveredReference(detail.result, detail.index);
+      return;
+    }
+    const context = this.#assistantResultContext;
+    if (!context) return;
+    if (detail.action === "insert-table" && context.kind === "table") {
+      this.#insertGeneratedTable(context.target, context.sourceRevision, detail.markdown);
+      return;
+    }
+    if (detail.action === "continue-clarity" && context.kind === "clarity-question") {
+      await this.#continueClarityDrill(context.input, detail.answer);
+      return;
+    }
+    if (detail.action === "choose-revision" && context.kind === "revision") {
+      await this.#chooseAssistantRevision(context.input, detail.choice);
+      return;
+    }
   }
 
   #insertGeneratedTable(target: AuthoringPassage, sourceRevision: number, markdown: string): void {
@@ -8923,190 +8982,57 @@ class WorkspaceApp {
   }
 
   #renderClarityQuestion(input: ClarityDrillContext): void {
-    const card = document.createElement("section");
-    card.className = "resource-card";
-    const eyebrow = document.createElement("p");
-    eyebrow.className = "eyebrow";
-    eyebrow.textContent = "One ambiguity";
-    const issue = document.createElement("p");
-    issue.className = "mt-2 text-sm text-app-text-soft";
-    issue.textContent = input.question.issue;
-    const question = document.createElement("h3");
-    question.className = "mt-3 text-base font-semibold";
-    question.textContent = input.question.question;
-    const answer = document.createElement("textarea");
-    answer.className = "field mt-3 w-full";
-    answer.rows = 3;
-    answer.maxLength = 4_000;
-    answer.placeholder = "State the concrete meaning you intend…";
-    const continueButton = document.createElement("button");
-    continueButton.className = "button-primary mt-3";
-    continueButton.type = "button";
-    continueButton.textContent = "Show precise rewrites";
-    continueButton.addEventListener("click", () => void this.#continueClarityDrill(input, answer.value));
-    card.append(eyebrow, issue, question, answer, continueButton);
-    this.#elements.assistantInteractiveResult.replaceChildren(card);
-    answer.focus();
+    this.#assistantResultContext = { input, kind: "clarity-question" };
+    this.#elements.assistantInteractiveResult.showClarityQuestion(input.question.issue, input.question.question);
   }
 
   #renderIdeas(input: AssistantDraftContext, result: ModelIdeas): void {
-    const list = document.createElement("div");
-    list.className = "grid gap-3";
-    for (const idea of result.ideas) {
-      const card = document.createElement("section");
-      card.className = "resource-card";
-      const title = document.createElement("h3");
-      title.className = "text-base font-semibold";
-      title.textContent = idea.title;
-      const direction = document.createElement("p");
-      direction.className = "mt-2 text-sm text-app-text-soft";
-      direction.textContent = idea.direction;
-      const draft = document.createElement("details");
-      draft.className = "mt-3";
-      const summary = document.createElement("summary");
-      summary.className = "cursor-pointer text-xs font-semibold";
-      summary.textContent = "Preview complete draft";
-      const draftText = document.createElement("p");
-      draftText.className = "mt-2 whitespace-pre-wrap text-sm";
-      draftText.textContent = idea.draft;
-      draft.append(summary, draftText);
-      const choose = document.createElement("button");
-      choose.className = "button-secondary mt-3";
-      choose.type = "button";
-      choose.textContent = "Review this direction";
-      choose.addEventListener(
-        "click",
-        () =>
-          void this.#chooseAssistantRevision(input, {
-            instruction: `${input.instruction}\nChosen direction: ${idea.title}. ${idea.direction}`.slice(0, 4_000),
-            replacement: idea.draft,
-            providerLabel: result.providerLabel,
-            model: result.model,
-            successMessage: "Idea draft ready for exact before-and-after review.",
-            failureMessage: "Could not save the idea draft",
-          }),
-      );
-      card.append(title, direction, draft, choose);
-      list.append(card);
-    }
-    this.#elements.assistantInteractiveResult.replaceChildren(list);
+    this.#assistantResultContext = { input, kind: "revision" };
+    this.#elements.assistantInteractiveResult.showIdeas(input.instruction, result);
   }
 
   #renderPhrasingAlternatives(input: AssistantDraftContext, purpose: PhrasingPurpose, result: ModelPhrasingAlternatives): void {
-    const list = document.createElement("div");
-    list.className = "grid gap-3";
-    for (const [index, alternative] of result.alternatives.entries()) {
-      const card = document.createElement("section");
-      card.className = "resource-card";
-      const label = document.createElement("p");
-      label.className = "eyebrow";
-      label.textContent = `${purpose.label} · option ${index + 1}`;
-      const text = document.createElement("p");
-      text.className = "mt-2 whitespace-pre-wrap text-sm";
-      text.textContent = alternative.text;
-      const rationale = document.createElement("p");
-      rationale.className = "mt-2 text-xs text-app-text-soft";
-      rationale.textContent = alternative.rationale;
-      const choose = document.createElement("button");
-      choose.className = "button-secondary mt-3";
-      choose.type = "button";
-      choose.textContent = "Review this alternative";
-      choose.addEventListener(
-        "click",
-        () =>
-          void this.#chooseAssistantRevision(input, {
-            instruction: `${input.instruction}\nRhetorical purpose: ${purpose.label}`.slice(0, 4_000),
-            replacement: alternative.text,
-            providerLabel: result.providerLabel,
-            model: result.model,
-            successMessage: "Phrasing alternative ready for exact before-and-after review.",
-            failureMessage: "Could not save the phrasing alternative",
-          }),
-      );
-      card.append(label, text, rationale, choose);
-      list.append(card);
-    }
-    this.#elements.assistantInteractiveResult.replaceChildren(list);
+    this.#assistantResultContext = { input, kind: "revision" };
+    this.#elements.assistantInteractiveResult.showPhrasingAlternatives(input.instruction, purpose, result);
   }
 
   #renderReferenceDiscovery(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {
-    const container = document.createElement("div");
-    container.className = "grid gap-3";
-    const summary = document.createElement("section");
-    summary.className = "resource-card";
-    const label = document.createElement("p");
-    label.className = "eyebrow";
-    label.textContent = "Registry query";
-    const queryText = document.createElement("p");
-    queryText.className = "mt-2 text-sm font-semibold";
-    queryText.textContent = query;
-    const reason = document.createElement("p");
-    reason.className = "mt-2 text-xs text-app-text-soft";
-    reason.textContent = rationale;
-    summary.append(label, queryText, reason);
-    container.append(summary);
-    for (const result of results) container.append(this.#referenceDiscoveryCard(result));
-    this.#elements.assistantInteractiveResult.replaceChildren(container);
+    this.#assistantResultContext = null;
+    this.#elements.assistantInteractiveResult.showReferences(query, rationale, results);
   }
 
-  #referenceDiscoveryCard(result: ReferenceDiscoveryResult): HTMLElement {
-    const card = document.createElement("article");
-    card.className = "resource-card";
-    const provider = document.createElement("p");
-    provider.className = "eyebrow";
-    provider.textContent = result.providers
-      .map(({ provider: name }) => (name === "semantic-scholar" ? "Semantic Scholar" : name === "openalex" ? "OpenAlex" : "Crossref"))
-      .join(" + ");
-    const title = document.createElement("h3");
-    title.className = "mt-2 text-base font-semibold";
-    title.textContent = result.metadata.title;
-    const meta = document.createElement("p");
-    meta.className = "mt-2 text-xs text-app-text-soft";
-    meta.textContent = [result.metadata.authors.join("; "), result.metadata.year, result.metadata.venue].filter(Boolean).join(" · ");
-    const actions = document.createElement("div");
-    actions.className = "mt-3 flex flex-wrap gap-2";
-    const identifier = result.identifiers[0]!;
-    const verify = document.createElement("a");
-    verify.className = "button-secondary";
-    verify.href = this.#referenceDiscoveryIdentifierUrl(identifier);
-    verify.target = "_blank";
-    verify.rel = "noopener noreferrer";
-    verify.textContent = `Verify ${identifier.scheme === "semantic-scholar" ? "Semantic Scholar" : identifier.scheme.toUpperCase()}`;
-    const save = document.createElement("button");
-    save.className = "button-primary";
-    save.type = "button";
-    save.textContent = "Save to library";
-    save.addEventListener("click", () => void this.#saveDiscoveredReference(result, save));
-    actions.append(verify, save);
-    card.append(provider, title, meta, actions);
-    return card;
-  }
-
-  #referenceDiscoveryIdentifierUrl(identifier: ReferenceDiscoveryResult["identifiers"][number]): string {
-    if (identifier.scheme === "doi") return `https://doi.org/${identifier.value}`;
-    if (identifier.scheme === "openalex") return `https://openalex.org/${identifier.value}`;
-    if (identifier.scheme === "semantic-scholar") return `https://www.semanticscholar.org/paper/${encodeURIComponent(identifier.value)}`;
-    if (identifier.scheme === "arxiv") return `https://arxiv.org/abs/${encodeURIComponent(identifier.value)}`;
-    return `https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(identifier.value)}/`;
-  }
-
-  async #saveDiscoveredReference(result: ReferenceDiscoveryResult, button: HTMLButtonElement): Promise<void> {
-    button.disabled = true;
+  async #saveDiscoveredReference(result: ReferenceDiscoveryResult, index: number): Promise<void> {
+    this.#elements.assistantInteractiveResult.setReferenceSaveState(index, "saving");
     try {
-      const response = await fetch("/api/library/import/csl-json", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify([this.#referenceDiscoveryCslRecord(result)]),
-      });
-      await expectOk(response);
-      await this.#refreshReferenceLibrary();
-      button.textContent = "Saved to library";
+      await this.#importDiscoveredReference(result);
+      this.#elements.assistantInteractiveResult.setReferenceSaveState(index, "saved");
       this.#elements.modelStatus.textContent = "Reference saved. Use its Library card to add it to this project before citing.";
     } catch (error) {
-      button.disabled = false;
+      this.#elements.assistantInteractiveResult.setReferenceSaveState(index, "idle");
       this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Could not save the reference";
     }
+  }
+
+  async #saveLibraryDiscoveredReference(result: ReferenceDiscoveryResult, button: HTMLButtonElement): Promise<void> {
+    button.disabled = true;
+    try {
+      await this.#importDiscoveredReference(result);
+      button.textContent = "Saved to library";
+    } catch (error) {
+      button.disabled = false;
+      this.#elements.libraryDiscoveryStatus.textContent = error instanceof Error ? error.message : "Could not save the reference";
+    }
+  }
+
+  async #importDiscoveredReference(result: ReferenceDiscoveryResult): Promise<void> {
+    const response = await fetch("/api/library/import/csl-json", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify([this.#referenceDiscoveryCslRecord(result)]),
+    });
+    await expectOk(response);
+    await this.#refreshReferenceLibrary();
   }
 
   #referenceDiscoveryCslRecord(result: ReferenceDiscoveryResult): Record<string, unknown> {
@@ -9117,7 +9043,7 @@ class WorkspaceApp {
       type: metadata.type === "article" ? "article-journal" : metadata.type,
       title: metadata.title,
       author: metadata.authors.map((literal) => ({ literal })),
-      URL: metadata.url || this.#referenceDiscoveryIdentifierUrl(primaryIdentifier),
+      URL: metadata.url || referenceDiscoveryIdentifierUrl(primaryIdentifier),
     };
     if (metadata.year) record.issued = { "date-parts": [[metadata.year]] };
     if (metadata.venue) record["container-title"] = metadata.venue;
@@ -9160,40 +9086,8 @@ class WorkspaceApp {
   }
 
   #renderClarityRewrites(input: ClarityDrillContext, answer: string, result: ModelClarityRewrites): void {
-    const list = document.createElement("div");
-    list.className = "grid gap-3";
-    for (const [index, rewrite] of result.rewrites.entries()) {
-      const card = document.createElement("section");
-      card.className = "resource-card";
-      const label = document.createElement("p");
-      label.className = "eyebrow";
-      label.textContent = `Option ${index + 1}`;
-      const text = document.createElement("p");
-      text.className = "mt-2 whitespace-pre-wrap text-sm";
-      text.textContent = rewrite.text;
-      const rationale = document.createElement("p");
-      rationale.className = "mt-2 text-xs text-app-text-soft";
-      rationale.textContent = rewrite.rationale;
-      const choose = document.createElement("button");
-      choose.className = "button-secondary mt-3";
-      choose.type = "button";
-      choose.textContent = "Review this revision";
-      choose.addEventListener(
-        "click",
-        () =>
-          void this.#chooseAssistantRevision(input, {
-            instruction: `${input.instruction}\nClarification: ${answer}`.slice(0, 4_000),
-            replacement: rewrite.text,
-            providerLabel: result.providerLabel,
-            model: result.model,
-            successMessage: "Clarity revision ready for exact before-and-after review.",
-            failureMessage: "Could not save the clarity revision",
-          }),
-      );
-      card.append(label, text, rationale, choose);
-      list.append(card);
-    }
-    this.#elements.assistantInteractiveResult.replaceChildren(list);
+    this.#assistantResultContext = { input, kind: "revision" };
+    this.#elements.assistantInteractiveResult.showClarityRewrites(input.instruction, answer, result);
   }
 
   async #chooseAssistantRevision(
@@ -11384,7 +11278,7 @@ function collectElements(): Elements {
     assistantTargetScope: requiredElement("assistant-target-scope", HTMLSelectElement),
     assistantTargetScopeField: requiredElement("assistant-target-scope-field", HTMLElement),
     assistantTargetPreview: requiredElement("assistant-target-preview", HTMLElement),
-    assistantInteractiveResult: requiredElement("assistant-interactive-result", HTMLElement),
+    assistantInteractiveResult: requiredElement("assistant-interactive-result", AssistantResultPanel),
     assistantTableFields: requiredElement("assistant-table-fields", HTMLFieldSetElement),
     assistantTableCaption: requiredElement("assistant-table-caption", HTMLInputElement),
     assistantTableColumns: requiredElement("assistant-table-columns", HTMLTextAreaElement),

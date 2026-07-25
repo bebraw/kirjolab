@@ -38,6 +38,9 @@ explain the response, and identify the manuscript change.
 
 - Unknown statuses degrade to open.
 - Empty response fields remain visible in the generated letter.
+- Response-letter export is enabled once the canonical matrix file exists; a
+  transiently empty collaboration text during file hydration does not disable
+  the control, and a deliberately empty matrix exports an empty letter.
 
 ### Scenarios
 

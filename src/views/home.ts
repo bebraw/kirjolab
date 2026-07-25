@@ -456,7 +456,7 @@ export function renderHomePage(
               <button class="button-primary model-generate-action justify-center" id="generate-candidate" type="button">Draft revision</button>
             </div>
             <p class="mt-2 text-xs leading-5 text-app-text-soft" id="assistant-target-preview" aria-live="polite">Place the caret in a sentence or select the exact text to revise.</p>
-            <div class="mt-4" id="assistant-interactive-result" aria-live="polite"></div>
+            <assistant-result-panel class="mt-4" id="assistant-interactive-result" aria-live="polite"></assistant-result-panel>
             <details class="mt-4 text-xs leading-5 text-app-text-soft" id="assistant-phrasing-attribution" hidden>
               <summary class="cursor-pointer font-semibold">About the phrasing inventory</summary>
               <p class="mt-2">Patterns are independently derived from CC BY PLOS articles and adapted by the configured local model. No Academic Phrasebank content is included.</p>

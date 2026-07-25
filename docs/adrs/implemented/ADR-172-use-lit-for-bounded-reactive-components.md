@@ -51,6 +51,9 @@ The adopted components own bounded presentation:
 - Reused writing-workflow panels own research-question and reviewer-response
   Markdown-to-item adaptation, counts, empty states, action labels, and typed
   open, download, and source-selection intents.
+- The assistant result panel owns validated-table previews, clarity input,
+  transient revision choices, reference-discovery cards, local save progress,
+  and typed continuation, selection, insertion, and save intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -88,6 +91,10 @@ reason to wrap static markup mechanically.
 - The writing-workflow panels replace five internal element references and two
   parallel imperative list renderers while leaving file creation, response
   export, and source navigation in the application coordinator.
+- The assistant result panel replaces six imperative result renderers and their
+  local event bindings while leaving model requests, workflow state, candidate
+  persistence, document edits, and Library imports in the application
+  coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without
