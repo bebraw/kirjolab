@@ -371,6 +371,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep the native textarea as the only manuscript input surface. Derive syntax
   highlighting into an inert, text-identical presentation layer so styling
   cannot change canonical Markdown, selection offsets, or collaboration.
+- Keep native-textarea infrastructure in a bounded browser adapter that owns
+  Yjs synchronization and history, highlight and presence mirroring, completion
+  geometry, relative selections, and optional keymap binding. The application
+  coordinator retains document, workflow, and navigation authority.
 - Implement optional editor keymaps as bounded textarea command adapters that
   emit ordinary input changes. Keep keymap preference browser-local, preserve
   IME and modified browser shortcuts, and never create a second document model.

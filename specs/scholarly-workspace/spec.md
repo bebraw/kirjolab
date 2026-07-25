@@ -170,6 +170,11 @@ collaboration.
   `Y.Text`; server collaboration controls own the displayed revision. REST
   workspace refreshes cannot assign those values. The editor reports `Saved`
   once initial synchronization completes with no queued local updates.
+- **Source editor adapter:** One bounded browser adapter owns textarea-to-Yjs
+  synchronization and history, syntax and presence mirroring, scroll alignment,
+  completion geometry, relative selection capture, and optional Vim binding.
+  The workspace coordinator retains document identity, collaboration workflow,
+  completion candidates, authoring targets, and navigation authority.
 - **Citation completion:** With the caret in a `:cite`, `:citet`, or `:citep`
   key, the source editor ranks matching project aliases by key, author, and
   title and shows key, author, title, and year metadata. A browser-local

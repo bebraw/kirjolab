@@ -1619,3 +1619,25 @@ The browser application artifact grows from 770,529 B raw / 209,185 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,345 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Coordinator Extraction: Source Editor Adapter
+
+A bounded `source-editor-adapter` now owns native textarea-to-Yjs
+synchronization and history, syntax and collaborator-presence mirroring, scroll
+alignment, completion geometry, Yjs-relative selection capture, and optional
+Vim binding. `WorkspaceApp` retains document identity, collaboration workflow,
+completion candidates, authoring targets, and navigation authority.
+
+This checkpoint reduces `src/client/app.ts` from 7,961 to 7,698 lines (-263).
+The adapter adds 261 lines. Four direct tests cover local and remote Yjs edits,
+undo and redo, highlighting and scroll synchronization, teardown, collapsed and
+ranged relative anchors, stored Vim mode and guarded edits, and completion
+geometry. It records 94.47% statement and 99.37% line coverage. Focused browser
+workflows pass Markdown highlighting, opt-in Vim editing, remote-caret
+preservation, and include-completion positioning.
+
+The browser application artifact shrinks from 771,477 B raw / 209,360 B gzip to
+771,417 B raw / 209,280 B gzip (-60 B raw / -80 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,349 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.
