@@ -216,9 +216,7 @@ import {
 import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
-import { ProjectMapPanel, projectMapSelectEvent } from "./project-map-panel";
-import { KnowledgeSearchPanel, knowledgeSearchEvent, knowledgeSearchSelectEvent } from "./knowledge-search-panel";
-import { KnowledgeConnectionsPanel, knowledgeConnectionSelectEvent } from "./knowledge-connections-panel";
+import { ProjectMapWorkspace, projectMapResourceSelectEvent, projectMapSearchEvent } from "./project-map-workspace";
 import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { ClaimDialog, claimDialogSaveEvent, type ClaimDialogSave } from "./claim-dialog";
 import {
@@ -513,10 +511,7 @@ interface Elements {
   sourceCompletion: SourceCompletion;
   authoringModeTabs: AuthoringModeTabs;
   editorWriteActions: HTMLElement;
-  projectMap: HTMLElement;
-  projectMapTotal: HTMLElement;
-  projectMapPanel: ProjectMapPanel;
-  projectMapOverview: HTMLElement;
+  projectMap: ProjectMapWorkspace;
   vimModeControl: VimModeControl;
   editorInsertMenu: EditorInsertMenu;
   bibliography: HTMLTextAreaElement;
@@ -557,11 +552,9 @@ interface Elements {
   editorStatus: EditorStatus;
   pdfUpload: HTMLInputElement;
   projectEvidencePanel: ProjectEvidencePanel;
-  knowledgeSearchPanel: KnowledgeSearchPanel;
   publicationListPanel: PublicationListPanel;
   claimListPanel: ClaimListPanel;
   claimDialog: ClaimDialog;
-  knowledgeConnectionsPanel: KnowledgeConnectionsPanel;
   projectAnnotationForm: ProjectAnnotationForm;
   annotationComposer: HTMLElement;
   libraryHighlightComposer: HTMLElement;
@@ -1282,16 +1275,10 @@ class WorkspaceApp {
         );
       }
     });
-    this.#elements.knowledgeSearchPanel.addEventListener(knowledgeSearchEvent, (event) => {
+    this.#elements.projectMap.addEventListener(projectMapSearchEvent, (event) => {
       void this.#searchKnowledge((event as CustomEvent<string>).detail);
     });
-    this.#elements.knowledgeSearchPanel.addEventListener(knowledgeSearchSelectEvent, (event) => {
-      this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
-    });
-    this.#elements.knowledgeConnectionsPanel.addEventListener(knowledgeConnectionSelectEvent, (event) => {
-      this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
-    });
-    this.#elements.projectMapPanel.addEventListener(projectMapSelectEvent, (event) => {
+    this.#elements.projectMap.addEventListener(projectMapResourceSelectEvent, (event) => {
       this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
     });
     this.#elements.publicationListPanel.addEventListener(publicationListActionEvent, (event) => {
@@ -4415,8 +4402,7 @@ class WorkspaceApp {
 
   async #searchKnowledge(query: string): Promise<void> {
     if (!query) {
-      this.#elements.knowledgeSearchPanel.clear();
-      this.#elements.projectMapOverview.classList.remove("hidden");
+      this.#elements.projectMap.clearSearch();
       return;
     }
     try {
@@ -4424,18 +4410,14 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isKnowledgeSearchResults(value)) throw new Error("Project search returned invalid data");
-      this.#elements.knowledgeSearchPanel.showResults(value);
-      this.#elements.projectMapOverview.classList.add("hidden");
+      this.#elements.projectMap.showSearchResults(value);
     } catch (error) {
-      this.#elements.projectMapOverview.classList.add("hidden");
-      this.#elements.knowledgeSearchPanel.showError(error instanceof Error ? error.message : "Project search failed");
+      this.#elements.projectMap.showSearchError(error instanceof Error ? error.message : "Project search failed");
     }
   }
 
   #renderKnowledgeGraph(graph: WorkspaceKnowledgeGraph): void {
-    this.#elements.projectMapTotal.textContent = `${graph.nodes.length} ${graph.nodes.length === 1 ? "resource" : "resources"} · ${graph.edges.length} ${graph.edges.length === 1 ? "link" : "links"}`;
-    this.#elements.projectMapPanel.setGraph(graph);
-    this.#elements.knowledgeConnectionsPanel.setGraph(graph);
+    this.#elements.projectMap.setGraph(graph);
   }
 
   #focusKnowledgeResource(resourceId: string): void {
@@ -4493,14 +4475,10 @@ class WorkspaceApp {
   #setAuthoringMode(mode: AuthoringMode): void {
     const writing = mode === "write";
     this.#elements.sourceEditorShell.hidden = !writing;
-    this.#elements.projectMap.hidden = writing;
+    this.#elements.projectMap.setVisible(!writing);
     this.#elements.editorWriteActions.hidden = !writing;
     this.#elements.authoringModeTabs.setMode(mode);
     if (writing) this.#elements.source.focus();
-    else {
-      this.#elements.projectMapPanel.refreshLayout();
-      this.#elements.projectMap.querySelector<HTMLButtonElement>(".project-map-node")?.focus();
-    }
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -7438,10 +7416,7 @@ function collectElements(): Elements {
     sourceCompletion: requiredElement("source-completion", SourceCompletion),
     authoringModeTabs: requiredElement("authoring-mode-tabs", AuthoringModeTabs),
     editorWriteActions: requiredElement("editor-write-actions", HTMLElement),
-    projectMap: requiredElement("project-map", HTMLElement),
-    projectMapTotal: requiredElement("project-map-total", HTMLElement),
-    projectMapPanel: requiredElement("project-map-canvas", ProjectMapPanel),
-    projectMapOverview: requiredElement("project-map-overview", HTMLElement),
+    projectMap: requiredElement("project-map", ProjectMapWorkspace),
     vimModeControl: requiredElement("vim-mode-control", VimModeControl),
     editorInsertMenu: requiredElement("editor-insert-menu-component", EditorInsertMenu),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
@@ -7482,11 +7457,9 @@ function collectElements(): Elements {
     editorStatus: requiredElement("editor-status", EditorStatus),
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
     projectEvidencePanel: requiredElement("project-evidence-panel", ProjectEvidencePanel),
-    knowledgeSearchPanel: requiredElement("knowledge-search-panel", KnowledgeSearchPanel),
     publicationListPanel: requiredElement("publication-list-panel", PublicationListPanel),
     claimListPanel: requiredElement("claim-list-panel", ClaimListPanel),
     claimDialog: requiredElement("claim-dialog-panel", ClaimDialog),
-    knowledgeConnectionsPanel: requiredElement("knowledge-connections-panel", KnowledgeConnectionsPanel),
     projectAnnotationForm: requiredElement("project-annotation-form", ProjectAnnotationForm),
     annotationComposer: requiredElement("annotation-composer", HTMLElement),
     libraryHighlightComposer: requiredElement("library-highlight-composer", HTMLElement),

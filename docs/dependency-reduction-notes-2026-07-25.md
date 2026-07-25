@@ -1896,3 +1896,25 @@ The browser application artifact grows from 777,986 B raw / 210,515 B gzip to
 and unique production package counts remain unchanged at 135,362 B raw / 23,360
 B gzip and 18 and 150. Full native CI passes all 1,360 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Project Map Workspace
+
+A composed `ProjectMapWorkspace` now owns the Evidence map shell, resource and
+link totals, search-versus-overview presentation, graph fan-out to the map and
+connection panels, mode visibility, focus entry, and one typed resource-selection
+stream. `WorkspaceApp` retains authorized search, response validation, graph
+acquisition, resource navigation, editor visibility, and URL policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,616 to 7,589 lines (-27),
+replaces six internal element references with one component reference, and
+consolidates four child event subscriptions into two domain events. Focused
+browser coverage passes graph layout and emphasis, responsive relayout, search,
+connection navigation, and return-to-source behavior. Component coverage is
+90.69% statements and 91.89% lines.
+
+The browser application artifact grows from 782,100 B raw / 211,345 B gzip to
+784,626 B raw / 211,697 B gzip (+2,526 B raw / +352 B gzip). Explicit block-level
+container behavior grows styles from 135,362 B raw / 23,360 B gzip to 135,376 B
+raw / 23,364 B gzip (+14 B raw / +4 B gzip). Direct and unique production
+package counts remain unchanged at 18 and 150. Full native CI passes all 1,367
+unit/coverage tests, 120 Workers-runtime tests, and 74 browser tests.

@@ -98,6 +98,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="show-write-mode" type="button" aria-pressed="true">Write</button>');
     expect(html).toContain('id="show-map-mode" type="button" aria-pressed="false">Map</button>');
     expect(html).toContain('id="project-map" aria-labelledby="project-map-heading" hidden');
+    expect(html).toContain('<project-map-workspace class="project-map" id="project-map"');
     expect(html).toContain('class="project-map-legend" aria-label="Evidence map key"');
     expect(html).toContain('data-lane="source">Source material</span>');
     expect(html).toContain('id="project-map-graph" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true"');

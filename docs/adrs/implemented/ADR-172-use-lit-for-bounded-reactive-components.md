@@ -60,6 +60,10 @@ The adopted components own bounded presentation:
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.
+- The project map workspace composes search, provenance-map, and typed-connection
+  panels; owns resource and link totals, search-versus-overview presentation,
+  mode visibility, focus entry, and one typed resource-selection stream; and
+  exposes one graph-presentation boundary to the application coordinator.
 - The candidate review panel owns before/after and provenance rendering,
   decision availability and progress, local scroll state, and typed apply,
   reject, and evidence-navigation intents.
@@ -248,6 +252,11 @@ reason to wrap static markup mechanically.
   coordinator fields, and imperative node, connector, resize, focus, and hover
   management while leaving graph derivation and resource navigation in the
   application coordinator.
+- The project map workspace replaces six coordinator element references with
+  one component reference, consolidates four child event subscriptions into
+  two domain events, and owns graph/search fan-out plus map entry focus. The
+  application coordinator retains authorized search, response validation,
+  graph acquisition, resource navigation, editor visibility, and URL policy.
 - The candidate review panel replaces thirteen internal element references and
   the coordinator's candidate-copy, status, evidence, and action renderers while
   leaving applicability checks, workflow transitions, canonical mutations, and

@@ -295,7 +295,7 @@ export function renderHomePage(
           <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help" aria-autocomplete="list" aria-controls="source-completion" placeholder="Start a chapter section with ## Heading"></textarea>
           <source-completion class="source-completion" id="source-completion" role="listbox" aria-label="Source suggestions" hidden></source-completion>
         </div>
-        <section class="project-map" id="project-map" aria-labelledby="project-map-heading" hidden>
+        <project-map-workspace class="project-map" id="project-map" aria-labelledby="project-map-heading" hidden role="region">
           <header class="project-map-header">
             <div>
               <p class="eyebrow">Project structure</p>
@@ -333,7 +333,7 @@ export function renderHomePage(
               <div class="project-map-connection-list" id="knowledge-connection-list"><div class="empty-state">Citations and evidence links appear here as typed connections.</div></div>
             </knowledge-connections-panel>
           </div>
-        </section>
+        </project-map-workspace>
         <p class="sr-only" id="editor-help">Collaborative Markdown source. Chapter sections start at heading level two. Select text to link it to an annotation. Undo with Command-Z or Control-Z; redo with Command-Shift-Z, Control-Shift-Z, or Control-Y.</p>
       </section>
 
