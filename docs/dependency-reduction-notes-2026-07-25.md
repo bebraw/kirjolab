@@ -118,3 +118,11 @@ comparison, annotation, and share-link response validators in
 `src/client/app-contracts.ts`. Existing malformed-field tests pass unchanged,
 and the module is 96 lines smaller after removing nested handwritten predicates
 and parallel structural return types.
+
+### GitHub sync menu component: accepted
+
+The second Lit boundary moves synchronization labels, repository detail,
+relationship tone, action availability, and four local intent bindings behind
+one typed component. `WorkspaceApp` drops eight internal element references and
+25 lines while retaining refresh timing, requests, previews, and settings
+authority. Existing Pull and Push browser workflows pass unchanged.

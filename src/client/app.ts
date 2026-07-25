@@ -78,7 +78,14 @@ import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 import { renderIcon } from "../ui/icons";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
-import { gitHubSyncPresentation, isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
+import {
+  GitHubSyncMenu,
+  gitHubSyncCheckEvent,
+  gitHubSyncPullEvent,
+  gitHubSyncPushEvent,
+  gitHubSyncSettingsEvent,
+} from "./github-sync-menu";
+import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
   defaultProjectPublicationProfile,
@@ -434,15 +441,7 @@ interface Elements {
   previewGitHubImport: HTMLButtonElement;
   cancelGitHubImport: HTMLButtonElement;
   gitHubSyncStatus: HTMLElement;
-  gitHubSyncMenu: HTMLDetailsElement;
-  gitHubSyncTrigger: HTMLElement;
-  gitHubSyncLabel: HTMLElement;
-  gitHubSyncRepository: HTMLElement;
-  gitHubSyncDetail: HTMLElement;
-  gitHubSyncCheck: HTMLButtonElement;
-  gitHubSyncPull: HTMLButtonElement;
-  gitHubSyncPush: HTMLButtonElement;
-  gitHubSyncSettings: HTMLButtonElement;
+  gitHubSyncMenu: GitHubSyncMenu;
   gitHubPullReview: HTMLElement;
   previewGitHubPull: HTMLButtonElement;
   confirmGitHubPull: HTMLButtonElement;
@@ -1223,16 +1222,16 @@ class WorkspaceApp {
     this.#elements.previewGitHubPublish.addEventListener("click", () => void this.#previewGitHubPublish());
     this.#elements.confirmGitHubPublish.addEventListener("click", () => void this.#confirmGitHubPublish());
     this.#elements.disconnectGitHub.addEventListener("click", () => void this.#disconnectGitHub());
-    this.#elements.gitHubSyncCheck.addEventListener("click", () => void this.#refreshGitHubSyncState(true));
-    this.#elements.gitHubSyncPull.addEventListener("click", () => {
+    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncCheckEvent, () => void this.#refreshGitHubSyncState(true));
+    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncPullEvent, () => {
       this.#openWorkspaceSettings(false);
       void this.#previewGitHubPull();
     });
-    this.#elements.gitHubSyncPush.addEventListener("click", () => {
+    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncPushEvent, () => {
       this.#openWorkspaceSettings(false);
       void this.#previewGitHubPublish();
     });
-    this.#elements.gitHubSyncSettings.addEventListener("click", () => this.#openWorkspaceSettings());
+    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncSettingsEvent, () => this.#openWorkspaceSettings());
     const githubResult = new URL(location.href).searchParams.get("github");
     if (githubResult === "connected" || githubResult === "installed") {
       this.#elements.openGitHubImport.click();
@@ -2175,38 +2174,22 @@ class WorkspaceApp {
     this.#elements.previewGitHubPublish.disabled = !connected;
     this.#elements.disconnectGitHub.disabled = !connected;
     this.#elements.gitHubPublishMessage.disabled = !connected;
-    this.#elements.gitHubSyncMenu.hidden = !connected;
+    this.#elements.gitHubSyncMenu.setConnection(connection);
     if (!connection) {
       this.#elements.gitHubSyncStatus.textContent = "This project is not connected to GitHub.";
       return;
     }
-    this.#elements.gitHubSyncLabel.textContent = "GitHub · Checking";
-    this.#elements.gitHubSyncRepository.textContent = `${connection.owner}/${connection.repository} · ${connection.branch}`;
-    this.#elements.gitHubSyncDetail.textContent = "Reading the configured branch…";
-    this.#elements.gitHubSyncPull.disabled = true;
-    this.#elements.gitHubSyncPush.disabled = true;
   }
 
   #renderGitHubSyncError(requestId: number, error: unknown): void {
     if (requestId !== this.#gitHubSyncRequest) return;
     const message = error instanceof Error ? error.message : "Could not load GitHub sync state.";
     this.#elements.gitHubSyncStatus.textContent = message;
-    if (this.#elements.gitHubSyncMenu.hidden) return;
-    this.#elements.gitHubSyncLabel.textContent = "GitHub · Check failed";
-    this.#elements.gitHubSyncDetail.textContent = message;
-    this.#elements.gitHubSyncTrigger.dataset.tone = "warning";
+    this.#elements.gitHubSyncMenu.setError(message);
   }
 
   #renderGitHubSyncStatus(status: GitHubSyncStatus): void {
-    const presentation = gitHubSyncPresentation(status);
-    const root = status.rootPath ? ` · ${status.rootPath}/` : "";
-    this.#elements.gitHubSyncLabel.textContent = presentation.label;
-    this.#elements.gitHubSyncRepository.textContent = `${status.owner}/${status.repository} · ${status.branch}${root}`;
-    this.#elements.gitHubSyncDetail.textContent = presentation.detail;
-    this.#elements.gitHubSyncTrigger.dataset.tone = presentation.tone;
-    this.#elements.gitHubSyncPull.disabled = !presentation.canPull;
-    this.#elements.gitHubSyncPush.disabled = !presentation.canPush;
-    this.#elements.gitHubSyncStatus.textContent = `${this.#elements.gitHubSyncRepository.textContent} · ${presentation.detail}`;
+    this.#elements.gitHubSyncStatus.textContent = this.#elements.gitHubSyncMenu.setStatus(status);
   }
 
   async #previewGitHubPull(): Promise<void> {
@@ -11697,15 +11680,7 @@ function collectElements(): Elements {
     previewGitHubImport: requiredElement("preview-github-import", HTMLButtonElement),
     cancelGitHubImport: requiredElement("cancel-github-import", HTMLButtonElement),
     gitHubSyncStatus: requiredElement("github-sync-status", HTMLElement),
-    gitHubSyncMenu: requiredElement("github-sync-menu", HTMLDetailsElement),
-    gitHubSyncTrigger: requiredElement("github-sync-trigger", HTMLElement),
-    gitHubSyncLabel: requiredElement("github-sync-label", HTMLElement),
-    gitHubSyncRepository: requiredElement("github-sync-repository", HTMLElement),
-    gitHubSyncDetail: requiredElement("github-sync-detail", HTMLElement),
-    gitHubSyncCheck: requiredElement("github-sync-check", HTMLButtonElement),
-    gitHubSyncPull: requiredElement("github-sync-pull", HTMLButtonElement),
-    gitHubSyncPush: requiredElement("github-sync-push", HTMLButtonElement),
-    gitHubSyncSettings: requiredElement("github-sync-settings", HTMLButtonElement),
+    gitHubSyncMenu: requiredElement("github-sync-control", GitHubSyncMenu),
     gitHubPullReview: requiredElement("github-pull-review", HTMLElement),
     previewGitHubPull: requiredElement("preview-github-pull", HTMLButtonElement),
     confirmGitHubPull: requiredElement("confirm-github-pull", HTMLButtonElement),

@@ -26,12 +26,12 @@ presentation state, element references, and DOM events can leave
 coordinator retains network access, Yjs and XState actors, persisted domain
 state, and cross-feature workflows.
 
-The first component owns GitHub account connection presentation in the import
-dialog:
+The first components own bounded GitHub presentation:
 
-- connected and disconnected messages and actions;
-- reactive visibility of account actions; and
-- a typed disconnect intent event.
+- The import account panel owns connected and disconnected messages, reactive
+  action visibility, and a typed disconnect intent.
+- The workspace sync menu owns repository status, relationship tone, Pull and
+  Push availability, and typed Check, Pull, Push, and Settings intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -45,6 +45,8 @@ reason to wrap static markup mechanically.
 
 - The application coordinator addresses one typed presentation component
   instead of managing its internal elements independently.
+- The sync menu removes eight internal elements plus their presentation updates
+  from the application coordinator's registry.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

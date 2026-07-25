@@ -113,6 +113,11 @@ incoming and outgoing mutation.
   its local message, action visibility, and disconnect intent. The application
   coordinator retains connection requests, confirmation, picker loading, and
   import workflow state, while the Worker retains initial fallback markup.
+- The workspace sync menu is a light-DOM Lit component that owns repository
+  status presentation, relationship tone, Pull and Push availability, and
+  typed Check, Pull, Push, and Settings intents. The application coordinator
+  retains refresh timing, network requests, preview workflows, and settings
+  dialogs, while the Worker retains initial fallback markup.
 - `POST /api/workspaces/{id}/github-sync/pull-previews` returns a non-mutating
   three-way incoming diff and conflicts.
 - `POST /api/workspaces/{id}/github-sync/pulls` consumes a current pull preview

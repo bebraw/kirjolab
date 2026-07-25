@@ -65,22 +65,24 @@ export function renderHomePage(
         ${appMode === "library" ? `<div class="library-header-context">${contextTabs}</div>` : ""}
         <div class="app-header-secondary">
           ${workspaceLayoutControl}
-          <details class="action-menu github-sync-menu ui-menu" id="github-sync-menu" data-action-menu hidden>
-            <summary class="github-sync-trigger" id="github-sync-trigger" aria-label="GitHub synchronization status">
-              <span class="github-sync-dot" aria-hidden="true"></span>
-              <span id="github-sync-label">GitHub · Checking</span>
-            </summary>
-            <div class="editor-command-menu github-sync-panel ui-menu-panel" aria-label="GitHub synchronization">
-              <div class="github-sync-overview">
-                <strong id="github-sync-repository">GitHub project</strong>
-                <span id="github-sync-detail">Checking the configured branch…</span>
+          <github-sync-menu id="github-sync-control">
+            <details class="action-menu github-sync-menu ui-menu" id="github-sync-menu" data-action-menu hidden>
+              <summary class="github-sync-trigger" id="github-sync-trigger" aria-label="GitHub synchronization status">
+                <span class="github-sync-dot" aria-hidden="true"></span>
+                <span id="github-sync-label">GitHub · Checking</span>
+              </summary>
+              <div class="editor-command-menu github-sync-panel ui-menu-panel" aria-label="GitHub synchronization">
+                <div class="github-sync-overview">
+                  <strong id="github-sync-repository">GitHub project</strong>
+                  <span id="github-sync-detail">Checking the configured branch…</span>
+                </div>
+                <button type="button"><strong>Check now</strong><span>Read-only</span></button>
+                <button id="github-sync-pull" type="button" disabled><strong>Pull from GitHub</strong><span>Preview first</span></button>
+                <button id="github-sync-push" type="button" disabled><strong>Push to GitHub</strong><span>Preview first</span></button>
+                <button type="button"><strong>Sync settings</strong><span>Details</span></button>
               </div>
-              <button id="github-sync-check" type="button"><strong>Check now</strong><span>Read-only</span></button>
-              <button id="github-sync-pull" type="button" disabled><strong>Pull from GitHub</strong><span>Preview first</span></button>
-              <button id="github-sync-push" type="button" disabled><strong>Push to GitHub</strong><span>Preview first</span></button>
-              <button id="github-sync-settings" type="button"><strong>Sync settings</strong><span>Details</span></button>
-            </div>
-          </details>
+            </details>
+          </github-sync-menu>
           <details class="action-menu ui-menu" id="account-menu" data-action-menu>
             <summary class="account-trigger" aria-label="Account for ${escapedIdentityEmail}" title="Account">
               ${renderIcon("account")}
