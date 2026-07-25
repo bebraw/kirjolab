@@ -428,6 +428,7 @@ export function renderHomePage(
 
         <section class="context-panel context-assistant-panel" id="context-assistant-panel" role="tabpanel" aria-labelledby="context-assistant-tab" tabindex="0" hidden>
           <div class="context-assistant-scroll p-5" id="context-assistant-scroll">
+            <assistant-task-panel id="assistant-task-panel">
             <div class="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p class="eyebrow" id="assistant-operation-eyebrow">Selected passage</p>
@@ -472,6 +473,7 @@ export function renderHomePage(
               <button class="button-primary model-generate-action justify-center" id="generate-candidate" type="button">Draft revision</button>
             </div>
             <p class="mt-2 text-xs leading-5 text-app-text-soft" id="assistant-target-preview" aria-live="polite">Place the caret in a sentence or select the exact text to revise.</p>
+            </assistant-task-panel>
             <assistant-result-panel class="mt-4" id="assistant-interactive-result" aria-live="polite"></assistant-result-panel>
             <details class="mt-4 text-xs leading-5 text-app-text-soft" id="assistant-phrasing-attribution" hidden>
               <summary class="cursor-pointer font-semibold">About the phrasing inventory</summary>

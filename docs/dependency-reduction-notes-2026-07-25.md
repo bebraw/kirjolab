@@ -821,6 +821,29 @@ and 74 browser tests. The browser application artifact grows from 698,319 B raw
 / 194,629 B gzip to 701,258 B raw / 194,976 B gzip (+2,939 B raw / +347 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
 
+## Continued Lit Extraction: Assistant Task Setup
+
+Writing-assistant task setup now uses a bounded `AssistantTaskPanel` instead of
+eighteen element references and imperative operation, target-scope, rhetorical
+purpose, claim-relation, structured-table, instruction-default, copy,
+visibility, target-preview, and readiness updates. The component owns local
+task values and emits typed operation, target, input, and generation intents.
+`WorkspaceApp` retains editor-target resolution, evidence selection, model
+requests, XState workflow state, result handling, and status policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,918 to 9,834 lines (-84).
+The component adds 263 lines. Component tests cover every operation-specific
+presentation, local values, readiness, typed changes, and generation gating.
+The focused browser workflow passes revision, clarity drill, ideation,
+rhetorical phrasing, structured table, reference discovery, target scope, and
+generation behavior. The component records 94.33% statement and 96.07% line
+coverage.
+
+Full native CI passes all 1,266 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 702,559 B raw
+/ 195,079 B gzip to 706,518 B raw / 196,007 B gzip (+3,959 B raw / +928 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
 ## Continued Lit Extraction: Export Statistics
 
 The export dialog's publication statistics now use a bounded

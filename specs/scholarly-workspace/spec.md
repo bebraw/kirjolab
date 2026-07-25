@@ -121,6 +121,13 @@ collaboration.
   layout, sharing, export, and publication controls remain in their
   task-specific surfaces. Writing assistant links back to the shared panel
   rather than duplicating model controls.
+- **Assistant task setup:** A bounded light-DOM component owns local operation,
+  target scope, instruction, claim relation, rhetorical purpose, structured
+  table requirements, operation-specific copy and visibility, target-preview
+  presentation, and generation readiness. It emits typed task-change and
+  generation intents; the application coordinator retains editor target
+  resolution, evidence, model requests, workflow state, results, and status
+  policy.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
 - **Schema lifecycle:** Every SQLite-backed document, catalog, and access

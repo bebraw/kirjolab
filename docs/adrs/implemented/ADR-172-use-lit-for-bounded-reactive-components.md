@@ -107,6 +107,10 @@ The adopted components own bounded presentation:
   empty-group presentation for the live publication word-count projection.
 - The knowledge connections panel owns connection counts, typed edge cards,
   relationship labels, empty state, and typed resource-selection intents.
+- The assistant task panel owns operation, scope, instruction, claim relation,
+  phrasing purpose, structured-table inputs, operation-specific copy and
+  visibility, target-preview presentation, readiness, and typed change and
+  generation intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -220,6 +224,11 @@ reason to wrap static markup mechanically.
 - The knowledge connections panel replaces two internal element references and
   imperative edge-card and resource-link rendering while leaving graph
   derivation and cross-resource navigation in the application coordinator.
+- The assistant task panel replaces eighteen internal element references and
+  imperative operation, scope, purpose, copy, visibility, instruction-default,
+  target-preview, and readiness updates while leaving editor target resolution,
+  evidence selection, model requests, workflow state, results, and status policy
+  in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

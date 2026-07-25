@@ -1584,7 +1584,8 @@
   publication-intake-panel,
   latex-import-panel,
   export-statistics-panel,
-  knowledge-connections-panel {
+  knowledge-connections-panel,
+  assistant-task-panel {
     display: block;
   }
 

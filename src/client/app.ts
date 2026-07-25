@@ -159,11 +159,11 @@ import {
 } from "./collaboration-workflow-machine";
 import {
   assistantOperationDefinition,
-  assistantOperationDefinitions,
   assistantTargetScopeLabel,
   resolveAssistantTarget,
   type AssistantTargetScope,
 } from "./assistant-operations";
+import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import {
   citationContextAtPosition,
@@ -709,26 +709,9 @@ interface Elements {
   llmModel: HTMLSelectElement;
   llmReasoningEffort: HTMLSelectElement;
   discoverLlmModels: HTMLButtonElement;
-  modelOperation: HTMLSelectElement;
-  assistantTargetScope: HTMLSelectElement;
-  assistantTargetScopeField: HTMLElement;
-  assistantTargetPreview: HTMLElement;
+  assistantTaskPanel: AssistantTaskPanel;
   assistantInteractiveResult: AssistantResultPanel;
-  assistantTableFields: HTMLFieldSetElement;
-  assistantTableCaption: HTMLInputElement;
-  assistantTableColumns: HTMLTextAreaElement;
-  assistantTableRows: HTMLTextAreaElement;
-  assistantPhrasingPurpose: HTMLSelectElement;
-  assistantPhrasingPurposeField: HTMLElement;
   assistantPhrasingAttribution: HTMLDetailsElement;
-  modelClaimRelation: HTMLSelectElement;
-  modelClaimRelationField: HTMLElement;
-  assistantOperationEyebrow: HTMLElement;
-  assistantOperationTitle: HTMLElement;
-  assistantOperationDescription: HTMLElement;
-  modelInstructionLabel: HTMLElement;
-  modelInstruction: HTMLTextAreaElement;
-  generateCandidate: HTMLButtonElement;
   modelStatus: HTMLElement;
   candidateListPanel: CandidateListPanel;
   toast: HTMLElement;
@@ -1510,12 +1493,6 @@ class WorkspaceApp {
       this.#elements.llmEndpoint,
       this.#elements.llmModel,
       this.#elements.llmReasoningEffort,
-      this.#elements.modelInstruction,
-      this.#elements.modelClaimRelation,
-      this.#elements.assistantTableCaption,
-      this.#elements.assistantTableColumns,
-      this.#elements.assistantTableRows,
-      this.#elements.assistantPhrasingPurpose,
     ]) {
       input.addEventListener("input", () => this.#updateModelAvailability());
     }
@@ -1555,14 +1532,15 @@ class WorkspaceApp {
     this.#elements.assistantInteractiveResult.addEventListener(assistantResultActionEvent, (event) => {
       void this.#handleAssistantResultAction((event as CustomEvent<AssistantResultActionDetail>).detail);
     });
-    this.#renderModelOperationOptions();
-    this.#renderPhrasingPurposeOptions();
-    this.#elements.modelOperation.addEventListener("change", () => this.#updateModelTask(true));
-    this.#elements.assistantTargetScope.addEventListener("change", () => {
-      this.#renderAssistantTargetPreview();
-      this.#updateModelAvailability();
+    this.#elements.assistantTaskPanel.addEventListener(assistantTaskChangeEvent, (event) => {
+      const change = (event as CustomEvent<AssistantTaskChange>).detail;
+      if (change === "operation") this.#updateModelTask(true);
+      else {
+        if (change === "target") this.#renderAssistantTargetPreview();
+        this.#updateModelAvailability();
+      }
     });
-    this.#elements.generateCandidate.addEventListener("click", () => void this.#generateCandidate());
+    this.#elements.assistantTaskPanel.addEventListener(assistantTaskGenerateEvent, () => void this.#generateCandidate());
     this.#updateModelTask();
   }
 
@@ -2685,7 +2663,7 @@ class WorkspaceApp {
   #updateModelAvailability(): void {
     const stable = this.#hasStableDocumentBase();
     const assistant = this.#assistantWorkflow.getSnapshot();
-    this.#elements.generateCandidate.disabled = this.#candidateGenerationDisabled(stable, assistantWorkflowBusy(assistant));
+    this.#elements.assistantTaskPanel.setGenerateDisabled(this.#candidateGenerationDisabled(stable, assistantWorkflowBusy(assistant)));
     this.#updateCandidateApplyButtons(stable, assistant.context.candidateDecision !== null);
   }
 
@@ -2705,7 +2683,7 @@ class WorkspaceApp {
   }
 
   #canGenerateCandidate(): boolean {
-    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
+    const { instruction, operation } = this.#elements.assistantTaskPanel.value;
     if (!operation.enabled) return false;
     const selectedEvidence = this.#modelEvidence();
     return (
@@ -2713,7 +2691,7 @@ class WorkspaceApp {
       this.#modelEvidenceSelection.size <= maximumModelEvidenceItems &&
       Boolean(this.#elements.llmModel.value.trim()) &&
       this.#assistantTargetValid(operation.id, selectedEvidence.items) &&
-      Boolean(this.#elements.modelInstruction.value.trim())
+      Boolean(instruction.trim())
     );
   }
 
@@ -2733,60 +2711,14 @@ class WorkspaceApp {
   }
 
   #draftsClaim(): boolean {
-    return this.#elements.modelOperation.value === "draft-claim";
-  }
-
-  #renderModelOperationOptions(): void {
-    const current = this.#elements.modelOperation.value;
-    this.#elements.modelOperation.replaceChildren(
-      ...assistantOperationDefinitions().map((definition) => {
-        const option = document.createElement("option");
-        option.value = definition.id;
-        option.textContent = definition.enabled ? definition.label : `${definition.label} · coming next`;
-        option.disabled = !definition.enabled;
-        return option;
-      }),
-    );
-    this.#elements.modelOperation.value = assistantOperationDefinition(current).id;
-  }
-
-  #renderPhrasingPurposeOptions(): void {
-    this.#elements.assistantPhrasingPurpose.replaceChildren(
-      ...phrasingPurposes().map((purpose) => {
-        const option = document.createElement("option");
-        option.value = purpose.id;
-        option.textContent = purpose.label;
-        return option;
-      }),
-    );
+    return this.#elements.assistantTaskPanel.value.operation.id === "draft-claim";
   }
 
   #updateModelTask(resetInstruction = false): void {
-    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
+    const operation = this.#elements.assistantTaskPanel.value.operation;
     const draftsClaim = operation.id === "draft-claim";
     const phrasesPassage = operation.id === "phrase-passage";
-    this.#elements.modelClaimRelationField.hidden = !draftsClaim;
-    this.#elements.assistantPhrasingPurposeField.hidden = !phrasesPassage;
     this.#elements.assistantPhrasingAttribution.hidden = !phrasesPassage;
-    this.#elements.assistantTableFields.hidden = operation.id !== "build-table";
-    this.#elements.assistantTargetScopeField.hidden = operation.scopes.length === 0;
-    const currentScope = this.#elements.assistantTargetScope.value;
-    this.#elements.assistantTargetScope.replaceChildren(
-      ...operation.scopes.map((scope) => {
-        const option = document.createElement("option");
-        option.value = scope;
-        option.textContent = assistantTargetScopeLabel(scope);
-        return option;
-      }),
-    );
-    const scope = operation.scopes.includes(currentScope as AssistantTargetScope) ? currentScope : operation.defaultScope;
-    if (scope) this.#elements.assistantTargetScope.value = scope;
-    this.#elements.assistantOperationEyebrow.textContent = operation.eyebrow;
-    this.#elements.assistantOperationTitle.textContent = operation.title;
-    this.#elements.assistantOperationDescription.textContent = operation.description;
-    this.#elements.modelInstructionLabel.textContent = operation.instructionLabel;
-    this.#elements.generateCandidate.textContent = operation.actionLabel;
-    if (resetInstruction) this.#elements.modelInstruction.value = operation.defaultInstruction;
     if (resetInstruction) {
       this.#assistantResultContext = null;
       this.#elements.assistantInteractiveResult.clear();
@@ -2802,28 +2734,33 @@ class WorkspaceApp {
 
   #renderAssistantTargetPreview(): void {
     if (this.#draftsClaim()) {
-      this.#elements.assistantTargetPreview.textContent =
-        "This operation uses selected annotation snapshots rather than a manuscript target.";
+      this.#elements.assistantTaskPanel.setTargetPreview(
+        "This operation uses selected annotation snapshots rather than a manuscript target.",
+      );
       return;
     }
-    if (assistantOperationDefinition(this.#elements.modelOperation.value).id === "build-table") {
+    if (this.#elements.assistantTaskPanel.value.operation.id === "build-table") {
       const target = this.#assistantInsertionTarget();
-      this.#elements.assistantTargetPreview.textContent = target
-        ? target.start === target.end
-          ? "The reviewed table syntax will be inserted at the visible caret."
-          : `The reviewed table syntax will replace ${target.end - target.start} selected characters.`
-        : "Place the caret where the table should be inserted, or select text to replace.";
+      this.#elements.assistantTaskPanel.setTargetPreview(
+        target
+          ? target.start === target.end
+            ? "The reviewed table syntax will be inserted at the visible caret."
+            : `The reviewed table syntax will replace ${target.end - target.start} selected characters.`
+          : "Place the caret where the table should be inserted, or select text to replace.",
+      );
       return;
     }
     const passage = this.#assistantAuthoringPassage();
     if (!passage) {
-      this.#elements.assistantTargetPreview.textContent = "Place the caret in manuscript text or select the exact passage to target.";
+      this.#elements.assistantTaskPanel.setTargetPreview("Place the caret in manuscript text or select the exact passage to target.");
       return;
     }
     const target = this.#resolvedAuthoringTarget();
     const scope = target && target.start !== target.end ? "selection" : this.#assistantTargetScope();
     const excerpt = passage.excerpt.replace(/\s+/gu, " ").trim();
-    this.#elements.assistantTargetPreview.textContent = `${assistantTargetScopeLabel(scope)} · “${excerpt.slice(0, 180)}${excerpt.length > 180 ? "…" : ""}”`;
+    this.#elements.assistantTaskPanel.setTargetPreview(
+      `${assistantTargetScopeLabel(scope)} · “${excerpt.slice(0, 180)}${excerpt.length > 180 ? "…" : ""}”`,
+    );
   }
 
   #restoreModelPreferences(): void {
@@ -7050,8 +6987,7 @@ class WorkspaceApp {
   }
 
   #assistantTargetScope(): AssistantTargetScope {
-    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
-    const scope = this.#elements.assistantTargetScope.value as AssistantTargetScope;
+    const { operation, targetScope: scope } = this.#elements.assistantTaskPanel.value;
     return operation.scopes.includes(scope) ? scope : (operation.defaultScope ?? "selection");
   }
 
@@ -7077,15 +7013,12 @@ class WorkspaceApp {
   }
 
   #tableRequirements(): TableRequirements {
-    return parseTableRequirements(
-      this.#elements.assistantTableCaption.value,
-      this.#elements.assistantTableColumns.value,
-      this.#elements.assistantTableRows.value,
-    );
+    const { tableCaption, tableColumns, tableRows } = this.#elements.assistantTaskPanel.value;
+    return parseTableRequirements(tableCaption, tableColumns, tableRows);
   }
 
   #phrasingPurpose(): PhrasingPurpose {
-    const value = this.#elements.assistantPhrasingPurpose.value;
+    const value = this.#elements.assistantTaskPanel.value.phrasingPurposeId;
     const purposes = phrasingPurposes();
     return (isPhrasingPurposeId(value) ? purposes.find(({ id }) => id === value) : undefined) ?? purposes[0]!;
   }
@@ -7258,7 +7191,7 @@ class WorkspaceApp {
   }
 
   #assistantGenerationContext(): AssistantGenerationContext | null {
-    const operation = assistantOperationDefinition(this.#elements.modelOperation.value);
+    const { instruction, operation } = this.#elements.assistantTaskPanel.value;
     const draftsClaim = operation.id === "draft-claim";
     if (!this.#snapshot || (!draftsClaim && !this.#hasStableDocumentBase())) {
       this.#elements.modelStatus.textContent = "Wait for the manuscript to finish synchronizing before using the model.";
@@ -7288,7 +7221,7 @@ class WorkspaceApp {
       annotationItems,
       annotationReferences,
       insertionTarget,
-      instruction: this.#elements.modelInstruction.value,
+      instruction,
       sourceRevision: this.#revision,
     };
   }
@@ -7339,7 +7272,7 @@ class WorkspaceApp {
   }
 
   async #generateClaimCandidate(input: AssistantGenerationContext): Promise<void> {
-    const relation = readClaimEvidenceRelation(this.#elements.modelClaimRelation.value);
+    const relation = readClaimEvidenceRelation(this.#elements.assistantTaskPanel.value.relation);
     const draft = await input.provider.draftClaim({ instruction: input.instruction, relation, evidence: input.annotationItems });
     const response = await jsonFetch(`${apiBase}/claim-candidates`, {
       providerAdapter: "openai-compatible",
@@ -9713,26 +9646,9 @@ function collectElements(): Elements {
     llmModel: requiredElement("llm-model", HTMLSelectElement),
     llmReasoningEffort: requiredElement("llm-reasoning-effort", HTMLSelectElement),
     discoverLlmModels: requiredElement("discover-llm-models", HTMLButtonElement),
-    modelOperation: requiredElement("model-operation", HTMLSelectElement),
-    assistantTargetScope: requiredElement("assistant-target-scope", HTMLSelectElement),
-    assistantTargetScopeField: requiredElement("assistant-target-scope-field", HTMLElement),
-    assistantTargetPreview: requiredElement("assistant-target-preview", HTMLElement),
+    assistantTaskPanel: requiredElement("assistant-task-panel", AssistantTaskPanel),
     assistantInteractiveResult: requiredElement("assistant-interactive-result", AssistantResultPanel),
-    assistantTableFields: requiredElement("assistant-table-fields", HTMLFieldSetElement),
-    assistantTableCaption: requiredElement("assistant-table-caption", HTMLInputElement),
-    assistantTableColumns: requiredElement("assistant-table-columns", HTMLTextAreaElement),
-    assistantTableRows: requiredElement("assistant-table-rows", HTMLTextAreaElement),
-    assistantPhrasingPurpose: requiredElement("assistant-phrasing-purpose", HTMLSelectElement),
-    assistantPhrasingPurposeField: requiredElement("assistant-phrasing-purpose-field", HTMLElement),
     assistantPhrasingAttribution: requiredElement("assistant-phrasing-attribution", HTMLDetailsElement),
-    modelClaimRelation: requiredElement("model-claim-relation", HTMLSelectElement),
-    modelClaimRelationField: requiredElement("model-claim-relation-field", HTMLElement),
-    assistantOperationEyebrow: requiredElement("assistant-operation-eyebrow", HTMLElement),
-    assistantOperationTitle: requiredElement("assistant-operation-title", HTMLElement),
-    assistantOperationDescription: requiredElement("assistant-operation-description", HTMLElement),
-    modelInstructionLabel: requiredElement("model-instruction-label", HTMLElement),
-    modelInstruction: requiredElement("model-instruction", HTMLTextAreaElement),
-    generateCandidate: requiredElement("generate-candidate", HTMLButtonElement),
     modelStatus: requiredElement("model-status", HTMLElement),
     candidateListPanel: requiredElement("candidate-list-panel", CandidateListPanel),
     toast: requiredElement("toast", HTMLElement),
