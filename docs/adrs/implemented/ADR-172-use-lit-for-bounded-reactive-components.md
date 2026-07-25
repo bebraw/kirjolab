@@ -158,6 +158,9 @@ The adopted components own bounded presentation:
 - The Library PDF annotation toolbar owns tool and drawing-style controls,
   annotation availability and inspector state, and typed tool, undo, export,
   and inspector intents.
+- The Library PDF annotation list owns saved private-highlight and markup cards,
+  empty state, comments, share and citation availability, and typed navigation,
+  edit, cite, share, revoke, and delete intents.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices, and typed identification intents.
 - The Library reference summary owns title and metadata presentation, PDF and
@@ -361,6 +364,11 @@ reason to wrap static markup mechanically.
   while leaving gestures, the annotation state machine, drawing persistence,
   annotated export, inspector policy, and toasts in the application
   coordinator.
+- The Library PDF annotation list replaces five imperative highlight and markup
+  render helpers plus their per-card handlers with one delegated typed action
+  stream. The application coordinator retains PDF navigation, annotation
+  mutations, project citation and research-share workflows, refreshes, and
+  notification policy.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

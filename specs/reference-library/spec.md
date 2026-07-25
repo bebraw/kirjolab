@@ -220,6 +220,11 @@ memory and makes citation aliases compete with stable source identity.
   inspector-expanded state. It emits typed tool, undo, export, and inspector
   intents. The application coordinator retains gestures, annotation state,
   drawing persistence, annotated export, and inspector policy.
+- A bounded light-DOM annotation list owns the private reader's saved highlight
+  and markup cards, empty state, comments, share and citation availability, and
+  typed navigation, edit, cite, share, revoke, and delete intents. The
+  application coordinator retains PDF navigation, annotation persistence,
+  project citation and research-share workflows, refreshes, and notifications.
 - Saved text-highlight comments and page-note bodies expose an explicit edit
   action. Editing preserves the annotation id, page, geometry, and creation
   time while advancing its update time; it never changes the immutable PDF.

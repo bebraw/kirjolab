@@ -1442,3 +1442,26 @@ The browser application artifact grows from 764,185 B raw / 207,627 B gzip to
 production package counts remain unchanged at 18 and 150. Full native CI
 passes all 1,330 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
 tests.
+
+## Continued Lit Extraction: Library PDF Annotation List
+
+A bounded `LibraryPdfAnnotationList` now owns the private reader's saved text
+highlight and PDF-markup cards, empty state, comments, page and markup labels,
+project citation and research-share availability, and action labels. It emits
+one typed stream for navigation, editing, citation, sharing, revocation, and
+deletion. `WorkspaceApp` retains PDF navigation, annotation mutations, project
+citation and research-share workflows, refreshes, and notifications.
+
+This checkpoint reduces `src/client/app.ts` from 8,397 to 8,347 lines (-50).
+The component adds 153 lines. Component tests cover empty, workspace and
+private modes, linked and unlinked references, shared and unshared highlights,
+comments, notes, drawings, missing-artifact behavior, and all eight action
+variants. It records 66.66% statement and line coverage. Focused browser
+workflows pass private PDF import, annotation and export plus linked-reference
+member access and research sharing.
+
+The browser application artifact grows from 764,696 B raw / 207,939 B gzip to
+766,768 B raw / 208,428 B gzip (+2,072 B raw / +489 B gzip). Direct and unique
+production package counts remain unchanged at 18 and 150. Full native CI
+passes all 1,332 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
+tests.

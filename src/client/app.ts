@@ -91,6 +91,11 @@ import {
   libraryPdfAnnotationActionEvent,
   type LibraryPdfAnnotationAction,
 } from "./library-pdf-annotation-forms";
+import {
+  LibraryPdfAnnotationList,
+  libraryPdfAnnotationListActionEvent,
+  type LibraryPdfAnnotationListAction,
+} from "./library-pdf-annotation-list";
 import { LibraryPdfAnnotationToolbar, libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import {
   ProjectStartingPointBrowser,
@@ -583,7 +588,7 @@ interface Elements {
   libraryPdfAnnotationToolbar: LibraryPdfAnnotationToolbar;
   libraryHighlightStatus: HTMLElement;
   libraryProjectUse: HTMLElement;
-  libraryHighlightList: HTMLElement;
+  libraryHighlightList: LibraryPdfAnnotationList;
   highlightPaintTool: HTMLButtonElement;
   highlightEraserTool: HTMLButtonElement;
   undoHighlight: HTMLButtonElement;
@@ -1328,6 +1333,18 @@ class WorkspaceApp {
       else if (action.action === "edit-note") this.#editSelectedLibraryPdfNote();
       else if (action.action === "delete-markup") void this.#deleteSelectedLibraryPdfMarkup();
       else this.#clearLibraryPdfMarkupSelection();
+    });
+    this.#elements.libraryHighlightList.addEventListener(libraryPdfAnnotationListActionEvent, (event) => {
+      const detail = (event as CustomEvent<LibraryPdfAnnotationListAction>).detail;
+      if (detail.action === "open-highlight") void this.#openLibraryHighlight(detail.highlight);
+      else if (detail.action === "edit-highlight") this.#editLibraryHighlight(detail.highlight);
+      else if (detail.action === "cite-highlight") void this.#citeLibraryHighlight(detail.highlight);
+      else if (detail.action === "share-highlight")
+        void this.#sharePrivateResearch(detail.highlight.referenceId, "highlight", detail.highlight.id);
+      else if (detail.action === "revoke-share") void this.#revokePrivateResearch(detail.shareId);
+      else if (detail.action === "open-markup") void this.#openLibraryPdf(detail.artifact, detail.page);
+      else if (detail.action === "edit-note") this.#editLibraryPdfNote(detail.note);
+      else void this.#deleteLibraryPdfMarkup(detail.markup);
     });
     this.#elements.libraryPdfAnnotationToolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryPdfToolbarAction>).detail;
@@ -6626,14 +6643,14 @@ class WorkspaceApp {
       highlights.length + markups.length,
       markups.filter((markup) => markup.kind === "drawing").length,
     );
-    this.#elements.libraryHighlightList.replaceChildren();
-    if (highlights.length === 0 && markups.length === 0) {
-      this.#elements.libraryHighlightList.append(emptyState("No private annotations yet."));
-      this.#renderPdfMarkups();
-      return;
-    }
-    for (const highlight of highlights) this.#elements.libraryHighlightList.append(this.#libraryHighlightCard(highlight));
-    for (const markup of markups) this.#elements.libraryHighlightList.append(this.#libraryPdfMarkupCard(artifact, markup));
+    this.#elements.libraryHighlightList.setData({
+      artifact,
+      highlights,
+      linkedReferenceIds: new Set(this.#snapshot?.projectReferences.map((item) => item.referenceId) ?? []),
+      markups,
+      researchShares: this.#snapshot?.researchShares ?? [],
+      workspace: appMode === "workspace",
+    });
     this.#renderPdfMarkups();
   }
 
@@ -6648,66 +6665,6 @@ class WorkspaceApp {
     this.#elements.libraryPdfAnnotationForms.clearMarkup();
     this.#elements.libraryHighlightStatus.textContent = "Select text to highlight.";
     this.#setLibraryPdfInspector(false);
-  }
-
-  #libraryHighlightCard(highlight: LibraryHighlight): HTMLElement {
-    const card = document.createElement("article");
-    card.className = "resource-card";
-    card.append(resourceLabel(`Page ${highlight.page}`), resourceTitle(highlight.quote));
-    if (highlight.comment) card.append(this.#libraryHighlightComment(highlight.comment));
-    const actions = document.createElement("div");
-    actions.className = "mt-3 flex flex-wrap gap-2";
-    actions.append(
-      actionButton(`Open page ${highlight.page}`, "button-secondary", () => void this.#openLibraryHighlight(highlight)),
-      actionButton("Edit note", "button-secondary", () => this.#editLibraryHighlight(highlight)),
-    );
-    if (appMode === "workspace") actions.append(this.#citeLibraryHighlightAction(highlight), this.#shareLibraryHighlightAction(highlight));
-    card.append(actions);
-    return card;
-  }
-
-  #libraryHighlightComment(value: string): HTMLElement {
-    const comment = document.createElement("span");
-    comment.className = "mt-2 block font-sans text-xs leading-5 text-app-text-soft";
-    comment.textContent = value;
-    return comment;
-  }
-
-  #citeLibraryHighlightAction(highlight: LibraryHighlight): HTMLButtonElement {
-    const action = actionButton("Cite in manuscript", "button-primary", () => void this.#citeLibraryHighlight(highlight));
-    action.title = "Add this source to the project if needed, then cite this page at the remembered manuscript caret";
-    return action;
-  }
-
-  #shareLibraryHighlightAction(highlight: LibraryHighlight): HTMLButtonElement {
-    const linked = this.#snapshot?.projectReferences.some((item) => item.referenceId === highlight.referenceId) ?? false;
-    const share = this.#snapshot?.researchShares.find((item) => item.kind === "highlight" && item.resourceId === highlight.id);
-    const action = share
-      ? actionButton("Revoke highlight share", "button-secondary", () => void this.#revokePrivateResearch(share.id))
-      : actionButton(
-          "Share highlight with project",
-          "button-secondary",
-          () => void this.#sharePrivateResearch(highlight.referenceId, "highlight", highlight.id),
-        );
-    action.disabled = !share && !linked;
-    action.title = linked ? "" : "Add the bibliographic reference to this project first";
-    return action;
-  }
-
-  #libraryPdfMarkupCard(artifact: LibraryPdfArtifact, markup: LibraryPdfMarkup): HTMLElement {
-    const card = document.createElement("article");
-    card.className = "resource-card";
-    card.append(
-      resourceLabel(`Page ${markup.page} · ${markup.kind}`),
-      resourceTitle(markup.kind === "note" ? markup.body : "Freehand drawing"),
-    );
-    const actions = document.createElement("div");
-    actions.className = "mt-3 flex flex-wrap gap-2";
-    actions.append(actionButton(`Open page ${markup.page}`, "button-secondary", () => void this.#openLibraryPdf(artifact, markup.page)));
-    if (markup.kind === "note") actions.append(actionButton("Edit note", "button-secondary", () => this.#editLibraryPdfNote(markup)));
-    actions.append(actionButton("Delete", "button-secondary", () => void this.#deleteLibraryPdfMarkup(markup)));
-    card.append(actions);
-    return card;
   }
 
   async #detectLibraryPdfHighlights(): Promise<void> {
@@ -8221,7 +8178,7 @@ function collectElements(): Elements {
     libraryPdfAnnotationToolbar: requiredElement("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar),
     libraryHighlightStatus: requiredElement("library-highlight-status", HTMLElement),
     libraryProjectUse: requiredElement("library-project-use", HTMLElement),
-    libraryHighlightList: requiredElement("library-highlight-list", HTMLElement),
+    libraryHighlightList: requiredElement("library-highlight-list", LibraryPdfAnnotationList),
     highlightPaintTool: requiredElement("highlight-paint-tool", HTMLButtonElement),
     highlightEraserTool: requiredElement("highlight-eraser-tool", HTMLButtonElement),
     undoHighlight: requiredElement("undo-highlight", HTMLButtonElement),
@@ -8261,13 +8218,6 @@ function resourceLabel(text: string): HTMLElement {
   label.className = "eyebrow block";
   label.textContent = text;
   return label;
-}
-
-function resourceTitle(text: string): HTMLElement {
-  const title = document.createElement("span");
-  title.className = "mt-1 block text-sm leading-5 text-app-text";
-  title.textContent = text;
-  return title;
 }
 
 function projectUseDescription(text: string): HTMLParagraphElement {
