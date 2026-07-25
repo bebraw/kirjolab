@@ -114,10 +114,10 @@ export function renderHomePage(
     </button>
 
     <main class="workspace-grid min-h-[calc(100vh-4rem-1px)]" id="workspace-surfaces" data-active-surface="authoring" data-layout="split">
-      <nav class="surface-switcher" aria-label="Project surface">
+      <workspace-surface-switcher class="surface-switcher" id="workspace-surface-switcher" aria-label="Project surface">
         <button class="surface-switch" id="show-authoring-surface" type="button" aria-controls="authoring-surface" aria-pressed="true">Authoring</button>
         <button class="surface-switch" id="show-context-surface" type="button" aria-controls="context-surface" aria-pressed="false">Context</button>
-      </nav>
+      </workspace-surface-switcher>
       <aside class="source-rail border-b border-app-line bg-app-paper min-[72rem]:border-r min-[72rem]:border-b-0">
         ${renderProjectRailNavigation()}
 

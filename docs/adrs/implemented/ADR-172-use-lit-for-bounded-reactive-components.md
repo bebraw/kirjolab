@@ -455,6 +455,13 @@ reason to wrap static markup mechanically.
   element references and owns version presentation plus Clipboard API and
   textarea fallback behavior. The application coordinator supplies the active
   build version and retains toast presentation for the typed copy notice.
+- The preview synchronization control replaces its container and two button
+  references, owns Preview-context visibility, and emits one typed directional
+  action stream. The application coordinator retains source-map resolution,
+  caret selection, scrolling, and focus policy.
+- The workspace surface switcher replaces two button references, native action
+  bindings, and ARIA-state mutations. The application coordinator retains
+  responsive surface visibility and URL synchronization.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

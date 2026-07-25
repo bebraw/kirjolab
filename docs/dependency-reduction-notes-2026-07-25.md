@@ -1855,6 +1855,28 @@ unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,362 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
 
+## Continued Lit Extraction: Workspace Navigation Controls
+
+A bounded `PreviewSyncControls` now owns the two directional actions and their
+Preview-context visibility while emitting one typed synchronization stream. A
+bounded `WorkspaceSurfaceSwitcher` owns responsive Authoring/Context actions and
+ARIA presentation. `WorkspaceApp` retains source-map resolution, caret and
+scroll policy, pane visibility, and route synchronization.
+
+This checkpoint reduces `src/client/app.ts` from 7,617 to 7,616 lines (-1),
+replaces five internal element references with two component references, and
+removes four native action bindings, two ARIA mutations, and one visibility
+mutation. Preview-sync coverage is 76.92% statements and 81.81% lines; surface
+switcher coverage is 81.25% statements and 85.71% lines. Focused browser
+workflows pass compact desktop and phone navigation plus both synchronization
+directions and centered-passage behavior.
+
+The browser application artifact grows from 780,275 B raw / 211,073 B gzip to
+782,100 B raw / 211,345 B gzip (+1,825 B raw / +272 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,362 B raw / 23,360
+B gzip and 18 and 150. Full native CI passes all 1,364 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.
+
 ## Continued Lit Extraction: Vim Mode Control
 
 A bounded `VimModeControl` now owns browser-local enablement, toggle and mode

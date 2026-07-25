@@ -63,6 +63,8 @@ import { EditorStatus } from "./editor-status";
 import { ConnectionStatus } from "./connection-status";
 import { VimModeControl } from "./vim-mode-control";
 import { ApplicationVersionControl, applicationVersionNoticeEvent } from "./application-version-control";
+import { PreviewSyncControls, previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
+import { WorkspaceSurfaceSwitcher, workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
 import { ProjectHistoryTrigger, projectHistoryOpenEvent } from "./project-history-trigger";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
@@ -524,11 +526,8 @@ interface Elements {
   expandSourceRail: HTMLButtonElement;
   sourceRailResizer: HTMLElement;
   authoringContextResizer: HTMLElement;
-  previewSyncControls: HTMLElement;
-  syncPreviewFromSource: HTMLButtonElement;
-  syncSourceFromPreview: HTMLButtonElement;
-  showAuthoringSurface: HTMLButtonElement;
-  showContextSurface: HTMLButtonElement;
+  previewSyncControls: PreviewSyncControls;
+  workspaceSurfaceSwitcher: WorkspaceSurfaceSwitcher;
   openSourceCitation: HTMLButtonElement;
   contextTabList: HTMLElement;
   contextPreviewTab: HTMLButtonElement;
@@ -1380,8 +1379,9 @@ class WorkspaceApp {
     this.#elements.claimDialog.addEventListener(claimDialogSaveEvent, (event) => {
       void this.#saveClaim((event as CustomEvent<ClaimDialogSave>).detail);
     });
-    this.#elements.showAuthoringSurface.addEventListener("click", () => this.#showWorkspaceSurface("authoring"));
-    this.#elements.showContextSurface.addEventListener("click", () => this.#showWorkspaceSurface("context"));
+    this.#elements.workspaceSurfaceSwitcher.addEventListener(workspaceSurfaceChangeEvent, (event) => {
+      this.#showWorkspaceSurface((event as CustomEvent<WorkspaceSurface>).detail);
+    });
     this.#layout.bind();
     this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
     this.#elements.togglePreviewNavigation.addEventListener("click", () => {
@@ -1410,8 +1410,11 @@ class WorkspaceApp {
       const { fileId, from, to } = (event as CustomEvent<PreviewDiagnosticSelection>).detail;
       this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to);
     });
-    this.#elements.syncPreviewFromSource.addEventListener("click", () => this.#syncPreviewFromSource());
-    this.#elements.syncSourceFromPreview.addEventListener("click", () => this.#syncSourceFromPreviewCenter());
+    this.#elements.previewSyncControls.addEventListener(previewSyncActionEvent, (event) => {
+      const action = (event as CustomEvent<PreviewSyncAction>).detail;
+      if (action === "source-to-preview") this.#syncPreviewFromSource();
+      else this.#syncSourceFromPreviewCenter();
+    });
     this.#elements.openSourceCitation.addEventListener("click", () => this.#openCitationAtCaret());
     this.#elements.publicationContextPanel.addEventListener(publicationContextActionEvent, (event) => {
       const detail = (event as CustomEvent<PublicationContextAction>).detail;
@@ -4503,8 +4506,7 @@ class WorkspaceApp {
 
   #showWorkspaceSurface(surface: WorkspaceSurface, syncRoute = true): void {
     this.#elements.workspaceSurfaces.dataset.activeSurface = surface;
-    this.#elements.showAuthoringSurface.setAttribute("aria-pressed", String(surface === "authoring"));
-    this.#elements.showContextSurface.setAttribute("aria-pressed", String(surface === "context"));
+    this.#elements.workspaceSurfaceSwitcher.setSurface(surface);
     if (syncRoute) this.#syncWorkspaceRoute("replace");
   }
 
@@ -4625,7 +4627,7 @@ class WorkspaceApp {
     this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
     this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
-    this.#elements.previewSyncControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
+    this.#elements.previewSyncControls.setVisible(activeKey === RESEARCH_PREVIEW_KEY);
     this.#elements.togglePreviewNavigation.hidden = appMode === "workspace" && activeKey !== RESEARCH_PREVIEW_KEY;
     this.#renderContextPdfVisibility(activeTab);
     this.#renderActivePdfCitationControl(activeTab);
@@ -7449,11 +7451,8 @@ function collectElements(): Elements {
     expandSourceRail: requiredElement("expand-source-rail", HTMLButtonElement),
     sourceRailResizer: requiredElement("source-rail-resizer", HTMLElement),
     authoringContextResizer: requiredElement("authoring-context-resizer", HTMLElement),
-    previewSyncControls: requiredElement("preview-sync-controls", HTMLElement),
-    syncPreviewFromSource: requiredElement("sync-preview-from-source", HTMLButtonElement),
-    syncSourceFromPreview: requiredElement("sync-source-from-preview", HTMLButtonElement),
-    showAuthoringSurface: requiredElement("show-authoring-surface", HTMLButtonElement),
-    showContextSurface: requiredElement("show-context-surface", HTMLButtonElement),
+    previewSyncControls: requiredElement("preview-sync-controls", PreviewSyncControls),
+    workspaceSurfaceSwitcher: requiredElement("workspace-surface-switcher", WorkspaceSurfaceSwitcher),
     openSourceCitation: requiredElement("open-source-citation", HTMLButtonElement),
     contextTabList: requiredElement("context-tab-list", HTMLElement),
     contextPreviewTab: requiredElement("context-preview-tab", HTMLButtonElement),

@@ -53,14 +53,14 @@ export function renderContextTabs(): string {
 }
 
 export function renderPreviewSyncControls(): string {
-  return `<div class="preview-sync-controls" id="preview-sync-controls" role="group" aria-label="Synchronize source and preview">
+  return `<preview-sync-controls class="preview-sync-controls" id="preview-sync-controls" role="group" aria-label="Synchronize source and preview">
           <button id="sync-preview-from-source" type="button" aria-label="Reveal centered source passage in Preview" title="Source to Preview">
             ${renderIcon("arrowRight")}
           </button>
           <button id="sync-source-from-preview" type="button" aria-label="Reveal centered Preview passage in source" title="Preview to source">
             ${renderIcon("arrowLeft")}
           </button>
-        </div>`;
+        </preview-sync-controls>`;
 }
 
 export function renderRouteSummary(routes: HomeRoute[]): string {

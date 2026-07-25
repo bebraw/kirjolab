@@ -67,7 +67,10 @@ collaboration.
   While Preview is active, a compact control at the pane boundary synchronizes
   the source caret and rendered passage in either direction. Preview content
   clicks navigate to source, while deliberate source navigation follows in
-  Preview without moving the pane during ordinary typing.
+  Preview without moving the pane during ordinary typing. A bounded light-DOM
+  control owns its directional actions and Preview-context visibility; the
+  coordinator retains source-map resolution, caret placement, scrolling, and
+  focus policy.
 - **Editor toolbar:** Persistent editor actions keep their labels on one line.
   The toolbar never wraps: Write/Map, word count, Insert, current target, and
   save state retain one horizontal hierarchy. Lower-frequency History, revision,
@@ -128,6 +131,9 @@ collaboration.
   the authorized catalog.
   Infrequent project-management and file-mutation actions stay grouped in
   labelled menus so the persistent chrome prioritizes authoring and export.
+  A bounded surface switcher owns responsive Authoring/Context selection and
+  ARIA presentation while the coordinator retains pane visibility and route
+  synchronization.
   A bounded History trigger presents the current revision and delegates its
   open intent to the coordinator, which loads and opens the history dialog.
   User-facing copy calls the editable unit a project; workspace remains an
