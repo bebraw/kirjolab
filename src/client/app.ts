@@ -9202,7 +9202,15 @@ class WorkspaceApp {
       choose.textContent = "Review this direction";
       choose.addEventListener(
         "click",
-        () => void this.#chooseIdea(input, idea.title, idea.direction, idea.draft, result.providerLabel, result.model),
+        () =>
+          void this.#chooseAssistantRevision(input, {
+            instruction: `${input.instruction}\nChosen direction: ${idea.title}. ${idea.direction}`.slice(0, 4_000),
+            replacement: idea.draft,
+            providerLabel: result.providerLabel,
+            model: result.model,
+            successMessage: "Idea draft ready for exact before-and-after review.",
+            failureMessage: "Could not save the idea draft",
+          }),
       );
       card.append(title, direction, draft, choose);
       list.append(card);
@@ -9231,43 +9239,20 @@ class WorkspaceApp {
       choose.textContent = "Review this alternative";
       choose.addEventListener(
         "click",
-        () => void this.#choosePhrasingAlternative(input, purpose, alternative.text, result.providerLabel, result.model),
+        () =>
+          void this.#chooseAssistantRevision(input, {
+            instruction: `${input.instruction}\nRhetorical purpose: ${purpose.label}`.slice(0, 4_000),
+            replacement: alternative.text,
+            providerLabel: result.providerLabel,
+            model: result.model,
+            successMessage: "Phrasing alternative ready for exact before-and-after review.",
+            failureMessage: "Could not save the phrasing alternative",
+          }),
       );
       card.append(label, text, rationale, choose);
       list.append(card);
     }
     this.#elements.assistantInteractiveResult.replaceChildren(list);
-  }
-
-  async #choosePhrasingAlternative(
-    input: AssistantDraftContext,
-    purpose: PhrasingPurpose,
-    replacement: string,
-    providerLabel: string,
-    model: string,
-  ): Promise<void> {
-    if (!this.#assistantWorkflow.getSnapshot().matches("reviewing")) return;
-    this.#assistantWorkflow.send({ type: "CONTINUE" });
-    this.#updateModelAvailability();
-    try {
-      await this.#persistRevisionCandidate({
-        passage: input.passage,
-        evidence: input.evidence.references,
-        instruction: `${input.instruction}\nRhetorical purpose: ${purpose.label}`.slice(0, 4_000),
-        sourceRevision: input.sourceRevision,
-        replacement,
-        providerLabel,
-        model,
-      });
-      this.#elements.modelStatus.textContent = "Phrasing alternative ready for exact before-and-after review.";
-      this.#assistantWorkflow.send({ type: "COMPLETE" });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not save the phrasing alternative";
-      this.#assistantWorkflow.send({ type: "FAIL", message });
-      this.#elements.modelStatus.textContent = message;
-    } finally {
-      this.#updateModelAvailability();
-    }
   }
 
   #renderReferenceDiscovery(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {
@@ -9367,39 +9352,6 @@ class WorkspaceApp {
     return record;
   }
 
-  async #chooseIdea(
-    input: AssistantDraftContext,
-    title: string,
-    direction: string,
-    replacement: string,
-    providerLabel: string,
-    model: string,
-  ): Promise<void> {
-    if (!this.#assistantWorkflow.getSnapshot().matches("reviewing")) return;
-    this.#assistantWorkflow.send({ type: "CONTINUE" });
-    this.#updateModelAvailability();
-    try {
-      const instruction = `${input.instruction}\nChosen direction: ${title}. ${direction}`.slice(0, 4_000);
-      await this.#persistRevisionCandidate({
-        passage: input.passage,
-        evidence: input.evidence.references,
-        instruction,
-        sourceRevision: input.sourceRevision,
-        replacement,
-        providerLabel,
-        model,
-      });
-      this.#elements.modelStatus.textContent = "Idea draft ready for exact before-and-after review.";
-      this.#assistantWorkflow.send({ type: "COMPLETE" });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not save the idea draft";
-      this.#assistantWorkflow.send({ type: "FAIL", message });
-      this.#elements.modelStatus.textContent = message;
-    } finally {
-      this.#updateModelAvailability();
-    }
-  }
-
   async #continueClarityDrill(input: ClarityDrillContext, rawAnswer: string): Promise<void> {
     const answer = rawAnswer.trim();
     const workflow = this.#assistantWorkflow.getSnapshot();
@@ -9454,7 +9406,15 @@ class WorkspaceApp {
       choose.textContent = "Review this revision";
       choose.addEventListener(
         "click",
-        () => void this.#chooseClarityRewrite(input, answer, rewrite.text, result.providerLabel, result.model),
+        () =>
+          void this.#chooseAssistantRevision(input, {
+            instruction: `${input.instruction}\nClarification: ${answer}`.slice(0, 4_000),
+            replacement: rewrite.text,
+            providerLabel: result.providerLabel,
+            model: result.model,
+            successMessage: "Clarity revision ready for exact before-and-after review.",
+            failureMessage: "Could not save the clarity revision",
+          }),
       );
       card.append(label, text, rationale, choose);
       list.append(card);
@@ -9462,31 +9422,34 @@ class WorkspaceApp {
     this.#elements.assistantInteractiveResult.replaceChildren(list);
   }
 
-  async #chooseClarityRewrite(
-    input: ClarityDrillContext,
-    answer: string,
-    replacement: string,
-    providerLabel: string,
-    model: string,
+  async #chooseAssistantRevision(
+    input: Pick<AssistantDraftContext, "passage" | "evidence" | "sourceRevision">,
+    choice: {
+      readonly instruction: string;
+      readonly replacement: string;
+      readonly providerLabel: string;
+      readonly model: string;
+      readonly successMessage: string;
+      readonly failureMessage: string;
+    },
   ): Promise<void> {
     if (!this.#assistantWorkflow.getSnapshot().matches("reviewing")) return;
     this.#assistantWorkflow.send({ type: "CONTINUE" });
     this.#updateModelAvailability();
     try {
-      const instruction = `${input.instruction}\nClarification: ${answer}`.slice(0, 4_000);
       await this.#persistRevisionCandidate({
         passage: input.passage,
         evidence: input.evidence.references,
-        instruction,
+        instruction: choice.instruction,
         sourceRevision: input.sourceRevision,
-        replacement,
-        providerLabel,
-        model,
+        replacement: choice.replacement,
+        providerLabel: choice.providerLabel,
+        model: choice.model,
       });
-      this.#elements.modelStatus.textContent = "Clarity revision ready for exact before-and-after review.";
+      this.#elements.modelStatus.textContent = choice.successMessage;
       this.#assistantWorkflow.send({ type: "COMPLETE" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not save the clarity revision";
+      const message = error instanceof Error ? error.message : choice.failureMessage;
       this.#assistantWorkflow.send({ type: "FAIL", message });
       this.#elements.modelStatus.textContent = message;
     } finally {

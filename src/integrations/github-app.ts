@@ -6,7 +6,7 @@ import {
   type GitHubInstallationRequest,
 } from "./github-app-transport";
 
-export { GitHubClientError, type GitHubAppConfig, type GitHubClientErrorCode } from "./github-app-transport";
+export { GitHubClientError, type GitHubAppConfig } from "./github-app-transport";
 
 export interface GitHubRepositorySelection {
   readonly installationId: number;

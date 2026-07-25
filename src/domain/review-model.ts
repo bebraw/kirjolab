@@ -58,7 +58,6 @@ const storedExtractionEnvelopeSchema = v.object({
 });
 
 export type ReviewModelOperation = v.InferOutput<typeof reviewModelOperationSchema>;
-export type ReviewModelDisposition = v.InferOutput<typeof reviewModelDispositionSchema>;
 
 export interface ScreeningModelResult {
   readonly decision: ScreeningDecisionValue;

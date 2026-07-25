@@ -7,7 +7,7 @@ export interface GitHubAppConfig {
   readonly apiBase?: string;
 }
 
-export type GitHubClientErrorCode =
+type GitHubClientErrorCode =
   | "configuration"
   | "authentication"
   | "forbidden"

@@ -218,6 +218,15 @@ gzip, writes no state, and adds no package. Esbuild package attribution remains
 an explicit deeper measurement rather than pretending gzip savings can be
 assigned reliably per dependency.
 
+### Shared assistant revision acceptance: accepted
+
+The post-pilot duplicate audit found three copies of the same XState transition,
+candidate persistence, success, failure, and availability-refresh sequence for
+idea, phrasing, and clarity choices. One private workflow now owns that
+sequence while each operation supplies its instruction and messages. Together
+with two unused type exports exposed by the same audit, the cleanup removes 38
+net executable source lines without changing behavior or adding a concept.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser
