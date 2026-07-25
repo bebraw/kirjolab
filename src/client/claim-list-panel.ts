@@ -5,6 +5,7 @@ import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEv
 export const claimListActionEvent = "claim-list-action";
 
 export type ClaimListAction =
+  | { readonly action: "create" }
   | { readonly action: "delete"; readonly claim: ClaimResource }
   | { readonly action: "edit"; readonly claim: ClaimResource }
   | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
@@ -47,11 +48,28 @@ export class ClaimListPanel extends LitElement {
 
   protected override render(): TemplateResult {
     const annotations = new Map(this.data.annotations.map((annotation) => [annotation.id, annotation]));
-    return html`<div class="rail-collection-body" id="claim-list">
-      ${this.data.claims.length === 0
-        ? html`<div class="empty-state">Evidence-backed claims appear here.</div>`
-        : this.data.claims.map((claim) => this.renderClaim(claim, annotations))}
-    </div>`;
+    return html`
+      <div class="px-1 pt-3">
+        <button
+          class="button-secondary w-full justify-center"
+          id="new-claim"
+          type="button"
+          ?disabled=${annotations.size === 0}
+          @click=${this.createClaim}
+        >
+          New claim
+        </button>
+      </div>
+      <div class="rail-collection-body" id="claim-list">
+        ${this.data.claims.length === 0
+          ? html`<div class="empty-state">Evidence-backed claims appear here.</div>`
+          : this.data.claims.map((claim) => this.renderClaim(claim, annotations))}
+      </div>
+    `;
+  }
+
+  protected createClaim(): void {
+    this.emit({ action: "create" });
   }
 
   protected selectEvidence(event: Event): void {

@@ -27,11 +27,11 @@ must show where a claim enters authored prose.
 - The editorial rail provides keyboard-operable create, edit, delete, evidence,
   and manuscript-link actions within the existing visual system.
 - A bounded light-DOM list component owns claim, evidence-link, passage-link,
-  grounding-selection, and action presentation. A separate bounded dialog
-  component owns create and edit copy, proposition and note values, evidence
-  relation and annotation selection, and modal lifecycle. Both emit typed
-  intents while evidence prerequisites, mutations, refreshes, and navigation
-  remain with the application coordinator.
+  grounding-selection, create-action availability, and action presentation. A
+  separate bounded dialog component owns create and edit copy, proposition and
+  note values, evidence relation and annotation selection, and modal lifecycle.
+  Both emit typed intents while evidence prerequisites, mutations, refreshes,
+  and navigation remain with the application coordinator.
 
 ### API Contracts
 

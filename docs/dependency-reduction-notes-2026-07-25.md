@@ -1684,3 +1684,22 @@ The browser application artifact grows from 772,143 B raw / 209,350 B gzip to
 and unique production package counts remain unchanged at 135,362 B raw /
 23,360 B gzip and 18 and 150. Full native CI passes all 1,353 unit/coverage
 tests, 120 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Consolidation: Claim Creation
+
+The existing `ClaimListPanel` now owns the **New claim** action and derives its
+availability from the same annotation data used to render evidence links. Its
+typed action stream includes the create intent; `WorkspaceApp` retains dialog
+and mutation authority.
+
+This checkpoint reduces `src/client/app.ts` from 7,678 to 7,675 lines (-3) and
+removes one element reference, native binding, and separate availability
+mutation. The focused claim browser workflow passes creation and atomic
+replacement. The extended component remains at 93.61% statement and 94.28%
+line coverage.
+
+The browser application artifact grows from 774,297 B raw / 209,781 B gzip to
+774,514 B raw / 209,824 B gzip (+217 B raw / +43 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,353 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

@@ -56,6 +56,10 @@ class TestClaimListPanel extends ClaimListPanel {
     this.selectEvidence(eventWithTarget(key ? { checked, dataset: { modelEvidenceKey: key } } : { checked, dataset: {} }));
   }
 
+  createForTest(): void {
+    this.createClaim();
+  }
+
   claimForTest(action?: string, claimId = claim.id): void {
     this.actOnClaim(eventWithTarget({ dataset: { claimAction: action, claimId } }));
   }
@@ -102,6 +106,7 @@ describe("claim list panel", () => {
       selectedEvidenceKeys: new Set(),
     });
 
+    panel.createForTest();
     panel.evidenceForTest();
     panel.evidenceForTest("claim:1", false);
     panel.claimForTest("missing");
@@ -115,6 +120,7 @@ describe("claim list panel", () => {
     panel.passageForTest();
 
     expect(actions).toEqual([
+      { action: "create" },
       { action: "evidence", key: "claim:1", selected: false },
       { action: "edit", claim },
       { action: "delete", claim },

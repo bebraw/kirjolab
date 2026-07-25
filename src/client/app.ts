@@ -572,7 +572,6 @@ interface Elements {
   publicationListPanel: PublicationListPanel;
   claimCount: HTMLElement;
   claimListPanel: ClaimListPanel;
-  newClaim: HTMLButtonElement;
   claimDialog: ClaimDialog;
   knowledgeConnectionsPanel: KnowledgeConnectionsPanel;
   projectAnnotationForm: ProjectAnnotationForm;
@@ -1380,10 +1379,10 @@ class WorkspaceApp {
     this.#elements.highlightEraserTool.addEventListener("click", () => this.#setHighlightTool("erase"));
     this.#elements.undoHighlight.addEventListener("click", () => void this.#undoLastHighlightStroke());
     this.#elements.citeActivePdf.addEventListener("click", () => this.#citeActivePdf());
-    this.#elements.newClaim.addEventListener("click", () => this.#openClaimDialog());
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
       const detail = (event as CustomEvent<ClaimListAction>).detail;
-      if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
+      if (detail.action === "create") this.#openClaimDialog();
+      else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
       else if (detail.action === "edit") this.#openClaimDialog(detail.claim);
       else if (detail.action === "delete") void this.#deleteClaim(detail.claim);
       else if (detail.action === "link-passage") void this.#linkClaim(detail.claimId);
@@ -4311,7 +4310,6 @@ class WorkspaceApp {
   #renderClaims(claims: ClaimResource[], links: ClaimPassageLink[]): void {
     if (!this.#snapshot) return;
     this.#elements.claimCount.textContent = String(claims.length);
-    this.#elements.newClaim.disabled = this.#snapshot.annotations.length === 0;
     this.#elements.claimListPanel.setClaims({
       annotations: this.#snapshot.annotations,
       claims,
@@ -7527,7 +7525,6 @@ function collectElements(): Elements {
     publicationListPanel: requiredElement("publication-list-panel", PublicationListPanel),
     claimCount: requiredElement("claim-count", HTMLElement),
     claimListPanel: requiredElement("claim-list-panel", ClaimListPanel),
-    newClaim: requiredElement("new-claim", HTMLButtonElement),
     claimDialog: requiredElement("claim-dialog-panel", ClaimDialog),
     knowledgeConnectionsPanel: requiredElement("knowledge-connections-panel", KnowledgeConnectionsPanel),
     projectAnnotationForm: requiredElement("project-annotation-form", ProjectAnnotationForm),
