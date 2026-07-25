@@ -1,0 +1,40 @@
+import { describe, expect, it } from "vitest";
+import type { AuthoringMode } from "./workspace-ui-route";
+import { AuthoringModeTabs, authoringModeChangeEvent } from "./authoring-mode-tabs";
+
+class TestAuthoringModeTabs extends AuthoringModeTabs {
+  renderForTest() {
+    return this.render();
+  }
+
+  rootForTest(): HTMLElement {
+    return this.createRenderRoot();
+  }
+
+  selectForTest(mode?: AuthoringMode): void {
+    const event = new Event("click");
+    Object.defineProperty(event, "currentTarget", { value: { dataset: mode ? { authoringMode: mode } : {} } });
+    this.select(event);
+  }
+}
+
+describe("authoring mode tabs", () => {
+  it("owns active mode presentation", () => {
+    const tabs = new TestAuthoringModeTabs();
+    expect(tabs.rootForTest()).toBe(tabs);
+    expect(tabs.renderForTest()).toBeDefined();
+    tabs.setMode("map");
+    expect(tabs.mode).toBe("map");
+    expect(tabs.renderForTest()).toBeDefined();
+  });
+
+  it("emits changed mode intents only", () => {
+    const tabs = new TestAuthoringModeTabs();
+    const modes: AuthoringMode[] = [];
+    tabs.addEventListener(authoringModeChangeEvent, (event) => modes.push((event as CustomEvent<AuthoringMode>).detail));
+    tabs.selectForTest();
+    tabs.selectForTest("write");
+    tabs.selectForTest("map");
+    expect(modes).toEqual(["map"]);
+  });
+});

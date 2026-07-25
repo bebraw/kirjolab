@@ -186,6 +186,8 @@ The adopted components own bounded presentation:
   typed intents.
 - The workspace rail tabs own active-tab and open-comment-count presentation
   plus a typed navigation intent.
+- The authoring mode tabs own Write and Map active-state presentation plus a
+  typed mode-change intent.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices, and typed identification intents.
 - The Library reference summary owns title and metadata presentation, PDF and
@@ -429,6 +431,10 @@ reason to wrap static markup mechanically.
   native action bindings, four ARIA-selection mutations, and DOM-derived active
   mode. The application coordinator retains panel visibility, guide rendering,
   URL synchronization, collapse, and resize authority.
+- The authoring mode tabs replace two internal element references, two native
+  action bindings, two ARIA-state mutations, and DOM-derived active mode. The
+  application coordinator retains editor and map visibility, focus policy, and
+  URL synchronization.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

@@ -1725,3 +1725,22 @@ The browser application artifact grows from 774,514 B raw / 209,824 B gzip to
 and unique production package counts remain unchanged at 135,362 B raw /
 23,360 B gzip and 18 and 150. Full native CI passes all 1,355 unit/coverage
 tests, 120 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Authoring Mode Tabs
+
+A bounded `AuthoringModeTabs` now owns Write and Map active-state and ARIA
+presentation plus a typed mode-change intent. `WorkspaceApp` retains editor and
+map visibility, focus policy, and route synchronization.
+
+This checkpoint reduces `src/client/app.ts` from 7,661 to 7,660 lines (-1),
+replaces two internal element references and two native action bindings, and
+removes two ARIA mutations plus DOM-derived active-mode lookup. Component tests
+cover active state, unchanged selection, and typed navigation. The focused
+workspace-view browser workflow passes Write/Map switching and route
+persistence. The component records 81.25% statement and 85.71% line coverage.
+
+The browser application artifact grows from 775,339 B raw / 210,098 B gzip to
+776,157 B raw / 210,192 B gzip (+818 B raw / +94 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,357 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

@@ -246,10 +246,10 @@ export function renderHomePage(
         <div class="editor-toolbar ui-toolbar">
           <div class="editor-toolbar-group">
             ${renderExpandProjectRailButton()}
-            <div class="authoring-mode-switcher" role="group" aria-label="Authoring mode">
+            <authoring-mode-tabs class="authoring-mode-switcher" id="authoring-mode-tabs" role="group" aria-label="Authoring mode">
               <button class="authoring-mode" id="show-write-mode" type="button" aria-pressed="true">Write</button>
               <button class="authoring-mode" id="show-map-mode" type="button" aria-pressed="false">Map</button>
-            </div>
+            </authoring-mode-tabs>
             <button class="count-badge" id="word-count-badge" type="button" title="Open publication statistics">… words</button>
             <details class="action-menu ui-menu" id="editor-more-menu" data-action-menu>
               <summary class="button-secondary">More</summary>

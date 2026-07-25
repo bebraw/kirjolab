@@ -340,6 +340,7 @@ import {
   type WorkspaceSurface,
 } from "./workspace-ui-route";
 import { WorkspaceRailTabs, workspaceRailChangeEvent } from "./workspace-rail-tabs";
+import { AuthoringModeTabs, authoringModeChangeEvent } from "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
 import {
   bindVimTextarea,
@@ -510,8 +511,7 @@ interface Elements {
   sourceHighlight: HTMLElement;
   sourceEditorShell: HTMLElement;
   sourceCompletion: SourceCompletion;
-  showWriteMode: HTMLButtonElement;
-  showMapMode: HTMLButtonElement;
+  authoringModeTabs: AuthoringModeTabs;
   editorWriteActions: HTMLElement;
   projectMap: HTMLElement;
   projectMapTotal: HTMLElement;
@@ -1219,8 +1219,9 @@ class WorkspaceApp {
       else if (this.#sourceCompletionKind === "include") this.#acceptIncludeCompletion(detail.index);
     });
     this.#elements.source.addEventListener("blur", () => window.setTimeout(() => this.#hideSourceCompletion(), 0));
-    this.#elements.showWriteMode.addEventListener("click", () => this.#setAuthoringMode("write"));
-    this.#elements.showMapMode.addEventListener("click", () => this.#setAuthoringMode("map"));
+    this.#elements.authoringModeTabs.addEventListener(authoringModeChangeEvent, (event) => {
+      this.#setAuthoringMode((event as CustomEvent<AuthoringMode>).detail);
+    });
     this.#elements.openProjectHistory.addEventListener("click", () => void this.#openProjectHistory());
     for (const button of [this.#elements.openExport, this.#elements.wordCountBadge]) {
       button.addEventListener("click", () => this.#openExport());
@@ -1661,7 +1662,7 @@ class WorkspaceApp {
     const next = workspaceUiRouteUrl(current, {
       ...activeWorkspaceFileRoute(this.#activeFileId, this.#snapshot?.entryFileId),
       rail: this.#activeWorkspaceRail(),
-      mode: this.#elements.showMapMode.getAttribute("aria-pressed") === "true" ? "map" : "write",
+      mode: this.#elements.authoringModeTabs.mode,
       surface: this.#elements.workspaceSurfaces.dataset.activeSurface === "context" ? "context" : "authoring",
       layout: this.#elements.workspaceLayout.value as WorkspaceLayout,
       contextKey: this.#contextState.activeKey,
@@ -4505,8 +4506,7 @@ class WorkspaceApp {
     this.#elements.sourceEditorShell.hidden = !writing;
     this.#elements.projectMap.hidden = writing;
     this.#elements.editorWriteActions.hidden = !writing;
-    this.#elements.showWriteMode.setAttribute("aria-pressed", String(writing));
-    this.#elements.showMapMode.setAttribute("aria-pressed", String(!writing));
+    this.#elements.authoringModeTabs.setMode(mode);
     if (writing) this.#elements.source.focus();
     else {
       this.#elements.projectMapPanel.refreshLayout();
@@ -7452,8 +7452,7 @@ function collectElements(): Elements {
     sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),
     sourceEditorShell: requiredElement("source-editor-shell", HTMLElement),
     sourceCompletion: requiredElement("source-completion", SourceCompletion),
-    showWriteMode: requiredElement("show-write-mode", HTMLButtonElement),
-    showMapMode: requiredElement("show-map-mode", HTMLButtonElement),
+    authoringModeTabs: requiredElement("authoring-mode-tabs", AuthoringModeTabs),
     editorWriteActions: requiredElement("editor-write-actions", HTMLElement),
     projectMap: requiredElement("project-map", HTMLElement),
     projectMapTotal: requiredElement("project-map-total", HTMLElement),
