@@ -116,6 +116,9 @@ The adopted components own bounded presentation:
   detect, import, and cancel intents.
 - The project file dialog owns file and folder operation copy, initial path,
   focus, cancellation, and typed save intents.
+- The project template save dialog owns replacement choices, local name and
+  description values, loading and replacement copy, focus, cancellation, and
+  typed save intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -243,6 +246,10 @@ reason to wrap static markup mechanically.
   imperative file and folder operation configuration while leaving resource
   availability, include-target capture, persistence, selection, refresh, and
   toast policy in the application coordinator.
+- The project template save dialog replaces seven internal element references
+  and imperative replacement-option, value, status, focus, and cancellation
+  handling while leaving catalog refresh, hidden-template policy, seed capture,
+  persistence, and toast policy in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

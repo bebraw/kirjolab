@@ -200,6 +200,7 @@ import {
   type ProjectFileDialogMode,
   type ProjectFileSave,
 } from "./project-file-dialog";
+import { ProjectTemplateSaveDialog, projectTemplateSaveEvent, type ProjectTemplateSave } from "./project-template-save-dialog";
 import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
@@ -460,13 +461,7 @@ interface Elements {
   gitHubSyncStatus: HTMLElement;
   gitHubSyncMenu: GitHubSyncMenu;
   gitHubSyncReview: GitHubSyncReview;
-  saveTemplateDialog: HTMLDialogElement;
-  saveTemplateForm: HTMLFormElement;
-  saveTemplateTarget: HTMLSelectElement;
-  saveTemplateName: HTMLInputElement;
-  saveTemplateDescription: HTMLTextAreaElement;
-  saveTemplateStatus: HTMLElement;
-  cancelSaveTemplate: HTMLButtonElement;
+  saveTemplateDialog: ProjectTemplateSaveDialog;
   shareWorkspace: HTMLButtonElement;
   shareWorkspaceDialog: HTMLDialogElement;
   workspaceSharingPanel: WorkspaceSharingPanel;
@@ -1135,9 +1130,10 @@ class WorkspaceApp {
       this.#elements.openGitHubImport.click();
       history.replaceState(history.state, "", location.pathname);
     }
-    this.#elements.cancelSaveTemplate.addEventListener("click", () => this.#elements.saveTemplateDialog.close());
-    this.#elements.saveTemplateForm.addEventListener("submit", (event) => void this.#saveProjectTemplate(event));
-    this.#elements.saveTemplateTarget.addEventListener("change", () => this.#selectTemplateReplacement());
+    this.#elements.saveTemplateDialog.addEventListener(
+      projectTemplateSaveEvent,
+      (event) => void this.#saveProjectTemplate((event as CustomEvent<ProjectTemplateSave>).detail),
+    );
     this.#elements.showFilesRail.addEventListener("click", () => this.#showRail("files"));
     this.#elements.showResearchRail.addEventListener("click", () => this.#showRail("research"));
     this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
@@ -2167,48 +2163,25 @@ class WorkspaceApp {
 
   async #openSaveTemplate(): Promise<void> {
     this.#elements.workspaceSettingsDialog.close();
-    this.#elements.saveTemplateDialog.showModal();
-    this.#elements.saveTemplateStatus.textContent = "Loading personal templates…";
+    await this.#elements.saveTemplateDialog.showLoading();
     try {
       await this.#refreshProjectTemplates();
-      this.#elements.saveTemplateTarget.value = "";
-      this.#elements.saveTemplateName.value = this.#elements.workspaceSettingsTitle.value;
-      this.#elements.saveTemplateDescription.value = "";
-      this.#elements.saveTemplateStatus.textContent = "Create a new template or explicitly replace one you already own.";
-      this.#elements.saveTemplateName.focus();
+      await this.#elements.saveTemplateDialog.showReady(this.#elements.workspaceSettingsTitle.value);
     } catch (error) {
-      this.#elements.saveTemplateStatus.textContent = error instanceof Error ? error.message : "Could not load personal templates.";
+      this.#elements.saveTemplateDialog.showError(error instanceof Error ? error.message : "Could not load personal templates.");
     }
   }
 
   #renderTemplateReplacementOptions(): void {
-    const selected = this.#elements.saveTemplateTarget.value;
-    this.#elements.saveTemplateTarget.replaceChildren(new Option("Create a new template", ""));
-    const personalTemplates = this.#projectTemplates.filter(
-      (candidate) => candidate.source === "personal" && !this.#hiddenProjectTemplateIds.has(candidate.id),
+    this.#elements.saveTemplateDialog.setTemplates(
+      this.#projectTemplates.filter((candidate) => !this.#hiddenProjectTemplateIds.has(candidate.id)),
     );
-    for (const template of personalTemplates) {
-      this.#elements.saveTemplateTarget.append(new Option(`Replace ${template.name}`, template.id));
-    }
-    if (personalTemplates.some((template) => template.id === selected)) {
-      this.#elements.saveTemplateTarget.value = selected;
-    }
   }
 
-  #selectTemplateReplacement(): void {
-    const template = this.#projectTemplates.find((candidate) => candidate.id === this.#elements.saveTemplateTarget.value);
-    if (!template || template.source !== "personal") return;
-    this.#elements.saveTemplateName.value = template.name;
-    this.#elements.saveTemplateDescription.value = template.description;
-    this.#elements.saveTemplateStatus.textContent = `Replacing “${template.name}” affects only projects created from it in the future.`;
-  }
-
-  async #saveProjectTemplate(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const templateId = this.#elements.saveTemplateTarget.value;
+  async #saveProjectTemplate({ name, description, templateId }: ProjectTemplateSave): Promise<void> {
     const response = await jsonFetch(`${apiBase}/template`, {
-      name: this.#elements.saveTemplateName.value,
-      description: this.#elements.saveTemplateDescription.value,
+      name,
+      description,
       ...(templateId ? { templateId } : {}),
     });
     await expectOk(response);
@@ -9304,13 +9277,7 @@ function collectElements(): Elements {
     gitHubSyncStatus: requiredElement("github-sync-status", HTMLElement),
     gitHubSyncMenu: requiredElement("github-sync-control", GitHubSyncMenu),
     gitHubSyncReview: requiredElement("github-sync-review", GitHubSyncReview),
-    saveTemplateDialog: requiredElement("save-template-dialog", HTMLDialogElement),
-    saveTemplateForm: requiredElement("save-template-form", HTMLFormElement),
-    saveTemplateTarget: requiredElement("save-template-target", HTMLSelectElement),
-    saveTemplateName: requiredElement("save-template-name", HTMLInputElement),
-    saveTemplateDescription: requiredElement("save-template-description", HTMLTextAreaElement),
-    saveTemplateStatus: requiredElement("save-template-status", HTMLElement),
-    cancelSaveTemplate: requiredElement("cancel-save-template", HTMLButtonElement),
+    saveTemplateDialog: requiredElement("project-template-save-dialog", ProjectTemplateSaveDialog),
     shareWorkspace: requiredElement("share-workspace", HTMLButtonElement),
     shareWorkspaceDialog: requiredElement("share-workspace-dialog", HTMLDialogElement),
     workspaceSharingPanel: requiredElement("workspace-sharing-panel", WorkspaceSharingPanel),

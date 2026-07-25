@@ -829,21 +829,23 @@ export function renderHomePage(
 
     ${renderWorkspaceSettingsDialog()}
 
-    <dialog class="new-workspace-dialog ui-dialog" id="save-template-dialog">
-      <form class="p-5" id="save-template-form">
-        <p class="eyebrow">Personal template</p>
-        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Reuse this project structure</h2>
-        <label class="field-label mt-5">Save action<select class="field" id="save-template-target"><option value="">Create a new template</option></select></label>
-        <label class="field-label mt-4">Template name<input class="field" id="save-template-name" maxlength="120" required placeholder="Lab article"></label>
-        <label class="field-label mt-4">Description<textarea class="field min-h-20 resize-y" id="save-template-description" maxlength="500" placeholder="When should this template be used?"></textarea></label>
-        <p class="mt-3 text-xs leading-5 text-app-text-soft">Saves Markdown files, folders, portable bibliography, and publication settings. PDFs, images, annotations, claims, comments, collaborators, and history stay out.</p>
-        <p class="mt-2 text-xs leading-5 text-app-text-soft" id="save-template-status" role="status"></p>
-        <div class="mt-5 flex justify-end gap-2">
-          <button class="button-secondary" id="cancel-save-template" type="button">Cancel</button>
-          <button class="button-primary" type="submit">Save template</button>
-        </div>
-      </form>
-    </dialog>
+    <project-template-save-dialog id="project-template-save-dialog">
+      <dialog class="new-workspace-dialog ui-dialog" id="save-template-dialog">
+        <form class="p-5" id="save-template-form">
+          <p class="eyebrow">Personal template</p>
+          <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Reuse this project structure</h2>
+          <label class="field-label mt-5">Save action<select class="field" id="save-template-target"><option value="">Create a new template</option></select></label>
+          <label class="field-label mt-4">Template name<input class="field" id="save-template-name" maxlength="120" required placeholder="Lab article"></label>
+          <label class="field-label mt-4">Description<textarea class="field min-h-20 resize-y" id="save-template-description" maxlength="500" placeholder="When should this template be used?"></textarea></label>
+          <p class="mt-3 text-xs leading-5 text-app-text-soft">Saves Markdown files, folders, portable bibliography, and publication settings. PDFs, images, annotations, claims, comments, collaborators, and history stay out.</p>
+          <p class="mt-2 text-xs leading-5 text-app-text-soft" id="save-template-status" role="status"></p>
+          <div class="mt-5 flex justify-end gap-2">
+            <button class="button-secondary" id="cancel-save-template" type="button">Cancel</button>
+            <button class="button-primary" type="submit">Save template</button>
+          </div>
+        </form>
+      </dialog>
+    </project-template-save-dialog>
 
     <dialog class="reference-library-dialog ui-dialog" id="workspace-catalog-dialog">
       <workspace-catalog-panel id="workspace-catalog-panel">

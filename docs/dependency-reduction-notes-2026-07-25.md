@@ -925,3 +925,24 @@ Full native CI passes all 1,272 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 708,543 B raw
 / 196,840 B gzip to 709,962 B raw / 197,216 B gzip (+1,419 B raw / +376 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Project Template Save Dialog
+
+Personal-template promotion now uses a bounded `ProjectTemplateSaveDialog`
+instead of seven element references and imperative replacement-option, name,
+description, status, focus, and cancellation handling. The component owns local
+form values and emits typed create or replacement save intents. `WorkspaceApp`
+retains catalog refresh, hidden-template policy, seed capture, API mutation, and
+toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,721 to 9,688 lines (-33).
+The component adds 183 lines. Component tests cover loading, ready, error,
+create, replacement, input, modal reuse, focus, cancellation, and typed save
+states. The focused browser workflow passes built-in selection, personal
+template promotion, project creation, and saved-template reuse. The component
+records 89.09% statement and 91.3% line coverage.
+
+Full native CI passes all 1,276 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 709,962 B raw
+/ 197,216 B gzip to 712,675 B raw / 197,718 B gzip (+2,713 B raw / +502 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

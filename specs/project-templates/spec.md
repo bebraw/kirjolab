@@ -27,7 +27,11 @@ without copying private research or creating a live dependency on the source.
   collaborators, share capabilities, history, and milestones.
 - Promotion captures the current project head. Replacing a personal template
   is explicit and owner-only; it never changes projects already created from
-  that template.
+  that template. One bounded save dialog owns visible personal-template
+  replacement choices, local name and description values, loading and
+  replacement copy, focus, cancellation, and typed save intents. The workspace
+  coordinator retains catalog refresh, hidden-template policy, seed capture,
+  persistence, and success notification.
 - Active projects available to the researcher appear as one-off starting
   points. Selecting one lazily previews its current sanitized structure;
   creation derives a transient `ProjectTemplateSeed` from its authorized

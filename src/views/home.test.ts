@@ -172,6 +172,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('<assistant-result-panel class="mt-4" id="assistant-interactive-result" aria-live="polite">');
     expect(html).toContain('<assistant-task-panel id="assistant-task-panel">');
     expect(html).toContain('<project-file-dialog-panel id="project-file-dialog-panel">');
+    expect(html).toContain('<project-template-save-dialog id="project-template-save-dialog">');
     expect(html).toContain('<project-map-panel class="project-map-canvas" id="project-map-canvas">');
     expect(html).toContain('<knowledge-connections-panel class="project-map-connections" id="knowledge-connections-panel"');
     expect(html).toContain("Browse, compare, restore, or branch from saved versions.");
