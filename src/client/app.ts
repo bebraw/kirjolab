@@ -112,6 +112,11 @@ import {
 import { WorkspaceCatalogPanel, workspaceCatalogCloseEvent } from "./workspace-catalog-panel";
 import { UnidentifiedPdfList, unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
 import {
+  LibraryReferenceSummary,
+  libraryReferenceSummaryActionEvent,
+  type LibraryReferenceSummaryAction,
+} from "./library-reference-summary";
+import {
   WorkspaceSettingsPanel,
   workspaceSettingsActionEvent,
   type WorkspaceSettingsAction,
@@ -1113,6 +1118,12 @@ class WorkspaceApp {
       void this.#refreshReferenceLibrary();
     });
     this.#elements.referenceLibraryFilters.addEventListener(referenceLibraryFilterChangeEvent, () => this.#renderReferenceLibrary());
+    this.#elements.referenceLibraryList.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
+      const detail = (event as CustomEvent<LibraryReferenceSummaryAction>).detail;
+      if (detail.action === "open-pdf") void this.#openLibraryPdf(detail.artifact);
+      else if (detail.action === "link") void this.#linkLibraryReference(detail.referenceId, detail.referenceKey);
+      else void this.#unlinkProjectReference(detail.referenceId);
+    });
     this.#elements.unidentifiedPdfList.addEventListener(unidentifiedPdfIdentifyEvent, (event) => {
       const { artifactId, referenceId } = (event as CustomEvent<UnidentifiedPdfSelection>).detail;
       void this.#identifyLibraryPdf(artifactId, referenceId);
@@ -3753,63 +3764,17 @@ class WorkspaceApp {
     const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
     const artifacts = this.#librarySnapshot?.artifacts.filter((artifact) => artifact.referenceId === reference.id) ?? [];
     const displayTitle = bibTeXDisplayText(reference.title) || "Untitled reference";
-    card.append(
-      this.#referenceCardMain(reference, displayTitle, keyState),
-      this.#referenceCardActions(reference, linked, artifacts[0]),
-      this.#referenceMetadataEditor(reference, displayTitle, linked, artifacts),
-    );
+    const summary = new LibraryReferenceSummary();
+    summary.className = "contents";
+    summary.setData({
+      keyState,
+      linkedCitationAlias: linked?.citationAlias ?? null,
+      primaryArtifact: artifacts[0] ?? null,
+      reference,
+      workspace: appMode === "workspace",
+    });
+    card.append(summary, this.#referenceMetadataEditor(reference, displayTitle, linked, artifacts));
     return card;
-  }
-
-  #referenceCardMain(reference: BibliographicRecord, displayTitle: string, keyState: "provisional" | "final"): HTMLElement {
-    const main = document.createElement("div");
-    main.className = "library-reference-main";
-    const title = document.createElement("h3");
-    title.className = "library-reference-title";
-    title.textContent = displayTitle;
-    title.title = displayTitle;
-    const details = document.createElement("p");
-    details.className = "library-reference-meta";
-    details.textContent = [
-      bibTeXDisplayText(reference.authors.join("; ")),
-      reference.year,
-      bibTeXDisplayText(reference.venue),
-      reference.referenceKey,
-      keyState === "provisional" ? "refinable key" : "",
-      reference.type,
-      reference.archivedAt ? "archived" : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    details.title = details.textContent;
-    main.append(title, details);
-    return main;
-  }
-
-  #referenceCardActions(
-    reference: BibliographicRecord,
-    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
-    primaryArtifact: LibraryPdfArtifact | undefined,
-  ): HTMLElement {
-    const actions = document.createElement("div");
-    actions.className = "library-reference-actions";
-    if (primaryArtifact) {
-      const openPdf = actionButton("PDF", "button-secondary", () => void this.#openLibraryPdf(primaryArtifact));
-      openPdf.title = `Open ${primaryArtifact.name}`;
-      actions.append(openPdf);
-    }
-    if (appMode === "workspace") {
-      if (linked) {
-        const remove = actionButton("Linked", "button-secondary", () => void this.#unlinkProjectReference(reference.id));
-        remove.title = `Remove :cite[${linked.citationAlias}] from this project`;
-        actions.append(remove);
-      } else {
-        const add = actionButton("Add", "button-primary", () => void this.#linkLibraryReference(reference.id, reference.referenceKey));
-        add.title = `Add :cite[${reference.referenceKey}] to this project`;
-        actions.append(add);
-      }
-    }
-    return actions;
   }
 
   #referenceMetadataEditor(

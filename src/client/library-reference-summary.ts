@@ -1,0 +1,126 @@
+import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { bibTeXDisplayText } from "../domain/bibliography";
+import type { BibliographicRecord, LibraryPdfArtifact } from "../domain/reference-library";
+
+export interface LibraryReferenceSummaryData {
+  readonly keyState: "provisional" | "final";
+  readonly linkedCitationAlias: string | null;
+  readonly primaryArtifact: LibraryPdfArtifact | null;
+  readonly reference: BibliographicRecord;
+  readonly workspace: boolean;
+}
+
+export type LibraryReferenceSummaryAction =
+  | { readonly action: "open-pdf"; readonly artifact: LibraryPdfArtifact }
+  | { readonly action: "link"; readonly referenceId: string; readonly referenceKey: string }
+  | { readonly action: "unlink"; readonly referenceId: string };
+
+export const libraryReferenceSummaryActionEvent = "library-reference-summary-action";
+
+export class LibraryReferenceSummary extends LitElement {
+  static override properties = {
+    data: { state: true },
+  };
+
+  declare private data: LibraryReferenceSummaryData | null;
+
+  constructor() {
+    super();
+    this.data = null;
+  }
+
+  setData(data: LibraryReferenceSummaryData): void {
+    this.data = data;
+  }
+
+  override connectedCallback(): void {
+    if (!this.hasUpdated) this.replaceChildren();
+    super.connectedCallback();
+  }
+
+  protected override createRenderRoot(): HTMLElement {
+    return this;
+  }
+
+  protected override render(): TemplateResult {
+    const data = this.data;
+    if (!data) return html``;
+    const { keyState, linkedCitationAlias, primaryArtifact, reference, workspace } = data;
+    const displayTitle = bibTeXDisplayText(reference.title) || "Untitled reference";
+    const details = [
+      bibTeXDisplayText(reference.authors.join("; ")),
+      reference.year,
+      bibTeXDisplayText(reference.venue),
+      reference.referenceKey,
+      keyState === "provisional" ? "refinable key" : "",
+      reference.type,
+      reference.archivedAt ? "archived" : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return html`
+      <div class="library-reference-main">
+        <h3 class="library-reference-title" title=${displayTitle}>${displayTitle}</h3>
+        <p class="library-reference-meta" title=${details}>${details}</p>
+      </div>
+      <div class="library-reference-actions">
+        ${primaryArtifact
+          ? html`
+              <button
+                class="button-secondary"
+                type="button"
+                title=${`Open ${primaryArtifact.name}`}
+                @click=${() => this.emitAction({ action: "open-pdf", artifact: primaryArtifact })}
+              >
+                PDF
+              </button>
+            `
+          : nothing}
+        ${workspace
+          ? linkedCitationAlias
+            ? html`
+                <button
+                  class="button-secondary"
+                  type="button"
+                  title=${`Remove :cite[${linkedCitationAlias}] from this project`}
+                  @click=${() => this.emitAction({ action: "unlink", referenceId: reference.id })}
+                >
+                  Linked
+                </button>
+              `
+            : html`
+                <button
+                  class="button-primary"
+                  type="button"
+                  title=${`Add :cite[${reference.referenceKey}] to this project`}
+                  @click=${() =>
+                    this.emitAction({
+                      action: "link",
+                      referenceId: reference.id,
+                      referenceKey: reference.referenceKey,
+                    })}
+                >
+                  Add
+                </button>
+              `
+          : nothing}
+      </div>
+    `;
+  }
+
+  protected emitAction(action: LibraryReferenceSummaryAction): void {
+    this.dispatchEvent(
+      new CustomEvent<LibraryReferenceSummaryAction>(libraryReferenceSummaryActionEvent, { bubbles: true, detail: action }),
+    );
+  }
+}
+
+if (typeof customElements !== "undefined" && !customElements.get("library-reference-summary")) {
+  customElements.define("library-reference-summary", LibraryReferenceSummary);
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "library-reference-summary": LibraryReferenceSummary;
+  }
+}

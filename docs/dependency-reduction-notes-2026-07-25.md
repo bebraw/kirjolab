@@ -821,6 +821,27 @@ and 74 browser tests. The browser application artifact grows from 698,319 B raw
 / 194,629 B gzip to 701,258 B raw / 194,976 B gzip (+2,939 B raw / +347 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
 
+## Continued Lit Extraction: Library Reference Summaries
+
+A bounded `LibraryReferenceSummary` now owns each reference result's title,
+compact metadata, PDF action, and project-link presentation. This replaces two
+imperative render helpers and their per-card PDF, link, and unlink handlers with
+one delegated typed action stream. `WorkspaceApp` retains result-card assembly,
+PDF presentation, project-link mutations, metadata editing and refinement,
+Library refreshes, and toasts.
+
+This checkpoint reduces `src/client/app.ts` from 9,181 to 9,146 lines (-35).
+The component adds 126 lines. Component tests cover light-DOM ownership,
+standalone, provisional, PDF, unlinked-workspace, and linked-workspace
+projection, plus all three typed action variants. Focused browser workflows
+pass linked-reference PDF sharing and provider metadata refinement. The
+component records 72.72% statement and 75% line coverage.
+
+Full native CI passes all 1,317 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 751,362 B raw
+/ 205,781 B gzip to 752,814 B raw / 205,980 B gzip (+1,452 B raw / +199 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
 ## Continued Lit Extraction: Export Statistics
 
 The export dialog's publication statistics now use a bounded

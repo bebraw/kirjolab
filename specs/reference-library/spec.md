@@ -79,7 +79,11 @@ memory and makes citation aliases compete with stable source identity.
 - One bounded filter component owns Library query and facet values, dynamic
   type choices, validated defaults, result counts, and reset behavior. The
   workspace coordinator retains canonical reference filtering,
-  project-linkage projection, result-card rendering, and reference navigation.
+  project-linkage projection, result-card assembly, and reference navigation.
+- A bounded light-DOM reference summary owns each result's display title,
+  compact metadata, PDF action, project-link state, and typed actions. The
+  workspace coordinator retains PDF presentation, link mutations, metadata
+  editing and refinement, and Library refresh policy.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - An authenticated project member may stream PDFs attached to the project
