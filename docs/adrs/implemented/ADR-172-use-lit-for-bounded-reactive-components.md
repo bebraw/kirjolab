@@ -91,6 +91,9 @@ The adopted components own bounded presentation:
   selection intents.
 - The Library discovery results panel owns provider, metadata, verification,
   and local save-progress presentation with typed save intents.
+- The citation network panel owns graph geometry, source and edge cards,
+  assertion provenance and review controls, snowball candidates, and local
+  candidate-save progress with typed expansion, review, and save intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -181,6 +184,10 @@ reason to wrap static markup mechanically.
   save-button renderer while leaving provider requests, response validation,
   CSL import, Library refreshes, and status policy in the application
   coordinator.
+- The citation network panel replaces two internal element references and the
+  imperative SVG graph, node, edge, assertion, expansion, candidate, and
+  progress renderers while leaving network requests, prompts, mutations,
+  validation, refreshes, and toast policy in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

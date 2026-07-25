@@ -38,6 +38,10 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - The visual SVG is paired with an ordinary accessible list containing every
   visible assertion and its provenance and review controls. Relational SQLite
   remains sufficient; the layout is derived browser state.
+- One bounded reactive view owns graph geometry, accessible node and edge
+  cards, assertion provenance, review controls, expansion candidates, and
+  local save progress. It emits typed intents; the application coordinator
+  retains prompts, requests, mutations, validation, refreshes, and notices.
 
 ### API Contracts
 

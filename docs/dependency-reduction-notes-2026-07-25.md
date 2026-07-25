@@ -729,3 +729,27 @@ and 74 browser tests. The rebuilt browser application is 691,354 B raw and
 193,265 B gzip, an increase of 1,023 B raw and 165 B gzip from the
 manuscript-map checkpoint. Direct and unique production package counts remain
 unchanged at 18 and 150.
+
+## Continued Lit Extraction: Citation Network
+
+The citation network now uses one bounded `CitationNetworkPanel` instead of two
+element references plus imperative SVG graph, source-card, edge, assertion,
+provenance, review, expansion, candidate, and save-progress rendering. The
+component owns derived presentation and local candidate progress while
+emitting typed expansion, review, and candidate-save intents. `WorkspaceApp`
+retains network requests, prompts, mutations, response validation, refreshes,
+and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 10,439 to 10,207 lines (-232).
+The component adds 315 lines and reaches 94.52% statement coverage and 96.82%
+line coverage across loading, empty, filtered, connected, truncated, reviewed,
+expanded, saturated, saving, known-intent, and rejected-intent states. The
+focused browser workflow passes assertion recording, graph and accessible-list
+rendering, project filtering, review, expansion, candidate verification,
+saving, and provenance feedback.
+
+Full native CI passes all 1,253 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 693,504 B raw and
+193,712 B gzip, an increase of 2,150 B raw and 447 B gzip from the Library
+discovery checkpoint. Direct and unique production package counts remain
+unchanged at 18 and 150.
