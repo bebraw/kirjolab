@@ -62,6 +62,7 @@ import { filterReferenceLibrary } from "../domain/reference-filters";
 import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
+import { CollaboratorSelectionList } from "./collaborator-selection-list";
 import { SourceCompletion, sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
@@ -254,7 +255,7 @@ import {
   type PreviewDiagnosticSelection,
 } from "./preview-presentation";
 import { PublicationIntakePanel, publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
-import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
+import { anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
   cacheOfflineNavigation,
@@ -431,7 +432,7 @@ interface Elements {
   citationCompletionScope: HTMLSelectElement;
   chooseModelEvidence: HTMLButtonElement;
   openPreferencesFromAssistant: HTMLButtonElement;
-  collaboratorSelections: HTMLElement;
+  collaboratorSelections: CollaboratorSelectionList;
   workspaceSwitcher: HTMLSelectElement;
   workspaceLayout: HTMLSelectElement;
   manageWorkspaces: HTMLButtonElement;
@@ -2526,17 +2527,11 @@ class WorkspaceApp {
   }
 
   #renderRemoteSelections(): void {
-    this.#elements.collaboratorSelections.replaceChildren();
-    const selections = [...this.#remoteSelections.values()].filter((selection) => selection.revision === this.#revision);
-    for (const selection of selections) {
-      const file = this.#liveProjectFiles().find((candidate) => candidate.id === selection.fileId);
-      const selected = file?.content.slice(selection.start, selection.end).replaceAll(/\s+/gu, " ").trim() ?? "";
-      const range = selection.start === selection.end ? `caret at ${selection.start}` : `selection ${selection.start}–${selection.end}`;
-      const item = document.createElement("span");
-      item.className = "mr-4 inline-block";
-      item.textContent = `Collaborator · ${file?.path ?? "project file"} · ${range}${selected ? ` · “${accessibleEvidenceExcerpt(selected)}”` : ""}`;
-      this.#elements.collaboratorSelections.append(item);
-    }
+    this.#elements.collaboratorSelections.setData({
+      files: this.#liveProjectFiles(),
+      revision: this.#revision,
+      selections: [...this.#remoteSelections.values()],
+    });
     this.#renderSourceEditorHighlight();
   }
 
@@ -2545,12 +2540,7 @@ class WorkspaceApp {
     const local: readonly EditorPresenceRange[] = target
       ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
       : [];
-    return [
-      ...local,
-      ...[...this.#remoteSelections.values()].filter(
-        (selection) => selection.revision === this.#revision && selection.fileId === this.#activeFileId,
-      ),
-    ];
+    return [...local, ...this.#elements.collaboratorSelections.rangesFor(this.#activeFileId)];
   }
 
   #bindSourceEditor(text: Y.Text): void {
@@ -7716,7 +7706,7 @@ function collectElements(): Elements {
     citationCompletionScope: requiredElement("citation-completion-scope", HTMLSelectElement),
     chooseModelEvidence: requiredElement("choose-model-evidence", HTMLButtonElement),
     openPreferencesFromAssistant: requiredElement("open-preferences-from-assistant", HTMLButtonElement),
-    collaboratorSelections: requiredElement("collaborator-selections", HTMLElement),
+    collaboratorSelections: requiredElement("collaborator-selections", CollaboratorSelectionList),
     workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
     workspaceLayout: requiredElement("workspace-layout", HTMLSelectElement),
     manageWorkspaces: requiredElement("manage-workspaces", HTMLButtonElement),

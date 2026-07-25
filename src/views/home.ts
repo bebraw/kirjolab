@@ -104,7 +104,7 @@ export function renderHomePage(
           <button class="button-primary" id="open-export" type="button">Export</button>
         </div>
       </div>
-      <div class="sr-only" id="collaborator-selections" aria-live="polite"></div>
+      <collaborator-selection-list class="sr-only" id="collaborator-selections" aria-live="polite"></collaborator-selection-list>
     </header>
     <button class="button-secondary preview-navigation-restore" id="restore-preview-navigation" type="button" aria-controls="app-header" aria-label="Show top navigation" title="Show top navigation" hidden>
       ${renderIcon("chevronDown")}

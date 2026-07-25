@@ -1554,3 +1554,25 @@ The browser application artifact grows from 768,775 B raw / 208,825 B gzip to
 raw / 15 B gzip. Direct and unique production package counts remain unchanged
 at 18 and 150. Full native CI passes all 1,340 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Collaborator Selection List
+
+A bounded `CollaboratorSelectionList` now owns current-revision and current-file
+filtering, remote caret and range presentation, accessible source excerpts, and
+missing-file fallbacks. It also supplies the filtered remote ranges used by the
+editor overlay so list and highlight eligibility cannot drift. `WorkspaceApp`
+retains local-author selection, collaboration transport, revision authority,
+and editor-highlight placement.
+
+This checkpoint reduces `src/client/app.ts` from 8,004 to 7,994 lines (-10).
+The component adds 69 lines. Component tests cover fallback and empty states,
+stale revisions, ranges and excerpts, carets, missing files, and overlay-range
+projection. It records 85.18% statement and 91.3% line coverage. Focused browser
+workflows pass two-writer source convergence and focused-caret preservation
+during remote insertion.
+
+The browser application artifact grows from 769,285 B raw / 208,855 B gzip to
+769,814 B raw / 208,949 B gzip (+529 B raw / +94 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,341 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

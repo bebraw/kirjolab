@@ -170,6 +170,9 @@ The adopted components own bounded presentation:
 - The Library PDF project-use block owns unidentified, unlinked, and linked
   presentation, capability-boundary copy, citation preview, and a typed
   reference-link intent.
+- The collaborator selection list owns current-revision and current-file
+  filtering, caret and range presentation, accessible excerpts, and missing-file
+  fallbacks for remote editor presence.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices, and typed identification intents.
 - The Library reference summary owns title and metadata presentation, PDF and
@@ -390,6 +393,10 @@ reason to wrap static markup mechanically.
   one-off DOM-construction helpers. The application coordinator retains
   canonical reference and project-link lookup, the linking mutation, snapshot
   refreshes, and notification policy.
+- The collaborator selection list replaces imperative remote-presence rendering
+  and consolidates revision and file filtering for both the list and editor
+  overlay. The application coordinator retains local-author selection,
+  collaboration transport, revision authority, and editor-highlight placement.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,
