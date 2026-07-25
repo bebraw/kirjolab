@@ -81,6 +81,7 @@ describe("renderHomePage", () => {
     expect(html).toContain("Follow references from trusted seeds, review each candidate, and retain how every source was found.");
     expect(html).toContain('id="publication-list"');
     expect(html).toContain('id="publication-list-panel"');
+    expect(html).toContain('id="candidate-list-panel"');
     expect(html).toContain('<a class="review-study-launch" href="/review">');
     expect(html).toContain("Open the review catalog to link an SLR or MLR");
     expect(html).not.toContain('id="review-study-dialog"');

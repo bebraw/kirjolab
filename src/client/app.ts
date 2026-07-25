@@ -187,6 +187,7 @@ import { KnowledgeSearchPanel, knowledgeSearchEvent, knowledgeSearchSelectEvent 
 import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
+import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -756,7 +757,7 @@ interface Elements {
   modelInstruction: HTMLTextAreaElement;
   generateCandidate: HTMLButtonElement;
   modelStatus: HTMLElement;
-  candidateList: HTMLElement;
+  candidateListPanel: CandidateListPanel;
   toast: HTMLElement;
 }
 
@@ -1440,6 +1441,9 @@ class WorkspaceApp {
       else if (detail.action === "link-passage") void this.#linkClaim(detail.claimId);
       else if (detail.action === "open-annotation") this.#focusAnnotationCard(detail.annotationId);
       else this.#showPassage(detail.anchor);
+    });
+    this.#elements.candidateListPanel.addEventListener(candidateListOpenEvent, (event) => {
+      this.#openCandidateContext((event as CustomEvent<ModelCandidate>).detail);
     });
     this.#elements.cancelClaim.addEventListener("click", () => this.#elements.claimDialog.close());
     this.#elements.claimForm.addEventListener("submit", (event) => void this.#saveClaim(event));
@@ -6339,28 +6343,7 @@ class WorkspaceApp {
   }
 
   #renderCandidates(candidates: ModelCandidate[]): void {
-    this.#elements.candidateList.replaceChildren();
-    if (candidates.length === 0) {
-      this.#elements.candidateList.append(emptyState("Drafts open in Context and do not change the manuscript until applied."));
-      return;
-    }
-    for (const candidate of candidates) {
-      const card = document.createElement("article");
-      card.className = "resource-card mb-3";
-      const top = document.createElement("div");
-      top.className = "flex items-center justify-between gap-3";
-      top.append(resourceLabel(`${candidate.model} · ${candidate.status}`));
-      const stamp = document.createElement("span");
-      stamp.className = "font-sans text-[0.65rem] text-app-text-soft";
-      stamp.textContent = candidate.operation === "draft-claim" ? candidate.relation : `r${candidate.sourceRevision}`;
-      top.append(stamp);
-      const excerpt = document.createElement("p");
-      excerpt.className = "mt-2 line-clamp-2 font-mono text-xs leading-5 text-app-text-soft";
-      excerpt.textContent = candidate.operation === "draft-claim" ? candidate.proposedText : candidate.target.anchor.exact;
-      const open = actionButton("Open review", "button-secondary mt-3 w-full justify-center", () => this.#openCandidateContext(candidate));
-      card.append(top, excerpt, open);
-      this.#elements.candidateList.append(card);
-    }
+    this.#elements.candidateListPanel.setCandidates(candidates);
   }
 
   async #searchKnowledge(query: string): Promise<void> {
@@ -10739,7 +10722,7 @@ function collectElements(): Elements {
     modelInstruction: requiredElement("model-instruction", HTMLTextAreaElement),
     generateCandidate: requiredElement("generate-candidate", HTMLButtonElement),
     modelStatus: requiredElement("model-status", HTMLElement),
-    candidateList: requiredElement("candidate-list", HTMLElement),
+    candidateListPanel: requiredElement("candidate-list-panel", CandidateListPanel),
     toast: requiredElement("toast", HTMLElement),
   };
 }

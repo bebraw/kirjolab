@@ -1571,7 +1571,8 @@
 
   claim-list-panel,
   manuscript-comment-list,
-  publication-list-panel {
+  publication-list-panel,
+  candidate-list-panel {
     display: block;
   }
 

@@ -475,9 +475,11 @@ export function renderHomePage(
               <button class="assistant-connection-link" id="open-preferences-from-assistant" type="button">Connection settings</button>
             </div>
             <p class="ui-status mt-3" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
-            <div class="mt-4" id="candidate-list">
-              <div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>
-            </div>
+            <candidate-list-panel id="candidate-list-panel">
+              <div class="mt-4" id="candidate-list">
+                <div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>
+              </div>
+            </candidate-list-panel>
           </div>
         </section>
 

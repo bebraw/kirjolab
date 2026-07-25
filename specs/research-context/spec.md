@@ -321,6 +321,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - [x] Grounded model candidates open as resource-keyed Context tabs with
       original/replacement regions, provenance links, and explicit apply/reject
       actions.
+- [x] A bounded light-DOM candidate list owns revision and claim-draft
+      summaries, empty-state, and review-opening intent presentation while
+      generation, canonical candidate state, context navigation, applicability
+      checks, and decisions remain with the application coordinator.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
 - [x] Refresh, copied URLs, and browser Back restore authorized file, view,

@@ -573,3 +573,23 @@ and 74 browser tests. The rebuilt browser application is 682,060 B raw and
 191,844 B gzip, an increase of 2,050 B raw and 243 B gzip from the
 manuscript-comments checkpoint. Direct and unique production package counts
 remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Candidate Queue
+
+The Writing assistant candidate queue now uses one bounded `CandidateListPanel`
+instead of imperative empty-state, revision-card, claim-draft, and review-action
+rendering. The component owns candidate summary presentation and emits one
+typed review-opening intent. `WorkspaceApp` retains generation, canonical
+candidate state, context navigation, applicability checks, and decisions.
+
+This checkpoint reduces `src/client/app.ts` from 10,984 to 10,967 lines (-17).
+The component adds 78 lines and reaches 85.71% statement coverage and 89.47%
+line coverage across empty, revision, and claim-draft states plus known and
+unknown selections. Focused browser workflows pass candidate rendering,
+opening, stale review, evidence navigation, and evidence-backed application.
+
+Full native CI passes all 1,237 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 682,884 B raw and
+192,016 B gzip, an increase of 824 B raw and 172 B gzip from the
+project-publications checkpoint. Direct and unique production package counts
+remain unchanged at 18 and 150.

@@ -73,6 +73,8 @@ The adopted components own bounded presentation:
 - The project publication list owns reference metadata, alias and DOI labels,
   empty-state, and action presentation with typed open, manage, and enrich
   intents.
+- The model candidate list owns revision and claim-draft summaries, empty-state,
+  and a typed review-opening intent.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -133,6 +135,10 @@ reason to wrap static markup mechanically.
 - The project publication list replaces one internal list reference and its
   imperative card renderer while leaving context navigation, Library
   management, metadata enrichment, and refreshes in the application
+  coordinator.
+- The model candidate list replaces one internal list reference and its
+  imperative card renderer while leaving generation, candidate state, context
+  navigation, applicability checks, and decisions in the application
   coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
