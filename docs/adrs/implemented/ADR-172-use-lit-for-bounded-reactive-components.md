@@ -158,6 +158,9 @@ The adopted components own bounded presentation:
   reference choices, and typed identification intents.
 - The Library reference summary owns title and metadata presentation, PDF and
   project-link actions, and their accessible labels.
+- The Library reference personal-fields block owns tags, collections,
+  archive-state presentation, reading state, private-note composition, and
+  typed save intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -356,6 +359,10 @@ reason to wrap static markup mechanically.
   rendering plus per-card PDF and project-link handlers with one delegated
   action stream while leaving mutations, PDF presentation, result-card
   assembly, and metadata refinement in the application coordinator.
+- The Library reference personal-fields block replaces six imperative form and
+  select render helpers plus their per-card handlers and DOM value collection
+  with one delegated action stream while leaving persistence, confirmation,
+  Library refreshes, and toast policy in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

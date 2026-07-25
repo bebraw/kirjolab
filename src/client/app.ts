@@ -117,6 +117,11 @@ import {
   type LibraryReferenceSummaryAction,
 } from "./library-reference-summary";
 import {
+  LibraryReferencePersonalFields,
+  libraryReferencePersonalActionEvent,
+  type LibraryReferencePersonalAction,
+} from "./library-reference-personal-fields";
+import {
   WorkspaceSettingsPanel,
   workspaceSettingsActionEvent,
   type WorkspaceSettingsAction,
@@ -1123,6 +1128,15 @@ class WorkspaceApp {
       if (detail.action === "open-pdf") void this.#openLibraryPdf(detail.artifact);
       else if (detail.action === "link") void this.#linkLibraryReference(detail.referenceId, detail.referenceKey);
       else void this.#unlinkProjectReference(detail.referenceId);
+    });
+    this.#elements.referenceLibraryList.addEventListener(libraryReferencePersonalActionEvent, (event) => {
+      const detail = (event as CustomEvent<LibraryReferencePersonalAction>).detail;
+      if (detail.action === "save-tags") void this.#saveReferenceTags(detail.referenceId, detail.value);
+      else if (detail.action === "save-collections") void this.#saveReferenceCollections(detail.referenceId, detail.value);
+      else if (detail.action === "set-archived") void this.#setReferenceArchived(detail.referenceId, detail.archived, detail.title);
+      else if (detail.action === "save-reading")
+        void this.#saveReadingState(detail.referenceId, detail.status, detail.rating, detail.priority);
+      else void this.#createReferenceNote(detail.referenceId, detail.body);
     });
     this.#elements.unidentifiedPdfList.addEventListener(unidentifiedPdfIdentifyEvent, (event) => {
       const { artifactId, referenceId } = (event as CustomEvent<UnidentifiedPdfSelection>).detail;
@@ -3798,9 +3812,17 @@ class WorkspaceApp {
     metadataBody.className = "library-reference-detail-body";
     metadataEditor.append(metadataBody);
     const refinementTargets = this.#appendReferenceMetadataFields(metadataBody, reference, displayTitle, artifacts[0]);
-    this.#appendReferenceOrganization(metadataBody, reference, displayTitle);
-    this.#appendReferenceReadingState(metadataBody, reference, displayTitle);
-    this.#appendReferencePrivateNote(metadataBody, reference, displayTitle);
+    const personalFields = new LibraryReferencePersonalFields();
+    personalFields.className = "contents";
+    personalFields.setData({
+      archived: reference.archivedAt !== null,
+      collections: this.#librarySnapshot?.collections[reference.id] ?? [],
+      displayTitle,
+      reading: this.#librarySnapshot?.reading.find((item) => item.referenceId === reference.id) ?? null,
+      referenceId: reference.id,
+      tags: this.#librarySnapshot?.tags[reference.id] ?? [],
+    });
+    metadataBody.append(personalFields);
     this.#appendReferenceResources(metadataBody, reference, linked, artifacts, refinementTargets);
     return metadataEditor;
   }
@@ -3878,107 +3900,6 @@ class WorkspaceApp {
     }
     metadataBody.append(abstractField, metadataRefinementPanel, metadataActions);
     return refinementTargets;
-  }
-
-  #appendReferenceOrganization(metadataBody: HTMLElement, reference: BibliographicRecord, displayTitle: string): void {
-    const fieldPrefix = `library-reference-${reference.id}`;
-    const tags = document.createElement("input");
-    tags.className = "field mt-3";
-    tags.id = `${fieldPrefix}-tags`;
-    tags.name = "tags";
-    tags.value = (this.#librarySnapshot?.tags[reference.id] ?? []).join(", ");
-    tags.placeholder = "Private tags, comma separated";
-    tags.setAttribute("aria-label", `Private tags for ${displayTitle}`);
-    metadataBody.append(tags);
-    const collections = document.createElement("input");
-    collections.className = "field mt-2";
-    collections.id = `${fieldPrefix}-collections`;
-    collections.name = "collections";
-    collections.value = (this.#librarySnapshot?.collections[reference.id] ?? []).join(", ");
-    collections.placeholder = "Collections, comma separated";
-    collections.setAttribute("aria-label", `Collections for ${displayTitle}`);
-    metadataBody.append(collections);
-    const privateActions = document.createElement("div");
-    privateActions.className = "mt-2 flex flex-wrap gap-2";
-    privateActions.append(
-      actionButton("Save tags", "button-secondary", () => void this.#saveReferenceTags(reference.id, tags.value)),
-      actionButton("Save collections", "button-secondary", () => void this.#saveReferenceCollections(reference.id, collections.value)),
-      actionButton(
-        reference.archivedAt ? "Restore" : "Archive",
-        "button-secondary",
-        () => void this.#setReferenceArchived(reference.id, reference.archivedAt === null, displayTitle),
-      ),
-    );
-    metadataBody.append(privateActions);
-  }
-
-  #appendReferenceReadingState(metadataBody: HTMLElement, reference: BibliographicRecord, displayTitle: string): void {
-    const fieldPrefix = `library-reference-${reference.id}`;
-    const reading = this.#librarySnapshot?.reading.find((item) => item.referenceId === reference.id);
-    const readingStatus = this.#referenceReadingStatus(fieldPrefix, displayTitle, reading?.status);
-    const priority = this.#referenceReadingPriority(fieldPrefix, displayTitle, reading?.priority);
-    const rating = this.#referenceReadingRating(fieldPrefix, displayTitle, reading?.rating);
-    metadataBody.append(
-      readingStatus,
-      priority,
-      rating,
-      actionButton(
-        "Save reading state",
-        "button-secondary mt-2",
-        () => void this.#saveReadingState(reference.id, readingStatus.value, rating.value, priority.value),
-      ),
-    );
-  }
-
-  #referenceReadingStatus(fieldPrefix: string, displayTitle: string, selected: string | undefined): HTMLSelectElement {
-    const readingStatus = document.createElement("select");
-    readingStatus.className = "field mt-3";
-    readingStatus.id = `${fieldPrefix}-reading-status`;
-    readingStatus.name = "readingStatus";
-    readingStatus.setAttribute("aria-label", `Reading status for ${displayTitle}`);
-    for (const value of ["unread", "reading", "read"] as const) readingStatus.append(new Option(value, value));
-    readingStatus.value = selected ?? "unread";
-    return readingStatus;
-  }
-
-  #referenceReadingPriority(fieldPrefix: string, displayTitle: string, selected: string | undefined): HTMLSelectElement {
-    const priority = document.createElement("select");
-    priority.className = "field mt-2";
-    priority.id = `${fieldPrefix}-priority`;
-    priority.name = "priority";
-    priority.setAttribute("aria-label", `Reading priority for ${displayTitle}`);
-    for (const value of ["low", "normal", "high"] as const) priority.append(new Option(`Priority: ${value}`, value));
-    priority.value = selected ?? "normal";
-    return priority;
-  }
-
-  #referenceReadingRating(fieldPrefix: string, displayTitle: string, selected: number | null | undefined): HTMLSelectElement {
-    const rating = document.createElement("select");
-    rating.className = "field mt-2";
-    rating.id = `${fieldPrefix}-rating`;
-    rating.name = "rating";
-    rating.setAttribute("aria-label", `Rating for ${displayTitle}`);
-    rating.append(new Option("No rating", ""));
-    for (let value = 1; value <= 5; value += 1) rating.append(new Option(`${value} star${value === 1 ? "" : "s"}`, String(value)));
-    rating.value = selected === null || selected === undefined ? "" : String(selected);
-    return rating;
-  }
-
-  #appendReferencePrivateNote(metadataBody: HTMLElement, reference: BibliographicRecord, displayTitle: string): void {
-    const fieldPrefix = `library-reference-${reference.id}`;
-    const noteInput = document.createElement("textarea");
-    noteInput.className = "field mt-3 min-h-16";
-    noteInput.id = `${fieldPrefix}-private-note`;
-    noteInput.name = "privateNote";
-    noteInput.placeholder = "Add a private note";
-    noteInput.setAttribute("aria-label", `Private note for ${displayTitle}`);
-    noteInput.maxLength = 20_000;
-    const addNote = actionButton(
-      "Save private note",
-      "button-secondary mt-2",
-      () => void this.#createReferenceNote(reference.id, noteInput.value),
-    );
-    metadataBody.append(noteInput, addNote);
   }
 
   #appendReferenceResources(
@@ -4728,18 +4649,18 @@ class WorkspaceApp {
     await this.#refreshSnapshot();
   }
 
-  async #saveReadingState(referenceId: string, status: string, rating: string, priority: string): Promise<void> {
-    if (
-      !(["unread", "reading", "read"] as const).includes(status as "unread") ||
-      !(["low", "normal", "high"] as const).includes(priority as "normal")
-    )
-      return;
+  async #saveReadingState(
+    referenceId: string,
+    status: ReferenceLibrarySnapshot["reading"][number]["status"],
+    rating: number | null,
+    priority: ReferenceLibrarySnapshot["reading"][number]["priority"],
+  ): Promise<void> {
     await expectOk(
       await jsonFetch(
         `/api/library/references/${encodeURIComponent(referenceId)}/reading`,
         {
           status,
-          rating: rating ? Number(rating) : null,
+          rating,
           priority,
         },
         "PUT",

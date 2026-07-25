@@ -84,6 +84,10 @@ memory and makes citation aliases compete with stable source identity.
   compact metadata, PDF action, project-link state, and typed actions. The
   workspace coordinator retains PDF presentation, link mutations, metadata
   editing and refinement, and Library refresh policy.
+- A bounded light-DOM personal-fields block owns each source's tag, collection,
+  reading-state, archive-state, and private-note form values and typed save
+  intents. The workspace coordinator retains persistence, archive confirmation,
+  Library refreshes, and notification policy.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - An authenticated project member may stream PDFs attached to the project
