@@ -463,3 +463,26 @@ and 74 browser tests. The rebuilt browser application is 671,878 B raw and
 189,811 B gzip, an increase of 2,910 B raw and 761 B gzip from the project-map
 checkpoint. Direct and unique production package counts remain unchanged at 18
 and 150.
+
+## Continued Lit Extraction: Publication Context
+
+Publication inspection now uses one bounded `PublicationContextPanel` instead
+of eight metadata, paper-list, citation, scroll, and project-PDF linking element
+references. The component owns scholarly metadata, linked-paper variants,
+available project-PDF options, citation readiness, local scroll state, and
+typed citation, paper, link, and unlink intents. `WorkspaceApp` retains
+manuscript insertion, PDF navigation, authorization-sensitive API mutations,
+and workspace refreshes.
+
+This checkpoint reduces `src/client/app.ts` from 11,235 to 11,149 lines (-86).
+The 208-line component reaches 93.18% statement coverage and 94.73% line
+coverage across empty and populated metadata, project, private-library and
+shared-reference papers, citation readiness, linking, unlinking, opening, and
+scroll state. Focused browser workflows pass through citation insertion,
+project-PDF linking, opening and disconnecting, and DOI intake.
+
+Full native CI passes all 1,225 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 674,062 B raw and
+190,183 B gzip, an increase of 2,184 B raw and 372 B gzip from the candidate
+review checkpoint. Direct and unique production package counts remain unchanged
+at 18 and 150.

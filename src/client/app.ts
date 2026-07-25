@@ -125,6 +125,12 @@ import {
   type AssistantResultActionDetail,
 } from "./assistant-result-panel";
 import { CandidateReviewPanel, candidateDecisionEvent, candidateEvidenceEvent } from "./candidate-review-panel";
+import {
+  PublicationContextPanel,
+  publicationContextActionEvent,
+  type PublicationContextAction,
+  type PublicationPaperOption,
+} from "./publication-context-panel";
 import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
@@ -403,11 +409,6 @@ interface PendingDeletion {
   readonly timer: number;
 }
 
-type PublicationPaperOption =
-  | { readonly kind: "project"; readonly pdf: PdfResource; readonly linkId: string }
-  | { readonly kind: "library"; readonly artifact: LibraryPdfArtifact }
-  | { readonly kind: "reference"; readonly pdf: ProjectReferencePdf };
-
 interface Elements {
   preferencesMenu: HTMLDetailsElement;
   preferencesModelStatus: HTMLElement;
@@ -611,17 +612,10 @@ interface Elements {
   contextAssistantPanel: HTMLElement;
   contextAssistantScroll: HTMLElement;
   contextPublicationPanel: HTMLElement;
-  contextPublicationBody: HTMLElement;
+  publicationContextPanel: PublicationContextPanel;
   contextPdfPanel: HTMLElement;
   contextCandidatePanel: HTMLElement;
   candidateReviewPanel: CandidateReviewPanel;
-  contextPublicationTitle: HTMLElement;
-  contextPublicationMeta: HTMLElement;
-  contextPublicationDetails: HTMLElement;
-  contextPublicationPdfs: HTMLElement;
-  insertContextCitation: HTMLButtonElement;
-  publicationPdfLinkForm: HTMLFormElement;
-  publicationPdfLink: HTMLSelectElement;
   preview: HTMLElement;
   diagnostics: HTMLElement;
   diagnosticSummary: HTMLElement;
@@ -710,7 +704,6 @@ interface Elements {
   highlightEraserTool: HTMLButtonElement;
   undoHighlight: HTMLButtonElement;
   citeActivePdf: HTMLButtonElement;
-  openPaper: HTMLButtonElement;
   paperStatus: HTMLElement;
   paperCanvas: HTMLCanvasElement;
   paperPage: HTMLElement;
@@ -1444,9 +1437,13 @@ class WorkspaceApp {
     this.#elements.syncPreviewFromSource.addEventListener("click", () => this.#syncPreviewFromSource());
     this.#elements.syncSourceFromPreview.addEventListener("click", () => this.#syncSourceFromPreviewCenter());
     this.#elements.openSourceCitation.addEventListener("click", () => this.#openCitationAtCaret());
-    this.#elements.insertContextCitation.addEventListener("click", () => this.#insertActivePublicationCitation());
-    this.#elements.publicationPdfLinkForm.addEventListener("submit", (event) => void this.#linkActivePublicationPdf(event));
-    this.#elements.openPaper.addEventListener("click", () => void this.#openOnlyLinkedPaper());
+    this.#elements.publicationContextPanel.addEventListener(publicationContextActionEvent, (event) => {
+      const detail = (event as CustomEvent<PublicationContextAction>).detail;
+      if (detail.action === "insert-citation") this.#insertActivePublicationCitation();
+      else if (detail.action === "link-pdf") void this.#linkActivePublicationPdf(detail.pdfId);
+      else if (detail.action === "open-paper") void this.#openPublicationPaper(detail.paper);
+      else void this.#unlinkPublicationPdf(detail.linkId);
+    });
     this.#elements.publicationIntakeForm.addEventListener("submit", (event) => void this.#previewPublicationIntake(event));
     this.#elements.publicationIntakeAccept.addEventListener("click", () => void this.#acceptPublicationIntake());
     this.#elements.publicationIntakeCancel.addEventListener("click", () => this.#cancelPublicationIntake());
@@ -6873,7 +6870,7 @@ class WorkspaceApp {
   }
 
   #resourceContextScrollTop(tab: ResearchContextTab): number {
-    if (tab.kind === "publication") return this.#elements.contextPublicationBody.scrollTop;
+    if (tab.kind === "publication") return this.#elements.publicationContextPanel.scrollPosition;
     if (tab.kind === "candidate") return this.#elements.candidateReviewPanel.scrollPosition;
     return this.#elements.paperReader.scrollTop;
   }
@@ -7049,7 +7046,7 @@ class WorkspaceApp {
   #renderActiveResourceContext(activeTab: ResearchResourceTab, loadPdf: boolean): void {
     if (activeTab.kind === "publication") {
       this.#renderPublicationContext(activeTab);
-      this.#elements.contextPublicationBody.scrollTop = activeTab.scrollTop;
+      this.#elements.publicationContextPanel.scrollPosition = activeTab.scrollTop;
       return;
     }
     if (activeTab.kind === "candidate") {
@@ -7433,79 +7430,16 @@ class WorkspaceApp {
     const publication = this.#snapshot.publications.find((item) => item.id === tab.id);
     if (!publication) return;
 
-    this.#renderPublicationContextDetails(publication);
-    this.#updateCitationInsertionAvailability();
-    this.#renderPublicationContextPapers(publication);
-  }
-
-  #renderPublicationContextDetails(publication: PublicationResource): void {
-    this.#elements.contextPublicationTitle.textContent = bibTeXDisplayText(publication.title);
-    this.#elements.contextPublicationMeta.textContent = [
-      bibTeXDisplayText(publication.authors.join("; ")),
-      publication.year,
-      bibTeXDisplayText(publication.venue),
-      publication.doi ? `doi:${publication.doi}` : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    this.#elements.contextPublicationDetails.replaceChildren();
-    const source = document.createElement("p");
-    source.className = "eyebrow";
-    source.textContent = `${publication.type} · ${publication.metadataSource}`;
-    const description = document.createElement("p");
-    description.className = "mt-3";
-    description.textContent = publication.abstract || "No abstract is stored for this publication yet.";
-    this.#elements.contextPublicationDetails.append(source, description);
-  }
-
-  #renderPublicationContextPapers(publication: PublicationResource): void {
     const papers = this.#publicationPaperOptions(publication.id);
-    this.#elements.openPaper.disabled = papers.length !== 1;
-    this.#elements.openPaper.textContent = papers.length > 1 ? "Choose a paper below" : "Open linked paper";
-
-    this.#elements.contextPublicationPdfs.replaceChildren();
-    if (papers.length === 0) {
-      this.#elements.contextPublicationPdfs.append(emptyState("No paper connected to this reference yet."));
-    } else {
-      for (const paper of papers) this.#elements.contextPublicationPdfs.append(this.#publicationPaperRow(paper));
-    }
-    this.#renderPublicationPdfLinkForm(publication.id, papers.length);
-  }
-
-  #publicationPaperRow(paper: PublicationPaperOption): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "resource-card mt-2 flex items-center justify-between gap-3";
-    const copy = document.createElement("div");
-    copy.className = "min-w-0";
-    const name = paper.kind === "library" ? paper.artifact.name : paper.pdf.name;
-    const size = paper.kind === "library" ? paper.artifact.size : paper.pdf.size;
-    const sourceLabel =
-      paper.kind === "project" ? "Project PDF" : paper.kind === "library" ? "Your library PDF" : "Linked reference PDF · project members";
-    copy.append(resourceLabel(`${sourceLabel} · ${formatBytes(size)}`), resourceTitle(name));
-    const actions = document.createElement("div");
-    actions.className = "flex shrink-0 gap-2";
-    actions.append(actionButton("Open", "button-secondary", () => void this.#openPublicationPaper(paper)));
-    if (paper.kind === "project")
-      actions.append(actionButton("Disconnect", "button-secondary", () => void this.#unlinkPublicationPdf(paper.linkId)));
-    row.append(copy, actions);
-    return row;
-  }
-
-  #renderPublicationPdfLinkForm(publicationId: string, paperCount: number): void {
-    const snapshot = this.#snapshot;
-    if (!snapshot) return;
-    const links = snapshot.publicationPdfLinks.filter((link) => link.publicationId === publicationId);
-    const linkedIds = new Set(links.map((link) => link.pdfId));
-    const available = snapshot.pdfs.filter((pdf) => !linkedIds.has(pdf.id));
-    this.#elements.publicationPdfLinkForm.hidden = available.length === 0;
-    const linkLabel = this.#elements.publicationPdfLinkForm.querySelector<HTMLElement>("[data-publication-pdf-link-label]");
-    if (linkLabel) linkLabel.textContent = paperCount > 0 ? "Add another paper from this project" : "Add a paper from this project";
-    this.#elements.publicationPdfLink.replaceChildren();
-    this.#elements.publicationPdfLink.append(new Option("Choose a project PDF", ""));
-    for (const pdf of available) this.#elements.publicationPdfLink.append(new Option(pdf.name, pdf.id));
-    this.#elements.publicationPdfLink.disabled = available.length === 0;
-    const submit = this.#elements.publicationPdfLinkForm.querySelector<HTMLButtonElement>('button[type="submit"]');
-    if (submit) submit.disabled = available.length === 0;
+    const linkedIds = new Set(
+      this.#snapshot.publicationPdfLinks.filter((link) => link.publicationId === publication.id).map((link) => link.pdfId),
+    );
+    this.#elements.publicationContextPanel.setContext({
+      availablePdfs: this.#snapshot.pdfs.filter((pdf) => !linkedIds.has(pdf.id)),
+      papers,
+      publication,
+    });
+    this.#updateCitationInsertionAvailability();
   }
 
   #publicationPaperOptions(publicationId: string): PublicationPaperOption[] {
@@ -7910,10 +7844,7 @@ class WorkspaceApp {
 
   #updateCitationInsertionAvailability(): void {
     const available = this.#activeResourceTab()?.kind === "publication" && this.#resolvedAuthoringCaret() !== null;
-    this.#elements.insertContextCitation.disabled = !available;
-    this.#elements.insertContextCitation.title = available
-      ? "Insert this reference at the remembered manuscript caret"
-      : "Place the manuscript caret before inserting a citation";
+    this.#elements.publicationContextPanel.setCitationAvailable(available);
   }
 
   #insertActivePublicationCitation(): void {
@@ -7984,10 +7915,8 @@ class WorkspaceApp {
     this.#insertCitation(projectReference.citationAlias, `p. ${highlight.page}`);
   }
 
-  async #linkActivePublicationPdf(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
+  async #linkActivePublicationPdf(pdfId: string): Promise<void> {
     const tab = this.#activeResourceTab();
-    const pdfId = this.#elements.publicationPdfLink.value;
     if (tab?.kind !== "publication" || !pdfId) return;
     const response = await jsonFetch(`${apiBase}/publication-pdf-links`, { publicationId: tab.id, pdfId });
     await expectOk(response);
@@ -8003,13 +7932,6 @@ class WorkspaceApp {
     await expectOk(response);
     await this.#resourceRefresh.request();
     this.#showToast("Paper disconnected; both resources remain available.");
-  }
-
-  async #openOnlyLinkedPaper(): Promise<void> {
-    const tab = this.#activeResourceTab();
-    if (tab?.kind !== "publication" || !this.#snapshot) return;
-    const papers = this.#publicationPaperOptions(tab.id);
-    if (papers.length === 1) await this.#openPublicationPaper(papers[0]!);
   }
 
   async #loadActivePdf(force: boolean): Promise<void> {
@@ -10820,17 +10742,10 @@ function collectElements(): Elements {
     contextAssistantPanel: requiredElement("context-assistant-panel", HTMLElement),
     contextAssistantScroll: requiredElement("context-assistant-scroll", HTMLElement),
     contextPublicationPanel: requiredElement("context-publication-panel", HTMLElement),
-    contextPublicationBody: requiredElement("context-publication-body", HTMLElement),
+    publicationContextPanel: requiredElement("publication-context-panel", PublicationContextPanel),
     contextPdfPanel: requiredElement("context-pdf-panel", HTMLElement),
     contextCandidatePanel: requiredElement("context-candidate-panel", HTMLElement),
     candidateReviewPanel: requiredElement("candidate-review-panel", CandidateReviewPanel),
-    contextPublicationTitle: requiredElement("context-publication-title", HTMLElement),
-    contextPublicationMeta: requiredElement("context-publication-meta", HTMLElement),
-    contextPublicationDetails: requiredElement("context-publication-details", HTMLElement),
-    contextPublicationPdfs: requiredElement("context-publication-pdfs", HTMLElement),
-    insertContextCitation: requiredElement("insert-context-citation", HTMLButtonElement),
-    publicationPdfLinkForm: requiredElement("publication-pdf-link-form", HTMLFormElement),
-    publicationPdfLink: requiredElement("publication-pdf-link", HTMLSelectElement),
     preview: requiredElement("preview", HTMLElement),
     diagnostics: requiredElement("diagnostics", HTMLElement),
     diagnosticSummary: requiredElement("diagnostic-summary", HTMLElement),
@@ -10919,7 +10834,6 @@ function collectElements(): Elements {
     highlightEraserTool: requiredElement("highlight-eraser-tool", HTMLButtonElement),
     undoHighlight: requiredElement("undo-highlight", HTMLButtonElement),
     citeActivePdf: requiredElement("cite-active-pdf", HTMLButtonElement),
-    openPaper: requiredElement("open-paper", HTMLButtonElement),
     paperStatus: requiredElement("paper-status", HTMLElement),
     paperCanvas: requiredElement("paper-canvas", HTMLCanvasElement),
     paperPage: requiredElement("paper-page", HTMLElement),

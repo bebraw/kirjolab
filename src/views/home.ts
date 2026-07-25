@@ -474,6 +474,7 @@ export function renderHomePage(
         </section>
 
         <section class="context-panel context-publication-panel" id="context-publication-panel" role="tabpanel" aria-label="Publication context" tabindex="0" hidden>
+          <publication-context-panel id="publication-context-panel">
           <header class="context-resource-header">
             <div class="min-w-0">
               <p class="eyebrow">Reference</p>
@@ -499,6 +500,7 @@ export function renderHomePage(
               <button class="button-secondary justify-center" type="submit" disabled>Add paper</button>
             </form>
           </div>
+          </publication-context-panel>
         </section>
 
         <section class="context-panel context-pdf-panel" id="context-pdf-panel" role="tabpanel" aria-label="PDF context" tabindex="0" hidden>

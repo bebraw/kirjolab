@@ -60,6 +60,9 @@ The adopted components own bounded presentation:
 - The candidate review panel owns before/after and provenance rendering,
   decision availability and progress, local scroll state, and typed apply,
   reject, and evidence-navigation intents.
+- The publication context panel owns scholarly metadata, linked-paper and
+  project-PDF option rendering, citation readiness, local scroll state, and
+  typed citation, paper, link, and unlink intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -109,6 +112,10 @@ reason to wrap static markup mechanically.
   the coordinator's candidate-copy, status, evidence, and action renderers while
   leaving applicability checks, workflow transitions, canonical mutations, and
   evidence navigation in the application coordinator.
+- The publication context panel replaces eight internal element references and
+  imperative metadata, paper-row, and link-form renderers while leaving
+  manuscript insertion, PDF navigation, and link mutations in the application
+  coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

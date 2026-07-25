@@ -2520,6 +2520,7 @@
     display: flex;
   }
 
+  .context-publication-panel > publication-context-panel,
   .context-candidate-panel > candidate-review-panel {
     display: flex;
     min-height: 0;

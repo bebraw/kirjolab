@@ -92,6 +92,9 @@ connection without reconstructing identity from a citation key or filename.
   cards.
 - The project-map presentation component may own derived layout and interaction
   state, but graph derivation and navigation authority remain outside it.
+- The publication-context presentation component may own metadata, linked-paper
+  options, citation readiness, and local scroll state, but manuscript insertion,
+  PDF navigation, and publication/PDF link mutations remain outside it.
   reflows. Connector coordinates must use the rendered canvas dimensions rather
   than a fixed aspect ratio, and compact layouts must preserve every resource
   action when decorative connectors are hidden.
