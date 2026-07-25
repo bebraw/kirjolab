@@ -2104,3 +2104,23 @@ The browser application artifact shrinks from 788,880 B raw / 212,687 B gzip to
 unique production package counts remain unchanged at 135,411 B raw / 23,373 B
 gzip and 18 and 150. Full native CI passes all 1,383 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: New Project Dialog Lifecycle
+
+The existing `ProjectStartingPointBrowser` now owns its native parent dialog's
+open, close, focus-containment, listener-teardown, and return-focus lifecycle
+alongside its existing starting-point presentation. `WorkspaceApp` retains
+authorized template and project-preview requests, deferred deletion, creation,
+import workflows, navigation, and error policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,433 to 7,408 lines (-25),
+removes the separate dialog reference, and deletes the coordinator's native
+keydown and close bindings. Focused browser coverage passes forward focus wrap,
+Escape restoration, loading, cancellation, reopening, template selection,
+project preview, and creation.
+
+The browser application artifact changes from 788,646 B raw / 212,670 B gzip
+to 789,386 B raw / 213,011 B gzip (+740 B raw / +341 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150. Full native CI passes all 1,385 unit/coverage
+tests, 120 Workers-runtime tests, and 74 browser tests.

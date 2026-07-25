@@ -439,7 +439,6 @@ interface Elements {
   workspaceCatalogDialog: HTMLDialogElement;
   workspaceCatalogPanel: WorkspaceCatalogPanel;
   newWorkspace: HTMLButtonElement;
-  newWorkspaceDialog: HTMLDialogElement;
   newWorkspaceStartingPoints: ProjectStartingPointBrowser;
   latexImportDialog: HTMLDialogElement;
   latexImportPanel: LatexImportPanel;
@@ -913,34 +912,12 @@ class WorkspaceApp {
     );
     this.#elements.workspaceCatalogPanel.addEventListener(workspaceCatalogCloseEvent, () => this.#elements.workspaceCatalogDialog.close());
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
-    this.#elements.newWorkspaceDialog.addEventListener("keydown", (event) => {
-      if (event.key !== "Tab") return;
-      const focusable = [
-        ...this.#elements.newWorkspaceDialog.querySelectorAll<HTMLElement>(
-          "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], summary",
-        ),
-      ].filter((element) => element.offsetParent !== null);
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        last.focus();
-        event.preventDefault();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        first.focus();
-        event.preventDefault();
-      }
-    });
-    this.#elements.newWorkspaceDialog.addEventListener("close", () => {
-      if (document.querySelector("dialog[open]")) return;
-      this.#elements.newWorkspace.closest("details")?.querySelector<HTMLElement>("summary")?.focus();
-    });
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointActionEvent, (event) => {
       const action = (event as CustomEvent<StartingPointAction>).detail;
       if (action.action === "create") void this.#createWorkspace(action);
       else if (action.action === "import-latex") this.#openLatexImportDialog();
       else if (action.action === "import-github") this.#openGitHubImportDialog();
-      else this.#elements.newWorkspaceDialog.close();
+      else this.#elements.newWorkspaceStartingPoints.close();
     });
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointProjectLoadEvent, (event) => {
       void this.#loadProjectStartingPoint((event as CustomEvent<WorkspaceSummary>).detail);
@@ -1609,14 +1586,14 @@ class WorkspaceApp {
   }
 
   #openLatexImportDialog(): void {
-    this.#elements.newWorkspaceDialog.close();
+    this.#elements.newWorkspaceStartingPoints.close();
     this.#elements.latexImportPanel.reset();
     this.#elements.latexImportDialog.showModal();
     this.#elements.latexImportPanel.focusTitle();
   }
 
   #openGitHubImportDialog(): void {
-    this.#elements.newWorkspaceDialog.close();
+    this.#elements.newWorkspaceStartingPoints.close();
     this.#gitHubImportPreviewId = null;
     this.#elements.gitHubImportPanel.resetPreview();
     this.#elements.gitHubImportDialog.showModal();
@@ -1963,8 +1940,7 @@ class WorkspaceApp {
   }
 
   async #openNewWorkspace(): Promise<void> {
-    this.#elements.newWorkspaceDialog.showModal();
-    this.#elements.newWorkspaceStartingPoints.startLoading();
+    this.#elements.newWorkspaceStartingPoints.open(this.#elements.newWorkspace);
     try {
       await this.#refreshProjectTemplates();
       this.#elements.newWorkspaceStartingPoints.focusFirst();
@@ -7217,7 +7193,6 @@ function collectElements(): Elements {
     workspaceCatalogDialog: requiredElement("workspace-catalog-dialog", HTMLDialogElement),
     workspaceCatalogPanel: requiredElement("workspace-catalog-panel", WorkspaceCatalogPanel),
     newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
-    newWorkspaceDialog: requiredElement("new-workspace-dialog", HTMLDialogElement),
     newWorkspaceStartingPoints: requiredElement("project-starting-point-browser", ProjectStartingPointBrowser),
     latexImportDialog: requiredElement("latex-import-dialog", HTMLDialogElement),
     latexImportPanel: requiredElement("latex-import-panel", LatexImportPanel),

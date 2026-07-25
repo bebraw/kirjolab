@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectTemplateSummary } from "../domain/project-templates";
 import type { WorkspaceSummary } from "../domain/workspace";
 import {
@@ -50,9 +50,18 @@ const workspace: WorkspaceSummary = {
 };
 
 class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
+  active: Element | null = null;
+  closeCount = 0;
+  focusCount = 0;
+  focusables: readonly HTMLElement[] = [];
+  modalCount = 0;
+  openDialog = false;
+
   renderForTest() {
     return this.render();
   }
+
+  override performUpdate(): void {}
 
   rootForTest(): HTMLElement {
     return this.createRenderRoot();
@@ -83,7 +92,74 @@ class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
   actionForTest(action: "cancel" | "import-github" | "import-latex"): void {
     this.emitAction({ action });
   }
+
+  cycleFocusForTest(backward: boolean): void {
+    const event = new Event("keydown", { cancelable: true });
+    Object.defineProperties(event, { key: { value: "Tab" }, shiftKey: { value: backward } });
+    this.trapFocus(event as KeyboardEvent);
+  }
+
+  restoreFocusForTest(): void {
+    this.restoreFocus();
+  }
+
+  override focus(): void {
+    this.focusCount += 1;
+  }
+
+  protected override showModal(): void {
+    this.modalCount += 1;
+  }
+
+  protected override returnTarget(trigger: HTMLElement): HTMLElement {
+    return trigger;
+  }
+
+  protected override closeModal(): void {
+    this.closeCount += 1;
+  }
+
+  protected override focusableElements(): readonly HTMLElement[] {
+    return this.focusables;
+  }
+
+  protected override activeElement(): Element | null {
+    return this.active;
+  }
+
+  protected override hasOpenDialog(): boolean {
+    return this.openDialog;
+  }
+
+  nativeDialogForTest(): readonly unknown[] {
+    super.showModal();
+    super.closeModal();
+    return [super.returnTarget(this), super.focusableElements(), super.activeElement(), super.hasOpenDialog()];
+  }
 }
+
+class FakeDialog extends EventTarget {
+  closeCount = 0;
+  modalCount = 0;
+
+  close(): void {
+    this.closeCount += 1;
+  }
+
+  showModal(): void {
+    this.modalCount += 1;
+  }
+
+  querySelector(): null {
+    return null;
+  }
+
+  querySelectorAll(): readonly [] {
+    return [];
+  }
+}
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("project starting point browser", () => {
   it("owns the light-DOM create form and template presentation", () => {
@@ -143,5 +219,45 @@ describe("project starting point browser", () => {
     expect(projects).toEqual([workspace]);
     expect(deleted).toEqual([personal]);
     expect(actions).toEqual([{ action: "create", startingPoint: "project:workspace-1", title: "Copied project" }]);
+  });
+
+  it("owns modal and focus lifecycle", () => {
+    const browser = new TestProjectStartingPointBrowser();
+    const first = new TestProjectStartingPointBrowser();
+    const last = new TestProjectStartingPointBrowser();
+    browser.open(browser);
+    expect(browser.modalCount).toBe(1);
+    browser.close();
+    expect(browser.closeCount).toBe(1);
+
+    browser.focusables = [first, last];
+    browser.active = last;
+    browser.cycleFocusForTest(false);
+    expect(first.focusCount).toBe(1);
+    browser.active = first;
+    browser.cycleFocusForTest(true);
+    expect(last.focusCount).toBe(1);
+
+    browser.openDialog = true;
+    browser.restoreFocusForTest();
+    expect(browser.focusCount).toBe(0);
+    browser.openDialog = false;
+    browser.restoreFocusForTest();
+    expect(browser.focusCount).toBe(1);
+  });
+
+  it("binds lifecycle behavior to its native parent dialog", () => {
+    const browser = new TestProjectStartingPointBrowser();
+    const dialog = new FakeDialog();
+    vi.stubGlobal("HTMLDialogElement", FakeDialog);
+    vi.stubGlobal("document", { activeElement: null, querySelector: () => null });
+    Object.defineProperty(browser, "closest", { value: () => dialog });
+    Object.defineProperty(browser, "replaceChildren", { value: () => undefined });
+
+    browser.connectedCallback();
+    expect(browser.nativeDialogForTest()).toEqual([browser, [], null, false]);
+    expect(dialog.modalCount).toBe(1);
+    expect(dialog.closeCount).toBe(1);
+    browser.disconnectedCallback();
   });
 });

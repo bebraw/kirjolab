@@ -38,6 +38,8 @@ export class ProjectStartingPointBrowser extends LitElement {
   declare private sourceTemplates: ReadonlyMap<string, ProjectTemplateSummary>;
   declare private status: string;
   declare private projectTitle: string;
+  private parentDialog: HTMLDialogElement | null = null;
+  private returnFocus: HTMLElement | null = null;
 
   constructor() {
     super();
@@ -62,6 +64,16 @@ export class ProjectStartingPointBrowser extends LitElement {
   startLoading(): void {
     this.reset();
     this.status = "Loading starting points…";
+  }
+
+  open(trigger: HTMLElement): void {
+    this.returnFocus = this.returnTarget(trigger);
+    this.showModal();
+    this.startLoading();
+  }
+
+  close(): void {
+    this.closeModal();
   }
 
   showError(message: string): void {
@@ -100,6 +112,16 @@ export class ProjectStartingPointBrowser extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+    this.parentDialog = this.resolveDialog();
+    this.dialog.addEventListener("keydown", this.trapFocus);
+    this.dialog.addEventListener("close", this.restoreFocus);
+  }
+
+  override disconnectedCallback(): void {
+    this.parentDialog?.removeEventListener("keydown", this.trapFocus);
+    this.parentDialog?.removeEventListener("close", this.restoreFocus);
+    this.parentDialog = null;
+    super.disconnectedCallback();
   }
 
   protected override createRenderRoot(): HTMLElement {
@@ -200,6 +222,58 @@ export class ProjectStartingPointBrowser extends LitElement {
   protected emitAction(detail: StartingPointAction): void {
     this.dispatchEvent(new CustomEvent<StartingPointAction>(startingPointActionEvent, { detail }));
   }
+
+  protected showModal(): void {
+    this.dialog.showModal();
+  }
+
+  protected returnTarget(trigger: HTMLElement): HTMLElement {
+    return trigger.closest("details")?.querySelector<HTMLElement>("summary") ?? trigger;
+  }
+
+  protected closeModal(): void {
+    this.dialog.close();
+  }
+
+  protected focusableElements(): readonly HTMLElement[] {
+    return [
+      ...this.dialog.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], summary",
+      ),
+    ].filter((element) => element.offsetParent !== null);
+  }
+
+  protected activeElement(): Element | null {
+    return document.activeElement;
+  }
+
+  protected hasOpenDialog(): boolean {
+    return Boolean(document.querySelector("dialog[open]"));
+  }
+
+  private get dialog(): HTMLDialogElement {
+    return this.parentDialog ?? this.resolveDialog();
+  }
+
+  private resolveDialog(): HTMLDialogElement {
+    const dialog = this.closest("dialog");
+    if (!(dialog instanceof HTMLDialogElement)) throw new Error("Project starting point browser requires a dialog parent");
+    return dialog;
+  }
+
+  protected readonly trapFocus = (event: KeyboardEvent): void => {
+    if (event.key !== "Tab") return;
+    const focusable = this.focusableElements();
+    const edge = event.shiftKey ? focusable[0] : focusable.at(-1);
+    const target = event.shiftKey ? focusable.at(-1) : focusable[0];
+    if (this.activeElement() !== edge || !target) return;
+    target.focus();
+    event.preventDefault();
+  };
+
+  protected readonly restoreFocus = (): void => {
+    if (!this.hasOpenDialog()) this.returnFocus?.focus();
+  };
 
   private get visibleTemplates(): readonly ProjectTemplateSummary[] {
     return this.templates.filter((template) => !this.hiddenTemplateIds.has(template.id));

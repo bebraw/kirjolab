@@ -153,6 +153,8 @@ The adopted components own bounded presentation:
 - The project starting-point browser owns project title, template and existing
   project choices, preview and loading state, create readiness and status, and
   typed create, cancel, import, project-preview, and template-delete intents.
+  It also owns its native parent-dialog opening, closing, focus containment,
+  listener teardown, and return-focus lifecycle.
 - The Library discovery search owns query inputs, publication-type choices,
   duplicate-submit gating, progress and result-count copy, and typed query
   intents.
