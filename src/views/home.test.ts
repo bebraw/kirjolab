@@ -168,6 +168,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="open-github-import"');
     expect(html).toContain('id="github-import-dialog"');
     expect(html).toContain('<github-connection-panel id="github-connection-panel">');
+    expect(html).toContain('<github-import-panel id="github-import-panel">');
     expect(html).toContain('id="github-publish-review"');
     expect(html).toContain('id="github-pull-review"');
     expect(html).toContain('id="github-sync-menu"');

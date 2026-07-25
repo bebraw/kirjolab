@@ -77,7 +77,15 @@ import {
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 import { renderIcon } from "../ui/icons";
+import { formatBytes } from "./format";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
+import {
+  GitHubImportPanel,
+  gitHubImportCancelEvent,
+  gitHubImportConfirmEvent,
+  gitHubInstallationChangeEvent,
+  gitHubRepositoryChangeEvent,
+} from "./github-import-panel";
 import {
   GitHubSyncMenu,
   gitHubSyncCheckEvent,
@@ -174,7 +182,6 @@ import {
   isLatexImportPreview,
   isShareLinkStatus,
   isWebSnapshotComparisonResponse,
-  type GitHubRepositoryOption,
   type LatexImportPreview,
   type ShareLinkStatus,
 } from "./app-contracts";
@@ -429,17 +436,7 @@ interface Elements {
   gitHubImportDialog: HTMLDialogElement;
   gitHubImportForm: HTMLFormElement;
   gitHubConnectionPanel: GitHubConnectionPanel;
-  gitHubImportTitle: HTMLInputElement;
-  gitHubInstallationId: HTMLSelectElement;
-  gitHubRepository: HTMLSelectElement;
-  gitHubBranch: HTMLSelectElement;
-  gitHubRootPath: HTMLInputElement;
-  gitHubEntryPath: HTMLInputElement;
-  gitHubImportPreview: HTMLElement;
-  gitHubImportStatus: HTMLElement;
-  confirmGitHubImport: HTMLButtonElement;
-  previewGitHubImport: HTMLButtonElement;
-  cancelGitHubImport: HTMLButtonElement;
+  gitHubImportPanel: GitHubImportPanel;
   gitHubSyncStatus: HTMLElement;
   gitHubSyncMenu: GitHubSyncMenu;
   gitHubPullReview: HTMLElement;
@@ -938,7 +935,6 @@ class WorkspaceApp {
   #gitHubImportPreviewId: string | null = null;
   #gitHubPullPreviewId: string | null = null;
   #gitHubPublishPreviewId: string | null = null;
-  #gitHubRepositories: readonly GitHubRepositoryOption[] = [];
   #gitHubPickerRequest = 0;
   #gitHubSyncRequest = 0;
   #gitHubSyncCheckedAt = 0;
@@ -1203,19 +1199,16 @@ class WorkspaceApp {
     this.#elements.openGitHubImport.addEventListener("click", () => {
       this.#elements.newWorkspaceDialog.close();
       this.#gitHubImportPreviewId = null;
-      this.#elements.confirmGitHubImport.disabled = true;
-      this.#elements.gitHubImportPreview.replaceChildren(statusText("Preview to inspect the selected files and resolved entry."));
-      this.#elements.gitHubImportStatus.textContent = "";
+      this.#elements.gitHubImportPanel.resetPreview();
       this.#elements.gitHubImportDialog.showModal();
-      this.#elements.gitHubImportTitle.focus();
+      this.#elements.gitHubImportPanel.focusTitle();
       void this.#refreshGitHubConnection();
     });
-    this.#elements.cancelGitHubImport.addEventListener("click", () => this.#elements.gitHubImportDialog.close());
     this.#elements.gitHubImportForm.addEventListener("submit", (event) => void this.#previewGitHubImport(event));
-    this.#elements.gitHubInstallationId.addEventListener("change", () => void this.#loadGitHubRepositories());
-    this.#elements.gitHubRepository.addEventListener("change", () => void this.#loadGitHubBranches());
-    this.#elements.gitHubBranch.addEventListener("change", () => this.#updateGitHubImportReadiness());
-    this.#elements.confirmGitHubImport.addEventListener("click", () => void this.#confirmGitHubImport());
+    this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportDialog.close());
+    this.#elements.gitHubImportPanel.addEventListener(gitHubInstallationChangeEvent, () => void this.#loadGitHubRepositories());
+    this.#elements.gitHubImportPanel.addEventListener(gitHubRepositoryChangeEvent, () => void this.#loadGitHubBranches());
+    this.#elements.gitHubImportPanel.addEventListener(gitHubImportConfirmEvent, () => void this.#confirmGitHubImport());
     this.#elements.gitHubConnectionPanel.addEventListener(gitHubDisconnectEvent, () => void this.#disconnectGitHubAccount());
     this.#elements.previewGitHubPull.addEventListener("click", () => void this.#previewGitHubPull());
     this.#elements.confirmGitHubPull.addEventListener("click", () => void this.#confirmGitHubPull());
@@ -1893,49 +1886,36 @@ class WorkspaceApp {
   async #previewGitHubImport(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     this.#gitHubImportPreviewId = null;
-    this.#elements.confirmGitHubImport.disabled = true;
-    this.#elements.gitHubImportStatus.textContent = "Reading the selected commit…";
+    this.#elements.gitHubImportPanel.beginPreview();
     try {
-      const installationId = Number(this.#elements.gitHubInstallationId.value);
-      const repository = this.#gitHubRepositories.find((candidate) => candidate.id === Number(this.#elements.gitHubRepository.value));
+      const selection = this.#elements.gitHubImportPanel.selection;
+      const repository = selection.repository;
+      const installationId = selection.installationId;
+      if (installationId === null) throw new Error("Choose a GitHub account");
       if (!repository) throw new Error("Choose a GitHub repository");
       const response = await jsonFetch("/api/github/import-previews", {
         installationId,
         owner: repository.owner,
         repository: repository.name,
-        branch: this.#elements.gitHubBranch.value,
-        rootPath: this.#elements.gitHubRootPath.value,
-        ...(this.#elements.gitHubEntryPath.value.trim() ? { entryPath: this.#elements.gitHubEntryPath.value.trim() } : {}),
+        branch: selection.branch,
+        rootPath: selection.rootPath,
+        ...(selection.entryPath ? { entryPath: selection.entryPath } : {}),
       });
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isGitHubImportPreview(value)) throw new Error("GitHub returned an invalid import preview");
       this.#gitHubImportPreviewId = value.id;
-      const heading = document.createElement("p");
-      heading.className = "text-sm font-semibold text-app-text";
-      heading.textContent = `${value.files.length} Markdown files · entry ${value.entryPath}`;
-      const list = document.createElement("ul");
-      list.className = "mt-3 space-y-1 font-sans text-xs text-app-text-soft";
-      for (const file of value.files.slice(0, 12)) {
-        const item = document.createElement("li");
-        item.textContent = `${file.path} · ${formatBytes(file.bytes)}`;
-        list.append(item);
-      }
-      if (value.files.length > 12) {
-        const item = document.createElement("li");
-        item.textContent = `…and ${value.files.length - 12} more`;
-        list.append(item);
-      }
-      this.#elements.gitHubImportPreview.replaceChildren(heading, list);
-      this.#elements.gitHubImportStatus.textContent = `${value.commitSha.slice(0, 10)} previewed. Confirm to create the project.`;
-      this.#elements.confirmGitHubImport.disabled = false;
+      this.#elements.gitHubImportPanel.showPreview(value);
     } catch (error) {
-      this.#elements.gitHubImportStatus.textContent = error instanceof Error ? error.message : "Could not preview GitHub import.";
+      this.#elements.gitHubImportPanel.showPreviewError(error instanceof Error ? error.message : "Could not preview GitHub import.");
     }
   }
 
   async #refreshGitHubConnection(): Promise<void> {
-    this.#elements.previewGitHubImport.disabled = true;
+    this.#gitHubPickerRequest += 1;
+    this.#gitHubImportPreviewId = null;
+    this.#elements.gitHubImportPanel.resetPreview();
+    this.#elements.gitHubImportPanel.beginConnectionRefresh();
     try {
       const response = await fetch("/api/github/connection", { credentials: "same-origin" });
       await expectOk(response);
@@ -1948,7 +1928,7 @@ class WorkspaceApp {
           : "Connect GitHub to choose repositories available to your account.",
       });
       if (value.connected) await this.#loadGitHubInstallations();
-      else this.#resetGitHubPickers();
+      else this.#elements.gitHubImportPanel.resetDisconnected();
     } catch (error) {
       this.#elements.gitHubConnectionPanel.setMessage(error instanceof Error ? error.message : "Could not load the GitHub connection.");
     }
@@ -1956,27 +1936,16 @@ class WorkspaceApp {
 
   async #loadGitHubInstallations(): Promise<void> {
     const requestId = ++this.#gitHubPickerRequest;
-    this.#elements.previewGitHubImport.disabled = true;
-    this.#elements.gitHubInstallationId.disabled = true;
-    this.#replaceSelectOptions(this.#elements.gitHubInstallationId, "Loading accounts…");
+    this.#elements.gitHubImportPanel.setInstallationsLoading();
     const response = await fetch("/api/github/installations", { credentials: "same-origin" });
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isGitHubInstallationList(value)) throw new Error("GitHub returned an invalid installation list");
     if (requestId !== this.#gitHubPickerRequest) return;
-    this.#elements.gitHubInstallationId.replaceChildren(
-      ...value.installations.map((installation) => {
-        const option = document.createElement("option");
-        option.value = String(installation.id);
-        option.textContent = `${installation.accountLogin} · ${installation.accountType === "Organization" ? "organization" : "personal"}`;
-        return option;
-      }),
-    );
-    this.#elements.gitHubInstallationId.disabled = value.installations.length === 0;
+    this.#elements.gitHubImportPanel.setInstallations(value.installations);
     if (value.installations.length === 0) {
-      this.#replaceSelectOptions(this.#elements.gitHubInstallationId, "No installations available");
       this.#elements.gitHubConnectionPanel.setMessage("Connected. Install the Kirjolab GitHub App or grant it repository access.");
-      this.#resetGitHubRepositoryPickers();
+      this.#elements.gitHubImportPanel.resetRepositoryPickers();
       return;
     }
     await this.#loadGitHubRepositories(requestId);
@@ -1985,43 +1954,28 @@ class WorkspaceApp {
   async #loadGitHubRepositories(parentRequestId?: number): Promise<void> {
     const requestId = parentRequestId ?? ++this.#gitHubPickerRequest;
     if (parentRequestId !== undefined && requestId !== this.#gitHubPickerRequest) return;
-    const installationId = Number(this.#elements.gitHubInstallationId.value);
-    this.#elements.previewGitHubImport.disabled = true;
-    this.#elements.gitHubRepository.disabled = true;
-    this.#replaceSelectOptions(this.#elements.gitHubRepository, "Loading repositories…");
-    this.#replaceSelectOptions(this.#elements.gitHubBranch, "Choose a repository");
-    this.#elements.gitHubBranch.disabled = true;
+    const installationId = this.#elements.gitHubImportPanel.selection.installationId;
+    if (installationId === null) return;
+    this.#elements.gitHubImportPanel.setRepositoriesLoading();
     const response = await fetch(`/api/github/installations/${installationId}/repositories`, { credentials: "same-origin" });
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isGitHubRepositoryList(value)) throw new Error("GitHub returned an invalid repository list");
     if (requestId !== this.#gitHubPickerRequest) return;
-    this.#gitHubRepositories = [...value.repositories].sort((left, right) => left.fullName.localeCompare(right.fullName));
-    this.#elements.gitHubRepository.replaceChildren(
-      ...this.#gitHubRepositories.map((repository) => {
-        const option = document.createElement("option");
-        option.value = String(repository.id);
-        option.textContent = `${repository.fullName}${repository.private ? " · private" : ""}`;
-        return option;
-      }),
-    );
-    this.#elements.gitHubRepository.disabled = this.#gitHubRepositories.length === 0;
-    if (this.#gitHubRepositories.length === 0) {
-      this.#replaceSelectOptions(this.#elements.gitHubRepository, "No repositories available");
-      return;
-    }
-    if (!this.#elements.gitHubImportTitle.value.trim()) this.#elements.gitHubImportTitle.value = this.#gitHubRepositories[0]!.name;
+    const repositories = [...value.repositories].sort((left, right) => left.fullName.localeCompare(right.fullName));
+    this.#elements.gitHubImportPanel.setRepositories(repositories);
+    if (repositories.length === 0) return;
     await this.#loadGitHubBranches(requestId);
   }
 
   async #loadGitHubBranches(parentRequestId?: number): Promise<void> {
     const requestId = parentRequestId ?? ++this.#gitHubPickerRequest;
     if (parentRequestId !== undefined && requestId !== this.#gitHubPickerRequest) return;
-    const installationId = Number(this.#elements.gitHubInstallationId.value);
-    const repositoryId = Number(this.#elements.gitHubRepository.value);
-    this.#elements.previewGitHubImport.disabled = true;
-    this.#elements.gitHubBranch.disabled = true;
-    this.#replaceSelectOptions(this.#elements.gitHubBranch, "Loading branches…");
+    const selection = this.#elements.gitHubImportPanel.selection;
+    const installationId = selection.installationId;
+    const repositoryId = selection.repository?.id ?? null;
+    if (installationId === null || repositoryId === null) return;
+    this.#elements.gitHubImportPanel.setBranchesLoading();
     const response = await fetch(`/api/github/installations/${installationId}/repositories/${repositoryId}/branches`, {
       credentials: "same-origin",
     });
@@ -2029,46 +1983,7 @@ class WorkspaceApp {
     const value: unknown = await response.json();
     if (!isGitHubBranchList(value)) throw new Error("GitHub returned an invalid branch list");
     if (requestId !== this.#gitHubPickerRequest) return;
-    this.#elements.gitHubBranch.replaceChildren(
-      ...value.branches.map((branch) => {
-        const option = document.createElement("option");
-        option.value = branch.name;
-        option.textContent = `${branch.name}${branch.protected ? " · protected" : ""}`;
-        option.selected = branch.name === value.repository.defaultBranch;
-        return option;
-      }),
-    );
-    this.#elements.gitHubBranch.disabled = value.branches.length === 0;
-    if (value.branches.length === 0) this.#replaceSelectOptions(this.#elements.gitHubBranch, "No branches available");
-    this.#updateGitHubImportReadiness();
-  }
-
-  #updateGitHubImportReadiness(): void {
-    this.#elements.previewGitHubImport.disabled =
-      !this.#elements.gitHubInstallationId.value || !this.#elements.gitHubRepository.value || !this.#elements.gitHubBranch.value;
-  }
-
-  #resetGitHubPickers(): void {
-    this.#gitHubPickerRequest += 1;
-    this.#elements.gitHubInstallationId.disabled = true;
-    this.#replaceSelectOptions(this.#elements.gitHubInstallationId, "Connect GitHub first");
-    this.#resetGitHubRepositoryPickers();
-  }
-
-  #resetGitHubRepositoryPickers(): void {
-    this.#gitHubRepositories = [];
-    this.#elements.gitHubRepository.disabled = true;
-    this.#replaceSelectOptions(this.#elements.gitHubRepository, "Choose an account");
-    this.#elements.gitHubBranch.disabled = true;
-    this.#replaceSelectOptions(this.#elements.gitHubBranch, "Choose a repository");
-    this.#elements.previewGitHubImport.disabled = true;
-  }
-
-  #replaceSelectOptions(select: HTMLSelectElement, label: string): void {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = label;
-    select.replaceChildren(option);
+    this.#elements.gitHubImportPanel.setBranches(value.branches, value.repository.defaultBranch);
   }
 
   async #disconnectGitHubAccount(): Promise<void> {
@@ -2080,12 +1995,11 @@ class WorkspaceApp {
 
   async #confirmGitHubImport(): Promise<void> {
     if (!this.#gitHubImportPreviewId) return;
-    this.#elements.confirmGitHubImport.disabled = true;
-    this.#elements.gitHubImportStatus.textContent = "Creating the project…";
+    this.#elements.gitHubImportPanel.beginCreation();
     try {
       const response = await jsonFetch("/api/github/imports", {
         previewId: this.#gitHubImportPreviewId,
-        title: this.#elements.gitHubImportTitle.value,
+        title: this.#elements.gitHubImportPanel.projectTitle,
       });
       await expectOk(response);
       const value: unknown = await response.json();
@@ -2094,8 +2008,7 @@ class WorkspaceApp {
       }
       location.assign(value.workspace.href);
     } catch (error) {
-      this.#elements.gitHubImportStatus.textContent = error instanceof Error ? error.message : "Could not import the project.";
-      this.#elements.confirmGitHubImport.disabled = false;
+      this.#elements.gitHubImportPanel.showCreationError(error instanceof Error ? error.message : "Could not import the project.");
     }
   }
 
@@ -11668,17 +11581,7 @@ function collectElements(): Elements {
     gitHubImportDialog: requiredElement("github-import-dialog", HTMLDialogElement),
     gitHubImportForm: requiredElement("github-import-form", HTMLFormElement),
     gitHubConnectionPanel: requiredElement("github-connection-panel", GitHubConnectionPanel),
-    gitHubImportTitle: requiredElement("github-import-title", HTMLInputElement),
-    gitHubInstallationId: requiredElement("github-installation-id", HTMLSelectElement),
-    gitHubRepository: requiredElement("github-repository", HTMLSelectElement),
-    gitHubBranch: requiredElement("github-branch", HTMLSelectElement),
-    gitHubRootPath: requiredElement("github-root-path", HTMLInputElement),
-    gitHubEntryPath: requiredElement("github-entry-path", HTMLInputElement),
-    gitHubImportPreview: requiredElement("github-import-preview", HTMLElement),
-    gitHubImportStatus: requiredElement("github-import-status", HTMLElement),
-    confirmGitHubImport: requiredElement("confirm-github-import", HTMLButtonElement),
-    previewGitHubImport: requiredElement("preview-github-import", HTMLButtonElement),
-    cancelGitHubImport: requiredElement("cancel-github-import", HTMLButtonElement),
+    gitHubImportPanel: requiredElement("github-import-panel", GitHubImportPanel),
     gitHubSyncStatus: requiredElement("github-sync-status", HTMLElement),
     gitHubSyncMenu: requiredElement("github-sync-control", GitHubSyncMenu),
     gitHubPullReview: requiredElement("github-pull-review", HTMLElement),
@@ -12233,12 +12136,6 @@ function latexDiagnosticLabel(severity: "error" | "warning" | "info"): string {
   if (severity === "error") return "Blocked";
   if (severity === "warning") return "Review";
   return "Note";
-}
-
-// This leaf formatter is intentionally local to keep the browser bundle independent of knowledge rendering.
-// fallow-ignore-next-line code-duplication
-function formatBytes(value: number): string {
-  return value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function templateFact(value: string, label: string): HTMLElement {

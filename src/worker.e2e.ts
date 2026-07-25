@@ -4509,6 +4509,22 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
       },
     });
   });
+  await page.route("**/api/github/import-previews", async (route) => {
+    await route.fulfill({
+      json: {
+        id: "preview-1",
+        commitSha: "abcdef0123456789",
+        entryPath: "paper.md",
+        files: [
+          { path: "paper.md", bytes: 2_048 },
+          { path: "sections/results.md", bytes: 1_024 },
+        ],
+      },
+    });
+  });
+  await page.route("**/api/github/imports", async (route) => {
+    await route.fulfill({ status: 409, json: { error: "Import preview changed" } });
+  });
   await page.goto("/editor/demo");
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
@@ -4529,6 +4545,11 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
   await expect(page.locator("#github-branch")).toHaveValue("main");
   await expect(page.locator("#github-branch option:checked")).toContainText("protected");
   await expect(page.getByRole("button", { name: "Preview import" })).toBeEnabled();
+  await page.getByRole("button", { name: "Preview import" }).click();
+  await expect(page.locator("#github-import-preview")).toContainText("2 Markdown files · entry paper.md");
+  await expect(page.locator("#github-import-preview")).toContainText("sections/results.md · 1 KB");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await expect(page.locator("#github-import-status")).toHaveText("Import preview changed");
 
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Disconnect account" }).click();

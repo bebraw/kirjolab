@@ -30,6 +30,9 @@ The first components own bounded GitHub presentation:
 
 - The import account panel owns connected and disconnected messages, reactive
   action visibility, and a typed disconnect intent.
+- The import picker panel owns local field values, account/repository/branch
+  option rendering, readiness, preview/status rendering, and typed Cancel and
+  Confirm intents.
 - The workspace sync menu owns repository status, relationship tone, Pull and
   Push availability, and typed Check, Pull, Push, and Settings intents.
 
@@ -47,6 +50,8 @@ reason to wrap static markup mechanically.
   instead of managing its internal elements independently.
 - The sync menu removes eight internal elements plus their presentation updates
   from the application coordinator's registry.
+- The import picker replaces ten internal element references, the coordinator's
+  repository-option cache, and its imperative option and preview DOM assembly.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

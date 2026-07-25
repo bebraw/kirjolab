@@ -775,21 +775,23 @@ export function renderHomePage(
             </div>
           </section>
         </github-connection-panel>
-        <div class="mt-5 grid gap-3 sm:grid-cols-2">
-          <label class="field-label">Project title<input class="field" id="github-import-title" maxlength="120" required placeholder="Scalability book"></label>
-          <label class="field-label">Account<select class="field" id="github-installation-id" required disabled><option value="">Connect GitHub first</option></select></label>
-          <label class="field-label">Repository<select class="field" id="github-repository" required disabled><option value="">Choose an account</option></select></label>
-          <label class="field-label">Branch<select class="field" id="github-branch" required disabled><option value="">Choose a repository</option></select></label>
-          <label class="field-label">Folder<input class="field" id="github-root-path" placeholder="book"></label>
-          <label class="field-label sm:col-span-2">Entry file <span class="font-normal normal-case text-app-text-soft">(optional)</span><input class="field" id="github-entry-path" placeholder="main.md"></label>
-        </div>
-        <div class="mt-5 border-t border-app-line pt-4" id="github-import-preview" aria-live="polite"><p class="ui-status">Preview to inspect the selected files and resolved entry.</p></div>
-        <p class="ui-status mt-3" id="github-import-status" role="status"></p>
-        <div class="mt-5 flex justify-end gap-2">
-          <button class="button-secondary" id="cancel-github-import" type="button">Cancel</button>
-          <button class="button-secondary" id="preview-github-import" type="submit" disabled>Preview import</button>
-          <button class="button-primary" id="confirm-github-import" type="button" disabled>Create project</button>
-        </div>
+        <github-import-panel id="github-import-panel">
+          <div class="mt-5 grid gap-3 sm:grid-cols-2">
+            <label class="field-label">Project title<input class="field" id="github-import-title" maxlength="120" required placeholder="Scalability book"></label>
+            <label class="field-label">Account<select class="field" id="github-installation-id" required disabled><option value="">Connect GitHub first</option></select></label>
+            <label class="field-label">Repository<select class="field" id="github-repository" required disabled><option value="">Choose an account</option></select></label>
+            <label class="field-label">Branch<select class="field" id="github-branch" required disabled><option value="">Choose a repository</option></select></label>
+            <label class="field-label">Folder<input class="field" id="github-root-path" placeholder="book"></label>
+            <label class="field-label sm:col-span-2">Entry file <span class="font-normal normal-case text-app-text-soft">(optional)</span><input class="field" id="github-entry-path" placeholder="main.md"></label>
+          </div>
+          <div class="mt-5 border-t border-app-line pt-4" id="github-import-preview" aria-live="polite"><p class="ui-status">Preview to inspect the selected files and resolved entry.</p></div>
+          <p class="ui-status mt-3" id="github-import-status" role="status"></p>
+          <div class="mt-5 flex justify-end gap-2">
+            <button class="button-secondary" type="button">Cancel</button>
+            <button class="button-secondary" id="preview-github-import" type="submit" disabled>Preview import</button>
+            <button class="button-primary" type="button" disabled>Create project</button>
+          </div>
+        </github-import-panel>
       </form>
     </dialog>
 

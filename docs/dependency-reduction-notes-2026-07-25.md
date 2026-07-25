@@ -140,3 +140,12 @@ GitHub App and user clients now share incremental response-size enforcement and
 JSON parsing while retaining distinct byte ceilings and public error types.
 This removes duplicate stream plumbing without adopting Octokit's unbounded
 OAuth request path.
+
+### GitHub import picker component: accepted
+
+The third Lit boundary moves local import fields, option rendering, readiness,
+preview/status DOM, and Cancel/Confirm intents behind one component.
+`WorkspaceApp` drops ten internal element references, its repository-option
+cache, and about 100 lines of imperative picker and preview coordination.
+Connection, repository discovery, preview requests, and project creation remain
+with the application coordinator.

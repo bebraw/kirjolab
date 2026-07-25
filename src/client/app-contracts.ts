@@ -39,6 +39,10 @@ const gitHubRepositoryOptionSchema = v.object({
   private: v.boolean(),
   defaultBranch: v.string(),
 });
+const gitHubBranchOptionSchema = v.object({
+  name: v.string(),
+  protected: v.boolean(),
+});
 const gitHubConnectionStateSchema = v.variant("connected", [
   v.object({ connected: v.literal(false) }),
   v.object({
@@ -55,7 +59,7 @@ const gitHubRepositoryListSchema = v.object({
 });
 const gitHubBranchListSchema = v.object({
   repository: gitHubRepositoryOptionSchema,
-  branches: v.array(v.object({ name: v.string(), protected: v.boolean() })),
+  branches: v.array(gitHubBranchOptionSchema),
 });
 const gitHubImportPreviewSchema = v.object({
   id: v.string(),
@@ -154,6 +158,8 @@ const shareLinkStatusSchema = v.object({
 
 export type GitHubInstallationOption = Readonly<v.InferInput<typeof gitHubInstallationOptionSchema>>;
 export type GitHubRepositoryOption = Readonly<v.InferInput<typeof gitHubRepositoryOptionSchema>>;
+export type GitHubBranchOption = Readonly<v.InferInput<typeof gitHubBranchOptionSchema>>;
+export type GitHubImportPreview = Readonly<v.InferInput<typeof gitHubImportPreviewSchema>>;
 export type LatexImportPreview = Readonly<v.InferInput<typeof latexImportPreviewSchema>>;
 
 export interface WebSnapshotComparisonResponse {
