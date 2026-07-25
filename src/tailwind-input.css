@@ -1581,7 +1581,8 @@
   citation-network-panel,
   preview-context-status,
   preview-diagnostics-panel,
-  publication-intake-panel {
+  publication-intake-panel,
+  latex-import-panel {
     display: block;
   }
 

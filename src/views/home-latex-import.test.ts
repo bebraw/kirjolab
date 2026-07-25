@@ -9,6 +9,7 @@ describe("LaTeX import home surface", () => {
     for (const id of [
       "open-latex-import",
       "latex-import-dialog",
+      "latex-import-panel",
       "latex-import-form",
       "latex-import-archive",
       "latex-import-root",
@@ -19,6 +20,6 @@ describe("LaTeX import home surface", () => {
       expect(html).toContain(`id="${id}"`);
     }
     expect(html).toContain("Uploaded LaTeX is not stored or executed.");
-    expect(html).toContain("Choose an archive to inspect it without creating a project.");
+    expect(html).toContain("Preview to inspect the converted Markdown and diagnostics.");
   });
 });

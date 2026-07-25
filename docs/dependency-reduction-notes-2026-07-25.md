@@ -800,3 +800,23 @@ workflow additionally exercises its focus handoffs.
 The browser application artifact grows from 694,763 B raw / 194,053 B gzip to
 698,319 B raw / 194,629 B gzip (+3,556 B raw / +576 B gzip). Direct and unique
 production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: LaTeX Import
+
+The LaTeX archive workflow now uses a bounded `LatexImportPanel` instead of ten
+element references, two coordinator fields, and imperative root-option,
+converted-file, diagnostic, visibility, readiness, busy, status, and local
+input updates. The component owns the reviewed preview identity and emits typed
+preview, confirmation, and cancel intents. `WorkspaceApp` retains validated
+preview and project-creation requests plus successful navigation.
+
+This checkpoint reduces `src/client/app.ts` from 10,129 to 10,000 lines (-129).
+The component adds 293 lines. Component tests cover initial, ambiguous-root,
+converted, blocking-diagnostic, failure, preview, confirmation, cancellation,
+root-change invalidation, and oversized-archive states. The component records
+82.1% statement and 85.88% line coverage.
+
+Full native CI passes all 1,261 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 698,319 B raw
+/ 194,629 B gzip to 701,258 B raw / 194,976 B gzip (+2,939 B raw / +347 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

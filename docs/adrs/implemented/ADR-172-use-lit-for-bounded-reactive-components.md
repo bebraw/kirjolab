@@ -100,6 +100,9 @@ The adopted components own bounded presentation:
 - The publication intake panel owns DOI and citation-key input, reviewed
   metadata, linked-reference rows, status, busy state, focus transitions, and
   typed preview, accept, cancel, and reference-opening intents.
+- The LaTeX import panel owns archive, title, and root input, bounded client
+  validation, converted-file and diagnostic review, preview identity, busy and
+  status presentation, and typed preview, confirmation, and cancel intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -203,6 +206,10 @@ reason to wrap static markup mechanically.
   status, and focus updates while leaving the XState workflow, DOI requests,
   acceptance mutation, refreshes, and navigation in the application
   coordinator.
+- The LaTeX import panel replaces ten internal element references, two
+  coordinator fields, and imperative root-option, converted-file, diagnostic,
+  readiness, status, and busy rendering while leaving validated preview and
+  creation requests plus navigation in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without
