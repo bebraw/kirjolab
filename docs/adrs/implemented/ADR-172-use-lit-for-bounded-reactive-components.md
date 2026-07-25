@@ -26,7 +26,7 @@ presentation state, element references, and DOM events can leave
 coordinator retains network access, Yjs and XState actors, persisted domain
 state, and cross-feature workflows.
 
-The first components own bounded GitHub presentation:
+The adopted components own bounded presentation:
 
 - The import account panel owns connected and disconnected messages, reactive
   action visibility, and a typed disconnect intent.
@@ -44,6 +44,8 @@ The first components own bounded GitHub presentation:
 - The workspace sharing panel owns member and capability-link presentation,
   invitation input, clipboard interaction, and typed close, invite, share-link,
   and notice intents.
+- The workspace catalog panel owns project filtering, result and empty-state
+  rendering, metadata labels, focus reset, and a typed close intent.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -70,6 +72,10 @@ reason to wrap static markup mechanically.
 - The sharing panel replaces fifteen internal element references and the
   coordinator's member/link DOM assembly while leaving membership, capability,
   and authorization requests in the application coordinator.
+- The catalog panel replaces three internal element references and the
+  coordinator's filter/result DOM assembly while leaving catalog fetching,
+  workspace switching, and navigation authority in the application
+  coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

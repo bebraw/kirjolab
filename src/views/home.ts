@@ -816,7 +816,8 @@ export function renderHomePage(
     </dialog>
 
     <dialog class="reference-library-dialog ui-dialog" id="workspace-catalog-dialog">
-      <div class="p-5">
+      <workspace-catalog-panel id="workspace-catalog-panel">
+        <div class="p-5">
         <div class="flex items-start justify-between gap-4">
           <div><p class="eyebrow">Project library</p><h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Open a project</h2></div>
           <button class="button-secondary" id="close-workspace-catalog" type="button">Close</button>
@@ -825,7 +826,8 @@ export function renderHomePage(
           <input class="field" id="workspace-catalog-filter" type="search" maxlength="120" autocomplete="off" placeholder="Filter projects">
         </label>
         <div class="mt-4 grid gap-2" id="workspace-catalog-list" aria-live="polite"><div class="empty-state">Loading projects…</div></div>
-      </div>
+        </div>
+      </workspace-catalog-panel>
     </dialog>
 
     <dialog class="new-workspace-dialog ui-dialog" id="share-workspace-dialog">

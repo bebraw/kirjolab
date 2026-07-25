@@ -77,7 +77,7 @@ import {
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 import { renderIcon } from "../ui/icons";
-import { formatBytes, formatCalendarDate } from "./format";
+import { formatBytes } from "./format";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
   GitHubImportPanel,
@@ -116,6 +116,7 @@ import {
   workspaceSharingNoticeEvent,
   type WorkspaceSharingActionDetail,
 } from "./workspace-sharing-panel";
+import { WorkspaceCatalogPanel, workspaceCatalogCloseEvent } from "./workspace-catalog-panel";
 import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
@@ -425,9 +426,7 @@ interface Elements {
   archiveWorkspace: HTMLButtonElement;
   deleteWorkspace: HTMLButtonElement;
   workspaceCatalogDialog: HTMLDialogElement;
-  closeWorkspaceCatalog: HTMLButtonElement;
-  workspaceCatalogFilter: HTMLInputElement;
-  workspaceCatalogList: HTMLElement;
+  workspaceCatalogPanel: WorkspaceCatalogPanel;
   newWorkspace: HTMLButtonElement;
   newWorkspaceDialog: HTMLDialogElement;
   newWorkspaceForm: HTMLFormElement;
@@ -1128,9 +1127,7 @@ class WorkspaceApp {
     this.#elements.workspaceLayout.addEventListener("change", () => void this.#setWorkspaceLayout(this.#elements.workspaceLayout.value));
     this.#elements.manageWorkspaces.addEventListener("click", () => {
       this.#elements.workspaceCatalogDialog.showModal();
-      this.#elements.workspaceCatalogFilter.value = "";
-      this.#renderWorkspaceCatalogList();
-      this.#elements.workspaceCatalogFilter.focus();
+      void this.#elements.workspaceCatalogPanel.resetFilter();
     });
     this.#elements.workspaceSettings.addEventListener("click", () => this.#openWorkspaceSettings());
     this.#elements.closeWorkspaceSettings.addEventListener("click", () => this.#elements.workspaceSettingsDialog.close());
@@ -1139,8 +1136,7 @@ class WorkspaceApp {
     this.#elements.saveWorkspaceTemplate.addEventListener("click", () => void this.#openSaveTemplate());
     this.#elements.duplicateWorkspace.addEventListener("click", () => void this.#duplicateWorkspace());
     this.#elements.deleteWorkspace.addEventListener("click", () => void this.#deleteWorkspace());
-    this.#elements.closeWorkspaceCatalog.addEventListener("click", () => this.#elements.workspaceCatalogDialog.close());
-    this.#elements.workspaceCatalogFilter.addEventListener("input", () => this.#renderWorkspaceCatalogList());
+    this.#elements.workspaceCatalogPanel.addEventListener(workspaceCatalogCloseEvent, () => this.#elements.workspaceCatalogDialog.close());
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
     this.#elements.newWorkspaceDialog.addEventListener("keydown", (event) => {
@@ -1591,34 +1587,7 @@ class WorkspaceApp {
       this.#elements.workspaceSwitcher.append(option);
     }
     if (workspaces.some((workspace) => workspace.id === workspaceId)) this.#elements.workspaceSwitcher.value = workspaceId;
-    this.#renderWorkspaceCatalogList();
-  }
-
-  #renderWorkspaceCatalogList(): void {
-    const query = this.#elements.workspaceCatalogFilter.value.trim().toLocaleLowerCase();
-    const workspaces = this.#workspaceCatalog.filter((workspace) => workspace.title.toLocaleLowerCase().includes(query));
-    this.#elements.workspaceCatalogList.replaceChildren();
-    if (workspaces.length === 0) {
-      this.#elements.workspaceCatalogList.append(emptyState(query ? "No projects match this title." : "No projects available."));
-      return;
-    }
-    for (const workspace of workspaces) {
-      const link = document.createElement("a");
-      link.className = "project-catalog-row";
-      link.href = workspace.href;
-      if (workspace.id === workspaceId) link.setAttribute("aria-current", "page");
-      const title = document.createElement("strong");
-      title.textContent = workspace.title;
-      const meta = document.createElement("span");
-      meta.textContent =
-        workspace.id === workspaceId
-          ? workspace.archivedAt
-            ? "Current project · archived"
-            : "Current project"
-          : `${workspace.archivedAt ? "Archived" : "Updated"} ${formatCalendarDate(workspace.archivedAt ?? workspace.updatedAt)}`;
-      link.append(title, meta);
-      this.#elements.workspaceCatalogList.append(link);
-    }
+    this.#elements.workspaceCatalogPanel.setData(workspaces, workspaceId);
   }
 
   #showRail(mode: WorkspaceRail): void {
@@ -11216,9 +11185,7 @@ function collectElements(): Elements {
     archiveWorkspace: requiredElement("archive-workspace", HTMLButtonElement),
     deleteWorkspace: requiredElement("delete-workspace", HTMLButtonElement),
     workspaceCatalogDialog: requiredElement("workspace-catalog-dialog", HTMLDialogElement),
-    closeWorkspaceCatalog: requiredElement("close-workspace-catalog", HTMLButtonElement),
-    workspaceCatalogFilter: requiredElement("workspace-catalog-filter", HTMLInputElement),
-    workspaceCatalogList: requiredElement("workspace-catalog-list", HTMLElement),
+    workspaceCatalogPanel: requiredElement("workspace-catalog-panel", WorkspaceCatalogPanel),
     newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
     newWorkspaceDialog: requiredElement("new-workspace-dialog", HTMLDialogElement),
     newWorkspaceForm: requiredElement("new-workspace-form", HTMLFormElement),

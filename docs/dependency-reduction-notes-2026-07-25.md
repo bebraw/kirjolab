@@ -338,3 +338,21 @@ unit/coverage tests, 120 Workers-runtime tests, and 73 browser tests. The
 rebuilt browser application is 658,628 B raw and 185,728 B gzip, an increase of
 2,247 B raw and 607 B gzip from the preceding checkpoint; direct and unique
 production package counts remain unchanged.
+
+## Continued Lit Extraction: Workspace Catalog
+
+The Projects browser is another successful bounded Lit extraction.
+`WorkspaceApp` now addresses one `WorkspaceCatalogPanel` instead of its close
+control, filter input, and result container. The component owns query state,
+filtered rows, empty states, project metadata labels, and focus reset; the
+coordinator still fetches and validates the catalog, updates the compact
+workspace switcher, and retains navigation authority.
+
+This checkpoint reduces `src/client/app.ts` from 11,833 to 11,800 lines (-33).
+The focused component adds 116 lines. Its pure filter and metadata contracts
+have unit coverage, and the existing isolated-workspace browser workflow covers
+filtering, current-project labelling, empty results, and closing the dialog.
+Full native CI passes all 1,200 unit/coverage tests, 120 Workers-runtime tests,
+and 73 browser tests. The rebuilt browser application is 660,167 B raw and
+185,944 B gzip, an increase of 1,539 B raw and 216 B gzip from the sharing
+checkpoint; dependency counts remain unchanged.
