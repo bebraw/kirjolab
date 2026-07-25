@@ -243,6 +243,29 @@ behavior. Their content, optional Library action, and synchronous or async
 acceptance remain supplied by each completion family. This removes the
 remaining 10-line completion clone and five net executable lines.
 
+## Final Re-audit and Stopping Point
+
+The clean post-sequence audit reports 13,987 production LOC, zero dead files,
+zero dead exports, 2.6 average cyclomatic complexity, and 88.2 maintainability.
+Five clone groups remain, each only 6–9 lines:
+
+- two review-request envelopes whose distinct domain errors and fields outweigh
+  a shared parser;
+- one record predicate shared only by the separated GitHub transport and
+  repository layers;
+- three small browser presentation fragments whose extraction would add as
+  much parameter and helper surface as it removes.
+
+Fallow also reports public Lit component methods and the installation transport
+entrypoint as unused because their callers cross custom-element and class-module
+boundaries. They are exercised by the browser and GitHub integration suites and
+must not be deleted.
+
+This is the current stopping point for opportunistic reduction. Resume when a
+new dependency can retire a coherent responsibility, another trust-boundary
+family produces a clear net schema reduction, or a repeated workflow grows
+beyond these small local fragments.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser
