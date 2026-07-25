@@ -315,7 +315,8 @@ import {
 } from "./model-provider";
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
-import { ProjectHistoryPanel, projectHistoryActionEvent, projectHistoryCloseEvent } from "./project-history-panel";
+import { projectHistoryActionEvent } from "./project-history-panel";
+import { ProjectHistoryDialog, projectHistoryDialogCloseEvent } from "./project-history-dialog";
 import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset } from "./source-preview-sync";
 import { previewNavigationPresentation, previewNavigationStorageKey, storedPreviewNavigationHidden } from "./preview-navigation";
 import {
@@ -501,8 +502,7 @@ interface Elements {
   openExport: HTMLButtonElement;
   exportDialog: ProjectExportDialog;
   wordCountBadge: HTMLButtonElement;
-  projectHistoryDialog: HTMLDialogElement;
-  projectHistoryPanel: ProjectHistoryPanel;
+  projectHistoryDialog: ProjectHistoryDialog;
   source: HTMLTextAreaElement;
   sourceHighlight: HTMLElement;
   sourceEditorShell: HTMLElement;
@@ -1206,11 +1206,12 @@ class WorkspaceApp {
     for (const button of [this.#elements.openExport, this.#elements.wordCountBadge]) {
       button.addEventListener("click", () => this.#openExport());
     }
-    this.#elements.projectHistoryPanel.addEventListener(projectHistoryCloseEvent, () => this.#elements.projectHistoryDialog.close());
-    this.#elements.projectHistoryPanel.addEventListener(projectHistoryActionEvent, (event) => {
+    this.#elements.projectHistoryDialog.addEventListener(projectHistoryActionEvent, (event) => {
       void this.#handleProjectHistoryAction((event as CustomEvent<ProjectHistoryOperation>).detail);
     });
-    this.#elements.projectHistoryDialog.addEventListener("close", () => this.#projectHistoryWorkflow.send({ type: "CLOSE" }));
+    this.#elements.projectHistoryDialog.addEventListener(projectHistoryDialogCloseEvent, () => {
+      this.#projectHistoryWorkflow.send({ type: "CLOSE" });
+    });
     this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentCreateEvent, (event) => {
       void this.#createManuscriptComment((event as CustomEvent<string>).detail);
     });
@@ -3389,8 +3390,7 @@ class WorkspaceApp {
   async #openProjectHistory(): Promise<void> {
     this.#projectHistoryWorkflow.send({ type: "OPEN" });
     const requestId = this.#projectHistoryWorkflow.getSnapshot().context.requestId;
-    if (!this.#elements.projectHistoryDialog.open) this.#elements.projectHistoryDialog.showModal();
-    this.#elements.projectHistoryPanel.showLoading();
+    this.#elements.projectHistoryDialog.openLoading();
     this.#updateProjectHistoryAvailability();
     try {
       const response = await fetch(`${apiBase}/history`, { credentials: "same-origin" });
@@ -3400,12 +3400,12 @@ class WorkspaceApp {
       this.#projectHistoryWorkflow.send({ type: "TIMELINE_READY", requestId });
       const history = this.#projectHistoryWorkflow.getSnapshot();
       if (!history.matches("ready") || history.context.requestId !== requestId) return;
-      this.#elements.projectHistoryPanel.showTimeline(value);
+      this.#elements.projectHistoryDialog.showTimeline(value);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not load project history";
       this.#projectHistoryWorkflow.send({ type: "TIMELINE_FAILED", requestId, message });
       if (this.#projectHistoryWorkflow.getSnapshot().matches("failed")) {
-        this.#elements.projectHistoryPanel.showError(message);
+        this.#elements.projectHistoryDialog.showError(message);
         this.#showToast(message);
       }
     } finally {
@@ -3428,8 +3428,7 @@ class WorkspaceApp {
 
   #updateProjectHistoryAvailability(): void {
     const busy = projectHistoryBusy(this.#projectHistoryWorkflow.getSnapshot());
-    this.#elements.projectHistoryDialog.setAttribute("aria-busy", String(busy));
-    this.#elements.projectHistoryPanel.setBusy(busy);
+    this.#elements.projectHistoryDialog.setBusy(busy);
   }
 
   #openExport(): void {
@@ -3460,14 +3459,14 @@ class WorkspaceApp {
       this.#failProjectHistoryOperation(requestId, error, "Could not inspect project revision");
       return;
     }
-    this.#elements.projectHistoryPanel.showRevision(value);
+    this.#elements.projectHistoryDialog.showRevision(value);
   }
 
   async #compareProjectHistory(from: number, to: number): Promise<void> {
     const requestId = this.#startProjectHistoryOperation({ kind: "compare", from, to });
     if (requestId === null) return;
     const value = await this.#projectHistoryComparison(requestId, String(from), String(to));
-    if (value) this.#elements.projectHistoryPanel.showComparison(value);
+    if (value) this.#elements.projectHistoryDialog.showComparison(value);
   }
 
   async #projectHistoryComparison(requestId: number, from: string, to: string): Promise<ProjectRevisionDiff | null> {
@@ -3509,7 +3508,7 @@ class WorkspaceApp {
       await expectOk(response);
       this.#finishProjectHistoryOperation(requestId);
       this.#showToast(`Milestone “${name}” now identifies v${revision}.`);
-      if (this.#elements.projectHistoryDialog.open) await this.#openProjectHistory();
+      if (this.#elements.projectHistoryDialog.isOpen()) await this.#openProjectHistory();
     } catch (error) {
       this.#failProjectHistoryOperation(requestId, error, "Could not name the milestone");
     }
@@ -7403,8 +7402,7 @@ function collectElements(): Elements {
     openExport: requiredElement("open-export", HTMLButtonElement),
     exportDialog: requiredElement("export-dialog-control", ProjectExportDialog),
     wordCountBadge: requiredElement("word-count-badge", HTMLButtonElement),
-    projectHistoryDialog: requiredElement("project-history-dialog", HTMLDialogElement),
-    projectHistoryPanel: requiredElement("project-history-panel", ProjectHistoryPanel),
+    projectHistoryDialog: requiredElement("project-history-dialog-control", ProjectHistoryDialog),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),
     sourceEditorShell: requiredElement("source-editor-shell", HTMLElement),

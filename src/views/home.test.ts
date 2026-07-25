@@ -168,6 +168,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span>');
     expect(html).toContain('id="open-project-history"');
     expect(html).toContain('id="project-history-dialog"');
+    expect(html).toContain('<project-history-dialog id="project-history-dialog-control">');
     expect(html).toContain('<project-history-panel id="project-history-panel">');
     expect(html).toContain('<writing-workflow-panel id="research-question-panel" data-workflow-kind="research-questions">');
     expect(html).toContain('<writing-workflow-panel id="reviewer-response-panel" data-workflow-kind="reviewer-responses">');

@@ -140,6 +140,10 @@ collaboration.
   synchronization.
   A bounded History trigger presents the current revision and delegates its
   open intent to the coordinator, which loads and opens the history dialog.
+  A composed Lit history-dialog boundary owns modal lifecycle, busy state,
+  panel-close handling, and timeline, inspection, and comparison presentation;
+  the coordinator retains the revision XState workflow, requests, mutations,
+  navigation, and failure policy.
   User-facing copy calls the editable unit a project; workspace remains an
   implementation term for APIs, types, and coordination boundaries.
 - **Personal preferences:** A compact panel beside the Kirjolab heading owns

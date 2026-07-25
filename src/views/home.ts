@@ -955,6 +955,7 @@ export function renderHomePage(
       </dialog>
     </project-file-dialog-panel>
 
+    <project-history-dialog id="project-history-dialog-control">
     <dialog class="reference-library-dialog ui-dialog" id="project-history-dialog">
       <project-history-panel id="project-history-panel">
         <div class="p-5">
@@ -976,6 +977,7 @@ export function renderHomePage(
         </div>
       </project-history-panel>
     </dialog>
+    </project-history-dialog>
 
     <claim-dialog-panel id="claim-dialog-panel">
     <dialog class="new-workspace-dialog ui-dialog" id="claim-dialog">

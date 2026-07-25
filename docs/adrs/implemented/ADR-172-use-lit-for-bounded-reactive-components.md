@@ -48,6 +48,9 @@ The adopted components own bounded presentation:
   rendering, metadata labels, focus reset, and a typed close intent.
 - The project history panel owns timeline, comparison controls, busy and error
   states, revision cards, inspectors, and typed revision-operation intents.
+- The project history dialog composes the server-rendered modal and reactive
+  history panel, owns modal lifecycle and busy presentation, consumes the panel
+  close intent, and emits one typed dialog-close event.
 - The project history trigger owns revision-badge presentation and emits one
   typed open intent. The application coordinator retains revision authority,
   history loading, and dialog policy.
@@ -245,6 +248,10 @@ reason to wrap static markup mechanically.
   coordinator's timeline/inspector DOM assembly while leaving its XState actor,
   fetches, confirmations, mutations, reloads, and navigation in the
   application coordinator.
+- The project history dialog replaces separate dialog and panel references with
+  one component reference and consolidates panel-close, native-dialog-close,
+  loading, busy, timeline, inspection, and comparison presentation. The
+  application coordinator retains the XState actor and revision operations.
 - The writing-workflow panels replace five internal element references and two
   parallel imperative list renderers while leaving file creation, response
   export, and source navigation in the application coordinator.

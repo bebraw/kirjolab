@@ -1939,3 +1939,25 @@ The browser application artifact grows from 784,626 B raw / 211,697 B gzip to
 unique production package counts remain unchanged at 135,376 B raw / 23,364 B
 gzip and 18 and 150. Full native CI passes all 1,369 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Project History Dialog
+
+A composed `ProjectHistoryDialog` now owns revision-modal lifecycle, busy state,
+panel-close handling, and delegation of loading, timeline, error, inspection,
+and comparison presentation to the existing history panel. `WorkspaceApp`
+retains the revision XState workflow, authorized requests, mutations,
+navigation, and failure policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,584 to 7,582 lines (-2),
+replaces separate dialog and panel references with one component reference, and
+consolidates panel-close and native-dialog-close coordination. The focused
+browser workflow passes timeline loading, inspection, comparison, milestone,
+restore, branch, busy, and close behavior. Component coverage is 70.37%
+statements and 69.23% lines; browser coverage owns the custom-element lifecycle
+and typed revision/detail delegation not available in the DOM-less unit harness.
+
+The browser application artifact grows from 785,079 B raw / 211,723 B gzip to
+785,998 B raw / 211,930 B gzip (+919 B raw / +207 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,376 B raw / 23,364 B
+gzip and 18 and 150. Full native CI passes all 1,372 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.
