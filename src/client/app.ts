@@ -62,6 +62,7 @@ import { filterReferenceLibrary } from "../domain/reference-filters";
 import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
+import { SourceCompletion, sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
   GitHubImportPanel,
@@ -503,7 +504,7 @@ interface Elements {
   source: HTMLTextAreaElement;
   sourceHighlight: HTMLElement;
   sourceEditorShell: HTMLElement;
-  sourceCompletion: HTMLElement;
+  sourceCompletion: SourceCompletion;
   showWriteMode: HTMLButtonElement;
   showMapMode: HTMLButtonElement;
   editorWriteActions: HTMLElement;
@@ -768,7 +769,6 @@ class WorkspaceApp {
   #includeCompletionContext: IncludeCompletionContext | null = null;
   #includeCompletionCandidates: readonly IncludeCompletionCandidate[] = [];
   #sourceCompletionKind: "citation" | "include" | null = null;
-  #sourceCompletionIndex = 0;
   #citationLibraryRequest = 0;
   #citationLibraryLoading = false;
   readonly #layout: WorkspaceLayoutManager;
@@ -1213,7 +1213,13 @@ class WorkspaceApp {
       localStorage.setItem(citationCompletionScopeStorageKey, scope);
       void this.#renderSourceCompletion();
     });
-    this.#elements.source.addEventListener("keydown", (event) => this.#handleSourceCompletionKey(event));
+    this.#elements.source.addEventListener("keydown", (event) => this.#elements.sourceCompletion.handleKey(event));
+    this.#elements.sourceCompletion.addEventListener(sourceCompletionActionEvent, (event) => {
+      const detail = (event as CustomEvent<SourceCompletionAction>).detail;
+      if (detail.action === "dismiss") this.#hideSourceCompletion();
+      else if (this.#sourceCompletionKind === "citation") void this.#acceptCitationCompletion(detail.index);
+      else if (this.#sourceCompletionKind === "include") this.#acceptIncludeCompletion(detail.index);
+    });
     this.#elements.source.addEventListener("blur", () => window.setTimeout(() => this.#hideSourceCompletion(), 0));
     this.#elements.showWriteMode.addEventListener("click", () => this.#setAuthoringMode("write"));
     this.#elements.showMapMode.addEventListener("click", () => this.#setAuthoringMode("map"));
@@ -5142,56 +5148,11 @@ class WorkspaceApp {
     this.#includeCompletionCandidates = candidates;
     this.#citationCompletionContext = null;
     this.#citationCompletionCandidates = [];
-    this.#sourceCompletionIndex = Math.min(this.#sourceCompletionIndex, candidates.length - 1);
-    this.#elements.sourceCompletion.replaceChildren(
-      ...candidates.map((candidate, index) => this.#includeCompletionOption(candidate, index)),
+    this.#elements.sourceCompletion.show(
+      candidates.map((candidate) => ({ value: candidate.reference, metadata: `Project file · ${candidate.path}` })),
+      this.#elements.source,
     );
-    this.#elements.sourceCompletion.hidden = false;
-    this.#elements.source.setAttribute("aria-expanded", "true");
-    this.#renderSourceCompletionSelection();
     positionSourceCompletion(this.#elements.source, this.#elements.sourceCompletion, context.start);
-  }
-
-  #includeCompletionOption(candidate: IncludeCompletionCandidate, index: number): HTMLButtonElement {
-    return this.#sourceCompletionOption(index, {
-      value: candidate.reference,
-      metadata: `Project file · ${candidate.path}`,
-      accept: () => this.#acceptIncludeCompletion(index),
-    });
-  }
-
-  #sourceCompletionOption(
-    index: number,
-    content: { readonly value: string; readonly metadata: string; readonly action?: string; readonly accept: () => void },
-  ): HTMLButtonElement {
-    const option = document.createElement("button");
-    option.type = "button";
-    option.id = `source-completion-option-${index}`;
-    option.className = "source-completion-option";
-    option.setAttribute("role", "option");
-    option.dataset.index = String(index);
-    const heading = document.createElement("span");
-    heading.className = "source-completion-heading";
-    const value = document.createElement("code");
-    value.textContent = content.value;
-    heading.append(value);
-    if (content.action) {
-      const action = document.createElement("span");
-      action.className = "source-completion-action";
-      action.textContent = content.action;
-      heading.append(action);
-    }
-    const metadata = document.createElement("span");
-    metadata.className = "source-completion-meta";
-    metadata.textContent = content.metadata;
-    option.append(heading, metadata);
-    option.addEventListener("pointerdown", (event) => event.preventDefault());
-    option.addEventListener("click", content.accept);
-    option.addEventListener("mousemove", () => {
-      this.#sourceCompletionIndex = index;
-      this.#renderSourceCompletionSelection();
-    });
-    return option;
   }
 
   async #renderCitationCompletion(): Promise<void> {
@@ -5219,12 +5180,14 @@ class WorkspaceApp {
     this.#sourceCompletionKind = "citation";
     this.#includeCompletionContext = null;
     this.#includeCompletionCandidates = [];
-    this.#sourceCompletionIndex = Math.min(this.#sourceCompletionIndex, candidates.length - 1);
-    const options = candidates.map((candidate, index) => this.#citationCompletionOption(candidate, index));
-    this.#elements.sourceCompletion.replaceChildren(...options);
-    this.#elements.sourceCompletion.hidden = false;
-    this.#elements.source.setAttribute("aria-expanded", "true");
-    this.#renderSourceCompletionSelection();
+    this.#elements.sourceCompletion.show(
+      candidates.map((candidate) => ({
+        value: candidate.key,
+        metadata: [candidate.authors.join("; "), candidate.title, candidate.year].filter(Boolean).join(" · "),
+        ...(candidate.scope === "library" ? { action: "Add and cite" } : {}),
+      })),
+      this.#elements.source,
+    );
     positionSourceCompletion(this.#elements.source, this.#elements.sourceCompletion, context.start);
   }
 
@@ -5270,62 +5233,6 @@ class WorkspaceApp {
           referenceId: reference.id,
         })),
     ];
-  }
-
-  #citationCompletionOption(candidate: CitationCompletionCandidate, index: number): HTMLButtonElement {
-    return this.#sourceCompletionOption(index, {
-      value: candidate.key,
-      metadata: [candidate.authors.join("; "), candidate.title, candidate.year].filter(Boolean).join(" · "),
-      ...(candidate.scope === "library" ? { action: "Add and cite" } : {}),
-      accept: () => void this.#acceptCitationCompletion(index),
-    });
-  }
-
-  #handleSourceCompletionKey(event: KeyboardEvent): void {
-    const count = this.#sourceCompletionCount();
-    if (this.#elements.sourceCompletion.hidden || count === 0 || event.isComposing) return;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      this.#moveSourceCompletion(event, count);
-      return;
-    }
-    if (event.key === "Enter" || event.key === "Tab") {
-      this.#acceptSourceCompletion(event);
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      this.#hideSourceCompletion();
-    }
-  }
-
-  #sourceCompletionCount(): number {
-    if (this.#sourceCompletionKind === "citation") return this.#citationCompletionCandidates.length;
-    if (this.#sourceCompletionKind === "include") return this.#includeCompletionCandidates.length;
-    return 0;
-  }
-
-  #moveSourceCompletion(event: KeyboardEvent, count: number): void {
-    event.preventDefault();
-    const direction = event.key === "ArrowDown" ? 1 : -1;
-    this.#sourceCompletionIndex = (this.#sourceCompletionIndex + direction + count) % count;
-    this.#renderSourceCompletionSelection();
-  }
-
-  #acceptSourceCompletion(event: KeyboardEvent): void {
-    event.preventDefault();
-    if (this.#sourceCompletionKind === "citation") void this.#acceptCitationCompletion(this.#sourceCompletionIndex);
-    else this.#acceptIncludeCompletion(this.#sourceCompletionIndex);
-  }
-
-  #renderSourceCompletionSelection(): void {
-    for (const option of this.#elements.sourceCompletion.querySelectorAll<HTMLElement>("[role=option]")) {
-      const selected = Number(option.dataset.index) === this.#sourceCompletionIndex;
-      option.setAttribute("aria-selected", String(selected));
-      if (selected) {
-        this.#elements.source.setAttribute("aria-activedescendant", option.id);
-        option.scrollIntoView({ block: "nearest" });
-      }
-    }
   }
 
   async #acceptCitationCompletion(index: number): Promise<void> {
@@ -5379,11 +5286,7 @@ class WorkspaceApp {
     this.#citationCompletionCandidates = [];
     this.#includeCompletionContext = null;
     this.#includeCompletionCandidates = [];
-    this.#sourceCompletionIndex = 0;
-    this.#elements.sourceCompletion.hidden = true;
-    this.#elements.sourceCompletion.replaceChildren();
-    this.#elements.source.setAttribute("aria-expanded", "false");
-    this.#elements.source.removeAttribute("aria-activedescendant");
+    this.#elements.sourceCompletion.hide();
   }
 
   #rememberAuthoringSelection(): void {
@@ -7986,7 +7889,7 @@ function collectElements(): Elements {
     source: requiredElement("source-editor", HTMLTextAreaElement),
     sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),
     sourceEditorShell: requiredElement("source-editor-shell", HTMLElement),
-    sourceCompletion: requiredElement("source-completion", HTMLElement),
+    sourceCompletion: requiredElement("source-completion", SourceCompletion),
     showWriteMode: requiredElement("show-write-mode", HTMLButtonElement),
     showMapMode: requiredElement("show-map-mode", HTMLButtonElement),
     editorWriteActions: requiredElement("editor-write-actions", HTMLElement),

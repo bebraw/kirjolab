@@ -1488,3 +1488,26 @@ The browser application artifact grows from 766,768 B raw / 208,428 B gzip to
 production package counts remain unchanged at 18 and 150. Full native CI
 passes all 1,333 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
 tests.
+
+## Continued Lit Extraction: Source Completion
+
+A bounded `SourceCompletion` now owns citation and include option markup,
+optional action labels, pointer focus preservation, hover and keyboard
+selection, active-descendant state, selected-option scrolling, dismissal, and
+typed acceptance intents. `WorkspaceApp` retains completion-context detection,
+candidate ranking, private-Library linking, Yjs edits, caret restoration, and
+menu positioning.
+
+This checkpoint reduces `src/client/app.ts` from 8,229 to 8,132 lines (-97).
+The component adds 119 lines. Component tests cover empty and action-labelled
+presentation, show and hide ARIA state, keyboard movement, acceptance,
+dismissal, composition gating, and both action variants. It records 77.55%
+statement and 80.43% line coverage. The focused browser workflow passes
+relative include suggestions, listbox presentation, option selection, and
+collaborative insertion.
+
+The browser application artifact grows from 767,765 B raw / 208,571 B gzip to
+768,037 B raw / 208,636 B gzip (+272 B raw / +65 B gzip). Direct and unique
+production package counts remain unchanged at 18 and 150. Full native CI
+passes all 1,336 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
+tests.

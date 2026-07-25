@@ -178,6 +178,12 @@ collaboration.
   path. Each inserted reference is computed relative to the active file and
   replaces only the path inside the directive in one collaborative text
   transaction.
+- **Completion presentation:** One bounded light-DOM component owns citation
+  and include option markup, hover and keyboard selection, active-descendant
+  state, selected-option scrolling, dismissal, and typed acceptance intents.
+  The workspace coordinator retains context detection, candidate ranking,
+  private-Library linking, collaborative edits, caret restoration, and menu
+  positioning.
 - **Offline authoring:** A service worker retains the allowlisted authoring
   shell and previously authorized canonical editor navigation. IndexedDB
   stores the current Yjs document, last acknowledged server vector, and last

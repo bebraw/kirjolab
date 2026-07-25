@@ -285,7 +285,7 @@ export function renderHomePage(
         <div class="source-editor-shell" id="source-editor-shell" data-vim-mode="off">
           <pre class="source-editor-highlight" id="source-editor-highlight" aria-hidden="true"></pre>
           <textarea class="source-editor" id="source-editor" spellcheck="true" aria-describedby="editor-help" aria-autocomplete="list" aria-controls="source-completion" placeholder="Start a chapter section with ## Heading"></textarea>
-          <div class="source-completion" id="source-completion" role="listbox" aria-label="Source suggestions" hidden></div>
+          <source-completion class="source-completion" id="source-completion" role="listbox" aria-label="Source suggestions" hidden></source-completion>
         </div>
         <section class="project-map" id="project-map" aria-labelledby="project-map-heading" hidden>
           <header class="project-map-header">

@@ -91,6 +91,9 @@ The adopted components own bounded presentation:
   option rendering, empty state, and local menu closing with typed syntax and
   include-file intents. The application coordinator retains collaborative
   selection resolution and Yjs edits.
+- The source completion list owns citation and include option presentation,
+  hover and keyboard selection, active-descendant state, selected-option
+  scrolling, dismissal, and typed acceptance intents.
 - The manuscript map panel owns summary metrics, heading outline, structural
   cues, local editing-pass selection, editing cues, and typed source-range
   selection intents.
@@ -404,6 +407,11 @@ reason to wrap static markup mechanically.
   expansion and focus state. Nested typed actions continue bubbling to the
   application coordinator, which retains canonical filtering, mutations,
   requests, refreshes, and notification policy.
+- The source completion list replaces imperative option construction, per-row
+  pointer handlers, selection rendering, keyboard movement and acceptance, and
+  source-editor ARIA synchronization. The application coordinator retains
+  context detection, candidate ranking, private-Library linking, Yjs edits,
+  caret restoration, and menu positioning.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without
