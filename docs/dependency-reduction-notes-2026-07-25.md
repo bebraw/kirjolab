@@ -1745,6 +1745,24 @@ unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,357 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
 
+## Continued Lit Consolidation: Claims Collection
+
+The existing `ClaimListPanel` now owns the complete Claims collection shell and
+derives its count from the same claim data used for cards and actions.
+`WorkspaceApp` retains evidence-selection state, dialogs, mutations, and
+navigation authority.
+
+This checkpoint reduces `src/client/app.ts` from 7,657 to 7,654 lines (-3) and
+removes the separate claim-count reference and mutation. Focused browser
+workflows pass claim creation and atomic replacement plus the complete
+annotation-to-claim-to-reviewed-prose path.
+
+The browser application artifact grows from 776,247 B raw / 210,227 B gzip to
+776,365 B raw / 210,216 B gzip (+118 B raw / -11 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,357 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.
+
 ## Continued Lit Consolidation: Publication Collection
 
 The existing `PublicationListPanel` now owns the complete References collection

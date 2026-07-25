@@ -49,22 +49,25 @@ export class ClaimListPanel extends LitElement {
   protected override render(): TemplateResult {
     const annotations = new Map(this.data.annotations.map((annotation) => [annotation.id, annotation]));
     return html`
-      <div class="px-1 pt-3">
-        <button
-          class="button-secondary w-full justify-center"
-          id="new-claim"
-          type="button"
-          ?disabled=${annotations.size === 0}
-          @click=${this.createClaim}
-        >
-          New claim
-        </button>
-      </div>
-      <div class="rail-collection-body" id="claim-list">
-        ${this.data.claims.length === 0
-          ? html`<div class="empty-state">Evidence-backed claims appear here.</div>`
-          : this.data.claims.map((claim) => this.renderClaim(claim, annotations))}
-      </div>
+      <details class="rail-collection">
+        <summary><span>Claims</span><span class="count-badge" id="claim-count">${this.data.claims.length}</span></summary>
+        <div class="px-1 pt-3">
+          <button
+            class="button-secondary w-full justify-center"
+            id="new-claim"
+            type="button"
+            ?disabled=${annotations.size === 0}
+            @click=${this.createClaim}
+          >
+            New claim
+          </button>
+        </div>
+        <div class="rail-collection-body" id="claim-list">
+          ${this.data.claims.length === 0
+            ? html`<div class="empty-state">Evidence-backed claims appear here.</div>`
+            : this.data.claims.map((claim) => this.renderClaim(claim, annotations))}
+        </div>
+      </details>
     `;
   }
 

@@ -566,7 +566,6 @@ interface Elements {
   projectEvidencePanel: ProjectEvidencePanel;
   knowledgeSearchPanel: KnowledgeSearchPanel;
   publicationListPanel: PublicationListPanel;
-  claimCount: HTMLElement;
   claimListPanel: ClaimListPanel;
   claimDialog: ClaimDialog;
   knowledgeConnectionsPanel: KnowledgeConnectionsPanel;
@@ -4298,7 +4297,6 @@ class WorkspaceApp {
 
   #renderClaims(claims: ClaimResource[], links: ClaimPassageLink[]): void {
     if (!this.#snapshot) return;
-    this.#elements.claimCount.textContent = String(claims.length);
     this.#elements.claimListPanel.setClaims({
       annotations: this.#snapshot.annotations,
       claims,
@@ -7505,7 +7503,6 @@ function collectElements(): Elements {
     projectEvidencePanel: requiredElement("project-evidence-panel", ProjectEvidencePanel),
     knowledgeSearchPanel: requiredElement("knowledge-search-panel", KnowledgeSearchPanel),
     publicationListPanel: requiredElement("publication-list-panel", PublicationListPanel),
-    claimCount: requiredElement("claim-count", HTMLElement),
     claimListPanel: requiredElement("claim-list-panel", ClaimListPanel),
     claimDialog: requiredElement("claim-dialog-panel", ClaimDialog),
     knowledgeConnectionsPanel: requiredElement("knowledge-connections-panel", KnowledgeConnectionsPanel),

@@ -65,9 +65,10 @@ The adopted components own bounded presentation:
   typed citation, paper, link, and unlink intents.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents.
-- The claim list panel owns claim, evidence-link, passage-link, grounding
-  selection, create availability, empty-state, and action presentation with
-  typed create, claim, and navigation intents.
+- The claim list panel owns the Claims collection shell and count, claim,
+  evidence-link, passage-link, grounding selection, create availability,
+  empty-state, and action presentation with typed create, claim, and navigation
+  intents.
 - The manuscript comment panel owns composer body and status state plus comment,
   anchor-status, empty-state, and action presentation with typed create, open,
   re-anchor, and resolve intents.
@@ -257,9 +258,9 @@ reason to wrap static markup mechanically.
   validation, and resource navigation in the application coordinator.
 - The claim list panel replaces one internal list reference and five imperative
   claim render helpers. It also replaces the separate create-button reference,
-  native binding, and availability update while leaving evidence-selection
-  state, dialogs, mutations, passage navigation, and annotation navigation in
-  the application coordinator.
+  native binding, availability update, count reference, and count mutation
+  while leaving evidence-selection state, dialogs, mutations, passage
+  navigation, and annotation navigation in the application coordinator.
 - The manuscript comment panel replaces three composer element references,
   submit binding, reset and saved-status updates, one internal list reference,
   and its imperative card renderer while leaving anchor selection, mutations,

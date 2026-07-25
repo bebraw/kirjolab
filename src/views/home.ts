@@ -151,13 +151,13 @@ export function renderHomePage(
                 </div>
               </details>
             </project-evidence-panel>
-            <details class="rail-collection">
-              <summary><span>Claims</span><span class="count-badge" id="claim-count">0</span></summary>
-              <claim-list-panel id="claim-list-panel">
+            <claim-list-panel id="claim-list-panel">
+              <details class="rail-collection">
+                <summary><span>Claims</span><span class="count-badge" id="claim-count">0</span></summary>
                 <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="new-claim" type="button">New claim</button></div>
                 <div class="rail-collection-body" id="claim-list"><div class="empty-state">No claims yet.</div></div>
-              </claim-list-panel>
-            </details>
+              </details>
+            </claim-list-panel>
             <publication-list-panel id="publication-list-panel">
               <details class="rail-collection">
                 <summary><span>References</span><span class="count-badge" id="publication-count">0</span></summary>
