@@ -348,11 +348,13 @@ export function renderHomePage(
                     <span><strong>PDF files</strong><small id="library-pdf-upload-help">Upload up to 20</small></span><span aria-hidden="true">↑</span>
                     <input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf" multiple aria-describedby="library-pdf-upload-help">
                   </label>
+                  <web-source-capture id="web-source-capture">
                   <form class="library-url-form" id="web-source-form">
                     <label class="sr-only" for="web-source-url">Website URL</label>
                     <input class="field" id="web-source-url" type="url" maxlength="4096" required placeholder="https://…" title="Add a website by URL">
                     <button class="button-primary justify-center" type="submit">Add URL</button>
                   </form>
+                  </web-source-capture>
                   <div class="library-menu-divider"></div>
                   <p class="eyebrow px-3 pt-2">Import reference file</p>
                   <label class="library-menu-action" title="Import references from a BibTeX file"><span><strong>Bibliography file</strong><small>BibTeX (.bib)</small></span><input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
@@ -406,7 +408,7 @@ export function renderHomePage(
               </details>
             </div>
             <div class="reference-library-list" id="reference-library-list"><div class="empty-state">Loading library…</div></div>
-            <section class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></section>
+            <web-snapshot-comparison class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></web-snapshot-comparison>
             <section class="mt-6 hidden border-t border-app-line pt-5" id="citation-network" aria-labelledby="citation-network-heading">
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div><p class="eyebrow">Guided snowballing</p><h3 class="mt-1 text-lg font-semibold" id="citation-network-heading">Reference trail</h3><p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">Follow references from trusted seeds, review each candidate, and retain how every source was found.</p></div>

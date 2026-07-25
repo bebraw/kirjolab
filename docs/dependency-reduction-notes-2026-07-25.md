@@ -1080,3 +1080,24 @@ Full native CI passes all 1,292 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 730,164 B raw
 / 200,927 B gzip to 731,333 B raw / 201,164 B gzip (+1,169 B raw / +237 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Web Source Panels
+
+Website intake and readable-text snapshot comparison now use bounded
+`WebSourceCapture` and `WebSnapshotComparisonPanel` components instead of three
+element references, coordinator-owned submit and reset state, and imperative
+comparison heading and diff-hunk rendering. The components own the local URL
+value, typed capture intent, reset behavior, and comparison presentation.
+`WorkspaceApp` retains capture and comparison requests, Valibot response
+validation, Library refreshes, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,387 to 9,367 lines (-20).
+The components add 129 lines. Component tests cover light-DOM ownership, empty,
+identical, changed, and truncated comparison presentation, URL changes, typed
+capture intent, and reset behavior. The full browser shell suite remains green.
+The components record 96.42% statement and 100% line coverage.
+
+Full native CI passes all 1,295 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 731,333 B raw
+/ 201,164 B gzip to 732,833 B raw / 201,394 B gzip (+1,500 B raw / +230 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

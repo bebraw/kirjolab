@@ -138,6 +138,8 @@ The adopted components own bounded presentation:
 - The Library PDF upload status owns queue progress, file outcomes, duplicate
   actions, retry availability, busy and error presentation, and typed retry and
   reveal intents.
+- The web source panels own URL capture and reset state plus readable-text
+  snapshot comparison presentation.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -298,6 +300,10 @@ reason to wrap static markup mechanically.
   error, duplicate-action, and retry rendering while leaving drag-and-drop,
   queue execution, upload transport, failed-file ownership, Library refreshes,
   and toast policy in the application coordinator.
+- The web source panels replace three internal element references, submit
+  binding, URL reset, comparison heading selection, and diff-hunk rendering
+  while leaving capture and comparison requests, response validation, Library
+  refreshes, and toast policy in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

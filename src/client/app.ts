@@ -214,6 +214,7 @@ import { LibraryDiscoverySearch, libraryDiscoverySearchEvent } from "./library-d
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { LibraryPdfUploadStatus, libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
 import { ModelProviderSettings, modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
+import { WebSnapshotComparisonPanel, WebSourceCapture, webSourceCaptureEvent } from "./web-source-panels";
 import { CitationNetworkPanel, citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
 import {
   PreviewContextStatus,
@@ -458,9 +459,8 @@ interface Elements {
   citationAssertionCited: HTMLSelectElement;
   citationAssertionPolarity: HTMLSelectElement;
   citationNetworkPanel: CitationNetworkPanel;
-  webSourceForm: HTMLFormElement;
-  webSourceUrl: HTMLInputElement;
-  webSnapshotComparison: HTMLElement;
+  webSourceCapture: WebSourceCapture;
+  webSnapshotComparison: WebSnapshotComparisonPanel;
   unidentifiedPdfCount: HTMLElement;
   unidentifiedPdfList: HTMLElement;
   showFilesRail: HTMLButtonElement;
@@ -1142,7 +1142,9 @@ class WorkspaceApp {
     this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRevealEvent, (event) => {
       void this.#revealExistingPdfReference((event as CustomEvent<ExistingPdfUpload>).detail);
     });
-    this.#elements.webSourceForm.addEventListener("submit", (event) => void this.#captureWebSource(event));
+    this.#elements.webSourceCapture.addEventListener(webSourceCaptureEvent, (event) => {
+      void this.#captureWebSource((event as CustomEvent<string>).detail);
+    });
     this.#elements.openCitationNetwork.addEventListener("click", () => void this.#openCitationNetwork());
     this.#elements.closeCitationNetwork.addEventListener("click", () => {
       this.#elements.citationNetwork.classList.add("hidden");
@@ -4734,10 +4736,9 @@ class WorkspaceApp {
     this.#showToast("Selected PDF metadata applied with provenance.");
   }
 
-  async #captureWebSource(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    await this.#captureWebSourceInput(this.#elements.webSourceUrl.value);
-    this.#elements.webSourceForm.reset();
+  async #captureWebSource(url: string): Promise<void> {
+    await this.#captureWebSourceInput(url);
+    this.#elements.webSourceCapture.clear();
   }
 
   async #captureWebSourceInput(url: string): Promise<void> {
@@ -4761,27 +4762,7 @@ class WorkspaceApp {
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isWebSnapshotComparisonResponse(value)) throw new Error("Web snapshot comparison returned an invalid result");
-    const section = this.#elements.webSnapshotComparison;
-    section.classList.remove("hidden");
-    section.replaceChildren();
-    const heading = document.createElement("h3");
-    heading.className = "text-lg font-semibold tracking-[-0.025em]";
-    heading.textContent = value.comparison.identical
-      ? "No readable-text changes"
-      : `${value.comparison.addedLines} added · ${value.comparison.removedLines} removed`;
-    section.append(resourceLabel("Neutral snapshot comparison"), heading);
-    for (const hunk of value.comparison.hunks) {
-      const block = document.createElement("pre");
-      block.className = "mt-3 overflow-auto rounded-sm border border-app-line bg-app-surface p-3 font-mono text-xs leading-5";
-      block.textContent = [
-        `@@ before ${hunk.beforeLine} · after ${hunk.afterLine} @@`,
-        ...hunk.removed.map((line) => `- ${line}`),
-        ...hunk.added.map((line) => `+ ${line}`),
-        ...(hunk.truncated ? ["… excerpt truncated"] : []),
-      ].join("\n");
-      section.append(block);
-    }
-    section.scrollIntoView({ block: "nearest" });
+    this.#elements.webSnapshotComparison.show(value.comparison);
   }
 
   async #identifyLibraryPdf(artifactId: string, referenceId: string): Promise<void> {
@@ -9036,9 +9017,8 @@ function collectElements(): Elements {
     citationAssertionCited: requiredElement("citation-assertion-cited", HTMLSelectElement),
     citationAssertionPolarity: requiredElement("citation-assertion-polarity", HTMLSelectElement),
     citationNetworkPanel: requiredElement("citation-network-panel", CitationNetworkPanel),
-    webSourceForm: requiredElement("web-source-form", HTMLFormElement),
-    webSourceUrl: requiredElement("web-source-url", HTMLInputElement),
-    webSnapshotComparison: requiredElement("web-snapshot-comparison", HTMLElement),
+    webSourceCapture: requiredElement("web-source-capture", WebSourceCapture),
+    webSnapshotComparison: requiredElement("web-snapshot-comparison", WebSnapshotComparisonPanel),
     unidentifiedPdfCount: requiredElement("unidentified-pdf-count", HTMLElement),
     unidentifiedPdfList: requiredElement("unidentified-pdf-list", HTMLElement),
     showFilesRail: requiredElement("show-files-rail", HTMLButtonElement),

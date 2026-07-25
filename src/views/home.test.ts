@@ -211,6 +211,8 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="toggle-preview-navigation"');
     expect(html).toContain('id="restore-preview-navigation"');
     expect(html).toContain('id="web-source-url"');
+    expect(html).toContain('<web-source-capture id="web-source-capture">');
+    expect(html).toContain("<web-snapshot-comparison");
     expect(html).not.toContain("Optional metadata overrides");
     expect(html).not.toContain('id="web-source-title"');
     expect(html).toContain('aria-controls="context-preview-panel" aria-selected="true"');

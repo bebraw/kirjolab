@@ -90,6 +90,10 @@ memory and makes citation aliases compete with stable source identity.
   access appends an immutable bounded snapshot with exact timestamp, content
   hash, retrieval metadata, diagnostics, and private raw/readable R2 objects.
   Existing project pins never advance during ordinary library refresh.
+- Bounded web source capture and snapshot-comparison components own local URL
+  input, reset behavior, and readable-text comparison presentation. The
+  workspace coordinator retains capture and comparison requests, response
+  validation, persistence refreshes, and user-notification policy.
 - Source-to-source citation relationships are stored as provenance-bearing
   assertions between stable reference UUIDs. Confirmed, extracted, inferred,
   and conflicting derived states remain distinct from project manuscript
