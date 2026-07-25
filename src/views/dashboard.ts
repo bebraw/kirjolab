@@ -99,7 +99,7 @@ function dashboardActivities(
     kind: "Library",
     title: reference.title || reference.referenceKey || "Untitled source",
     detail: [reference.authors[0], reference.year].filter(Boolean).join(" · ") || "Private source",
-    href: "/library",
+    href: `/library?reference=${encodeURIComponent(reference.id)}`,
     updatedAt: reference.updatedAt,
   }));
   const reviewActivities: DashboardActivity[] = reviews.map((review) => ({

@@ -139,6 +139,31 @@ test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }
   }
 });
 
+test("opens a recent Library source at its addressed card", async ({ page }) => {
+  await page.goto("/library");
+  await page.locator("#library-bibliography-upload").setInputFiles({
+    name: "dashboard-deep-link.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from(`@article{dashboardDeepLink,
+      title = {Dashboard Deep Link Source},
+      author = {Navigator, Ada},
+      year = {2026}
+    }`),
+  });
+  const sourceCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Dashboard Deep Link Source" });
+  await expect(sourceCard).toBeVisible();
+  const referenceId = await sourceCard.getAttribute("data-reference-id");
+  expect(referenceId).toBeTruthy();
+
+  await page.goto("/");
+  await page.getByRole("link", { name: /Library Dashboard Deep Link Source/u }).click();
+
+  await expect(page).toHaveURL(`/library?reference=${encodeURIComponent(referenceId!)}`);
+  const restoredCard = page.locator(`[data-reference-id="${referenceId}"]`);
+  await expect(restoredCard.locator(".library-reference-details")).toHaveAttribute("open", "");
+  await expect(restoredCard).toBeFocused();
+});
+
 async function readProjectMapGeometry(page: Page) {
   return page.locator("#project-map-canvas").evaluate((canvas) => {
     function nodeOverlaps(nodes: Array<{ id: string; bounds: DOMRect }>): string[] {

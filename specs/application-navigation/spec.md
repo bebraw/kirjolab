@@ -33,8 +33,10 @@ entries.
   workflow.
 - Recent work combines at most eight active-project, private-Library, and active-
   review rows. Every row labels its resource kind, uses the existing server-
-  owned `updatedAt`, and links to the owning task surface. The interface must
-  not relabel catalog maintenance time as precise manuscript or review editing
+  owned `updatedAt`, and links to the addressed project, Library reference, or
+  review within its owning task surface. Library reference links restore,
+  expand, scroll to, and focus the addressed source card. The interface must not
+  relabel catalog maintenance time as precise manuscript or review editing
   activity.
 - `/library` and `/library/pdfs/{artifactId}` retain the standalone,
   owner-private bootstrap and routing contracts from the reference-library

@@ -4635,8 +4635,15 @@ class WorkspaceApp {
     await this.#refreshReferenceLibrary();
   }
 
-  async #openReferenceLibraryEntry(referenceId: string): Promise<void> {
-    await this.#openReferenceLibrary();
+  async #openReferenceLibraryEntry(referenceId: string, updateHistory = true): Promise<void> {
+    await this.#openReferenceLibrary(false);
+    const opened = await this.#focusReferenceLibraryEntry(referenceId);
+    if (opened && appMode === "library" && updateHistory) {
+      history.pushState({ view: "library-reference", referenceId }, "", this.#libraryReferenceRoute(referenceId));
+    }
+  }
+
+  async #focusReferenceLibraryEntry(referenceId: string): Promise<boolean> {
     if (!this.#librarySnapshot?.references.some((reference) => reference.id === referenceId) && !this.#showArchivedReferences) {
       this.#showArchivedReferences = true;
       this.#elements.showArchivedReferences.setAttribute("aria-pressed", "true");
@@ -4653,11 +4660,12 @@ class WorkspaceApp {
     const card = this.#elements.referenceLibraryList.querySelector<HTMLElement>(`[data-reference-id="${CSS.escape(referenceId)}"]`);
     if (!card) {
       this.#showToast("That reference is no longer available in the Library.");
-      return;
+      return false;
     }
     card.tabIndex = -1;
     card.scrollIntoView({ block: "center" });
     card.focus({ preventScroll: true });
+    return true;
   }
 
   async #refreshReferenceLibrary(): Promise<void> {
@@ -9952,6 +9960,11 @@ class WorkspaceApp {
     const match = /^\/library\/pdfs\/([^/]+)$/u.exec(location.pathname);
     if (!match?.[1]) {
       if (this.#contextState.activeKey !== RESEARCH_LIBRARY_KEY) this.#activateContext(RESEARCH_LIBRARY_KEY);
+      const referenceId = new URL(location.href).searchParams.get("reference");
+      if (!referenceId) return;
+      if (!(await this.#focusReferenceLibraryEntry(referenceId))) {
+        history.replaceState({ view: "library" }, "", "/library");
+      }
       return;
     }
     let artifactId: string;
@@ -9972,6 +9985,10 @@ class WorkspaceApp {
 
   #libraryPdfRoute(artifactId: string, page: number): string {
     return `/library/pdfs/${encodeURIComponent(artifactId)}${page > 1 ? `?page=${page}` : ""}`;
+  }
+
+  #libraryReferenceRoute(referenceId: string): string {
+    return `/library?reference=${encodeURIComponent(referenceId)}`;
   }
 
   #handlePdfPageChange(page: number): void {

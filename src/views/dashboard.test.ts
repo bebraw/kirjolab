@@ -107,7 +107,7 @@ describe("renderDashboardPage", () => {
     expect(html.indexOf("Recent systematic review")).toBeLessThan(html.indexOf("A recent source"));
     expect(html.indexOf("A recent source")).toBeLessThan(html.indexOf("Recent project"));
     expect(html).toContain(
-      '</a><a class="dashboard-activity-row" href="/library">\n    <span class="dashboard-activity-kind">Library</span>',
+      '</a><a class="dashboard-activity-row" href="/library?reference=reference-1">\n    <span class="dashboard-activity-kind">Library</span>',
     );
     expect(html).toContain(
       `<time datetime="2026-07-19T11:00:00.000Z">${new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(new Date("2026-07-19T11:00:00.000Z"))}</time>`,
