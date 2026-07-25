@@ -27,6 +27,10 @@ ephemeral rather than a scholarly resource.
   are retained through project revision history.
 - The browser resolves each anchor against live Yjs state, exposes changed or
   stale status, and navigates only a resolved range.
+- A bounded light-DOM list owns comment, anchor-status, empty-state, and action
+  presentation. It emits typed open, re-anchor, and resolve intents while
+  creation, anchor selection, mutations, refreshes, and passage navigation
+  remain with the application coordinator.
 - The left project rail exposes Comments as a peer of Files and Research. Its
   local mode contains the selected-passage composer, open-comment count, and
   open/resolved history without reducing the manuscript editor height.

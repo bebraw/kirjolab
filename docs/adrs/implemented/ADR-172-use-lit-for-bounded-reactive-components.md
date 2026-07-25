@@ -68,6 +68,8 @@ The adopted components own bounded presentation:
 - The claim list panel owns claim, evidence-link, passage-link, grounding
   selection, empty-state, and action presentation with typed claim and
   navigation intents.
+- The manuscript comment list owns comment, anchor status, empty-state, and
+  action presentation with typed open, re-anchor, and resolve intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -122,6 +124,9 @@ reason to wrap static markup mechanically.
   claim render helpers while leaving evidence-selection state, dialogs,
   mutations, passage navigation, and annotation navigation in the application
   coordinator.
+- The manuscript comment list replaces one internal list reference and its
+  imperative card renderer while leaving comment creation, anchor selection,
+  mutations, refreshes, and passage navigation in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

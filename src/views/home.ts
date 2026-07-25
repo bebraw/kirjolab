@@ -169,7 +169,9 @@ export function renderHomePage(
             <button class="button-secondary w-full justify-center" type="submit">Add comment</button>
             <p class="text-xs leading-5 text-app-text-soft" id="manuscript-comment-status" role="status">Comments stay outside the Markdown source.</p>
           </form>
-          <div class="mt-4 grid gap-3" id="manuscript-comment-list"></div>
+          <manuscript-comment-list id="manuscript-comment-list-panel">
+            <div class="mt-4 grid gap-3" id="manuscript-comment-list"></div>
+          </manuscript-comment-list>
         </section>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="guide-rail-panel" role="tabpanel" aria-labelledby="show-guide-rail" hidden>

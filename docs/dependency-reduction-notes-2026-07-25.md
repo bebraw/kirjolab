@@ -529,3 +529,25 @@ and 74 browser tests. The rebuilt browser application is 678,143 B raw and
 191,345 B gzip, an increase of 2,621 B raw and 712 B gzip from the knowledge
 search checkpoint. Direct and unique production package counts remain unchanged
 at 18 and 150.
+
+## Continued Lit Extraction: Manuscript Comments
+
+The manuscript comment collection now uses one bounded
+`ManuscriptCommentList` instead of imperative empty-state, comment-card,
+anchor-status, and action rendering. The component owns comment presentation
+and emits typed open, re-anchor, and resolve intents. `WorkspaceApp` retains
+comment creation, selected-passage authority, API mutations, refreshes, toast
+policy, and source navigation.
+
+This checkpoint reduces `src/client/app.ts` from 11,033 to 11,009 lines (-24).
+The component adds 110 lines and reaches 87.5% statement coverage and 89.47%
+line coverage across empty and populated lists, current and stale anchors, and
+all three action intents. The focused collaboration browser workflow passes
+comment creation, stale-anchor presentation, re-anchoring, opening, and
+resolution.
+
+Full native CI passes all 1,233 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 680,010 B raw and
+191,601 B gzip, an increase of 1,867 B raw and 256 B gzip from the claim-list
+checkpoint. Direct and unique production package counts remain unchanged at 18
+and 150.

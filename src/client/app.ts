@@ -185,6 +185,7 @@ import { createMetadataRefinementActor } from "./metadata-refinement-machine";
 import { ProjectMapPanel, projectMapSelectEvent } from "./project-map-panel";
 import { KnowledgeSearchPanel, knowledgeSearchEvent, knowledgeSearchSelectEvent } from "./knowledge-search-panel";
 import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
+import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -580,7 +581,7 @@ interface Elements {
   manuscriptCommentBody: HTMLTextAreaElement;
   manuscriptCommentStatus: HTMLElement;
   manuscriptCommentCount: HTMLElement;
-  manuscriptCommentList: HTMLElement;
+  manuscriptCommentListPanel: ManuscriptCommentList;
   workspaceSurfaces: HTMLElement;
   collapseSourceRail: HTMLButtonElement;
   expandSourceRail: HTMLButtonElement;
@@ -1339,6 +1340,12 @@ class WorkspaceApp {
     });
     this.#elements.projectHistoryDialog.addEventListener("close", () => this.#projectHistoryWorkflow.send({ type: "CLOSE" }));
     this.#elements.manuscriptCommentForm.addEventListener("submit", (event) => void this.#createManuscriptComment(event));
+    this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentActionEvent, (event) => {
+      const detail = (event as CustomEvent<ManuscriptCommentAction>).detail;
+      if (detail.action === "open") this.#showPassage(detail.anchor);
+      else if (detail.action === "reanchor") void this.#reanchorManuscriptComment(detail.commentId);
+      else void this.#resolveManuscriptComment(detail.commentId);
+    });
     for (const eventName of ["focus", "input", "keyup", "select", "click"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
         if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
@@ -6209,38 +6216,7 @@ class WorkspaceApp {
 
   #renderManuscriptComments(comments: ManuscriptComment[]): void {
     this.#elements.manuscriptCommentCount.textContent = String(comments.filter((comment) => comment.status === "open").length);
-    this.#elements.manuscriptCommentList.replaceChildren();
-    if (comments.length === 0) {
-      this.#elements.manuscriptCommentList.append(emptyState("No manuscript comments yet."));
-      return;
-    }
-    for (const comment of comments) {
-      const card = document.createElement("article");
-      card.className = "resource-card";
-      card.dataset.commentResourceId = comment.id;
-      const meta = resourceLabel(`${comment.status} · ${comment.authorLabel}`);
-      const body = document.createElement("p");
-      body.className = "mt-2 text-sm leading-6";
-      body.textContent = comment.body;
-      const excerpt = document.createElement("blockquote");
-      excerpt.className = "mt-2 border-l-2 border-app-line pl-3 font-sans text-xs leading-5 text-app-text-soft";
-      excerpt.textContent = comment.anchor.exact;
-      const actions = document.createElement("div");
-      actions.className = "mt-3 flex flex-wrap gap-2";
-      const open = actionButton(anchorActionLabel(comment.resolution), "button-secondary", () => this.#showPassage(comment.anchor));
-      open.disabled = comment.resolution.status !== "resolved";
-      actions.append(open);
-      if (comment.status === "open") {
-        if (comment.resolution.status === "stale") {
-          actions.append(
-            actionButton("Re-anchor to selection", "button-secondary", () => void this.#reanchorManuscriptComment(comment.id)),
-          );
-        }
-        actions.append(actionButton("Resolve", "button-secondary", () => void this.#resolveManuscriptComment(comment.id)));
-      }
-      card.append(meta, body, excerpt, actions);
-      this.#elements.manuscriptCommentList.append(card);
-    }
+    this.#elements.manuscriptCommentListPanel.setComments(comments);
   }
 
   async #createManuscriptComment(event: SubmitEvent): Promise<void> {
@@ -10614,7 +10590,7 @@ function collectElements(): Elements {
     manuscriptCommentBody: requiredElement("manuscript-comment-body", HTMLTextAreaElement),
     manuscriptCommentStatus: requiredElement("manuscript-comment-status", HTMLElement),
     manuscriptCommentCount: requiredElement("manuscript-comment-count", HTMLElement),
-    manuscriptCommentList: requiredElement("manuscript-comment-list", HTMLElement),
+    manuscriptCommentListPanel: requiredElement("manuscript-comment-list-panel", ManuscriptCommentList),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
     collapseSourceRail: requiredElement("collapse-source-rail", HTMLButtonElement),
     expandSourceRail: requiredElement("expand-source-rail", HTMLButtonElement),

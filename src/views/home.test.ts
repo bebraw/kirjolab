@@ -141,6 +141,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="open-reviewer-response" type="button">Start matrix</button>');
     expect(html).toContain('id="download-reviewer-response" type="button" disabled>Export letter</button>');
     expect(html).toContain('id="manuscript-comment-form"');
+    expect(html).toContain('<manuscript-comment-list id="manuscript-comment-list-panel">');
     expect(html).not.toContain('id="manuscript-comments"');
     expect(html).not.toContain('id="derived-project-bibliography"');
     expect(html).toContain('id="bibliography-editor" hidden aria-hidden="true" readonly');

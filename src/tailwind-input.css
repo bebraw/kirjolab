@@ -1569,7 +1569,8 @@
     padding: 0.25rem 0.1rem 0.85rem;
   }
 
-  claim-list-panel {
+  claim-list-panel,
+  manuscript-comment-list {
     display: block;
   }
 
