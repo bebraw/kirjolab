@@ -40,6 +40,7 @@ describe("renderContextTabs", () => {
       'id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1"',
     );
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
+    expect(html).toContain('id="context-tab-overview-panel"');
     expect(html).toContain('id="context-tab-overview" data-action-menu hidden');
     expect(html).toContain('id="context-tab-overview-list" aria-label="Open contexts"');
     expect(html).toContain('id="preview-context-controls"');

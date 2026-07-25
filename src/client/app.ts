@@ -188,6 +188,7 @@ import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./cl
 import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
+import { ContextTabOverview, contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -600,9 +601,7 @@ interface Elements {
   contextLibraryTab: HTMLButtonElement;
   contextAssistantTab: HTMLButtonElement;
   contextResourceTabs: HTMLElement;
-  contextTabOverview: HTMLDetailsElement;
-  contextTabOverviewCount: HTMLElement;
-  contextTabOverviewList: HTMLElement;
+  contextTabOverviewPanel: ContextTabOverview;
   previewContextControls: HTMLElement;
   previewFileContext: HTMLElement;
   togglePreviewNavigation: HTMLButtonElement;
@@ -1463,6 +1462,11 @@ class WorkspaceApp {
       this.#elements.togglePreviewNavigation.focus();
     });
     this.#elements.contextAssistantTab.addEventListener("click", () => this.#activateContext(RESEARCH_ASSISTANT_KEY));
+    this.#elements.contextTabOverviewPanel.addEventListener(contextTabOverviewActionEvent, (event) => {
+      const detail = (event as CustomEvent<ContextTabOverviewAction>).detail;
+      if (detail.action === "activate") this.#activateContext(detail.key);
+      else this.#closeContextTab(detail.key);
+    });
     this.#elements.contextTabList.addEventListener("keydown", (event) => this.#moveContextTabFocus(event));
     this.#elements.preview.addEventListener("click", (event) => this.#handlePreviewClick(event));
     this.#elements.syncPreviewFromSource.addEventListener("click", () => this.#syncPreviewFromSource());
@@ -7094,45 +7098,11 @@ class WorkspaceApp {
   }
 
   #renderContextTabOverview(): void {
-    const tabs = this.#contextState.tabs;
-    this.#elements.contextTabOverviewList.replaceChildren();
-    if (appMode === "library") {
-      this.#elements.contextTabOverview.hidden = true;
-      this.#elements.contextTabOverview.open = false;
-      return;
-    }
-
-    this.#elements.contextTabOverview.hidden = tabs.length <= 3;
-    this.#elements.contextTabOverviewCount.textContent = String(tabs.length);
-    if (tabs.length <= 3) {
-      this.#elements.contextTabOverview.open = false;
-      return;
-    }
-
-    for (const tab of tabs) this.#elements.contextTabOverviewList.append(this.#contextTabOverviewRow(tab));
-  }
-
-  #contextTabOverviewRow(tab: ResearchContextTab): HTMLElement {
-    const title = this.#contextOverviewTitle(tab);
-    const row = document.createElement("div");
-    row.className = "context-tab-overview-row";
-    const activate = document.createElement("button");
-    activate.type = "button";
-    activate.className = "context-tab-overview-activate";
-    activate.dataset.contextKey = tab.key;
-    activate.setAttribute("aria-current", this.#contextState.activeKey === tab.key ? "page" : "false");
-    const label = document.createElement("strong");
-    label.textContent = title;
-    const kind = document.createElement("span");
-    kind.textContent = tab.kind === "library-pdf" ? "Library PDF" : tab.kind.replace("-", " ");
-    activate.append(label, kind);
-    activate.addEventListener("click", () => {
-      this.#elements.contextTabOverview.open = false;
-      this.#activateContext(tab.key);
+    this.#elements.contextTabOverviewPanel.setTabs({
+      activeKey: this.#contextState.activeKey,
+      items: this.#contextState.tabs.map((tab) => ({ tab, title: this.#contextOverviewTitle(tab) })),
+      standaloneLibrary: appMode === "library",
     });
-    row.append(activate);
-    if (tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant") row.append(this.#contextOverviewClose(tab, title));
-    return row;
   }
 
   #contextOverviewTitle(tab: ResearchContextTab): string {
@@ -7140,20 +7110,6 @@ class WorkspaceApp {
     if (tab.kind === "library") return "Library";
     if (tab.kind === "assistant") return "Writing assistant";
     return this.#contextTabTitle(tab);
-  }
-
-  #contextOverviewClose(tab: ResearchResourceTab, title: string): HTMLButtonElement {
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "context-tab-overview-close";
-    close.setAttribute("aria-label", `Close ${title} from context list`);
-    close.title = `Close ${title}`;
-    close.textContent = "×";
-    close.addEventListener("click", () => {
-      this.#elements.contextTabOverview.open = false;
-      this.#closeContextTab(tab.key);
-    });
-    return close;
   }
 
   #renderCandidateContext(tab: ResearchResourceTab): void {
@@ -10565,9 +10521,7 @@ function collectElements(): Elements {
     contextLibraryTab: requiredElement("context-library-tab", HTMLButtonElement),
     contextAssistantTab: requiredElement("context-assistant-tab", HTMLButtonElement),
     contextResourceTabs: requiredElement("context-resource-tabs", HTMLElement),
-    contextTabOverview: requiredElement("context-tab-overview", HTMLDetailsElement),
-    contextTabOverviewCount: requiredElement("context-tab-overview-count", HTMLElement),
-    contextTabOverviewList: requiredElement("context-tab-overview-list", HTMLElement),
+    contextTabOverviewPanel: requiredElement("context-tab-overview-panel", ContextTabOverview),
     previewContextControls: requiredElement("preview-context-controls", HTMLElement),
     previewFileContext: requiredElement("preview-file-context", HTMLElement),
     togglePreviewNavigation: requiredElement("toggle-preview-navigation", HTMLButtonElement),

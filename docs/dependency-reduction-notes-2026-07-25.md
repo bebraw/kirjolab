@@ -593,3 +593,24 @@ and 74 browser tests. The rebuilt browser application is 682,884 B raw and
 192,016 B gzip, an increase of 824 B raw and 172 B gzip from the
 project-publications checkpoint. Direct and unique production package counts
 remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Context Tab Overview
+
+The context overflow menu now uses one bounded `ContextTabOverview` instead of
+three element references plus imperative visibility, count, row, and close
+rendering. The component owns overflow presentation and emits typed activate
+and close intents. `WorkspaceApp` retains tab-title resolution, routing,
+canonical context state, focus restoration, and transitions.
+
+This checkpoint reduces `src/client/app.ts` from 10,967 to 10,921 lines (-46).
+The component adds 116 lines and reaches 86.95% statement coverage and 90.47%
+line coverage across hidden, populated, standalone-Library, permanent-tab,
+resource-tab, known-action, and rejected-action states. The focused research
+context browser workflow passes overflow visibility, activation, closing, and
+focus restoration.
+
+Full native CI passes all 1,239 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 683,986 B raw and
+192,336 B gzip, an increase of 1,102 B raw and 320 B gzip from the
+candidate-queue checkpoint. Direct and unique production package counts remain
+unchanged at 18 and 150.

@@ -1572,7 +1572,8 @@
   claim-list-panel,
   manuscript-comment-list,
   publication-list-panel,
-  candidate-list-panel {
+  candidate-list-panel,
+  context-tab-overview-panel {
     display: block;
   }
 

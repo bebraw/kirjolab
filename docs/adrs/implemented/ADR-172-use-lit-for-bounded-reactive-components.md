@@ -75,6 +75,8 @@ The adopted components own bounded presentation:
   intents.
 - The model candidate list owns revision and claim-draft summaries, empty-state,
   and a typed review-opening intent.
+- The context-tab overview owns overflow visibility, counts, tab summaries, and
+  typed activate and close intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -140,6 +142,10 @@ reason to wrap static markup mechanically.
   imperative card renderer while leaving generation, candidate state, context
   navigation, applicability checks, and decisions in the application
   coordinator.
+- The context-tab overview replaces three internal element references and its
+  imperative row and close-action renderers while leaving tab titles, routing,
+  canonical context state, focus restoration, and transitions in the
+  application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without
