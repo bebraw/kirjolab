@@ -1780,3 +1780,22 @@ The browser application artifact grows from 776,157 B raw / 210,192 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,357 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Editor Status
+
+A bounded `EditorStatus` now owns authoring-target text and tooltip plus online
+and offline save-state presentation. `WorkspaceApp` retains target resolution,
+collaboration and offline-save policy, and the status values those workflows
+select.
+
+This checkpoint reduces `src/client/app.ts` from 7,654 to 7,649 lines (-5) and
+replaces two internal element references with one component reference.
+Component coverage is 78.57% statements and 84.61% lines. Focused browser
+workflows pass selection-target persistence and offline edit restoration and
+synchronization.
+
+The browser application artifact grows from 776,365 B raw / 210,216 B gzip to
+776,869 B raw / 210,318 B gzip (+504 B raw / +102 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,358 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

@@ -59,6 +59,7 @@ import {
 } from "../domain/reference-library";
 import { filterReferenceLibrary } from "../domain/reference-filters";
 import { ExportStatisticsPanel } from "./export-statistics-panel";
+import { EditorStatus } from "./editor-status";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import { CollaboratorSelectionList } from "./collaborator-selection-list";
@@ -559,8 +560,7 @@ interface Elements {
   diagnostics: PreviewDiagnosticsPanel;
   connectionDot: HTMLElement;
   connectionStatus: HTMLElement;
-  editorTargetStatus: HTMLElement;
-  saveStatus: HTMLElement;
+  editorStatus: EditorStatus;
   revisionBadge: HTMLElement;
   pdfUpload: HTMLInputElement;
   projectEvidencePanel: ProjectEvidencePanel;
@@ -1261,9 +1261,7 @@ class WorkspaceApp {
       if (origin === remoteOrigin || origin === offlineOrigin) return;
       this.#pendingUpdates.enqueue(update);
       this.#syncCollaborationQueue();
-      this.#elements.saveStatus.textContent = collaborationSynced(this.#collaborationWorkflow.getSnapshot())
-        ? "Saving…"
-        : "Saving offline…";
+      this.#elements.editorStatus.setSave(collaborationSynced(this.#collaborationWorkflow.getSnapshot()) ? "Saving…" : "Saving offline…");
       this.#updateModelAvailability();
       void this.#renderPreview();
       this.#flushPendingUpdates();
@@ -2427,7 +2425,7 @@ class WorkspaceApp {
 
   #completeCollaborationRevision(revision: number): void {
     this.#setRevision(revision);
-    this.#elements.saveStatus.textContent = this.#pendingUpdates.size === 0 ? "Saved" : "Saving…";
+    this.#elements.editorStatus.setSave(this.#pendingUpdates.size === 0 ? "Saved" : "Saving…");
     this.#scheduleOfflineSave();
     this.#flushPendingUpdates();
   }
@@ -5278,8 +5276,7 @@ class WorkspaceApp {
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
     if (!target) {
       const status = `${file?.path ?? "Manuscript"} · no target`;
-      this.#elements.editorTargetStatus.textContent = status;
-      this.#elements.editorTargetStatus.title = status;
+      this.#elements.editorStatus.setTarget(status);
       this.#renderSourceEditorHighlight();
       this.#renderAssistantTargetPreview();
       return;
@@ -5290,8 +5287,7 @@ class WorkspaceApp {
     const location = startLine === endLine ? `line ${startLine}` : `lines ${startLine}–${endLine}`;
     const selection = target.start === target.end ? "caret" : `${target.end - target.start} characters selected`;
     const status = `${file?.path ?? "Manuscript"} · ${location} · ${selection}`;
-    this.#elements.editorTargetStatus.textContent = status;
-    this.#elements.editorTargetStatus.title = status;
+    this.#elements.editorStatus.setTarget(status);
     this.#renderSourceEditorHighlight();
     this.#renderAssistantTargetPreview();
   }
@@ -7262,7 +7258,7 @@ class WorkspaceApp {
     this.#renderResources();
     this.#updateRevision();
     this.#renderCollaborationWorkflow();
-    this.#elements.saveStatus.textContent = pending ? "Saved offline" : "Saved";
+    this.#elements.editorStatus.setSave(pending ? "Saved offline" : "Saved");
     void this.#renderPreview();
     return true;
   }
@@ -7280,10 +7276,10 @@ class WorkspaceApp {
           if (version !== this.#offlineSaveVersion) return;
           document.body.dataset.offlineCached = "true";
           document.body.dataset.offlineSavedAt = String(version);
-          if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.saveStatus.textContent = "Saved offline";
+          if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.editorStatus.setSave("Saved offline");
         });
       void this.#offlineSaveChain.catch((error: unknown) => {
-        if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.saveStatus.textContent = "Offline save failed";
+        if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.editorStatus.setSave("Offline save failed");
         this.#showToast(error instanceof Error ? error.message : "Could not save the manuscript offline");
       });
     }, delay);
@@ -7496,8 +7492,7 @@ function collectElements(): Elements {
     diagnostics: requiredElement("diagnostics", PreviewDiagnosticsPanel),
     connectionDot: requiredElement("connection-dot", HTMLElement),
     connectionStatus: requiredElement("connection-status", HTMLElement),
-    editorTargetStatus: requiredElement("editor-target-status", HTMLElement),
-    saveStatus: requiredElement("save-status", HTMLElement),
+    editorStatus: requiredElement("editor-status", EditorStatus),
     revisionBadge: requiredElement("revision-badge", HTMLElement),
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
     projectEvidencePanel: requiredElement("project-evidence-panel", ProjectEvidencePanel),

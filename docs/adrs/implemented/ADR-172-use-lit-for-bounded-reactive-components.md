@@ -436,6 +436,10 @@ reason to wrap static markup mechanically.
   action bindings, two ARIA-state mutations, and DOM-derived active mode. The
   application coordinator retains editor and map visibility, focus policy, and
   URL synchronization.
+- The editor status component replaces separate target and save-status element
+  references and owns their text and target-tooltip presentation. The
+  application coordinator retains authoring-target resolution, collaboration
+  and offline-save policy, and the status values those workflows select.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

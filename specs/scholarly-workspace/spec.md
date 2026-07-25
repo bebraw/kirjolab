@@ -145,6 +145,10 @@ collaboration.
   generation intents; the application coordinator retains editor target
   resolution, evidence, model requests, workflow state, results, and status
   policy.
+- **Editor status:** One bounded light-DOM component owns the visible authoring
+  target, its full tooltip, and online or offline save-state presentation. The
+  application coordinator supplies target and save-state values from the
+  current selection and collaboration workflows.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
 - **Schema lifecycle:** Every SQLite-backed document, catalog, and access

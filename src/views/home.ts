@@ -281,8 +281,10 @@ export function renderHomePage(
               </details>
             </editor-insert-menu>
             <button class="button-secondary hidden" id="open-source-citation" type="button" title="View the citation at the caret" disabled>View cited source</button>
-            <p class="editor-target-status" id="editor-target-status">main.md · line 1 · caret</p>
-            <p class="text-xs text-app-text-soft" id="save-status">Opening…</p>
+            <editor-status class="contents" id="editor-status">
+              <p class="editor-target-status" id="editor-target-status" title="main.md · line 1 · caret">main.md · line 1 · caret</p>
+              <p class="text-xs text-app-text-soft" id="save-status">Opening…</p>
+            </editor-status>
           </div>
         </div>
         <label class="sr-only" for="source-editor">Markdown source</label>
