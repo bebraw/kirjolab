@@ -1918,3 +1918,24 @@ container behavior grows styles from 135,362 B raw / 23,360 B gzip to 135,376 B
 raw / 23,364 B gzip (+14 B raw / +4 B gzip). Direct and unique production
 package counts remain unchanged at 18 and 150. Full native CI passes all 1,367
 unit/coverage tests, 120 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Project Export Dialog
+
+A bounded `ProjectExportDialog` now progressively enhances the server-rendered
+export content, owns modal open and close lifecycle, and synchronizes its nested
+publication statistics panel. `WorkspaceApp` retains the two spatially separate
+open triggers and the canonical word-count projection.
+
+This checkpoint reduces `src/client/app.ts` from 7,589 to 7,584 lines (-5),
+replaces separate dialog, close-action, and statistics-panel references with one
+component reference, and removes the coordinator's close binding. The focused
+browser workflow passes composed word-count presentation and modal opening.
+Component coverage is 75% statements and 71.42% lines; the remaining uncovered
+lines are native custom-element connection and disconnection hooks exercised by
+the browser workflow.
+
+The browser application artifact grows from 784,626 B raw / 211,697 B gzip to
+785,079 B raw / 211,723 B gzip (+453 B raw / +26 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,376 B raw / 23,364 B
+gzip and 18 and 150. Full native CI passes all 1,369 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

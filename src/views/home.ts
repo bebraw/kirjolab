@@ -733,7 +733,8 @@ export function renderHomePage(
     </main>
 
 
-<dialog class="reference-library-dialog ui-dialog" id="export-dialog">
+<project-export-dialog id="export-dialog-control">
+    <dialog class="reference-library-dialog ui-dialog" id="export-dialog">
       <div class="p-5">
         <div class="flex items-start justify-between gap-4">
           <div>
@@ -761,6 +762,7 @@ export function renderHomePage(
         </section>
       </div>
     </dialog>
+</project-export-dialog>
 
     <dialog class="new-workspace-dialog template-dialog ui-dialog" id="new-workspace-dialog">
       <project-starting-point-browser class="block" id="project-starting-point-browser">

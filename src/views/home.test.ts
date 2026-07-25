@@ -182,6 +182,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="share-workspace" type="button">Share project</button>');
     expect(html).toContain('id="word-count-badge"');
     expect(html).toContain('id="export-dialog"');
+    expect(html).toContain('<project-export-dialog id="export-dialog-control">');
     expect(html).toContain("Choose a format for the composed project.");
     expect(html).toContain("/api/workspaces/demo/export/document.pdf");
     expect(html).toContain("/api/workspaces/demo/export/latex.zip");

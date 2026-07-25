@@ -347,8 +347,12 @@ collaboration.
   anchored target and revision remain current. Apply computes a local minimal
   splice inside the target range, atomically persists canonical source and
   accepted status, and cannot replace unrelated manuscript text.
-- **Exports:** Dedicated endpoints return `document.md` and `bibliography.bib`
-  with download metadata.
+- **Exports:** Dedicated endpoints return PDF, LaTeX, Markdown, source-bundle,
+  BibTeX, and statistics artifacts with download metadata. One bounded Lit
+  host progressively enhances the server-rendered export dialog, owns modal
+  lifecycle and its close action, and synchronizes the nested live publication
+  statistics. The application coordinator retains word-count derivation and
+  the header and editor-toolbar open triggers.
 
 ### API Contracts
 

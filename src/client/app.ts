@@ -58,7 +58,7 @@ import {
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 import { filterReferenceLibrary } from "../domain/reference-filters";
-import { ExportStatisticsPanel } from "./export-statistics-panel";
+import { ProjectExportDialog } from "./project-export-dialog";
 import { EditorStatus } from "./editor-status";
 import { ConnectionStatus } from "./connection-status";
 import { VimModeControl } from "./vim-mode-control";
@@ -499,9 +499,7 @@ interface Elements {
   projectFileDialog: ProjectFileDialog;
   projectHistoryTrigger: ProjectHistoryTrigger;
   openExport: HTMLButtonElement;
-  exportDialog: HTMLDialogElement;
-  closeExport: HTMLButtonElement;
-  exportStatistics: ExportStatisticsPanel;
+  exportDialog: ProjectExportDialog;
   wordCountBadge: HTMLButtonElement;
   projectHistoryDialog: HTMLDialogElement;
   projectHistoryPanel: ProjectHistoryPanel;
@@ -1208,7 +1206,6 @@ class WorkspaceApp {
     for (const button of [this.#elements.openExport, this.#elements.wordCountBadge]) {
       button.addEventListener("click", () => this.#openExport());
     }
-    this.#elements.closeExport.addEventListener("click", () => this.#elements.exportDialog.close());
     this.#elements.projectHistoryPanel.addEventListener(projectHistoryCloseEvent, () => this.#elements.projectHistoryDialog.close());
     this.#elements.projectHistoryPanel.addEventListener(projectHistoryActionEvent, (event) => {
       void this.#handleProjectHistoryAction((event as CustomEvent<ProjectHistoryOperation>).detail);
@@ -3437,13 +3434,13 @@ class WorkspaceApp {
 
   #openExport(): void {
     this.#renderExportStatistics();
-    if (!this.#elements.exportDialog.open) this.#elements.exportDialog.showModal();
+    this.#elements.exportDialog.open(this.#wordStatistics);
   }
 
   #renderExportStatistics(): void {
     const statistics = this.#wordStatistics;
     this.#elements.wordCountBadge.textContent = statistics ? `${statistics.totalWords.toLocaleString()} words` : "… words";
-    this.#elements.exportStatistics.setStatistics(statistics);
+    this.#elements.exportDialog.setStatistics(statistics);
   }
 
   async #inspectProjectRevision(revision: number): Promise<void> {
@@ -7404,9 +7401,7 @@ function collectElements(): Elements {
     projectFileDialog: requiredElement("project-file-dialog-panel", ProjectFileDialog),
     projectHistoryTrigger: requiredElement("project-history-trigger", ProjectHistoryTrigger),
     openExport: requiredElement("open-export", HTMLButtonElement),
-    exportDialog: requiredElement("export-dialog", HTMLDialogElement),
-    closeExport: requiredElement("close-export", HTMLButtonElement),
-    exportStatistics: requiredElement("export-statistics", ExportStatisticsPanel),
+    exportDialog: requiredElement("export-dialog-control", ProjectExportDialog),
     wordCountBadge: requiredElement("word-count-badge", HTMLButtonElement),
     projectHistoryDialog: requiredElement("project-history-dialog", HTMLDialogElement),
     projectHistoryPanel: requiredElement("project-history-panel", ProjectHistoryPanel),
