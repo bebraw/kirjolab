@@ -509,6 +509,10 @@ reason to wrap static markup mechanically.
 - The workspace surface switcher replaces two button references, native action
   bindings, and ARIA-state mutations. The application coordinator retains
   responsive surface visibility and URL synchronization.
+- The workspace rail tabs derive their four controlled panel targets from the
+  existing `aria-controls` contract and own active-panel visibility alongside
+  tab selection and comment-count presentation. The application coordinator
+  retains route synchronization, responsive rail layout, and guide rendering.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

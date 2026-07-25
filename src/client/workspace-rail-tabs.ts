@@ -33,6 +33,14 @@ export class WorkspaceRailTabs extends LitElement {
 
   setMode(mode: WorkspaceRail): void {
     this.mode = mode;
+    for (const { mode: panelMode } of tabs) {
+      this.setPanelHidden(panelMode, panelMode !== mode);
+    }
+  }
+
+  protected setPanelHidden(mode: WorkspaceRail, hidden: boolean): void {
+    const panel = this.ownerDocument.getElementById(`${mode}-rail-panel`);
+    if (panel instanceof HTMLElement) panel.hidden = hidden;
   }
 
   protected select(event: Event): void {

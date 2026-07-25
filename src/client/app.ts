@@ -468,10 +468,6 @@ interface Elements {
   webSnapshotComparison: WebSnapshotComparisonPanel;
   unidentifiedPdfList: UnidentifiedPdfList;
   workspaceRailTabs: WorkspaceRailTabs;
-  filesRailPanel: HTMLElement;
-  researchRailPanel: HTMLElement;
-  commentsRailPanel: HTMLElement;
-  guideRailPanel: HTMLElement;
   manuscriptMapPanel: ManuscriptMapPanel;
   researchDiaryPanel: ResearchDiarySummary;
   researchQuestionPanel: WritingWorkflowPanel;
@@ -1484,16 +1480,8 @@ class WorkspaceApp {
   }
 
   #showRail(mode: WorkspaceRail): void {
-    const files = mode === "files";
-    const research = mode === "research";
-    const comments = mode === "comments";
-    const guide = mode === "guide";
-    this.#elements.filesRailPanel.hidden = !files;
-    this.#elements.researchRailPanel.hidden = !research;
-    this.#elements.commentsRailPanel.hidden = !comments;
-    this.#elements.guideRailPanel.hidden = !guide;
     this.#elements.workspaceRailTabs.setMode(mode);
-    if (guide) this.#renderManuscriptMap();
+    if (mode === "guide") this.#renderManuscriptMap();
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -7258,10 +7246,6 @@ function collectElements(): Elements {
     webSnapshotComparison: requiredElement("web-snapshot-comparison", WebSnapshotComparisonPanel),
     unidentifiedPdfList: requiredElement("unidentified-pdf-list-panel", UnidentifiedPdfList),
     workspaceRailTabs: requiredElement("workspace-rail-tabs", WorkspaceRailTabs),
-    filesRailPanel: requiredElement("files-rail-panel", HTMLElement),
-    researchRailPanel: requiredElement("research-rail-panel", HTMLElement),
-    commentsRailPanel: requiredElement("comments-rail-panel", HTMLElement),
-    guideRailPanel: requiredElement("guide-rail-panel", HTMLElement),
     manuscriptMapPanel: requiredElement("manuscript-map-panel", ManuscriptMapPanel),
     researchDiaryPanel: requiredElement("research-diary-panel", ResearchDiarySummary),
     researchQuestionPanel: requiredElement("research-question-panel", WritingWorkflowPanel),

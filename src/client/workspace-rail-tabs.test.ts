@@ -3,6 +3,8 @@ import type { WorkspaceRail } from "./workspace-ui-route";
 import { WorkspaceRailTabs, workspaceRailChangeEvent } from "./workspace-rail-tabs";
 
 class TestWorkspaceRailTabs extends WorkspaceRailTabs {
+  readonly hiddenPanels = new Map<WorkspaceRail, boolean>();
+
   renderForTest() {
     return this.render();
   }
@@ -16,6 +18,10 @@ class TestWorkspaceRailTabs extends WorkspaceRailTabs {
     Object.defineProperty(event, "currentTarget", { value: { dataset: mode ? { railMode: mode } : {} } });
     this.select(event);
   }
+
+  protected override setPanelHidden(mode: WorkspaceRail, hidden: boolean): void {
+    this.hiddenPanels.set(mode, hidden);
+  }
 }
 
 describe("workspace rail tabs", () => {
@@ -26,6 +32,12 @@ describe("workspace rail tabs", () => {
     tabs.setMode("comments");
     tabs.setCommentCount(3);
     expect(tabs.mode).toBe("comments");
+    expect([...tabs.hiddenPanels]).toEqual([
+      ["files", true],
+      ["research", true],
+      ["comments", false],
+      ["guide", true],
+    ]);
     expect(tabs.renderForTest()).toBeDefined();
   });
 

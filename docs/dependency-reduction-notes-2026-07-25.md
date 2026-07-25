@@ -2085,3 +2085,22 @@ The browser application artifact changes from 788,927 B raw / 212,646 B gzip to
 unique production package counts remain unchanged at 135,411 B raw / 23,373 B
 gzip and 18 and 150. Full native CI passes all 1,383 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Workspace Rail Panels
+
+The existing `WorkspaceRailTabs` now derives the four panels it controls from
+the tab contract and updates panel visibility together with selected-tab
+presentation. `WorkspaceApp` retains route synchronization, responsive rail
+layout, and the Writing guide's derived rendering, but no longer registers or
+mutates the four panel elements independently.
+
+This checkpoint reduces `src/client/app.ts` from 7,449 to 7,433 lines (-16) and
+removes four coordinator-only element references. Focused unit coverage verifies
+the complete panel-visibility projection, and focused browser coverage passes
+real Files, Research, and Writing guide switches.
+
+The browser application artifact shrinks from 788,880 B raw / 212,687 B gzip to
+788,646 B raw / 212,670 B gzip (-234 B raw / -17 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip and 18 and 150. Full native CI passes all 1,383 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.
