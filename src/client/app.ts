@@ -70,6 +70,7 @@ import {
   GitHubImportPanel,
   gitHubImportCancelEvent,
   gitHubImportConfirmEvent,
+  gitHubImportPreviewEvent,
   gitHubInstallationChangeEvent,
   gitHubRepositoryChangeEvent,
 } from "./github-import-panel";
@@ -435,7 +436,6 @@ interface Elements {
   latexImportDialog: HTMLDialogElement;
   latexImportPanel: LatexImportPanel;
   gitHubImportDialog: HTMLDialogElement;
-  gitHubImportForm: HTMLFormElement;
   gitHubConnectionPanel: GitHubConnectionPanel;
   gitHubImportPanel: GitHubImportPanel;
   gitHubSyncMenu: GitHubSyncMenu;
@@ -1007,7 +1007,7 @@ class WorkspaceApp {
       else if (action.action === "preview") void this.#previewLatexImport(action.archive, action.root);
       else void this.#confirmLatexImport(action);
     });
-    this.#elements.gitHubImportForm.addEventListener("submit", (event) => void this.#previewGitHubImport(event));
+    this.#elements.gitHubImportPanel.addEventListener(gitHubImportPreviewEvent, () => void this.#previewGitHubImport());
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportDialog.close());
     this.#elements.gitHubImportPanel.addEventListener(gitHubInstallationChangeEvent, () => void this.#loadGitHubRepositories());
     this.#elements.gitHubImportPanel.addEventListener(gitHubRepositoryChangeEvent, () => void this.#loadGitHubBranches());
@@ -1690,8 +1690,7 @@ class WorkspaceApp {
     return value.workspace.href;
   }
 
-  async #previewGitHubImport(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
+  async #previewGitHubImport(): Promise<void> {
     this.#gitHubImportPreviewId = null;
     this.#elements.gitHubImportPanel.beginPreview();
     try {
@@ -8890,7 +8889,6 @@ function collectElements(): Elements {
     latexImportDialog: requiredElement("latex-import-dialog", HTMLDialogElement),
     latexImportPanel: requiredElement("latex-import-panel", LatexImportPanel),
     gitHubImportDialog: requiredElement("github-import-dialog", HTMLDialogElement),
-    gitHubImportForm: requiredElement("github-import-form", HTMLFormElement),
     gitHubConnectionPanel: requiredElement("github-connection-panel", GitHubConnectionPanel),
     gitHubImportPanel: requiredElement("github-import-panel", GitHubImportPanel),
     gitHubSyncMenu: requiredElement("github-sync-control", GitHubSyncMenu),

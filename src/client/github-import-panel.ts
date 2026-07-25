@@ -12,6 +12,7 @@ export interface GitHubImportSelection {
 
 export const gitHubInstallationChangeEvent = "github-installation-change";
 export const gitHubRepositoryChangeEvent = "github-repository-change";
+export const gitHubImportPreviewEvent = "github-import-preview";
 export const gitHubImportConfirmEvent = "github-import-confirm";
 export const gitHubImportCancelEvent = "github-import-cancel";
 
@@ -200,100 +201,102 @@ export class GitHubImportPanel extends LitElement {
   protected override render(): TemplateResult {
     const ready = Boolean(this.installationId && this.repositoryId && this.branch);
     return html`
-      <div class="mt-5 grid gap-3 sm:grid-cols-2">
-        <label class="field-label"
-          >Project title<input
-            class="field"
-            id="github-import-title"
-            maxlength="120"
-            required
-            placeholder="Scalability book"
-            .value=${this.projectTitleValue}
-            @input=${this.updateTitle}
-        /></label>
-        <label class="field-label"
-          >Account<select
-            class="field"
-            id="github-installation-id"
-            required
-            ?disabled=${this.installations.length === 0}
-            .value=${this.installationId}
-            @change=${this.updateInstallation}
+      <form id="github-import-form" @submit=${this.requestPreview}>
+        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+          <label class="field-label"
+            >Project title<input
+              class="field"
+              id="github-import-title"
+              maxlength="120"
+              required
+              placeholder="Scalability book"
+              .value=${this.projectTitleValue}
+              @input=${this.updateTitle}
+          /></label>
+          <label class="field-label"
+            >Account<select
+              class="field"
+              id="github-installation-id"
+              required
+              ?disabled=${this.installations.length === 0}
+              .value=${this.installationId}
+              @change=${this.updateInstallation}
+            >
+              ${this.installations.length === 0
+                ? html`<option value="">${this.installationPlaceholder}</option>`
+                : this.installations.map(
+                    (installation) =>
+                      html`<option value=${String(installation.id)}>
+                        ${installation.accountLogin} · ${installation.accountType === "Organization" ? "organization" : "personal"}
+                      </option>`,
+                  )}
+            </select></label
           >
-            ${this.installations.length === 0
-              ? html`<option value="">${this.installationPlaceholder}</option>`
-              : this.installations.map(
-                  (installation) =>
-                    html`<option value=${String(installation.id)}>
-                      ${installation.accountLogin} · ${installation.accountType === "Organization" ? "organization" : "personal"}
-                    </option>`,
-                )}
-          </select></label
-        >
-        <label class="field-label"
-          >Repository<select
-            class="field"
-            id="github-repository"
-            required
-            ?disabled=${this.repositories.length === 0}
-            .value=${this.repositoryId}
-            @change=${this.updateRepository}
+          <label class="field-label"
+            >Repository<select
+              class="field"
+              id="github-repository"
+              required
+              ?disabled=${this.repositories.length === 0}
+              .value=${this.repositoryId}
+              @change=${this.updateRepository}
+            >
+              ${this.repositories.length === 0
+                ? html`<option value="">${this.repositoryPlaceholder}</option>`
+                : this.repositories.map(
+                    (repository) =>
+                      html`<option value=${String(repository.id)}>${repository.fullName}${repository.private ? " · private" : ""}</option>`,
+                  )}
+            </select></label
           >
-            ${this.repositories.length === 0
-              ? html`<option value="">${this.repositoryPlaceholder}</option>`
-              : this.repositories.map(
-                  (repository) =>
-                    html`<option value=${String(repository.id)}>${repository.fullName}${repository.private ? " · private" : ""}</option>`,
-                )}
-          </select></label
-        >
-        <label class="field-label"
-          >Branch<select
-            class="field"
-            id="github-branch"
-            required
-            ?disabled=${this.branches.length === 0}
-            .value=${this.branch}
-            @change=${this.updateBranch}
+          <label class="field-label"
+            >Branch<select
+              class="field"
+              id="github-branch"
+              required
+              ?disabled=${this.branches.length === 0}
+              .value=${this.branch}
+              @change=${this.updateBranch}
+            >
+              ${this.branches.length === 0
+                ? html`<option value="">${this.branchPlaceholder}</option>`
+                : this.branches.map(
+                    (branch) => html`<option value=${branch.name}>${branch.name}${branch.protected ? " · protected" : ""}</option>`,
+                  )}
+            </select></label
           >
-            ${this.branches.length === 0
-              ? html`<option value="">${this.branchPlaceholder}</option>`
-              : this.branches.map(
-                  (branch) => html`<option value=${branch.name}>${branch.name}${branch.protected ? " · protected" : ""}</option>`,
-                )}
-          </select></label
-        >
-        <label class="field-label"
-          >Folder<input class="field" id="github-root-path" placeholder="book" .value=${this.rootPath} @input=${this.updateRootPath}
-        /></label>
-        <label class="field-label sm:col-span-2"
-          >Entry file <span class="font-normal normal-case text-app-text-soft">(optional)</span
-          ><input class="field" id="github-entry-path" placeholder="main.md" .value=${this.entryPath} @input=${this.updateEntryPath}
-        /></label>
-      </div>
-      <div class="mt-5 border-t border-app-line pt-4" id="github-import-preview" aria-live="polite">
-        ${this.preview
-          ? html`
-              <p class="text-sm font-semibold text-app-text">
-                ${this.preview.files.length} Markdown files · entry ${this.preview.entryPath}
-              </p>
-              <ul class="mt-3 space-y-1 font-sans text-xs text-app-text-soft">
-                ${this.preview.files.slice(0, 12).map((file) => html`<li>${file.path} · ${formatBytes(file.bytes)}</li>`)}
-                ${this.preview.files.length > 12 ? html`<li>…and ${this.preview.files.length - 12} more</li>` : null}
-              </ul>
-            `
-          : html`<p class="ui-status">Preview to inspect the selected files and resolved entry.</p>`}
-      </div>
-      <p class="ui-status mt-3" id="github-import-status" role="status">${this.status}</p>
-      <div class="mt-5 flex justify-end gap-2">
-        <button class="button-secondary" type="button" @click=${this.requestCancel}>Cancel</button>
-        <button class="button-secondary" id="preview-github-import" type="submit" ?disabled=${!ready || this.working}>
-          Preview import
-        </button>
-        <button class="button-primary" type="button" ?disabled=${!this.canConfirm || this.working} @click=${this.requestConfirm}>
-          Create project
-        </button>
-      </div>
+          <label class="field-label"
+            >Folder<input class="field" id="github-root-path" placeholder="book" .value=${this.rootPath} @input=${this.updateRootPath}
+          /></label>
+          <label class="field-label sm:col-span-2"
+            >Entry file <span class="font-normal normal-case text-app-text-soft">(optional)</span
+            ><input class="field" id="github-entry-path" placeholder="main.md" .value=${this.entryPath} @input=${this.updateEntryPath}
+          /></label>
+        </div>
+        <div class="mt-5 border-t border-app-line pt-4" id="github-import-preview" aria-live="polite">
+          ${this.preview
+            ? html`
+                <p class="text-sm font-semibold text-app-text">
+                  ${this.preview.files.length} Markdown files · entry ${this.preview.entryPath}
+                </p>
+                <ul class="mt-3 space-y-1 font-sans text-xs text-app-text-soft">
+                  ${this.preview.files.slice(0, 12).map((file) => html`<li>${file.path} · ${formatBytes(file.bytes)}</li>`)}
+                  ${this.preview.files.length > 12 ? html`<li>…and ${this.preview.files.length - 12} more</li>` : null}
+                </ul>
+              `
+            : html`<p class="ui-status">Preview to inspect the selected files and resolved entry.</p>`}
+        </div>
+        <p class="ui-status mt-3" id="github-import-status" role="status">${this.status}</p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="button-secondary" type="button" @click=${this.requestCancel}>Cancel</button>
+          <button class="button-secondary" id="preview-github-import" type="submit" ?disabled=${!ready || this.working}>
+            Preview import
+          </button>
+          <button class="button-primary" type="button" ?disabled=${!this.canConfirm || this.working} @click=${this.requestConfirm}>
+            Create project
+          </button>
+        </div>
+      </form>
     `;
   }
 
@@ -325,11 +328,16 @@ export class GitHubImportPanel extends LitElement {
     if (event.currentTarget instanceof HTMLInputElement) this.entryPath = event.currentTarget.value;
   }
 
-  private requestCancel(): void {
+  protected requestCancel(): void {
     this.dispatchEvent(new CustomEvent(gitHubImportCancelEvent));
   }
 
-  private requestConfirm(): void {
+  protected requestPreview(event: SubmitEvent): void {
+    event.preventDefault();
+    this.dispatchEvent(new CustomEvent(gitHubImportPreviewEvent));
+  }
+
+  protected requestConfirm(): void {
     this.dispatchEvent(new CustomEvent(gitHubImportConfirmEvent));
   }
 }

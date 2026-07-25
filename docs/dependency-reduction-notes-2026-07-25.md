@@ -1219,3 +1219,25 @@ Full native CI passes all 1,306 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 739,424 B raw
 / 202,590 B gzip to 742,734 B raw / 203,460 B gzip (+3,310 B raw / +870 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Consolidation: GitHub Import Submission
+
+The existing `GitHubImportPanel` now owns its form boundary and preview
+submission in addition to picker values, readiness, preview status, and cancel
+and confirmation actions. This removes the last coordinator-owned
+`HTMLFormElement`, its submit binding, and event cancellation in favor of a
+typed preview intent. Connection, installation, repository, branch, preview,
+and project-creation requests remain in `WorkspaceApp`.
+
+This checkpoint reduces `src/client/app.ts` from 9,235 to 9,233 lines (-2) and
+adds 15 lines to the existing component. New component tests cover light-DOM
+form ownership, connected and disconnected picker lifecycles, selected account,
+repository, and branch projection, preview and creation states, long preview
+rendering, and typed preview, cancel, and confirmation intents. The focused
+GitHub connection-gating and import workflow passes. The component records
+81.73% statement and 87.61% line coverage, up from no direct unit coverage.
+
+Full native CI passes all 1,309 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact changes from 742,734 B
+raw / 203,460 B gzip to 742,994 B raw / 203,420 B gzip (+260 B raw / -40 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

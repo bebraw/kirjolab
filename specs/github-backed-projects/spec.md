@@ -120,10 +120,11 @@ incoming and outgoing mutation.
   coordinator retains connection requests, confirmation, picker loading, and
   import workflow state, while the Worker retains initial fallback markup.
 - The adjacent import picker is a light-DOM Lit component that owns local field
-  values, account/repository/branch options, readiness, preview/status
-  rendering, and typed Cancel and Confirm intents. The application coordinator
-  retains remote loading, payload validation, preview identity, and project
-  creation, while the Worker retains initial fallback markup.
+  values, account/repository/branch options, form submission, readiness,
+  preview/status rendering, and typed Preview, Cancel, and Confirm intents. The
+  application coordinator retains remote loading, payload validation, preview
+  identity, and project creation, while the Worker retains initial fallback
+  markup.
 - The workspace sync menu is a light-DOM Lit component that owns repository
   status presentation, relationship tone, Pull and Push availability, and
   typed Check, Pull, Push, and Settings intents. The application coordinator
