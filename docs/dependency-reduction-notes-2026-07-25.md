@@ -1266,3 +1266,22 @@ and 74 browser tests. The browser application artifact grows from 742,994 B raw
 gzip). This includes Lit's static icon-rendering directive and the toolbar
 template. Direct and unique production package counts remain unchanged at 18
 and 150.
+
+## Continued Lit Extraction: Unidentified PDF Queue
+
+A bounded `UnidentifiedPdfList` now owns the compatibility queue for PDF
+artifacts that are not yet linked to a reference. This replaces two raw element
+references, imperative section, count, empty-state, card, and reference-option
+rendering, and per-card event binding with one typed identification intent.
+`WorkspaceApp` retains identification mutations, library refreshes, and toasts.
+
+This checkpoint reduces `src/client/app.ts` from 9,202 to 9,181 lines (-21).
+The component adds 117 lines. Component tests cover empty and populated
+projection, selected-reference identification, and stale-selection pruning.
+The focused linked-reference PDF browser workflow passes. The component records
+82.75% statement and 84% line coverage.
+
+Full native CI passes all 1,315 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 749,873 B raw
+/ 205,513 B gzip to 751,362 B raw / 205,781 B gzip (+1,489 B raw / +268 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

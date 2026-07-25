@@ -59,6 +59,11 @@ memory and makes citation aliases compete with stable source identity.
   presentation. The workspace coordinator retains file and drop input, queue
   execution, upload transport, failed-file ownership, Library refreshes, and
   toast policy.
+- A bounded light-DOM queue owns the count, visibility, reference choices, and
+  typed identification intents for legacy PDF artifacts that are not attached
+  to a source. The workspace coordinator retains the identification mutation,
+  Library refresh, and toast policy. New uploads still create their provisional
+  source atomically and normally bypass this compatibility queue.
 - Linked PDF records may preview bounded, provider-specific OpenAlex, Crossref,
   DataCite, and Semantic Scholar candidates inline according to configured
   provider order. Records are grouped by normalized DOI before the researcher

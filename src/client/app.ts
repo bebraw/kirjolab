@@ -62,7 +62,6 @@ import {
 } from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary } from "../domain/reference-filters";
-import { formatBytes } from "./format";
 import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { sourceSpanAt } from "./composition-source-map";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
@@ -111,6 +110,7 @@ import {
   type WorkspaceSharingActionDetail,
 } from "./workspace-sharing-panel";
 import { WorkspaceCatalogPanel, workspaceCatalogCloseEvent } from "./workspace-catalog-panel";
+import { UnidentifiedPdfList, unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
 import {
   WorkspaceSettingsPanel,
   workspaceSettingsActionEvent,
@@ -462,8 +462,7 @@ interface Elements {
   citationNetworkPanel: CitationNetworkPanel;
   webSourceCapture: WebSourceCapture;
   webSnapshotComparison: WebSnapshotComparisonPanel;
-  unidentifiedPdfCount: HTMLElement;
-  unidentifiedPdfList: HTMLElement;
+  unidentifiedPdfList: UnidentifiedPdfList;
   showFilesRail: HTMLButtonElement;
   showResearchRail: HTMLButtonElement;
   showCommentsRail: HTMLButtonElement;
@@ -1114,6 +1113,10 @@ class WorkspaceApp {
       void this.#refreshReferenceLibrary();
     });
     this.#elements.referenceLibraryFilters.addEventListener(referenceLibraryFilterChangeEvent, () => this.#renderReferenceLibrary());
+    this.#elements.unidentifiedPdfList.addEventListener(unidentifiedPdfIdentifyEvent, (event) => {
+      const { artifactId, referenceId } = (event as CustomEvent<UnidentifiedPdfSelection>).detail;
+      void this.#identifyLibraryPdf(artifactId, referenceId);
+    });
     this.#bindSourceEditor(this.#source);
     this.#rememberAuthoringSelection();
     bindVimTextarea(this.#elements.source, this.#elements.sourceEditorShell, this.#elements.vimToggle, this.#elements.vimModeStatus);
@@ -3645,11 +3648,7 @@ class WorkspaceApp {
     for (const reference of references) this.#elements.referenceLibraryList.append(this.#referenceLibraryCard(reference));
 
     const unidentified = library.artifacts.filter((artifact) => artifact.referenceId === null);
-    this.#elements.unidentifiedPdfCount.textContent = String(unidentified.length);
-    this.#elements.unidentifiedPdfList.closest("section")?.classList.toggle("hidden", unidentified.length === 0);
-    this.#elements.unidentifiedPdfList.replaceChildren();
-    if (unidentified.length === 0) this.#elements.unidentifiedPdfList.append(emptyState("No unidentified PDFs."));
-    for (const artifact of unidentified) this.#elements.unidentifiedPdfList.append(this.#unidentifiedPdfCard(artifact, library.references));
+    this.#elements.unidentifiedPdfList.setData(unidentified, library.references);
   }
 
   async #openCitationNetwork(): Promise<void> {
@@ -4200,25 +4199,6 @@ class WorkspaceApp {
     action.title = referenceLinked ? "" : "Add the bibliographic reference to this project first";
     row.append(action);
     return row;
-  }
-
-  #unidentifiedPdfCard(artifact: LibraryPdfArtifact, references: readonly BibliographicRecord[]): HTMLElement {
-    const card = document.createElement("article");
-    card.className = "resource-card";
-    card.append(resourceLabel(`Private PDF · ${formatBytes(artifact.size)}`), resourceTitle(artifact.name));
-    const select = document.createElement("select");
-    select.className = "field mt-3";
-    select.setAttribute("aria-label", `Identify ${artifact.name} as a reference`);
-    select.append(new Option("Choose identified source…", ""));
-    for (const reference of references) select.append(new Option(bibTeXDisplayText(reference.title), reference.id));
-    const identify = actionButton(
-      "Identify PDF",
-      "button-primary mt-2 w-full justify-center",
-      () => void this.#identifyLibraryPdf(artifact.id, select.value),
-    );
-    identify.disabled = references.length === 0;
-    card.append(select, identify);
-    return card;
   }
 
   async #importIntoReferenceLibrary(): Promise<void> {
@@ -8894,8 +8874,7 @@ function collectElements(): Elements {
     citationNetworkPanel: requiredElement("citation-network-panel", CitationNetworkPanel),
     webSourceCapture: requiredElement("web-source-capture", WebSourceCapture),
     webSnapshotComparison: requiredElement("web-snapshot-comparison", WebSnapshotComparisonPanel),
-    unidentifiedPdfCount: requiredElement("unidentified-pdf-count", HTMLElement),
-    unidentifiedPdfList: requiredElement("unidentified-pdf-list", HTMLElement),
+    unidentifiedPdfList: requiredElement("unidentified-pdf-list-panel", UnidentifiedPdfList),
     showFilesRail: requiredElement("show-files-rail", HTMLButtonElement),
     showResearchRail: requiredElement("show-research-rail", HTMLButtonElement),
     showCommentsRail: requiredElement("show-comments-rail", HTMLButtonElement),

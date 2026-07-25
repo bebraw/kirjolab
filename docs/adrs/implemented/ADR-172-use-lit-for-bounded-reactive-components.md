@@ -154,6 +154,8 @@ The adopted components own bounded presentation:
 - The Library PDF annotation toolbar owns tool and drawing-style controls,
   annotation availability and inspector state, and typed tool, undo, export,
   and inspector intents.
+- The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
+  reference choices, and typed identification intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -344,6 +346,10 @@ reason to wrap static markup mechanically.
   while leaving gestures, the annotation state machine, drawing persistence,
   annotated export, inspector policy, and toasts in the application
   coordinator.
+- The unidentified-PDF queue replaces two internal element references,
+  imperative section, count, empty-state, card, and option rendering, and
+  per-card action bindings while leaving legacy artifact identification,
+  Library refreshes, and toast policy in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

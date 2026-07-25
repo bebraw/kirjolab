@@ -425,10 +425,12 @@ export function renderHomePage(
                 <div class="mt-4 space-y-3" id="citation-network-list" aria-live="polite"><div class="empty-state">Loading citation assertions…</div></div>
               </citation-network-panel>
             </section>
-            <section class="mt-6 border-t border-app-line pt-5" id="unidentified-pdf-section">
-              <div class="flex items-center justify-between gap-3"><p class="eyebrow">PDFs awaiting identification</p><span class="count-badge" id="unidentified-pdf-count">0</span></div>
-              <div class="mt-3 grid gap-3" id="unidentified-pdf-list"><div class="empty-state">No unidentified PDFs.</div></div>
-            </section>
+            <unidentified-pdf-list id="unidentified-pdf-list-panel">
+              <section class="mt-6 border-t border-app-line pt-5" id="unidentified-pdf-section">
+                <div class="flex items-center justify-between gap-3"><p class="eyebrow">PDFs awaiting identification</p><span class="count-badge" id="unidentified-pdf-count">0</span></div>
+                <div class="mt-3 grid gap-3" id="unidentified-pdf-list"><div class="empty-state">No unidentified PDFs.</div></div>
+              </section>
+            </unidentified-pdf-list>
           </div>
         </section>
 
