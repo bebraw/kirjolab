@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import { compareWebSnapshotText, type WebSnapshotDiffHunk } from "./reference-library";
 import { composeProject, type ProjectAsset, type ProjectFile, type ProjectFolder } from "./project-files";
 import { countPublicationWords } from "./publication-statistics";
@@ -99,6 +100,102 @@ interface BinaryProjection {
   readonly fingerprint: string;
 }
 
+const revisionSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0));
+const nonNegativeIntegerSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0));
+const projectMilestoneSchema = v.object({
+  id: v.string(),
+  revision: revisionSchema,
+  name: v.string(),
+  description: v.string(),
+  createdAt: v.string(),
+});
+const projectRevisionSummariesSchema = v.array(
+  v.object({
+    revision: revisionSchema,
+    title: v.string(),
+    reason: v.string(),
+    createdAt: v.string(),
+    fileCount: nonNegativeIntegerSchema,
+    milestones: v.array(projectMilestoneSchema),
+  }),
+);
+const projectRevisionContentSchema = v.object({
+  revision: revisionSchema,
+  title: v.string(),
+  entryFileId: v.string(),
+  source: v.string(),
+  bibliography: v.string(),
+  files: v.array(
+    v.object({
+      id: v.string(),
+      path: v.string(),
+      mediaType: v.literal("text/markdown"),
+      content: v.string(),
+      createdAt: v.string(),
+      updatedAt: v.string(),
+    }),
+  ),
+  folders: v.array(
+    v.object({
+      id: v.string(),
+      path: v.string(),
+      createdAt: v.string(),
+      updatedAt: v.string(),
+    }),
+  ),
+  assets: v.array(
+    v.object({
+      id: v.string(),
+      path: v.string(),
+      mediaType: v.string(),
+      size: v.number(),
+      objectKey: v.string(),
+      fingerprint: v.string(),
+      createdAt: v.string(),
+      updatedAt: v.string(),
+    }),
+  ),
+  projectReferences: v.array(v.unknown()),
+  researchShares: v.array(v.unknown()),
+  pdfs: v.array(v.unknown()),
+  publicationPdfLinks: v.array(v.unknown()),
+  annotations: v.array(v.unknown()),
+  claims: v.array(v.unknown()),
+  comments: v.array(v.unknown()),
+  reviewArtifactPins: v.array(v.custom<ReviewArtifactPin>(isReviewArtifactPin)),
+  relationships: v.object({
+    annotationPassages: nonNegativeIntegerSchema,
+    claimEvidence: nonNegativeIntegerSchema,
+    claimPassages: nonNegativeIntegerSchema,
+    comments: nonNegativeIntegerSchema,
+  }),
+});
+const projectRevisionDiffSchema = v.object({
+  fromRevision: revisionSchema,
+  toRevision: revisionSchema,
+  files: v.array(
+    v.object({
+      id: v.string(),
+      status: v.picklist(["added", "removed", "renamed", "modified", "unchanged"]),
+      addedLines: v.pipe(v.number(), v.safeInteger()),
+      removedLines: v.pipe(v.number(), v.safeInteger()),
+      hunks: v.array(v.unknown()),
+    }),
+  ),
+  composed: v.pipe(
+    v.object({
+      addedLines: v.pipe(v.number(), v.safeInteger()),
+      removedLines: v.pipe(v.number(), v.safeInteger()),
+      beforeWords: nonNegativeIntegerSchema,
+      afterWords: nonNegativeIntegerSchema,
+      wordDelta: v.pipe(v.number(), v.safeInteger()),
+      hunks: v.array(v.unknown()),
+    }),
+    v.check((composed) => composed.wordDelta === composed.afterWords - composed.beforeWords),
+  ),
+  binaries: v.array(v.unknown()),
+});
+
 export function compareProjectRevisions(before: ProjectRevisionContent, after: ProjectRevisionContent): ProjectRevisionDiff {
   const files = stableUnion(
     before.files.map((file) => file.id),
@@ -167,88 +264,11 @@ export function compareProjectRevisions(before: ProjectRevisionContent, after: P
 }
 
 export function isProjectRevisionSummaries(value: unknown): value is ProjectRevisionSummary[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (item) =>
-        isRecord(item) &&
-        isRevision(item.revision) &&
-        typeof item.title === "string" &&
-        typeof item.reason === "string" &&
-        typeof item.createdAt === "string" &&
-        Number.isSafeInteger(item.fileCount) &&
-        typeof item.fileCount === "number" &&
-        item.fileCount >= 0 &&
-        Array.isArray(item.milestones) &&
-        item.milestones.every(isProjectMilestone),
-    )
-  );
+  return v.is(projectRevisionSummariesSchema, value);
 }
 
 export function isProjectRevisionContent(value: unknown): value is ProjectRevisionContent {
-  return (
-    isRecord(value) &&
-    isRevision(value.revision) &&
-    typeof value.title === "string" &&
-    typeof value.entryFileId === "string" &&
-    typeof value.source === "string" &&
-    typeof value.bibliography === "string" &&
-    Array.isArray(value.files) &&
-    value.files.every(
-      (file) =>
-        isRecord(file) &&
-        typeof file.id === "string" &&
-        typeof file.path === "string" &&
-        file.mediaType === "text/markdown" &&
-        typeof file.content === "string" &&
-        typeof file.createdAt === "string" &&
-        typeof file.updatedAt === "string",
-    ) &&
-    Array.isArray(value.folders) &&
-    value.folders.every(
-      (folder) =>
-        isRecord(folder) &&
-        typeof folder.id === "string" &&
-        typeof folder.path === "string" &&
-        typeof folder.createdAt === "string" &&
-        typeof folder.updatedAt === "string",
-    ) &&
-    Array.isArray(value.assets) &&
-    value.assets.every(
-      (asset) =>
-        isRecord(asset) &&
-        typeof asset.id === "string" &&
-        typeof asset.path === "string" &&
-        typeof asset.mediaType === "string" &&
-        typeof asset.size === "number" &&
-        typeof asset.objectKey === "string" &&
-        typeof asset.fingerprint === "string" &&
-        typeof asset.createdAt === "string" &&
-        typeof asset.updatedAt === "string",
-    ) &&
-    Array.isArray(value.projectReferences) &&
-    Array.isArray(value.researchShares) &&
-    Array.isArray(value.pdfs) &&
-    Array.isArray(value.publicationPdfLinks) &&
-    Array.isArray(value.annotations) &&
-    Array.isArray(value.claims) &&
-    Array.isArray(value.comments) &&
-    Array.isArray(value.reviewArtifactPins) &&
-    value.reviewArtifactPins.every(isReviewArtifactPin) &&
-    isRecord(value.relationships) &&
-    typeof value.relationships.annotationPassages === "number" &&
-    Number.isSafeInteger(value.relationships.annotationPassages) &&
-    value.relationships.annotationPassages >= 0 &&
-    typeof value.relationships.claimEvidence === "number" &&
-    Number.isSafeInteger(value.relationships.claimEvidence) &&
-    value.relationships.claimEvidence >= 0 &&
-    typeof value.relationships.claimPassages === "number" &&
-    Number.isSafeInteger(value.relationships.claimPassages) &&
-    value.relationships.claimPassages >= 0 &&
-    typeof value.relationships.comments === "number" &&
-    Number.isSafeInteger(value.relationships.comments) &&
-    value.relationships.comments >= 0
-  );
+  return v.is(projectRevisionContentSchema, value);
 }
 
 function assetAsBinary(asset: ProjectAsset): BinaryProjection {
@@ -262,31 +282,7 @@ function assetAsBinary(asset: ProjectAsset): BinaryProjection {
 }
 
 export function isProjectRevisionDiff(value: unknown): value is ProjectRevisionDiff {
-  return (
-    isRecord(value) &&
-    isRevision(value.fromRevision) &&
-    isRevision(value.toRevision) &&
-    Array.isArray(value.files) &&
-    value.files.every(
-      (file) =>
-        isRecord(file) &&
-        typeof file.id === "string" &&
-        ["added", "removed", "renamed", "modified", "unchanged"].includes(String(file.status)) &&
-        Number.isSafeInteger(file.addedLines) &&
-        Number.isSafeInteger(file.removedLines) &&
-        Array.isArray(file.hunks),
-    ) &&
-    isRecord(value.composed) &&
-    Number.isSafeInteger(value.composed.addedLines) &&
-    Number.isSafeInteger(value.composed.removedLines) &&
-    isWordCount(value.composed.beforeWords) &&
-    isWordCount(value.composed.afterWords) &&
-    typeof value.composed.wordDelta === "number" &&
-    Number.isSafeInteger(value.composed.wordDelta) &&
-    value.composed.wordDelta === value.composed.afterWords - value.composed.beforeWords &&
-    Array.isArray(value.composed.hunks) &&
-    Array.isArray(value.binaries)
-  );
+  return v.is(projectRevisionDiffSchema, value);
 }
 
 function composedSource(value: ProjectRevisionContent): string {
@@ -307,27 +303,4 @@ function binaryEqual(left: BinaryProjection, right: BinaryProjection): boolean {
 
 function stableUnion(left: readonly string[], right: readonly string[]): string[] {
   return [...new Set([...left, ...right])].sort((a, b) => a.localeCompare(b));
-}
-
-function isProjectMilestone(value: unknown): value is ProjectMilestone {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    isRevision(value.revision) &&
-    typeof value.name === "string" &&
-    typeof value.description === "string" &&
-    typeof value.createdAt === "string"
-  );
-}
-
-function isRevision(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-}
-
-function isWordCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

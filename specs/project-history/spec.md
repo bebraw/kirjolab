@@ -36,6 +36,11 @@ continues to use a narrow source revision for stale-selection checks.
 - Historical projections are read-only and omit internal Yjs and raw SQLite
   representations. They expose composed source and the retained scholarly
   resources needed for inspection.
+- Browser-facing history summaries, projections, and comparison results are
+  validated with shared Valibot schemas. Revision and word counts remain
+  non-negative safe integers, file/folder/asset projections retain their
+  required scalar fields, and composed word delta must equal after minus
+  before.
 - Restore replaces the coordination state and captured resource tables, then
   records a new head. It never deletes the target or intervening revisions.
   Connected browsers receive a server-owned `reset` control and reload from an
@@ -91,6 +96,9 @@ continues to use a narrow source revision for stale-selection checks.
   access to any review.
 - Stored SQL identifiers are fixed application table/column names; revision
   payloads must never create arbitrary SQL structure.
+- History response schema changes must retain malformed-field tests for
+  summaries, files, folders, assets, relationship counts, and comparison
+  arithmetic.
 
 ## Current Milestone
 

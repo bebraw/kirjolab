@@ -31,6 +31,8 @@ Adopted boundaries are:
 - Browser response contracts: GitHub connection and synchronization payloads,
   LaTeX import previews, snapshot comparisons, created annotations, and share
   link state.
+- Project history responses: revision summaries, retained revision projections,
+  and file/composed/binary comparison results.
 
 Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records

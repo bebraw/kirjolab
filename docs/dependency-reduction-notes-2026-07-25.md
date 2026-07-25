@@ -126,3 +126,10 @@ relationship tone, action availability, and four local intent bindings behind
 one typed component. `WorkspaceApp` drops eight internal element references and
 25 lines while retaining refresh timing, requests, previews, and settings
 authority. Existing Pull and Push browser workflows pass unchanged.
+
+### Project history response schemas: accepted
+
+The third Valibot boundary replaces independent summary, retained-content, and
+comparison predicates with composable schemas. It removes 27 lines while
+making shared revision/count constraints and composed word-delta arithmetic
+explicit; the existing malformed-field matrix passes unchanged.
