@@ -126,6 +126,11 @@ memory and makes citation aliases compete with stable source identity.
   may edit each private note before one explicit, atomic import. Detection never
   uploads page pixels, silently saves a candidate, shares research, or mutates a
   project. A scan reads at most 200 pages and returns at most 128 candidates.
+  A bounded light-DOM component owns detection, empty, mixed-source, error,
+  review-selection, private-note, busy, and completion presentation and emits
+  typed detect, import, and cancel intents. The application coordinator retains
+  PDF inspection, duplicate filtering, active-artifact identity, mutation,
+  refresh, and toast policy.
 - The private reader stays focused on the page: its idle annotation surface is
   a compact Select, Text, Note, and Draw toolbar. One typed interaction
   transition authority keeps tool selection, note composition, saved-resource

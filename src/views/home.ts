@@ -639,7 +639,7 @@ export function renderHomePage(
               <details class="library-annotation-details" id="library-annotation-details">
                 <summary><span>Annotations</span></summary>
                 <div class="library-annotation-details-body">
-                  <section class="library-highlight-import" aria-labelledby="library-highlight-import-title">
+                  <pdf-highlight-import-panel class="library-highlight-import" id="pdf-highlight-import-panel" aria-labelledby="library-highlight-import-title">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <strong id="library-highlight-import-title">Highlights in this PDF</strong>
@@ -654,7 +654,7 @@ export function renderHomePage(
                         <button class="button-secondary" id="cancel-library-highlight-import" type="button">Cancel</button>
                       </div>
                     </form>
-                  </section>
+                  </pdf-highlight-import-panel>
                   <div class="space-y-2" id="library-highlight-list"><p class="empty-state">No private annotations yet.</p></div>
                   <details class="library-project-details">
                     <summary>Project sharing</summary>

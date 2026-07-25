@@ -1585,7 +1585,8 @@
   latex-import-panel,
   export-statistics-panel,
   knowledge-connections-panel,
-  assistant-task-panel {
+  assistant-task-panel,
+  pdf-highlight-import-panel {
     display: block;
   }
 

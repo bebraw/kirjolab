@@ -111,6 +111,9 @@ The adopted components own bounded presentation:
   phrasing purpose, structured-table inputs, operation-specific copy and
   visibility, target-preview presentation, readiness, and typed change and
   generation intents.
+- The PDF highlight import panel owns detection, empty, mixed-source, error,
+  review, selection, private-note, busy, and completion presentation with typed
+  detect, import, and cancel intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -229,6 +232,11 @@ reason to wrap static markup mechanically.
   target-preview, and readiness updates while leaving editor target resolution,
   evidence selection, model requests, workflow state, results, and status policy
   in the application coordinator.
+- The PDF highlight import panel replaces five internal element references,
+  imperative candidate-card rendering, DOM-based review collection, and scan
+  and import busy updates while leaving PDF inspection, duplicate filtering,
+  active-artifact identity, mutation, refresh, and toast policy in the
+  application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without
