@@ -148,6 +148,9 @@ The adopted components own bounded presentation:
 - The project annotation form owns visible-PDF choices, captured quotation
   fields, optional note input, selection status, and typed save and link
   intents.
+- The Library PDF annotation forms own private-highlight, page-note, and
+  selected-markup composer visibility and values plus typed save, cancel, edit,
+  delete, and drawing-style intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -326,6 +329,11 @@ reason to wrap static markup mechanically.
   submitter detection while leaving highlight geometry and persistence,
   annotation identity, manuscript linking, refreshes, and toast policy in the
   application coordinator.
+- The Library PDF annotation forms replace seventeen internal element
+  references, three submit bindings, cancel and selected-markup action bindings,
+  composer visibility updates, and DOM-based value collection while leaving the
+  PDF interaction state machine, selection and drawing geometry, mutations,
+  refreshes, inspector policy, and toasts in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

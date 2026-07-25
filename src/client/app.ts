@@ -89,6 +89,11 @@ import {
 } from "./github-sync-review";
 import { LatexImportPanel, latexImportActionEvent, type LatexImportAction } from "./latex-import-panel";
 import {
+  LibraryPdfAnnotationForms,
+  libraryPdfAnnotationActionEvent,
+  type LibraryPdfAnnotationAction,
+} from "./library-pdf-annotation-forms";
+import {
   ProjectStartingPointBrowser,
   startingPointActionEvent,
   startingPointProjectLoadEvent,
@@ -565,20 +570,11 @@ interface Elements {
   closeLibraryPdfInspector: HTMLButtonElement;
   libraryAnnotationDetails: HTMLDetailsElement;
   pdfHighlightImportPanel: PdfHighlightImportPanel;
-  libraryHighlightForm: HTMLFormElement;
+  libraryPdfAnnotationForms: LibraryPdfAnnotationForms;
   libraryHighlightStatus: HTMLElement;
-  libraryHighlightPage: HTMLInputElement;
-  libraryHighlightQuote: HTMLTextAreaElement;
-  libraryHighlightComment: HTMLInputElement;
-  libraryHighlightExcerpt: HTMLElement;
-  saveLibraryHighlight: HTMLButtonElement;
-  cancelLibraryHighlight: HTMLButtonElement;
   libraryProjectUse: HTMLElement;
   libraryHighlightCount: HTMLElement;
   libraryHighlightList: HTMLElement;
-  libraryNoteForm: HTMLFormElement;
-  libraryNoteBody: HTMLTextAreaElement;
-  cancelLibraryNote: HTMLButtonElement;
   librarySelectTool: HTMLButtonElement;
   libraryTextTool: HTMLButtonElement;
   libraryNoteTool: HTMLButtonElement;
@@ -589,15 +585,6 @@ interface Elements {
   libraryDrawWidthValue: HTMLOutputElement;
   undoLibraryDrawing: HTMLButtonElement;
   exportLibraryAnnotatedPdf: HTMLButtonElement;
-  libraryMarkupSelection: HTMLFormElement;
-  libraryMarkupSelectionLabel: HTMLElement;
-  librarySelectedDrawingOptions: HTMLElement;
-  librarySelectedDrawColor: HTMLInputElement;
-  librarySelectedDrawWidth: HTMLInputElement;
-  librarySelectedDrawWidthValue: HTMLOutputElement;
-  editSelectedLibraryNote: HTMLButtonElement;
-  deleteSelectedLibraryMarkup: HTMLButtonElement;
-  cancelLibraryMarkupSelection: HTMLButtonElement;
   highlightPaintTool: HTMLButtonElement;
   highlightEraserTool: HTMLButtonElement;
   undoHighlight: HTMLButtonElement;
@@ -1267,8 +1254,17 @@ class WorkspaceApp {
     this.#elements.projectAnnotationForm.addEventListener(projectAnnotationSaveEvent, (event) => {
       void this.#createAnnotation((event as CustomEvent<ProjectAnnotationSave>).detail);
     });
-    this.#elements.libraryHighlightForm.addEventListener("submit", (event) => void this.#saveLibraryHighlight(event));
-    this.#elements.cancelLibraryHighlight.addEventListener("click", () => this.#clearLibraryHighlightDraft());
+    this.#elements.libraryPdfAnnotationForms.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
+      const action = (event as CustomEvent<LibraryPdfAnnotationAction>).detail;
+      if (action.action === "save-highlight") void this.#saveLibraryHighlight(action);
+      else if (action.action === "cancel-highlight") this.#clearLibraryHighlightDraft();
+      else if (action.action === "save-note") void this.#saveLibraryPdfNote(action.body);
+      else if (action.action === "cancel-note") this.#clearLibraryPdfNoteDraft();
+      else if (action.action === "apply-drawing") void this.#updateSelectedLibraryDrawing(action);
+      else if (action.action === "edit-note") this.#editSelectedLibraryPdfNote();
+      else if (action.action === "delete-markup") void this.#deleteSelectedLibraryPdfMarkup();
+      else this.#clearLibraryPdfMarkupSelection();
+    });
     this.#elements.librarySelectTool.addEventListener("click", () => this.#setLibraryPdfTool("select"));
     this.#elements.libraryTextTool.addEventListener("click", () => this.#setLibraryPdfTool("text"));
     this.#elements.libraryNoteTool.addEventListener("click", () => this.#setLibraryPdfTool("note"));
@@ -1284,15 +1280,6 @@ class WorkspaceApp {
     this.#elements.libraryDrawWidth.addEventListener("input", () => {
       this.#elements.libraryDrawWidthValue.value = this.#elements.libraryDrawWidth.value;
     });
-    this.#elements.librarySelectedDrawWidth.addEventListener("input", () => {
-      this.#elements.librarySelectedDrawWidthValue.value = this.#elements.librarySelectedDrawWidth.value;
-    });
-    this.#elements.libraryMarkupSelection.addEventListener("submit", (event) => void this.#updateSelectedLibraryDrawing(event));
-    this.#elements.editSelectedLibraryNote.addEventListener("click", () => this.#editSelectedLibraryPdfNote());
-    this.#elements.deleteSelectedLibraryMarkup.addEventListener("click", () => void this.#deleteSelectedLibraryPdfMarkup());
-    this.#elements.cancelLibraryMarkupSelection.addEventListener("click", () => this.#clearLibraryPdfMarkupSelection());
-    this.#elements.libraryNoteForm.addEventListener("submit", (event) => void this.#saveLibraryPdfNote(event));
-    this.#elements.cancelLibraryNote.addEventListener("click", () => this.#clearLibraryPdfNoteDraft());
     this.#elements.undoLibraryDrawing.addEventListener("click", () => void this.#undoLibraryDrawing());
     this.#elements.exportLibraryAnnotatedPdf.addEventListener("click", () => void this.#downloadAnnotatedPdf());
     this.#elements.paperMarkups.addEventListener("pointerdown", (event) => this.#startLibraryPdfMarkup(event));
@@ -7395,15 +7382,14 @@ class WorkspaceApp {
       const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === activeTab.id);
       if (!artifact) return;
       this.#elements.libraryHighlightComposer.dataset.artifactId = artifact.id;
-      this.#elements.libraryHighlightPage.value = String(capture.page);
-      this.#elements.libraryHighlightQuote.value = capture.quote;
       this.#libraryHighlightRects = capture.rects;
       this.#editingLibraryHighlightId = null;
-      this.#elements.libraryHighlightExcerpt.textContent = `“${capture.quote}”`;
-      this.#elements.saveLibraryHighlight.textContent = "Save";
-      this.#elements.libraryHighlightForm.hidden = false;
-      this.#elements.saveLibraryHighlight.disabled = false;
-      this.#elements.cancelLibraryHighlight.disabled = false;
+      this.#elements.libraryPdfAnnotationForms.showHighlight({
+        page: capture.page,
+        quote: capture.quote,
+        comment: "",
+        editing: false,
+      });
       this.#elements.libraryHighlightStatus.textContent = `Page ${capture.page} selection ready.`;
       this.#setLibraryPdfInspector(true);
       return;
@@ -7443,16 +7429,11 @@ class WorkspaceApp {
     this.#resetPdfHighlightImport();
     this.#clearLibraryPdfShapeRecognition();
     this.#elements.libraryHighlightComposer.dataset.artifactId = artifactId;
-    this.#elements.libraryHighlightPage.value = "1";
-    this.#elements.libraryHighlightQuote.value = "";
-    this.#elements.libraryHighlightComment.value = "";
     this.#editingLibraryHighlightId = null;
     this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool: this.#libraryPdfTool() });
-    this.#elements.saveLibraryHighlight.textContent = "Save";
-    this.#elements.libraryHighlightExcerpt.textContent = "";
-    this.#elements.libraryHighlightForm.hidden = true;
-    this.#elements.saveLibraryHighlight.disabled = true;
-    this.#elements.cancelLibraryHighlight.disabled = true;
+    this.#elements.libraryPdfAnnotationForms.clearHighlight(1);
+    this.#elements.libraryPdfAnnotationForms.clearNote();
+    this.#elements.libraryPdfAnnotationForms.clearMarkup();
     this.#elements.libraryHighlightStatus.textContent = "Select text to highlight.";
     this.#setLibraryPdfInspector(false);
   }
@@ -7607,26 +7588,25 @@ class WorkspaceApp {
     );
   }
 
-  async #saveLibraryHighlight(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
+  async #saveLibraryHighlight(action: Extract<LibraryPdfAnnotationAction, { action: "save-highlight" }>): Promise<void> {
     const artifact = this.#activeLibraryPdf();
-    const quote = this.#elements.libraryHighlightQuote.value.trim();
+    const quote = action.quote;
     if (!artifact?.referenceId || !quote) return;
     if (this.#editingLibraryHighlightId) {
-      await this.#updateLibraryHighlightNote(artifact.referenceId, this.#editingLibraryHighlightId);
+      await this.#updateLibraryHighlightNote(artifact.referenceId, this.#editingLibraryHighlightId, action.comment);
       return;
     }
-    await this.#createLibraryHighlight(artifact, artifact.referenceId, quote);
+    await this.#createLibraryHighlight(artifact, artifact.referenceId, action);
   }
 
-  async #updateLibraryHighlightNote(referenceId: string, highlightId: string): Promise<void> {
+  async #updateLibraryHighlightNote(referenceId: string, highlightId: string, comment: string): Promise<void> {
     const response = await fetch(
       `/api/library/references/${encodeURIComponent(referenceId)}/highlights/${encodeURIComponent(highlightId)}`,
       {
         method: "PATCH",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ comment: this.#elements.libraryHighlightComment.value }),
+        body: JSON.stringify({ comment }),
       },
     );
     await expectOk(response);
@@ -7635,14 +7615,18 @@ class WorkspaceApp {
     this.#showToast("Private highlight note updated.");
   }
 
-  async #createLibraryHighlight(artifact: LibraryPdfArtifact, referenceId: string, quote: string): Promise<void> {
-    const page = Number(this.#elements.libraryHighlightPage.value);
+  async #createLibraryHighlight(
+    artifact: LibraryPdfArtifact,
+    referenceId: string,
+    action: Extract<LibraryPdfAnnotationAction, { action: "save-highlight" }>,
+  ): Promise<void> {
+    const { page, quote, comment } = action;
     const extendsExisting = this.#libraryHighlightExtendsExisting(artifact.id, page);
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/highlights`, {
       artifactId: artifact.id,
       page,
       quote,
-      comment: this.#elements.libraryHighlightComment.value,
+      comment,
       rects: this.#libraryHighlightRects,
     });
     await expectOk(response);
@@ -7670,16 +7654,9 @@ class WorkspaceApp {
   }
 
   #clearLibraryHighlightDraft(message = "Selection cancelled. Nothing was saved."): void {
-    this.#elements.libraryHighlightPage.value = String(this.#pdfViewer.currentPage);
-    this.#elements.libraryHighlightQuote.value = "";
     this.#libraryHighlightRects = [];
     this.#editingLibraryHighlightId = null;
-    this.#elements.libraryHighlightComment.value = "";
-    this.#elements.libraryHighlightExcerpt.textContent = "";
-    this.#elements.libraryHighlightForm.hidden = true;
-    this.#elements.saveLibraryHighlight.disabled = true;
-    this.#elements.saveLibraryHighlight.textContent = "Save";
-    this.#elements.cancelLibraryHighlight.disabled = true;
+    this.#elements.libraryPdfAnnotationForms.clearHighlight(this.#pdfViewer.currentPage);
     this.#elements.libraryHighlightStatus.textContent = message;
     this.#pdfViewer.clearDraftSelection();
   }
@@ -7690,18 +7667,16 @@ class WorkspaceApp {
     this.#pdfAnnotation.send({ type: "SELECT_HIGHLIGHT", id: highlight.id });
     this.#pdfViewer.setPrivateHighlightSelection(true, highlight.id);
     this.#editingLibraryHighlightId = highlight.id;
-    this.#elements.libraryHighlightPage.value = String(highlight.page);
-    this.#elements.libraryHighlightQuote.value = highlight.quote;
     this.#libraryHighlightRects = [...highlight.rects];
-    this.#elements.libraryHighlightExcerpt.textContent = `“${highlight.quote}”`;
-    this.#elements.libraryHighlightComment.value = highlight.comment;
-    this.#elements.libraryHighlightForm.hidden = false;
-    this.#elements.saveLibraryHighlight.disabled = false;
-    this.#elements.saveLibraryHighlight.textContent = "Save note";
-    this.#elements.cancelLibraryHighlight.disabled = false;
+    this.#elements.libraryPdfAnnotationForms.showHighlight({
+      page: highlight.page,
+      quote: highlight.quote,
+      comment: highlight.comment,
+      editing: true,
+    });
     this.#elements.libraryHighlightStatus.textContent = `Editing the note for page ${highlight.page}.`;
     this.#setLibraryPdfInspector(true);
-    this.#elements.libraryHighlightComment.focus();
+    this.#elements.libraryPdfAnnotationForms.focusHighlightComment();
   }
 
   #setLibraryPdfInspector(open: boolean, showAnnotations = false): void {
@@ -7711,9 +7686,9 @@ class WorkspaceApp {
   }
 
   #closeLibraryPdfInspector(): void {
-    if (!this.#elements.libraryHighlightForm.hidden) this.#clearLibraryHighlightDraft();
-    if (!this.#elements.libraryNoteForm.hidden) this.#clearLibraryPdfNoteDraft();
-    if (!this.#elements.libraryMarkupSelection.hidden) this.#clearLibraryPdfMarkupSelection();
+    if (this.#elements.libraryPdfAnnotationForms.highlightOpen) this.#clearLibraryHighlightDraft();
+    if (this.#elements.libraryPdfAnnotationForms.noteOpen) this.#clearLibraryPdfNoteDraft();
+    if (this.#elements.libraryPdfAnnotationForms.markupOpen) this.#clearLibraryPdfMarkupSelection();
     this.#setLibraryPdfInspector(false);
     this.#elements.openLibraryPdfInspector.focus();
   }
@@ -7751,9 +7726,7 @@ class WorkspaceApp {
   }
 
   #libraryPdfInspectorEmpty(): boolean {
-    return Boolean(
-      this.#elements.libraryHighlightForm.hidden && this.#elements.libraryNoteForm.hidden && this.#elements.libraryMarkupSelection.hidden,
-    );
+    return this.#elements.libraryPdfAnnotationForms.empty;
   }
 
   #startLibraryPdfMarkup(event: PointerEvent): void {
@@ -7918,10 +7891,10 @@ class WorkspaceApp {
   #finishLibraryPdfNotePress(pointerId: number): void {
     this.#pdfAnnotation.send({ type: "FINISH_NOTE_PRESS", pointerId });
     if (this.#pdfAnnotationSnapshot().value !== "composingNote") return;
-    this.#elements.libraryNoteForm.hidden = false;
+    this.#elements.libraryPdfAnnotationForms.showNote();
     this.#setLibraryPdfInspector(true);
     this.#renderPdfMarkups();
-    this.#elements.libraryNoteBody.focus();
+    this.#elements.libraryPdfAnnotationForms.focusNote();
   }
 
   async #persistLibraryPdfDrawing(points: readonly LibraryPdfPoint[]): Promise<void> {
@@ -7953,11 +7926,9 @@ class WorkspaceApp {
     this.#pdfDrawingShape = null;
   }
 
-  async #saveLibraryPdfNote(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
+  async #saveLibraryPdfNote(body: string): Promise<void> {
     const artifact = this.#activeLibraryPdf();
     const noteDraft = this.#pendingPdfNote();
-    const body = this.#elements.libraryNoteBody.value.trim();
     if (!artifact?.referenceId || !noteDraft || !body) return;
     const { editingId, ...anchor } = noteDraft;
     if (editingId) {
@@ -7992,8 +7963,7 @@ class WorkspaceApp {
 
   #clearLibraryPdfNoteDraft(render = true, saved = false): void {
     this.#pdfAnnotation.send({ type: saved ? "NOTE_SAVED" : "CANCEL_NOTE" });
-    this.#elements.libraryNoteBody.value = "";
-    this.#elements.libraryNoteForm.hidden = true;
+    this.#elements.libraryPdfAnnotationForms.clearNote();
     if (render) this.#renderPdfMarkups();
   }
 
@@ -8001,11 +7971,10 @@ class WorkspaceApp {
     if (this.#libraryPdfTool() !== "select") this.#setLibraryPdfTool("select");
     this.#pdfAnnotation.send({ type: "EDIT_NOTE", id: note.id, page: note.page, point: { x: note.x, y: note.y } });
     this.#renderPdfMarkups();
-    this.#elements.libraryNoteBody.value = note.body;
-    this.#elements.libraryNoteForm.hidden = false;
+    this.#elements.libraryPdfAnnotationForms.showNote(note.body);
     this.#elements.libraryHighlightStatus.textContent = `Editing the note on page ${note.page}.`;
     this.#setLibraryPdfInspector(true);
-    this.#elements.libraryNoteBody.focus();
+    this.#elements.libraryPdfAnnotationForms.focusNote();
   }
 
   #selectLibraryHighlight(highlightId: string): void {
@@ -8018,19 +7987,14 @@ class WorkspaceApp {
   #selectLibraryPdfMarkup(markupId: string): void {
     const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === markupId);
     if (!markup) return;
-    if (!this.#elements.libraryHighlightForm.hidden) this.#clearLibraryHighlightDraft();
+    if (this.#elements.libraryPdfAnnotationForms.highlightOpen) this.#clearLibraryHighlightDraft();
     this.#pdfAnnotation.send({ type: "SELECT_MARKUP", id: markup.id });
     this.#pdfViewer.setPrivateHighlightSelection(true);
-    this.#elements.libraryMarkupSelection.hidden = false;
-    this.#elements.libraryMarkupSelectionLabel.textContent =
-      markup.kind === "note" ? `Note on page ${markup.page} · drag its pin to move` : `Line on page ${markup.page}`;
-    this.#elements.librarySelectedDrawingOptions.hidden = markup.kind !== "drawing";
-    this.#elements.editSelectedLibraryNote.hidden = markup.kind !== "note";
-    if (markup.kind === "drawing") {
-      this.#elements.librarySelectedDrawColor.value = markup.color;
-      this.#elements.librarySelectedDrawWidth.value = String(markup.width);
-      this.#elements.librarySelectedDrawWidthValue.value = String(markup.width);
-    }
+    this.#elements.libraryPdfAnnotationForms.showMarkup({
+      label: markup.kind === "note" ? `Note on page ${markup.page} · drag its pin to move` : `Line on page ${markup.page}`,
+      kind: markup.kind,
+      ...(markup.kind === "drawing" ? { color: markup.color, width: markup.width } : {}),
+    });
     this.#elements.libraryHighlightStatus.textContent =
       markup.kind === "note"
         ? "Note selected. Drag the pin to move it, or edit its text below."
@@ -8041,7 +8005,7 @@ class WorkspaceApp {
 
   #clearLibraryPdfMarkupSelection(render = true): void {
     this.#pdfAnnotation.send({ type: "CLEAR_SELECTION" });
-    this.#elements.libraryMarkupSelection.hidden = true;
+    this.#elements.libraryPdfAnnotationForms.clearMarkup();
     this.#pdfViewer.setPrivateHighlightSelection(this.#libraryPdfTool() === "select");
     if (render) this.#renderPdfMarkups();
   }
@@ -8053,8 +8017,7 @@ class WorkspaceApp {
     if (note) this.#editLibraryPdfNote(note);
   }
 
-  async #updateSelectedLibraryDrawing(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
+  async #updateSelectedLibraryDrawing(action: Extract<LibraryPdfAnnotationAction, { action: "apply-drawing" }>): Promise<void> {
     const drawing = (this.#librarySnapshot?.pdfMarkups ?? []).find(
       (item): item is LibraryPdfDrawing => item.kind === "drawing" && item.id === this.#selectedLibraryPdfMarkupId(),
     );
@@ -8066,8 +8029,8 @@ class WorkspaceApp {
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          color: this.#elements.librarySelectedDrawColor.value,
-          width: Number(this.#elements.librarySelectedDrawWidth.value),
+          color: action.color,
+          width: action.width,
         }),
       },
     );
@@ -9062,20 +9025,11 @@ function collectElements(): Elements {
     closeLibraryPdfInspector: requiredElement("close-library-pdf-inspector", HTMLButtonElement),
     libraryAnnotationDetails: requiredElement("library-annotation-details", HTMLDetailsElement),
     pdfHighlightImportPanel: requiredElement("pdf-highlight-import-panel", PdfHighlightImportPanel),
-    libraryHighlightForm: requiredElement("library-highlight-form", HTMLFormElement),
+    libraryPdfAnnotationForms: requiredElement("library-pdf-annotation-forms", LibraryPdfAnnotationForms),
     libraryHighlightStatus: requiredElement("library-highlight-status", HTMLElement),
-    libraryHighlightPage: requiredElement("library-highlight-page", HTMLInputElement),
-    libraryHighlightQuote: requiredElement("library-highlight-quote", HTMLTextAreaElement),
-    libraryHighlightComment: requiredElement("library-highlight-comment", HTMLInputElement),
-    libraryHighlightExcerpt: requiredElement("library-highlight-excerpt", HTMLElement),
-    saveLibraryHighlight: requiredElement("save-library-highlight", HTMLButtonElement),
-    cancelLibraryHighlight: requiredElement("cancel-library-highlight", HTMLButtonElement),
     libraryProjectUse: requiredElement("library-project-use", HTMLElement),
     libraryHighlightCount: requiredElement("library-highlight-count", HTMLElement),
     libraryHighlightList: requiredElement("library-highlight-list", HTMLElement),
-    libraryNoteForm: requiredElement("library-note-form", HTMLFormElement),
-    libraryNoteBody: requiredElement("library-note-body", HTMLTextAreaElement),
-    cancelLibraryNote: requiredElement("cancel-library-note", HTMLButtonElement),
     librarySelectTool: requiredElement("library-select-tool", HTMLButtonElement),
     libraryTextTool: requiredElement("library-text-tool", HTMLButtonElement),
     libraryNoteTool: requiredElement("library-note-tool", HTMLButtonElement),
@@ -9086,15 +9040,6 @@ function collectElements(): Elements {
     libraryDrawWidthValue: requiredElement("library-draw-width-value", HTMLOutputElement),
     undoLibraryDrawing: requiredElement("undo-library-drawing", HTMLButtonElement),
     exportLibraryAnnotatedPdf: requiredElement("export-library-annotated-pdf", HTMLButtonElement),
-    libraryMarkupSelection: requiredElement("library-markup-selection", HTMLFormElement),
-    libraryMarkupSelectionLabel: requiredElement("library-markup-selection-label", HTMLElement),
-    librarySelectedDrawingOptions: requiredElement("library-selected-drawing-options", HTMLElement),
-    librarySelectedDrawColor: requiredElement("library-selected-draw-color", HTMLInputElement),
-    librarySelectedDrawWidth: requiredElement("library-selected-draw-width", HTMLInputElement),
-    librarySelectedDrawWidthValue: requiredElement("library-selected-draw-width-value", HTMLOutputElement),
-    editSelectedLibraryNote: requiredElement("edit-selected-library-note", HTMLButtonElement),
-    deleteSelectedLibraryMarkup: requiredElement("delete-selected-library-markup", HTMLButtonElement),
-    cancelLibraryMarkupSelection: requiredElement("cancel-library-markup-selection", HTMLButtonElement),
     highlightPaintTool: requiredElement("highlight-paint-tool", HTMLButtonElement),
     highlightEraserTool: requiredElement("highlight-eraser-tool", HTMLButtonElement),
     undoHighlight: requiredElement("undo-highlight", HTMLButtonElement),

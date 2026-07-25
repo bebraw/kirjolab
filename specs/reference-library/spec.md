@@ -180,6 +180,11 @@ memory and makes citation aliases compete with stable source identity.
   movement that becomes a scroll or page swipe cancels the pending note.
   Notes and strokes use normalized page coordinates so they remain aligned when
   the page is resized. Saved annotations are collapsed by default.
+- One bounded light-DOM component owns the private-highlight, page-note, and
+  selected-markup composer values and visibility. It emits typed save, cancel,
+  edit, delete, and drawing-style intents. The application coordinator retains
+  the annotation interaction state machine, captured geometry, active resource
+  identity, persistence, refreshes, inspector policy, and toasts.
 - Saved text-highlight comments and page-note bodies expose an explicit edit
   action. Editing preserves the annotation id, page, geometry, and creation
   time while advancing its update time; it never changes the immutable PDF.

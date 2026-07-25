@@ -1195,3 +1195,27 @@ Full native CI passes all 1,303 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 737,836 B raw
 / 202,326 B gzip to 739,424 B raw / 202,590 B gzip (+1,588 B raw / +264 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Library PDF Annotation Forms
+
+A bounded `LibraryPdfAnnotationForms` now owns private-highlight, page-note, and
+selected-markup composer values and visibility. This replaces seventeen raw
+element references, three submit bindings, cancel and markup-action bindings,
+imperative form visibility, and DOM-based value collection with one typed action
+stream. `WorkspaceApp` retains the PDF annotation state machine, captured
+selection and drawing geometry, active resource identity, mutations, refreshes,
+inspector policy, and toasts.
+
+This checkpoint reduces `src/client/app.ts` from 9,290 to 9,235 lines (-55).
+The component adds 295 lines. Component tests cover light-DOM ownership,
+highlight, note, and markup visibility, current field values, typed save and
+drawing-style intents, and every cancellation and selected-markup action.
+Focused browser workflows pass standalone private-PDF annotation and export,
+linked-PDF sharing, highlight extension and note editing, selected markup, and
+drawing-style updates. The component records 82.6% statement and 85.93% line
+coverage.
+
+Full native CI passes all 1,306 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 739,424 B raw
+/ 202,590 B gzip to 742,734 B raw / 203,460 B gzip (+3,310 B raw / +870 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

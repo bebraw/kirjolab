@@ -620,30 +620,30 @@ export function renderHomePage(
                 </div>
                 <button class="library-pdf-inspector-close" id="close-library-pdf-inspector" type="button" aria-label="Close annotation inspector" title="Close annotation inspector">×</button>
               </header>
-              <form class="library-context-composer" id="library-highlight-form" hidden>
-                <input id="library-highlight-page" type="hidden" value="1">
-                <textarea id="library-highlight-quote" hidden maxlength="20000" required></textarea>
-                <blockquote class="library-selection-excerpt" id="library-highlight-excerpt"></blockquote>
-                <input class="field" id="library-highlight-comment" type="text" maxlength="8000" aria-label="Private comment" placeholder="Add a note (optional)">
-                <button class="button-primary" id="save-library-highlight" type="submit" disabled>Save</button>
-                <button class="button-secondary" id="cancel-library-highlight" type="button" disabled>Cancel</button>
-              </form>
-              <form class="library-context-composer" id="library-note-form" hidden>
-                <textarea class="field" id="library-note-body" maxlength="8000" required aria-label="Private PDF note" placeholder="Write a private note…"></textarea>
-                <button class="button-primary" type="submit">Save note</button>
-                <button class="button-secondary" id="cancel-library-note" type="button">Cancel</button>
-              </form>
-              <form class="library-context-composer library-markup-selection" id="library-markup-selection" hidden>
-                <strong id="library-markup-selection-label">Selected annotation</strong>
-                <div class="library-selected-drawing-options" id="library-selected-drawing-options" hidden>
-                  <label title="Selected line color"><span class="sr-only">Selected line color</span><input id="library-selected-draw-color" type="color" value="#d33f49"></label>
-                  <label class="library-width-control" title="Selected line width"><span class="sr-only">Selected line width</span><input id="library-selected-draw-width" type="range" min="1" max="24" value="4"><output id="library-selected-draw-width-value">4</output></label>
-                  <button class="button-primary" type="submit">Apply style</button>
-                </div>
-                <button class="button-secondary" id="edit-selected-library-note" type="button" hidden>Edit note</button>
-                <button class="button-secondary" id="delete-selected-library-markup" type="button" data-destructive="true">Delete</button>
-                <button class="button-secondary" id="cancel-library-markup-selection" type="button">Done</button>
-              </form>
+              <library-pdf-annotation-forms id="library-pdf-annotation-forms">
+                <form class="library-context-composer" hidden>
+                  <blockquote class="library-selection-excerpt"></blockquote>
+                  <input class="field" type="text" maxlength="8000" aria-label="Private comment" placeholder="Add a note (optional)">
+                  <button class="button-primary" type="submit">Save</button>
+                  <button class="button-secondary" type="button">Cancel</button>
+                </form>
+                <form class="library-context-composer" hidden>
+                  <textarea class="field" maxlength="8000" required aria-label="Private PDF note" placeholder="Write a private note…"></textarea>
+                  <button class="button-primary" type="submit">Save note</button>
+                  <button class="button-secondary" type="button">Cancel</button>
+                </form>
+                <form class="library-context-composer library-markup-selection" hidden>
+                  <strong>Selected annotation</strong>
+                  <div class="library-selected-drawing-options" hidden>
+                    <label title="Selected line color"><span class="sr-only">Selected line color</span><input type="color" value="#d33f49"></label>
+                    <label class="library-width-control" title="Selected line width"><span class="sr-only">Selected line width</span><input type="range" min="1" max="24" value="4"><output>4</output></label>
+                    <button class="button-primary" type="submit">Apply style</button>
+                  </div>
+                  <button class="button-secondary" type="button" hidden>Edit note</button>
+                  <button class="button-secondary" type="button" data-destructive="true">Delete</button>
+                  <button class="button-secondary" type="button">Done</button>
+                </form>
+              </library-pdf-annotation-forms>
               <details class="library-annotation-details" id="library-annotation-details">
                 <summary><span>Annotations</span></summary>
                 <div class="library-annotation-details-body">
