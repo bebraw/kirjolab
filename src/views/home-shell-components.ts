@@ -19,20 +19,22 @@ export function renderWorkspaceLayoutControl(appMode: HomeAppMode): string {
 
 export function renderContextTabs(): string {
   return `<div class="context-tabs" id="context-tabs">
-          <context-tab-strip class="context-tab-list ui-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
+          <context-tab-strip id="context-tab-strip">
+          <div class="context-tab-list ui-tab-list" id="context-tab-list" role="tablist" aria-label="Research context">
             <button class="context-tab ui-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
             <button class="context-tab ui-tab" id="context-library-tab" type="button" role="tab" aria-controls="context-library-panel" aria-selected="false" tabindex="-1">Library</button>
             <button class="context-tab ui-tab" id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1">Writing assistant</button>
             <context-resource-tabs-panel id="context-resource-tabs-panel">
               <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
             </context-resource-tabs-panel>
-          </context-tab-strip>
+          </div>
           <context-tab-overview-panel id="context-tab-overview-panel">
             <details class="context-tab-overview action-menu ui-menu" id="context-tab-overview" data-action-menu hidden>
               <summary class="context-tab-overview-trigger" aria-label="Open context list" title="Open context list">Tabs <span class="count-badge" id="context-tab-overview-count">3</span></summary>
               <div class="editor-command-menu context-tab-overview-menu ui-menu-panel" id="context-tab-overview-list" aria-label="Open contexts"></div>
             </details>
           </context-tab-overview-panel>
+          </context-tab-strip>
           <div class="context-tab-controls" aria-label="Active context actions">
             <preview-context-status class="context-mode-controls" id="preview-context-controls">
               <span class="preview-file-context" id="preview-file-context" title="main.md · composed paper">main.md · composed paper</span>

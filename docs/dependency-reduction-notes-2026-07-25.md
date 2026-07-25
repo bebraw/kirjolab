@@ -2043,3 +2043,26 @@ The browser application artifact shrinks from 789,012 B raw / 212,660 B gzip to
 unique production package counts remain unchanged at 135,376 B raw / 23,364 B
 gzip and 18 and 150. Full native CI passes all 1,381 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Composition: Context Tab Overview
+
+The existing `ContextTabStrip` now composes both the scrollable fixed and
+resource tabs and the non-scrolling overflow overview from one active-context
+projection. It delegates the two dynamic presentations to their existing Lit
+children and centralizes their typed event boundary. `WorkspaceApp` retains
+active-context state, title resolution, authorized Library loading, resource
+closure, route synchronization, and panel presentation.
+
+This checkpoint reduces `src/client/app.ts` from 7,478 to 7,466 lines (-12),
+removes the separate overview component reference and coordinator renderer, and
+keeps the semantic tablist separate from the overflow menu. Focused browser
+coverage passes fixed-tab keyboard selection, resource opening and closure,
+overflow activation, focus restoration, and standalone Library presentation.
+Component coverage remains 100% statements and lines.
+
+The browser application artifact changes from 788,731 B raw / 212,648 B gzip to
+788,927 B raw / 212,646 B gzip (+196 B raw / -2 B gzip). Explicit display-only
+host styling grows from 135,376 B raw / 23,364 B gzip to 135,411 B raw / 23,373
+B gzip (+35 B raw / +9 B gzip). Direct and unique production package counts
+remain unchanged at 18 and 150. Full native CI passes all 1,381 unit/coverage
+tests, 120 Workers-runtime tests, and 74 browser tests.

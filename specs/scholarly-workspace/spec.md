@@ -57,9 +57,10 @@ collaboration.
   publication, PDF, and model-candidate resources without making local tab,
   pin, scroll, or reading-position state collaborative.
   One progressive light-DOM tab strip owns fixed-tab presentation, dynamic-tab
-  composition, keyboard focus, and typed selection or closure intents. The
-  coordinator retains canonical active-context state, authorized resource
-  loading, route synchronization, and context-panel presentation.
+  and overflow-overview composition from one input, keyboard focus, and typed
+  selection or closure intents. The coordinator retains canonical
+  active-context state, authorized resource loading, route synchronization, and
+  context-panel presentation.
   Layouts narrower than the split pane's declared minimum width switch between
   one Authoring or Context surface while preserving both states and without
   introducing horizontal page overflow.

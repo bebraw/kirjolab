@@ -1,11 +1,24 @@
 import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
 import "./context-resource-tabs";
-import { type ContextResourceTabs, type ContextResourceTabsData } from "./context-resource-tabs";
-import type { ResearchContextKey } from "./research-context";
+import "./context-tab-overview";
+import { type ContextResourceTabs } from "./context-resource-tabs";
+import { type ContextTabOverview } from "./context-tab-overview";
+import type { ResearchContextKey, ResearchContextTab, ResearchResourceTab } from "./research-context";
 
 export const contextPrimaryTabActionEvent = "context-primary-tab-action";
 
 export type ContextPrimaryTabAction = "preview" | "library" | "assistant";
+
+export interface ContextTabStripItem {
+  readonly tab: ResearchContextTab;
+  readonly title: string;
+}
+
+export interface ContextTabStripData {
+  readonly activeKey: ResearchContextKey;
+  readonly items: readonly ContextTabStripItem[];
+  readonly standaloneLibrary: boolean;
+}
 
 export function contextTabFocusIndex(key: string, currentIndex: number, tabCount: number): number | null {
   if (key === "ArrowRight") return (currentIndex + 1) % tabCount;
@@ -20,15 +33,14 @@ export class ContextTabStrip extends LitElement {
     data: { state: true },
   };
 
-  declare private data: ContextResourceTabsData;
+  declare private data: ContextTabStripData;
 
   constructor() {
     super();
-    this.data = { activeKey: "preview", items: [] };
-    this.addEventListener("keydown", this.moveFocus);
+    this.data = { activeKey: "preview", items: [], standaloneLibrary: false };
   }
 
-  setTabs(data: ContextResourceTabsData): void {
+  setTabs(data: ContextTabStripData): void {
     this.data = data;
   }
 
@@ -53,15 +65,31 @@ export class ContextTabStrip extends LitElement {
 
   protected override render(): TemplateResult {
     return html`
-      ${this.renderPrimaryTab("preview", "Preview", "context-preview-panel")}
-      ${this.renderPrimaryTab("library", "Library", "context-library-panel")}
-      ${this.renderPrimaryTab("assistant", "Writing assistant", "context-assistant-panel")}
-      <context-resource-tabs-panel id="context-resource-tabs-panel"></context-resource-tabs-panel>
+      <div
+        class="context-tab-list ui-tab-list"
+        id="context-tab-list"
+        role="tablist"
+        aria-label="Research context"
+        @keydown=${this.moveFocus}
+      >
+        ${this.renderPrimaryTab("preview", "Preview", "context-preview-panel")}
+        ${this.renderPrimaryTab("library", "Library", "context-library-panel")}
+        ${this.renderPrimaryTab("assistant", "Writing assistant", "context-assistant-panel")}
+        <context-resource-tabs-panel id="context-resource-tabs-panel"></context-resource-tabs-panel>
+      </div>
+      <context-tab-overview-panel id="context-tab-overview-panel"></context-tab-overview-panel>
     `;
   }
 
   protected override updated(_changedProperties: PropertyValues): void {
-    this.querySelector<ContextResourceTabs>("context-resource-tabs-panel")?.setTabs(this.data);
+    this.querySelector<ContextResourceTabs>("context-resource-tabs-panel")?.setTabs({
+      activeKey: this.data.activeKey,
+      items: this.data.items.filter(
+        (item): item is { readonly tab: ResearchResourceTab; readonly title: string } =>
+          item.tab.kind !== "preview" && item.tab.kind !== "library" && item.tab.kind !== "assistant",
+      ),
+    });
+    this.querySelector<ContextTabOverview>("context-tab-overview-panel")?.setTabs(this.data);
   }
 
   protected activatePrimaryTab(event: Event): void {

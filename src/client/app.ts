@@ -227,7 +227,7 @@ import {
 } from "./manuscript-comment-list";
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
-import { ContextTabOverview, contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
+import { contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
 import { contextResourceTabActionEvent, contextResourceTabId, type ContextResourceTabAction } from "./context-resource-tabs";
 import { ContextTabStrip, contextPrimaryTabActionEvent, type ContextPrimaryTabAction } from "./context-tab-strip";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
@@ -511,7 +511,6 @@ interface Elements {
   workspaceSurfaceSwitcher: WorkspaceSurfaceSwitcher;
   openSourceCitation: HTMLButtonElement;
   contextTabStrip: ContextTabStrip;
-  contextTabOverviewPanel: ContextTabOverview;
   previewContextControls: PreviewContextStatus;
   previewNavigationControl: PreviewNavigationControl;
   pdfContextControls: HTMLElement;
@@ -1352,7 +1351,7 @@ class WorkspaceApp {
       if (detail.action === "activate") this.#activateContext(detail.key);
       else this.#closeContextTab(detail.key);
     });
-    this.#elements.contextTabOverviewPanel.addEventListener(contextTabOverviewActionEvent, (event) => {
+    this.#elements.contextTabStrip.addEventListener(contextTabOverviewActionEvent, (event) => {
       const detail = (event as CustomEvent<ContextTabOverviewAction>).detail;
       if (detail.action === "activate") this.#activateContext(detail.key);
       else this.#closeContextTab(detail.key);
@@ -4512,11 +4511,9 @@ class WorkspaceApp {
     const activeKey = this.#contextState.activeKey;
     this.#elements.contextTabStrip.setTabs({
       activeKey,
-      items: this.#contextState.tabs
-        .filter((tab): tab is ResearchResourceTab => tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant")
-        .map((tab) => ({ tab, title: this.#contextTabTitle(tab) })),
+      items: this.#contextState.tabs.map((tab) => ({ tab, title: this.#contextOverviewTitle(tab) })),
+      standaloneLibrary: appMode === "library",
     });
-    this.#renderContextTabOverview();
     const activeTab = this.#activeResourceTab();
     this.#layout.restorePaneWidth();
     this.#renderContextPanelVisibility(activeKey, activeTab);
@@ -4760,14 +4757,6 @@ class WorkspaceApp {
   #updatePublicationIntakeAvailability(): void {
     const pdfId = this.#activePublicationIntakePdf();
     if (pdfId) this.#renderPublicationIntake(pdfId);
-  }
-
-  #renderContextTabOverview(): void {
-    this.#elements.contextTabOverviewPanel.setTabs({
-      activeKey: this.#contextState.activeKey,
-      items: this.#contextState.tabs.map((tab) => ({ tab, title: this.#contextOverviewTitle(tab) })),
-      standaloneLibrary: appMode === "library",
-    });
   }
 
   #contextOverviewTitle(tab: ResearchContextTab): string {
@@ -7324,8 +7313,7 @@ function collectElements(): Elements {
     previewSyncControls: requiredElement("preview-sync-controls", PreviewSyncControls),
     workspaceSurfaceSwitcher: requiredElement("workspace-surface-switcher", WorkspaceSurfaceSwitcher),
     openSourceCitation: requiredElement("open-source-citation", HTMLButtonElement),
-    contextTabStrip: requiredElement("context-tab-list", ContextTabStrip),
-    contextTabOverviewPanel: requiredElement("context-tab-overview-panel", ContextTabOverview),
+    contextTabStrip: requiredElement("context-tab-strip", ContextTabStrip),
     previewContextControls: requiredElement("preview-context-controls", PreviewContextStatus),
     previewNavigationControl: requiredElement("preview-navigation-control", PreviewNavigationControl),
     pdfContextControls: requiredElement("pdf-context-controls", HTMLElement),

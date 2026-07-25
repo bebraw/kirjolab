@@ -1590,6 +1590,10 @@
     display: block;
   }
 
+  context-tab-strip {
+    display: contents;
+  }
+
   .project-evidence-list {
     display: grid;
     gap: 0.45rem;

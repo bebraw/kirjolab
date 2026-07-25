@@ -38,7 +38,7 @@ describe("context tab strip", () => {
     Object.defineProperty(strip, "replaceChildren", { value: () => (replaced = true) });
     strip.connectForTest();
     expect(strip.renderForTest()).toBeDefined();
-    strip.setTabs({ activeKey: "assistant", items: [] });
+    strip.setTabs({ activeKey: "assistant", items: [], standaloneLibrary: false });
     expect(strip.renderForTest()).toBeDefined();
     expect(strip.rootForTest()).toBe(strip);
     expect(replaced).toBe(true);
@@ -69,14 +69,32 @@ describe("context tab strip", () => {
 
   it("delegates resources and focuses fixed or dynamic tabs", async () => {
     const strip = new TestContextTabStrip();
-    const data = { activeKey: "preview" as const, items: [] };
-    let delegated = false;
+    const data = {
+      activeKey: "preview" as const,
+      items: [
+        { tab: { kind: "preview" as const, key: "preview" as const, scrollTop: 0 }, title: "Preview" },
+        {
+          tab: { id: "item", key: "publication:item" as const, kind: "publication" as const, scrollTop: 0 },
+          title: "Reference",
+        },
+      ],
+      standaloneLibrary: false,
+    };
+    let overviewItems = 0;
+    let resourceItems = 0;
     const focused: string[] = [];
     const tabs = [
       { id: "context-preview-tab", focus: () => focused.push("preview") },
       { id: "context-tab-publication-item", focus: () => focused.push("resource") },
     ];
-    Object.defineProperty(strip, "querySelector", { value: () => ({ setTabs: () => (delegated = true) }) });
+    Object.defineProperty(strip, "querySelector", {
+      value: (selector: string) => ({
+        setTabs: (input: { readonly items: readonly unknown[] }) => {
+          if (selector === "context-resource-tabs-panel") resourceItems = input.items.length;
+          else overviewItems = input.items.length;
+        },
+      }),
+    });
     Object.defineProperty(strip, "querySelectorAll", { value: () => tabs });
 
     strip.setTabs(data);
@@ -85,7 +103,8 @@ describe("context tab strip", () => {
     strip.focusTab("publication:item");
     await Promise.resolve();
 
-    expect(delegated).toBe(true);
+    expect(resourceItems).toBe(1);
+    expect(overviewItems).toBe(2);
     expect(focused).toEqual(["preview", "resource"]);
   });
 
