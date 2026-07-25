@@ -65,6 +65,9 @@ The adopted components own bounded presentation:
   typed citation, paper, link, and unlink intents.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents.
+- The claim list panel owns claim, evidence-link, passage-link, grounding
+  selection, empty-state, and action presentation with typed claim and
+  navigation intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -82,12 +85,6 @@ reason to wrap static markup mechanically.
   from the application coordinator's registry.
 - The import picker replaces ten internal element references, the coordinator's
   repository-option cache, and its imperative option and preview DOM assembly.
-- The starting-point browser removes template preview DOM construction,
-  selection synchronization, and project-source presentation state from the
-  application coordinator while leaving fetches and mutations there.
-- The sync review replaces seven internal element references and conflict/diff
-  DOM construction while leaving preview identities and network authority in
-  the application coordinator.
 - The sharing panel replaces fifteen internal element references and the
   coordinator's member/link DOM assembly while leaving membership, capability,
   and authorization requests in the application coordinator.
@@ -121,6 +118,10 @@ reason to wrap static markup mechanically.
 - The knowledge search panel replaces three internal element references and
   imperative result-card rendering while leaving authorized fetches, response
   validation, and resource navigation in the application coordinator.
+- The claim list panel replaces one internal list reference and five imperative
+  claim render helpers while leaving evidence-selection state, dialogs,
+  mutations, passage navigation, and annotation navigation in the application
+  coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

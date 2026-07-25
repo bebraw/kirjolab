@@ -86,6 +86,7 @@ describe("renderHomePage", () => {
     expect(html).not.toContain('id="open-review-study"');
     expect(html).toContain('id="knowledge-search-form"');
     expect(html).toContain('<knowledge-search-panel id="knowledge-search-panel">');
+    expect(html).toContain('<claim-list-panel id="claim-list-panel">');
     expect(html).toContain('id="knowledge-connection-list"');
     expect(html).toContain('id="show-write-mode" type="button" aria-pressed="true">Write</button>');
     expect(html).toContain('id="show-map-mode" type="button" aria-pressed="false">Map</button>');

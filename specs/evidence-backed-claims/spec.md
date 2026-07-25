@@ -26,6 +26,10 @@ must show where a claim enters authored prose.
   their typed provenance.
 - The editorial rail provides keyboard-operable create, edit, delete, evidence,
   and manuscript-link actions within the existing visual system.
+- A bounded light-DOM component owns claim, evidence-link, passage-link,
+  grounding-selection, and action presentation. It emits typed intents while
+  selection authority, dialogs, mutations, and navigation remain with the
+  application coordinator.
 
 ### API Contracts
 

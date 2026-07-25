@@ -506,3 +506,26 @@ and 74 browser tests. The rebuilt browser application is 675,522 B raw and
 190,633 B gzip, an increase of 1,460 B raw and 450 B gzip from the publication
 context checkpoint. Direct and unique production package counts remain
 unchanged at 18 and 150.
+
+## Continued Lit Extraction: Claim List
+
+The Claims collection now uses one bounded `ClaimListPanel` instead of five
+imperative claim, grounding, evidence-link, passage-link, and action render
+helpers. The component owns empty and populated claim presentation, grounding
+checkbox state, evidence and manuscript link presentation, and typed claim,
+selection, and navigation intents. `WorkspaceApp` retains selection authority,
+dialogs, mutations, confirmations, refreshes, and source navigation.
+
+This checkpoint reduces `src/client/app.ts` from 11,123 to 11,033 lines (-90).
+The component adds 181 lines and reaches 93.47% statement coverage and 94.11%
+line coverage. Four small shared evidence and anchor presentation functions
+moved from the coordinator into a 20-line tested module instead of being
+duplicated by the component. Focused browser workflows pass claim creation,
+atomic replacement, evidence selection, passage linking, candidate grounding,
+and deletion.
+
+Full native CI passes all 1,231 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 678,143 B raw and
+191,345 B gzip, an increase of 2,621 B raw and 712 B gzip from the knowledge
+search checkpoint. Direct and unique production package counts remain unchanged
+at 18 and 150.

@@ -143,7 +143,6 @@ import {
   type ClaimEvidenceRelation,
   type ClaimPassageLink,
   type ClaimResource,
-  type ManuscriptAnchorResolution,
   type ManuscriptComment,
   type ModelCandidate,
   type ModelEvidence,
@@ -185,6 +184,8 @@ import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refineme
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
 import { ProjectMapPanel, projectMapSelectEvent } from "./project-map-panel";
 import { KnowledgeSearchPanel, knowledgeSearchEvent, knowledgeSearchSelectEvent } from "./knowledge-search-panel";
+import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
+import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
   cacheOfflineNavigation,
@@ -634,7 +635,7 @@ interface Elements {
   annotationList: HTMLElement;
   unassignedAnnotationList: HTMLElement;
   claimCount: HTMLElement;
-  claimList: HTMLElement;
+  claimListPanel: ClaimListPanel;
   newClaim: HTMLButtonElement;
   claimDialog: HTMLDialogElement;
   claimForm: HTMLFormElement;
@@ -1417,6 +1418,15 @@ class WorkspaceApp {
     this.#elements.undoHighlight.addEventListener("click", () => void this.#undoLastHighlightStroke());
     this.#elements.citeActivePdf.addEventListener("click", () => this.#citeActivePdf());
     this.#elements.newClaim.addEventListener("click", () => this.#openClaimDialog());
+    this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
+      const detail = (event as CustomEvent<ClaimListAction>).detail;
+      if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
+      else if (detail.action === "edit") this.#openClaimDialog(detail.claim);
+      else if (detail.action === "delete") void this.#deleteClaim(detail.claim);
+      else if (detail.action === "link-passage") void this.#linkClaim(detail.claimId);
+      else if (detail.action === "open-annotation") this.#focusAnnotationCard(detail.annotationId);
+      else this.#showPassage(detail.anchor);
+    });
     this.#elements.cancelClaim.addEventListener("click", () => this.#elements.claimDialog.close());
     this.#elements.claimForm.addEventListener("submit", (event) => void this.#saveClaim(event));
     this.#elements.showAuthoringSurface.addEventListener("click", () => this.#showWorkspaceSurface("authoring"));
@@ -6187,95 +6197,14 @@ class WorkspaceApp {
   #renderClaims(claims: ClaimResource[], links: ClaimPassageLink[]): void {
     if (!this.#snapshot) return;
     this.#elements.claimCount.textContent = String(claims.length);
-    this.#elements.claimList.replaceChildren();
     this.#elements.newClaim.disabled = this.#snapshot.annotations.length === 0;
-    if (claims.length === 0) {
-      this.#elements.claimList.append(emptyState("Evidence-backed claims appear here."));
-      return;
-    }
-    const annotations = new Map(this.#snapshot.annotations.map((annotation) => [annotation.id, annotation]));
-    for (const claim of claims) this.#elements.claimList.append(this.#claimCard(claim, annotations, links));
-  }
-
-  #claimCard(claim: ClaimResource, annotations: ReadonlyMap<string, AnnotationResource>, links: readonly ClaimPassageLink[]): HTMLElement {
-    const card = document.createElement("article");
-    card.className = "resource-card";
-    card.dataset.claimResourceId = claim.id;
-    card.tabIndex = -1;
-    const evidence = this.#snapshot?.claimEvidenceLinks.filter((link) => link.claimId === claim.id) ?? [];
-    card.append(this.#claimGroundingLabel(claim, evidence.length));
-    if (claim.note) {
-      const note = document.createElement("p");
-      note.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
-      note.textContent = claim.note;
-      card.append(note);
-    }
-    if (evidence.length > 0) card.append(this.#claimEvidenceList(evidence, annotations));
-    card.append(
-      this.#claimActions(
-        claim,
-        links.find((link) => link.claimId === claim.id),
-      ),
-    );
-    return card;
-  }
-
-  #claimGroundingLabel(claim: ClaimResource, evidenceCount: number): HTMLElement {
-    const grounding = document.createElement("label");
-    grounding.className = "flex items-start gap-2";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.className = "mt-1 accent-app-accent";
-    checkbox.dataset.modelEvidenceKey = modelEvidenceKey("claim", claim.id);
-    checkbox.checked = this.#modelEvidenceSelection.has(checkbox.dataset.modelEvidenceKey);
-    checkbox.setAttribute("aria-label", `Use claim “${accessibleEvidenceExcerpt(claim.text)}” as model evidence`);
-    checkbox.addEventListener("change", () => this.#setModelEvidenceSelected(checkbox.dataset.modelEvidenceKey ?? "", checkbox.checked));
-    const copy = document.createElement("span");
-    copy.className = "min-w-0";
-    copy.append(resourceLabel(`Claim · ${evidenceCount} ${evidenceCount === 1 ? "source" : "sources"}`), resourceTitle(claim.text));
-    grounding.append(checkbox, copy);
-    return grounding;
-  }
-
-  #claimEvidenceList(
-    evidence: readonly WorkspaceSnapshot["claimEvidenceLinks"][number][],
-    annotations: ReadonlyMap<string, AnnotationResource>,
-  ): HTMLElement {
-    const list = document.createElement("div");
-    list.className = "mt-3 space-y-1";
-    for (const link of evidence) {
-      const annotation = annotations.get(link.annotationId);
-      if (!annotation) continue;
-      list.append(
-        actionButton(
-          `${link.relation} · ${annotation.comment || `page ${annotation.page}`}`,
-          "block w-full text-left font-sans text-xs font-bold text-app-accent-strong underline decoration-app-border underline-offset-4",
-          () => this.#focusAnnotationCard(annotation.id),
-        ),
-      );
-    }
-    return list;
-  }
-
-  #claimActions(claim: ClaimResource, passage: ClaimPassageLink | undefined): HTMLElement {
-    const actions = document.createElement("div");
-    actions.className = "mt-3 grid grid-cols-2 gap-2";
-    actions.append(
-      actionButton("Edit", "button-secondary justify-center", () => this.#openClaimDialog(claim)),
-      actionButton("Delete", "button-secondary justify-center", () => void this.#deleteClaim(claim)),
-      actionButton("Link selected prose", "button-secondary col-span-2 justify-center", () => void this.#linkClaim(claim.id)),
-    );
-    if (passage) {
-      const openPassage = actionButton(anchorActionLabel(passage.resolution), "button-secondary col-span-2 justify-center", () =>
-        this.#showPassage(passage.anchor),
-      );
-      openPassage.dataset.anchorLinkId = passage.id;
-      openPassage.disabled = passage.resolution.status !== "resolved";
-      openPassage.dataset.anchorStatus = passage.resolution.status;
-      openPassage.dataset.anchorMatch = anchorMatchState(passage.resolution);
-      actions.append(openPassage);
-    }
-    return actions;
+    this.#elements.claimListPanel.setClaims({
+      annotations: this.#snapshot.annotations,
+      claims,
+      evidenceLinks: this.#snapshot.claimEvidenceLinks,
+      passageLinks: links,
+      selectedEvidenceKeys: this.#modelEvidenceSelection,
+    });
   }
 
   #renderManuscriptComments(comments: ManuscriptComment[]): void {
@@ -10740,7 +10669,7 @@ function collectElements(): Elements {
     annotationList: requiredElement("annotation-list", HTMLElement),
     unassignedAnnotationList: requiredElement("unassigned-annotation-list", HTMLElement),
     claimCount: requiredElement("claim-count", HTMLElement),
-    claimList: requiredElement("claim-list", HTMLElement),
+    claimListPanel: requiredElement("claim-list-panel", ClaimListPanel),
     newClaim: requiredElement("new-claim", HTMLButtonElement),
     claimDialog: requiredElement("claim-dialog", HTMLDialogElement),
     claimForm: requiredElement("claim-form", HTMLFormElement),
@@ -10896,16 +10825,6 @@ function emptyState(text: string): HTMLElement {
   element.className = "empty-state";
   element.textContent = text;
   return element;
-}
-
-function anchorActionLabel(resolution: ManuscriptAnchorResolution): string {
-  if (resolution.status === "stale") return "Linked passage is stale";
-  return resolution.exactMatch ? "Open linked passage" : "Open changed passage";
-}
-
-function anchorMatchState(resolution: ManuscriptAnchorResolution): "exact" | "changed" | "unavailable" {
-  if (resolution.status === "stale") return "unavailable";
-  return resolution.exactMatch ? "exact" : "changed";
 }
 
 function actionButton(text: string, className: string, action: () => void): HTMLButtonElement {
@@ -11068,17 +10987,8 @@ function readEditingPass(value: string): EditingPass {
   return "structure";
 }
 
-function modelEvidenceKey(kind: "annotation" | "claim", id: string): string {
-  return `${kind}:${id}`;
-}
-
 function parseModelEvidenceKey(value: string): ["annotation" | "claim", string] {
   return value.startsWith("claim:") ? ["claim", value.slice("claim:".length)] : ["annotation", value.slice("annotation:".length)];
-}
-
-function accessibleEvidenceExcerpt(value: string): string {
-  const compact = value.replace(/\s+/gu, " ").trim();
-  return compact.length <= 80 ? compact : `${compact.slice(0, 77)}…`;
 }
 
 function excerptForToast(value: string): string {
