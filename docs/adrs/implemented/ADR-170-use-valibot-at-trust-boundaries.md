@@ -24,12 +24,13 @@ Use pinned Valibot schemas for bounded external or persisted data contracts when
 one schema can replace duplicated structural types and predicates. Infer the
 accepted payload type from the schema where practical.
 
-The first boundary is Library interchange:
+Adopted boundaries are:
 
-- CSL JSON identity, names, dates, optional metadata, and collection limits;
-- portable research tags, collections, notes, reading state, and archive
-  version; and
-- exact preservation of the existing item, string, and collection bounds.
+- Library interchange: CSL JSON identity, names, dates, optional metadata,
+  portable research records, archive version, and existing collection bounds.
+- Browser response contracts: GitHub connection and synchronization payloads,
+  LaTeX import previews, snapshot comparisons, created annotations, and share
+  link state.
 
 Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records
@@ -45,6 +46,8 @@ infrastructure and retain focused boundary tests.
 - Library interchange no longer relies on unchecked double casts.
 - Nested array, union, optional-field, and numeric bounds are expressed
   compositionally.
+- Browser response contracts no longer maintain parallel interfaces, nested
+  predicates, and record helpers for the same payload shapes.
 - Later trust-boundary migrations have an explicit adoption threshold.
 
 **Negative:**

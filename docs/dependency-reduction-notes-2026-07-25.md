@@ -110,3 +110,11 @@ instead of its internal status and action elements. This is a deliberate
 exception to the immediate line-reduction gate, not permission to wrap static
 markup. Later components must retire meaningful element-registry, imperative
 rendering, or event-wiring complexity.
+
+### Browser response schemas: accepted
+
+The second Valibot boundary consolidates GitHub, LaTeX import, snapshot
+comparison, annotation, and share-link response validators in
+`src/client/app-contracts.ts`. Existing malformed-field tests pass unchanged,
+and the module is 96 lines smaller after removing nested handwritten predicates
+and parallel structural return types.
