@@ -1961,3 +1961,24 @@ The browser application artifact grows from 785,079 B raw / 211,723 B gzip to
 unique production package counts remain unchanged at 135,376 B raw / 23,364 B
 gzip and 18 and 150. Full native CI passes all 1,372 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Citation Network Workspace
+
+A composed `CitationNetworkWorkspace` now owns Reference trail visibility,
+current-project filter state and ARIA presentation, close behavior, reference
+synchronization, and candidate-save delegation to the existing network panel.
+`WorkspaceApp` retains authorized requests, validation, review prompts,
+mutations, refreshes, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,582 to 7,570 lines (-12),
+replaces four shell and panel references plus one coordinator filter field with
+one component reference, and removes native filter and close bindings. The
+focused browser workflow passes opening, manual assertions, review, project
+filtering, graph presentation, Crossref expansion, candidate saving, and close
+behavior. Component coverage is 85.18% statements and 88% lines.
+
+The browser application artifact grows from 785,998 B raw / 211,930 B gzip to
+787,700 B raw / 212,289 B gzip (+1,702 B raw / +359 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,376 B raw / 23,364
+B gzip and 18 and 150. Full native CI passes all 1,374 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

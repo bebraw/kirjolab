@@ -306,7 +306,11 @@ collaboration.
   shared library as directional provenance-bearing assertions, not manuscript
   `cites` edges. The bounded derived network can focus on current-project
   references, retains conflicts, and expands Crossref references only after an
-  explicit owner action.
+  explicit owner action. One composed light-DOM workspace owns Reference trail
+  visibility, current-project filter state and ARIA presentation, close
+  behavior, and synchronization with the nested network panel. The application
+  coordinator retains authorized requests, response validation, review
+  prompts, mutations, refreshes, and notification policy.
 - **Knowledge navigation:** Bounded workspace search and typed connection
   representations expose documents, sections, publications, PDFs, and
   annotations as navigable resources in the authoring Map without making an

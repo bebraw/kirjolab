@@ -421,7 +421,7 @@ export function renderHomePage(
             </div>
             <library-reference-list class="reference-library-list" id="reference-library-list"><div class="empty-state">Loading library…</div></library-reference-list>
             <web-snapshot-comparison class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></web-snapshot-comparison>
-            <section class="mt-6 hidden border-t border-app-line pt-5" id="citation-network" aria-labelledby="citation-network-heading">
+            <citation-network-workspace class="mt-6 border-t border-app-line pt-5" id="citation-network" aria-labelledby="citation-network-heading" hidden>
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div><p class="eyebrow">Guided snowballing</p><h3 class="mt-1 text-lg font-semibold" id="citation-network-heading">Reference trail</h3><p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">Follow references from trusted seeds, review each candidate, and retain how every source was found.</p></div>
                 <div class="flex gap-2"><button class="button-secondary" id="filter-project-citations" type="button" aria-pressed="false">Current project</button><button class="button-secondary" id="close-citation-network" type="button">Close network</button></div>
@@ -436,7 +436,7 @@ export function renderHomePage(
                 <div class="mt-4 overflow-hidden border border-app-line bg-app-paper"><svg class="block min-h-72 w-full" id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"></svg></div>
                 <div class="mt-4 space-y-3" id="citation-network-list" aria-live="polite"><div class="empty-state">Loading citation assertions…</div></div>
               </citation-network-panel>
-            </section>
+            </citation-network-workspace>
             <unidentified-pdf-list id="unidentified-pdf-list-panel">
               <section class="mt-6 border-t border-app-line pt-5" id="unidentified-pdf-section">
                 <div class="flex items-center justify-between gap-3"><p class="eyebrow">PDFs awaiting identification</p><span class="count-badge" id="unidentified-pdf-count">0</span></div>

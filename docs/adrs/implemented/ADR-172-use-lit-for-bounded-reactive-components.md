@@ -114,6 +114,10 @@ The adopted components own bounded presentation:
   geometry, source and edge cards, assertion provenance and review controls,
   snowball candidates, and local candidate-save progress with typed record,
   expansion, review, and save intents.
+- The citation network workspace composes that panel with its Reference trail
+  shell, owns visibility, current-project filter state and ARIA presentation,
+  close behavior, reference synchronization, and candidate-save delegation,
+  and emits one typed filter-change intent.
 - The Preview context status and diagnostics panels own file-mode and
   validation status, unavailable-state presentation, composition and renderer
   diagnostic cards, source-map resolution, and typed source-range intents.
@@ -327,6 +331,11 @@ reason to wrap static markup mechanically.
   node, edge, assertion, expansion, candidate, and progress renderers while
   leaving network requests, prompts, mutations, validation, refreshes, and
   toast policy in the application coordinator.
+- The citation network workspace replaces four shell and panel references plus
+  one coordinator filter field with one component reference. It removes native
+  filter and close bindings while leaving authorized network requests,
+  validation, prompts, mutations, refreshes, and toast policy in the
+  application coordinator.
 - The Preview presentation panels replace three internal element references,
   three imperative diagnostic renderers, and the coordinator-local source-map
   lookup helper while leaving Markdown loading and rendering, composed-source

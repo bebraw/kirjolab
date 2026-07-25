@@ -253,7 +253,8 @@ import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "
 import { LibraryPdfUploadStatus, libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
 import { ModelProviderSettings, modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
 import { WebSnapshotComparisonPanel, WebSourceCapture, webSourceCaptureEvent } from "./web-source-panels";
-import { CitationNetworkPanel, citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
+import { citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
+import { CitationNetworkWorkspace, citationNetworkFilterEvent } from "./citation-network-workspace";
 import {
   PreviewContextStatus,
   PreviewDiagnosticsPanel,
@@ -472,10 +473,7 @@ interface Elements {
   showArchivedReferences: HTMLButtonElement;
   referenceLibraryFilters: ReferenceLibraryFilterPanel;
   openCitationNetwork: HTMLButtonElement;
-  citationNetwork: HTMLElement;
-  closeCitationNetwork: HTMLButtonElement;
-  filterProjectCitations: HTMLButtonElement;
-  citationNetworkPanel: CitationNetworkPanel;
+  citationNetwork: CitationNetworkWorkspace;
   webSourceCapture: WebSourceCapture;
   webSnapshotComparison: WebSnapshotComparisonPanel;
   unidentifiedPdfList: UnidentifiedPdfList;
@@ -719,7 +717,6 @@ class WorkspaceApp {
   #showArchivedReferences = false;
   #citationNetwork: CitationNetwork | null = null;
   #citationExpansion: CitationExpansionResult | null = null;
-  #filterProjectCitations = false;
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
   #gitHubImportPreviewId: string | null = null;
@@ -1087,15 +1084,10 @@ class WorkspaceApp {
       void this.#captureWebSource((event as CustomEvent<string>).detail);
     });
     this.#elements.openCitationNetwork.addEventListener("click", () => void this.#openCitationNetwork());
-    this.#elements.closeCitationNetwork.addEventListener("click", () => {
-      this.#elements.citationNetwork.classList.add("hidden");
+    this.#elements.citationNetwork.addEventListener(citationNetworkFilterEvent, (event) => {
+      void this.#refreshCitationNetwork((event as CustomEvent<boolean>).detail);
     });
-    this.#elements.filterProjectCitations.addEventListener("click", () => {
-      this.#filterProjectCitations = !this.#filterProjectCitations;
-      this.#elements.filterProjectCitations.setAttribute("aria-pressed", String(this.#filterProjectCitations));
-      void this.#refreshCitationNetwork();
-    });
-    this.#elements.citationNetworkPanel.addEventListener(citationNetworkActionEvent, (event) => {
+    this.#elements.citationNetwork.addEventListener(citationNetworkActionEvent, (event) => {
       const detail = (event as CustomEvent<CitationNetworkAction>).detail;
       if (detail.action === "expand") void this.#expandCitationReference(detail.referenceId);
       else if (detail.action === "record") void this.#recordCitationAssertion(detail);
@@ -3626,7 +3618,7 @@ class WorkspaceApp {
   #renderReferenceLibrary(): void {
     const library = this.#librarySnapshot;
     if (!library) return;
-    this.#elements.citationNetworkPanel.setReferences(library.references.map(({ id, title }) => ({ id, title: bibTeXDisplayText(title) })));
+    this.#elements.citationNetwork.setReferences(library.references.map(({ id, title }) => ({ id, title: bibTeXDisplayText(title) })));
     const types = [...new Set(library.references.map((reference) => reference.type))].sort();
     this.#elements.referenceLibraryFilters.setTypes(types);
     const filters = this.#elements.referenceLibraryFilters.value;
@@ -3650,13 +3642,13 @@ class WorkspaceApp {
   }
 
   async #openCitationNetwork(): Promise<void> {
-    this.#elements.citationNetwork.classList.remove("hidden");
+    this.#elements.citationNetwork.show();
     await this.#refreshCitationNetwork();
-    this.#elements.citationNetwork.scrollIntoView({ block: "start" });
+    this.#elements.citationNetwork.bringIntoView();
   }
 
-  async #refreshCitationNetwork(): Promise<void> {
-    const filter = this.#filterProjectCitations ? `?projectId=${encodeURIComponent(workspaceId)}` : "";
+  async #refreshCitationNetwork(filterProject = this.#elements.citationNetwork.filterProject): Promise<void> {
+    const filter = filterProject ? `?projectId=${encodeURIComponent(workspaceId)}` : "";
     const response = await fetch(`/api/library/citation-network${filter}`, { credentials: "same-origin" });
     await expectOk(response);
     const value: unknown = await response.json();
@@ -3666,9 +3658,8 @@ class WorkspaceApp {
   }
 
   #renderCitationNetwork(): void {
-    this.#elements.citationNetworkPanel.setData({
+    this.#elements.citationNetwork.setData({
       expansion: this.#citationExpansion,
-      filterProject: this.#filterProjectCitations,
       network: this.#citationNetwork,
       referenceTitles: Object.fromEntries((this.#librarySnapshot?.references ?? []).map(({ id, title }) => [id, title])),
     });
@@ -3720,7 +3711,7 @@ class WorkspaceApp {
   }
 
   async #acceptCitationCandidate(expansion: CitationExpansionResult, candidate: CitationExpansionCandidate): Promise<void> {
-    this.#elements.citationNetworkPanel.setCandidateSaving(candidate.doi, true);
+    this.#elements.citationNetwork.setCandidateSaving(candidate.doi, true);
     try {
       const response = await jsonFetch(`/api/library/references/${encodeURIComponent(expansion.seedReferenceId)}/citation-candidates`, {
         doi: candidate.doi,
@@ -3738,7 +3729,7 @@ class WorkspaceApp {
       await this.#refreshCitationNetwork();
       this.#showToast(value.created ? "Reference saved with its discovery trail." : "Existing reference linked to its discovery trail.");
     } catch (error) {
-      this.#elements.citationNetworkPanel.setCandidateSaving(candidate.doi, false);
+      this.#elements.citationNetwork.setCandidateSaving(candidate.doi, false);
       this.#showToast(error instanceof Error ? error.message : "Could not save citation candidate");
     }
   }
@@ -7372,10 +7363,7 @@ function collectElements(): Elements {
     showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
     referenceLibraryFilters: requiredElement("reference-library-filters", ReferenceLibraryFilterPanel),
     openCitationNetwork: requiredElement("open-citation-network", HTMLButtonElement),
-    citationNetwork: requiredElement("citation-network", HTMLElement),
-    closeCitationNetwork: requiredElement("close-citation-network", HTMLButtonElement),
-    filterProjectCitations: requiredElement("filter-project-citations", HTMLButtonElement),
-    citationNetworkPanel: requiredElement("citation-network-panel", CitationNetworkPanel),
+    citationNetwork: requiredElement("citation-network", CitationNetworkWorkspace),
     webSourceCapture: requiredElement("web-source-capture", WebSourceCapture),
     webSnapshotComparison: requiredElement("web-snapshot-comparison", WebSnapshotComparisonPanel),
     unidentifiedPdfList: requiredElement("unidentified-pdf-list-panel", UnidentifiedPdfList),

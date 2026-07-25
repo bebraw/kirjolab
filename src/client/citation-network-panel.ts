@@ -19,14 +19,14 @@ export type CitationNetworkAction =
       readonly expansion: CitationExpansionResult;
     };
 
-interface CitationNetworkData {
+export interface CitationNetworkData {
   readonly expansion: CitationExpansionResult | null;
   readonly filterProject: boolean;
   readonly network: CitationNetwork | null;
   readonly referenceTitles: Readonly<Record<string, string>>;
 }
 
-interface CitationReferenceChoice {
+export interface CitationReferenceChoice {
   readonly id: string;
   readonly title: string;
 }

@@ -78,6 +78,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="open-citation-network"');
     expect(html).toContain('id="citation-network" aria-labelledby="citation-network-heading"');
     expect(html).toContain('id="filter-project-citations" type="button" aria-pressed="false"');
+    expect(html).toContain('<citation-network-workspace class="mt-6 border-t border-app-line pt-5"');
     expect(html).toContain('id="citation-assertion-form"');
     expect(html).toContain('id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"');
     expect(html).toContain('id="citation-network-list" aria-live="polite"');
