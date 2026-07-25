@@ -216,13 +216,15 @@ export function renderHomePage(
               </div>
             </details>
           </writing-workflow-panel>
-          <details class="rail-collection mt-4" open>
+          <research-diary-summary id="research-diary-panel">
+            <details class="rail-collection mt-4" open>
             <summary><span>Research diary</span><span class="count-badge" id="research-diary-entry-count">0</span></summary>
             <div class="rail-collection-body">
               <p class="px-1 text-xs leading-5 text-app-text-soft" id="research-diary-summary">Keep progress, discoveries, questions, and the next action in portable Markdown.</p>
               <button class="button-secondary mt-3 w-full justify-center" id="open-research-diary" type="button">Start diary</button>
             </div>
-          </details>
+            </details>
+          </research-diary-summary>
           <writing-workflow-panel id="reviewer-response-panel" data-workflow-kind="reviewer-responses">
             <details class="rail-collection mt-4" open>
               <summary><span>Reviewer responses</span><span class="count-badge" id="reviewer-response-count">0</span></summary>

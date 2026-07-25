@@ -14,6 +14,9 @@ survive outside Kirjolab and remain available to collaborators.
   existing file. It never creates a second diary.
 - Diary summaries are derived from dated level-two headings and incomplete
   checklist items under Open questions and Next actions.
+- One bounded light-DOM summary owns missing and existing diary presentation,
+  derived counts, singular and plural copy, and a typed open intent. The
+  workspace coordinator retains file creation, selection, and editor focus.
 
 ### Anti-Patterns
 

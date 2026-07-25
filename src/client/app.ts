@@ -38,7 +38,7 @@ import { publicationWordStatistics, type PublicationWordStatistics } from "../do
 import { suggestCitationKey } from "../domain/publication-intake";
 import { isPhrasingPurposeId, phrasingPatternsForPurpose, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
-import { researchDiaryPath, researchDiaryTemplate, summarizeResearchDiary } from "../domain/writing-workflows";
+import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import {
   isMetadataRefinementPreview,
@@ -145,6 +145,7 @@ import {
   writingWorkflowActionEvent,
   type WritingWorkflowActionDetail,
 } from "./writing-workflow-panel";
+import { ResearchDiarySummary, researchDiaryOpenEvent } from "./research-diary-summary";
 import {
   AssistantResultPanel,
   assistantResultActionEvent,
@@ -487,9 +488,7 @@ interface Elements {
   commentsRailPanel: HTMLElement;
   guideRailPanel: HTMLElement;
   manuscriptMapPanel: ManuscriptMapPanel;
-  researchDiaryEntryCount: HTMLElement;
-  researchDiarySummary: HTMLElement;
-  openResearchDiary: HTMLButtonElement;
+  researchDiaryPanel: ResearchDiarySummary;
   researchQuestionPanel: WritingWorkflowPanel;
   reviewerResponsePanel: WritingWorkflowPanel;
   newProjectFileRail: HTMLButtonElement;
@@ -1051,7 +1050,7 @@ class WorkspaceApp {
     this.#elements.showResearchRail.addEventListener("click", () => this.#showRail("research"));
     this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
     this.#elements.showGuideRail.addEventListener("click", () => this.#showRail("guide"));
-    this.#elements.openResearchDiary.addEventListener("click", () => void this.#openResearchDiary());
+    this.#elements.researchDiaryPanel.addEventListener(researchDiaryOpenEvent, () => void this.#openResearchDiary());
     this.#elements.manuscriptMapPanel.addEventListener(manuscriptMapSelectEvent, (event) => {
       const { from, to } = (event as CustomEvent<ManuscriptMapSelection>).detail;
       this.#focusComposedRange(from, to);
@@ -2862,15 +2861,7 @@ class WorkspaceApp {
 
   #renderResearchDiarySummary(): void {
     const diary = this.#previewProjectFiles().find((file) => file.path === researchDiaryPath);
-    this.#elements.openResearchDiary.textContent = diary ? "Open diary" : "Start diary";
-    if (!diary) {
-      this.#elements.researchDiaryEntryCount.textContent = "0";
-      this.#elements.researchDiarySummary.textContent = "Keep progress, discoveries, questions, and the next action in portable Markdown.";
-      return;
-    }
-    const summary = summarizeResearchDiary(diary.content);
-    this.#elements.researchDiaryEntryCount.textContent = String(summary.entries);
-    this.#elements.researchDiarySummary.textContent = `${summary.entries} dated ${summary.entries === 1 ? "entry" : "entries"} · ${summary.openQuestions} open ${summary.openQuestions === 1 ? "question" : "questions"} · ${summary.nextActions} next ${summary.nextActions === 1 ? "action" : "actions"}`;
+    this.#elements.researchDiaryPanel.setContent(diary?.content ?? null);
   }
 
   async #openResearchDiary(): Promise<void> {
@@ -7459,9 +7450,7 @@ function collectElements(): Elements {
     commentsRailPanel: requiredElement("comments-rail-panel", HTMLElement),
     guideRailPanel: requiredElement("guide-rail-panel", HTMLElement),
     manuscriptMapPanel: requiredElement("manuscript-map-panel", ManuscriptMapPanel),
-    researchDiaryEntryCount: requiredElement("research-diary-entry-count", HTMLElement),
-    researchDiarySummary: requiredElement("research-diary-summary", HTMLElement),
-    openResearchDiary: requiredElement("open-research-diary", HTMLButtonElement),
+    researchDiaryPanel: requiredElement("research-diary-panel", ResearchDiarySummary),
     researchQuestionPanel: requiredElement("research-question-panel", WritingWorkflowPanel),
     reviewerResponsePanel: requiredElement("reviewer-response-panel", WritingWorkflowPanel),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),

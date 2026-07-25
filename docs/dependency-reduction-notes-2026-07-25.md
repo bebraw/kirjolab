@@ -1641,3 +1641,23 @@ The browser application artifact shrinks from 771,477 B raw / 209,360 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,349 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Research Diary Summary
+
+A bounded `ResearchDiarySummary` now owns missing and existing diary
+presentation, derived entry, open-question, and next-action counts, singular and
+plural copy, and a typed open intent. `WorkspaceApp` retains file lookup,
+creation, selection, and editor focus.
+
+This checkpoint reduces `src/client/app.ts` from 7,698 to 7,687 lines (-11) and
+removes three internal element references. The component adds 60 lines.
+Component tests cover missing, singular, and plural presentation plus the typed
+open intent; it records 80% statement and 85.71% line coverage. The focused
+writing-workflow browser scenario passes diary creation, derived summary copy,
+and the Start-to-Open transition alongside question and reviewer ledgers.
+
+The browser application artifact grows from 771,417 B raw / 209,280 B gzip to
+772,143 B raw / 209,350 B gzip (+726 B raw / +70 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,351 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

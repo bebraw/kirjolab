@@ -178,6 +178,9 @@ The adopted components own bounded presentation:
   and typed action and dismissal intents.
 - The workspace switcher owns project option rendering, archived-current
   handling, selected state, focus entry, and a typed navigation intent.
+- The research diary summary owns missing and existing diary presentation,
+  derived entry, question, and action counts, action copy, and a typed open
+  intent.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices, and typed identification intents.
 - The Library reference summary owns title and metadata presentation, PDF and
@@ -409,6 +412,9 @@ reason to wrap static markup mechanically.
 - The workspace switcher replaces the final feature-level imperative option
   renderer plus its native change and focus coordination. The application
   coordinator retains catalog fetching and navigation authority.
+- The research diary summary replaces three internal element references and
+  coordinator-owned summary adaptation and copy. The application coordinator
+  retains file lookup, creation, selection, and editor focus.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

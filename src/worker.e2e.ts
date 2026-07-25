@@ -4573,10 +4573,16 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
   await expect(page.getByRole("link", { name: "Connect GitHub" })).toBeVisible();
 });
 
-test("opens portable research-question and reviewer-response ledgers", async ({ page }) => {
+test("opens portable writing-workflow ledgers", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Writing workflows");
   await page.goto(`/editor/${workspaceId}`);
   await page.getByRole("tab", { name: "Writing guide" }).click();
+
+  await page.locator("#open-research-diary").click();
+  await expect(page.locator("#source-editor")).toHaveValue(/# Research diary/u);
+  await expect(page.locator("#research-diary-entry-count")).toHaveText("1");
+  await expect(page.locator("#research-diary-summary")).toHaveText("1 dated entry · 1 open question · 1 next action");
+  await expect(page.locator("#open-research-diary")).toHaveText("Open diary");
 
   await page.locator("#open-research-questions").click();
   await expect(page.locator("#source-editor")).toHaveValue(/# Research questions/u);
