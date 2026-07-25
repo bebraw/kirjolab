@@ -28,7 +28,7 @@ export function renderPreferencesMenu(): string {
               </section>
               <section class="preferences-section" aria-labelledby="diagnostics-preference-heading">
                 <div><h3 id="diagnostics-preference-heading">Diagnostics</h3><p>Include this version when reporting an error or suspected cache issue.</p></div>
-                <button class="application-version-copy" id="copy-application-version" type="button" aria-label="Copy application version"><code id="application-version">Loading…</code><span>Copy</span></button>
+                <application-version-control class="contents" id="application-version-control"><button class="application-version-copy" id="copy-application-version" type="button" aria-label="Copy application version"><code id="application-version">Loading…</code><span>Copy</span></button></application-version-control>
               </section>
               ${renderModelPreferences()}
             </div>

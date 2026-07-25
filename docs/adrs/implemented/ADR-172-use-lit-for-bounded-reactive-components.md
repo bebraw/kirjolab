@@ -451,6 +451,10 @@ reason to wrap static markup mechanically.
   references and owns browser-local enablement, mode presentation, modal key
   handling, pointer-selection transitions, and editor-listener teardown. The
   application coordinator only supplies the source editor and its shell.
+- The application-version control replaces separate value and copy-action
+  element references and owns version presentation plus Clipboard API and
+  textarea fallback behavior. The application coordinator supplies the active
+  build version and retains toast presentation for the typed copy notice.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

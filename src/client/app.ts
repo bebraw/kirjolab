@@ -62,6 +62,7 @@ import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { EditorStatus } from "./editor-status";
 import { ConnectionStatus } from "./connection-status";
 import { VimModeControl } from "./vim-mode-control";
+import { ApplicationVersionControl, applicationVersionNoticeEvent } from "./application-version-control";
 import { ProjectHistoryTrigger, projectHistoryOpenEvent } from "./project-history-trigger";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
@@ -435,8 +436,7 @@ interface PendingDeletion {
 interface Elements {
   preferencesMenu: HTMLDetailsElement;
   modelProviderSettings: ModelProviderSettings;
-  applicationVersion: HTMLElement;
-  copyApplicationVersion: HTMLButtonElement;
+  applicationVersion: ApplicationVersionControl;
   citationCompletionScope: HTMLSelectElement;
   collaboratorSelections: CollaboratorSelectionList;
   workspaceSwitcher: WorkspaceSwitcher;
@@ -823,7 +823,7 @@ class WorkspaceApp {
   }
 
   async start(): Promise<void> {
-    this.#elements.applicationVersion.textContent = applicationVersion;
+    this.#elements.applicationVersion.setVersion(applicationVersion);
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
     void this.#prepareOfflineShell();
@@ -877,10 +877,8 @@ class WorkspaceApp {
       this.#toastAction = null;
       if (this.#applicationUpdateAvailable) this.#showApplicationUpdate();
     });
-    this.#elements.copyApplicationVersion.addEventListener("click", () => {
-      void copyText(applicationVersion)
-        .then(() => this.#showToast(`Copied application version ${applicationVersion}.`))
-        .catch(() => this.#showToast("Could not copy the application version"));
+    this.#elements.applicationVersion.addEventListener(applicationVersionNoticeEvent, (event) => {
+      this.#showToast((event as CustomEvent<string>).detail);
     });
     window.addEventListener("online", () => {
       this.#connect();
@@ -7363,8 +7361,7 @@ function collectElements(): Elements {
   return {
     preferencesMenu: requiredElement("preferences-menu", HTMLDetailsElement),
     modelProviderSettings: requiredElement("model-provider-settings", ModelProviderSettings),
-    applicationVersion: requiredElement("application-version", HTMLElement),
-    copyApplicationVersion: requiredElement("copy-application-version", HTMLButtonElement),
+    applicationVersion: requiredElement("application-version-control", ApplicationVersionControl),
     citationCompletionScope: requiredElement("citation-completion-scope", HTMLSelectElement),
     collaboratorSelections: requiredElement("collaborator-selections", CollaboratorSelectionList),
     workspaceSwitcher: requiredElement("workspace-switcher-control", WorkspaceSwitcher),
@@ -7561,25 +7558,6 @@ function downloadTextFile(name: string, content: string): void {
   link.download = name;
   link.click();
   URL.revokeObjectURL(href);
-}
-
-async function copyText(value: string): Promise<void> {
-  try {
-    await navigator.clipboard?.writeText(value);
-    if (navigator.clipboard) return;
-  } catch {
-    // Fall back when clipboard permission is unavailable in a browser or installed PWA.
-  }
-  const input = document.createElement("textarea");
-  input.value = value;
-  input.readOnly = true;
-  input.style.position = "fixed";
-  input.style.opacity = "0";
-  document.body.append(input);
-  input.select();
-  const copied = document.execCommand("copy");
-  input.remove();
-  if (!copied) throw new Error("Clipboard unavailable");
 }
 
 function selectionRectsOverlap(left: PdfSelectionRect, right: PdfSelectionRect): boolean {

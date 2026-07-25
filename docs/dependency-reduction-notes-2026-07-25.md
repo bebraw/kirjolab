@@ -1836,6 +1836,25 @@ unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,360 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
 
+## Continued Lit Extraction: Application Version Control
+
+A bounded `ApplicationVersionControl` now owns build-version presentation,
+Clipboard API copying, and the installed-PWA textarea fallback. `WorkspaceApp`
+supplies the active version and retains toast policy through one typed notice.
+
+This checkpoint reduces `src/client/app.ts` from 7,639 to 7,617 lines (-22),
+replaces two internal element references with one component reference, and
+removes the coordinator-level clipboard helper. Component coverage is 90.62%
+statements and 93.1% lines across the Clipboard API, textarea fallback, and
+unavailable-clipboard paths. Focused browser workflows pass version copying and
+activated-update version behavior.
+
+The browser application artifact grows from 779,487 B raw / 210,918 B gzip to
+780,275 B raw / 211,073 B gzip (+788 B raw / +155 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,362 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.
+
 ## Continued Lit Extraction: Vim Mode Control
 
 A bounded `VimModeControl` now owns browser-local enablement, toggle and mode
