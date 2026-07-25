@@ -98,6 +98,7 @@ import {
   type LibraryPdfAnnotationListAction,
 } from "./library-pdf-annotation-list";
 import { LibraryPdfMarkupLayer, libraryPdfMarkupLayerActionEvent, type LibraryPdfMarkupLayerAction } from "./library-pdf-markup-layer";
+import { LibraryPdfProjectUse, libraryPdfProjectUseActionEvent, type LibraryPdfProjectUseAction } from "./library-pdf-project-use";
 import { LibraryPdfAnnotationToolbar, libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import {
   ProjectStartingPointBrowser,
@@ -578,7 +579,7 @@ interface Elements {
   libraryPdfAnnotationForms: LibraryPdfAnnotationForms;
   libraryPdfAnnotationToolbar: LibraryPdfAnnotationToolbar;
   libraryHighlightStatus: HTMLElement;
-  libraryProjectUse: HTMLElement;
+  libraryProjectUse: LibraryPdfProjectUse;
   libraryHighlightList: LibraryPdfAnnotationList;
   highlightPaintTool: HTMLButtonElement;
   highlightEraserTool: HTMLButtonElement;
@@ -1337,6 +1338,10 @@ class WorkspaceApp {
       else if (detail.action === "open-markup") void this.#openLibraryPdf(detail.artifact, detail.page);
       else if (detail.action === "edit-note") this.#editLibraryPdfNote(detail.note);
       else void this.#deleteLibraryPdfMarkup(detail.markup);
+    });
+    this.#elements.libraryProjectUse.addEventListener(libraryPdfProjectUseActionEvent, (event) => {
+      const { referenceId, referenceKey } = (event as CustomEvent<LibraryPdfProjectUseAction>).detail;
+      void this.#linkLibraryReference(referenceId, referenceKey);
     });
     this.#elements.libraryPdfAnnotationToolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryPdfToolbarAction>).detail;
@@ -6513,37 +6518,11 @@ class WorkspaceApp {
   }
 
   #renderLibraryProjectUse(artifact: LibraryPdfArtifact): void {
-    this.#elements.libraryProjectUse.replaceChildren();
     const reference = this.#librarySnapshot?.references.find((item) => item.id === artifact.referenceId);
-    if (!reference) {
-      this.#elements.libraryProjectUse.append(emptyState("Identify this PDF before using it in a project."));
-      return;
-    }
-    const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
-    const alias = linked?.citationAlias ?? reference.referenceKey;
-    const citation = document.createElement("code");
-    citation.className = "mt-2 block truncate text-xs";
-    citation.textContent = `:cite[${alias}]`;
-    if (!linked) {
-      this.#elements.libraryProjectUse.append(
-        resourceLabel("Reference not in project"),
-        projectUseDescription("Add the bibliographic record to this project's reference set. This does not insert a citation."),
-        citation,
-        actionButton(
-          "Add reference to project",
-          "button-primary mt-3",
-          () => void this.#linkLibraryReference(reference.id, reference.referenceKey),
-        ),
-      );
-      return;
-    }
-    this.#elements.libraryProjectUse.append(
-      resourceLabel("Available to project members"),
-      projectUseDescription(
-        "People signed in as project members can open this PDF. Public read-only and edit links never include reference PDFs; private annotations stay in your library.",
-      ),
-      citation,
-    );
+    const linkedCitationAlias = reference
+      ? (this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id)?.citationAlias ?? null)
+      : null;
+    this.#elements.libraryProjectUse.setData({ linkedCitationAlias, reference: reference ?? null });
   }
 
   async #saveLibraryHighlight(action: Extract<LibraryPdfAnnotationAction, { action: "save-highlight" }>): Promise<void> {
@@ -7885,7 +7864,7 @@ function collectElements(): Elements {
     libraryPdfAnnotationForms: requiredElement("library-pdf-annotation-forms", LibraryPdfAnnotationForms),
     libraryPdfAnnotationToolbar: requiredElement("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar),
     libraryHighlightStatus: requiredElement("library-highlight-status", HTMLElement),
-    libraryProjectUse: requiredElement("library-project-use", HTMLElement),
+    libraryProjectUse: requiredElement("library-project-use", LibraryPdfProjectUse),
     libraryHighlightList: requiredElement("library-highlight-list", LibraryPdfAnnotationList),
     highlightPaintTool: requiredElement("highlight-paint-tool", HTMLButtonElement),
     highlightEraserTool: requiredElement("highlight-eraser-tool", HTMLButtonElement),
@@ -7919,36 +7898,6 @@ function requiredElement<T extends Element>(id: string, type: { new (): T }): T 
   const element = document.getElementById(id);
   if (!(element instanceof type)) throw new Error(`Missing interface element: ${id}`);
   return element;
-}
-
-function resourceLabel(text: string): HTMLElement {
-  const label = document.createElement("span");
-  label.className = "eyebrow block";
-  label.textContent = text;
-  return label;
-}
-
-function projectUseDescription(text: string): HTMLParagraphElement {
-  const description = document.createElement("p");
-  description.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
-  description.textContent = text;
-  return description;
-}
-
-function emptyState(text: string): HTMLElement {
-  const element = document.createElement("div");
-  element.className = "empty-state";
-  element.textContent = text;
-  return element;
-}
-
-function actionButton(text: string, className: string, action: () => void): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = className;
-  button.textContent = text;
-  button.addEventListener("click", action);
-  return button;
 }
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {

@@ -1532,3 +1532,25 @@ The browser application artifact grows from 768,037 B raw / 208,636 B gzip to
 production package counts remain unchanged at 18 and 150. Full native CI
 passes all 1,338 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
 tests.
+
+## Continued Lit Extraction: Library PDF Project Use
+
+A bounded `LibraryPdfProjectUse` now owns unidentified, unlinked, and linked
+private-PDF presentation, member-versus-public capability copy, citation
+preview, and a typed reference-link intent. `WorkspaceApp` retains canonical
+reference and project-link lookup, the linking mutation, refreshes, and
+notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 8,055 to 8,004 lines (-51) and
+removes four single-use DOM helpers. The component adds 82 lines. Component
+tests cover fallback, unidentified, unlinked, linked, citation-alias, and typed
+link-intent states. It records 81.81% statement and 84.21% line coverage. The
+focused linked-reference browser workflow passes the unlinked-to-linked
+transition, member access, public-link exclusion, and explicit research
+sharing.
+
+The browser application artifact grows from 768,775 B raw / 208,825 B gzip to
+769,285 B raw / 208,855 B gzip (+510 B raw / +30 B gzip). Styles grow by 63 B
+raw / 15 B gzip. Direct and unique production package counts remain unchanged
+at 18 and 150. Full native CI passes all 1,340 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

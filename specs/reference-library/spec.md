@@ -268,6 +268,10 @@ memory and makes citation aliases compete with stable source identity.
   those defaults: first add the bibliographic record, then explicitly review
   artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
   highlight retains a separate share or revoke action.
+- A bounded light-DOM project-use block owns unidentified, unlinked, and linked
+  PDF presentation, capability-boundary copy, citation preview, and a typed
+  reference-link intent. The workspace coordinator retains canonical lookup,
+  the project-link mutation, snapshot refreshes, and notification policy.
 - A project publication context resolves every authorized paper representation
   for the stable reference identity. The owner sees attached private-library
   PDFs without converting them into project resources; active artifact shares

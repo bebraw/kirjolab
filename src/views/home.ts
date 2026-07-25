@@ -672,7 +672,7 @@ export function renderHomePage(
                   <library-pdf-annotation-list class="space-y-2" id="library-highlight-list"><p class="empty-state">No private annotations yet.</p></library-pdf-annotation-list>
                   <details class="library-project-details">
                     <summary>Project sharing</summary>
-                    <div class="mt-2" id="library-project-use"><p class="empty-state">Project-use options appear for the active private PDF.</p></div>
+                    <library-pdf-project-use class="mt-2" id="library-project-use"><p class="empty-state">Project-use options appear for the active private PDF.</p></library-pdf-project-use>
                   </details>
                 </div>
               </details>
