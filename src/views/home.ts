@@ -491,16 +491,17 @@ export function renderHomePage(
             <p class="mt-2 text-xs leading-5 text-app-text-soft" id="assistant-target-preview" aria-live="polite">Place the caret in a sentence or select the exact text to revise.</p>
             </assistant-task-panel>
             <assistant-result-panel class="mt-4" id="assistant-interactive-result" aria-live="polite"></assistant-result-panel>
-            <details class="mt-4 text-xs leading-5 text-app-text-soft" id="assistant-phrasing-attribution" hidden>
-              <summary class="cursor-pointer font-semibold">About the phrasing inventory</summary>
-              <p class="mt-2">Patterns are independently derived from CC BY PLOS articles and adapted by the configured local model. No Academic Phrasebank content is included.</p>
-              <p class="mt-2"><a class="link" href="/phrasing-guidance/sources.json" target="_blank" rel="noopener noreferrer">Source ledger</a> · <a class="link" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · <a class="link" href="https://api.plos.org/text-and-data-mining.html" target="_blank" rel="noopener noreferrer">PLOS corpus access</a></p>
-            </details>
-            <div class="mt-4 flex flex-wrap items-center gap-3">
-              <button class="button-secondary" id="choose-model-evidence" type="button">Choose evidence</button>
-              <button class="assistant-connection-link" id="open-preferences-from-assistant" type="button">Connection settings</button>
-            </div>
-            <p class="ui-status mt-3" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
+            <assistant-workflow-status id="assistant-workflow-status">
+              <details class="mt-4 text-xs leading-5 text-app-text-soft" id="assistant-phrasing-attribution" hidden>
+                <summary class="cursor-pointer font-semibold">About the phrasing inventory</summary>
+                <p class="mt-2">Patterns are independently derived from CC BY PLOS articles and adapted by the configured local model. No Academic Phrasebank content is included.</p>
+              </details>
+              <div class="mt-4 flex flex-wrap items-center gap-3">
+                <button class="button-secondary" id="choose-model-evidence" type="button">Choose evidence</button>
+                <button class="assistant-connection-link" id="open-preferences-from-assistant" type="button">Connection settings</button>
+              </div>
+              <p class="ui-status mt-3" id="model-status" role="status" aria-live="polite">Select manuscript text and at least one annotation or claim to ground the request.</p>
+            </assistant-workflow-status>
             <candidate-list-panel id="candidate-list-panel">
               <div class="mt-4" id="candidate-list">
                 <div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>

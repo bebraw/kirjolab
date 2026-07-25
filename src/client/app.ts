@@ -197,6 +197,7 @@ import {
   type AssistantTargetScope,
 } from "./assistant-operations";
 import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
+import { AssistantWorkflowStatus, assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import {
   citationContextAtPosition,
@@ -437,8 +438,6 @@ interface Elements {
   applicationVersion: HTMLElement;
   copyApplicationVersion: HTMLButtonElement;
   citationCompletionScope: HTMLSelectElement;
-  chooseModelEvidence: HTMLButtonElement;
-  openPreferencesFromAssistant: HTMLButtonElement;
   collaboratorSelections: CollaboratorSelectionList;
   workspaceSwitcher: WorkspaceSwitcher;
   workspaceLayout: HTMLSelectElement;
@@ -608,8 +607,7 @@ interface Elements {
   publicationIntakePanel: PublicationIntakePanel;
   assistantTaskPanel: AssistantTaskPanel;
   assistantInteractiveResult: AssistantResultPanel;
-  assistantPhrasingAttribution: HTMLDetailsElement;
-  modelStatus: HTMLElement;
+  assistantWorkflowStatus: AssistantWorkflowStatus;
   candidateListPanel: CandidateListPanel;
   toast: AppToast;
 }
@@ -1463,17 +1461,19 @@ class WorkspaceApp {
     });
     this.#elements.modelProviderSettings.addEventListener(modelProviderChangeEvent, (event) => {
       const status = (event as CustomEvent<string | null>).detail;
-      if (status) this.#elements.modelStatus.textContent = status;
+      if (status) this.#elements.assistantWorkflowStatus.status = status;
       this.#updateModelAvailability();
       this.#saveModelPreferences();
     });
     this.#elements.modelProviderSettings.addEventListener(modelProviderDiscoveryEvent, () => void this.#discoverLlmModels());
-    this.#elements.openPreferencesFromAssistant.addEventListener("click", (event) => {
-      event.stopPropagation();
-      this.#elements.preferencesMenu.open = true;
-      this.#elements.modelProviderSettings.focusConnection();
+    this.#elements.assistantWorkflowStatus.addEventListener(assistantWorkflowActionEvent, (event) => {
+      const action = (event as CustomEvent<AssistantWorkflowAction>).detail;
+      if (action === "choose-evidence") this.#chooseModelEvidence();
+      else {
+        this.#elements.preferencesMenu.open = true;
+        this.#elements.modelProviderSettings.focusConnection();
+      }
     });
-    this.#elements.chooseModelEvidence.addEventListener("click", () => this.#chooseModelEvidence());
     this.#elements.assistantInteractiveResult.addEventListener(assistantResultActionEvent, (event) => {
       void this.#handleAssistantResultAction((event as CustomEvent<AssistantResultActionDetail>).detail);
     });
@@ -2624,18 +2624,11 @@ class WorkspaceApp {
 
   #updateModelTask(resetInstruction = false): void {
     const operation = this.#elements.assistantTaskPanel.value.operation;
-    const draftsClaim = operation.id === "draft-claim";
-    const phrasesPassage = operation.id === "phrase-passage";
-    this.#elements.assistantPhrasingAttribution.hidden = !phrasesPassage;
+    this.#elements.assistantWorkflowStatus.setOperation(operation.id);
     if (resetInstruction) {
       this.#assistantResultContext = null;
       this.#elements.assistantInteractiveResult.clear();
     }
-    this.#elements.modelStatus.textContent = draftsClaim
-      ? "Select at least one annotation to ground the claim draft."
-      : phrasesPassage
-        ? "Choose a rhetorical purpose, then compare contextual alternatives before opening exact review."
-        : "Choose a target and the required evidence, then generate a reviewable draft.";
     this.#renderAssistantTargetPreview();
     this.#updateModelAvailability();
   }
@@ -2700,21 +2693,21 @@ class WorkspaceApp {
     this.#modelDiscoveryBusy = true;
     this.#elements.modelProviderSettings.setBusy(true);
     this.#updateModelAvailability();
-    this.#elements.modelStatus.textContent = "Checking the local provider for loaded models…";
-    this.#elements.modelProviderSettings.setStatus(this.#elements.modelStatus.textContent);
+    this.#elements.assistantWorkflowStatus.status = "Checking the local provider for loaded models…";
+    this.#elements.modelProviderSettings.setStatus(this.#elements.assistantWorkflowStatus.status);
     try {
       const selectedModel = this.#elements.modelProviderSettings.value.model.trim();
       const models = await discoverOpenAICompatibleModels(this.#elements.modelProviderSettings.value.endpoint);
       this.#elements.modelProviderSettings.setModels(models, models.includes(selectedModel) ? selectedModel : (models[0] ?? selectedModel));
-      this.#elements.modelStatus.textContent = models.length
+      this.#elements.assistantWorkflowStatus.status = models.length
         ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.#elements.modelProviderSettings.value.model}.`
         : "The local provider is reachable but reports no loaded models.";
-      this.#elements.modelProviderSettings.setStatus(this.#elements.modelStatus.textContent);
+      this.#elements.modelProviderSettings.setStatus(this.#elements.assistantWorkflowStatus.status);
       this.#saveModelPreferences();
     } catch (error) {
-      this.#elements.modelStatus.textContent =
+      this.#elements.assistantWorkflowStatus.status =
         error instanceof Error ? error.message : "Could not discover models from the local provider.";
-      this.#elements.modelProviderSettings.setStatus(this.#elements.modelStatus.textContent);
+      this.#elements.modelProviderSettings.setStatus(this.#elements.assistantWorkflowStatus.status);
     } finally {
       this.#modelDiscoveryBusy = false;
       this.#elements.modelProviderSettings.setBusy(false);
@@ -5711,7 +5704,7 @@ class WorkspaceApp {
     if (!/^(?:annotation|claim):[^:]+$/u.test(key)) return;
     if (selected) this.#modelEvidenceSelection.add(key);
     else this.#modelEvidenceSelection.delete(key);
-    this.#elements.modelStatus.textContent =
+    this.#elements.assistantWorkflowStatus.status =
       this.#modelEvidenceSelection.size > maximumModelEvidenceItems
         ? `Choose no more than ${maximumModelEvidenceItems} evidence resources.`
         : `${this.#modelEvidenceSelection.size} ${this.#modelEvidenceSelection.size === 1 ? "resource" : "resources"} selected for grounding.`;
@@ -5722,7 +5715,7 @@ class WorkspaceApp {
     this.#showRail("research");
     const control = document.querySelector<HTMLInputElement>("[data-model-evidence-key]");
     if (!control) {
-      this.#elements.modelStatus.textContent = "Add a PDF highlight or researcher-authored claim before choosing model evidence.";
+      this.#elements.assistantWorkflowStatus.status = "Add a PDF highlight or researcher-authored claim before choosing model evidence.";
       this.#showToast("No project evidence is available yet.");
       return;
     }
@@ -5730,7 +5723,8 @@ class WorkspaceApp {
     if (collection instanceof HTMLDetailsElement) collection.open = true;
     control.scrollIntoView({ behavior: "smooth", block: "center" });
     control.focus({ preventScroll: true });
-    this.#elements.modelStatus.textContent = "Choose one or more evidence resources in the Research rail, then return to the assistant.";
+    this.#elements.assistantWorkflowStatus.status =
+      "Choose one or more evidence resources in the Research rail, then return to the assistant.";
   }
 
   #modelEvidence(): { items: ModelEvidenceItem[]; references: ModelEvidenceReference[] } {
@@ -5785,7 +5779,7 @@ class WorkspaceApp {
     if (!input) return;
     this.#assistantWorkflow.send({ type: "START", operation: input.operation.id, sourceRevision: input.sourceRevision });
     this.#updateModelAvailability();
-    this.#elements.modelStatus.textContent = this.#assistantGenerationStartMessage(input.operation.id);
+    this.#elements.assistantWorkflowStatus.status = this.#assistantGenerationStartMessage(input.operation.id);
     try {
       await this.#runAssistantGeneration(input);
     } catch (error) {
@@ -5798,14 +5792,14 @@ class WorkspaceApp {
   #failAssistantGeneration(error: unknown): void {
     const message = error instanceof Error ? error.message : "Local model request failed";
     this.#assistantWorkflow.send({ type: "FAIL", message });
-    this.#elements.modelStatus.textContent = message;
+    this.#elements.assistantWorkflowStatus.status = message;
   }
 
   #assistantGenerationContext(): AssistantGenerationContext | null {
     const { instruction, operation } = this.#elements.assistantTaskPanel.value;
     const draftsClaim = operation.id === "draft-claim";
     if (!this.#snapshot || (!draftsClaim && !this.#hasStableDocumentBase())) {
-      this.#elements.modelStatus.textContent = "Wait for the manuscript to finish synchronizing before using the model.";
+      this.#elements.assistantWorkflowStatus.status = "Wait for the manuscript to finish synchronizing before using the model.";
       return null;
     }
     const passage = this.#assistantAuthoringPassage();
@@ -5817,7 +5811,7 @@ class WorkspaceApp {
       this.#assistantTargetMissing(operation.id, passage, insertionTarget) ||
       this.#assistantEvidenceMissing(operation.evidence, evidence, annotationItems)
     ) {
-      this.#elements.modelStatus.textContent = draftsClaim
+      this.#elements.assistantWorkflowStatus.status = draftsClaim
         ? "Choose at least one annotation as evidence. Claims cannot ground a new claim draft."
         : "Choose a valid manuscript target, then use Choose evidence for any required grounding.";
       return null;
@@ -5860,7 +5854,7 @@ class WorkspaceApp {
     try {
       return this.#modelProvider();
     } catch (error) {
-      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
+      this.#elements.assistantWorkflowStatus.status = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
       return null;
     }
   }
@@ -5902,7 +5896,7 @@ class WorkspaceApp {
       throw new Error("Candidate endpoint returned an invalid claim draft");
     await this.#resourceRefresh.request();
     this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
-    this.#elements.modelStatus.textContent = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
+    this.#elements.assistantWorkflowStatus.status = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
     this.#assistantWorkflow.send({ type: "COMPLETE" });
   }
 
@@ -5915,7 +5909,7 @@ class WorkspaceApp {
     if (table.columns.length !== requirements.columns.length || table.rows.length !== requirements.rows.length)
       throw new Error("Local model changed the requested table shape");
     this.#renderGeneratedTable(input.insertionTarget, input.sourceRevision, table);
-    this.#elements.modelStatus.textContent = "Table syntax ready. Review it before inserting at the visible target.";
+    this.#elements.assistantWorkflowStatus.status = "Table syntax ready. Review it before inserting at the visible target.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
   }
 
@@ -5933,7 +5927,7 @@ class WorkspaceApp {
       purpose,
       result,
     );
-    this.#elements.modelStatus.textContent = "Choose one alternative to open exact before-and-after review.";
+    this.#elements.assistantWorkflowStatus.status = "Choose one alternative to open exact before-and-after review.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
   }
 
@@ -5948,7 +5942,7 @@ class WorkspaceApp {
     const value: unknown = await response.json();
     if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
     this.#renderReferenceDiscovery(formulated.query, formulated.rationale, value);
-    this.#elements.modelStatus.textContent = value.length
+    this.#elements.assistantWorkflowStatus.status = value.length
       ? `Found ${value.length} verifiable registry record${value.length === 1 ? "" : "s"}. Review before saving.`
       : "No verifiable registry records matched this query. Refine the search focus and try again.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
@@ -5961,7 +5955,7 @@ class WorkspaceApp {
       evidence: input.evidence.items,
     });
     this.#renderIdeas({ passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision }, result);
-    this.#elements.modelStatus.textContent = "Choose a direction to open its complete draft for exact review.";
+    this.#elements.assistantWorkflowStatus.status = "Choose a direction to open its complete draft for exact review.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
   }
 
@@ -5979,7 +5973,7 @@ class WorkspaceApp {
       sourceRevision: input.sourceRevision,
       question,
     });
-    this.#elements.modelStatus.textContent = "Answer one focused question to make the intended meaning explicit.";
+    this.#elements.assistantWorkflowStatus.status = "Answer one focused question to make the intended meaning explicit.";
     this.#assistantWorkflow.send({ type: "AWAIT_INPUT" });
   }
 
@@ -5998,7 +5992,7 @@ class WorkspaceApp {
       providerLabel: revision.providerLabel,
       model: revision.model,
     });
-    this.#elements.modelStatus.textContent = "Candidate ready. Review its exact replacement and evidence in Context.";
+    this.#elements.assistantWorkflowStatus.status = "Candidate ready. Review its exact replacement and evidence in Context.";
     this.#assistantWorkflow.send({ type: "COMPLETE" });
   }
 
@@ -6037,7 +6031,7 @@ class WorkspaceApp {
       this.#revision !== sourceRevision ||
       source.slice(target.start, target.end) !== target.excerpt
     ) {
-      this.#elements.modelStatus.textContent = "The manuscript changed. Generate the table again for the current target.";
+      this.#elements.assistantWorkflowStatus.status = "The manuscript changed. Generate the table again for the current target.";
       return;
     }
     const prefix = target.start > 0 && source[target.start - 1] !== "\n" ? "\n\n" : "";
@@ -6052,7 +6046,7 @@ class WorkspaceApp {
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(caret, caret);
     this.#rememberAuthoringSelection();
-    this.#elements.modelStatus.textContent = "Table inserted into the manuscript.";
+    this.#elements.assistantWorkflowStatus.status = "Table inserted into the manuscript.";
   }
 
   #renderClarityQuestion(input: ClarityDrillContext): void {
@@ -6080,10 +6074,10 @@ class WorkspaceApp {
     try {
       await this.#importDiscoveredReference(result);
       this.#elements.assistantInteractiveResult.setReferenceSaveState(index, "saved");
-      this.#elements.modelStatus.textContent = "Reference saved. Use its Library card to add it to this project before citing.";
+      this.#elements.assistantWorkflowStatus.status = "Reference saved. Use its Library card to add it to this project before citing.";
     } catch (error) {
       this.#elements.assistantInteractiveResult.setReferenceSaveState(index, "idle");
-      this.#elements.modelStatus.textContent = error instanceof Error ? error.message : "Could not save the reference";
+      this.#elements.assistantWorkflowStatus.status = error instanceof Error ? error.message : "Could not save the reference";
     }
   }
 
@@ -6130,7 +6124,7 @@ class WorkspaceApp {
     const answer = rawAnswer.trim();
     const workflow = this.#assistantWorkflow.getSnapshot();
     if (!answer || !workflow.matches("awaitingInput")) {
-      this.#elements.modelStatus.textContent = !answer
+      this.#elements.assistantWorkflowStatus.status = !answer
         ? "Answer the clarity question first."
         : workflow.matches("stale")
           ? "The manuscript changed. Start the clarity drill again for the current target."
@@ -6139,7 +6133,7 @@ class WorkspaceApp {
     }
     this.#assistantWorkflow.send({ type: "CONTINUE" });
     this.#updateModelAvailability();
-    this.#elements.modelStatus.textContent = "Turning that meaning into a few precise alternatives…";
+    this.#elements.assistantWorkflowStatus.status = "Turning that meaning into a few precise alternatives…";
     try {
       const result = await input.provider.continueClarityDrill({
         selectedPassage: input.passage.excerpt,
@@ -6150,7 +6144,7 @@ class WorkspaceApp {
         answer,
       });
       this.#renderClarityRewrites(input, answer, result);
-      this.#elements.modelStatus.textContent = "Choose the wording that best matches your meaning; it will still open for review.";
+      this.#elements.assistantWorkflowStatus.status = "Choose the wording that best matches your meaning; it will still open for review.";
       this.#assistantWorkflow.send({ type: "REVIEW" });
     } catch (error) {
       this.#failAssistantGeneration(error);
@@ -6188,12 +6182,12 @@ class WorkspaceApp {
         providerLabel: choice.providerLabel,
         model: choice.model,
       });
-      this.#elements.modelStatus.textContent = choice.successMessage;
+      this.#elements.assistantWorkflowStatus.status = choice.successMessage;
       this.#assistantWorkflow.send({ type: "COMPLETE" });
     } catch (error) {
       const message = error instanceof Error ? error.message : choice.failureMessage;
       this.#assistantWorkflow.send({ type: "FAIL", message });
-      this.#elements.modelStatus.textContent = message;
+      this.#elements.assistantWorkflowStatus.status = message;
     } finally {
       this.#updateModelAvailability();
     }
@@ -7399,8 +7393,6 @@ function collectElements(): Elements {
     applicationVersion: requiredElement("application-version", HTMLElement),
     copyApplicationVersion: requiredElement("copy-application-version", HTMLButtonElement),
     citationCompletionScope: requiredElement("citation-completion-scope", HTMLSelectElement),
-    chooseModelEvidence: requiredElement("choose-model-evidence", HTMLButtonElement),
-    openPreferencesFromAssistant: requiredElement("open-preferences-from-assistant", HTMLButtonElement),
     collaboratorSelections: requiredElement("collaborator-selections", CollaboratorSelectionList),
     workspaceSwitcher: requiredElement("workspace-switcher-control", WorkspaceSwitcher),
     workspaceLayout: requiredElement("workspace-layout", HTMLSelectElement),
@@ -7570,8 +7562,7 @@ function collectElements(): Elements {
     publicationIntakePanel: requiredElement("publication-intake-panel", PublicationIntakePanel),
     assistantTaskPanel: requiredElement("assistant-task-panel", AssistantTaskPanel),
     assistantInteractiveResult: requiredElement("assistant-interactive-result", AssistantResultPanel),
-    assistantPhrasingAttribution: requiredElement("assistant-phrasing-attribution", HTMLDetailsElement),
-    modelStatus: requiredElement("model-status", HTMLElement),
+    assistantWorkflowStatus: requiredElement("assistant-workflow-status", AssistantWorkflowStatus),
     candidateListPanel: requiredElement("candidate-list-panel", CandidateListPanel),
     toast: requiredElement("toast", AppToast),
   };

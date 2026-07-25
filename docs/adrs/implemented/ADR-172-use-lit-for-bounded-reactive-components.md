@@ -181,6 +181,9 @@ The adopted components own bounded presentation:
 - The research diary summary owns missing and existing diary presentation,
   derived entry, question, and action counts, action copy, and a typed open
   intent.
+- The assistant workflow status owns operation-specific attribution and status
+  copy, live status presentation, evidence and connection actions, and their
+  typed intents.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices, and typed identification intents.
 - The Library reference summary owns title and metadata presentation, PDF and
@@ -415,6 +418,10 @@ reason to wrap static markup mechanically.
 - The research diary summary replaces three internal element references and
   coordinator-owned summary adaptation and copy. The application coordinator
   retains file lookup, creation, selection, and editor focus.
+- The assistant workflow status replaces four internal element references,
+  two native action bindings, operation-specific status copy, and attribution
+  visibility. The application coordinator retains evidence navigation,
+  settings authority, provider discovery, generation, and status policy.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

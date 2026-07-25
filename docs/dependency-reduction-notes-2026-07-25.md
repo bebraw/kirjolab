@@ -1661,3 +1661,26 @@ The browser application artifact grows from 771,417 B raw / 209,280 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,351 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Assistant Workflow Status
+
+A bounded `AssistantWorkflowStatus` now owns operation-specific phrasing
+attribution and initial status copy, subsequent live status presentation, and
+typed evidence and connection intents. `WorkspaceApp` retains evidence
+navigation, settings authority, provider discovery and generation, and the
+policy that selects subsequent status messages.
+
+This checkpoint reduces `src/client/app.ts` from 7,687 to 7,678 lines (-9),
+replaces four internal element references with one component reference, and
+consolidates two native action bindings. The component adds 90 lines. Component
+tests cover default, phrasing, claim, and general operation status plus typed
+actions and the settings click-propagation boundary; it records 77.77%
+statement and 82.35% line coverage. Five focused browser workflows pass provider
+selection and discovery, stale-generation rejection, clarity drilling, and
+evidence-backed revision.
+
+The browser application artifact grows from 772,143 B raw / 209,350 B gzip to
+774,297 B raw / 209,781 B gzip (+2,154 B raw / +431 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,362 B raw /
+23,360 B gzip and 18 and 150. Full native CI passes all 1,353 unit/coverage
+tests, 120 Workers-runtime tests, and 74 browser tests.
