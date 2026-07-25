@@ -105,6 +105,12 @@ memory and makes citation aliases compete with stable source identity.
   presentation; and emits typed lifecycle intents. The workspace coordinator
   retains mutations and requests, refreshes, and notification policy. Component
   updates, including nested PDF rows, finish before Library scroll restoration.
+- A bounded light-DOM reference-list component owns result and empty-state
+  rendering, per-reference detail expansion, composition of summary, metadata,
+  personal-field, PDF, and research rows, nested update settlement, and
+  addressed-card focus. Child action events continue bubbling to the workspace
+  coordinator, which retains canonical filtering, mutations, requests,
+  refreshes, and notification policy.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - An authenticated project member may stream PDFs attached to the project

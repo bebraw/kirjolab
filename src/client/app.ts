@@ -115,16 +115,8 @@ import {
 import { WorkspaceCatalogPanel, workspaceCatalogCloseEvent } from "./workspace-catalog-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { UnidentifiedPdfList, unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
-import {
-  LibraryReferenceSummary,
-  libraryReferenceSummaryActionEvent,
-  type LibraryReferenceSummaryAction,
-} from "./library-reference-summary";
-import {
-  LibraryReferencePersonalFields,
-  libraryReferencePersonalActionEvent,
-  type LibraryReferencePersonalAction,
-} from "./library-reference-personal-fields";
+import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
+import { libraryReferencePersonalActionEvent, type LibraryReferencePersonalAction } from "./library-reference-personal-fields";
 import {
   LibraryReferenceMetadataEditor,
   libraryReferenceMetadataActionEvent,
@@ -132,12 +124,9 @@ import {
   type LibraryReferenceMetadataValue,
   type ProviderMetadataSelection,
 } from "./library-reference-metadata-editor";
-import { LibraryReferencePdfRows, libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
-import {
-  LibraryReferenceResearchRows,
-  libraryReferenceResearchActionEvent,
-  type LibraryReferenceResearchAction,
-} from "./library-reference-research-rows";
+import { libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
+import { libraryReferenceResearchActionEvent, type LibraryReferenceResearchAction } from "./library-reference-research-rows";
+import { LibraryReferenceList } from "./library-reference-list";
 import {
   WorkspaceSettingsPanel,
   workspaceSettingsActionEvent,
@@ -460,7 +449,7 @@ interface Elements {
   shareWorkspace: HTMLButtonElement;
   shareWorkspaceDialog: HTMLDialogElement;
   workspaceSharingPanel: WorkspaceSharingPanel;
-  referenceLibraryList: HTMLElement;
+  referenceLibraryList: LibraryReferenceList;
   libraryDiscoverySearch: LibraryDiscoverySearch;
   libraryDiscoveryResults: LibraryDiscoveryResults;
   libraryBibliographyUpload: HTMLInputElement;
@@ -745,7 +734,6 @@ class WorkspaceApp {
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
-  readonly #expandedLibraryReferences = new Set<string>();
   #libraryPdfUploadBusy = false;
   #pdfDrawingDraftLine: SVGElement | null = null;
   #pdfDrawingShape: RecognizedDrawnShape | null = null;
@@ -3643,16 +3631,11 @@ class WorkspaceApp {
       await this.#refreshReferenceLibrary();
     }
     this.#elements.referenceLibraryFilters.reset();
-    this.#expandedLibraryReferences.add(referenceId);
     this.#renderReferenceLibrary();
-    const card = this.#elements.referenceLibraryList.querySelector<HTMLElement>(`[data-reference-id="${CSS.escape(referenceId)}"]`);
-    if (!card) {
+    if (!(await this.#elements.referenceLibraryList.focusReference(referenceId, { block: "center", expand: true }))) {
       this.#showToast("That reference is no longer available in the Library.");
       return false;
     }
-    card.tabIndex = -1;
-    card.scrollIntoView({ block: "center" });
-    card.focus({ preventScroll: true });
     return true;
   }
 
@@ -3697,28 +3680,20 @@ class WorkspaceApp {
     const linked = new Set(this.#snapshot?.projectReferences.map((reference) => reference.referenceId) ?? []);
     const references = filterReferenceLibrary(library, linked, filters);
     this.#elements.referenceLibraryFilters.setCount(references.length, library.references.length);
-    this.#elements.referenceLibraryList.replaceChildren();
-    if (references.length === 0) {
-      this.#elements.referenceLibraryList.append(
-        emptyState(library.references.length === 0 ? "No references. Use Add reference to begin." : "No matching references."),
-      );
-    }
-    for (const reference of references) this.#elements.referenceLibraryList.append(this.#referenceLibraryCard(reference));
+    this.#elements.referenceLibraryList.setData({
+      library,
+      projectReferences: this.#snapshot?.projectReferences ?? [],
+      references,
+      researchShares: this.#snapshot?.researchShares ?? [],
+      workspace: appMode === "workspace",
+    });
 
     const unidentified = library.artifacts.filter((artifact) => artifact.referenceId === null);
     this.#elements.unidentifiedPdfList.setData(unidentified, library.references);
   }
 
   async #referenceLibraryRenderComplete(): Promise<void> {
-    const components = [
-      ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferenceSummary>("library-reference-summary"),
-      ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferenceMetadataEditor>("library-reference-metadata-editor"),
-      ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferencePersonalFields>("library-reference-personal-fields"),
-      ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferenceResearchRows>("library-reference-research-rows"),
-    ];
-    await Promise.all(components.map(({ updateComplete }) => updateComplete));
-    const pdfRows = this.#elements.referenceLibraryList.querySelectorAll<LibraryReferencePdfRows>("library-reference-pdf-rows");
-    await Promise.all([...pdfRows].map(({ updateComplete }) => updateComplete));
+    await this.#elements.referenceLibraryList.settled();
   }
 
   async #openCitationNetwork(): Promise<void> {
@@ -3813,94 +3788,6 @@ class WorkspaceApp {
       this.#elements.citationNetworkPanel.setCandidateSaving(candidate.doi, false);
       this.#showToast(error instanceof Error ? error.message : "Could not save citation candidate");
     }
-  }
-
-  #referenceLibraryCard(reference: BibliographicRecord): HTMLElement {
-    const card = document.createElement("article");
-    card.className = "library-reference-row";
-    card.dataset.referenceId = reference.id;
-    const keyState = this.#librarySnapshot?.referenceKeyStates[reference.id] ?? "final";
-    const linked = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
-    const artifacts = this.#librarySnapshot?.artifacts.filter((artifact) => artifact.referenceId === reference.id) ?? [];
-    const displayTitle = bibTeXDisplayText(reference.title) || "Untitled reference";
-    const summary = new LibraryReferenceSummary();
-    summary.className = "contents";
-    summary.setData({
-      keyState,
-      linkedCitationAlias: linked?.citationAlias ?? null,
-      primaryArtifact: artifacts[0] ?? null,
-      reference,
-      workspace: appMode === "workspace",
-    });
-    card.append(summary, this.#referenceMetadataEditor(reference, displayTitle, linked, artifacts));
-    return card;
-  }
-
-  #referenceMetadataEditor(
-    reference: BibliographicRecord,
-    displayTitle: string,
-    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
-    artifacts: readonly LibraryPdfArtifact[],
-  ): HTMLElement {
-    const metadataEditor = document.createElement("details");
-    metadataEditor.className = "library-reference-details";
-    metadataEditor.open = this.#expandedLibraryReferences.has(reference.id);
-    metadataEditor.addEventListener("toggle", () => {
-      if (metadataEditor.open) this.#expandedLibraryReferences.add(reference.id);
-      else this.#expandedLibraryReferences.delete(reference.id);
-    });
-    const metadataSummary = document.createElement("summary");
-    metadataSummary.textContent = "Details";
-    metadataSummary.title = "Edit metadata, organization, reading state, and attached research";
-    metadataEditor.append(metadataSummary);
-    const metadataBody = document.createElement("div");
-    metadataBody.className = "library-reference-detail-body";
-    metadataEditor.append(metadataBody);
-    const metadataFields = new LibraryReferenceMetadataEditor();
-    metadataFields.className = "contents";
-    metadataFields.setData(reference, displayTitle, artifacts[0] ?? null);
-    metadataBody.append(metadataFields);
-    const personalFields = new LibraryReferencePersonalFields();
-    personalFields.className = "contents";
-    personalFields.setData({
-      archived: reference.archivedAt !== null,
-      collections: this.#librarySnapshot?.collections[reference.id] ?? [],
-      displayTitle,
-      reading: this.#librarySnapshot?.reading.find((item) => item.referenceId === reference.id) ?? null,
-      referenceId: reference.id,
-      tags: this.#librarySnapshot?.tags[reference.id] ?? [],
-    });
-    metadataBody.append(personalFields);
-    this.#appendReferenceResources(metadataBody, reference, linked, artifacts);
-    return metadataEditor;
-  }
-
-  #appendReferenceResources(
-    metadataBody: HTMLElement,
-    reference: BibliographicRecord,
-    linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
-    artifacts: readonly LibraryPdfArtifact[],
-  ): void {
-    const notes = this.#librarySnapshot?.notes.filter((note) => note.referenceId === reference.id) ?? [];
-    const highlights = this.#librarySnapshot?.highlights.filter((highlight) => highlight.referenceId === reference.id) ?? [];
-    const webSource = this.#librarySnapshot?.webSources.find((source) => source.referenceId === reference.id);
-    const webSnapshots = [...(this.#librarySnapshot?.webSnapshots.filter((snapshot) => snapshot.referenceId === reference.id) ?? [])].sort(
-      (left, right) => right.accessedAt.localeCompare(left.accessedAt),
-    );
-    const researchRows = new LibraryReferenceResearchRows();
-    researchRows.className = "contents";
-    researchRows.setData({
-      artifacts,
-      canonicalUrl: webSource?.canonicalUrl ?? null,
-      highlights,
-      linkedSnapshotId: linked?.snapshot.webSnapshot?.id ?? null,
-      notes,
-      reference,
-      referenceLinked: linked !== undefined,
-      researchShares: this.#snapshot?.researchShares ?? [],
-      webSnapshots,
-    });
-    metadataBody.append(researchRows);
   }
 
   async #importIntoReferenceLibrary(): Promise<void> {
@@ -4017,14 +3904,9 @@ class WorkspaceApp {
     }
     this.#elements.referenceLibraryFilters.reset(existing.referenceKey);
     this.#renderReferenceLibrary();
-    const card = this.#elements.referenceLibraryList.querySelector<HTMLElement>(`[data-reference-id="${existing.referenceId}"]`);
-    if (!card) {
+    if (!(await this.#elements.referenceLibraryList.focusReference(existing.referenceId, { block: "nearest" }))) {
       this.#showToast(`Library source ${existing.referenceKey} is not available.`);
-      return;
     }
-    card.tabIndex = -1;
-    card.scrollIntoView({ block: "nearest" });
-    card.focus({ preventScroll: true });
   }
 
   async #refinePdfMetadata(
@@ -8050,7 +7932,7 @@ function collectElements(): Elements {
     shareWorkspace: requiredElement("share-workspace", HTMLButtonElement),
     shareWorkspaceDialog: requiredElement("share-workspace-dialog", HTMLDialogElement),
     workspaceSharingPanel: requiredElement("workspace-sharing-panel", WorkspaceSharingPanel),
-    referenceLibraryList: requiredElement("reference-library-list", HTMLElement),
+    referenceLibraryList: requiredElement("reference-library-list", LibraryReferenceList),
     libraryDiscoverySearch: requiredElement("library-discovery-search", LibraryDiscoverySearch),
     libraryDiscoveryResults: requiredElement("library-discovery-results", LibraryDiscoveryResults),
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),

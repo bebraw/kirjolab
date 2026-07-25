@@ -174,6 +174,9 @@ The adopted components own bounded presentation:
 - The Library reference PDF rows own attached-artifact presentation, member
   access context, rights choices, and typed open, rights, and refinement
   intents.
+- The Library reference list owns result and empty-state rendering, detail
+  expansion, nested reference-component composition, nested update settlement,
+  and addressed-card focus.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -396,6 +399,11 @@ reason to wrap static markup mechanically.
   action stream. The application coordinator retains persistence, capture and
   comparison requests, project-pin mutations, refreshes, and notification
   policy.
+- The Library reference list replaces result-card, metadata-details, personal
+  fields, and attached-research composition helpers plus coordinator-owned
+  expansion and focus state. Nested typed actions continue bubbling to the
+  application coordinator, which retains canonical filtering, mutations,
+  requests, refreshes, and notification policy.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

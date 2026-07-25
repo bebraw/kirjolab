@@ -1465,3 +1465,26 @@ The browser application artifact grows from 764,696 B raw / 207,939 B gzip to
 production package counts remain unchanged at 18 and 150. Full native CI
 passes all 1,332 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
 tests.
+
+## Continued Lit Extraction: Library Reference List
+
+A bounded `LibraryReferenceList` now owns filtered result and empty-state
+rendering, reference-card and details composition, persistent expansion state,
+nested component configuration and update settlement, and addressed-card focus.
+Nested summary, metadata, personal-field, PDF, and research-row actions continue
+to bubble to `WorkspaceApp`, which retains canonical filtering, mutations,
+requests, refreshes, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 8,347 to 8,229 lines (-118).
+The component adds 158 lines. Its isolated test covers loading, empty-Library,
+filtered-empty, and populated workspace presentation; it records 23.88%
+statement and 25.92% line coverage because DOM composition, update settlement,
+and focus require the real browser boundary. Focused browser workflows pass
+addressed-card focus, nested linked-PDF sharing, archived duplicate reveal, and
+metadata refinement.
+
+The browser application artifact grows from 766,768 B raw / 208,428 B gzip to
+767,765 B raw / 208,571 B gzip (+997 B raw / +143 B gzip). Direct and unique
+production package counts remain unchanged at 18 and 150. Full native CI
+passes all 1,333 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
+tests.
