@@ -71,6 +71,12 @@ All mutation operations preserve a human review boundary.
   companion when provider CORS blocks direct browser access. A saved local
   choice remains visible before refresh; successful discovery replaces stale
   choices with identifiers reported by the configured endpoint.
+- One bounded model-provider settings component owns connection, endpoint,
+  model, and reasoning values, saved-value validation, live option
+  presentation, discovery progress, and typed change and discovery intents.
+  The workspace coordinator retains browser-local persistence, provider
+  discovery, request construction, generation workflows, and assistant status
+  policy.
 - Connection diagnostics distinguish a direct browser/CORS failure from an
   unavailable companion. Bounded companion error details and targeted guidance
   for origin rejection or an incomplete chat-completions URL remain visible in

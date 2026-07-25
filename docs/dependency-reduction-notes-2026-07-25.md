@@ -1012,3 +1012,27 @@ Full native CI passes all 1,286 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 721,355 B raw
 / 199,494 B gzip to 724,344 B raw / 200,038 B gzip (+2,989 B raw / +544 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Model Provider Settings
+
+Local-model preferences now use a bounded `ModelProviderSettings` component
+instead of six element references, duplicate preference listeners and status
+synchronization, coordinator-local stored-value validation, and imperative
+model-option rendering. The component owns connection, endpoint, model, and
+reasoning values, discovery progress, and typed change and discovery intents.
+`WorkspaceApp` retains browser-local persistence, provider discovery, request
+construction, generation workflows, and assistant status policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,567 to 9,485 lines (-82).
+The component adds 218 lines. Component tests cover saved values, dynamic and
+deduplicated model choices, connection defaults, endpoint and reasoning
+changes, status-bearing change events, discovery intent, busy state, and
+light-DOM ownership. Focused browser workflows pass companion selection and
+persistence, live model discovery and selection, and evidence-grounded
+generation with the established `none` reasoning default. The component
+records 85.48% statement and 89.28% line coverage.
+
+Full native CI passes all 1,288 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 724,344 B raw
+/ 200,038 B gzip to 727,427 B raw / 200,522 B gzip (+3,083 B raw / +484 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

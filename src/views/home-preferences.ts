@@ -36,7 +36,8 @@ export function renderPreferencesMenu(): string {
 }
 
 export function renderModelPreferences(): string {
-  return `<section class="preferences-model" aria-labelledby="model-preference-heading">
+  return `<model-provider-settings id="model-provider-settings">
+              <section class="preferences-model" aria-labelledby="model-preference-heading">
                 <div><h3 id="model-preference-heading">Local model</h3><p>Configure the OpenAI-compatible connection used by Writing assistant.</p></div>
                 <div class="preferences-model-grid">
                   <label class="field-label">Connection
@@ -65,5 +66,6 @@ export function renderModelPreferences(): string {
                   <button class="button-secondary justify-center" id="discover-llm-models" type="button">Find loaded models</button>
                 </div>
                 <p class="preferences-model-status ui-status" id="preferences-model-status" role="status" aria-live="polite">Connection details stay on this device.</p>
-              </section>`;
+              </section>
+            </model-provider-settings>`;
 }

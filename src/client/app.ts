@@ -211,6 +211,7 @@ import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelecti
 import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
 import { LibraryDiscoverySearch, libraryDiscoverySearchEvent } from "./library-discovery-search";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
+import { ModelProviderSettings, modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
 import { CitationNetworkPanel, citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
 import {
   PreviewContextStatus,
@@ -270,7 +271,6 @@ import {
   type ModelPhrasingAlternatives,
   type ModelTable,
   type ModelEvidenceItem,
-  type ModelReasoningEffort,
 } from "./model-provider";
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
@@ -407,7 +407,7 @@ interface PendingDeletion {
 
 interface Elements {
   preferencesMenu: HTMLDetailsElement;
-  preferencesModelStatus: HTMLElement;
+  modelProviderSettings: ModelProviderSettings;
   applicationVersion: HTMLElement;
   copyApplicationVersion: HTMLButtonElement;
   citationCompletionScope: HTMLSelectElement;
@@ -644,11 +644,6 @@ interface Elements {
   previousLibraryPaperPage: HTMLButtonElement;
   nextLibraryPaperPage: HTMLButtonElement;
   publicationIntakePanel: PublicationIntakePanel;
-  llmEndpoint: HTMLInputElement;
-  llmConnection: HTMLSelectElement;
-  llmModel: HTMLSelectElement;
-  llmReasoningEffort: HTMLSelectElement;
-  discoverLlmModels: HTMLButtonElement;
   assistantTaskPanel: AssistantTaskPanel;
   assistantInteractiveResult: AssistantResultPanel;
   assistantPhrasingAttribution: HTMLDetailsElement;
@@ -1423,45 +1418,17 @@ class WorkspaceApp {
         this.#focusClaimCard(evidence.id);
       }
     });
-    for (const input of [
-      this.#elements.llmConnection,
-      this.#elements.llmEndpoint,
-      this.#elements.llmModel,
-      this.#elements.llmReasoningEffort,
-    ]) {
-      input.addEventListener("input", () => this.#updateModelAvailability());
-    }
-    for (const input of [
-      this.#elements.llmConnection,
-      this.#elements.llmEndpoint,
-      this.#elements.llmModel,
-      this.#elements.llmReasoningEffort,
-    ]) {
-      input.addEventListener("input", () => this.#saveModelPreferences());
-    }
-    this.#elements.llmConnection.addEventListener("change", () => {
-      this.#elements.llmEndpoint.value =
-        this.#elements.llmConnection.value === "companion"
-          ? "http://127.0.0.1:8790/v1/chat/completions"
-          : "http://127.0.0.1:1234/v1/chat/completions";
-      this.#elements.modelStatus.textContent =
-        this.#elements.llmConnection.value === "companion"
-          ? "The local companion starts with npm run dev; select manuscript text and grounding evidence."
-          : "The browser will contact the configured loopback provider directly.";
-      this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
+    this.#elements.modelProviderSettings.addEventListener(modelProviderChangeEvent, (event) => {
+      const status = (event as CustomEvent<string | null>).detail;
+      if (status) this.#elements.modelStatus.textContent = status;
+      this.#updateModelAvailability();
       this.#saveModelPreferences();
     });
-    this.#elements.llmModel.addEventListener("change", () => {
-      const model = this.#elements.llmModel.value;
-      const status = model ? `Using ${model} for new writing assistant requests.` : "Find a loaded model before using Writing assistant.";
-      this.#elements.modelStatus.textContent = status;
-      this.#elements.preferencesModelStatus.textContent = status;
-    });
-    this.#elements.discoverLlmModels.addEventListener("click", () => void this.#discoverLlmModels());
+    this.#elements.modelProviderSettings.addEventListener(modelProviderDiscoveryEvent, () => void this.#discoverLlmModels());
     this.#elements.openPreferencesFromAssistant.addEventListener("click", (event) => {
       event.stopPropagation();
       this.#elements.preferencesMenu.open = true;
-      this.#elements.llmConnection.focus();
+      this.#elements.modelProviderSettings.focusConnection();
     });
     this.#elements.chooseModelEvidence.addEventListener("click", () => this.#chooseModelEvidence());
     this.#elements.assistantInteractiveResult.addEventListener(assistantResultActionEvent, (event) => {
@@ -2598,7 +2565,7 @@ class WorkspaceApp {
     return (
       this.#assistantEvidenceValid(operation.evidence, selectedEvidence.items) &&
       this.#modelEvidenceSelection.size <= maximumModelEvidenceItems &&
-      Boolean(this.#elements.llmModel.value.trim()) &&
+      Boolean(this.#elements.modelProviderSettings.value.model.trim()) &&
       this.#assistantTargetValid(operation.id, selectedEvidence.items) &&
       Boolean(instruction.trim())
     );
@@ -2676,88 +2643,49 @@ class WorkspaceApp {
     try {
       const stored: unknown = JSON.parse(localStorage.getItem(modelPreferencesStorageKey) ?? "null");
       if (!isRecord(stored)) return;
-      this.#applyStoredModelPreferences(stored);
+      this.#elements.modelProviderSettings.restore(stored);
     } catch {
       localStorage.removeItem(modelPreferencesStorageKey);
     }
   }
 
-  #applyStoredModelPreferences(stored: Record<string, unknown>): void {
-    if (stored.connection === "direct" || stored.connection === "companion") this.#elements.llmConnection.value = stored.connection;
-    if (typeof stored.endpoint === "string" && stored.endpoint.length <= 2_048) this.#elements.llmEndpoint.value = stored.endpoint;
-    if (typeof stored.model === "string" && stored.model.length <= 256) this.#setLlmModelOptions([], stored.model);
-    if (typeof stored.reasoningEffort === "string") {
-      this.#elements.llmReasoningEffort.value = readModelReasoningEffort(stored.reasoningEffort);
-    }
-  }
-
   #saveModelPreferences(): void {
-    localStorage.setItem(
-      modelPreferencesStorageKey,
-      JSON.stringify({
-        connection: this.#elements.llmConnection.value,
-        endpoint: this.#elements.llmEndpoint.value,
-        model: this.#elements.llmModel.value,
-        reasoningEffort: readModelReasoningEffort(this.#elements.llmReasoningEffort.value),
-      }),
-    );
+    localStorage.setItem(modelPreferencesStorageKey, JSON.stringify(this.#elements.modelProviderSettings.value));
   }
 
   #modelProvider(): OpenAICompatibleBrowserProvider {
+    const preferences = this.#elements.modelProviderSettings.value;
     return new OpenAICompatibleBrowserProvider({
-      endpoint: this.#elements.llmEndpoint.value,
-      providerLabel:
-        this.#elements.llmConnection.value === "companion" ? "Local companion · OpenAI-compatible" : "Browser-local OpenAI-compatible",
-      model: this.#elements.llmModel.value,
-      reasoningEffort: readModelReasoningEffort(this.#elements.llmReasoningEffort.value),
+      endpoint: preferences.endpoint,
+      providerLabel: preferences.connection === "companion" ? "Local companion · OpenAI-compatible" : "Browser-local OpenAI-compatible",
+      model: preferences.model,
+      reasoningEffort: preferences.reasoningEffort,
     });
-  }
-
-  #setLlmModelOptions(models: readonly string[], selectedModel: string): void {
-    const selected = selectedModel.trim();
-    const available = [...new Set(models.map((model) => model.trim()).filter(Boolean))];
-    const optionModels = available.length === 0 && selected ? [selected] : available;
-    if (optionModels.length === 0) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "Find loaded models";
-      this.#elements.llmModel.replaceChildren(option);
-      return;
-    }
-    this.#elements.llmModel.replaceChildren(
-      ...optionModels.map((model) => {
-        const option = document.createElement("option");
-        option.value = model;
-        option.textContent = available.length === 0 ? `${model} · saved` : model;
-        return option;
-      }),
-    );
-    this.#elements.llmModel.value = optionModels.includes(selected) ? selected : (optionModels[0] ?? "");
   }
 
   async #discoverLlmModels(): Promise<void> {
     if (this.#modelDiscoveryBusy || assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
     this.#modelDiscoveryBusy = true;
-    this.#elements.discoverLlmModels.disabled = true;
+    this.#elements.modelProviderSettings.setBusy(true);
     this.#updateModelAvailability();
     this.#elements.modelStatus.textContent = "Checking the local provider for loaded models…";
-    this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
+    this.#elements.modelProviderSettings.setStatus(this.#elements.modelStatus.textContent);
     try {
-      const models = await discoverOpenAICompatibleModels(this.#elements.llmEndpoint.value);
-      const selectedModel = this.#elements.llmModel.value.trim();
-      this.#setLlmModelOptions(models, models.includes(selectedModel) ? selectedModel : (models[0] ?? selectedModel));
+      const selectedModel = this.#elements.modelProviderSettings.value.model.trim();
+      const models = await discoverOpenAICompatibleModels(this.#elements.modelProviderSettings.value.endpoint);
+      this.#elements.modelProviderSettings.setModels(models, models.includes(selectedModel) ? selectedModel : (models[0] ?? selectedModel));
       this.#elements.modelStatus.textContent = models.length
-        ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.#elements.llmModel.value}.`
+        ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.#elements.modelProviderSettings.value.model}.`
         : "The local provider is reachable but reports no loaded models.";
-      this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
+      this.#elements.modelProviderSettings.setStatus(this.#elements.modelStatus.textContent);
       this.#saveModelPreferences();
     } catch (error) {
       this.#elements.modelStatus.textContent =
         error instanceof Error ? error.message : "Could not discover models from the local provider.";
-      this.#elements.preferencesModelStatus.textContent = this.#elements.modelStatus.textContent;
+      this.#elements.modelProviderSettings.setStatus(this.#elements.modelStatus.textContent);
     } finally {
       this.#modelDiscoveryBusy = false;
-      this.#elements.discoverLlmModels.disabled = false;
+      this.#elements.modelProviderSettings.setBusy(false);
       this.#updateModelAvailability();
     }
   }
@@ -9137,7 +9065,7 @@ function scholarlyProviderLabel(provider: MetadataRefinementCandidate["provider"
 function collectElements(): Elements {
   return {
     preferencesMenu: requiredElement("preferences-menu", HTMLDetailsElement),
-    preferencesModelStatus: requiredElement("preferences-model-status", HTMLElement),
+    modelProviderSettings: requiredElement("model-provider-settings", ModelProviderSettings),
     applicationVersion: requiredElement("application-version", HTMLElement),
     copyApplicationVersion: requiredElement("copy-application-version", HTMLButtonElement),
     citationCompletionScope: requiredElement("citation-completion-scope", HTMLSelectElement),
@@ -9374,11 +9302,6 @@ function collectElements(): Elements {
     previousLibraryPaperPage: requiredElement("previous-library-paper-page", HTMLButtonElement),
     nextLibraryPaperPage: requiredElement("next-library-paper-page", HTMLButtonElement),
     publicationIntakePanel: requiredElement("publication-intake-panel", PublicationIntakePanel),
-    llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
-    llmConnection: requiredElement("llm-connection", HTMLSelectElement),
-    llmModel: requiredElement("llm-model", HTMLSelectElement),
-    llmReasoningEffort: requiredElement("llm-reasoning-effort", HTMLSelectElement),
-    discoverLlmModels: requiredElement("discover-llm-models", HTMLButtonElement),
     assistantTaskPanel: requiredElement("assistant-task-panel", AssistantTaskPanel),
     assistantInteractiveResult: requiredElement("assistant-interactive-result", AssistantResultPanel),
     assistantPhrasingAttribution: requiredElement("assistant-phrasing-attribution", HTMLDetailsElement),
@@ -9514,11 +9437,6 @@ function formatTimestamp(value: string): string {
 function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
   if (value === "contradicts" || value === "extends") return value;
   return "supports";
-}
-
-function readModelReasoningEffort(value: string): ModelReasoningEffort {
-  if (value === "none" || value === "low" || value === "medium" || value === "high") return value;
-  return "provider-default";
 }
 
 function parseModelEvidenceKey(value: string): ["annotation" | "claim", string] {

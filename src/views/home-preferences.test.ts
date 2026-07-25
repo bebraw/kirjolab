@@ -22,6 +22,7 @@ describe("renderModelPreferences", () => {
   it("renders the complete local-model connection contract", () => {
     const html = renderModelPreferences();
 
+    expect(html).toContain('<model-provider-settings id="model-provider-settings">');
     expect(html).toContain('aria-labelledby="model-preference-heading"');
     expect(html).toContain('id="llm-connection"');
     expect(html).toContain('<option value="direct">Direct browser connection</option>');

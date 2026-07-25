@@ -128,6 +128,10 @@ The adopted components own bounded presentation:
 - The reference Library filter panel owns query, type, reading,
   organization, project-linkage, completeness, and sort values, dynamic type
   choices, result counts, reset behavior, and a typed filter-change intent.
+- The model provider settings panel owns connection, endpoint, model, and
+  reasoning-effort values, saved-value validation, dynamic model choices,
+  discovery progress, status presentation, and typed change and discovery
+  intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -275,6 +279,11 @@ reason to wrap static markup mechanically.
   rendering, and result-count updates while leaving canonical filtering,
   linked-reference projection, result-card rendering, and navigation in the
   application coordinator.
+- The model provider settings panel replaces six internal element references,
+  duplicate preference listeners and status synchronization, stored-value
+  validation, and imperative model-option rendering while leaving provider
+  discovery, local persistence, request construction, generation workflows,
+  and assistant status policy in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without
