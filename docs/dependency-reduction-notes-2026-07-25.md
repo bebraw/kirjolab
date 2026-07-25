@@ -820,3 +820,22 @@ Full native CI passes all 1,261 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 698,319 B raw
 / 194,629 B gzip to 701,258 B raw / 194,976 B gzip (+2,939 B raw / +347 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Export Statistics
+
+The export dialog's publication statistics now use a bounded
+`ExportStatisticsPanel` instead of coordinator-owned total, explanatory,
+group, row, and empty-state DOM assembly. `WorkspaceApp` retains composition
+and the canonical `PublicationWordStatistics` projection; the component owns
+only its read-only presentation.
+
+This checkpoint reduces `src/client/app.ts` from 10,000 to 9,952 lines (-48).
+The component adds 81 lines. Component tests cover loading, populated, and
+empty-group states. The focused browser export workflow passes live totals and
+the existing export-dialog handoff. The component records 83.33% statement and
+87.5% line coverage.
+
+Full native CI passes all 1,262 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 701,258 B raw
+/ 194,976 B gzip to 701,516 B raw / 195,023 B gzip (+258 B raw / +47 B gzip).
+Direct and unique production package counts remain unchanged at 18 and 150.

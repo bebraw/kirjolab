@@ -732,7 +732,7 @@ export function renderHomePage(
         </details>
         <section class="mt-6 border-t border-app-line pt-5">
           <div class="flex items-center justify-between gap-3"><p class="eyebrow">Publication statistics</p><a class="font-sans text-xs font-semibold text-app-accent" href="/api/workspaces/${escapedWorkspaceId}/export/statistics.json">Download JSON</a></div>
-          <div class="mt-3" id="export-statistics" aria-live="polite"><div class="empty-state">Loading composed word counts…</div></div>
+          <export-statistics-panel class="mt-3" id="export-statistics" aria-live="polite"><div class="empty-state">Loading composed word counts…</div></export-statistics-panel>
         </section>
       </div>
     </dialog>

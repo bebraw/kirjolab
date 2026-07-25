@@ -103,6 +103,8 @@ The adopted components own bounded presentation:
 - The LaTeX import panel owns archive, title, and root input, bounded client
   validation, converted-file and diagnostic review, preview identity, busy and
   status presentation, and typed preview, confirmation, and cancel intents.
+- The export statistics panel owns loading, total, file, heading, and
+  empty-group presentation for the live publication word-count projection.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -210,6 +212,9 @@ reason to wrap static markup mechanically.
   coordinator fields, and imperative root-option, converted-file, diagnostic,
   readiness, status, and busy rendering while leaving validated preview and
   creation requests plus navigation in the application coordinator.
+- The export statistics panel replaces the imperative total, explanatory,
+  group, row, and empty-state renderers while leaving composition and the
+  canonical word-count projection in the application coordinator and domain.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

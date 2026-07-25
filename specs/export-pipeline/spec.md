@@ -94,6 +94,9 @@ files.
   bibliography file under a collapsed **Interoperability files** section.
 - A live word-count badge opens the same dialog. Statistics show the composed
   total plus per-file and per-heading counts.
+- A bounded light-DOM component owns loading, total, per-file, per-heading, and
+  empty-group presentation. The application coordinator supplies only the
+  canonical `PublicationWordStatistics` projection.
 - Revision comparison reports composed line changes and the before, after, and
   delta values under the same word-counting rule.
 - The existing HTML preview remains visible if an export request fails. Export

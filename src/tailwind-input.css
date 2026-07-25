@@ -1582,7 +1582,8 @@
   preview-context-status,
   preview-diagnostics-panel,
   publication-intake-panel,
-  latex-import-panel {
+  latex-import-panel,
+  export-statistics-panel {
     display: block;
   }
 

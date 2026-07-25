@@ -68,6 +68,7 @@ import {
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 import { formatBytes } from "./format";
+import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { sourceSpanAt } from "./composition-source-map";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
@@ -554,7 +555,7 @@ interface Elements {
   openExport: HTMLButtonElement;
   exportDialog: HTMLDialogElement;
   closeExport: HTMLButtonElement;
-  exportStatistics: HTMLElement;
+  exportStatistics: ExportStatisticsPanel;
   wordCountBadge: HTMLButtonElement;
   projectHistoryDialog: HTMLDialogElement;
   projectHistoryPanel: ProjectHistoryPanel;
@@ -3731,26 +3732,7 @@ class WorkspaceApp {
   #renderExportStatistics(): void {
     const statistics = this.#wordStatistics;
     this.#elements.wordCountBadge.textContent = statistics ? `${statistics.totalWords.toLocaleString()} words` : "… words";
-    if (!statistics) return;
-    const total = document.createElement("p");
-    total.className = "font-sans text-3xl font-semibold tracking-[-0.04em]";
-    total.textContent = `${statistics.totalWords.toLocaleString()} words`;
-    const rule = document.createElement("p");
-    rule.className = "mt-1 text-xs leading-5 text-app-text-soft";
-    rule.textContent = "Composed prose from main.md; code, equations, citation keys, and link destinations are excluded.";
-    const columns = document.createElement("div");
-    columns.className = "mt-4 grid gap-4 md:grid-cols-2";
-    columns.append(
-      statisticsGroup(
-        "Files",
-        statistics.files.map((file) => ({ label: file.path, words: file.words })),
-      ),
-      statisticsGroup(
-        "Headings",
-        statistics.headings.map((heading) => ({ label: heading.heading, words: heading.words })),
-      ),
-    );
-    this.#elements.exportStatistics.replaceChildren(total, rule, columns);
+    this.#elements.exportStatistics.setStatistics(statistics);
   }
 
   async #inspectProjectRevision(revision: number): Promise<void> {
@@ -9470,36 +9452,6 @@ function captureRelativeSelection(textarea: HTMLTextAreaElement, text: Y.Text): 
   };
 }
 
-function statisticsGroup(title: string, items: readonly { label: string; words: number }[]): HTMLElement {
-  const section = document.createElement("section");
-  const heading = document.createElement("h3");
-  heading.className = "font-sans text-sm font-semibold";
-  heading.textContent = title;
-  const list = document.createElement("dl");
-  list.className = "mt-2 divide-y divide-app-line border-y border-app-line";
-  if (items.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "py-3 text-xs text-app-text-soft";
-    empty.textContent = `No ${title.toLocaleLowerCase()} in the composed document.`;
-    section.append(heading, empty);
-    return section;
-  }
-  for (const item of items) {
-    const row = document.createElement("div");
-    row.className = "flex items-center justify-between gap-3 py-2 text-xs";
-    const term = document.createElement("dt");
-    term.className = "min-w-0 truncate";
-    term.textContent = item.label;
-    const detail = document.createElement("dd");
-    detail.className = "shrink-0 font-sans font-semibold";
-    detail.textContent = item.words.toLocaleString();
-    row.append(term, detail);
-    list.append(row);
-  }
-  section.append(heading, list);
-  return section;
-}
-
 function scholarlyProviderLabel(provider: MetadataRefinementCandidate["provider"]): string {
   if (provider === "openalex") return "OpenAlex";
   if (provider === "crossref") return "Crossref";
@@ -9636,7 +9588,7 @@ function collectElements(): Elements {
     openExport: requiredElement("open-export", HTMLButtonElement),
     exportDialog: requiredElement("export-dialog", HTMLDialogElement),
     closeExport: requiredElement("close-export", HTMLButtonElement),
-    exportStatistics: requiredElement("export-statistics", HTMLElement),
+    exportStatistics: requiredElement("export-statistics", ExportStatisticsPanel),
     wordCountBadge: requiredElement("word-count-badge", HTMLButtonElement),
     projectHistoryDialog: requiredElement("project-history-dialog", HTMLDialogElement),
     projectHistoryPanel: requiredElement("project-history-panel", ProjectHistoryPanel),

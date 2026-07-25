@@ -180,7 +180,7 @@ describe("renderHomePage", () => {
     expect(html).toContain("/api/workspaces/demo/export/document.pdf");
     expect(html).toContain("/api/workspaces/demo/export/latex.zip");
     expect(html).toContain("/api/workspaces/demo/export/source.zip");
-    expect(html).toContain('id="export-statistics"');
+    expect(html).toContain('<export-statistics-panel class="mt-3" id="export-statistics"');
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain('class="context-tab-list ui-tab-list"');
     expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(3);
