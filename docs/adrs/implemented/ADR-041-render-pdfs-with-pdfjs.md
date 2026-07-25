@@ -22,6 +22,11 @@ Use the `pdfjs-dist` display layer to render one visible page at a time into an
 application-owned canvas and text layer. Serve the matching PDF.js worker as a
 generated typed-client asset.
 
+The PDF viewer resolves its bounded canvas, layers, status, and both context
+and Library page-control sets from the document shell. The application
+coordinator supplies only typed selection, highlight, and page-change hooks;
+viewer-internal elements do not enter its global element registry.
+
 Store each selection as one or more rectangles normalized to the rendered page
 in top-left coordinates, with every `x`, `y`, `width`, and `height` value in the
 inclusive zero-to-one page space. Retain the exact quote and normalized prefix

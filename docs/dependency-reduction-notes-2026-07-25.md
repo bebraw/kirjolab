@@ -2124,3 +2124,23 @@ to 789,386 B raw / 213,011 B gzip (+740 B raw / +341 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip and 18 and 150. Full native CI passes all 1,385 unit/coverage
 tests, 120 Workers-runtime tests, and 74 browser tests.
+
+## Continued Coordinator Reduction: PDF Viewer Shell
+
+`PdfEvidenceViewer` now resolves its bounded canvas, page, link, text,
+highlight, status, and dual page-control elements from the document shell.
+`WorkspaceApp` supplies only typed selection, highlight, page-change, and
+private-highlight hooks; the two shared status/text-layer references remain in
+the coordinator only because separate workflows still use them.
+
+This checkpoint reduces `src/client/app.ts` from 7,408 to 7,376 lines (-32),
+removes nine viewer-only element references, and replaces the large constructor
+object with one document-scoped factory. Focused browser coverage passes the
+standalone private-PDF import, page rendering, selection, annotation, and export
+workflow.
+
+The browser application artifact changes from 789,386 B raw / 213,011 B gzip
+to 789,338 B raw / 213,050 B gzip (-48 B raw / +39 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150. Full native CI passes all 1,385 unit/coverage
+tests, 120 Workers-runtime tests, and 74 browser tests.

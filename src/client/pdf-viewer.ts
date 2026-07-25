@@ -39,6 +39,13 @@ interface PdfViewerElements {
   status: HTMLElement;
 }
 
+interface PdfViewerHooks {
+  readonly onSelection: (capture: PdfSelectionCapture) => void;
+  readonly onHighlight: (annotationId: string, fragmentId: string) => void;
+  readonly onPageChange: (page: number) => void;
+  readonly onPrivateHighlight: (highlightId: string) => void;
+}
+
 interface OpenPdfOptions {
   url: string;
   annotations: AnnotationResource[];
@@ -77,6 +84,36 @@ export class PdfEvidenceViewer {
   #selectionCaptureTimer: number | undefined;
   #zoomAnchor: PdfZoomAnchor | null = null;
   #renderedViewport: { convertToViewportPoint(x: number, y: number): number[] } | null = null;
+
+  static forDocument(root: Document, hooks: PdfViewerHooks): PdfEvidenceViewer {
+    return new PdfEvidenceViewer(
+      {
+        reader: requiredViewerElement(root, "paper-reader", HTMLElement),
+        canvas: requiredViewerElement(root, "paper-canvas", HTMLCanvasElement),
+        page: requiredViewerElement(root, "paper-page", HTMLElement),
+        links: requiredViewerElement(root, "paper-links", HTMLElement),
+        textLayer: requiredViewerElement(root, "paper-text-layer", HTMLElement),
+        highlights: requiredViewerElement(root, "paper-highlights", HTMLElement),
+        pageIndicators: [
+          requiredViewerElement(root, "paper-page-indicator", HTMLElement),
+          requiredViewerElement(root, "library-paper-page-indicator", HTMLElement),
+        ],
+        previousPages: [
+          requiredViewerElement(root, "previous-paper-page", HTMLButtonElement),
+          requiredViewerElement(root, "previous-library-paper-page", HTMLButtonElement),
+        ],
+        nextPages: [
+          requiredViewerElement(root, "next-paper-page", HTMLButtonElement),
+          requiredViewerElement(root, "next-library-paper-page", HTMLButtonElement),
+        ],
+        status: requiredViewerElement(root, "paper-status", HTMLElement),
+      },
+      hooks.onSelection,
+      hooks.onHighlight,
+      hooks.onPageChange,
+      hooks.onPrivateHighlight,
+    );
+  }
 
   constructor(
     elements: PdfViewerElements,
@@ -657,6 +694,12 @@ export class PdfEvidenceViewer {
     if (left !== null) this.#elements.reader.scrollLeft += pageRect.left + x - readerRect.left;
     if (top !== null) this.#elements.reader.scrollTop += pageRect.top + y - readerRect.top;
   }
+}
+
+function requiredViewerElement<T extends Element>(root: Document, id: string, type: { new (): T }): T {
+  const element = root.getElementById(id);
+  if (!(element instanceof type)) throw new Error(`Missing PDF viewer element #${id}`);
+  return element;
 }
 
 function touchDistance(touches: TouchList): number {

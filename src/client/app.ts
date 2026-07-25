@@ -541,19 +541,9 @@ interface Elements {
   undoHighlight: HTMLButtonElement;
   citeActivePdf: HTMLButtonElement;
   paperStatus: HTMLElement;
-  paperCanvas: HTMLCanvasElement;
-  paperPage: HTMLElement;
-  paperLinks: HTMLElement;
   paperTextLayer: HTMLElement;
-  paperHighlights: HTMLElement;
   paperMarkups: LibraryPdfMarkupLayer;
-  paperPageIndicator: HTMLElement;
   paperReader: HTMLElement;
-  previousPaperPage: HTMLButtonElement;
-  nextPaperPage: HTMLButtonElement;
-  libraryPaperPageIndicator: HTMLElement;
-  previousLibraryPaperPage: HTMLButtonElement;
-  nextLibraryPaperPage: HTMLButtonElement;
   publicationIntakePanel: PublicationIntakePanel;
   assistantTaskPanel: AssistantTaskPanel;
   assistantInteractiveResult: AssistantResultPanel;
@@ -718,24 +708,12 @@ class WorkspaceApp {
   readonly #layout: WorkspaceLayoutManager;
 
   constructor() {
-    this.#pdfViewer = new PdfEvidenceViewer(
-      {
-        reader: this.#elements.paperReader,
-        canvas: this.#elements.paperCanvas,
-        page: this.#elements.paperPage,
-        links: this.#elements.paperLinks,
-        textLayer: this.#elements.paperTextLayer,
-        highlights: this.#elements.paperHighlights,
-        pageIndicators: [this.#elements.paperPageIndicator, this.#elements.libraryPaperPageIndicator],
-        previousPages: [this.#elements.previousPaperPage, this.#elements.previousLibraryPaperPage],
-        nextPages: [this.#elements.nextPaperPage, this.#elements.nextLibraryPaperPage],
-        status: this.#elements.paperStatus,
-      },
-      (capture) => this.#capturePdfSelection(capture),
-      (annotationId, fragmentId) => void this.#activateHighlightFragment(annotationId, fragmentId),
-      (page) => this.#handlePdfPageChange(page),
-      (highlightId) => this.#selectLibraryHighlight(highlightId),
-    );
+    this.#pdfViewer = PdfEvidenceViewer.forDocument(document, {
+      onSelection: (capture) => this.#capturePdfSelection(capture),
+      onHighlight: (annotationId, fragmentId) => void this.#activateHighlightFragment(annotationId, fragmentId),
+      onPageChange: (page) => this.#handlePdfPageChange(page),
+      onPrivateHighlight: (highlightId) => this.#selectLibraryHighlight(highlightId),
+    });
     this.#layout = WorkspaceLayoutManager.forWorkspace(this.#elements.workspaceSurfaces, {
       paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
       resizePdf: () => void this.#pdfViewer.resize(),
@@ -7295,19 +7273,9 @@ function collectElements(): Elements {
     undoHighlight: requiredElement("undo-highlight", HTMLButtonElement),
     citeActivePdf: requiredElement("cite-active-pdf", HTMLButtonElement),
     paperStatus: requiredElement("paper-status", HTMLElement),
-    paperCanvas: requiredElement("paper-canvas", HTMLCanvasElement),
-    paperPage: requiredElement("paper-page", HTMLElement),
-    paperLinks: requiredElement("paper-links", HTMLElement),
     paperTextLayer: requiredElement("paper-text-layer", HTMLElement),
-    paperHighlights: requiredElement("paper-highlights", HTMLElement),
     paperMarkups: requiredElement("paper-markups", LibraryPdfMarkupLayer),
-    paperPageIndicator: requiredElement("paper-page-indicator", HTMLElement),
     paperReader: requiredElement("paper-reader", HTMLElement),
-    previousPaperPage: requiredElement("previous-paper-page", HTMLButtonElement),
-    nextPaperPage: requiredElement("next-paper-page", HTMLButtonElement),
-    libraryPaperPageIndicator: requiredElement("library-paper-page-indicator", HTMLElement),
-    previousLibraryPaperPage: requiredElement("previous-library-paper-page", HTMLButtonElement),
-    nextLibraryPaperPage: requiredElement("next-library-paper-page", HTMLButtonElement),
     publicationIntakePanel: requiredElement("publication-intake-panel", PublicationIntakePanel),
     assistantTaskPanel: requiredElement("assistant-task-panel", AssistantTaskPanel),
     assistantInteractiveResult: requiredElement("assistant-interactive-result", AssistantResultPanel),
