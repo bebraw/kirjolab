@@ -121,6 +121,9 @@ The adopted components own bounded presentation:
 - The project template save dialog owns replacement choices, local name and
   description values, loading and replacement copy, focus, cancellation, and
   typed save intents.
+- The project starting-point browser owns project title, template and existing
+  project choices, preview and loading state, create readiness and status, and
+  typed create, cancel, import, project-preview, and template-delete intents.
 - The Library discovery search owns query inputs, publication-type choices,
   duplicate-submit gating, progress and result-count copy, and typed query
   intents.
@@ -279,6 +282,12 @@ reason to wrap static markup mechanically.
   and imperative replacement-option, value, status, focus, and cancellation
   handling while leaving catalog refresh, hidden-template policy, seed capture,
   persistence, and toast policy in the application coordinator.
+- The project starting-point browser replaces seven internal form and action
+  element references, coordinator submit, selection-change, cancel, and import
+  bindings, title and selection collection, readiness, loading, and error
+  updates while leaving dialog focus management, template and project-preview
+  requests, deferred deletion, project and import workflows, and navigation in
+  the application coordinator.
 - The Library discovery search replaces six internal element references and
   imperative form-value, submit-state, progress, count, empty, and error
   handling while leaving provider requests, response validation, result

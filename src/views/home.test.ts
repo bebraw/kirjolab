@@ -41,7 +41,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('<option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>');
     expect(html).toContain('<p class="eyebrow">New project</p>');
     expect(html).toContain('id="new-workspace-template-list"');
-    expect(html).toContain('<project-starting-point-browser class="contents" id="project-starting-point-browser">');
+    expect(html).toContain('<project-starting-point-browser class="block" id="project-starting-point-browser">');
     expect(html).toContain('id="save-workspace-template"');
     expect(html).toContain('id="save-template-dialog"');
     expect(html).toContain('id="create-workspace" type="submit" disabled>Create project</button>');

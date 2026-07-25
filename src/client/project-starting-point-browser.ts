@@ -3,50 +3,70 @@ import type { ProjectTemplateSummary } from "../domain/project-templates";
 import { demoWorkspaceId, type WorkspaceSummary } from "../domain/workspace";
 import { formatCalendarDate } from "./format";
 
-export interface StartingPointChange {
-  readonly key: string;
-  readonly status: string;
+export interface StartingPointCreate {
+  readonly startingPoint: string;
+  readonly title: string;
 }
 
-export const startingPointChangeEvent = "starting-point-change";
+export type StartingPointAction =
+  | ({ readonly action: "create" } & StartingPointCreate)
+  | { readonly action: "cancel" | "import-github" | "import-latex" };
+
+export const startingPointActionEvent = "starting-point-action";
 export const startingPointProjectLoadEvent = "starting-point-project-load";
 export const startingPointTemplateDeleteEvent = "starting-point-template-delete";
 
 export class ProjectStartingPointBrowser extends LitElement {
   static override properties = {
+    busy: { state: true },
     templates: { state: true },
     workspaces: { state: true },
     hiddenTemplateIds: { state: true },
     selectedKey: { state: true },
     previewKey: { state: true },
     sourceTemplates: { state: true },
+    status: { state: true },
+    projectTitle: { state: true },
   };
 
+  declare private busy: boolean;
   declare private templates: readonly ProjectTemplateSummary[];
   declare private workspaces: readonly WorkspaceSummary[];
   declare private hiddenTemplateIds: ReadonlySet<string>;
   declare private selectedKey: string;
   declare private previewKey: string;
   declare private sourceTemplates: ReadonlyMap<string, ProjectTemplateSummary>;
+  declare private status: string;
+  declare private projectTitle: string;
 
   constructor() {
     super();
+    this.busy = false;
     this.templates = [];
     this.workspaces = [];
     this.hiddenTemplateIds = new Set();
     this.selectedKey = "";
     this.previewKey = "builtin-guided";
     this.sourceTemplates = new Map();
-  }
-
-  get selection(): string {
-    return this.selectedKey;
+    this.status = "Templates and existing projects create independent projects without research history.";
+    this.projectTitle = "";
   }
 
   reset(): void {
+    this.busy = false;
     this.selectedKey = "";
     this.previewKey = "builtin-guided";
     this.sourceTemplates = new Map();
+  }
+
+  startLoading(): void {
+    this.reset();
+    this.status = "Loading starting points…";
+  }
+
+  showError(message: string): void {
+    this.busy = false;
+    this.status = message;
   }
 
   setData(
@@ -91,25 +111,94 @@ export class ProjectStartingPointBrowser extends LitElement {
     const workspaces = this.visibleWorkspaces;
     const preview = this.startingPoint(this.previewKey);
     return html`
-      <section class="template-browser-index" aria-labelledby="template-browser-index-heading">
-        <h3 class="field-label" id="template-browser-index-heading">Starting points</h3>
-        <div class="template-choice-list" id="new-workspace-template-list">
-          ${this.choiceGroup(
-            "Built in",
-            templates.filter((template) => template.source === "built-in"),
-          )}
-          ${this.choiceGroup(
-            "Your templates",
-            templates.filter((template) => template.source === "personal"),
-          )}
-          ${this.projectGroup(workspaces)}
+      <form class="template-browser-form" id="new-workspace-form" @submit=${this.create}>
+        <header class="template-browser-header">
+          <div>
+            <p class="eyebrow">New project</p>
+            <h2 class="ui-heading mt-1">Choose a starting point</h2>
+            <p class="ui-supporting-text mt-2">Browse the structure and publication setup before choosing a starting point.</p>
+          </div>
+          <label class="field-label template-title-field"
+            >Project title
+            <input
+              class="field"
+              id="new-workspace-title"
+              type="text"
+              maxlength="120"
+              required
+              placeholder="Working title"
+              .value=${this.projectTitle}
+              @input=${this.changeTitle}
+            />
+          </label>
+        </header>
+        <div class="template-browser">
+          <section class="template-browser-index" aria-labelledby="template-browser-index-heading">
+            <h3 class="field-label" id="template-browser-index-heading">Starting points</h3>
+            <div class="template-choice-list" id="new-workspace-template-list">
+              ${this.choiceGroup(
+                "Built in",
+                templates.filter((template) => template.source === "built-in"),
+              )}
+              ${this.choiceGroup(
+                "Your templates",
+                templates.filter((template) => template.source === "personal"),
+              )}
+              ${this.projectGroup(workspaces)}
+            </div>
+          </section>
+          <section class="template-preview" id="new-workspace-template-preview" aria-live="polite">
+            ${preview ? this.templatePreview(preview) : this.emptyPreview()}
+          </section>
         </div>
-      </section>
-      <section class="template-preview" id="new-workspace-template-preview" aria-live="polite">
-        ${preview ? this.templatePreview(preview) : this.emptyPreview()}
-      </section>
-      <input id="new-workspace-template-id" type="hidden" .value=${this.selectedKey} />
+        <input id="new-workspace-template-id" type="hidden" .value=${this.selectedKey} />
+        <footer class="template-browser-footer">
+          <p class="ui-status" id="new-workspace-template-status" role="status">${this.status}</p>
+          <div class="ui-cluster justify-end">
+            <button
+              class="button-secondary"
+              id="open-latex-import"
+              type="button"
+              @click=${() => this.emitAction({ action: "import-latex" })}
+            >
+              Import LaTeX
+            </button>
+            <button
+              class="button-secondary"
+              id="open-github-import"
+              type="button"
+              @click=${() => this.emitAction({ action: "import-github" })}
+            >
+              Import GitHub
+            </button>
+            <button class="button-secondary" id="cancel-new-workspace" type="button" @click=${() => this.emitAction({ action: "cancel" })}>
+              Cancel
+            </button>
+            <button class="button-primary" id="create-workspace" type="submit" ?disabled=${!this.selectedKey || this.busy}>
+              Create project
+            </button>
+          </div>
+        </footer>
+      </form>
     `;
+  }
+
+  protected create(event: Event): void {
+    event.preventDefault();
+    if (!this.selectedKey) {
+      this.status = "Choose a starting point.";
+      return;
+    }
+    this.busy = true;
+    this.emitAction({ action: "create", startingPoint: this.selectedKey, title: this.projectTitle });
+  }
+
+  protected changeTitle(event: Event): void {
+    this.projectTitle = (event.currentTarget as HTMLInputElement).value;
+  }
+
+  protected emitAction(detail: StartingPointAction): void {
+    this.dispatchEvent(new CustomEvent<StartingPointAction>(startingPointActionEvent, { detail }));
   }
 
   private get visibleTemplates(): readonly ProjectTemplateSummary[] {
@@ -128,7 +217,7 @@ export class ProjectStartingPointBrowser extends LitElement {
     ]);
     if (!keys.has(this.selectedKey)) this.selectedKey = "";
     if (!keys.has(this.previewKey)) this.previewKey = this.visibleTemplates[0]?.id ?? "";
-    if (previousSelection && !this.selectedKey) this.dispatchSelection("Choose a starting point.");
+    if (previousSelection && !this.selectedKey) this.status = "Choose a starting point.";
   }
 
   private choiceGroup(label: string, templates: readonly ProjectTemplateSummary[]): TemplateResult | typeof nothing {
@@ -259,25 +348,25 @@ export class ProjectStartingPointBrowser extends LitElement {
     </div>`;
   }
 
-  private chooseTemplate(template: ProjectTemplateSummary): void {
+  protected chooseTemplate(template: ProjectTemplateSummary): void {
     this.previewKey = template.id;
     this.selectedKey = template.id;
     this.dispatchSelection(`Using “${template.name}”. The new project will be an independent copy.`);
   }
 
-  private chooseProject(workspace: WorkspaceSummary): void {
+  protected chooseProject(workspace: WorkspaceSummary): void {
     this.previewKey = projectSourceKey(workspace.id);
     this.selectedKey = "";
     this.dispatchSelection(`Loading “${workspace.title}”…`);
     this.dispatchEvent(new CustomEvent<WorkspaceSummary>(startingPointProjectLoadEvent, { detail: workspace }));
   }
 
-  private requestTemplateDelete(template: ProjectTemplateSummary): void {
+  protected requestTemplateDelete(template: ProjectTemplateSummary): void {
     this.dispatchEvent(new CustomEvent<ProjectTemplateSummary>(startingPointTemplateDeleteEvent, { detail: template }));
   }
 
   private dispatchSelection(status: string): void {
-    this.dispatchEvent(new CustomEvent<StartingPointChange>(startingPointChangeEvent, { detail: { key: this.selectedKey, status } }));
+    this.status = status;
   }
 
   private startingPoint(key: string): ProjectTemplateSummary | undefined {

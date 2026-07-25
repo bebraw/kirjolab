@@ -1170,3 +1170,28 @@ Full native CI passes all 1,300 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 736,299 B raw
 / 202,063 B gzip to 737,836 B raw / 202,326 B gzip (+1,537 B raw / +263 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Consolidation: New Project Composer
+
+The existing `ProjectStartingPointBrowser` now owns the complete new-project
+form: title, starting-point choices and preview, loading and error status,
+creation readiness, and cancel and import actions. This removes seven element
+references and their coordinator-owned form and button bindings. The component
+emits typed create, cancel, GitHub import, LaTeX import, project-preview, and
+template-delete intents. `WorkspaceApp` retains dialog focus management,
+template and project requests, deletion, project and import workflows,
+navigation, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,311 to 9,290 lines (-21) and
+adds 89 lines to the existing component. Component tests cover empty, template,
+and project choices, title and creation intents, cancel and import actions,
+loading and error presentation, template deletion, and project-source
+acceptance and rejection. The focused browser workflow passes built-in,
+promoted personal, and existing-project starting points together with dialog
+focus and import behavior. The consolidated component records 81.73% statement
+and 83.65% line coverage.
+
+Full native CI passes all 1,303 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 737,836 B raw
+/ 202,326 B gzip to 739,424 B raw / 202,590 B gzip (+1,588 B raw / +264 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

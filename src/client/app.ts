@@ -90,10 +90,10 @@ import {
 import { LatexImportPanel, latexImportActionEvent, type LatexImportAction } from "./latex-import-panel";
 import {
   ProjectStartingPointBrowser,
-  startingPointChangeEvent,
+  startingPointActionEvent,
   startingPointProjectLoadEvent,
   startingPointTemplateDeleteEvent,
-  type StartingPointChange,
+  type StartingPointAction,
 } from "./project-starting-point-browser";
 import {
   WorkspaceSharingPanel,
@@ -426,16 +426,9 @@ interface Elements {
   workspaceCatalogPanel: WorkspaceCatalogPanel;
   newWorkspace: HTMLButtonElement;
   newWorkspaceDialog: HTMLDialogElement;
-  newWorkspaceForm: HTMLFormElement;
-  newWorkspaceTitle: HTMLInputElement;
   newWorkspaceStartingPoints: ProjectStartingPointBrowser;
-  newWorkspaceTemplateStatus: HTMLElement;
-  newWorkspaceSubmit: HTMLButtonElement;
-  cancelNewWorkspace: HTMLButtonElement;
-  openLatexImport: HTMLButtonElement;
   latexImportDialog: HTMLDialogElement;
   latexImportPanel: LatexImportPanel;
-  openGitHubImport: HTMLButtonElement;
   gitHubImportDialog: HTMLDialogElement;
   gitHubImportForm: HTMLFormElement;
   gitHubConnectionPanel: GitHubConnectionPanel;
@@ -986,7 +979,6 @@ class WorkspaceApp {
     );
     this.#elements.workspaceCatalogPanel.addEventListener(workspaceCatalogCloseEvent, () => this.#elements.workspaceCatalogDialog.close());
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
-    this.#elements.cancelNewWorkspace.addEventListener("click", () => this.#elements.newWorkspaceDialog.close());
     this.#elements.newWorkspaceDialog.addEventListener("keydown", (event) => {
       if (event.key !== "Tab") return;
       const focusable = [
@@ -1009,11 +1001,12 @@ class WorkspaceApp {
       if (document.querySelector("dialog[open]")) return;
       this.#elements.newWorkspace.closest("details")?.querySelector<HTMLElement>("summary")?.focus();
     });
-    this.#elements.newWorkspaceForm.addEventListener("submit", (event) => void this.#createWorkspace(event));
-    this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointChangeEvent, (event) => {
-      const change = (event as CustomEvent<StartingPointChange>).detail;
-      this.#elements.newWorkspaceSubmit.disabled = !change.key;
-      this.#elements.newWorkspaceTemplateStatus.textContent = change.status;
+    this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointActionEvent, (event) => {
+      const action = (event as CustomEvent<StartingPointAction>).detail;
+      if (action.action === "create") void this.#createWorkspace(action);
+      else if (action.action === "import-latex") this.#openLatexImportDialog();
+      else if (action.action === "import-github") this.#openGitHubImportDialog();
+      else this.#elements.newWorkspaceDialog.close();
     });
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointProjectLoadEvent, (event) => {
       void this.#loadProjectStartingPoint((event as CustomEvent<WorkspaceSummary>).detail);
@@ -1021,25 +1014,11 @@ class WorkspaceApp {
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointTemplateDeleteEvent, (event) => {
       this.#deleteProjectTemplate((event as CustomEvent<ProjectTemplateSummary>).detail);
     });
-    this.#elements.openLatexImport.addEventListener("click", () => {
-      this.#elements.newWorkspaceDialog.close();
-      this.#elements.latexImportPanel.reset();
-      this.#elements.latexImportDialog.showModal();
-      this.#elements.latexImportPanel.focusTitle();
-    });
     this.#elements.latexImportPanel.addEventListener(latexImportActionEvent, (event) => {
       const action = (event as CustomEvent<LatexImportAction>).detail;
       if (action.action === "cancel") this.#elements.latexImportDialog.close();
       else if (action.action === "preview") void this.#previewLatexImport(action.archive, action.root);
       else void this.#confirmLatexImport(action);
-    });
-    this.#elements.openGitHubImport.addEventListener("click", () => {
-      this.#elements.newWorkspaceDialog.close();
-      this.#gitHubImportPreviewId = null;
-      this.#elements.gitHubImportPanel.resetPreview();
-      this.#elements.gitHubImportDialog.showModal();
-      this.#elements.gitHubImportPanel.focusTitle();
-      void this.#refreshGitHubConnection();
     });
     this.#elements.gitHubImportForm.addEventListener("submit", (event) => void this.#previewGitHubImport(event));
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportDialog.close());
@@ -1062,7 +1041,7 @@ class WorkspaceApp {
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncSettingsEvent, () => void this.#openWorkspaceSettings());
     const githubResult = new URL(location.href).searchParams.get("github");
     if (githubResult === "connected" || githubResult === "installed") {
-      this.#elements.openGitHubImport.click();
+      this.#openGitHubImportDialog();
       history.replaceState(history.state, "", location.pathname);
     }
     this.#elements.saveTemplateDialog.addEventListener(
@@ -1643,17 +1622,10 @@ class WorkspaceApp {
     return "files";
   }
 
-  async #createWorkspace(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const startingPoint = this.#elements.newWorkspaceStartingPoints.selection;
-    if (!startingPoint) {
-      this.#elements.newWorkspaceTemplateStatus.textContent = "Choose a starting point.";
-      return;
-    }
-    this.#elements.newWorkspaceSubmit.disabled = true;
+  async #createWorkspace({ startingPoint, title }: Extract<StartingPointAction, { readonly action: "create" }>): Promise<void> {
     const sourceWorkspaceId = startingPoint.startsWith("project:") ? startingPoint.slice("project:".length) : null;
     const response = await jsonFetch(catalogBase, {
-      title: this.#elements.newWorkspaceTitle.value,
+      title,
       ...(sourceWorkspaceId ? { sourceWorkspaceId } : { templateId: startingPoint }),
     });
     await expectOk(response);
@@ -1661,6 +1633,22 @@ class WorkspaceApp {
     const created: unknown = [workspace];
     if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Project catalog returned invalid data");
     location.assign(created[0].href);
+  }
+
+  #openLatexImportDialog(): void {
+    this.#elements.newWorkspaceDialog.close();
+    this.#elements.latexImportPanel.reset();
+    this.#elements.latexImportDialog.showModal();
+    this.#elements.latexImportPanel.focusTitle();
+  }
+
+  #openGitHubImportDialog(): void {
+    this.#elements.newWorkspaceDialog.close();
+    this.#gitHubImportPreviewId = null;
+    this.#elements.gitHubImportPanel.resetPreview();
+    this.#elements.gitHubImportDialog.showModal();
+    this.#elements.gitHubImportPanel.focusTitle();
+    void this.#refreshGitHubConnection();
   }
 
   async #previewLatexImport(archive: File, root: string): Promise<void> {
@@ -2004,14 +1992,12 @@ class WorkspaceApp {
 
   async #openNewWorkspace(): Promise<void> {
     this.#elements.newWorkspaceDialog.showModal();
-    this.#elements.newWorkspaceStartingPoints.reset();
-    this.#elements.newWorkspaceSubmit.disabled = true;
-    this.#elements.newWorkspaceTemplateStatus.textContent = "Loading starting points…";
+    this.#elements.newWorkspaceStartingPoints.startLoading();
     try {
       await this.#refreshProjectTemplates();
       this.#elements.newWorkspaceStartingPoints.focusFirst();
     } catch (error) {
-      this.#elements.newWorkspaceTemplateStatus.textContent = error instanceof Error ? error.message : "Could not load project templates.";
+      this.#elements.newWorkspaceStartingPoints.showError(error instanceof Error ? error.message : "Could not load project templates.");
     }
   }
 
@@ -8937,16 +8923,9 @@ function collectElements(): Elements {
     workspaceCatalogPanel: requiredElement("workspace-catalog-panel", WorkspaceCatalogPanel),
     newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
     newWorkspaceDialog: requiredElement("new-workspace-dialog", HTMLDialogElement),
-    newWorkspaceForm: requiredElement("new-workspace-form", HTMLFormElement),
-    newWorkspaceTitle: requiredElement("new-workspace-title", HTMLInputElement),
     newWorkspaceStartingPoints: requiredElement("project-starting-point-browser", ProjectStartingPointBrowser),
-    newWorkspaceTemplateStatus: requiredElement("new-workspace-template-status", HTMLElement),
-    newWorkspaceSubmit: requiredElement("create-workspace", HTMLButtonElement),
-    cancelNewWorkspace: requiredElement("cancel-new-workspace", HTMLButtonElement),
-    openLatexImport: requiredElement("open-latex-import", HTMLButtonElement),
     latexImportDialog: requiredElement("latex-import-dialog", HTMLDialogElement),
     latexImportPanel: requiredElement("latex-import-panel", LatexImportPanel),
-    openGitHubImport: requiredElement("open-github-import", HTMLButtonElement),
     gitHubImportDialog: requiredElement("github-import-dialog", HTMLDialogElement),
     gitHubImportForm: requiredElement("github-import-form", HTMLFormElement),
     gitHubConnectionPanel: requiredElement("github-connection-panel", GitHubConnectionPanel),

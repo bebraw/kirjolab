@@ -49,9 +49,12 @@ without copying private research or creating a live dependency on the source.
   template immediately, offers **Undo** for six seconds, and only then deletes it.
   Project settings exposes **Save as template** for creating or explicitly
   replacing one.
-- One bounded Lit component owns starting-point grouping, local selection,
-  preview presentation, and typed user intents. `WorkspaceApp` retains template
-  and existing-project requests, deferred deletion, and project creation.
+- One bounded Lit component owns project-title input, starting-point grouping,
+  local selection, preview and loading presentation, create readiness and
+  status, and typed create, cancel, import, project-preview, and template-delete
+  intents. `WorkspaceApp` retains dialog focus management, template and
+  existing-project requests, deferred deletion, project and import workflows,
+  navigation, and error policy.
 - The modal keeps Tab focus within its enabled controls. Cancel or Escape
   returns focus to the Project disclosure; transferring into an import modal
   gives focus to that import's first required field instead.
