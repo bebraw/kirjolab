@@ -183,26 +183,28 @@ export function renderHomePage(
         <section class="rail-panel px-4 py-5 lg:px-5" id="guide-rail-panel" role="tabpanel" aria-labelledby="show-guide-rail" hidden>
           <div><p class="eyebrow">Writing guide</p><h1 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Manuscript map</h1></div>
           <p class="mt-2 text-xs leading-5 text-app-text-soft">A local, advisory view of structure. Cues point to places worth reviewing; they are not correctness judgments.</p>
-          <div class="manuscript-map-summary" id="manuscript-map-summary" aria-live="polite"></div>
-          <div class="mt-4 grid gap-2" id="manuscript-map-outline"></div>
-          <details class="rail-collection mt-4" open>
-            <summary><span>Review cues</span><span class="count-badge" id="manuscript-map-cue-count">0</span></summary>
-            <div class="rail-collection-body" id="manuscript-map-cues"></div>
-          </details>
-          <details class="rail-collection mt-4" open>
-            <summary><span>Editing pass</span><span class="count-badge" id="editing-pass-cue-count">0</span></summary>
-            <div class="rail-collection-body">
-              <label class="field-label" for="editing-pass">Review purpose</label>
-              <select class="field mt-2" id="editing-pass">
-                <option value="structure">Structure</option>
-                <option value="order">Order</option>
-                <option value="clarity">Clarity</option>
-                <option value="evidence">Evidence</option>
-                <option value="length">Length</option>
-              </select>
-              <div class="mt-3 grid gap-2" id="editing-pass-cues"></div>
-            </div>
-          </details>
+          <manuscript-map-panel id="manuscript-map-panel">
+            <div class="manuscript-map-summary" id="manuscript-map-summary" aria-live="polite"></div>
+            <div class="mt-4 grid gap-2" id="manuscript-map-outline"></div>
+            <details class="rail-collection mt-4" open>
+              <summary><span>Review cues</span><span class="count-badge" id="manuscript-map-cue-count">0</span></summary>
+              <div class="rail-collection-body" id="manuscript-map-cues"></div>
+            </details>
+            <details class="rail-collection mt-4" open>
+              <summary><span>Editing pass</span><span class="count-badge" id="editing-pass-cue-count">0</span></summary>
+              <div class="rail-collection-body">
+                <label class="field-label" for="editing-pass">Review purpose</label>
+                <select class="field mt-2" id="editing-pass">
+                  <option value="structure">Structure</option>
+                  <option value="order">Order</option>
+                  <option value="clarity">Clarity</option>
+                  <option value="evidence">Evidence</option>
+                  <option value="length">Length</option>
+                </select>
+                <div class="mt-3 grid gap-2" id="editing-pass-cues"></div>
+              </div>
+            </details>
+          </manuscript-map-panel>
           <writing-workflow-panel id="research-question-panel" data-workflow-kind="research-questions">
             <details class="rail-collection mt-4" open>
               <summary><span>Research questions</span><span class="count-badge" id="research-question-count">0</span></summary>

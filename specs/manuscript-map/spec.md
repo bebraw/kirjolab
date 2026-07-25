@@ -11,7 +11,9 @@ review cues visible without claiming to judge scientific validity.
 ### Architecture
 
 - The domain analyzer derives a map from composed Markdown and retains exact source ranges.
-- The Writing guide rail navigates each item back to authored source.
+- The Writing guide rail presents the map and local editing-pass cues as one
+  bounded reactive view. It emits source ranges, which the workspace resolves
+  back to the qualifying authored file before moving editor focus.
 - Maps and cues are disposable browser state and never enter collaboration history.
 - Summary metrics use one consistent value-over-label hierarchy so words,
   sections, and citations remain aligned at constrained rail widths.
@@ -29,6 +31,8 @@ review cues visible without claiming to judge scientific validity.
 - [x] The guide shows heading hierarchy, section word counts, and citation counts.
 - [x] It identifies heading jumps, placeholders, and single-sentence paragraphs.
 - [x] Every visible item can focus its exact current source range.
+- [x] Changing editing purpose updates local deterministic cues without
+      rebuilding coordinator-owned workflow state.
 - [x] Summary metrics keep equal typography and alignment without incidental
       label wrapping.
 

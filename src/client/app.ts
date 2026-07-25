@@ -10,7 +10,6 @@ import { isCitationNetwork, type CitationAssertionView, type CitationNetwork } f
 import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
-import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
@@ -20,7 +19,6 @@ import {
   type ServerCollaborationMessage,
 } from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
-import { buildManuscriptMap } from "../domain/manuscript-map";
 import {
   isProjectRevisionContent,
   isProjectRevisionDiff,
@@ -196,6 +194,7 @@ import {
 } from "./context-resource-tabs";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
+import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -528,17 +527,11 @@ interface Elements {
   researchRailPanel: HTMLElement;
   commentsRailPanel: HTMLElement;
   guideRailPanel: HTMLElement;
-  manuscriptMapSummary: HTMLElement;
-  manuscriptMapOutline: HTMLElement;
-  manuscriptMapCueCount: HTMLElement;
-  manuscriptMapCues: HTMLElement;
+  manuscriptMapPanel: ManuscriptMapPanel;
   researchDiaryEntryCount: HTMLElement;
   researchDiarySummary: HTMLElement;
   openResearchDiary: HTMLButtonElement;
   researchQuestionPanel: WritingWorkflowPanel;
-  editingPass: HTMLSelectElement;
-  editingPassCueCount: HTMLElement;
-  editingPassCues: HTMLElement;
   reviewerResponsePanel: WritingWorkflowPanel;
   newProjectFileRail: HTMLButtonElement;
   newProjectFolderRail: HTMLButtonElement;
@@ -1214,7 +1207,10 @@ class WorkspaceApp {
     this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
     this.#elements.showGuideRail.addEventListener("click", () => this.#showRail("guide"));
     this.#elements.openResearchDiary.addEventListener("click", () => void this.#openResearchDiary());
-    this.#elements.editingPass.addEventListener("change", () => this.#renderEditingPass(this.#currentComposedSource()));
+    this.#elements.manuscriptMapPanel.addEventListener(manuscriptMapSelectEvent, (event) => {
+      const { from, to } = (event as CustomEvent<ManuscriptMapSelection>).detail;
+      this.#focusComposedRange(from, to);
+    });
     for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
       panel.addEventListener(writingWorkflowActionEvent, (event) => {
         void this.#handleWritingWorkflowAction((event as CustomEvent<WritingWorkflowActionDetail>).detail);
@@ -3131,71 +3127,15 @@ class WorkspaceApp {
   }
 
   #renderManuscriptMap(source = this.#currentComposedSource()): void {
-    const map = buildManuscriptMap(source);
-    this.#elements.manuscriptMapSummary.replaceChildren(
-      manuscriptMapMetric(map.words, "words"),
-      manuscriptMapMetric(map.sections.length, "sections"),
-      manuscriptMapMetric(map.citations, "citations"),
-    );
-    this.#elements.manuscriptMapOutline.replaceChildren();
-    if (map.sections.length === 0) this.#elements.manuscriptMapOutline.append(emptyState("Add headings to build the manuscript map."));
-    for (const section of map.sections) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "manuscript-map-item";
-      button.style.paddingInlineStart = `${0.6 + Math.max(0, section.level - 1) * 0.55}rem`;
-      const title = document.createElement("span");
-      title.textContent = section.title;
-      const meta = document.createElement("small");
-      meta.textContent = `${section.words}w · ${section.citations}c`;
-      button.append(title, meta);
-      button.addEventListener("click", () => this.#focusComposedRange(section.from, section.to));
-      this.#elements.manuscriptMapOutline.append(button);
-    }
-    this.#elements.manuscriptMapCueCount.textContent = String(map.cues.length);
-    this.#elements.manuscriptMapCues.replaceChildren();
-    if (map.cues.length === 0) this.#elements.manuscriptMapCues.append(emptyState("No structural review cues."));
-    for (const cue of map.cues) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "manuscript-map-item";
-      const message = document.createElement("span");
-      message.textContent = cue.message;
-      const kind = document.createElement("small");
-      kind.textContent = cue.kind.replaceAll("-", " ");
-      button.append(message, kind);
-      button.addEventListener("click", () => this.#focusComposedRange(cue.from, cue.to));
-      this.#elements.manuscriptMapCues.append(button);
-    }
+    this.#elements.manuscriptMapPanel.setSource(source);
     this.#renderResearchDiarySummary();
     this.#renderResearchQuestions();
-    this.#renderEditingPass(source);
     this.#renderReviewerResponses();
   }
 
   #renderReviewerResponses(): void {
     const file = this.#previewProjectFiles().find((candidate) => candidate.path === reviewerResponsePath);
     this.#elements.reviewerResponsePanel.setData(reviewerResponseWorkflowData(file));
-  }
-
-  #renderEditingPass(source: string): void {
-    const pass = readEditingPass(this.#elements.editingPass.value);
-    const cues = runEditingPass(source, pass);
-    this.#elements.editingPassCueCount.textContent = String(cues.length);
-    this.#elements.editingPassCues.replaceChildren();
-    if (cues.length === 0) this.#elements.editingPassCues.append(emptyState(`No ${pass} cues.`));
-    for (const cue of cues) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "manuscript-map-item";
-      const message = document.createElement("span");
-      message.textContent = cue.message;
-      const detail = document.createElement("small");
-      detail.textContent = cue.detail;
-      button.append(message, detail);
-      button.addEventListener("click", () => this.#focusComposedRange(cue.from, cue.to));
-      this.#elements.editingPassCues.append(button);
-    }
   }
 
   #currentComposedSource(): string {
@@ -10080,17 +10020,11 @@ function collectElements(): Elements {
     researchRailPanel: requiredElement("research-rail-panel", HTMLElement),
     commentsRailPanel: requiredElement("comments-rail-panel", HTMLElement),
     guideRailPanel: requiredElement("guide-rail-panel", HTMLElement),
-    manuscriptMapSummary: requiredElement("manuscript-map-summary", HTMLElement),
-    manuscriptMapOutline: requiredElement("manuscript-map-outline", HTMLElement),
-    manuscriptMapCueCount: requiredElement("manuscript-map-cue-count", HTMLElement),
-    manuscriptMapCues: requiredElement("manuscript-map-cues", HTMLElement),
+    manuscriptMapPanel: requiredElement("manuscript-map-panel", ManuscriptMapPanel),
     researchDiaryEntryCount: requiredElement("research-diary-entry-count", HTMLElement),
     researchDiarySummary: requiredElement("research-diary-summary", HTMLElement),
     openResearchDiary: requiredElement("open-research-diary", HTMLButtonElement),
     researchQuestionPanel: requiredElement("research-question-panel", WritingWorkflowPanel),
-    editingPass: requiredElement("editing-pass", HTMLSelectElement),
-    editingPassCueCount: requiredElement("editing-pass-cue-count", HTMLElement),
-    editingPassCues: requiredElement("editing-pass-cues", HTMLElement),
     reviewerResponsePanel: requiredElement("reviewer-response-panel", WritingWorkflowPanel),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
@@ -10425,16 +10359,6 @@ function statusText(value: string): HTMLParagraphElement {
   return paragraph;
 }
 
-function manuscriptMapMetric(value: number, label: string): HTMLSpanElement {
-  const metric = document.createElement("span");
-  const count = document.createElement("strong");
-  count.textContent = value.toLocaleString();
-  const description = document.createElement("small");
-  description.textContent = label;
-  metric.append(count, description);
-  return metric;
-}
-
 function downloadTextFile(name: string, content: string): void {
   const href = URL.createObjectURL(new Blob([content], { type: "text/markdown;charset=utf-8" }));
   const link = document.createElement("a");
@@ -10496,11 +10420,6 @@ function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
 function readModelReasoningEffort(value: string): ModelReasoningEffort {
   if (value === "none" || value === "low" || value === "medium" || value === "high") return value;
   return "provider-default";
-}
-
-function readEditingPass(value: string): EditingPass {
-  if (value === "order" || value === "clarity" || value === "evidence" || value === "length") return value;
-  return "structure";
 }
 
 function parseModelEvidenceKey(value: string): ["annotation" | "claim", string] {

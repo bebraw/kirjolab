@@ -685,3 +685,25 @@ and 74 browser tests. The rebuilt browser application is 688,715 B raw and
 192,714 B gzip, an increase of 1,926 B raw and 505 B gzip from the project
 evidence checkpoint. Direct and unique production package counts remain
 unchanged at 18 and 150.
+
+## Continued Lit Extraction: Manuscript Map
+
+The Writing guide's manuscript map now uses one bounded `ManuscriptMapPanel`
+instead of seven element references plus imperative metric, heading-outline,
+structural-cue, editing-pass, and editing-cue rendering. The component owns
+derived presentation and local editing-purpose state while emitting typed
+source-range selection intents. `WorkspaceApp` retains composed-source
+derivation and file-qualified editor focus.
+
+This checkpoint reduces `src/client/app.ts` from 10,549 to 10,468 lines (-81).
+The component adds 157 lines and reaches 89.65% statement coverage and 92.3%
+line coverage across empty and populated maps, all editing purposes, valid
+selection, and rejected-range states. A focused browser workflow passes
+summary, outline, editing-purpose changes, source-range selection, and editor
+focus.
+
+Full native CI passes all 1,249 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 690,331 B raw and
+193,100 B gzip, an increase of 1,616 B raw and 386 B gzip from the project-tree
+checkpoint. Direct and unique production package counts remain unchanged at 18
+and 150.

@@ -1576,7 +1576,8 @@
   context-tab-overview-panel,
   context-resource-tabs-panel,
   project-evidence-panel,
-  project-tree-panel {
+  project-tree-panel,
+  manuscript-map-panel {
     display: block;
   }
 

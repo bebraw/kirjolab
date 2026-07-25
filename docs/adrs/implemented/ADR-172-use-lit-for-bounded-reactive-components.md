@@ -86,6 +86,9 @@ The adopted components own bounded presentation:
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, quick-open selection, action menus, and
   typed file, folder, and image intents.
+- The manuscript map panel owns summary metrics, heading outline, structural
+  cues, local editing-pass selection, editing cues, and typed source-range
+  selection intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -168,6 +171,10 @@ reason to wrap static markup mechanically.
   imperative filter, hierarchy, row, and action-menu renderers while leaving
   file and folder mutations, editor rebinding, image operations, include
   insertion, and API authority in the application coordinator.
+- The manuscript map panel replaces seven internal element references and the
+  imperative metric, outline, structural-cue, and editing-cue renderers while
+  leaving composed-source derivation and file-qualified editor focus in the
+  application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

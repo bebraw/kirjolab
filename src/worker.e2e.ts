@@ -1973,6 +1973,14 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(false);
   await expect(page.locator("#source-editor")).toHaveValue(/## Evidence becomes prose/);
 
+  await page.getByRole("tab", { name: "Writing guide" }).click();
+  await expect(page.locator("#manuscript-map-summary")).toContainText("words");
+  await expect(page.locator("#manuscript-map-outline").getByRole("button").first()).toBeVisible();
+  await page.locator("#editing-pass").selectOption("clarity");
+  await expect(page.locator("#editing-pass-cue-count")).toHaveText(/^\d+$/u);
+  await page.locator("#manuscript-map-outline").getByRole("button").first().click();
+  await expect(page.locator("#source-editor")).toBeFocused();
+
   await page.getByRole("tab", { name: "Files" }).click();
   await expect(page.locator("#project-file-list")).toContainText("main.md");
   await expect(page.getByRole("button", { name: "Add file" }).first()).toBeVisible();
