@@ -469,7 +469,9 @@ published deliberately into several writing projects.
   validating their contributor ids and exact project evidence selectors.
 - `/review-study/model-candidates` creates or lists typed local-model proposals;
   `/review-study/model-candidates/{candidateId}/{accept|reject}` records the
-  human disposition.
+  human disposition. Candidate request and persisted snapshot envelopes share
+  one runtime schema family; screening bounds, extraction-field compatibility,
+  evidence exactness, and authorization remain explicit domain checks.
 - `/review-study/synthesis`, `/review-study/synthesis.csv`, and
   `/review-study/synthesis.md` expose the same revision-pinned synthesis.
   The canonical `POST /review-study/synthesis/publish` request supplies

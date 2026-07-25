@@ -1,7 +1,7 @@
 import { parseReviewProtocolContent, type ReviewProfile } from "../domain/review-study";
 import { previewReviewBibTeX, reviewBibTeXImport, reviewImportLimits } from "../domain/review-search";
 import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
-import type { ReviewModelOperation } from "../domain/review-model";
+import { parseReviewModelCandidateRequest, type ReviewModelOperation } from "../domain/review-model";
 import { parseReviewFindingInput, type ReviewFindingInput } from "../domain/review-findings";
 import {
   parseEvidencePointer,
@@ -349,44 +349,9 @@ async function reviewFindingRequest(request: Request): Promise<{ expectedRevisio
   return { expectedRevision: parseRevision(value.expectedRevision), finding: parseReviewFindingInput(value.finding) };
 }
 
-async function modelCandidateRequest(request: Request): Promise<{
-  expectedRevision: number;
-  operation: ReviewModelOperation;
-  recordId: string;
-  stage: ScreeningStage | null;
-  provider: string;
-  model: string;
-  promptTemplateVersion: string;
-  sourceScope: string[];
-  result: unknown;
-}> {
+async function modelCandidateRequest(request: Request) {
   const value: unknown = await request.json();
-  if (
-    !isRecord(value) ||
-    typeof value.expectedRevision !== "number" ||
-    !Number.isSafeInteger(value.expectedRevision) ||
-    (value.operation !== "screen-record" && value.operation !== "extract-field") ||
-    typeof value.recordId !== "string" ||
-    (value.stage !== null && value.stage !== "title-abstract" && value.stage !== "full-text") ||
-    typeof value.provider !== "string" ||
-    typeof value.model !== "string" ||
-    typeof value.promptTemplateVersion !== "string" ||
-    !Array.isArray(value.sourceScope) ||
-    !value.sourceScope.every((item) => typeof item === "string")
-  ) {
-    throw new Error("Review model candidate request is invalid");
-  }
-  return {
-    expectedRevision: value.expectedRevision,
-    operation: value.operation,
-    recordId: value.recordId,
-    stage: value.stage,
-    provider: value.provider,
-    model: value.model,
-    promptTemplateVersion: value.promptTemplateVersion,
-    sourceScope: value.sourceScope,
-    result: value.result,
-  };
+  return parseReviewModelCandidateRequest(value);
 }
 
 async function qualityValueRequest(request: Request) {

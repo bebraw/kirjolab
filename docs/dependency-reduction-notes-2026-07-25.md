@@ -190,6 +190,15 @@ source grows by 222 lines while the main churn hotspot loses another complete
 presentation workflow. Reusing Lit adds no production packages; the minified
 browser application changes by +3,722 B raw and +499 B gzip.
 
+### Review-model schemas: accepted
+
+The fourth Valibot boundary consolidates candidate creation requests with the
+persisted candidate snapshot envelope. Operation, stage, provenance,
+disposition, and result-envelope structure now have one schema-backed runtime
+definition; extraction compatibility and evidence invariants remain explicit
+domain functions. The pilot removes 30 net executable source lines without a
+new package or a new validation concept.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser

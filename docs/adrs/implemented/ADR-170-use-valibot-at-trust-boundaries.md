@@ -33,6 +33,9 @@ Adopted boundaries are:
   link state.
 - Project history responses: revision summaries, retained revision projections,
   and file/composed/binary comparison results.
+- Review-model boundaries: candidate creation requests and persisted candidate
+  snapshots share operation, stage, provenance, disposition, and result-envelope
+  schemas while result-specific evidence rules remain explicit domain logic.
 
 Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records
