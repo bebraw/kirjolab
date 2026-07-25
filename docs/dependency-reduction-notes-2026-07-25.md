@@ -1703,3 +1703,25 @@ The browser application artifact grows from 774,297 B raw / 209,781 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,353 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Workspace Rail Tabs
+
+A bounded `WorkspaceRailTabs` now owns the four project-rail tab controls,
+active-mode and ARIA selection presentation, the open-comment count, and a
+typed navigation intent. `WorkspaceApp` retains panel visibility, guide
+rendering, and route synchronization; the existing layout manager retains
+collapse and resize authority.
+
+This checkpoint reduces `src/client/app.ts` from 7,675 to 7,661 lines (-14),
+replaces five internal element references and four native action bindings, and
+removes four selection mutations plus DOM-derived active-mode lookup. Component
+tests cover active mode, comment count, unchanged selection, and typed
+navigation. Focused browser workflows pass rail switching and persistence plus
+claim creation through the Research rail. The component records 85% statement
+and 88.88% line coverage.
+
+The browser application artifact grows from 774,514 B raw / 209,824 B gzip to
+775,339 B raw / 210,098 B gzip (+825 B raw / +274 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,362 B raw /
+23,360 B gzip and 18 and 150. Full native CI passes all 1,355 unit/coverage
+tests, 120 Workers-runtime tests, and 74 browser tests.

@@ -2,7 +2,8 @@ import { renderIcon } from "../ui/icons";
 
 export function renderProjectRailNavigation(): string {
   return `<div class="rail-mode-switcher">
-          <div class="rail-mode-tabs" role="tablist" aria-label="Project navigation">
+          <workspace-rail-tabs id="workspace-rail-tabs">
+            <div class="rail-mode-tabs" role="tablist" aria-label="Project navigation">
             <button class="rail-mode" id="show-files-rail" type="button" role="tab" aria-label="Files" aria-controls="files-rail-panel" aria-selected="true" title="Files">
               ${renderIcon("files", "rail-mode-icon")}
               <span class="rail-mode-label">Files</span>
@@ -20,7 +21,8 @@ export function renderProjectRailNavigation(): string {
               ${renderIcon("guide", "rail-mode-icon")}
               <span class="rail-mode-label">Guide</span>
             </button>
-          </div>
+            </div>
+          </workspace-rail-tabs>
           <button class="collapse-source-rail" id="collapse-source-rail" type="button" aria-label="Collapse project rail" title="Collapse project rail">
             ${renderIcon("arrowLeft")}
           </button>

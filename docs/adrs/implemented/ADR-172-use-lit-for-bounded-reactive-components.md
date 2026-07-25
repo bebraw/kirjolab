@@ -184,6 +184,8 @@ The adopted components own bounded presentation:
 - The assistant workflow status owns operation-specific attribution and status
   copy, live status presentation, evidence and connection actions, and their
   typed intents.
+- The workspace rail tabs own active-tab and open-comment-count presentation
+  plus a typed navigation intent.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices, and typed identification intents.
 - The Library reference summary owns title and metadata presentation, PDF and
@@ -423,6 +425,10 @@ reason to wrap static markup mechanically.
   two native action bindings, operation-specific status copy, and attribution
   visibility. The application coordinator retains evidence navigation,
   settings authority, provider discovery, generation, and status policy.
+- The workspace rail tabs replace five internal element references, four
+  native action bindings, four ARIA-selection mutations, and DOM-derived active
+  mode. The application coordinator retains panel visibility, guide rendering,
+  URL synchronization, collapse, and resize authority.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

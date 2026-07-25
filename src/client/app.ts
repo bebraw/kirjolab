@@ -339,6 +339,7 @@ import {
   type WorkspaceRail,
   type WorkspaceSurface,
 } from "./workspace-ui-route";
+import { WorkspaceRailTabs, workspaceRailChangeEvent } from "./workspace-rail-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
 import {
   bindVimTextarea,
@@ -478,10 +479,7 @@ interface Elements {
   webSourceCapture: WebSourceCapture;
   webSnapshotComparison: WebSnapshotComparisonPanel;
   unidentifiedPdfList: UnidentifiedPdfList;
-  showFilesRail: HTMLButtonElement;
-  showResearchRail: HTMLButtonElement;
-  showCommentsRail: HTMLButtonElement;
-  showGuideRail: HTMLButtonElement;
+  workspaceRailTabs: WorkspaceRailTabs;
   filesRailPanel: HTMLElement;
   researchRailPanel: HTMLElement;
   commentsRailPanel: HTMLElement;
@@ -523,7 +521,6 @@ interface Elements {
   vimToggle: HTMLButtonElement;
   editorInsertMenu: EditorInsertMenu;
   bibliography: HTMLTextAreaElement;
-  manuscriptCommentCount: HTMLElement;
   manuscriptCommentListPanel: ManuscriptCommentList;
   workspaceSurfaces: HTMLElement;
   collapseSourceRail: HTMLButtonElement;
@@ -1043,10 +1040,9 @@ class WorkspaceApp {
       projectTemplateSaveEvent,
       (event) => void this.#saveProjectTemplate((event as CustomEvent<ProjectTemplateSave>).detail),
     );
-    this.#elements.showFilesRail.addEventListener("click", () => this.#showRail("files"));
-    this.#elements.showResearchRail.addEventListener("click", () => this.#showRail("research"));
-    this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
-    this.#elements.showGuideRail.addEventListener("click", () => this.#showRail("guide"));
+    this.#elements.workspaceRailTabs.addEventListener(workspaceRailChangeEvent, (event) => {
+      this.#showRail((event as CustomEvent<WorkspaceRail>).detail);
+    });
     this.#elements.researchDiaryPanel.addEventListener(researchDiaryOpenEvent, () => void this.#openResearchDiary());
     this.#elements.manuscriptMapPanel.addEventListener(manuscriptMapSelectEvent, (event) => {
       const { from, to } = (event as CustomEvent<ManuscriptMapSelection>).detail;
@@ -1566,10 +1562,7 @@ class WorkspaceApp {
     this.#elements.researchRailPanel.hidden = !research;
     this.#elements.commentsRailPanel.hidden = !comments;
     this.#elements.guideRailPanel.hidden = !guide;
-    this.#elements.showFilesRail.setAttribute("aria-selected", String(files));
-    this.#elements.showResearchRail.setAttribute("aria-selected", String(research));
-    this.#elements.showCommentsRail.setAttribute("aria-selected", String(comments));
-    this.#elements.showGuideRail.setAttribute("aria-selected", String(guide));
+    this.#elements.workspaceRailTabs.setMode(mode);
     if (guide) this.#renderManuscriptMap();
     this.#syncWorkspaceRoute("replace");
   }
@@ -1681,10 +1674,7 @@ class WorkspaceApp {
   }
 
   #activeWorkspaceRail(): WorkspaceRail {
-    if (this.#elements.showResearchRail.getAttribute("aria-selected") === "true") return "research";
-    if (this.#elements.showCommentsRail.getAttribute("aria-selected") === "true") return "comments";
-    if (this.#elements.showGuideRail.getAttribute("aria-selected") === "true") return "guide";
-    return "files";
+    return this.#elements.workspaceRailTabs.mode;
   }
 
   async #createWorkspace({ startingPoint, title }: Extract<StartingPointAction, { readonly action: "create" }>): Promise<void> {
@@ -4320,7 +4310,7 @@ class WorkspaceApp {
   }
 
   #renderManuscriptComments(comments: ManuscriptComment[]): void {
-    this.#elements.manuscriptCommentCount.textContent = String(comments.filter((comment) => comment.status === "open").length);
+    this.#elements.workspaceRailTabs.setCommentCount(comments.filter((comment) => comment.status === "open").length);
     this.#elements.manuscriptCommentListPanel.setComments(comments);
   }
 
@@ -7431,10 +7421,7 @@ function collectElements(): Elements {
     webSourceCapture: requiredElement("web-source-capture", WebSourceCapture),
     webSnapshotComparison: requiredElement("web-snapshot-comparison", WebSnapshotComparisonPanel),
     unidentifiedPdfList: requiredElement("unidentified-pdf-list-panel", UnidentifiedPdfList),
-    showFilesRail: requiredElement("show-files-rail", HTMLButtonElement),
-    showResearchRail: requiredElement("show-research-rail", HTMLButtonElement),
-    showCommentsRail: requiredElement("show-comments-rail", HTMLButtonElement),
-    showGuideRail: requiredElement("show-guide-rail", HTMLButtonElement),
+    workspaceRailTabs: requiredElement("workspace-rail-tabs", WorkspaceRailTabs),
     filesRailPanel: requiredElement("files-rail-panel", HTMLElement),
     researchRailPanel: requiredElement("research-rail-panel", HTMLElement),
     commentsRailPanel: requiredElement("comments-rail-panel", HTMLElement),
@@ -7476,7 +7463,6 @@ function collectElements(): Elements {
     vimToggle: requiredElement("vim-toggle", HTMLButtonElement),
     editorInsertMenu: requiredElement("editor-insert-menu-component", EditorInsertMenu),
     bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
-    manuscriptCommentCount: requiredElement("manuscript-comment-count", HTMLElement),
     manuscriptCommentListPanel: requiredElement("manuscript-comment-list-panel", ManuscriptCommentList),
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
     collapseSourceRail: requiredElement("collapse-source-rail", HTMLButtonElement),
