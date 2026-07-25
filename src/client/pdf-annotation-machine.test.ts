@@ -115,6 +115,33 @@ describe("PDF annotation interaction machine", () => {
     expect(value.getSnapshot()).toMatchObject({ value: "drawIdle", context: { drawing: null } });
   });
 
+  it("keeps a snapped shape under the drawing pointer until release", () => {
+    const value = actor();
+    const snapped = [
+      { x: 0.2, y: 0.2 },
+      { x: 0.4, y: 0.4 },
+    ];
+    const adjusted = [
+      { x: 0.2, y: 0.2 },
+      { x: 0.6, y: 0.5 },
+    ];
+    value.send({ type: "CHOOSE_TOOL", tool: "draw" });
+    value.send({ type: "START_DRAWING", pointerId: 3, point });
+    value.send({ type: "SNAP_DRAWING_SHAPE", pointerId: 4, points: snapped });
+    expect(value.getSnapshot().value).toBe("drawing");
+
+    value.send({ type: "SNAP_DRAWING_SHAPE", pointerId: 3, points: snapped });
+    expect(value.getSnapshot()).toMatchObject({ value: "manipulatingShape", context: { drawing: { points: snapped } } });
+    expect(pdfAnnotationTool(value.getSnapshot())).toBe("draw");
+
+    value.send({ type: "ADJUST_DRAWING_SHAPE", pointerId: 4, points: adjusted });
+    expect(value.getSnapshot().context.drawing?.points).toEqual(snapped);
+    value.send({ type: "ADJUST_DRAWING_SHAPE", pointerId: 3, points: adjusted });
+    expect(value.getSnapshot().context.drawing?.points).toEqual(adjusted);
+    value.send({ type: "FINISH_DRAWING", pointerId: 3 });
+    expect(value.getSnapshot()).toMatchObject({ value: "drawIdle", context: { drawing: null } });
+  });
+
   it("keeps selection and note dragging within select mode", () => {
     const value = actor();
     value.send({ type: "CHOOSE_TOOL", tool: "select" });

@@ -69,6 +69,8 @@ type PdfAnnotationEvent =
   | { readonly type: "FINISH_NOTE_DRAG"; readonly pointerId: number }
   | { readonly type: "START_DRAWING"; readonly pointerId: number; readonly point: LibraryPdfPoint }
   | { readonly type: "ADD_DRAWING_POINTS"; readonly pointerId: number; readonly points: readonly LibraryPdfPoint[] }
+  | { readonly type: "SNAP_DRAWING_SHAPE"; readonly pointerId: number; readonly points: readonly LibraryPdfPoint[] }
+  | { readonly type: "ADJUST_DRAWING_SHAPE"; readonly pointerId: number; readonly points: readonly LibraryPdfPoint[] }
   | { readonly type: "FINISH_DRAWING"; readonly pointerId: number }
   | { readonly type: "CANCEL_POINTER" };
 
@@ -89,7 +91,7 @@ const pdfAnnotationMachine = setup({
   },
   guards: {
     usesDrawingPointer: ({ context, event }) => {
-      assertEvent(event, ["ADD_DRAWING_POINTS", "FINISH_DRAWING"]);
+      assertEvent(event, ["ADD_DRAWING_POINTS", "SNAP_DRAWING_SHAPE", "ADJUST_DRAWING_SHAPE", "FINISH_DRAWING"]);
       return context.drawing?.pointerId === event.pointerId;
     },
     usesNotePointer: ({ context, event }) => {
@@ -193,6 +195,11 @@ const pdfAnnotationMachine = setup({
       if (!context.drawing || event.points.length === 0) return {};
       return { drawing: { ...context.drawing, points: [...context.drawing.points, ...event.points] } };
     }),
+    replaceDrawingPoints: assign(({ context, event }) => {
+      assertEvent(event, ["SNAP_DRAWING_SHAPE", "ADJUST_DRAWING_SHAPE"]);
+      if (!context.drawing || event.points.length < 2) return {};
+      return { drawing: { ...context.drawing, points: [...event.points] } };
+    }),
     clearDrawing: assign({ drawing: null }),
   },
 }).createMachine({
@@ -264,6 +271,18 @@ const pdfAnnotationMachine = setup({
     drawing: {
       on: {
         ADD_DRAWING_POINTS: { guard: "usesDrawingPointer", actions: "addDrawingPoints" },
+        SNAP_DRAWING_SHAPE: {
+          guard: "usesDrawingPointer",
+          target: "manipulatingShape",
+          actions: "replaceDrawingPoints",
+        },
+        FINISH_DRAWING: { guard: "usesDrawingPointer", target: "drawIdle", actions: "clearDrawing" },
+        CANCEL_POINTER: { target: "drawIdle", actions: "clearDrawing" },
+      },
+    },
+    manipulatingShape: {
+      on: {
+        ADJUST_DRAWING_SHAPE: { guard: "usesDrawingPointer", actions: "replaceDrawingPoints" },
         FINISH_DRAWING: { guard: "usesDrawingPointer", target: "drawIdle", actions: "clearDrawing" },
         CANCEL_POINTER: { target: "drawIdle", actions: "clearDrawing" },
       },
@@ -281,5 +300,5 @@ export function createPdfAnnotationActor(): PdfAnnotationActor {
 export function pdfAnnotationTool(snapshot: PdfAnnotationSnapshot): PdfAnnotationTool {
   if (snapshot.value === "selectIdle" || snapshot.value === "draggingNote" || snapshot.value === "editingNote") return "select";
   if (snapshot.value === "noteIdle" || snapshot.value === "pressingNote" || snapshot.value === "composingNote") return "note";
-  return snapshot.value === "drawIdle" || snapshot.value === "drawing" ? "draw" : "text";
+  return snapshot.value === "drawIdle" || snapshot.value === "drawing" || snapshot.value === "manipulatingShape" ? "draw" : "text";
 }

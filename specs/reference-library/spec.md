@@ -140,6 +140,15 @@ memory and makes citation aliases compete with stable source identity.
   Once a Pencil or mouse stroke owns the surface, accompanying touch events are
   consumed without changing reader scroll until that stroke finishes or is
   cancelled.
+  Holding the pointer still for 850 milliseconds after drawing a sufficiently
+  large single-stroke line, circle or ellipse, rectangle, or triangle attempts
+  local shape recognition. A confident match replaces the live rough stroke
+  with fitted geometry while the pointer remains captured. Continued movement
+  scales and rotates that shape around its opposite anchor; lifting saves the
+  adjusted shape, while an uncertain, open, or undersized stroke remains
+  freehand. Recognition runs in page-pixel coordinates, makes no network
+  request, and persists the result through the existing normalized drawing
+  contract rather than introducing editable shape records.
   Note placement is committed only after a stationary pointer gesture ends;
   movement that becomes a scroll or page swipe cancels the pending note.
   Notes and strokes use normalized page coordinates so they remain aligned when

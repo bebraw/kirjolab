@@ -128,6 +128,7 @@ import {
   parseCitationKeys,
 } from "./citations";
 import { editorHistoryActionForInput, editorHistoryActionForKey, type EditorHistoryAction } from "./editor-history";
+import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
@@ -922,6 +923,8 @@ class WorkspaceApp {
   readonly #expandedLibraryReferences = new Set<string>();
   #libraryPdfUploadBusy = false;
   #pdfDrawingDraftLine: SVGElement | null = null;
+  #pdfDrawingShape: RecognizedDrawnShape | null = null;
+  #pdfDrawingShapeTimer: number | undefined;
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
   #editingLibraryHighlightId: string | null = null;
   #pdfHighlightDetection: { readonly artifactId: string; readonly result: PdfHighlightDetection } | null = null;
@@ -1423,8 +1426,9 @@ class WorkspaceApp {
     this.#elements.paperMarkups.addEventListener("pointerup", (event) => void this.#finishLibraryPdfDrawing(event));
     this.#elements.paperMarkups.addEventListener("pointercancel", () => {
       const movedNote = this.#pdfNoteDrag()?.moved;
+      const hadDrawing = this.#pdfDrawingDraft() !== null;
       this.#cancelLibraryPdfDrawing();
-      if (movedNote) this.#renderPdfMarkups();
+      if (movedNote || hadDrawing) this.#renderPdfMarkups();
     });
     this.#elements.highlightPaintTool.addEventListener("click", () => this.#setHighlightTool("paint"));
     this.#elements.highlightEraserTool.addEventListener("click", () => this.#setHighlightTool("erase"));
@@ -10058,6 +10062,7 @@ class WorkspaceApp {
 
   #resetLibraryHighlightComposer(artifactId: string): void {
     this.#resetPdfHighlightImport();
+    this.#clearLibraryPdfShapeRecognition();
     this.#elements.libraryHighlightComposer.dataset.artifactId = artifactId;
     this.#elements.libraryHighlightPage.value = "1";
     this.#elements.libraryHighlightQuote.value = "";
@@ -10406,6 +10411,7 @@ class WorkspaceApp {
   }
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
+    if (tool !== "draw") this.#clearLibraryPdfShapeRecognition();
     this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool });
     if (tool !== "draw") delete this.#elements.paperMarkups.dataset.drawingActive;
     this.#elements.paperMarkups.dataset.tool = tool;
@@ -10486,6 +10492,7 @@ class WorkspaceApp {
 
   #startLibraryPdfDrawing(event: PointerEvent, point: LibraryPdfPoint): void {
     event.preventDefault();
+    this.#clearLibraryPdfShapeRecognition();
     this.#pdfAnnotation.send({ type: "START_DRAWING", pointerId: event.pointerId, point });
     this.#elements.paperMarkups.setPointerCapture(event.pointerId);
     this.#elements.paperMarkups.dataset.drawingActive = "true";
@@ -10505,6 +10512,10 @@ class WorkspaceApp {
     }
     const draft = this.#pdfDrawingDraft();
     if (this.#pdfDrawingPointer() !== event.pointerId || !draft) return;
+    if (this.#pdfDrawingShape) {
+      this.#adjustLibraryPdfDrawingShape(event);
+      return;
+    }
     this.#appendLibraryPdfDrawingPoints(event, draft);
   }
 
@@ -10536,6 +10547,47 @@ class WorkspaceApp {
     if (additions.length === 0) return;
     this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: additions });
     if (this.#pdfDrawingDraftLine) this.#pdfDrawingDraftLine.setAttribute("points", this.#drawingPoints(points));
+    this.#scheduleLibraryPdfShapeRecognition(event.pointerId);
+  }
+
+  #scheduleLibraryPdfShapeRecognition(pointerId: number): void {
+    if (this.#pdfDrawingShapeTimer !== undefined) window.clearTimeout(this.#pdfDrawingShapeTimer);
+    this.#pdfDrawingShapeTimer = window.setTimeout(() => {
+      this.#pdfDrawingShapeTimer = undefined;
+      const draft = this.#pdfDrawingDraft();
+      const rect = this.#elements.paperMarkups.getBoundingClientRect();
+      if (this.#pdfDrawingPointer() !== pointerId || !draft || rect.width <= 0 || rect.height <= 0) return;
+      const shape = recognizeDrawnShape(draft.map((point) => ({ x: point.x * rect.width, y: point.y * rect.height })));
+      if (!shape) return;
+      this.#pdfDrawingShape = shape;
+      const points = this.#normalizedLibraryPdfShapePoints(shape.points, rect);
+      this.#pdfAnnotation.send({ type: "SNAP_DRAWING_SHAPE", pointerId, points });
+      if (this.#pdfDrawingDraftLine) this.#pdfDrawingDraftLine.setAttribute("points", this.#drawingPoints(points));
+      const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[shape.kind];
+      this.#elements.libraryHighlightStatus.textContent = `${label} snapped into place. Keep dragging to adjust it, or lift to save.`;
+    }, 850);
+  }
+
+  #adjustLibraryPdfDrawingShape(event: PointerEvent): void {
+    const point = this.#normalizedPdfPoint(event);
+    const shape = this.#pdfDrawingShape;
+    const rect = this.#elements.paperMarkups.getBoundingClientRect();
+    if (!point || !shape || rect.width <= 0 || rect.height <= 0) return;
+    event.preventDefault();
+    const adjusted = manipulateRecognizedShape(shape, { x: point.x * rect.width, y: point.y * rect.height });
+    const points = this.#normalizedLibraryPdfShapePoints(adjusted, rect);
+    this.#pdfAnnotation.send({ type: "ADJUST_DRAWING_SHAPE", pointerId: event.pointerId, points });
+    if (this.#pdfDrawingDraftLine) this.#pdfDrawingDraftLine.setAttribute("points", this.#drawingPoints(points));
+  }
+
+  #normalizedLibraryPdfShapePoints(
+    points: readonly { readonly x: number; readonly y: number }[],
+    rect: Pick<DOMRect, "width" | "height">,
+  ): readonly LibraryPdfPoint[] {
+    return points.map((point) => ({
+      x: Math.max(0, Math.min(1, point.x / rect.width)),
+      y: Math.max(0, Math.min(1, point.y / rect.height)),
+    }));
   }
 
   async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {
@@ -10582,8 +10634,15 @@ class WorkspaceApp {
 
   #cancelLibraryPdfDrawing(): void {
     this.#pdfAnnotation.send({ type: "CANCEL_POINTER" });
+    this.#clearLibraryPdfShapeRecognition();
     delete this.#elements.paperMarkups.dataset.drawingActive;
     this.#pdfDrawingDraftLine = null;
+  }
+
+  #clearLibraryPdfShapeRecognition(): void {
+    if (this.#pdfDrawingShapeTimer !== undefined) window.clearTimeout(this.#pdfDrawingShapeTimer);
+    this.#pdfDrawingShapeTimer = undefined;
+    this.#pdfDrawingShape = null;
   }
 
   async #saveLibraryPdfNote(event: SubmitEvent): Promise<void> {
