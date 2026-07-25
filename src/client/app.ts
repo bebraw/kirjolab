@@ -194,6 +194,7 @@ import {
   contextResourceTabId,
   type ContextResourceTabAction,
 } from "./context-resource-tabs";
+import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -212,7 +213,6 @@ import { createPdfAnnotationActor, pdfAnnotationTool, type PdfAnnotationSnapshot
 import { createPublicationIntakeActor, publicationIntakeBusy } from "./publication-intake-machine";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { detectImportedPdfHighlights, type PdfHighlightImportCandidate, type PdfHighlightDetection } from "./pdf-highlight-import";
-import { adjustSelectionRects } from "./pdf-selection";
 import { uploadPdfBatch, type ExistingPdfUpload, type PdfUploadQueueSnapshot } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import {
@@ -633,14 +633,10 @@ interface Elements {
   saveStatus: HTMLElement;
   revisionBadge: HTMLElement;
   pdfUpload: HTMLInputElement;
-  projectEvidence: HTMLDetailsElement;
-  projectEvidenceCount: HTMLElement;
-  pdfList: HTMLElement;
+  projectEvidencePanel: ProjectEvidencePanel;
   knowledgeSearchPanel: KnowledgeSearchPanel;
   publicationCount: HTMLElement;
   publicationListPanel: PublicationListPanel;
-  annotationList: HTMLElement;
-  unassignedAnnotationList: HTMLElement;
   claimCount: HTMLElement;
   claimListPanel: ClaimListPanel;
   newClaim: HTMLButtonElement;
@@ -1382,6 +1378,30 @@ class WorkspaceApp {
       this.#flushPendingUpdates();
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
+    this.#elements.projectEvidencePanel.addEventListener(projectEvidenceActionEvent, (event) => {
+      const detail = (event as CustomEvent<ProjectEvidenceAction>).detail;
+      if (detail.action === "open-pdf") {
+        this.#elements.annotationPdf.value = detail.pdf.id;
+        void this.#showPaper(detail.pdf, detail.page, detail.annotationId);
+      } else if (detail.action === "remove-pdf") void this.#removePdf(detail.pdf);
+      else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
+      else if (detail.action === "link-annotation") void this.#linkAnnotation(detail.annotationId);
+      else if (detail.action === "edit-annotation") this.#editAnnotation(detail.annotation);
+      else if (detail.action === "delete-annotation") void this.#deleteAnnotation(detail.annotation);
+      else if (detail.action === "open-passage") this.#showPassage(detail.anchor);
+      else if (detail.action === "remove-fragment") {
+        void this.#removeHighlightFragment(detail.annotationId, detail.fragmentId, true);
+      } else {
+        void this.#updateHighlightFragment(
+          detail.annotationId,
+          detail.fragmentId,
+          detail.quote,
+          detail.prefix,
+          detail.suffix,
+          detail.rects,
+        );
+      }
+    });
     this.#elements.knowledgeSearchPanel.addEventListener(knowledgeSearchEvent, (event) => {
       void this.#searchKnowledge((event as CustomEvent<string>).detail);
     });
@@ -5854,9 +5874,8 @@ class WorkspaceApp {
     for (const key of this.#modelEvidenceSelection) {
       if (!validModelEvidence.has(key)) this.#modelEvidenceSelection.delete(key);
     }
-    this.#renderPdfs(this.#snapshot.pdfs);
+    this.#renderProjectEvidence();
     this.#renderPublications(this.#snapshot.publications);
-    this.#renderAnnotations(this.#snapshot.annotations, this.#snapshot.links);
     this.#renderClaims(this.#snapshot.claims, this.#snapshot.claimLinks);
     this.#renderManuscriptComments(this.#snapshot.comments);
     this.#renderCandidates(this.#snapshot.candidates);
@@ -5885,73 +5904,23 @@ class WorkspaceApp {
     };
   }
 
-  #renderPdfs(pdfs: PdfResource[]): void {
-    const expandedHighlights = new Set(
-      [...this.#elements.pdfList.querySelectorAll<HTMLDetailsElement>("[data-pdf-annotation-group]")]
-        .filter((group) => group.open)
-        .flatMap((group) => (group.dataset.pdfAnnotationGroup ? [group.dataset.pdfAnnotationGroup] : [])),
-    );
-    this.#elements.pdfList.replaceChildren();
+  #renderProjectEvidence(): void {
+    if (!this.#snapshot) return;
+    const { annotations, links, pdfs } = this.#snapshot;
+    this.#elements.projectEvidencePanel.setEvidence({
+      annotations,
+      links,
+      pdfs,
+      selectedEvidenceKeys: this.#modelEvidenceSelection,
+    });
     this.#elements.annotationPdf.replaceChildren();
     this.#elements.annotationPdf.disabled = true;
     if (pdfs.length === 0) {
       this.#elements.annotationPdf.append(new Option("Import a PDF first", ""));
-      this.#updateProjectEvidenceVisibility(0, this.#snapshot?.annotations.length ?? 0);
       return;
     }
-    for (const pdf of pdfs) {
-      const card = document.createElement("article");
-      card.className = "project-evidence-paper";
-      card.dataset.pdfResourceId = pdf.id;
-      const row = document.createElement("div");
-      row.className = "project-evidence-paper-row";
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "project-evidence-paper-open";
-      button.dataset.pdfId = pdf.id;
-      button.append(resourceLabel("PDF · " + formatBytes(pdf.size)), resourceTitle(pdf.name));
-      button.addEventListener("click", () => {
-        this.#elements.annotationPdf.value = pdf.id;
-        void this.#showPaper(pdf);
-      });
-      const remove = actionButton("Remove", "project-evidence-remove", () => void this.#removePdf(pdf));
-      remove.setAttribute("aria-label", "Remove from project");
-      remove.title = "Remove this legacy project PDF";
-      row.append(button, remove);
-      const highlights = document.createElement("details");
-      highlights.className = "project-evidence-highlights";
-      highlights.dataset.pdfAnnotationGroup = pdf.id;
-      highlights.hidden = true;
-      highlights.open = expandedHighlights.has(pdf.id);
-      const highlightsSummary = document.createElement("summary");
-      const highlightsLabel = document.createElement("span");
-      highlightsLabel.textContent = "Highlights";
-      const highlightsCount = document.createElement("span");
-      highlightsCount.className = "count-badge";
-      highlightsCount.dataset.pdfAnnotationCount = pdf.id;
-      highlightsCount.textContent = "0";
-      highlightsSummary.append(highlightsLabel, highlightsCount);
-      const annotationList = document.createElement("div");
-      annotationList.className = "project-evidence-highlight-list";
-      annotationList.dataset.pdfAnnotations = pdf.id;
-      highlights.append(highlightsSummary, annotationList);
-      card.append(row, highlights);
-      this.#elements.pdfList.append(card);
-      this.#elements.annotationPdf.append(new Option(pdf.name, pdf.id));
-    }
+    this.#elements.annotationPdf.append(...pdfs.map((pdf) => new Option(pdf.name, pdf.id)));
     if (this.#renderedPdfId) this.#elements.annotationPdf.value = this.#renderedPdfId;
-    this.#updateProjectEvidenceVisibility(pdfs.length, this.#snapshot?.annotations.length ?? 0);
-  }
-
-  #updateProjectEvidenceVisibility(pdfCount: number, annotationCount: number): void {
-    const total = pdfCount + annotationCount;
-    const reveal = this.#elements.projectEvidence.hidden && total > 0;
-    this.#elements.projectEvidence.hidden = total === 0;
-    if (reveal) this.#elements.projectEvidence.open = true;
-    this.#elements.projectEvidenceCount.textContent = String(total);
-    this.#elements.projectEvidenceCount.title = `${pdfCount} ${pdfCount === 1 ? "paper" : "papers"}, ${annotationCount} ${
-      annotationCount === 1 ? "highlight" : "highlights"
-    }`;
   }
 
   async #removePdf(pdf: PdfResource): Promise<void> {
@@ -5980,97 +5949,6 @@ class WorkspaceApp {
     });
   }
 
-  #renderAnnotations(annotations: AnnotationResource[], links: PassageLink[]): void {
-    const targets = this.#resetAnnotationTargets();
-    if (annotations.length === 0) {
-      this.#updateProjectEvidenceVisibility(this.#snapshot?.pdfs.length ?? 0, 0);
-      return;
-    }
-    const annotationCounts = new Map<string, number>();
-    for (const annotation of annotations) {
-      const passage = links.find((link) => link.annotationId === annotation.id);
-      const card = this.#annotationCard(annotation, passage);
-      this.#appendAnnotationCard(annotation, card, targets, annotationCounts);
-    }
-    this.#updateProjectEvidenceVisibility(this.#snapshot?.pdfs.length ?? 0, annotations.length);
-  }
-
-  #resetAnnotationTargets(): Map<string, HTMLElement> {
-    const targets = new Map<string, HTMLElement>();
-    for (const target of this.#elements.pdfList.querySelectorAll<HTMLElement>("[data-pdf-annotations]")) {
-      target.replaceChildren();
-      const pdfId = target.dataset.pdfAnnotations;
-      if (pdfId) targets.set(pdfId, target);
-    }
-    for (const group of this.#elements.pdfList.querySelectorAll<HTMLDetailsElement>("[data-pdf-annotation-group]")) {
-      group.hidden = true;
-    }
-    for (const count of this.#elements.pdfList.querySelectorAll<HTMLElement>("[data-pdf-annotation-count]")) {
-      count.textContent = "0";
-    }
-    this.#elements.unassignedAnnotationList.replaceChildren();
-    this.#elements.unassignedAnnotationList.hidden = true;
-    return targets;
-  }
-
-  #annotationCard(annotation: AnnotationResource, passage: PassageLink | undefined): HTMLElement {
-    const card = document.createElement("article");
-    card.className = "resource-card";
-    card.dataset.annotationResourceId = annotation.id;
-    const actions = this.#annotationActions(annotation);
-    if (passage) actions.append(this.#annotationPassageButton(passage));
-    card.append(this.#annotationEvidenceLabel(annotation), actions, this.#annotationStrokeEditor(annotation));
-    return card;
-  }
-
-  #annotationEvidenceLabel(annotation: AnnotationResource): HTMLElement {
-    const label = document.createElement("label");
-    label.className = "flex items-start gap-2";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.dataset.annotationId = annotation.id;
-    checkbox.dataset.modelEvidenceKey = modelEvidenceKey("annotation", annotation.id);
-    checkbox.className = "mt-1 accent-app-accent";
-    checkbox.checked = this.#modelEvidenceSelection.has(checkbox.dataset.modelEvidenceKey);
-    checkbox.setAttribute(
-      "aria-label",
-      `Use annotation “${accessibleEvidenceExcerpt(annotation.quote)}” on page ${annotation.page} as model evidence`,
-    );
-    checkbox.addEventListener("change", () => this.#setModelEvidenceSelected(checkbox.dataset.modelEvidenceKey ?? "", checkbox.checked));
-    const content = document.createElement("span");
-    content.className = "min-w-0";
-    content.append(resourceLabel(`Page ${annotation.page}`), resourceTitle(`“${annotation.quote}”`));
-    if (annotation.comment) {
-      const note = document.createElement("span");
-      note.className = "mt-2 block font-sans text-xs text-app-text-soft";
-      note.textContent = annotation.comment;
-      content.append(note);
-    }
-    label.append(checkbox, content);
-    return label;
-  }
-
-  #annotationActions(annotation: AnnotationResource): HTMLElement {
-    const actions = document.createElement("div");
-    actions.className = "mt-3 grid gap-2";
-    const link = actionButton(
-      "Link selected manuscript text",
-      "button-secondary w-full justify-center",
-      () => void this.#linkAnnotation(annotation.id),
-    );
-    const openEvidence = actionButton("Open evidence", "button-secondary w-full justify-center", () =>
-      this.#openAnnotationEvidence(annotation),
-    );
-    const edit = actionButton("Edit note", "button-secondary w-full justify-center", () => this.#editAnnotation(annotation));
-    const remove = actionButton(
-      "Delete highlight",
-      "button-secondary w-full justify-center",
-      () => void this.#deleteAnnotation(annotation),
-    );
-    actions.append(openEvidence, edit, link, remove);
-    return actions;
-  }
-
   #openAnnotationEvidence(annotation: AnnotationResource): void {
     const pdf = this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId);
     if (pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
@@ -6083,97 +5961,6 @@ class WorkspaceApp {
     this.#elements.annotationPrefix.value = annotation.prefix;
     this.#elements.annotationSuffix.value = annotation.suffix;
     this.#openAnnotationEvidence(annotation);
-  }
-
-  #annotationStrokeEditor(annotation: AnnotationResource): HTMLElement {
-    const editor = document.createElement("details");
-    editor.className = "mt-3 border-t border-app-line pt-3";
-    const summary = document.createElement("summary");
-    summary.className = "cursor-pointer font-sans text-xs font-semibold";
-    summary.textContent = `Adjust ${annotation.fragments.length} stroke${annotation.fragments.length === 1 ? "" : "s"}`;
-    editor.append(summary);
-    for (const [index, fragment] of annotation.fragments.entries()) editor.append(this.#annotationStrokeRow(annotation, fragment, index));
-    return editor;
-  }
-
-  #annotationStrokeRow(annotation: AnnotationResource, fragment: AnnotationResource["fragments"][number], index: number): HTMLElement {
-    const row = document.createElement("section");
-    row.className = "mt-3 border border-app-line bg-app-paper p-3";
-    const quote = document.createElement("textarea");
-    quote.className = "field min-h-16";
-    quote.value = fragment.quote;
-    quote.maxLength = 20_000;
-    quote.setAttribute("aria-label", `Text for highlight stroke ${index + 1}`);
-    const controls = document.createElement("div");
-    controls.className = "touch-adjustments mt-2 flex flex-wrap gap-2";
-    for (const [labelText, adjustment] of [
-      ["←", "left"],
-      ["↑", "up"],
-      ["↓", "down"],
-      ["→", "right"],
-      ["Wider", "wider"],
-      ["Narrower", "narrower"],
-      ["Taller", "taller"],
-      ["Shorter", "shorter"],
-    ] as const) {
-      const button = actionButton(
-        labelText,
-        "button-secondary",
-        () =>
-          void this.#updateHighlightFragment(
-            annotation.id,
-            fragment.id,
-            quote.value,
-            fragment.prefix,
-            fragment.suffix,
-            adjustSelectionRects(fragment.rects, adjustment),
-          ),
-      );
-      button.setAttribute("aria-label", `${labelText} highlight stroke ${index + 1}`);
-      controls.append(button);
-    }
-    controls.append(
-      actionButton(
-        "Save text",
-        "button-primary",
-        () => void this.#updateHighlightFragment(annotation.id, fragment.id, quote.value, fragment.prefix, fragment.suffix, fragment.rects),
-      ),
-      actionButton("Erase stroke", "button-secondary", () => void this.#removeHighlightFragment(annotation.id, fragment.id, true)),
-    );
-    row.append(quote, controls);
-    return row;
-  }
-
-  #annotationPassageButton(passage: PassageLink): HTMLButtonElement {
-    const button = actionButton(anchorActionLabel(passage.resolution), "button-secondary w-full justify-center", () =>
-      this.#showPassage(passage.anchor),
-    );
-    button.dataset.anchorLinkId = passage.id;
-    button.disabled = passage.resolution.status !== "resolved";
-    button.dataset.anchorStatus = passage.resolution.status;
-    button.dataset.anchorMatch = anchorMatchState(passage.resolution);
-    return button;
-  }
-
-  #appendAnnotationCard(
-    annotation: AnnotationResource,
-    card: HTMLElement,
-    targets: ReadonlyMap<string, HTMLElement>,
-    annotationCounts: Map<string, number>,
-  ): void {
-    const target = targets.get(annotation.pdfId);
-    if (!target) {
-      this.#elements.unassignedAnnotationList.hidden = false;
-      this.#elements.unassignedAnnotationList.append(card);
-      return;
-    }
-    target.append(card);
-    const count = (annotationCounts.get(annotation.pdfId) ?? 0) + 1;
-    annotationCounts.set(annotation.pdfId, count);
-    const group = target.closest<HTMLDetailsElement>("[data-pdf-annotation-group]");
-    if (group) group.hidden = false;
-    const badge = group?.querySelector<HTMLElement>("[data-pdf-annotation-count]");
-    if (badge) badge.textContent = String(count);
   }
 
   async #deleteAnnotation(annotation: AnnotationResource): Promise<void> {
@@ -10525,14 +10312,10 @@ function collectElements(): Elements {
     saveStatus: requiredElement("save-status", HTMLElement),
     revisionBadge: requiredElement("revision-badge", HTMLElement),
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
-    projectEvidence: requiredElement("project-evidence", HTMLDetailsElement),
-    projectEvidenceCount: requiredElement("project-evidence-count", HTMLElement),
-    pdfList: requiredElement("pdf-list", HTMLElement),
+    projectEvidencePanel: requiredElement("project-evidence-panel", ProjectEvidencePanel),
     knowledgeSearchPanel: requiredElement("knowledge-search-panel", KnowledgeSearchPanel),
     publicationCount: requiredElement("publication-count", HTMLElement),
     publicationListPanel: requiredElement("publication-list-panel", PublicationListPanel),
-    annotationList: requiredElement("annotation-list", HTMLElement),
-    unassignedAnnotationList: requiredElement("unassigned-annotation-list", HTMLElement),
     claimCount: requiredElement("claim-count", HTMLElement),
     claimListPanel: requiredElement("claim-list-panel", ClaimListPanel),
     newClaim: requiredElement("new-claim", HTMLButtonElement),

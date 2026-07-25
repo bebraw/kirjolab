@@ -1574,7 +1574,8 @@
   publication-list-panel,
   candidate-list-panel,
   context-tab-overview-panel,
-  context-resource-tabs-panel {
+  context-resource-tabs-panel,
+  project-evidence-panel {
     display: block;
   }
 

@@ -334,6 +334,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
       intents while tab titles, keyboard focus, routing, canonical context
       state, panel labelling, and transitions remain with the application
       coordinator.
+- [x] A bounded light-DOM project evidence panel owns project-PDF and annotation
+      grouping, counts, expanded state, grounding selection, passage-link
+      presentation, stroke controls, and typed navigation and mutation intents.
+      API mutations, confirmations, editor selection, grounding authority, PDF
+      navigation, refreshes, and toast policy remain with the application
+      coordinator.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
 - [x] Refresh, copied URLs, and browser Back restore authorized file, view,

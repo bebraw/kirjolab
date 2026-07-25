@@ -80,6 +80,9 @@ The adopted components own bounded presentation:
 - The context resource-tab strip owns resource tab and close-action markup,
   active-state presentation, panel associations, and typed activate and close
   intents.
+- The project evidence panel owns project-PDF and annotation grouping, counts,
+  expanded state, grounding selection, passage-link presentation, stroke
+  controls, and typed navigation and mutation intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -153,6 +156,11 @@ reason to wrap static markup mechanically.
   shared resource-tab id helper, and its imperative tab renderer while leaving
   tab titles, keyboard focus, routing, canonical context state, panel labelling,
   and transitions in the application coordinator.
+- The project evidence panel replaces five internal element references and the
+  imperative PDF, annotation, grouping, count, passage-link, and stroke-control
+  renderers while leaving API mutations, confirmations, editor selection,
+  grounding authority, PDF navigation, refreshes, and toast policy in the
+  application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

@@ -638,3 +638,27 @@ and 74 browser tests. The rebuilt browser application is 682,761 B raw and
 191,653 B gzip, a decrease of 1,225 B raw and 683 B gzip from the
 context-tab-overview checkpoint. Direct and unique production package counts
 remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Project Evidence
+
+Project PDFs and annotations now use one bounded `ProjectEvidencePanel` instead
+of five element references plus imperative PDF cards, annotation cards,
+grouping, counts, visibility, passage links, and stroke controls. The component
+owns presentation and local expanded state while emitting typed navigation,
+grounding, and mutation intents. `WorkspaceApp` retains API mutations,
+confirmations, editor selection, grounding authority, PDF navigation,
+refreshes, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 10,898 to 10,681 lines (-217).
+The component adds 359 lines and reaches 96.22% statement coverage and 96.15%
+line coverage across empty, assigned, unassigned, linked, selected, expanded,
+PDF, annotation, passage, and fragment-control states. Focused browser
+workflows pass PDF opening and removal guards, highlight creation, extension,
+editing, geometry adjustment, erasing, deletion, grounding selection,
+passage-link presentation, and evidence-backed model navigation.
+
+Full native CI passes all 1,244 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 686,789 B raw and
+192,209 B gzip, an increase of 4,028 B raw and 556 B gzip from the
+context-resource-tabs checkpoint. Direct and unique production package counts
+remain unchanged at 18 and 150.

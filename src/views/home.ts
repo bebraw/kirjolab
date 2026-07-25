@@ -138,13 +138,15 @@ export function renderHomePage(
             <span><strong>Evidence reviews</strong><small>Open the review catalog to link an SLR or MLR</small></span><span aria-hidden="true">→</span>
           </a>
           <div class="research-inventory" id="research-inventory">
-            <details class="rail-collection" id="project-evidence" hidden>
-              <summary><span>Project evidence</span><span class="count-badge" id="project-evidence-count">0</span></summary>
-              <div class="rail-collection-body" id="annotation-list">
-                <div class="project-evidence-list" id="pdf-list"></div>
-                <div class="project-evidence-orphans" id="unassigned-annotation-list" hidden></div>
-              </div>
-            </details>
+            <project-evidence-panel id="project-evidence-panel">
+              <details class="rail-collection" id="project-evidence" hidden>
+                <summary><span>Project evidence</span><span class="count-badge" id="project-evidence-count">0</span></summary>
+                <div class="rail-collection-body" id="annotation-list">
+                  <div class="project-evidence-list" id="pdf-list"></div>
+                  <div class="project-evidence-orphans" id="unassigned-annotation-list" hidden></div>
+                </div>
+              </details>
+            </project-evidence-panel>
             <details class="rail-collection">
               <summary><span>Claims</span><span class="count-badge" id="claim-count">0</span></summary>
               <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="new-claim" type="button">New claim</button></div>
