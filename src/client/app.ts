@@ -61,7 +61,7 @@ import {
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
-import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
+import { filterReferenceLibrary } from "../domain/reference-filters";
 import { formatBytes } from "./format";
 import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { sourceSpanAt } from "./composition-source-map";
@@ -210,6 +210,7 @@ import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from
 import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
 import { LibraryDiscoverySearch, libraryDiscoverySearchEvent } from "./library-discovery-search";
+import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { CitationNetworkPanel, citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
 import {
   PreviewContextStatus,
@@ -344,22 +345,6 @@ function projectFileSavedMessage(mode: ProjectFileDialogMode, path: string): str
   return `Renamed file to ${path}; inbound includes were updated.`;
 }
 
-function isReadingFilter(value: string): value is "unread" | "reading" | "read" {
-  return value === "unread" || value === "reading" || value === "read";
-}
-
-function isLinkageFilter(value: string): value is "linked" | "unlinked" {
-  return value === "linked" || value === "unlinked";
-}
-
-function isCompletenessFilter(value: string): value is "complete" | "incomplete" {
-  return value === "complete" || value === "incomplete";
-}
-
-function isReferenceSort(value: string): value is "title" | "year" | "priority" {
-  return value === "title" || value === "year" || value === "priority";
-}
-
 function contextTabFocusIndex(key: string, currentIndex: number, tabCount: number): number | null {
   if (key === "ArrowRight") return (currentIndex + 1) % tabCount;
   if (key === "ArrowLeft") return (currentIndex - 1 + tabCount) % tabCount;
@@ -467,14 +452,7 @@ interface Elements {
   libraryPdfDropzone: HTMLElement;
   libraryPdfUploadStatus: HTMLElement;
   showArchivedReferences: HTMLButtonElement;
-  referenceFilterQuery: HTMLInputElement;
-  referenceFilterType: HTMLSelectElement;
-  referenceFilterReading: HTMLSelectElement;
-  referenceFilterOrganization: HTMLInputElement;
-  referenceFilterLinkage: HTMLSelectElement;
-  referenceFilterCompleteness: HTMLSelectElement;
-  referenceFilterSort: HTMLSelectElement;
-  referenceFilterCount: HTMLElement;
+  referenceLibraryFilters: ReferenceLibraryFilterPanel;
   openCitationNetwork: HTMLButtonElement;
   citationNetwork: HTMLElement;
   closeCitationNetwork: HTMLButtonElement;
@@ -1197,17 +1175,7 @@ class WorkspaceApp {
       this.#elements.showArchivedReferences.setAttribute("aria-pressed", String(this.#showArchivedReferences));
       void this.#refreshReferenceLibrary();
     });
-    for (const control of [
-      this.#elements.referenceFilterQuery,
-      this.#elements.referenceFilterType,
-      this.#elements.referenceFilterReading,
-      this.#elements.referenceFilterOrganization,
-      this.#elements.referenceFilterLinkage,
-      this.#elements.referenceFilterCompleteness,
-      this.#elements.referenceFilterSort,
-    ]) {
-      control.addEventListener("input", () => this.#renderReferenceLibrary());
-    }
+    this.#elements.referenceLibraryFilters.addEventListener(referenceLibraryFilterChangeEvent, () => this.#renderReferenceLibrary());
     this.#bindSourceEditor(this.#source);
     this.#rememberAuthoringSelection();
     bindVimTextarea(this.#elements.source, this.#elements.sourceEditorShell, this.#elements.vimToggle, this.#elements.vimModeStatus);
@@ -3735,12 +3703,7 @@ class WorkspaceApp {
       this.#elements.showArchivedReferences.setAttribute("aria-pressed", "true");
       await this.#refreshReferenceLibrary();
     }
-    this.#elements.referenceFilterQuery.value = "";
-    this.#elements.referenceFilterType.value = "";
-    this.#elements.referenceFilterReading.value = "all";
-    this.#elements.referenceFilterOrganization.value = "";
-    this.#elements.referenceFilterLinkage.value = "all";
-    this.#elements.referenceFilterCompleteness.value = "all";
+    this.#elements.referenceLibraryFilters.reset();
     this.#expandedLibraryReferences.add(referenceId);
     this.#renderReferenceLibrary();
     const card = this.#elements.referenceLibraryList.querySelector<HTMLElement>(`[data-reference-id="${CSS.escape(referenceId)}"]`);
@@ -3789,14 +3752,11 @@ class WorkspaceApp {
     if (!library) return;
     this.#renderCitationAssertionOptions();
     const types = [...new Set(library.references.map((reference) => reference.type))].sort();
-    const selectedType = this.#elements.referenceFilterType.value;
-    this.#elements.referenceFilterType.replaceChildren(new Option("All types", ""), ...types.map((type) => new Option(type, type)));
-    if (types.includes(selectedType)) this.#elements.referenceFilterType.value = selectedType;
-    const filters = this.#referenceLibraryFilters();
+    this.#elements.referenceLibraryFilters.setTypes(types);
+    const filters = this.#elements.referenceLibraryFilters.value;
     const linked = new Set(this.#snapshot?.projectReferences.map((reference) => reference.referenceId) ?? []);
     const references = filterReferenceLibrary(library, linked, filters);
-    this.#elements.referenceFilterCount.textContent = `${references.length} / ${library.references.length}`;
-    this.#elements.referenceFilterCount.title = `${references.length} of ${library.references.length} references shown`;
+    this.#elements.referenceLibraryFilters.setCount(references.length, library.references.length);
     this.#elements.referenceLibraryList.replaceChildren();
     if (references.length === 0) {
       this.#elements.referenceLibraryList.append(
@@ -3811,22 +3771,6 @@ class WorkspaceApp {
     this.#elements.unidentifiedPdfList.replaceChildren();
     if (unidentified.length === 0) this.#elements.unidentifiedPdfList.append(emptyState("No unidentified PDFs."));
     for (const artifact of unidentified) this.#elements.unidentifiedPdfList.append(this.#unidentifiedPdfCard(artifact, library.references));
-  }
-
-  #referenceLibraryFilters(): ReferenceLibraryFilters {
-    const reading = this.#elements.referenceFilterReading.value;
-    const linkage = this.#elements.referenceFilterLinkage.value;
-    const completeness = this.#elements.referenceFilterCompleteness.value;
-    const sort = this.#elements.referenceFilterSort.value;
-    return {
-      query: this.#elements.referenceFilterQuery.value,
-      type: this.#elements.referenceFilterType.value,
-      readingStatus: isReadingFilter(reading) ? reading : "all",
-      organization: this.#elements.referenceFilterOrganization.value,
-      linkage: isLinkageFilter(linkage) ? linkage : "all",
-      completeness: isCompletenessFilter(completeness) ? completeness : "all",
-      sort: isReferenceSort(sort) ? sort : "updated",
-    };
   }
 
   async #openCitationNetwork(): Promise<void> {
@@ -4568,12 +4512,7 @@ class WorkspaceApp {
       this.#elements.showArchivedReferences.setAttribute("aria-pressed", "true");
       await this.#refreshReferenceLibrary();
     }
-    this.#elements.referenceFilterQuery.value = existing.referenceKey;
-    this.#elements.referenceFilterType.value = "";
-    this.#elements.referenceFilterReading.value = "all";
-    this.#elements.referenceFilterOrganization.value = "";
-    this.#elements.referenceFilterLinkage.value = "all";
-    this.#elements.referenceFilterCompleteness.value = "all";
+    this.#elements.referenceLibraryFilters.reset(existing.referenceKey);
     this.#renderReferenceLibrary();
     const card = this.#elements.referenceLibraryList.querySelector<HTMLElement>(`[data-reference-id="${existing.referenceId}"]`);
     if (!card) {
@@ -9243,14 +9182,7 @@ function collectElements(): Elements {
     libraryPdfDropzone: requiredElement("library-pdf-dropzone", HTMLElement),
     libraryPdfUploadStatus: requiredElement("library-pdf-upload-status", HTMLElement),
     showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
-    referenceFilterQuery: requiredElement("reference-filter-query", HTMLInputElement),
-    referenceFilterType: requiredElement("reference-filter-type", HTMLSelectElement),
-    referenceFilterReading: requiredElement("reference-filter-reading", HTMLSelectElement),
-    referenceFilterOrganization: requiredElement("reference-filter-organization", HTMLInputElement),
-    referenceFilterLinkage: requiredElement("reference-filter-linkage", HTMLSelectElement),
-    referenceFilterCompleteness: requiredElement("reference-filter-completeness", HTMLSelectElement),
-    referenceFilterSort: requiredElement("reference-filter-sort", HTMLSelectElement),
-    referenceFilterCount: requiredElement("reference-filter-count", HTMLElement),
+    referenceLibraryFilters: requiredElement("reference-library-filters", ReferenceLibraryFilterPanel),
     openCitationNetwork: requiredElement("open-citation-network", HTMLButtonElement),
     citationNetwork: requiredElement("citation-network", HTMLElement),
     closeCitationNetwork: requiredElement("close-citation-network", HTMLButtonElement),

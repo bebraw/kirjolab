@@ -125,6 +125,9 @@ The adopted components own bounded presentation:
 - The workspace settings panel owns title, entry-file and publication-profile
   values, archive and template visibility, modal lifecycle, the nested
   GitHub-sync presentation boundary, and typed project-action intents.
+- The reference Library filter panel owns query, type, reading,
+  organization, project-linkage, completeness, and sort values, dynamic type
+  choices, result counts, reset behavior, and a typed filter-change intent.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -266,6 +269,11 @@ reason to wrap static markup mechanically.
   visibility, modal, and nested GitHub-review coordination while leaving
   authorization, persistence, navigation, synchronization requests,
   destructive confirmation, catalog refresh, and toast policy in the
+  application coordinator.
+- The reference Library filter panel replaces eight internal element references,
+  seven control listeners, filter-value validation, dynamic type-option
+  rendering, and result-count updates while leaving canonical filtering,
+  linked-reference projection, result-card rendering, and navigation in the
   application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.

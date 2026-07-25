@@ -989,3 +989,26 @@ Full native CI passes all 1,284 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 714,699 B raw
 / 198,282 B gzip to 721,355 B raw / 199,494 B gzip (+6,656 B raw / +1,212 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Reference Library Filters
+
+Reference Library filtering now uses a bounded
+`ReferenceLibraryFilterPanel` instead of eight element references, seven
+control listeners, coordinator-local value validation, dynamic type-option
+rendering, and result-count updates. The component owns query and facet state,
+validated defaults, reset behavior, and a typed change event. `WorkspaceApp`
+retains canonical filtering, linked-reference projection, result-card
+rendering, and reference navigation.
+
+This checkpoint reduces `src/client/app.ts` from 9,635 to 9,567 lines (-68).
+The component adds 202 lines. Component tests cover dynamic types, counts,
+ordinary and query-preserving resets, all seven filter values, typed change
+events, and invalid-value fallbacks. Focused browser workflows pass interactive
+tag, linkage, and query filtering; exact-PDF duplicate reveal; and legacy
+BibTeX Library search. The component records 91.89% statement and 94.28% line
+coverage.
+
+Full native CI passes all 1,286 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 721,355 B raw
+/ 199,494 B gzip to 724,344 B raw / 200,038 B gzip (+2,989 B raw / +544 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

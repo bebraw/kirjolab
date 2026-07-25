@@ -376,22 +376,24 @@ export function renderHomePage(
               <library-discovery-results class="library-discovery-results" id="library-discovery-results"></library-discovery-results>
             </details>
             <div class="library-toolbar">
-              <div class="library-search">
-                <label class="sr-only" for="reference-filter-query">Search library</label>
-                <input class="field" id="reference-filter-query" type="search" maxlength="200" placeholder="Search references…" title="Search title, author, reference ID, DOI, or URL">
-                <span id="reference-filter-count" aria-live="polite">0 references</span>
-              </div>
-              <details class="action-menu library-filter-menu ui-menu" data-action-menu>
-                <summary class="button-secondary" title="Filter and sort references">Filter</summary>
-                <section class="library-menu library-filter-fields ui-menu-panel" aria-label="Filter reference library">
-                  <label class="field-label">Type<select class="field" id="reference-filter-type"><option value="">All types</option></select></label>
-                  <label class="field-label">Reading<select class="field" id="reference-filter-reading"><option value="all">Any status</option><option value="unread">Unread</option><option value="reading">Reading</option><option value="read">Read</option></select></label>
-                  <label class="field-label">Tag or collection<input class="field" id="reference-filter-organization" maxlength="80" placeholder="Any label"></label>
-                  <label class="field-label">Project<select class="field" id="reference-filter-linkage"><option value="all">Linked or unlinked</option><option value="linked">Linked</option><option value="unlinked">Not linked</option></select></label>
-                  <label class="field-label">Metadata<select class="field" id="reference-filter-completeness"><option value="all">Any completeness</option><option value="complete">Complete</option><option value="incomplete">Needs metadata</option></select></label>
-                  <label class="field-label">Sort<select class="field" id="reference-filter-sort"><option value="updated">Recently updated</option><option value="title">Title</option><option value="year">Year</option><option value="priority">Reading priority</option></select></label>
-                </section>
-              </details>
+              <reference-library-filters class="contents" id="reference-library-filters">
+                <div class="library-search">
+                  <label class="sr-only" for="reference-filter-query">Search library</label>
+                  <input class="field" id="reference-filter-query" type="search" maxlength="200" placeholder="Search references…" title="Search title, author, reference ID, DOI, or URL">
+                  <span id="reference-filter-count" aria-live="polite">0 references</span>
+                </div>
+                <details class="action-menu library-filter-menu ui-menu" data-action-menu>
+                  <summary class="button-secondary" title="Filter and sort references">Filter</summary>
+                  <section class="library-menu library-filter-fields ui-menu-panel" aria-label="Filter reference library">
+                    <label class="field-label">Type<select class="field" id="reference-filter-type"><option value="">All types</option></select></label>
+                    <label class="field-label">Reading<select class="field" id="reference-filter-reading"><option value="all">Any status</option><option value="unread">Unread</option><option value="reading">Reading</option><option value="read">Read</option></select></label>
+                    <label class="field-label">Tag or collection<input class="field" id="reference-filter-organization" maxlength="80" placeholder="Any label"></label>
+                    <label class="field-label">Project<select class="field" id="reference-filter-linkage"><option value="all">Linked or unlinked</option><option value="linked">Linked</option><option value="unlinked">Not linked</option></select></label>
+                    <label class="field-label">Metadata<select class="field" id="reference-filter-completeness"><option value="all">Any completeness</option><option value="complete">Complete</option><option value="incomplete">Needs metadata</option></select></label>
+                    <label class="field-label">Sort<select class="field" id="reference-filter-sort"><option value="updated">Recently updated</option><option value="title">Title</option><option value="year">Year</option><option value="priority">Reading priority</option></select></label>
+                  </section>
+                </details>
+              </reference-library-filters>
               <details class="action-menu library-tools-menu ui-menu" data-action-menu>
                 <summary class="button-secondary library-more-button" aria-label="Library tools" title="Library tools">•••</summary>
                 <div class="library-menu library-tools-list ui-menu-panel">

@@ -66,6 +66,10 @@ memory and makes citation aliases compete with stable source identity.
   typed query intents. The workspace coordinator retains provider requests,
   response validation, result presentation, import mutation, and Library
   refresh policy.
+- One bounded filter component owns Library query and facet values, dynamic
+  type choices, validated defaults, result counts, and reset behavior. The
+  workspace coordinator retains canonical reference filtering,
+  project-linkage projection, result-card rendering, and reference navigation.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - An authenticated project member may stream PDFs attached to the project
