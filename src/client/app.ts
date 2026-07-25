@@ -63,6 +63,7 @@ import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import { CollaboratorSelectionList } from "./collaborator-selection-list";
+import { AppToast, appToastActionEvent, appToastDismissEvent } from "./app-toast";
 import { SourceCompletion, sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
@@ -606,7 +607,7 @@ interface Elements {
   assistantPhrasingAttribution: HTMLDetailsElement;
   modelStatus: HTMLElement;
   candidateListPanel: CandidateListPanel;
-  toast: HTMLElement;
+  toast: AppToast;
 }
 
 type RemoteCollaboratorSelection = Extract<ServerCollaborationMessage, { type: "selection" }>;
@@ -711,7 +712,7 @@ class WorkspaceApp {
   #renderSourceEditorHighlight: () => void = () => undefined;
   #modelDiscoveryBusy = false;
   #hasBootstrapSnapshot = false;
-  #toastTimer: number | undefined;
+  #toastAction: ToastAction | null = null;
   #applicationUpdateAvailable = false;
   readonly #hiddenProjectFileIds = new Set<string>();
   readonly #hiddenProjectFolderIds = new Set<string>();
@@ -885,6 +886,15 @@ class WorkspaceApp {
     this.#restorePreviewNavigation();
     this.#restoreModelPreferences();
     this.#restoreCitationCompletionScope();
+    this.#elements.toast.addEventListener(appToastActionEvent, () => {
+      const action = this.#toastAction;
+      this.#toastAction = null;
+      action?.run();
+    });
+    this.#elements.toast.addEventListener(appToastDismissEvent, () => {
+      this.#toastAction = null;
+      if (this.#applicationUpdateAvailable) this.#showApplicationUpdate();
+    });
     this.#elements.copyApplicationVersion.addEventListener("click", () => {
       void copyText(applicationVersion)
         .then(() => this.#showToast(`Copied application version ${applicationVersion}.`))
@@ -7362,27 +7372,13 @@ class WorkspaceApp {
   }
 
   #showToast(message: string, action?: ToastAction): void {
-    window.clearTimeout(this.#toastTimer);
-    if (action) {
-      const label = document.createElement("span");
-      label.textContent = message;
-      const button = document.createElement("button");
-      button.className = "toast-action";
-      button.type = "button";
-      button.textContent = action.label;
-      button.addEventListener("click", action.run, { once: true });
-      this.#elements.toast.replaceChildren(label, button);
-    } else {
-      this.#elements.toast.textContent = message;
-    }
-    this.#elements.toast.dataset.visible = "true";
-    this.#presentToast();
-    if (action?.persistent) return;
-    this.#toastTimer = window.setTimeout(() => {
-      delete this.#elements.toast.dataset.visible;
-      if (this.#elements.toast.matches(":popover-open")) this.#elements.toast.hidePopover();
-      if (this.#applicationUpdateAvailable) this.#showApplicationUpdate();
-    }, action?.durationMs ?? 3_200);
+    this.#toastAction = action ?? null;
+    if (!action) return this.#elements.toast.show(message);
+    this.#elements.toast.show(message, {
+      actionLabel: action.label,
+      durationMs: action.durationMs,
+      persistent: action.persistent,
+    });
   }
 
   #showApplicationUpdate(): void {
@@ -7393,29 +7389,6 @@ class WorkspaceApp {
         void this.#persistOfflineWorkspace().finally(() => location.reload());
       },
     });
-  }
-
-  #presentToast(): void {
-    const modal = document.querySelector<HTMLDialogElement>("dialog:modal");
-    if (modal) {
-      if (this.#elements.toast.matches(":popover-open")) this.#elements.toast.hidePopover();
-      this.#elements.toast.removeAttribute("popover");
-      modal.append(this.#elements.toast);
-      modal.addEventListener(
-        "close",
-        () => {
-          if (!this.#elements.toast.dataset.visible || this.#elements.toast.closest("dialog") !== modal) return;
-          document.body.append(this.#elements.toast);
-          this.#elements.toast.setAttribute("popover", "manual");
-          this.#elements.toast.showPopover();
-        },
-        { once: true },
-      );
-      return;
-    }
-    if (this.#elements.toast.parentElement !== document.body) document.body.append(this.#elements.toast);
-    this.#elements.toast.setAttribute("popover", "manual");
-    if (!this.#elements.toast.matches(":popover-open")) this.#elements.toast.showPopover();
   }
 }
 
@@ -7880,7 +7853,7 @@ function collectElements(): Elements {
     assistantPhrasingAttribution: requiredElement("assistant-phrasing-attribution", HTMLDetailsElement),
     modelStatus: requiredElement("model-status", HTMLElement),
     candidateListPanel: requiredElement("candidate-list-panel", CandidateListPanel),
-    toast: requiredElement("toast", HTMLElement),
+    toast: requiredElement("toast", AppToast),
   };
 }
 

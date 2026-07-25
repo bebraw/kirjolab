@@ -1576,3 +1576,24 @@ The browser application artifact grows from 769,285 B raw / 208,855 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,341 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Application Toast
+
+A bounded `AppToast` now owns transient and persistent message rendering,
+replacement-timer cancellation, one-shot action availability, modal
+reparenting, popover visibility, and typed action and dismissal intents.
+`WorkspaceApp` retains action effects, deferred-deletion authority, offline
+update persistence, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,994 to 7,967 lines (-27).
+The component adds 100 lines. Component tests cover fallback and action
+presentation, one-shot action intent, transient dismissal, and replacement
+timer cancellation. It records 71.15% statement and 73.17% line coverage.
+Focused browser workflows pass persistent update recovery in both Workspace and
+Library plus timed image-deletion Undo.
+
+The browser application artifact grows from 769,814 B raw / 208,949 B gzip to
+770,529 B raw / 209,185 B gzip (+715 B raw / +236 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,343 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

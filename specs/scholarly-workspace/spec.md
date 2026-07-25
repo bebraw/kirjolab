@@ -198,6 +198,11 @@ collaboration.
   persistent update notice, and reloads the controlled page once. Ordinary
   transient notices may briefly replace the update notice, which returns until
   the user refreshes.
+- **Application notices:** One bounded light-DOM component owns transient and
+  persistent message rendering, replacement timers, one-shot action
+  availability, modal reparenting, and popover visibility. The workspace
+  coordinator retains action effects, deferred-deletion authority, update
+  persistence, and notification policy.
 - **Collaborator selections:** A client may send only an exact-key, bounded
   `protocol: 1` selection message for the current file and revision. The room
   supplies its socket identity, validates the range, broadcasts it only to
