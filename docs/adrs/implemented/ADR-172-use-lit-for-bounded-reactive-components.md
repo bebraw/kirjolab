@@ -161,6 +161,9 @@ The adopted components own bounded presentation:
 - The Library reference personal-fields block owns tags, collections,
   archive-state presentation, reading state, private-note composition, and
   typed save intents.
+- The Library reference metadata editor owns manual field values, PDF and
+  provider suggestions, work and field selections, refinement progress, and
+  typed save, refine, and application intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -363,6 +366,11 @@ reason to wrap static markup mechanically.
   select render helpers plus their per-card handlers and DOM value collection
   with one delegated action stream while leaving persistence, confirmation,
   Library refreshes, and toast policy in the application coordinator.
+- The Library reference metadata editor replaces the metadata-field element
+  map, suggestion-target map, refinement panel target, eight imperative render
+  helpers, and DOM-based application selection collection. The application
+  coordinator retains PDF extraction, provider requests, the refinement state
+  machine, persistence, refreshes, and toast policy.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

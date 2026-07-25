@@ -88,6 +88,12 @@ memory and makes citation aliases compete with stable source identity.
   reading-state, archive-state, and private-note form values and typed save
   intents. The workspace coordinator retains persistence, archive confirmation,
   Library refreshes, and notification policy.
+- A bounded light-DOM metadata editor owns manual bibliographic values,
+  refinement progress, PDF suggestions, grouped scholarly-provider matches,
+  work and field selections, and typed save, refine, and application intents.
+  The workspace coordinator retains PDF extraction, provider requests,
+  refinement workflow state, persistence, Library refreshes, and notification
+  policy; metadata components never receive or return raw DOM targets.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - An authenticated project member may stream PDFs attached to the project

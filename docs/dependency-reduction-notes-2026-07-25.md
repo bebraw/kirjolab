@@ -1327,3 +1327,27 @@ Full native CI passes all 1,319 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 752,814 B raw
 / 205,980 B gzip to 755,538 B raw / 206,407 B gzip (+2,724 B raw / +427 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Library Metadata Editor
+
+A bounded `LibraryReferenceMetadataEditor` now owns manual bibliographic
+values, refinement progress, inline PDF suggestions, grouped provider matches,
+work and field selections, and application payload projection. This removes
+the coordinator's metadata-field and suggestion maps, refinement panel target,
+eight imperative render helpers, and DOM-based selection collection.
+`WorkspaceApp` retains PDF extraction, provider requests, the XState refinement
+workflow, persistence, Library refreshes, and toasts.
+
+This checkpoint reduces `src/client/app.ts` from 9,067 to 8,777 lines (-290).
+The component adds 437 lines. Component tests cover hidden, progress, review,
+manual save, refinement, PDF application, and provider application states.
+Focused browser workflows pass local PDF metadata review, mixed-provider field
+selection, cached preview presentation, and DOI import review. The component
+records 74.37% statement and 78.67% line coverage.
+
+Full native CI passes all 1,321 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 755,538 B raw
+/ 206,407 B gzip to 759,750 B raw / 206,892 B gzip (+4,212 B raw / +485 B
+gzip). The coordinator waits for reference-card component updates before
+restoring Library scroll state. Direct and unique production package counts
+remain unchanged at 18 and 150.
