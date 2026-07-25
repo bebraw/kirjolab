@@ -551,3 +551,25 @@ and 74 browser tests. The rebuilt browser application is 680,010 B raw and
 191,601 B gzip, an increase of 1,867 B raw and 256 B gzip from the claim-list
 checkpoint. Direct and unique production package counts remain unchanged at 18
 and 150.
+
+## Continued Lit Extraction: Project Publications
+
+The project References collection now uses one bounded `PublicationListPanel`
+instead of imperative empty-state, reference-card, metadata-label, and action
+rendering. The component owns publication presentation and emits typed open,
+Library-management, and metadata-enrichment intents. `WorkspaceApp` retains
+context navigation, authorized Library and enrichment operations, refreshes,
+and count presentation.
+
+This checkpoint reduces `src/client/app.ts` from 11,009 to 10,984 lines (-25).
+The component adds 127 lines and reaches 89.28% statement coverage and 90.9%
+line coverage across empty, enrichable, DOI-free, and project-linked reference
+states plus all three action intents. Focused browser workflows pass
+publication opening, Library management, project-PDF context, and DOI
+enrichment.
+
+Full native CI passes all 1,235 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 682,060 B raw and
+191,844 B gzip, an increase of 2,050 B raw and 243 B gzip from the
+manuscript-comments checkpoint. Direct and unique production package counts
+remain unchanged at 18 and 150.

@@ -70,6 +70,9 @@ The adopted components own bounded presentation:
   navigation intents.
 - The manuscript comment list owns comment, anchor status, empty-state, and
   action presentation with typed open, re-anchor, and resolve intents.
+- The project publication list owns reference metadata, alias and DOI labels,
+  empty-state, and action presentation with typed open, manage, and enrich
+  intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -127,6 +130,10 @@ reason to wrap static markup mechanically.
 - The manuscript comment list replaces one internal list reference and its
   imperative card renderer while leaving comment creation, anchor selection,
   mutations, refreshes, and passage navigation in the application coordinator.
+- The project publication list replaces one internal list reference and its
+  imperative card renderer while leaving context navigation, Library
+  management, metadata enrichment, and refreshes in the application
+  coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

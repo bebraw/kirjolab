@@ -186,6 +186,7 @@ import { ProjectMapPanel, projectMapSelectEvent } from "./project-map-panel";
 import { KnowledgeSearchPanel, knowledgeSearchEvent, knowledgeSearchSelectEvent } from "./knowledge-search-panel";
 import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
+import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -632,7 +633,7 @@ interface Elements {
   pdfList: HTMLElement;
   knowledgeSearchPanel: KnowledgeSearchPanel;
   publicationCount: HTMLElement;
-  publicationList: HTMLElement;
+  publicationListPanel: PublicationListPanel;
   annotationList: HTMLElement;
   unassignedAnnotationList: HTMLElement;
   claimCount: HTMLElement;
@@ -1384,6 +1385,12 @@ class WorkspaceApp {
     });
     this.#elements.projectMapPanel.addEventListener(projectMapSelectEvent, (event) => {
       this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
+    });
+    this.#elements.publicationListPanel.addEventListener(publicationListActionEvent, (event) => {
+      const detail = (event as CustomEvent<PublicationListAction>).detail;
+      if (detail.action === "open") this.#openPublicationContext(detail.publication);
+      else if (detail.action === "manage") void this.#openReferenceLibraryEntry(detail.publicationId);
+      else void this.#enrichPublication(detail.publicationId);
     });
     this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
     this.#elements.libraryHighlightForm.addEventListener("submit", (event) => void this.#saveLibraryHighlight(event));
@@ -5949,42 +5956,10 @@ class WorkspaceApp {
 
   #renderPublications(publications: PublicationResource[]): void {
     this.#elements.publicationCount.textContent = String(publications.length);
-    this.#elements.publicationList.replaceChildren();
-    if (publications.length === 0) {
-      this.#elements.publicationList.append(emptyState("Imported references appear here as stable publication resources."));
-      return;
-    }
-    for (const publication of publications) {
-      const card = document.createElement("article");
-      card.className = "resource-card";
-      card.dataset.publicationResourceId = publication.id;
-      card.append(
-        resourceLabel(`${publication.type} · ${publication.metadataSource}`),
-        resourceTitle(bibTeXDisplayText(publication.title)),
-      );
-      const details = document.createElement("p");
-      details.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
-      details.textContent = [bibTeXDisplayText(publication.authors.join("; ")), publication.year, bibTeXDisplayText(publication.venue)]
-        .filter(Boolean)
-        .join(" · ");
-      card.append(details);
-      const actions = document.createElement("div");
-      actions.className = "mt-3 flex flex-wrap items-center gap-2";
-      actions.append(actionButton("Open in context", "button-secondary", () => this.#openPublicationContext(publication)));
-      const projectReference = this.#snapshot?.projectReferences.find((link) => link.referenceId === publication.id);
-      if (projectReference) {
-        actions.append(resourceLabel(`alias:${projectReference.citationAlias}`));
-        actions.append(actionButton("Manage in library", "button-secondary", () => void this.#openReferenceLibraryEntry(publication.id)));
-      }
-      if (publication.doi) {
-        actions.append(resourceLabel(`doi:${publication.doi}`));
-        if (!projectReference) {
-          actions.append(actionButton("Enrich", "button-secondary", () => void this.#enrichPublication(publication.id)));
-        }
-      }
-      card.append(actions);
-      this.#elements.publicationList.append(card);
-    }
+    this.#elements.publicationListPanel.setPublications({
+      projectReferences: this.#snapshot?.projectReferences ?? [],
+      publications,
+    });
   }
 
   #renderAnnotations(annotations: AnnotationResource[], links: PassageLink[]): void {
@@ -10641,7 +10616,7 @@ function collectElements(): Elements {
     pdfList: requiredElement("pdf-list", HTMLElement),
     knowledgeSearchPanel: requiredElement("knowledge-search-panel", KnowledgeSearchPanel),
     publicationCount: requiredElement("publication-count", HTMLElement),
-    publicationList: requiredElement("publication-list", HTMLElement),
+    publicationListPanel: requiredElement("publication-list-panel", PublicationListPanel),
     annotationList: requiredElement("annotation-list", HTMLElement),
     unassignedAnnotationList: requiredElement("unassigned-annotation-list", HTMLElement),
     claimCount: requiredElement("claim-count", HTMLElement),

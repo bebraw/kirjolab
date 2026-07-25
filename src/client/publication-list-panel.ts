@@ -1,0 +1,127 @@
+import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { bibTeXDisplayText } from "../domain/bibliography";
+import type { ProjectReferenceLink, PublicationResource } from "../domain/workspace";
+
+export const publicationListActionEvent = "publication-list-action";
+
+export type PublicationListAction =
+  | { readonly action: "enrich"; readonly publicationId: string }
+  | { readonly action: "manage"; readonly publicationId: string }
+  | { readonly action: "open"; readonly publication: PublicationResource };
+
+interface PublicationListData {
+  readonly projectReferences: readonly ProjectReferenceLink[];
+  readonly publications: readonly PublicationResource[];
+}
+
+export class PublicationListPanel extends LitElement {
+  static override properties = {
+    data: { state: true },
+  };
+
+  declare private data: PublicationListData;
+
+  constructor() {
+    super();
+    this.data = { projectReferences: [], publications: [] };
+  }
+
+  setPublications(data: PublicationListData): void {
+    this.data = data;
+  }
+
+  override connectedCallback(): void {
+    if (!this.hasUpdated) this.replaceChildren();
+    super.connectedCallback();
+  }
+
+  protected override createRenderRoot(): HTMLElement {
+    return this;
+  }
+
+  protected override render(): TemplateResult {
+    return html`<div class="rail-collection-body" id="publication-list">
+      ${this.data.publications.length === 0
+        ? html`<div class="empty-state">Imported references appear here as stable publication resources.</div>`
+        : this.data.publications.map((publication) => this.renderPublication(publication))}
+    </div>`;
+  }
+
+  protected actOnPublication(event: Event): void {
+    const button = event.currentTarget as HTMLButtonElement;
+    const publication = this.data.publications.find((item) => item.id === button.dataset.publicationId);
+    if (!publication) return;
+    const action = button.dataset.publicationAction;
+    if (action === "open") this.emit({ action, publication });
+    else if (action === "manage" || action === "enrich") this.emit({ action, publicationId: publication.id });
+  }
+
+  private renderPublication(publication: PublicationResource): TemplateResult {
+    const projectReference = this.data.projectReferences.find((link) => link.referenceId === publication.id);
+    const details = [bibTeXDisplayText(publication.authors.join("; ")), publication.year, bibTeXDisplayText(publication.venue)]
+      .filter(Boolean)
+      .join(" · ");
+    return html`
+      <article class="resource-card" data-publication-resource-id=${publication.id}>
+        <span class="eyebrow">${publication.type} · ${publication.metadataSource}</span>
+        <strong class="mt-2 block font-sans">${bibTeXDisplayText(publication.title)}</strong>
+        <p class="mt-2 font-sans text-xs leading-5 text-app-text-soft">${details}</p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            class="button-secondary"
+            data-publication-id=${publication.id}
+            data-publication-action="open"
+            @click=${this.actOnPublication}
+          >
+            Open in context
+          </button>
+          ${projectReference
+            ? html`
+                <span class="eyebrow">alias:${projectReference.citationAlias}</span>
+                <button
+                  type="button"
+                  class="button-secondary"
+                  data-publication-id=${publication.id}
+                  data-publication-action="manage"
+                  @click=${this.actOnPublication}
+                >
+                  Manage in library
+                </button>
+              `
+            : nothing}
+          ${publication.doi
+            ? html`
+                <span class="eyebrow">doi:${publication.doi}</span>
+                ${projectReference
+                  ? nothing
+                  : html`<button
+                      type="button"
+                      class="button-secondary"
+                      data-publication-id=${publication.id}
+                      data-publication-action="enrich"
+                      @click=${this.actOnPublication}
+                    >
+                      Enrich
+                    </button>`}
+              `
+            : nothing}
+        </div>
+      </article>
+    `;
+  }
+
+  private emit(detail: PublicationListAction): void {
+    this.dispatchEvent(new CustomEvent(publicationListActionEvent, { bubbles: true, composed: true, detail }));
+  }
+}
+
+if (typeof customElements !== "undefined" && !customElements.get("publication-list-panel")) {
+  customElements.define("publication-list-panel", PublicationListPanel);
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "publication-list-panel": PublicationListPanel;
+  }
+}

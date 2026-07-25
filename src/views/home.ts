@@ -154,7 +154,9 @@ export function renderHomePage(
             </details>
             <details class="rail-collection">
               <summary><span>References</span><span class="count-badge" id="publication-count">0</span></summary>
-              <div class="rail-collection-body" id="publication-list"><div class="empty-state">No project references yet.</div></div>
+              <publication-list-panel id="publication-list-panel">
+                <div class="rail-collection-body" id="publication-list"><div class="empty-state">No project references yet.</div></div>
+              </publication-list-panel>
             </details>
           </div>
           <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf" aria-label="Upload project PDF">
