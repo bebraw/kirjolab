@@ -6,6 +6,12 @@ export const citationNetworkActionEvent = "citation-network-action";
 
 export type CitationNetworkAction =
   | { readonly action: "expand"; readonly referenceId: string }
+  | {
+      readonly action: "record";
+      readonly citedReferenceId: string;
+      readonly citingReferenceId: string;
+      readonly polarity: "cites" | "does-not-cite";
+    }
   | { readonly action: "review"; readonly assertionId: string; readonly decision: "confirmed" | "rejected" }
   | {
       readonly action: "save-candidate";
@@ -20,23 +26,46 @@ interface CitationNetworkData {
   readonly referenceTitles: Readonly<Record<string, string>>;
 }
 
+interface CitationReferenceChoice {
+  readonly id: string;
+  readonly title: string;
+}
+
 export class CitationNetworkPanel extends LitElement {
   static override properties = {
     data: { state: true },
+    citedReferenceId: { state: true },
+    citingReferenceId: { state: true },
+    polarity: { state: true },
+    references: { state: true },
     savingDois: { state: true },
   };
 
+  declare private citedReferenceId: string;
+  declare private citingReferenceId: string;
   declare private data: CitationNetworkData;
+  declare private polarity: "cites" | "does-not-cite";
+  declare private references: readonly CitationReferenceChoice[];
   declare private savingDois: ReadonlySet<string>;
 
   constructor() {
     super();
+    this.citedReferenceId = "";
+    this.citingReferenceId = "";
     this.data = { expansion: null, filterProject: false, network: null, referenceTitles: {} };
+    this.polarity = "cites";
+    this.references = [];
     this.savingDois = new Set();
   }
 
   setData(data: CitationNetworkData): void {
     this.data = data;
+  }
+
+  setReferences(references: readonly CitationReferenceChoice[]): void {
+    this.references = references;
+    if (!references.some(({ id }) => id === this.citingReferenceId)) this.citingReferenceId = "";
+    if (!references.some(({ id }) => id === this.citedReferenceId)) this.citedReferenceId = "";
   }
 
   setCandidateSaving(doi: string, saving: boolean): void {
@@ -58,6 +87,34 @@ export class CitationNetworkPanel extends LitElement {
   protected override render(): TemplateResult {
     const network = this.data.network;
     return html`
+      <form
+        class="mt-4 grid gap-3 border-y border-app-line py-4 md:grid-cols-[1fr_auto_1fr_auto]"
+        id="citation-assertion-form"
+        @submit=${this.record}
+      >
+        <label class="field-label"
+          >Citing source
+          <select class="field" id="citation-assertion-citing" required .value=${this.citingReferenceId} @change=${this.changeSource}>
+            <option value="">Choose source…</option>
+            ${this.references.map(({ id, title }) => html`<option value=${id}>${title}</option>`)}
+          </select>
+        </label>
+        <label class="field-label"
+          >Relationship
+          <select class="field" id="citation-assertion-polarity" .value=${this.polarity} @change=${this.changePolarity}>
+            <option value="cites">Cites</option>
+            <option value="does-not-cite">Does not cite</option>
+          </select>
+        </label>
+        <label class="field-label"
+          >Cited source
+          <select class="field" id="citation-assertion-cited" required .value=${this.citedReferenceId} @change=${this.changeSource}>
+            <option value="">Choose source…</option>
+            ${this.references.map(({ id, title }) => html`<option value=${id}>${title}</option>`)}
+          </select>
+        </label>
+        <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Record assertion</button></div>
+      </form>
       <div class="mt-4 overflow-hidden border border-app-line bg-app-paper">
         <svg class="block min-h-72 w-full" id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph">
           ${network ? this.graph(network) : nothing}
@@ -67,6 +124,26 @@ export class CitationNetworkPanel extends LitElement {
         ${network ? this.networkList(network) : html`<div class="empty-state">Loading citation assertions…</div>`}
       </div>
     `;
+  }
+
+  protected record(event: Event): void {
+    event.preventDefault();
+    this.emit({
+      action: "record",
+      citedReferenceId: this.citedReferenceId,
+      citingReferenceId: this.citingReferenceId,
+      polarity: this.polarity,
+    });
+  }
+
+  protected changeSource(event: Event): void {
+    const select = event.currentTarget as HTMLSelectElement;
+    if (select.id === "citation-assertion-citing") this.citingReferenceId = select.value;
+    else this.citedReferenceId = select.value;
+  }
+
+  protected changePolarity(event: Event): void {
+    this.polarity = (event.currentTarget as HTMLSelectElement).value === "does-not-cite" ? "does-not-cite" : "cites";
   }
 
   protected act(event: Event): void {

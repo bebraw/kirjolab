@@ -92,9 +92,10 @@ The adopted components own bounded presentation:
   selection intents.
 - The Library discovery results panel owns provider, metadata, verification,
   and local save-progress presentation with typed save intents.
-- The citation network panel owns graph geometry, source and edge cards,
-  assertion provenance and review controls, snowball candidates, and local
-  candidate-save progress with typed expansion, review, and save intents.
+- The citation network panel owns manual source and relationship choices, graph
+  geometry, source and edge cards, assertion provenance and review controls,
+  snowball candidates, and local candidate-save progress with typed record,
+  expansion, review, and save intents.
 - The Preview context status and diagnostics panels own file-mode and
   validation status, unavailable-state presentation, composition and renderer
   diagnostic cards, source-map resolution, and typed source-range intents.
@@ -236,10 +237,11 @@ reason to wrap static markup mechanically.
   save-button renderer while leaving provider requests, response validation,
   CSL import, Library refreshes, and status policy in the application
   coordinator.
-- The citation network panel replaces two internal element references and the
-  imperative SVG graph, node, edge, assertion, expansion, candidate, and
-  progress renderers while leaving network requests, prompts, mutations,
-  validation, refreshes, and toast policy in the application coordinator.
+- The citation network panel replaces six internal element references,
+  assertion-form binding and option rendering, plus the imperative SVG graph,
+  node, edge, assertion, expansion, candidate, and progress renderers while
+  leaving network requests, prompts, mutations, validation, refreshes, and
+  toast policy in the application coordinator.
 - The Preview presentation panels replace three internal element references,
   three imperative diagnostic renderers, and the coordinator-local source-map
   lookup helper while leaving Markdown loading and rendering, composed-source

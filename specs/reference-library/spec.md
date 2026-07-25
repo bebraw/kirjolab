@@ -98,6 +98,10 @@ memory and makes citation aliases compete with stable source identity.
   assertions between stable reference UUIDs. Confirmed, extracted, inferred,
   and conflicting derived states remain distinct from project manuscript
   `cites` links; researcher review never erases captured provenance.
+- The bounded citation-network panel owns manual source and relationship
+  choices, network and assertion presentation, and typed record and review
+  intents. The workspace coordinator retains validation, provenance-bearing
+  mutations, network refreshes, prompts, and notification policy.
 - The library is a permanent, non-closable tab beside Preview in the project's
   research-context pane. Activating it refreshes the authorized owner snapshot
   without opening a modal or mutating project state.

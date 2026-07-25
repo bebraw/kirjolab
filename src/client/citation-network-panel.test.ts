@@ -79,6 +79,18 @@ class TestCitationNetworkPanel extends CitationNetworkPanel {
   actForTest(action?: string, values: Record<string, string> = {}): void {
     this.act(eventWithTarget({ dataset: { citationAction: action, ...values } }));
   }
+
+  changeSourceForTest(id: "citation-assertion-cited" | "citation-assertion-citing", value: string): void {
+    this.changeSource(eventWithTarget({ id, value }));
+  }
+
+  changePolarityForTest(value: string): void {
+    this.changePolarity(eventWithTarget({ value }));
+  }
+
+  recordForTest(): void {
+    this.record(new Event("submit"));
+  }
 }
 
 function eventWithTarget(target: object): Event {
@@ -142,5 +154,30 @@ describe("citation network panel", () => {
       { action: "review", assertionId: "assertion:1", decision: "confirmed" },
       { action: "save-candidate", candidate: expansion.unmatched[0], expansion },
     ]);
+  });
+
+  it("owns reference choices and emits a typed manual assertion", () => {
+    const panel = new TestCitationNetworkPanel();
+    const actions: CitationNetworkAction[] = [];
+    panel.addEventListener(citationNetworkActionEvent, (event) => actions.push((event as CustomEvent<CitationNetworkAction>).detail));
+    panel.setReferences([
+      { id: "a", title: "Source A" },
+      { id: "b", title: "Source B" },
+    ]);
+    panel.changeSourceForTest("citation-assertion-citing", "a");
+    panel.changeSourceForTest("citation-assertion-cited", "b");
+    panel.changePolarityForTest("does-not-cite");
+    panel.recordForTest();
+    expect(actions).toEqual([
+      {
+        action: "record",
+        citedReferenceId: "b",
+        citingReferenceId: "a",
+        polarity: "does-not-cite",
+      },
+    ]);
+    panel.setReferences([{ id: "b", title: "Source B" }]);
+    panel.changePolarityForTest("unknown");
+    expect(panel.renderForTest()).toBeDefined();
   });
 });

@@ -1147,3 +1147,26 @@ Full native CI passes all 1,299 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 735,432 B raw
 / 201,905 B gzip to 736,299 B raw / 202,063 B gzip (+867 B raw / +158 B gzip).
 Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Consolidation: Citation Assertions
+
+The existing `CitationNetworkPanel` now owns manual assertion intake alongside
+the citation graph and review workflow. This removes four assertion-form element
+references, coordinator-owned submit binding, imperative source-option
+rendering, value collection, and polarity normalization without introducing
+another custom element. The panel owns reference choices and a typed manual
+record intent. `WorkspaceApp` retains validation, provenance-bearing mutation,
+network requests and refreshes, prompts, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,335 to 9,311 lines (-24) and
+adds 77 lines to the existing component. Component tests now cover reference
+replacement and selection fallback, source and polarity changes, and the typed
+manual assertion alongside loading, network, review, expansion, and candidate
+states. The focused browser workflow passes manual assertion recording and
+review in the accessible shared network. The consolidated panel records 95.69%
+statement and 97.43% line coverage.
+
+Full native CI passes all 1,300 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 736,299 B raw
+/ 202,063 B gzip to 737,836 B raw / 202,326 B gzip (+1,537 B raw / +263 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

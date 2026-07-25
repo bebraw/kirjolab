@@ -460,10 +460,6 @@ interface Elements {
   citationNetwork: HTMLElement;
   closeCitationNetwork: HTMLButtonElement;
   filterProjectCitations: HTMLButtonElement;
-  citationAssertionForm: HTMLFormElement;
-  citationAssertionCiting: HTMLSelectElement;
-  citationAssertionCited: HTMLSelectElement;
-  citationAssertionPolarity: HTMLSelectElement;
   citationNetworkPanel: CitationNetworkPanel;
   webSourceCapture: WebSourceCapture;
   webSnapshotComparison: WebSnapshotComparisonPanel;
@@ -1149,10 +1145,10 @@ class WorkspaceApp {
       this.#elements.filterProjectCitations.setAttribute("aria-pressed", String(this.#filterProjectCitations));
       void this.#refreshCitationNetwork();
     });
-    this.#elements.citationAssertionForm.addEventListener("submit", (event) => void this.#recordCitationAssertion(event));
     this.#elements.citationNetworkPanel.addEventListener(citationNetworkActionEvent, (event) => {
       const detail = (event as CustomEvent<CitationNetworkAction>).detail;
       if (detail.action === "expand") void this.#expandCitationReference(detail.referenceId);
+      else if (detail.action === "record") void this.#recordCitationAssertion(detail);
       else if (detail.action === "review") void this.#reviewCitationAssertion(detail.assertionId, detail.decision);
       else void this.#acceptCitationCandidate(detail.expansion, detail.candidate);
     });
@@ -3674,7 +3670,7 @@ class WorkspaceApp {
   #renderReferenceLibrary(): void {
     const library = this.#librarySnapshot;
     if (!library) return;
-    this.#renderCitationAssertionOptions();
+    this.#elements.citationNetworkPanel.setReferences(library.references.map(({ id, title }) => ({ id, title: bibTeXDisplayText(title) })));
     const types = [...new Set(library.references.map((reference) => reference.type))].sort();
     this.#elements.referenceLibraryFilters.setTypes(types);
     const filters = this.#elements.referenceLibraryFilters.value;
@@ -3699,7 +3695,6 @@ class WorkspaceApp {
 
   async #openCitationNetwork(): Promise<void> {
     this.#elements.citationNetwork.classList.remove("hidden");
-    this.#renderCitationAssertionOptions();
     await this.#refreshCitationNetwork();
     this.#elements.citationNetwork.scrollIntoView({ block: "start" });
   }
@@ -3714,18 +3709,6 @@ class WorkspaceApp {
     this.#renderCitationNetwork();
   }
 
-  #renderCitationAssertionOptions(): void {
-    const references = this.#librarySnapshot?.references ?? [];
-    for (const select of [this.#elements.citationAssertionCiting, this.#elements.citationAssertionCited]) {
-      const current = select.value;
-      select.replaceChildren(
-        new Option("Choose source…", ""),
-        ...references.map((reference) => new Option(bibTeXDisplayText(reference.title), reference.id)),
-      );
-      if (references.some((reference) => reference.id === current)) select.value = current;
-    }
-  }
-
   #renderCitationNetwork(): void {
     this.#elements.citationNetworkPanel.setData({
       expansion: this.#citationExpansion,
@@ -3735,15 +3718,12 @@ class WorkspaceApp {
     });
   }
 
-  async #recordCitationAssertion(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const citingReferenceId = this.#elements.citationAssertionCiting.value;
-    const citedReferenceId = this.#elements.citationAssertionCited.value;
+  async #recordCitationAssertion(detail: Extract<CitationNetworkAction, { readonly action: "record" }>): Promise<void> {
+    const { citedReferenceId, citingReferenceId, polarity } = detail;
     if (!citingReferenceId || !citedReferenceId || citingReferenceId === citedReferenceId) {
       this.#showToast("Choose two different sources for the citation assertion.");
       return;
     }
-    const polarity = this.#elements.citationAssertionPolarity.value === "does-not-cite" ? "does-not-cite" : "cites";
     const response = await jsonFetch("/api/library/citation-assertions", {
       citingReferenceId,
       citedReferenceId,
@@ -8991,10 +8971,6 @@ function collectElements(): Elements {
     citationNetwork: requiredElement("citation-network", HTMLElement),
     closeCitationNetwork: requiredElement("close-citation-network", HTMLButtonElement),
     filterProjectCitations: requiredElement("filter-project-citations", HTMLButtonElement),
-    citationAssertionForm: requiredElement("citation-assertion-form", HTMLFormElement),
-    citationAssertionCiting: requiredElement("citation-assertion-citing", HTMLSelectElement),
-    citationAssertionCited: requiredElement("citation-assertion-cited", HTMLSelectElement),
-    citationAssertionPolarity: requiredElement("citation-assertion-polarity", HTMLSelectElement),
     citationNetworkPanel: requiredElement("citation-network-panel", CitationNetworkPanel),
     webSourceCapture: requiredElement("web-source-capture", WebSourceCapture),
     webSnapshotComparison: requiredElement("web-snapshot-comparison", WebSnapshotComparisonPanel),

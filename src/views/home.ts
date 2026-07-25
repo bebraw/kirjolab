@@ -414,13 +414,13 @@ export function renderHomePage(
                 <div><p class="eyebrow">Guided snowballing</p><h3 class="mt-1 text-lg font-semibold" id="citation-network-heading">Reference trail</h3><p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">Follow references from trusted seeds, review each candidate, and retain how every source was found.</p></div>
                 <div class="flex gap-2"><button class="button-secondary" id="filter-project-citations" type="button" aria-pressed="false">Current project</button><button class="button-secondary" id="close-citation-network" type="button">Close network</button></div>
               </div>
-              <form class="mt-4 grid gap-3 border-y border-app-line py-4 md:grid-cols-[1fr_auto_1fr_auto]" id="citation-assertion-form">
-                <label class="field-label">Citing source<select class="field" id="citation-assertion-citing" required></select></label>
-                <label class="field-label">Relationship<select class="field" id="citation-assertion-polarity"><option value="cites">Cites</option><option value="does-not-cite">Does not cite</option></select></label>
-                <label class="field-label">Cited source<select class="field" id="citation-assertion-cited" required></select></label>
-                <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Record assertion</button></div>
-              </form>
               <citation-network-panel id="citation-network-panel">
+                <form class="mt-4 grid gap-3 border-y border-app-line py-4 md:grid-cols-[1fr_auto_1fr_auto]" id="citation-assertion-form">
+                  <label class="field-label">Citing source<select class="field" id="citation-assertion-citing" required></select></label>
+                  <label class="field-label">Relationship<select class="field" id="citation-assertion-polarity"><option value="cites">Cites</option><option value="does-not-cite">Does not cite</option></select></label>
+                  <label class="field-label">Cited source<select class="field" id="citation-assertion-cited" required></select></label>
+                  <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Record assertion</button></div>
+                </form>
                 <div class="mt-4 overflow-hidden border border-app-line bg-app-paper"><svg class="block min-h-72 w-full" id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"></svg></div>
                 <div class="mt-4 space-y-3" id="citation-network-list" aria-live="polite"><div class="empty-state">Loading citation assertions…</div></div>
               </citation-network-panel>
