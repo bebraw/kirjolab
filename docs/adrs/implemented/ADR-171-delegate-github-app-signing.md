@@ -35,6 +35,11 @@ resource bounds, path normalization, and domain types in Kirjolab. Adoption of
 one Octokit authentication primitive does not make Octokit the repository
 domain client.
 
+Both the GitHub App and user clients use one request-local bounded-response
+helper for declared and streamed byte limits plus JSON parsing. Each client
+retains its own maximum size, provider-error interpretation, public error type,
+and decision about whether HTTP errors are parsed as JSON.
+
 ## Consequences
 
 **Positive:**
@@ -45,6 +50,8 @@ domain client.
   implementation.
 - Kirjolab retains the transport and domain checks that make GitHub operations
   safe in a Worker.
+- App and user authentication no longer duplicate incremental stream reading
+  and JSON parsing.
 
 **Negative:**
 

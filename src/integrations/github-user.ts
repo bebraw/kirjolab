@@ -251,39 +251,12 @@ function parseRepository(value: unknown): GitHubUserRepository {
 }
 
 async function responseJson(response: Response): Promise<unknown> {
-  const text = await readBoundedText(response, maximumJsonBytes);
-  if (!text) return {};
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    throw new GitHubUserError("invalid-response", "GitHub returned invalid JSON");
-  }
-}
-
-async function readBoundedText(response: Response, maximumBytes: number): Promise<string> {
-  const declared = Number.parseInt(response.headers.get("content-length") ?? "", 10);
-  if (Number.isFinite(declared) && declared > maximumBytes) throw new GitHubUserError("bounds", "GitHub response exceeds bounds");
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    size += result.value.byteLength;
-    if (size > maximumBytes) {
-      await reader.cancel();
-      throw new GitHubUserError("bounds", "GitHub response exceeds bounds");
-    }
-    chunks.push(result.value);
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder().decode(bytes);
+  const text = await readBoundedResponseText(
+    response,
+    maximumJsonBytes,
+    () => new GitHubUserError("bounds", "GitHub response exceeds bounds"),
+  );
+  return parseResponseJson(text, () => new GitHubUserError("invalid-response", "GitHub returned invalid JSON"));
 }
 
 function responseError(status: number, value: unknown): GitHubUserError {
@@ -319,3 +292,4 @@ function isRepositoryName(value: unknown): value is string {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+import { parseResponseJson, readBoundedResponseText } from "./bounded-response";

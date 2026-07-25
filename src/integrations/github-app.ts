@@ -1,4 +1,5 @@
 import { createAppAuth } from "@octokit/auth-app";
+import { parseResponseJson, readBoundedResponseText } from "./bounded-response";
 
 export interface GitHubAppConfig {
   readonly appId: string;
@@ -300,14 +301,13 @@ export class GitHubAppClient {
         ...headersRecord(init.headers),
       },
     });
-    const body = await readBoundedText(response, maximumJsonBytes);
+    const body = await readBoundedResponseText(
+      response,
+      maximumJsonBytes,
+      () => new GitHubClientError("bounds", "GitHub response exceeds bounds"),
+    );
     if (!response.ok) throw githubResponseError(response.status, body);
-    if (!body) return {};
-    try {
-      return JSON.parse(body) as unknown;
-    } catch {
-      throw invalidResponse("GitHub returned invalid JSON");
-    }
+    return parseResponseJson(body, () => invalidResponse("GitHub returned invalid JSON"));
   }
 }
 
@@ -413,32 +413,6 @@ function githubResponseError(status: number, body: string): GitHubClientError {
   const code: GitHubClientErrorCode =
     status === 401 ? "authentication" : status === 403 ? "forbidden" : status === 404 ? "not-found" : "invalid-response";
   return new GitHubClientError(code, message, status);
-}
-
-async function readBoundedText(response: Response, maximumBytes: number): Promise<string> {
-  const declared = Number.parseInt(response.headers.get("content-length") ?? "", 10);
-  if (Number.isFinite(declared) && declared > maximumBytes) throw new GitHubClientError("bounds", "GitHub response exceeds bounds");
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    size += result.value.byteLength;
-    if (size > maximumBytes) {
-      await reader.cancel();
-      throw new GitHubClientError("bounds", "GitHub response exceeds bounds");
-    }
-    chunks.push(result.value);
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder().decode(bytes);
 }
 
 function decodeBase64(value: string): Uint8Array {

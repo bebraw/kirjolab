@@ -133,3 +133,10 @@ The third Valibot boundary replaces independent summary, retained-content, and
 comparison predicates with composable schemas. It removes 27 lines while
 making shared revision/count constraints and composed word-delta arithmetic
 explicit; the existing malformed-field matrix passes unchanged.
+
+### Shared bounded GitHub response reader: accepted
+
+GitHub App and user clients now share incremental response-size enforcement and
+JSON parsing while retaining distinct byte ceilings and public error types.
+This removes duplicate stream plumbing without adopting Octokit's unbounded
+OAuth request path.
