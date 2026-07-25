@@ -1597,3 +1597,25 @@ The browser application artifact grows from 769,814 B raw / 208,949 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,343 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Workspace Switcher
+
+A bounded `WorkspaceSwitcher` now owns authorized project option rendering,
+archived-current handling, selected state, focus entry, and a typed navigation
+intent. `WorkspaceApp` retains catalog fetching and canonical route navigation.
+This removes its final feature-level imperative `replaceChildren()` renderer;
+the remaining manual DOM supports sanitized Markdown, high-frequency editor
+highlighting, and browser download and clipboard fallbacks.
+
+This checkpoint reduces `src/client/app.ts` from 7,967 to 7,961 lines (-6).
+The component adds 67 lines. Component tests cover fallback, active, available,
+and archived project presentation plus empty, current, and different-project
+selection intents. It records 81.81% statement and 84.21% line coverage.
+Focused browser workflows pass isolated-workspace navigation and access plus
+narrow-phone switcher visibility.
+
+The browser application artifact grows from 770,529 B raw / 209,185 B gzip to
+771,477 B raw / 209,360 B gzip (+948 B raw / +175 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,345 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

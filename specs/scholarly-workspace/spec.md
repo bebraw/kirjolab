@@ -37,6 +37,10 @@ collaboration.
   editor route with their query string intact. The `/` dashboard links into the
   editor but does not fetch a workspace snapshot, restore offline source, or
   open collaboration itself. Workspace APIs retain their existing paths.
+- **Project switcher:** One bounded light-DOM control owns authorized project
+  option rendering, archived-current handling, selected state, and focus entry,
+  then emits a typed navigation intent. The workspace coordinator retains
+  catalog fetching and canonical route navigation.
 - **Browser runtime loading:** The generated application module is minified and
   excludes the Markdown pipeline and PDF.js. Content-fingerprinted immutable
   Markdown and PDF.js runtime URLs are compiled into each application build.

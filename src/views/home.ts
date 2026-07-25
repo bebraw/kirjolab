@@ -46,8 +46,10 @@ export function renderHomePage(
           ${renderPreferencesMenu()}
           <span class="hidden h-4 w-px bg-app-line sm:block"></span>
           ${primaryNavigation}
-          <label class="sr-only" for="workspace-switcher">Current project</label>
-          <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading project…</option></select>
+          <workspace-switcher-control id="workspace-switcher-control" active-workspace-id="${escapedWorkspaceId}">
+            <label class="sr-only" for="workspace-switcher">Current project</label>
+            <select class="workspace-switcher" id="workspace-switcher"><option value="${escapedWorkspaceId}">Loading project…</option></select>
+          </workspace-switcher-control>
           <details class="action-menu header-action-menu ui-menu" data-action-menu>
             <summary class="button-secondary shrink-0">Project</summary>
             <div class="editor-command-menu ui-menu-panel" aria-label="Project actions">

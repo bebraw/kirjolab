@@ -176,6 +176,8 @@ The adopted components own bounded presentation:
 - The application toast owns message and action presentation, replacement
   timers, one-shot action availability, modal reparenting, popover visibility,
   and typed action and dismissal intents.
+- The workspace switcher owns project option rendering, archived-current
+  handling, selected state, focus entry, and a typed navigation intent.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices, and typed identification intents.
 - The Library reference summary owns title and metadata presentation, PDF and
@@ -404,6 +406,9 @@ reason to wrap static markup mechanically.
   state, popover visibility, and modal reparenting. The application coordinator
   retains deferred-deletion actions, update persistence, and notification
   policy.
+- The workspace switcher replaces the final feature-level imperative option
+  renderer plus its native change and focus coordination. The application
+  coordinator retains catalog fetching and navigation authority.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

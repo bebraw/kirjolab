@@ -64,6 +64,7 @@ import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, typ
 import { sourceSpanAt } from "./composition-source-map";
 import { CollaboratorSelectionList } from "./collaborator-selection-list";
 import { AppToast, appToastActionEvent, appToastDismissEvent } from "./app-toast";
+import { WorkspaceSwitcher, workspaceSwitchEvent } from "./workspace-switcher";
 import { SourceCompletion, sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
@@ -434,7 +435,7 @@ interface Elements {
   chooseModelEvidence: HTMLButtonElement;
   openPreferencesFromAssistant: HTMLButtonElement;
   collaboratorSelections: CollaboratorSelectionList;
-  workspaceSwitcher: HTMLSelectElement;
+  workspaceSwitcher: WorkspaceSwitcher;
   workspaceLayout: HTMLSelectElement;
   manageWorkspaces: HTMLButtonElement;
   workspaceSettings: HTMLButtonElement;
@@ -966,9 +967,8 @@ class WorkspaceApp {
       this.#showRail("files");
       this.#elements.projectTreePanel.focusFilter();
     });
-    this.#elements.workspaceSwitcher.addEventListener("change", () => {
-      const selected = this.#elements.workspaceSwitcher.value;
-      if (selected && selected !== workspaceId) location.assign(`/editor/${encodeURIComponent(selected)}`);
+    this.#elements.workspaceSwitcher.addEventListener(workspaceSwitchEvent, (event) => {
+      location.assign(`/editor/${encodeURIComponent((event as CustomEvent<string>).detail)}`);
     });
     this.#elements.workspaceLayout.addEventListener("change", () => void this.#setWorkspaceLayout(this.#elements.workspaceLayout.value));
     this.#elements.manageWorkspaces.addEventListener("click", () => {
@@ -1559,13 +1559,7 @@ class WorkspaceApp {
 
   #renderWorkspaceCatalog(workspaces: WorkspaceSummary[]): void {
     this.#workspaceCatalog = workspaces;
-    this.#elements.workspaceSwitcher.replaceChildren();
-    for (const workspace of workspaces) {
-      if (workspace.archivedAt && workspace.id !== workspaceId) continue;
-      const option = new Option(workspace.title, workspace.id, workspace.id === workspaceId, workspace.id === workspaceId);
-      this.#elements.workspaceSwitcher.append(option);
-    }
-    if (workspaces.some((workspace) => workspace.id === workspaceId)) this.#elements.workspaceSwitcher.value = workspaceId;
+    this.#elements.workspaceSwitcher.setData(workspaces, workspaceId);
     this.#elements.workspaceCatalogPanel.setData(workspaces, workspaceId);
   }
 
@@ -4502,7 +4496,7 @@ class WorkspaceApp {
         this.#elements.source.focus();
         this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
       },
-      project: () => this.#elements.workspaceSwitcher.focus(),
+      project: () => this.#elements.workspaceSwitcher.focusSelect(),
       person: () => void this.#openSharing(),
       "model-candidate": (id) => {
         const candidate = this.#snapshot?.candidates.find((item) => item.id === id);
@@ -7680,7 +7674,7 @@ function collectElements(): Elements {
     chooseModelEvidence: requiredElement("choose-model-evidence", HTMLButtonElement),
     openPreferencesFromAssistant: requiredElement("open-preferences-from-assistant", HTMLButtonElement),
     collaboratorSelections: requiredElement("collaborator-selections", CollaboratorSelectionList),
-    workspaceSwitcher: requiredElement("workspace-switcher", HTMLSelectElement),
+    workspaceSwitcher: requiredElement("workspace-switcher-control", WorkspaceSwitcher),
     workspaceLayout: requiredElement("workspace-layout", HTMLSelectElement),
     manageWorkspaces: requiredElement("manage-workspaces", HTMLButtonElement),
     workspaceSettings: requiredElement("workspace-settings", HTMLButtonElement),
