@@ -61,6 +61,11 @@ memory and makes citation aliases compete with stable source identity.
   provider, then commits the mixed fields once with provider-specific
   provenance. This may improve a PDF-origin refinable key before or after it is
   linked to a project.
+- One bounded discovery-search component owns query inputs, publication-type
+  choices, duplicate-submit gating, search progress, result-count copy, and
+  typed query intents. The workspace coordinator retains provider requests,
+  response validation, result presentation, import mutation, and Library
+  refresh policy.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - An authenticated project member may stream PDFs attached to the project

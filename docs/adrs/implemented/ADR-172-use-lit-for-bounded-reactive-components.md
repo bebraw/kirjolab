@@ -119,6 +119,9 @@ The adopted components own bounded presentation:
 - The project template save dialog owns replacement choices, local name and
   description values, loading and replacement copy, focus, cancellation, and
   typed save intents.
+- The Library discovery search owns query inputs, publication-type choices,
+  duplicate-submit gating, progress and result-count copy, and typed query
+  intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -250,6 +253,11 @@ reason to wrap static markup mechanically.
   and imperative replacement-option, value, status, focus, and cancellation
   handling while leaving catalog refresh, hidden-template policy, seed capture,
   persistence, and toast policy in the application coordinator.
+- The Library discovery search replaces six internal element references and
+  imperative form-value, submit-state, progress, count, empty, and error
+  handling while leaving provider requests, response validation, result
+  presentation, import mutation, and refresh policy in the application
+  coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

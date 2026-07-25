@@ -946,3 +946,24 @@ Full native CI passes all 1,276 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 709,962 B raw
 / 197,216 B gzip to 712,675 B raw / 197,718 B gzip (+2,713 B raw / +502 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Library Discovery Search
+
+Scholarly discovery setup now uses a bounded `LibraryDiscoverySearch` instead
+of six element references and imperative form-value, submit-state, progress,
+count, empty, and error handling. The component owns query collection and emits
+a typed `ReferenceDiscoveryQuery`. `WorkspaceApp` retains provider requests,
+response validation, result presentation, import mutation, and Library refresh
+policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,688 to 9,665 lines (-23).
+The component adds 129 lines. Component tests cover initial, searching,
+singular, plural, empty, error, typed-query, and duplicate-submit states. The
+focused browser workflow passes provider search, result verification, save
+mutation, and saved-state presentation. The component records 85.29% statement
+and 86.66% line coverage.
+
+Full native CI passes all 1,280 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 712,675 B raw
+/ 197,718 B gzip to 714,699 B raw / 198,282 B gzip (+2,024 B raw / +564 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.

@@ -363,14 +363,16 @@ export function renderHomePage(
             <section class="hidden library-upload-status" id="library-pdf-upload-status" aria-live="polite"></section>
             <details class="library-discovery" id="library-discovery">
               <summary>Discover scholarly works</summary>
-              <form class="library-discovery-form" id="library-discovery-form">
-                <label class="field-label library-discovery-query">Keywords<input class="field" id="library-discovery-query" type="search" maxlength="4000" required placeholder="Topic, title, or research question…"></label>
-                <label class="field-label">Author<input class="field" id="library-discovery-author" maxlength="500" placeholder="Optional author"></label>
-                <label class="field-label">Year<input class="field" id="library-discovery-year" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="Any year"></label>
-                <label class="field-label">Type<select class="field" id="library-discovery-type"><option value="">All types</option><option value="article">Article</option><option value="book">Book</option><option value="incollection">Book chapter</option><option value="inproceedings">Conference paper</option><option value="phdthesis">Dissertation</option><option value="techreport">Report</option></select></label>
-                <button class="button-primary library-discovery-submit" type="submit">Search references</button>
-              </form>
-              <p class="library-discovery-status" id="library-discovery-status" role="status" aria-live="polite">Search Crossref and available scholarly indexes. Results are not saved automatically.</p>
+              <library-discovery-search id="library-discovery-search">
+                <form class="library-discovery-form" id="library-discovery-form">
+                  <label class="field-label library-discovery-query">Keywords<input class="field" id="library-discovery-query" type="search" maxlength="4000" required placeholder="Topic, title, or research question…"></label>
+                  <label class="field-label">Author<input class="field" id="library-discovery-author" maxlength="500" placeholder="Optional author"></label>
+                  <label class="field-label">Year<input class="field" id="library-discovery-year" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="Any year"></label>
+                  <label class="field-label">Type<select class="field" id="library-discovery-type"><option value="">All types</option><option value="article">Article</option><option value="book">Book</option><option value="incollection">Book chapter</option><option value="inproceedings">Conference paper</option><option value="phdthesis">Dissertation</option><option value="techreport">Report</option></select></label>
+                  <button class="button-primary library-discovery-submit" type="submit">Search references</button>
+                </form>
+                <p class="library-discovery-status" id="library-discovery-status" role="status" aria-live="polite">Search Crossref and available scholarly indexes. Results are not saved automatically.</p>
+              </library-discovery-search>
               <library-discovery-results class="library-discovery-results" id="library-discovery-results"></library-discovery-results>
             </details>
             <div class="library-toolbar">

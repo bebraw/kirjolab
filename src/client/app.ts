@@ -5,7 +5,7 @@ import { isCitationNetwork, type CitationNetwork } from "../domain/citation-asse
 import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
-import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { isReferenceDiscoveryResults, type ReferenceDiscoveryQuery, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
   collaborationProtocolVersion,
@@ -204,6 +204,7 @@ import { ProjectTemplateSaveDialog, projectTemplateSaveEvent, type ProjectTempla
 import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
+import { LibraryDiscoverySearch, libraryDiscoverySearchEvent } from "./library-discovery-search";
 import { CitationNetworkPanel, citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
 import {
   PreviewContextStatus,
@@ -466,12 +467,7 @@ interface Elements {
   shareWorkspaceDialog: HTMLDialogElement;
   workspaceSharingPanel: WorkspaceSharingPanel;
   referenceLibraryList: HTMLElement;
-  libraryDiscoveryForm: HTMLFormElement;
-  libraryDiscoveryQuery: HTMLInputElement;
-  libraryDiscoveryAuthor: HTMLInputElement;
-  libraryDiscoveryYear: HTMLInputElement;
-  libraryDiscoveryType: HTMLSelectElement;
-  libraryDiscoveryStatus: HTMLElement;
+  libraryDiscoverySearch: LibraryDiscoverySearch;
   libraryDiscoveryResults: LibraryDiscoveryResults;
   libraryBibliographyUpload: HTMLInputElement;
   libraryCslUpload: HTMLInputElement;
@@ -1160,7 +1156,10 @@ class WorkspaceApp {
       this.#showToast((event as CustomEvent<string>).detail);
     });
     this.#elements.contextLibraryTab.addEventListener("click", () => void this.#openReferenceLibrary());
-    this.#elements.libraryDiscoveryForm.addEventListener("submit", (event) => void this.#discoverLibraryReferences(event));
+    this.#elements.libraryDiscoverySearch.addEventListener(
+      libraryDiscoverySearchEvent,
+      (event) => void this.#discoverLibraryReferences((event as CustomEvent<ReferenceDiscoveryQuery>).detail),
+    );
     this.#elements.libraryDiscoveryResults.addEventListener(libraryDiscoverySaveEvent, (event) => {
       const { index, result } = (event as CustomEvent<LibraryDiscoverySaveDetail>).detail;
       void this.#saveLibraryDiscoveredReference(result, index);
@@ -3787,35 +3786,18 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("replace");
   }
 
-  async #discoverLibraryReferences(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const submit = this.#elements.libraryDiscoveryForm.querySelector<HTMLButtonElement>('button[type="submit"]');
-    if (submit) submit.disabled = true;
-    this.#elements.libraryDiscoveryStatus.textContent = "Searching scholarly indexes…";
+  async #discoverLibraryReferences(query: ReferenceDiscoveryQuery): Promise<void> {
     this.#elements.libraryDiscoveryResults.setResults([]);
     try {
-      const response = await jsonFetch("/api/library/discovery", {
-        query: this.#elements.libraryDiscoveryQuery.value,
-        author: this.#elements.libraryDiscoveryAuthor.value,
-        year: this.#elements.libraryDiscoveryYear.value,
-        type: this.#elements.libraryDiscoveryType.value,
-      });
+      const response = await jsonFetch("/api/library/discovery", query);
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
-      this.#renderLibraryDiscoveryResults(value);
-      this.#elements.libraryDiscoveryStatus.textContent = value.length
-        ? `${value.length} result${value.length === 1 ? "" : "s"}. Review metadata before saving.`
-        : "No matching scholarly records. Try broader keywords or remove a filter.";
+      this.#elements.libraryDiscoveryResults.setResults(value);
+      this.#elements.libraryDiscoverySearch.showResults(value.length);
     } catch (error) {
-      this.#elements.libraryDiscoveryStatus.textContent = error instanceof Error ? error.message : "Reference search failed";
-    } finally {
-      if (submit) submit.disabled = false;
+      this.#elements.libraryDiscoverySearch.showError(error instanceof Error ? error.message : "Reference search failed");
     }
-  }
-
-  #renderLibraryDiscoveryResults(results: readonly ReferenceDiscoveryResult[]): void {
-    this.#elements.libraryDiscoveryResults.setResults(results);
   }
 
   #renderReferenceLibrary(): void {
@@ -7424,7 +7406,7 @@ class WorkspaceApp {
       this.#elements.libraryDiscoveryResults.setSaveState(index, "saved");
     } catch (error) {
       this.#elements.libraryDiscoveryResults.setSaveState(index, "idle");
-      this.#elements.libraryDiscoveryStatus.textContent = error instanceof Error ? error.message : "Could not save the reference";
+      this.#elements.libraryDiscoverySearch.showError(error instanceof Error ? error.message : "Could not save the reference");
     }
   }
 
@@ -9282,12 +9264,7 @@ function collectElements(): Elements {
     shareWorkspaceDialog: requiredElement("share-workspace-dialog", HTMLDialogElement),
     workspaceSharingPanel: requiredElement("workspace-sharing-panel", WorkspaceSharingPanel),
     referenceLibraryList: requiredElement("reference-library-list", HTMLElement),
-    libraryDiscoveryForm: requiredElement("library-discovery-form", HTMLFormElement),
-    libraryDiscoveryQuery: requiredElement("library-discovery-query", HTMLInputElement),
-    libraryDiscoveryAuthor: requiredElement("library-discovery-author", HTMLInputElement),
-    libraryDiscoveryYear: requiredElement("library-discovery-year", HTMLInputElement),
-    libraryDiscoveryType: requiredElement("library-discovery-type", HTMLSelectElement),
-    libraryDiscoveryStatus: requiredElement("library-discovery-status", HTMLElement),
+    libraryDiscoverySearch: requiredElement("library-discovery-search", LibraryDiscoverySearch),
     libraryDiscoveryResults: requiredElement("library-discovery-results", LibraryDiscoveryResults),
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
