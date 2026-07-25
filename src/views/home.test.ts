@@ -105,6 +105,7 @@ describe("renderHomePage", () => {
     expect(html).not.toContain("<summary><span>Project graph</span>");
     expect(html).not.toContain('id="explore-research-graph"');
     expect(html).toContain('id="claim-list"');
+    expect(html).toContain('<claim-dialog-panel id="claim-dialog-panel">');
     expect(html).toContain('id="claim-form"');
     expect(html).toContain('id="project-evidence" hidden');
     expect(html).toContain(

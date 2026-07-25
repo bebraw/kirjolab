@@ -954,6 +954,7 @@ export function renderHomePage(
       </project-history-panel>
     </dialog>
 
+    <claim-dialog-panel id="claim-dialog-panel">
     <dialog class="new-workspace-dialog ui-dialog" id="claim-dialog">
       <form class="p-5" id="claim-form">
         <p class="eyebrow">Evidence synthesis</p>
@@ -981,6 +982,7 @@ export function renderHomePage(
         </div>
       </form>
     </dialog>
+    </claim-dialog-panel>
 
     <div class="toast" id="toast" role="status" aria-live="polite" popover="manual"></div>
     <footer class="sr-only">${renderRouteSummary(routes)}</footer>

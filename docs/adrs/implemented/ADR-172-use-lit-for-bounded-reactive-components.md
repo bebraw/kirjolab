@@ -132,6 +132,9 @@ The adopted components own bounded presentation:
   reasoning-effort values, saved-value validation, dynamic model choices,
   discovery progress, status presentation, and typed change and discovery
   intents.
+- The claim dialog owns create and edit presentation, proposition and note
+  values, evidence-relation and annotation selection, modal lifecycle, and a
+  typed save intent.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -284,6 +287,10 @@ reason to wrap static markup mechanically.
   validation, and imperative model-option rendering while leaving provider
   discovery, local persistence, request construction, generation workflows,
   and assistant status policy in the application coordinator.
+- The claim dialog replaces eight internal element references, one coordinator
+  field, imperative evidence-option rendering, DOM-based selection collection,
+  and modal configuration while leaving evidence prerequisites, API mutation,
+  refreshes, and toast policy in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

@@ -186,6 +186,7 @@ import { ProjectMapPanel, projectMapSelectEvent } from "./project-map-panel";
 import { KnowledgeSearchPanel, knowledgeSearchEvent, knowledgeSearchSelectEvent } from "./knowledge-search-panel";
 import { KnowledgeConnectionsPanel, knowledgeConnectionSelectEvent } from "./knowledge-connections-panel";
 import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
+import { ClaimDialog, claimDialogSaveEvent, type ClaimDialogSave } from "./claim-dialog";
 import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
@@ -568,14 +569,7 @@ interface Elements {
   claimCount: HTMLElement;
   claimListPanel: ClaimListPanel;
   newClaim: HTMLButtonElement;
-  claimDialog: HTMLDialogElement;
-  claimForm: HTMLFormElement;
-  claimDialogTitle: HTMLElement;
-  claimText: HTMLTextAreaElement;
-  claimNote: HTMLTextAreaElement;
-  claimRelation: HTMLSelectElement;
-  claimEvidenceOptions: HTMLElement;
-  cancelClaim: HTMLButtonElement;
+  claimDialog: ClaimDialog;
   knowledgeConnectionsPanel: KnowledgeConnectionsPanel;
   annotationForm: HTMLFormElement;
   annotationComposer: HTMLElement;
@@ -767,7 +761,6 @@ class WorkspaceApp {
   #lastHighlightStroke: { annotationId: string; fragmentId: string } | null = null;
   #renderedPdfId: string | undefined;
   #renderedPdfContextKey: ResearchContextKey | undefined;
-  #editingClaimId: string | undefined;
   #contextState: ResearchContextState = createResearchContext();
   #authoringSelection: RelativeEditorSelection | null = null;
   #modelEvidenceSelection = new Set<string>();
@@ -1351,8 +1344,9 @@ class WorkspaceApp {
     this.#elements.candidateListPanel.addEventListener(candidateListOpenEvent, (event) => {
       this.#openCandidateContext((event as CustomEvent<ModelCandidate>).detail);
     });
-    this.#elements.cancelClaim.addEventListener("click", () => this.#elements.claimDialog.close());
-    this.#elements.claimForm.addEventListener("submit", (event) => void this.#saveClaim(event));
+    this.#elements.claimDialog.addEventListener(claimDialogSaveEvent, (event) => {
+      void this.#saveClaim((event as CustomEvent<ClaimDialogSave>).detail);
+    });
     this.#elements.showAuthoringSurface.addEventListener("click", () => this.#showWorkspaceSurface("authoring"));
     this.#elements.showContextSurface.addEventListener("click", () => this.#showWorkspaceSurface("context"));
     this.#bindSourceRailCollapse();
@@ -5191,59 +5185,22 @@ class WorkspaceApp {
       return;
     }
     const evidence = claim ? snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id) : [];
-    this.#configureClaimDialog(claim, evidence);
-    const selected = new Set(evidence.map((link) => link.annotationId));
-    this.#elements.claimEvidenceOptions.replaceChildren(
-      ...snapshot.annotations.map((annotation) => this.#claimEvidenceOption(annotation, selected)),
-    );
-    this.#elements.claimDialog.showModal();
-    this.#elements.claimText.focus();
+    this.#elements.claimDialog.open(claim, snapshot.annotations, evidence);
   }
 
-  #configureClaimDialog(claim: ClaimResource | undefined, evidence: readonly WorkspaceSnapshot["claimEvidenceLinks"][number][]): void {
-    this.#editingClaimId = claim?.id;
-    this.#elements.claimDialogTitle.textContent = claim ? "Edit claim" : "Create claim";
-    this.#elements.claimText.value = claim?.text ?? "";
-    this.#elements.claimNote.value = claim?.note ?? "";
-    this.#elements.claimRelation.value = evidence[0]?.relation ?? "supports";
-  }
-
-  #claimEvidenceOption(annotation: AnnotationResource, selected: ReadonlySet<string>): HTMLElement {
-    const label = document.createElement("label");
-    label.className = "resource-card flex cursor-pointer items-start gap-2 font-sans text-xs";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.value = annotation.id;
-    checkbox.checked = selected.has(annotation.id);
-    checkbox.className = "mt-0.5 accent-app-accent";
-    const text = document.createElement("span");
-    text.textContent = annotation.comment || `Page ${annotation.page}: ${annotation.quote}`;
-    label.append(checkbox, text);
-    return label;
-  }
-
-  async #saveClaim(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const annotationIds = Array.from(
-      this.#elements.claimEvidenceOptions.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked'),
-    ).map((checkbox) => checkbox.value);
-    if (annotationIds.length === 0) {
+  async #saveClaim(detail: ClaimDialogSave): Promise<void> {
+    if (detail.evidence.length === 0) {
       this.#showToast("Select at least one source annotation.");
       return;
     }
-    const evidence = annotationIds.map((annotationId) => ({
-      annotationId,
-      relation: readClaimEvidenceRelation(this.#elements.claimRelation.value),
-    }));
-    const response = await fetch(this.#editingClaimId ? `${apiBase}/claims/${this.#editingClaimId}` : `${apiBase}/claims`, {
-      method: this.#editingClaimId ? "PUT" : "POST",
+    const response = await fetch(detail.claimId ? `${apiBase}/claims/${detail.claimId}` : `${apiBase}/claims`, {
+      method: detail.claimId ? "PUT" : "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: this.#elements.claimText.value, note: this.#elements.claimNote.value, evidence }),
+      body: JSON.stringify({ text: detail.text, note: detail.note, evidence: detail.evidence }),
     });
     await expectOk(response);
     this.#elements.claimDialog.close();
-    this.#editingClaimId = undefined;
     await this.#resourceRefresh.request();
     this.#showToast("Claim and evidence relationships saved.");
   }
@@ -9226,14 +9183,7 @@ function collectElements(): Elements {
     claimCount: requiredElement("claim-count", HTMLElement),
     claimListPanel: requiredElement("claim-list-panel", ClaimListPanel),
     newClaim: requiredElement("new-claim", HTMLButtonElement),
-    claimDialog: requiredElement("claim-dialog", HTMLDialogElement),
-    claimForm: requiredElement("claim-form", HTMLFormElement),
-    claimDialogTitle: requiredElement("claim-dialog-title", HTMLElement),
-    claimText: requiredElement("claim-text", HTMLTextAreaElement),
-    claimNote: requiredElement("claim-note", HTMLTextAreaElement),
-    claimRelation: requiredElement("claim-relation", HTMLSelectElement),
-    claimEvidenceOptions: requiredElement("claim-evidence-options", HTMLElement),
-    cancelClaim: requiredElement("cancel-claim", HTMLButtonElement),
+    claimDialog: requiredElement("claim-dialog-panel", ClaimDialog),
     knowledgeConnectionsPanel: requiredElement("knowledge-connections-panel", KnowledgeConnectionsPanel),
     annotationForm: requiredElement("annotation-form", HTMLFormElement),
     annotationComposer: requiredElement("annotation-composer", HTMLElement),

@@ -1036,3 +1036,26 @@ Full native CI passes all 1,288 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 724,344 B raw
 / 200,038 B gzip to 727,427 B raw / 200,522 B gzip (+3,083 B raw / +484 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Claim Dialog
+
+Claim creation and editing now use a bounded `ClaimDialog` instead of eight
+element references, one coordinator field, imperative evidence-option
+rendering, DOM-based selection collection, and modal configuration. The
+component owns proposition and note values, evidence relation and annotation
+selection, modal lifecycle, and a typed save intent. `WorkspaceApp` retains
+evidence prerequisites, API mutation, refreshes, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,485 to 9,435 lines (-50).
+The component adds 196 lines. Component tests cover create and edit
+presentation, annotation comment and quote fallbacks, proposition and note
+changes, relation validation, evidence selection and removal, light-DOM
+ownership, and typed create-save intent. The focused browser workflow passes
+claim creation, editing, evidence replacement, model grounding, and reviewed
+prose generation. The component records 79.16% statement and 79.54% line
+coverage.
+
+Full native CI passes all 1,290 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 727,427 B raw
+/ 200,522 B gzip to 730,164 B raw / 200,927 B gzip (+2,737 B raw / +405 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.
