@@ -8099,6 +8099,17 @@ class WorkspaceApp {
   }
 
   #includeCompletionOption(candidate: IncludeCompletionCandidate, index: number): HTMLButtonElement {
+    return this.#sourceCompletionOption(index, {
+      value: candidate.reference,
+      metadata: `Project file · ${candidate.path}`,
+      accept: () => this.#acceptIncludeCompletion(index),
+    });
+  }
+
+  #sourceCompletionOption(
+    index: number,
+    content: { readonly value: string; readonly metadata: string; readonly action?: string; readonly accept: () => void },
+  ): HTMLButtonElement {
     const option = document.createElement("button");
     option.type = "button";
     option.id = `source-completion-option-${index}`;
@@ -8107,15 +8118,21 @@ class WorkspaceApp {
     option.dataset.index = String(index);
     const heading = document.createElement("span");
     heading.className = "source-completion-heading";
-    const reference = document.createElement("code");
-    reference.textContent = candidate.reference;
-    heading.append(reference);
+    const value = document.createElement("code");
+    value.textContent = content.value;
+    heading.append(value);
+    if (content.action) {
+      const action = document.createElement("span");
+      action.className = "source-completion-action";
+      action.textContent = content.action;
+      heading.append(action);
+    }
     const metadata = document.createElement("span");
     metadata.className = "source-completion-meta";
-    metadata.textContent = `Project file · ${candidate.path}`;
+    metadata.textContent = content.metadata;
     option.append(heading, metadata);
     option.addEventListener("pointerdown", (event) => event.preventDefault());
-    option.addEventListener("click", () => this.#acceptIncludeCompletion(index));
+    option.addEventListener("click", content.accept);
     option.addEventListener("mousemove", () => {
       this.#sourceCompletionIndex = index;
       this.#renderSourceCompletionSelection();
@@ -8202,34 +8219,12 @@ class WorkspaceApp {
   }
 
   #citationCompletionOption(candidate: CitationCompletionCandidate, index: number): HTMLButtonElement {
-    const option = document.createElement("button");
-    option.type = "button";
-    option.id = `source-completion-option-${index}`;
-    option.className = "source-completion-option";
-    option.setAttribute("role", "option");
-    option.dataset.index = String(index);
-    const heading = document.createElement("span");
-    heading.className = "source-completion-heading";
-    const key = document.createElement("code");
-    key.textContent = candidate.key;
-    heading.append(key);
-    if (candidate.scope === "library") {
-      const action = document.createElement("span");
-      action.className = "source-completion-action";
-      action.textContent = "Add and cite";
-      heading.append(action);
-    }
-    const metadata = document.createElement("span");
-    metadata.className = "source-completion-meta";
-    metadata.textContent = [candidate.authors.join("; "), candidate.title, candidate.year].filter(Boolean).join(" · ");
-    option.append(heading, metadata);
-    option.addEventListener("pointerdown", (event) => event.preventDefault());
-    option.addEventListener("click", () => void this.#acceptCitationCompletion(index));
-    option.addEventListener("mousemove", () => {
-      this.#sourceCompletionIndex = index;
-      this.#renderSourceCompletionSelection();
+    return this.#sourceCompletionOption(index, {
+      value: candidate.key,
+      metadata: [candidate.authors.join("; "), candidate.title, candidate.year].filter(Boolean).join(" · "),
+      ...(candidate.scope === "library" ? { action: "Add and cite" } : {}),
+      accept: () => void this.#acceptCitationCompletion(index),
     });
-    return option;
   }
 
   #handleSourceCompletionKey(event: KeyboardEvent): void {

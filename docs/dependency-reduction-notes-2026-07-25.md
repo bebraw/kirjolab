@@ -235,6 +235,14 @@ authoring/context divider. One private binder now owns that browser lifecycle;
 each resizer retains its distinct geometry, keyboard behavior, persistence, and
 ARIA updates. The change removes 12 net executable lines.
 
+### Shared source-completion option shell: accepted
+
+Include-path and citation suggestions now share their button identity, option
+role, code/metadata structure, pointer focus retention, and hover selection
+behavior. Their content, optional Library action, and synchronous or async
+acceptance remain supplied by each completion family. This removes the
+remaining 10-line completion clone and five net executable lines.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser
