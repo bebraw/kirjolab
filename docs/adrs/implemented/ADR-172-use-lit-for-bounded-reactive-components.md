@@ -48,6 +48,9 @@ The adopted components own bounded presentation:
   rendering, metadata labels, focus reset, and a typed close intent.
 - The project history panel owns timeline, comparison controls, busy and error
   states, revision cards, inspectors, and typed revision-operation intents.
+- The project history trigger owns revision-badge presentation and emits one
+  typed open intent. The application coordinator retains revision authority,
+  history loading, and dialog policy.
 - Reused writing-workflow panels own research-question and reviewer-response
   Markdown-to-item adaptation, counts, empty states, action labels, and typed
   open, download, and source-selection intents.

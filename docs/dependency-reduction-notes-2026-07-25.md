@@ -1799,3 +1799,21 @@ The browser application artifact grows from 776,365 B raw / 210,216 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,358 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Project History Trigger
+
+A bounded `ProjectHistoryTrigger` now owns the current revision badge and emits
+a typed open intent. `WorkspaceApp` retains revision authority, history loading,
+and dialog policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,649 to 7,648 lines (-1),
+replaces two internal element references with one component reference, and
+removes one native action binding and revision-text mutation. Component coverage
+is 76.92% statements and 83.33% lines. Focused browser workflows pass compact
+toolbar layout and the complete compare, milestone, restore, and branch flow.
+
+The browser application artifact grows from 776,869 B raw / 210,318 B gzip to
+777,474 B raw / 210,454 B gzip (+605 B raw / +136 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,359 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

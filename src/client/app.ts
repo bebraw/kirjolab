@@ -60,6 +60,7 @@ import {
 import { filterReferenceLibrary } from "../domain/reference-filters";
 import { ExportStatisticsPanel } from "./export-statistics-panel";
 import { EditorStatus } from "./editor-status";
+import { ProjectHistoryTrigger, projectHistoryOpenEvent } from "./project-history-trigger";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import { CollaboratorSelectionList } from "./collaborator-selection-list";
@@ -500,7 +501,7 @@ interface Elements {
   renameProjectFile: HTMLButtonElement;
   deleteProjectFile: HTMLButtonElement;
   projectFileDialog: ProjectFileDialog;
-  openProjectHistory: HTMLButtonElement;
+  projectHistoryTrigger: ProjectHistoryTrigger;
   openExport: HTMLButtonElement;
   exportDialog: HTMLDialogElement;
   closeExport: HTMLButtonElement;
@@ -561,7 +562,6 @@ interface Elements {
   connectionDot: HTMLElement;
   connectionStatus: HTMLElement;
   editorStatus: EditorStatus;
-  revisionBadge: HTMLElement;
   pdfUpload: HTMLInputElement;
   projectEvidencePanel: ProjectEvidencePanel;
   knowledgeSearchPanel: KnowledgeSearchPanel;
@@ -1220,7 +1220,7 @@ class WorkspaceApp {
     this.#elements.authoringModeTabs.addEventListener(authoringModeChangeEvent, (event) => {
       this.#setAuthoringMode((event as CustomEvent<AuthoringMode>).detail);
     });
-    this.#elements.openProjectHistory.addEventListener("click", () => void this.#openProjectHistory());
+    this.#elements.projectHistoryTrigger.addEventListener(projectHistoryOpenEvent, () => void this.#openProjectHistory());
     for (const button of [this.#elements.openExport, this.#elements.wordCountBadge]) {
       button.addEventListener("click", () => this.#openExport());
     }
@@ -7323,7 +7323,7 @@ class WorkspaceApp {
   }
 
   #updateRevision(): void {
-    this.#elements.revisionBadge.textContent = `r${this.#revision}`;
+    this.#elements.projectHistoryTrigger.setRevision(this.#revision);
   }
 
   #showToast(message: string, action?: ToastAction): void {
@@ -7432,7 +7432,7 @@ function collectElements(): Elements {
     renameProjectFile: requiredElement("rename-project-file", HTMLButtonElement),
     deleteProjectFile: requiredElement("delete-project-file", HTMLButtonElement),
     projectFileDialog: requiredElement("project-file-dialog-panel", ProjectFileDialog),
-    openProjectHistory: requiredElement("open-project-history", HTMLButtonElement),
+    projectHistoryTrigger: requiredElement("project-history-trigger", ProjectHistoryTrigger),
     openExport: requiredElement("open-export", HTMLButtonElement),
     exportDialog: requiredElement("export-dialog", HTMLDialogElement),
     closeExport: requiredElement("close-export", HTMLButtonElement),
@@ -7493,7 +7493,6 @@ function collectElements(): Elements {
     connectionDot: requiredElement("connection-dot", HTMLElement),
     connectionStatus: requiredElement("connection-status", HTMLElement),
     editorStatus: requiredElement("editor-status", EditorStatus),
-    revisionBadge: requiredElement("revision-badge", HTMLElement),
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
     projectEvidencePanel: requiredElement("project-evidence-panel", ProjectEvidencePanel),
     knowledgeSearchPanel: requiredElement("knowledge-search-panel", KnowledgeSearchPanel),

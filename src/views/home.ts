@@ -254,7 +254,9 @@ export function renderHomePage(
             <details class="action-menu ui-menu" id="editor-more-menu" data-action-menu>
               <summary class="button-secondary">More</summary>
               <div class="editor-command-menu ui-menu-panel" aria-label="More editor actions">
-                <button id="open-project-history" type="button"><strong>History</strong><code id="revision-badge">r0</code></button>
+                <project-history-trigger class="contents" id="project-history-trigger">
+                  <button id="open-project-history" type="button"><strong>History</strong><code id="revision-badge">r0</code></button>
+                </project-history-trigger>
                 <p class="editor-command-menu-label">File</p>
                 <button id="new-project-file" type="button"><strong>Add file</strong></button>
                 <button id="create-and-include-project-file" type="button"><strong>Create and include</strong><code>at the current caret</code></button>
