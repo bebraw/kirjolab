@@ -35,6 +35,9 @@ The first components own bounded GitHub presentation:
   Confirm intents.
 - The workspace sync menu owns repository status, relationship tone, Pull and
   Push availability, and typed Check, Pull, Push, and Settings intents.
+- The new-project starting-point browser owns template and existing-project
+  groups, local selection and preview state, bounded preview rendering, and
+  typed selection, project-load, and template-delete intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -52,6 +55,9 @@ reason to wrap static markup mechanically.
   from the application coordinator's registry.
 - The import picker replaces ten internal element references, the coordinator's
   repository-option cache, and its imperative option and preview DOM assembly.
+- The starting-point browser removes template preview DOM construction,
+  selection synchronization, and project-source presentation state from the
+  application coordinator while leaving fetches and mutations there.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

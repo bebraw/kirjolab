@@ -158,6 +158,18 @@ errors, structural checks, and metadata mappings remain local. The change
 removes 123 duplicated lines while adding 52 shared and adapter lines, for a net
 reduction of 71 source lines without adding a dependency.
 
+### Project starting-point component: accepted
+
+The fourth Lit boundary moves template and existing-project grouping,
+selection, preview rendering, and local project-preview state out of
+`WorkspaceApp`. The coordinator drops three internal element references and
+247 source lines while retaining fetches, deferred deletion, and project
+creation. The component adds 321 focused source lines, so total executable
+source grows by 81 lines while the primary churn hotspot becomes narrower.
+Reusing the existing Lit dependency adds no production packages; the minified
+browser application changes by +1,307 B raw and +339 B gzip from the recorded
+baseline.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser

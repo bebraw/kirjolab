@@ -45,6 +45,9 @@ without copying private research or creating a live dependency on the source.
   template immediately, offers **Undo** for six seconds, and only then deletes it.
   Project settings exposes **Save as template** for creating or explicitly
   replacing one.
+- One bounded Lit component owns starting-point grouping, local selection,
+  preview presentation, and typed user intents. `WorkspaceApp` retains template
+  and existing-project requests, deferred deletion, and project creation.
 - The modal keeps Tab focus within its enabled controls. Cancel or Escape
   returns focus to the Project disclosure; transferring into an import modal
   gives focus to that import's first required field instead.
@@ -112,6 +115,8 @@ without copying private research or creating a live dependency on the source.
   initialization succeed.
 - Existing duplication, revision branching, and default starter creation keep
   their current semantics.
+- A superseded existing-project preview response cannot replace the currently
+  previewed starting point or enable creation for the wrong project.
 
 ### Verification
 

@@ -720,13 +720,15 @@ export function renderHomePage(
           </label>
         </header>
         <div class="template-browser">
-          <section class="template-browser-index" aria-labelledby="template-browser-index-heading">
-            <h3 class="field-label" id="template-browser-index-heading">Starting points</h3>
-            <div class="template-choice-list" id="new-workspace-template-list"><div class="empty-state">Loading templates…</div></div>
-          </section>
-          <section class="template-preview" id="new-workspace-template-preview" aria-live="polite"><div class="empty-state">Choose a template to inspect its structure.</div></section>
+          <project-starting-point-browser class="contents" id="project-starting-point-browser">
+            <section class="template-browser-index" aria-labelledby="template-browser-index-heading">
+              <h3 class="field-label" id="template-browser-index-heading">Starting points</h3>
+              <div class="template-choice-list" id="new-workspace-template-list"><div class="empty-state">Loading templates…</div></div>
+            </section>
+            <section class="template-preview" id="new-workspace-template-preview" aria-live="polite"><div class="empty-state">Choose a template to inspect its structure.</div></section>
+            <input id="new-workspace-template-id" type="hidden">
+          </project-starting-point-browser>
         </div>
-        <input id="new-workspace-template-id" type="hidden">
         <footer class="template-browser-footer">
           <p class="ui-status" id="new-workspace-template-status" role="status">Templates and existing projects create independent projects without research history.</p>
           <div class="ui-cluster justify-end">
