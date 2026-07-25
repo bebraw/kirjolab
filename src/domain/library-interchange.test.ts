@@ -173,10 +173,11 @@ describe("library interchange", () => {
       highlights: [],
       tags: { ref: ["method"] },
       collections: { ref: ["chapter"] },
-      notes: [],
-      reading: [],
+      notes: [{ id: "local-note", referenceId: "ref", body: "Body", createdAt: "created", updatedAt: "updated" }],
+      reading: [{ referenceId: "ref", status: "read" as const, rating: 4, priority: "high" as const, updatedAt: "updated" }],
     };
     const research = portableResearch(snapshot);
+    expect(research.notes).toEqual([{ referenceId: "ref", body: "Body", createdAt: "created", updatedAt: "updated" }]);
     expect(parsePortableResearch(research)).toEqual(research);
     for (const invalid of [
       null,

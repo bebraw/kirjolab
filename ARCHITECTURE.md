@@ -15,6 +15,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Add or update a template update pack in `.template/updates/` in the same change set whenever a reusable template maintenance change should be portable to downstream projects.
 - Keep the quality gate green before considering a change ready.
 - Keep workflow writes explicit. New generated output, local state, cache, archive, or tool-artifact paths should be documented in the same change that introduces them.
+- Use pinned Valibot schemas selectively at external and persisted-data trust
+  boundaries when one schema replaces duplicated structural types and runtime
+  predicates. Keep authorization, cross-record invariants, canonicalization,
+  and stateful business rules in explicit domain functions; do not migrate
+  predicates merely for consistency.
 - Model external scholarly works as typed sets of stable identifiers. Prefer DOI when present, but do not make DOI a prerequisite for discovery or review.
 - Do not place executable browser code inline in Worker-rendered HTML. Client behavior should live in typed TypeScript modules before it is served to browsers.
 - Use XState only for bounded event-driven browser workflows whose mutually

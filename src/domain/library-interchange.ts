@@ -1,33 +1,78 @@
+import * as v from "valibot";
 import { serializeBibTeX, type BibTeXEntry } from "./bibliography";
 import type { BibliographicRecord, ReferenceLibrarySnapshot } from "./reference-library";
 
 export const libraryArchiveVersion = "kirjolab-library-v1" as const;
 
-export interface CslName {
-  readonly family?: string;
-  readonly given?: string;
-  readonly literal?: string;
-}
+const optionalCslNamePart = v.optional(v.pipe(v.string(), v.maxLength(500)));
+const cslNameSchema = v.pipe(
+  v.object({
+    family: optionalCslNamePart,
+    given: optionalCslNamePart,
+    literal: optionalCslNamePart,
+  }),
+  v.check((name) => name.family !== undefined || name.given !== undefined || name.literal !== undefined),
+);
+const cslDatePartSchema = v.pipe(
+  v.array(v.union([v.pipe(v.string(), v.maxLength(20)), v.pipe(v.number(), v.finite())])),
+  v.minLength(1),
+  v.maxLength(3),
+);
+const cslJsonItemSchema = v.object({
+  id: v.pipe(v.string(), v.minLength(1), v.maxLength(200)),
+  type: v.pipe(v.string(), v.minLength(1), v.maxLength(64)),
+  title: v.pipe(v.string(), v.minLength(1), v.maxLength(2_000)),
+  author: v.optional(v.array(cslNameSchema)),
+  issued: v.optional(
+    v.object({
+      "date-parts": v.pipe(v.array(cslDatePartSchema), v.minLength(1), v.maxLength(4)),
+    }),
+  ),
+  "container-title": v.optional(v.pipe(v.string(), v.maxLength(4_096))),
+  DOI: v.optional(v.pipe(v.string(), v.maxLength(4_096))),
+  URL: v.optional(v.pipe(v.string(), v.maxLength(4_096))),
+  abstract: v.optional(v.pipe(v.string(), v.maxLength(20_000))),
+});
+const cslJsonSchema = v.pipe(v.array(cslJsonItemSchema), v.minLength(1), v.maxLength(2_000));
+const plainRecordSchema = v.custom<Record<string, unknown>>(
+  (value) => typeof value === "object" && value !== null && !Array.isArray(value),
+);
+const researchFacetSchema = v.pipe(
+  v.intersect([plainRecordSchema, v.record(v.string(), v.pipe(v.array(v.pipe(v.string(), v.maxLength(120))), v.maxLength(32)))]),
+  v.check((facets) => Object.keys(facets).length <= 2_000),
+);
+const portableResearchSchema = v.object({
+  version: v.literal(libraryArchiveVersion),
+  tags: researchFacetSchema,
+  collections: researchFacetSchema,
+  notes: v.pipe(
+    v.array(
+      v.object({
+        referenceId: v.string(),
+        body: v.pipe(v.string(), v.maxLength(20_000)),
+        createdAt: v.string(),
+        updatedAt: v.string(),
+      }),
+    ),
+    v.maxLength(10_000),
+  ),
+  reading: v.pipe(
+    v.array(
+      v.object({
+        referenceId: v.string(),
+        status: v.picklist(["unread", "reading", "read"]),
+        rating: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(5))),
+        priority: v.picklist(["low", "normal", "high"]),
+        updatedAt: v.string(),
+      }),
+    ),
+    v.maxLength(2_000),
+  ),
+});
 
-export interface CslJsonItem {
-  readonly id: string;
-  readonly type: string;
-  readonly title: string;
-  readonly author?: readonly CslName[];
-  readonly issued?: { readonly "date-parts": readonly (readonly (string | number)[])[] };
-  readonly "container-title"?: string;
-  readonly DOI?: string;
-  readonly URL?: string;
-  readonly abstract?: string;
-}
-
-export interface PortableLibraryResearch {
-  readonly version: typeof libraryArchiveVersion;
-  readonly tags: ReferenceLibrarySnapshot["tags"];
-  readonly collections: ReferenceLibrarySnapshot["collections"];
-  readonly notes: ReferenceLibrarySnapshot["notes"];
-  readonly reading: ReferenceLibrarySnapshot["reading"];
-}
+export type CslName = Readonly<v.InferInput<typeof cslNameSchema>>;
+export type CslJsonItem = Readonly<v.InferInput<typeof cslJsonItemSchema>>;
+export type PortableLibraryResearch = Readonly<v.InferInput<typeof portableResearchSchema>>;
 
 export function referenceToCslJson(reference: BibliographicRecord): CslJsonItem {
   return {
@@ -69,60 +114,31 @@ export function cslJsonToBibTeX(items: readonly CslJsonItem[]): string {
 }
 
 export function parseCslJson(value: unknown): CslJsonItem[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 2_000) throw new Error("CSL JSON must contain 1–2,000 items");
-  return value.map((item) => {
-    if (
-      !isRecord(item) ||
-      typeof item.id !== "string" ||
-      !item.id ||
-      item.id.length > 200 ||
-      typeof item.type !== "string" ||
-      !item.type ||
-      item.type.length > 64 ||
-      typeof item.title !== "string" ||
-      !item.title ||
-      item.title.length > 2_000
-    ) {
-      throw new Error("CSL JSON item identity, type, and title are required");
-    }
-    if (item.author !== undefined && (!Array.isArray(item.author) || !item.author.every(isCslName)))
-      throw new Error("CSL JSON authors are invalid");
-    if (item.issued !== undefined && !isIssued(item.issued)) throw new Error("CSL JSON issued date is invalid");
-    for (const field of ["container-title", "DOI", "URL", "abstract"] as const) {
-      if (item[field] !== undefined && (typeof item[field] !== "string" || item[field].length > (field === "abstract" ? 20_000 : 4_096))) {
-        throw new Error(`CSL JSON ${field} is invalid`);
-      }
-    }
-    return item as unknown as CslJsonItem;
-  });
+  if (!v.is(cslJsonSchema, value)) throw new Error("CSL JSON is invalid or exceeds supported bounds");
+  return value;
 }
 
 export function portableResearch(snapshot: ReferenceLibrarySnapshot): PortableLibraryResearch {
   return {
     version: libraryArchiveVersion,
-    tags: snapshot.tags,
-    collections: snapshot.collections,
-    notes: snapshot.notes,
-    reading: snapshot.reading,
+    tags: mutableFacets(snapshot.tags),
+    collections: mutableFacets(snapshot.collections),
+    notes: snapshot.notes.map(({ referenceId, body, createdAt, updatedAt }) => ({ referenceId, body, createdAt, updatedAt })),
+    reading: snapshot.reading.map(({ referenceId, status, rating, priority, updatedAt }) => ({
+      referenceId,
+      status,
+      rating,
+      priority,
+      updatedAt,
+    })),
   };
 }
 
 export function parsePortableResearch(value: unknown): PortableLibraryResearch {
-  if (
-    !isRecord(value) ||
-    value.version !== libraryArchiveVersion ||
-    !isStringArrayRecord(value.tags) ||
-    !isStringArrayRecord(value.collections) ||
-    !Array.isArray(value.notes) ||
-    value.notes.length > 10_000 ||
-    !value.notes.every(isPortableNote) ||
-    !Array.isArray(value.reading) ||
-    value.reading.length > 2_000 ||
-    !value.reading.every(isPortableReading)
-  ) {
+  if (!v.is(portableResearchSchema, value)) {
     throw new Error("Portable library research metadata is invalid");
   }
-  return value as unknown as PortableLibraryResearch;
+  return value;
 }
 
 function authorToCslName(value: string): CslName {
@@ -154,62 +170,6 @@ function safeCitationKey(value: string): string {
   return value.replaceAll(/[^a-z0-9:._+-]/giu, "").slice(0, 120);
 }
 
-function isCslName(value: unknown): value is CslName {
-  return (
-    isRecord(value) &&
-    [value.family, value.given, value.literal].some((part) => typeof part === "string") &&
-    [value.family, value.given, value.literal].every((part) => part === undefined || (typeof part === "string" && part.length <= 500))
-  );
-}
-
-function isIssued(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    Array.isArray(value["date-parts"]) &&
-    value["date-parts"].length > 0 &&
-    value["date-parts"].length <= 4 &&
-    value["date-parts"].every(
-      (part) =>
-        Array.isArray(part) &&
-        part.length > 0 &&
-        part.length <= 3 &&
-        part.every((item) => (typeof item === "string" && item.length <= 20) || (typeof item === "number" && Number.isFinite(item))),
-    )
-  );
-}
-
-function isStringArrayRecord(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    Object.keys(value).length <= 2_000 &&
-    Object.values(value).every(
-      (items) => Array.isArray(items) && items.length <= 32 && items.every((item) => typeof item === "string" && item.length <= 120),
-    )
-  );
-}
-
-function isPortableNote(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    typeof value.referenceId === "string" &&
-    typeof value.body === "string" &&
-    value.body.length <= 20_000 &&
-    typeof value.createdAt === "string" &&
-    typeof value.updatedAt === "string"
-  );
-}
-
-function isPortableReading(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    typeof value.referenceId === "string" &&
-    (value.status === "unread" || value.status === "reading" || value.status === "read") &&
-    (value.rating === null || (Number.isInteger(value.rating) && Number(value.rating) >= 1 && Number(value.rating) <= 5)) &&
-    (value.priority === "low" || value.priority === "normal" || value.priority === "high") &&
-    typeof value.updatedAt === "string"
-  );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function mutableFacets(facets: Readonly<Record<string, readonly string[]>>): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(facets).map(([referenceId, values]) => [referenceId, [...values]]));
 }

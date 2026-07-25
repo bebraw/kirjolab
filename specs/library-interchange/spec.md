@@ -13,6 +13,10 @@ move Kirjolab research organization.
   references.
 - Import passes through existing identity normalization, provenance, and
   deduplication.
+- CSL JSON and portable research structure are validated by pinned Valibot
+  schemas whose inferred payload types remain local interchange contracts.
+  Stateful identity, provenance, deduplication, and restore rules remain domain
+  operations outside the schemas.
 - `kirjolab-library-v1` ZIP archives contain `manifest.json`,
   `references.csl.json`, and `research.json`.
 - Research metadata preserves distinct tags, collections, notes, and reading
@@ -28,6 +32,8 @@ move Kirjolab research organization.
   names needed for import.
 - Metadata arrays, labels, notes, ratings, priorities, and timestamps are
   bounded and validated before mutation.
+- Portable note export omits local note identity; restore creates new local
+  note identities as already required by the archive contract.
 - Import does not execute markup, scripts, TeX, archive paths, or remote URLs.
 
 ## Contract
