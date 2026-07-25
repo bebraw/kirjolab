@@ -536,7 +536,7 @@ export function renderHomePage(
             <aside class="annotation-composer" id="annotation-composer" aria-labelledby="annotation-composer-title">
               <details class="publication-intake" id="publication-intake">
                 <summary><span id="publication-intake-heading">Identify reference</span><span class="count-badge">Optional</span></summary>
-                <div class="publication-intake-body">
+                <publication-intake-panel class="publication-intake-body" id="publication-intake-panel">
                 <p class="mt-2 text-xs leading-5 text-app-text-soft">Review DOI metadata before adding the reference and connecting this PDF.</p>
                 <form class="publication-intake-form" id="publication-intake-form">
                   <label class="field-label" for="publication-intake-doi">DOI</label>
@@ -557,7 +557,7 @@ export function renderHomePage(
                     <button class="button-primary justify-center" id="publication-intake-accept" type="button">Add to library &amp; connect</button>
                     <button class="button-secondary justify-center" id="publication-intake-cancel" type="button">Cancel</button>
                   </div>
-                </div>
+                </publication-intake-panel>
                 <div class="publication-intake-linked" id="publication-intake-linked" hidden>
                   <p class="eyebrow">Linked reference</p>
                   <div class="publication-intake-linked-list" id="publication-intake-linked-list"></div>

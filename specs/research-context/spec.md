@@ -183,6 +183,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - An unlinked PDF exposes an inline DOI intake with separate lookup, reviewed
   acceptance, and cancellation states. Successful **Add to library & connect**
   opens the stable publication context but never inserts manuscript syntax.
+- The bounded DOI-intake view owns local DOI and citation-key values, reviewed
+  metadata, linked references, busy and status presentation, and focus
+  transitions. Typed intents enter the application-owned workflow and API
+  boundary; rendering alone cannot mutate the Library or project.
 - Opening an annotation focuses its PDF, page, and stored highlight. Navigating
   from that annotation to a manuscript passage restores the Authoring surface
   and selects only a currently resolved durable anchor.

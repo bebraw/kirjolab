@@ -778,3 +778,25 @@ and 74 browser tests. The rebuilt browser application is 694,763 B raw and
 194,053 B gzip, an increase of 1,259 B raw and 341 B gzip from the citation
 network checkpoint. Direct and unique production package counts remain
 unchanged at 18 and 150.
+
+## Continued Lit Extraction: Publication Intake
+
+Inline DOI intake now uses one bounded `PublicationIntakePanel` instead of
+eleven element references plus imperative form, metadata-review,
+linked-reference, visibility, busy, status, and focus updates. The component
+owns local DOI and citation-key values and emits typed preview, accept, cancel,
+and reference-opening intents. `WorkspaceApp` retains the XState workflow,
+validated API requests, acceptance mutation, resource refresh, navigation, and
+toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 10,173 to 10,129 lines (-44).
+The component adds 208 lines. The focused browser workflow passes DOI lookup,
+reviewed metadata, cancellation, repeated lookup, acceptance, linked-reference
+presentation, and stable publication navigation. The full native CI gate passes
+1,258 unit/coverage tests, 120 Worker integration tests, and 74 browser tests.
+The component records 82.92% statement and 87.87% line coverage; the browser
+workflow additionally exercises its focus handoffs.
+
+The browser application artifact grows from 694,763 B raw / 194,053 B gzip to
+698,319 B raw / 194,629 B gzip (+3,556 B raw / +576 B gzip). Direct and unique
+production package counts remain unchanged at 18 and 150.

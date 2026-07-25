@@ -97,6 +97,9 @@ The adopted components own bounded presentation:
 - The Preview context status and diagnostics panels own file-mode and
   validation status, unavailable-state presentation, composition and renderer
   diagnostic cards, source-map resolution, and typed source-range intents.
+- The publication intake panel owns DOI and citation-key input, reviewed
+  metadata, linked-reference rows, status, busy state, focus transitions, and
+  typed preview, accept, cancel, and reference-opening intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -195,6 +198,11 @@ reason to wrap static markup mechanically.
   three imperative diagnostic renderers, and the coordinator-local source-map
   lookup helper while leaving Markdown loading and rendering, composed-source
   derivation, editor focus, and file selection in the application coordinator.
+- The publication intake panel replaces eleven internal element references and
+  its imperative linked-reference, metadata-review, visibility, availability,
+  status, and focus updates while leaving the XState workflow, DOI requests,
+  acceptance mutation, refreshes, and navigation in the application
+  coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

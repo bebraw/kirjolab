@@ -204,6 +204,7 @@ import {
   previewDiagnosticSelectEvent,
   type PreviewDiagnosticSelection,
 } from "./preview-presentation";
+import { PublicationIntakePanel, publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -714,17 +715,7 @@ interface Elements {
   libraryPaperPageIndicator: HTMLElement;
   previousLibraryPaperPage: HTMLButtonElement;
   nextLibraryPaperPage: HTMLButtonElement;
-  publicationIntakeForm: HTMLFormElement;
-  publicationIntakeDoi: HTMLInputElement;
-  publicationIntakeStatus: HTMLElement;
-  publicationIntakeReview: HTMLElement;
-  publicationIntakeTitle: HTMLElement;
-  publicationIntakeMeta: HTMLElement;
-  publicationIntakeKey: HTMLInputElement;
-  publicationIntakeAccept: HTMLButtonElement;
-  publicationIntakeCancel: HTMLButtonElement;
-  publicationIntakeLinked: HTMLElement;
-  publicationIntakeLinkedList: HTMLElement;
+  publicationIntakePanel: PublicationIntakePanel;
   llmEndpoint: HTMLInputElement;
   llmConnection: HTMLSelectElement;
   llmModel: HTMLSelectElement;
@@ -1512,9 +1503,16 @@ class WorkspaceApp {
       else if (detail.action === "open-paper") void this.#openPublicationPaper(detail.paper);
       else void this.#unlinkPublicationPdf(detail.linkId);
     });
-    this.#elements.publicationIntakeForm.addEventListener("submit", (event) => void this.#previewPublicationIntake(event));
-    this.#elements.publicationIntakeAccept.addEventListener("click", () => void this.#acceptPublicationIntake());
-    this.#elements.publicationIntakeCancel.addEventListener("click", () => this.#cancelPublicationIntake());
+    this.#elements.publicationIntakePanel.addEventListener(publicationIntakeActionEvent, (event) => {
+      const detail = (event as CustomEvent<PublicationIntakeAction>).detail;
+      if (detail.action === "preview") void this.#previewPublicationIntake(detail.doi);
+      else if (detail.action === "accept") void this.#acceptPublicationIntake(detail.citationKey);
+      else if (detail.action === "cancel") this.#cancelPublicationIntake();
+      else {
+        const publication = this.#snapshot?.publications.find(({ id }) => id === detail.publicationId);
+        if (publication) this.#openPublicationContext(publication);
+      }
+    });
     this.#elements.candidateReviewPanel.addEventListener(candidateDecisionEvent, (event) => {
       void this.#updateActiveCandidate((event as CustomEvent<"apply" | "reject">).detail);
     });
@@ -6238,62 +6236,32 @@ class WorkspaceApp {
       .map((link) => snapshot.publications.find((publication) => publication.id === link.publicationId))
       .filter((publication): publication is PublicationResource => Boolean(publication));
     const linked = publications.length > 0;
-    this.#elements.publicationIntakeForm.hidden = linked;
-    this.#elements.publicationIntakeLinked.hidden = !linked;
-    this.#elements.publicationIntakeLinkedList.replaceChildren(
-      ...publications.map((publication) => this.#publicationIntakeRow(publication)),
-    );
     const intake = this.#publicationIntake.getSnapshot();
     const preview = intake.context.preview?.pdfId === pdfId ? intake.context.preview : null;
-    this.#elements.publicationIntakeReview.hidden = linked || !preview;
+    this.#elements.publicationIntakePanel.setView({
+      busy: publicationIntakeBusy(intake),
+      preview,
+      publications,
+    });
     if (linked) {
-      this.#elements.publicationIntakeStatus.textContent = `${publications.length} ${publications.length === 1 ? "reference is" : "references are"} connected to this PDF.`;
-      return;
+      this.#elements.publicationIntakePanel.setStatus(
+        `${publications.length} ${publications.length === 1 ? "reference is" : "references are"} connected to this PDF.`,
+      );
     }
-    if (!preview) return;
-    this.#renderPublicationIntakePreview(preview);
   }
 
-  #publicationIntakeRow(publication: PublicationResource): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "resource-card mt-2 flex items-center justify-between gap-3";
-    const copy = document.createElement("div");
-    copy.className = "min-w-0";
-    copy.append(resourceLabel(`Reference · ${publication.citationKey}`), resourceTitle(bibTeXDisplayText(publication.title)));
-    row.append(
-      copy,
-      actionButton("Open reference", "button-secondary shrink-0", () => this.#openPublicationContext(publication)),
-    );
-    return row;
-  }
-
-  #renderPublicationIntakePreview(preview: GuardResult<typeof isPublicationIntakePreview>): void {
-    this.#elements.publicationIntakeTitle.textContent = preview.metadata.title;
-    this.#elements.publicationIntakeMeta.textContent = [
-      preview.metadata.type,
-      preview.metadata.authors.join("; "),
-      preview.metadata.year,
-      preview.metadata.venue,
-      `doi:${preview.doi}`,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    this.#elements.publicationIntakeKey.value = preview.citationKey;
-  }
-
-  async #previewPublicationIntake(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
+  async #previewPublicationIntake(doi: string): Promise<void> {
     const pdfId = this.#activePublicationIntakePdf();
     if (!pdfId) return;
     if (this.#publicationIntake.getSnapshot().context.pdfId !== pdfId) this.#publicationIntake.send({ type: "OPEN", pdfId });
     this.#publicationIntake.send({ type: "START_PREVIEW" });
     const request = this.#publicationIntake.getSnapshot().context.requestId;
     this.#updatePublicationIntakeAvailability();
-    this.#elements.publicationIntakeStatus.textContent = "Looking up DOI metadata…";
+    this.#elements.publicationIntakePanel.setStatus("Looking up DOI metadata…");
     try {
       const response = await jsonFetch(`${apiBase}/publication-intake/preview`, {
         pdfId,
-        doi: this.#elements.publicationIntakeDoi.value,
+        doi,
       });
       await expectOk(response);
       const value: unknown = await response.json();
@@ -6316,19 +6284,22 @@ class WorkspaceApp {
     const intake = this.#publicationIntake.getSnapshot();
     if (!this.#publicationIntakePreviewActive(intake.matches("reviewing"), intake.context.preview, value, this.#activeResourceTab(), pdfId))
       return;
-    this.#elements.publicationIntakeStatus.textContent = value.existingPublicationId
-      ? "This DOI is already in the library. Review the existing key, then connect this PDF."
-      : "Review the metadata and citation key before adding it.";
+    this.#elements.publicationIntakePanel.setStatus(
+      value.existingPublicationId
+        ? "This DOI is already in the library. Review the existing key, then connect this PDF."
+        : "Review the metadata and citation key before adding it.",
+    );
     this.#renderPublicationIntake(pdfId);
-    this.#elements.publicationIntakeKey.focus();
+    this.#elements.publicationIntakePanel.focusCitationKey();
   }
 
   #failPublicationIntakePreview(requestId: number, error: unknown): void {
     const message = error instanceof Error ? error.message : "DOI lookup failed";
     this.#publicationIntake.send({ type: "PREVIEW_FAILED", requestId, message });
     if (!this.#publicationIntake.getSnapshot().matches("failed")) return;
-    this.#elements.publicationIntakeReview.hidden = true;
-    this.#elements.publicationIntakeStatus.textContent = message;
+    this.#elements.publicationIntakePanel.setStatus(message);
+    const pdfId = this.#activePublicationIntakePdf();
+    if (pdfId) this.#renderPublicationIntake(pdfId);
   }
 
   #publicationIntakePreviewActive(
@@ -6341,19 +6312,19 @@ class WorkspaceApp {
     return reviewing && currentPreview === preview && active?.kind === "pdf" && active.id === pdfId;
   }
 
-  async #acceptPublicationIntake(): Promise<void> {
+  async #acceptPublicationIntake(citationKey: string): Promise<void> {
     const preview = this.#publicationIntake.getSnapshot().context.preview;
     const active = this.#activeResourceTab();
     if (!preview || active?.kind !== "pdf" || active.id !== preview.pdfId) return;
     this.#publicationIntake.send({ type: "ACCEPT" });
     const request = this.#publicationIntake.getSnapshot().context.requestId;
     this.#updatePublicationIntakeAvailability();
-    this.#elements.publicationIntakeStatus.textContent = "Adding the reference and connecting this PDF…";
+    this.#elements.publicationIntakePanel.setStatus("Adding the reference and connecting this PDF…");
     try {
       const response = await jsonFetch(`${apiBase}/publication-intake/accept`, {
         pdfId: preview.pdfId,
         doi: preview.doi,
-        citationKey: this.#elements.publicationIntakeKey.value,
+        citationKey,
         metadataFingerprint: preview.metadataFingerprint,
       });
       await expectOk(response);
@@ -6361,15 +6332,15 @@ class WorkspaceApp {
       const publication = this.#snapshot?.publications.find((item) => item.doi === preview.doi);
       if (!publication) throw new Error("The connected publication could not be found");
       this.#publicationIntake.send({ type: "ACCEPTED", requestId: request });
-      this.#elements.publicationIntakeStatus.textContent = "Reference added and PDF connected. Citation remains a separate action.";
+      this.#elements.publicationIntakePanel.setStatus("Reference added and PDF connected. Citation remains a separate action.");
       this.#openPublicationContext(publication);
       this.#showToast("Reference added and connected; the manuscript is unchanged.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Publication intake failed";
       this.#publicationIntake.send({ type: "ACCEPT_FAILED", requestId: request, message });
       if (!this.#publicationIntake.getSnapshot().matches("reviewing")) return;
-      this.#elements.publicationIntakeStatus.textContent = message;
-      this.#elements.publicationIntakeKey.focus();
+      this.#elements.publicationIntakePanel.setStatus(message);
+      this.#elements.publicationIntakePanel.focusCitationKey();
     } finally {
       this.#updatePublicationIntakeAvailability();
     }
@@ -6377,21 +6348,16 @@ class WorkspaceApp {
 
   #cancelPublicationIntake(): void {
     this.#publicationIntake.send({ type: "CANCEL" });
-    this.#elements.publicationIntakeReview.hidden = true;
-    this.#elements.publicationIntakeStatus.textContent = "Lookup cancelled. The library and PDF are unchanged.";
+    this.#elements.publicationIntakePanel.setStatus("Lookup cancelled. The library and PDF are unchanged.");
     this.#updatePublicationIntakeAvailability();
-    this.#elements.publicationIntakeDoi.focus();
+    const pdfId = this.#activePublicationIntakePdf();
+    if (pdfId) this.#renderPublicationIntake(pdfId);
+    this.#elements.publicationIntakePanel.focusDoi();
   }
 
   #updatePublicationIntakeAvailability(): void {
-    const submit = this.#elements.publicationIntakeForm.querySelector<HTMLButtonElement>('button[type="submit"]');
-    if (!submit) throw new Error("Missing DOI lookup action");
-    const busy = publicationIntakeBusy(this.#publicationIntake.getSnapshot());
-    submit.disabled = busy;
-    this.#elements.publicationIntakeDoi.disabled = busy;
-    this.#elements.publicationIntakeKey.disabled = busy;
-    this.#elements.publicationIntakeAccept.disabled = busy;
-    this.#elements.publicationIntakeCancel.disabled = busy;
+    const pdfId = this.#activePublicationIntakePdf();
+    if (pdfId) this.#renderPublicationIntake(pdfId);
   }
 
   #renderContextTabOverview(): void {
@@ -9917,17 +9883,7 @@ function collectElements(): Elements {
     libraryPaperPageIndicator: requiredElement("library-paper-page-indicator", HTMLElement),
     previousLibraryPaperPage: requiredElement("previous-library-paper-page", HTMLButtonElement),
     nextLibraryPaperPage: requiredElement("next-library-paper-page", HTMLButtonElement),
-    publicationIntakeForm: requiredElement("publication-intake-form", HTMLFormElement),
-    publicationIntakeDoi: requiredElement("publication-intake-doi", HTMLInputElement),
-    publicationIntakeStatus: requiredElement("publication-intake-status", HTMLElement),
-    publicationIntakeReview: requiredElement("publication-intake-review", HTMLElement),
-    publicationIntakeTitle: requiredElement("publication-intake-title", HTMLElement),
-    publicationIntakeMeta: requiredElement("publication-intake-meta", HTMLElement),
-    publicationIntakeKey: requiredElement("publication-intake-key", HTMLInputElement),
-    publicationIntakeAccept: requiredElement("publication-intake-accept", HTMLButtonElement),
-    publicationIntakeCancel: requiredElement("publication-intake-cancel", HTMLButtonElement),
-    publicationIntakeLinked: requiredElement("publication-intake-linked", HTMLElement),
-    publicationIntakeLinkedList: requiredElement("publication-intake-linked-list", HTMLElement),
+    publicationIntakePanel: requiredElement("publication-intake-panel", PublicationIntakePanel),
     llmEndpoint: requiredElement("llm-endpoint", HTMLInputElement),
     llmConnection: requiredElement("llm-connection", HTMLSelectElement),
     llmModel: requiredElement("llm-model", HTMLSelectElement),

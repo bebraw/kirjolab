@@ -1580,7 +1580,8 @@
   manuscript-map-panel,
   citation-network-panel,
   preview-context-status,
-  preview-diagnostics-panel {
+  preview-diagnostics-panel,
+  publication-intake-panel {
     display: block;
   }
 
