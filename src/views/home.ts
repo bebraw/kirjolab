@@ -544,7 +544,7 @@ export function renderHomePage(
                 <div class="pdf-links" id="paper-links" aria-label="PDF links"></div>
                 <div class="pdf-highlights" id="paper-highlights"></div>
                 <div class="textLayer" id="paper-text-layer"></div>
-                <div class="pdf-markups" id="paper-markups" data-tool="text" aria-label="Private PDF annotations"></div>
+                <library-pdf-markup-layer class="pdf-markups" id="paper-markups" data-tool="text" aria-label="Private PDF annotations"></library-pdf-markup-layer>
               </div>
             </div>
             <aside class="annotation-composer" id="annotation-composer" aria-labelledby="annotation-composer-title">

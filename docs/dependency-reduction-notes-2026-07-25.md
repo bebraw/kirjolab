@@ -1511,3 +1511,24 @@ The browser application artifact grows from 767,765 B raw / 208,571 B gzip to
 production package counts remain unchanged at 18 and 150. Full native CI
 passes all 1,336 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
 tests.
+
+## Continued Lit Extraction: Library PDF Markup Layer
+
+A bounded `LibraryPdfMarkupLayer` now owns saved and draft drawing SVG, note
+pins, selected state, open note cards, live draft geometry updates, note
+movement, focus restoration, and a typed note-card close intent.
+`WorkspaceApp` retains pointer capture, gesture and annotation-machine state,
+shape recognition, normalized geometry, persistence, and workflow transitions.
+
+This checkpoint reduces `src/client/app.ts` from 8,132 to 8,055 lines (-77).
+The component adds 159 lines. Component tests cover empty, saved and draft
+drawings, note drafts, selected notes, open cards, multiple tools, and the typed
+close intent. It records 57.14% statement and 62.06% line coverage. The focused
+private-PDF browser workflow passes drawing, note placement and movement,
+note-card focus, deletion, highlight import, and annotated export.
+
+The browser application artifact grows from 768,037 B raw / 208,636 B gzip to
+768,775 B raw / 208,825 B gzip (+738 B raw / +189 B gzip). Direct and unique
+production package counts remain unchanged at 18 and 150. Full native CI
+passes all 1,338 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
+tests.

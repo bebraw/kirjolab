@@ -97,6 +97,7 @@ import {
   libraryPdfAnnotationListActionEvent,
   type LibraryPdfAnnotationListAction,
 } from "./library-pdf-annotation-list";
+import { LibraryPdfMarkupLayer, libraryPdfMarkupLayerActionEvent, type LibraryPdfMarkupLayerAction } from "./library-pdf-markup-layer";
 import { LibraryPdfAnnotationToolbar, libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import {
   ProjectStartingPointBrowser,
@@ -589,7 +590,7 @@ interface Elements {
   paperLinks: HTMLElement;
   paperTextLayer: HTMLElement;
   paperHighlights: HTMLElement;
-  paperMarkups: HTMLElement;
+  paperMarkups: LibraryPdfMarkupLayer;
   paperPageIndicator: HTMLElement;
   paperReader: HTMLElement;
   previousPaperPage: HTMLButtonElement;
@@ -661,8 +662,6 @@ interface ActivePdfResources {
   readonly libraryPdf: LibraryPdfArtifact | undefined;
   readonly projectReferencePdf: ProjectReferencePdf | undefined;
 }
-
-type PendingPdfNote = PdfAnnotationSnapshot["context"]["note"];
 
 interface OverlappingPdfFragment {
   readonly annotation: AnnotationResource;
@@ -736,7 +735,6 @@ class WorkspaceApp {
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
   #libraryPdfUploadBusy = false;
-  #pdfDrawingDraftLine: SVGElement | null = null;
   #pdfDrawingShape: RecognizedDrawnShape | null = null;
   #pdfDrawingShapeTimer: number | undefined;
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
@@ -1362,6 +1360,12 @@ class WorkspaceApp {
       const hadDrawing = this.#pdfDrawingDraft() !== null;
       this.#cancelLibraryPdfDrawing();
       if (movedNote || hadDrawing) this.#renderPdfMarkups();
+    });
+    this.#elements.paperMarkups.addEventListener(libraryPdfMarkupLayerActionEvent, (event) => {
+      const { noteId } = (event as CustomEvent<LibraryPdfMarkupLayerAction>).detail;
+      this.#pdfAnnotation.send({ type: "CLOSE_NOTE_CARD" });
+      this.#renderPdfMarkups();
+      this.#elements.paperMarkups.focusNote(noteId);
     });
     this.#elements.highlightPaintTool.addEventListener("click", () => this.#setHighlightTool("paint"));
     this.#elements.highlightEraserTool.addEventListener("click", () => this.#setHighlightTool("erase"));
@@ -6745,13 +6749,11 @@ class WorkspaceApp {
 
   #continueLibraryPdfNoteDrag(event: PointerEvent, noteId: string): void {
     const point = this.#normalizedPdfPoint(event);
-    const pin = this.#elements.paperMarkups.querySelector<HTMLElement>(`.pdf-note-pin[data-markup-id="${CSS.escape(noteId)}"]`);
-    if (!point || !pin) return;
+    if (!point) return;
     this.#pdfAnnotation.send({ type: "MOVE_NOTE_DRAG", pointerId: event.pointerId, x: event.clientX, y: event.clientY });
     if (!this.#pdfNoteDrag()?.moved) return;
     event.preventDefault();
-    pin.style.left = `${point.x * 100}%`;
-    pin.style.top = `${point.y * 100}%`;
+    this.#elements.paperMarkups.moveNote(noteId, point);
   }
 
   #appendLibraryPdfDrawingPoints(event: PointerEvent, draft: readonly LibraryPdfPoint[]): void {
@@ -6770,7 +6772,7 @@ class WorkspaceApp {
     }
     if (additions.length === 0) return;
     this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: additions });
-    if (this.#pdfDrawingDraftLine) this.#pdfDrawingDraftLine.setAttribute("points", this.#drawingPoints(points));
+    this.#elements.paperMarkups.updateDraft(points);
     this.#scheduleLibraryPdfShapeRecognition(event.pointerId);
   }
 
@@ -6786,7 +6788,7 @@ class WorkspaceApp {
       this.#pdfDrawingShape = shape;
       const points = this.#normalizedLibraryPdfShapePoints(shape.points, rect);
       this.#pdfAnnotation.send({ type: "SNAP_DRAWING_SHAPE", pointerId, points });
-      if (this.#pdfDrawingDraftLine) this.#pdfDrawingDraftLine.setAttribute("points", this.#drawingPoints(points));
+      this.#elements.paperMarkups.updateDraft(points);
       const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[shape.kind];
       this.#elements.libraryHighlightStatus.textContent = `${label} snapped into place. Keep dragging to adjust it, or lift to save.`;
     }, 850);
@@ -6801,7 +6803,7 @@ class WorkspaceApp {
     const adjusted = manipulateRecognizedShape(shape, { x: point.x * rect.width, y: point.y * rect.height });
     const points = this.#normalizedLibraryPdfShapePoints(adjusted, rect);
     this.#pdfAnnotation.send({ type: "ADJUST_DRAWING_SHAPE", pointerId: event.pointerId, points });
-    if (this.#pdfDrawingDraftLine) this.#pdfDrawingDraftLine.setAttribute("points", this.#drawingPoints(points));
+    this.#elements.paperMarkups.updateDraft(points);
   }
 
   #normalizedLibraryPdfShapePoints(
@@ -6861,7 +6863,6 @@ class WorkspaceApp {
     this.#pdfAnnotation.send({ type: "CANCEL_POINTER" });
     this.#clearLibraryPdfShapeRecognition();
     delete this.#elements.paperMarkups.dataset.drawingActive;
-    this.#pdfDrawingDraftLine = null;
   }
 
   #clearLibraryPdfShapeRecognition(): void {
@@ -7011,13 +7012,17 @@ class WorkspaceApp {
     const noteDraft = this.#pendingPdfNote();
     const selectedMarkupId = this.#selectedLibraryPdfMarkupId();
     const markups = this.#visibleLibraryPdfMarkups(artifact, page);
-    this.#elements.paperMarkups.replaceChildren();
     const drawings = markups.filter((item): item is LibraryPdfDrawing => item.kind === "drawing");
     if (drawingDraft) drawings.push(this.#draftLibraryPdfDrawing(artifact, page, drawingDraft));
-    this.#renderLibraryPdfDrawings(drawings, selectedMarkupId);
-    this.#renderLibraryPdfNoteDraft(noteDraft, page);
-    for (const note of markups.filter((item): item is LibraryPdfNote => item.kind === "note"))
-      this.#renderLibraryPdfNote(note, selectedMarkupId);
+    this.#elements.paperMarkups.setData({
+      drawings,
+      noteDraft,
+      notes: markups.filter((item): item is LibraryPdfNote => item.kind === "note"),
+      openNoteId: this.#pdfAnnotationSnapshot().context.openNoteId,
+      page,
+      selectedMarkupId,
+      tool: this.#libraryPdfTool(),
+    });
     this.#elements.libraryPdfAnnotationToolbar.setUndoAvailable(markups.some((item) => item.kind === "drawing"));
   }
 
@@ -7042,84 +7047,6 @@ class WorkspaceApp {
     };
   }
 
-  #renderLibraryPdfDrawings(drawings: readonly LibraryPdfDrawing[], selectedMarkupId: string | null): void {
-    if (drawings.length === 0) return;
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.classList.add("pdf-ink-layer");
-    svg.setAttribute("viewBox", "0 0 1000 1000");
-    svg.setAttribute("preserveAspectRatio", "none");
-    for (const drawing of drawings) svg.append(this.#libraryPdfDrawingLine(drawing, selectedMarkupId));
-    this.#elements.paperMarkups.append(svg);
-  }
-
-  #libraryPdfDrawingLine(drawing: LibraryPdfDrawing, selectedMarkupId: string | null): SVGPolylineElement {
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    line.setAttribute("points", this.#drawingPoints(drawing.points));
-    line.setAttribute("fill", "none");
-    line.setAttribute("stroke", drawing.color);
-    line.setAttribute("stroke-width", String(drawing.width));
-    line.setAttribute("stroke-linecap", "round");
-    line.setAttribute("stroke-linejoin", "round");
-    line.setAttribute("vector-effect", "non-scaling-stroke");
-    line.classList.add("pdf-ink-stroke");
-    line.dataset.markupId = drawing.id;
-    if (drawing.id === selectedMarkupId) line.dataset.selected = "true";
-    if (drawing.id === "draft") this.#pdfDrawingDraftLine = line;
-    return line;
-  }
-
-  #renderLibraryPdfNoteDraft(noteDraft: PendingPdfNote, page: number): void {
-    if (noteDraft?.page !== page || noteDraft.editingId) return;
-    const pin = document.createElement("span");
-    pin.className = "pdf-note-pin";
-    pin.dataset.draft = "true";
-    pin.style.left = `${noteDraft.x * 100}%`;
-    pin.style.top = `${noteDraft.y * 100}%`;
-    pin.setAttribute("aria-label", `New note location on page ${page}`);
-    pin.title = "New note location";
-    this.#elements.paperMarkups.append(pin);
-  }
-
-  #renderLibraryPdfNote(note: LibraryPdfNote, selectedMarkupId: string | null): void {
-    const pin = document.createElement("button");
-    pin.className = "pdf-note-pin";
-    pin.type = "button";
-    pin.dataset.markupId = note.id;
-    if (note.id === selectedMarkupId) pin.dataset.selected = "true";
-    pin.style.left = `${note.x * 100}%`;
-    pin.style.top = `${note.y * 100}%`;
-    pin.setAttribute("aria-label", `Open note on page ${note.page}`);
-    pin.title = this.#libraryPdfTool() === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note";
-    this.#elements.paperMarkups.append(pin);
-    if (this.#pdfAnnotationSnapshot().context.openNoteId === note.id) this.#elements.paperMarkups.append(this.#libraryPdfNoteCard(note));
-  }
-
-  #libraryPdfNoteCard(note: LibraryPdfNote): HTMLElement {
-    const card = document.createElement("aside");
-    card.className = "pdf-note-card";
-    card.style.left = `${Math.min(note.x * 100, 70)}%`;
-    card.style.top = `${Math.min(note.y * 100, 82)}%`;
-    card.setAttribute("aria-label", `Note on page ${note.page}`);
-    const body = document.createElement("p");
-    body.textContent = note.body;
-    const close = document.createElement("button");
-    close.className = "pdf-note-card-close";
-    close.type = "button";
-    close.setAttribute("aria-label", `Close note on page ${note.page}`);
-    close.title = "Close note";
-    close.textContent = "×";
-    close.addEventListener("click", (event) => this.#closeLibraryPdfNoteCard(event, note.id));
-    card.append(body, close);
-    return card;
-  }
-
-  #closeLibraryPdfNoteCard(event: MouseEvent, noteId: string): void {
-    event.stopPropagation();
-    this.#pdfAnnotation.send({ type: "CLOSE_NOTE_CARD" });
-    this.#renderPdfMarkups();
-    this.#elements.paperMarkups.querySelector<HTMLButtonElement>(`.pdf-note-pin[data-markup-id="${CSS.escape(noteId)}"]`)?.focus();
-  }
-
   async #undoLibraryDrawing(): Promise<void> {
     const artifact = this.#activeLibraryPdf();
     const drawing = (this.#librarySnapshot?.pdfMarkups ?? [])
@@ -7129,10 +7056,6 @@ class WorkspaceApp {
       )
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id))[0];
     if (drawing) await this.#deleteLibraryPdfMarkup(drawing);
-  }
-
-  #drawingPoints(points: readonly LibraryPdfPoint[]): string {
-    return points.map((point) => `${point.x * 1000},${point.y * 1000}`).join(" ");
   }
 
   async #finishLibraryPdfNoteDrag(event: PointerEvent): Promise<void> {
@@ -7974,7 +7897,7 @@ function collectElements(): Elements {
     paperLinks: requiredElement("paper-links", HTMLElement),
     paperTextLayer: requiredElement("paper-text-layer", HTMLElement),
     paperHighlights: requiredElement("paper-highlights", HTMLElement),
-    paperMarkups: requiredElement("paper-markups", HTMLElement),
+    paperMarkups: requiredElement("paper-markups", LibraryPdfMarkupLayer),
     paperPageIndicator: requiredElement("paper-page-indicator", HTMLElement),
     paperReader: requiredElement("paper-reader", HTMLElement),
     previousPaperPage: requiredElement("previous-paper-page", HTMLButtonElement),

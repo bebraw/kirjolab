@@ -164,6 +164,9 @@ The adopted components own bounded presentation:
 - The Library PDF annotation list owns saved private-highlight and markup cards,
   empty state, comments, share and citation availability, and typed navigation,
   edit, cite, share, revoke, and delete intents.
+- The Library PDF markup layer owns saved and draft drawing SVG, note pins,
+  selected state, open note cards, live draft geometry updates, note movement,
+  focus restoration, and a typed note-card close intent.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices, and typed identification intents.
 - The Library reference summary owns title and metadata presentation, PDF and
@@ -375,6 +378,11 @@ reason to wrap static markup mechanically.
   stream. The application coordinator retains PDF navigation, annotation
   mutations, project citation and research-share workflows, refreshes, and
   notification policy.
+- The Library PDF markup layer replaces imperative SVG, polyline, draft-pin,
+  saved-pin, and note-card construction plus coordinator-owned draft-line and
+  note-focus queries. The application coordinator retains pointer capture,
+  gesture state, shape recognition, normalized geometry, persistence, and
+  annotation workflow transitions.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings while leaving legacy artifact identification,

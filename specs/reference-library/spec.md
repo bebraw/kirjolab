@@ -226,6 +226,11 @@ memory and makes citation aliases compete with stable source identity.
   inspector-expanded state. It emits typed tool, undo, export, and inspector
   intents. The application coordinator retains gestures, annotation state,
   drawing persistence, annotated export, and inspector policy.
+- A bounded light-DOM markup layer owns saved and draft drawing SVG, note pins,
+  selected state, open note cards, live draft geometry updates, note movement,
+  focus restoration, and a typed note-card close intent. The application
+  coordinator retains pointer capture, gesture state, shape recognition,
+  normalized geometry, persistence, and annotation workflow transitions.
 - A bounded light-DOM annotation list owns the private reader's saved highlight
   and markup cards, empty state, comments, share and citation availability, and
   typed navigation, edit, cite, share, revoke, and delete intents. The
