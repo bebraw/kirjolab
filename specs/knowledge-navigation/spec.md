@@ -88,6 +88,10 @@ connection without reconstructing identity from a citation key or filename.
 - Live source edits may update derived citation navigation but must never mutate
   canonical Markdown as a side effect.
 - Visual map cards must stay contained and non-overlapping as the authoring pane
+  changes size, and connector endpoints must remain aligned with their resource
+  cards.
+- The project-map presentation component may own derived layout and interaction
+  state, but graph derivation and navigation authority remain outside it.
   reflows. Connector coordinates must use the rendered canvas dimensions rather
   than a fixed aspect ratio, and compact layouts must preserve every resource
   action when decorative connectors are hidden.

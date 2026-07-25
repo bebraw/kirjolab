@@ -295,10 +295,10 @@ export function renderHomePage(
               </div>
               <p>Focus a resource to trace its direct links.</p>
             </div>
-            <div class="project-map-canvas" id="project-map-canvas">
+            <project-map-panel class="project-map-canvas" id="project-map-canvas">
               <svg id="project-map-graph" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true" focusable="false"></svg>
               <div class="project-map-nodes" id="project-map-nodes" role="group" aria-label="Project resources"></div>
-            </div>
+            </project-map-panel>
             <section class="project-map-connections" aria-labelledby="project-map-connections-heading">
               <div class="project-map-connections-header">
                 <h3 id="project-map-connections-heading">Connections</h3>

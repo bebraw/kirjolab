@@ -3678,6 +3678,7 @@
   }
 
   .project-map-canvas {
+    display: block;
     position: relative;
     min-height: 32rem;
     overflow: hidden;

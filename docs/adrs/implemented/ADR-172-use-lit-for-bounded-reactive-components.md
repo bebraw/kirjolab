@@ -54,6 +54,9 @@ The adopted components own bounded presentation:
 - The assistant result panel owns validated-table previews, clarity input,
   transient revision choices, reference-discovery cards, local save progress,
   and typed continuation, selection, insertion, and save intents.
+- The project map panel owns provenance-lane rendering, measured SVG connector
+  geometry, responsive relayout, focus and hover emphasis, and a typed resource
+  selection intent.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -95,6 +98,10 @@ reason to wrap static markup mechanically.
   local event bindings while leaving model requests, workflow state, candidate
   persistence, document edits, and Library imports in the application
   coordinator.
+- The project map panel replaces three internal element references, two
+  coordinator fields, and imperative node, connector, resize, focus, and hover
+  management while leaving graph derivation and resource navigation in the
+  application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

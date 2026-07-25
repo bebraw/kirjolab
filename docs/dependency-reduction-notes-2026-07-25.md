@@ -420,3 +420,24 @@ table, and reference-discovery workflow. The rebuilt browser application is
 668,018 B raw and 188,591 B gzip, an increase of 3,372 B raw and 1,039 B gzip
 from the writing-workflow checkpoint. Direct and unique production package
 counts remain unchanged.
+
+## Continued Lit Extraction: Project Map
+
+The Project Map now has one bounded `ProjectMapPanel` instead of imperative
+node, lane, connector, resize, focus, and hover management in `WorkspaceApp`.
+The component owns its light-DOM projection, measured SVG geometry, responsive
+relayout, transient emphasis, and typed resource-selection intent. The
+coordinator continues to derive the canonical graph and own navigation.
+
+This checkpoint reduces `src/client/app.ts` from 11,559 to 11,356 lines (-203)
+and removes three internal element references plus two coordinator fields. The
+233-line component keeps connector geometry in the existing pure layout module;
+that module and the component reach 100% and 94.2% statement coverage,
+respectively. The focused evidence-to-prose browser workflow verifies contained,
+non-overlapping cards and connector alignment at desktop and compact widths.
+
+Full native CI passes all 1,216 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 668,968 B raw and
+189,050 B gzip, an increase of 950 B raw and 459 B gzip from the assistant
+results checkpoint. Direct and unique production package counts remain
+unchanged at 18 and 150.
