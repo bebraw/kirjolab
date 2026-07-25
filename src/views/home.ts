@@ -645,6 +645,7 @@ export function renderHomePage(
         </section>
 
         <section class="context-panel context-candidate-panel" id="context-candidate-panel" role="tabpanel" aria-label="Model revision context" tabindex="0" hidden>
+          <candidate-review-panel id="candidate-review-panel">
           <header class="context-resource-header">
             <div class="min-w-0">
               <p class="eyebrow" id="context-candidate-eyebrow">Grounded revision</p>
@@ -680,6 +681,7 @@ export function renderHomePage(
               </div>
             </div>
           </div>
+          </candidate-review-panel>
         </section>
       </section>
   

@@ -118,6 +118,11 @@ All mutation operations preserve a human review boundary.
   `revise-selection-v1` operation shape. Apply and reject remain separate
   authorized candidate actions.
 - Review presents before, after, and navigable evidence together.
+- One bounded candidate-review component owns before/after and provenance
+  presentation, decision readiness and progress, and local scroll state. It
+  emits typed apply, reject, and evidence-navigation intents; candidate
+  applicability, workflow transitions, canonical edits, and source navigation
+  remain with the application coordinator.
 - The operation UI is the permanent Writing assistant Context tab associated
   with the authoring workflow. Passage selection, instruction, and evidence are
   primary; endpoint and model connection fields remain available under

@@ -124,6 +124,7 @@ import {
   referenceDiscoveryIdentifierUrl,
   type AssistantResultActionDetail,
 } from "./assistant-result-panel";
+import { CandidateReviewPanel, candidateDecisionEvent, candidateEvidenceEvent } from "./candidate-review-panel";
 import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
@@ -613,19 +614,7 @@ interface Elements {
   contextPublicationBody: HTMLElement;
   contextPdfPanel: HTMLElement;
   contextCandidatePanel: HTMLElement;
-  contextCandidateScroll: HTMLElement;
-  contextCandidateTitle: HTMLElement;
-  contextCandidateEyebrow: HTMLElement;
-  contextCandidateMeta: HTMLElement;
-  contextCandidateStatus: HTMLElement;
-  contextCandidateBefore: HTMLElement;
-  contextCandidateBeforeLabel: HTMLElement;
-  contextCandidateAfter: HTMLElement;
-  contextCandidateAfterLabel: HTMLElement;
-  contextCandidateEvidenceHeading: HTMLElement;
-  contextCandidateEvidence: HTMLElement;
-  contextCandidateApply: HTMLButtonElement;
-  contextCandidateReject: HTMLButtonElement;
+  candidateReviewPanel: CandidateReviewPanel;
   contextPublicationTitle: HTMLElement;
   contextPublicationMeta: HTMLElement;
   contextPublicationDetails: HTMLElement;
@@ -1461,8 +1450,19 @@ class WorkspaceApp {
     this.#elements.publicationIntakeForm.addEventListener("submit", (event) => void this.#previewPublicationIntake(event));
     this.#elements.publicationIntakeAccept.addEventListener("click", () => void this.#acceptPublicationIntake());
     this.#elements.publicationIntakeCancel.addEventListener("click", () => this.#cancelPublicationIntake());
-    this.#elements.contextCandidateApply.addEventListener("click", () => void this.#updateActiveCandidate("apply"));
-    this.#elements.contextCandidateReject.addEventListener("click", () => void this.#updateActiveCandidate("reject"));
+    this.#elements.candidateReviewPanel.addEventListener(candidateDecisionEvent, (event) => {
+      void this.#updateActiveCandidate((event as CustomEvent<"apply" | "reject">).detail);
+    });
+    this.#elements.candidateReviewPanel.addEventListener(candidateEvidenceEvent, (event) => {
+      const evidence = (event as CustomEvent<ModelEvidence>).detail;
+      if (evidence.kind === "annotation") {
+        const pdf = this.#snapshot?.pdfs.find((item) => item.id === evidence.pdfId);
+        const annotation = this.#snapshot?.annotations.find((item) => item.id === evidence.id);
+        if (pdf && annotation) void this.#showPaper(pdf, evidence.page, evidence.id);
+      } else if (this.#snapshot?.claims.some((claim) => claim.id === evidence.id)) {
+        this.#focusClaimCard(evidence.id);
+      }
+    });
     for (const input of [
       this.#elements.llmConnection,
       this.#elements.llmEndpoint,
@@ -6874,7 +6874,7 @@ class WorkspaceApp {
 
   #resourceContextScrollTop(tab: ResearchContextTab): number {
     if (tab.kind === "publication") return this.#elements.contextPublicationBody.scrollTop;
-    if (tab.kind === "candidate") return this.#elements.contextCandidateScroll.scrollTop;
+    if (tab.kind === "candidate") return this.#elements.candidateReviewPanel.scrollPosition;
     return this.#elements.paperReader.scrollTop;
   }
 
@@ -7054,7 +7054,7 @@ class WorkspaceApp {
     }
     if (activeTab.kind === "candidate") {
       this.#renderCandidateContext(activeTab);
-      this.#elements.contextCandidateScroll.scrollTop = activeTab.scrollTop;
+      this.#elements.candidateReviewPanel.scrollPosition = activeTab.scrollTop;
       return;
     }
     if (activeTab.kind === "pdf") this.#renderPublicationIntake(activeTab.id);
@@ -7324,128 +7324,19 @@ class WorkspaceApp {
     if (tab.kind !== "candidate" || !this.#snapshot) return;
     const candidate = this.#snapshot.candidates.find((item) => item.id === tab.id);
     if (!candidate) return;
-
-    const draftsClaim = candidate.operation === "draft-claim";
-    this.#renderCandidateCopy(candidate, draftsClaim);
-    const applicable = this.#candidateApplicable(candidate);
-    this.#elements.contextCandidateStatus.textContent = this.#candidateStatusText(candidate, draftsClaim, applicable);
-    this.#elements.contextCandidateEvidence.replaceChildren(
-      ...candidate.evidence.map((evidence) => this.#renderCandidateEvidence(evidence)),
-    );
-    this.#renderCandidateActions(candidate, draftsClaim, applicable);
-  }
-
-  #renderCandidateCopy(candidate: ModelCandidate, draftsClaim: boolean): void {
-    this.#elements.contextCandidateEyebrow.textContent = draftsClaim ? "Grounded claim draft" : "Grounded revision";
-    this.#elements.contextCandidateTitle.textContent = draftsClaim ? "Draft evidence-backed claim" : "Revise selected passage";
-    if (candidate.operation === "draft-claim") {
-      this.#elements.contextCandidateMeta.textContent = [
-        candidate.model,
-        candidate.providerLabel,
-        candidate.promptVersion,
-        candidate.relation,
-      ].join(" · ");
-      this.#elements.contextCandidateBefore.textContent = candidate.instruction;
-      this.#elements.contextCandidateAfter.textContent = [candidate.proposedText, candidate.proposedNote].filter(Boolean).join("\n\n");
-    } else {
-      this.#elements.contextCandidateMeta.textContent = [
-        candidate.model,
-        candidate.providerLabel,
-        candidate.promptVersion,
-        `source r${candidate.sourceRevision}`,
-      ].join(" · ");
-      this.#elements.contextCandidateBefore.textContent = candidate.target.anchor.exact;
-      this.#elements.contextCandidateAfter.textContent = candidate.proposedReplacement;
-    }
-    this.#elements.contextCandidateBeforeLabel.textContent = draftsClaim ? "Research instruction" : "Original passage";
-    this.#elements.contextCandidateAfterLabel.textContent = draftsClaim ? "Proposed claim and note" : "Proposed replacement";
-    this.#elements.contextCandidateEvidenceHeading.textContent = draftsClaim
-      ? "Annotations used for this claim"
-      : "Evidence used for this revision";
-  }
-
-  #candidateStatusText(candidate: ModelCandidate, draftsClaim: boolean, applicable: boolean): string {
-    if (candidate.status === "accepted")
-      return draftsClaim
-        ? "Accepted. The proposal became an evidence-backed claim."
-        : "Accepted. The replacement was applied to canonical Markdown.";
-    if (candidate.status === "rejected")
-      return draftsClaim ? "Rejected. No claim was created." : "Rejected. Canonical Markdown was not changed by this candidate.";
-    if (applicable)
-      return draftsClaim
-        ? "Pending review. Applying creates a claim linked to these annotation snapshots."
-        : "Pending review. Applying changes only this exact selected passage.";
-    return draftsClaim
-      ? "Pending but stale. Reject it or draft again from current annotations."
-      : "Pending but stale. Reject it or generate a new revision from current prose and evidence.";
-  }
-
-  #renderCandidateActions(candidate: ModelCandidate, draftsClaim: boolean, applicable: boolean): void {
-    const pending = candidate.status === "pending";
     const candidateDecision = this.#assistantWorkflow.getSnapshot().context.candidateDecision;
     const currentDecision = candidateDecision?.id === candidate.id ? candidateDecision : null;
-    const decisionBusy = candidateDecision !== null;
-    this.#renderCandidateApplyAction(candidate, draftsClaim, applicable, pending, decisionBusy, currentDecision?.action);
-    this.#renderCandidateRejectAction(candidate, draftsClaim, pending, decisionBusy, currentDecision?.action);
-  }
-
-  #renderCandidateApplyAction(
-    candidate: ModelCandidate,
-    draftsClaim: boolean,
-    applicable: boolean,
-    pending: boolean,
-    decisionBusy: boolean,
-    currentAction: "apply" | "reject" | undefined,
-  ): void {
-    this.#elements.contextCandidateApply.dataset.candidateId = candidate.id;
-    this.#elements.contextCandidateApply.dataset.candidateAction = "apply";
-    this.#elements.contextCandidateApply.dataset.candidateApplicable = String(applicable);
-    this.#elements.contextCandidateApply.textContent =
-      currentAction === "apply" ? "Applying…" : draftsClaim ? "Create claim" : "Apply replacement";
-    this.#elements.contextCandidateApply.disabled =
-      decisionBusy || !pending || !applicable || (!draftsClaim && !this.#hasStableDocumentBase());
-  }
-
-  #renderCandidateRejectAction(
-    candidate: ModelCandidate,
-    draftsClaim: boolean,
-    pending: boolean,
-    decisionBusy: boolean,
-    currentAction: "apply" | "reject" | undefined,
-  ): void {
-    this.#elements.contextCandidateReject.dataset.candidateId = candidate.id;
-    this.#elements.contextCandidateReject.textContent =
-      currentAction === "reject" ? "Rejecting…" : draftsClaim ? "Reject claim draft" : "Reject revision";
-    this.#elements.contextCandidateReject.disabled = decisionBusy || !pending;
-  }
-
-  #renderCandidateEvidence(evidence: ModelEvidence): HTMLElement {
-    const card = document.createElement("article");
-    card.className = "resource-card";
-    const title = evidence.kind === "annotation" ? `Annotation · page ${evidence.page}` : "Claim";
-    const content = evidence.kind === "annotation" ? evidence.quote : evidence.text;
-    card.append(resourceLabel(title), resourceTitle(content));
-    const note = document.createElement("p");
-    note.className = "mt-2 font-sans text-xs leading-5 text-app-text-soft";
-    note.textContent = evidence.kind === "annotation" ? evidence.comment || "No researcher note." : evidence.note || "No working note.";
-    card.append(note);
-
-    const action = this.#candidateEvidenceAction(evidence);
-    if (action) card.append(action);
-    return card;
-  }
-
-  #candidateEvidenceAction(evidence: ModelEvidence): HTMLButtonElement | null {
-    if (evidence.kind === "annotation") {
-      const pdf = this.#snapshot?.pdfs.find((item) => item.id === evidence.pdfId);
-      const annotation = this.#snapshot?.annotations.find((item) => item.id === evidence.id);
-      return pdf && annotation
-        ? actionButton("Open evidence", "button-secondary mt-3", () => void this.#showPaper(pdf, evidence.page, evidence.id))
-        : null;
-    }
-    return this.#snapshot?.claims.some((claim) => claim.id === evidence.id)
-      ? actionButton("Open claim", "button-secondary mt-3", () => this.#focusClaimCard(evidence.id))
-      : null;
+    this.#elements.candidateReviewPanel.setCandidate({
+      applicable: this.#candidateApplicable(candidate),
+      availableEvidenceIds: new Set([
+        ...this.#snapshot.annotations.map((annotation) => annotation.id),
+        ...this.#snapshot.claims.map((claim) => claim.id),
+      ]),
+      candidate,
+      ...(currentDecision ? { currentAction: currentDecision.action } : {}),
+      decisionBusy: candidateDecision !== null,
+      stableDocument: this.#hasStableDocumentBase(),
+    });
   }
 
   #candidateApplicable(candidate: ModelCandidate): boolean {
@@ -9000,7 +8891,7 @@ class WorkspaceApp {
     if (current?.status !== "pending" || this.#activeResourceTab()?.id !== candidateId) return;
     const verb = action === "apply" ? "apply" : "reject";
     const subject = current.operation === "draft-claim" ? "claim draft" : "revision";
-    this.#elements.contextCandidateStatus.textContent = `Could not ${verb} ${subject}: ${failure}`;
+    this.#elements.candidateReviewPanel.showFailure(`Could not ${verb} ${subject}: ${failure}`);
   }
 
   async #updateActiveCandidate(action: "apply" | "reject"): Promise<void> {
@@ -10932,19 +10823,7 @@ function collectElements(): Elements {
     contextPublicationBody: requiredElement("context-publication-body", HTMLElement),
     contextPdfPanel: requiredElement("context-pdf-panel", HTMLElement),
     contextCandidatePanel: requiredElement("context-candidate-panel", HTMLElement),
-    contextCandidateScroll: requiredElement("context-candidate-scroll", HTMLElement),
-    contextCandidateEyebrow: requiredElement("context-candidate-eyebrow", HTMLElement),
-    contextCandidateTitle: requiredElement("context-candidate-title", HTMLElement),
-    contextCandidateMeta: requiredElement("context-candidate-meta", HTMLElement),
-    contextCandidateStatus: requiredElement("context-candidate-status", HTMLElement),
-    contextCandidateBefore: requiredElement("context-candidate-before", HTMLElement),
-    contextCandidateBeforeLabel: requiredElement("context-candidate-before-label", HTMLElement),
-    contextCandidateAfter: requiredElement("context-candidate-after", HTMLElement),
-    contextCandidateAfterLabel: requiredElement("context-candidate-after-label", HTMLElement),
-    contextCandidateEvidenceHeading: requiredElement("context-candidate-evidence-heading", HTMLElement),
-    contextCandidateEvidence: requiredElement("context-candidate-evidence", HTMLElement),
-    contextCandidateApply: requiredElement("context-candidate-apply", HTMLButtonElement),
-    contextCandidateReject: requiredElement("context-candidate-reject", HTMLButtonElement),
+    candidateReviewPanel: requiredElement("candidate-review-panel", CandidateReviewPanel),
     contextPublicationTitle: requiredElement("context-publication-title", HTMLElement),
     contextPublicationMeta: requiredElement("context-publication-meta", HTMLElement),
     contextPublicationDetails: requiredElement("context-publication-details", HTMLElement),

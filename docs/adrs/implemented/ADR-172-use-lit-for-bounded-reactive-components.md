@@ -57,6 +57,9 @@ The adopted components own bounded presentation:
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.
+- The candidate review panel owns before/after and provenance rendering,
+  decision availability and progress, local scroll state, and typed apply,
+  reject, and evidence-navigation intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -102,6 +105,10 @@ reason to wrap static markup mechanically.
   coordinator fields, and imperative node, connector, resize, focus, and hover
   management while leaving graph derivation and resource navigation in the
   application coordinator.
+- The candidate review panel replaces thirteen internal element references and
+  the coordinator's candidate-copy, status, evidence, and action renderers while
+  leaving applicability checks, workflow transitions, canonical mutations, and
+  evidence navigation in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

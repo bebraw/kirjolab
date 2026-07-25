@@ -2520,6 +2520,13 @@
     display: flex;
   }
 
+  .context-candidate-panel > candidate-review-panel {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
   .context-preview-panel .preview-scroll {
     min-height: 0;
     flex: 1;

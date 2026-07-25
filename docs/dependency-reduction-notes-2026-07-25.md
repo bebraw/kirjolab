@@ -441,3 +441,25 @@ and 74 browser tests. The rebuilt browser application is 668,968 B raw and
 189,050 B gzip, an increase of 950 B raw and 459 B gzip from the assistant
 results checkpoint. Direct and unique production package counts remain
 unchanged at 18 and 150.
+
+## Continued Lit Extraction: Candidate Review
+
+Grounded revision and claim-draft review now use one bounded
+`CandidateReviewPanel` instead of thirteen candidate-specific element
+references and separate imperative copy, status, evidence, and action
+renderers. The component owns before/after and provenance presentation,
+decision readiness and progress, local scroll state, and typed apply, reject,
+and evidence-navigation intents. `WorkspaceApp` retains applicability checks,
+XState transitions, canonical mutations, failure policy, and source navigation.
+
+This checkpoint reduces `src/client/app.ts` from 11,356 to 11,235 lines (-121).
+The 214-line component reaches 93.47% statement coverage and 95.23% line
+coverage across revision, claim-draft, terminal, stale, busy, failure, scroll,
+and intent states. Focused browser workflows pass for stale rejection, exact
+revision application, claim creation, and evidence navigation.
+
+Full native CI passes all 1,220 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 671,878 B raw and
+189,811 B gzip, an increase of 2,910 B raw and 761 B gzip from the project-map
+checkpoint. Direct and unique production package counts remain unchanged at 18
+and 150.
