@@ -15,6 +15,10 @@ explain the response, and identify the manuscript change.
   response, and change sections.
 - Writing guide derives status cards and generates a clean Markdown response
   letter without changing the matrix.
+- A reused writing-workflow component adapts the portable Markdown into guide
+  items and owns their count, empty state, action labels, and typed open,
+  download, and source-selection intents. The application coordinator retains
+  file creation, response-letter export, and source navigation.
 
 ### Anti-Patterns
 

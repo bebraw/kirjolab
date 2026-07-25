@@ -13,12 +13,7 @@ import { isCitationExpansionResult } from "../domain/citation-expansion";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
 import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
-import {
-  parseReviewerResponses,
-  reviewerResponseLetter,
-  reviewerResponsePath,
-  reviewerResponseTemplate,
-} from "../domain/reviewer-response";
+import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
   collaborationProtocolVersion,
   encodeClientSelectionMessage,
@@ -50,7 +45,7 @@ import type { Diagnostic, RenderedDocument } from "../domain/markdown";
 import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
 import { suggestCitationKey } from "../domain/publication-intake";
 import { isPhrasingPurposeId, phrasingPatternsForPurpose, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
-import { parseResearchQuestions, researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
+import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate, summarizeResearchDiary } from "../domain/writing-workflows";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import {
@@ -116,6 +111,13 @@ import {
   type WorkspaceSharingActionDetail,
 } from "./workspace-sharing-panel";
 import { WorkspaceCatalogPanel, workspaceCatalogCloseEvent } from "./workspace-catalog-panel";
+import {
+  researchQuestionWorkflowData,
+  reviewerResponseWorkflowData,
+  WritingWorkflowPanel,
+  writingWorkflowActionEvent,
+  type WritingWorkflowActionDetail,
+} from "./writing-workflow-panel";
 import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 import {
@@ -518,16 +520,11 @@ interface Elements {
   researchDiaryEntryCount: HTMLElement;
   researchDiarySummary: HTMLElement;
   openResearchDiary: HTMLButtonElement;
-  researchQuestionCount: HTMLElement;
-  researchQuestionList: HTMLElement;
-  openResearchQuestions: HTMLButtonElement;
+  researchQuestionPanel: WritingWorkflowPanel;
   editingPass: HTMLSelectElement;
   editingPassCueCount: HTMLElement;
   editingPassCues: HTMLElement;
-  reviewerResponseCount: HTMLElement;
-  reviewerResponseList: HTMLElement;
-  openReviewerResponse: HTMLButtonElement;
-  downloadReviewerResponse: HTMLButtonElement;
+  reviewerResponsePanel: WritingWorkflowPanel;
   newProjectFileRail: HTMLButtonElement;
   newProjectFolderRail: HTMLButtonElement;
   uploadProjectImages: HTMLButtonElement;
@@ -1231,10 +1228,12 @@ class WorkspaceApp {
     this.#elements.showCommentsRail.addEventListener("click", () => this.#showRail("comments"));
     this.#elements.showGuideRail.addEventListener("click", () => this.#showRail("guide"));
     this.#elements.openResearchDiary.addEventListener("click", () => void this.#openResearchDiary());
-    this.#elements.openResearchQuestions.addEventListener("click", () => void this.#openResearchQuestions());
     this.#elements.editingPass.addEventListener("change", () => this.#renderEditingPass(this.#currentComposedSource()));
-    this.#elements.openReviewerResponse.addEventListener("click", () => void this.#openReviewerResponse());
-    this.#elements.downloadReviewerResponse.addEventListener("click", () => this.#downloadReviewerResponse());
+    for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
+      panel.addEventListener(writingWorkflowActionEvent, (event) => {
+        void this.#handleWritingWorkflowAction((event as CustomEvent<WritingWorkflowActionDetail>).detail);
+      });
+    }
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
     this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingCloseEvent, () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingInviteEvent, (event) => {
@@ -3110,30 +3109,7 @@ class WorkspaceApp {
 
   #renderReviewerResponses(): void {
     const file = this.#previewProjectFiles().find((candidate) => candidate.path === reviewerResponsePath);
-    const responses = file ? parseReviewerResponses(file.content) : [];
-    this.#elements.openReviewerResponse.textContent = file ? "Open matrix" : "Start matrix";
-    this.#elements.downloadReviewerResponse.disabled = !file || responses.length === 0;
-    this.#elements.reviewerResponseCount.textContent = String(responses.length);
-    this.#elements.reviewerResponseList.replaceChildren();
-    if (!file) {
-      this.#elements.reviewerResponseList.append(emptyState("Track external review feedback separately from collaborator comments."));
-      return;
-    }
-    if (responses.length === 0) this.#elements.reviewerResponseList.append(emptyState("Add an ## R1.1: … heading to the matrix."));
-    for (const response of responses) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "manuscript-map-item";
-      const label = document.createElement("span");
-      const id = document.createElement("strong");
-      id.textContent = `${response.id} · `;
-      label.append(id, response.summary);
-      const meta = document.createElement("small");
-      meta.textContent = `${response.status} · ${response.manuscriptLinks.length} links`;
-      button.append(label, meta);
-      button.addEventListener("click", () => this.#focusProjectRange(file.id, response.from, response.to));
-      this.#elements.reviewerResponseList.append(button);
-    }
+    this.#elements.reviewerResponsePanel.setData(reviewerResponseWorkflowData(file));
   }
 
   #renderEditingPass(source: string): void {
@@ -3164,29 +3140,7 @@ class WorkspaceApp {
 
   #renderResearchQuestions(): void {
     const file = this.#previewProjectFiles().find((candidate) => candidate.path === researchQuestionsPath);
-    this.#elements.openResearchQuestions.textContent = file ? "Open question ledger" : "Start question ledger";
-    const questions = file ? parseResearchQuestions(file.content) : [];
-    this.#elements.researchQuestionCount.textContent = String(questions.length);
-    this.#elements.researchQuestionList.replaceChildren();
-    if (!file) {
-      this.#elements.researchQuestionList.append(emptyState("Record the study's questions, methods, and manuscript coverage."));
-      return;
-    }
-    if (questions.length === 0) this.#elements.researchQuestionList.append(emptyState("Add an ## RQ1: … heading to the ledger."));
-    for (const question of questions) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "manuscript-map-item";
-      const label = document.createElement("span");
-      const id = document.createElement("strong");
-      id.textContent = `${question.id} · `;
-      label.append(id, question.question);
-      const meta = document.createElement("small");
-      meta.textContent = `${question.status} · ${question.sections.length}s · ${question.claims.length}c`;
-      button.append(label, meta);
-      button.addEventListener("click", () => this.#focusProjectRange(file.id, question.from, question.to));
-      this.#elements.researchQuestionList.append(button);
-    }
+    this.#elements.researchQuestionPanel.setData(researchQuestionWorkflowData(file));
   }
 
   #renderResearchDiarySummary(): void {
@@ -3238,6 +3192,19 @@ class WorkspaceApp {
     if (!file) return;
     downloadTextFile("response-to-reviewers.md", reviewerResponseLetter(file.content));
     this.#showToast("Response letter exported.");
+  }
+
+  async #handleWritingWorkflowAction(detail: WritingWorkflowActionDetail): Promise<void> {
+    if (detail.action === "select") {
+      this.#focusProjectRange(detail.fileId, detail.from, detail.to);
+      return;
+    }
+    if (detail.action === "download") {
+      this.#downloadReviewerResponse();
+      return;
+    }
+    if (detail.kind === "research-questions") await this.#openResearchQuestions();
+    else await this.#openReviewerResponse();
   }
 
   async #createWorkflowFile(path: string, content: string): Promise<void> {
@@ -11185,16 +11152,11 @@ function collectElements(): Elements {
     researchDiaryEntryCount: requiredElement("research-diary-entry-count", HTMLElement),
     researchDiarySummary: requiredElement("research-diary-summary", HTMLElement),
     openResearchDiary: requiredElement("open-research-diary", HTMLButtonElement),
-    researchQuestionCount: requiredElement("research-question-count", HTMLElement),
-    researchQuestionList: requiredElement("research-question-list", HTMLElement),
-    openResearchQuestions: requiredElement("open-research-questions", HTMLButtonElement),
+    researchQuestionPanel: requiredElement("research-question-panel", WritingWorkflowPanel),
     editingPass: requiredElement("editing-pass", HTMLSelectElement),
     editingPassCueCount: requiredElement("editing-pass-cue-count", HTMLElement),
     editingPassCues: requiredElement("editing-pass-cues", HTMLElement),
-    reviewerResponseCount: requiredElement("reviewer-response-count", HTMLElement),
-    reviewerResponseList: requiredElement("reviewer-response-list", HTMLElement),
-    openReviewerResponse: requiredElement("open-reviewer-response", HTMLButtonElement),
-    downloadReviewerResponse: requiredElement("download-reviewer-response", HTMLButtonElement),
+    reviewerResponsePanel: requiredElement("reviewer-response-panel", WritingWorkflowPanel),
     newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
     newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
     uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),

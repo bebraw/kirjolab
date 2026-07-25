@@ -193,13 +193,15 @@ export function renderHomePage(
               <div class="mt-3 grid gap-2" id="editing-pass-cues"></div>
             </div>
           </details>
-          <details class="rail-collection mt-4" open>
-            <summary><span>Research questions</span><span class="count-badge" id="research-question-count">0</span></summary>
-            <div class="rail-collection-body">
-              <div class="grid gap-2" id="research-question-list"></div>
-              <button class="button-secondary mt-3 w-full justify-center" id="open-research-questions" type="button">Start question ledger</button>
-            </div>
-          </details>
+          <writing-workflow-panel id="research-question-panel" data-workflow-kind="research-questions">
+            <details class="rail-collection mt-4" open>
+              <summary><span>Research questions</span><span class="count-badge" id="research-question-count">0</span></summary>
+              <div class="rail-collection-body">
+                <div class="grid gap-2" id="research-question-list"></div>
+                <button class="button-secondary mt-3 w-full justify-center" id="open-research-questions" type="button">Start question ledger</button>
+              </div>
+            </details>
+          </writing-workflow-panel>
           <details class="rail-collection mt-4" open>
             <summary><span>Research diary</span><span class="count-badge" id="research-diary-entry-count">0</span></summary>
             <div class="rail-collection-body">
@@ -207,16 +209,18 @@ export function renderHomePage(
               <button class="button-secondary mt-3 w-full justify-center" id="open-research-diary" type="button">Start diary</button>
             </div>
           </details>
-          <details class="rail-collection mt-4" open>
-            <summary><span>Reviewer responses</span><span class="count-badge" id="reviewer-response-count">0</span></summary>
-            <div class="rail-collection-body">
-              <div class="grid gap-2" id="reviewer-response-list"></div>
-              <div class="mt-3 grid grid-cols-2 gap-2">
-                <button class="button-secondary justify-center" id="open-reviewer-response" type="button">Start matrix</button>
-                <button class="button-secondary justify-center" id="download-reviewer-response" type="button" disabled>Export letter</button>
+          <writing-workflow-panel id="reviewer-response-panel" data-workflow-kind="reviewer-responses">
+            <details class="rail-collection mt-4" open>
+              <summary><span>Reviewer responses</span><span class="count-badge" id="reviewer-response-count">0</span></summary>
+              <div class="rail-collection-body">
+                <div class="grid gap-2" id="reviewer-response-list"></div>
+                <div class="mt-3 grid grid-cols-2 gap-2">
+                  <button class="button-secondary justify-center" id="open-reviewer-response" type="button">Start matrix</button>
+                  <button class="button-secondary justify-center" id="download-reviewer-response" type="button" disabled>Export letter</button>
+                </div>
               </div>
-            </div>
-          </details>
+            </details>
+          </writing-workflow-panel>
         </section>
       </aside>
 

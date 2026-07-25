@@ -48,6 +48,9 @@ The adopted components own bounded presentation:
   rendering, metadata labels, focus reset, and a typed close intent.
 - The project history panel owns timeline, comparison controls, busy and error
   states, revision cards, inspectors, and typed revision-operation intents.
+- Reused writing-workflow panels own research-question and reviewer-response
+  Markdown-to-item adaptation, counts, empty states, action labels, and typed
+  open, download, and source-selection intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -82,6 +85,9 @@ reason to wrap static markup mechanically.
   coordinator's timeline/inspector DOM assembly while leaving its XState actor,
   fetches, confirmations, mutations, reloads, and navigation in the
   application coordinator.
+- The writing-workflow panels replace five internal element references and two
+  parallel imperative list renderers while leaving file creation, response
+  export, and source navigation in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

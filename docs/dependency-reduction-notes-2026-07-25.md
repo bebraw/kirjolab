@@ -375,3 +375,22 @@ operations. Full native CI passes all 1,202 unit/coverage tests, 120
 Workers-runtime tests, and 73 browser tests. The rebuilt browser application is
 663,150 B raw and 187,028 B gzip, an increase of 2,983 B raw and 1,084 B gzip
 from the catalog checkpoint; dependency counts remain unchanged.
+
+## Continued Lit Extraction: Writing Workflow Outlines
+
+Research questions and reviewer responses now reuse one bounded
+`WritingWorkflowPanel` rather than maintaining parallel imperative list
+renderers. Two instances own Markdown-to-item presentation adaptation, counts,
+empty states, action labels, download readiness, and typed open, download, and
+source-selection intents. `WorkspaceApp` retains workflow-file creation,
+response-letter export, and source navigation.
+
+This checkpoint reduces `src/client/app.ts` from 11,703 to 11,665 lines (-38)
+and replaces five internal element references with two component references.
+The shared component adds 194 lines and reaches 92.5% statement coverage across
+both workflow kinds, missing and empty states, populated lists, and every
+intent. A focused browser workflow passes through creation and rendering of
+both portable ledgers. Full native CI passes all 1,205 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests. The rebuilt browser application is
+664,646 B raw and 187,552 B gzip, an increase of 1,496 B raw and 524 B gzip
+from the history checkpoint; dependency counts remain unchanged.

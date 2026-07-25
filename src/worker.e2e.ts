@@ -4557,6 +4557,21 @@ test("gates GitHub project import behind a user connection", async ({ page }) =>
   await expect(page.getByRole("link", { name: "Connect GitHub" })).toBeVisible();
 });
 
+test("opens portable research-question and reviewer-response ledgers", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Writing workflows");
+  await page.goto(`/editor/${workspaceId}`);
+  await page.getByRole("tab", { name: "Writing guide" }).click();
+
+  await page.locator("#open-research-questions").click();
+  await expect(page.locator("#source-editor")).toHaveValue(/# Research questions/u);
+  await expect(page.locator("#research-question-list")).toContainText("RQ1");
+
+  await page.locator("#open-reviewer-response").click();
+  await expect(page.locator("#source-editor")).toHaveValue(/# Reviewer response matrix/u);
+  await expect(page.locator("#reviewer-response-list")).toContainText("R1.1");
+  await expect(page.locator("#download-reviewer-response")).toBeEnabled();
+});
+
 test("names, compares, restores, and branches immutable project revisions", async ({ page, browser }) => {
   const workspaceId = await createWorkspace(page, "Revision workflow");
   const api = `/api/workspaces/${workspaceId}`;
