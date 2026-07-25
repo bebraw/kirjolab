@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createPrivateKey } from "node:crypto";
-import { createGitHubAppJwt, GitHubAppClient, GitHubClientError, normalizeGitHubRoot, type GitHubRepositorySelection } from "./github-app";
+import { GitHubAppClient, GitHubClientError, normalizeGitHubRoot, type GitHubRepositorySelection } from "./github-app";
 
 const commitA = "a".repeat(40);
 const commitB = "b".repeat(40);
@@ -17,7 +17,6 @@ const selection: GitHubRepositorySelection = {
 };
 
 let privateKey = "";
-let publicKey: CryptoKey;
 
 beforeAll(async () => {
   const pair = (await crypto.subtle.generateKey(
@@ -25,33 +24,17 @@ beforeAll(async () => {
     true,
     ["sign", "verify"],
   )) as CryptoKeyPair;
-  publicKey = pair.publicKey;
   privateKey = pem("PRIVATE KEY", new Uint8Array((await crypto.subtle.exportKey("pkcs8", pair.privateKey)) as ArrayBuffer));
 });
 
 describe("GitHub App integration", () => {
-  it("creates a short-lived RS256 app JWT", async () => {
-    const now = Date.UTC(2026, 6, 16, 12);
-    const token = await createGitHubAppJwt("12345", privateKey, now);
-    const parts = token.split(".");
-    expect(parts).toHaveLength(3);
-    const [header = "", payload = "", signature = ""] = parts;
-    expect(decodeJson(header)).toEqual({ alg: "RS256", typ: "JWT" });
-    expect(decodeJson(payload)).toEqual({ iat: now / 1_000 - 60, exp: now / 1_000 + 540, iss: "12345" });
-    await expect(
-      crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, decodeBase64Url(signature), new TextEncoder().encode(`${header}.${payload}`)),
-    ).resolves.toBe(true);
-  });
-
-  it("imports the supported PKCS#1 RSA private-key form", async () => {
+  it("delegates PKCS#1 App authentication to Octokit", async () => {
     const pkcs1 = createPrivateKey(privateKey).export({ type: "pkcs1", format: "pem" }).toString();
-    const token = await createGitHubAppJwt("12345", pkcs1, Date.UTC(2026, 6, 16, 12));
-    const [header = "", payload = "", signature = ""] = token.split(".");
+    const fetcher = snapshotFetcher();
+    const client = new GitHubAppClient({ appId: "12345", privateKey: pkcs1, apiBase: "https://github.test" }, fetcher);
 
-    expect(decodeJson(header)).toEqual({ alg: "RS256", typ: "JWT" });
-    await expect(
-      crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, decodeBase64Url(signature), new TextEncoder().encode(`${header}.${payload}`)),
-    ).resolves.toBe(true);
+    await expect(client.readMarkdownSnapshot(selection)).resolves.toMatchObject({ repositoryId: 99 });
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({ authorization: expect.stringMatching(/^bearer /iu) });
   });
 
   it("reads only bounded Markdown blobs below the selected root", async () => {
@@ -102,7 +85,7 @@ describe("GitHub App integration", () => {
         ],
       });
       expect(fetcher).toHaveBeenCalledTimes(7);
-      expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({ authorization: expect.stringMatching(/^Bearer /u) });
+      expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({ authorization: expect.stringMatching(/^bearer /iu) });
       expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
       expect(fetcher.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ repository_ids: [99] }));
       expect(fetcher.mock.calls[6]?.[1]?.headers).toMatchObject({ authorization: `Bearer ${"t".repeat(20)}` });
@@ -166,7 +149,7 @@ describe("GitHub App integration", () => {
     expect(normalizeGitHubRoot("book\\site")).toBeNull();
   });
 
-  it("rejects invalid configuration, JWT credentials, and repository selections before network access", async () => {
+  it("rejects invalid configuration, App credentials, and repository selections before repository access", async () => {
     for (const config of [
       { appId: "", privateKey },
       { appId: "123", privateKey: "" },
@@ -177,15 +160,18 @@ describe("GitHub App integration", () => {
     expect(() => new GitHubAppClient({ appId: "123", privateKey, apiBase: "prefix-http://github.test" })).toThrow(
       "GitHub API base URL is invalid",
     );
-    await expect(createGitHubAppJwt("not-numeric", privateKey)).rejects.toMatchObject({
-      name: "GitHubClientError",
-      code: "configuration",
-      message: "GitHub App credentials are not configured",
-    });
-    await expect(createGitHubAppJwt("123", "not a key")).rejects.toMatchObject({
+    expect(() => new GitHubAppClient({ appId: "not-numeric", privateKey })).toThrow("GitHub App credentials are not configured");
+    const invalidKeyFetcher = vi.fn(async () => new Response(null, { status: 500 }));
+    await expect(
+      new GitHubAppClient(
+        { appId: "123", privateKey: "not a key", apiBase: "https://github.test" },
+        invalidKeyFetcher,
+      ).readMarkdownSnapshot(selection),
+    ).rejects.toMatchObject({
       code: "configuration",
       message: "GitHub App private key is invalid",
     });
+    expect(invalidKeyFetcher).not.toHaveBeenCalled();
 
     const fetcher = vi.fn(async () => new Response(null, { status: 500 }));
     const client = new GitHubAppClient({ appId: "12345", privateKey, apiBase: "https://github.test/" }, fetcher);
@@ -533,16 +519,7 @@ describe("GitHub App integration", () => {
     expect(new GitHubClientError("bounds", "Bounded")).toMatchObject({ status: null });
   });
 
-  it("accepts exact JWT and commit boundaries while rejecting adjacent values", async () => {
-    const now = Date.UTC(2026, 6, 16, 12);
-    await expect(createGitHubAppJwt(` ${"1".repeat(20)} `, privateKey, now)).resolves.toEqual(
-      expect.stringMatching(/^[^.]+\.[^.]+\.[^.]+$/u),
-    );
-    await expect(createGitHubAppJwt("1".repeat(21), privateKey, now)).rejects.toMatchObject({
-      code: "configuration",
-      message: "GitHub App credentials are not configured",
-    });
-
+  it("accepts exact commit boundaries while rejecting adjacent values", async () => {
     const fetcher = commitFetcher(200, () => commitA);
     const client = new GitHubAppClient({ appId: "12345", privateKey, apiBase: "https://github.test" }, fetcher);
     await expect(
@@ -645,18 +622,6 @@ function encodeBase64(value: Uint8Array): string {
   return btoa(binary);
 }
 
-function decodeBase64Url(value: string): Uint8Array {
-  const base64 = value
-    .replaceAll("-", "+")
-    .replaceAll("_", "/")
-    .padEnd(Math.ceil(value.length / 4) * 4, "=");
-  return Uint8Array.from(atob(base64), (character) => character.codePointAt(0) ?? 0);
-}
-
-function decodeJson(value: string): unknown {
-  return JSON.parse(new TextDecoder().decode(decodeBase64Url(value))) as unknown;
-}
-
 function snapshotFetcher(overrides: Readonly<Record<string, () => Response>> = {}) {
   const markdown = "# Main\n";
   const defaults: Record<string, () => Response> = {
@@ -672,7 +637,7 @@ function snapshotFetcher(overrides: Readonly<Record<string, () => Response>> = {
     [`/repos/bebraw/scalability_book/git/blobs/${commitC}`]: () =>
       Response.json({ encoding: "base64", content: btoa(markdown), size: markdown.length }),
   };
-  return vi.fn(async (input: RequestInfo | URL) => {
+  return vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const path = new URL(String(input)).pathname;
     return (overrides[path] ?? defaults[path] ?? (() => new Response(null, { status: 500 })))();
   });

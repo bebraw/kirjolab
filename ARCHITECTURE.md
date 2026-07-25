@@ -50,6 +50,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Keep import creation, bound-workspace synchronization, and their shared
   transport/error contracts in separate server modules; callers depend only on
   the phase they invoke.
+  Delegate GitHub App JWT signing and private-key handling to pinned
+  `@octokit/auth-app`, but keep installation-token exchange bounded and
+  request-scoped. Do not retain request-bound installation authentication
+  promises in Worker module state.
 - Import LaTeX archives only through a bounded, authenticated Worker workflow
   that separates non-mutating inspection from reviewed project creation. Keep
   Markdown canonical; never retain TeX as a second editable authority or

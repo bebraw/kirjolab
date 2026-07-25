@@ -72,6 +72,11 @@ incoming and outgoing mutation.
 - The first slice requests GitHub App repository Metadata read and Contents
   read/write permissions. Pull-request write permission is deferred until an
   optional publish-for-review workflow is implemented.
+- GitHub App JWT signing and supported private-key parsing are delegated to
+  pinned `@octokit/auth-app`. Installation-token exchange, bounded response
+  reading, injected transport, stable error projection, and repository domain
+  checks remain request-scoped Kirjolab responsibilities; installation
+  authentication promises must not be shared through Worker module state.
 
 ### API Contracts
 

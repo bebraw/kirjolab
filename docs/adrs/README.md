@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-171](./implemented/ADR-171-delegate-github-app-signing.md)                           | Implemented          | Delegate App JWT signing while keeping installation exchange bounded and request-local.                       |
 | [ADR-170](./implemented/ADR-170-use-valibot-at-trust-boundaries.md)                       | Implemented          | Use inferred Valibot schemas selectively at bounded trust boundaries.                                         |
 | [ADR-168](./implemented/ADR-168-instantiate-from-existing-projects.md)                    | Implemented          | Instantiate a new project directly from an authorized existing project's sanitized current structure.         |
 | [ADR-156](./implemented/ADR-156-keep-bibtex-at-interoperability-boundaries.md)            | Implemented          | Remove BibTeX from ordinary project UI while preserving explicit import and export boundaries.                |

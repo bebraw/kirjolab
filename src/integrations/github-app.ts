@@ -1,3 +1,5 @@
+import { createAppAuth } from "@octokit/auth-app";
+
 export interface GitHubAppConfig {
   readonly appId: string;
   readonly privateKey: string;
@@ -73,10 +75,15 @@ const githubApiVersion = "2022-11-28";
 export class GitHubAppClient {
   readonly #config: GitHubAppConfig;
   readonly #fetch: FetchExternal;
+  readonly #auth: ReturnType<typeof createAppAuth>;
 
   constructor(config: GitHubAppConfig, fetchExternal: FetchExternal = (input, init) => fetch(input, init)) {
     this.#config = validateConfig(config);
     this.#fetch = fetchExternal;
+    this.#auth = createAppAuth({
+      appId: this.#config.appId,
+      privateKey: this.#config.privateKey,
+    });
   }
 
   async readMarkdownSnapshot(selection: GitHubRepositorySelection): Promise<GitHubRepositorySnapshot> {
@@ -265,7 +272,12 @@ export class GitHubAppClient {
     if (repositoryId !== undefined && !isPositiveInteger(repositoryId)) {
       throw new GitHubClientError("bounds", "GitHub repository id is invalid");
     }
-    const jwt = await createGitHubAppJwt(this.#config.appId, this.#config.privateKey);
+    let jwt: string;
+    try {
+      jwt = (await this.#auth({ type: "app" })).token;
+    } catch {
+      throw new GitHubClientError("configuration", "GitHub App private key is invalid");
+    }
     const value = await this.#request(jwt, `/app/installations/${installationId}/access_tokens`, {
       method: "POST",
       ...(repositoryId === undefined ? {} : { body: JSON.stringify({ repository_ids: [repositoryId] }) }),
@@ -299,26 +311,6 @@ export class GitHubAppClient {
   }
 }
 
-export async function createGitHubAppJwt(appId: string, privateKey: string, now = Date.now()): Promise<string> {
-  if (!/^\d{1,20}$/u.test(appId.trim()) || !privateKey.trim()) {
-    throw new GitHubClientError("configuration", "GitHub App credentials are not configured");
-  }
-  const header = encodeJson({ alg: "RS256", typ: "JWT" });
-  const seconds = Math.floor(now / 1_000);
-  const payload = encodeJson({ iat: seconds - 60, exp: seconds + 540, iss: appId.trim() });
-  const input = `${header}.${payload}`;
-  let key: CryptoKey;
-  try {
-    key = await crypto.subtle.importKey("pkcs8", pemPrivateKey(privateKey), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, [
-      "sign",
-    ]);
-  } catch {
-    throw new GitHubClientError("configuration", "GitHub App private key is invalid");
-  }
-  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(input));
-  return `${input}.${encodeBase64Url(new Uint8Array(signature))}`;
-}
-
 export function normalizeGitHubRoot(value: string): string | null {
   const trimmed = value.trim().replace(/^\/+|\/+$/gu, "");
   if (!trimmed) return "";
@@ -326,7 +318,7 @@ export function normalizeGitHubRoot(value: string): string | null {
 }
 
 function validateConfig(config: GitHubAppConfig): GitHubAppConfig {
-  if (!config.appId.trim() || !config.privateKey.trim()) {
+  if (!/^\d{1,20}$/u.test(config.appId.trim()) || !config.privateKey.trim()) {
     throw new GitHubClientError("configuration", "GitHub App credentials are not configured");
   }
   const apiBase = config.apiBase?.replace(/\/+$/u, "");
@@ -447,66 +439,6 @@ async function readBoundedText(response: Response, maximumBytes: number): Promis
     offset += chunk.byteLength;
   }
   return new TextDecoder().decode(bytes);
-}
-
-function pemPrivateKey(value: string): ArrayBuffer {
-  const normalized = value.includes("\n") ? value : value.replaceAll("\\n", "\n");
-  const pkcs8 = /-----BEGIN PRIVATE KEY-----([\s\S]+?)-----END PRIVATE KEY-----/u.exec(normalized)?.[1];
-  if (pkcs8) return exactArrayBuffer(decodeBase64(pkcs8.replaceAll(/\s/gu, "")));
-  const pkcs1 = /-----BEGIN RSA PRIVATE KEY-----([\s\S]+?)-----END RSA PRIVATE KEY-----/u.exec(normalized)?.[1];
-  if (!pkcs1) throw new Error("Unsupported private key PEM");
-  return exactArrayBuffer(wrapPkcs1AsPkcs8(decodeBase64(pkcs1.replaceAll(/\s/gu, ""))));
-}
-
-function exactArrayBuffer(value: Uint8Array): ArrayBuffer {
-  return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength) as ArrayBuffer;
-}
-
-function wrapPkcs1AsPkcs8(pkcs1: Uint8Array): Uint8Array {
-  const version = new Uint8Array([0x02, 0x01, 0x00]);
-  const rsaAlgorithm = new Uint8Array([0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00]);
-  return derSequence(concatenate(version, rsaAlgorithm, derValue(0x04, pkcs1)));
-}
-
-function derSequence(value: Uint8Array): Uint8Array {
-  return derValue(0x30, value);
-}
-
-function derValue(tag: number, value: Uint8Array): Uint8Array {
-  return concatenate(new Uint8Array([tag]), derLength(value.byteLength), value);
-}
-
-function derLength(length: number): Uint8Array {
-  if (length < 128) return new Uint8Array([length]);
-  const bytes: number[] = [];
-  for (let remaining = length; remaining > 0; remaining = Math.floor(remaining / 256)) bytes.unshift(remaining % 256);
-  return new Uint8Array([0x80 | bytes.length, ...bytes]);
-}
-
-function concatenate(...values: readonly Uint8Array[]): Uint8Array {
-  const result = new Uint8Array(values.reduce((total, value) => total + value.byteLength, 0));
-  let offset = 0;
-  for (const value of values) {
-    result.set(value, offset);
-    offset += value.byteLength;
-  }
-  return result;
-}
-
-function encodeJson(value: Readonly<Record<string, string | number>>): string {
-  return encodeBase64Url(new TextEncoder().encode(JSON.stringify(value)));
-}
-
-function encodeBase64Url(value: Uint8Array): string {
-  return encodeBase64(value).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
-}
-
-function encodeBase64(value: Uint8Array): string {
-  let binary = "";
-  for (let offset = 0; offset < value.length; offset += 0x8000) {
-    binary += String.fromCharCode(...value.subarray(offset, offset + 0x8000));
-  }
-  return btoa(binary);
 }
 
 function decodeBase64(value: string): Uint8Array {
