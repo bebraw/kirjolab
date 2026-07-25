@@ -1744,3 +1744,21 @@ The browser application artifact grows from 775,339 B raw / 210,098 B gzip to
 unique production package counts remain unchanged at 135,362 B raw / 23,360 B
 gzip and 18 and 150. Full native CI passes all 1,357 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Consolidation: Publication Collection
+
+The existing `PublicationListPanel` now owns the complete References collection
+shell and derives its count from the same publication data used for cards.
+`WorkspaceApp` retains context navigation, Library navigation, and enrichment
+authority.
+
+This checkpoint reduces `src/client/app.ts` from 7,660 to 7,657 lines (-3) and
+removes the separate publication-count reference and mutation. The focused
+publication-context browser workflow passes collection expansion, Library
+management, context restoration, and PDF linking.
+
+The browser application artifact grows from 776,157 B raw / 210,192 B gzip to
+776,247 B raw / 210,227 B gzip (+90 B raw / +35 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,362 B raw / 23,360 B
+gzip and 18 and 150. Full native CI passes all 1,357 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

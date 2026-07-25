@@ -158,12 +158,12 @@ export function renderHomePage(
                 <div class="rail-collection-body" id="claim-list"><div class="empty-state">No claims yet.</div></div>
               </claim-list-panel>
             </details>
-            <details class="rail-collection">
-              <summary><span>References</span><span class="count-badge" id="publication-count">0</span></summary>
-              <publication-list-panel id="publication-list-panel">
+            <publication-list-panel id="publication-list-panel">
+              <details class="rail-collection">
+                <summary><span>References</span><span class="count-badge" id="publication-count">0</span></summary>
                 <div class="rail-collection-body" id="publication-list"><div class="empty-state">No project references yet.</div></div>
-              </publication-list-panel>
-            </details>
+              </details>
+            </publication-list-panel>
           </div>
           <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf" aria-label="Upload project PDF">
         </section>

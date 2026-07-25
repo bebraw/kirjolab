@@ -71,9 +71,9 @@ The adopted components own bounded presentation:
 - The manuscript comment panel owns composer body and status state plus comment,
   anchor-status, empty-state, and action presentation with typed create, open,
   re-anchor, and resolve intents.
-- The project publication list owns reference metadata, alias and DOI labels,
-  empty-state, and action presentation with typed open, manage, and enrich
-  intents.
+- The project publication list owns the References collection shell and count,
+  reference metadata, alias and DOI labels, empty-state, and action
+  presentation with typed open, manage, and enrich intents.
 - The model candidate list owns revision and claim-draft summaries, empty-state,
   and a typed review-opening intent.
 - The context-tab overview owns overflow visibility, counts, tab summaries, and
@@ -266,9 +266,9 @@ reason to wrap static markup mechanically.
   refreshes, notifications, and passage navigation in the application
   coordinator.
 - The project publication list replaces one internal list reference and its
-  imperative card renderer while leaving context navigation, Library
-  management, metadata enrichment, and refreshes in the application
-  coordinator.
+  imperative card renderer. It also replaces the separate count reference and
+  mutation while leaving context navigation, Library management, metadata
+  enrichment, and refreshes in the application coordinator.
 - The model candidate list replaces one internal list reference and its
   imperative card renderer while leaving generation, candidate state, context
   navigation, applicability checks, and decisions in the application

@@ -565,7 +565,6 @@ interface Elements {
   pdfUpload: HTMLInputElement;
   projectEvidencePanel: ProjectEvidencePanel;
   knowledgeSearchPanel: KnowledgeSearchPanel;
-  publicationCount: HTMLElement;
   publicationListPanel: PublicationListPanel;
   claimCount: HTMLElement;
   claimListPanel: ClaimListPanel;
@@ -4262,7 +4261,6 @@ class WorkspaceApp {
   }
 
   #renderPublications(publications: PublicationResource[]): void {
-    this.#elements.publicationCount.textContent = String(publications.length);
     this.#elements.publicationListPanel.setPublications({
       projectReferences: this.#snapshot?.projectReferences ?? [],
       publications,
@@ -7506,7 +7504,6 @@ function collectElements(): Elements {
     pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
     projectEvidencePanel: requiredElement("project-evidence-panel", ProjectEvidencePanel),
     knowledgeSearchPanel: requiredElement("knowledge-search-panel", KnowledgeSearchPanel),
-    publicationCount: requiredElement("publication-count", HTMLElement),
     publicationListPanel: requiredElement("publication-list-panel", PublicationListPanel),
     claimCount: requiredElement("claim-count", HTMLElement),
     claimListPanel: requiredElement("claim-list-panel", ClaimListPanel),

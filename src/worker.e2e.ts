@@ -3315,7 +3315,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#publication-pdf-link-form")).toContainText("Add a paper from this project");
 
   await page.getByRole("tab", { name: "Research" }).click();
-  await page.locator("#publication-list-panel").evaluate((panel) => (panel.previousElementSibling as HTMLElement | null)?.click());
+  await page.locator("#publication-list-panel > details > summary").click();
   await page.getByRole("button", { name: "Manage in library" }).click();
   await expect(page.locator("#context-library-tab")).toHaveAttribute("aria-selected", "true");
   const managedReference = page.locator("#reference-library-list .library-reference-row").filter({

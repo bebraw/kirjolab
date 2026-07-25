@@ -98,7 +98,9 @@ collaboration.
   coordinator retains panel visibility, guide rendering, and URL routing;
   the layout manager retains collapse and resize behavior.
   Research is limited to the actionable Project evidence, Claims, and
-  References inventories; project search and graph controls belong to Map.
+  References inventories; project search and graph controls belong to Map. The
+  bounded project-publication component owns the complete References collection
+  shell and count from its authoritative publication data.
   One bounded layout manager owns rail collapse and resizing, authoring/context
   pane resizing, keyboard and pointer interactions, ARIA values, browser-local
   persistence, and PDF resize notification. Widths remain context-specific

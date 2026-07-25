@@ -40,11 +40,14 @@ export class PublicationListPanel extends LitElement {
   }
 
   protected override render(): TemplateResult {
-    return html`<div class="rail-collection-body" id="publication-list">
-      ${this.data.publications.length === 0
-        ? html`<div class="empty-state">Imported references appear here as stable publication resources.</div>`
-        : this.data.publications.map((publication) => this.renderPublication(publication))}
-    </div>`;
+    return html`<details class="rail-collection">
+      <summary><span>References</span><span class="count-badge" id="publication-count">${this.data.publications.length}</span></summary>
+      <div class="rail-collection-body" id="publication-list">
+        ${this.data.publications.length === 0
+          ? html`<div class="empty-state">Imported references appear here as stable publication resources.</div>`
+          : this.data.publications.map((publication) => this.renderPublication(publication))}
+      </div>
+    </details>`;
   }
 
   protected actOnPublication(event: Event): void {
