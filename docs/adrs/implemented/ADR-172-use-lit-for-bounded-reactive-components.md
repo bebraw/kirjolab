@@ -122,6 +122,9 @@ The adopted components own bounded presentation:
 - The Library discovery search owns query inputs, publication-type choices,
   duplicate-submit gating, progress and result-count copy, and typed query
   intents.
+- The workspace settings panel owns title, entry-file and publication-profile
+  values, archive and template visibility, modal lifecycle, the nested
+  GitHub-sync presentation boundary, and typed project-action intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -258,6 +261,12 @@ reason to wrap static markup mechanically.
   handling while leaving provider requests, response validation, result
   presentation, import mutation, and refresh policy in the application
   coordinator.
+- The workspace settings panel replaces fifteen internal element references and
+  imperative entry-file option, profile-value, archive-label, template
+  visibility, modal, and nested GitHub-review coordination while leaving
+  authorization, persistence, navigation, synchronization requests,
+  destructive confirmation, catalog refresh, and toast policy in the
+  application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

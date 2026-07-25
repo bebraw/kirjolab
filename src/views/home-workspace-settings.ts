@@ -1,5 +1,6 @@
 export function renderWorkspaceSettingsDialog(): string {
-  return `<dialog class="new-workspace-dialog ui-dialog" id="workspace-settings-dialog">
+  return `<workspace-settings-panel id="workspace-settings-panel">
+    <dialog class="new-workspace-dialog ui-dialog" id="workspace-settings-dialog">
       <form class="p-5" id="workspace-settings-form">
         <p class="eyebrow">Project settings</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Manage this project</h2>
@@ -51,5 +52,6 @@ export function renderWorkspaceSettingsDialog(): string {
         </section>
         <div class="mt-5 flex justify-end"><button class="button-secondary" id="close-workspace-settings" type="button">Close</button></div>
       </form>
-    </dialog>`;
+    </dialog>
+  </workspace-settings-panel>`;
 }

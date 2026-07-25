@@ -23,6 +23,12 @@ changing its canonical Markdown or shared references.
   duplication, and source-bundle export.
 - The profile is presentation state. It never mutates `:cite[...]`, citation
   aliases, or canonical shared bibliographic metadata.
+- One bounded workspace-settings panel owns the title, entry-file choices,
+  publication-profile values, archive and template visibility, modal lifecycle,
+  nested GitHub-sync presentation boundary, and typed project-action intents.
+  The workspace coordinator retains authorization, persistence, navigation,
+  synchronization requests, destructive confirmation, catalog refresh, and
+  toast policy.
 
 ### Security and Validation
 

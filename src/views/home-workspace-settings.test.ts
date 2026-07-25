@@ -5,6 +5,7 @@ describe("renderWorkspaceSettingsDialog", () => {
   it("renders publication, synchronization, and lifecycle controls as one project-settings contract", () => {
     const html = renderWorkspaceSettingsDialog();
 
+    expect(html).toContain('<workspace-settings-panel id="workspace-settings-panel">');
     expect(html).toContain('id="workspace-settings-dialog"');
     expect(html).toContain('id="workspace-settings-form"');
     expect(html).toContain('id="workspace-settings-title" maxlength="120" required');

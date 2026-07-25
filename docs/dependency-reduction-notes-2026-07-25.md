@@ -967,3 +967,25 @@ Full native CI passes all 1,280 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 712,675 B raw
 / 197,718 B gzip to 714,699 B raw / 198,282 B gzip (+2,024 B raw / +564 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Workspace Settings
+
+Project settings now use a bounded `WorkspaceSettingsPanel` instead of fifteen
+element references and imperative entry-file option, publication-profile,
+archive-label, template-visibility, modal, and nested GitHub-review
+coordination. The component emits typed save, template, duplicate, archive, and
+delete intents. `WorkspaceApp` retains authorization, persistence, navigation,
+GitHub requests, destructive confirmation, catalog refresh, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,665 to 9,635 lines (-30).
+The component adds 283 lines. Component tests cover active, archived, demo-safe,
+save, template, duplicate, archive, delete, modal reuse, GitHub event
+forwarding, value collection, and missing-control states. Focused browser
+workflows pass modal lifecycle, entry-file changes, GitHub initialization, and
+personal-template promotion. The component records 83.67% statement and 83.33%
+line coverage.
+
+Full native CI passes all 1,284 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 714,699 B raw
+/ 198,282 B gzip to 721,355 B raw / 199,494 B gzip (+6,656 B raw / +1,212 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.
