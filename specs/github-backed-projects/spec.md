@@ -77,6 +77,9 @@ incoming and outgoing mutation.
   reading, injected transport, stable error projection, and repository domain
   checks remain request-scoped Kirjolab responsibilities; installation
   authentication promises must not be shared through Worker module state.
+  Credential handling, installation-token exchange, and bounded authenticated
+  requests live behind a transport module; repository snapshot and commit
+  orchestration receive only its request-scoped installation requester.
 - GitHub App and user clients share one stateless streamed response reader that
   enforces both declared and observed byte limits before JSON parsing. Each
   client retains its own ceiling and typed provider-error projection.

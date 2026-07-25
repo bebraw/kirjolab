@@ -1,11 +1,12 @@
-import { createAppAuth } from "@octokit/auth-app";
-import { parseResponseJson, readBoundedResponseText } from "./bounded-response";
+import {
+  GitHubAppTransport,
+  GitHubClientError,
+  invalidResponse,
+  type GitHubAppConfig,
+  type GitHubInstallationRequest,
+} from "./github-app-transport";
 
-export interface GitHubAppConfig {
-  readonly appId: string;
-  readonly privateKey: string;
-  readonly apiBase?: string;
-}
+export { GitHubClientError, type GitHubAppConfig, type GitHubClientErrorCode } from "./github-app-transport";
 
 export interface GitHubRepositorySelection {
   readonly installationId: number;
@@ -44,72 +45,36 @@ export interface GitHubCommitChange {
   readonly content: string | null;
 }
 
-export type GitHubClientErrorCode =
-  | "configuration"
-  | "authentication"
-  | "forbidden"
-  | "not-found"
-  | "remote-changed"
-  | "branch-protected"
-  | "invalid-response"
-  | "bounds";
-
-export class GitHubClientError extends Error {
-  readonly code: GitHubClientErrorCode;
-  readonly status: number | null;
-
-  constructor(code: GitHubClientErrorCode, message: string, status: number | null = null) {
-    super(message);
-    this.name = "GitHubClientError";
-    this.code = code;
-    this.status = status;
-  }
-}
-
 type FetchExternal = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 const maximumMarkdownFiles = 512;
 const maximumMarkdownBytes = 2 * 1024 * 1024;
-const maximumJsonBytes = 8 * 1024 * 1024;
-const githubApiVersion = "2022-11-28";
 
 export class GitHubAppClient {
-  readonly #config: GitHubAppConfig;
-  readonly #fetch: FetchExternal;
-  readonly #auth: ReturnType<typeof createAppAuth>;
+  readonly #transport: GitHubAppTransport;
 
   constructor(config: GitHubAppConfig, fetchExternal: FetchExternal = (input, init) => fetch(input, init)) {
-    this.#config = validateConfig(config);
-    this.#fetch = fetchExternal;
-    this.#auth = createAppAuth({
-      appId: this.#config.appId,
-      privateKey: this.#config.privateKey,
-    });
+    this.#transport = new GitHubAppTransport(config, fetchExternal);
   }
 
   async readMarkdownSnapshot(selection: GitHubRepositorySelection): Promise<GitHubRepositorySnapshot> {
     const normalized = validateSelection(selection);
-    const token = await this.#installationToken(normalized.installationId, normalized.repositoryId);
-    const repository = await this.#request(token, `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}`);
+    const request = await this.#transport.forInstallation(normalized.installationId, normalized.repositoryId);
+    const repository = await request(`/repos/${segment(normalized.owner)}/${segment(normalized.repository)}`);
     if (!isRecord(repository) || !isPositiveInteger(repository.id)) throw invalidResponse("GitHub repository metadata is invalid");
     if (normalized.repositoryId !== undefined && repository.id !== normalized.repositoryId) {
       throw new GitHubClientError("forbidden", "GitHub repository is outside the authorized user selection", 403);
     }
-    const ref = await this.#request(
-      token,
+    const ref = await request(
       `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/ref/heads/${pathSegment(normalized.branch)}`,
     );
     const commitSha = gitObjectSha(ref, "GitHub branch response is invalid");
-    const commit = await this.#request(
-      token,
-      `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/commits/${segment(commitSha)}`,
-    );
+    const commit = await request(`/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/commits/${segment(commitSha)}`);
     const treeSha = nestedSha(commit, "tree", "GitHub commit response is invalid");
     if (!isRecord(commit) || typeof commit.message !== "string" || commit.message.length > 10_000) {
       throw invalidResponse("GitHub commit response is invalid");
     }
-    const tree = await this.#request(
-      token,
+    const tree = await request(
       `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/trees/${segment(treeSha)}?recursive=1`,
     );
     if (!isRecord(tree) || tree.truncated === true || !Array.isArray(tree.tree)) {
@@ -145,7 +110,7 @@ export class GitHubAppClient {
         batch.map(async (blob) => ({
           path: blob.path,
           blobSha: blob.sha,
-          content: await this.#blobText(token, normalized.owner, normalized.repository, blob.sha, blob.size),
+          content: await this.#blobText(request, normalized.owner, normalized.repository, blob.sha, blob.size),
         })),
       );
       for (const file of loaded) {
@@ -195,39 +160,39 @@ export class GitHubAppClient {
       }
       paths.add(relative);
     }
-    const token = await this.#installationToken(normalized.installationId, normalized.repositoryId);
+    const request = await this.#transport.forInstallation(normalized.installationId, normalized.repositoryId);
     const repositoryPath = `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}`;
     const refPath = `${repositoryPath}/git/ref/heads/${pathSegment(normalized.branch)}`;
-    const currentHead = gitObjectSha(await this.#request(token, refPath), "GitHub branch response is invalid");
+    const currentHead = gitObjectSha(await request(refPath), "GitHub branch response is invalid");
     if (currentHead !== expectedHead) throw new GitHubClientError("remote-changed", "The GitHub branch changed after preview");
-    const commit = await this.#request(token, `${repositoryPath}/git/commits/${segment(currentHead)}`);
+    const commit = await request(`${repositoryPath}/git/commits/${segment(currentHead)}`);
     const baseTree = nestedSha(commit, "tree", "GitHub commit response is invalid");
     const entries = await Promise.all(
       changes.map(async (change) => ({
         path: joinRoot(normalized.rootPath, change.path),
         mode: "100644",
         type: "blob",
-        sha: change.content === null ? null : await this.#createBlob(token, repositoryPath, change.content),
+        sha: change.content === null ? null : await this.#createBlob(request, repositoryPath, change.content),
       })),
     );
-    const tree = await this.#request(token, `${repositoryPath}/git/trees`, {
+    const tree = await request(`${repositoryPath}/git/trees`, {
       method: "POST",
       body: JSON.stringify({ base_tree: baseTree, tree: entries }),
     });
     const treeSha = directSha(tree, "GitHub tree creation response is invalid");
-    const created = await this.#request(token, `${repositoryPath}/git/commits`, {
+    const created = await request(`${repositoryPath}/git/commits`, {
       method: "POST",
       body: JSON.stringify({ message: message.trim(), tree: treeSha, parents: [currentHead] }),
     });
     const commitSha = directSha(created, "GitHub commit creation response is invalid");
     try {
-      await this.#request(token, `${repositoryPath}/git/refs/heads/${pathSegment(normalized.branch)}`, {
+      await request(`${repositoryPath}/git/refs/heads/${pathSegment(normalized.branch)}`, {
         method: "PATCH",
         body: JSON.stringify({ sha: commitSha, force: false }),
       });
     } catch (error) {
       if (error instanceof GitHubClientError && error.status === 422) {
-        const observedHead = gitObjectSha(await this.#request(token, refPath), "GitHub branch response is invalid");
+        const observedHead = gitObjectSha(await request(refPath), "GitHub branch response is invalid");
         if (observedHead !== currentHead) throw new GitHubClientError("remote-changed", "The GitHub branch changed during publish", 422);
         throw new GitHubClientError("branch-protected", "GitHub rejected the direct branch update", 422);
       }
@@ -239,16 +204,22 @@ export class GitHubAppClient {
     return commitSha;
   }
 
-  async #createBlob(token: string, repositoryPath: string, content: string): Promise<string> {
-    const blob = await this.#request(token, `${repositoryPath}/git/blobs`, {
+  async #createBlob(request: GitHubInstallationRequest, repositoryPath: string, content: string): Promise<string> {
+    const blob = await request(`${repositoryPath}/git/blobs`, {
       method: "POST",
       body: JSON.stringify({ content, encoding: "utf-8" }),
     });
     return directSha(blob, "GitHub blob creation response is invalid");
   }
 
-  async #blobText(token: string, owner: string, repository: string, sha: string, expectedSize: number): Promise<string> {
-    const value = await this.#request(token, `/repos/${segment(owner)}/${segment(repository)}/git/blobs/${segment(sha)}`);
+  async #blobText(
+    request: GitHubInstallationRequest,
+    owner: string,
+    repository: string,
+    sha: string,
+    expectedSize: number,
+  ): Promise<string> {
+    const value = await request(`/repos/${segment(owner)}/${segment(repository)}/git/blobs/${segment(sha)}`);
     if (!isRecord(value) || value.encoding !== "base64" || typeof value.content !== "string" || value.size !== expectedSize) {
       throw invalidResponse("GitHub blob response is invalid");
     }
@@ -267,63 +238,12 @@ export class GitHubAppClient {
       throw new GitHubClientError("bounds", "GitHub Markdown files must be valid UTF-8");
     }
   }
-
-  async #installationToken(installationId: number, repositoryId?: number): Promise<string> {
-    if (!isPositiveInteger(installationId)) throw new GitHubClientError("bounds", "GitHub installation id is invalid");
-    if (repositoryId !== undefined && !isPositiveInteger(repositoryId)) {
-      throw new GitHubClientError("bounds", "GitHub repository id is invalid");
-    }
-    let jwt: string;
-    try {
-      jwt = (await this.#auth({ type: "app" })).token;
-    } catch {
-      throw new GitHubClientError("configuration", "GitHub App private key is invalid");
-    }
-    const value = await this.#request(jwt, `/app/installations/${installationId}/access_tokens`, {
-      method: "POST",
-      ...(repositoryId === undefined ? {} : { body: JSON.stringify({ repository_ids: [repositoryId] }) }),
-    });
-    if (!isRecord(value) || typeof value.token !== "string" || value.token.length < 20) {
-      throw new GitHubClientError("authentication", "GitHub installation token response is invalid");
-    }
-    return value.token;
-  }
-
-  async #request(token: string, path: string, init: RequestInit = {}): Promise<unknown> {
-    const response = await this.#fetch(`${this.#config.apiBase ?? "https://api.github.com"}${path}`, {
-      ...init,
-      headers: {
-        accept: "application/vnd.github+json",
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-        "user-agent": "Kirjolab-GitHub-App",
-        "x-github-api-version": githubApiVersion,
-        ...headersRecord(init.headers),
-      },
-    });
-    const body = await readBoundedResponseText(
-      response,
-      maximumJsonBytes,
-      () => new GitHubClientError("bounds", "GitHub response exceeds bounds"),
-    );
-    if (!response.ok) throw githubResponseError(response.status, body);
-    return parseResponseJson(body, () => invalidResponse("GitHub returned invalid JSON"));
-  }
 }
 
 export function normalizeGitHubRoot(value: string): string | null {
   const trimmed = value.trim().replace(/^\/+|\/+$/gu, "");
   if (!trimmed) return "";
   return normalizeRelativePath(trimmed);
-}
-
-function validateConfig(config: GitHubAppConfig): GitHubAppConfig {
-  if (!/^\d{1,20}$/u.test(config.appId.trim()) || !config.privateKey.trim()) {
-    throw new GitHubClientError("configuration", "GitHub App credentials are not configured");
-  }
-  const apiBase = config.apiBase?.replace(/\/+$/u, "");
-  if (apiBase && !/^https?:\/\//u.test(apiBase)) throw new GitHubClientError("configuration", "GitHub API base URL is invalid");
-  return { appId: config.appId.trim(), privateKey: config.privateKey, ...(apiBase ? { apiBase } : {}) };
 }
 
 function validateSelection(selection: GitHubRepositorySelection): GitHubRepositorySelection {
@@ -398,31 +318,9 @@ function isCommitSha(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9]{40,64}$/iu.test(value);
 }
 
-function invalidResponse(message: string): GitHubClientError {
-  return new GitHubClientError("invalid-response", message);
-}
-
-function githubResponseError(status: number, body: string): GitHubClientError {
-  let message = "GitHub request failed";
-  try {
-    const value: unknown = JSON.parse(body);
-    if (isRecord(value) && typeof value.message === "string" && value.message.length <= 500) message = value.message;
-  } catch {
-    // Keep the bounded generic message for non-JSON error bodies.
-  }
-  const code: GitHubClientErrorCode =
-    status === 401 ? "authentication" : status === 403 ? "forbidden" : status === 404 ? "not-found" : "invalid-response";
-  return new GitHubClientError(code, message, status);
-}
-
 function decodeBase64(value: string): Uint8Array {
   const binary = atob(value);
   return Uint8Array.from(binary, (character) => character.codePointAt(0) ?? 0);
-}
-
-function headersRecord(value: HeadersInit | undefined): Record<string, string> {
-  if (!value) return {};
-  return Object.fromEntries(new Headers(value).entries());
 }
 
 function compareText(left: string, right: string): number {

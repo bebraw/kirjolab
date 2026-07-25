@@ -199,6 +199,16 @@ definition; extraction compatibility and evidence invariants remain explicit
 domain functions. The pilot removes 30 net executable source lines without a
 new package or a new validation concept.
 
+### GitHub App responsibility split: accepted
+
+The App integration now isolates credential normalization, Octokit signing,
+installation-token exchange, bounded HTTP, and provider-error projection from
+repository tree and commit orchestration. The public client contract and all
+request-scoped Worker behavior stay unchanged. The split grows executable
+source by 31 lines, but reduces the former 446-line mixed-responsibility module
+to a 344-line repository client and a 133-line transport with one directional
+dependency.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser
