@@ -2024,3 +2024,22 @@ The browser application artifact grows from 788,448 B raw / 212,575 B gzip to
 unique production package counts remain unchanged at 135,376 B raw / 23,364 B
 gzip and 18 and 150. Full native CI passes all 1,381 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Coordinator Reduction: PDF Context Opening
+
+The three workspace, private-Library, and project-reference PDF entry paths now
+share one context preparation sequence for scroll capture, tab activation,
+location restoration, rendering, responsive surface selection, and focus.
+Route-history policy and asynchronous PDF loading remain explicit in each
+caller because their standalone-Library and workspace behavior differs.
+
+This checkpoint removes the duplicated orchestration flagged by the code-health
+audit and reduces `src/client/app.ts` from 7,480 to 7,478 lines (-2). The focused
+browser workflows pass resource-keyed PDF opening, standalone Library routes,
+project-reference opening, annotation focus, and back/forward restoration.
+
+The browser application artifact shrinks from 789,012 B raw / 212,660 B gzip to
+788,731 B raw / 212,648 B gzip (-281 B raw / -12 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,376 B raw / 23,364 B
+gzip and 18 and 150. Full native CI passes all 1,381 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

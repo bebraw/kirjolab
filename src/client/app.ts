@@ -331,6 +331,8 @@ import {
   type ResearchContextTab,
   type ResearchContextKey,
   type ResearchContextState,
+  type PdfResearchLocation,
+  type ResearchResourceKey,
   type ResearchResourceTab,
 } from "./research-context";
 import {
@@ -6134,30 +6136,19 @@ class WorkspaceApp {
   }
 
   async #showPaper(pdf: PdfResource, page?: number, focusAnnotationId?: string): Promise<void> {
-    this.#captureActiveContextState();
-    this.#contextState = openResearchResource(this.#contextState, { kind: "pdf", id: pdf.id });
-    const key = researchResourceKey({ kind: "pdf", id: pdf.id });
-    if (page !== undefined || focusAnnotationId !== undefined) {
-      this.#contextState = setPdfResearchLocation(this.#contextState, key, {
+    this.#preparePdfContext(
+      { kind: "pdf", id: pdf.id },
+      {
         ...(page !== undefined ? { page } : {}),
         ...(focusAnnotationId !== undefined ? { focusedAnnotationId: focusAnnotationId } : {}),
-      });
-    }
-    this.#renderResearchContext(false);
-    this.#showWorkspaceSurface("context", false);
-    this.#focusContextTab(key);
+      },
+    );
     this.#syncWorkspaceRoute("push");
     await this.#loadActivePdf(page !== undefined || focusAnnotationId !== undefined);
   }
 
   async #openLibraryPdf(artifact: LibraryPdfArtifact, page?: number, updateHistory = true): Promise<void> {
-    this.#captureActiveContextState();
-    this.#contextState = openResearchResource(this.#contextState, { kind: "library-pdf", id: artifact.id });
-    const key = researchResourceKey({ kind: "library-pdf", id: artifact.id });
-    if (page !== undefined) this.#contextState = setPdfResearchLocation(this.#contextState, key, { page });
-    this.#renderResearchContext(false);
-    this.#showWorkspaceSurface("context", false);
-    this.#focusContextTab(key);
+    const key = this.#preparePdfContext({ kind: "library-pdf", id: artifact.id }, page === undefined ? {} : { page });
     if (appMode === "library" && updateHistory) {
       const active = this.#contextState.tabs.find((tab) => tab.key === key);
       const route = this.#libraryPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
@@ -6168,15 +6159,22 @@ class WorkspaceApp {
   }
 
   async #openProjectReferencePdf(pdf: ProjectReferencePdf, page?: number, updateHistory = true): Promise<void> {
+    this.#preparePdfContext({ kind: "library-pdf", id: pdf.id }, page === undefined ? {} : { page });
+    if (appMode === "workspace" && updateHistory) this.#syncWorkspaceRoute("push");
+    await this.#loadActivePdf(page !== undefined);
+  }
+
+  #preparePdfContext(
+    target: { readonly kind: "pdf" | "library-pdf"; readonly id: string },
+    location: PdfResearchLocation,
+  ): ResearchResourceKey {
     this.#captureActiveContextState();
-    this.#contextState = openResearchResource(this.#contextState, { kind: "library-pdf", id: pdf.id });
-    const key = researchResourceKey({ kind: "library-pdf", id: pdf.id });
-    if (page !== undefined) this.#contextState = setPdfResearchLocation(this.#contextState, key, { page });
+    const key = researchResourceKey(target);
+    this.#contextState = setPdfResearchLocation(openResearchResource(this.#contextState, target), key, location);
     this.#renderResearchContext(false);
     this.#showWorkspaceSurface("context", false);
     this.#focusContextTab(key);
-    if (appMode === "workspace" && updateHistory) this.#syncWorkspaceRoute("push");
-    await this.#loadActivePdf(page !== undefined);
+    return key;
   }
 
   async #restoreLibraryRoute(): Promise<void> {
