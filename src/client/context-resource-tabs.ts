@@ -12,7 +12,7 @@ export interface ContextResourceTabItem {
   readonly title: string;
 }
 
-interface ContextResourceTabsData {
+export interface ContextResourceTabsData {
   readonly activeKey: ResearchContextKey;
   readonly items: readonly ContextResourceTabItem[];
 }

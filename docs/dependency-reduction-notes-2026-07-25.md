@@ -2002,3 +2002,25 @@ The browser application artifact grows from 787,700 B raw / 212,289 B gzip to
 unique production package counts remain unchanged at 135,376 B raw / 23,364 B
 gzip and 18 and 150. Full native CI passes all 1,376 unit/coverage tests, 120
 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Extraction: Context Tab Strip
+
+A composed `ContextTabStrip` now owns fixed research-tab presentation, typed
+primary actions, roving keyboard focus, programmatic focus handoff, and
+delegation to the existing dynamic resource-tab component. `WorkspaceApp`
+retains canonical active-context state, authorized Library loading, resource
+closure, route synchronization, and panel presentation.
+
+This checkpoint reduces `src/client/app.ts` from 7,529 to 7,480 lines (-49),
+replaces the tablist, three fixed-tab, and dynamic-tab component references with
+one component reference, and removes three native primary bindings plus the
+coordinator's fixed ARIA renderer and keyboard handler. Focused browser coverage
+passes fixed-tab selection and keyboard navigation plus resource-keyed tab
+opening, activation, closure, and focus restoration. Component coverage is
+100% statements and lines.
+
+The browser application artifact grows from 788,448 B raw / 212,575 B gzip to
+789,012 B raw / 212,660 B gzip (+564 B raw / +85 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,376 B raw / 23,364 B
+gzip and 18 and 150. Full native CI passes all 1,381 unit/coverage tests, 120
+Workers-runtime tests, and 74 browser tests.

@@ -499,6 +499,12 @@ reason to wrap static markup mechanically.
   stored restoration, toggle and restore presentation, ARIA and title copy,
   restricted-Preview availability, and focus handoff. The application
   coordinator supplies only whether Preview is the active workspace context.
+- The context tab strip replaces four shell references, three native primary
+  action bindings, fixed-tab ARIA mutations, and coordinator-owned roving focus.
+  It composes the existing dynamic resource tabs and emits typed primary and
+  resource intents. The application coordinator retains active-context state,
+  authorized Library loading, resource closure, route synchronization, and
+  panel presentation.
 - The workspace surface switcher replaces two button references, native action
   bindings, and ARIA-state mutations. The application coordinator retains
   responsive surface visibility and URL synchronization.

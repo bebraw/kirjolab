@@ -228,12 +228,8 @@ import {
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
 import { ContextTabOverview, contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
-import {
-  ContextResourceTabs,
-  contextResourceTabActionEvent,
-  contextResourceTabId,
-  type ContextResourceTabAction,
-} from "./context-resource-tabs";
+import { contextResourceTabActionEvent, contextResourceTabId, type ContextResourceTabAction } from "./context-resource-tabs";
+import { ContextTabStrip, contextPrimaryTabActionEvent, type ContextPrimaryTabAction } from "./context-tab-strip";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import { ProjectAnnotationForm, projectAnnotationSaveEvent, type ProjectAnnotationSave } from "./project-annotation-form";
 import {
@@ -386,14 +382,6 @@ function projectFileSavedMessage(mode: ProjectFileDialogMode, path: string): str
   return `Renamed file to ${path}; inbound includes were updated.`;
 }
 
-function contextTabFocusIndex(key: string, currentIndex: number, tabCount: number): number | null {
-  if (key === "ArrowRight") return (currentIndex + 1) % tabCount;
-  if (key === "ArrowLeft") return (currentIndex - 1 + tabCount) % tabCount;
-  if (key === "Home") return 0;
-  if (key === "End") return tabCount - 1;
-  return null;
-}
-
 function libraryPdfUploadMessage(added: number, existing: number, failed: number): string {
   const addedLabel = `${added} PDF${added === 1 ? "" : "s"} added`;
   const existingLabel = `${existing} already in library`;
@@ -520,11 +508,7 @@ interface Elements {
   previewSyncControls: PreviewSyncControls;
   workspaceSurfaceSwitcher: WorkspaceSurfaceSwitcher;
   openSourceCitation: HTMLButtonElement;
-  contextTabList: HTMLElement;
-  contextPreviewTab: HTMLButtonElement;
-  contextLibraryTab: HTMLButtonElement;
-  contextAssistantTab: HTMLButtonElement;
-  contextResourceTabsPanel: ContextResourceTabs;
+  contextTabStrip: ContextTabStrip;
   contextTabOverviewPanel: ContextTabOverview;
   previewContextControls: PreviewContextStatus;
   previewNavigationControl: PreviewNavigationControl;
@@ -1038,7 +1022,6 @@ class WorkspaceApp {
     this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingNoticeEvent, (event) => {
       this.#showToast((event as CustomEvent<string>).detail);
     });
-    this.#elements.contextLibraryTab.addEventListener("click", () => void this.#openReferenceLibrary());
     this.#elements.libraryDiscoverySearch.addEventListener(
       libraryDiscoverySearchEvent,
       (event) => void this.#discoverLibraryReferences((event as CustomEvent<ReferenceDiscoveryQuery>).detail),
@@ -1357,9 +1340,12 @@ class WorkspaceApp {
       this.#showWorkspaceSurface((event as CustomEvent<WorkspaceSurface>).detail);
     });
     this.#layout.bind();
-    this.#elements.contextPreviewTab.addEventListener("click", () => this.#activateContext(RESEARCH_PREVIEW_KEY));
-    this.#elements.contextAssistantTab.addEventListener("click", () => this.#activateContext(RESEARCH_ASSISTANT_KEY));
-    this.#elements.contextResourceTabsPanel.addEventListener(contextResourceTabActionEvent, (event) => {
+    this.#elements.contextTabStrip.addEventListener(contextPrimaryTabActionEvent, (event) => {
+      const action = (event as CustomEvent<ContextPrimaryTabAction>).detail;
+      if (action === RESEARCH_LIBRARY_KEY) void this.#openReferenceLibrary();
+      else this.#activateContext(action);
+    });
+    this.#elements.contextTabStrip.addEventListener(contextResourceTabActionEvent, (event) => {
       const detail = (event as CustomEvent<ContextResourceTabAction>).detail;
       if (detail.action === "activate") this.#activateContext(detail.key);
       else this.#closeContextTab(detail.key);
@@ -1369,7 +1355,6 @@ class WorkspaceApp {
       if (detail.action === "activate") this.#activateContext(detail.key);
       else this.#closeContextTab(detail.key);
     });
-    this.#elements.contextTabList.addEventListener("keydown", (event) => this.#moveContextTabFocus(event));
     this.#elements.preview.addEventListener("click", (event) => this.#handlePreviewClick(event));
     this.#elements.diagnostics.addEventListener(previewDiagnosticSelectEvent, (event) => {
       const { fileId, from, to } = (event as CustomEvent<PreviewDiagnosticSelection>).detail;
@@ -4523,8 +4508,7 @@ class WorkspaceApp {
 
   #renderResearchContext(loadPdf = true): void {
     const activeKey = this.#contextState.activeKey;
-    this.#renderPrimaryContextTabs(activeKey);
-    this.#elements.contextResourceTabsPanel.setTabs({
+    this.#elements.contextTabStrip.setTabs({
       activeKey,
       items: this.#contextState.tabs
         .filter((tab): tab is ResearchResourceTab => tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant")
@@ -4535,15 +4519,6 @@ class WorkspaceApp {
     this.#layout.restorePaneWidth();
     this.#renderContextPanelVisibility(activeKey, activeTab);
     this.#renderActiveResearchContext(activeKey, activeTab, loadPdf);
-  }
-
-  #renderPrimaryContextTabs(activeKey: ResearchContextKey): void {
-    this.#elements.contextPreviewTab.setAttribute("aria-selected", String(activeKey === RESEARCH_PREVIEW_KEY));
-    this.#elements.contextPreviewTab.tabIndex = activeKey === RESEARCH_PREVIEW_KEY ? 0 : -1;
-    this.#elements.contextLibraryTab.setAttribute("aria-selected", String(activeKey === RESEARCH_LIBRARY_KEY));
-    this.#elements.contextLibraryTab.tabIndex = activeKey === RESEARCH_LIBRARY_KEY ? 0 : -1;
-    this.#elements.contextAssistantTab.setAttribute("aria-selected", String(activeKey === RESEARCH_ASSISTANT_KEY));
-    this.#elements.contextAssistantTab.tabIndex = activeKey === RESEARCH_ASSISTANT_KEY ? 0 : -1;
   }
 
   #renderContextPanelVisibility(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined): void {
@@ -4850,15 +4825,7 @@ class WorkspaceApp {
   }
 
   #focusContextTab(key: ResearchContextKey): void {
-    const selector =
-      key === RESEARCH_PREVIEW_KEY
-        ? "#context-preview-tab"
-        : key === RESEARCH_LIBRARY_KEY
-          ? "#context-library-tab"
-          : key === RESEARCH_ASSISTANT_KEY
-            ? "#context-assistant-tab"
-            : `#${CSS.escape(`context-tab-${key.replace(":", "-")}`)}`;
-    queueMicrotask(() => this.#elements.contextTabList.querySelector<HTMLButtonElement>(selector)?.focus());
+    this.#elements.contextTabStrip.focusTab(key);
   }
 
   #contextTabTitle(tab: ResearchResourceTab): string {
@@ -4890,18 +4857,6 @@ class WorkspaceApp {
       (tab): tab is ResearchResourceTab =>
         tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant" && tab.key === this.#contextState.activeKey,
     );
-  }
-
-  #moveContextTabFocus(event: KeyboardEvent): void {
-    if (!(event.target instanceof HTMLButtonElement) || event.target.getAttribute("role") !== "tab") return;
-    const tabs = Array.from(this.#elements.contextTabList.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-    const index = tabs.indexOf(event.target);
-    if (index < 0) return;
-    const nextIndex = contextTabFocusIndex(event.key, index, tabs.length);
-    if (nextIndex === null) return;
-    event.preventDefault();
-    for (const tab of tabs) tab.tabIndex = tab === tabs[nextIndex] ? 0 : -1;
-    tabs[nextIndex]?.focus();
   }
 
   #renderPublicationContext(tab: ResearchResourceTab): void {
@@ -7371,11 +7326,7 @@ function collectElements(): Elements {
     previewSyncControls: requiredElement("preview-sync-controls", PreviewSyncControls),
     workspaceSurfaceSwitcher: requiredElement("workspace-surface-switcher", WorkspaceSurfaceSwitcher),
     openSourceCitation: requiredElement("open-source-citation", HTMLButtonElement),
-    contextTabList: requiredElement("context-tab-list", HTMLElement),
-    contextPreviewTab: requiredElement("context-preview-tab", HTMLButtonElement),
-    contextLibraryTab: requiredElement("context-library-tab", HTMLButtonElement),
-    contextAssistantTab: requiredElement("context-assistant-tab", HTMLButtonElement),
-    contextResourceTabsPanel: requiredElement("context-resource-tabs-panel", ContextResourceTabs),
+    contextTabStrip: requiredElement("context-tab-list", ContextTabStrip),
     contextTabOverviewPanel: requiredElement("context-tab-overview-panel", ContextTabOverview),
     previewContextControls: requiredElement("preview-context-controls", PreviewContextStatus),
     previewNavigationControl: requiredElement("preview-navigation-control", PreviewNavigationControl),
