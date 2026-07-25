@@ -157,3 +157,54 @@ request-local bounded stream and JSON reader. Provider-specific 1 MB ceilings,
 errors, structural checks, and metadata mappings remain local. The change
 removes 123 duplicated lines while adding 52 shared and adapter lines, for a net
 reduction of 71 source lines without adding a dependency.
+
+## Dependency Cost Baseline
+
+Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser
+artifacts:
+
+| Measure                                 | Baseline       |
+| --------------------------------------- | -------------- |
+| Direct production dependencies          | 18             |
+| Unique production package/version nodes | 150            |
+| Browser application                     | 652,499 B raw  |
+| Browser application                     | 184,812 B gzip |
+| Lazy Markdown runtime                   | 204,779 B raw  |
+| Lazy Markdown runtime                   | 62,504 B gzip  |
+| Lazy PDF.js runtime                     | 481,994 B raw  |
+| Lazy PDF.js runtime                     | 146,696 B gzip |
+| Styles                                  | 134,696 B raw  |
+| Styles                                  | 23,422 B gzip  |
+
+Esbuild metadata attributes these minified bytes in the relevant output:
+
+| Dependency          | Production closure | Browser application | Worker analysis |
+| ------------------- | -----------------: | ------------------: | --------------: |
+| Lit                 |                  6 |            14,783 B |               — |
+| Valibot             |                  3 |             7,055 B |        10,017 B |
+| `@octokit/auth-app` |                 16 |                   — |        30,266 B |
+
+Production closure is the number of unique package/version nodes reachable
+from that direct dependency in `npm ls --omit=dev --all --json`. Output
+attribution is the sum of esbuild `bytesInOutput` for the dependency family.
+The Worker number comes from a transient minified analysis bundle with
+Cloudflare and build-only Node imports externalized; it is useful for comparing
+dependencies, not as a deployed Worker-size claim. Gzip is reported only for
+complete outputs because compression savings cannot be assigned reliably to
+one dependency.
+
+### Admission rule for later pilots
+
+A new dependency should be accepted only when it retires a coherent
+project-owned maintenance responsibility and records all of the following:
+
+- direct and transitive production-package cost;
+- minified bytes attributed in each affected browser or Worker output;
+- source code, tests, and concepts removed or made local;
+- the product-specific bounds and authorities that remain; and
+- targeted tests plus the full native CI result.
+
+Prefer an existing dependency or a source-local helper when it produces the
+same reduction. Keep large optional browser capabilities behind the existing
+lazy runtime boundaries. Do not treat fewer source lines alone as success when
+the dependency adds a broader API, state owner, or upgrade surface.
