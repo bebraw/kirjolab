@@ -23,7 +23,9 @@ export function renderContextTabs(): string {
             <button class="context-tab ui-tab" id="context-preview-tab" type="button" role="tab" aria-controls="context-preview-panel" aria-selected="true" tabindex="0">Preview</button>
             <button class="context-tab ui-tab" id="context-library-tab" type="button" role="tab" aria-controls="context-library-panel" aria-selected="false" tabindex="-1">Library</button>
             <button class="context-tab ui-tab" id="context-assistant-tab" type="button" role="tab" aria-controls="context-assistant-panel" aria-selected="false" tabindex="-1">Writing assistant</button>
-            <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
+            <context-resource-tabs-panel id="context-resource-tabs-panel">
+              <div class="context-resource-tabs" id="context-resource-tabs" role="presentation"></div>
+            </context-resource-tabs-panel>
           </div>
           <context-tab-overview-panel id="context-tab-overview-panel">
             <details class="context-tab-overview action-menu ui-menu" id="context-tab-overview" data-action-menu hidden>

@@ -69,7 +69,6 @@ import {
 } from "../domain/reference-library";
 import { calculateTextSplice } from "../domain/text";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
-import { renderIcon } from "../ui/icons";
 import { formatBytes } from "./format";
 import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
@@ -189,6 +188,12 @@ import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCom
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
 import { ContextTabOverview, contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
+import {
+  ContextResourceTabs,
+  contextResourceTabActionEvent,
+  contextResourceTabId,
+  type ContextResourceTabAction,
+} from "./context-resource-tabs";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -600,7 +605,7 @@ interface Elements {
   contextPreviewTab: HTMLButtonElement;
   contextLibraryTab: HTMLButtonElement;
   contextAssistantTab: HTMLButtonElement;
-  contextResourceTabs: HTMLElement;
+  contextResourceTabsPanel: ContextResourceTabs;
   contextTabOverviewPanel: ContextTabOverview;
   previewContextControls: HTMLElement;
   previewFileContext: HTMLElement;
@@ -1462,6 +1467,11 @@ class WorkspaceApp {
       this.#elements.togglePreviewNavigation.focus();
     });
     this.#elements.contextAssistantTab.addEventListener("click", () => this.#activateContext(RESEARCH_ASSISTANT_KEY));
+    this.#elements.contextResourceTabsPanel.addEventListener(contextResourceTabActionEvent, (event) => {
+      const detail = (event as CustomEvent<ContextResourceTabAction>).detail;
+      if (detail.action === "activate") this.#activateContext(detail.key);
+      else this.#closeContextTab(detail.key);
+    });
     this.#elements.contextTabOverviewPanel.addEventListener(contextTabOverviewActionEvent, (event) => {
       const detail = (event as CustomEvent<ContextTabOverviewAction>).detail;
       if (detail.action === "activate") this.#activateContext(detail.key);
@@ -6775,11 +6785,12 @@ class WorkspaceApp {
   #renderResearchContext(loadPdf = true): void {
     const activeKey = this.#contextState.activeKey;
     this.#renderPrimaryContextTabs(activeKey);
-    this.#elements.contextResourceTabs.replaceChildren();
-    for (const tab of this.#contextState.tabs) {
-      if (tab.kind === "preview" || tab.kind === "library" || tab.kind === "assistant") continue;
-      this.#elements.contextResourceTabs.append(this.#renderContextResourceTab(tab));
-    }
+    this.#elements.contextResourceTabsPanel.setTabs({
+      activeKey,
+      items: this.#contextState.tabs
+        .filter((tab): tab is ResearchResourceTab => tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant")
+        .map((tab) => ({ tab, title: this.#contextTabTitle(tab) })),
+    });
     this.#renderContextTabOverview();
     const activeTab = this.#activeResourceTab();
     this.#restoreAuthoringPaneWidth();
@@ -6853,7 +6864,7 @@ class WorkspaceApp {
         : activeTab.kind === "candidate"
           ? this.#elements.contextCandidatePanel
           : this.#elements.contextPdfPanel;
-    panel.setAttribute("aria-labelledby", this.#contextTabId(activeTab));
+    panel.setAttribute("aria-labelledby", contextResourceTabId(activeTab));
     panel.removeAttribute("aria-label");
   }
 
@@ -7067,36 +7078,6 @@ class WorkspaceApp {
     this.#elements.publicationIntakeCancel.disabled = busy;
   }
 
-  #renderContextResourceTab(tab: ResearchResourceTab): HTMLElement {
-    const title = this.#contextTabTitle(tab);
-    const item = document.createElement("div");
-    item.className = "context-resource-tab";
-    item.setAttribute("role", "presentation");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "context-tab";
-    button.id = this.#contextTabId(tab);
-    button.setAttribute("role", "tab");
-    button.setAttribute(
-      "aria-controls",
-      tab.kind === "publication" ? "context-publication-panel" : tab.kind === "candidate" ? "context-candidate-panel" : "context-pdf-panel",
-    );
-    button.setAttribute("aria-selected", String(this.#contextState.activeKey === tab.key));
-    button.tabIndex = this.#contextState.activeKey === tab.key ? 0 : -1;
-    button.title = title;
-    button.textContent = title;
-    button.addEventListener("click", () => this.#activateContext(tab.key));
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "context-tab-close";
-    close.setAttribute("aria-label", `Close ${title}`);
-    close.title = `Close ${title}`;
-    close.innerHTML = renderIcon("close");
-    close.addEventListener("click", () => this.#closeContextTab(tab.key));
-    item.append(button, close);
-    return item;
-  }
-
   #renderContextTabOverview(): void {
     this.#elements.contextTabOverviewPanel.setTabs({
       activeKey: this.#contextState.activeKey,
@@ -7171,10 +7152,6 @@ class WorkspaceApp {
             ? "#context-assistant-tab"
             : `#${CSS.escape(`context-tab-${key.replace(":", "-")}`)}`;
     queueMicrotask(() => this.#elements.contextTabList.querySelector<HTMLButtonElement>(selector)?.focus());
-  }
-
-  #contextTabId(tab: ResearchResourceTab): string {
-    return `context-tab-${tab.kind}-${tab.id}`;
   }
 
   #contextTabTitle(tab: ResearchResourceTab): string {
@@ -10520,7 +10497,7 @@ function collectElements(): Elements {
     contextPreviewTab: requiredElement("context-preview-tab", HTMLButtonElement),
     contextLibraryTab: requiredElement("context-library-tab", HTMLButtonElement),
     contextAssistantTab: requiredElement("context-assistant-tab", HTMLButtonElement),
-    contextResourceTabs: requiredElement("context-resource-tabs", HTMLElement),
+    contextResourceTabsPanel: requiredElement("context-resource-tabs-panel", ContextResourceTabs),
     contextTabOverviewPanel: requiredElement("context-tab-overview-panel", ContextTabOverview),
     previewContextControls: requiredElement("preview-context-controls", HTMLElement),
     previewFileContext: requiredElement("preview-file-context", HTMLElement),

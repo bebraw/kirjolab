@@ -77,6 +77,9 @@ The adopted components own bounded presentation:
   and a typed review-opening intent.
 - The context-tab overview owns overflow visibility, counts, tab summaries, and
   typed activate and close intents.
+- The context resource-tab strip owns resource tab and close-action markup,
+  active-state presentation, panel associations, and typed activate and close
+  intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -146,6 +149,10 @@ reason to wrap static markup mechanically.
   imperative row and close-action renderers while leaving tab titles, routing,
   canonical context state, focus restoration, and transitions in the
   application coordinator.
+- The context resource-tab strip replaces one internal element reference, the
+  shared resource-tab id helper, and its imperative tab renderer while leaving
+  tab titles, keyboard focus, routing, canonical context state, panel labelling,
+  and transitions in the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

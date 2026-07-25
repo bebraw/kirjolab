@@ -614,3 +614,27 @@ and 74 browser tests. The rebuilt browser application is 683,986 B raw and
 192,336 B gzip, an increase of 1,102 B raw and 320 B gzip from the
 candidate-queue checkpoint. Direct and unique production package counts remain
 unchanged at 18 and 150.
+
+## Continued Lit Extraction: Context Resource Tabs
+
+The dynamic context resource-tab strip now uses one bounded
+`ContextResourceTabs` instead of an imperative tab and close-button renderer.
+The component owns resource-tab markup, active-state presentation, panel
+associations, the shared tab-id contract, and typed activate and close intents.
+`WorkspaceApp` retains title resolution, keyboard focus, routing, canonical
+context state, panel labelling, and transitions.
+
+This checkpoint reduces `src/client/app.ts` from 10,921 to 10,898 lines (-23).
+The component adds 116 lines and reaches 86.95% statement coverage and 90.47%
+line coverage across empty, publication, candidate, PDF, active, inactive,
+known-action, and rejected-action states. The focused research-context browser
+workflow passes tab rendering, activation, closing, keyboard focus, and panel
+labelling.
+
+Moving the final browser-side icon use out of `WorkspaceApp` also lets the
+browser bundle drop the otherwise unused shared icon-rendering module. The
+full native CI passes all 1,241 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The rebuilt browser application is 682,761 B raw and
+191,653 B gzip, a decrease of 1,225 B raw and 683 B gzip from the
+context-tab-overview checkpoint. Direct and unique production package counts
+remain unchanged at 18 and 150.

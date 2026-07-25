@@ -329,6 +329,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
       summaries, and activate and close intent presentation while tab titles,
       routing, canonical context state, focus restoration, and transitions
       remain with the application coordinator.
+- [x] A bounded light-DOM resource-tab strip owns tab and close-action markup,
+      active-state presentation, panel associations, and activate and close
+      intents while tab titles, keyboard focus, routing, canonical context
+      state, panel labelling, and transitions remain with the application
+      coordinator.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
 - [x] Refresh, copied URLs, and browser Back restore authorized file, view,

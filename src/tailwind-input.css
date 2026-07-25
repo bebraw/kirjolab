@@ -1573,7 +1573,8 @@
   manuscript-comment-list,
   publication-list-panel,
   candidate-list-panel,
-  context-tab-overview-panel {
+  context-tab-overview-panel,
+  context-resource-tabs-panel {
     display: block;
   }
 
