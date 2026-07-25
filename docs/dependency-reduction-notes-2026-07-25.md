@@ -149,3 +149,11 @@ preview/status DOM, and Cancel/Confirm intents behind one component.
 cache, and about 100 lines of imperative picker and preview coordination.
 Connection, repository discovery, preview requests, and project creation remain
 with the application coordinator.
+
+### Shared scholarly response reader: accepted
+
+Crossref, DataCite, OpenAlex, and Semantic Scholar now use the same stateless,
+request-local bounded stream and JSON reader. Provider-specific 1 MB ceilings,
+errors, structural checks, and metadata mappings remain local. The change
+removes 123 duplicated lines while adding 52 shared and adapter lines, for a net
+reduction of 71 source lines without adding a dependency.

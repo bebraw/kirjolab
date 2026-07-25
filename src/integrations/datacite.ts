@@ -1,6 +1,7 @@
 import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
 import type { PublicationEnrichment } from "../domain/workspace";
+import { readBoundedResponseJson } from "./bounded-response";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -18,7 +19,7 @@ export async function fetchDataCiteWork(doiValue: string, mailto: string, fetche
     },
   });
   if (!response.ok) throw new Error(response.status === 404 ? "DataCite has no record for this DOI" : "DataCite metadata request failed");
-  const body = await readBoundedJson(response);
+  const body = await readDataCiteJson(response);
   if (!isRecord(body) || !isRecord(body.data) || !isRecord(body.data.attributes)) {
     throw new Error("DataCite returned invalid metadata");
   }
@@ -37,34 +38,13 @@ export async function fetchDataCiteWork(doiValue: string, mailto: string, fetche
   };
 }
 
-async function readBoundedJson(response: Response): Promise<unknown> {
-  const contentLength = Number(response.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > maximumDataCiteBytes) throw new Error("DataCite metadata response is too large");
-  if (!response.body) throw new Error("DataCite returned invalid metadata");
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    total += result.value.byteLength;
-    if (total > maximumDataCiteBytes) {
-      await reader.cancel();
-      throw new Error("DataCite metadata response is too large");
-    }
-    chunks.push(result.value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    throw new Error("DataCite returned invalid metadata");
-  }
+async function readDataCiteJson(response: Response): Promise<unknown> {
+  return await readBoundedResponseJson(
+    response,
+    maximumDataCiteBytes,
+    () => new Error("DataCite metadata response is too large"),
+    () => new Error("DataCite returned invalid metadata"),
+  );
 }
 
 function dataCiteTitle(value: unknown): string {

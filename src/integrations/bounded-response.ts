@@ -32,3 +32,15 @@ export function parseResponseJson(text: string, invalidJsonError: () => Error): 
     throw invalidJsonError();
   }
 }
+
+export async function readBoundedResponseJson(
+  response: Response,
+  maximumBytes: number,
+  boundsError: () => Error,
+  invalidJsonError: () => Error,
+): Promise<unknown> {
+  if (!response.body) throw invalidJsonError();
+  const text = await readBoundedResponseText(response, maximumBytes, boundsError);
+  if (!text) throw invalidJsonError();
+  return parseResponseJson(text, invalidJsonError);
+}

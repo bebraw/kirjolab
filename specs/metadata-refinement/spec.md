@@ -51,6 +51,9 @@ enough to overwrite canonical metadata without review.
 - UUIDs, PDF bytes, unselected values, and finalized reference keys remain
   unchanged. Reviewed values may improve a PDF-origin key before or after
   project linking, with matching generated aliases rewritten safely.
+- Scholarly adapters share request-local bounded stream and JSON reading while
+  retaining their provider-specific request, error, shape-validation, and
+  metadata-mapping contracts.
 
 ### API Contract
 
@@ -110,7 +113,8 @@ enough to overwrite canonical metadata without review.
 ### Regression Guardrails
 
 - Local extraction retains its page, text, and candidate bounds.
-- Provider adapters identify Kirjolab, bound response bodies, and reject malformed data.
+- Provider adapters identify Kirjolab, enforce their 1 MB response ceiling for
+  declared and streamed bytes, and reject missing, empty, or malformed data.
 - Artifact ownership is checked by the owner-keyed library authority.
 - Manual editing, PDF download, local-only review, and project linking remain available.
 - Provider unavailability must not hide or discard already extracted PDF suggestions.

@@ -62,7 +62,8 @@ indexes.
 - Archived records enter the projection only after explicit archived loading.
 - Manual discovery must not depend on a model connection or transmit private
   manuscript content.
-- Provider I/O remains bounded and server-side, and discovery responses remain
-  uncached.
+- Provider I/O remains bounded and server-side, with declared and streamed
+  response bytes checked by the shared request-local reader; discovery
+  responses remain uncached.
 - Provider labels and identifiers remain visible so merged metadata stays
   inspectable rather than implying a single authoritative registry.

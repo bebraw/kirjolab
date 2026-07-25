@@ -2,6 +2,7 @@ import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
 import type { PublicationEnrichment } from "../domain/workspace";
 import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
+import { readBoundedResponseJson } from "./bounded-response";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -24,7 +25,7 @@ export async function fetchSemanticScholarWork(doiValue: string, apiKey: string,
   if (!response.ok) {
     throw new Error(response.status === 404 ? "Semantic Scholar has no record for this DOI" : "Semantic Scholar metadata request failed");
   }
-  const body = await readBoundedJson(response);
+  const body = await readSemanticScholarJson(response);
   if (!isRecord(body)) throw new Error("Semantic Scholar returned invalid metadata");
   return mapSemanticScholarPaper(body, doi);
 }
@@ -43,7 +44,7 @@ export async function searchSemanticScholarWorks(
   if (/^\d{4}$/u.test(query.year.trim())) url.searchParams.set("year", query.year.trim());
   const response = await fetcher(url, { headers: semanticScholarHeaders(apiKey) });
   if (!response.ok) throw new Error("Semantic Scholar metadata search failed");
-  const body = await readBoundedJson(response);
+  const body = await readSemanticScholarJson(response);
   if (!isRecord(body) || !Array.isArray(body.data)) throw new Error("Semantic Scholar returned invalid search metadata");
   const seen = new Set<string>();
   return body.data.slice(0, maximumMetadataMatches).flatMap((value): SemanticScholarMetadataMatch[] => {
@@ -129,36 +130,13 @@ function semanticScholarHeaders(apiKey: string): Record<string, string> {
   return headers;
 }
 
-async function readBoundedJson(response: Response): Promise<unknown> {
-  const contentLength = Number(response.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > maximumSemanticScholarBytes) {
-    throw new Error("Semantic Scholar metadata response is too large");
-  }
-  if (!response.body) throw new Error("Semantic Scholar returned invalid metadata");
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    total += result.value.byteLength;
-    if (total > maximumSemanticScholarBytes) {
-      await reader.cancel();
-      throw new Error("Semantic Scholar metadata response is too large");
-    }
-    chunks.push(result.value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    throw new Error("Semantic Scholar returned invalid metadata");
-  }
+async function readSemanticScholarJson(response: Response): Promise<unknown> {
+  return await readBoundedResponseJson(
+    response,
+    maximumSemanticScholarBytes,
+    () => new Error("Semantic Scholar metadata response is too large"),
+    () => new Error("Semantic Scholar returned invalid metadata"),
+  );
 }
 
 function bound(value: string, maximumLength: number): string {

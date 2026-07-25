@@ -2,6 +2,7 @@ import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
 import type { PublicationEnrichment } from "../domain/workspace";
 import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
+import { readBoundedResponseJson } from "./bounded-response";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -24,7 +25,7 @@ export async function fetchOpenAlexWork(doiValue: string, apiKey: string, fetche
   url.searchParams.set("api_key", key);
   const response = await fetcher(url, { headers: { accept: "application/json", "user-agent": "Kirjolab/0.1" } });
   if (!response.ok) throw new Error(response.status === 404 ? "OpenAlex has no record for this DOI" : "OpenAlex metadata request failed");
-  const body = await readBoundedJson(response);
+  const body = await readOpenAlexJson(response);
   if (!isRecord(body)) throw new Error("OpenAlex returned invalid metadata");
   return mapOpenAlexWork(body, doi);
 }
@@ -44,7 +45,7 @@ export async function searchOpenAlexWorks(
   url.searchParams.set("api_key", key);
   const response = await fetcher(url, { headers: { accept: "application/json", "user-agent": "Kirjolab/0.1" } });
   if (!response.ok) throw new Error("OpenAlex metadata search failed");
-  const body = await readBoundedJson(response);
+  const body = await readOpenAlexJson(response);
   if (!isRecord(body) || !Array.isArray(body.results)) throw new Error("OpenAlex returned invalid search metadata");
   const seen = new Set<string>();
   return body.results.slice(0, maximumMetadataMatches).flatMap((value): OpenAlexMetadataMatch[] => {
@@ -145,34 +146,13 @@ function finiteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-async function readBoundedJson(response: Response): Promise<unknown> {
-  const contentLength = Number(response.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > maximumOpenAlexBytes) throw new Error("OpenAlex metadata response is too large");
-  if (!response.body) throw new Error("OpenAlex returned invalid metadata");
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    total += result.value.byteLength;
-    if (total > maximumOpenAlexBytes) {
-      await reader.cancel();
-      throw new Error("OpenAlex metadata response is too large");
-    }
-    chunks.push(result.value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    throw new Error("OpenAlex returned invalid metadata");
-  }
+async function readOpenAlexJson(response: Response): Promise<unknown> {
+  return await readBoundedResponseJson(
+    response,
+    maximumOpenAlexBytes,
+    () => new Error("OpenAlex metadata response is too large"),
+    () => new Error("OpenAlex returned invalid metadata"),
+  );
 }
 
 function bound(value: string, maximumLength: number): string {

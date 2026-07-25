@@ -3,6 +3,7 @@ import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intak
 import type { PublicationEnrichment } from "../domain/workspace";
 import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
 import type { CitationExpansionCandidate } from "../domain/citation-expansion-types";
+import { readBoundedResponseJson } from "./bounded-response";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -39,7 +40,7 @@ export async function fetchCrossrefWork(doiValue: string, mailto: string, fetche
     },
   });
   if (!response.ok) throw new Error(response.status === 404 ? "Crossref has no record for this DOI" : "Crossref metadata request failed");
-  const body = await readBoundedJson(response);
+  const body = await readCrossrefJson(response);
   if (!isRecord(body) || !isRecord(body.message)) throw new Error("Crossref returned invalid metadata");
   return mapCrossrefMessage(body.message, doi);
 }
@@ -58,7 +59,7 @@ export async function searchCrossrefWorks(
   if (contact) url.searchParams.set("mailto", contact);
   const response = await fetcher(url, { headers: crossrefHeaders(contact) });
   if (!response.ok) throw new Error("Crossref metadata search failed");
-  const body = await readBoundedJson(response);
+  const body = await readCrossrefJson(response);
   if (!isRecord(body) || !isRecord(body.message) || !Array.isArray(body.message.items)) {
     throw new Error("Crossref returned invalid search metadata");
   }
@@ -130,7 +131,7 @@ export async function fetchCrossrefReferences(
     },
   });
   if (!response.ok) throw new Error(response.status === 404 ? "Crossref has no record for this DOI" : "Crossref metadata request failed");
-  const body = await readBoundedJson(response);
+  const body = await readCrossrefJson(response);
   if (!isRecord(body) || !isRecord(body.message)) throw new Error("Crossref returned invalid metadata");
   const references = Array.isArray(body.message.reference) ? body.message.reference : [];
   const candidates = references.slice(0, maximumCitationCandidates).flatMap((value): CitationExpansionCandidate[] => {
@@ -159,35 +160,13 @@ export async function fetchCrossrefReferences(
   };
 }
 
-async function readBoundedJson(response: Response): Promise<unknown> {
-  const contentLength = Number(response.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > maximumCrossrefBytes) throw new Error("Crossref metadata response is too large");
-  if (!response.body) throw new Error("Crossref returned invalid metadata");
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    total += result.value.byteLength;
-    if (total > maximumCrossrefBytes) {
-      await reader.cancel();
-      throw new Error("Crossref metadata response is too large");
-    }
-    chunks.push(result.value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    throw new Error("Crossref returned invalid metadata");
-  }
+async function readCrossrefJson(response: Response): Promise<unknown> {
+  return await readBoundedResponseJson(
+    response,
+    maximumCrossrefBytes,
+    () => new Error("Crossref metadata response is too large"),
+    () => new Error("Crossref returned invalid metadata"),
+  );
 }
 
 function extractYear(message: Record<string, unknown>): string {

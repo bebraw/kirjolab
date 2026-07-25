@@ -20,6 +20,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   predicates. Keep authorization, cross-record invariants, canonicalization,
   and stateful business rules in explicit domain functions; do not migrate
   predicates merely for consistency.
+- Read bounded external response bodies through stateless, request-local
+  helpers that enforce both declared and observed byte limits. Keep byte
+  ceilings, errors, response-shape validation, and domain mapping explicit at
+  each provider boundary; never retain response I/O in module state.
 - Model external scholarly works as typed sets of stable identifiers. Prefer DOI when present, but do not make DOI a prerequisite for discovery or review.
 - Do not place executable browser code inline in Worker-rendered HTML. Client behavior should live in typed TypeScript modules before it is served to browsers.
 - Use XState only for bounded event-driven browser workflows whose mutually
