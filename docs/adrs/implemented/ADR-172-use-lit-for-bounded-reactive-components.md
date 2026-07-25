@@ -164,6 +164,9 @@ The adopted components own bounded presentation:
 - The Library reference metadata editor owns manual field values, PDF and
   provider suggestions, work and field selections, refinement progress, and
   typed save, refine, and application intents.
+- The Library reference PDF rows own attached-artifact presentation, member
+  access context, rights choices, and typed open, rights, and refinement
+  intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -371,6 +374,10 @@ reason to wrap static markup mechanically.
   helpers, and DOM-based application selection collection. The application
   coordinator retains PDF extraction, provider requests, the refinement state
   machine, persistence, refreshes, and toast policy.
+- The Library reference PDF rows replace two imperative row render helpers and
+  per-artifact open, rights, and secondary-refinement handlers while leaving
+  PDF presentation, rights persistence, extraction, and refinement workflow in
+  the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

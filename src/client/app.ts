@@ -125,6 +125,7 @@ import {
   type LibraryReferenceMetadataValue,
   type ProviderMetadataSelection,
 } from "./library-reference-metadata-editor";
+import { LibraryReferencePdfRows, libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
 import {
   WorkspaceSettingsPanel,
   workspaceSettingsActionEvent,
@@ -1144,6 +1145,17 @@ class WorkspaceApp {
       else if (detail.action === "refine") void this.#refinePdfMetadata(detail.reference, detail.artifact, editor);
       else if (detail.action === "apply-pdf") void this.#applyPdfMetadata(detail.referenceId, detail.artifactId, detail.fields);
       else void this.#applyProviderMetadata(detail.referenceId, detail.candidates, detail.selections);
+    });
+    this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfActionEvent, (event) => {
+      const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
+      if (detail.action === "open") void this.#openLibraryPdf(detail.artifact);
+      else if (detail.action === "set-rights") void this.#setArtifactRights(detail.artifactId, detail.rights);
+      else {
+        const editor = (event.target as Element)
+          .closest(".library-reference-row")
+          ?.querySelector<LibraryReferenceMetadataEditor>("library-reference-metadata-editor");
+        if (editor) void this.#refinePdfMetadata(detail.reference, detail.artifact, editor);
+      }
     });
     this.#elements.unidentifiedPdfList.addEventListener(unidentifiedPdfIdentifyEvent, (event) => {
       const { artifactId, referenceId } = (event as CustomEvent<UnidentifiedPdfSelection>).detail;
@@ -3689,6 +3701,7 @@ class WorkspaceApp {
       ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferenceSummary>("library-reference-summary"),
       ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferenceMetadataEditor>("library-reference-metadata-editor"),
       ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferencePersonalFields>("library-reference-personal-fields"),
+      ...this.#elements.referenceLibraryList.querySelectorAll<LibraryReferencePdfRows>("library-reference-pdf-rows"),
     ];
     await Promise.all(components.map(({ updateComplete }) => updateComplete));
   }
@@ -3843,7 +3856,7 @@ class WorkspaceApp {
       tags: this.#librarySnapshot?.tags[reference.id] ?? [],
     });
     metadataBody.append(personalFields);
-    this.#appendReferenceResources(metadataBody, reference, linked, artifacts, metadataFields);
+    this.#appendReferenceResources(metadataBody, reference, linked, artifacts);
     return metadataEditor;
   }
 
@@ -3852,7 +3865,6 @@ class WorkspaceApp {
     reference: BibliographicRecord,
     linked: WorkspaceSnapshot["projectReferences"][number] | undefined,
     artifacts: readonly LibraryPdfArtifact[],
-    metadataEditor: LibraryReferenceMetadataEditor,
   ): void {
     const resources = document.createElement("div");
     resources.className = "mt-3 space-y-2 border-t border-app-line pt-3";
@@ -3863,7 +3875,10 @@ class WorkspaceApp {
       (left, right) => right.accessedAt.localeCompare(left.accessedAt),
     );
     this.#appendReferenceNoteRows(resources, reference.id, notes, linked !== undefined);
-    this.#appendReferencePdfRows(resources, reference, artifacts, linked !== undefined, metadataEditor);
+    const pdfRows = new LibraryReferencePdfRows();
+    pdfRows.className = "contents";
+    pdfRows.setData(reference, artifacts, linked !== undefined);
+    resources.append(pdfRows);
     this.#appendReferenceHighlightRows(resources, reference.id, highlights, linked !== undefined);
     this.#appendReferenceWebSnapshotRows(metadataBody, resources, reference.id, webSource?.canonicalUrl, webSnapshots, linked);
     if (notes.length + artifacts.length + highlights.length + webSnapshots.length > 0) metadataBody.append(resources);
@@ -3872,16 +3887,6 @@ class WorkspaceApp {
   #appendReferenceNoteRows(resources: HTMLElement, referenceId: string, notes: ReferenceLibrarySnapshot["notes"], linked: boolean): void {
     for (const note of notes)
       resources.append(this.#privateResearchRow(referenceId, "note", note.id, `Note · ${note.body.slice(0, 100)}`, linked));
-  }
-
-  #appendReferencePdfRows(
-    resources: HTMLElement,
-    reference: BibliographicRecord,
-    artifacts: readonly LibraryPdfArtifact[],
-    linked: boolean,
-    metadataEditor: LibraryReferenceMetadataEditor,
-  ): void {
-    for (const artifact of artifacts) resources.append(this.#referencePdfRow(reference, artifact, artifacts[0], linked, metadataEditor));
   }
 
   #appendReferenceHighlightRows(
@@ -3921,46 +3926,6 @@ class WorkspaceApp {
       for (const [index, snapshot] of webSnapshots.entries())
         resources.append(this.#referenceWebSnapshotRow(referenceId, snapshot, webSnapshots[index + 1], linked));
     }
-  }
-
-  #referencePdfRow(
-    reference: BibliographicRecord,
-    artifact: LibraryPdfArtifact,
-    primaryArtifact: LibraryPdfArtifact | undefined,
-    linked: boolean,
-    metadataEditor: LibraryReferenceMetadataEditor,
-  ): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "rounded-sm border border-app-line p-2";
-    const text = document.createElement("p");
-    text.className = "font-sans text-xs leading-5 text-app-text-soft";
-    text.textContent = `PDF · ${artifact.name}`;
-    row.append(text);
-    if (linked) {
-      const access = document.createElement("p");
-      access.className = "mt-1 font-sans text-xs leading-5 text-app-text-soft";
-      access.textContent = "Available to signed-in project members; excluded from public links.";
-      row.append(access);
-    }
-    const rights = document.createElement("select");
-    rights.className = "field mt-2";
-    for (const value of ["private", "unknown", "shareable"] as const) rights.append(new Option(`Rights: ${value}`, value));
-    rights.value = artifact.rights;
-    rights.addEventListener("change", () => void this.#setArtifactRights(artifact.id, rights.value));
-    row.append(
-      actionButton("Open PDF", "button-secondary mt-2", () => void this.#openLibraryPdf(artifact)),
-      rights,
-    );
-    if (artifact.id !== primaryArtifact?.id) {
-      row.append(
-        actionButton(
-          "Refine from this PDF",
-          "button-secondary mt-2",
-          () => void this.#refinePdfMetadata(reference, artifact, metadataEditor),
-        ),
-      );
-    }
-    return row;
   }
 
   #referenceWebSnapshotRow(

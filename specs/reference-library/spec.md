@@ -94,6 +94,11 @@ memory and makes citation aliases compete with stable source identity.
   The workspace coordinator retains PDF extraction, provider requests,
   refinement workflow state, persistence, Library refreshes, and notification
   policy; metadata components never receive or return raw DOM targets.
+- A bounded light-DOM PDF-row component owns attached-artifact presentation,
+  signed-in member access context, rights choices, primary-versus-secondary
+  refinement availability, and typed actions. The workspace coordinator
+  retains PDF presentation, rights persistence, extraction, refinement state,
+  Library refreshes, and notification policy.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.
 - An authenticated project member may stream PDFs attached to the project

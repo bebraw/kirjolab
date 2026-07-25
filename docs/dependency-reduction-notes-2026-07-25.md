@@ -1351,3 +1351,24 @@ and 74 browser tests. The browser application artifact grows from 755,538 B raw
 gzip). The coordinator waits for reference-card component updates before
 restoring Library scroll state. Direct and unique production package counts
 remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Library Reference PDF Rows
+
+A bounded `LibraryReferencePdfRows` now owns attached-PDF presentation,
+signed-in member access context, rights choices, and primary-versus-secondary
+refinement actions. This replaces two imperative render helpers and their
+per-artifact open, rights, and refinement handlers with one delegated typed
+action stream. `WorkspaceApp` retains PDF presentation, rights persistence,
+extraction, refinement workflow, Library refreshes, and toasts.
+
+This checkpoint reduces `src/client/app.ts` from 8,777 to 8,742 lines (-35).
+The component adds 93 lines. Component tests cover empty, linked,
+multi-artifact, open, validated-rights, and secondary-refinement states.
+Focused browser workflows pass linked-PDF access, opening, Library scroll
+restoration, and provider refinement. The component records 78.57% statement
+and 80% line coverage.
+
+Full native CI passes all 1,323 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 759,750 B raw
+/ 206,892 B gzip to 761,155 B raw / 207,102 B gzip (+1,405 B raw / +210 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.
