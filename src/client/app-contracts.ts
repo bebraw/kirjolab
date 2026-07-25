@@ -99,6 +99,9 @@ const gitHubPublishPreviewSchema = v.object({
   }),
 });
 
+export type GitHubPullPreview = v.InferInput<typeof gitHubPullPreviewSchema>;
+export type GitHubPublishPreview = v.InferInput<typeof gitHubPublishPreviewSchema>;
+
 const latexArchiveSchema = v.object({
   files: v.array(
     v.object({

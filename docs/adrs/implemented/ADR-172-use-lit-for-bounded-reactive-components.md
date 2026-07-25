@@ -35,6 +35,9 @@ The first components own bounded GitHub presentation:
   Confirm intents.
 - The workspace sync menu owns repository status, relationship tone, Pull and
   Push availability, and typed Check, Pull, Push, and Settings intents.
+- The workspace sync review owns Pull and Publish diff rendering, conflict
+  choices, commit-message input, readiness, progress, and typed preview,
+  confirmation, and disconnect intents.
 - The new-project starting-point browser owns template and existing-project
   groups, local selection and preview state, bounded preview rendering, and
   typed selection, project-load, and template-delete intents.
@@ -58,6 +61,9 @@ reason to wrap static markup mechanically.
 - The starting-point browser removes template preview DOM construction,
   selection synchronization, and project-source presentation state from the
   application coordinator while leaving fetches and mutations there.
+- The sync review replaces seven internal element references and conflict/diff
+  DOM construction while leaving preview identities and network authority in
+  the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

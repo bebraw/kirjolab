@@ -29,18 +29,20 @@ export function renderWorkspaceSettingsDialog(): string {
         <section class="mt-6 border-t border-app-line pt-5">
           <p class="eyebrow">GitHub sync</p>
           <p class="mt-2 text-sm leading-6 text-app-text-soft" id="github-sync-status">Checking connection…</p>
-          <div class="mt-4" id="github-pull-review" aria-live="polite"></div>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <button class="button-secondary" id="preview-github-pull" type="button">Preview pull</button>
-            <button class="button-primary" id="confirm-github-pull" type="button" disabled>Pull changes</button>
-          </div>
-          <label class="field-label mt-4">Commit message<input class="field" id="github-publish-message" maxlength="900" value="Publish from Kirjolab"></label>
-          <div class="mt-3" id="github-publish-review" aria-live="polite"></div>
-          <div class="mt-4 flex flex-wrap gap-2">
-            <button class="button-secondary" id="preview-github-publish" type="button">Preview publish</button>
-            <button class="button-primary" id="confirm-github-publish" type="button" disabled>Publish commit</button>
-            <button class="button-secondary" id="disconnect-github" type="button" data-destructive="true">Disconnect</button>
-          </div>
+          <github-sync-review id="github-sync-review">
+            <div class="mt-4" id="github-pull-review" aria-live="polite"></div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button class="button-secondary" id="preview-github-pull" type="button">Preview pull</button>
+              <button class="button-primary" id="confirm-github-pull" type="button" disabled>Pull changes</button>
+            </div>
+            <label class="field-label mt-4">Commit message<input class="field" id="github-publish-message" maxlength="900" value="Publish from Kirjolab"></label>
+            <div class="mt-3" id="github-publish-review" aria-live="polite"></div>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button class="button-secondary" id="preview-github-publish" type="button">Preview publish</button>
+              <button class="button-primary" id="confirm-github-publish" type="button" disabled>Publish commit</button>
+              <button class="button-secondary" id="disconnect-github" type="button" data-destructive="true">Disconnect</button>
+            </div>
+          </github-sync-review>
         </section>
         <section class="mt-6 border-t border-app-line pt-5">
           <p class="eyebrow">Danger zone</p>

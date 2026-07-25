@@ -126,6 +126,11 @@ incoming and outgoing mutation.
   typed Check, Pull, Push, and Settings intents. The application coordinator
   retains refresh timing, network requests, preview workflows, and settings
   dialogs, while the Worker retains initial fallback markup.
+- The detailed sync review is a light-DOM Lit component that owns diff and
+  conflict presentation, local resolution choices, commit-message input,
+  action readiness, and typed preview, confirmation, and disconnect intents.
+  The application coordinator retains preview identities, requests,
+  confirmation payloads, project refresh, and disconnect confirmation.
 - `POST /api/workspaces/{id}/github-sync/pull-previews` returns a non-mutating
   three-way incoming diff and conflicts.
 - `POST /api/workspaces/{id}/github-sync/pulls` consumes a current pull preview

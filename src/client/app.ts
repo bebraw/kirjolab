@@ -94,6 +94,14 @@ import {
   gitHubSyncSettingsEvent,
 } from "./github-sync-menu";
 import {
+  GitHubSyncReview,
+  gitHubPublishConfirmEvent,
+  gitHubPublishPreviewEvent,
+  gitHubPullConfirmEvent,
+  gitHubPullPreviewEvent,
+  gitHubSyncDisconnectEvent,
+} from "./github-sync-review";
+import {
   ProjectStartingPointBrowser,
   startingPointChangeEvent,
   startingPointProjectLoadEvent,
@@ -254,8 +262,6 @@ interface MetadataRefinementTargets {
 
 type GuardResult<T> = T extends (value: unknown) => value is infer Result ? Result : never;
 type GitHubSyncConnection = GuardResult<typeof isGitHubSyncState>;
-type GitHubPullPreview = GuardResult<typeof isGitHubPullPreview>;
-type GitHubPublishPreview = GuardResult<typeof isGitHubPublishPreview>;
 
 interface PreviewInputs {
   readonly files: readonly ProjectFile[];
@@ -443,14 +449,7 @@ interface Elements {
   gitHubImportPanel: GitHubImportPanel;
   gitHubSyncStatus: HTMLElement;
   gitHubSyncMenu: GitHubSyncMenu;
-  gitHubPullReview: HTMLElement;
-  previewGitHubPull: HTMLButtonElement;
-  confirmGitHubPull: HTMLButtonElement;
-  gitHubPublishMessage: HTMLInputElement;
-  gitHubPublishReview: HTMLElement;
-  previewGitHubPublish: HTMLButtonElement;
-  confirmGitHubPublish: HTMLButtonElement;
-  disconnectGitHub: HTMLButtonElement;
+  gitHubSyncReview: GitHubSyncReview;
   saveTemplateDialog: HTMLDialogElement;
   saveTemplateForm: HTMLFormElement;
   saveTemplateTarget: HTMLSelectElement;
@@ -1223,11 +1222,11 @@ class WorkspaceApp {
     this.#elements.gitHubImportPanel.addEventListener(gitHubRepositoryChangeEvent, () => void this.#loadGitHubBranches());
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportConfirmEvent, () => void this.#confirmGitHubImport());
     this.#elements.gitHubConnectionPanel.addEventListener(gitHubDisconnectEvent, () => void this.#disconnectGitHubAccount());
-    this.#elements.previewGitHubPull.addEventListener("click", () => void this.#previewGitHubPull());
-    this.#elements.confirmGitHubPull.addEventListener("click", () => void this.#confirmGitHubPull());
-    this.#elements.previewGitHubPublish.addEventListener("click", () => void this.#previewGitHubPublish());
-    this.#elements.confirmGitHubPublish.addEventListener("click", () => void this.#confirmGitHubPublish());
-    this.#elements.disconnectGitHub.addEventListener("click", () => void this.#disconnectGitHub());
+    this.#elements.gitHubSyncReview.addEventListener(gitHubPullPreviewEvent, () => void this.#previewGitHubPull());
+    this.#elements.gitHubSyncReview.addEventListener(gitHubPullConfirmEvent, () => void this.#confirmGitHubPull());
+    this.#elements.gitHubSyncReview.addEventListener(gitHubPublishPreviewEvent, () => void this.#previewGitHubPublish());
+    this.#elements.gitHubSyncReview.addEventListener(gitHubPublishConfirmEvent, () => void this.#confirmGitHubPublish());
+    this.#elements.gitHubSyncReview.addEventListener(gitHubSyncDisconnectEvent, () => void this.#disconnectGitHub());
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncCheckEvent, () => void this.#refreshGitHubSyncState(true));
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncPullEvent, () => {
       this.#openWorkspaceSettings(false);
@@ -2073,10 +2072,7 @@ class WorkspaceApp {
   #resetGitHubSyncReview(): void {
     this.#gitHubPullPreviewId = null;
     this.#gitHubPublishPreviewId = null;
-    this.#elements.confirmGitHubPull.disabled = true;
-    this.#elements.confirmGitHubPublish.disabled = true;
-    this.#elements.gitHubPullReview.replaceChildren();
-    this.#elements.gitHubPublishReview.replaceChildren();
+    this.#elements.gitHubSyncReview.reset();
   }
 
   async #loadGitHubSyncState(requestId: number): Promise<void> {
@@ -2096,10 +2092,7 @@ class WorkspaceApp {
 
   #renderGitHubSyncConnection(connection: GitHubSyncConnection | null): void {
     const connected = connection !== null;
-    this.#elements.previewGitHubPull.disabled = !connected;
-    this.#elements.previewGitHubPublish.disabled = !connected;
-    this.#elements.disconnectGitHub.disabled = !connected;
-    this.#elements.gitHubPublishMessage.disabled = !connected;
+    this.#elements.gitHubSyncReview.setConnected(connected);
     this.#elements.gitHubSyncMenu.setConnection(connection);
     if (!connection) {
       this.#elements.gitHubSyncStatus.textContent = "This project is not connected to GitHub.";
@@ -2120,124 +2113,63 @@ class WorkspaceApp {
 
   async #previewGitHubPull(): Promise<void> {
     this.#gitHubPullPreviewId = null;
-    this.#elements.confirmGitHubPull.disabled = true;
-    this.#elements.gitHubPullReview.replaceChildren(statusText("Checking GitHub for changes…"));
+    this.#elements.gitHubSyncReview.beginPullPreview();
     try {
       const response = await jsonFetch(`${apiBase}/github-sync/pull-previews`, {});
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isGitHubPullPreview(value)) throw new Error("GitHub returned an invalid pull preview");
       this.#gitHubPullPreviewId = value.id;
-      this.#renderGitHubPullPreview(value);
+      this.#elements.gitHubSyncReview.showPullPreview(value);
     } catch (error) {
-      this.#elements.gitHubPullReview.replaceChildren(statusText(error instanceof Error ? error.message : "Could not check GitHub."));
+      this.#elements.gitHubSyncReview.showPullError(error instanceof Error ? error.message : "Could not check GitHub.");
     }
-  }
-
-  #renderGitHubPullPreview(value: GitHubPullPreview): void {
-    const summary = document.createElement("p");
-    summary.className = "text-sm leading-6 text-app-text-soft";
-    summary.textContent = gitHubPullSummary(value);
-    this.#elements.gitHubPullReview.replaceChildren(summary, gitHubPullChanges(value), this.#gitHubPullConflicts(value));
-    this.#elements.confirmGitHubPull.disabled = value.plan.blocking.length > 0 || value.plan.changes.length === 0;
-  }
-
-  #gitHubPullConflicts(value: GitHubPullPreview): HTMLElement {
-    const conflicts = document.createElement("div");
-    conflicts.className = "mt-4 space-y-4";
-    value.plan.blocking.forEach((change, conflict) => conflicts.append(this.#gitHubPullConflict(change, conflict)));
-    return conflicts;
-  }
-
-  #gitHubPullConflict(change: GitHubPullPreview["plan"]["blocking"][number], conflict: number): HTMLElement {
-    const fieldset = document.createElement("fieldset");
-    fieldset.className = "rounded-app border border-app-line p-3";
-    const legend = document.createElement("legend");
-    legend.className = "px-1 font-sans text-xs font-semibold text-app-text";
-    legend.textContent = `Conflict · ${gitHubConflictPath(change)}`;
-    const versions = document.createElement("div");
-    versions.className = "mt-2 grid gap-3 md:grid-cols-2";
-    versions.append(...gitHubConflictVersions(change));
-    const label = document.createElement("label");
-    label.className = "field-label mt-3";
-    label.textContent = "Resolution";
-    const select = document.createElement("select");
-    select.className = "field";
-    select.dataset.githubConflict = String(conflict);
-    select.append(new Option("Choose a version…", ""), new Option("Keep Kirjolab", "local"), new Option("Use GitHub", "remote"));
-    select.addEventListener("change", () => this.#updateGitHubPullReadiness());
-    label.append(select);
-    fieldset.append(legend, versions, label);
-    return fieldset;
-  }
-
-  #updateGitHubPullReadiness(): void {
-    const choices = this.#elements.gitHubPullReview.querySelectorAll<HTMLSelectElement>("[data-github-conflict]");
-    this.#elements.confirmGitHubPull.disabled = ![...choices].every((candidate) => validGitHubConflictChoice(candidate.value));
   }
 
   async #confirmGitHubPull(): Promise<void> {
     if (!this.#gitHubPullPreviewId) return;
-    this.#elements.confirmGitHubPull.disabled = true;
+    this.#elements.gitHubSyncReview.beginPull();
     try {
-      const resolutions = [...this.#elements.gitHubPullReview.querySelectorAll<HTMLSelectElement>("[data-github-conflict]")].map(
-        (select) => ({
-          conflict: Number(select.dataset.githubConflict),
-          choice: select.value,
-        }),
-      );
+      const resolutions = this.#elements.gitHubSyncReview.resolutions;
       const response = await jsonFetch(`${apiBase}/github-sync/pulls`, { previewId: this.#gitHubPullPreviewId, resolutions });
       await expectOk(response);
       await this.#resourceRefresh.request();
       await this.#refreshGitHubSyncState(true);
-      this.#elements.gitHubPullReview.replaceChildren(statusText("Pulled the reviewed changes from GitHub."));
+      this.#elements.gitHubSyncReview.showPullSuccess();
     } catch (error) {
-      this.#elements.gitHubPullReview.replaceChildren(statusText(error instanceof Error ? error.message : "Could not pull from GitHub."));
+      this.#elements.gitHubSyncReview.showPullError(error instanceof Error ? error.message : "Could not pull from GitHub.");
     }
   }
 
   async #previewGitHubPublish(): Promise<void> {
     this.#gitHubPublishPreviewId = null;
-    this.#elements.confirmGitHubPublish.disabled = true;
-    this.#elements.gitHubPublishReview.replaceChildren(statusText("Comparing Kirjolab with GitHub…"));
+    this.#elements.gitHubSyncReview.beginPublishPreview();
     try {
       const response = await jsonFetch(`${apiBase}/github-sync/publish-previews`, {
-        commitMessage: this.#elements.gitHubPublishMessage.value,
+        commitMessage: this.#elements.gitHubSyncReview.commitMessage,
       });
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isGitHubPublishPreview(value)) throw new Error("GitHub returned an invalid publish preview");
       this.#gitHubPublishPreviewId = value.id;
-      this.#renderGitHubPublishPreview(value);
+      this.#elements.gitHubSyncReview.showPublishPreview(value);
     } catch (error) {
-      this.#elements.gitHubPublishReview.replaceChildren(
-        statusText(error instanceof Error ? error.message : "Could not preview GitHub publish."),
-      );
+      this.#elements.gitHubSyncReview.showPublishError(error instanceof Error ? error.message : "Could not preview GitHub publish.");
     }
-  }
-
-  #renderGitHubPublishPreview(value: GitHubPublishPreview): void {
-    const summary = document.createElement("p");
-    summary.className = "text-sm leading-6 text-app-text-soft";
-    summary.textContent = gitHubPublishSummary(value);
-    this.#elements.gitHubPublishReview.replaceChildren(summary, gitHubPublishChanges(value));
-    this.#elements.confirmGitHubPublish.disabled = value.plan.blocking.length > 0 || value.plan.changes.length === 0;
   }
 
   async #confirmGitHubPublish(): Promise<void> {
     if (!this.#gitHubPublishPreviewId) return;
-    this.#elements.confirmGitHubPublish.disabled = true;
+    this.#elements.gitHubSyncReview.beginPublish();
     try {
       const response = await jsonFetch(`${apiBase}/github-sync/publishes`, { previewId: this.#gitHubPublishPreviewId });
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isUnknownRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");
       await this.#refreshGitHubSyncState(true);
-      this.#elements.gitHubPublishReview.replaceChildren(statusText(`Published commit ${value.commitSha.slice(0, 10)}.`));
+      this.#elements.gitHubSyncReview.showPublishSuccess(value.commitSha);
     } catch (error) {
-      this.#elements.gitHubPublishReview.replaceChildren(
-        statusText(error instanceof Error ? error.message : "Could not publish to GitHub."),
-      );
+      this.#elements.gitHubSyncReview.showPublishError(error instanceof Error ? error.message : "Could not publish to GitHub.");
     }
   }
 
@@ -11421,14 +11353,7 @@ function collectElements(): Elements {
     gitHubImportPanel: requiredElement("github-import-panel", GitHubImportPanel),
     gitHubSyncStatus: requiredElement("github-sync-status", HTMLElement),
     gitHubSyncMenu: requiredElement("github-sync-control", GitHubSyncMenu),
-    gitHubPullReview: requiredElement("github-pull-review", HTMLElement),
-    previewGitHubPull: requiredElement("preview-github-pull", HTMLButtonElement),
-    confirmGitHubPull: requiredElement("confirm-github-pull", HTMLButtonElement),
-    gitHubPublishMessage: requiredElement("github-publish-message", HTMLInputElement),
-    gitHubPublishReview: requiredElement("github-publish-review", HTMLElement),
-    previewGitHubPublish: requiredElement("preview-github-publish", HTMLButtonElement),
-    confirmGitHubPublish: requiredElement("confirm-github-publish", HTMLButtonElement),
-    disconnectGitHub: requiredElement("disconnect-github", HTMLButtonElement),
+    gitHubSyncReview: requiredElement("github-sync-review", GitHubSyncReview),
     saveTemplateDialog: requiredElement("save-template-dialog", HTMLDialogElement),
     saveTemplateForm: requiredElement("save-template-form", HTMLFormElement),
     saveTemplateTarget: requiredElement("save-template-target", HTMLSelectElement),
@@ -11834,78 +11759,6 @@ function downloadLink(href: string, label: string): HTMLAnchorElement {
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function gitHubConflictVersion(label: string, content: string): HTMLElement {
-  const section = document.createElement("section");
-  const heading = document.createElement("p");
-  heading.className = "font-sans text-xs font-semibold text-app-text-soft";
-  heading.textContent = label;
-  const preview = document.createElement("pre");
-  preview.className = "mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-app bg-app-surface p-2 font-mono text-xs text-app-text";
-  preview.textContent = content.length > 1_000 ? `${content.slice(0, 1_000)}\n…` : content;
-  section.append(heading, preview);
-  return section;
-}
-
-function gitHubConflictPath(change: GitHubPullPreview["plan"]["blocking"][number]): string {
-  return change.local?.path ?? change.remote?.path ?? change.base?.path ?? "Unknown path";
-}
-
-function gitHubConflictVersions(change: GitHubPullPreview["plan"]["blocking"][number]): HTMLElement[] {
-  return [
-    gitHubConflictVersion("Kirjolab", change.local?.content ?? "File deleted in Kirjolab"),
-    gitHubConflictVersion("GitHub", change.remote?.content ?? "File deleted on GitHub"),
-  ];
-}
-
-function gitHubPullSummary(value: GitHubPullPreview): string {
-  const conflicts = value.plan.blocking.length;
-  if (conflicts > 0) return `${conflicts} conflict${conflicts === 1 ? "" : "s"} need review before pulling.`;
-  const changes = value.plan.changes.length;
-  return changes > 0 ? `${changes} incoming change${changes === 1 ? "" : "s"} ready to pull.` : "No tracked Markdown changes to pull.";
-}
-
-function gitHubPullChanges(value: GitHubPullPreview): HTMLElement {
-  const list = document.createElement("ul");
-  list.className = "mt-2 space-y-1 font-sans text-xs text-app-text-soft";
-  for (const change of value.plan.changes) {
-    const item = document.createElement("li");
-    item.textContent = `${gitHubPullChangeKind(change)} · ${change.remote?.path ?? change.base?.path ?? "Unknown path"}`;
-    list.append(item);
-  }
-  return list;
-}
-
-function gitHubPullChangeKind(change: GitHubPullPreview["plan"]["changes"][number]): string {
-  if (!change.remote) return "Delete";
-  return change.base ? "Update" : "Add";
-}
-
-function validGitHubConflictChoice(value: string): boolean {
-  return value === "local" || value === "remote";
-}
-
-function gitHubPublishSummary(value: GitHubPublishPreview): string {
-  if (value.plan.blocking.length > 0) return `${value.plan.blocking.length} remote change or conflict must be pulled or resolved first.`;
-  if (value.plan.changes.length === 0) return "No tracked changes to publish.";
-  return `${value.plan.changes.length} tracked path changes will be committed to ${value.expectedRemoteHead.slice(0, 10)}.`;
-}
-
-function gitHubPublishChanges(value: GitHubPublishPreview): HTMLElement {
-  const list = document.createElement("ul");
-  list.className = "mt-2 space-y-1 font-sans text-xs text-app-text-soft";
-  for (const change of value.plan.changes) {
-    const item = document.createElement("li");
-    item.textContent = `${change.content === null ? "Delete" : "Update"} · ${change.path}`;
-    list.append(item);
-  }
-  if (value.plan.skippedLocalPaths.length > 0) {
-    const item = document.createElement("li");
-    item.textContent = `Not tracked · ${value.plan.skippedLocalPaths.join(", ")}`;
-    list.append(item);
-  }
-  return list;
 }
 
 function shareLinkDescription(kind: "read-only" | "edit", status: ShareLinkStatus): string {

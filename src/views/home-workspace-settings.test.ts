@@ -15,6 +15,7 @@ describe("renderWorkspaceSettingsDialog", () => {
     expect(html).toContain('id="workspace-paper-size"');
     expect(html).toContain('id="save-workspace-template" type="button"');
     expect(html).toContain('id="archive-workspace" type="button" data-destructive="true"');
+    expect(html).toContain('<github-sync-review id="github-sync-review">');
     expect(html).toContain('id="github-pull-review" aria-live="polite"');
     expect(html).toContain('id="confirm-github-pull" type="button" disabled');
     expect(html).toContain('id="github-publish-review" aria-live="polite"');

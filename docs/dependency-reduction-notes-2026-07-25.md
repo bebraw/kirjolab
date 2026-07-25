@@ -179,6 +179,17 @@ explicit. The refactor removes the fifth streamed JSON implementation and five
 net source lines; the generalized decoder option changes the minified browser
 application by +358 B raw and +127 B gzip.
 
+### GitHub sync review component: accepted
+
+The fifth Lit boundary moves Pull and Publish diff rendering, conflict choices,
+commit-message input, progress, readiness, and seven local control references
+out of `WorkspaceApp`. The coordinator retains preview identities, requests,
+project refresh, mutations, and disconnect confirmation. `WorkspaceApp` drops
+147 net lines while the focused component adds 364 lines; total executable
+source grows by 222 lines while the main churn hotspot loses another complete
+presentation workflow. Reusing Lit adds no production packages; the minified
+browser application changes by +3,722 B raw and +499 B gzip.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser
