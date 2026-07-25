@@ -227,6 +227,14 @@ sequence while each operation supplies its instruction and messages. Together
 with two unused type exports exposed by the same audit, the cleanup removes 38
 net executable source lines without changing behavior or adding a concept.
 
+### Shared horizontal resizer lifecycle: accepted
+
+The clean audit's largest remaining clone was the pointer capture, drag,
+cancel, release, and PDF-resize lifecycle duplicated by the source rail and
+authoring/context divider. One private binder now owns that browser lifecycle;
+each resizer retains its distinct geometry, keyboard behavior, persistence, and
+ARIA updates. The change removes 12 net executable lines.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser

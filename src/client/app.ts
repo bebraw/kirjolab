@@ -7039,23 +7039,7 @@ class WorkspaceApp {
       this.#setSourceRailWidth(bounded, maximum);
       if (persist) this.#storeSourceRailWidth(bounded);
     };
-    resizer.addEventListener("pointerdown", (event) => {
-      resizer.dataset.dragging = "true";
-      resizer.setPointerCapture(event.pointerId);
-      resize(event.clientX, false);
-    });
-    resizer.addEventListener("pointermove", (event) => {
-      if (resizer.dataset.dragging === "true") resize(event.clientX, false);
-    });
-    const finish = (event: PointerEvent, persist: boolean): void => {
-      if (resizer.dataset.dragging !== "true") return;
-      delete resizer.dataset.dragging;
-      if (persist) resize(event.clientX, true);
-      if (resizer.hasPointerCapture(event.pointerId)) resizer.releasePointerCapture(event.pointerId);
-      void this.#pdfViewer.resize();
-    };
-    resizer.addEventListener("pointerup", (event) => finish(event, true));
-    resizer.addEventListener("pointercancel", (event) => finish(event, false));
+    this.#bindHorizontalResizerDrag(resizer, resize);
     resizer.addEventListener("keydown", (event) => {
       if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
       event.preventDefault();
@@ -7123,20 +7107,7 @@ class WorkspaceApp {
     }
   }
 
-  #bindPaneResizer(): void {
-    const resizer = this.#elements.authoringContextResizer;
-    const resize = (clientX: number, persist: boolean): void => {
-      const authoring = resizer.previousElementSibling;
-      const context = resizer.nextElementSibling;
-      if (!(authoring instanceof HTMLElement) || !(context instanceof HTMLElement)) return;
-      const authoringLeft = authoring.getBoundingClientRect().left;
-      const contextRight = context.getBoundingClientRect().right;
-      const available = contextRight - authoringLeft - resizer.getBoundingClientRect().width;
-      const maximum = Math.max(416, available - 448);
-      const width = Math.min(maximum, Math.max(416, clientX - authoringLeft));
-      this.#setAuthoringPaneWidth(width);
-      if (persist) this.#storeAuthoringPaneWidth(width);
-    };
+  #bindHorizontalResizerDrag(resizer: HTMLElement, resize: (clientX: number, persist: boolean) => void): void {
     resizer.addEventListener("pointerdown", (event) => {
       resizer.dataset.dragging = "true";
       resizer.setPointerCapture(event.pointerId);
@@ -7154,6 +7125,23 @@ class WorkspaceApp {
     };
     resizer.addEventListener("pointerup", (event) => finish(event, true));
     resizer.addEventListener("pointercancel", (event) => finish(event, false));
+  }
+
+  #bindPaneResizer(): void {
+    const resizer = this.#elements.authoringContextResizer;
+    const resize = (clientX: number, persist: boolean): void => {
+      const authoring = resizer.previousElementSibling;
+      const context = resizer.nextElementSibling;
+      if (!(authoring instanceof HTMLElement) || !(context instanceof HTMLElement)) return;
+      const authoringLeft = authoring.getBoundingClientRect().left;
+      const contextRight = context.getBoundingClientRect().right;
+      const available = contextRight - authoringLeft - resizer.getBoundingClientRect().width;
+      const maximum = Math.max(416, available - 448);
+      const width = Math.min(maximum, Math.max(416, clientX - authoringLeft));
+      this.#setAuthoringPaneWidth(width);
+      if (persist) this.#storeAuthoringPaneWidth(width);
+    };
+    this.#bindHorizontalResizerDrag(resizer, resize);
     resizer.addEventListener("keydown", (event) => {
       if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
       event.preventDefault();
