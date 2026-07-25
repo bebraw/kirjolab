@@ -198,6 +198,7 @@ import {
   type ContextResourceTabAction,
 } from "./context-resource-tabs";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
+import { ProjectAnnotationForm, projectAnnotationSaveEvent, type ProjectAnnotationSave } from "./project-annotation-form";
 import {
   ProjectFileDialog,
   projectFileDialogIsCreating,
@@ -566,7 +567,7 @@ interface Elements {
   newClaim: HTMLButtonElement;
   claimDialog: ClaimDialog;
   knowledgeConnectionsPanel: KnowledgeConnectionsPanel;
-  annotationForm: HTMLFormElement;
+  projectAnnotationForm: ProjectAnnotationForm;
   annotationComposer: HTMLElement;
   libraryHighlightComposer: HTMLElement;
   openLibraryPdfInspector: HTMLButtonElement;
@@ -606,14 +607,6 @@ interface Elements {
   editSelectedLibraryNote: HTMLButtonElement;
   deleteSelectedLibraryMarkup: HTMLButtonElement;
   cancelLibraryMarkupSelection: HTMLButtonElement;
-  annotationPdf: HTMLSelectElement;
-  annotationPage: HTMLInputElement;
-  annotationQuote: HTMLTextAreaElement;
-  annotationPrefix: HTMLInputElement;
-  annotationSuffix: HTMLInputElement;
-  annotationComment: HTMLInputElement;
-  annotationSelectionStatus: HTMLElement;
-  saveAndLinkAnnotation: HTMLButtonElement;
   highlightPaintTool: HTMLButtonElement;
   highlightEraserTool: HTMLButtonElement;
   undoHighlight: HTMLButtonElement;
@@ -1253,7 +1246,7 @@ class WorkspaceApp {
     this.#elements.projectEvidencePanel.addEventListener(projectEvidenceActionEvent, (event) => {
       const detail = (event as CustomEvent<ProjectEvidenceAction>).detail;
       if (detail.action === "open-pdf") {
-        this.#elements.annotationPdf.value = detail.pdf.id;
+        this.#elements.projectAnnotationForm.selectPdf(detail.pdf.id);
         void this.#showPaper(detail.pdf, detail.page, detail.annotationId);
       } else if (detail.action === "remove-pdf") void this.#removePdf(detail.pdf);
       else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
@@ -1292,7 +1285,9 @@ class WorkspaceApp {
       else if (detail.action === "manage") void this.#openReferenceLibraryEntry(detail.publicationId);
       else void this.#enrichPublication(detail.publicationId);
     });
-    this.#elements.annotationForm.addEventListener("submit", (event) => void this.#createAnnotation(event));
+    this.#elements.projectAnnotationForm.addEventListener(projectAnnotationSaveEvent, (event) => {
+      void this.#createAnnotation((event as CustomEvent<ProjectAnnotationSave>).detail);
+    });
     this.#elements.libraryHighlightForm.addEventListener("submit", (event) => void this.#saveLibraryHighlight(event));
     this.#elements.cancelLibraryHighlight.addEventListener("click", () => this.#clearLibraryHighlightDraft());
     this.#elements.librarySelectTool.addEventListener("click", () => this.#setLibraryPdfTool("select"));
@@ -4980,14 +4975,7 @@ class WorkspaceApp {
       pdfs,
       selectedEvidenceKeys: this.#modelEvidenceSelection,
     });
-    this.#elements.annotationPdf.replaceChildren();
-    this.#elements.annotationPdf.disabled = true;
-    if (pdfs.length === 0) {
-      this.#elements.annotationPdf.append(new Option("Import a PDF first", ""));
-      return;
-    }
-    this.#elements.annotationPdf.append(...pdfs.map((pdf) => new Option(pdf.name, pdf.id)));
-    if (this.#renderedPdfId) this.#elements.annotationPdf.value = this.#renderedPdfId;
+    this.#elements.projectAnnotationForm.setPdfs(pdfs, this.#renderedPdfId ?? "");
   }
 
   async #removePdf(pdf: PdfResource): Promise<void> {
@@ -5023,10 +5011,7 @@ class WorkspaceApp {
 
   #editAnnotation(annotation: AnnotationResource): void {
     this.#editingAnnotationId = annotation.id;
-    this.#elements.annotationComment.value = annotation.comment;
-    this.#elements.annotationQuote.value = annotation.quote;
-    this.#elements.annotationPrefix.value = annotation.prefix;
-    this.#elements.annotationSuffix.value = annotation.suffix;
+    this.#elements.projectAnnotationForm.showAnnotation(annotation);
     this.#openAnnotationEvidence(annotation);
   }
 
@@ -6477,7 +6462,7 @@ class WorkspaceApp {
     if (!tab) return null;
     const { workspacePdf, libraryPdf, projectReferencePdf } = this.#activePdfResources(tab);
     if (!this.#pdfResourceAvailable(workspacePdf, libraryPdf, projectReferencePdf)) return null;
-    if (workspacePdf) this.#elements.annotationPdf.value = workspacePdf.id;
+    if (workspacePdf) this.#elements.projectAnnotationForm.selectPdf(workspacePdf.id);
     const annotations = this.#activePdfAnnotations(workspacePdf);
     const privateHighlights = this.#activePdfHighlights(libraryPdf);
     const url = this.#activePdfUrl(workspacePdf, libraryPdf, projectReferencePdf);
@@ -6598,9 +6583,7 @@ class WorkspaceApp {
     this.#showToast("Reference enriched from Crossref.");
   }
 
-  async #createAnnotation(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const shouldLink = event.submitter === this.#elements.saveAndLinkAnnotation;
+  async #createAnnotation(detail: ProjectAnnotationSave): Promise<void> {
     const annotationId = this.#editingAnnotationId;
     if (!annotationId) {
       this.#showToast("Paint a highlight in the PDF before adding a note or manuscript link.");
@@ -6610,11 +6593,11 @@ class WorkspaceApp {
       method: "PUT",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ comment: this.#elements.annotationComment.value }),
+      body: JSON.stringify({ comment: detail.comment }),
     });
     await expectOk(response);
     await this.#resourceRefresh.request();
-    if (shouldLink) await this.#linkAnnotation(annotationId);
+    if (detail.link) await this.#linkAnnotation(annotationId);
     else this.#showToast("Highlight note saved.");
   }
 
@@ -7458,15 +7441,13 @@ class WorkspaceApp {
       return;
     }
     if (activeTab?.kind !== "pdf") return;
-    if (this.#renderedPdfId) this.#elements.annotationPdf.value = this.#renderedPdfId;
-    this.#elements.annotationPage.value = String(capture.page);
-    this.#elements.annotationQuote.value = capture.quote;
-    this.#elements.annotationPrefix.value = capture.prefix;
-    this.#elements.annotationSuffix.value = capture.suffix;
-    this.#elements.annotationSelectionStatus.textContent =
+    if (this.#renderedPdfId) this.#elements.projectAnnotationForm.selectPdf(this.#renderedPdfId);
+    this.#elements.projectAnnotationForm.showCapture(capture);
+    this.#elements.projectAnnotationForm.setStatus(
       this.#highlightTool === "erase"
         ? "Erasing overlapping highlight strokes…"
-        : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "line" : "lines"} from page ${capture.page}. Saving automatically…`;
+        : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "line" : "lines"} from page ${capture.page}. Saving automatically…`,
+    );
     void this.#persistPdfSelection(capture);
   }
 
@@ -8376,13 +8357,13 @@ class WorkspaceApp {
   async #erasePdfSelection(overlaps: readonly OverlappingPdfFragment[]): Promise<void> {
     if (overlaps.length === 0) {
       this.#pdfViewer.clearDraftSelection();
-      this.#elements.annotationSelectionStatus.textContent = "The eraser did not cross a saved highlight stroke.";
+      this.#elements.projectAnnotationForm.setStatus("The eraser did not cross a saved highlight stroke.");
       return;
     }
     for (const overlap of overlaps) await this.#removeHighlightFragment(overlap.annotation.id, overlap.fragment.id, false);
     this.#pdfViewer.clearDraftSelection();
     const noun = overlaps.length === 1 ? "stroke" : "strokes";
-    this.#elements.annotationSelectionStatus.textContent = `Removed ${overlaps.length} overlapping highlight ${noun}.`;
+    this.#elements.projectAnnotationForm.setStatus(`Removed ${overlaps.length} overlapping highlight ${noun}.`);
     this.#showToast("Highlight content erased.");
   }
 
@@ -8398,15 +8379,14 @@ class WorkspaceApp {
     this.#editingAnnotationId = annotationValue.id;
     this.#lastHighlightStroke = { annotationId: annotationValue.id, fragmentId: fragment.id };
     this.#elements.undoHighlight.disabled = false;
-    this.#elements.annotationComment.value = annotationValue.comment;
-    this.#elements.annotationQuote.value = annotationValue.quote;
-    this.#elements.annotationPrefix.value = annotationValue.prefix;
-    this.#elements.annotationSuffix.value = annotationValue.suffix;
+    this.#elements.projectAnnotationForm.showAnnotation(annotationValue);
     this.#pdfViewer.clearDraftSelection();
     await this.#resourceRefresh.request();
-    this.#elements.annotationSelectionStatus.textContent = target
-      ? `Added a stroke to the existing highlight. ${annotationValue.fragments.length} strokes saved automatically.`
-      : "Highlight saved automatically. Add an optional note or link it to selected manuscript prose.";
+    this.#elements.projectAnnotationForm.setStatus(
+      target
+        ? `Added a stroke to the existing highlight. ${annotationValue.fragments.length} strokes saved automatically.`
+        : "Highlight saved automatically. Add an optional note or link it to selected manuscript prose.",
+    );
   }
 
   #setHighlightTool(tool: "paint" | "erase"): void {
@@ -8414,10 +8394,11 @@ class WorkspaceApp {
     this.#elements.highlightPaintTool.setAttribute("aria-pressed", String(tool === "paint"));
     this.#elements.highlightEraserTool.setAttribute("aria-pressed", String(tool === "erase"));
     this.#pdfViewer.setTool(tool);
-    this.#elements.annotationSelectionStatus.textContent =
+    this.#elements.projectAnnotationForm.setStatus(
       tool === "paint"
         ? "Paint PDF text to save or extend a highlight."
-        : "Select across a saved highlight stroke or tap it to erase that content.";
+        : "Select across a saved highlight stroke or tap it to erase that content.",
+    );
   }
 
   async #activateHighlightFragment(annotationId: string, fragmentId: string): Promise<void> {
@@ -8428,11 +8409,7 @@ class WorkspaceApp {
     const annotation = this.#snapshot?.annotations.find((item) => item.id === annotationId);
     if (!annotation) return;
     this.#editingAnnotationId = annotation.id;
-    this.#elements.annotationComment.value = annotation.comment;
-    this.#elements.annotationQuote.value = annotation.quote;
-    this.#elements.annotationPrefix.value = annotation.prefix;
-    this.#elements.annotationSuffix.value = annotation.suffix;
-    this.#elements.annotationPage.value = String(annotation.page);
+    this.#elements.projectAnnotationForm.showAnnotation(annotation);
     this.#focusAnnotationCard(annotationId);
   }
 
@@ -9124,7 +9101,7 @@ function collectElements(): Elements {
     newClaim: requiredElement("new-claim", HTMLButtonElement),
     claimDialog: requiredElement("claim-dialog-panel", ClaimDialog),
     knowledgeConnectionsPanel: requiredElement("knowledge-connections-panel", KnowledgeConnectionsPanel),
-    annotationForm: requiredElement("annotation-form", HTMLFormElement),
+    projectAnnotationForm: requiredElement("project-annotation-form", ProjectAnnotationForm),
     annotationComposer: requiredElement("annotation-composer", HTMLElement),
     libraryHighlightComposer: requiredElement("library-highlight-composer", HTMLElement),
     openLibraryPdfInspector: requiredElement("open-library-pdf-inspector", HTMLButtonElement),
@@ -9164,14 +9141,6 @@ function collectElements(): Elements {
     editSelectedLibraryNote: requiredElement("edit-selected-library-note", HTMLButtonElement),
     deleteSelectedLibraryMarkup: requiredElement("delete-selected-library-markup", HTMLButtonElement),
     cancelLibraryMarkupSelection: requiredElement("cancel-library-markup-selection", HTMLButtonElement),
-    annotationPdf: requiredElement("annotation-pdf", HTMLSelectElement),
-    annotationPage: requiredElement("annotation-page", HTMLInputElement),
-    annotationQuote: requiredElement("annotation-quote", HTMLTextAreaElement),
-    annotationPrefix: requiredElement("annotation-prefix", HTMLInputElement),
-    annotationSuffix: requiredElement("annotation-suffix", HTMLInputElement),
-    annotationComment: requiredElement("annotation-comment", HTMLInputElement),
-    annotationSelectionStatus: requiredElement("annotation-selection-status", HTMLElement),
-    saveAndLinkAnnotation: requiredElement("save-and-link-annotation", HTMLButtonElement),
     highlightPaintTool: requiredElement("highlight-paint-tool", HTMLButtonElement),
     highlightEraserTool: requiredElement("highlight-eraser-tool", HTMLButtonElement),
     undoHighlight: requiredElement("undo-highlight", HTMLButtonElement),

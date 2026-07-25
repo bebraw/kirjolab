@@ -584,8 +584,9 @@ export function renderHomePage(
                 <button class="button-secondary" id="highlight-eraser-tool" type="button" aria-pressed="false">Eraser</button>
                 <button class="button-secondary" id="undo-highlight" type="button" disabled>Undo last stroke</button>
               </div>
-              <p class="mt-2 text-xs leading-5 text-app-text-soft" id="annotation-selection-status">Select text in the paper to capture its quotation, context, page, and geometry.</p>
-              <form class="mt-3 grid gap-3 sm:grid-cols-2" id="annotation-form">
+              <project-annotation-form id="project-annotation-form">
+                <p class="mt-2 text-xs leading-5 text-app-text-soft" id="annotation-selection-status">Select text in the paper to capture its quotation, context, page, and geometry.</p>
+                <form class="mt-3 grid gap-3 sm:grid-cols-2" id="annotation-form">
                 <label class="field-label sm:col-span-2">Paper
                   <select class="field" id="annotation-pdf" required disabled><option value="">Import a PDF first</option></select>
                 </label>
@@ -608,7 +609,8 @@ export function renderHomePage(
                   <button class="button-primary justify-center" type="submit">Save note</button>
                   <button class="button-secondary justify-center" id="save-and-link-annotation" type="submit">Link highlight to selection</button>
                 </div>
-              </form>
+                </form>
+              </project-annotation-form>
             </aside>
             <aside class="annotation-composer library-pdf-tools" id="library-highlight-composer" aria-label="PDF annotation inspector" data-inspector-open="false" hidden>
               <header class="library-pdf-inspector-header">

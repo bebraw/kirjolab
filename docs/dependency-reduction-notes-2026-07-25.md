@@ -1101,3 +1101,26 @@ Full native CI passes all 1,295 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. The browser application artifact grows from 731,333 B raw
 / 201,164 B gzip to 732,833 B raw / 201,394 B gzip (+1,500 B raw / +230 B
 gzip). Direct and unique production package counts remain unchanged at 18 and 150.
+
+## Continued Lit Extraction: Project Annotation Form
+
+Project-PDF annotation editing now uses a bounded `ProjectAnnotationForm`
+instead of eight element references, imperative PDF-option and captured-field
+updates, coordinator-owned selection status rendering, and submitter
+detection. The component owns visible-PDF choices, captured page and quotation
+context, optional note input, status copy, and typed save and link intents.
+`WorkspaceApp` retains highlight geometry and persistence, annotation identity,
+manuscript selection and linking, refreshes, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 9,367 to 9,336 lines (-31).
+The component adds 193 lines. Component tests cover empty and populated PDF
+choices, current-PDF selection and fallback, captured and saved annotation
+values, local field changes, status presentation, and typed save and link
+intents. Focused browser workflows pass automatic highlight save, extension,
+undo, erasure, deletion, and evidence movement into reviewed model prose. The
+component records 100% statement and line coverage.
+
+Full native CI passes all 1,298 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. The browser application artifact grows from 732,833 B raw
+/ 201,394 B gzip to 735,432 B raw / 201,905 B gzip (+2,599 B raw / +511 B
+gzip). Direct and unique production package counts remain unchanged at 18 and 150.
