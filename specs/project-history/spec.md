@@ -18,6 +18,11 @@ continues to use a narrow source revision for stale-selection checks.
   owns only active-operation identity, request generation, and transient
   failure state; retained revisions, fetched projections, confirmation prompts,
   navigation, and server mutations remain outside the actor.
+- A bounded history presentation component owns timeline cards, comparison
+  controls, busy and error states, read-only inspectors, and typed
+  revision-operation intents. The application coordinator retains the XState
+  actor, response validation, confirmations, fetches, mutations, reloads, and
+  navigation.
 - Every retained snapshot stores the exact Yjs update plus workspace settings
   and the rows for project files, references, research shares, PDFs,
   annotations, claims, manuscript comments, and their typed relationships in

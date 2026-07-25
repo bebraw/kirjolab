@@ -356,3 +356,22 @@ Full native CI passes all 1,200 unit/coverage tests, 120 Workers-runtime tests,
 and 73 browser tests. The rebuilt browser application is 660,167 B raw and
 185,944 B gzip, an increase of 1,539 B raw and 216 B gzip from the sharing
 checkpoint; dependency counts remain unchanged.
+
+## Continued Lit Extraction: Project History
+
+Revision history is the largest successful extraction in this continuation.
+`WorkspaceApp` now addresses one `ProjectHistoryPanel` instead of six timeline,
+comparison, and inspector elements. The component owns local selection,
+timeline cards, milestone labels, busy and error presentation, read-only
+revision inspection, diff presentation, and typed operation intents. The
+coordinator retains its XState workflow, request generations, validation,
+confirmation prompts, fetches, mutations, reloads, and navigation.
+
+This checkpoint reduces `src/client/app.ts` from 11,800 to 11,703 lines (-97).
+The focused component adds 263 lines and reaches 90% statement coverage through
+timeline, inspector, comparison, selection, and intent tests. The existing
+browser workflow passes across inspect, compare, milestone, restore, and branch
+operations. Full native CI passes all 1,202 unit/coverage tests, 120
+Workers-runtime tests, and 73 browser tests. The rebuilt browser application is
+663,150 B raw and 187,028 B gzip, an increase of 2,983 B raw and 1,084 B gzip
+from the catalog checkpoint; dependency counts remain unchanged.

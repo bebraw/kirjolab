@@ -46,6 +46,8 @@ The adopted components own bounded presentation:
   and notice intents.
 - The workspace catalog panel owns project filtering, result and empty-state
   rendering, metadata labels, focus reset, and a typed close intent.
+- The project history panel owns timeline, comparison controls, busy and error
+  states, revision cards, inspectors, and typed revision-operation intents.
 
 It renders into light DOM so the existing semantic token and utility-class
 system remains authoritative. The Worker keeps equivalent fallback markup for
@@ -76,6 +78,10 @@ reason to wrap static markup mechanically.
   coordinator's filter/result DOM assembly while leaving catalog fetching,
   workspace switching, and navigation authority in the application
   coordinator.
+- The history panel replaces six internal element references and the
+  coordinator's timeline/inspector DOM assembly while leaving its XState actor,
+  fetches, confirmations, mutations, reloads, and navigation in the
+  application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

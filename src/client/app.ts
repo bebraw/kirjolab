@@ -33,7 +33,6 @@ import {
   isProjectRevisionSummaries,
   type ProjectRevisionContent,
   type ProjectRevisionDiff,
-  type ProjectRevisionSummary,
 } from "../domain/project-history";
 import {
   composeProject,
@@ -220,6 +219,7 @@ import {
 } from "./model-provider";
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
+import { ProjectHistoryPanel, projectHistoryActionEvent, projectHistoryCloseEvent } from "./project-history-panel";
 import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset } from "./source-preview-sync";
 import { previewNavigationPresentation, previewNavigationStorageKey, storedPreviewNavigationHidden } from "./preview-navigation";
 import {
@@ -553,12 +553,7 @@ interface Elements {
   exportStatistics: HTMLElement;
   wordCountBadge: HTMLButtonElement;
   projectHistoryDialog: HTMLDialogElement;
-  closeProjectHistory: HTMLButtonElement;
-  projectHistoryCompareForm: HTMLFormElement;
-  projectHistoryFrom: HTMLSelectElement;
-  projectHistoryTo: HTMLSelectElement;
-  projectHistoryInspector: HTMLElement;
-  projectHistoryList: HTMLElement;
+  projectHistoryPanel: ProjectHistoryPanel;
   source: HTMLTextAreaElement;
   sourceHighlight: HTMLElement;
   sourceEditorShell: HTMLElement;
@@ -920,7 +915,6 @@ class WorkspaceApp {
   #citationNetwork: CitationNetwork | null = null;
   #citationExpansion: CitationExpansionResult | null = null;
   #filterProjectCitations = false;
-  #projectHistory: ProjectRevisionSummary[] = [];
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
   #latexImportDigest: string | null = null;
@@ -1351,9 +1345,11 @@ class WorkspaceApp {
       button.addEventListener("click", () => this.#openExport());
     }
     this.#elements.closeExport.addEventListener("click", () => this.#elements.exportDialog.close());
-    this.#elements.closeProjectHistory.addEventListener("click", () => this.#elements.projectHistoryDialog.close());
+    this.#elements.projectHistoryPanel.addEventListener(projectHistoryCloseEvent, () => this.#elements.projectHistoryDialog.close());
+    this.#elements.projectHistoryPanel.addEventListener(projectHistoryActionEvent, (event) => {
+      void this.#handleProjectHistoryAction((event as CustomEvent<ProjectHistoryOperation>).detail);
+    });
     this.#elements.projectHistoryDialog.addEventListener("close", () => this.#projectHistoryWorkflow.send({ type: "CLOSE" }));
-    this.#elements.projectHistoryCompareForm.addEventListener("submit", (event) => void this.#compareProjectHistory(event));
     this.#elements.manuscriptCommentForm.addEventListener("submit", (event) => void this.#createManuscriptComment(event));
     for (const eventName of ["focus", "input", "keyup", "select", "click"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
@@ -3924,7 +3920,7 @@ class WorkspaceApp {
     this.#projectHistoryWorkflow.send({ type: "OPEN" });
     const requestId = this.#projectHistoryWorkflow.getSnapshot().context.requestId;
     if (!this.#elements.projectHistoryDialog.open) this.#elements.projectHistoryDialog.showModal();
-    this.#elements.projectHistoryList.replaceChildren(statusText("Loading revision history…"));
+    this.#elements.projectHistoryPanel.showLoading();
     this.#updateProjectHistoryAvailability();
     try {
       const response = await fetch(`${apiBase}/history`, { credentials: "same-origin" });
@@ -3934,13 +3930,12 @@ class WorkspaceApp {
       this.#projectHistoryWorkflow.send({ type: "TIMELINE_READY", requestId });
       const history = this.#projectHistoryWorkflow.getSnapshot();
       if (!history.matches("ready") || history.context.requestId !== requestId) return;
-      this.#projectHistory = value;
-      this.#renderProjectHistory();
+      this.#elements.projectHistoryPanel.showTimeline(value);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not load project history";
       this.#projectHistoryWorkflow.send({ type: "TIMELINE_FAILED", requestId, message });
       if (this.#projectHistoryWorkflow.getSnapshot().matches("failed")) {
-        this.#elements.projectHistoryList.replaceChildren(statusText(message));
+        this.#elements.projectHistoryPanel.showError(message);
         this.#showToast(message);
       }
     } finally {
@@ -3964,11 +3959,7 @@ class WorkspaceApp {
   #updateProjectHistoryAvailability(): void {
     const busy = projectHistoryBusy(this.#projectHistoryWorkflow.getSnapshot());
     this.#elements.projectHistoryDialog.setAttribute("aria-busy", String(busy));
-    this.#elements.projectHistoryFrom.disabled = busy;
-    this.#elements.projectHistoryTo.disabled = busy;
-    for (const button of this.#elements.projectHistoryDialog.querySelectorAll<HTMLButtonElement>("button")) {
-      if (button !== this.#elements.closeProjectHistory) button.disabled = busy;
-    }
+    this.#elements.projectHistoryPanel.setBusy(busy);
   }
 
   #openExport(): void {
@@ -4001,63 +3992,6 @@ class WorkspaceApp {
     this.#elements.exportStatistics.replaceChildren(total, rule, columns);
   }
 
-  #renderProjectHistory(): void {
-    const options = this.#projectHistory.map((revision) => {
-      const option = document.createElement("option");
-      option.value = String(revision.revision);
-      option.textContent = `v${revision.revision} · ${revision.reason}`;
-      return option;
-    });
-    this.#elements.projectHistoryFrom.replaceChildren(...options.map((option) => option.cloneNode(true)));
-    this.#elements.projectHistoryTo.replaceChildren(...options.map((option) => option.cloneNode(true)));
-    if (this.#projectHistory[1]) this.#elements.projectHistoryFrom.value = String(this.#projectHistory[1].revision);
-    if (this.#projectHistory[0]) this.#elements.projectHistoryTo.value = String(this.#projectHistory[0].revision);
-
-    const head = this.#projectHistory[0]?.revision;
-    this.#elements.projectHistoryList.replaceChildren(
-      ...this.#projectHistory.map((revision) => {
-        const card = document.createElement("article");
-        card.className = "rounded-sm border border-app-line bg-app-paper p-4";
-        const heading = document.createElement("div");
-        heading.className = "flex flex-wrap items-start justify-between gap-3";
-        const copy = document.createElement("div");
-        const title = document.createElement("h3");
-        title.className = "font-sans text-sm font-bold";
-        title.textContent = `v${revision.revision} · ${revision.reason}`;
-        const meta = document.createElement("p");
-        meta.className = "mt-1 text-xs text-app-text-soft";
-        meta.textContent = `${formatTimestamp(revision.createdAt)} · ${revision.fileCount} file${revision.fileCount === 1 ? "" : "s"}`;
-        copy.append(title, meta);
-        const actions = document.createElement("div");
-        actions.className = "flex flex-wrap gap-2";
-        actions.append(
-          actionButton("Inspect", "button-secondary", () => void this.#inspectProjectRevision(revision.revision)),
-          actionButton("Name milestone", "button-secondary", () => void this.#nameProjectMilestone(revision.revision)),
-          actionButton("Branch", "button-secondary", () => void this.#seedProjectRevision(revision.revision)),
-        );
-        if (revision.revision !== head) {
-          actions.append(
-            actionButton("Restore as new head", "button-secondary", () => void this.#restoreProjectRevision(revision.revision)),
-          );
-        }
-        heading.append(copy, actions);
-        card.append(heading);
-        if (revision.milestones.length > 0) {
-          const milestones = document.createElement("div");
-          milestones.className = "mt-3 flex flex-wrap gap-2";
-          for (const milestone of revision.milestones) {
-            const label = resourceLabel(milestone.name);
-            label.title = milestone.description || `Immutable milestone for v${revision.revision}`;
-            milestones.append(label);
-          }
-          card.append(milestones);
-        }
-        return card;
-      }),
-    );
-    this.#updateProjectHistoryAvailability();
-  }
-
   async #inspectProjectRevision(revision: number): Promise<void> {
     const requestId = this.#startProjectHistoryOperation({ kind: "inspect", revision });
     if (requestId === null) return;
@@ -4075,28 +4009,14 @@ class WorkspaceApp {
       this.#failProjectHistoryOperation(requestId, error, "Could not inspect project revision");
       return;
     }
-    const inspector = this.#elements.projectHistoryInspector;
-    inspector.classList.remove("hidden");
-    const heading = document.createElement("h3");
-    heading.className = "font-sans text-sm font-bold";
-    heading.textContent = `Read-only v${value.revision} · ${value.title}`;
-    const meta = document.createElement("p");
-    meta.className = "mt-2 text-xs leading-5 text-app-text-soft";
-    meta.textContent = `${value.files.length} files · ${value.projectReferences.length} references · ${value.pdfs.length} PDFs · ${value.claims.length} claims`;
-    const source = document.createElement("pre");
-    source.className = "mt-4 max-h-80 overflow-auto whitespace-pre-wrap border-t border-app-line pt-4 text-xs leading-5";
-    source.textContent = value.source;
-    inspector.replaceChildren(heading, meta, source);
+    this.#elements.projectHistoryPanel.showRevision(value);
   }
 
-  async #compareProjectHistory(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const from = this.#elements.projectHistoryFrom.value;
-    const to = this.#elements.projectHistoryTo.value;
-    const requestId = this.#startProjectHistoryOperation({ kind: "compare", from: Number(from), to: Number(to) });
+  async #compareProjectHistory(from: number, to: number): Promise<void> {
+    const requestId = this.#startProjectHistoryOperation({ kind: "compare", from, to });
     if (requestId === null) return;
-    const value = await this.#projectHistoryComparison(requestId, from, to);
-    if (value) this.#renderProjectHistoryComparison(value);
+    const value = await this.#projectHistoryComparison(requestId, String(from), String(to));
+    if (value) this.#elements.projectHistoryPanel.showComparison(value);
   }
 
   async #projectHistoryComparison(requestId: number, from: string, to: string): Promise<ProjectRevisionDiff | null> {
@@ -4116,27 +4036,15 @@ class WorkspaceApp {
     }
   }
 
-  #renderProjectHistoryComparison(value: ProjectRevisionDiff): void {
-    const inspector = this.#elements.projectHistoryInspector;
-    inspector.classList.remove("hidden");
-    const heading = document.createElement("h3");
-    heading.className = "font-sans text-sm font-bold";
-    heading.textContent = `v${value.fromRevision} → v${value.toRevision}`;
-    const composed = document.createElement("p");
-    composed.className = "mt-2 text-sm text-app-text-soft";
-    const wordDelta = value.composed.wordDelta >= 0 ? `+${value.composed.wordDelta}` : String(value.composed.wordDelta);
-    composed.textContent = `Composed manuscript: +${value.composed.addedLines} / −${value.composed.removedLines} lines · ${value.composed.beforeWords.toLocaleString()} → ${value.composed.afterWords.toLocaleString()} words (${wordDelta})`;
-    const list = document.createElement("ul");
-    list.className = "mt-3 space-y-1 font-sans text-xs";
-    for (const file of value.files.filter((item) => item.status !== "unchanged")) {
-      const item = document.createElement("li");
-      item.textContent = `${file.status}: ${file.beforePath ?? "∅"} → ${file.afterPath ?? "∅"} (+${file.addedLines}/−${file.removedLines})`;
-      list.append(item);
+  async #handleProjectHistoryAction(operation: ProjectHistoryOperation): Promise<void> {
+    if (operation.kind === "compare") {
+      await this.#compareProjectHistory(operation.from, operation.to);
+      return;
     }
-    const binaries = document.createElement("p");
-    binaries.className = "mt-3 text-xs text-app-text-soft";
-    binaries.textContent = `${value.binaries.filter((item) => item.status !== "unchanged").length} binary identity change(s)`;
-    inspector.replaceChildren(heading, composed, list, binaries);
+    if (operation.kind === "inspect") await this.#inspectProjectRevision(operation.revision);
+    else if (operation.kind === "milestone") await this.#nameProjectMilestone(operation.revision);
+    else if (operation.kind === "branch") await this.#seedProjectRevision(operation.revision);
+    else await this.#restoreProjectRevision(operation.revision);
   }
 
   async #nameProjectMilestone(revision: number): Promise<void> {
@@ -11312,12 +11220,7 @@ function collectElements(): Elements {
     exportStatistics: requiredElement("export-statistics", HTMLElement),
     wordCountBadge: requiredElement("word-count-badge", HTMLButtonElement),
     projectHistoryDialog: requiredElement("project-history-dialog", HTMLDialogElement),
-    closeProjectHistory: requiredElement("close-project-history", HTMLButtonElement),
-    projectHistoryCompareForm: requiredElement("project-history-compare-form", HTMLFormElement),
-    projectHistoryFrom: requiredElement("project-history-from", HTMLSelectElement),
-    projectHistoryTo: requiredElement("project-history-to", HTMLSelectElement),
-    projectHistoryInspector: requiredElement("project-history-inspector", HTMLElement),
-    projectHistoryList: requiredElement("project-history-list", HTMLElement),
+    projectHistoryPanel: requiredElement("project-history-panel", ProjectHistoryPanel),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),
     sourceEditorShell: requiredElement("source-editor-shell", HTMLElement),

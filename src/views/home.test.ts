@@ -154,6 +154,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span>');
     expect(html).toContain('id="open-project-history"');
     expect(html).toContain('id="project-history-dialog"');
+    expect(html).toContain('<project-history-panel id="project-history-panel">');
     expect(html).toContain("Browse, compare, restore, or branch from saved versions.");
     expect(html).toContain('id="open-export" type="button">Export</button>');
     expect(html).toContain('id="share-workspace" type="button">Share project</button>');

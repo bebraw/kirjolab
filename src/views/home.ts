@@ -895,7 +895,8 @@ export function renderHomePage(
     </dialog>
 
     <dialog class="reference-library-dialog ui-dialog" id="project-history-dialog">
-      <div class="p-5">
+      <project-history-panel id="project-history-panel">
+        <div class="p-5">
         <div class="flex items-start justify-between gap-4">
           <div>
             <p class="eyebrow">Project record</p>
@@ -911,7 +912,8 @@ export function renderHomePage(
         </form>
         <section class="mt-5 hidden border border-app-line bg-app-paper p-4" id="project-history-inspector" aria-live="polite"></section>
         <div class="mt-5 space-y-3" id="project-history-list"><div class="empty-state">Loading revision history…</div></div>
-      </div>
+        </div>
+      </project-history-panel>
     </dialog>
 
     <dialog class="new-workspace-dialog ui-dialog" id="claim-dialog">
