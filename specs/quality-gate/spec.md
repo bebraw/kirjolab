@@ -18,6 +18,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Advisory codebase diagnostics:** `npm run diagnostics:codebase`
 - **Changed-code readability diagnostics:** `npm run diagnostics:readability`
 - **Whole-repo health diagnostics:** `npm run diagnostics:health`
+- **Dependency-cost diagnostics:** `npm run diagnostics:dependencies`
 - **Full mutation gate:** `npm run mutation`
 - **Affected mutation gate:** `npm run mutation:affected -- --mutate <files>`
 - **Incremental mutation gate:** `npm run mutation:incremental`
@@ -105,6 +106,9 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - `npm run quality:gate` must continue to represent the local baseline verification path.
 - `npm run quality:gate` must preserve each child command's live output and emit a progress heartbeat at least every 30 seconds while that command is still running.
 - `npm run diagnostics:codebase` must remain advisory and must not be required by the baseline readiness path.
+- `npm run diagnostics:dependencies` must read the lockfile and existing built
+  artifacts without writing reports, and must support deterministic Markdown
+  and JSON output.
 - Pre-push must run Fallow only when affected JavaScript, TypeScript, package,
   or Fallow configuration inputs make its signal relevant.
 - Passing pre-push diagnostics must keep inherited Fallow findings and individual

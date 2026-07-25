@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-174](./implemented/ADR-174-report-dependency-costs-reproducibly.md)                  | Implemented          | Report production package and browser artifact costs through one read-only diagnostic.                        |
 | [ADR-173](./implemented/ADR-173-share-bounded-external-response-reading.md)               | Implemented          | Share request-local bounded stream and JSON reading across external providers.                                |
 | [ADR-172](./implemented/ADR-172-use-lit-for-bounded-reactive-components.md)               | Implemented          | Use Lit for bounded reactive components while preserving existing application authorities.                    |
 | [ADR-171](./implemented/ADR-171-delegate-github-app-signing.md)                           | Implemented          | Delegate App JWT signing while keeping installation exchange bounded and request-local.                       |

@@ -258,6 +258,13 @@ The TypeScript setup is generic too. `tsconfig.json` covers repo-level `.ts` fil
 
 Fallow provides advisory codebase readability diagnostics. `npm run diagnostics:readability` runs a changed-code audit for production-code complexity and duplication plus project dependency hygiene and cleanup findings while relaxing CRAP-score noise from untested tooling scripts. Unit and end-to-end tests are excluded from Fallow complexity and duplication because exact boundary fixtures intentionally repeat structures; formatting, linting, typechecking, and test execution remain authoritative for those files. `npm run diagnostics:health` reports whole-repo health scoring, hotspots, and refactoring targets using the same scope. `npm run diagnostics:codebase` runs both. These commands use `--no-cache`, so normal diagnostics do not create a persistent `.fallow/` cache. If a contributor runs cached Fallow commands manually, `.fallow/` is ignored and should stay untracked.
 
+`npm run diagnostics:dependencies` reports direct production dependencies,
+unique production package/version nodes, and raw plus deterministic gzip sizes
+for the built browser application, lazy Markdown/PDF runtimes, and styles. Run
+`npm run build` first. Pass `-- --json` for structured comparison output. The
+command is read-only and advisory; it does not create a report or enforce a CI
+budget.
+
 The pre-push hook treats each selected command's exit status as blocking. It
 replays the exact Git pre-push ref input to affected guardrails and the deep
 check selector. Fallow runs only for affected JavaScript, TypeScript, package,

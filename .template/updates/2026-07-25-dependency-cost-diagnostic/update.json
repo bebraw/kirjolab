@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-25-dependency-cost-diagnostic",
+  "title": "Report dependency costs reproducibly",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-174-report-dependency-costs-reproducibly.md"],
+  "touches": ["package.json", "scripts/", "docs/development.md", "specs/quality-gate/spec.md"],
+  "checks": ["npm run test:tooling", "npm run diagnostics:dependencies", "npm run ci:local"]
+}

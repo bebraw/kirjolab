@@ -209,6 +209,15 @@ source by 31 lines, but reduces the former 446-line mixed-responsibility module
 to a 344-line repository client and a 133-line transport with one directional
 dependency.
 
+### Reproducible dependency-cost diagnostic: accepted
+
+`npm run diagnostics:dependencies` now reproduces the package and complete
+browser-artifact measurements used by these pilots. It reads the lockfile and
+existing build outputs, reports Markdown or JSON, uses deterministic level-9
+gzip, writes no state, and adds no package. Esbuild package attribution remains
+an explicit deeper measurement rather than pretending gzip savings can be
+assigned reliably per dependency.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser
