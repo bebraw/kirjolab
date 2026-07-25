@@ -8,11 +8,11 @@
 
 ## Context
 
-The Crossref, DataCite, OpenAlex, and Semantic Scholar adapters independently
-implemented the same response-body mechanics: reject an oversized declared
-length, read and count streamed chunks, cancel an oversized stream, assemble
-the bytes, and parse JSON. The GitHub clients already used a shared helper for
-the same commodity mechanics.
+The Crossref, DataCite, OpenAlex, Semantic Scholar, and browser-local model
+adapters independently implemented the same response-body mechanics: reject an
+oversized declared length, read and count streamed chunks, cancel an oversized
+stream, assemble the bytes, and parse JSON. The GitHub clients already used a
+shared helper for the same commodity mechanics.
 
 Provider-specific byte ceilings, errors, response mappings, and business rules
 must remain explicit. A general HTTP client would obscure those boundaries and
@@ -28,19 +28,24 @@ The JSON helper rejects missing and empty bodies before parsing. Each provider
 continues to own request construction, HTTP status handling, response-shape
 validation, domain mapping, and public error semantics.
 
+Callers may supply a stricter text decoder and boundary-specific decode error.
+The local model adapter uses fatal UTF-8 decoding and retains a distinct
+missing-body error.
+
 Never retain a response, reader, promise, or chunk buffer in module state.
 
 ## Trigger
 
 The dependency-reduction follow-up found four nearly identical scholarly
-response readers after the GitHub clients had successfully adopted the shared
-bounded transport primitive.
+response readers and a fifth local-model reader after the GitHub clients had
+successfully adopted the shared bounded transport primitive.
 
 ## Consequences
 
 **Positive:**
 
-- Four scholarly adapters no longer maintain independent stream-reading code.
+- Four scholarly adapters and the local-model adapter no longer maintain
+  independent stream-reading code.
 - Declared and observed byte limits are enforced consistently.
 - The change removes 71 source lines without changing provider mappings.
 
@@ -52,6 +57,8 @@ bounded transport primitive.
 **Neutral:**
 
 - Every scholarly provider retains its existing 1 MB ceiling and error text.
+- The local-model adapter retains its 256 KiB ceiling, fatal UTF-8 decoding,
+  and empty versus malformed response errors.
 - No new production dependency or externally visible behavior is introduced.
 
 ## Alternatives Considered

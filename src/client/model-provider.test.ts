@@ -1054,6 +1054,7 @@ describe("OpenAICompatibleBrowserProvider", () => {
     for (const [response, message] of [
       [new Response("unavailable", { status: 503 }), "Local model request failed (503)"],
       [new Response("not json"), "malformed JSON"],
+      [new Response(new Uint8Array([0xc3, 0x28])), "malformed JSON"],
       [new Response(null), "empty response"],
       [jsonResponse({ choices: [] }), "no replacement text"],
       [jsonResponse({ choices: [null] }), "no replacement text"],

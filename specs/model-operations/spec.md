@@ -85,6 +85,9 @@ All mutation operations preserve a human review boundary.
   omits browser credentials, rejects redirects, aborts after 120 seconds, and
   reads at most 256 KiB of OpenAI-compatible JSON. The page CSP exposes the same
   IPv4, localhost, and IPv6 loopback boundary.
+- The adapter uses the shared request-local bounded response reader with fatal
+  UTF-8 decoding while retaining distinct empty-body, malformed-JSON, and
+  oversized-response errors.
 - When direct browser access is blocked by provider CORS or browser networking,
   the companion started by `npm run dev` exposes the same OpenAI-compatible path at
   `127.0.0.1:8790`. The user explicitly starts it with a fixed loopback

@@ -170,6 +170,15 @@ Reusing the existing Lit dependency adds no production packages; the minified
 browser application changes by +1,307 B raw and +339 B gzip from the recorded
 baseline.
 
+### Shared local-model response reader: accepted
+
+The OpenAI-compatible browser adapter now uses the same request-local bounded
+JSON reader as GitHub and scholarly integrations. Its 256 KiB ceiling, fatal
+UTF-8 decoding, and distinct empty and malformed response errors remain
+explicit. The refactor removes the fifth streamed JSON implementation and five
+net source lines; the generalized decoder option changes the minified browser
+application by +358 B raw and +127 B gzip.
+
 ## Dependency Cost Baseline
 
 Measured from commit `74dc3b1` after `npm run ci:local` rebuilt the browser

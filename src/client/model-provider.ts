@@ -1,5 +1,6 @@
 import { validateExtractionValue, type ExtractionValue, type ReviewEvidencePointer } from "../domain/review-evidence";
 import type { ExtractionFieldType } from "../domain/review-study";
+import { readBoundedResponseJson } from "../integrations/bounded-response";
 
 const maximumEndpointLength = 2_048;
 const maximumModelLength = 256;
@@ -960,44 +961,10 @@ function isLoopbackHostname(hostname: string): boolean {
 }
 
 async function readBoundedJson(response: Response): Promise<unknown> {
-  const contentLength = response.headers.get("content-length");
-  if (contentLength !== null) {
-    const declaredBytes = Number(contentLength);
-    if (Number.isFinite(declaredBytes) && declaredBytes > maximumResponseBytes) throw responseTooLargeError();
-  }
-
   if (!response.body) throw new Error("Local model returned an empty response");
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let receivedBytes = 0;
-  try {
-    while (true) {
-      const result = await reader.read();
-      if (result.done) break;
-      receivedBytes += result.value.byteLength;
-      if (receivedBytes > maximumResponseBytes) {
-        await reader.cancel();
-        throw responseTooLargeError();
-      }
-      chunks.push(result.value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  const bytes = new Uint8Array(receivedBytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  let value: unknown;
-  try {
-    value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  } catch {
-    throw new Error("Local model returned malformed JSON");
-  }
-  return value;
+  return await readBoundedResponseJson(response, maximumResponseBytes, responseTooLargeError, malformedModelJsonError, {
+    decoder: new TextDecoder("utf-8", { fatal: true }),
+  });
 }
 
 function completionContent(value: unknown): string {
@@ -1290,6 +1257,10 @@ function responseTooLargeError(): RangeError {
 
 function malformedCompletionError(): Error {
   return new Error("Local model returned no replacement text");
+}
+
+function malformedModelJsonError(): Error {
+  return new Error("Local model returned malformed JSON");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
