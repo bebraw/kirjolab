@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
 import { bibTeXDisplayText } from "../domain/bibliography";
-import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults } from "../domain/knowledge";
+import { buildWorkspaceKnowledgeGraph } from "../domain/knowledge";
 import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
@@ -166,7 +166,7 @@ import { assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./as
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
-import { projectMapResourceSelectEvent, projectMapSearchEvent } from "./project-map-workspace";
+import { projectMapResourceSelectEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { claimDialogSavedEvent } from "./claim-dialog";
 import { manuscriptCommentActionEvent, manuscriptCommentCreateEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
@@ -815,9 +815,7 @@ class WorkspaceApp {
       } else if (detail.action === "open-passage") this.#showPassage(detail.anchor);
       else void this.#removeHighlightFragment(detail.annotationId, detail.fragmentId, true);
     });
-    this.#elements.projectMap.addEventListener(projectMapSearchEvent, (event) => {
-      void this.#searchKnowledge((event as CustomEvent<string>).detail);
-    });
+    this.#elements.projectMap.configure(apiBase);
     this.#elements.projectMap.addEventListener(projectMapResourceSelectEvent, (event) => {
       this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
     });
@@ -2568,22 +2566,6 @@ class WorkspaceApp {
       ...passage,
       sourceRevision: this.#revision,
     });
-  }
-
-  async #searchKnowledge(query: string): Promise<void> {
-    if (!query) {
-      this.#elements.projectMap.clearSearch();
-      return;
-    }
-    try {
-      const response = await fetch(`${apiBase}/search?q=${encodeURIComponent(query)}`, { credentials: "same-origin" });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isKnowledgeSearchResults(value)) throw new Error("Project search returned invalid data");
-      this.#elements.projectMap.showSearchResults(value);
-    } catch (error) {
-      this.#elements.projectMap.showSearchError(error instanceof Error ? error.message : "Project search failed");
-    }
   }
 
   #focusKnowledgeResource(resourceId: string): void {

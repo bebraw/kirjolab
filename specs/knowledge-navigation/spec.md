@@ -98,9 +98,10 @@ connection without reconstructing identity from a citation key or filename.
   pending and retryable failure state, and completed-relationship outcomes.
   Manuscript insertion, PDF navigation, canonical refresh, and workspace
   notification policy remain outside it.
-- The knowledge-search presentation component may own its query and result
-  states, but authorized search requests, response validation, and resource
-  navigation remain outside it.
+- The project-map workspace owns authorized search requests, response
+  validation, and the shared idle, result, and error state that controls both
+  the search presentation and graph-overview visibility. Resource navigation
+  and graph derivation remain outside it.
 - A bounded light-DOM project publication list owns reference metadata, alias
   and DOI labels, empty-state, action presentation, DOI-enrichment transport,
   stable encoded targets, duplicate-submit gating, pending and retryable failure

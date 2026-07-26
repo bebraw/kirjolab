@@ -1,5 +1,6 @@
 import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
-import type { KnowledgeSearchResult, WorkspaceKnowledgeGraph } from "../domain/knowledge";
+import { isKnowledgeSearchResults, type KnowledgeSearchResult, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
+import { errorMessage, expectOk } from "./http";
 import "./knowledge-connections-panel";
 import "./knowledge-search-panel";
 import "./project-map-panel";
@@ -7,7 +8,6 @@ import type { KnowledgeConnectionsPanel } from "./knowledge-connections-panel";
 import type { KnowledgeSearchPanel } from "./knowledge-search-panel";
 import type { ProjectMapPanel } from "./project-map-panel";
 
-export const projectMapSearchEvent = "project-map-search";
 export const projectMapResourceSelectEvent = "project-map-resource-select";
 
 type SearchState = { kind: "idle" } | { kind: "results"; results: readonly KnowledgeSearchResult[] } | { kind: "error"; message: string };
@@ -22,6 +22,7 @@ export class ProjectMapWorkspace extends LitElement {
 
   declare private graph: WorkspaceKnowledgeGraph;
   declare private searchState: SearchState;
+  private apiBase = "";
 
   constructor() {
     super();
@@ -31,6 +32,10 @@ export class ProjectMapWorkspace extends LitElement {
 
   setGraph(graph: WorkspaceKnowledgeGraph): void {
     this.graph = graph;
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   clearSearch(): void {
@@ -92,7 +97,7 @@ export class ProjectMapWorkspace extends LitElement {
       </header>
       <knowledge-search-panel
         id="knowledge-search-panel"
-        @knowledge-search=${this.forwardSearch}
+        @knowledge-search=${this.search}
         @knowledge-search-select=${this.forwardSelection}
       ></knowledge-search-panel>
       <div id="project-map-overview" class=${overviewHidden}>
@@ -119,9 +124,22 @@ export class ProjectMapWorkspace extends LitElement {
     `;
   }
 
-  protected forwardSearch(event: CustomEvent<string>): void {
+  protected async search(event: CustomEvent<string>): Promise<void> {
     event.stopPropagation();
-    this.dispatchEvent(new CustomEvent<string>(projectMapSearchEvent, { bubbles: true, composed: true, detail: event.detail }));
+    const query = event.detail;
+    if (!query) {
+      this.clearSearch();
+      return;
+    }
+    try {
+      const response = await fetch(`${this.apiBase}/search?q=${encodeURIComponent(query)}`, { credentials: "same-origin" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isKnowledgeSearchResults(value)) throw new Error("Project search returned invalid data");
+      this.showSearchResults(value);
+    } catch (error) {
+      this.showSearchError(errorMessage(error, "Project search failed"));
+    }
   }
 
   protected forwardSelection(event: CustomEvent<string>): void {

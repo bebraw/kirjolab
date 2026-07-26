@@ -94,7 +94,9 @@ The adopted components own bounded presentation:
   pending and retryable failure state, and typed citation, paper-navigation,
   and completed-relationship outcomes.
 - The knowledge search panel owns query capture, empty, result, and error
-  presentation, and typed search and resource-selection intents.
+  presentation, and typed search and resource-selection intents. Its enclosing
+  project-map workspace owns the authorized search request, response validation,
+  and search lifecycle because the same state controls graph-overview visibility.
 - The claim list panel owns the Claims collection shell and count, claim,
   evidence-link, passage-link, grounding selection, create availability,
   live passage-resolution presentation, grounding-choice focus, empty-state,
@@ -445,8 +447,9 @@ reason to wrap static markup mechanically.
   navigation, canonical refresh, and workspace notification policy in the
   application coordinator.
 - The knowledge search panel replaces three internal element references and
-  imperative result-card rendering while leaving authorized fetches, response
-  validation, and resource navigation in the application coordinator.
+  imperative result-card rendering. Its project-map workspace also replaces the
+  coordinator's authorized search fetch and response validation while leaving
+  graph derivation and resource navigation in the application coordinator.
 - The claim list panel replaces one internal list reference and five imperative
   claim render helpers. It also replaces the separate create-button reference,
   native binding, availability update, count reference, count mutation, and

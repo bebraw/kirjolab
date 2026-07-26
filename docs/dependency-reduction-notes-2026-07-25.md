@@ -4895,3 +4895,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,560 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Project Knowledge Search
+
+`ProjectMapWorkspace` now owns the authorized project-search request and
+Valibot-backed result validation alongside the idle, result, and error state
+that already controls its search presentation and graph-overview visibility.
+The nested search panel remains responsible for query capture and result cards.
+`WorkspaceApp` retains graph derivation and kind-qualified resource navigation.
+
+This checkpoint reduces `src/client/app.ts` from 4,622 to 4,604 lines (-18)
+and grows the project-map workspace from 145 to 163 lines. Runtime source across
+those two files is unchanged while removing the coordinator search method,
+request listener, response guard import, and duplicated state handoff. Focused
+coverage passes encoded authorized requests, valid results, empty-query reset,
+server errors, malformed results, resource selection, existing presentation
+states, and strict types.
+
+The browser application artifact changes from 823,581 B raw / 222,239 B gzip
+to 823,423 B raw / 222,191 B gzip (-158 B raw / -48 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,561 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -43,6 +43,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   application shell. Keep Yjs and cross-feature XState actors in application
   authorities; a component may own an actor whose full lifecycle is confined
   to its interaction and whose outward effects are typed outcomes.
+- Let the project-map Lit workspace own its authorized knowledge-search request,
+  response validation, and idle, result, and error lifecycle because those
+  states also determine whether the graph overview is visible. Keep graph
+  derivation and resource navigation in the application coordinator.
 - Let the bounded workspace-layout control own its four-option presentation,
   normalization, selected value, workspace-scoped local persistence, and typed
   change outcome. Keep surface mutation, PDF activation, resize notification,

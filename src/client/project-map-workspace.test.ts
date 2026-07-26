@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { KnowledgeSearchResult, WorkspaceKnowledgeGraph } from "../domain/knowledge";
-import { ProjectMapWorkspace, projectMapResourceSelectEvent, projectMapSearchEvent } from "./project-map-workspace";
+import { ProjectMapWorkspace, projectMapResourceSelectEvent } from "./project-map-workspace";
 
 const graph: WorkspaceKnowledgeGraph = {
   edges: [{ from: "publication:source", id: "edge:1", label: "", relation: "supports", to: "claim:result" }],
@@ -23,8 +23,8 @@ class TestProjectMapWorkspace extends ProjectMapWorkspace {
     return this.render();
   }
 
-  forwardSearchForTest(detail: string): void {
-    this.forwardSearch(new CustomEvent("knowledge-search", { detail }));
+  searchForTest(detail: string): Promise<void> {
+    return this.search(new CustomEvent("knowledge-search", { detail }));
   }
 
   forwardSelectionForTest(detail: string): void {
@@ -37,6 +37,8 @@ class TestProjectMapWorkspace extends ProjectMapWorkspace {
 }
 
 describe("project map workspace", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("renders graph totals and each search presentation state", () => {
     const workspace = new TestProjectMapWorkspace();
     expect(workspace.renderForTest()).toBeDefined();
@@ -50,18 +52,38 @@ describe("project map workspace", () => {
     expect(workspace.renderForTest()).toBeDefined();
   });
 
-  it("forwards bounded search and resource-selection intents", () => {
+  it("owns project search while forwarding resource-selection intents", async () => {
     const workspace = new TestProjectMapWorkspace();
-    const queries: string[] = [];
     const selections: string[] = [];
-    workspace.addEventListener(projectMapSearchEvent, (event) => queries.push((event as CustomEvent<string>).detail));
     workspace.addEventListener(projectMapResourceSelectEvent, (event) => selections.push((event as CustomEvent<string>).detail));
+    workspace.configure("/api/documents/document-1");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(results), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
 
-    workspace.forwardSearchForTest("evidence");
+    await workspace.searchForTest("evidence & claims");
     workspace.forwardSelectionForTest("claim:result");
 
-    expect(queries).toEqual(["evidence"]);
+    expect(fetchMock).toHaveBeenCalledWith("/api/documents/document-1/search?q=evidence%20%26%20claims", {
+      credentials: "same-origin",
+    });
+    expect(workspace.renderForTest()).toBeDefined();
     expect(selections).toEqual(["claim:result"]);
+  });
+
+  it("clears an empty search and presents request and contract errors", async () => {
+    const workspace = new TestProjectMapWorkspace();
+    workspace.configure("/api/documents/document-1");
+
+    await workspace.searchForTest("");
+    expect(workspace.renderForTest()).toBeDefined();
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "Search unavailable" }), { status: 503 })));
+    await workspace.searchForTest("evidence");
+    expect(workspace.renderForTest()).toBeDefined();
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ results }), { status: 200 })));
+    await workspace.searchForTest("evidence");
+    expect(workspace.renderForTest()).toBeDefined();
   });
 
   it("synchronizes graph, search state, and bounded map focus with its child panels", async () => {
