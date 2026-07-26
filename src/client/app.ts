@@ -656,8 +656,6 @@ class WorkspaceApp {
   #gitHubPickerRequest = 0;
   #gitHubSyncRequest = 0;
   #gitHubSyncCheckedAt = 0;
-  #projectTemplates: ProjectTemplateSummary[] = [];
-  readonly #hiddenProjectTemplateIds = new Set<string>();
   #previewRenderVersion = 0;
   #previewSourceMap: readonly CompositionSourceSpan[] = [];
   #offlineSaveTimer: number | undefined;
@@ -1812,13 +1810,8 @@ class WorkspaceApp {
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isProjectTemplateSummaries(value)) throw new Error("Project templates returned invalid data");
-    this.#projectTemplates = value;
-    this.#renderProjectTemplates();
-    this.#renderTemplateReplacementOptions();
-  }
-
-  #renderProjectTemplates(): void {
-    this.#elements.newWorkspaceStartingPoints.setData(this.#projectTemplates, this.#workspaceCatalog, this.#hiddenProjectTemplateIds);
+    this.#elements.newWorkspaceStartingPoints.setData(value, this.#workspaceCatalog);
+    this.#syncTemplateReplacementOptions();
   }
 
   async #loadProjectStartingPoint(workspace: WorkspaceSummary): Promise<void> {
@@ -1846,16 +1839,8 @@ class WorkspaceApp {
       deletedMessage: `Deleted template “${template.name}”.`,
       restoredMessage: `Restored template “${template.name}”.`,
       failedMessage: `Could not delete template “${template.name}”.`,
-      hide: () => {
-        this.#hiddenProjectTemplateIds.add(template.id);
-        this.#renderProjectTemplates();
-        this.#renderTemplateReplacementOptions();
-      },
-      restore: () => {
-        this.#hiddenProjectTemplateIds.delete(template.id);
-        this.#renderProjectTemplates();
-        this.#renderTemplateReplacementOptions();
-      },
+      hide: () => this.#setProjectTemplateHidden(template.id, true),
+      restore: () => this.#setProjectTemplateHidden(template.id, false),
       commit: async () => {
         await expectOk(
           await fetch(`/api/project-templates/${encodeURIComponent(template.id)}`, {
@@ -1880,10 +1865,13 @@ class WorkspaceApp {
     }
   }
 
-  #renderTemplateReplacementOptions(): void {
-    this.#elements.saveTemplateDialog.setTemplates(
-      this.#projectTemplates.filter((candidate) => !this.#hiddenProjectTemplateIds.has(candidate.id)),
-    );
+  #setProjectTemplateHidden(id: string, hidden: boolean): void {
+    this.#elements.newWorkspaceStartingPoints.setTemplateHidden(id, hidden);
+    this.#syncTemplateReplacementOptions();
+  }
+
+  #syncTemplateReplacementOptions(): void {
+    this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates);
   }
 
   async #saveProjectTemplate({ name, description, templateId }: ProjectTemplateSave): Promise<void> {

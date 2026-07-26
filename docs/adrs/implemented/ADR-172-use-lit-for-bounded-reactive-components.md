@@ -39,8 +39,10 @@ The adopted components own bounded presentation:
   choices, commit-message input, readiness, progress, and typed preview,
   confirmation, and disconnect intents.
 - The new-project starting-point browser owns template and existing-project
-  groups, local selection and preview state, bounded preview rendering, and
-  typed selection, project-load, and template-delete intents.
+  groups, the fetched template catalog and optimistic hidden-template state,
+  the derived visible-template view, local selection and preview state, bounded
+  preview rendering, and typed selection, project-load, and template-delete
+  intents.
 - The workspace sharing panel owns member and capability-link presentation,
   invitation input, clipboard interaction, native parent-dialog lifecycle, and
   typed invite, share-link, and notice intents.
@@ -421,14 +423,16 @@ reason to wrap static markup mechanically.
   refresh, and toast policy in the application coordinator.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
-  handling while leaving catalog refresh, hidden-template policy, seed capture,
-  persistence, and toast policy in the application coordinator.
+  handling while consuming the starting-point browser's visible template view.
+  The application coordinator retains catalog refresh, seed capture,
+  persistence, and toast policy.
 - The project starting-point browser replaces seven internal form and action
   element references, coordinator submit, selection-change, cancel, and import
   bindings, title and selection collection, readiness, loading, and error
-  updates while leaving dialog focus management, template and project-preview
-  requests, deferred deletion, project and import workflows, and navigation in
-  the application coordinator.
+  updates. It also replaces the coordinator's duplicate template array and
+  hidden-ID set while leaving template and project-preview requests, deferred
+  deletion, project and import workflows, and navigation in the application
+  coordinator.
 - The Library discovery search replaces six internal element references and
   imperative form-value, submit-state, progress, count, empty, and error
   handling while leaving provider requests, response validation, result

@@ -81,14 +81,23 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.status = message;
   }
 
-  setData(
-    templates: readonly ProjectTemplateSummary[],
-    workspaces: readonly WorkspaceSummary[],
-    hiddenTemplateIds: ReadonlySet<string>,
-  ): void {
+  setData(templates: readonly ProjectTemplateSummary[], workspaces: readonly WorkspaceSummary[]): void {
     this.templates = templates;
     this.workspaces = workspaces;
-    this.hiddenTemplateIds = new Set(hiddenTemplateIds);
+    const templateIds = new Set(templates.map(({ id }) => id));
+    this.hiddenTemplateIds = new Set([...this.hiddenTemplateIds].filter((id) => templateIds.has(id)));
+    this.normalizeSelection();
+  }
+
+  get availableTemplates(): readonly ProjectTemplateSummary[] {
+    return this.templates.filter((template) => !this.hiddenTemplateIds.has(template.id));
+  }
+
+  setTemplateHidden(id: string, hidden: boolean): void {
+    const hiddenIds = new Set(this.hiddenTemplateIds);
+    if (hidden) hiddenIds.add(id);
+    else hiddenIds.delete(id);
+    this.hiddenTemplateIds = hiddenIds;
     this.normalizeSelection();
   }
 
@@ -129,7 +138,7 @@ export class ProjectStartingPointBrowser extends LitElement {
   }
 
   protected override render(): TemplateResult {
-    const templates = this.visibleTemplates;
+    const templates = this.availableTemplates;
     const workspaces = this.visibleWorkspaces;
     const preview = this.startingPoint(this.previewKey);
     return html`
@@ -275,10 +284,6 @@ export class ProjectStartingPointBrowser extends LitElement {
     if (!this.hasOpenDialog()) this.returnFocus?.focus();
   };
 
-  private get visibleTemplates(): readonly ProjectTemplateSummary[] {
-    return this.templates.filter((template) => !this.hiddenTemplateIds.has(template.id));
-  }
-
   private get visibleWorkspaces(): readonly WorkspaceSummary[] {
     return this.workspaces.filter((workspace) => workspace.id !== demoWorkspaceId && !workspace.archivedAt);
   }
@@ -286,11 +291,11 @@ export class ProjectStartingPointBrowser extends LitElement {
   private normalizeSelection(): void {
     const previousSelection = this.selectedKey;
     const keys = new Set([
-      ...this.visibleTemplates.map((template) => template.id),
+      ...this.availableTemplates.map((template) => template.id),
       ...this.visibleWorkspaces.map((workspace) => projectSourceKey(workspace.id)),
     ]);
     if (!keys.has(this.selectedKey)) this.selectedKey = "";
-    if (!keys.has(this.previewKey)) this.previewKey = this.visibleTemplates[0]?.id ?? "";
+    if (!keys.has(this.previewKey)) this.previewKey = this.availableTemplates[0]?.id ?? "";
     if (previousSelection && !this.selectedKey) this.status = "Choose a starting point.";
   }
 

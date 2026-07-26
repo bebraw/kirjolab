@@ -3004,3 +3004,27 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,408 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Starting-Point Catalog State
+
+`ProjectStartingPointBrowser` now owns the fetched template catalog, optimistic
+hidden-template IDs, and the derived visible-template view used by both its
+starting-point list and the save-template replacement dialog. `WorkspaceApp`
+retains validated requests, deferred deletion, durable mutations, project
+creation, and import workflows without duplicating the component's array or
+set.
+
+This checkpoint reduces `src/client/app.ts` from 6,883 to 6,871 lines (-12)
+and grows the starting-point component from 484 to 492 lines (+8), for four
+fewer runtime lines overall. Focused component coverage passes hide, restore,
+selection normalization, creation, project-source loading, and modal focus.
+The browser workflow passes built-in, promoted personal, and existing-project
+starting points plus template deletion and replacement.
+
+The browser application artifact changes from 796,823 B raw / 214,550 B gzip
+to 797,020 B raw / 214,591 B gzip (+197 B raw / +41 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,408 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

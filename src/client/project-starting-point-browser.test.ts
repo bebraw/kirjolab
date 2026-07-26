@@ -166,7 +166,11 @@ describe("project starting point browser", () => {
     const browser = new TestProjectStartingPointBrowser();
     expect(browser.rootForTest()).toBe(browser);
     expect(browser.renderForTest()).toBeDefined();
-    browser.setData([builtIn, personal], [], new Set(["personal-1"]));
+    browser.setData([builtIn, personal], []);
+    browser.setTemplateHidden("personal-1", true);
+    expect(browser.availableTemplates).toEqual([builtIn]);
+    browser.setTemplateHidden("personal-1", false);
+    expect(browser.availableTemplates).toEqual([builtIn, personal]);
     expect(browser.renderForTest()).toBeDefined();
     browser.showError("Could not load templates.");
     browser.startLoading();
@@ -179,7 +183,7 @@ describe("project starting point browser", () => {
     browser.addEventListener(startingPointActionEvent, (event) => {
       actions.push((event as CustomEvent<StartingPointAction>).detail);
     });
-    browser.setData([builtIn], [], new Set());
+    browser.setData([builtIn], []);
     browser.changeTitleForTest("Focused inquiry");
     browser.createForTest();
     expect(actions).toEqual([]);
@@ -191,7 +195,7 @@ describe("project starting point browser", () => {
     browser.actionForTest("import-latex");
     expect(actions.slice(1)).toEqual([{ action: "cancel" }, { action: "import-github" }, { action: "import-latex" }]);
     browser.reset();
-    browser.setData([], [], new Set());
+    browser.setData([], []);
     expect(browser.renderForTest()).toBeDefined();
   });
 
@@ -209,7 +213,7 @@ describe("project starting point browser", () => {
     browser.addEventListener(startingPointActionEvent, (event) => {
       actions.push((event as CustomEvent<StartingPointAction>).detail);
     });
-    browser.setData([builtIn, personal], [workspace], new Set());
+    browser.setData([builtIn, personal], [workspace]);
     browser.chooseProjectForTest(workspace);
     browser.rejectProjectSource({ ...workspace, id: "other" }, "Ignored");
     browser.acceptProjectSource(workspace, projectTemplate);
