@@ -129,8 +129,11 @@ collaborative, and unambiguous about what preview and export mean.
 - The project-file dialog retains the stable file or folder identity associated
   with its active operation, derives the mutation endpoint from that identity,
   and emits the completed mode, submitted path, message, and validated workspace
-  snapshot. The workspace coordinator must not reconstruct the mutation target
-  from mutable ambient selection.
+  snapshot. It also owns encoded file deletion transport and shares the same
+  response validation across create, rename, and delete operations. The
+  workspace coordinator must not reconstruct mutation targets from mutable
+  ambient selection; it retains optimistic hiding, delayed deletion and Undo,
+  snapshot application, rendering, and notification.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.

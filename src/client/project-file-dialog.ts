@@ -74,6 +74,15 @@ export class ProjectFileDialog extends LitElement {
     this.dialog.close();
   }
 
+  async deleteFile(fileId: string): Promise<WorkspaceSnapshot> {
+    const response = await fetch(`${this.apiBase}/files/${encodeURIComponent(fileId)}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    return this.workspace(response);
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
@@ -138,13 +147,12 @@ export class ProjectFileDialog extends LitElement {
       const url = creating ? `${this.apiBase}/${resource}` : `${this.apiBase}/${resource}/${encodeURIComponent(this.targetId ?? "")}`;
       const response = await jsonFetch(url, { path }, creating ? "POST" : "PATCH");
       await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
+      const snapshot = await this.workspace(response);
       this.close();
       this.dispatchEvent(
         new CustomEvent<ProjectFileSaved>(projectFileSavedEvent, {
           bubbles: true,
-          detail: { message: projectFileSavedMessage(this.mode, path), mode: this.mode, path, snapshot: value },
+          detail: { message: projectFileSavedMessage(this.mode, path), mode: this.mode, path, snapshot },
         }),
       );
     } catch (error) {
@@ -168,6 +176,12 @@ export class ProjectFileDialog extends LitElement {
     const input = this.querySelector<HTMLInputElement>("#project-file-path");
     if (!input) throw new Error("Project file path is unavailable");
     return input;
+  }
+
+  private async workspace(response: Response): Promise<WorkspaceSnapshot> {
+    const value: unknown = await response.json();
+    if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
+    return value;
   }
 }
 

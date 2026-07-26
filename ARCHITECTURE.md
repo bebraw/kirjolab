@@ -142,11 +142,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   project-scoped `DocumentRoom`; qualify manuscript, evidence, and model
   anchors by file identity.
 - Let the project-file dialog retain the stable mutation target associated with
-  its active operation and own file/folder mutation transport, response
-  validation, duplicate-submit gating, and retryable local failures. Emit the
-  validated workspace snapshot with the completed operation. Keep collaborative
-  caret capture, Yjs insertion, snapshot application, selection, rendering, and
-  toast policy in the workspace coordinator.
+  its active operation and own file/folder create and rename transport, file
+  deletion transport, shared response validation, duplicate-submit gating, and
+  retryable local failures. Emit or return the validated workspace snapshot.
+  Keep collaborative caret capture, Yjs insertion, optimistic hiding, Undo
+  timing, snapshot application, selection, rendering, and toast policy in the
+  workspace coordinator.
 - Let the project-image upload control own file-input state, sequential upload
   transport, response validation, duplicate-submit gating, and retryable local
   status. Emit only the final validated workspace snapshot and completion

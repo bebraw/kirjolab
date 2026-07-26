@@ -213,9 +213,12 @@ The adopted components own bounded presentation:
   and emits only a typed completed-import outcome.
 - The project file dialog owns file and folder operation copy, initial path,
   active operation mode and stable mutation target, focus, cancellation,
-  mutation transport, response validation, duplicate-submit gating, local busy
-  and retryable failure state, and typed completed outcomes carrying the mode,
-  path, message, and validated workspace snapshot together.
+  create and rename transport, file deletion transport, shared response
+  validation, duplicate-submit gating, local busy and retryable failure state,
+  and typed completed outcomes carrying the mode, path, message, and validated
+  workspace snapshot together. The coordinator retains the deletion grace
+  period, optimistic hiding, Undo restoration, snapshot application, rendering,
+  and notification.
 - Reused project-file action components own the rail and editor-menu action
   presentation, entry-file delete availability, and one typed create, include,
   rename, delete, folder-create, or image-upload intent contract.
@@ -541,9 +544,10 @@ reason to wrap static markup mechanically.
 - The project file dialog replaces seven internal element references and
   imperative file and folder operation configuration. Its completed outcome also
   removes the coordinator's duplicate operation-mode and folder-target fields
-  and file/folder request helper while leaving resource availability,
-  collaborative include-target capture, snapshot application, selection,
-  rendering, and toast policy in the application coordinator.
+  and file/folder request helper, and its deletion method removes the file DELETE
+  request while leaving resource availability, collaborative include-target
+  capture, deletion grace and Undo coordination, snapshot application,
+  selection, rendering, and toast policy in the application coordinator.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.

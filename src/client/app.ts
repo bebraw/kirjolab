@@ -2139,14 +2139,7 @@ class WorkspaceApp {
         this.#selectProjectFile(file.id);
       },
       commit: async () => {
-        const response = await fetch(`${apiBase}/files/${encodeURIComponent(file.id)}`, {
-          method: "DELETE",
-          credentials: "same-origin",
-        });
-        await expectOk(response);
-        const value: unknown = await response.json();
-        if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
-        this.#snapshot = value;
+        this.#snapshot = await this.#elements.projectFileDialog.deleteFile(file.id);
         this.#renderProjectFiles();
         void this.#renderPreview();
       },

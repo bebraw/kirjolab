@@ -125,6 +125,27 @@ describe("project file dialog", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("owns encoded file deletion transport and validates its workspace", async () => {
+    const panel = new TestProjectFileDialog();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(snapshot));
+    panel.configureApi("/api/workspaces/workspace");
+
+    await expect(panel.deleteFile("file/1")).resolves.toEqual(snapshot);
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/files/file%2F1", {
+      credentials: "same-origin",
+      method: "DELETE",
+    });
+  });
+
+  it("rejects malformed file deletion workspaces", async () => {
+    const panel = new TestProjectFileDialog();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ invalid: true }));
+    panel.configureApi("/api/workspaces/workspace");
+
+    await expect(panel.deleteFile("file-1")).rejects.toThrow("Project file operation returned an invalid workspace");
+  });
+
   it("ignores mutation modes without their stable target", async () => {
     const panel = new TestProjectFileDialog();
     const fetchMock = vi.spyOn(globalThis, "fetch");

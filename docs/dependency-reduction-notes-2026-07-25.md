@@ -4741,3 +4741,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,548 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Project File Deletion
+
+`ProjectFileDialog` now owns encoded file DELETE transport alongside its file
+and folder create and rename requests. One shared response helper validates all
+returned workspaces. `WorkspaceApp` retains optimistic hiding, the six-second
+delayed commit, Undo restoration, editor rebinding, snapshot application,
+rendering, and failure notification.
+
+This checkpoint reduces `src/client/app.ts` from 4,700 to 4,693 lines (-7) and
+grows the project-file dialog from 190 to 204 lines. Runtime source across those
+two files increases by 7 lines while removing the last file DELETE request and
+deduplicating the owner's snapshot validation. Focused coverage passes the
+encoded target, validated snapshot, malformed-response rejection, existing
+create and rename requests, dialog lifecycle, application contracts, and strict
+types.
+
+The browser application artifact changes from 821,926 B raw / 222,373 B gzip
+to 821,981 B raw / 222,398 B gzip (+55 B raw / +25 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,550 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
