@@ -3278,3 +3278,25 @@ unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
 
 Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Shared Annotation Composer State
+
+`ProjectAnnotationForm` now owns its active annotation identity, selected paint
+or erase tool, and last undoable stroke. Save and undo events carry the complete
+typed intent needed by `WorkspaceApp`, which retains PDF geometry, persistence,
+manuscript linking, refreshes, and notification policy without duplicating the
+form's local lifecycle.
+
+This checkpoint reduces `src/client/app.ts` from 6,477 to 6,466 lines (-11) and
+grows the annotation form from 298 to 317 lines, increasing runtime source by
+eight lines overall while removing three coordinator fields. Focused component
+coverage passes capture and edit identity, save and link intent, tool choice,
+complete undo intent, citation, and presentation behavior.
+
+The browser application artifact changes from 796,515 B raw / 214,918 B gzip
+to 796,895 B raw / 214,967 B gzip (+380 B raw / +49 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

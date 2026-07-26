@@ -101,6 +101,9 @@ with an authored passage.
 - Stored highlights must never mutate the imported R2 object.
 - The embedded annotation composer must always target the currently visible
   PDF; it must not expose an independent editable artifact selector.
+- The embedded annotation composer must retain its active annotation identity,
+  selected paint or erase tool, and last undoable stroke and emit complete save
+  or undo intents to the application coordinator.
 - A stale manuscript revision or range must reject atomic annotation/link
   creation before either row is persisted.
 

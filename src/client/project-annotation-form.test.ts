@@ -63,9 +63,9 @@ describe("project annotation form", () => {
     panel.setStatus("Selection saved.");
     panel.setVisible(false);
     panel.setTool("erase");
-    panel.setUndoAvailable(true);
+    panel.setUndoStroke({ annotationId: "annotation-1", fragmentId: "fragment-1" });
     panel.setCitationCount(2);
-    panel.showAnnotation({ comment: "Important", page: 4, prefix: "left", quote: "claim", suffix: "right" });
+    panel.showAnnotation({ id: "annotation-1", comment: "Important", page: 4, prefix: "left", quote: "claim", suffix: "right" });
     panel.changeForTest("page", "5");
     panel.changeForTest("prefix", "new left");
     panel.changeForTest("suffix", "new right");
@@ -80,10 +80,11 @@ describe("project annotation form", () => {
     });
     panel.changeForTest("comment", "Use this");
     panel.saveForTest(false);
+    panel.showAnnotation({ id: "annotation-1", comment: "Use this", page: 1, prefix: "", quote: "Evidence", suffix: "" });
     panel.saveForTest(true);
     expect(intents).toEqual([
-      { comment: "Use this", link: false },
-      { comment: "Use this", link: true },
+      { annotationId: null, comment: "Use this", link: false },
+      { annotationId: "annotation-1", comment: "Use this", link: true },
     ]);
   });
 
@@ -96,13 +97,14 @@ describe("project annotation form", () => {
 
     panel.actionForTest("paint");
     panel.actionForTest("erase");
+    panel.setUndoStroke({ annotationId: "annotation-1", fragmentId: "fragment-1" });
     panel.actionForTest("undo");
     panel.actionForTest("cite");
 
     expect(actions).toEqual([
       { action: "choose-tool", tool: "paint" },
       { action: "choose-tool", tool: "erase" },
-      { action: "undo-highlight" },
+      { action: "undo-highlight", annotationId: "annotation-1", fragmentId: "fragment-1" },
       { action: "cite-page" },
     ]);
   });

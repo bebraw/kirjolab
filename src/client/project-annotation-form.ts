@@ -7,16 +7,18 @@ export const projectAnnotationActionEvent = "project-annotation-action";
 export type ProjectHighlightTool = "paint" | "erase";
 export type ProjectAnnotationAction =
   | { readonly action: "choose-tool"; readonly tool: ProjectHighlightTool }
-  | { readonly action: "undo-highlight" }
+  | { readonly action: "undo-highlight"; readonly annotationId: string; readonly fragmentId: string }
   | { readonly action: "cite-page" };
 
 export interface ProjectAnnotationSave {
-  comment: string;
-  link: boolean;
+  readonly annotationId: string | null;
+  readonly comment: string;
+  readonly link: boolean;
 }
 
-type AnnotationDraft = Pick<AnnotationResource, "comment" | "page" | "prefix" | "quote" | "suffix">;
+type AnnotationDraft = Pick<AnnotationResource, "comment" | "id" | "page" | "prefix" | "quote" | "suffix">;
 type PdfChoice = Pick<PdfResource, "id" | "name">;
+type UndoStroke = { readonly annotationId: string; readonly fragmentId: string };
 
 export class ProjectAnnotationForm extends LitElement {
   static override properties = {
@@ -29,13 +31,14 @@ export class ProjectAnnotationForm extends LitElement {
     selectedPdfId: { state: true },
     status: { state: true },
     tool: { state: true },
-    undoAvailable: { state: true },
+    undoStroke: { state: true },
     visible: { state: true },
     quoteSuffix: { state: true },
   };
 
   declare private comment: string;
   declare private citationCount: number;
+  private editingAnnotationId: string | null = null;
   declare private page: number;
   declare private pdfs: readonly PdfChoice[];
   declare private quotePrefix: string;
@@ -43,7 +46,7 @@ export class ProjectAnnotationForm extends LitElement {
   declare private selectedPdfId: string;
   declare private status: string;
   declare private tool: ProjectHighlightTool;
-  declare private undoAvailable: boolean;
+  declare private undoStroke: UndoStroke | null;
   declare private visible: boolean;
   declare private quoteSuffix: string;
 
@@ -58,7 +61,7 @@ export class ProjectAnnotationForm extends LitElement {
     this.selectedPdfId = "";
     this.status = "Select text in the paper to capture its quotation, context, page, and geometry.";
     this.tool = "paint";
-    this.undoAvailable = false;
+    this.undoStroke = null;
     this.visible = true;
     this.quoteSuffix = "";
   }
@@ -73,6 +76,11 @@ export class ProjectAnnotationForm extends LitElement {
   }
 
   showCapture(capture: Pick<AnnotationDraft, "page" | "prefix" | "quote" | "suffix">): void {
+    this.editingAnnotationId = null;
+    this.applyCapture(capture);
+  }
+
+  private applyCapture(capture: Pick<AnnotationDraft, "page" | "prefix" | "quote" | "suffix">): void {
     this.page = capture.page;
     this.quotePrefix = capture.prefix;
     this.quote = capture.quote;
@@ -80,8 +88,14 @@ export class ProjectAnnotationForm extends LitElement {
   }
 
   showAnnotation(annotation: AnnotationDraft): void {
+    this.editingAnnotationId = annotation.id;
     this.comment = annotation.comment;
-    this.showCapture(annotation);
+    this.applyCapture(annotation);
+  }
+
+  clearAnnotation(annotationId: string): void {
+    if (this.editingAnnotationId === annotationId) this.editingAnnotationId = null;
+    if (this.undoStroke?.annotationId === annotationId) this.undoStroke = null;
   }
 
   setStatus(status: string): void {
@@ -96,8 +110,12 @@ export class ProjectAnnotationForm extends LitElement {
     this.tool = tool;
   }
 
-  setUndoAvailable(available: boolean): void {
-    this.undoAvailable = available;
+  get selectedTool(): ProjectHighlightTool {
+    return this.tool;
+  }
+
+  setUndoStroke(stroke: UndoStroke | null): void {
+    this.undoStroke = stroke;
   }
 
   setCitationCount(count: number): void {
@@ -153,7 +171,7 @@ export class ProjectAnnotationForm extends LitElement {
           >
             Eraser
           </button>
-          <button class="button-secondary" id="undo-highlight" type="button" ?disabled=${!this.undoAvailable} @click=${this.undoHighlight}>
+          <button class="button-secondary" id="undo-highlight" type="button" ?disabled=${!this.undoStroke} @click=${this.undoHighlight}>
             Undo last stroke
           </button>
         </div>
@@ -242,7 +260,7 @@ export class ProjectAnnotationForm extends LitElement {
   }
 
   protected undoHighlight(): void {
-    this.emitAction({ action: "undo-highlight" });
+    if (this.undoStroke) this.emitAction({ action: "undo-highlight", ...this.undoStroke });
   }
 
   protected citePage(): void {
@@ -259,6 +277,7 @@ export class ProjectAnnotationForm extends LitElement {
       new CustomEvent<ProjectAnnotationSave>(projectAnnotationSaveEvent, {
         bubbles: true,
         detail: {
+          annotationId: this.editingAnnotationId,
           comment: this.comment,
           link: (event.submitter as HTMLElement | null)?.id === "save-and-link-annotation",
         },

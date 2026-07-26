@@ -454,9 +454,6 @@ class WorkspaceApp {
   readonly #hiddenProjectFolderIds = new Set<string>();
   readonly #hiddenProjectImageIds = new Set<string>();
   readonly #pendingDeletions = new Map<string, PendingDeletion>();
-  #editingAnnotationId: string | null = null;
-  #highlightTool: ProjectHighlightTool = "paint";
-  #lastHighlightStroke: { annotationId: string; fragmentId: string } | null = null;
   #renderedPdfId: string | undefined;
   #renderedPdfContextKey: ResearchContextKey | undefined;
   #contextState: ResearchContextState = createResearchContext();
@@ -895,7 +892,7 @@ class WorkspaceApp {
     this.#elements.projectAnnotationForm.addEventListener(projectAnnotationActionEvent, (event) => {
       const action = (event as CustomEvent<ProjectAnnotationAction>).detail;
       if (action.action === "choose-tool") this.#setHighlightTool(action.tool);
-      else if (action.action === "undo-highlight") void this.#undoLastHighlightStroke();
+      else if (action.action === "undo-highlight") void this.#undoLastHighlightStroke(action.annotationId, action.fragmentId);
       else this.#citeActivePdf();
     });
     this.#elements.libraryPdfAnnotationForms.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
@@ -3680,7 +3677,6 @@ class WorkspaceApp {
   }
 
   #editAnnotation(annotation: AnnotationResource): void {
-    this.#editingAnnotationId = annotation.id;
     this.#elements.projectAnnotationForm.showAnnotation(annotation);
     this.#openAnnotationEvidence(annotation);
   }
@@ -3698,7 +3694,7 @@ class WorkspaceApp {
       credentials: "same-origin",
     });
     await expectOk(response);
-    if (this.#editingAnnotationId === annotation.id) this.#editingAnnotationId = null;
+    this.#elements.projectAnnotationForm.clearAnnotation(annotation.id);
     await this.#resourceRefresh.request();
     this.#showToast("Highlight deleted; the PDF remains unchanged.");
   }
@@ -4775,7 +4771,7 @@ class WorkspaceApp {
   }
 
   async #createAnnotation(detail: ProjectAnnotationSave): Promise<void> {
-    const annotationId = this.#editingAnnotationId;
+    const annotationId = detail.annotationId;
     if (!annotationId) {
       this.#showToast("Paint a highlight in the PDF before adding a note or manuscript link.");
       return;
@@ -5612,7 +5608,7 @@ class WorkspaceApp {
     if (this.#renderedPdfId) this.#elements.projectAnnotationForm.selectPdf(this.#renderedPdfId);
     this.#elements.projectAnnotationForm.showCapture(capture);
     this.#elements.projectAnnotationForm.setStatus(
-      this.#highlightTool === "erase"
+      this.#elements.projectAnnotationForm.selectedTool === "erase"
         ? "Erasing overlapping highlight strokes…"
         : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "line" : "lines"} from page ${capture.page}. Saving automatically…`,
     );
@@ -6115,7 +6111,7 @@ class WorkspaceApp {
     const pdfId = this.#renderedPdfId;
     if (!pdfId || !this.#snapshot) return;
     const overlaps = this.#overlappingPdfFragments(pdfId, capture);
-    if (this.#highlightTool === "erase") {
+    if (this.#elements.projectAnnotationForm.selectedTool === "erase") {
       await this.#erasePdfSelection(overlaps);
       return;
     }
@@ -6156,9 +6152,7 @@ class WorkspaceApp {
     if (!isCreatedAnnotation(annotationValue)) throw new Error("Highlight endpoint returned an invalid resource");
     const fragment = annotationValue.fragments.at(-1);
     if (!fragment) throw new Error("Highlight endpoint omitted the saved stroke");
-    this.#editingAnnotationId = annotationValue.id;
-    this.#lastHighlightStroke = { annotationId: annotationValue.id, fragmentId: fragment.id };
-    this.#elements.projectAnnotationForm.setUndoAvailable(true);
+    this.#elements.projectAnnotationForm.setUndoStroke({ annotationId: annotationValue.id, fragmentId: fragment.id });
     this.#elements.projectAnnotationForm.showAnnotation(annotationValue);
     this.#pdfViewer.clearDraftSelection();
     await this.#resourceRefresh.request();
@@ -6170,7 +6164,6 @@ class WorkspaceApp {
   }
 
   #setHighlightTool(tool: ProjectHighlightTool): void {
-    this.#highlightTool = tool;
     this.#elements.projectAnnotationForm.setTool(tool);
     this.#pdfViewer.setTool(tool);
     this.#elements.projectAnnotationForm.setStatus(
@@ -6181,13 +6174,12 @@ class WorkspaceApp {
   }
 
   async #activateHighlightFragment(annotationId: string, fragmentId: string): Promise<void> {
-    if (this.#highlightTool === "erase") {
+    if (this.#elements.projectAnnotationForm.selectedTool === "erase") {
       await this.#removeHighlightFragment(annotationId, fragmentId, true);
       return;
     }
     const annotation = this.#snapshot?.annotations.find((item) => item.id === annotationId);
     if (!annotation) return;
-    this.#editingAnnotationId = annotation.id;
     this.#elements.projectAnnotationForm.showAnnotation(annotation);
     this.#focusAnnotationCard(annotationId);
   }
@@ -6198,7 +6190,7 @@ class WorkspaceApp {
       credentials: "same-origin",
     });
     await expectOk(response);
-    if (this.#editingAnnotationId === annotationId && response.status === 204) this.#editingAnnotationId = null;
+    if (response.status === 204) this.#elements.projectAnnotationForm.clearAnnotation(annotationId);
     await this.#resourceRefresh.request();
     if (announce) this.#showToast("Highlight stroke erased.");
   }
@@ -6225,12 +6217,9 @@ class WorkspaceApp {
     this.#showToast("Highlight stroke adjusted.");
   }
 
-  async #undoLastHighlightStroke(): Promise<void> {
-    const stroke = this.#lastHighlightStroke;
-    if (!stroke) return;
-    await this.#removeHighlightFragment(stroke.annotationId, stroke.fragmentId, false);
-    this.#lastHighlightStroke = null;
-    this.#elements.projectAnnotationForm.setUndoAvailable(false);
+  async #undoLastHighlightStroke(annotationId: string, fragmentId: string): Promise<void> {
+    await this.#removeHighlightFragment(annotationId, fragmentId, false);
+    this.#elements.projectAnnotationForm.setUndoStroke(null);
     this.#showToast("Last highlight stroke undone.");
   }
 
