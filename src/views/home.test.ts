@@ -233,6 +233,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-pdf-panel" role="tabpanel"');
     expect(html).toContain('id="annotation-composer"');
     expect(html).toContain('<project-annotation-form class="contents" id="project-annotation-form">');
+    expect(html).toContain('<library-pdf-inspector class="contents" id="library-pdf-inspector">');
     expect(html).toContain('id="library-highlight-composer"');
     expect(html).toContain('<pdf-highlight-import-panel class="library-highlight-import" id="pdf-highlight-import-panel"');
     expect(html).toContain('id="open-library-pdf-inspector"');

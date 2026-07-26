@@ -226,6 +226,12 @@ memory and makes citation aliases compete with stable source identity.
   inspector-expanded state. It emits typed tool, undo, export, and inspector
   intents. The application coordinator retains gestures, annotation state,
   drawing persistence, annotated export, and inspector policy.
+- A bounded light-DOM inspector component composes the annotation forms,
+  imported-highlight review, saved annotation list, and project-use block. It
+  owns shell visibility, active-artifact identity, status presentation,
+  expanded state, annotation-details opening, and a typed close intent. The
+  application coordinator retains gestures, annotation state, persistence,
+  close policy, refreshes, and focus restoration.
 - A bounded light-DOM markup layer owns saved and draft drawing SVG, note pins,
   selected state, open note cards, live draft geometry updates, note movement,
   focus restoration, and a typed note-card close intent. The application

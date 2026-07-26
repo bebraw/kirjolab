@@ -631,6 +631,7 @@ export function renderHomePage(
                 </form>
             </aside>
             </project-annotation-form>
+            <library-pdf-inspector class="contents" id="library-pdf-inspector">
             <aside class="annotation-composer library-pdf-tools" id="library-highlight-composer" aria-label="PDF annotation inspector" data-inspector-open="false" hidden>
               <header class="library-pdf-inspector-header">
                 <div>
@@ -690,6 +691,7 @@ export function renderHomePage(
                 </div>
               </details>
             </aside>
+            </library-pdf-inspector>
           </div>
         </section>
 

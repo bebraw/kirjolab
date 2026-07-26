@@ -81,6 +81,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   a transient inspector only when requested or required. Page-anchored note
   pins and freehand strokes persist in the owner library using normalized page
   coordinates and rerender on page change.
+- The bounded private-PDF inspector owns its visibility, active-artifact
+  identity, status, expanded presentation, annotation-details opening, and
+  nested annotation component composition. Closing emits an intent so the
+  workspace coordinator can apply draft-cancellation and focus policy.
 - On short tablet and desktop viewports, the private PDF rail uses two columns
   for its unchanged touch-sized controls so no tool extends beyond the reader.
   Taller viewports retain the narrower single-column rail.

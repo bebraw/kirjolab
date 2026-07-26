@@ -2331,3 +2331,26 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,395 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Composition: Private-PDF Inspector
+
+`LibraryPdfInspector` now owns the private-PDF inspector shell, active-artifact
+identity, visibility, status, expansion, annotation-details opening, nested
+annotation component composition, and one typed close intent. `WorkspaceApp`
+retains PDF gestures, annotation state, persistence, close-time draft policy,
+refreshes, and focus restoration.
+
+This checkpoint reduces `src/client/app.ts` from 7,271 to 7,268 lines (-3),
+replaces four raw shell references with one component reference, and removes a
+direct close binding plus repeated dataset, status, visibility, and details
+mutations. Focused unit and browser coverage passes shell state, close intent,
+project-context switching, and the complete project-free private-PDF annotate
+and export workflow.
+
+The browser application artifact changes from 792,712 B raw / 213,766 B gzip
+to 795,095 B raw / 214,163 B gzip (+2,383 B raw / +397 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,397 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
