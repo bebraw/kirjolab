@@ -27,7 +27,7 @@ import {
 import type { Diagnostic, RenderedDocument } from "../domain/markdown";
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { suggestCitationKey } from "../domain/publication-intake";
-import { isPhrasingPurposeId, phrasingPatternsForPurpose, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
+import { isPhrasingPurposeId, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import type { ProjectTemplateSummary } from "../domain/project-templates";
@@ -3674,17 +3674,10 @@ class WorkspaceApp {
 
   async #generatePhrasingCandidate(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
     const purpose = this.#phrasingPurpose();
-    const result = await input.provider.phrasePassage({
-      selectedPassage: passage.excerpt,
-      instruction: input.instruction,
-      evidence: input.evidence.items,
-      purpose,
-      patterns: phrasingPatternsForPurpose(purpose.id),
-    });
-    this.#elements.assistantInteractiveResult.showPhrasingAlternatives(
+    await this.#elements.assistantInteractiveResult.generatePhrasing(
+      input.provider,
       { passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision },
       purpose,
-      result,
     );
     this.#elements.assistantWorkflowStatus.status = "Choose one alternative to open exact before-and-after review.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
@@ -3703,15 +3696,12 @@ class WorkspaceApp {
   }
 
   async #generateIdeas(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    const result = await input.provider.ideate({
-      selectedPassage: passage.excerpt,
+    await this.#elements.assistantInteractiveResult.generateIdeas(input.provider, {
+      passage,
+      evidence: input.evidence,
       instruction: input.instruction,
-      evidence: input.evidence.items,
+      sourceRevision: input.sourceRevision,
     });
-    this.#elements.assistantInteractiveResult.showIdeas(
-      { passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision },
-      result,
-    );
     this.#elements.assistantWorkflowStatus.status = "Choose a direction to open its complete draft for exact review.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
   }

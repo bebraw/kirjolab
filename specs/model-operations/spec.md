@@ -147,16 +147,16 @@ All mutation operations preserve a human review boundary.
   secondary settings instead of occupying persistent chrome.
 - One bounded result component owns transient table, clarity, ideation,
   phrasing, rewrite, and reference-discovery presentation plus local input and
-  save-progress state. It owns both clarity provider requests because their
-  question, answer, continuation provider, and rewrite presentation are local.
+  save-progress state. It owns clarity, ideation, and phrasing provider requests
+  because their complete output lifecycles remain transient in that component.
   For reference discovery it also owns model query formulation, registry
   transport and response validation. Its discovery cards project validated
   results through the shared CSL projection and import adapter and own
   duplicate-submit gating, retryable failures, stale-response rejection, and
-  refresh-pending state. It emits typed intents or refresh outcomes; other model
-  I/O, XState transitions, candidate persistence, canonical Markdown edits,
-  canonical Library refresh, and cross-panel workflow status remain with the
-  application coordinator.
+  refresh-pending state. It emits typed intents or refresh outcomes;
+  canonical-result model I/O, XState transitions, candidate persistence,
+  canonical Markdown edits, canonical Library refresh, and cross-panel workflow
+  status remain with the application coordinator.
 - The assistant keeps a visible **Choose evidence** action beside its status.
   It opens the Research rail, expands the collection containing the first
   available grounding control, and focuses that control; an empty project

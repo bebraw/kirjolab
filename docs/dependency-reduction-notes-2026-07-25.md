@@ -4990,3 +4990,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,565 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Ideation and Phrasing Requests
+
+`AssistantResultPanel` now owns ideation and phrasing provider requests,
+including rhetorical-pattern lookup, alongside the transient choices and
+captured revision context they serve. `WorkspaceApp` retains authorized target
+and evidence derivation, XState transitions, shared status and failure policy,
+and candidate persistence after a researcher chooses an option.
+
+This checkpoint reduces `src/client/app.ts` from 4,579 to 4,569 lines (-10) and
+grows the assistant result owner from 418 to 442 lines. Runtime source across
+those two files increases by 14 lines while removing both provider request
+shapes, rhetorical-pattern knowledge, and result-to-view handoffs from the
+coordinator. Focused coverage passes exact ideation and phrasing payloads,
+pattern inclusion, transient option presentation, existing result intents,
+application contracts, and strict types.
+
+The browser application artifact changes from 823,738 B raw / 222,271 B gzip
+to 823,878 B raw / 222,346 B gzip (+140 B raw / +75 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,566 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

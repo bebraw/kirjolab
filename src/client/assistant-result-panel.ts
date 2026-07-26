@@ -8,7 +8,7 @@ import type {
   ModelProvider,
   ReferenceQueryRequest,
 } from "./model-provider";
-import type { PhrasingPurpose } from "../domain/phrasing-guidance";
+import { phrasingPatternsForPurpose, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import { isReferenceDiscoveryResults, referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import type { ModelEvidenceReference } from "../domain/workspace";
 import { errorMessage, expectOk, jsonFetch } from "./http";
@@ -157,6 +157,15 @@ export class AssistantResultPanel extends LitElement {
     };
   }
 
+  async generateIdeas(provider: Pick<ModelProvider, "ideate">, context: AssistantRevisionContext): Promise<void> {
+    const result = await provider.ideate({
+      selectedPassage: context.passage.excerpt,
+      instruction: context.instruction,
+      evidence: context.evidence.items,
+    });
+    this.showIdeas(context, result);
+  }
+
   showPhrasingAlternatives(context: AssistantRevisionContext, purpose: PhrasingPurpose, result: ModelPhrasingAlternatives): void {
     this.view = {
       actionLabel: "Review this alternative",
@@ -176,6 +185,21 @@ export class AssistantResultPanel extends LitElement {
         text: alternative.text,
       })),
     };
+  }
+
+  async generatePhrasing(
+    provider: Pick<ModelProvider, "phrasePassage">,
+    context: AssistantRevisionContext,
+    purpose: PhrasingPurpose,
+  ): Promise<void> {
+    const result = await provider.phrasePassage({
+      selectedPassage: context.passage.excerpt,
+      instruction: context.instruction,
+      evidence: context.evidence.items,
+      purpose,
+      patterns: phrasingPatternsForPurpose(purpose.id),
+    });
+    this.showPhrasingAlternatives(context, purpose, result);
   }
 
   showClarityRewrites(context: AssistantRevisionContext, answer: string, result: ModelClarityRewrites): void {

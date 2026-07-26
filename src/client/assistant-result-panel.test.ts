@@ -116,6 +116,31 @@ describe("assistant result panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
+  it("owns ideation and phrasing provider requests", async () => {
+    const panel = new TestAssistantResultPanel();
+    const ideate = vi.fn().mockResolvedValue({
+      ...provenance,
+      ideas: [{ direction: "Compare duration.", draft: "Review was faster.", title: "Measure time" }],
+    });
+    const phrasePassage = vi.fn().mockResolvedValue({
+      ...provenance,
+      alternatives: [{ rationale: "Preserves uncertainty.", text: "The result may help." }],
+    });
+    const purpose = { description: "Keep uncertainty explicit.", id: "qualify-claim" as const, label: "Qualify a claim" };
+
+    await panel.generateIdeas({ ideate }, revisionContext);
+    expect(ideate).toHaveBeenCalledWith({ selectedPassage: passage.excerpt, instruction: "Explore", evidence: [] });
+    await panel.generatePhrasing({ phrasePassage }, revisionContext, purpose);
+    expect(phrasePassage).toHaveBeenCalledWith({
+      selectedPassage: passage.excerpt,
+      instruction: "Explore",
+      evidence: [],
+      purpose,
+      patterns: expect.any(Array),
+    });
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
   it("owns clarity question and rewrite provider requests", async () => {
     const panel = new TestAssistantResultPanel();
     const startClarityDrill = vi.fn().mockResolvedValue(clarityContext.question);
