@@ -115,6 +115,7 @@ export class LibraryReferenceList extends LitElement {
         highlights: data.library.highlights.filter((highlight) => highlight.referenceId === reference.id),
         linkedSnapshotId: linked?.snapshot.webSnapshot?.id ?? null,
         notes: data.library.notes.filter((note) => note.referenceId === reference.id),
+        projectApiBase: data.projectApiBase,
         reference,
         referenceLinked: linked !== undefined,
         researchShares: data.researchShares,

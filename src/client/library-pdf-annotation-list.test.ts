@@ -99,8 +99,8 @@ describe("library PDF annotation list", () => {
       highlights: [highlight, { ...highlight, id: "highlight-2", comment: "" }],
       linkedReferenceIds: new Set(["ref-1"]),
       markups: [note, drawing],
+      projectApiBase: "/api/workspaces/workspace",
       researchShares: [share],
-      workspace: true,
     });
     expect(list.renderForTest()).toBeDefined();
     list.setData({
@@ -108,8 +108,8 @@ describe("library PDF annotation list", () => {
       highlights: [highlight],
       linkedReferenceIds: new Set(),
       markups: [drawing],
+      projectApiBase: null,
       researchShares: [],
-      workspace: false,
     });
     expect(list.renderForTest()).toBeDefined();
   });
@@ -123,12 +123,10 @@ describe("library PDF annotation list", () => {
     list.emitForTest({ action: "open-highlight", highlight });
     list.emitForTest({ action: "edit-highlight", highlight });
     list.emitForTest({ action: "cite-highlight", highlight });
-    list.emitForTest({ action: "share-highlight", highlight });
-    list.emitForTest({ action: "revoke-share", shareId: share.id });
     list.emitForTest({ action: "open-markup", artifact, page: note.page });
     list.emitForTest({ action: "edit-note", note });
     list.emitForTest({ action: "markup-deleted" });
-    expect(actions).toHaveLength(8);
+    expect(actions).toHaveLength(6);
   });
 
   it("deletes a markup through stable encoded identities", async () => {

@@ -128,10 +128,12 @@ memory and makes citation aliases compete with stable source identity.
   state, canonical Library refreshes, and notification policy.
 - A bounded light-DOM research-row component composes attached PDFs with
   private notes, highlights, and web captures; owns share state, capture
-  diagnostics, downloads, comparisons, project-pin availability, and recapture
-  presentation; and emits typed lifecycle intents. The workspace coordinator
-  retains mutations and requests, refreshes, and notification policy. Component
-  updates, including nested PDF rows, finish before Library scroll restoration.
+  diagnostics, downloads, comparisons, project-pin availability, recapture
+  presentation, share and revoke transport, project-pin transport, canonical
+  workspace-response validation, and completed mutation outcomes. The workspace
+  coordinator retains snapshot application, refreshes, and notification policy.
+  Component updates, including nested PDF rows, finish before Library scroll
+  restoration.
 - A bounded light-DOM reference-list component owns result and empty-state
   rendering, per-reference detail expansion, composition of summary, metadata,
   personal-field, PDF, and research rows, nested update settlement, and
@@ -297,11 +299,13 @@ memory and makes citation aliases compete with stable source identity.
   notifications.
 - A bounded light-DOM annotation list owns the private reader's saved highlight
   and markup cards, empty state, comments, share and citation availability, and
-  typed navigation, edit, cite, share, and revoke intents. A saved markup card
-  owns its stable encoded delete request, a list-wide duplicate-request lock,
-  retryable card-local failure state, and a typed deletion outcome. The
-  application coordinator retains PDF navigation, project citation and
-  research-share workflows, canonical refreshes, and notifications.
+  typed navigation, edit, and cite intents. It owns research-share and revoke
+  transport, canonical workspace-response validation, and completed mutation
+  outcomes. A saved markup card owns its stable encoded delete request, a list-
+  wide duplicate-request lock, retryable card-local failure state, and a typed
+  deletion outcome. The application coordinator retains PDF navigation,
+  project citation, snapshot application, canonical refreshes, and
+  notifications.
 - Saved text-highlight comments and page-note bodies expose an explicit edit
   action. Editing preserves the annotation id, page, geometry, and creation
   time while advancing its update time; it never changes the immutable PDF.

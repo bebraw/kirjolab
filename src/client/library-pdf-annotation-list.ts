@@ -1,4 +1,4 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type {
   LibraryHighlight,
   LibraryPdfArtifact,
@@ -7,6 +7,7 @@ import type {
   ResearchShareSnapshot,
 } from "../domain/reference-library";
 import { errorMessage, expectOk } from "./http";
+import { ProjectResearchMutationElement } from "./project-research-mutation";
 
 export type LibraryPdfAnnotationListAction =
   | { readonly action: "cite-highlight"; readonly highlight: LibraryHighlight }
@@ -14,9 +15,7 @@ export type LibraryPdfAnnotationListAction =
   | { readonly action: "edit-note"; readonly note: LibraryPdfNote }
   | { readonly action: "open-highlight"; readonly highlight: LibraryHighlight }
   | { readonly action: "open-markup"; readonly artifact: LibraryPdfArtifact; readonly page: number }
-  | { readonly action: "markup-deleted" }
-  | { readonly action: "revoke-share"; readonly shareId: string }
-  | { readonly action: "share-highlight"; readonly highlight: LibraryHighlight };
+  | { readonly action: "markup-deleted" };
 
 export const libraryPdfAnnotationListActionEvent = "library-pdf-annotation-list-action";
 
@@ -25,11 +24,11 @@ interface AnnotationListData {
   readonly highlights: readonly LibraryHighlight[];
   readonly linkedReferenceIds: ReadonlySet<string>;
   readonly markups: readonly LibraryPdfMarkup[];
+  readonly projectApiBase: string | null;
   readonly researchShares: readonly ResearchShareSnapshot[];
-  readonly workspace: boolean;
 }
 
-export class LibraryPdfAnnotationList extends LitElement {
+export class LibraryPdfAnnotationList extends ProjectResearchMutationElement {
   static override properties = { data: { state: true }, deletion: { state: true } };
 
   declare private data: AnnotationListData;
@@ -42,8 +41,8 @@ export class LibraryPdfAnnotationList extends LitElement {
       highlights: [],
       linkedReferenceIds: new Set(),
       markups: [],
+      projectApiBase: null,
       researchShares: [],
-      workspace: false,
     };
     this.deletion = null;
   }
@@ -92,7 +91,7 @@ export class LibraryPdfAnnotationList extends LitElement {
         <button class="button-secondary" type="button" @click=${() => this.emitAction({ action: "edit-highlight", highlight })}>
           Edit note
         </button>
-        ${this.data.workspace
+        ${this.data.projectApiBase
           ? html`
               <button
                 class="button-primary"
@@ -109,8 +108,13 @@ export class LibraryPdfAnnotationList extends LitElement {
                 title=${linked ? "" : "Add the bibliographic reference to this project first"}
                 @click=${() =>
                   share
-                    ? this.emitAction({ action: "revoke-share", shareId: share.id })
-                    : this.emitAction({ action: "share-highlight", highlight })}
+                    ? void this.changeProjectResearch(this.data.projectApiBase!, { action: "revoke", shareId: share.id })
+                    : void this.changeProjectResearch(this.data.projectApiBase!, {
+                        action: "share",
+                        kind: "highlight",
+                        referenceId: highlight.referenceId,
+                        resourceId: highlight.id,
+                      })}
               >
                 ${share ? "Revoke highlight share" : "Share highlight with project"}
               </button>

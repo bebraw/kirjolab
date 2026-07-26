@@ -89,6 +89,7 @@ import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
 import { unidentifiedPdfRefreshEvent, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
 import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
+import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 import { libraryReferenceImportRefreshEvent, type LibraryReferenceImportRefresh } from "./library-reference-import-control";
 import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
 import {
@@ -665,9 +666,6 @@ class WorkspaceApp {
       const detail = (event as CustomEvent<LibraryReferenceResearchAction>).detail;
       if (detail.action === "capture") void this.#elements.webSourceCapture.captureUrl(detail.canonicalUrl);
       else if (detail.action === "compare") void this.#elements.webSnapshotComparison.compare(detail.priorId, detail.currentId);
-      else if (detail.action === "pin") void this.#pinProjectWebSnapshot(detail.referenceId, detail.snapshotId);
-      else if (detail.action === "revoke") void this.#revokePrivateResearch(detail.shareId);
-      else void this.#sharePrivateResearch(detail.referenceId, detail.kind, detail.resourceId);
     });
     this.#elements.unidentifiedPdfList.addEventListener(unidentifiedPdfRefreshEvent, (event) => {
       const detail = (event as CustomEvent<UnidentifiedPdfRefresh>).detail;
@@ -851,9 +849,6 @@ class WorkspaceApp {
       if (detail.action === "open-highlight") void this.#openLibraryHighlight(detail.highlight);
       else if (detail.action === "edit-highlight") this.#editLibraryHighlight(detail.highlight);
       else if (detail.action === "cite-highlight") void this.#citeLibraryHighlight(detail.highlight);
-      else if (detail.action === "share-highlight")
-        void this.#sharePrivateResearch(detail.highlight.referenceId, "highlight", detail.highlight.id);
-      else if (detail.action === "revoke-share") void this.#revokePrivateResearch(detail.shareId);
       else if (detail.action === "open-markup") void this.#openLibraryPdf(detail.artifact, detail.page);
       else if (detail.action === "edit-note") this.#editLibraryPdfNote(detail.note);
       else this.#completeLibraryPdfMarkup("Private annotation deleted.");
@@ -861,6 +856,15 @@ class WorkspaceApp {
     for (const target of [this.#elements.referenceLibraryList, this.#elements.libraryProjectUse]) {
       target.addEventListener(projectReferenceChangedEvent, (event) => {
         const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
+        void this.#acceptWorkspaceMutation(snapshot).then(() => {
+          this.#renderReferenceLibrary();
+          this.#showToast(message);
+        });
+      });
+    }
+    for (const target of [this.#elements.referenceLibraryList, this.#elements.libraryHighlightList]) {
+      target.addEventListener(projectResearchChangedEvent, (event) => {
+        const { message, snapshot } = (event as CustomEvent<ProjectResearchChanged>).detail;
         void this.#acceptWorkspaceMutation(snapshot).then(() => {
           this.#renderReferenceLibrary();
           this.#showToast(message);
@@ -2434,33 +2438,9 @@ class WorkspaceApp {
     }
   }
 
-  async #pinProjectWebSnapshot(referenceId: string, snapshotId: string): Promise<void> {
-    const response = await jsonFetch(`${apiBase}/references/${encodeURIComponent(referenceId)}/web-snapshot`, { snapshotId });
-    await this.#acceptWorkspaceMutation(response);
-    this.#renderReferenceLibrary();
-    this.#showToast("This exact web capture is pinned to the project.");
-  }
-
   async #refreshBibliographicMetadata(): Promise<void> {
     await this.#refreshReferenceLibrary();
     await this.#refreshSnapshot();
-  }
-
-  async #sharePrivateResearch(referenceId: string, kind: "note" | "highlight" | "web-snapshot", resourceId: string): Promise<void> {
-    const response = await jsonFetch(`${apiBase}/research-shares`, { referenceId, kind, resourceId });
-    await this.#acceptWorkspaceMutation(response);
-    this.#renderReferenceLibrary();
-    this.#showToast("Private research snapshot shared explicitly with this project.");
-  }
-
-  async #revokePrivateResearch(shareId: string): Promise<void> {
-    const response = await fetch(`${apiBase}/research-shares/${encodeURIComponent(shareId)}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-    });
-    await this.#acceptWorkspaceMutation(response);
-    this.#renderReferenceLibrary();
-    this.#showToast("Share revoked for future project access; prior revision history remains intact.");
   }
 
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {
@@ -4218,8 +4198,8 @@ class WorkspaceApp {
       highlights,
       linkedReferenceIds: new Set(this.#snapshot?.projectReferences.map((item) => item.referenceId) ?? []),
       markups,
+      projectApiBase: appMode === "workspace" ? apiBase : null,
       researchShares: this.#snapshot?.researchShares ?? [],
-      workspace: appMode === "workspace",
     });
     this.#renderPdfMarkups();
   }

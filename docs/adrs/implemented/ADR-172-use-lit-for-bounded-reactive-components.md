@@ -281,9 +281,10 @@ The adopted components own bounded presentation:
   annotation component composition, and typed close intent.
 - The Library PDF annotation list owns saved private-highlight and markup cards,
   empty state, comments, share and citation availability, and typed navigation,
-  edit, cite, share, and revoke intents. It also owns saved-markup card deletion,
-  stable encoded targets, list-wide pending suppression, retryable card-local
-  failures, and a typed deletion outcome.
+  edit, and cite intents. It also owns research-share and revoke transport,
+  canonical workspace-response validation, completed mutation outcomes,
+  saved-markup card deletion, stable encoded targets, list-wide pending
+  suppression, retryable card-local failures, and a typed deletion outcome.
 - The Library PDF markup layer owns saved and draft drawing SVG, note pins,
   tool, saved-resource selection, note-composition, and open-note-card state;
   live draft geometry updates; note movement and focus restoration; active
@@ -761,10 +762,11 @@ reason to wrap static markup mechanically.
   secondary refinement intent delegates directly to the owning metadata editor.
 - The Library reference research rows compose attached PDFs with private notes,
   highlights, and immutable web captures; own share, revoke, download,
-  comparison, pin, diagnostic, and recapture presentation; and emit one typed
-  action stream. Capture and comparison intents delegate to the owning web
-  components; the application coordinator retains share and project-pin
-  mutations, refreshes, and notification policy.
+  comparison, pin, diagnostic, and recapture presentation; own share, revoke,
+  and project-pin transport plus canonical workspace-response validation; and
+  emit typed intents or completed mutation outcomes. Capture and comparison
+  intents delegate to the owning web components; the application coordinator
+  retains snapshot application, refreshes, and notification policy.
 - The Library reference list replaces result-card, metadata-details, personal
   fields, and attached-research composition helpers plus coordinator-owned
   expansion and focus state. Nested typed actions continue bubbling to the

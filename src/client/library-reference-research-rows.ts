@@ -1,18 +1,11 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type { BibliographicRecord, LibraryPdfArtifact, ReferenceLibrarySnapshot, ResearchShareSnapshot } from "../domain/reference-library";
 import "./library-reference-pdf-rows";
+import { ProjectResearchMutationElement } from "./project-research-mutation";
 
 export type LibraryReferenceResearchAction =
   | { readonly action: "capture"; readonly canonicalUrl: string }
-  | { readonly action: "compare"; readonly currentId: string; readonly priorId: string }
-  | { readonly action: "pin"; readonly referenceId: string; readonly snapshotId: string }
-  | { readonly action: "revoke"; readonly shareId: string }
-  | {
-      readonly action: "share";
-      readonly kind: "note" | "highlight" | "web-snapshot";
-      readonly referenceId: string;
-      readonly resourceId: string;
-    };
+  | { readonly action: "compare"; readonly currentId: string; readonly priorId: string };
 
 export const libraryReferenceResearchActionEvent = "library-reference-research-action";
 
@@ -22,13 +15,14 @@ export interface LibraryReferenceResearchData {
   readonly highlights: ReferenceLibrarySnapshot["highlights"];
   readonly linkedSnapshotId: string | null;
   readonly notes: ReferenceLibrarySnapshot["notes"];
+  readonly projectApiBase: string | null;
   readonly reference: BibliographicRecord;
   readonly referenceLinked: boolean;
   readonly researchShares: readonly ResearchShareSnapshot[];
   readonly webSnapshots: ReferenceLibrarySnapshot["webSnapshots"];
 }
 
-export class LibraryReferenceResearchRows extends LitElement {
+export class LibraryReferenceResearchRows extends ProjectResearchMutationElement {
   static override properties = { data: { state: true } };
 
   declare private data: LibraryReferenceResearchData | null;
@@ -104,12 +98,17 @@ export class LibraryReferenceResearchRows extends LitElement {
       <button
         class="button-secondary mt-2"
         type="button"
-        ?disabled=${!share && !data.referenceLinked}
+        ?disabled=${!data.projectApiBase || (!share && !data.referenceLinked)}
         title=${data.referenceLinked ? "" : "Add the bibliographic reference to this project first"}
         @click=${() =>
           share
-            ? this.emitAction({ action: "revoke", shareId: share.id })
-            : this.emitAction({ action: "share", referenceId: data.reference.id, kind, resourceId })}
+            ? void this.changeProjectResearch(data.projectApiBase!, { action: "revoke", shareId: share.id })
+            : void this.changeProjectResearch(data.projectApiBase!, {
+                action: "share",
+                referenceId: data.reference.id,
+                kind,
+                resourceId,
+              })}
       >
         ${share ? "Revoke project share" : "Share snapshot with project"}
       </button>
@@ -156,7 +155,12 @@ export class LibraryReferenceResearchRows extends LitElement {
                 title=${data.linkedSnapshotId === snapshot.id
                   ? "This version is pinned to the project"
                   : "Pin this exact capture to future citations and milestones"}
-                @click=${() => this.emitAction({ action: "pin", referenceId: data.reference.id, snapshotId: snapshot.id })}
+                @click=${() =>
+                  void this.changeProjectResearch(data.projectApiBase!, {
+                    action: "pin",
+                    referenceId: data.reference.id,
+                    snapshotId: snapshot.id,
+                  })}
               >
                 Use for project
               </button>`

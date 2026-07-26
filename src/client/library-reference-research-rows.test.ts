@@ -105,6 +105,7 @@ function data(overrides: Partial<LibraryReferenceResearchData> = {}): LibraryRef
     ],
     linkedSnapshotId: "snapshot-2",
     notes: [{ id: "note-1", referenceId: reference.id, body: "Private note", createdAt: "created", updatedAt: "updated" }],
+    projectApiBase: "/api/workspaces/workspace",
     reference,
     referenceLinked: true,
     researchShares: [share],
@@ -132,9 +133,6 @@ describe("library reference research rows", () => {
     });
     rows.emitForTest({ action: "capture", canonicalUrl: reference.url });
     rows.emitForTest({ action: "compare", currentId: "snapshot-2", priorId: "snapshot-1" });
-    rows.emitForTest({ action: "pin", referenceId: reference.id, snapshotId: "snapshot-2" });
-    rows.emitForTest({ action: "revoke", shareId: share.id });
-    rows.emitForTest({ action: "share", kind: "highlight", referenceId: reference.id, resourceId: "highlight-1" });
-    expect(actions).toHaveLength(5);
+    expect(actions).toHaveLength(2);
   });
 });

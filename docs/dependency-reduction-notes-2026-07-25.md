@@ -4534,3 +4534,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,532 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Project Research Mutations
+
+`LibraryReferenceResearchRows` and `LibraryPdfAnnotationList` now own project
+research-share, revoke, and exact-web-capture pin requests through one shared
+Lit mutation boundary. It constructs stable encoded targets, validates the
+canonical workspace response, and emits completed outcomes. `WorkspaceApp`
+retains snapshot application, project-PDF refresh, Library rerendering, and
+toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,798 to 4,778 lines (-20).
+Focused coverage passes pin, share, and encoded revoke requests, invalid-
+workspace rejection, both Lit presentations, and the remaining typed capture,
+comparison, navigation, edit, and citation intents.
+
+The browser application artifact changes from 818,526 B raw / 221,582 B gzip
+to 819,001 B raw / 221,705 B gzip (+475 B raw / +123 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,535 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
