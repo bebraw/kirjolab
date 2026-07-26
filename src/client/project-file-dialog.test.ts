@@ -82,6 +82,22 @@ describe("project file dialog", () => {
     }
   });
 
+  it("derives rename paths and stable targets from project resources", async () => {
+    const panel = new TestProjectFileDialog();
+    const show = vi.spyOn(panel, "show").mockResolvedValue();
+    const folder = { id: "folder-1", path: "chapters", createdAt: "now", updatedAt: "now" };
+
+    await panel.showFor("rename", snapshot.files[0]);
+    await panel.showFor("rename-folder", undefined, folder);
+    await panel.showFor("create-and-include", snapshot.files[0]);
+    await panel.showFor("rename");
+
+    expect(show).toHaveBeenNthCalledWith(1, "rename", snapshot.files[0]?.path, snapshot.files[0]?.id);
+    expect(show).toHaveBeenNthCalledWith(2, "rename-folder", folder.path, folder.id);
+    expect(show).toHaveBeenNthCalledWith(3, "create-and-include", "", null);
+    expect(show).toHaveBeenCalledTimes(3);
+  });
+
   it("persists a trimmed path and emits the validated workspace", async () => {
     const panel = new TestProjectFileDialog();
     const saves: ProjectFileSaved[] = [];

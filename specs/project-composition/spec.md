@@ -130,14 +130,16 @@ collaborative, and unambiguous about what preview and export mean.
   paths from the active project file, then emits a typed include intent. It
   owns menu presentation and closing, while the workspace coordinator owns the
   remembered collaborative caret and Yjs insertion.
-- The project-file dialog retains the stable file or folder identity associated
-  with its active operation, derives the mutation endpoint from that identity,
-  and emits the completed mode, submitted path, message, and validated workspace
-  snapshot. It also owns encoded file deletion transport and shares the same
-  response validation across create, rename, and delete operations. The
-  workspace coordinator must not reconstruct mutation targets from mutable
-  ambient selection; it retains optimistic hiding, delayed deletion and Undo,
-  snapshot application, rendering, and notification.
+- The project-file dialog derives resource availability, initial path, and the
+  stable file or folder identity associated with its active operation from
+  canonical inputs, derives the mutation endpoint from that identity, and emits
+  the completed mode, submitted path, message, and validated workspace snapshot.
+  It also owns encoded file deletion transport and shares the same response
+  validation across create, rename, and delete operations. The workspace
+  coordinator must not reconstruct mutation targets from mutable ambient
+  selection; it retains collaborative include-target capture, optimistic
+  hiding, delayed deletion and Undo, snapshot application, rendering, and
+  notification.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.

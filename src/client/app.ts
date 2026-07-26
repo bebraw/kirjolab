@@ -164,12 +164,7 @@ import {
   type ProjectAnnotationSaved,
   type ProjectHighlightTool,
 } from "./project-annotation-form";
-import {
-  projectFileDialogIsCreating,
-  projectFileSavedEvent,
-  type ProjectFileDialogMode,
-  type ProjectFileSaved,
-} from "./project-file-dialog";
+import { projectFileSavedEvent, type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
@@ -1841,36 +1836,14 @@ class WorkspaceApp {
   #openProjectFileDialog(mode: ProjectFileDialogMode, folderId?: string): void {
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
     const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
-    if (!this.#projectFileDialogResourcesAvailable(mode, file, folder)) return;
     this.#rememberProjectFileIncludeTarget(mode, file);
-    const targetId = projectFileDialogIsCreating(mode) ? null : (folder?.id ?? file?.id ?? null);
-    void this.#elements.projectFileDialog.show(mode, this.#projectFileDialogPath(mode, file, folder), targetId);
-  }
-
-  #projectFileDialogResourcesAvailable(
-    mode: ProjectFileDialogMode,
-    file: ProjectFile | undefined,
-    folder: WorkspaceSnapshot["folders"][number] | undefined,
-  ): boolean {
-    if (mode === "rename") return file !== undefined;
-    if (mode === "rename-folder") return folder !== undefined;
-    return true;
+    void this.#elements.projectFileDialog.showFor(mode, file, folder);
   }
 
   #rememberProjectFileIncludeTarget(mode: ProjectFileDialogMode, file: ProjectFile | undefined): void {
     this.#projectFileIncludeTarget =
       mode === "create-and-include" ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : null;
     this.#projectFileIncludeFromPath = mode === "create-and-include" ? (file?.path ?? null) : null;
-  }
-
-  #projectFileDialogPath(
-    mode: ProjectFileDialogMode,
-    file: ProjectFile | undefined,
-    folder: WorkspaceSnapshot["folders"][number] | undefined,
-  ): string {
-    if (mode === "rename") return file?.path ?? "";
-    if (mode === "rename-folder") return folder?.path ?? "";
-    return "";
   }
 
   #completeProjectFileSave({ message, mode, path, snapshot }: ProjectFileSaved): void {

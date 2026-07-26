@@ -69,7 +69,7 @@ The adopted components own bounded presentation:
   lifecycle is internal and emits no unused external event.
 - The project history trigger owns revision-badge presentation and emits one
   typed open intent. The application coordinator retains revision authority,
-  toast presentation, and browser navigation policy.
+  toast presentation, and non-history browser navigation policy.
 - Reused writing-workflow panels own research-question and reviewer-response
   Markdown-to-item adaptation, counts, empty states, action labels, reviewer-
   response letter derivation and browser download, and typed open, notice, and
@@ -617,9 +617,11 @@ reason to wrap static markup mechanically.
   imperative file and folder operation configuration. Its completed outcome also
   removes the coordinator's duplicate operation-mode and folder-target fields
   and file/folder request helper, and its deletion method removes the file DELETE
-  request while leaving resource availability, collaborative include-target
-  capture, deletion grace and Undo coordination, snapshot application,
-  selection, rendering, and toast policy in the application coordinator.
+  request. It now derives resource availability, initial paths, and stable
+  mutation targets from its operation and canonical resource inputs while
+  leaving collaborative include-target capture, deletion grace and Undo
+  coordination, snapshot application, selection, rendering, and toast policy in
+  the application coordinator.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.

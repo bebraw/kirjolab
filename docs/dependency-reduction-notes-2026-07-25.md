@@ -5705,6 +5705,30 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project File Dialog Targets
+
+`ProjectFileDialog` now derives rename availability, initial paths, and stable
+file or folder targets from its operation and canonical resource inputs.
+`WorkspaceApp` retains collaborative include-target capture and the canonical
+snapshot, selection, rendering, deletion-grace, and toast consequences.
+
+This checkpoint reduces `src/client/app.ts` from 3,891 to 3,864 lines (-27) and
+grows the project-file dialog from 214 to 220 lines (+6), for a 21-line runtime
+source reduction. Its focused test grows from 197 to 213 lines (+16) to cover
+file, folder, creating, and unavailable-resource derivation, leaving the full
+runtime and focused-test boundary five lines smaller. Eleven focused and 13
+related tests pass through the affected guardrails alongside formatting, lint,
+and strict types.
+
+The browser application artifact changes from 822,705 B raw / 222,768 B gzip
+to 822,603 B raw / 222,746 B gzip (-102 B raw / -22 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Project History Browser Effects
 
 `ProjectHistoryDialog` now owns canonical successful branch navigation and

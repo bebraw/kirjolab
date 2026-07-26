@@ -71,6 +71,12 @@ export class ProjectFileDialog extends LitElement {
     this.pathInput.focus();
   }
 
+  async showFor(mode: ProjectFileDialogMode, file?: ProjectFile, folder?: WorkspaceSnapshot["folders"][number]): Promise<void> {
+    const target = mode === "rename" ? file : mode === "rename-folder" ? folder : undefined;
+    if (!projectFileDialogIsCreating(mode) && !target) return;
+    await this.show(mode, target?.path ?? "", target?.id ?? null);
+  }
+
   close(): void {
     this.dialog.close();
   }
