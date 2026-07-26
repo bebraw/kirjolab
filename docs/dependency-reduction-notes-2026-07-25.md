@@ -3939,3 +3939,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,470 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Legacy PDF Identification
+
+`UnidentifiedPdfList` now owns the legacy artifact-to-reference identification
+transport, duplicate-submit gating, local progress and retryable failure state,
+and refresh-pending acknowledgment in addition to its existing selection and
+presentation responsibilities. `WorkspaceApp` retains only canonical Library
+refresh and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,207 to 5,201 lines (-6) and
+grows the identification queue from 117 to 144 lines. Runtime source across
+those files increases by 21 lines while replacing a coordinator mutation with
+explicit local failure and refresh-pending behavior. Focused coverage passes
+the request payload, successful refresh outcome, stale acknowledgment,
+selection cleanup, retryable provider failure, and missing-selection guard.
+
+The browser application artifact changes from 803,246 B raw / 217,909 B gzip
+to 803,860 B raw / 218,031 B gzip (+614 B raw / +122 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,471 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

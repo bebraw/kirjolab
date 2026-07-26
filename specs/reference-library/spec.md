@@ -69,11 +69,13 @@ memory and makes citation aliases compete with stable source identity.
   coordinator retains canonical Library refreshes, duplicate-source navigation,
   and toast policy, then acknowledges the upload control so another batch may
   begin.
-- A bounded light-DOM queue owns the count, visibility, reference choices, and
-  typed identification intents for legacy PDF artifacts that are not attached
-  to a source. The workspace coordinator retains the identification mutation,
-  Library refresh, and toast policy. New uploads still create their provisional
-  source atomically and normally bypass this compatibility queue.
+- A bounded light-DOM queue owns the count, visibility, reference choices,
+  identification request, duplicate-submit gating, local progress and
+  retryable failure state, and refresh-pending acknowledgment for legacy PDF
+  artifacts that are not attached to a source. The workspace coordinator
+  retains canonical Library refresh and toast policy. New uploads still create
+  their provisional source atomically and normally bypass this compatibility
+  queue.
 - A bounded Library tools menu owns portable-archive file selection and reset,
   restore transport, duplicate-submit and refresh-pending state, local restore
   failures, export links, citation-network and archived-reference controls,

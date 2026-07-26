@@ -286,6 +286,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   refresh-pending state in the Lit upload control. The companion status owns
   presentation; the application coordinator retains canonical Library refresh,
   duplicate-source navigation, and toast policy.
+- Keep legacy unattached-PDF selection, identification transport,
+  duplicate-submit gating, local progress and retryable failures, and
+  refresh-pending state in the Lit identification queue. The application
+  coordinator retains canonical Library refresh and toast policy.
 - Extract PDF metadata only as bounded, browser-local suggestions. Apply
   canonical library changes per field after the library authority verifies the
   artifact/reference relationship; never change the immutable reference key.

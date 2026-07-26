@@ -82,7 +82,7 @@ import {
 } from "./project-starting-point-browser";
 import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
-import { unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
+import { unidentifiedPdfRefreshEvent, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
 import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
 import { libraryReferenceImportRefreshEvent, type LibraryReferenceImportRefresh } from "./library-reference-import-control";
 import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
@@ -682,9 +682,11 @@ class WorkspaceApp {
       else if (detail.action === "revoke") void this.#revokePrivateResearch(detail.shareId);
       else void this.#sharePrivateResearch(detail.referenceId, detail.kind, detail.resourceId);
     });
-    this.#elements.unidentifiedPdfList.addEventListener(unidentifiedPdfIdentifyEvent, (event) => {
-      const { artifactId, referenceId } = (event as CustomEvent<UnidentifiedPdfSelection>).detail;
-      void this.#identifyLibraryPdf(artifactId, referenceId);
+    this.#elements.unidentifiedPdfList.addEventListener(unidentifiedPdfRefreshEvent, (event) => {
+      const detail = (event as CustomEvent<UnidentifiedPdfRefresh>).detail;
+      void this.#completeLibraryRefresh(detail.message, "The PDF was identified, but the refreshed Library could not be loaded.", {
+        complete: () => this.#elements.unidentifiedPdfList.complete(detail.requestId),
+      });
     });
     this.#bindSourceEditor(this.#source);
     this.#rememberAuthoringSelection();
@@ -2424,14 +2426,6 @@ class WorkspaceApp {
     await this.#acceptWorkspaceMutation(response);
     this.#renderReferenceLibrary();
     this.#showToast("This exact web capture is pinned to the project.");
-  }
-
-  async #identifyLibraryPdf(artifactId: string, referenceId: string): Promise<void> {
-    if (!referenceId) return;
-    const response = await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/identify`, { referenceId });
-    await expectOk(response);
-    await this.#refreshReferenceLibrary();
-    this.#showToast("PDF identified and attached to the private source record.");
   }
 
   async #linkLibraryReference(referenceId: string, citationAlias: string): Promise<void> {

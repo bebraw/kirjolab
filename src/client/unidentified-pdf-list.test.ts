@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact } from "../domain/reference-library";
-import { UnidentifiedPdfList, unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
+import { UnidentifiedPdfList, unidentifiedPdfRefreshEvent, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
 
 class TestUnidentifiedPdfList extends UnidentifiedPdfList {
   renderForTest() {
@@ -17,8 +17,8 @@ class TestUnidentifiedPdfList extends UnidentifiedPdfList {
     this.chooseReference(artifactId, event);
   }
 
-  identifyForTest(artifactId: string): void {
-    this.identify(artifactId);
+  identifyForTest(artifactId: string): Promise<void> {
+    return this.identify(artifactId);
   }
 }
 
@@ -39,6 +39,8 @@ const reference = {
   title: "A {Useful} Paper",
 };
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("unidentified PDF list", () => {
   it("owns empty and populated light-DOM presentation", () => {
     const list = new TestUnidentifiedPdfList();
@@ -50,28 +52,48 @@ describe("unidentified PDF list", () => {
     expect(list.renderForTest()).toBeDefined();
   });
 
-  it("emits the selected reference for an artifact", () => {
+  it("identifies the selected reference and requests a refresh", async () => {
     const list = new TestUnidentifiedPdfList();
-    const selections: UnidentifiedPdfSelection[] = [];
-    list.addEventListener(unidentifiedPdfIdentifyEvent, (event) => {
-      selections.push((event as CustomEvent<UnidentifiedPdfSelection>).detail);
+    const requests: UnidentifiedPdfRefresh[] = [];
+    list.addEventListener(unidentifiedPdfRefreshEvent, (event) => {
+      requests.push((event as CustomEvent<UnidentifiedPdfRefresh>).detail);
     });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     list.setData([artifact], [reference]);
     list.chooseForTest(artifact.id, reference.id);
-    list.identifyForTest(artifact.id);
-    expect(selections).toEqual([{ artifactId: "pdf-1", referenceId: "ref-1" }]);
+    await list.identifyForTest(artifact.id);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library/pdfs/pdf-1/identify",
+      expect.objectContaining({ body: JSON.stringify({ referenceId: "ref-1" }), method: "POST" }),
+    );
+    expect(requests).toEqual([{ message: "PDF identified and attached to the private source record.", requestId: 1 }]);
+    list.complete(0);
+    list.complete(1);
   });
 
-  it("drops selections for artifacts removed by refresh", () => {
+  it("drops selections for artifacts removed by refresh", async () => {
     const list = new TestUnidentifiedPdfList();
-    const selections: UnidentifiedPdfSelection[] = [];
-    list.addEventListener(unidentifiedPdfIdentifyEvent, (event) => {
-      selections.push((event as CustomEvent<UnidentifiedPdfSelection>).detail);
-    });
+    const fetchMock = vi.spyOn(globalThis, "fetch");
     list.setData([artifact], [reference]);
     list.chooseForTest(artifact.id, reference.id);
     list.setData([], [reference]);
-    list.identifyForTest(artifact.id);
-    expect(selections).toEqual([{ artifactId: "pdf-1", referenceId: "" }]);
+    await list.identifyForTest(artifact.id);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports request failures and allows a retry", async () => {
+    const list = new TestUnidentifiedPdfList();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    list.setData([artifact], [reference]);
+    list.chooseForTest(artifact.id, reference.id);
+
+    await list.identifyForTest(artifact.id);
+    expect(list.renderForTest()).toBeDefined();
+    await list.identifyForTest(artifact.id);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

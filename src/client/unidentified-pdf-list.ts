@@ -2,33 +2,46 @@ import { html, LitElement, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import type { LibraryPdfArtifact } from "../domain/reference-library";
 import { formatBytes } from "./format";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export interface UnidentifiedPdfReference {
   readonly id: string;
   readonly title: string;
 }
 
-export interface UnidentifiedPdfSelection {
-  readonly artifactId: string;
-  readonly referenceId: string;
+export interface UnidentifiedPdfRefresh {
+  readonly message: string;
+  readonly requestId: number;
 }
 
-export const unidentifiedPdfIdentifyEvent = "unidentified-pdf-identify";
+export const unidentifiedPdfRefreshEvent = "unidentified-pdf-refresh";
 
 export class UnidentifiedPdfList extends LitElement {
   static override properties = {
     artifacts: { state: true },
     references: { state: true },
+    savingArtifactId: { state: true },
+    status: { state: true },
   };
 
   declare private artifacts: readonly LibraryPdfArtifact[];
   declare private references: readonly UnidentifiedPdfReference[];
+  declare private savingArtifactId: string;
+  declare private status: string;
   private readonly selections = new Map<string, string>();
+  private requestId = 0;
 
   constructor() {
     super();
     this.artifacts = [];
     this.references = [];
+    this.savingArtifactId = "";
+    this.status = "";
+  }
+
+  complete(requestId: number): void {
+    if (requestId !== this.requestId) return;
+    this.savingArtifactId = "";
   }
 
   setData(artifacts: readonly LibraryPdfArtifact[], references: readonly UnidentifiedPdfReference[]): void {
@@ -62,6 +75,7 @@ export class UnidentifiedPdfList extends LitElement {
             ? html`<div class="empty-state">No unidentified PDFs.</div>`
             : this.artifacts.map((artifact) => this.renderArtifact(artifact))}
         </div>
+        <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
       </section>
     `;
   }
@@ -70,12 +84,25 @@ export class UnidentifiedPdfList extends LitElement {
     this.selections.set(artifactId, (event.currentTarget as HTMLSelectElement).value);
   }
 
-  protected identify(artifactId: string): void {
-    this.dispatchEvent(
-      new CustomEvent<UnidentifiedPdfSelection>(unidentifiedPdfIdentifyEvent, {
-        detail: { artifactId, referenceId: this.selections.get(artifactId) ?? "" },
-      }),
-    );
+  protected async identify(artifactId: string): Promise<void> {
+    const referenceId = this.selections.get(artifactId);
+    if (!referenceId || this.savingArtifactId) return;
+    const requestId = ++this.requestId;
+    this.savingArtifactId = artifactId;
+    this.status = "Identifying PDF…";
+    try {
+      await expectOk(await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/identify`, { referenceId }));
+      this.status = "";
+      this.dispatchEvent(
+        new CustomEvent<UnidentifiedPdfRefresh>(unidentifiedPdfRefreshEvent, {
+          bubbles: true,
+          detail: { message: "PDF identified and attached to the private source record.", requestId },
+        }),
+      );
+    } catch (error) {
+      this.savingArtifactId = "";
+      this.status = errorMessage(error, "Could not identify the PDF.");
+    }
   }
 
   private renderArtifact(artifact: LibraryPdfArtifact): TemplateResult {
@@ -96,10 +123,10 @@ export class UnidentifiedPdfList extends LitElement {
         <button
           class="button-primary mt-2 w-full justify-center"
           type="button"
-          ?disabled=${this.references.length === 0}
+          ?disabled=${this.references.length === 0 || Boolean(this.savingArtifactId)}
           @click=${() => this.identify(artifact.id)}
         >
-          Identify PDF
+          ${this.savingArtifactId === artifact.id ? "Identifying…" : "Identify PDF"}
         </button>
       </article>
     `;

@@ -293,7 +293,9 @@ The adopted components own bounded presentation:
   controlled editor, write-action, and map visibility, map focus entry through
   its composed workspace, plus a typed mode-change intent.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
-  reference choices, and typed identification intents.
+  reference choices, identification transport, duplicate-submit gating, local
+  progress and retryable failures, refresh-pending state, and a typed refresh
+  outcome.
 - The Library reference summary owns title and metadata presentation, PDF and
   project-link actions, and their accessible labels.
 - The Library reference personal-fields block owns tags, collections,
