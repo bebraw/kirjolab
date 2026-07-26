@@ -481,7 +481,6 @@ class WorkspaceApp {
   #offlineSaveVersion = 0;
   #offlineSaveChain: Promise<void> = Promise.resolve();
   #workspaceRouteReady = false;
-  #citationLibraryRequest = 0;
   #citationLibraryLoading = false;
   readonly #layout: WorkspaceLayoutManager;
 
@@ -4399,9 +4398,8 @@ class WorkspaceApp {
       return;
     }
     if (this.#elements.sourceCompletion.scope === "library" && !this.#librarySnapshot && !this.#citationLibraryLoading) {
-      const request = ++this.#citationLibraryRequest;
       this.#citationLibraryLoading = true;
-      void this.#loadCitationCompletionLibrary(request);
+      void this.#loadCitationCompletionLibrary();
     }
     const candidates = rankCitationCompletionCandidates(this.#citationCandidates(), context.query);
     if (candidates.length === 0) {
@@ -4420,17 +4418,16 @@ class WorkspaceApp {
     positionSourceCompletion(this.#elements.source, this.#elements.sourceCompletion, context.start);
   }
 
-  async #loadCitationCompletionLibrary(request: number): Promise<void> {
+  async #loadCitationCompletionLibrary(): Promise<void> {
     try {
       const response = await fetch("/api/library", { credentials: "same-origin" });
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
-      if (request !== this.#citationLibraryRequest) return;
       this.#librarySnapshot = value;
       await this.#renderCitationCompletion();
     } catch {
-      if (request === this.#citationLibraryRequest) this.#citationLibraryRequest += 1;
+      return;
     } finally {
       this.#citationLibraryLoading = false;
     }

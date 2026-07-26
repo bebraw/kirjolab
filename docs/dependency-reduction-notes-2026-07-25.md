@@ -3262,3 +3262,19 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Residual Simplification: Library Completion Loading
+
+Library-scoped citation completion now relies on its existing single-flight
+loading guard without a second request-generation counter. Because a request
+cannot start while that guard is active, the counter could never distinguish
+two in-flight loads; failures still clear the guard and remain retryable.
+
+This checkpoint reduces `src/client/app.ts` from 6,480 to 6,477 lines (-3) and
+removes one coordinator field. The browser application artifact changes from
+796,585 B raw / 214,960 B gzip to 796,515 B raw / 214,918 B gzip (-70 B raw /
+-42 B gzip). Styles and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
