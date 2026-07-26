@@ -5159,6 +5159,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,572 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Context Tab Titles
+
+`ContextTabStrip` now derives fixed and resource titles from canonical tab,
+publication, project-PDF, private-Library, shared-reference, and candidate
+inputs before delegating the same projection to its resource strip and overflow
+overview. `WorkspaceApp` retains canonical context state, authorization,
+loading, content rendering, routing, closure, and transitions.
+
+This checkpoint reduces `src/client/app.ts` from 4,432 to 4,406 lines (-26) and
+grows the composed context-tab owner from 209 to 243 lines. Runtime source
+across those two files increases by eight lines while deleting five coordinator-
+only title helpers. Focused coverage passes all fixed labels, publication,
+project PDF, private-Library PDF, shared-reference PDF, candidate fallback,
+existing delegation and panel behavior, application contracts, and strict types.
+
+The browser application artifact changes from 824,369 B raw / 222,551 B gzip
+to 824,561 B raw / 222,605 B gzip (+192 B raw / +54 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Authoring Target Status
 
 `EditorStatus` now owns bounded line counting and file, line-range, caret, and

@@ -130,9 +130,9 @@ The adopted components own bounded presentation:
 - The context-tab overview owns overflow visibility, counts, tab summaries, and
   typed activate and close intents.
 - The composed context tab strip owns fixed-tab presentation and keyboard
-  focus, delegates resource and overview presentation, and derives visibility,
-  resource labels, PDF-mode state, and fixed-panel scroll capture and
-  restoration for all controlled context panels.
+  focus, delegates resource and overview presentation, and derives fixed and
+  canonical resource titles, visibility, resource labels, PDF-mode state, and
+  fixed-panel scroll capture and restoration for all controlled context panels.
 - The context resource-tab strip owns resource tab and close-action markup,
   active-state presentation, panel associations, and typed activate and close
   intents.
@@ -490,13 +490,14 @@ reason to wrap static markup mechanically.
   applicability checks, workflow state, and decisions in the application
   coordinator.
 - The context-tab overview replaces three internal element references and its
-  imperative row and close-action renderers while leaving tab titles, routing,
-  canonical context state, focus restoration, and transitions in the
-  application coordinator.
+  imperative row and close-action renderers while leaving title derivation to
+  its composed parent and routing, canonical context state, focus restoration,
+  and transitions in the application coordinator.
 - The context resource-tab strip replaces one internal element reference, the
   shared resource-tab id helper, and its imperative tab renderer while leaving
-  tab titles, keyboard focus, routing, canonical context state, panel labelling,
-  and transitions in the application coordinator.
+  title derivation, keyboard focus, and panel labelling to its composed parent
+  and routing, canonical context state, and transitions in the application
+  coordinator.
 - The project evidence panel replaces five internal element references and the
   imperative PDF, annotation, grouping, count, passage-link, and stroke-control
   renderers plus the coordinator PDF- and annotation-removal methods while
@@ -782,11 +783,12 @@ reason to wrap static markup mechanically.
 - The context tab strip replaces five shell references, three native primary
   action bindings, fixed-tab ARIA mutations, coordinator-owned roving focus,
   the separate overflow-tab renderer, seven controlled-panel references,
-  visibility mutations, resource labelling, and PDF-mode presentation. It
-  composes the existing dynamic resource tabs and overflow overview from one
-  input while emitting their typed intents. The application coordinator retains
-  active-context state, authorized Library loading, resource closure, route
-  synchronization, content rendering, and resource-panel scroll restoration.
+  visibility mutations, resource labelling, PDF-mode presentation, and five
+  coordinator title helpers. It composes the existing dynamic resource tabs and
+  overflow overview from canonical tab and resource inputs while emitting their
+  typed intents. The application coordinator retains active-context state,
+  authorized Library loading, resource closure, route synchronization, content
+  rendering, and resource-panel scroll restoration.
 - The workspace surface switcher replaces two button references, native action
   bindings, and ARIA-state mutations. The application coordinator retains
   responsive surface visibility and URL synchronization.

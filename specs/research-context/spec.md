@@ -169,10 +169,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
   complete navigation model.
 - The composed context tab strip derives the six controlled panel targets from
   the same canonical active-tab input used for fixed, resource, and overview
-  presentation. It owns panel visibility, active resource labels, and PDF-mode
-  presentation plus fixed-panel scroll capture and restoration. The workspace
-  coordinator retains canonical tab state, authorized content loading, content
-  rendering, and resource-panel scroll restoration.
+  presentation. It owns fixed and resource title derivation from canonical
+  publication, project-PDF, private-Library, shared-reference, and candidate
+  inputs, panel visibility, active resource labels, and PDF-mode presentation
+  plus fixed-panel scroll capture and restoration. The workspace coordinator
+  retains canonical tab state, authorized content loading, content rendering,
+  and resource-panel scroll restoration.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.
@@ -355,19 +357,20 @@ changing their canonical data, selector, authorization, or rendering contracts.
       generation, canonical candidate state, context navigation, applicability
       checks, and decisions remain with the application coordinator.
 - [x] A bounded light-DOM context overview owns overflow visibility, counts, tab
-      summaries, and activate and close intent presentation while tab titles,
-      routing, canonical context state, focus restoration, and transitions
-      remain with the application coordinator.
+      summaries, and activate and close intent presentation while its composed
+      parent owns title derivation; routing, canonical context state, focus
+      restoration, and transitions remain with the application coordinator.
 - [x] A bounded light-DOM resource-tab strip owns tab and close-action markup,
       active-state presentation, panel associations, and activate and close
       intents. Its composed parent owns cross-tab keyboard focus and panel
-      labelling, while tab titles, routing, canonical context state, and
-      transitions remain with the application coordinator.
+      labelling plus title derivation, while routing, canonical context state,
+      and transitions remain with the application coordinator.
 - [x] The composed context tab strip owns fixed-tab keyboard presentation and
-      all controlled-panel visibility, active resource labels, and PDF-mode
-      state plus fixed-panel scroll capture and restoration. Canonical context
-      state, authorized loading, content rendering, resource-panel scroll,
-      routing, and transitions remain with the application coordinator.
+      fixed and canonical resource title derivation, all controlled-panel
+      visibility, active resource labels, and PDF-mode state plus fixed-panel
+      scroll capture and restoration. Canonical context state, authorized
+      loading, content rendering, resource-panel scroll, routing, and transitions
+      remain with the application coordinator.
 - [x] A bounded light-DOM project evidence panel owns project-PDF and annotation
       grouping, counts, expanded state, grounding selection, passage-link
       presentation, stroke controls, project-PDF input validation and import

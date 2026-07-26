@@ -1,5 +1,58 @@
 import { describe, expect, it } from "vitest";
-import { ContextTabStrip, contextPrimaryTabActionEvent, contextTabFocusIndex, type ContextPrimaryTabAction } from "./context-tab-strip";
+import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
+import type { PdfResource, PublicationResource } from "../domain/workspace";
+import {
+  ContextTabStrip,
+  contextPrimaryTabActionEvent,
+  contextTabFocusIndex,
+  type ContextPrimaryTabAction,
+  type ContextTabStripSources,
+} from "./context-tab-strip";
+import type { ResearchContextKey, ResearchContextTab } from "./research-context";
+
+const createdAt = "2026-07-25T00:00:00.000Z";
+const publication: PublicationResource = {
+  abstract: "",
+  authors: ["Ada Author"],
+  citationKey: "Author2026",
+  createdAt,
+  doi: "",
+  id: "publication:1",
+  metadataSource: "crossref",
+  title: "A study",
+  type: "article",
+  updatedAt: createdAt,
+  url: "",
+  venue: "Journal",
+  year: "2026",
+};
+const pdf: PdfResource = {
+  contentType: "application/pdf",
+  createdAt,
+  fingerprint: "fingerprint",
+  id: "pdf:1",
+  name: "paper.pdf",
+  objectKey: "pdfs/paper.pdf",
+  size: 1024,
+};
+const artifact: LibraryPdfArtifact = {
+  contentType: "application/pdf",
+  createdAt,
+  fingerprint: "library-fingerprint",
+  id: "library-pdf:1",
+  name: "library.pdf",
+  objectKey: "library/library.pdf",
+  referenceId: publication.id,
+  rights: "private",
+  size: 2048,
+};
+const referencePdf: ProjectReferencePdf = {
+  fingerprint: "reference-fingerprint",
+  id: "reference-pdf:1",
+  name: "reference.pdf",
+  referenceId: publication.id,
+  size: 4096,
+};
 
 class TestContextTabStrip extends ContextTabStrip {
   readonly panels = new Map<
@@ -42,6 +95,10 @@ class TestContextTabStrip extends ContextTabStrip {
     this.connectedCallback();
   }
 
+  titlesForTest(): readonly string[] {
+    return this.data.items.map(({ title }) => title);
+  }
+
   protected override controlledPanel(id: string): HTMLElement {
     let panel = this.panels.get(id);
     if (!panel) {
@@ -63,6 +120,24 @@ class TestContextTabStrip extends ContextTabStrip {
   }
 }
 
+function sources(
+  activeKey: ResearchContextKey,
+  tabs: readonly ResearchContextTab[] = [],
+  overrides: Partial<ContextTabStripSources> = {},
+): ContextTabStripSources {
+  return {
+    activeKey,
+    candidates: [],
+    libraryArtifacts: [],
+    pdfs: [],
+    publications: [],
+    referencePdfs: [],
+    standaloneLibrary: false,
+    tabs,
+    ...overrides,
+  };
+}
+
 describe("context tab strip", () => {
   it("renders fixed and resource tab states", () => {
     const strip = new TestContextTabStrip();
@@ -70,12 +145,50 @@ describe("context tab strip", () => {
     Object.defineProperty(strip, "replaceChildren", { value: () => (replaced = true) });
     strip.connectForTest();
     expect(strip.renderForTest()).toBeDefined();
-    strip.setTabs({ activeKey: "assistant", items: [], standaloneLibrary: false });
+    strip.setTabs(sources("assistant"));
     expect(strip.panels.get("context-assistant-panel")?.hidden).toBe(false);
     expect(strip.panels.get("context-preview-panel")?.hidden).toBe(true);
     expect(strip.renderForTest()).toBeDefined();
     expect(strip.rootForTest()).toBe(strip);
     expect(replaced).toBe(true);
+  });
+
+  it("owns fixed and canonical resource titles", () => {
+    const strip = new TestContextTabStrip();
+    strip.setTabs(
+      sources(
+        "preview",
+        [
+          { kind: "preview", key: "preview", scrollTop: 0 },
+          { kind: "library", key: "library", scrollTop: 0 },
+          { kind: "assistant", key: "assistant", scrollTop: 0 },
+          { id: publication.id, key: `publication:${publication.id}`, kind: "publication", scrollTop: 0 },
+          { id: pdf.id, key: `pdf:${pdf.id}`, kind: "pdf", page: 1, focusedAnnotationId: null, scrollTop: 0 },
+          { id: artifact.id, key: `library-pdf:${artifact.id}`, kind: "library-pdf", page: 1, focusedAnnotationId: null, scrollTop: 0 },
+          {
+            id: referencePdf.id,
+            key: `library-pdf:${referencePdf.id}`,
+            kind: "library-pdf",
+            page: 1,
+            focusedAnnotationId: null,
+            scrollTop: 0,
+          },
+          { id: "missing", key: "candidate:missing", kind: "candidate", scrollTop: 0 },
+        ],
+        { libraryArtifacts: [artifact], pdfs: [pdf], publications: [publication], referencePdfs: [referencePdf] },
+      ),
+    );
+
+    expect(strip.titlesForTest()).toEqual([
+      "Preview",
+      "Library",
+      "Writing assistant",
+      publication.title,
+      pdf.name,
+      artifact.name,
+      referencePdf.name,
+      "Revision",
+    ]);
   });
 
   it("emits bounded primary tab intents", () => {
@@ -103,17 +216,10 @@ describe("context tab strip", () => {
 
   it("delegates resources and focuses fixed or dynamic tabs", async () => {
     const strip = new TestContextTabStrip();
-    const data = {
-      activeKey: "preview" as const,
-      items: [
-        { tab: { kind: "preview" as const, key: "preview" as const, scrollTop: 0 }, title: "Preview" },
-        {
-          tab: { id: "item", key: "publication:item" as const, kind: "publication" as const, scrollTop: 0 },
-          title: "Reference",
-        },
-      ],
-      standaloneLibrary: false,
-    };
+    const data = sources("preview", [
+      { kind: "preview", key: "preview", scrollTop: 0 },
+      { id: "item", key: "publication:item", kind: "publication", scrollTop: 0 },
+    ]);
     let overviewItems = 0;
     let resourceItems = 0;
     const focused: string[] = [];
@@ -146,11 +252,7 @@ describe("context tab strip", () => {
     const strip = new TestContextTabStrip();
     const publication = { id: "item", key: "publication:item" as const, kind: "publication" as const, scrollTop: 0 };
 
-    strip.setTabs({
-      activeKey: publication.key,
-      items: [{ tab: publication, title: "Reference" }],
-      standaloneLibrary: false,
-    });
+    strip.setTabs(sources(publication.key, [publication]));
     strip.setPdfMode(true, false);
 
     expect(strip.panels.get("context-publication-panel")).toMatchObject({
@@ -165,7 +267,7 @@ describe("context tab strip", () => {
       page: 1,
       focusedAnnotationId: null,
     };
-    strip.setTabs({ activeKey: pdf.key, items: [{ tab: pdf, title: "Paper" }], standaloneLibrary: false });
+    strip.setTabs(sources(pdf.key, [pdf]));
     strip.setPdfMode(true, false);
     expect(strip.panels.get("context-pdf-panel")).toMatchObject({
       dataset: { libraryPdf: "true", readonlyPdf: "false" },

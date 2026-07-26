@@ -1,4 +1,6 @@
 import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
+import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
+import type { ModelCandidate, PdfResource, PublicationResource } from "../domain/workspace";
 import "./context-resource-tabs";
 import "./context-tab-overview";
 import { contextResourceTabId, type ContextResourceTabs } from "./context-resource-tabs";
@@ -9,15 +11,26 @@ export const contextPrimaryTabActionEvent = "context-primary-tab-action";
 
 export type ContextPrimaryTabAction = "preview" | "library" | "assistant";
 
-export interface ContextTabStripItem {
+interface ContextTabStripItem {
   readonly tab: ResearchContextTab;
   readonly title: string;
 }
 
-export interface ContextTabStripData {
+interface ContextTabStripData {
   readonly activeKey: ResearchContextKey;
   readonly items: readonly ContextTabStripItem[];
   readonly standaloneLibrary: boolean;
+}
+
+export interface ContextTabStripSources {
+  readonly activeKey: ResearchContextKey;
+  readonly candidates: readonly ModelCandidate[];
+  readonly libraryArtifacts: readonly LibraryPdfArtifact[];
+  readonly pdfs: readonly PdfResource[];
+  readonly publications: readonly PublicationResource[];
+  readonly referencePdfs: readonly ProjectReferencePdf[];
+  readonly standaloneLibrary: boolean;
+  readonly tabs: readonly ResearchContextTab[];
 }
 
 export function contextTabFocusIndex(key: string, currentIndex: number, tabCount: number): number | null {
@@ -33,15 +46,19 @@ export class ContextTabStrip extends LitElement {
     data: { state: true },
   };
 
-  declare private data: ContextTabStripData;
+  declare protected data: ContextTabStripData;
 
   constructor() {
     super();
     this.data = { activeKey: "preview", items: [], standaloneLibrary: false };
   }
 
-  setTabs(data: ContextTabStripData): void {
-    this.data = data;
+  setTabs(sources: ContextTabStripSources): void {
+    this.data = {
+      activeKey: sources.activeKey,
+      items: sources.tabs.map((tab) => ({ tab, title: this.tabTitle(tab, sources) })),
+      standaloneLibrary: sources.standaloneLibrary,
+    };
     this.syncControlledPanels();
   }
 
@@ -178,6 +195,23 @@ export class ContextTabStrip extends LitElement {
             ? "context-assistant-scroll"
             : null;
     return id ? this.controlledPanel(id) : null;
+  }
+
+  private tabTitle(tab: ResearchContextTab, sources: ContextTabStripSources): string {
+    if (tab.kind === "preview") return "Preview";
+    if (tab.kind === "library") return "Library";
+    if (tab.kind === "assistant") return "Writing assistant";
+    if (tab.kind === "publication") return sources.publications.find(({ id }) => id === tab.id)?.title ?? "Reference";
+    if (tab.kind === "pdf") return sources.pdfs.find(({ id }) => id === tab.id)?.name ?? "Paper";
+    if (tab.kind === "library-pdf") {
+      return (
+        sources.libraryArtifacts.find(({ id }) => id === tab.id)?.name ??
+        sources.referencePdfs.find(({ id }) => id === tab.id)?.name ??
+        "Reference PDF"
+      );
+    }
+    const candidate = sources.candidates.find(({ id }) => id === tab.id);
+    return candidate ? `Revision · ${candidate.model} · ${candidate.id.slice(0, 4)}` : "Revision";
   }
 
   private renderPrimaryTab(action: ContextPrimaryTabAction, label: string, panelId: string): TemplateResult {

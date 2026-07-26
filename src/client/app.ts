@@ -2657,8 +2657,13 @@ class WorkspaceApp {
     const activeKey = this.#contextState.activeKey;
     this.#elements.contextTabStrip.setTabs({
       activeKey,
-      items: this.#contextState.tabs.map((tab) => ({ tab, title: this.#contextOverviewTitle(tab) })),
+      candidates: this.#snapshot?.candidates ?? [],
+      libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
+      pdfs: this.#snapshot?.pdfs ?? [],
+      publications: this.#snapshot?.publications ?? [],
+      referencePdfs: this.#projectReferencePdfs,
       standaloneLibrary: appMode === "library",
+      tabs: this.#contextState.tabs,
     });
     const activeTab = this.#activeResourceTab();
     this.#layout.restorePaneWidth();
@@ -2749,13 +2754,6 @@ class WorkspaceApp {
     }
   }
 
-  #contextOverviewTitle(tab: ResearchContextTab): string {
-    if (tab.kind === "preview") return "Preview";
-    if (tab.kind === "library") return "Library";
-    if (tab.kind === "assistant") return "Writing assistant";
-    return this.#contextTabTitle(tab);
-  }
-
   #renderCandidateContext(tab: ResearchResourceTab): void {
     if (tab.kind !== "candidate" || !this.#snapshot) return;
     const candidate = this.#snapshot.candidates.find((item) => item.id === tab.id);
@@ -2788,30 +2786,6 @@ class WorkspaceApp {
 
   #focusContextTab(key: ResearchContextKey): void {
     this.#elements.contextTabStrip.focusTab(key);
-  }
-
-  #contextTabTitle(tab: ResearchResourceTab): string {
-    if (tab.kind === "publication") return this.#publicationContextTitle(tab.id);
-    if (tab.kind === "pdf") return this.#pdfContextTitle(tab.id);
-    if (tab.kind === "library-pdf") return this.#libraryPdfContextTitle(tab.id);
-    const candidate = this.#snapshot?.candidates.find((item) => item.id === tab.id);
-    return candidate ? `Revision · ${candidate.model} · ${candidate.id.slice(0, 4)}` : "Revision";
-  }
-
-  #publicationContextTitle(publicationId: string): string {
-    return this.#snapshot?.publications.find((publication) => publication.id === publicationId)?.title ?? "Reference";
-  }
-
-  #pdfContextTitle(pdfId: string): string {
-    return this.#snapshot?.pdfs.find((pdf) => pdf.id === pdfId)?.name ?? "Paper";
-  }
-
-  #libraryPdfContextTitle(pdfId: string): string {
-    return (
-      this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === pdfId)?.name ??
-      this.#projectReferencePdf(pdfId)?.name ??
-      "Reference PDF"
-    );
   }
 
   #activeResourceTab(): ResearchResourceTab | undefined {

@@ -657,6 +657,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Project any context-tab overview directly from the same local, authorized tab
   state. It may activate or close eligible tabs but must not introduce a second
   registry, persistence channel, or scholarly mutation path.
+- Let the composed context-tab Lit owner derive fixed and resource titles from
+  coordinator-supplied canonical tab, publication, project-PDF, private-Library,
+  shared-reference, and candidate inputs. Keep canonical context state,
+  authorization, loading, rendering, routing, and transitions outside it.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Push meaningful context-target navigation, replace incidental view and page
