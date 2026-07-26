@@ -227,7 +227,7 @@ import {
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
 import { contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
-import { contextResourceTabActionEvent, contextResourceTabId, type ContextResourceTabAction } from "./context-resource-tabs";
+import { contextResourceTabActionEvent, type ContextResourceTabAction } from "./context-resource-tabs";
 import { ContextTabStrip, contextPrimaryTabActionEvent, type ContextPrimaryTabAction } from "./context-tab-strip";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import { ProjectAnnotationForm, projectAnnotationSaveEvent, type ProjectAnnotationSave } from "./project-annotation-form";
@@ -493,17 +493,10 @@ interface Elements {
   contextTabStrip: ContextTabStrip;
   previewContextControls: PreviewContextStatus;
   previewNavigationControl: PreviewNavigationControl;
-  pdfContextControls: HTMLElement;
-  contextPreviewPanel: HTMLElement;
   previewScroll: HTMLElement;
-  contextLibraryPanel: HTMLElement;
   contextLibraryScroll: HTMLElement;
-  contextAssistantPanel: HTMLElement;
   contextAssistantScroll: HTMLElement;
-  contextPublicationPanel: HTMLElement;
   publicationContextPanel: PublicationContextPanel;
-  contextPdfPanel: HTMLElement;
-  contextCandidatePanel: HTMLElement;
   candidateReviewPanel: CandidateReviewPanel;
   preview: HTMLElement;
   diagnostics: PreviewDiagnosticsPanel;
@@ -4428,32 +4421,22 @@ class WorkspaceApp {
   }
 
   #renderContextPanelVisibility(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined): void {
-    this.#elements.contextPreviewPanel.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
-    this.#elements.contextLibraryPanel.hidden = activeKey !== RESEARCH_LIBRARY_KEY;
-    this.#elements.contextAssistantPanel.hidden = activeKey !== RESEARCH_ASSISTANT_KEY;
-    this.#elements.contextPublicationPanel.hidden = activeTab?.kind !== "publication";
-    this.#elements.contextCandidatePanel.hidden = activeTab?.kind !== "candidate";
     this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
     this.#elements.previewSyncControls.setVisible(activeKey === RESEARCH_PREVIEW_KEY);
     this.#elements.previewNavigationControl.setPreviewActive(activeKey === RESEARCH_PREVIEW_KEY);
     this.#renderContextPdfVisibility(activeTab);
     this.#renderActivePdfCitationControl(activeTab);
-    if (activeTab) this.#labelActiveContextPanel(activeTab);
   }
 
   #renderContextPdfVisibility(activeTab: ResearchResourceTab | undefined): void {
-    const activePdf = activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf";
     const activeLibraryArtifact = this.#activeLibraryPdfArtifact(activeTab);
     const activeLibraryPdf = Boolean(activeLibraryArtifact);
     const activeProjectReferencePdf = this.#activeProjectReferencePdf(activeTab, activeLibraryArtifact);
-    this.#elements.contextPdfPanel.hidden = !activePdf;
-    this.#elements.contextPdfPanel.dataset.libraryPdf = String(activeTab?.kind === "library-pdf");
-    this.#elements.contextPdfPanel.dataset.readonlyPdf = String(activeProjectReferencePdf);
+    this.#elements.contextTabStrip.setPdfMode(activeTab?.kind === "library-pdf", activeProjectReferencePdf);
     this.#elements.annotationComposer.hidden = activeLibraryPdf || activeProjectReferencePdf;
     this.#elements.libraryHighlightComposer.hidden = !activeLibraryPdf;
     if (!activeLibraryPdf) this.#setLibraryPdfInspector(false);
     this.#renderLibraryHighlightComposer(activeLibraryArtifact);
-    this.#elements.pdfContextControls.hidden = !activePdf;
   }
 
   #activeLibraryPdfArtifact(activeTab: ResearchResourceTab | undefined): LibraryPdfArtifact | undefined {
@@ -4475,17 +4458,6 @@ class WorkspaceApp {
         : activePdfPublications.length === 1
           ? "Cite current page"
           : "Identify before citing";
-  }
-
-  #labelActiveContextPanel(activeTab: ResearchResourceTab): void {
-    const panel =
-      activeTab.kind === "publication"
-        ? this.#elements.contextPublicationPanel
-        : activeTab.kind === "candidate"
-          ? this.#elements.contextCandidatePanel
-          : this.#elements.contextPdfPanel;
-    panel.setAttribute("aria-labelledby", contextResourceTabId(activeTab));
-    panel.removeAttribute("aria-label");
   }
 
   #renderActiveResearchContext(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined, loadPdf: boolean): void {
@@ -7203,17 +7175,10 @@ function collectElements(): Elements {
     contextTabStrip: requiredElement("context-tab-strip", ContextTabStrip),
     previewContextControls: requiredElement("preview-context-controls", PreviewContextStatus),
     previewNavigationControl: requiredElement("preview-navigation-control", PreviewNavigationControl),
-    pdfContextControls: requiredElement("pdf-context-controls", HTMLElement),
-    contextPreviewPanel: requiredElement("context-preview-panel", HTMLElement),
     previewScroll: requiredElement("preview-scroll", HTMLElement),
-    contextLibraryPanel: requiredElement("context-library-panel", HTMLElement),
     contextLibraryScroll: requiredElement("context-library-scroll", HTMLElement),
-    contextAssistantPanel: requiredElement("context-assistant-panel", HTMLElement),
     contextAssistantScroll: requiredElement("context-assistant-scroll", HTMLElement),
-    contextPublicationPanel: requiredElement("context-publication-panel", HTMLElement),
     publicationContextPanel: requiredElement("publication-context-panel", PublicationContextPanel),
-    contextPdfPanel: requiredElement("context-pdf-panel", HTMLElement),
-    contextCandidatePanel: requiredElement("context-candidate-panel", HTMLElement),
     candidateReviewPanel: requiredElement("candidate-review-panel", CandidateReviewPanel),
     preview: requiredElement("preview", HTMLElement),
     diagnostics: requiredElement("diagnostics", PreviewDiagnosticsPanel),

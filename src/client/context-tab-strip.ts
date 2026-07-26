@@ -1,7 +1,7 @@
 import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
 import "./context-resource-tabs";
 import "./context-tab-overview";
-import { type ContextResourceTabs } from "./context-resource-tabs";
+import { contextResourceTabId, type ContextResourceTabs } from "./context-resource-tabs";
 import { type ContextTabOverview } from "./context-tab-overview";
 import type { ResearchContextKey, ResearchContextTab, ResearchResourceTab } from "./research-context";
 
@@ -42,6 +42,14 @@ export class ContextTabStrip extends LitElement {
 
   setTabs(data: ContextTabStripData): void {
     this.data = data;
+    this.syncControlledPanels();
+  }
+
+  setPdfMode(libraryPdf: boolean, readonlyPdf: boolean): void {
+    const panel = this.controlledPanel("context-pdf-panel");
+    if (!panel) return;
+    panel.dataset.libraryPdf = String(libraryPdf);
+    panel.dataset.readonlyPdf = String(readonlyPdf);
   }
 
   focusTab(key: ResearchContextKey): void {
@@ -114,6 +122,39 @@ export class ContextTabStrip extends LitElement {
     event.preventDefault();
     for (const tab of tabs) tab.tabIndex = tab === tabs[targetIndex] ? 0 : -1;
     tabs[targetIndex]?.focus();
+  }
+
+  protected controlledPanel(id: string): HTMLElement | null {
+    const panel = this.ownerDocument.getElementById(id);
+    return panel instanceof HTMLElement ? panel : null;
+  }
+
+  private syncControlledPanels(): void {
+    const active = this.data.items.find((item) => item.tab.key === this.data.activeKey)?.tab;
+    const states: readonly [id: string, selected: boolean][] = [
+      ["context-preview-panel", this.data.activeKey === "preview"],
+      ["context-library-panel", this.data.activeKey === "library"],
+      ["context-assistant-panel", this.data.activeKey === "assistant"],
+      ["context-publication-panel", active?.kind === "publication"],
+      ["context-pdf-panel", active?.kind === "pdf" || active?.kind === "library-pdf"],
+      ["pdf-context-controls", active?.kind === "pdf" || active?.kind === "library-pdf"],
+      ["context-candidate-panel", active?.kind === "candidate"],
+    ];
+    for (const [id, selected] of states) {
+      const panel = this.controlledPanel(id);
+      if (panel) panel.hidden = !selected;
+    }
+    if (active && active.kind !== "preview" && active.kind !== "library" && active.kind !== "assistant") {
+      const panelId =
+        active.kind === "publication"
+          ? "context-publication-panel"
+          : active.kind === "candidate"
+            ? "context-candidate-panel"
+            : "context-pdf-panel";
+      const panel = this.controlledPanel(panelId);
+      panel?.setAttribute("aria-labelledby", contextResourceTabId(active));
+      panel?.removeAttribute("aria-label");
+    }
   }
 
   private renderPrimaryTab(action: ContextPrimaryTabAction, label: string, panelId: string): TemplateResult {

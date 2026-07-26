@@ -156,6 +156,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   parallel tab model or change scholarly resources. Standalone Library omits
   the overview because its visible, horizontally scrollable tab strip is the
   complete navigation model.
+- The composed context tab strip derives the six controlled panel targets from
+  the same canonical active-tab input used for fixed, resource, and overview
+  presentation. It owns panel visibility, active resource labels, and PDF-mode
+  presentation while the workspace coordinator retains canonical tab state,
+  authorized content loading, content rendering, and scroll restoration.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.
@@ -335,8 +340,13 @@ changing their canonical data, selector, authorization, or rendering contracts.
       remain with the application coordinator.
 - [x] A bounded light-DOM resource-tab strip owns tab and close-action markup,
       active-state presentation, panel associations, and activate and close
-      intents while tab titles, keyboard focus, routing, canonical context
-      state, panel labelling, and transitions remain with the application
+      intents. Its composed parent owns cross-tab keyboard focus and panel
+      labelling, while tab titles, routing, canonical context state, and
+      transitions remain with the application coordinator.
+- [x] The composed context tab strip owns fixed-tab keyboard presentation and
+      all controlled-panel visibility, active resource labels, and PDF-mode
+      state while canonical context state, authorized loading, content rendering,
+      scroll restoration, routing, and transitions remain with the application
       coordinator.
 - [x] A bounded light-DOM project evidence panel owns project-PDF and annotation
       grouping, counts, expanded state, grounding selection, passage-link

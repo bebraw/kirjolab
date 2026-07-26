@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { ContextTabStrip, contextPrimaryTabActionEvent, contextTabFocusIndex, type ContextPrimaryTabAction } from "./context-tab-strip";
 
 class TestContextTabStrip extends ContextTabStrip {
+  readonly panels = new Map<
+    string,
+    {
+      dataset: Record<string, string>;
+      hidden: boolean;
+      labelledBy: string | null;
+      removeAttribute(name: string): void;
+      setAttribute(name: string, value: string): void;
+    }
+  >();
+
   protected override scheduleUpdate(): void {}
 
   renderForTest() {
@@ -29,6 +40,25 @@ class TestContextTabStrip extends ContextTabStrip {
   connectForTest(): void {
     this.connectedCallback();
   }
+
+  protected override controlledPanel(id: string): HTMLElement {
+    let panel = this.panels.get(id);
+    if (!panel) {
+      panel = {
+        dataset: {},
+        hidden: false,
+        labelledBy: null,
+        removeAttribute: (name) => {
+          if (name === "aria-label") return;
+        },
+        setAttribute: (name, value) => {
+          if (name === "aria-labelledby") panel!.labelledBy = value;
+        },
+      };
+      this.panels.set(id, panel);
+    }
+    return panel as unknown as HTMLElement;
+  }
 }
 
 describe("context tab strip", () => {
@@ -39,6 +69,8 @@ describe("context tab strip", () => {
     strip.connectForTest();
     expect(strip.renderForTest()).toBeDefined();
     strip.setTabs({ activeKey: "assistant", items: [], standaloneLibrary: false });
+    expect(strip.panels.get("context-assistant-panel")?.hidden).toBe(false);
+    expect(strip.panels.get("context-preview-panel")?.hidden).toBe(true);
     expect(strip.renderForTest()).toBeDefined();
     expect(strip.rootForTest()).toBe(strip);
     expect(replaced).toBe(true);
@@ -106,6 +138,38 @@ describe("context tab strip", () => {
     expect(resourceItems).toBe(1);
     expect(overviewItems).toBe(2);
     expect(focused).toEqual(["preview", "resource"]);
+  });
+
+  it("owns resource panel visibility, labels, and PDF mode presentation", () => {
+    const strip = new TestContextTabStrip();
+    const publication = { id: "item", key: "publication:item" as const, kind: "publication" as const, scrollTop: 0 };
+
+    strip.setTabs({
+      activeKey: publication.key,
+      items: [{ tab: publication, title: "Reference" }],
+      standaloneLibrary: false,
+    });
+    strip.setPdfMode(true, false);
+
+    expect(strip.panels.get("context-publication-panel")).toMatchObject({
+      hidden: false,
+      labelledBy: "context-tab-publication-item",
+    });
+    const pdf = {
+      id: "paper",
+      key: "library-pdf:paper" as const,
+      kind: "library-pdf" as const,
+      scrollTop: 0,
+      page: 1,
+      focusedAnnotationId: null,
+    };
+    strip.setTabs({ activeKey: pdf.key, items: [{ tab: pdf, title: "Paper" }], standaloneLibrary: false });
+    strip.setPdfMode(true, false);
+    expect(strip.panels.get("context-pdf-panel")).toMatchObject({
+      dataset: { libraryPdf: "true", readonlyPdf: "false" },
+      hidden: false,
+    });
+    expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(false);
   });
 
   it("moves roving focus only for unmodified navigation keys", () => {

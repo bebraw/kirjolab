@@ -2266,3 +2266,25 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,392 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Research Context Panels
+
+`ContextTabStrip` now derives all controlled research-panel visibility from the
+same canonical active-tab input it uses for fixed, resource, and overview tab
+presentation. It also owns active resource labelling, PDF-mode data attributes,
+and PDF-control visibility. `WorkspaceApp` retains canonical context state,
+authorized content loading, content rendering, routing, and scroll restoration.
+
+This checkpoint reduces `src/client/app.ts` from 7,343 to 7,308 lines (-35),
+removes seven raw panel/control references, and deletes the separate visibility
+and resource-labelling coordination. Focused unit and browser coverage passes
+fixed, publication, candidate, workspace-PDF, and private-library-PDF context
+transitions.
+
+The browser application artifact changes from 790,598 B raw / 213,321 B gzip
+to 790,644 B raw / 213,368 B gzip (+46 B raw / +47 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,393 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
