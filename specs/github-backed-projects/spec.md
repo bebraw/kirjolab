@@ -22,6 +22,12 @@ incoming and outgoing mutation.
   server-side read and write independently verifies the current Kirjolab owner,
   installation access, repository id, branch, and normalized subtree path.
   Repository display names are not authorities.
+- The GitHub import panel owns its read-only connection, installation,
+  repository, and branch discovery sequence, including response validation,
+  sorting, loading and failure presentation, and request-generation guards. It
+  emits only preview, confirmation, cancellation, and disconnection intents;
+  import preview, creation, and account-disconnection mutations remain in the
+  application coordinator.
 - One deployment-wide GitHub App is authorized per Kirjolab owner through the
   GitHub App user OAuth flow. One-time callback state is owner-scoped, user and
   refresh tokens are encrypted at rest, and installation ids are never trusted
@@ -327,6 +333,8 @@ incoming and outgoing mutation.
 - Implemented guided source selection: connected owners choose an accessible
   personal or organization installation, repository, and discovered branch;
   repository identity fields and installation ids are no longer typed by hand.
+  The bounded Lit picker owns this read-only discovery lifecycle and ignores
+  superseded responses without taking over import or account mutations.
 - Implemented explicit Pull: Project settings compares the current remote head
   with the retained base and local project, lists incoming changes, blocks
   conflicts, and applies a still-current non-conflicting preview through Yjs as

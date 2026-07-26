@@ -1,5 +1,14 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { GitHubBranchOption, GitHubImportPreview, GitHubInstallationOption, GitHubRepositoryOption } from "./app-contracts";
+import {
+  isGitHubBranchList,
+  isGitHubConnectionState,
+  isGitHubInstallationList,
+  isGitHubRepositoryList,
+  type GitHubBranchOption,
+  type GitHubImportPreview,
+  type GitHubInstallationOption,
+  type GitHubRepositoryOption,
+} from "./app-contracts";
 import { formatBytes } from "./format";
 
 export interface GitHubImportSelection {
@@ -15,8 +24,6 @@ export interface GitHubConnectionPresentation {
   readonly message: string;
 }
 
-export const gitHubInstallationChangeEvent = "github-installation-change";
-export const gitHubRepositoryChangeEvent = "github-repository-change";
 export const gitHubImportPreviewEvent = "github-import-preview";
 export const gitHubImportConfirmEvent = "github-import-confirm";
 export const gitHubImportCancelEvent = "github-import-cancel";
@@ -62,6 +69,7 @@ export class GitHubImportPanel extends LitElement {
   declare private canConfirm: boolean;
   declare private connected: boolean;
   declare private connectionMessage: string;
+  private pickerRequest = 0;
 
   constructor() {
     super();
@@ -118,6 +126,85 @@ export class GitHubImportPanel extends LitElement {
 
   focusTitle(): void {
     void this.updateComplete.then(() => this.querySelector<HTMLInputElement>("#github-import-title")?.focus());
+  }
+
+  async refreshConnection(): Promise<void> {
+    const requestId = ++this.pickerRequest;
+    this.resetPreview();
+    this.beginConnectionRefresh();
+    try {
+      const value = await requestGitHubJson(
+        "/api/github/connection",
+        isGitHubConnectionState,
+        "GitHub returned an invalid connection state",
+      );
+      if (requestId !== this.pickerRequest) return;
+      this.setConnection({
+        connected: value.connected,
+        message: value.connected
+          ? `Connected as @${value.user.login}. Repository access remains controlled on GitHub.`
+          : "Connect GitHub to choose repositories available to your account.",
+      });
+      if (value.connected) await this.loadInstallations(requestId);
+      else this.resetDisconnected();
+    } catch (error) {
+      if (requestId === this.pickerRequest) {
+        this.setConnectionMessage(error instanceof Error ? error.message : "Could not load the GitHub connection.");
+      }
+    }
+  }
+
+  private async loadInstallations(requestId: number): Promise<void> {
+    this.setInstallationsLoading();
+    const value = await requestGitHubJson(
+      "/api/github/installations",
+      isGitHubInstallationList,
+      "GitHub returned an invalid installation list",
+    );
+    if (requestId !== this.pickerRequest) return;
+    this.setInstallations(value.installations);
+    if (value.installations.length === 0) {
+      this.setConnectionMessage("Connected. Install the Kirjolab GitHub App or grant it repository access.");
+      this.resetRepositoryPickers();
+      return;
+    }
+    await this.loadRepositories(requestId);
+  }
+
+  private async loadRepositories(parentRequestId?: number): Promise<void> {
+    const requestId = parentRequestId ?? ++this.pickerRequest;
+    if (requestId !== this.pickerRequest) return;
+    const installationId = this.selection.installationId;
+    if (installationId === null) return;
+    this.setRepositoriesLoading();
+    const value = await requestGitHubJson(
+      `/api/github/installations/${installationId}/repositories`,
+      isGitHubRepositoryList,
+      "GitHub returned an invalid repository list",
+    );
+    if (requestId !== this.pickerRequest) return;
+    const repositories = [...value.repositories].sort((left, right) => left.fullName.localeCompare(right.fullName));
+    this.setRepositories(repositories);
+    if (repositories.length > 0) await this.loadBranches(requestId);
+  }
+
+  private async loadBranches(parentRequestId?: number): Promise<void> {
+    const requestId = parentRequestId ?? ++this.pickerRequest;
+    if (requestId !== this.pickerRequest) return;
+    const selection = this.selection;
+    const repositoryId = selection.repository?.id ?? null;
+    if (selection.installationId === null || repositoryId === null) return;
+    this.setBranchesLoading();
+    const value = await requestGitHubJson(
+      `/api/github/installations/${selection.installationId}/repositories/${repositoryId}/branches`,
+      isGitHubBranchList,
+      "GitHub returned an invalid branch list",
+    );
+    if (requestId === this.pickerRequest) this.setBranches(value.branches, value.repository.defaultBranch);
+  }
+
+  private reportPickerError(error: unknown): void {
+    this.setConnectionMessage(error instanceof Error ? error.message : "Could not load GitHub repositories.");
   }
 
   beginConnectionRefresh(): void {
@@ -351,13 +438,13 @@ export class GitHubImportPanel extends LitElement {
   private updateInstallation(event: Event): void {
     if (!(event.currentTarget instanceof HTMLSelectElement)) return;
     this.installationId = event.currentTarget.value;
-    this.dispatchEvent(new CustomEvent(gitHubInstallationChangeEvent));
+    void this.loadRepositories().catch((error: unknown) => this.reportPickerError(error));
   }
 
   private updateRepository(event: Event): void {
     if (!(event.currentTarget instanceof HTMLSelectElement)) return;
     this.repositoryId = event.currentTarget.value;
-    this.dispatchEvent(new CustomEvent(gitHubRepositoryChangeEvent));
+    void this.loadBranches().catch((error: unknown) => this.reportPickerError(error));
   }
 
   private updateBranch(event: Event): void {
@@ -397,6 +484,23 @@ export class GitHubImportPanel extends LitElement {
     if (!(dialog instanceof HTMLDialogElement)) throw new Error("GitHub import panel requires a dialog parent");
     return dialog;
   }
+}
+
+type ValueGuard<T> = (value: unknown) => value is T;
+
+async function requestGitHubJson<T>(url: string, guard: ValueGuard<T>, invalidMessage: string): Promise<T> {
+  const response = await fetch(url, { credentials: "same-origin" });
+  if (!response.ok) {
+    const value: unknown = await response.json().catch(() => null);
+    const message =
+      typeof value === "object" && value !== null && "error" in value && typeof value.error === "string"
+        ? value.error
+        : `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+  const value: unknown = await response.json();
+  if (!guard(value)) throw new Error(invalidMessage);
+  return value;
 }
 
 if (!customElements.get("github-import-panel")) {

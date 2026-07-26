@@ -23,16 +23,18 @@ component boundary has a fixed cost.
 Use pinned Lit for bounded reactive browser components whose local template,
 presentation state, element references, and DOM events can leave
 `WorkspaceApp`. Components emit typed intent events; the existing application
-coordinator retains network access, Yjs and XState actors, persisted domain
-state, and cross-feature workflows.
+coordinator retains mutations and cross-feature network workflows, Yjs and
+XState actors, and persisted domain state. A component may own a bounded,
+read-only discovery request when the request lifecycle exists only to populate
+that component's local choices.
 
 The adopted components own bounded presentation:
 
 - The import panel owns connected and disconnected account presentation,
   reactive account actions, local field values, account/repository/branch
-  option rendering, form submission, readiness, preview/status rendering,
-  native dialog lifecycle, and typed Disconnect, Preview, Cancel, and Confirm
-  intents.
+  discovery requests, validation, stale-request guards, option rendering, form
+  submission, readiness, preview/status rendering, native dialog lifecycle, and
+  typed Disconnect, Preview, Cancel, and Confirm intents.
 - The workspace sync menu owns repository status, relationship tone, Pull and
   Push availability, and typed Check, Pull, Push, and Settings intents.
 - The workspace sync review owns Pull and Publish diff rendering, conflict
@@ -146,8 +148,10 @@ The adopted components own bounded presentation:
 - The GitHub import and detailed sync-review panels own their opaque preview
   identities and confirmation working state. Enabled confirmation intents
   carry the current preview ID, and containing components preserve that detail
-  when forwarding events. The application coordinator retains requests,
-  payload validation and construction, project refresh, and navigation.
+  when forwarding events. The import panel additionally owns its read-only
+  connection and repository-picker discovery lifecycle. The application
+  coordinator retains preview and mutation requests, payload construction,
+  project refresh, and navigation.
 - The export statistics panel owns loading, total, file, heading, and
   empty-group presentation for the live publication word-count projection.
 - The project export dialog progressively enhances the server-rendered export
@@ -289,7 +293,8 @@ reason to wrap static markup mechanically.
 - The import picker replaces ten internal element references, the coordinator's
   repository-option cache, outer form reference and submit binding, and its
   imperative option and preview DOM assembly. It also absorbs the former
-  connection panel and separate native-dialog reference.
+  connection panel, separate native-dialog reference, request-generation field,
+  and connection, installation, repository, and branch discovery methods.
 - The sharing panel replaces fifteen internal element references and the
   coordinator's member/link DOM assembly. It also removes the separate native
   dialog reference and close-event bridge while leaving membership, capability,

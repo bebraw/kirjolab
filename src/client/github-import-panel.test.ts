@@ -70,6 +70,10 @@ const repository = {
   defaultBranch: "main",
 };
 
+function jsonResponse(value: unknown, status = 200): Response {
+  return new Response(JSON.stringify(value), { headers: { "content-type": "application/json" }, status });
+}
+
 describe("GitHub import panel", () => {
   it("owns the light-DOM form and repository selection lifecycle", () => {
     const panel = new TestGitHubImportPanel();
@@ -107,6 +111,74 @@ describe("GitHub import panel", () => {
     expect(panel.renderForTest()).toBeDefined();
 
     panel.resetDisconnected();
+    expect(panel.selection.installationId).toBeNull();
+  });
+
+  it("owns the connected picker request lifecycle", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ connected: true, connectedAt: "2026-07-26T09:00:00Z", user: { id: "user-1", login: "researcher" } }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ installations: [installation] }))
+      .mockResolvedValueOnce(jsonResponse({ repositories: [repository] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          branches: [
+            { name: "draft", protected: false },
+            { name: "main", protected: true },
+          ],
+          repository,
+        }),
+      );
+    vi.stubGlobal("fetch", fetcher);
+    const panel = new TestGitHubImportPanel();
+
+    await panel.refreshConnection();
+
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      "/api/github/connection",
+      "/api/github/installations",
+      "/api/github/installations/7/repositories",
+      "/api/github/installations/7/repositories/11/branches",
+    ]);
+    expect(panel.selection).toMatchObject({ branch: "main", installationId: 7, repository });
+    expect(panel.projectTitle).toBe("paper");
+  });
+
+  it("keeps picker failures local and disconnected accounts empty", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: "Connection unavailable" }, 503))
+      .mockResolvedValueOnce(jsonResponse({ connected: false }));
+    vi.stubGlobal("fetch", fetcher);
+    const panel = new TestGitHubImportPanel();
+
+    await panel.refreshConnection();
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.refreshConnection();
+    expect(panel.selection.installationId).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores a superseded connection response", async () => {
+    let resolveFirst: ((response: Response) => void) | undefined;
+    const firstResponse = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const fetcher = vi
+      .fn()
+      .mockReturnValueOnce(firstResponse)
+      .mockResolvedValueOnce(jsonResponse({ connected: false }));
+    vi.stubGlobal("fetch", fetcher);
+    const panel = new TestGitHubImportPanel();
+
+    const firstRefresh = panel.refreshConnection();
+    await panel.refreshConnection();
+    resolveFirst?.(jsonResponse({ connected: true, connectedAt: "2026-07-26T09:00:00Z", user: { id: "user-1", login: "old" } }));
+    await firstRefresh;
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
     expect(panel.selection.installationId).toBeNull();
   });
 

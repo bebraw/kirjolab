@@ -71,14 +71,7 @@ import { sourceSpanAt } from "./composition-source-map";
 import type { AppToastOptions } from "./app-toast";
 import { workspaceSwitchEvent } from "./workspace-switcher";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
-import {
-  gitHubDisconnectEvent,
-  gitHubImportCancelEvent,
-  gitHubImportConfirmEvent,
-  gitHubImportPreviewEvent,
-  gitHubInstallationChangeEvent,
-  gitHubRepositoryChangeEvent,
-} from "./github-import-panel";
+import { gitHubDisconnectEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubImportPreviewEvent } from "./github-import-panel";
 import { gitHubSyncCheckEvent, gitHubSyncPullEvent, gitHubSyncPushEvent, gitHubSyncSettingsEvent } from "./github-sync-menu";
 import {
   gitHubPublishConfirmEvent,
@@ -246,13 +239,9 @@ import { uploadPdfBatch, type ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import {
   isCreatedAnnotation,
-  isGitHubBranchList,
-  isGitHubConnectionState,
   isGitHubImportPreview,
-  isGitHubInstallationList,
   isGitHubPublishPreview,
   isGitHubPullPreview,
-  isGitHubRepositoryList,
   isGitHubSyncState,
   isLatexImportPreview,
   isShareLinkStatus,
@@ -449,7 +438,6 @@ class WorkspaceApp {
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
   #workspaceCatalog: WorkspaceSummary[] = [];
-  #gitHubPickerRequest = 0;
   #gitHubSyncRequest = 0;
   #gitHubSyncCheckedAt = 0;
   #previewRenderVersion = 0;
@@ -586,8 +574,6 @@ class WorkspaceApp {
     });
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportPreviewEvent, () => void this.#previewGitHubImport());
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportPanel.close());
-    this.#elements.gitHubImportPanel.addEventListener(gitHubInstallationChangeEvent, () => void this.#loadGitHubRepositories());
-    this.#elements.gitHubImportPanel.addEventListener(gitHubRepositoryChangeEvent, () => void this.#loadGitHubBranches());
     this.#elements.gitHubImportPanel.addEventListener(
       gitHubImportConfirmEvent,
       (event) => void this.#confirmGitHubImport((event as CustomEvent<string>).detail),
@@ -1238,7 +1224,7 @@ class WorkspaceApp {
   #openGitHubImportDialog(): void {
     this.#elements.newWorkspaceStartingPoints.close();
     this.#elements.gitHubImportPanel.open();
-    void this.#refreshGitHubConnection();
+    void this.#elements.gitHubImportPanel.refreshConnection();
   }
 
   async #previewLatexImport(archive: File, root: string): Promise<void> {
@@ -1317,87 +1303,11 @@ class WorkspaceApp {
     }
   }
 
-  async #refreshGitHubConnection(): Promise<void> {
-    this.#gitHubPickerRequest += 1;
-    this.#elements.gitHubImportPanel.resetPreview();
-    this.#elements.gitHubImportPanel.beginConnectionRefresh();
-    try {
-      const response = await fetch("/api/github/connection", { credentials: "same-origin" });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isGitHubConnectionState(value)) throw new Error("GitHub returned an invalid connection state");
-      this.#elements.gitHubImportPanel.setConnection({
-        connected: value.connected,
-        message: value.connected
-          ? `Connected as @${value.user.login}. Repository access remains controlled on GitHub.`
-          : "Connect GitHub to choose repositories available to your account.",
-      });
-      if (value.connected) await this.#loadGitHubInstallations();
-      else this.#elements.gitHubImportPanel.resetDisconnected();
-    } catch (error) {
-      this.#elements.gitHubImportPanel.setConnectionMessage(
-        error instanceof Error ? error.message : "Could not load the GitHub connection.",
-      );
-    }
-  }
-
-  async #loadGitHubInstallations(): Promise<void> {
-    const requestId = ++this.#gitHubPickerRequest;
-    this.#elements.gitHubImportPanel.setInstallationsLoading();
-    const response = await fetch("/api/github/installations", { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isGitHubInstallationList(value)) throw new Error("GitHub returned an invalid installation list");
-    if (requestId !== this.#gitHubPickerRequest) return;
-    this.#elements.gitHubImportPanel.setInstallations(value.installations);
-    if (value.installations.length === 0) {
-      this.#elements.gitHubImportPanel.setConnectionMessage("Connected. Install the Kirjolab GitHub App or grant it repository access.");
-      this.#elements.gitHubImportPanel.resetRepositoryPickers();
-      return;
-    }
-    await this.#loadGitHubRepositories(requestId);
-  }
-
-  async #loadGitHubRepositories(parentRequestId?: number): Promise<void> {
-    const requestId = parentRequestId ?? ++this.#gitHubPickerRequest;
-    if (parentRequestId !== undefined && requestId !== this.#gitHubPickerRequest) return;
-    const installationId = this.#elements.gitHubImportPanel.selection.installationId;
-    if (installationId === null) return;
-    this.#elements.gitHubImportPanel.setRepositoriesLoading();
-    const response = await fetch(`/api/github/installations/${installationId}/repositories`, { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isGitHubRepositoryList(value)) throw new Error("GitHub returned an invalid repository list");
-    if (requestId !== this.#gitHubPickerRequest) return;
-    const repositories = [...value.repositories].sort((left, right) => left.fullName.localeCompare(right.fullName));
-    this.#elements.gitHubImportPanel.setRepositories(repositories);
-    if (repositories.length === 0) return;
-    await this.#loadGitHubBranches(requestId);
-  }
-
-  async #loadGitHubBranches(parentRequestId?: number): Promise<void> {
-    const requestId = parentRequestId ?? ++this.#gitHubPickerRequest;
-    if (parentRequestId !== undefined && requestId !== this.#gitHubPickerRequest) return;
-    const selection = this.#elements.gitHubImportPanel.selection;
-    const installationId = selection.installationId;
-    const repositoryId = selection.repository?.id ?? null;
-    if (installationId === null || repositoryId === null) return;
-    this.#elements.gitHubImportPanel.setBranchesLoading();
-    const response = await fetch(`/api/github/installations/${installationId}/repositories/${repositoryId}/branches`, {
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isGitHubBranchList(value)) throw new Error("GitHub returned an invalid branch list");
-    if (requestId !== this.#gitHubPickerRequest) return;
-    this.#elements.gitHubImportPanel.setBranches(value.branches, value.repository.defaultBranch);
-  }
-
   async #disconnectGitHubAccount(): Promise<void> {
     if (!confirm("Disconnect your GitHub account from Kirjolab? Existing project files and repositories will not be deleted.")) return;
     const response = await fetch("/api/github/connection", { method: "DELETE", credentials: "same-origin" });
     await expectOk(response);
-    await this.#refreshGitHubConnection();
+    await this.#elements.gitHubImportPanel.refreshConnection();
   }
 
   async #confirmGitHubImport(previewId: string): Promise<void> {

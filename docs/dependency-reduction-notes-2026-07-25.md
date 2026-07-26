@@ -3369,3 +3369,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,417 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: GitHub Picker Discovery
+
+`GitHubImportPanel` now owns the read-only connection, installation, repository,
+and branch discovery sequence that exists solely to populate its local picker.
+The component validates existing Valibot-backed response contracts, sorts
+repositories, presents loading and failure states, and ignores superseded
+connection responses. `WorkspaceApp` retains import preview and creation,
+account disconnection, project refresh, and navigation mutations.
+
+This checkpoint reduces `src/client/app.ts` from 6,422 to 6,332 lines (-90) and
+grows the GitHub import panel from 410 to 514 lines, increasing runtime source
+by fourteen lines overall while removing one coordinator field, two event
+bridges, and four coordinator request methods. Focused coverage passes connected
+discovery, sorted picker population, disconnected and failed connection states,
+superseded response rejection, preview and creation presentation, typed intents,
+and native dialog lifecycle.
+
+The browser application artifact changes from 797,222 B raw / 214,811 B gzip
+to 797,112 B raw / 214,964 B gzip (-110 B raw / +153 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,420 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests. One PDF zoom scenario timed out once, then passed both in
+isolation and in the complete rerun.
