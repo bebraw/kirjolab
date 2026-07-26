@@ -5392,6 +5392,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,580 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Coordinator Simplification: Source Completion Mutation
+
+Citation and project-include completion now share one Yjs replacement, editor
+refocus, caret placement, and authoring-selection refresh boundary. The Library
+citation path still preserves its relative positions across the awaited project
+reference mutation before applying the shared replacement.
+
+This checkpoint reduces `src/client/app.ts` from 4,110 to 4,106 lines (-4),
+deleting 12 coordinator lines while adding eight. The affected gate passes
+strict types and all 1,580 unit/coverage tests.
+
+The browser application artifact changes from 824,567 B raw / 223,011 B gzip
+to 824,393 B raw / 222,985 B gzip (-174 B raw / -26 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,580 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

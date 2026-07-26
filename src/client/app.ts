@@ -2798,7 +2798,6 @@ class WorkspaceApp {
   }
 
   async #acceptCitationCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "citation" }>): Promise<void> {
-    this.#hideSourceCompletion();
     let start = context.start;
     let end = context.end;
     if (candidate.scope === "library") {
@@ -2813,24 +2812,21 @@ class WorkspaceApp {
       start = resolvedStart.index;
       end = resolvedEnd.index;
     }
-    this.#document.transact(() => {
-      if (end > start) this.#activeFileText.delete(start, end - start);
-      this.#activeFileText.insert(start, candidate.key);
-    }, this);
-    const caret = start + candidate.key.length;
-    this.#elements.source.focus();
-    this.#elements.source.setSelectionRange(caret, caret);
-    this.#rememberAuthoringSelection();
+    this.#applySourceCompletion(start, end, candidate.key);
     if (candidate.scope === "library") this.#showToast(`Added and cited ${candidate.key}.`);
   }
 
   #acceptIncludeCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "include" }>): void {
+    this.#applySourceCompletion(context.start, context.end, candidate.reference);
+  }
+
+  #applySourceCompletion(start: number, end: number, value: string): void {
     this.#hideSourceCompletion();
     this.#document.transact(() => {
-      if (context.end > context.start) this.#activeFileText.delete(context.start, context.end - context.start);
-      this.#activeFileText.insert(context.start, candidate.reference);
+      if (end > start) this.#activeFileText.delete(start, end - start);
+      this.#activeFileText.insert(start, value);
     }, this);
-    const caret = context.start + candidate.reference.length;
+    const caret = start + value.length;
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(caret, caret);
     this.#rememberAuthoringSelection();
