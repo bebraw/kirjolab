@@ -40,6 +40,10 @@ incoming and outgoing mutation.
   followed by an explicit confirmation carrying an opaque, expiring preview
   identity. Confirmation fails if the project revision, binding, remote head,
   operation owner, or preview expiry no longer matches.
+- The GitHub synchronization menu validates serialized owner, repository,
+  branch, commit, relationship, and non-negative change counts through one
+  inferred Valibot status schema before deriving pull, publish, conflict, or
+  synchronized presentation.
 - Server orchestration separates new-workspace Import from Pull and Publish on
   an existing workspace binding. Both phases share only the authorized remote
   client, operation-id validation, and safe error-projection contracts.

@@ -5705,6 +5705,27 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: GitHub Sync Status
+
+The GitHub synchronization status boundary now derives its TypeScript payload
+type from one Valibot schema. That schema replaces the parallel serialized
+status interface, relationship array and membership predicate, record helper,
+and repeated safe non-negative integer checks; relationship-specific UI policy
+remains explicit.
+
+This checkpoint reduces `src/client/github-sync-status.ts` from 118 to 87 lines
+(-31). The browser application artifact changes from 824,276 B raw / 223,155 B
+gzip to 823,979 B raw / 223,092 B gzip (-297 B raw / -63 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150 because Valibot was already pinned and shipped in
+the browser application.
+
+The affected guardrails pass formatting, lint, strict types, and eight status,
+menu, and review tests across three directly related test files.
+
+Full native CI passes all 1,592 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Inspector Children
 
 `library-pdf-inspector` now owns the annotation forms, imported-highlight

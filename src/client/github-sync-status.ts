@@ -1,18 +1,21 @@
-import type { GitHubSyncRelationship } from "../domain/github-sync";
+import * as v from "valibot";
 
-export interface GitHubSyncStatus {
-  readonly owner: string;
-  readonly repository: string;
-  readonly branch: string;
-  readonly rootPath: string;
-  readonly commitSha: string;
-  readonly remoteHead: string;
-  readonly remoteHeadChanged: boolean;
-  readonly relationship: GitHubSyncRelationship;
-  readonly incomingChanges: number;
-  readonly outgoingChanges: number;
-  readonly conflicts: number;
-}
+const nonNegativeIntegerSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0));
+const gitHubSyncStatusSchema = v.object({
+  owner: v.string(),
+  repository: v.string(),
+  branch: v.string(),
+  rootPath: v.string(),
+  commitSha: v.string(),
+  remoteHead: v.string(),
+  remoteHeadChanged: v.boolean(),
+  relationship: v.picklist(["synced", "remote-changed", "github-ahead", "kirjolab-ahead", "diverged", "conflicted"]),
+  incomingChanges: nonNegativeIntegerSchema,
+  outgoingChanges: nonNegativeIntegerSchema,
+  conflicts: nonNegativeIntegerSchema,
+});
+
+export type GitHubSyncStatus = v.InferOutput<typeof gitHubSyncStatusSchema>;
 
 export interface GitHubSyncPresentation {
   readonly label: string;
@@ -22,34 +25,8 @@ export interface GitHubSyncPresentation {
   readonly canPush: boolean;
 }
 
-const relationships: readonly GitHubSyncRelationship[] = [
-  "synced",
-  "remote-changed",
-  "github-ahead",
-  "kirjolab-ahead",
-  "diverged",
-  "conflicted",
-];
-
 export function isGitHubSyncStatus(value: unknown): value is GitHubSyncStatus {
-  return (
-    isRecord(value) &&
-    typeof value.owner === "string" &&
-    typeof value.repository === "string" &&
-    typeof value.branch === "string" &&
-    typeof value.rootPath === "string" &&
-    typeof value.commitSha === "string" &&
-    typeof value.remoteHead === "string" &&
-    typeof value.remoteHeadChanged === "boolean" &&
-    isGitHubSyncRelationship(value.relationship) &&
-    isCount(value.incomingChanges) &&
-    isCount(value.outgoingChanges) &&
-    isCount(value.conflicts)
-  );
-}
-
-function isGitHubSyncRelationship(value: unknown): value is GitHubSyncRelationship {
-  return typeof value === "string" && relationships.some((relationship) => relationship === value);
+  return v.is(gitHubSyncStatusSchema, value);
 }
 
 export function gitHubSyncPresentation(status: GitHubSyncStatus): GitHubSyncPresentation {
@@ -107,12 +84,4 @@ function countLabel(count: number, label: string): string {
 
 function shortSha(value: string): string {
   return value.slice(0, 10);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
