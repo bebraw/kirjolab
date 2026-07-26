@@ -186,8 +186,10 @@ The adopted components own bounded presentation:
   reveal intents.
 - The web source panels own URL capture and reset state plus readable-text
   snapshot comparison presentation.
-- The project annotation form owns visible-PDF choices, captured quotation
-  fields, optional note input, selection status, and typed save and link
+- The project annotation form owns its complete composer: visibility,
+  publication-intake composition, citation availability, highlight-tool and
+  undo presentation, visible-PDF choices, captured quotation fields, optional
+  note input, selection status, and typed tool, undo, citation, save, and link
   intents.
 - The Library PDF annotation forms own private-highlight, page-note, and
   selected-markup composer visibility and values plus typed save, cancel, edit,
@@ -442,11 +444,12 @@ reason to wrap static markup mechanically.
   binding, URL reset, comparison heading selection, and diff-hunk rendering
   while leaving capture and comparison requests, response validation, Library
   refreshes, and toast policy in the application coordinator.
-- The project annotation form replaces eight internal element references,
-  imperative PDF-option and captured-selection updates, status rendering, and
-  submitter detection while leaving highlight geometry and persistence,
-  annotation identity, manuscript linking, refreshes, and toast policy in the
-  application coordinator.
+- The project annotation form replaces thirteen internal element references,
+  four direct toolbar and citation bindings, imperative composer visibility,
+  citation and tool presentation, PDF-option and captured-selection updates,
+  status rendering, and submitter detection while leaving highlight geometry
+  and persistence, annotation identity, manuscript linking, refreshes, and
+  toast policy in the application coordinator.
 - The Library PDF annotation forms replace seventeen internal element
   references, three submit bindings, cancel and selected-markup action bindings,
   composer visibility updates, and DOM-based value collection while leaving the

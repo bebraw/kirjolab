@@ -560,6 +560,7 @@ export function renderHomePage(
                 <library-pdf-markup-layer class="pdf-markups" id="paper-markups" data-tool="text" aria-label="Private PDF annotations"></library-pdf-markup-layer>
               </div>
             </div>
+            <project-annotation-form class="contents" id="project-annotation-form">
             <aside class="annotation-composer" id="annotation-composer" aria-labelledby="annotation-composer-title">
               <details class="publication-intake" id="publication-intake">
                 <summary><span id="publication-intake-heading">Identify reference</span><span class="count-badge">Optional</span></summary>
@@ -603,7 +604,6 @@ export function renderHomePage(
                 <button class="button-secondary" id="highlight-eraser-tool" type="button" aria-pressed="false">Eraser</button>
                 <button class="button-secondary" id="undo-highlight" type="button" disabled>Undo last stroke</button>
               </div>
-              <project-annotation-form id="project-annotation-form">
                 <p class="mt-2 text-xs leading-5 text-app-text-soft" id="annotation-selection-status">Select text in the paper to capture its quotation, context, page, and geometry.</p>
                 <form class="mt-3 grid gap-3 sm:grid-cols-2" id="annotation-form">
                 <label class="field-label sm:col-span-2">Paper
@@ -629,8 +629,8 @@ export function renderHomePage(
                   <button class="button-secondary justify-center" id="save-and-link-annotation" type="submit">Link highlight to selection</button>
                 </div>
                 </form>
-              </project-annotation-form>
             </aside>
+            </project-annotation-form>
             <aside class="annotation-composer library-pdf-tools" id="library-highlight-composer" aria-label="PDF annotation inspector" data-inspector-open="false" hidden>
               <header class="library-pdf-inspector-header">
                 <div>

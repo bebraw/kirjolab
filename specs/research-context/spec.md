@@ -234,6 +234,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   citation action beside evidence capture. It inserts the current one-based PDF
   page as a conventional `p. N` locator; linking a highlight to selected
   manuscript prose remains a separate labelled save action.
+- The bounded project annotation composer derives its own visibility, citation
+  label and availability, active highlight-tool presentation, and undo
+  availability from explicit inputs. It emits typed intents while the workspace
+  coordinator retains selection, PDF gestures, mutations, and insertion policy.
 - Citing a visible publication requires an explicit command and a valid current
   remembered Yjs-relative editor insertion point. If no safe insertion point
   exists, the command is unavailable; it never falls back to position zero or

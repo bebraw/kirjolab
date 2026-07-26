@@ -2308,3 +2308,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,394 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Composition: Project Annotation Tools
+
+`ProjectAnnotationForm` now owns the complete project-PDF annotation composer,
+including publication-intake composition, composer visibility, citation
+availability and copy, paint/eraser presentation, undo availability, capture
+status, and annotation fields. `WorkspaceApp` retains canonical PDF selection,
+highlight geometry and persistence, manuscript insertion and linking, refreshes,
+and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,279 to 7,271 lines (-8),
+removes five raw element references and four direct bindings, and replaces them
+with one typed component action protocol. Focused unit and browser coverage
+passes tool, undo, and citation intents, resource-context switching, and the
+complete paint, extend, undo, erase, and delete lifecycle.
+
+The browser application artifact changes from 790,503 B raw / 213,336 B gzip
+to 792,712 B raw / 213,766 B gzip (+2,209 B raw / +430 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,395 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

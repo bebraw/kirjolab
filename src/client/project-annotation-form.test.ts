@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ProjectAnnotationForm, projectAnnotationSaveEvent, type ProjectAnnotationSave } from "./project-annotation-form";
+import {
+  ProjectAnnotationForm,
+  projectAnnotationActionEvent,
+  projectAnnotationSaveEvent,
+  type ProjectAnnotationAction,
+  type ProjectAnnotationSave,
+  type ProjectHighlightTool,
+} from "./project-annotation-form";
 
 class TestProjectAnnotationForm extends ProjectAnnotationForm {
   renderForTest() {
@@ -26,6 +33,12 @@ class TestProjectAnnotationForm extends ProjectAnnotationForm {
     });
     this.save(event);
   }
+
+  actionForTest(action: "cite" | "undo" | ProjectHighlightTool): void {
+    if (action === "cite") this.citePage();
+    else if (action === "undo") this.undoHighlight();
+    else this.chooseTool(action);
+  }
 }
 
 describe("project annotation form", () => {
@@ -48,6 +61,10 @@ describe("project annotation form", () => {
     const panel = new TestProjectAnnotationForm();
     panel.showCapture({ page: 3, prefix: "before", quote: "evidence", suffix: "after" });
     panel.setStatus("Selection saved.");
+    panel.setVisible(false);
+    panel.setTool("erase");
+    panel.setUndoAvailable(true);
+    panel.setCitationCount(2);
     panel.showAnnotation({ comment: "Important", page: 4, prefix: "left", quote: "claim", suffix: "right" });
     panel.changeForTest("page", "5");
     panel.changeForTest("prefix", "new left");
@@ -67,6 +84,26 @@ describe("project annotation form", () => {
     expect(intents).toEqual([
       { comment: "Use this", link: false },
       { comment: "Use this", link: true },
+    ]);
+  });
+
+  it("emits bounded toolbar and citation intents", () => {
+    const panel = new TestProjectAnnotationForm();
+    const actions: ProjectAnnotationAction[] = [];
+    panel.addEventListener(projectAnnotationActionEvent, (event) => {
+      actions.push((event as CustomEvent<ProjectAnnotationAction>).detail);
+    });
+
+    panel.actionForTest("paint");
+    panel.actionForTest("erase");
+    panel.actionForTest("undo");
+    panel.actionForTest("cite");
+
+    expect(actions).toEqual([
+      { action: "choose-tool", tool: "paint" },
+      { action: "choose-tool", tool: "erase" },
+      { action: "undo-highlight" },
+      { action: "cite-page" },
     ]);
   });
 });

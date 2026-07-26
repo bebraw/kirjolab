@@ -2,6 +2,13 @@ import { html, LitElement, type TemplateResult } from "lit";
 import type { AnnotationResource, PdfResource } from "../domain/workspace";
 
 export const projectAnnotationSaveEvent = "project-annotation-save";
+export const projectAnnotationActionEvent = "project-annotation-action";
+
+export type ProjectHighlightTool = "paint" | "erase";
+export type ProjectAnnotationAction =
+  | { readonly action: "choose-tool"; readonly tool: ProjectHighlightTool }
+  | { readonly action: "undo-highlight" }
+  | { readonly action: "cite-page" };
 
 export interface ProjectAnnotationSave {
   comment: string;
@@ -14,33 +21,45 @@ type PdfChoice = Pick<PdfResource, "id" | "name">;
 export class ProjectAnnotationForm extends LitElement {
   static override properties = {
     comment: { state: true },
+    citationCount: { state: true },
     page: { state: true },
     pdfs: { state: true },
     quotePrefix: { state: true },
     quote: { state: true },
     selectedPdfId: { state: true },
     status: { state: true },
+    tool: { state: true },
+    undoAvailable: { state: true },
+    visible: { state: true },
     quoteSuffix: { state: true },
   };
 
   declare private comment: string;
+  declare private citationCount: number;
   declare private page: number;
   declare private pdfs: readonly PdfChoice[];
   declare private quotePrefix: string;
   declare private quote: string;
   declare private selectedPdfId: string;
   declare private status: string;
+  declare private tool: ProjectHighlightTool;
+  declare private undoAvailable: boolean;
+  declare private visible: boolean;
   declare private quoteSuffix: string;
 
   constructor() {
     super();
     this.comment = "";
+    this.citationCount = 0;
     this.page = 1;
     this.pdfs = [];
     this.quotePrefix = "";
     this.quote = "";
     this.selectedPdfId = "";
     this.status = "Select text in the paper to capture its quotation, context, page, and geometry.";
+    this.tool = "paint";
+    this.undoAvailable = false;
+    this.visible = true;
     this.quoteSuffix = "";
   }
 
@@ -69,10 +88,29 @@ export class ProjectAnnotationForm extends LitElement {
     this.status = status;
   }
 
+  setVisible(visible: boolean): void {
+    this.visible = visible;
+  }
+
+  setTool(tool: ProjectHighlightTool): void {
+    this.tool = tool;
+  }
+
+  setUndoAvailable(available: boolean): void {
+    this.undoAvailable = available;
+  }
+
+  setCitationCount(count: number): void {
+    this.citationCount = count;
+  }
+
   /* v8 ignore start -- exercised by browser fallback rendering */
   override connectedCallback(): void {
-    if (!this.hasUpdated && typeof this.replaceChildren === "function") this.replaceChildren();
     super.connectedCallback();
+    if (!this.hasUpdated && typeof this.replaceChildren === "function") {
+      this.replaceChildren();
+      this.performUpdate();
+    }
   }
   /* v8 ignore stop */
 
@@ -82,70 +120,137 @@ export class ProjectAnnotationForm extends LitElement {
 
   protected override render(): TemplateResult {
     return html`
-      <p class="mt-2 text-xs leading-5 text-app-text-soft" id="annotation-selection-status">${this.status}</p>
-      <form class="mt-3 grid gap-3 sm:grid-cols-2" id="annotation-form" @submit=${this.save}>
-        <label class="field-label sm:col-span-2"
-          >Paper
-          <select class="field" id="annotation-pdf" required disabled .value=${this.selectedPdfId}>
-            ${this.pdfs.length === 0
-              ? html`<option value="">Import a PDF first</option>`
-              : this.pdfs.map((pdf) => html`<option value=${pdf.id}>${pdf.name}</option>`)}
-          </select>
-        </label>
-        <label class="field-label"
-          >Page
-          <input class="field" id="annotation-page" type="number" min="1" required .value=${String(this.page)} @input=${this.changePage} />
-        </label>
-        <label class="field-label"
-          >Your note
-          <input
-            class="field"
-            id="annotation-comment"
-            type="text"
-            placeholder="Why this matters"
-            .value=${this.comment}
-            @input=${this.changeComment}
-          />
-        </label>
-        <label class="field-label sm:col-span-2"
-          >Exact quotation
-          <textarea
-            class="field min-h-20"
-            id="annotation-quote"
-            required
-            readonly
-            placeholder="Select a passage in the paper"
-            .value=${this.quote}
-          ></textarea>
-        </label>
-        <label class="field-label"
-          >Text before
-          <input
-            class="field"
-            id="annotation-prefix"
-            type="text"
-            placeholder="Context before selection"
-            .value=${this.quotePrefix}
-            @input=${this.changePrefix}
-          />
-        </label>
-        <label class="field-label"
-          >Text after
-          <input
-            class="field"
-            id="annotation-suffix"
-            type="text"
-            placeholder="Context after selection"
-            .value=${this.quoteSuffix}
-            @input=${this.changeSuffix}
-          />
-        </label>
-        <div class="grid gap-2 sm:col-span-2 sm:grid-cols-2">
-          <button class="button-primary justify-center" type="submit">Save note</button>
-          <button class="button-secondary justify-center" id="save-and-link-annotation" type="submit">Link highlight to selection</button>
+      <aside class="annotation-composer" id="annotation-composer" aria-labelledby="annotation-composer-title" ?hidden=${!this.visible}>
+        <details class="publication-intake" id="publication-intake">
+          <summary><span id="publication-intake-heading">Identify reference</span><span class="count-badge">Optional</span></summary>
+          <publication-intake-panel class="publication-intake-body" id="publication-intake-panel"></publication-intake-panel>
+        </details>
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="eyebrow">Evidence capture</p>
+            <h2 class="mt-1 text-lg font-semibold tracking-[-0.035em]" id="annotation-composer-title">Annotate this paper</h2>
+          </div>
+          <button class="button-secondary" id="cite-active-pdf" type="button" ?disabled=${this.citationCount !== 1} @click=${this.citePage}>
+            ${this.citationLabel}
+          </button>
         </div>
-      </form>
+        <div class="highlight-tools" role="group" aria-label="PDF highlight tool">
+          <button
+            class="button-secondary"
+            id="highlight-paint-tool"
+            type="button"
+            aria-pressed=${String(this.tool === "paint")}
+            @click=${() => this.chooseTool("paint")}
+          >
+            Paint
+          </button>
+          <button
+            class="button-secondary"
+            id="highlight-eraser-tool"
+            type="button"
+            aria-pressed=${String(this.tool === "erase")}
+            @click=${() => this.chooseTool("erase")}
+          >
+            Eraser
+          </button>
+          <button class="button-secondary" id="undo-highlight" type="button" ?disabled=${!this.undoAvailable} @click=${this.undoHighlight}>
+            Undo last stroke
+          </button>
+        </div>
+        <p class="mt-2 text-xs leading-5 text-app-text-soft" id="annotation-selection-status">${this.status}</p>
+        <form class="mt-3 grid gap-3 sm:grid-cols-2" id="annotation-form" @submit=${this.save}>
+          <label class="field-label sm:col-span-2"
+            >Paper
+            <select class="field" id="annotation-pdf" required disabled .value=${this.selectedPdfId}>
+              ${this.pdfs.length === 0
+                ? html`<option value="">Import a PDF first</option>`
+                : this.pdfs.map((pdf) => html`<option value=${pdf.id}>${pdf.name}</option>`)}
+            </select>
+          </label>
+          <label class="field-label"
+            >Page
+            <input
+              class="field"
+              id="annotation-page"
+              type="number"
+              min="1"
+              required
+              .value=${String(this.page)}
+              @input=${this.changePage}
+            />
+          </label>
+          <label class="field-label"
+            >Your note
+            <input
+              class="field"
+              id="annotation-comment"
+              type="text"
+              placeholder="Why this matters"
+              .value=${this.comment}
+              @input=${this.changeComment}
+            />
+          </label>
+          <label class="field-label sm:col-span-2"
+            >Exact quotation
+            <textarea
+              class="field min-h-20"
+              id="annotation-quote"
+              required
+              readonly
+              placeholder="Select a passage in the paper"
+              .value=${this.quote}
+            ></textarea>
+          </label>
+          <label class="field-label"
+            >Text before
+            <input
+              class="field"
+              id="annotation-prefix"
+              type="text"
+              placeholder="Context before selection"
+              .value=${this.quotePrefix}
+              @input=${this.changePrefix}
+            />
+          </label>
+          <label class="field-label"
+            >Text after
+            <input
+              class="field"
+              id="annotation-suffix"
+              type="text"
+              placeholder="Context after selection"
+              .value=${this.quoteSuffix}
+              @input=${this.changeSuffix}
+            />
+          </label>
+          <div class="grid gap-2 sm:col-span-2 sm:grid-cols-2">
+            <button class="button-primary justify-center" type="submit">Save note</button>
+            <button class="button-secondary justify-center" id="save-and-link-annotation" type="submit">Link highlight to selection</button>
+          </div>
+        </form>
+      </aside>
     `;
+  }
+
+  private get citationLabel(): string {
+    if (this.citationCount > 1) return "Choose reference to cite";
+    return this.citationCount === 1 ? "Cite current page" : "Identify before citing";
+  }
+
+  protected chooseTool(tool: ProjectHighlightTool): void {
+    this.emitAction({ action: "choose-tool", tool });
+  }
+
+  protected undoHighlight(): void {
+    this.emitAction({ action: "undo-highlight" });
+  }
+
+  protected citePage(): void {
+    this.emitAction({ action: "cite-page" });
+  }
+
+  private emitAction(detail: ProjectAnnotationAction): void {
+    this.dispatchEvent(new CustomEvent<ProjectAnnotationAction>(projectAnnotationActionEvent, { bubbles: true, detail }));
   }
 
   protected save(event: SubmitEvent): void {

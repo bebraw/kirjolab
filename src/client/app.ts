@@ -230,7 +230,14 @@ import { contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./
 import { contextResourceTabActionEvent, type ContextResourceTabAction } from "./context-resource-tabs";
 import { ContextTabStrip, contextPrimaryTabActionEvent, type ContextPrimaryTabAction } from "./context-tab-strip";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
-import { ProjectAnnotationForm, projectAnnotationSaveEvent, type ProjectAnnotationSave } from "./project-annotation-form";
+import {
+  ProjectAnnotationForm,
+  projectAnnotationActionEvent,
+  projectAnnotationSaveEvent,
+  type ProjectAnnotationAction,
+  type ProjectAnnotationSave,
+  type ProjectHighlightTool,
+} from "./project-annotation-form";
 import {
   ProjectFileDialog,
   projectFileDialogIsCreating,
@@ -506,7 +513,6 @@ interface Elements {
   claimListPanel: ClaimListPanel;
   claimDialog: ClaimDialog;
   projectAnnotationForm: ProjectAnnotationForm;
-  annotationComposer: HTMLElement;
   libraryHighlightComposer: HTMLElement;
   closeLibraryPdfInspector: HTMLButtonElement;
   libraryAnnotationDetails: HTMLDetailsElement;
@@ -516,10 +522,6 @@ interface Elements {
   libraryHighlightStatus: HTMLElement;
   libraryProjectUse: LibraryPdfProjectUse;
   libraryHighlightList: LibraryPdfAnnotationList;
-  highlightPaintTool: HTMLButtonElement;
-  highlightEraserTool: HTMLButtonElement;
-  undoHighlight: HTMLButtonElement;
-  citeActivePdf: HTMLButtonElement;
   paperStatus: HTMLElement;
   paperTextLayer: HTMLElement;
   paperMarkups: LibraryPdfMarkupLayer;
@@ -633,7 +635,7 @@ class WorkspaceApp {
   readonly #hiddenProjectImageIds = new Set<string>();
   readonly #pendingDeletions = new Map<string, PendingDeletion>();
   #editingAnnotationId: string | null = null;
-  #highlightTool: "paint" | "erase" = "paint";
+  #highlightTool: ProjectHighlightTool = "paint";
   #lastHighlightStroke: { annotationId: string; fragmentId: string } | null = null;
   #renderedPdfId: string | undefined;
   #renderedPdfContextKey: ResearchContextKey | undefined;
@@ -1176,6 +1178,12 @@ class WorkspaceApp {
     this.#elements.projectAnnotationForm.addEventListener(projectAnnotationSaveEvent, (event) => {
       void this.#createAnnotation((event as CustomEvent<ProjectAnnotationSave>).detail);
     });
+    this.#elements.projectAnnotationForm.addEventListener(projectAnnotationActionEvent, (event) => {
+      const action = (event as CustomEvent<ProjectAnnotationAction>).detail;
+      if (action.action === "choose-tool") this.#setHighlightTool(action.tool);
+      else if (action.action === "undo-highlight") void this.#undoLastHighlightStroke();
+      else this.#citeActivePdf();
+    });
     this.#elements.libraryPdfAnnotationForms.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryPdfAnnotationAction>).detail;
       if (action.action === "save-highlight") void this.#saveLibraryHighlight(action);
@@ -1232,10 +1240,6 @@ class WorkspaceApp {
       this.#renderPdfMarkups();
       this.#elements.paperMarkups.focusNote(noteId);
     });
-    this.#elements.highlightPaintTool.addEventListener("click", () => this.#setHighlightTool("paint"));
-    this.#elements.highlightEraserTool.addEventListener("click", () => this.#setHighlightTool("erase"));
-    this.#elements.undoHighlight.addEventListener("click", () => void this.#undoLastHighlightStroke());
-    this.#elements.citeActivePdf.addEventListener("click", () => this.#citeActivePdf());
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
       const detail = (event as CustomEvent<ClaimListAction>).detail;
       if (detail.action === "create") this.#openClaimDialog();
@@ -4424,7 +4428,7 @@ class WorkspaceApp {
     const activeLibraryPdf = Boolean(activeLibraryArtifact);
     const activeProjectReferencePdf = this.#activeProjectReferencePdf(activeTab, activeLibraryArtifact);
     this.#elements.contextTabStrip.setPdfMode(activeTab?.kind === "library-pdf", activeProjectReferencePdf);
-    this.#elements.annotationComposer.hidden = activeLibraryPdf || activeProjectReferencePdf;
+    this.#elements.projectAnnotationForm.setVisible(!activeLibraryPdf && !activeProjectReferencePdf);
     this.#elements.libraryHighlightComposer.hidden = !activeLibraryPdf;
     if (!activeLibraryPdf) this.#setLibraryPdfInspector(false);
     this.#renderLibraryHighlightComposer(activeLibraryArtifact);
@@ -4442,13 +4446,7 @@ class WorkspaceApp {
   #renderActivePdfCitationControl(activeTab: ResearchResourceTab | undefined): void {
     const activePdfPublications =
       activeTab?.kind === "pdf" ? (this.#snapshot?.publicationPdfLinks.filter((link) => link.pdfId === activeTab.id) ?? []) : [];
-    this.#elements.citeActivePdf.disabled = activePdfPublications.length !== 1;
-    this.#elements.citeActivePdf.textContent =
-      activePdfPublications.length > 1
-        ? "Choose reference to cite"
-        : activePdfPublications.length === 1
-          ? "Cite current page"
-          : "Identify before citing";
+    this.#elements.projectAnnotationForm.setCitationCount(activePdfPublications.length);
   }
 
   #renderActiveResearchContext(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined, loadPdf: boolean): void {
@@ -6825,7 +6823,7 @@ class WorkspaceApp {
     if (!fragment) throw new Error("Highlight endpoint omitted the saved stroke");
     this.#editingAnnotationId = annotationValue.id;
     this.#lastHighlightStroke = { annotationId: annotationValue.id, fragmentId: fragment.id };
-    this.#elements.undoHighlight.disabled = false;
+    this.#elements.projectAnnotationForm.setUndoAvailable(true);
     this.#elements.projectAnnotationForm.showAnnotation(annotationValue);
     this.#pdfViewer.clearDraftSelection();
     await this.#resourceRefresh.request();
@@ -6836,10 +6834,9 @@ class WorkspaceApp {
     );
   }
 
-  #setHighlightTool(tool: "paint" | "erase"): void {
+  #setHighlightTool(tool: ProjectHighlightTool): void {
     this.#highlightTool = tool;
-    this.#elements.highlightPaintTool.setAttribute("aria-pressed", String(tool === "paint"));
-    this.#elements.highlightEraserTool.setAttribute("aria-pressed", String(tool === "erase"));
+    this.#elements.projectAnnotationForm.setTool(tool);
     this.#pdfViewer.setTool(tool);
     this.#elements.projectAnnotationForm.setStatus(
       tool === "paint"
@@ -6898,7 +6895,7 @@ class WorkspaceApp {
     if (!stroke) return;
     await this.#removeHighlightFragment(stroke.annotationId, stroke.fragmentId, false);
     this.#lastHighlightStroke = null;
-    this.#elements.undoHighlight.disabled = true;
+    this.#elements.projectAnnotationForm.setUndoAvailable(false);
     this.#showToast("Last highlight stroke undone.");
   }
 
@@ -7161,7 +7158,6 @@ function collectElements(): Elements {
     claimListPanel: requiredElement("claim-list-panel", ClaimListPanel),
     claimDialog: requiredElement("claim-dialog-panel", ClaimDialog),
     projectAnnotationForm: requiredElement("project-annotation-form", ProjectAnnotationForm),
-    annotationComposer: requiredElement("annotation-composer", HTMLElement),
     libraryHighlightComposer: requiredElement("library-highlight-composer", HTMLElement),
     closeLibraryPdfInspector: requiredElement("close-library-pdf-inspector", HTMLButtonElement),
     libraryAnnotationDetails: requiredElement("library-annotation-details", HTMLDetailsElement),
@@ -7171,10 +7167,6 @@ function collectElements(): Elements {
     libraryHighlightStatus: requiredElement("library-highlight-status", HTMLElement),
     libraryProjectUse: requiredElement("library-project-use", LibraryPdfProjectUse),
     libraryHighlightList: requiredElement("library-highlight-list", LibraryPdfAnnotationList),
-    highlightPaintTool: requiredElement("highlight-paint-tool", HTMLButtonElement),
-    highlightEraserTool: requiredElement("highlight-eraser-tool", HTMLButtonElement),
-    undoHighlight: requiredElement("undo-highlight", HTMLButtonElement),
-    citeActivePdf: requiredElement("cite-active-pdf", HTMLButtonElement),
     paperStatus: requiredElement("paper-status", HTMLElement),
     paperTextLayer: requiredElement("paper-text-layer", HTMLElement),
     paperMarkups: requiredElement("paper-markups", LibraryPdfMarkupLayer),
