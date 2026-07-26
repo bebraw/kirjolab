@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
-import { PreviewDocument } from "./preview-document";
+import { WorkspacePreview, type ProjectPreviewImageContext } from "./workspace-preview";
 
 interface Bounds {
   readonly top: number;
@@ -62,7 +62,36 @@ class FakeElement extends EventTarget {
 
 const htmlElement = (element: FakeElement): HTMLElement => element as never;
 
-describe("preview document", () => {
+class TestWorkspacePreview extends WorkspacePreview {
+  constructor(
+    private readonly articleNode: HTMLElement,
+    private readonly viewportNode: HTMLElement,
+  ) {
+    super();
+  }
+
+  resolveImagesForTest(context: ProjectPreviewImageContext): void {
+    this.resolveProjectImages(context);
+  }
+
+  nearestSourceElementForTest(offsets: readonly number[]): HTMLElement | null {
+    return this.nearestSourceElement(offsets);
+  }
+
+  centerForTest(target: HTMLElement): void {
+    this.center(target);
+  }
+
+  protected override get article(): HTMLElement {
+    return this.articleNode;
+  }
+
+  protected override get viewport(): HTMLElement {
+    return this.viewportNode;
+  }
+}
+
+describe("workspace preview document", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.stubGlobal("CSS", { escape: (value: string) => value });
@@ -75,29 +104,12 @@ describe("preview document", () => {
     vi.unstubAllGlobals();
   });
 
-  it("owns preview content, clicks, images, scroll reset, and anchor navigation", () => {
+  it("owns viewport scroll reset and anchor navigation", () => {
     const article = new FakeElement();
     const viewport = new FakeElement();
-    const image = new FakeElement();
     const anchor = new FakeElement();
-    article.imageNodes.push(image);
     article.anchors.set("section", anchor);
-    const preview = new PreviewDocument(htmlElement(article), htmlElement(viewport));
-    const root = { getElementById: (id: string) => (id === "preview" ? article : viewport) } as never;
-    expect(PreviewDocument.forDocument(root)).toBeInstanceOf(PreviewDocument);
-    expect(() => PreviewDocument.forDocument({ getElementById: () => null } as never)).toThrow("Missing #preview");
-    let clicked = false;
-    preview.onClick(() => {
-      clicked = true;
-    });
-
-    preview.showSource("source");
-    expect(article.textContent).toBe("source");
-    preview.showHtml("<p>rendered</p>");
-    expect(article.innerHTML).toBe("<p>rendered</p>");
-    article.dispatchEvent(new Event("click"));
-    expect(clicked).toBe(true);
-    expect([...preview.images()]).toEqual([image]);
+    const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(viewport));
     viewport.scrollTop = 40;
     preview.resetScroll();
     expect(viewport.scrollTop).toBe(0);
@@ -119,12 +131,15 @@ describe("preview document", () => {
     narrow.setBounds({ top: 60, height: 10 });
     article.sources.push(broad, narrow);
     vi.stubGlobal("document", { elementFromPoint: () => null });
-    const preview = new PreviewDocument(htmlElement(article), htmlElement(viewport));
+    const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(viewport));
 
     expect(preview.centeredSourceElement()).toBe(narrow);
-    expect(preview.nearestSourceElement([7])).toBe(narrow);
-    expect(preview.nearestSourceElement([30])).toBeNull();
-    preview.center(broad as never);
+    expect(preview.nearestSourceElementForTest([7])).toBe(narrow);
+    expect(preview.nearestSourceElementForTest([30])).toBeNull();
+    expect(preview.revealNearestSource([7])).toBe(true);
+    expect(preview.revealNearestSource([30])).toBe(false);
+    viewport.scrollTop = 0;
+    preview.centerForTest(broad as never);
     expect(viewport.scrollTop).toBe(-5);
   });
 
@@ -134,7 +149,7 @@ describe("preview document", () => {
     const hidden = new FakeElement();
     const external = new FakeElement();
     article.imageNodes.push(local, hidden, external);
-    const preview = new PreviewDocument(htmlElement(article), htmlElement(new FakeElement()));
+    const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(new FakeElement()));
     const snapshot = {
       ...workspaceSnapshotFixture,
       entryFileId: "chapter",
@@ -163,7 +178,7 @@ describe("preview document", () => {
       ],
     } satisfies WorkspaceSnapshot;
 
-    preview.resolveProjectImages({
+    preview.resolveImagesForTest({
       apiBase: "/api/workspaces/workspace",
       hiddenAssetIds: new Set(["asset-2"]),
       snapshot,
@@ -184,7 +199,7 @@ describe("preview document", () => {
     const centered = new FakeElement();
     article.sources.push(previous, centered);
     vi.stubGlobal("document", { elementFromPoint: () => centered });
-    const preview = new PreviewDocument(htmlElement(article), htmlElement(viewport));
+    const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(viewport));
 
     expect(preview.centeredSourceElement()).toBe(centered);
     preview.markSyncTarget(centered as never);

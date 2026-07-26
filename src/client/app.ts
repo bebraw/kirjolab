@@ -23,7 +23,6 @@ import {
   type ProjectFile,
   type ProjectFilePreview,
 } from "../domain/project-files";
-import type { Diagnostic, RenderedDocument } from "../domain/markdown";
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { suggestCitationKey } from "../domain/publication-intake";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
@@ -42,7 +41,6 @@ import {
 } from "../domain/reference-library";
 import { applicationVersionNoticeEvent } from "./application-version-control";
 import { previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
-import { PreviewDocument } from "./preview-document";
 import { sourceCitationOpenEvent } from "./source-citation-control";
 import { workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
 import { projectHistoryOpenEvent } from "./project-history-trigger";
@@ -140,7 +138,6 @@ import { assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTas
 import { assistantWorkflowActionEvent, type AssistantWorkflowAction, type SelectedModelEvidence } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, type CitationContext } from "./citations";
-import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { projectMapResourceSelectEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { claimDialogSavedEvent } from "./claim-dialog";
@@ -296,7 +293,6 @@ interface OverlappingPdfFragment {
 class WorkspaceApp {
   readonly #elements = collectAppElements();
   readonly #pdfViewer: PdfEvidenceViewer;
-  readonly #previewDocument: PreviewDocument;
   readonly #document = new Y.Doc();
   readonly #source = this.#document.getText("source");
   readonly #bibliography = this.#document.getText("bibliography");
@@ -349,7 +345,6 @@ class WorkspaceApp {
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
   #workspaceCatalog: WorkspaceSummary[] = [];
-  #previewRenderVersion = 0;
   #workspaceRouteReady = false;
   readonly #layout: WorkspaceLayoutManager;
 
@@ -360,7 +355,6 @@ class WorkspaceApp {
       onPageChange: (page) => this.#handlePdfPageChange(page),
       onPrivateHighlight: (highlightId) => this.#selectLibraryHighlight(highlightId),
     });
-    this.#previewDocument = PreviewDocument.forDocument(document);
     this.#layout = WorkspaceLayoutManager.forWorkspace(this.#elements.workspaceSurfaces, {
       paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
       resizePdf: () => void this.#pdfViewer.resize(),
@@ -384,7 +378,6 @@ class WorkspaceApp {
     }
     this.#restoreWorkspaceLayout();
     this.#setEditorsEnabled(false);
-    void loadMarkdownRuntime().catch(() => undefined);
     const restored = await this.#restoreOfflineWorkspace();
     try {
       await this.#refreshCatalog();
@@ -852,8 +845,8 @@ class WorkspaceApp {
       if (detail.action === "activate") this.#activateContext(detail.key);
       else this.#closeContextTab(detail.key);
     });
-    this.#previewDocument.onClick((event) => this.#handlePreviewClick(event));
-    this.#elements.diagnostics.addEventListener(previewDiagnosticSelectEvent, (event) => {
+    this.#elements.workspacePreview.addEventListener("click", (event) => this.#handlePreviewClick(event));
+    this.#elements.workspacePreview.addEventListener(previewDiagnosticSelectEvent, (event) => {
       const { fileId, from, to } = (event as CustomEvent<PreviewDiagnosticSelection>).detail;
       this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to);
     });
@@ -1517,19 +1510,24 @@ class WorkspaceApp {
   }
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
-    const renderVersion = ++this.#previewRenderVersion;
     const inputs = this.#previewInputs();
     this.#preparePreviewContext(inputs);
-    const runtime = await this.#loadPreviewRuntime(renderVersion, inputs.renderedSource);
-    if (!runtime || renderVersion !== this.#previewRenderVersion) return;
-    const rendered = runtime.renderWorkspaceMarkdown(
-      inputs.renderedSource,
+    const outcome = await this.#elements.workspacePreview.renderDocument({
+      apiBase,
       bibliography,
-      this.#snapshot?.publicationProfile.citationStyle,
-      { headingNumbers: this.#previewHeadingNumbers(runtime, inputs) },
-    );
-    this.#renderMarkdownPreview(rendered, inputs);
-    this.#renderPreviewDiagnostics(rendered.diagnostics, inputs.filePreview);
+      filePreview: inputs.filePreview,
+      hiddenAssetIds: this.#hiddenProjectImageIds,
+      publicationComposition: inputs.publicationComposition,
+      renderedSource: inputs.renderedSource,
+      snapshot: this.#snapshot,
+    });
+    if (!outcome) return;
+    if (!outcome.available) {
+      this.#elements.previewContextControls.showUnavailable();
+      return;
+    }
+    this.#elements.previewSyncControls.setSourceMap(inputs.filePreview?.sourceMap ?? []);
+    this.#elements.previewContextControls.setDiagnostics(outcome.diagnostics, inputs.filePreview);
     this.#renderPreviewWorkspaceContext(inputs.publicationComposition, bibliography);
   }
 
@@ -1552,54 +1550,6 @@ class WorkspaceApp {
     if (publicationComposition && this.#snapshot) {
       this.#elements.exportDialog.setStatistics(publicationWordStatistics(publicationComposition, inputs.files));
     }
-  }
-
-  async #loadPreviewRuntime(renderVersion: number, renderedSource: string): Promise<MarkdownRuntime | null> {
-    try {
-      return await loadMarkdownRuntime();
-    } catch (error) {
-      if (renderVersion === this.#previewRenderVersion) this.#renderPreviewUnavailable(renderedSource, error);
-      return null;
-    }
-  }
-
-  #renderPreviewUnavailable(renderedSource: string, error: unknown): void {
-    this.#previewDocument.showSource(renderedSource);
-    this.#elements.previewContextControls.showUnavailable();
-    this.#elements.diagnostics.showUnavailable(error instanceof Error ? error.message : "The Markdown renderer could not be loaded");
-  }
-
-  #previewHeadingNumbers(runtime: MarkdownRuntime, inputs: PreviewInputs): Record<number, string> {
-    const headingNumbers: Record<number, string> = {};
-    const { filePreview, publicationComposition } = inputs;
-    if (filePreview?.mode === "isolated" && publicationComposition) {
-      for (const [outputOffset, number] of Object.entries(runtime.headingNumbersByOffset(publicationComposition.content))) {
-        const span = sourceSpanAt(publicationComposition.sourceMap, Number(outputOffset));
-        if (!span || span.fileId !== filePreview.fileId) continue;
-        const sourceOffset = span.sourceStart + Number(outputOffset) - span.outputStart;
-        headingNumbers[sourceOffset] ??= number;
-      }
-    }
-    return headingNumbers;
-  }
-
-  #renderMarkdownPreview(rendered: RenderedDocument, inputs: PreviewInputs): void {
-    this.#previewDocument.showHtml(rendered.html);
-    this.#elements.previewSyncControls.setSourceMap(inputs.filePreview?.sourceMap ?? []);
-    if (this.#snapshot) {
-      this.#previewDocument.resolveProjectImages({
-        apiBase,
-        hiddenAssetIds: this.#hiddenProjectImageIds,
-        snapshot: this.#snapshot,
-        source: inputs.renderedSource,
-        sourceMap: inputs.filePreview?.sourceMap ?? [],
-      });
-    }
-  }
-
-  #renderPreviewDiagnostics(diagnostics: readonly Diagnostic[], filePreview: ProjectFilePreview | null): void {
-    this.#elements.previewContextControls.setDiagnostics(diagnostics, filePreview);
-    this.#elements.diagnostics.setDiagnostics(diagnostics, filePreview);
   }
 
   #renderPreviewWorkspaceContext(publicationComposition: ProjectComposition | null, bibliography: string): void {
@@ -1687,7 +1637,7 @@ class WorkspaceApp {
   }
 
   #syncSourceFromPreviewCenter(): void {
-    const target = this.#previewDocument.centeredSourceElement();
+    const target = this.#elements.workspacePreview.centeredSourceElement();
     if (target) this.#syncSourceFromPreviewElement(target, true);
   }
 
@@ -1699,7 +1649,7 @@ class WorkspaceApp {
     this.#showWorkspaceSurface("authoring");
     this.#focusProjectRange(location.fileId, location.offset, location.offset);
     if (centerEditor) this.#elements.previewSyncControls.centerSourceOffset(location.offset);
-    this.#previewDocument.markSyncTarget(target);
+    this.#elements.workspacePreview.markSyncTarget(target);
   }
 
   #syncPreviewFromSource(explicit = true): void {
@@ -1708,10 +1658,7 @@ class WorkspaceApp {
     const sourceOffset = explicit ? this.#elements.previewSyncControls.sourceOffsetAtCenter() : this.#elements.source.selectionEnd;
     const offsets = this.#elements.previewSyncControls.previewOffsets(fileId, sourceOffset);
     if (offsets.length === 0) return;
-    const target = this.#previewDocument.nearestSourceElement(offsets);
-    if (!target) return;
-    this.#previewDocument.center(target);
-    this.#previewDocument.markSyncTarget(target);
+    this.#elements.workspacePreview.revealNearestSource(offsets);
   }
 
   #previewSyncAvailable(explicit: boolean): boolean {
@@ -1780,7 +1727,7 @@ class WorkspaceApp {
     this.#rememberAuthoringSelection();
     this.#renderProjectFiles();
     this.#updateModelAvailability();
-    this.#previewDocument.resetScroll();
+    this.#elements.workspacePreview.resetScroll();
     void this.#renderPreview();
     this.#syncWorkspaceRoute("replace");
   }
@@ -2229,7 +2176,7 @@ class WorkspaceApp {
       },
       section: (id) => {
         this.#activateContext(RESEARCH_PREVIEW_KEY);
-        this.#previewDocument.scrollToAnchor(id);
+        this.#elements.workspacePreview.scrollToAnchor(id);
       },
       annotation: (id) => {
         const annotation = this.#snapshot?.annotations.find((item) => item.id === id);

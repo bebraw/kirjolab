@@ -5705,6 +5705,35 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace Preview
+
+`workspace-preview` now owns the light-DOM preview article and diagnostic
+surface, lazy Markdown-runtime loading, stale-render rejection, sanitized HTML
+or escaped-source presentation, renderer diagnostics, isolated-file heading
+numbers, authorized local-image resolution, and viewport-relative source
+navigation. The former manual `PreviewDocument` adapter is deleted.
+`WorkspaceApp` retains project composition, Yjs source authority, source-map
+translation, cross-panel projections, citations, and routing.
+
+This checkpoint reduces `src/client/app.ts` from 3,715 to 3,662 lines (-53) and
+replaces the 125-line manual adapter with a 235-line typed Lit owner. Including
+the one-line element-registry change, client runtime source grows by 58 lines;
+the server-rendered fallback wrapper adds two lines. The browser application
+artifact changes from 821,877 B raw / 222,556 B gzip to 823,387 B raw /
+222,874 B gzip (+1,510 B raw / +318 B gzip). Styles and direct and unique
+production package counts remain unchanged at 135,411 B raw / 23,373 B gzip,
+18, and 150. The readability audit reports 255 externally visible low-level
+component members, six more than the prior checkpoint for the typed render and
+navigation boundary.
+
+Focused preview, presentation, registry, and shell coverage passes 21 tests.
+The affected guardrails pass formatting, lint, strict types, 84 related tests,
+16 directly affected tests, and all 120 Workers-runtime tests. Full unit
+coverage passes all 1,588 tests at 90.71% statements and 92.79% lines.
+
+Full native CI passes all 1,588 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Active PDF Load-Path Consolidation
 
 The active PDF load path now keeps resource resolution, URL selection, viewer

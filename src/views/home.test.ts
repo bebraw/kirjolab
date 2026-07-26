@@ -66,6 +66,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="diagnostic-summary"');
     expect(html).toContain('id="preview-file-context"');
     expect(html).toContain('<preview-context-status class="context-mode-controls" id="preview-context-controls">');
+    expect(html).toContain('<workspace-preview class="contents" id="workspace-preview">');
     expect(html).toContain('<preview-diagnostics-panel class="mx-auto');
     expect(html).toContain('<publication-intake-panel class="publication-intake-body" id="publication-intake-panel">');
     expect(html).toContain('id="source-rail-resizer" role="separator"');

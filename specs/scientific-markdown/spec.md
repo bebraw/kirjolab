@@ -25,6 +25,12 @@ second Markdown dialect.
 - The runtime loads in parallel with workspace data. Preview renders discard
   stale asynchronous results and fall back to authored source when the runtime
   cannot load.
+- A bounded light-DOM workspace Preview component owns that runtime lifecycle,
+  stale-render guard, sanitized HTML or escaped-source presentation, renderer
+  diagnostics, isolated-file heading-number projection, and authorized local
+  project-image resolution. Project composition, canonical Yjs source,
+  cross-panel projections, citation navigation, and routing remain outside the
+  component.
 - Markdown preview no longer requires WebAssembly, a helper Web Worker, shared
   memory, or cross-origin isolation. Remote HTTP(S) images remain subject to the
   browser and source server's ordinary security policy.

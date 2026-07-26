@@ -17,11 +17,11 @@ Preview offset may belong to a supporting file.
 - The active project preview's composition source map translates between those
   Preview offsets and stable file-qualified source offsets. Isolated-file
   previews use the same contract.
-- A bounded Preview DOM adapter owns rendered and fallback content assignment,
+- The bounded light-DOM workspace Preview owns rendered and fallback content,
   source-span lookup by viewport position, centering, transient target
-  emphasis, project-image lookup, and anchor scrolling. The workspace
-  coordinator retains source-map translation, project-file selection, image
-  authorization, citation actions, and routing.
+  emphasis, authorized project-image resolution, and anchor scrolling. The
+  workspace coordinator retains source-map translation, project-file selection,
+  canonical image metadata and hidden-id inputs, citation actions, and routing.
 - A compact two-button control straddles the authoring/context divider while
   the Preview tab is active in desktop split view. The right arrow reveals the
   passage centered in the source editor in Preview; the left arrow reveals the

@@ -35,7 +35,7 @@ import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import { ModelProviderSettings } from "./model-provider-settings";
 import { PdfHighlightImportPanel } from "./pdf-highlight-import-panel";
 import { PreviewNavigationControl } from "./preview-navigation-control";
-import { PreviewContextStatus, PreviewDiagnosticsPanel } from "./preview-presentation";
+import { PreviewContextStatus } from "./preview-presentation";
 import { PreviewSyncControls } from "./preview-sync-controls";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
@@ -67,6 +67,7 @@ import { WorkspaceSharingPanel } from "./workspace-sharing-panel";
 import { WorkspaceSurfaceSwitcher } from "./workspace-surface-switcher";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { WritingWorkflowPanel } from "./writing-workflow-panel";
+import { WorkspacePreview } from "./workspace-preview";
 
 export function collectAppElements(requireElement = requiredAppElement) {
   return {
@@ -130,9 +131,9 @@ export function collectAppElements(requireElement = requiredAppElement) {
     contextTabStrip: requireElement("context-tab-strip", ContextTabStrip),
     previewContextControls: requireElement("preview-context-controls", PreviewContextStatus),
     previewNavigationControl: requireElement("preview-navigation-control", PreviewNavigationControl),
+    workspacePreview: requireElement("workspace-preview", WorkspacePreview),
     publicationContextPanel: requireElement("publication-context-panel", PublicationContextPanel),
     candidateReviewPanel: requireElement("candidate-review-panel", CandidateReviewPanel),
-    diagnostics: requireElement("diagnostics", PreviewDiagnosticsPanel),
     connectionStatus: requireElement("connection-status-panel", ConnectionStatus),
     editorStatus: requireElement("editor-status", EditorStatus),
     projectEvidencePanel: requireElement("project-evidence-panel", ProjectEvidencePanel),

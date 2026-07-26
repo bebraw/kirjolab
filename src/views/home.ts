@@ -353,8 +353,10 @@ export function renderHomePage(
 
         <section class="context-panel context-preview-panel" id="context-preview-panel" role="tabpanel" aria-labelledby="context-preview-tab" tabindex="0">
           <div class="preview-scroll" id="preview-scroll">
-            <article class="prose-preview" id="preview" aria-live="polite"></article>
-            <preview-diagnostics-panel class="mx-auto mt-8 max-w-[44rem] border-t border-app-line pt-4" id="diagnostics"></preview-diagnostics-panel>
+            <workspace-preview class="contents" id="workspace-preview">
+              <article class="prose-preview" id="preview" aria-live="polite"></article>
+              <preview-diagnostics-panel class="mx-auto mt-8 max-w-[44rem] border-t border-app-line pt-4" id="diagnostics"></preview-diagnostics-panel>
+            </workspace-preview>
           </div>
         </section>
 

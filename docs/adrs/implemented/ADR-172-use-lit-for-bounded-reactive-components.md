@@ -204,6 +204,13 @@ The adopted components own bounded presentation:
   summaries from canonical preview and diagnostic inputs, and own
   unavailable-state presentation, composition and renderer diagnostic cards,
   source-map resolution, and typed source-range intents.
+- The workspace Preview owns its light-DOM article and diagnostics surface,
+  lazy Markdown-runtime loading, stale-render rejection, rendered or escaped-
+  source presentation, renderer diagnostics, isolated-file heading-number
+  projection, authorized local-image resolution, viewport-relative source-span
+  lookup, centering, transient target emphasis, and anchor scrolling. The
+  coordinator retains project composition, Yjs source authority, source-map
+  translation, cross-panel projection, citation actions, and routing.
 - The preview navigation control owns browser-local top-navigation visibility,
   storage restoration, toggle and restore presentation, active-context
   availability, and focus handoff between its spatially separated controls.
