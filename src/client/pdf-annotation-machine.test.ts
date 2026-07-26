@@ -34,7 +34,6 @@ describe("PDF annotation interaction machine", () => {
       note: null,
       drawing: null,
       noteDrag: null,
-      notePress: null,
     });
     value.send({ type: "RESET" });
     expect(pdfAnnotationTool(value.getSnapshot())).toBe("text");
@@ -76,22 +75,6 @@ describe("PDF annotation interaction machine", () => {
     value.send({ type: "TOGGLE_NOTE_CARD", id: "note-1" });
     value.send({ type: "EDIT_NOTE", id: "note-1", page: 4, point });
     expect(value.getSnapshot().context.openNoteId).toBeNull();
-  });
-
-  it("places a note only after a stationary pointer gesture completes", () => {
-    const value = actor();
-    value.send({ type: "CHOOSE_TOOL", tool: "note" });
-    value.send({ type: "START_NOTE_PRESS", pointerId: 4, page: 2, point, x: 10, y: 10 });
-    expect(value.getSnapshot()).toMatchObject({ value: "pressingNote", context: { note: null } });
-    value.send({ type: "MOVE_NOTE_PRESS", pointerId: 4, x: 14, y: 13 });
-    value.send({ type: "FINISH_NOTE_PRESS", pointerId: 4 });
-    expect(value.getSnapshot()).toMatchObject({ value: "composingNote", context: { note: { page: 2, ...point } } });
-
-    value.send({ type: "NOTE_SAVED" });
-    value.send({ type: "START_NOTE_PRESS", pointerId: 5, page: 2, point, x: 10, y: 10 });
-    value.send({ type: "MOVE_NOTE_PRESS", pointerId: 5, x: 10, y: 40 });
-    value.send({ type: "FINISH_NOTE_PRESS", pointerId: 5 });
-    expect(value.getSnapshot()).toMatchObject({ value: "noteIdle", context: { note: null, notePress: null } });
   });
 
   it("accepts drawing samples only from the active pointer", () => {

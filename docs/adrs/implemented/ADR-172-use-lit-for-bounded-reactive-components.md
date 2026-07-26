@@ -217,9 +217,9 @@ The adopted components own bounded presentation:
   page coordinates, coalesced-sample accumulation and deduplication,
   delayed pixel-space shape recognition and adjustment, recognition-timer
   cleanup, note-pin and drawing-stroke hit-testing, tool-aware pointer-down
-  interpretation, local pointer capture, note-drag threshold and preview state,
-  drawing activation and continuation, and typed recognition, shape-adjustment,
-  and note-card close intents.
+  interpretation, local pointer capture, note-placement press and note-drag
+  thresholds, note-drag preview state, drawing activation and continuation, and
+  typed recognition, shape-adjustment, and note-card close intents.
 - The Library PDF project-use block owns unidentified, unlinked, and linked
   presentation, capability-boundary copy, citation preview, and a typed
   reference-link intent.
@@ -514,7 +514,10 @@ reason to wrap static markup mechanically.
   normalized preview position, and transient DOM update inside the layer. The
   state machine retains only the active note and pointer identity, while the
   application coordinator retains state-machine transitions, persistence,
-  inspector policy, and notifications.
+  inspector policy, and notifications. A prospective note placement similarly
+  remains layer-local until a stationary pointer release; only then does the
+  coordinator send the durable `PLACE_NOTE` workflow transition. The annotation
+  machine no longer models a transient note-press state.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers. The application coordinator retains
   canonical reference and project-link lookup, the linking mutation, snapshot

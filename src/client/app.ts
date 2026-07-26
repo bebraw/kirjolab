@@ -6192,15 +6192,7 @@ class WorkspaceApp {
       this.#selectLibraryPdfMarkup(action.id);
       return;
     }
-    if (action?.kind === "place-note") {
-      this.#pdfAnnotation.send({
-        type: "START_NOTE_PRESS",
-        pointerId: event.pointerId,
-        page: this.#pdfViewer.currentPage,
-        point: action.point,
-        x: event.clientX,
-        y: event.clientY,
-      });
+    if (action?.kind === "start-note") {
       return;
     }
     if (action?.kind === "touch-drawing") {
@@ -6214,11 +6206,7 @@ class WorkspaceApp {
   }
 
   #continueLibraryPdfDrawing(event: PointerEvent): void {
-    const notePress = this.#pdfAnnotationSnapshot().context.notePress;
-    if (notePress?.pointerId === event.pointerId) {
-      this.#pdfAnnotation.send({ type: "MOVE_NOTE_PRESS", pointerId: event.pointerId, x: event.clientX, y: event.clientY });
-      return;
-    }
+    if (this.#elements.paperMarkups.continueNotePress(event)) return;
     const drag = this.#pdfNoteDrag();
     if (drag?.pointerId === event.pointerId) {
       this.#elements.paperMarkups.continueNoteDrag(event, drag.id);
@@ -6232,8 +6220,9 @@ class WorkspaceApp {
   }
 
   async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {
-    if (this.#pdfAnnotationSnapshot().context.notePress?.pointerId === event.pointerId) {
-      this.#finishLibraryPdfNotePress(event.pointerId);
+    const notePress = this.#elements.paperMarkups.finishNotePress(event.pointerId);
+    if (notePress) {
+      if (notePress.point) this.#finishLibraryPdfNotePress(notePress.point);
       return;
     }
     if (this.#pdfNoteDrag()?.pointerId === event.pointerId) {
@@ -6248,9 +6237,8 @@ class WorkspaceApp {
     await this.#persistLibraryPdfDrawing(points);
   }
 
-  #finishLibraryPdfNotePress(pointerId: number): void {
-    this.#pdfAnnotation.send({ type: "FINISH_NOTE_PRESS", pointerId });
-    if (this.#pdfAnnotationSnapshot().value !== "composingNote") return;
+  #finishLibraryPdfNotePress(point: LibraryPdfPoint): void {
+    this.#pdfAnnotation.send({ type: "PLACE_NOTE", page: this.#pdfViewer.currentPage, point });
     this.#elements.libraryPdfAnnotationForms.showNote();
     this.#setLibraryPdfInspector(true);
     this.#renderPdfMarkups();

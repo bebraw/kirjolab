@@ -63,8 +63,20 @@ interface ActiveNoteDrag {
   moved: boolean;
 }
 
+interface ActiveNotePress {
+  readonly point: LibraryPdfPoint;
+  readonly pointerId: number;
+  readonly startX: number;
+  readonly startY: number;
+  moved: boolean;
+}
+
 export interface LibraryPdfNoteDragResult {
   readonly moved: boolean;
+  readonly point: LibraryPdfPoint | null;
+}
+
+export interface LibraryPdfNotePressResult {
   readonly point: LibraryPdfPoint | null;
 }
 
@@ -79,8 +91,8 @@ export type LibraryPdfMarkupTarget =
 
 export type LibraryPdfPointerAction =
   | { readonly id: string; readonly kind: "note" | "drawing" }
-  | { readonly kind: "place-note" | "start-drawing"; readonly point: LibraryPdfPoint }
-  | { readonly kind: "touch-drawing" };
+  | { readonly kind: "start-drawing"; readonly point: LibraryPdfPoint }
+  | { readonly kind: "start-note" | "touch-drawing" };
 
 interface MarkupTargetElement {
   closest(selector: string): Pick<Element, "getAttribute"> | null;
@@ -96,6 +108,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
   declare private data: LibraryPdfMarkupLayerData | null;
   private interactionTool: PdfAnnotationTool = "text";
   private noteDrag: ActiveNoteDrag | null = null;
+  private notePress: ActiveNotePress | null = null;
   private recognizedShape: RecognizedDrawnShape | null = null;
   private recognitionTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
@@ -113,6 +126,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
   setInteraction(tool: PdfAnnotationTool, drawingActive = false): void {
     if (!drawingActive) {
       this.cancelNoteDrag();
+      this.cancelNotePress();
       this.cancelShapeRecognition();
     }
     this.interactionTool = tool;
@@ -161,7 +175,16 @@ export class LibraryPdfMarkupLayer extends LitElement {
     }
     const point = this.point(event);
     if (!point) return null;
-    if (this.interactionTool === "note") return { kind: "place-note", point };
+    if (this.interactionTool === "note") {
+      this.notePress = {
+        point,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        moved: false,
+      };
+      return { kind: "start-note" };
+    }
     if (this.interactionTool !== "draw") return null;
     if (event.pointerType === "touch") return { kind: "touch-drawing" };
     event.preventDefault();
@@ -271,6 +294,24 @@ export class LibraryPdfMarkupLayer extends LitElement {
     const moved = this.noteDrag?.moved ?? false;
     this.noteDrag = null;
     return moved;
+  }
+
+  continueNotePress(event: ActivePointerEvent): boolean {
+    const press = this.notePress;
+    if (!press || press.pointerId !== event.pointerId) return false;
+    press.moved ||= Math.hypot(event.clientX - press.startX, event.clientY - press.startY) > 8;
+    return true;
+  }
+
+  finishNotePress(pointerId: number): LibraryPdfNotePressResult | null {
+    const press = this.notePress;
+    if (!press || press.pointerId !== pointerId) return null;
+    this.notePress = null;
+    return { point: press.moved ? null : press.point };
+  }
+
+  cancelNotePress(): void {
+    this.notePress = null;
   }
 
   updateDraft(points: readonly LibraryPdfPoint[]): void {

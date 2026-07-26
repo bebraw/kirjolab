@@ -359,6 +359,9 @@ collaboration.
   threshold, native-default suppression, normalized preview geometry, and the
   transient pin position. The annotation state machine retains active note and
   pointer identity, and the coordinator persists the final normalized position.
+  Prospective note placement stays within the layer through its eight-pixel
+  stationary-press threshold; only a stationary release sends the normalized
+  start point into the annotation composition workflow.
   The annotation toolbar owns the guidance associated with each tool, while
   the coordinator decides when that guidance is presented in the inspector.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,

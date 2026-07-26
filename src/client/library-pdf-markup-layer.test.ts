@@ -198,7 +198,17 @@ describe("library PDF markup layer", () => {
     expect(preventDefault).toHaveBeenCalledTimes(2);
     expect(layer.pointerAction(pointer(new EventTarget()))).toBeNull();
     layer.setInteraction("note");
-    expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "place-note", point: { x: 0.5, y: 0.5 } });
+    expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "start-note" });
+    expect(layer.continueNotePress({ clientX: 213, clientY: 120, pointerId: 8, preventDefault })).toBe(false);
+    expect(layer.continueNotePress({ clientX: 213, clientY: 120, pointerId: 7, preventDefault })).toBe(true);
+    expect(layer.finishNotePress(8)).toBeNull();
+    expect(layer.finishNotePress(7)).toEqual({ point: { x: 0.5, y: 0.5 } });
+    expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "start-note" });
+    expect(layer.continueNotePress({ clientX: 220, clientY: 120, pointerId: 7, preventDefault })).toBe(true);
+    expect(layer.finishNotePress(7)).toEqual({ point: null });
+    expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "start-note" });
+    layer.cancelNotePress();
+    expect(layer.finishNotePress(7)).toBeNull();
     layer.setInteraction("draw");
     expect(layer.pointerAction(pointer(new EventTarget(), "touch"))).toEqual({ kind: "touch-drawing" });
     expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "start-drawing", point: { x: 0.5, y: 0.5 } });

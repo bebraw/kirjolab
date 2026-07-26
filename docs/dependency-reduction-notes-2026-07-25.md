@@ -2881,3 +2881,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Note Placement
+
+`LibraryPdfMarkupLayer` now owns prospective note-placement start geometry, the
+eight-pixel stationary-press threshold, pointer identity, completion, and
+cancellation. It reports a normalized point only after a stationary release.
+The PDF annotation machine no longer models `pressingNote`, its transient
+context, guards, actions, or pointer events; `WorkspaceApp` sends `PLACE_NOTE`
+only when the layer completes a valid press.
+
+This checkpoint reduces `src/client/app.ts` from 7,014 to 7,002 lines (-12), the
+PDF annotation machine from 289 to 221 lines (-68), and the three runtime files
+by 39 lines overall. Focused unit coverage passes stationary, moved,
+mismatched-pointer, completion, and cancellation behavior. The private-PDF
+browser flow passes note placement, editing, movement, drawing, recognition,
+persistence, rendering, and annotated export.
+
+The browser application artifact changes from 801,417 B raw / 215,992 B gzip
+to 800,438 B raw / 215,744 B gzip (-979 B raw / -248 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,414 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
