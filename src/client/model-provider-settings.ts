@@ -79,6 +79,13 @@ export class ModelProviderSettings extends LitElement {
     void this.updateComplete.then(() => this.select("llm-connection").focus());
   }
 
+  open(): void {
+    const menu = this.closest("details");
+    if (!(menu instanceof HTMLDetailsElement)) throw new Error("Model provider settings require a details parent");
+    menu.open = true;
+    this.focusConnection();
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();

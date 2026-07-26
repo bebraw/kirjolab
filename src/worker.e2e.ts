@@ -5877,5 +5877,6 @@ async function openWritingAssistant(page: Page, includeSettings = false): Promis
   if (includeSettings) {
     await page.locator("#open-preferences-from-assistant").click();
     await expect(page.locator("#preferences-menu")).toHaveAttribute("open", "");
+    await expect(page.locator("#llm-connection")).toBeFocused();
   }
 }

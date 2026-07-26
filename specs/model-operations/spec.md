@@ -73,10 +73,10 @@ All mutation operations preserve a human review boundary.
   choices with identifiers reported by the configured endpoint.
 - One bounded model-provider settings component owns connection, endpoint,
   model, and reasoning values, saved-value validation, live option
-  presentation, discovery progress, and typed change and discovery intents.
-  The workspace coordinator retains browser-local persistence, provider
-  discovery, request construction, generation workflows, and assistant status
-  policy.
+  presentation, discovery progress, opening its enclosing preferences menu,
+  connection-control focus, and typed change and discovery intents. The
+  workspace coordinator retains browser-local persistence, provider discovery,
+  request construction, generation workflows, and assistant status policy.
 - One bounded assistant workflow status component owns operation-specific
   attribution and initial status copy, subsequent live status presentation,
   and typed evidence and connection intents. The workspace coordinator retains

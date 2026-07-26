@@ -425,7 +425,6 @@ interface PendingDeletion {
 }
 
 interface Elements {
-  preferencesMenu: HTMLDetailsElement;
   modelProviderSettings: ModelProviderSettings;
   applicationVersion: ApplicationVersionControl;
   citationCompletionScope: HTMLSelectElement;
@@ -1335,10 +1334,7 @@ class WorkspaceApp {
     this.#elements.assistantWorkflowStatus.addEventListener(assistantWorkflowActionEvent, (event) => {
       const action = (event as CustomEvent<AssistantWorkflowAction>).detail;
       if (action === "choose-evidence") this.#chooseModelEvidence();
-      else {
-        this.#elements.preferencesMenu.open = true;
-        this.#elements.modelProviderSettings.focusConnection();
-      }
+      else this.#elements.modelProviderSettings.open();
     });
     this.#elements.assistantInteractiveResult.addEventListener(assistantResultActionEvent, (event) => {
       void this.#handleAssistantResultAction((event as CustomEvent<AssistantResultActionDetail>).detail);
@@ -7144,7 +7140,6 @@ function researchTabRouteLocation(tab: ResearchContextState["tabs"][number] | un
 
 function collectElements(): Elements {
   return {
-    preferencesMenu: requiredElement("preferences-menu", HTMLDetailsElement),
     modelProviderSettings: requiredElement("model-provider-settings", ModelProviderSettings),
     applicationVersion: requiredElement("application-version-control", ApplicationVersionControl),
     citationCompletionScope: requiredElement("citation-completion-scope", HTMLSelectElement),

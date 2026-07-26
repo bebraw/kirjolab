@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ModelProviderSettings, modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
 
 class TestModelProviderSettings extends ModelProviderSettings {
+  focusCount = 0;
+
   renderForTest() {
     return this.render();
   }
@@ -21,7 +23,17 @@ class TestModelProviderSettings extends ModelProviderSettings {
   discoverForTest(): void {
     this.discover();
   }
+
+  override focusConnection(): void {
+    this.focusCount += 1;
+  }
 }
+
+class FakeDetails extends EventTarget {
+  open = false;
+}
+
+afterEach(() => vi.unstubAllGlobals());
 
 function eventWithValue(value: string): Event {
   const event = new Event("test");
@@ -83,5 +95,17 @@ describe("model provider settings", () => {
       null,
     ]);
     expect(discoveries).toBe(1);
+  });
+
+  it("opens its preferences host and focuses the connection control", () => {
+    const panel = new TestModelProviderSettings();
+    const menu = new FakeDetails();
+    vi.stubGlobal("HTMLDetailsElement", FakeDetails);
+    Object.defineProperty(panel, "closest", { value: () => menu });
+
+    panel.open();
+
+    expect(menu.open).toBe(true);
+    expect(panel.focusCount).toBe(1);
   });
 });

@@ -2208,6 +2208,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,389 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Model Preferences Entry
+
+`ModelProviderSettings` now opens its enclosing preferences menu and focuses
+the connection selector when Writing assistant requests connection settings.
+`WorkspaceApp` no longer addresses the outer preferences shell separately.
+
+This checkpoint reduces `src/client/app.ts` from 7,357 to 7,352 lines (-5),
+removes the preferences-menu reference, and consolidates split open/focus
+coordination. Focused unit and browser coverage verifies menu opening and
+connection focus through Writing assistant.
+
+The browser application artifact changes from 789,109 B raw / 212,926 B gzip
+to 789,183 B raw / 212,957 B gzip (+74 B raw / +31 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,390 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Contract: Project-File Save Mode
 
 `ProjectFileDialog` now emits its owned operation mode together with the

@@ -169,8 +169,8 @@ The adopted components own bounded presentation:
   choices, result counts, reset behavior, and a typed filter-change intent.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, saved-value validation, dynamic model choices,
-  discovery progress, status presentation, and typed change and discovery
-  intents.
+  discovery progress, status presentation, opening and focusing its preferences
+  host, and typed change and discovery intents.
 - The claim dialog owns create and edit presentation, proposition and note
   values, evidence-relation and annotation selection, modal lifecycle, and a
   typed save intent.
@@ -413,9 +413,11 @@ reason to wrap static markup mechanically.
   application coordinator.
 - The model provider settings panel replaces six internal element references,
   duplicate preference listeners and status synchronization, stored-value
-  validation, and imperative model-option rendering while leaving provider
-  discovery, local persistence, request construction, generation workflows,
-  and assistant status policy in the application coordinator.
+  validation, and imperative model-option rendering. It also removes the
+  coordinator's preferences-host reference and split open/focus coordination
+  while leaving provider discovery, local persistence, request construction,
+  generation workflows, and assistant status policy in the application
+  coordinator.
 - The claim dialog replaces eight internal element references, one coordinator
   field, imperative evidence-option rendering, DOM-based selection collection,
   and modal configuration while leaving evidence prerequisites, API mutation,
