@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LatexImportPreview } from "./app-contracts";
-import { LatexImportPanel, latexImportCompleteEvent } from "./latex-import-panel";
+import { LatexImportPanel } from "./latex-import-panel";
 
 const preview: LatexImportPreview = {
   archive: {
@@ -118,11 +118,11 @@ describe("LaTeX import panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("owns preview and creation requests and emits complete navigation", async () => {
+  it("owns preview, creation, and canonical project navigation", async () => {
     const panel = new TestLatexImportPanel();
     const archive = new File(["zip"], "my-paper.zip", { type: "application/zip" });
-    const actions: string[] = [];
-    panel.addEventListener(latexImportCompleteEvent, (event) => actions.push((event as CustomEvent<string>).detail));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(Response.json(preview))
@@ -134,7 +134,7 @@ describe("LaTeX import panel", () => {
     panel.titleForTest("Reviewed paper");
     await panel.confirmForTest();
 
-    expect(actions).toEqual(["/editor/project"]);
+    expect(assign.mock.calls).toEqual([["/editor/project"]]);
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/latex-import-previews", expect.objectContaining({ body: archive, method: "POST" }));
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -146,8 +146,8 @@ describe("LaTeX import panel", () => {
   it("requires re-preview after root changes and rejects oversized archives locally", async () => {
     const panel = new TestLatexImportPanel();
     const archive = new File(["zip"], "paper.zip", { type: "application/zip" });
-    const actions: string[] = [];
-    panel.addEventListener(latexImportCompleteEvent, (event) => actions.push((event as CustomEvent<string>).detail));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
 
     panel.archiveFile = archive;
     panel.previewSucceeded(preview);
@@ -156,7 +156,7 @@ describe("LaTeX import panel", () => {
     panel.archiveFile = { name: "large.zip", size: 20 * 1024 * 1024 + 1 } as File;
     await panel.previewForTest();
 
-    expect(actions).toEqual([]);
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it("presents preview and creation response failures", async () => {

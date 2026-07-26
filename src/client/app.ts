@@ -61,7 +61,6 @@ import {
   type GitHubSyncStateDetail,
 } from "./github-sync-menu";
 import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
-import { latexImportCompleteEvent } from "./latex-import-panel";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
 import {
@@ -498,9 +497,6 @@ class WorkspaceApp {
     });
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointTemplateDeleteEvent, (event) => {
       this.#deleteProjectTemplate((event as CustomEvent<ProjectTemplateSummary>).detail);
-    });
-    this.#elements.latexImportPanel.addEventListener(latexImportCompleteEvent, (event) => {
-      location.assign((event as CustomEvent<string>).detail);
     });
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportCompleteEvent, (event) => {
       location.assign((event as CustomEvent<string>).detail);

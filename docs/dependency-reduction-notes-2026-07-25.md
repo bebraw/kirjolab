@@ -5705,6 +5705,27 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: LaTeX Import Navigation
+
+`LatexImportPanel` now navigates directly to the successful import response's
+canonical workspace href. The completion event and `WorkspaceApp` listener are
+removed; the coordinator continues to own opening the workflow while the panel
+retains its request, response-validation, dialog, and failure lifecycles.
+
+This checkpoint reduces `src/client/app.ts` from 3,953 to 3,949 lines (-4) and
+the LaTeX import panel from 325 to 319 lines (-6). Runtime and focused test
+source across the three changed files decreases by ten lines. Five focused and
+seven affected tests pass alongside strict types.
+
+The browser application artifact changes from 823,593 B raw / 222,967 B gzip
+to 823,413 B raw / 222,946 B gzip (-180 B raw / -21 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 250 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Workspace Switcher Navigation
 
 `WorkspaceSwitcher` now resolves a changed selection against its supplied

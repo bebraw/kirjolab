@@ -18,8 +18,8 @@ not translate cleanly.
   native dialog lifecycle. It also owns the authenticated preview and creation
   requests, constructs them from its current reviewed state, validates both
   responses with the shared Valibot boundary contracts, closes itself on
-  cancellation, and emits only a completed-navigation href. The application
-  coordinator retains browser navigation.
+  cancellation, and navigates to the successful response's canonical workspace
+  href.
 - Archive inspection and conservative conversion run in the authenticated
   Worker. Uploaded ZIP bytes are transient request data and are never stored.
 - The importer accepts one bounded ZIP, rejects encrypted entries, traversal,
