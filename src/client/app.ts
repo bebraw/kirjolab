@@ -109,7 +109,13 @@ import {
   libraryPdfAnnotationListActionEvent,
   type LibraryPdfAnnotationListAction,
 } from "./library-pdf-annotation-list";
-import { LibraryPdfMarkupLayer, libraryPdfMarkupLayerActionEvent, type LibraryPdfMarkupLayerAction } from "./library-pdf-markup-layer";
+import {
+  LibraryPdfMarkupLayer,
+  libraryPdfMarkupLayerActionEvent,
+  libraryPdfShapeRecognizedEvent,
+  type LibraryPdfMarkupLayerAction,
+  type LibraryPdfShapeRecognition,
+} from "./library-pdf-markup-layer";
 import { LibraryPdfProjectUse, libraryPdfProjectUseActionEvent, type LibraryPdfProjectUseAction } from "./library-pdf-project-use";
 import { LibraryPdfAnnotationToolbar, libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector, libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
@@ -641,7 +647,6 @@ class WorkspaceApp {
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
   #pdfDrawingShape: RecognizedDrawnShape | null = null;
-  #pdfDrawingShapeTimer: number | undefined;
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
   #editingLibraryHighlightId: string | null = null;
   #pdfHighlightDetectionArtifactId: string | null = null;
@@ -1181,6 +1186,14 @@ class WorkspaceApp {
       this.#pdfAnnotation.send({ type: "CLOSE_NOTE_CARD" });
       this.#renderPdfMarkups();
       this.#elements.paperMarkups.focusNote(noteId);
+    });
+    this.#elements.paperMarkups.addEventListener(libraryPdfShapeRecognizedEvent, (event) => {
+      const { pointerId, points, shape } = (event as CustomEvent<LibraryPdfShapeRecognition>).detail;
+      if (this.#pdfDrawingPointer() !== pointerId || !this.#pdfDrawingDraft()) return;
+      this.#pdfDrawingShape = shape;
+      this.#pdfAnnotation.send({ type: "SNAP_DRAWING_SHAPE", pointerId, points });
+      const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[shape.kind];
+      this.#elements.libraryPdfInspector.setStatus(`${label} snapped into place. Keep dragging to adjust it, or lift to save.`);
     });
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
       const detail = (event as CustomEvent<ClaimListAction>).detail;
@@ -6261,23 +6274,7 @@ class WorkspaceApp {
     if (!update) return;
     this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: update.additions });
     this.#elements.paperMarkups.updateDraft(update.points);
-    this.#scheduleLibraryPdfShapeRecognition(event.pointerId);
-  }
-
-  #scheduleLibraryPdfShapeRecognition(pointerId: number): void {
-    if (this.#pdfDrawingShapeTimer !== undefined) window.clearTimeout(this.#pdfDrawingShapeTimer);
-    this.#pdfDrawingShapeTimer = window.setTimeout(() => {
-      this.#pdfDrawingShapeTimer = undefined;
-      const draft = this.#pdfDrawingDraft();
-      if (this.#pdfDrawingPointer() !== pointerId || !draft) return;
-      const recognized = this.#elements.paperMarkups.recognizeShape(draft);
-      if (!recognized) return;
-      this.#pdfDrawingShape = recognized.shape;
-      this.#pdfAnnotation.send({ type: "SNAP_DRAWING_SHAPE", pointerId, points: recognized.points });
-      this.#elements.paperMarkups.updateDraft(recognized.points);
-      const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[recognized.shape.kind];
-      this.#elements.libraryPdfInspector.setStatus(`${label} snapped into place. Keep dragging to adjust it, or lift to save.`);
-    }, 850);
+    this.#elements.paperMarkups.scheduleShapeRecognition(event.pointerId, update.points);
   }
 
   #adjustLibraryPdfDrawingShape(event: PointerEvent): void {
@@ -6340,8 +6337,7 @@ class WorkspaceApp {
   }
 
   #clearLibraryPdfShapeRecognition(): void {
-    if (this.#pdfDrawingShapeTimer !== undefined) window.clearTimeout(this.#pdfDrawingShapeTimer);
-    this.#pdfDrawingShapeTimer = undefined;
+    this.#elements.paperMarkups.cancelShapeRecognition();
     this.#pdfDrawingShape = null;
   }
 

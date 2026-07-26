@@ -2690,3 +2690,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Shape Recognition Timing
+
+`LibraryPdfMarkupLayer` now owns the delayed shape-recognition timer, live
+snapped-draft update, cancellation, and disconnect cleanup. It emits a typed
+recognition intent after applying its rendered-bound geometry.
+`WorkspaceApp` retains stale-pointer protection, recognized-shape gesture
+state, annotation-machine transitions, persistence, and inspector messaging.
+
+This checkpoint reduces `src/client/app.ts` from 7,078 to 7,074 lines (-4)
+and removes its component-local timer field and scheduling method. Focused unit
+coverage passes the delay, recognition event, and cancellation contract; the
+real held-pointer private-PDF browser flow passes recognition, persistence,
+rendering, and annotated export.
+
+The browser application artifact changes from 800,029 B raw / 215,499 B gzip
+to 800,454 B raw / 215,695 B gzip (+425 B raw / +196 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,414 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

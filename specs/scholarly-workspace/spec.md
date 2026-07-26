@@ -340,8 +340,10 @@ collaboration.
   active-tool and drawing attributes plus clamped pointer normalization against
   its rendered page bounds, coalesced-sample accumulation and near-duplicate
   rejection, pixel-space shape recognition, and adjustment back to normalized
-  page points; the coordinator retains gesture and recognized shape state,
-  workflow transitions, and persistence.
+  page points. The layer schedules and cancels delayed recognition, updates the
+  live draft, and emits a typed recognition intent; the coordinator retains
+  gesture and recognized shape state, workflow transitions, persistence, and
+  inspector messaging.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and

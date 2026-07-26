@@ -30,6 +30,10 @@ export interface LibraryPdfRecognizedShape {
   readonly shape: RecognizedDrawnShape;
 }
 
+export interface LibraryPdfShapeRecognition extends LibraryPdfRecognizedShape {
+  readonly pointerId: number;
+}
+
 interface DrawingPointerSample {
   readonly clientX: number;
   readonly clientY: number;
@@ -45,11 +49,13 @@ export interface LibraryPdfDrawingUpdate {
 }
 
 export const libraryPdfMarkupLayerActionEvent = "library-pdf-markup-layer-action";
+export const libraryPdfShapeRecognizedEvent = "library-pdf-shape-recognized";
 
 export class LibraryPdfMarkupLayer extends LitElement {
   static override properties = { data: { state: true } };
 
   declare private data: LibraryPdfMarkupLayerData | null;
+  private recognitionTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
   constructor() {
     super();
@@ -96,6 +102,27 @@ export class LibraryPdfMarkupLayer extends LitElement {
     return shape ? { points: relativePoints(shape.points, rect), shape } : null;
   }
 
+  scheduleShapeRecognition(pointerId: number, points: readonly LibraryPdfPoint[]): void {
+    this.cancelShapeRecognition();
+    this.recognitionTimer = globalThis.setTimeout(() => {
+      this.recognitionTimer = undefined;
+      const recognized = this.recognizeShape(points);
+      if (!recognized) return;
+      this.updateDraft(recognized.points);
+      this.dispatchEvent(
+        new CustomEvent<LibraryPdfShapeRecognition>(libraryPdfShapeRecognizedEvent, {
+          bubbles: true,
+          detail: { pointerId, ...recognized },
+        }),
+      );
+    }, 850);
+  }
+
+  cancelShapeRecognition(): void {
+    if (this.recognitionTimer !== undefined) globalThis.clearTimeout(this.recognitionTimer);
+    this.recognitionTimer = undefined;
+  }
+
   adjustShape(shape: RecognizedDrawnShape, event: Pick<PointerEvent, "clientX" | "clientY">): readonly LibraryPdfPoint[] | null {
     const rect = this.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return null;
@@ -123,6 +150,11 @@ export class LibraryPdfMarkupLayer extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+  }
+
+  override disconnectedCallback(): void {
+    this.cancelShapeRecognition();
+    super.disconnectedCallback();
   }
 
   protected override createRenderRoot(): HTMLElement {

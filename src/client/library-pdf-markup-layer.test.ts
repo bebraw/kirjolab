@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfDrawing, LibraryPdfNote } from "../domain/reference-library";
-import { LibraryPdfMarkupLayer, libraryPdfMarkupLayerActionEvent, type LibraryPdfMarkupLayerAction } from "./library-pdf-markup-layer";
+import {
+  LibraryPdfMarkupLayer,
+  libraryPdfMarkupLayerActionEvent,
+  libraryPdfShapeRecognizedEvent,
+  type LibraryPdfMarkupLayerAction,
+  type LibraryPdfShapeRecognition,
+} from "./library-pdf-markup-layer";
 
 class TestMarkupLayer extends LibraryPdfMarkupLayer {
   renderForTest() {
@@ -46,6 +52,8 @@ const note: LibraryPdfNote = {
 };
 
 describe("library PDF markup layer", () => {
+  afterEach(() => vi.useRealTimers());
+
   it("owns empty, drawing, draft, selected-note, and open-note presentation", () => {
     const layer = new TestMarkupLayer();
     expect(layer.rootForTest()).toBe(layer);
@@ -131,5 +139,41 @@ describe("library PDF markup layer", () => {
     expect(layer.point({ clientX: 0, clientY: 0 })).toBeNull();
     expect(layer.recognizeShape(drawing.points)).toBeNull();
     expect(recognized && layer.adjustShape(recognized.shape, { clientX: 0, clientY: 0 })).toBeNull();
+  });
+
+  it("owns delayed shape recognition and cancellation", () => {
+    vi.useFakeTimers();
+    const layer = new TestMarkupLayer();
+    Object.defineProperties(layer, {
+      getBoundingClientRect: { configurable: true, value: () => ({ height: 200, left: 0, top: 0, width: 400 }) },
+      querySelector: { configurable: true, value: () => null },
+    });
+    const recognized: LibraryPdfShapeRecognition[] = [];
+    layer.addEventListener(libraryPdfShapeRecognizedEvent, (event) => {
+      recognized.push((event as CustomEvent<LibraryPdfShapeRecognition>).detail);
+    });
+
+    layer.scheduleShapeRecognition(7, [
+      { x: 0.1, y: 0.2 },
+      { x: 0.8, y: 0.2 },
+    ]);
+    vi.advanceTimersByTime(849);
+    expect(recognized).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(recognized).toEqual([
+      {
+        pointerId: 7,
+        points: [
+          { x: 0.1, y: 0.2 },
+          { x: 0.8, y: 0.2 },
+        ],
+        shape: expect.objectContaining({ kind: "line" }),
+      },
+    ]);
+
+    layer.scheduleShapeRecognition(8, drawing.points);
+    layer.cancelShapeRecognition();
+    vi.runAllTimers();
+    expect(recognized).toHaveLength(1);
   });
 });
