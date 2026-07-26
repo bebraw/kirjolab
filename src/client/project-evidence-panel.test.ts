@@ -138,25 +138,29 @@ describe("project evidence panel", () => {
     Object.defineProperty(panel, "querySelector", { value: () => null });
     expect(panel.focusEvidence()).toBe(false);
     expect(panel.renderForTest()).toBeDefined();
-    panel.setEvidence({
-      annotations: [annotation, { ...annotation, id: "annotation:2", pdfId: "missing" }],
-      claimEvidenceLinks: [],
-      links: [link],
-      pdfs: [pdf],
-      publicationPdfLinks: [],
-      selectedEvidenceKeys: new Set(["annotation:1"]),
-    });
+    panel.setEvidence(
+      {
+        annotations: [annotation, { ...annotation, id: "annotation:2", pdfId: "missing" }],
+        claimEvidenceLinks: [],
+        links: [link],
+        pdfs: [pdf],
+        publicationPdfLinks: [],
+      },
+      new Set(["annotation:1"]),
+    );
     panel.toggleForTest(pdf.id);
     panel.toggleEvidenceForTest(false);
     expect(panel.renderForTest()).toBeDefined();
-    panel.setEvidence({
-      annotations: [],
-      claimEvidenceLinks: [],
-      links: [],
-      pdfs: [],
-      publicationPdfLinks: [],
-      selectedEvidenceKeys: new Set(),
-    });
+    panel.setEvidence(
+      {
+        annotations: [],
+        claimEvidenceLinks: [],
+        links: [],
+        pdfs: [],
+        publicationPdfLinks: [],
+      },
+      new Set(),
+    );
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
   });
@@ -165,14 +169,16 @@ describe("project evidence panel", () => {
     const panel = new TestProjectEvidencePanel();
     const actions: ProjectEvidenceAction[] = [];
     panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
-    panel.setEvidence({
-      annotations: [annotation],
-      claimEvidenceLinks: [],
-      links: [link],
-      pdfs: [pdf],
-      publicationPdfLinks: [],
-      selectedEvidenceKeys: new Set(),
-    });
+    panel.setEvidence(
+      {
+        annotations: [annotation],
+        claimEvidenceLinks: [],
+        links: [link],
+        pdfs: [pdf],
+        publicationPdfLinks: [],
+      },
+      new Set(),
+    );
 
     panel.toggleForTest();
     panel.pdfForTest("open", "missing");
@@ -208,14 +214,16 @@ describe("project evidence panel", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.configure("/api/workspaces/workspace");
     panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
-    panel.setEvidence({
-      annotations: [annotation],
-      claimEvidenceLinks: [],
-      links: [],
-      pdfs: [pdf],
-      publicationPdfLinks: [],
-      selectedEvidenceKeys: new Set(),
-    });
+    panel.setEvidence(
+      {
+        annotations: [annotation],
+        claimEvidenceLinks: [],
+        links: [],
+        pdfs: [pdf],
+        publicationPdfLinks: [],
+      },
+      new Set(),
+    );
 
     await panel.fragmentForTest("save", undefined, "missing");
     await panel.fragmentForTest("save");
@@ -365,14 +373,16 @@ describe("project evidence panel", () => {
       vi.fn(() => true),
     );
     panel.configure("/api/workspaces/workspace");
-    panel.setEvidence({
-      annotations: [annotation],
-      claimEvidenceLinks: [],
-      links: [],
-      pdfs: [pdf],
-      publicationPdfLinks: [publicationPdfLink],
-      selectedEvidenceKeys: new Set(),
-    });
+    panel.setEvidence(
+      {
+        annotations: [annotation],
+        claimEvidenceLinks: [],
+        links: [],
+        pdfs: [pdf],
+        publicationPdfLinks: [publicationPdfLink],
+      },
+      new Set(),
+    );
 
     await panel.removeForTest();
 
@@ -451,14 +461,16 @@ describe("project evidence panel", () => {
       "confirm",
       vi.fn(() => true),
     );
-    panel.setEvidence({
-      annotations: [annotation],
-      claimEvidenceLinks: [claimEvidenceLink],
-      links: [link],
-      pdfs: [pdf],
-      publicationPdfLinks: [],
-      selectedEvidenceKeys: new Set(),
-    });
+    panel.setEvidence(
+      {
+        annotations: [annotation],
+        claimEvidenceLinks: [claimEvidenceLink],
+        links: [link],
+        pdfs: [pdf],
+        publicationPdfLinks: [],
+      },
+      new Set(),
+    );
     panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
 
     await panel.removeAnnotationForTest();

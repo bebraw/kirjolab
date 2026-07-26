@@ -1,13 +1,12 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type {
   AnnotationResource,
-  ClaimEvidenceLink,
   CreatePassageLinkInput,
   ManuscriptAnchorSelector,
   PassageLink,
   PdfResource,
-  PublicationPdfLink,
   UpdateAnnotationFragmentInput,
+  WorkspaceSnapshot,
 } from "../domain/workspace";
 import { formatBytes } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
@@ -31,14 +30,12 @@ export type ProjectEvidenceAction =
   | { readonly action: "remove-fragment"; readonly annotationId: string; readonly fragmentId: string }
   | { readonly action: "pdf-removed"; readonly message: string };
 
-interface ProjectEvidenceData {
-  readonly annotations: readonly AnnotationResource[];
-  readonly claimEvidenceLinks: readonly ClaimEvidenceLink[];
+type ProjectEvidenceSnapshot = Pick<WorkspaceSnapshot, "annotations" | "claimEvidenceLinks" | "links" | "pdfs" | "publicationPdfLinks">;
+
+type ProjectEvidenceData = Omit<ProjectEvidenceSnapshot, "links"> & {
   readonly links: readonly PassageLink[];
-  readonly pdfs: readonly PdfResource[];
-  readonly publicationPdfLinks: readonly PublicationPdfLink[];
   readonly selectedEvidenceKeys: ReadonlySet<string>;
-}
+};
 
 export class ProjectEvidencePanel extends LitElement {
   static override properties = {
@@ -72,7 +69,15 @@ export class ProjectEvidencePanel extends LitElement {
     this.apiBase = apiBase;
   }
 
-  setEvidence(data: ProjectEvidenceData): void {
+  setEvidence(snapshot: ProjectEvidenceSnapshot, selectedEvidenceKeys: ReadonlySet<string>): void {
+    const data = {
+      annotations: snapshot.annotations,
+      claimEvidenceLinks: snapshot.claimEvidenceLinks,
+      links: snapshot.links,
+      pdfs: snapshot.pdfs,
+      publicationPdfLinks: snapshot.publicationPdfLinks,
+      selectedEvidenceKeys,
+    };
     const previousTotal = this.data.pdfs.length + this.data.annotations.length;
     this.data = data;
     const total = data.pdfs.length + data.annotations.length;

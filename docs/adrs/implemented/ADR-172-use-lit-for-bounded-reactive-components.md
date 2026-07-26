@@ -144,7 +144,10 @@ The adopted components own bounded presentation:
   highlight-fragment update and deletion transport, trimmed-quote validation,
   annotation-passage-link transport from a coordinator-validated typed passage,
   duplicate-mutation gates, pending and retryable failure state, and typed
-  navigation, mutation, notice, and completed outcomes.
+  navigation, mutation, notice, and completed outcomes. It projects its PDFs,
+  annotations, claim-evidence links, passage links, and publication-PDF links
+  directly from the canonical workspace snapshot plus browser-local evidence
+  selection.
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, the workspace quick-open shortcut and
   selection, action menus, listener teardown, encoded empty-folder and image

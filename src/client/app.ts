@@ -2220,7 +2220,8 @@ class WorkspaceApp {
     this.#captureActiveContextState();
     this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
     this.#elements.assistantWorkflowStatus.reconcileEvidence(this.#snapshot.annotations, this.#snapshot.claims);
-    this.#renderProjectEvidence();
+    this.#elements.projectEvidencePanel.setEvidence(this.#snapshot, this.#elements.assistantWorkflowStatus.selectedEvidenceKeys);
+    this.#elements.projectAnnotationForm.setPdfs(this.#snapshot.pdfs, this.#renderedPdfId ?? "");
     this.#elements.publicationListPanel.setPublications({
       projectReferences: this.#snapshot.projectReferences,
       publications: this.#snapshot.publications,
@@ -2251,20 +2252,6 @@ class WorkspaceApp {
       ]),
       candidateIds: new Set(this.#snapshot?.candidates.map((candidate) => candidate.id) ?? []),
     };
-  }
-
-  #renderProjectEvidence(): void {
-    if (!this.#snapshot) return;
-    const { annotations, links, pdfs } = this.#snapshot;
-    this.#elements.projectEvidencePanel.setEvidence({
-      annotations,
-      claimEvidenceLinks: this.#snapshot.claimEvidenceLinks,
-      links,
-      pdfs,
-      publicationPdfLinks: this.#snapshot.publicationPdfLinks,
-      selectedEvidenceKeys: this.#elements.assistantWorkflowStatus.selectedEvidenceKeys,
-    });
-    this.#elements.projectAnnotationForm.setPdfs(pdfs, this.#renderedPdfId ?? "");
   }
 
   #openAnnotationEvidence(annotation: AnnotationResource): void {

@@ -152,6 +152,9 @@ collaboration.
   available for existing projects without advertising the superseded upload
   path. Research hides the collection when both are absent; otherwise one
   compact Project evidence collection groups highlights beneath their paper.
+  Its Lit panel projects PDFs, annotations, claim-evidence links, passage links,
+  and publication-PDF links directly from the canonical workspace snapshot plus
+  browser-local evidence selection.
   Its Lit panel owns guarded PDF removal only after both annotations and
   explicit publication links are absent, and guarded annotation removal only
   after claim evidence is absent. It derives passage-link confirmation counts,

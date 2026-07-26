@@ -5579,6 +5579,29 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Evidence Snapshot Projection
+
+`ProjectEvidencePanel` now projects its PDFs, annotations, claim-evidence links,
+passage links, and publication-PDF links directly from the canonical workspace
+snapshot plus browser-local evidence selection. `WorkspaceApp` retains PDF-form
+coordination, selection mutation, navigation, canonical refresh, and
+notification policy without its project-evidence projection wrapper.
+
+This checkpoint reduces `src/client/app.ts` from 3,994 to 3,981 lines (-13) and
+grows the project-evidence owner from 544 to 549 lines. Runtime source across
+those two files decreases by eight lines while replacing a coordinator-owned
+six-field projection with one canonical snapshot boundary. Seventeen focused
+and 19 affected tests pass alongside strict types.
+
+The browser application artifact changes from 824,635 B raw / 223,088 B gzip
+to 824,593 B raw / 223,088 B gzip (-42 B raw / unchanged gzip). Styles, direct
+and unique production package counts, and the readability audit remain
+unchanged at 135,411 B raw / 23,373 B gzip, 18, 150, and 254 externally visible
+low-level component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys
