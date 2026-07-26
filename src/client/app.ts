@@ -706,6 +706,7 @@ class WorkspaceApp {
       else if (detail.action === "insert-asset") this.#insertProjectImage(detail.asset);
       else void this.#deleteProjectImage(detail.asset);
     });
+    this.#elements.projectTreePanel.configure(apiBase);
     this.#elements.projectImageUpload.configure(apiBase);
     this.#elements.projectImageUpload.addEventListener(projectImagesUploadedEvent, (event) => {
       this.#completeProjectImageUpload((event as CustomEvent<ProjectImagesUploaded>).detail);
@@ -2169,14 +2170,7 @@ class WorkspaceApp {
         this.#renderProjectFiles();
       },
       commit: async () => {
-        const response = await fetch(`${apiBase}/folders/${encodeURIComponent(folder.id)}`, {
-          method: "DELETE",
-          credentials: "same-origin",
-        });
-        await expectOk(response);
-        const value: unknown = await response.json();
-        if (!isWorkspaceSnapshot(value)) throw new Error("Project folder operation returned an invalid workspace");
-        this.#snapshot = value;
+        this.#snapshot = await this.#elements.projectTreePanel.deleteFolder(folder.id);
         this.#renderProjectFiles();
       },
     });
@@ -2226,14 +2220,7 @@ class WorkspaceApp {
         void this.#renderPreview();
       },
       commit: async () => {
-        const response = await fetch(`${apiBase}/assets/${encodeURIComponent(asset.id)}`, {
-          method: "DELETE",
-          credentials: "same-origin",
-        });
-        await expectOk(response);
-        const value: unknown = await response.json();
-        if (!isWorkspaceSnapshot(value)) throw new Error("Image deletion returned an invalid workspace");
-        this.#snapshot = value;
+        this.#snapshot = await this.#elements.projectTreePanel.deleteAsset(asset.id);
         this.#renderProjectFiles();
         void this.#renderPreview();
       },

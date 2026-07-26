@@ -130,8 +130,11 @@ The adopted components own bounded presentation:
   navigation, mutation, notice, and completed outcomes.
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, the workspace quick-open shortcut and
-  selection, action menus, listener teardown, and typed file, folder, image,
-  and quick-open intents.
+  selection, action menus, listener teardown, encoded empty-folder and image
+  deletion transport, response validation, and typed file, folder, image, and
+  quick-open intents. The coordinator retains optimistic hiding, delayed commit
+  scheduling, Undo restoration, snapshot application, rendering, and failure
+  notification.
 - The project image upload control owns the image file input, sequential upload
   transport, response validation, duplicate-submit gating, local progress and
   retryable failure state, and a typed completed outcome carrying the final
@@ -468,10 +471,10 @@ reason to wrap static markup mechanically.
 - The project tree panel replaces three internal element references and the
   imperative filter, hierarchy, row, and action-menu renderers. Its companion
   image upload control also replaces the coordinator file-input listener and
-  sequential upload request. File and folder mutations, editor rebinding,
-  validated snapshot application, image insertion and deferred deletion,
-  include insertion, and cross-feature rendering remain in the application
-  coordinator.
+  sequential upload request, while the tree replaces the empty-folder and image
+  DELETE requests. File deletion, editor rebinding, validated snapshot
+  application, image insertion, optimistic hide and Undo coordination, include
+  insertion, and cross-feature rendering remain in the application coordinator.
 - The manuscript map panel replaces seven internal element references and the
   imperative metric, outline, structural-cue, and editing-cue renderers while
   leaving composed-source derivation and file-qualified editor focus in the

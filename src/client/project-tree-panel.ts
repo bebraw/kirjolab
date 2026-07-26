@@ -1,5 +1,7 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { ProjectAsset, ProjectFile, ProjectFolder } from "../domain/project-files";
+import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
+import { expectOk } from "./http";
 
 export const projectTreeActionEvent = "project-tree-action";
 
@@ -33,6 +35,7 @@ export class ProjectTreePanel extends LitElement {
 
   declare private data: ProjectTreeData;
   declare private query: string;
+  private apiBase = "";
 
   constructor() {
     super();
@@ -45,6 +48,18 @@ export class ProjectTreePanel extends LitElement {
       for (const menu of this.querySelectorAll<HTMLDetailsElement>("details[open]")) menu.open = false;
     }
     this.data = data;
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
+  }
+
+  deleteAsset(assetId: string): Promise<WorkspaceSnapshot> {
+    return this.deleteResource("assets", assetId, "Image deletion returned an invalid workspace");
+  }
+
+  deleteFolder(folderId: string): Promise<WorkspaceSnapshot> {
+    return this.deleteResource("folders", folderId, "Project folder operation returned an invalid workspace");
   }
 
   focusFilter(): void {
@@ -234,6 +249,17 @@ export class ProjectTreePanel extends LitElement {
         ${file.id === this.data.entryFileId ? html`<span class="project-file-kind">entry</span>` : nothing}
       </button>
     `;
+  }
+
+  private async deleteResource(resource: "assets" | "folders", id: string, invalidMessage: string): Promise<WorkspaceSnapshot> {
+    const response = await fetch(`${this.apiBase}/${resource}/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isWorkspaceSnapshot(value)) throw new Error(invalidMessage);
+    return value;
   }
 
   private emit(detail: ProjectTreeAction): void {

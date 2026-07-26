@@ -111,8 +111,10 @@ collaborative, and unambiguous about what preview and export mean.
   resolves that path relative to the originating source-map span, including
   references authored in supporting files. Project-tree action menus remain
   within the rail so every image and folder action label stays visible and
-  interactive. Deleting a supporting file, an empty folder, or an image hides
-  it immediately but delays the server operation for six seconds; an announced
+  interactive. The tree owner performs encoded empty-folder and image deletion
+  requests and validates their returned snapshots. Deleting a supporting file,
+  an empty folder, or an image still hides it immediately under coordinator
+  authority but delays the server operation for six seconds; an announced
   message offers **Undo** throughout that grace period.
 - The authoring toolbar inserts an existing file with a path relative to the
   active file. **Create and include** creates a supporting file and inserts its

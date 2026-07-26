@@ -152,6 +152,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   status. Emit only the final validated workspace snapshot and completion
   message. Keep snapshot application, project-tree and preview rendering, image
   insertion, deferred deletion, and toast policy in the workspace coordinator.
+- Let the project-tree panel own encoded empty-folder and image deletion
+  transport and response validation. Keep optimistic hiding, the six-second
+  Undo window, delayed commit scheduling, validated snapshot application,
+  rendering, and failure notification in the workspace coordinator.
 - Store project image metadata beside the durable file tree and keep its bytes
   as bounded, inert R2 objects under the reserved `figures/` path. Do not put
   uploaded image bytes in Yjs. Accept SVG only as validated UTF-8 image content

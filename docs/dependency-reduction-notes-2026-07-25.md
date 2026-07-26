@@ -4718,3 +4718,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,546 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Project Tree Deletions
+
+`ProjectTreePanel` now owns the encoded empty-folder and image DELETE requests
+that originate from its action menus, including response validation. The
+workspace coordinator retains optimistic hiding, the six-second delayed commit,
+Undo restoration, validated snapshot application, project-tree and preview
+rendering, and failure notification.
+
+This checkpoint reduces `src/client/app.ts` from 4,713 to 4,700 lines (-13)
+and grows the project-tree owner from 252 to 278 lines. Runtime source across
+those two files increases by 13 lines while removing two duplicated coordinator
+request/validation closures. Focused coverage passes encoded folder and asset
+targets, validated snapshots, malformed-response rejection, remaining tree
+intents, application contracts, and strict types.
+
+The browser application artifact changes from 821,764 B raw / 222,287 B gzip
+to 821,926 B raw / 222,373 B gzip (+162 B raw / +86 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,548 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

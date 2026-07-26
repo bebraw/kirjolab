@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectAsset, ProjectFile, ProjectFolder } from "../domain/project-files";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
@@ -71,6 +72,10 @@ function eventWithTarget(target: object): Event {
   Object.defineProperty(event, "currentTarget", { value: target });
   return event;
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("project tree panel", () => {
   it("renders empty, sorted, active, entry, nested, and filtered states", () => {
@@ -175,5 +180,35 @@ describe("project tree panel", () => {
       { action: "insert-asset", asset },
       { action: "delete-asset", asset },
     ]);
+  });
+
+  it("owns folder and image deletion transport and validates snapshots", async () => {
+    const panel = new TestProjectTreePanel();
+    panel.configure("/api/workspaces/workspace");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json(workspaceSnapshotFixture))
+      .mockResolvedValueOnce(Response.json(workspaceSnapshotFixture));
+
+    await expect(panel.deleteFolder("folder/1")).resolves.toEqual(workspaceSnapshotFixture);
+    await expect(panel.deleteAsset("asset/1")).resolves.toEqual(workspaceSnapshotFixture);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/workspaces/workspace/folders/folder%2F1", {
+      credentials: "same-origin",
+      method: "DELETE",
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/workspaces/workspace/assets/asset%2F1", {
+      credentials: "same-origin",
+      method: "DELETE",
+    });
+  });
+
+  it("rejects malformed deletion snapshots", async () => {
+    const panel = new TestProjectTreePanel();
+    panel.configure("/api/workspaces/workspace");
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(Response.json({ invalid: true })));
+
+    await expect(panel.deleteFolder("folder-1")).rejects.toThrow("Project folder operation returned an invalid workspace");
+    await expect(panel.deleteAsset("asset-1")).rejects.toThrow("Image deletion returned an invalid workspace");
   });
 });
