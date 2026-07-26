@@ -121,9 +121,10 @@ The adopted components own bounded presentation:
   intents.
 - The project evidence panel owns project-PDF and annotation grouping, counts,
   expanded state, grounding selection, live passage-resolution presentation,
-  grounding-choice focus, stroke controls, guarded legacy PDF-removal
-  transport, duplicate-submit gating, pending and retryable failure state, and
-  typed navigation, mutation, and completed-removal outcomes.
+  grounding-choice focus, stroke controls, guarded legacy PDF and annotation
+  removal transport, a shared duplicate-submit gate, pending and retryable
+  failure state, and typed navigation, mutation, notice, and completed-removal
+  outcomes.
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, the workspace quick-open shortcut and
   selection, action menus, listener teardown, and typed file, folder, image,
@@ -429,10 +430,10 @@ reason to wrap static markup mechanically.
   and transitions in the application coordinator.
 - The project evidence panel replaces five internal element references and the
   imperative PDF, annotation, grouping, count, passage-link, and stroke-control
-  renderers plus the coordinator PDF-removal method while leaving
-  editor-dependent API mutations, editor selection, grounding authority, PDF
-  navigation, canonical refresh, and toast policy in the application
-  coordinator.
+  renderers plus the coordinator PDF- and annotation-removal methods while
+  leaving editor-dependent API mutations, editor selection, grounding
+  authority, PDF navigation, form reset, canonical refresh, and toast policy in
+  the application coordinator.
 - The project tree panel replaces three internal element references and the
   imperative filter, hierarchy, row, and action-menu renderers while leaving
   file and folder mutations, editor rebinding, image operations, include

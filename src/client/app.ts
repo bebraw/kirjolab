@@ -801,8 +801,13 @@ class WorkspaceApp {
       else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
       else if (detail.action === "link-annotation") void this.#linkAnnotation(detail.annotationId);
       else if (detail.action === "edit-annotation") this.#editAnnotation(detail.annotation);
-      else if (detail.action === "delete-annotation") void this.#deleteAnnotation(detail.annotation);
-      else if (detail.action === "open-passage") this.#showPassage(detail.anchor);
+      else if (detail.action === "annotation-removed") {
+        this.#elements.projectAnnotationForm.clearAnnotation(detail.annotationId);
+        void this.#resourceRefresh
+          .request()
+          .then(() => this.#showToast(detail.message))
+          .catch(() => this.#showToast("The highlight was deleted, but project resources could not be refreshed."));
+      } else if (detail.action === "open-passage") this.#showPassage(detail.anchor);
       else if (detail.action === "remove-fragment") {
         void this.#removeHighlightFragment(detail.annotationId, detail.fragmentId, true);
       } else {
@@ -2561,6 +2566,7 @@ class WorkspaceApp {
     const { annotations, links, pdfs } = this.#snapshot;
     this.#elements.projectEvidencePanel.setEvidence({
       annotations,
+      claimEvidenceLinks: this.#snapshot.claimEvidenceLinks,
       links,
       pdfs,
       publicationPdfLinks: this.#snapshot.publicationPdfLinks,
@@ -2584,24 +2590,6 @@ class WorkspaceApp {
   #editAnnotation(annotation: AnnotationResource): void {
     this.#elements.projectAnnotationForm.showAnnotation(annotation);
     this.#openAnnotationEvidence(annotation);
-  }
-
-  async #deleteAnnotation(annotation: AnnotationResource): Promise<void> {
-    const claims = this.#snapshot?.claimEvidenceLinks.filter((link) => link.annotationId === annotation.id).length ?? 0;
-    if (claims > 0) {
-      this.#showToast(`Remove this highlight from ${claims} claim(s) before deleting it.`);
-      return;
-    }
-    const passages = this.#snapshot?.links.filter((link) => link.annotationId === annotation.id).length ?? 0;
-    if (!confirm(`Delete this highlight and its ${passages} manuscript link(s)?`)) return;
-    const response = await fetch(`${apiBase}/annotations/${encodeURIComponent(annotation.id)}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    this.#elements.projectAnnotationForm.clearAnnotation(annotation.id);
-    await this.#resourceRefresh.request();
-    this.#showToast("Highlight deleted; the PDF remains unchanged.");
   }
 
   #renderClaims(claims: ClaimResource[], links: ClaimPassageLink[]): void {

@@ -1,6 +1,7 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type {
   AnnotationResource,
+  ClaimEvidenceLink,
   ManuscriptAnchorSelector,
   PassageLink,
   PdfResource,
@@ -16,7 +17,7 @@ import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEv
 export const projectEvidenceActionEvent = "project-evidence-action";
 
 export type ProjectEvidenceAction =
-  | { readonly action: "delete-annotation"; readonly annotation: AnnotationResource }
+  | { readonly action: "annotation-removed"; readonly annotationId: string; readonly message: string }
   | { readonly action: "edit-annotation"; readonly annotation: AnnotationResource }
   | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
   | { readonly action: "link-annotation"; readonly annotationId: string }
@@ -37,6 +38,7 @@ export type ProjectEvidenceAction =
 
 interface ProjectEvidenceData {
   readonly annotations: readonly AnnotationResource[];
+  readonly claimEvidenceLinks: readonly ClaimEvidenceLink[];
   readonly links: readonly PassageLink[];
   readonly pdfs: readonly PdfResource[];
   readonly publicationPdfLinks: readonly PublicationPdfLink[];
@@ -48,23 +50,23 @@ export class ProjectEvidencePanel extends LitElement {
     data: { state: true },
     evidenceOpen: { state: true },
     expandedPdfs: { state: true },
-    removingPdfId: { state: true },
+    removalKey: { state: true },
     status: { state: true },
   };
 
   declare private data: ProjectEvidenceData;
   declare private evidenceOpen: boolean;
   declare private expandedPdfs: ReadonlySet<string>;
-  declare private removingPdfId: string;
+  declare private removalKey: string;
   declare private status: string;
   private apiBase = "";
 
   constructor() {
     super();
-    this.data = { annotations: [], links: [], pdfs: [], publicationPdfLinks: [], selectedEvidenceKeys: new Set() };
+    this.data = { annotations: [], claimEvidenceLinks: [], links: [], pdfs: [], publicationPdfLinks: [], selectedEvidenceKeys: new Set() };
     this.evidenceOpen = false;
     this.expandedPdfs = new Set();
-    this.removingPdfId = "";
+    this.removalKey = "";
     this.status = "";
   }
 
@@ -156,7 +158,7 @@ export class ProjectEvidencePanel extends LitElement {
   }
 
   protected async removePdf(pdf: PdfResource): Promise<void> {
-    if (this.removingPdfId) return;
+    if (this.removalKey) return;
     const annotations = this.data.annotations.filter((annotation) => annotation.pdfId === pdf.id).length;
     const references = this.data.publicationPdfLinks.filter((link) => link.pdfId === pdf.id).length;
     if (annotations + references > 0) {
@@ -166,7 +168,7 @@ export class ProjectEvidencePanel extends LitElement {
       return;
     }
     if (!globalThis.confirm(`Remove ${pdf.name} from this project? The imported PDF bytes will be deleted.`)) return;
-    this.removingPdfId = pdf.id;
+    this.removalKey = `pdf:${pdf.id}`;
     this.status = `Removing ${pdf.name}…`;
     try {
       const response = await fetch(`${this.apiBase}/pdfs/${encodeURIComponent(pdf.id)}`, {
@@ -179,7 +181,7 @@ export class ProjectEvidencePanel extends LitElement {
     } catch (error) {
       this.status = errorMessage(error, `Could not remove ${pdf.name}.`);
     } finally {
-      this.removingPdfId = "";
+      this.removalKey = "";
     }
   }
 
@@ -196,10 +198,38 @@ export class ProjectEvidencePanel extends LitElement {
     const action = button.dataset.annotationAction;
     if (action === "link") this.emit({ action: "link-annotation", annotationId: annotation.id });
     else if (action === "edit") this.emit({ action: "edit-annotation", annotation });
-    else if (action === "delete") this.emit({ action: "delete-annotation", annotation });
+    else if (action === "delete") void this.removeAnnotation(annotation);
     else if (action === "open") {
       const pdf = this.data.pdfs.find((item) => item.id === annotation.pdfId);
       if (pdf) this.emit({ action: "open-pdf", annotationId: annotation.id, page: annotation.page, pdf });
+    }
+  }
+
+  protected async removeAnnotation(annotation: AnnotationResource): Promise<void> {
+    if (this.removalKey) return;
+    const claims = this.data.claimEvidenceLinks.filter((link) => link.annotationId === annotation.id).length;
+    if (claims > 0) {
+      const message = `Remove this highlight from ${claims} claim(s) before deleting it.`;
+      this.status = message;
+      this.emit({ action: "notice", message });
+      return;
+    }
+    const passages = this.data.links.filter((link) => link.annotationId === annotation.id).length;
+    if (!globalThis.confirm(`Delete this highlight and its ${passages} manuscript link(s)?`)) return;
+    this.removalKey = `annotation:${annotation.id}`;
+    this.status = "Deleting highlight…";
+    try {
+      const response = await fetch(`${this.apiBase}/annotations/${encodeURIComponent(annotation.id)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      await expectOk(response);
+      this.status = "";
+      this.emit({ action: "annotation-removed", annotationId: annotation.id, message: "Highlight deleted; the PDF remains unchanged." });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not delete the highlight.");
+    } finally {
+      this.removalKey = "";
     }
   }
 
@@ -249,10 +279,10 @@ export class ProjectEvidencePanel extends LitElement {
             data-pdf-action="remove"
             aria-label="Remove from project"
             title="Remove this legacy project PDF"
-            ?disabled=${Boolean(this.removingPdfId)}
+            ?disabled=${Boolean(this.removalKey)}
             @click=${this.actOnPdf}
           >
-            ${this.removingPdfId === pdf.id ? "Removing…" : "Remove"}
+            ${this.removalKey === `pdf:${pdf.id}` ? "Removing…" : "Remove"}
           </button>
         </div>
         <details
@@ -321,14 +351,16 @@ export class ProjectEvidencePanel extends LitElement {
   }
 
   private annotationButton(annotation: AnnotationResource, action: string, label: string): TemplateResult {
+    const removing = action === "delete" && this.removalKey === `annotation:${annotation.id}`;
     return html`<button
       type="button"
       class="button-secondary w-full justify-center"
       data-annotation-id=${annotation.id}
       data-annotation-action=${action}
+      ?disabled=${action === "delete" && Boolean(this.removalKey)}
       @click=${this.actOnAnnotation}
     >
-      ${label}
+      ${removing ? "Deleting…" : label}
     </button>`;
   }
 

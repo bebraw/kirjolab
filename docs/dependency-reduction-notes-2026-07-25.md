@@ -4210,3 +4210,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,501 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Evidence Annotation Removal
+
+`ProjectEvidencePanel` now also owns guarded annotation deletion, deriving
+claim-evidence and passage-link preconditions from canonical input and reusing
+the same removal lock, status, stable encoded targets, response validation,
+retryable failure state, notice outcome, and completed-removal channel as
+legacy project PDFs. `WorkspaceApp` retains annotation-form reset, canonical
+project-resource refresh, workspace notification policy, PDF navigation,
+grounding authority, and editor-dependent evidence mutations.
+
+This checkpoint reduces `src/client/app.ts` from 5,085 to 5,073 lines (-12)
+and grows the project evidence panel from 418 to 450 lines. Runtime source
+across those files increases by 20 lines while removing the coordinator
+annotation-deletion method and merging both removal workflows under one
+derived lock. Focused coverage passes claim-evidence preconditions,
+passage-aware confirmation, cancellation, stable encoded targets, successful
+completion, provider failure and retry, and cross-resource duplicate removal.
+
+The browser application artifact changes from 811,437 B raw / 219,965 B gzip
+to 812,054 B raw / 220,056 B gzip (+617 B raw / +91 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,505 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
